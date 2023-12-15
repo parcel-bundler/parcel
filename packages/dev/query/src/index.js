@@ -1,5 +1,5 @@
 // @flow strict-local
-/* eslint-disable monorepo/no-internal-import */
+/* eslint-disable no-console, monorepo/no-internal-import */
 import type {ContentKey, NodeId} from '@parcel/graph';
 import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
@@ -27,56 +27,113 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
   cacheInfo: ?Map<string, Array<string | number>>,
 |}> {
-  function filesBySizeAndModifiedTime() {
-    let files = fs.readdirSync(cacheDir).map(f => {
-      let stat = fs.statSync(path.join(cacheDir, f));
-      return [path.join(cacheDir, f), stat.size, stat.mtime];
+  function filesByTypeAndModifiedTime() {
+    let files = fs.readdirSync(cacheDir);
+
+    let requestGraphFiles = [];
+    let bundleGraphFiles = [];
+    let assetGraphFiles = [];
+
+    files.forEach(f => {
+      if (f.endsWith('-0')) {
+        let stat = fs.statSync(path.join(cacheDir, f));
+        let info = [path.join(cacheDir, f), stat.size, stat.mtime];
+
+        if (f.endsWith('RequestGraph-0')) {
+          requestGraphFiles.push(info);
+        } else if (f.endsWith('BundleGraph-0')) {
+          bundleGraphFiles.push(info);
+        } else if (f.endsWith('AssetGraph-0')) {
+          assetGraphFiles.push(info);
+        }
+      }
     });
 
-    files.sort(([, a], [, b]) => b - a);
-    files.sort(([, , a], [, , b]) => b - a);
+    requestGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
+    bundleGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
+    assetGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
 
-    return files.map(([f]) => f);
+    return {
+      requestGraphFiles: requestGraphFiles.map(([f]) => f),
+      bundleGraphFiles: bundleGraphFiles.map(([f]) => f),
+      assetGraphFiles: assetGraphFiles.map(([f]) => f),
+    };
   }
 
   let cacheInfo: Map<string, Array<string | number>> = new Map();
-  let timeToDeserialize = 0;
 
-  let requestTracker;
+  let {requestGraphFiles, bundleGraphFiles, assetGraphFiles} =
+    filesByTypeAndModifiedTime();
   const cache = new LMDBCache(cacheDir);
-  for (let f of filesBySizeAndModifiedTime()) {
-    // Empty filename or not the first chunk
-    if (path.extname(f) !== '' || !f.endsWith('-0')) continue;
+
+  // Get requestTracker
+  let requestTracker;
+  if (requestGraphFiles.length > 0) {
     try {
       let file = await cache.getLargeBlob(
-        path.basename(f).slice(0, -'-0'.length),
+        path.basename(requestGraphFiles[0]).slice(0, -'-0'.length),
       );
 
-      cacheInfo.set('RequestGraph', [Buffer.byteLength(file)]);
-
-      timeToDeserialize = Date.now();
+      let timeToDeserialize = Date.now();
       let obj = v8.deserialize(file);
       timeToDeserialize = Date.now() - timeToDeserialize;
 
-      /* if (obj.assetGraph != null && obj.assetGraph.value.hash != null) {
-        assetGraph = AssetGraph.deserialize(obj.assetGraph.value);
-      } else if (obj.bundleGraph != null) {
-        bundleGraph = BundleGraph.deserialize(obj.bundleGraph.value);
-      } else */
-      if (obj['$$type']?.endsWith('RequestGraph')) {
-        let date = Date.now();
-        requestTracker = new RequestTracker({
-          graph: RequestGraph.deserialize(obj.value),
-          // $FlowFixMe
-          farm: null,
-          // $FlowFixMe
-          options: null,
-        });
-        timeToDeserialize += Date.now() - date;
-        break;
-      }
+      invariant(obj['$$type']?.endsWith('RequestGraph'));
+      let date = Date.now();
+      requestTracker = new RequestTracker({
+        graph: RequestGraph.deserialize(obj.value),
+        // $FlowFixMe
+        farm: null,
+        // $FlowFixMe
+        options: null,
+      });
+      timeToDeserialize += Date.now() - date;
+      cacheInfo.set('RequestGraph', [Buffer.byteLength(file)]);
+      cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
     } catch (e) {
-      // noop
+      console.log('Error loading Request Graph\n', e);
+    }
+  }
+
+  // Get bundleGraph
+  let bundleGraph;
+  if (bundleGraphFiles.length > 0) {
+    try {
+      let file = await cache.getLargeBlob(
+        path.basename(bundleGraphFiles[0]).slice(0, -'-0'.length),
+      );
+
+      let timeToDeserialize = Date.now();
+      let obj = v8.deserialize(file);
+      invariant(obj.bundleGraph != null);
+      bundleGraph = BundleGraph.deserialize(obj.bundleGraph.value);
+      timeToDeserialize = Date.now() - timeToDeserialize;
+
+      cacheInfo.set('BundleGraph', [Buffer.byteLength(file)]);
+      cacheInfo.get('BundleGraph')?.push(timeToDeserialize);
+    } catch (e) {
+      console.log('Error loading Bundle Graph\n', e);
+    }
+  }
+
+  // Get assetGraph
+  let assetGraph;
+  if (assetGraphFiles.length > 0) {
+    try {
+      let file = await cache.getLargeBlob(
+        path.basename(assetGraphFiles[0]).slice(0, -'-0'.length),
+      );
+
+      let timeToDeserialize = Date.now();
+      let obj = v8.deserialize(file);
+      invariant(obj.assetGraph != null);
+      assetGraph = AssetGraph.deserialize(obj.assetGraph.value);
+      timeToDeserialize = Date.now() - timeToDeserialize;
+
+      cacheInfo.set('AssetGraph', [Buffer.byteLength(file)]);
+      cacheInfo.get('AssetGraph')?.push(timeToDeserialize);
+    } catch (e) {
+      console.log('Error loading Asset Graph\n', e);
     }
   }
 
@@ -87,77 +144,34 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   }
 
   // Load graphs by finding the main subrequests and loading their results
-  let assetGraph, bundleGraph, bundleInfo;
-  cacheInfo.set('BundleGraph', []);
-  cacheInfo.set('AssetGraph', []);
-  invariant(requestTracker);
-  let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
-    'parcel_build_request',
-  );
-  let buildRequestNode = nullthrows(
-    requestTracker.graph.getNode(buildRequestId),
-  );
-  invariant(buildRequestNode.type === 1 && buildRequestNode.requestType === 1);
-  let buildRequestSubRequests = getSubRequests(buildRequestId);
-
-  let bundleGraphRequestNode = buildRequestSubRequests.find(
-    n => n.type === 1 && n.requestType === 2,
-  );
-  if (bundleGraphRequestNode != null) {
-    bundleGraph = BundleGraph.deserialize(
-      (
-        await loadLargeBlobRequestRequest(
-          cache,
-          bundleGraphRequestNode,
-          cacheInfo,
-        )
-      ).bundleGraph.value,
+  let bundleInfo;
+  try {
+    invariant(requestTracker);
+    let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
+      'parcel_build_request',
     );
+    let buildRequestNode = nullthrows(
+      requestTracker.graph.getNode(buildRequestId),
+    );
+    invariant(
+      buildRequestNode.type === 1 && buildRequestNode.requestType === 1,
+    );
+    let buildRequestSubRequests = getSubRequests(buildRequestId);
 
-    let assetGraphRequest = getSubRequests(
-      requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
-    ).find(n => n.type === 1 && n.requestType === 3);
-    if (assetGraphRequest != null) {
-      assetGraph = AssetGraph.deserialize(
-        (await loadLargeBlobRequestRequest(cache, assetGraphRequest, cacheInfo))
-          .assetGraph.value,
-      );
+    let writeBundlesRequest = buildRequestSubRequests.find(
+      n => n.type === 1 && n.requestType === 11,
+    );
+    if (writeBundlesRequest != null) {
+      invariant(writeBundlesRequest.type === 1);
+      // $FlowFixMe[incompatible-cast]
+      bundleInfo = (nullthrows(writeBundlesRequest.result): Map<
+        ContentKey,
+        PackagedBundleInfo,
+      >);
     }
-  }
-  cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
-  let writeBundlesRequest = buildRequestSubRequests.find(
-    n => n.type === 1 && n.requestType === 11,
-  );
-  if (writeBundlesRequest != null) {
-    invariant(writeBundlesRequest.type === 1);
-    // $FlowFixMe[incompatible-cast]
-    bundleInfo = (nullthrows(writeBundlesRequest.result): Map<
-      ContentKey,
-      PackagedBundleInfo,
-    >);
+  } catch (e) {
+    console.log('Error loading bundleInfo\n', e);
   }
 
   return {assetGraph, bundleGraph, requestTracker, bundleInfo, cacheInfo};
-}
-
-async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
-  invariant(node.type === 1);
-
-  let cachedFile = await cache.getLargeBlob(nullthrows(node.resultCacheKey));
-
-  let TTD = Date.now();
-  let result = v8.deserialize(cachedFile);
-  TTD = Date.now() - TTD;
-
-  if (node.requestType === 2) {
-    cacheInfo.get('BundleGraph')?.push(cachedFile.byteLength); //Add size
-    cacheInfo.get('BundleGraph')?.push(TTD);
-  }
-
-  if (node.requestType === 3) {
-    cacheInfo.get('AssetGraph')?.push(cachedFile.byteLength);
-    cacheInfo.get('AssetGraph')?.push(TTD);
-  }
-
-  return result;
 }
