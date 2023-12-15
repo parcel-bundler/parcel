@@ -32,6 +32,8 @@ const paths = {
   packageJson: [
     'packages/core/parcel/package.json',
     'packages/utils/create-react-app/package.json',
+    'packages/dev/query/package.json',
+    'packages/dev/bundle-stats-cli/package.json',
   ],
   packages: 'packages/',
 };
@@ -57,7 +59,10 @@ class TapStream extends Transform {
 }
 
 exports.clean = function clean(cb) {
-  rimraf('packages/*/*/lib/**', cb);
+  rimraf('packages/*/*/lib/**').then(
+    () => cb,
+    err => cb(err),
+  );
 };
 
 exports.default = exports.build = gulp.series(
