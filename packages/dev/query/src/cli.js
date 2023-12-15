@@ -10,7 +10,6 @@ import repl from 'repl';
 import os from 'os';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
-import {serialize} from 'v8';
 // $FlowFixMe
 import {table} from 'table';
 
@@ -20,7 +19,6 @@ import {
   loadBundleGraph,
   loadBundleInfo,
   loadCacheInfo,
-  loadGraphs,
   loadRequestTracker,
 } from './index.js';
 
@@ -31,7 +29,7 @@ const {
   LMDBCache,
 } = require('./deep-imports.js');
 
-export async function run(input: string[]) {
+export function run(input: string[]) {
   let args = input;
   let cacheDir = path.join(process.cwd(), '.parcel-cache');
   if (args[0] === '--cache') {
@@ -57,7 +55,7 @@ export async function run(input: string[]) {
 
   async function getBundleFilePath(id: ContentKey) {
     requestTracker = await loadRequestTracker(requestGraphFiles, cache);
-    bundleInfo = await loadBundleInfo(requestTracker);
+    bundleInfo = loadBundleInfo(requestTracker);
     invariant(bundleInfo != null);
     return fromProjectPathRelative(nullthrows(bundleInfo.get(id)?.filePath));
   }

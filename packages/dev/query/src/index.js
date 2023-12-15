@@ -5,7 +5,7 @@ import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
 import fs from 'fs';
 import path from 'path';
-import v8, {deserializ, serialize} from 'v8';
+import v8, {serialize} from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 
@@ -157,7 +157,7 @@ export async function loadAssetGraph(
   }
 }
 
-export async function loadBundleInfo(requestTracker: RequestTracker): Promise<{|
+export function loadBundleInfo(requestTracker: RequestTracker): Promise<{|
   bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
 |}> {
   function getSubRequests(id: NodeId) {
