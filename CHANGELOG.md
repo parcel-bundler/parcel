@@ -29,6 +29,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Fix HMR on .localhost domains [Details](https://github.com/parcel-bundler/parcel/pull/9435)
   - Modify parcel query to not require all graphs on startup [Details](https://github.com/parcel-bundler/parcel/pull/9426)
   - Bug fix for async Parcel-query [Details](https://github.com/parcel-bundler/parcel/pull/9442)
+  - Remove reliance on requestTracker in loadGraphs [Details](https://github.com/parcel-bundler/parcel/pull/9440)
 
 - Core
 
