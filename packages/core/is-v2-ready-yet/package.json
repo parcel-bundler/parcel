@@ -1,6 +1,6 @@
 {
   "name": "@parcel/is-v2-ready-yet",
-  "version": "2.10.3",
+  "version": "2.10.4",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -13,7 +13,7 @@
     "build-app": "yarn parcel build index.html"
   },
   "dependencies": {
-    "@parcel/integration-tests": "2.10.3",
+    "@parcel/integration-tests": "2.10.4",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "victory": "^31.0.1"

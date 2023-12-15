@@ -1,6 +1,6 @@
 {
   "name": "@parcel/react-refresh-example",
-  "version": "2.10.3",
+  "version": "2.10.4",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -8,8 +8,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.10.3",
-    "@parcel/core": "2.10.3"
+    "@parcel/babel-register": "2.10.4",
+    "@parcel/core": "2.10.4"
   },
   "dependencies": {
     "react": "^17.0.2",

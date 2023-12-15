@@ -1,6 +1,6 @@
 {
   "name": "@parcel/runtime-js",
-  "version": "2.10.3",
+  "version": "2.10.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/JSRuntime.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.10.3"
+    "parcel": "^2.10.4"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.10.3",
-    "@parcel/plugin": "2.10.3",
-    "@parcel/utils": "2.10.3",
+    "@parcel/diagnostic": "2.10.4",
+    "@parcel/plugin": "2.10.4",
+    "@parcel/utils": "2.10.4",
     "nullthrows": "^1.1.1"
   }
 }
