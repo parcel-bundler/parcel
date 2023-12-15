@@ -10,6 +10,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Dev
+
   - Log build phase times for dev builds [Details](https://github.com/parcel-bundler/parcel/pull/9371)
   - Progress messages for writing to cache [Details](https://github.com/parcel-bundler/parcel/pull/9368)
   - VSC Extension JSON schema [Details](https://github.com/parcel-bundler/parcel/pull/9386)
@@ -37,13 +38,14 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Optimize Symbol Propagation (propagateSymbolsUp) [Details](https://github.com/parcel-bundler/parcel/pull/9337)
   - Convert Request Graph node types + request node requestTypes to numbers [Details](https://github.com/parcel-bundler/parcel/pull/9412)
   - fsFixture: ignore empty lines in fixtures [Details](https://github.com/parcel-bundler/parcel/pull/9423)
-  - Unstable File Invalidations [Details][https://github.com/parcel-bundler/parcel/pull/9420]
+  - Unstable File Invalidations [Details](https://github.com/parcel-bundler/parcel/pull/9420)
 
 - Resolver
 
   - Add ~ and / support to the glob resolver [Details](https://github.com/parcel-bundler/parcel/pull/9188)
 
 - JavaScript
+
   - Bump swc [Details](https://github.com/parcel-bundler/parcel/pull/9389)
   - Bumping lightningcss to 1.22.1 [Details](https://github.com/parcel-bundler/parcel/pull/9401)
   - Fix CI [Details](https://github.com/parcel-bundler/parcel/pull/9404)
