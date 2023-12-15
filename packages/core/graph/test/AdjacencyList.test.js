@@ -24,14 +24,14 @@ describe('AdjacencyList', () => {
     assert.equal(graph.stats.nodes, 2);
   });
 
-  it('addNode should not resize nodes array', () => {
+  it('addNode should resize nodes array', () => {
     let graph = new AdjacencyList();
     let size = graph.serialize().nodes.byteLength;
     graph.addNode();
     graph.addNode();
     graph.addNode();
     graph.addNode();
-    assert(size == graph.serialize().nodes.byteLength);
+    assert(size < graph.serialize().nodes.byteLength);
   });
 
   it('removeEdge should remove an edge from the graph', () => {
@@ -170,10 +170,9 @@ describe('AdjacencyList', () => {
 
   it('addEdge should resize nodes array when necessary', () => {
     let graph = new AdjacencyList();
-    let size = graph.serialize().nodes.byteLength;
     let a = graph.addNode();
     let b = graph.addNode();
-    assert(size == (size = graph.serialize().nodes.byteLength));
+    let size = graph.serialize().nodes.byteLength;
     graph.addEdge(a, b, 1);
     graph.addEdge(a, b, 2);
     graph.addEdge(a, b, 3);
@@ -240,7 +239,7 @@ describe('AdjacencyList', () => {
     AdjacencyList.prototype.hash = () => 1;
 
     try {
-      let graph = new AdjacencyList({capacity: 3});
+      let graph = new AdjacencyList({initialCapacity: 3});
       let n0 = graph.addNode();
       let n1 = graph.addNode();
       graph.addEdge(n0, n1, 2);
