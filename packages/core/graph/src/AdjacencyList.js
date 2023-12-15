@@ -240,12 +240,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       `Edge mismatch! ${this.#edges.count} does not match ${edges.count}.`,
     );
 
-    // We expect to preserve the same number of nodes.
-    assert(
-      this.#nodes.count === nodes.count,
-      `Node mismatch! ${this.#nodes.count} does not match ${nodes.count}.`,
-    );
-
     // Finally, copy the new data arrays over to this graph.
     this.#nodes = nodes;
     this.#edges = edges;
