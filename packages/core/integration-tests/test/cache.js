@@ -6214,11 +6214,12 @@ describe('cache', function () {
         getParcelOptions(entries, options),
       );
 
-      let bundleGraphCacheKey = hashString(
-        `${version}:BundleGraph:${
-          JSON.stringify(resolvedOptions.entries) ?? ''
-        }${resolvedOptions.mode}`,
-      );
+      let bundleGraphCacheKey =
+        hashString(
+          `${version}:BundleGraph:${
+            JSON.stringify(resolvedOptions.entries) ?? ''
+          }${resolvedOptions.mode}`,
+        ) + '-BundleGraph';
 
       assert(
         deserialize(

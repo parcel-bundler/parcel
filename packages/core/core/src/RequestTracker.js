@@ -1187,7 +1187,8 @@ export default class RequestTracker {
 
   async writeToCache() {
     let cacheKey = getCacheKey(this.options);
-    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+    let requestGraphKey =
+      hashString(`${cacheKey}:requestGraph`) + '-RequestGraph';
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
 
     if (this.options.shouldDisableCache) {
@@ -1283,7 +1284,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   }
 
   let cacheKey = getCacheKey(options);
-  let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+  let requestGraphKey =
+    hashString(`${cacheKey}:requestGraph`) + '-RequestGraph';
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     let requestGraph: RequestGraph = deserialize(
       await options.cache.getLargeBlob(requestGraphKey),
