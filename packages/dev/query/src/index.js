@@ -157,9 +157,9 @@ export async function loadAssetGraph(
   }
 }
 
-export function loadBundleInfo(requestTracker: RequestTracker): Promise<{|
-  bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
-|}> {
+export function loadBundleInfo(
+  requestTracker: RequestTracker,
+): ?Map<ContentKey, PackagedBundleInfo> {
   function getSubRequests(id: NodeId) {
     return requestTracker.graph
       .getNodeIdsConnectedFrom(id, requestGraphEdgeTypes.subrequest)
