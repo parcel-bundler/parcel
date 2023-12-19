@@ -6,6 +6,7 @@ import {
   assertBundles,
   inputFS,
   outputFS,
+  fsFixture,
   ncp,
   run,
   overlayFS,
@@ -874,5 +875,72 @@ describe('monorepos', function () {
     } finally {
       inputFS.chdir(oldcwd);
     }
+  });
+
+  // This test ensures that workspace linked dependency changes are correctly
+  // detected in watch mode when `watchDir` is set to the monorepo root.
+  it('should correctly detect changes when watchDir is higher up in a project-only lockfile monorepo', async () => {
+    const dir = path.join(__dirname, 'project-specific-lockfiles');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      packages
+        app
+          package.json:
+            { "name": "app" }
+          pnpm-lock.yaml:
+            lockfileVersion: 5.4
+          index.js:
+            import {msg} from 'lib';
+            console.log(msg);
+          node_modules
+            lib -> ${path.join(
+              __dirname,
+              'project-specific-lockfiles',
+              'packages',
+              'lib',
+            )}
+        lib
+          package.json:
+            { "name": "lib" }
+          pnpm-lock.yaml:
+            lockfileVersion: 5.4
+          index.js:
+            export const msg = "initial";`;
+
+    let b = await bundler(path.join(dir, 'packages', 'app', 'index.js'), {
+      inputFS: overlayFS,
+      watchDir: path.join(dir),
+    });
+
+    let builds = 0;
+
+    return new Promise((resolve, reject) => {
+      // 1. Increment the build counter and modify `packages/lib/index.js` which
+      //    should trigger a subsquent build.
+      //
+      // 2. Ensure the changed asset was detected and built
+      b.watch(async (err, buildEvent) => {
+        builds++;
+
+        if (builds < 2) {
+          await overlayFS.writeFile(
+            path.join(dir, 'packages', 'lib', 'index.js'),
+            'export const msg = "changed-NcMB9nA7"',
+          );
+        } else {
+          const values = buildEvent?.changedAssets?.values();
+          if (values != null) {
+            const code = await Array.from(values)[0].getCode();
+            assert(code.includes('changed-NcMB9nA7'));
+            resolve();
+          } else {
+            reject(new Error('Changed assets missing.'));
+          }
+        }
+      }).then(sub => {
+        subscription = sub;
+      });
+    });
   });
 });
