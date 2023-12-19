@@ -47,7 +47,9 @@ Create bundles for each entry the user as specified to the project. Entries can 
 
 ## Step: Create Bundles for explicit code split points
 
-Create bundles for explicit code split points. These are…
+### Overview
+
+This step creates bundles for explicit code split points. These are…
 
 - Asynchronous: this bundle does not need to load automatically
 
@@ -67,15 +69,34 @@ Create bundles for explicit code split points. These are…
 
 More on code splitting: [Code Splitting](https://parceljs.org/features/code-splitting/).
 
-We also maintain the notion of bundleGroups during this traversal. Entry bundles and Async Bundles are also bundleGroups. Consider the below code obtained from `integration/shared-bundle-single-source/index.js`
+### Deep Dive: Traverse The AssetGraph
+
+First, we traverse the assetGraph, skipping any entries of different targets. On an asset, we begin to populate `assetIndex`, a mapping by which to look up any `bitSet` values. Then, we grab the `bundleIdTuple` from the `bundleRoots` structure.
+
+- `bundleRoots: Map<Asset,[NodeId, NodeId]` is a mapping of bundle-root assets. This means they are roots of a bundle. Think of these assets as assets which triggered the creation of a bundle, and are the **main entry** of a bundle. All explicit code-split points (all of which are handled in this step), are "bundleRoots"
+
+We use the `stack` to track what bundleGroup we are currently in, so that we can accurately draw edges between bundles. BundleIds and BundleGroupIds are not the same, but can be. This is how we are able to reduce node bloat in the graph. In `createIdealGraph`, "bundleGroups" are simply represented by bundles that are attached to the root. Thus, when `bundleId === bundleGroupId`, or in this case, the tuple values are equivalent, we know we have entered a new bundleGroup.
+
+```js
+if (bundleIdTuple[0] === bundleIdTuple[1]) {
+  // Push to the stack on a new bundle group
+  stack.push([node.value, bundleIdTuple[0]]);
+}
+```
+
+The top of the stack will track what bundleGroup we are currently on.
+
+#### Code Split for Lazy and isolated Dependencies
+
+Consider the below code obtained from `integration/shared-bundle-single-source/index.js`
 
 <table><tr>
 <td>
 
 ```js
-//index.js
+//index.js (project entry)
 import('./foo'); //async imports
-import('./bar');
+import('./bar'); //async
 ```
 
 </td><td>
@@ -93,6 +114,20 @@ import html from './local.html'; //isolated
 
 IdealBundleGraph from `integration/shared-bundle-single-source/index.js`
 
+All the bundles above are explicit code-split points, but not all of them are "bundleGroups". As a rule of thumb, only Entry bundles, Async Bundles, and "isolated" Assets are bundleGroups. `Isolated` is found on the `bundleBehavior` property of bundles, which is typically set in a Transformer. `HTML` and Images tend to be `isolated`.
+
+#### Code Split for Type Change, Parallel, and Inline Dependencies
+
+We also create bundles for type change assets, parallel dependencies, and inline assets.
+
+```js
+parentAsset.type !== childAsset.type ||
+  dependency.priority === 'parallel' ||
+  childAsset.bundleBehavior === 'inline';
+```
+
+Bundles created by this path are **not** bundleGroups, and can also be merged with bundles of the same time. The stack not only tracks what bundleGroup we're in, but also the last "parent" bundle, or `referencingBundleRoot`. We draw an edge from the `referencingBundleRoot` to our new bundle. We preemptively attempt to merge this bundle into any existing bundle of the same type **within our bundleGroup**. Merging is also handled in the next step, we track what bundles are eligible for merging via `typeChangeIds`.
+
 ## Step: Merge Type Change Bundles
 
 Type change bundles are a special case of bundle, because they require consistent or “stable” names. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
@@ -102,6 +137,8 @@ See CSS example in [BundlerExamples.md](./BundlerExamples.md) for a step-by-step
 ## Step: Determine Reachability
 
 Here is where we begin building up the graphs required to determine where to place assets. The first is called reachableRoots. ReachableRoots maintains all bundleRoots and what assets are available to them synchronously.
+
+From the above example:
 
 <table><tr>
 <td>
@@ -127,7 +164,7 @@ import foo from './foo';
 Given those imports, here are our synchronous:
 ![image info](./BundlerGraphs/steps/reachableRoots_sharedsinglesource.png)
 
-We also begin building up the bundleRootGraph (needs a better name) which maintains bundleRoots and their parallel and async relationships via different edge types.
+We also begin building up the bundleRootGraph which maintains bundleRoots and their parallel and async relationships via different edge types. First, we add `bundleRoots` to the bundleRoot graph.
 
 From the same example, here are the asynchronous and parallel relationships:
 ![image info](./BundlerGraphs/steps/bundleRootGraph.png)
@@ -190,13 +227,13 @@ There’s a special case here that is unique to the experimental bundler, which 
 
 ### Other special cases
 
-Manual Bundles: TODO
+Throughout the `DefaultBundler` There are referrences to `ManualSharedBundles`, this is an unstable feature, please see Manual Bundling for contributor notes on that feature.
 
 ## Step: Merge Shared Bundles
 
 Users of Parcel can specify a bundler config, which sets minbundleSize, maxParallelRequests, and minBundles. In this step we merge back and shared bundles that are smaller than minBundleSize.
 
-These config options only affect shared bundles.
+These config options only affect shared bundles. For more on the config options, visit the [Parcel Docs on Shared Bundles](https://parceljs.org/features/code-splitting/#shared-bundles).
 
 ## Step: Remove Shared Bundles
 
