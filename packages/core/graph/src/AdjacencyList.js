@@ -54,12 +54,38 @@ const DEFAULT_PARAMS: AdjacencyListParams = {
   shrinkFactor: 0.5,
 };
 
+/**
+ * `AdjacencyList` maps nodes to lists of their adjacent nodes.
+ *
+ * It is implemented as a hashmap of nodes, where each node has
+ * doubly linked lists of edges of each unique edge type.
+ * The edges are stored in a separate hashmap, where each edge has
+ * a pointer to the originating node, the terminating node, and
+ * the next and previous edges to and from adjacent nodes.
+ *
+ * The hash maps are each stored in a `Uint32Array` backed
+ * by a `SharedArrayBuffer`. See `SharedTypeMap` for more details.
+ *
+ * It's primary interface is through the `getNodeIdsConnectedFrom`
+ * and `getNodeIdsConnectedTo` methods, which return the list of
+ * nodes connected from or to a given node, respectively.
+ *
+ * It is also possible to get the lists of edges connected from or to
+ * a given node, using the `getOutboundEdgesByType` and
+ * `getInboundEdgesByType` methods.
+ *
+ */
 export default class AdjacencyList<TEdgeType: number = 1> {
   #nodes /*: NodeTypeMap<TEdgeType | NullEdgeType> */;
   #edges /*: EdgeTypeMap<TEdgeType | NullEdgeType> */;
 
   #params /*: AdjacencyListParams */;
 
+  /**
+   * Create a new `AdjacencyList` in one of two ways:
+   * - with specified options, or
+   * - with data serialized from a previous `AdjacencyList`.
+   */
   constructor(
     opts?:
       | SerializedAdjacencyList<TEdgeType | NullEdgeType>
@@ -92,7 +118,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
-   * Create a new `AdjacencyList` from the given options.
+   * Create a new `AdjacencyList` with data serialized
+   * from another `AdjacencyList`.
    */
   static deserialize(
     opts: SerializedAdjacencyList<TEdgeType>,
@@ -101,7 +128,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
-   * Returns a serializable object of the nodes and edges in the graph.
+   * Returns a serializable object of the nodes and edges in the AdjacencyList.
    */
   serialize(): SerializedAdjacencyList<TEdgeType> {
     return {
@@ -110,6 +137,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     };
   }
 
+  /** Statistics about the current state of the `AdjacencyList`. */
   get stats(): {|
     /** The maximum number of edges the graph can contain. */
     capacity: number,
@@ -139,7 +167,14 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     maxCollisions: number,
     /** The average number of collisions per hash. */
     avgCollisions: number,
-    /** The likelihood of uniform distribution. ~1.0 indicates certainty. */
+    /**
+     * The actual distribution of hashes vs. the expected (uniform) distribution.
+     *
+     * From: https://en.wikipedia.org/wiki/Hash_function#Testing_and_measurement
+     *
+     * > A ratio within one confidence interval (0.95 - 1.05) is indicative
+     * > that the hash function...has an expected uniform distribution.
+     */
     uniformity: number,
   |} {
     let edgeTypes = new Set();
@@ -157,18 +192,20 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     let maxCollisions = 0;
     let collisions = 0;
     let distribution = 0;
+    /**
+     * The expected distribution of hashes across available hash buckets.
+     *
+     * See: https://en.wikipedia.org/wiki/Hash_function#Testing_and_measurement
+     */
+    let uniformDistribution =
+      (this.#edges.count / (2 * this.#edges.capacity)) *
+      (this.#edges.count + 2 * this.#edges.capacity - 1);
 
     for (let bucket of buckets.values()) {
       maxCollisions = Math.max(maxCollisions, bucket.size - 1);
       collisions += bucket.size - 1;
       distribution += (bucket.size * (bucket.size + 1)) / 2;
     }
-
-    // TODO: Figure out if this calculation is still correct...
-    let uniformity =
-      distribution /
-      ((this.#edges.count / (2 * this.#edges.capacity)) *
-        (this.#edges.count + 2 * this.#edges.capacity - 1));
 
     return {
       capacity: this.#edges.capacity,
@@ -191,15 +228,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       maxCollisions,
       avgCollisions:
         Math.round((collisions / this.#edges.count) * 100) / 100 || 0,
-      uniformity: Math.round(uniformity * 100) / 100 || 0,
+      uniformity:
+        Math.round((distribution / uniformDistribution) * 100) / 100 || 0,
     };
   }
 
   /**
    * Resize the internal nodes array.
    *
-   * This is used in `addEdge` when the `numNodes` meets or exceeds
-   * the allocated size of the `nodes` array.
+   * This is used in `addNode` and in `addEdge` when
+   * the `nodes` array is at capacity,
    */
   resizeNodes(size: number) {
     let nodes = this.#nodes;
@@ -212,8 +250,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /**
    * Resize the internal edges array.
    *
-   * This is used in `addEdge` when the `numEdges` meets or exceeds
-   * the allocated size of the `edges` array.
+   * This is used in `addEdge` when the `edges` array is at capacity.
    */
   resizeEdges(size: number) {
     // Allocate the required space for new `nodes` and `edges` maps.
@@ -248,14 +285,15 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /**
    * Adds a node to the graph.
    *
+   * Note that this method does not increment the node count
+   * (that only happens in `addEdge`), it _may_ preemptively resize
+   * the nodes array if it is at capacity, under the asumption that
+   * at least 1 edge to or from this new node will be added.
+   *
    * Returns the id of the added node.
    */
   addNode(): NodeId {
     let id = this.#nodes.getId();
-    // Even though adding a node doesn't increment count, we preemptively
-    // grow the capacity if the array is currently maxed out, under the
-    // assumption that at least one 1 edge to or from this new node will be
-    // added.
     if (this.#nodes.getLoad() >= 1) {
       this.resizeNodes(
         increaseNodeCapacity(this.#nodes.capacity, this.#params),
@@ -267,6 +305,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
   /**
    * Adds an edge to the graph.
+   *
+   * This method will increment the edge count, and it _may_
+   * also increment the node count, if the originating or
+   * terminating node does not yet have any edges of the given type.
+   *
+   * If either the `nodes` or `edges` arrays are at capacity,
+   * this method will resize them before adding.
+   *
+   * Furthermore, if the `edges` array has a high number of
+   * deleted edges, it may reclaim the space before adding.
    *
    * Returns `true` if the edge was added,
    * or `false` if the edge already exists.
@@ -322,6 +370,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return result;
   }
 
+  /**
+   * Iterate over all edges in insertion order.
+   */
   *getAllEdges(): Iterator<{|
     type: TEdgeType | NullEdgeType,
     from: NodeId,
@@ -357,7 +408,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
+   * Remove an edge connecting the `from` and `to` nodes.
    *
+   * Note that space for the deleted edge is not reclaimed
+   * until the `edges` array is resized.
+   *
+   * This method will increment the edge delete count.
    */
   removeEdge(
     from: NodeId,
@@ -399,6 +455,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges.delete(edge);
   }
 
+  /**
+   * Check if the given node has any edges incoming from other nodes.
+   *
+   * Essentially, this is an orphan check. If a node has no incoming edges,
+   * it (and its entire subgraph) is completely disconnected from the
+   * rest of the graph.
+   */
   hasInboundEdges(to: NodeId): boolean {
     let node = this.#nodes.head(to);
     while (node !== null) {
@@ -408,6 +471,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return false;
   }
 
+  /**
+   * Get a list of every node (labeled `from`) connecting _to_
+   * the given `to` node, along with the edge `type` connecting them.
+   */
   getInboundEdgesByType(
     to: NodeId,
   ): {|type: TEdgeType | NullEdgeType, from: NodeId|}[] {
@@ -426,6 +493,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return edges;
   }
 
+  /**
+   * Get a list of every node (labeled `to`) connected _from_
+   * the given `from` node, along with the edge `type` connecting them.
+   */
   getOutboundEdgesByType(
     from: NodeId,
   ): {|type: TEdgeType | NullEdgeType, to: NodeId|}[] {
@@ -445,7 +516,11 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
-   * Get the list of nodes connected from this node.
+   * Get the list of node ids connected from this node.
+   *
+   * If `type` is specified, only return nodes connected by edges of that type.
+   * If `type` is an array, return nodes connected by edges of any of those types.
+   * If `type` is `AllEdgeTypes` (`-1`), return nodes connected by edges of any type.
    */
   getNodeIdsConnectedFrom(
     from: NodeId,
@@ -499,7 +574,11 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
-   * Get the list of nodes connected to this node.
+   * Get the list of node ids connected to this node.
+   *
+   * If `type` is specified, only return nodes connected by edges of that type.
+   * If `type` is an array, return nodes connected by edges of any of those types.
+   * If `type` is `AllEdgeTypes` (`-1`), return nodes connected by edges of any type.
    */
   getNodeIdsConnectedTo(
     to: NodeId,
@@ -621,6 +700,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
   /** The offset at which an item's type is stored. */
   static #TYPE: 1 = 1;
 
+  /** The largest possible capacity. */
   static get MAX_CAPACITY(): number {
     return Math.floor(
       // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
@@ -628,33 +708,39 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     );
   }
 
-  /** The largest possible capacity. */
+  /** Assert that the given `capacity` does not exceed `MAX_CAPACITY`. */
   static assertMaxCapacity(capacity: number): void {
     assert(capacity <= this.MAX_CAPACITY, `${this.name} capacity overflow!`);
   }
 
   data: Uint32Array;
 
+  /** The total number of items that can fit in the map. */
   get capacity(): number {
     return this.data[SharedTypeMap.#CAPACITY];
   }
 
+  /** The number of items in the map. */
   get count(): number {
     return this.data[SharedTypeMap.#COUNT];
   }
 
+  /** The ratio of the count to the capacity. */
   get load(): number {
     return this.getLoad();
   }
 
+  /** The total length of the map, in bytes. */
   get length(): number {
     return this.getLength();
   }
 
+  /** The address of the first item in the map. */
   get addressableLimit(): number {
     return this.constructor.HEADER_SIZE + this.capacity;
   }
 
+  /** The size of the map in mb, as a localized string. */
   get bufferSize(): string {
     return `${(this.data.byteLength / 1024 / 1024).toLocaleString(undefined, {
       minimumFractionDigits: 2,
@@ -662,6 +748,11 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     })} mb`;
   }
 
+  /**
+   * Create a new `SharedTypeMap` in one of two ways:
+   * - with a capacity of `capacityOrData` if it is a number,
+   * - or with `capacityOrData` as its data, if it is a `Uint32Array`.
+   */
   constructor(capacityOrData: number | Uint32Array) {
     if (typeof capacityOrData === 'number') {
       let {BYTES_PER_ELEMENT} = Uint32Array;
@@ -677,6 +768,13 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     }
   }
 
+  /**
+   * Overwrite the data in this map with the given `data`.
+   *
+   * The `data` is expected to conform to the same
+   * partitioning and schema as the data in this map,
+   * and is expected to be of equal or smaller capacity to this map.
+   */
   set(data: Uint32Array): void {
     let {HEADER_SIZE, ITEM_SIZE} = this.constructor;
     let NEXT = SharedTypeMap.#NEXT;
@@ -708,10 +806,23 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     }
   }
 
+  /**
+   * Given a `count` (defaulting to `this.count`),
+   * get the load on the map.
+   *
+   * The load is the ratio of the `count` the capacity of the map.
+   *
+   * If the load is `1`, it means the map is at capacity, and needs
+   * to be resized before adding more items.
+   */
   getLoad(count: number = this.count): number {
     return count / this.capacity;
   }
 
+  /**
+   * Given a `capacity` (defaulting to `this.capacity`),
+   * get the length of the map, in bytes.
+   */
   getLength(capacity: number = this.capacity): number {
     let {HEADER_SIZE, ITEM_SIZE} = this.constructor;
     return capacity + HEADER_SIZE + ITEM_SIZE * capacity;
@@ -735,10 +846,15 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     return (this.data[(item: any) + NEXT]: any) || null;
   }
 
+  /** Get the type of the item at the given `item` address. */
   typeOf(item: TAddress): TItemType {
     return (this.data[item + SharedTypeMap.#TYPE]: any);
   }
 
+  /**
+   * Store an item of `type` at the `item` address and
+   * link the address to the `hash` bucket.
+   */
   link(hash: THash, item: TAddress, type: TItemType): void {
     let COUNT = SharedTypeMap.#COUNT;
     let NEXT = SharedTypeMap.#NEXT;
@@ -762,6 +878,9 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     this.data[COUNT]++;
   }
 
+  /**
+   * Remove the link to the `item` address from the `hash` bucket.
+   */
   unlink(hash: THash, item: TAddress): void {
     let COUNT = SharedTypeMap.#COUNT;
     let NEXT = SharedTypeMap.#NEXT;
@@ -850,7 +969,17 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
 /**
  * Nodes are stored in a `SharedTypeMap`, keyed on node id plus an edge type.
  * This means that for any given unique node id, there may be `e` nodes in the
- * map, where `e` is the number of possible edge types in the graph.
+ * map, where `e` is the number of unique edge types in the graph.
+ *
+ * The _hash_ for a node is simply the node id (as issued by `getId`),
+ * and forms the head of linked list of unique _edge types_ connected
+ * to or from the same node id.
+ *
+ * In addition to a unique edge type, each Node contains the heads and tails
+ * of doubly linked lists of incoming and outgoing edges of the same type.
+ *
+ * Note that the links in the doubly linked lists are Edges (not Nodes),
+ * which are stored in a corresponding `EdgeTypeMap`.
  */
 export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
   TEdgeType,
@@ -870,6 +999,15 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
    * ┌──────────┬───────┬─────────┐
    * │ CAPACITY │ COUNT │ NEXT_ID │
    * └──────────┴───────┴─────────┘
+   *
+   * The `nextId` is a count of the number of times `getId` has been called.
+   * This is distinct concept from the `count`, which tracks the number of times
+   * `add` has been called.
+   *
+   * The reason for this distinction is that `getId` is called once per node
+   * (to issue a _unique_ id) and will _always increment_ the `nextId` counter,
+   * whereas `add` is called once per edge, and will only increment the `count`
+   * if the _type_ of edge is new for the given node.
    */
   static HEADER_SIZE: number = 3;
   /** The offset from the header where the next available node id is stored. */
@@ -891,6 +1029,9 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
    * ┌──────┬──────┬──────────┬───────────┬─────────┬──────────┐
    * │ NEXT │ TYPE │ FIRST_IN │ FIRST_OUT │ LAST_IN │ LAST_OUT │
    * └──────┴──────┴──────────┴───────────┴─────────┴──────────┘
+   *
+   * The `Node` implicitly maps a node id (the hash the node was added with)
+   * to the first and last incoming and outgoing edges of the same _edge type_.
    */
   static ITEM_SIZE: number = 6;
   /** The offset at which a node's first incoming edge of this type is stored. */
@@ -909,6 +1050,16 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     this.data[NodeTypeMap.#NEXT_ID] = fromNodeId(nextId);
   }
 
+  /**
+   * Get the load on the node map.
+   *
+   * The load is the greater of either:
+   * - the ratio of the number of node ids to the capacity of the map,
+   * - or the ratio of the `count` to the capacity of the map.
+   *
+   * if `count` is not provided, the default is the number of items
+   * currently added to the map.
+   */
   getLoad(count?: number): number {
     return Math.max(
       fromNodeId(this.nextId) / this.capacity,
@@ -921,6 +1072,9 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     return toNodeId(this.data[NodeTypeMap.#NEXT_ID]++);
   }
 
+  /**
+   * Add new lists of edges of the given `type` to and from the given `node`.
+   */
   add(node: NodeId, type: TEdgeType): NodeAddress {
     let index = fromNodeId(node);
     assert(
@@ -932,6 +1086,10 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     return address;
   }
 
+  /**
+   * Get the address of the lists edges of the given `type`
+   * to and from the given `node`.
+   */
   addressOf(node: NodeId, type: TEdgeType): NodeAddress | null {
     let address = this.head(node);
     while (address !== null) {
@@ -943,22 +1101,45 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     return null;
   }
 
+  /**
+   * Given a `node` address, get the _head_ of the linked list
+   * of incoming edges of the same type to the same node.
+   */
   firstIn(node: NodeAddress): EdgeAddress | null {
     return this.data[node + NodeTypeMap.#FIRST_IN] || null;
   }
 
+  /**
+   * Given a `node` address, get the _head_ of the linked list
+   * of outgoing edges of the same type from the same node.
+   */
   firstOut(node: NodeAddress): EdgeAddress | null {
     return this.data[node + NodeTypeMap.#FIRST_OUT] || null;
   }
 
+  /**
+   * Given a `node` address, get the _tail_ of the linked list
+   * of incoming edges of the same type to the same node.
+   */
   lastIn(node: NodeAddress): EdgeAddress | null {
     return this.data[node + NodeTypeMap.#LAST_IN] || null;
   }
 
+  /**
+   * Given a `node` address, get the _tail_ of the linked list
+   * of outgoing edges of the same type from the same node.
+   */
   lastOut(node: NodeAddress): EdgeAddress | null {
     return this.data[node + NodeTypeMap.#LAST_OUT] || null;
   }
 
+  /**
+   * Set `edge` as the last incoming edge to `node`.
+   * If `node` has no incoming edges, set `edge`
+   * as the first incoming edge, as well.
+   *
+   * Returns the address of the old last incoming edge, if any.
+   */
   linkIn(node: NodeAddress, edge: EdgeAddress): EdgeAddress | null {
     let first = this.firstIn(node);
     let last = this.lastIn(node);
@@ -967,6 +1148,13 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     return last;
   }
 
+  /**
+   * If `edge` is the last incoming edge to `node`,
+   * update the node's last incoming edge to `prev`.
+   *
+   * If `edge` is the first incoming edge to `node`,
+   * update the node's first incoming edge to `next`.
+   */
   unlinkIn(
     node: NodeAddress,
     edge: EdgeAddress,
@@ -983,6 +1171,13 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     }
   }
 
+  /**
+   * Set `edge` as the last outgoing edge from `node`.
+   * If `node` has no outgoing edges, set `edge`
+   * as the first outgoing edge, as well.
+   *
+   * Returns the address of the old last outgoing edge, if any.
+   */
   linkOut(node: NodeAddress, edge: EdgeAddress): EdgeAddress | null {
     let first = this.firstOut(node);
     let last = this.lastOut(node);
@@ -991,6 +1186,13 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     return last;
   }
 
+  /**
+   * If `edge` is the last outgoing edge from `node`,
+   * update the node's last outgoing edge to `prev`.
+   *
+   * If `edge` is the first outgoing edge from `node`,
+   * update the node's first outgoing edge to `next`.
+   */
   unlinkOut(
     node: NodeAddress,
     edge: EdgeAddress,
@@ -1011,6 +1213,14 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
 /**
  * Edges are stored in a `SharedTypeMap`,
  * keyed on the 'from' and 'to' node ids, and the edge type.
+ *
+ * The _hash_ for an edge is a hash of the edge's `from`, `to`, and `type` values,
+ * and forms the head of linked list of edges with the same hash.
+ *
+ * In addition to the `from`, `to` and `type` values, each Edge contains
+ * the next and previous links of doubly linked lists of the _adjacent_ edges
+ * of the same type, both incoming to the `to` node, and outgoing from
+ * the `from` node.
  */
 export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
   TEdgeType,
@@ -1030,6 +1240,13 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
    * ┌──────────┬───────┬─────────┐
    * │ CAPACITY │ COUNT │ DELETES │
    * └──────────┴───────┴─────────┘
+   *
+   * Since new edges are always appended, the space for deleted edges
+   * is not reused. Instead, the `deletes` count is incremented when an
+   * edge is deleted. The next available address is calculated by
+   * adding the `count` and `deletes` values to the header size.
+   *
+   * The only way to reclaim the space used by deleted edges is to resize the map.
    */
   static HEADER_SIZE: number = 3;
   /** The offset from the header where the delete count is stored. */
@@ -1053,6 +1270,10 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
    * ┌──────┬──────┬──────┬────┬─────────┬─────────┬──────────┬──────────┐
    * │ NEXT │ TYPE │ FROM │ TO │ NEXT_IN │ PREV_IN │ NEXT_OUT │ PREV_OUT │
    * └──────┴──────┴──────┴────┴─────────┴─────────┴──────────┴──────────┘
+   *
+   * The `Edge` implicitly maps an edge hash (the hash of the edge's `FROM`,
+   * `TO`, and `TYPE` values) to the next and previous adjacent edges of the
+   * same _edge type_.
    */
   static ITEM_SIZE: number = 8;
   /** The offset at which an edge's 'from' node id is stored. */
@@ -1068,15 +1289,21 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
   /** The offset at which the 'from' node's previous outgoing edge is stored.  */
   static #PREV_OUT = 7;
 
+  /** The number of deleted edges currently occupying space in the map. */
   get deletes(): number {
     return this.data[EdgeTypeMap.#DELETES];
   }
 
+  /** Get the next available address in the map. */
   getNextAddress(): EdgeAddress {
     let {ITEM_SIZE} = this.constructor;
     return this.addressableLimit + (this.count + this.deletes) * ITEM_SIZE;
   }
 
+  /**
+   * Add an edge of the given `type` between the `to` and `from` nodes
+   * and link the address to the `hash` bucket.
+   */
   add(hash: EdgeHash, from: NodeId, to: NodeId, type: TEdgeType): EdgeAddress {
     assert(
       hash >= 0 && hash < this.capacity,
@@ -1091,12 +1318,20 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
     return edge;
   }
 
+  /**
+   * Remove the `to` and `from` nodes for the given `edge` address
+   * and increment the `deletes` counter.
+   */
   delete(edge: EdgeAddress): void {
     this.data[edge + EdgeTypeMap.#FROM] = 0;
     this.data[edge + EdgeTypeMap.#TO] = 0;
     this.data[EdgeTypeMap.#DELETES]++;
   }
 
+  /**
+   * Get the address of the edge with the given `hash`, `from` and `to` nodes,
+   * and edge `type`.
+   */
   addressOf(
     hash: EdgeHash,
     from: NodeId,
@@ -1117,22 +1352,33 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
     return null;
   }
 
+  /** Get the id of the 'from' node for the given `edge` address. */
   from(edge: EdgeAddress): NodeId {
     return toNodeId(this.data[edge + EdgeTypeMap.#FROM]);
   }
 
+  /** Get the id of the 'to' node for the given `edge` address. */
   to(edge: EdgeAddress): NodeId {
     return toNodeId(this.data[edge + EdgeTypeMap.#TO]);
   }
 
+  /**
+   * Get the address of the next edge _of the same type_
+   * incoming _to the same node_ as the edge at the given address.
+   */
   nextIn(edge: EdgeAddress): EdgeAddress | null {
     return this.data[edge + EdgeTypeMap.#NEXT_IN] || null;
   }
 
+  /**
+   * Get the address of the previous edge _of the same type_
+   * incoming _to the same node_ as the edge at the given address.
+   */
   prevIn(edge: EdgeAddress): EdgeAddress | null {
     return this.data[edge + EdgeTypeMap.#PREV_IN] || null;
   }
 
+  /** Link two adjacent edges of the same type incoming to the same node. */
   linkIn(edge: EdgeAddress, next: EdgeAddress) {
     assert(this.typeOf(edge) === this.typeOf(next), 'Edge types must match.');
     assert(this.to(edge) === this.to(next), 'To nodes must match.');
@@ -1140,6 +1386,10 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
     this.data[next + EdgeTypeMap.#PREV_IN] = edge;
   }
 
+  /**
+   * Unlink an edge from the doubly linked list of incoming edges
+   * to the same node.
+   */
   unlinkIn(edge: EdgeAddress) {
     let next = this.nextIn(edge);
     let prev = this.prevIn(edge);
@@ -1155,14 +1405,23 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
     }
   }
 
+  /**
+   * Get the address of the next edge _of the same type_
+   * outgoing _from the same node_ as the edge at the given address.
+   */
   nextOut(edge: EdgeAddress): EdgeAddress | null {
     return this.data[edge + EdgeTypeMap.#NEXT_OUT] || null;
   }
 
+  /**
+   * Get the address of the previous edge _of the same type_
+   * outgoing _from the same node_ as the edge at the given address.
+   */
   prevOut(edge: EdgeAddress): EdgeAddress | null {
     return this.data[edge + EdgeTypeMap.#PREV_OUT] || null;
   }
 
+  /** Link two adjacent edges of the same type outgoing from the same node. */
   linkOut(edge: EdgeAddress, next: EdgeAddress) {
     assert(this.typeOf(edge) === this.typeOf(next), 'Edge types must match.');
     assert(this.from(edge) === this.from(next), 'From nodes must match.');
@@ -1170,6 +1429,10 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
     this.data[next + EdgeTypeMap.#PREV_OUT] = edge;
   }
 
+  /**
+   * Unlink an edge from the doubly linked list of outgoing edges
+   * of the same type from the same node.
+   */
   unlinkOut(edge: EdgeAddress) {
     let next = this.nextOut(edge);
     let prev = this.prevOut(edge);
