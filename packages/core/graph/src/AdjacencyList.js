@@ -1134,6 +1134,8 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
   }
 
   linkIn(edge: EdgeAddress, next: EdgeAddress) {
+    assert(this.typeOf(edge) === this.typeOf(next), 'Edge types must match.');
+    assert(this.to(edge) === this.to(next), 'To nodes must match.');
     this.data[edge + EdgeTypeMap.#NEXT_IN] = next;
     this.data[next + EdgeTypeMap.#PREV_IN] = edge;
   }
@@ -1162,6 +1164,8 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
   }
 
   linkOut(edge: EdgeAddress, next: EdgeAddress) {
+    assert(this.typeOf(edge) === this.typeOf(next), 'Edge types must match.');
+    assert(this.from(edge) === this.from(next), 'From nodes must match.');
     this.data[edge + EdgeTypeMap.#NEXT_OUT] = next;
     this.data[next + EdgeTypeMap.#PREV_OUT] = edge;
   }
