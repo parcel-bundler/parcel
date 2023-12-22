@@ -73,6 +73,8 @@ const commonOptions = {
   '--config <path>':
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
+  '--watch-dir <path>':
+    'set the root watch directory. defaults to nearest lockfile or source control dir.',
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
@@ -473,6 +475,7 @@ async function normalizeOptions(
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    watchDir: command.watchDir,
     config: command.config,
     mode,
     hmrOptions,
