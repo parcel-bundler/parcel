@@ -11,7 +11,7 @@ The core ideas behind the `AdjacencyList` are:
 Conceptually, this is achieved by associating each edge that is added
 _to or from_ a node with a previous edge that was added to or from that node.
 
-Where Parcel's `AdjencyList` gets complex is in its _data layer_, which is
+Where Parcel's `AdjacencyList` gets complex is in its _data layer_, which is
 designed for:
 
 - shared access in a multithreaded runtime
@@ -26,7 +26,7 @@ _edge_ structs that also connect to or from the same node (ordered by insertion)
 
 This looks something like:
 
-```flow
+```js
 // NOTE: Not a real type, just an illustration!
 type AdjacencyList<{
   id: NodeId,
@@ -81,9 +81,7 @@ a straightforward process of following the links.
 </td></tr>
 </table>
 
-
-
-## `SharedTypeMap`
+## SharedTypeMap
 
 Under the hood, things are less straightforward.
 
@@ -117,7 +115,7 @@ each _edge_ that connects the nodes has a _type_.
 Thus, when storing data about connections between adjacent nodes,
 `AdjacencyList` uses the _type_ as part of the identifying information.
 
-### `Uint32Array` partitions
+### Uint32Array partitions
 
 As mentioned above, to deal with collisions, `SharedTypeMap` employs a version
 of a coalesced hashing strategy. In this version:
@@ -170,8 +168,8 @@ graph LR
 ```
 
 - The _header_ partition stores metadata:
-  - `CAPACITY`: the total number of items that can fit in the array
-    this is always equal to the length of the _hashtable_ partition.
+  - `CAPACITY`: the total number of items that can fit in the array.
+    This is always equal to the length of the _hash table_.
   - `COUNT`: the number of items that are currently in
     the _addressable space_ partition.
 - The _hash table_ partition stores _addresses_, which are pointers
@@ -190,20 +188,20 @@ to the address of the colliding value.
 
 These linked lists of values that have hash collisions are known as _buckets_.
 
-### Hash buckets: another list of lists
+## Hash buckets: another list of lists
 
 Though `SharedTypeMap` stores data in a _hash table_, it presents
 an API that is more like a _linked list_. Instead of adding an item
 to the `SharedTypeMap` through something like an `add` method,
 `SharedTypeMap` has a method called `link`:
 
-```flow
+```js
   link(hash: THash, item: TAddress, type: TItemType): void;
 ```
 
 This method pairs with `getNextAddress`:
 
-```flow
+```js
   getNextAddress(): TAddress
 ```
 
@@ -277,7 +275,7 @@ graph LR
   index4[4] -- head --> address9[9]
 ```
 
-## How `AdjacencyList` uses `SharedTypeMap`
+## How AdjacencyList uses SharedTypeMap
 
 As mentioned above, `SharedTypeMap` is a _base implementation_; it isn't used
 directly. `AdjacencyList` uses two subclasses of `SharedTypeMap`:
@@ -293,7 +291,7 @@ The business of `AdjacencyList` is therefore interacting with these two maps whe
 - **traversing** edges by following the links from records in `nodes`
   to records in `edges` (and back)
 
-## `EdgeTypeMap`
+## EdgeTypeMap
 
 The `EdgeTypeMap` extends `SharedTypeMap` with API for:
 
@@ -312,7 +310,7 @@ a number that that fits within the **current capacity** of the `EdgeTypeMap`.
 That hash number is then the index in the hash table where the _head_
 of the linked list of edges with this hash is stored.
 
-See [Hash buckets: another list of lists](#hash-buckets%3A-another-list-of-lists) for more.
+See [Hash buckets: another list of lists](#hash-buckets-another-list-of-lists) for more.
 
 ### Edge records
 
@@ -386,7 +384,7 @@ labelled as the following **`uint32` (4 byte)** fields:
 - `NEXT_OUT`: The address of the next outgoing edge of the same type from the same originating node
 - `PREV_OUT`: The address of the previous outgoing edge of the same type from the same originating node
 
-#### Sizing the `EdgeTypeMap`
+#### Sizing the EdgeTypeMap
 
 The capacity of `EdgeTypeMap` is always _at least_ the total number of edges
 in the graph.
@@ -407,7 +405,7 @@ Given a capacity of `c`:
 
 The size of the `Uint32Array` is therefore `3 + 9c`.
 
-#### Resizing the `EdgeTypeMap`
+#### Resizing the EdgeTypeMap
 
 The `EdgeTypeMap` is resized on demand in `addEdge`.
 There are two scenarios in which the `EdgeTypeMap` is resized:
@@ -415,7 +413,7 @@ There are two scenarios in which the `EdgeTypeMap` is resized:
 - if there is not enough capacity in the addressable space
   to accommodate an additional edge
 
-- if there are a enough deletes that the capacity
+- if there are enough deletes that the capacity
   can be reduced and still fit the number of edges plus an additional edge.
 
 In the first case, the capacity must increase. This is accomplished by
@@ -424,21 +422,20 @@ follows a linear progression, starting from the `maxGrowFactor (defaulting to 8)
 and scaled inversely linearly the `minGrowFactor (defaulting to 2)` from capacity
 0 to `peakCapacity`. Roughly the following formula:
 
-```
+```js
 maxGrowFactor + (minGrowFactor - maxGrowFactor) * (capacity / peakCapacity)
 ```
 
 Once the `capacity` exceeds `peakCapacity`, the capacity grows by the `minGrowFactor`.
 
-In the second case, the capacity can decrease. This is accomplished by
-computing _halving_ the capacity.
+In the second case, the capacity can decrease. This is accomplished by _halving_ the capacity.
 
 In both cases, after computing the next capacity, a new `EdgeTypeMap`
 is created with that new capacity along with a new `NodeTypeMap` that retains
 its current capacity. Every edge in the current `EdgeTypeMap` is then
 _rehashed_ and _relinked_ into the new maps.
 
-## `NodeTypeMap`
+## NodeTypeMap
 
 The `NodeTypeMap` extends `SharedTypeMap` with API for:
 
@@ -582,7 +579,7 @@ labelled as the following **`uint32` (4 byte)** fields:
 - `LAST_IN`: The address in `EdgeTypeMap` of the last edge of this type **to** this node
 - `LAST_OUT`: The address in `EdgeTypeMap` of the last edge of this type **from** this node
 
-#### Sizing the `NodeTypeMap`
+#### Sizing the NodeTypeMap
 
 As implied above, adding a node to `AdjacencyList` does not actually increment
 the count of nodes in the `NodeTypeMap`, it only increments the `nodeId`.
@@ -619,7 +616,7 @@ Given a capacity of `c`:
 
 The size of the `Uint32Array` is therefore `3 + 7c`.
 
-#### Resizing the `NodeTypeMap`
+#### Resizing the NodeTypeMap
 
 There are two scenarios in which the `NodeTypeMap` is resized:
 
@@ -645,7 +642,7 @@ is necessary. The internal addresses can all be safely incremented by
 the capacity delta, while the addresses to edges, which point to the `EdgeTypMap`,
 don't need to change at all (as its size hasn't changed).
 
-## What `AdjacencyList` really looks like
+## What AdjacencyList really looks like
 
 
 given a graph like:
