@@ -1,8 +1,8 @@
 /* eslint-disable no-console, monorepo/no-internal-import */
 // @flow strict-local
-
 import type {PackagedBundle} from '@parcel/types';
 import type {ParcelOptions} from '@parcel/core/src/types';
+import type {commander$Command} from 'commander';
 
 // $FlowFixMe[untyped-import]
 import {version} from '../package.json';
@@ -10,17 +10,17 @@ import {version} from '../package.json';
 import commander from 'commander';
 import fs from 'fs';
 import path from 'path';
-
 import {DefaultMap} from '@parcel/utils';
 
-import {loadGraphs} from 'parcel-query/src/index.js';
-import {getBundleStats} from '@parcel/reporter-bundle-stats/src/BundleStatsReporter';
-import {PackagedBundle as PackagedBundleClass} from '@parcel/core/src/public/Bundle';
-import type {commander$Command} from 'commander';
+const {
+  loadGraphs,
+  getBundleStats,
+  PackagedBundleClass,
+} = require('./deep-imports.js');
 
-function run({cacheDir, outDir}) {
+async function run({cacheDir, outDir}) {
   // 1. load bundle graph and info via parcel~query
-  let {bundleGraph, bundleInfo} = loadGraphs(cacheDir);
+  let {bundleGraph, bundleInfo} = await loadGraphs(cacheDir);
 
   if (bundleGraph == null) {
     console.error('Bundle Graph could not be found');

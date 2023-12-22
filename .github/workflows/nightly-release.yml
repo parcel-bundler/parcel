@@ -39,7 +39,7 @@ jobs:
     name: linux-gnu-x64
     runs-on: ubuntu-20.04
     container:
-      image: docker.io/adrienv1520/nodejs-16-centos7
+      image: docker.io/mischnic/centos7-node16
     steps:
       - uses: actions/checkout@v3
       - name: Install yarn

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/create-react-app",
-  "version": "2.9.3",
+  "version": "2.10.3",
   "bin": {
     "parcel-create-react-app": "src/bin.js"
   },
@@ -25,13 +25,13 @@
     "command-exists": "^1.2.6",
     "commander": "^7.0.0",
     "ncp": "^2.0.0",
-    "rimraf": "^3.0.2",
-    "simple-git": "^2.26.0",
+    "rimraf": "^5.0.5",
+    "simple-git": "^3.21.0",
     "tempy": "^0.2.1",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.9.3"
+    "@parcel/babel-register": "2.10.3"
   }
 }

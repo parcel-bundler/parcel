@@ -306,6 +306,7 @@ pub enum BailoutReason {
   ModuleReassignment,
   NonStaticDynamicImport,
   NonStaticAccess,
+  ThisInExport,
 }
 
 impl BailoutReason {
@@ -354,6 +355,10 @@ impl BailoutReason {
       BailoutReason::NonStaticAccess => (
         "Non-static access of an `import` or `require`. This causes tree shaking to be disabled for the resolved module.",
         "https://parceljs.org/features/scope-hoisting/#dynamic-member-accesses"
+      ),
+      BailoutReason::ThisInExport => (
+        "Module contains `this` access of an exported value. This causes the module to be wrapped and tree-shaking to be disabled.",
+        "https://parceljs.org/features/scope-hoisting/#avoiding-bail-outs"
       ),
     }
   }
