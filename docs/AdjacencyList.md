@@ -42,9 +42,9 @@ type EdgeList<{
 }>
 ```
 
-<table style="white-space: nowrap">
+<table>
 <tr><th>So, given a graph like:</th><th>you can imagine doubly linked lists like:</th></tr>
-<tr><td>
+<tr><td width="25%">
 
 ```mermaid
 graph TD;
@@ -54,7 +54,7 @@ graph TD;
 ```
 
 </td>
-<td style="width: 100%">
+<td>
 
 ```mermaid
 graph LR
@@ -75,12 +75,13 @@ graph LR
   2[Node 2] -- incoming --> b[[edge b]] -- incoming --> c[[edge c]]
   2[Node 2] -- incomingReverse  --> c[[edge c]] -- incomingReverse --> b[[edge b]]
 ```
+This makes traversal of every edge of the graph _from any node_
+a straightforward process of following the links.
 
 </td></tr>
 </table>
 
-This makes traversal of every edge of the graph _from any node_
-a straightforward process of following the links.
+
 
 ## `SharedTypeMap`
 
@@ -222,9 +223,9 @@ in the addressable space _in insertion order_.
 
 For example, here we see that hash `0` has 1 collision:
 
-<table style="white-space: nowrap">
+<table>
 <tr><th>given an insertion order:</th><th>imagine a list like:</th><tr>
-<tr><td>
+<tr><td width="25%">
 
 ```
 // map.link(hash, address, type)
@@ -235,7 +236,7 @@ map.link(0, map.getNextAddress(), 1)
 ```
 
 </td>
-<td width="100%">
+<td>
 
 ```mermaid
 graph LR
@@ -319,9 +320,9 @@ The `EdgeTypeMap` records can be thought of as the links
 in the linked lists of edges connected to or from a given node.
 As described in [Node records](#node-records), There is a linked list _per edge type_, and also _per direction_:
 
-<table style="white-space: nowrap">
+<table>
 <tr><th>given a graph like:</th><th>imagine lists like:</th><tr>
-<tr><td>
+<tr><td width="25%">
 
 ```mermaid
 graph TD;
@@ -333,7 +334,7 @@ graph TD;
 ```
 
 </td>
-<td width="100%">
+<td>
 
 ```mermaid
 graph LR
@@ -361,16 +362,15 @@ graph LR
   e1 -- next out --> e2 -- prev out --> e1
   e2 -- next in  --> e4 -- prev in  --> e2
 ```
-
-</td></tr>
-</table>
-
 Because edge records are only created once per unique pair of node ids
 and edge type, and deleted edges do not get reclaimed (without a resize
 and rehash of every edge, see [Resizing the `EdgeTypeMap`](#resizing-the-edgetypemap)),
 the maximum number of node records that will be stored is `d + n * n * e`,
 where `n` is the number of nodes and `e` is the number of _unique_ edge types,
 and `d` is the number of deleted edges.
+
+</td></tr>
+</table>
 
 ### Edge fields
 
@@ -452,9 +452,9 @@ The `NodeTypeMap` records can be thought of as the heads of
 linked lists of edges connected to or from a given node.
 There is a linked list _per edge type_, and also _per direction_:
 
-<table style="white-space: nowrap">
+<table>
 <tr><th>given a graph like:</th><th>imagine lists like:</th><tr>
-<tr><td>
+<tr><td width="25%">
 
 ```mermaid
 graph TD;
@@ -465,7 +465,7 @@ graph TD;
 ```
 
 </td>
-<td width="100%">
+<td>
 
 ```mermaid
 graph LR
@@ -562,13 +562,13 @@ graph LR
   et2 -- last in --> e2
 ```
 
-</td></tr>
-</table>
-
 Because node records are only created once per unique node id and edge type,
 the maximum number of node records that will be stored is `n * e`,
 where `n` is the number of nodes (the count of _node ids_ issued)
 and `e` is the number of _unique_ edge types in the graph.
+
+</td></tr>
+</table>
 
 ### Node fields
 
@@ -647,13 +647,10 @@ don't need to change at all (as its size hasn't changed).
 
 ## What `AdjacencyList` really looks like
 
-TODO: Model the actual data
 
-<table style="white-space: nowrap">
-<tr><th>given a graph like:</th><th>AdjacencyList looks like:</th><tr>
-<tr><td>
+given a graph like:
 
-```mermeid
+```mermaid
 graph TD;
   0 --> |1| 1
   0 --> |2| 1
@@ -661,8 +658,7 @@ graph TD;
   0 --> |2| 2
 ```
 
-</td>
-<td width="100%">
+AdjacencyList looks like:
 
 ```mermaid
 graph LR
@@ -734,9 +730,6 @@ graph LR
   na41 -- first out --> ea31
   na41 -- last out  --> ea31
 ```
-
-</td></tr>
-</table>
 
 Or, as raw `Uint32Array` data:
 
