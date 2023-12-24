@@ -3,7 +3,8 @@ use std::collections::HashSet;
 
 use crate::id;
 use serde::{Deserialize, Serialize};
-use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::common::errors::{DiagnosticBuilder, Emitter};
+use swc_core::common::{sync::Lrc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
 use swc_core::ecma::ast::{self, Id};
 use swc_core::ecma::atoms::{js_word, JsWord};
 
@@ -387,4 +388,62 @@ macro_rules! id {
   ($ident: expr) => {
     $ident.to_id()
   };
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
+
+impl Emitter for ErrorBuffer {
+  fn emit(&mut self, db: &DiagnosticBuilder) {
+    self.0.lock().unwrap().push((**db).clone());
+  }
+}
+
+pub fn error_buffer_to_diagnostics(
+  error_buffer: &ErrorBuffer,
+  source_map: &Lrc<SourceMap>,
+) -> Vec<Diagnostic> {
+  let s = error_buffer.0.lock().unwrap().clone();
+  s.iter()
+    .map(|diagnostic| {
+      let message = diagnostic.message();
+      let span = diagnostic.span.clone();
+      let suggestions = diagnostic.suggestions.clone();
+
+      let span_labels = span.span_labels();
+      let code_highlights = if !span_labels.is_empty() {
+        let mut highlights = vec![];
+        for span_label in span_labels {
+          highlights.push(CodeHighlight {
+            message: span_label.label,
+            loc: SourceLocation::from(source_map, span_label.span),
+          });
+        }
+
+        Some(highlights)
+      } else {
+        None
+      };
+
+      let hints = if !suggestions.is_empty() {
+        Some(
+          suggestions
+            .into_iter()
+            .map(|suggestion| suggestion.msg)
+            .collect(),
+        )
+      } else {
+        None
+      };
+
+      Diagnostic {
+        message,
+        code_highlights,
+        hints,
+        show_environment: false,
+        severity: DiagnosticSeverity::Error,
+        documentation_url: None,
+      }
+    })
+    .collect()
 }

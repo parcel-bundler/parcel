@@ -354,4 +354,25 @@ describe('macros', function () {
       ]);
     }
   });
+
+  it('should support returning functions', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { test } from "./macro.js" with { type: "macro" };
+        output = test(1, 2)(3);
+
+      macro.js:
+        export function test(a, b) {
+          return new Function('c', \`return \${a} + \${b} + c\`);
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('output=6'));
+  });
 });

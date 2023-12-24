@@ -22,7 +22,7 @@ use macros::MacroCallback;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
-use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
+use swc_core::common::errors::Handler;
 use swc_core::common::pass::Optional;
 use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_core::ecma::ast::{Module, ModuleItem, Program};
@@ -50,7 +50,7 @@ use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
-use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+use utils::{error_buffer_to_diagnostics, Diagnostic, DiagnosticSeverity, ErrorBuffer, SourceType};
 
 pub use crate::macros::JsValue;
 use crate::macros::Macros;
@@ -138,15 +138,6 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
   }
 
   None
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
-
-impl Emitter for ErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.lock().unwrap().push((**db).clone());
-  }
 }
 
 pub fn transform(
@@ -608,53 +599,4 @@ fn emit(
   }
 
   Ok((buf, src_map_buf))
-}
-
-fn error_buffer_to_diagnostics(
-  error_buffer: &ErrorBuffer,
-  source_map: &Lrc<SourceMap>,
-) -> Vec<Diagnostic> {
-  let s = error_buffer.0.lock().unwrap().clone();
-  s.iter()
-    .map(|diagnostic| {
-      let message = diagnostic.message();
-      let span = diagnostic.span.clone();
-      let suggestions = diagnostic.suggestions.clone();
-
-      let span_labels = span.span_labels();
-      let code_highlights = if !span_labels.is_empty() {
-        let mut highlights = vec![];
-        for span_label in span_labels {
-          highlights.push(CodeHighlight {
-            message: span_label.label,
-            loc: SourceLocation::from(source_map, span_label.span),
-          });
-        }
-
-        Some(highlights)
-      } else {
-        None
-      };
-
-      let hints = if !suggestions.is_empty() {
-        Some(
-          suggestions
-            .into_iter()
-            .map(|suggestion| suggestion.msg)
-            .collect(),
-        )
-      } else {
-        None
-      };
-
-      Diagnostic {
-        message,
-        code_highlights,
-        hints,
-        show_environment: false,
-        severity: DiagnosticSeverity::Error,
-        documentation_url: None,
-      }
-    })
-    .collect()
 }

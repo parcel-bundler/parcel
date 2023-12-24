@@ -1,14 +1,18 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use swc_core::common::errors::Handler;
 use swc_core::common::util::take::Take;
-use swc_core::common::{SourceMap, Span, DUMMY_SP};
+use swc_core::common::{sync::Lrc, SourceMap, Span, DUMMY_SP};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::parser::lexer::Lexer;
+use swc_core::ecma::parser::{Parser, StringInput};
 use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::utils::{
-  match_export_name, match_property_name, CodeHighlight, Diagnostic, SourceLocation,
+  error_buffer_to_diagnostics, match_export_name, match_property_name, CodeHighlight, Diagnostic,
+  ErrorBuffer, SourceLocation,
 };
 
 pub type MacroCallback =
@@ -103,7 +107,7 @@ impl<'a> Macros<'a> {
 
     // If that was successful, call the function callback (on the JS thread).
     match (self.callback)(src.to_string(), export.to_string(), args) {
-      Ok(val) => Ok(Expr::from(val)),
+      Ok(val) => Ok(Expr::try_from(val)?),
       Err(err) => Err(Diagnostic {
         message: format!("Error evaluating macro: {}", err),
         code_highlights: Some(vec![CodeHighlight {
@@ -240,6 +244,7 @@ pub enum JsValue {
   Regex { source: String, flags: String },
   Array(Vec<JsValue>),
   Object(Vec<(String, JsValue)>),
+  Function(String),
 }
 
 /// Statically evaluate a JS expression to a value, if possible.
@@ -447,9 +452,10 @@ fn eval(expr: &Expr) -> Result<JsValue, Span> {
         }
       }
       Ok(JsValue::Null) | Ok(JsValue::Undefined) => eval(&*cond.alt),
-      Ok(JsValue::Object(_)) | Ok(JsValue::Array(_)) | Ok(JsValue::Regex { .. }) => {
-        eval(&*cond.cons)
-      }
+      Ok(JsValue::Object(_))
+      | Ok(JsValue::Array(_))
+      | Ok(JsValue::Function(_))
+      | Ok(JsValue::Regex { .. }) => eval(&*cond.cons),
       Ok(JsValue::String(s)) => {
         if s.is_empty() {
           eval(&*cond.alt)
@@ -489,9 +495,11 @@ fn eval(expr: &Expr) -> Result<JsValue, Span> {
 }
 
 // Convert JS value to AST.
-impl From<JsValue> for Expr {
-  fn from(value: JsValue) -> Self {
-    match value {
+impl TryFrom<JsValue> for Expr {
+  type Error = Diagnostic;
+
+  fn try_from(value: JsValue) -> Result<Self, Self::Error> {
+    Ok(match value {
       JsValue::Null => Expr::Lit(Lit::Null(Null::dummy())),
       JsValue::Undefined => Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP)),
       JsValue::Bool(b) => Expr::Lit(Lit::Bool(Bool {
@@ -517,20 +525,20 @@ impl From<JsValue> for Expr {
         span: DUMMY_SP,
         elems: arr
           .into_iter()
-          .map(|elem| {
-            Some(ExprOrSpread {
+          .map(|elem| -> Result<_, Self::Error> {
+            Ok(Some(ExprOrSpread {
               spread: None,
-              expr: Box::new(Expr::from(elem)),
-            })
+              expr: Box::new(Expr::try_from(elem)?),
+            }))
           })
-          .collect(),
+          .collect::<Result<Vec<_>, Self::Error>>()?,
       }),
       JsValue::Object(obj) => Expr::Object(ObjectLit {
         span: DUMMY_SP,
         props: obj
           .into_iter()
-          .map(|(k, v)| {
-            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+          .map(|(k, v)| -> Result<_, Self::Error> {
+            Ok(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
               key: if Ident::verify_symbol(&k).is_ok() {
                 PropName::Ident(Ident::new(k.into(), DUMMY_SP))
               } else {
@@ -540,11 +548,34 @@ impl From<JsValue> for Expr {
                   raw: None,
                 })
               },
-              value: Box::new(Expr::from(v)),
-            })))
+              value: Box::new(Expr::try_from(v)?),
+            }))))
           })
-          .collect(),
+          .collect::<Result<Vec<_>, Self::Error>>()?,
       }),
-    }
+      JsValue::Function(source) => {
+        let source_map = Lrc::new(SourceMap::default());
+        let source_file =
+          source_map.new_source_file(swc_core::common::FileName::Anon, source.into());
+        let lexer = Lexer::new(
+          Default::default(),
+          Default::default(),
+          StringInput::from(&*source_file),
+          None,
+        );
+
+        let mut parser = Parser::new_from(lexer);
+        match parser.parse_expr() {
+          Ok(expr) => *expr,
+          Err(err) => {
+            let error_buffer = ErrorBuffer::default();
+            let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
+            err.into_diagnostic(&handler).emit();
+            let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, &source_map);
+            return Err(diagnostics.pop().unwrap());
+          }
+        }
+      }
+    })
   }
 }

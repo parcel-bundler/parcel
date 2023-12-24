@@ -124,6 +124,10 @@ mod native_only {
         }
         Ok(res.into_unknown())
       }
+      JsValue::Function(_) => {
+        // Functions can only be returned from macros, not passed in.
+        unreachable!()
+      }
     }
   }
 
@@ -176,12 +180,15 @@ mod native_only {
           Ok(JsValue::Object(props))
         }
       }
-      ValueType::Symbol | ValueType::External | ValueType::Function | ValueType::Unknown => {
-        Err(napi::Error::new(
-          napi::Status::GenericFailure,
-          "Could not convert value returned from macro to AST.",
-        ))
+      ValueType::Function => {
+        let f = unsafe { value.cast::<JsFunction>() };
+        let source = f.coerce_to_string()?.into_utf8()?.into_owned()?;
+        Ok(JsValue::Function(source))
       }
+      ValueType::Symbol | ValueType::External | ValueType::Unknown => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Could not convert value returned from macro to AST.",
+      )),
     }
   }
 
