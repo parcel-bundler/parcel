@@ -375,4 +375,25 @@ describe('macros', function () {
     let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(res.includes('output=6'));
   });
+
+  it('should support macros written in typescript', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { test } from "./macro.ts" with { type: "macro" };
+        output = test(1, 2);
+
+      macro.ts:
+        export function test(a: number, b: number) {
+          return a + b;
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('output=3'));
+  });
 });
