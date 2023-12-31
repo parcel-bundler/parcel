@@ -1,10 +1,5 @@
 // @flow
-import type {
-  JSONObject,
-  EnvMap,
-  SourceLocation,
-  TransformerResult,
-} from '@parcel/types';
+import type {JSONObject, EnvMap, SourceLocation} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
