@@ -326,7 +326,7 @@ describe('macros', function () {
     } catch (err) {
       assert.deepEqual(err.diagnostics, [
         {
-          message: `Error evaluating macro: test\n    at Object.test (${path.join(
+          message: `Error evaluating macro: test\n    at Object.apply (${path.join(
             dir,
             'macro.js',
           )}:2:9)`,
@@ -395,5 +395,33 @@ describe('macros', function () {
 
     let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(res.includes('output=3'));
+  });
+
+  it('should allow emitting additional assets', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { css } from "./macro.ts" with { type: "macro" };
+        output = css('background: red') + css('color: pink');
+
+      macro.ts:
+        export function css(v) {
+          this.addAsset({
+            type: 'css',
+            content: '.foo {\\n' + v + '\\n}'
+          });
+          return 'foo';
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('output="foofoo"'));
+
+    res = await overlayFS.readFile(b.getBundles()[1].filePath, 'utf8');
+    assert(res.includes('.foo{color:pink;background:red}'));
   });
 });

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use crate::id;
 use serde::{Deserialize, Serialize};
 use swc_core::common::errors::{DiagnosticBuilder, Emitter};
-use swc_core::common::{sync::Lrc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
+use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
 use swc_core::ecma::ast::{self, Id};
 use swc_core::ecma::atoms::{js_word, JsWord};
 
@@ -401,7 +401,7 @@ impl Emitter for ErrorBuffer {
 
 pub fn error_buffer_to_diagnostics(
   error_buffer: &ErrorBuffer,
-  source_map: &Lrc<SourceMap>,
+  source_map: &SourceMap,
 ) -> Vec<Diagnostic> {
   let s = error_buffer.0.lock().unwrap().clone();
   s.iter()

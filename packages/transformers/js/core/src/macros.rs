@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use swc_core::common::errors::Handler;
 use swc_core::common::util::take::Take;
-use swc_core::common::{sync::Lrc, SourceMap, Span, DUMMY_SP};
+use swc_core::common::{SourceMap, Span, DUMMY_SP};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::{js_word, JsWord};
 use swc_core::ecma::parser::lexer::Lexer;
@@ -15,8 +15,9 @@ use crate::utils::{
   ErrorBuffer, SourceLocation,
 };
 
-pub type MacroCallback =
-  Arc<dyn Fn(String, String, Vec<JsValue>) -> Result<JsValue, String> + Send + Sync>;
+pub type MacroCallback = Arc<
+  dyn Fn(String, String, Vec<JsValue>, SourceLocation) -> Result<JsValue, String> + Send + Sync,
+>;
 
 pub struct Macros<'a> {
   /// Mapping of imported identifiers to import metadata.
@@ -106,14 +107,12 @@ impl<'a> Macros<'a> {
     }
 
     // If that was successful, call the function callback (on the JS thread).
-    match (self.callback)(src.to_string(), export.to_string(), args) {
-      Ok(val) => Ok(Expr::try_from(val)?),
+    let loc = SourceLocation::from(self.source_map, call.span);
+    match (self.callback)(src.to_string(), export.to_string(), args, loc.clone()) {
+      Ok(val) => Ok(self.value_to_expr(val)?),
       Err(err) => Err(Diagnostic {
         message: format!("Error evaluating macro: {}", err),
-        code_highlights: Some(vec![CodeHighlight {
-          message: None,
-          loc: SourceLocation::from(self.source_map, call.span),
-        }]),
+        code_highlights: Some(vec![CodeHighlight { message: None, loc }]),
         hints: None,
         show_environment: false,
         severity: crate::utils::DiagnosticSeverity::Error,
@@ -495,10 +494,8 @@ fn eval(expr: &Expr) -> Result<JsValue, Span> {
 }
 
 // Convert JS value to AST.
-impl TryFrom<JsValue> for Expr {
-  type Error = Diagnostic;
-
-  fn try_from(value: JsValue) -> Result<Self, Self::Error> {
+impl<'a> Macros<'a> {
+  fn value_to_expr(&self, value: JsValue) -> Result<Expr, Diagnostic> {
     Ok(match value {
       JsValue::Null => Expr::Lit(Lit::Null(Null::dummy())),
       JsValue::Undefined => Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP)),
@@ -525,19 +522,19 @@ impl TryFrom<JsValue> for Expr {
         span: DUMMY_SP,
         elems: arr
           .into_iter()
-          .map(|elem| -> Result<_, Self::Error> {
+          .map(|elem| -> Result<_, Diagnostic> {
             Ok(Some(ExprOrSpread {
               spread: None,
-              expr: Box::new(Expr::try_from(elem)?),
+              expr: Box::new(self.value_to_expr(elem)?),
             }))
           })
-          .collect::<Result<Vec<_>, Self::Error>>()?,
+          .collect::<Result<Vec<_>, Diagnostic>>()?,
       }),
       JsValue::Object(obj) => Expr::Object(ObjectLit {
         span: DUMMY_SP,
         props: obj
           .into_iter()
-          .map(|(k, v)| -> Result<_, Self::Error> {
+          .map(|(k, v)| -> Result<_, Diagnostic> {
             Ok(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
               key: if Ident::verify_symbol(&k).is_ok() {
                 PropName::Ident(Ident::new(k.into(), DUMMY_SP))
@@ -548,15 +545,15 @@ impl TryFrom<JsValue> for Expr {
                   raw: None,
                 })
               },
-              value: Box::new(Expr::try_from(v)?),
+              value: Box::new(self.value_to_expr(v)?),
             }))))
           })
-          .collect::<Result<Vec<_>, Self::Error>>()?,
+          .collect::<Result<Vec<_>, Diagnostic>>()?,
       }),
       JsValue::Function(source) => {
-        let source_map = Lrc::new(SourceMap::default());
-        let source_file =
-          source_map.new_source_file(swc_core::common::FileName::Anon, source.into());
+        let source_file = self
+          .source_map
+          .new_source_file(swc_core::common::FileName::MacroExpansion, source.into());
         let lexer = Lexer::new(
           Default::default(),
           Default::default(),
@@ -571,7 +568,7 @@ impl TryFrom<JsValue> for Expr {
             let error_buffer = ErrorBuffer::default();
             let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
             err.into_diagnostic(&handler).emit();
-            let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, &source_map);
+            let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, &self.source_map);
             return Err(diagnostics.pop().unwrap());
           }
         }

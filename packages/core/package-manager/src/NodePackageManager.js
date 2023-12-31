@@ -215,6 +215,7 @@ export class NodePackageManager implements PackageManager {
       let extname = path.extname(filePath);
       if (
         (extname === '.ts' || extname === '.tsx') &&
+        // $FlowFixMe
         !Module._extensions[extname]
       ) {
         let compile = m._compile;
@@ -223,8 +224,11 @@ export class NodePackageManager implements PackageManager {
           compile.call(m, out.code, filename);
         };
 
+        // $FlowFixMe
         Module._extensions[extname] = (m, filename) => {
+          // $FlowFixMe
           delete Module._extensions[extname];
+          // $FlowFixMe
           Module._extensions['.js'](m, filename);
         };
       }

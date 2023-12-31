@@ -17,7 +17,7 @@ mod native_only {
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
     JsBoolean, JsFunction, JsNumber, JsString, ValueType,
   };
-  use parcel_js_swc_core::JsValue;
+  use parcel_js_swc_core::{JsValue, SourceLocation};
   use std::sync::Arc;
 
   // Allocate a single channel per thread to communicate with the JS thread.
@@ -29,6 +29,7 @@ mod native_only {
     src: String,
     export: String,
     args: Vec<JsValue>,
+    loc: SourceLocation,
   }
 
   #[napi]
@@ -43,7 +44,8 @@ mod native_only {
             let src = ctx.env.create_string(&ctx.value.src)?.into_unknown();
             let export = ctx.env.create_string(&ctx.value.export)?.into_unknown();
             let args = js_value_to_napi(JsValue::Array(ctx.value.args), ctx.env)?;
-            Ok(vec![src, export, args])
+            let loc = ctx.env.to_js_value(&ctx.value.loc)?.into_unknown();
+            Ok(vec![src, export, args, loc])
           },
         )?)
       } else {
@@ -63,12 +65,17 @@ mod native_only {
       let res = parcel_js_swc_core::transform(
         config,
         if let Some(tsfn) = call_macro_tsfn {
-          Some(Arc::new(move |src, export, args| {
+          Some(Arc::new(move |src, export, args, loc| {
             CHANNEL.with(|channel| {
               // Call JS function to run the macro.
               let tx = channel.0.clone();
               tsfn.call_with_return_value(
-                Ok(CallMacroMessage { src, export, args }),
+                Ok(CallMacroMessage {
+                  src,
+                  export,
+                  args,
+                  loc,
+                }),
                 ThreadsafeFunctionCallMode::Blocking,
                 move |v: JsUnknown| {
                   // When the JS function returns, await the promise, and send the result

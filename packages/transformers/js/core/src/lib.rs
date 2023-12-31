@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::common::errors::Handler;
 use swc_core::common::pass::Optional;
+use swc_core::common::source_map::SourceMapGenConfig;
 use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_core::ecma::ast::{Module, ModuleItem, Program};
 use swc_core::ecma::codegen::text_writer::JsWriter;
@@ -54,6 +55,7 @@ use utils::{error_buffer_to_diagnostics, Diagnostic, DiagnosticSeverity, ErrorBu
 
 pub use crate::macros::JsValue;
 use crate::macros::Macros;
+pub use utils::SourceLocation;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -502,7 +504,7 @@ pub fn transform(
                 emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
-                  .build_source_map(&src_map_buf)
+                  .build_source_map_with_config(&src_map_buf, None, SourceMapConfig)
                   .to_writer(&mut map_buf)
                   .is_ok()
               {
@@ -599,4 +601,16 @@ fn emit(
   }
 
   Ok((buf, src_map_buf))
+}
+
+// Exclude macro expansions from source maps.
+struct SourceMapConfig;
+impl SourceMapGenConfig for SourceMapConfig {
+  fn file_name_to_source(&self, f: &FileName) -> String {
+    f.to_string()
+  }
+
+  fn skip(&self, f: &FileName) -> bool {
+    matches!(f, FileName::MacroExpansion | FileName::Internal(..))
+  }
 }

@@ -1,5 +1,10 @@
 // @flow
-import type {JSONObject, EnvMap, SourceLocation} from '@parcel/types';
+import type {
+  JSONObject,
+  EnvMap,
+  SourceLocation,
+  TransformerResult,
+} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
@@ -153,6 +158,11 @@ type TSConfig = {
   },
   ...
 };
+
+type MacroAsset = {|
+  type: string,
+  content: string,
+|};
 
 export default (new Transformer({
   async loadConfig({config, options}) {
@@ -399,6 +409,7 @@ export default (new Transformer({
       }
     }
 
+    let macroAssets = [];
     let {
       dependencies,
       code: compiledCode,
@@ -452,7 +463,7 @@ export default (new Transformer({
       standalone: asset.query.has('standalone'),
       inline_constants: config.inlineConstants,
       callMacro: asset.isSource
-        ? async (err, src, exportName, args) => {
+        ? async (err, src, exportName, args, loc) => {
             try {
               let mod = await options.packageManager.require(
                 src,
@@ -463,7 +474,56 @@ export default (new Transformer({
               }
 
               if (typeof mod[exportName] === 'function') {
-                return mod[exportName](...args);
+                let ctx = {
+                  // Allows macros to emit additional assets to add as dependencies (e.g. css).
+                  addAsset(a: MacroAsset) {
+                    let k = String(macroAssets.length);
+                    let map;
+                    if (asset.env.sourceMap) {
+                      // Generate a source map that maps each line of the asset to the original macro call.
+                      map = new SourceMap(options.projectRoot);
+                      let mappings = [];
+                      let line = 1;
+                      for (let i = 0; i <= a.content.length; i++) {
+                        if (i === a.content.length || a.content[i] === '\n') {
+                          mappings.push({
+                            generated: {
+                              line,
+                              column: 0,
+                            },
+                            source: asset.filePath,
+                            original: {
+                              line: loc.start_line,
+                              column: loc.start_col - 1,
+                            },
+                          });
+                          line++;
+                        }
+                      }
+
+                      map.addIndexedMappings(mappings);
+                      if (originalMap) {
+                        map.extends(originalMap);
+                      } else {
+                        map.setSourceContent(asset.filePath, code.toString());
+                      }
+                    }
+
+                    macroAssets.push({
+                      type: a.type,
+                      content: a.content,
+                      map,
+                      uniqueKey: k,
+                    });
+
+                    asset.addDependency({
+                      specifier: k,
+                      specifierType: 'esm',
+                    });
+                  },
+                };
+
+                return mod[exportName].apply(ctx, args);
               } else {
                 throw new Error(
                   `"${exportName}" in "${src}" is not a function.`,
@@ -975,6 +1035,6 @@ export default (new Transformer({
       asset.setMap(sourceMap);
     }
 
-    return [asset];
+    return [asset, ...macroAssets];
   },
 }): Transformer);
