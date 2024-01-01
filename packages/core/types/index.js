@@ -13,6 +13,8 @@ import type {
 import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
+import type {TraceMeasurement} from '@parcel/profiler';
+import type {EventType} from '@parcel/watcher';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -195,7 +197,8 @@ export type EnvironmentFeature =
   | 'worker-module'
   | 'service-worker-module'
   | 'import-meta-url'
-  | 'arrow-functions';
+  | 'arrow-functions'
+  | 'global-this';
 
 /**
  * Defines the environment in for the output bundle
@@ -291,6 +294,7 @@ export type InitialParcelOptions = {|
 
   +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
+  +watchDir?: FilePath,
   +mode?: BuildMode,
   +hmrOptions?: ?HMROptions,
   +shouldContentHash?: boolean,
@@ -298,8 +302,13 @@ export type InitialParcelOptions = {|
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
+  +shouldTrace?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
+  +lazyIncludes?: string[],
+  +lazyExcludes?: string[],
+  +shouldBundleIncrementally?: boolean,
+  +unstableFileInvalidations?: Array<{|path: FilePath, type: EventType|}>,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
@@ -516,6 +525,13 @@ export type DependencyOptions = {|
   +loc?: SourceLocation,
   /** The environment of the dependency. */
   +env?: EnvironmentOptions,
+  /**
+   * A list of custom conditions to use when resolving package.json "exports" and "imports".
+   * This is combined with the conditions from the environment. However, it overrides the
+   * default "import" and "require" conditions inferred from the specifierType. To include those
+   * in addition to custom conditions, explicitly add them to this list.
+   */
+  +packageConditions?: Array<string>,
   /** Plugin-specific metadata for the dependency. */
   +meta?: Meta,
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
@@ -588,6 +604,13 @@ export interface Dependency {
   +loc: ?SourceLocation;
   /** The environment of the dependency. */
   +env: Environment;
+  /**
+   * A list of custom conditions to use when resolving package.json "exports" and "imports".
+   * This is combined with the conditions from the environment. However, it overrides the
+   * default "import" and "require" conditions inferred from the specifierType. To include those
+   * in addition to custom conditions, explicitly add them to this list.
+   */
+  +packageConditions: ?Array<string>;
   /** Plugin-specific metadata for the dependency. */
   +meta: Meta;
   /** If this is an entry, this is the target that is associated with that entry. */
@@ -627,6 +650,27 @@ export type ASTGenerator = {|
 |};
 
 export type BundleBehavior = 'inline' | 'isolated';
+
+export type ParcelTransformOptions = {|
+  filePath: FilePath,
+  code?: string,
+  env?: EnvironmentOptions,
+  query?: ?string,
+|};
+
+export type ParcelResolveOptions = {|
+  specifier: DependencySpecifier,
+  specifierType: SpecifierType,
+  env?: EnvironmentOptions,
+  resolveFrom?: FilePath,
+|};
+
+export type ParcelResolveResult = {|
+  filePath: FilePath,
+  code?: string,
+  query?: ?string,
+  sideEffects?: boolean,
+|};
 
 /**
  * An asset represents a file or part of a file. It may represent any data type, including source code,
@@ -732,6 +776,12 @@ export interface MutableAsset extends BaseAsset {
    * This is initially set by the resolver, but can be overridden by transformers.
    */
   sideEffects: boolean;
+  /**
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
+   */
+  uniqueKey: ?string;
   /** The symbols that the asset exports. */
   +symbols: MutableAssetSymbols;
 
@@ -833,7 +883,7 @@ export interface Config {
    */
   getConfig<T>(
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -846,7 +896,7 @@ export interface Config {
   getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -958,7 +1008,27 @@ export interface PluginLogger {
 /**
  * @section transformer
  */
-export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
+export type ResolveOptions = {|
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType?: SpecifierType,
+  /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
+  +packageConditions?: Array<string>,
+|};
+
+/**
+ * @section transformer
+ */
+export type ResolveFn = (
+  from: FilePath,
+  to: string,
+  options?: ResolveOptions,
+) => Promise<FilePath>;
 
 /**
  * @section validator
@@ -994,6 +1064,7 @@ export type DedicatedThreadValidator = {|
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<Array<?ValidateResult>>,
 |};
 
@@ -1007,12 +1078,14 @@ export type MultiThreadValidator = {|
     config: ConfigResult | void,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<ConfigResult | void>,
 |};
 
@@ -1030,12 +1103,14 @@ export type Transformer<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
@@ -1044,6 +1119,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<?AST>,
   /** Transform the asset and/or add new assets */
   transform({|
@@ -1052,6 +1128,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}): Async<Array<TransformerResult | MutableAsset>>,
   /**
    * Do some processing after the transformation
@@ -1063,6 +1140,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
@@ -1070,6 +1148,7 @@ export type Transformer<ConfigType> = {|
     ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<GenerateOutput>,
 |};
 
@@ -1154,6 +1233,8 @@ export type CreateBundleOpts =
        *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
        */
       +bundleBehavior?: ?BundleBehavior,
+      /** Name of the manual shared bundle config that caused this bundle to be created */
+      +manualSharedBundle?: ?string,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -1187,6 +1268,8 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       /** The bundle's pipeline, to be used for optimization. Usually based on the pipeline of the entry asset. */
       +pipeline?: ?string,
+      /** Name of the manual shared bundle config that caused this bundle to be created */
+      +manualSharedBundle?: ?string,
     |};
 
 /**
@@ -1323,22 +1406,37 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
   addAssetToBundle(Asset, Bundle): void;
+  /**
+   * Adds an asset as an entry to a bundle. Entry assets are executed immediately
+   * when the bundle is loaded.
+   */
   addEntryToBundle(
     Asset,
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  /** Adds the Bundle to the BundleGroup, loading it along with others in the group */
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset, Bundle): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
   createBundleGroup(Dependency, Target): BundleGroup;
+  /** @returns all Asset-s attached to the Dependency */
   getDependencyAssets(Dependency): Array<Asset>;
+  /** Get Bundles that load this bundle asynchronously. */
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  /** @returns the size in bytes of an asset and all assets in its subgraph */
   getTotalSize(Asset): number;
-  /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
+  /**
+   * Recursively removes an asset and its dependencies from a bundle. Stops at
+   * bundle group boundaries.
+   */
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  /**
+   * Removes a BundleGroup from the graph. If any of the group's Bundle-s no
+   * longer exist in the graph, those are removed as well.
+   */
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
@@ -1359,6 +1457,7 @@ export interface BundleGraph<TBundle: Bundle> {
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,
     startAsset: ?Asset,
+    options?: {|skipUnusedDependencies?: boolean|},
   ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(
@@ -1526,12 +1625,14 @@ export type Bundler<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   bundle({|
     bundleGraph: MutableBundleGraph,
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
@@ -1549,6 +1650,7 @@ export type Namer<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
@@ -1557,8 +1659,11 @@ export type Namer<ConfigType> = {|
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}): Async<?FilePath>,
 |};
+
+type RuntimeAssetPriority = 'sync' | 'parallel';
 
 /**
  * A "synthetic" asset that will be inserted into the bundle graph.
@@ -1570,6 +1675,7 @@ export type RuntimeAsset = {|
   +dependency?: Dependency,
   +isEntry?: boolean,
   +env?: EnvironmentOptions,
+  +priority?: RuntimeAssetPriority,
 |};
 
 /**
@@ -1580,6 +1686,7 @@ export type Runtime<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   apply({|
     bundle: NamedBundle,
@@ -1587,6 +1694,7 @@ export type Runtime<ConfigType> = {|
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
 |};
 
@@ -1598,6 +1706,7 @@ export type Packager<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<ConfigType>,
   loadBundleConfig?: ({|
     bundle: NamedBundle,
@@ -1605,12 +1714,14 @@ export type Packager<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<BundleConfigType>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
     config: ConfigType,
     bundleConfig: BundleConfigType,
     getInlineBundleContents: (
@@ -1629,6 +1740,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<ConfigType>,
   loadBundleConfig?: ({|
     bundle: NamedBundle,
@@ -1636,6 +1748,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}) => Async<BundleConfigType>,
   optimize({|
     bundle: NamedBundle,
@@ -1644,6 +1757,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
     config: ConfigType,
     bundleConfig: BundleConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
@@ -1658,6 +1772,7 @@ export type Compressor = {|
     stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}): Async<?{|
     stream: Readable,
     type?: string,
@@ -1667,13 +1782,21 @@ export type Compressor = {|
 /**
  * @section resolver
  */
-export type Resolver = {|
+export type Resolver<ConfigType> = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+    tracer: PluginTracer,
+  |}) => Promise<ConfigType> | ConfigType,
   resolve({|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
     specifier: FilePath,
     pipeline: ?string,
+    config: ConfigType,
   |}): Async<?ResolveResult>,
 |};
 
@@ -1764,6 +1887,13 @@ export type BundlingProgressEvent = {|
   +phase: 'bundling',
 |};
 
+export type BundledProgressEvent = {|
+  +type: 'buildProgress',
+  +phase: 'bundled',
+  +bundleGraph: BundleGraph<NamedBundle>,
+  +changedAssets: Map<string, Asset>,
+|};
+
 /**
  * A new Bundle is being packaged.
  * @section reporter
@@ -1791,6 +1921,7 @@ export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
+  | BundledProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 
@@ -1830,6 +1961,30 @@ export type ValidationEvent = {|
 |};
 
 /**
+ * A trace event has occured.
+ * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
+ *
+ * @section reporter
+ */
+export type TraceEvent = {|
+  +type: 'trace',
+  +ts: number,
+  +duration: number,
+  +name: string,
+  +tid: number,
+  +pid: number,
+  +categories: string[],
+  +args?: {[key: string]: mixed},
+|};
+
+export type CacheEvent = {|
+  type: 'cache',
+  phase: string,
+  total: number,
+  size: number,
+|};
+
+/**
  * @section reporter
  */
 export type ReporterEvent =
@@ -1840,7 +1995,9 @@ export type ReporterEvent =
   | BuildFailureEvent
   | WatchStartEvent
   | WatchEndEvent
-  | ValidationEvent;
+  | ValidationEvent
+  | TraceEvent
+  | CacheEvent;
 
 /**
  * @section reporter
@@ -1850,6 +2007,7 @@ export type Reporter = {|
     event: ReporterEvent,
     options: PluginOptions,
     logger: PluginLogger,
+    tracer: PluginTracer,
   |}): Async<void>,
 |};
 
@@ -1864,3 +2022,32 @@ export interface IDisposable {
 export type AsyncSubscription = {|
   unsubscribe(): Promise<mixed>,
 |};
+
+export interface PluginTracer {
+  /** Returns whether the tracer is enabled. Use this to avoid possibly expensive calculations
+   * of arguments to `createMeasurement` - for example if you need to determine the entry of a bundle to pass it
+   * in as the <code>argumentName</code>, you would only do this if the tracer is enabled.
+   */
+  +enabled: boolean;
+
+  /**
+   * Creates a new trace measurement with the specified name. This name should reflect the current plugin or
+   * function being executed (for example, the name of a Babel transform). The category will default to the name of your plugin,
+   * however it should be set to reflect the type of operation (for example, for a hypothetical operation
+   * to find CSS in an asset within a Compiled plugin you might set this to <code>find_css<code>).
+   *
+   * If this is an operation that executes multiple times on different things - whether that's assets, bundles, or
+   * otherwise - specify the name of the context object in <code>argumentName</code>.
+   *
+   * <code>otherArgs</code> can be used for specifying any other key/value pairs
+   * that should be written to the trace.
+   *
+   * For example: <code>tracer.createMeasurement('compiled', 'find_css', path.relative(options.projecRoot, asset.filePath), { meta: 'data' })</code>
+   */
+  createMeasurement(
+    name: string,
+    category?: string,
+    argumentName?: string,
+    otherArgs?: {[key: string]: mixed},
+  ): TraceMeasurement | null;
+}

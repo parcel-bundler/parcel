@@ -1,0 +1,5 @@
+{
+  "name": "source-exports",
+  "exports": "./dist.js",
+  "source": "source.js"
+}

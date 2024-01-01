@@ -1,6 +1,6 @@
 {
   "name": "@parcel/codeframe",
-  "version": "2.7.0",
+  "version": "2.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -32,7 +32,6 @@
   "devDependencies": {
     "emphasize": "^4.2.0",
     "slice-ansi": "^4.0.0",
-    "string-width": "^4.2.0",
-    "strip-ansi": "^6.0.0"
+    "string-width": "^4.2.0"
   }
 }

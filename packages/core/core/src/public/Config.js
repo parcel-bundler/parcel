@@ -11,7 +11,13 @@ import type {
 import type {Config, ParcelOptions} from '../types';
 
 import invariant from 'assert';
-import {DefaultWeakMap, loadConfig} from '@parcel/utils';
+import path from 'path';
+import {
+  DefaultWeakMap,
+  resolveConfig,
+  readConfig,
+  relativePath,
+} from '@parcel/utils';
 import Environment from './Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 
@@ -149,20 +155,62 @@ export default class PublicConfig implements IConfig {
     }
 
     let parse = options && options.parse;
-    let conf = await loadConfig(
+    let configFilePath = await resolveConfig(
       this.#options.inputFS,
       searchPath,
       fileNames,
       this.#options.projectRoot,
+    );
+    if (configFilePath == null) {
+      return null;
+    }
+
+    if (!options || !options.exclude) {
+      this.invalidateOnFileChange(configFilePath);
+    }
+
+    // If this is a JavaScript file, load it with the package manager.
+    let extname = path.extname(configFilePath);
+    if (extname === '.js' || extname === '.cjs' || extname === '.mjs') {
+      let specifier = relativePath(path.dirname(searchPath), configFilePath);
+
+      // Add dev dependency so we reload the config and any dependencies in watch mode.
+      this.addDevDependency({
+        specifier,
+        resolveFrom: searchPath,
+      });
+
+      // Invalidate on startup in case the config is non-deterministic,
+      // e.g. uses unknown environment variables, reads from the filesystem, etc.
+      this.invalidateOnStartup();
+
+      let config = await this.#options.packageManager.require(
+        specifier,
+        searchPath,
+      );
+
+      if (
+        // $FlowFixMe
+        Object.prototype.toString.call(config) === '[object Module]' &&
+        config.default != null
+      ) {
+        // Native ESM config. Try to use a default export, otherwise fall back to the whole namespace.
+        config = config.default;
+      }
+
+      return {
+        contents: config,
+        filePath: configFilePath,
+      };
+    }
+
+    let conf = await readConfig(
+      this.#options.inputFS,
+      configFilePath,
       parse == null ? null : {parse},
     );
     if (conf == null) {
       return null;
-    }
-
-    let configFilePath = conf.files[0].filePath;
-    if (!options || !options.exclude) {
-      this.invalidateOnFileChange(configFilePath);
     }
 
     return {

@@ -1,0 +1,3 @@
+{
+	"plugins": [["./plugin.js", { "filenameMain": "main.txt", "filenameFallback": "fallback.txt" }]]
+}

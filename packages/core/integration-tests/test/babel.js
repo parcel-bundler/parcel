@@ -1,5 +1,6 @@
 // @flow
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   bundle,
@@ -413,6 +414,45 @@ describe('babel', function () {
       distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!distFile.includes('hello there'));
       assert(distFile.includes('something different'));
+    });
+
+    it('should rebuild when declared external dependencies change', async function () {
+      let inputDir = tempy.directory();
+      let filepathMain = path.join(inputDir, 'main.txt');
+      let filepathFallback = path.join(inputDir, 'fallback.txt');
+
+      await fs.ncp(
+        path.join(__dirname, 'integration/babel-external-deps'),
+        inputDir,
+      );
+
+      let b = bundler(path.join(inputDir, 'index.js'), {
+        outputFS: fs,
+        shouldAutoInstall: true,
+      });
+
+      subscription = await b.watch();
+
+      async function step(f, positive, negative) {
+        if (f != null) {
+          await fs.writeFile(f, positive);
+        }
+        let build = await getNextBuild(b);
+        invariant(build.type === 'buildSuccess');
+        let distFile = await fs.readFile(
+          build.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(distFile.includes(positive));
+        if (negative != null) {
+          assert(!distFile.includes(negative));
+        }
+      }
+
+      await step(null, 'foo1', null);
+      await step(filepathFallback, 'foo2', 'foo1');
+      await step(filepathMain, 'foo3', 'foo2');
+      await step(filepathMain, 'foo4', 'foo3');
     });
 
     it('should invalidate babel.config.js across runs', async function () {

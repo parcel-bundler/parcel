@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "2.7.0",
+  "version": "2.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -24,7 +24,7 @@
       "includeNodeModules": {
         "@parcel/codeframe": false,
         "@parcel/diagnostic": false,
-        "@parcel/hash": false,
+        "@parcel/rust": false,
         "@parcel/logger": false,
         "@parcel/markdown-ansi": false,
         "@parcel/source-map": false,
@@ -33,20 +33,21 @@
     }
   },
   "dependencies": {
-    "@parcel/codeframe": "2.7.0",
-    "@parcel/diagnostic": "2.7.0",
-    "@parcel/hash": "2.7.0",
-    "@parcel/logger": "2.7.0",
-    "@parcel/markdown-ansi": "2.7.0",
-    "@parcel/source-map": "^2.0.0",
-    "chalk": "^4.1.0"
+    "@parcel/codeframe": "2.10.3",
+    "@parcel/diagnostic": "2.10.3",
+    "@parcel/logger": "2.10.3",
+    "@parcel/markdown-ansi": "2.10.3",
+    "@parcel/rust": "2.10.3",
+    "@parcel/source-map": "^2.1.1",
+    "chalk": "^4.1.0",
+    "nullthrows": "^1.1.1"
   },
   "devDependencies": {
     "@iarna/toml": "^2.2.0",
     "ansi-html-community": "0.0.8",
     "clone": "^2.1.1",
-    "fast-glob": "3.1.1",
-    "fastest-levenshtein": "^1.0.8",
+    "fast-glob": "^3.2.12",
+    "fastest-levenshtein": "^1.0.16",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "json5": "^2.2.0",
@@ -56,11 +57,14 @@
     "nullthrows": "^1.1.1",
     "open": "^7.0.3",
     "random-int": "^1.0.0",
+    "snarkdown": "^2.0.0",
+    "strip-ansi": "^6.0.0",
     "terminal-link": "^2.1.1"
   },
   "browser": {
     "./src/generateCertificate.js": false,
     "./src/http-server.js": false,
-    "./src/openInBrowser.js": false
+    "./src/openInBrowser.js": false,
+    "@parcel/markdown-ansi": false
   }
 }

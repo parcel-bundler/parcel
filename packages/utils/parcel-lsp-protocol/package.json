@@ -1,0 +1,34 @@
+{
+  "name": "@parcel/lsp-protocol",
+  "version": "2.10.3",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/index.js",
+  "source": "src/index.js",
+  "types": "src/index.js",
+  "scripts": {
+    "watch": "tsc -watch -p ./"
+  },
+  "engines": {
+    "node": ">= 12.0.0"
+  },
+  "devDependencies": {
+    "typescript": ">=3.0.0"
+  },
+  "dependencies": {
+    "vscode-jsonrpc": "^8.0.2"
+  },
+  "targets": {
+    "types": false
+  }
+}

@@ -1,0 +1,336 @@
+// @flow
+declare module 'vscode-jsonrpc/node' {
+  import type {Socket} from 'net';
+  import type {Readable, Writable} from 'stream';
+
+  declare type MessageBufferEncoding = 'ascii' | 'utf-8';
+
+  declare type Logger = {|
+    error: (message: string) => void,
+    warn: (message: string) => void,
+    info: (message: string) => void,
+    log: (message: string) => void,
+  |};
+
+  declare type Disposable = {|
+    /**
+     * Dispose this object.
+     */
+    dispose(): void,
+  |};
+
+  declare interface Event<T> {
+    /**
+     *
+     * @param listener The listener function will be call when the event happens.
+     * @param thisArgs The 'this' which will be used when calling the event listener.
+     * @param disposables An array to which a {{IDisposable}} will be added. The
+     * @return
+     */
+    (
+      listener: (e: T) => any,
+      thisArgs?: any,
+      disposables?: Disposable[],
+    ): Disposable;
+  }
+
+  declare type PartialMessageInfo = {|
+    +messageToken: number,
+    +waitingTime: number,
+  |};
+
+  declare type DataCallback = {|
+    (data: Message): void,
+  |};
+
+  declare interface Message {
+    jsonrpc: string;
+  }
+
+  declare interface NotificationMessage extends Message {
+    /**
+     * The method to be invoked.
+     */
+    method: string;
+    /**
+     * The notification's params.
+     */
+    params?: [] | mixed;
+  }
+
+  declare export class MessageReader {
+    /** Raised whenever an error occurs while reading a message. */
+    +onError: Event<Error>;
+    /** An event raised when the end of the underlying transport has been reached. */
+    +onClose: Event<void>;
+    /**
+     * An event that *may* be raised to inform the owner that only part of a message has been received.
+     * A MessageReader implementation may choose to raise this event after a timeout elapses while waiting for more of a partially received message to be received.
+     */
+    +onPartialMessage: Event<PartialMessageInfo>;
+    /**
+     * Begins listening for incoming messages. To be called at most once.
+     * @param callback A callback for receiving decoded messages.
+     */
+    listen(callback: DataCallback): Disposable;
+    /** Releases resources incurred from reading or raising events. Does NOT close the underlying transport, if any. */
+    dispose(): void;
+  }
+
+  declare export class MessageWriter {
+    /** Raised whenever an error occurs while writing a message. */
+    +onError: Event<[Error, Message | void, number | void]>;
+    /** An event raised when the underlying transport has closed and writing is no longer possible. */
+    +onClose: Event<void>;
+    /**
+     * Sends a JSON-RPC message.
+     * @param msg The JSON-RPC message to be sent.
+     * @description Implementations should guarantee messages are transmitted in the same order that they are received by this method.
+     */
+    write(msg: Message): Promise<void>;
+    end(): void;
+    /** Releases resources incurred from writing or raising events. Does NOT close the underlying transport, if any. */
+    dispose(): void;
+  }
+
+  declare export function createServerPipeTransport(
+    pipeName: string,
+    encoding?: MessageBufferEncoding,
+  ): [MessageReader, MessageWriter];
+
+  declare export function createMessageConnection(
+    reader: MessageReader,
+    writer: MessageWriter,
+    logger?: Logger,
+  ): MessageConnection;
+  declare export function createMessageConnection(
+    inputStream: Readable,
+    outputStream: Writable,
+    logger?: Logger,
+  ): MessageConnection;
+
+  declare interface CancellationToken {
+    /**
+     * Is `true` when the token has been cancelled, `false` otherwise.
+     */
+    +isCancellationRequested: boolean;
+    /**
+     * An [event](#Event) which fires upon cancellation.
+     */
+    +onCancellationRequested: Event<any>;
+  }
+
+  declare export class ParameterStructures {
+    /**
+     * The parameter structure is automatically inferred on the number of parameters
+     * and the parameter type in case of a single param.
+     */
+    static +auto: ParameterStructures;
+    /**
+     * Forces `byPosition` parameter structure. This is useful if you have a single
+     * parameter which has a literal type.
+     */
+    static +byPosition: ParameterStructures;
+    /**
+     * Forces `byName` parameter structure. This is only useful when having a single
+     * parameter. The library will report errors if used with a different number of
+     * parameters.
+     */
+    static +byName: ParameterStructures;
+    static is(value: any): Boolean;
+    toString(): string;
+  }
+
+  declare interface MessageSignature {
+    +method: string;
+    +numberOfParams: number;
+    +parameterStructures: ParameterStructures;
+  }
+
+  declare class AbstractMessageSignature implements MessageSignature {
+    +method: string;
+    +numberOfParams: number;
+    constructor(method: string, numberOfParams: number): this;
+    get parameterStructures(): ParameterStructures;
+  }
+
+  // prettier-ignore
+  declare export class RequestType0<R, E> extends AbstractMessageSignature {
+    constructor(method: string): this;
+  }
+  // prettier-ignore
+  declare export class RequestType<P, R, E> extends AbstractMessageSignature {
+    constructor(method: string, _parameterStructures?: ParameterStructures): this;
+    get parameterStructures(): ParameterStructures;
+  }
+  // prettier-ignore
+  declare export class RequestType1<P1, R, E> extends AbstractMessageSignature {
+    constructor(method: string, _parameterStructures?: ParameterStructures): this;
+    get parameterStructures(): ParameterStructures;
+  }
+  // prettier-ignore
+  declare export class RequestType2<P1, P2, R, E> extends AbstractMessageSignature {
+    constructor(method: string): this;
+  }
+
+  // prettier-ignore
+  declare export class NotificationType<P> extends AbstractMessageSignature {
+    constructor(method: string, _parameterStructures?: ParameterStructures): this;
+    get parameterStructures(): ParameterStructures;
+  }
+  // prettier-ignore
+  declare export class NotificationType0 extends AbstractMessageSignature {
+    constructor(method: string): this;
+  }
+  // prettier-ignore
+  declare export class NotificationType1<P1> extends AbstractMessageSignature {
+    constructor(method: string, _parameterStructures?: ParameterStructures): this;
+    get parameterStructures(): ParameterStructures;
+  }
+  // prettier-ignore
+  declare export class NotificationType2<P1, P2> extends AbstractMessageSignature {
+    constructor(method: string): this;
+  }
+
+  declare interface ResponseErrorLiteral<D> {
+    /**
+     * A number indicating the error type that occured.
+     */
+    code: number;
+    /**
+     * A string providing a short decription of the error.
+     */
+    message: string;
+    /**
+     * A Primitive or Structured value that contains additional
+     * information about the error. Can be omitted.
+     */
+    data?: D;
+  }
+  declare class ResponseError<D> extends Error {
+    +code: number;
+    +data: D | void;
+    constructor(code: number, message: string, data?: D): this;
+    toJson(): ResponseErrorLiteral<D>;
+  }
+
+  declare type HandlerResult<R, E> =
+    | R
+    | ResponseError<E>
+    | Promise<R>
+    | Promise<ResponseError<E>>
+    | Promise<R | ResponseError<E>>;
+
+  declare interface RequestHandler0<R, E> {
+    (token: CancellationToken): HandlerResult<R, E>;
+  }
+  declare interface RequestHandler<P, R, E> {
+    (params: P, token: CancellationToken): HandlerResult<R, E>;
+  }
+  declare interface RequestHandler1<P1, R, E> {
+    (p1: P1, token: CancellationToken): HandlerResult<R, E>;
+  }
+  declare interface RequestHandler2<P1, P2, R, E> {
+    (p1: P1, p2: P2, token: CancellationToken): HandlerResult<R, E>;
+  }
+  declare interface GenericRequestHandler<R, E> {
+    (...params: any[]): HandlerResult<R, E>;
+  }
+  // prettier-ignore
+  declare interface StarRequestHandler {
+    (method: string, params: any[] | mixed | void, token: CancellationToken): HandlerResult<any, any>;
+  }
+  declare interface NotificationHandler0 {
+    (): void;
+  }
+  declare interface NotificationHandler<P> {
+    (params: P): void;
+  }
+  declare interface NotificationHandler1<P1> {
+    (p1: P1): void;
+  }
+  declare interface NotificationHandler2<P1, P2> {
+    (p1: P1, p2: P2): void;
+  }
+  declare interface StarNotificationHandler {
+    (method: string, params: any[] | mixed | void): void;
+  }
+  declare interface GenericNotificationHandler {
+    (...params: any[]): void;
+  }
+
+  declare export class ProgressType<PR> {
+    /**
+     * Clients must not use these properties. They are here to ensure correct typing.
+     * in TypeScript
+     */
+    constructor(): this;
+  }
+
+  declare type ProgressToken = number | string;
+  declare interface ProgressParams<T> {
+    /**
+     * The progress token provided by the client or server.
+     */
+    token: ProgressToken;
+    /**
+     * The progress data.
+     */
+    value: T;
+  }
+
+  // prettier-ignore
+  declare export interface MessageConnection {
+    sendRequest<R, E>(type: RequestType0<R, E>, token?: CancellationToken): Promise<R>;
+    sendRequest<P, R, E>(type: RequestType<P, R, E>, params: P, token?: CancellationToken): Promise<R>;
+    sendRequest<P1, R, E>(type: RequestType1<P1, R, E>, p1: P1, token?: CancellationToken): Promise<R>;
+    sendRequest<P1, P2, R, E>(type: RequestType2<P1, P2, R, E>, p1: P1, p2: P2, token?: CancellationToken): Promise<R>;
+    sendRequest<R>(method: string, r0?: ParameterStructures | any, ...rest: any[]): Promise<R>;
+    onRequest<R, E>(type: RequestType0<R, E>, handler: RequestHandler0<R, E>): Disposable;
+    onRequest<P, R, E>(type: RequestType<P, R, E>, handler: RequestHandler<P, R, E>): Disposable;
+    onRequest<P1, R, E>(type: RequestType1<P1, R, E>, handler: RequestHandler1<P1, R, E>): Disposable;
+    onRequest<P1, P2, R, E>(type: RequestType2<P1, P2, R, E>, handler: RequestHandler2<P1, P2, R, E>): Disposable;
+    onRequest<R, E>(method: string, handler: GenericRequestHandler<R, E>): Disposable;
+    onRequest(handler: StarRequestHandler): Disposable;
+    sendNotification(type: NotificationType0): void;
+    sendNotification<P>(type: NotificationType<P>, params?: P): void;
+    sendNotification<P1>(type: NotificationType1<P1>, p1: P1): void;
+    sendNotification<P1, P2>(type: NotificationType2<P1, P2>, p1: P1, p2: P2): void;
+    sendNotification(method: string, r0?: ParameterStructures | any, ...rest: any[]): void;
+    onNotification(type: NotificationType0, handler: NotificationHandler0): Disposable;
+    onNotification<P>(type: NotificationType<P>, handler: NotificationHandler<P>): Disposable;
+    onNotification<P1>(type: NotificationType1<P1>, handler: NotificationHandler1<P1>): Disposable;
+    onNotification<P1, P2>(type: NotificationType2<P1, P2>, handler: NotificationHandler2<P1, P2>): Disposable;
+    onNotification(method: string, handler: GenericNotificationHandler): Disposable;
+    onNotification(handler: StarNotificationHandler): Disposable;
+    onUnhandledNotification: Event<NotificationMessage>;
+    onProgress<P>(type: ProgressType<P>, token: string | number, handler: NotificationHandler<P>): Disposable;
+    sendProgress<P>(type: ProgressType<P>, token: string | number, value: P): void;
+    onUnhandledProgress: Event<ProgressParams<any>>;
+    // trace(value: Trace, tracer: Tracer, sendNotification?: boolean): void;
+    // trace(value: Trace, tracer: Tracer, traceOptions?: TraceOptions): void;
+    onError: Event<[Error, Message | void, number | void]>;
+    onClose: Event<void>;
+    listen(): void;
+    end(): void;
+    onDispose: Event<void>;
+    dispose(): void;
+    inspect(): void;
+  }
+
+  declare export class SocketMessageReader
+    extends /* ReadableStream */ MessageReader
+  {
+    constructor(socket: Socket, encoding?: MessageBufferEncoding): this;
+  }
+
+  declare export class SocketMessageWriter
+    extends /* WriteableStream */ MessageWriter
+  {
+    constructor(
+      socket: Socket,
+      options?: MessageBufferEncoding /* | MessageWriterOptions */,
+    ): this;
+    dispose(): void;
+  }
+}

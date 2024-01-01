@@ -1,10 +1,10 @@
 {
   "name": "@parcel/eslint-config",
   "private": true,
-  "version": "2.7.0",
+  "version": "2.10.3",
   "dependencies": {
-    "@babel/eslint-parser": "^7.12.1",
-    "@parcel/eslint-plugin": "2.7.0",
+    "@babel/eslint-parser": "^7.22.11",
+    "@parcel/eslint-plugin": "2.10.3",
     "eslint-config-prettier": "^7.2.0",
     "eslint-plugin-flowtype": "^5.2.0",
     "eslint-plugin-import": "^2.22.1",
@@ -13,7 +13,7 @@
     "eslint-plugin-react": "^7.22.0"
   },
   "peerDependencies": {
-    "@babel/core": "^7.0.0",
+    "@babel/core": "^7.22.11",
     "eslint": ">= 7.0.0"
   }
 }

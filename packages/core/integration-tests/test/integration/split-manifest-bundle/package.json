@@ -1,0 +1,6 @@
+{
+  "@parcel/runtime-js": {
+    "splitManifestThreshold": 0
+  }
+}
+  

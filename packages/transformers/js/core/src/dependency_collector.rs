@@ -4,10 +4,10 @@ use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
-use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
-use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
+use swc_core::ecma::ast::{self, Callee, Id, MemberProp};
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
 use crate::utils::*;
@@ -47,8 +47,8 @@ pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
-  pub specifier: swc_atoms::JsWord,
-  pub attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
+  pub specifier: swc_core::ecma::atoms::JsWord,
+  pub attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
   pub is_optional: bool,
   pub is_helper: bool,
   pub source_type: Option<SourceType>,
@@ -60,8 +60,8 @@ pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
   decls: &'a HashSet<Id>,
-  ignore_mark: swc_common::Mark,
-  unresolved_mark: swc_common::Mark,
+  ignore_mark: swc_core::common::Mark,
+  unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
@@ -87,8 +87,8 @@ struct DependencyCollector<'a> {
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
   decls: &'a HashSet<Id>,
-  ignore_mark: swc_common::Mark,
-  unresolved_mark: swc_common::Mark,
+  ignore_mark: swc_core::common::Mark,
+  unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
@@ -98,39 +98,43 @@ impl<'a> DependencyCollector<'a> {
   fn add_dependency(
     &mut self,
     mut specifier: JsWord,
-    span: swc_common::Span,
+    span: swc_core::common::Span,
     kind: DependencyKind,
-    attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
+    attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
     is_optional: bool,
     source_type: SourceType,
   ) -> Option<JsWord> {
     // Rewrite SWC helpers from ESM to CJS for library output.
     let mut is_specifier_rewritten = false;
     if self.config.is_library && !self.config.is_esm_output {
-      if let Some(suffix) = specifier.strip_prefix("@swc/helpers/src/") {
-        if let Some(prefix) = suffix.strip_suffix(".mjs") {
-          specifier = format!("@swc/helpers/lib/{}.js", prefix).into();
-          is_specifier_rewritten = true;
-        }
+      if let Some(rest) = specifier.strip_prefix("@swc/helpers/_/") {
+        specifier = format!("@swc/helpers/cjs/{}.cjs", rest).into();
+        is_specifier_rewritten = true;
       }
     }
 
-    // For normal imports/requires, the specifier will remain unchanged.
+    // For ESM imports, the specifier will remain unchanged.
     // For other types of dependencies, the specifier will be changed to a hash
     // that also contains the dependency kind. This way, multiple kinds of dependencies
     // to the same specifier can be used within the same file.
     let placeholder = match kind {
-      DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
+      DependencyKind::Import | DependencyKind::Export => {
         if is_specifier_rewritten {
           Some(specifier.as_ref().to_owned())
         } else {
           None
         }
       }
-      _ => Some(format!(
+      _ if !self.config.standalone => Some(format!(
         "{:x}",
-        hash!(format!("{}:{}:{}", self.config.filename, specifier, kind))
+        hash!(format!(
+          "{}:{}:{}",
+          self.get_project_relative_filename(),
+          specifier,
+          kind
+        )),
       )),
+      _ => None,
     };
 
     self.items.push(DependencyDescriptor {
@@ -150,12 +154,12 @@ impl<'a> DependencyCollector<'a> {
   fn add_url_dependency(
     &mut self,
     specifier: JsWord,
-    span: swc_common::Span,
+    span: swc_core::common::Span,
     kind: DependencyKind,
     source_type: SourceType,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
-    if !self.config.is_library {
+    if !self.config.is_library && !self.config.standalone {
       let placeholder =
         self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
       let specifier = if let Some(placeholder) = placeholder {
@@ -169,13 +173,17 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let placeholder = format!(
-      "{:x}",
-      hash!(format!(
-        "parcel_url:{}:{}:{}",
-        self.config.filename, specifier, kind
-      ))
-    );
+    let placeholder = if self.config.standalone {
+      specifier.as_ref().into()
+    } else {
+      format!(
+        "{:x}",
+        hash!(format!(
+          "parcel_url:{}:{}:{}",
+          self.config.filename, specifier, kind
+        ))
+      )
+    };
     self.items.push(DependencyDescriptor {
       kind,
       loc: SourceLocation::from(self.source_map, span),
@@ -231,7 +239,7 @@ impl<'a> DependencyCollector<'a> {
 
 fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
   if let Some(arg) = node.args.get(0) {
-    if let Some((value, _)) = match_str(&*arg.expr) {
+    if let Some((value, _)) = match_str(&arg.expr) {
       if value.starts_with("node:") {
         // create_require will take care of replacing the node: prefix...
         return create_require(value);
@@ -247,7 +255,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     if let Some(decl) = self.import_meta.take() {
       res.body.insert(
         0,
-        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(decl))),
+        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(Box::new(decl)))),
       );
     }
     res
@@ -474,7 +482,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               // Promise.resolve(require('foo'))
               if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
                 if let Some(expr) = node.args.get(0) {
-                  if match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                  if match_require(&expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                     self.in_promise = true;
                     let node = node.fold_children_with(self);
                     self.in_promise = was_in_promise;
@@ -505,7 +513,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                               Fn(_) | Arrow(_) => {
                                 self.in_promise = true;
                                 let node =
-                                  swc_ecmascript::visit::fold_call_expr(self, node.clone());
+                                  swc_core::ecma::visit::fold_call_expr(self, node.clone());
                                 self.in_promise = was_in_promise;
 
                                 // Transform Promise.resolve().then(() => __importStar(require('foo')))
@@ -580,7 +588,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
         let mut node = node.clone();
 
-        let (specifier, span) = if let Some(s) = self.match_new_url(&*arg.expr, self.decls) {
+        let (specifier, span) = if let Some(s) = self.match_new_url(&arg.expr, self.decls) {
           s
         } else if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
           let (msg, docs) = if kind == DependencyKind::ServiceWorker {
@@ -626,7 +634,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         return node;
       }
 
-      if let Some((specifier, span)) = match_str(&*arg.expr) {
+      if let Some((specifier, span)) = match_str(&arg.expr) {
         // require() calls aren't allowed in scripts, flag as an error.
         if kind == DependencyKind::Require && self.config.source_type == SourceType::Script {
           self.add_script_error(node.span);
@@ -663,7 +671,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node;
-      if !self.config.scope_hoist {
+      if !self.config.scope_hoist && !self.config.standalone {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
           SourceType::Script => "__parcel__require__",
@@ -712,33 +720,29 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     let matched = match &*node.callee {
       Ident(id) => {
-        match &id.sym {
-          &js_word!("Worker") | &js_word!("SharedWorker") => {
-            // Bail if defined in scope
-            self.config.is_browser && !self.decls.contains(&id.to_id())
-          }
-          &js_word!("Promise") => {
-            // Match requires inside promises (e.g. Rollup compiled dynamic imports)
-            // new Promise(resolve => resolve(require('foo')))
-            // new Promise(resolve => { resolve(require('foo')) })
-            // new Promise(function (resolve) { resolve(require('foo')) })
-            return self.fold_new_promise(node);
-          }
-          sym => {
-            if sym == "__parcel__URL__" {
-              // new __parcel__URL__(url) -> new URL(url, import.meta.url)
-              if let Some(args) = &node.args {
-                if let ast::Expr::New(new) = create_url_constructor(
-                  *args[0].expr.clone().fold_with(self),
-                  self.config.is_esm_output,
-                ) {
-                  return new;
-                }
+        if id.sym == "Worker" || id.sym == "SharedWorker" {
+          // Bail if defined in scope
+          self.config.is_browser && !self.decls.contains(&id.to_id())
+        } else if id.sym == "Promise" {
+          // Match requires inside promises (e.g. Rollup compiled dynamic imports)
+          // new Promise(resolve => resolve(require('foo')))
+          // new Promise(resolve => { resolve(require('foo')) })
+          // new Promise(function (resolve) { resolve(require('foo')) })
+          return self.fold_new_promise(node);
+        } else {
+          if id.sym == "__parcel__URL__" {
+            // new __parcel__URL__(url) -> new URL(url, import.meta.url)
+            if let Some(args) = &node.args {
+              if let ast::Expr::New(new) = create_url_constructor(
+                *args[0].expr.clone().fold_with(self),
+                self.config.is_esm_output,
+              ) {
+                return new;
               }
-              unreachable!();
             }
-            false
+            unreachable!();
           }
+          false
         }
       }
       _ => false,
@@ -750,7 +754,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     if let Some(args) = &node.args {
       if !args.is_empty() {
-        let (specifier, span) = if let Some(s) = self.match_new_url(&*args[0].expr, self.decls) {
+        let (specifier, span) = if let Some(s) = self.match_new_url(&args[0].expr, self.decls) {
           s
         } else if let Lit(ast::Lit::Str(str_)) = &*args[0].expr {
           let constructor = match &*node.callee {
@@ -835,7 +839,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       // If this is a library, we will already have a URL object. Otherwise, we need to
       // construct one from the string returned by the JSRuntime.
-      if !self.config.is_library {
+      if !self.config.is_library && !self.config.standalone {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
           callee: Box::new(Expr::Ident(Ident::new(js_word!("URL"), DUMMY_SP))),
@@ -897,7 +901,7 @@ impl<'a> DependencyCollector<'a> {
           }
           Arrow(f) => {
             let param = f.params.get(0);
-            let body = match &f.body {
+            let body = match &*f.body {
               ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
               ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
             };
@@ -916,7 +920,7 @@ impl<'a> DependencyCollector<'a> {
             if let ast::Expr::Ident(id) = &**callee {
               if id.to_id() == resolve_id {
                 if let Some(arg) = call.args.get(0) {
-                  if match_require(&*arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                  if match_require(&arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                     let was_in_promise = self.in_promise;
                     self.in_promise = true;
                     let node = node.fold_children_with(self);
@@ -1004,7 +1008,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
             args: vec![ast::ExprOrSpread {
               expr: Box::new(ast::Expr::Fn(ast::FnExpr {
                 ident: None,
-                function: ast::Function {
+                function: Box::new(ast::Function {
                   body: Some(ast::BlockStmt {
                     span: DUMMY_SP,
                     stmts: vec![ast::Stmt::Return(ast::ReturnStmt {
@@ -1019,7 +1023,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
                   return_type: None,
                   type_params: None,
                   span: DUMMY_SP,
-                },
+                }),
               })),
               spread: None,
             }],
@@ -1097,11 +1101,11 @@ impl Fold for PromiseTransformer {
       }
     }
 
-    swc_ecmascript::visit::fold_return_stmt(self, node)
+    swc_core::ecma::visit::fold_return_stmt(self, node)
   }
 
   fn fold_arrow_expr(&mut self, node: ast::ArrowExpr) -> ast::ArrowExpr {
-    if let ast::BlockStmtOrExpr::Expr(expr) = &node.body {
+    if let ast::BlockStmtOrExpr::Expr(expr) = &*node.body {
       if let ast::Expr::Call(call) = &**expr {
         if let Some(require_node) = &self.require_node {
           if require_node == call {
@@ -1111,11 +1115,11 @@ impl Fold for PromiseTransformer {
       }
     }
 
-    swc_ecmascript::visit::fold_arrow_expr(self, node)
+    swc_core::ecma::visit::fold_arrow_expr(self, node)
   }
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    let node = swc_ecmascript::visit::fold_expr(self, node);
+    let node = swc_core::ecma::visit::fold_expr(self, node);
 
     // Replace the original require node with a reference to a variable `res`,
     // which will be added as a parameter to the parent function.
@@ -1136,7 +1140,7 @@ impl<'a> DependencyCollector<'a> {
     &mut self,
     expr: &ast::Expr,
     decls: &HashSet<Id>,
-  ) -> Option<(JsWord, swc_common::Span)> {
+  ) -> Option<(JsWord, swc_core::common::Span)> {
     use ast::*;
 
     if let Expr::New(new) = expr {
@@ -1151,13 +1155,13 @@ impl<'a> DependencyCollector<'a> {
 
       if let Some(args) = &new.args {
         let (specifier, span) = if let Some(arg) = args.get(0) {
-          match_str(&*arg.expr)?
+          match_str(&arg.expr)?
         } else {
           return None;
         };
 
         if let Some(arg) = args.get(1) {
-          if self.is_import_meta_url(&*arg.expr) {
+          if self.is_import_meta_url(&arg.expr) {
             return Some((specifier, span));
           }
         }
@@ -1203,7 +1207,7 @@ impl<'a> DependencyCollector<'a> {
         ..
       }) => {
         // Match "file:" + __filename
-        let left = match_str(&*left);
+        let left = match_str(left);
         match (left, &**right) {
           (Some((left, _)), Expr::Ident(Ident { sym: right, .. })) => {
             &left == "file:" && right == "__filename"
@@ -1245,21 +1249,22 @@ impl<'a> DependencyCollector<'a> {
     }
   }
 
-  fn get_import_meta_url(&mut self) -> ast::Expr {
-    use ast::*;
-
-    // Get a relative path from the project root.
-    let filename = if let Some(relative) =
-      pathdiff::diff_paths(&self.config.filename, &self.config.project_root)
-    {
+  fn get_project_relative_filename(&self) -> String {
+    if let Some(relative) = pathdiff::diff_paths(&self.config.filename, &self.config.project_root) {
       relative.to_slash_lossy()
     } else if let Some(filename) = Path::new(&self.config.filename).file_name() {
       String::from(filename.to_string_lossy())
     } else {
       String::from("unknown.js")
-    };
+    }
+  }
 
-    Expr::Lit(Lit::Str(format!("file:///{}", filename).into()))
+  fn get_import_meta_url(&mut self) -> ast::Expr {
+    use ast::*;
+
+    Expr::Lit(Lit::Str(
+      format!("file:///{}", self.get_project_relative_filename()).into(),
+    ))
   }
 
   fn get_import_meta(&mut self) -> ast::Expr {
@@ -1352,26 +1357,21 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
           };
 
           match &kv.key {
-            PropName::Ident(Ident {
-              sym: js_word!("type"),
-              ..
-            })
-            | PropName::Str(Str {
-              value: js_word!("type"),
-              ..
-            }) => {}
+            PropName::Ident(Ident { sym, .. }) if sym == "type" => {}
+            PropName::Str(Str { value, .. }) if value == "type" => {}
             _ => return true,
           };
 
-          let v = if let Some((v, _)) = match_str(&*kv.value) {
+          let v = if let Some((v, _)) = match_str(&kv.value) {
             v
           } else {
             return true;
           };
 
-          source_type = Some(match v {
-            js_word!("module") => SourceType::Module,
-            _ => SourceType::Script,
+          source_type = Some(if v == "module" {
+            SourceType::Module
+          } else {
+            SourceType::Script
           });
 
           false

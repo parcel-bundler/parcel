@@ -18,8 +18,8 @@ module.exports = {
     sourceType: 'module',
   },
   env: {
+    es2020: true,
     node: true,
-    es6: true,
   },
   globals: {
     parcelRequire: true,

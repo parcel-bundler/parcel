@@ -157,7 +157,7 @@ export default class ParcelConfig {
     return Promise.all(plugins.map(p => this.loadPlugin<T>(p)));
   }
 
-  async getResolvers(): Promise<Array<LoadedPlugin<Resolver>>> {
+  async getResolvers(): Promise<Array<LoadedPlugin<Resolver<mixed>>>> {
     if (this.resolvers.length === 0) {
       throw await this.missingPluginError(
         this.resolvers,
@@ -166,7 +166,7 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugins<Resolver>(this.resolvers);
+    return this.loadPlugins<Resolver<mixed>>(this.resolvers);
   }
 
   _getValidatorNodes(filePath: ProjectPath): $ReadOnlyArray<ParcelPluginNode> {

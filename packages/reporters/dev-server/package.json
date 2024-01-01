@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-dev-server",
-  "version": "2.7.0",
+  "version": "2.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -18,7 +18,7 @@
   "source": "src/ServerReporter.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.7.0"
+    "parcel": "^2.10.3"
   },
   "targets": {
     "main": {
@@ -29,12 +29,12 @@
     }
   },
   "dependencies": {
-    "@parcel/plugin": "2.7.0",
-    "@parcel/utils": "2.7.0"
+    "@parcel/plugin": "2.10.3",
+    "@parcel/utils": "2.10.3"
   },
   "devDependencies": {
-    "@parcel/babel-preset": "2.7.0",
-    "@parcel/types": "2.7.0",
+    "@parcel/babel-preset": "2.10.3",
+    "@parcel/types": "2.10.3",
     "connect": "^3.7.0",
     "ejs": "^3.1.6",
     "fresh": "^0.5.2",

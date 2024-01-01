@@ -9,11 +9,15 @@ import type {
   MutableBundleGraph as IMutableBundleGraph,
   Target,
 } from '@parcel/types';
-import type {ParcelOptions, BundleGroup as InternalBundleGroup} from '../types';
+import type {
+  ParcelOptions,
+  BundleGroup as InternalBundleGroup,
+  BundleNode,
+} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
@@ -120,7 +124,17 @@ export default class MutableBundleGraph
       resolvedNodeId,
       bundleGraphEdgeTypes.references,
     );
-    this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
+    if (
+      // This check is needed for multiple targets, when we go over the same nodes twice
+      this.#graph._graph.hasEdge(
+        dependencyNodeId,
+        resolvedNodeId,
+        bundleGraphEdgeTypes.null,
+      )
+    ) {
+      //nullEdgeType
+      this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
+    }
 
     if (dependency.isEntry) {
       this.#graph._graph.addEdge(
@@ -194,7 +208,7 @@ export default class MutableBundleGraph
       isPlaceholder = entryAssetNode.requested === false;
     }
 
-    let bundleNode = {
+    let bundleNode: BundleNode = {
       type: 'bundle',
       id: bundleId,
       value: {
@@ -222,6 +236,7 @@ export default class MutableBundleGraph
         name: null,
         displayName: null,
         publicId,
+        manualSharedBundle: opts.manualSharedBundle,
       },
     };
 

@@ -1,17 +1,19 @@
 // @flow
-import type {JSONObject, EnvMap} from '@parcel/types';
+import type {JSONObject, EnvMap, SourceLocation} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {init, transform} from '../native';
+import {transform, transformAsync} from '@parcel/rust';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
-import WorkerFarm from '@parcel/workers';
+import ThrowableDiagnostic, {
+  encodeJSONKeyComponent,
+  convertSourceLocationToHighlight,
+} from '@parcel/diagnostic';
+import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
@@ -99,6 +101,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
         },
       ],
     },
+    unstable_inlineConstants: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
@@ -107,6 +112,7 @@ type PackageJSONConfig = {|
   '@parcel/transformer-js'?: {|
     inlineFS?: boolean,
     inlineEnvironment?: boolean | Array<string>,
+    unstable_inlineConstants?: boolean,
   |},
 |};
 
@@ -141,6 +147,8 @@ type TSConfig = {
     experimentalDecorators?: boolean,
     // https://www.typescriptlang.org/tsconfig#useDefineForClassFields
     useDefineForClassFields?: boolean,
+    // https://www.typescriptlang.org/tsconfig#target
+    target?: string, // 'es3' | 'es5' | 'es6' | 'es2015' | ...  |'es2022' | ... | 'esnext'
     ...
   },
   ...
@@ -236,6 +244,18 @@ export default (new Transformer({
       isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
       useDefineForClassFields = compilerOptions?.useDefineForClassFields;
+      if (
+        useDefineForClassFields === undefined &&
+        compilerOptions?.target != null
+      ) {
+        // Default useDefineForClassFields to true if target is ES2022 or higher (including ESNext)
+        let target = compilerOptions.target.slice(2);
+        if (target === 'next') {
+          useDefineForClassFields = true;
+        } else {
+          useDefineForClassFields = Number(target) >= 2022;
+        }
+      }
     }
 
     // Check if we should ignore fs calls
@@ -254,6 +274,7 @@ export default (new Transformer({
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
+    let inlineConstants = false;
     if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
@@ -273,6 +294,9 @@ export default (new Transformer({
         rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
         inlineEnvironment;
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+      inlineConstants =
+        rootPkg['@parcel/transformer-js']?.unstable_inlineConstants ??
+        inlineConstants;
     }
 
     return {
@@ -283,6 +307,7 @@ export default (new Transformer({
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
+      inlineConstants,
       reactRefresh,
       decorators,
       useDefineForClassFields,
@@ -292,8 +317,6 @@ export default (new Transformer({
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
-      init,
-      loadOnMainThreadIfNeeded(),
     ]);
 
     let targets;
@@ -351,10 +374,11 @@ export default (new Transformer({
         env.PARCEL_BUILD_ENV = 'test';
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
-      for (let key in options.env) {
-        if (isGlobMatch(key, config.inlineEnvironment)) {
-          env[key] = String(options.env[key]);
-        }
+      for (let match of globMatch(
+        Object.keys(options.env),
+        config.inlineEnvironment,
+      )) {
+        env[match] = String(options.env[match]);
       }
     } else {
       for (let key in options.env) {
@@ -386,7 +410,8 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
-    } = transform({
+      is_constant_module,
+    } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
       module_id: asset.id,
@@ -424,9 +449,15 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+      standalone: asset.query.has('standalone'),
+      inline_constants: config.inlineConstants,
     });
 
-    let convertLoc = loc => {
+    if (is_constant_module) {
+      asset.meta.isConstantModule = true;
+    }
+
+    let convertLoc = (loc): SourceLocation => {
       let location = {
         filePath: asset.filePath,
         start: {
@@ -470,14 +501,12 @@ export default (new Transformer({
           codeFrames: [
             {
               filePath: asset.filePath,
-              codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                let {start, end} = convertLoc(highlight.loc);
-                return {
-                  message: highlight.message,
-                  start,
-                  end,
-                };
-              }),
+              codeHighlights: diagnostic.code_highlights?.map(highlight =>
+                convertSourceLocationToHighlight(
+                  convertLoc(highlight.loc),
+                  highlight.message ?? undefined,
+                ),
+              ),
             },
           ],
           hints: diagnostic.hints,
@@ -492,11 +521,10 @@ export default (new Transformer({
             res.codeFrames?.push({
               filePath: asset.env.loc.filePath,
               codeHighlights: [
-                {
-                  start: asset.env.loc.start,
-                  end: asset.env.loc.end,
-                  message: 'The environment was originally created here',
-                },
+                convertSourceLocationToHighlight(
+                  asset.env.loc,
+                  'The environment was originally created here',
+                ),
               ],
             });
           }
@@ -627,12 +655,7 @@ export default (new Transformer({
               codeFrames: [
                 {
                   filePath: asset.filePath,
-                  codeHighlights: [
-                    {
-                      start: loc.start,
-                      end: loc.end,
-                    },
-                  ],
+                  codeHighlights: [convertSourceLocationToHighlight(loc)],
                 },
               ],
               hints: ['Try using a static `import`.'],
@@ -642,11 +665,10 @@ export default (new Transformer({
               diagnostic.codeFrames.push({
                 filePath: asset.env.loc.filePath,
                 codeHighlights: [
-                  {
-                    start: asset.env.loc.start,
-                    end: asset.env.loc.end,
-                    message: 'The environment was originally created here',
-                  },
+                  convertSourceLocationToHighlight(
+                    asset.env.loc,
+                    'The environment was originally created here',
+                  ),
                 ],
               });
             }
@@ -718,8 +740,13 @@ export default (new Transformer({
     asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
-      for (let {exported, local, loc} of hoist_result.exported_symbols) {
-        asset.symbols.set(exported, local, convertLoc(loc));
+      for (let {
+        exported,
+        local,
+        loc,
+        is_esm,
+      } of hoist_result.exported_symbols) {
+        asset.symbols.set(exported, local, convertLoc(loc), {isEsm: is_esm});
       }
 
       // deps is a map of dependencies that are keyed by placeholder or specifier
@@ -730,12 +757,7 @@ export default (new Transformer({
       let deps = new Map(
         asset
           .getDependencies()
-          .map(dep => [
-            dep.meta.placeholder ??
-              dep.specifier +
-                (dep.specifierType === 'esm' ? dep.specifierType : ''),
-            dep,
-          ]),
+          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
@@ -746,19 +768,14 @@ export default (new Transformer({
         local,
         imported,
         loc,
-        kind,
       } of hoist_result.imported_symbols) {
-        let specifierType = '';
-        if (kind === 'Import' || kind === 'Export') {
-          specifierType = 'esm';
-        }
-        let dep = deps.get(source + specifierType);
+        let dep = deps.get(source);
         if (!dep) continue;
         dep.symbols.set(imported, local, convertLoc(loc));
       }
 
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
-        let dep = deps.get(source + 'esm');
+        let dep = deps.get(source);
         if (!dep) continue;
         if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
@@ -802,18 +819,26 @@ export default (new Transformer({
           });
         }
 
+        // Use the asset id as a unique key if one has not already been set.
+        // This lets us create a dependency on the asset itself by using it as a specifier.
+        // Using the unique key ensures that the dependency always resolves to the correct asset,
+        // even if it came from a transformer that produced multiple assets (e.g. css modules).
+        // Also avoids needing a resolution request.
+        asset.uniqueKey ||= asset.id;
         asset.addDependency({
-          specifier: `./${path.basename(asset.filePath)}`,
+          specifier: asset.uniqueKey,
           specifierType: 'esm',
           symbols,
         });
       }
 
-      // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+      // Add * symbol if there are CJS exports, no imports/exports at all
+      // (and the asset has side effects), or the asset is wrapped.
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
         hoist_result.has_cjs_exports ||
         (!hoist_result.is_esm &&
+          asset.sideEffects &&
           deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
@@ -829,17 +854,12 @@ export default (new Transformer({
         let deps = new Map(
           asset
             .getDependencies()
-            .map(dep => [
-              dep.meta.placeholder ??
-                dep.specifier +
-                  (dep.specifierType === 'esm' ? dep.specifierType : ''),
-              dep,
-            ]),
+            .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
         );
         asset.symbols.ensure();
 
         for (let {exported, local, loc, source} of symbol_result.exports) {
-          let dep = source ? deps.get(source + 'esm') : undefined;
+          let dep = source ? deps.get(source) : undefined;
           asset.symbols.set(
             exported,
             `${dep?.id ?? ''}$${local}`,
@@ -857,17 +877,43 @@ export default (new Transformer({
         }
 
         for (let {source, local, imported, loc} of symbol_result.imports) {
-          let dep = deps.get(source + 'esm');
+          let dep = deps.get(source);
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set(imported, local, convertLoc(loc));
         }
 
         for (let {source, loc} of symbol_result.exports_all) {
-          let dep = deps.get(source + 'esm');
+          let dep = deps.get(source);
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set('*', '*', convertLoc(loc), true);
+        }
+
+        // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+        // This allows accessing symbols that don't exist without errors in symbol propagation.
+        if (
+          symbol_result.has_cjs_exports ||
+          (!symbol_result.is_esm &&
+            deps.size === 0 &&
+            symbol_result.exports.length === 0) ||
+          (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
+        ) {
+          asset.symbols.ensure();
+          asset.symbols.set('*', `$${asset.id}$exports`);
+        }
+      } else {
+        // If the asset is wrapped, add * as a fallback
+        asset.symbols.ensure();
+        asset.symbols.set('*', `$${asset.id}$exports`);
+      }
+
+      // For all other imports and requires, mark everything as imported (this covers both dynamic
+      // imports and non-top-level requires.)
+      for (let dep of asset.getDependencies()) {
+        if (dep.symbols.isCleared) {
+          dep.symbols.ensure();
+          dep.symbols.set('*', `${dep.id}$`);
         }
       }
 
@@ -900,27 +946,3 @@ export default (new Transformer({
     return [asset];
   },
 }): Transformer);
-
-// On linux with older versions of glibc (e.g. CentOS 7), we encounter a segmentation fault
-// when worker threads exit due to thread local variables used by SWC. A workaround is to
-// also load the native module on the main thread, so that it is not unloaded until process exit.
-// See https://github.com/rust-lang/rust/issues/91979.
-let isLoadedOnMainThread = false;
-async function loadOnMainThreadIfNeeded() {
-  if (
-    !isLoadedOnMainThread &&
-    process.platform === 'linux' &&
-    WorkerFarm.isWorker()
-  ) {
-    let {family, version} = require('detect-libc');
-    if (family === 'glibc' && parseFloat(version) <= 2.17) {
-      let api = WorkerFarm.getWorkerApi();
-      await api.callMaster({
-        location: __dirname + '/loadNative.js',
-        args: [],
-      });
-
-      isLoadedOnMainThread = true;
-    }
-  }
-}

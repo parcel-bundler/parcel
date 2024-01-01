@@ -1,0 +1,22 @@
+// @flow
+declare module 'srcset' {
+  declare type SrcSetDefinition = {|
+    url: string,
+    width?: number,
+    density?: number,
+  |};
+
+  declare type Options = {|
+    strict?: boolean,
+  |};
+
+  declare export function parse(
+    srcset: string,
+    options?: Options,
+  ): SrcSetDefinition[];
+
+  declare export function stringify(
+    srcSetDefinitions: SrcSetDefinition[],
+    options?: Options,
+  ): string;
+}

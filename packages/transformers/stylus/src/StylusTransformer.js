@@ -16,18 +16,13 @@ const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(
-      ['.stylusrc', '.stylusrc.js', '.stylusrc.cjs'],
+      ['.stylusrc', '.stylusrc.js', '.stylusrc.cjs', '.stylusrc.mjs'],
       {
         packageKey: 'stylus',
       },
     );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-
       // Resolve relative paths from config file
       if (configFile.contents.paths) {
         configFile.contents.paths = configFile.contents.paths.map(p =>
@@ -101,13 +96,21 @@ function attemptResolve(importedPath, filepath, asset, resolve, deps) {
             resolve(
               filepath,
               './' + path.relative(path.dirname(filepath), entry),
+              {
+                packageConditions: ['stylus', 'style'],
+              },
             ),
           ),
         ),
       ),
     );
   } else {
-    deps.set(importedPath, resolve(filepath, importedPath));
+    deps.set(
+      importedPath,
+      resolve(filepath, importedPath, {
+        packageConditions: ['stylus', 'style'],
+      }),
+    );
   }
 }
 
@@ -195,7 +198,7 @@ async function getDependencies(
       // Recursively process resolved files as well to get nested deps
       for (let resolved of found) {
         if (!seen.has(resolved)) {
-          await asset.invalidateOnFileChange(resolved);
+          asset.invalidateOnFileChange(resolved);
 
           let code = await asset.fs.readFile(resolved, 'utf8');
           for (let [path, resolvedPath] of await getDependencies(

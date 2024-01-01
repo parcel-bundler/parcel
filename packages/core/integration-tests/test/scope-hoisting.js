@@ -17,6 +17,7 @@ import {
   overlayFS,
   run,
   runBundle,
+  fsFixture,
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) => {
@@ -134,6 +135,7 @@ describe('scope hoisting', function () {
       let output = await run(b);
       assert.equal(output, 2);
     });
+
     it('supports named exports of variables with a different name when wrapped', async function () {
       let b = await bundle(
         path.join(
@@ -144,6 +146,25 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.equal(output, 2);
+    });
+
+    it('supports dependency rewriting for import * as from a library that has export *', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/rewrite-export-star/index.js',
+        ),
+        {mode: 'production'},
+      );
+      let output = await run(b);
+      assert.equal(output, 2);
+
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(findDependency(b, 'index.js', './library/a.js')),
+        ),
+        new Set(['bar']),
+      );
     });
 
     it('supports renaming non-ASCII identifiers', async function () {
@@ -360,6 +381,43 @@ describe('scope hoisting', function () {
       assert.strictEqual(output, '2 4');
     });
 
+    it('supports re-exporting all from an empty module without side effects', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-empty-no-side-effects/index.js',
+        ),
+        {
+          mode: 'production',
+        },
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'foo bar');
+
+      let contents = await outputFS.readFile(
+        b.getBundles().find(b => b.getMainEntry().filePath.endsWith('index.js'))
+          .filePath,
+        'utf8',
+      );
+      assert.match(contents, /output="foo bar"/);
+    });
+
+    it('supports re-exporting all with ambiguous CJS and non-renaming and renaming dependency retargeting', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-ambiguous/entry.js',
+        ),
+        {
+          mode: 'production',
+        },
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, '123 999');
+    });
+
     it('supports re-exporting all exports from an external module', async function () {
       let b = await bundle(
         path.join(
@@ -395,6 +453,18 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.equal(output, 15);
+    });
+
+    it('supports re-exporting all exports and overriding individual exports', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-override/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'fooBfooCC');
     });
 
     it('can import from a different bundle via a re-export (1)', async function () {
@@ -443,6 +513,49 @@ describe('scope hoisting', function () {
 
       let {foo, bar, baz, a, b: bb} = await run(b);
       assert.equal(foo + bar + baz + a + bb, 15);
+    });
+
+    it('deduplicates imports when wrapped', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-multiple-wrapped/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      let assetB = nullthrows(
+        b.getBundles()[0]?.traverseAssets((a, _, actions) => {
+          if (
+            a.filePath ===
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/import-multiple-wrapped/b.js',
+            )
+          ) {
+            actions.stop();
+            return a;
+          }
+        }),
+      );
+      assert.equal(
+        [
+          ...contents.matchAll(
+            new RegExp(
+              'parcelRequires*\\(s*"' + b.getAssetPublicId(assetB) + '"s*\\)',
+              'g',
+            ),
+          ),
+        ].length,
+        1,
+      );
+
+      let output = await run(b);
+      assert.equal(output, 15);
     });
 
     it('supports re-exporting all exports from multiple modules deep', async function () {
@@ -534,6 +647,8 @@ describe('scope hoisting', function () {
         'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
         false,
       )} does not export 'default'`;
+
+      // $FlowFixMe[prop-missing]
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -547,6 +662,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 8,
@@ -572,6 +688,7 @@ describe('scope hoisting', function () {
         'integration/scope-hoisting/es6/re-export-missing/c.js',
         false,
       )} does not export 'foo'`;
+      // $FlowFixMe[prop-missing]
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -588,6 +705,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 9,
@@ -624,6 +742,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 9,
@@ -641,6 +760,7 @@ describe('scope hoisting', function () {
       };
 
       let source = path.join(__dirname, entry);
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () =>
           bundle(source, {
@@ -650,6 +770,7 @@ describe('scope hoisting', function () {
           }),
         error,
       );
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () =>
           bundle(source, {
@@ -1045,7 +1166,7 @@ describe('scope hoisting', function () {
         'utf8',
       );
       assert.strictEqual(
-        contents.match(/parcelRequire.register\(/g).length,
+        contents.match(/parcelRegister\(/g).length,
         2 /* once for parent asset, once for child wrapped asset */,
       );
 
@@ -1065,17 +1186,22 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['b', true]);
     });
 
-    it("unused and missing pseudo re-exports doen't fail the build", async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/re-export-pseudo/a.js',
-        ),
-      );
+    for (let shouldScopeHoist of [false, true]) {
+      it(`unused and missing pseudo re-exports doesn't fail the build with${
+        shouldScopeHoist ? '' : 'out'
+      } scope-hoisting`, async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/re-export-pseudo/a.js',
+          ),
+          {defaultTargetOptions: {shouldScopeHoist}},
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, 'foo');
-    });
+        let {output} = await run(b, null, {require: false});
+        assert.deepEqual(output, 'foo');
+      });
+    }
 
     it('supports requiring a re-exported and renamed ES6 import', async function () {
       let b = await bundle(
@@ -1126,74 +1252,36 @@ describe('scope hoisting', function () {
         ),
         {mode: 'production'},
       );
-      // Fork due to size calculation differences between bundlers
-      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-        assertBundles(b, [
-          {
-            type: 'html',
-            assets: ['index1.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index1.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index2.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index2.js', 'b.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index3.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index3.js', 'b.js'],
-          },
-          {
-            type: 'js',
-            assets: ['a.js'],
-          },
-        ]);
-      } else {
-        assertBundles(b, [
-          {
-            type: 'html',
-            assets: ['index1.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index1.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index2.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index2.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index3.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index3.js'],
-          },
-          {
-            type: 'js',
-            assets: ['a.js'],
-          },
-          {
-            type: 'js',
-            assets: ['b.js'],
-          },
-        ]);
-      }
+      assertBundles(b, [
+        {
+          type: 'html',
+          assets: ['index1.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index1.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index2.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index2.js', 'b.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index3.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index3.js', 'b.js'],
+        },
+        {
+          type: 'js',
+          assets: ['a.js'],
+        },
+      ]);
       for (let bundle of b.getBundles().filter(b => b.type === 'html')) {
         let calls = [];
         await runBundle(b, bundle, {
@@ -1832,6 +1920,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 8,
                           line: 2,
@@ -1879,6 +1968,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 10,
                           line: 3,
@@ -1926,6 +2016,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 38,
                           line: 1,
@@ -1973,6 +2064,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 45,
                           line: 1,
@@ -2188,6 +2280,18 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, 'bar');
     });
 
+    it('supports non-identifier symbol names', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/non-identifier-symbol-name/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 1);
+    });
+
     it('should shake pure property assignments', async function () {
       let b = await bundle(
         path.join(
@@ -2235,6 +2339,7 @@ describe('scope hoisting', function () {
           __dirname,
           '/integration/scope-hoisting/es6/codesplit-reexports/src/entry.js',
         ),
+        {mode: 'production'},
       );
 
       assertBundles(b, [
@@ -2244,6 +2349,7 @@ describe('scope hoisting', function () {
             'entry.js',
             'foo.js',
             'bar.js',
+            'bundle-manifest.js',
             'bundle-url.js',
             'cacheLoader.js',
             'js-loader.js',
@@ -2260,6 +2366,17 @@ describe('scope hoisting', function () {
         [20, 30],
         [2, 3],
       ]);
+    });
+
+    it('should correctly retarget dependencies when both namespace and indvidual export are used', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/retarget-namespace-single/index.js',
+        ),
+      );
+      let output = await run(b);
+      assert.deepEqual(output, [123, 123]);
     });
 
     it('should correctly handle circular dependencies', async function () {
@@ -2406,6 +2523,23 @@ describe('scope hoisting', function () {
       assert.equal(await output, 42);
     });
 
+    it('should handle TSC polyfills', async () => {
+      await fsFixture(overlayFS, __dirname)`
+        tsc-polyfill-es6
+          library.js:
+            var __polyfill = (this && this.__polyfill) || function (a) {return a;};
+            export default __polyfill('es6')
+
+          index.js:
+            import value from './library';
+            output = value;`;
+
+      let b = await bundle(path.join(__dirname, 'tsc-polyfill-es6/index.js'), {
+        inputFS: overlayFS,
+      });
+      assert.equal(await run(b), 'es6');
+    });
+
     describe("considers an asset's closest package.json for sideEffects, not the package through which it found the asset", () => {
       it('handles redirects up the tree', async () => {
         let b = await bundle(
@@ -2441,6 +2575,91 @@ describe('scope hoisting', function () {
     });
 
     describe('correctly updates used symbols on changes', () => {
+      it('throws after removing an export', async function () {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/update-used-symbols-remove-export',
+        );
+
+        let b = bundler(path.join(testDir, 'a.js'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
+
+        await overlayFS.mkdirp(testDir);
+        await overlayFS.copyFile(
+          path.join(testDir, 'b.1.js'),
+          path.join(testDir, 'b.js'),
+        );
+
+        let subscription = await b.watch();
+
+        try {
+          let bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          let output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, 123);
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'b.2.js'),
+            path.join(testDir, 'b.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildFailure');
+          let message = md`${normalizePath(
+            'integration/scope-hoisting/es6/update-used-symbols-remove-export/b.js',
+            false,
+          )} does not export 'foo'`;
+          assert.deepEqual(bundleEvent.diagnostics, [
+            {
+              message,
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  filePath: path.join(testDir, 'a.js'),
+                  language: 'js',
+                  codeHighlights: [
+                    {
+                      message: undefined,
+                      start: {
+                        line: 1,
+                        column: 10,
+                      },
+                      end: {
+                        line: 1,
+                        column: 12,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ]);
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'b.1.js'),
+            path.join(testDir, 'b.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, 123);
+
+          assert.deepStrictEqual(
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findAsset(bundleEvent.bundleGraph, 'b.js'),
+              ),
+            ),
+            new Set(['foo']),
+          );
+        } finally {
+          await subscription.unsubscribe();
+        }
+      });
+
       it('dependency symbols change', async function () {
         let testDir = path.join(
           __dirname,
@@ -2501,7 +2720,7 @@ describe('scope hoisting', function () {
         }
       });
 
-      it('add and remove dependency', async function () {
+      it('add and remove dependency (keep asset)', async function () {
         let testDir = path.join(
           __dirname,
           '/integration/scope-hoisting/es6/update-used-symbols-dependency-add',
@@ -2577,6 +2796,107 @@ describe('scope hoisting', function () {
             new Set(['a']),
           );
           assert(!findAsset(bundleEvent.bundleGraph, 'd2.js'));
+        } finally {
+          await subscription.unsubscribe();
+        }
+      });
+
+      it('add and remove dependency (remove asset)', async function () {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/update-used-symbols-dependency-add',
+        );
+
+        let b = bundler(path.join(testDir, 'index.js'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
+
+        await overlayFS.mkdirp(testDir);
+        await overlayFS.copyFile(
+          path.join(testDir, 'index.3.js'),
+          path.join(testDir, 'index.js'),
+        );
+
+        let subscription = await b.watch();
+
+        try {
+          let bundleEvent = await getNextBuild(b);
+          assert(bundleEvent.type === 'buildSuccess');
+          let output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [
+            789,
+            {
+              d1: 1,
+              d2: 2,
+            },
+          ]);
+
+          let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetC)),
+            new Set(['b']),
+          );
+          let assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetD)),
+            new Set(['*']),
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.2.js'),
+            path.join(testDir, 'index.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [
+            123,
+            789,
+            {
+              d1: 1,
+              d2: 2,
+            },
+          ]);
+
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetC)),
+            new Set(['a', 'b']),
+          );
+          assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetD)),
+            new Set(['*']),
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.3.js'),
+            path.join(testDir, 'index.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [
+            789,
+            {
+              d1: 1,
+              d2: 2,
+            },
+          ]);
+
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetC)),
+            new Set(['b']),
+          );
+          assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetD)),
+            new Set(['*']),
+          );
         } finally {
           await subscription.unsubscribe();
         }
@@ -2665,6 +2985,7 @@ describe('scope hoisting', function () {
         let b = bundler(path.join(testDir, 'index.html'), {
           inputFS: overlayFS,
           outputFS: overlayFS,
+          mode: 'production',
         });
 
         await overlayFS.mkdirp(testDir);
@@ -2769,29 +3090,6 @@ describe('scope hoisting', function () {
       assert(!content.includes('++'));
 
       await run(b);
-    });
-
-    it('ignores missing import specifiers in source assets', async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/scope-hoisting/es6/unused-import-specifier/a.js',
-        ),
-      );
-      let output = await run(b);
-      assert.equal(output, 123);
-    });
-
-    it('ignores unused import specifiers in node-modules', async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/unused-import-specifier-node-modules/a.js',
-        ),
-      );
-
-      let output = await run(b);
-      assert.equal(output, 123);
     });
 
     it('can import urls to raw assets', async () => {
@@ -2900,7 +3198,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -2948,7 +3246,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -2996,7 +3294,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3044,7 +3342,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 8,
@@ -3092,7 +3390,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3103,7 +3401,7 @@ describe('scope hoisting', function () {
                     },
                   },
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 3,
                       column: 1,
@@ -3263,9 +3561,89 @@ describe('scope hoisting', function () {
       let res = await run(b);
       assert.deepEqual(res, {foo: 2});
     });
+
+    it('supports constant inlining', async function () {
+      let b = await bundle(
+        path.join(__dirname, 'integration/inline-constants/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            sourceMaps: false,
+          },
+        },
+      );
+
+      let constants = ['BLOGGER', 'PREMIUM', 'MONTHS_IN_YEAR'];
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+
+        // Check constant export names are NOT present in the bundles
+        assert(
+          constants.every(constant => !contents.includes(constant)),
+          `Bundle didn't inline constant values`,
+        );
+      }
+
+      // Run the bundle to make sure it's valid
+      await run(b);
+    });
+
+    it('supports constant inlining with shared bundles', async function () {
+      let b = await bundle(
+        [
+          path.join(
+            __dirname,
+            'integration/inline-constants-shared-bundles/a.html',
+          ),
+          path.join(
+            __dirname,
+            'integration/inline-constants-shared-bundles/b.html',
+          ),
+        ],
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            sourceMaps: false,
+          },
+        },
+      );
+
+      let constants = ['BLOGGER', 'PREMIUM', 'MONTHS_IN_YEAR'];
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+
+        // Check constant export names are NOT present in the bundles
+        assert(
+          constants.every(constant => !contents.includes(constant)),
+          `Bundle didn't inline constant values`,
+        );
+      }
+
+      // Run the bundle to make sure it's valid
+      await run(b);
+    });
   });
 
   describe('commonjs', function () {
+    it('should wrap when this could refer to an export', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-this/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      let wrapped = contents.includes('exports.bar()');
+      assert.equal(wrapped, true);
+    });
+
     it('supports require of commonjs modules', async function () {
       let b = await bundle(
         path.join(
@@ -3680,6 +4058,18 @@ describe('scope hoisting', function () {
       assert.equal(output, 'bar');
     });
 
+    it('supports non-identifier symbol names', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/non-identifier-symbol-name/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 1);
+    });
+
     it('supports live bindings of named exports', async function () {
       let b = await bundle(
         path.join(
@@ -3848,8 +4238,8 @@ describe('scope hoisting', function () {
         ),
       );
 
-      let output = await run(b);
-      assert.strictEqual(output, 2);
+      let output = await run(b, {output: null}, {strict: true});
+      assert.deepEqual(output, [6, undefined]);
     });
 
     it('supports assigning to this as exports object in wrapped module', async function () {
@@ -3860,8 +4250,8 @@ describe('scope hoisting', function () {
         ),
       );
 
-      let output = await run(b);
-      assert.strictEqual(output, 6);
+      let output = await run(b, {output: null}, {strict: true});
+      assert.deepEqual(output, [6, undefined, 4]);
     });
 
     it('supports using exports self reference', async function () {
@@ -4031,6 +4421,21 @@ describe('scope hoisting', function () {
       );
 
       assert.deepEqual(await run(b), 4);
+    });
+
+    it('supports mutations of the cjs exports by the importer from a mixed module', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-mixed-module/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), [
+        'CJS mutated',
+        'ESM',
+        {cjs: 'CJS mutated', esm: 'ESM'},
+      ]);
     });
 
     it.skip('supports require.resolve calls for excluded modules', async function () {
@@ -4913,6 +5318,29 @@ describe('scope hoisting', function () {
 
       assert.deepEqual(await run(b), {test: 2});
     });
+
+    it('should handle TSC polyfills', async () => {
+      await fsFixture(overlayFS, __dirname)`
+        tsc-polyfill-commonjs
+          library.js:
+            "use strict";
+            var __polyfill = (this && this.__polyfill) || function (a) {return a;};
+            exports.value = __polyfill('cjs')
+
+          index.js:
+            const value = require('./library');
+            output = value;
+      `;
+
+      let b = await bundle(
+        path.join(__dirname, 'tsc-polyfill-commonjs/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+
+      assert.deepEqual(await run(b), {value: 'cjs'});
+    });
   });
 
   it('should not throw with JS included from HTML', async function () {
@@ -5599,6 +6027,80 @@ describe('scope hoisting', function () {
       assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
     } finally {
       await workerFarm.end();
+    }
+
+    it('should not deduplicate an asset if it will become unreachable', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/sibling-deduplicate-unreachable/index.js',
+        ),
+        {mode: 'production'},
+      );
+      let res = await run(b);
+      assert.equal(res, 'target');
+    });
+  });
+
+  it('should add experimental bundle queue runtime for out of order bundle execution', async function () {
+    let b = await bundle(
+      [
+        path.join(__dirname, 'integration/bundle-queue-runtime/index.html'),
+        path.join(__dirname, 'integration/bundle-queue-runtime/a.html'),
+      ],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+          outputFormat: 'esmodule',
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => /index.*\.js/.test(b.filePath)).filePath,
+      'utf8',
+    );
+    assert(contents.includes('$parcel$global.rwr('));
+
+    let result;
+    await run(b, {
+      result: r => {
+        result = r;
+      },
+    });
+
+    assert.deepEqual(await result, ['a', 'b', 'c']);
+  });
+
+  it('should not add experimental bundle queue runtime to empty bundles', async function () {
+    let b = await bundle(
+      [path.join(__dirname, 'integration/bundle-queue-runtime/empty.js')],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+          outputFormat: 'esmodule',
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => /empty.*\.js/.test(b.filePath)).filePath,
+      'utf8',
+    );
+
+    assert(
+      !contents.includes('$parcel$global.rlb('),
+      "Empty bundle should not include 'runLoadedBundle' code",
+    );
+
+    try {
+      await run(b);
+    } catch (e) {
+      assert.fail('Expected the empty bundle to still run');
     }
   });
 });

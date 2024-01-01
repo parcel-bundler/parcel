@@ -7,6 +7,8 @@ import {
   assertBundles,
   distDir,
   outputFS,
+  overlayFS,
+  fsFixture,
 } from '@parcel/test-utils';
 import postcss from 'postcss';
 
@@ -353,6 +355,7 @@ describe('css modules', () => {
     assert(css.includes('height: 100px;'));
     assert(css.includes('height: 300px;'));
     assert(css.indexOf('_test') < css.indexOf('_intermediate'));
+    assert(css.indexOf('_intermediate') < css.indexOf('_composes5'));
   });
 
   it('should support composes imports for multiple selectors', async () => {
@@ -409,6 +412,7 @@ describe('css modules', () => {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     end: {
                       column: 45,
                       line: 7,
@@ -545,6 +549,33 @@ describe('css modules', () => {
       },
     ]);
   });
+
+  it('should not fail with many css modules', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-bug/src/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'button.module.css',
+          'main.js',
+          'main.module.css',
+          'other.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['button.module.css', 'main.module.css', 'other.module.css'],
+      },
+    ]);
+  });
+
   // Forked because experimental bundler will not merge bundles of same types if they do not share all their bundlegroups
   it('should handle @import in css modules', async function () {
     let b = await bundle(
@@ -577,77 +608,42 @@ describe('css modules', () => {
 
     assert.deepEqual(res, [['page2', '_4fY2uG_foo _1ZEqVW_foo j1UkRG_foo']]);
 
-    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-      assertBundles(b, [
-        {
-          name: 'page1.html',
-          assets: ['page1.html'],
-        },
-        {
-          name: 'page2.html',
-          assets: ['page2.html'],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page1.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page2.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'css',
-          assets: ['a.module.css', 'b.module.css'],
-        },
-        {
-          type: 'css',
-          assets: ['index.module.css'],
-        },
-      ]);
-    } else {
-      assertBundles(b, [
-        {
-          name: 'page1.html',
-          assets: ['page1.html'],
-        },
-        {
-          name: 'page2.html',
-          assets: ['page2.html'],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page1.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page2.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'css',
-          assets: ['index.module.css', 'a.module.css', 'b.module.css'],
-        },
-      ]);
-    }
+    assertBundles(b, [
+      {
+        name: 'page1.html',
+        assets: ['page1.html'],
+      },
+      {
+        name: 'page2.html',
+        assets: ['page2.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page1.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page2.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css', 'b.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['index.module.css'],
+      },
+    ]);
   });
 
   it('should not process inline <style> elements as a CSS module', async function () {
@@ -707,5 +703,120 @@ describe('css modules', () => {
     );
     let res = await run(b);
     assert.deepEqual(res, ['_4fY2uG_foo', '--wGsoEa_from-js']);
+  });
+
+  it('should group together css and css modules into one bundle', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-module-css-siblings/index.html'),
+    );
+
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'index.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+    assert.deepEqual(res, [
+      ['mainJs', '_1ZEqVW_myClass', 'j1UkRG_myOtherClass'],
+    ]);
+  });
+
+  it('should bundle css modules siblings together and their JS assets', async function () {
+    // This issue was first documented here
+    // https://github.com/parcel-bundler/parcel/issues/8716
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/css-modules-merging-siblings/index.html',
+      ),
+    );
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'index.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+    // Result is  [ 'mainJs', 'SX8vmq_container YpGmra_-expand' ]
+    assert.deepEqual(res[0][0], 'mainJs');
+    assert(res[0][1].includes('container') && res[0][1].includes('expand'));
+  });
+
+  it('should allow css modules to be shared between targets', async function () {
+    let b = await bundle([
+      path.join(__dirname, '/integration/css-module-self-references/a'),
+      path.join(__dirname, '/integration/css-module-self-references/b'),
+    ]);
+
+    assertBundles(b, [
+      {
+        name: 'main.css',
+        assets: ['bar.module.css'],
+      },
+      {
+        name: 'main.css',
+        assets: ['bar.module.css'],
+      },
+      {
+        name: 'main.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+      {
+        name: 'main.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+      {
+        name: 'module.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+      {
+        name: 'module.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+    ]);
+  });
+
+  it('should support the "include" and "exclude" options', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      css-module-include
+        a.css:
+          .foo { color: red }
+        modules/b.css:
+          .bar { color: yellow }
+        modules/_c.css:
+          .baz { color: pink }
+        index.js:
+          import './a.css';
+          import {bar} from './modules/b.css';
+          import './modules/_c.css';
+          export default bar;
+
+        package.json:
+          {
+            "@parcel/transformer-css": {
+              "cssModules": {
+                "include": "modules/*.css",
+                "exclude": "modules/_*.css"
+              }
+            }
+          }
+
+        yarn.lock:`;
+
+    let b = await bundle(path.join(__dirname, 'css-module-include/index.js'), {
+      mode: 'production',
+      inputFS: overlayFS,
+    });
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.foo'));
+    assert(contents.includes('.rp85ja_bar'));
+    assert(contents.includes('.baz'));
   });
 });

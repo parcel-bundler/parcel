@@ -15,6 +15,8 @@ import {
   overlayFS,
   run,
 } from '@parcel/test-utils';
+import * as wasmmap from 'wasm-sourcemap';
+import {relativePath} from '@parcel/utils';
 
 describe('plugin', function () {
   it("continue transformer pipeline on type change that doesn't change the pipeline", async function () {
@@ -183,6 +185,7 @@ parcel-transformer-b`,
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
+        mode: 'production',
       },
     );
 
@@ -243,6 +246,53 @@ parcel-transformer-b`,
     assert.equal(await run(b), 2);
   });
 
+  it('throws when multiple assets returned by a transformer import a missing symbol', async function () {
+    let source = path.join(
+      __dirname,
+      '/integration/multi-asset-transformer-export/index.js',
+    );
+    let message = `index.js does not export 'foo'`;
+
+    // $FlowFixMe[prop-missing]
+    await assert.rejects(
+      () =>
+        bundle(source, {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: source,
+                language: 'js',
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 1,
+                      column: 9,
+                    },
+                    end: {
+                      line: 1,
+                      column: 11,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+  });
+
   it('should allow resolvers to invalidateOnEnvChange', async () => {
     async function assertAsset(replacedCode) {
       let b = await bundle(
@@ -261,5 +311,22 @@ parcel-transformer-b`,
     }
     await assertAsset('const replaced = 1;');
     await assertAsset('const replaced = 2;');
+  });
+
+  it('should output sourcemaps when packaging Wasm', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/wasm-sourcemap-transformer/index.js'),
+    );
+    let wasmPath = nullthrows(
+      b.getBundles().find(b => b.type === 'wasm'),
+    ).filePath;
+    let mapPath = wasmPath + '.map';
+    assert(await fs.exists(mapPath));
+
+    let wasm = await fs.readFile(wasmPath);
+    assert.equal(
+      wasmmap.GetSourceMapURL(wasm),
+      relativePath(distDir, mapPath, false),
+    );
   });
 });

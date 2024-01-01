@@ -60,7 +60,9 @@ export default async function dumpGraphToGraphViz(
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-  for (let [id, node] of graph.nodes) {
+  // $FlowFixMe
+  for (let [id, node] of graph.nodes.entries()) {
+    if (node == null) continue;
     let n = g.addNode(nodeId(id));
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
@@ -93,6 +95,7 @@ export default async function dumpGraphToGraphViz(
         if (node.value.isOptional) parts.push('optional');
         if (node.value.specifierType === SpecifierType.url) parts.push('url');
         if (node.hasDeferred) parts.push('deferred');
+        if (node.deferred) parts.push('deferred');
         if (node.excluded) parts.push('excluded');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
@@ -127,6 +130,10 @@ export default async function dumpGraphToGraphViz(
               label +=
                 '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
             }
+            // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
+            // if (node.usedSymbolsUpDirtyDown)
+            //   label += '\\nusedSymbolsUpDirtyDown';
+            // if (node.usedSymbolsUpDirtyUp) label += '\\nusedSymbolsUpDirtyUp';
           } else {
             label += '\\nsymbols: cleared';
           }
@@ -149,13 +156,15 @@ export default async function dumpGraphToGraphViz(
           if (node.usedSymbols.size) {
             label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
           }
+          // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
+          // if (node.usedSymbolsUpDirty) label += '\\nusedSymbolsUpDirty';
         } else {
           label += '\\nsymbols: cleared';
         }
       } else if (node.type === 'asset_group') {
         if (node.deferred) label += '(deferred)';
       } else if (node.type === 'file') {
-        label += path.basename(node.value.filePath);
+        label += path.basename(node.id);
       } else if (node.type === 'transformer_request') {
         label +=
           path.basename(node.value.filePath) +
@@ -165,10 +174,11 @@ export default async function dumpGraphToGraphViz(
         if (node.value.needsStableName) parts.push('stable name');
         parts.push(node.value.name);
         parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
+        if (node.value.isPlaceholder) parts.push('placeholder');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'request') {
-        label = node.value.type + ':' + node.id;
+        label = node.requestType + ':' + node.id;
       }
     }
     n.set('label', label);
@@ -191,7 +201,7 @@ export default async function dumpGraphToGraphViz(
       gEdge.set('color', color);
     }
   }
-  let tmp = tempy.file({name: `${name}.png`});
+  let tmp = tempy.file({name: `parcel-${name}.png`});
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);

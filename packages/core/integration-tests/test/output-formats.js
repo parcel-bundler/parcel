@@ -383,6 +383,7 @@ describe('output formats', function () {
                   language: 'js',
                   codeHighlights: [
                     {
+                      message: undefined,
                       start: {
                         line: 1,
                         column: 10,
@@ -559,6 +560,22 @@ describe('output formats', function () {
       });
 
       assert.deepEqual(out, [1, 2]);
+    });
+
+    it('should work with SWC helpers', async function () {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-helpers/index.js'),
+      );
+
+      let out = [];
+      await run(b, {
+        require,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out[0].x, new Map());
     });
   });
 
@@ -881,6 +898,7 @@ describe('output formats', function () {
                   language: 'js',
                   codeHighlights: [
                     {
+                      message: undefined,
                       start: {
                         line: 1,
                         column: 10,
@@ -1131,11 +1149,24 @@ describe('output formats', function () {
       );
       let async2Bundle = bundles.find(b => b.name.startsWith('async2'));
 
+      let esmLoaderPublicId;
+      b.traverse((node, _, actions) => {
+        if (
+          node.type === 'asset' &&
+          node.value.filePath.endsWith('esm-js-loader.js')
+        ) {
+          esmLoaderPublicId = b.getAssetPublicId(node.value);
+          actions.stop();
+        }
+      });
+
+      assert(esmLoaderPublicId != null, 'Could not find esm loader public id');
+
       for (let bundle of [async1Bundle, async2Bundle]) {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./" \\+ .+\\.resolve\\("${sharedBundle.publicId}"\\)\\),\\n\\s*import\\("./" \\+ .+\\.resolve\\("${bundle.publicId}"\\)\\)`,
+            `\\$${esmLoaderPublicId}\\("${sharedBundle.publicId}"\\),\\n\\s*\\$${esmLoaderPublicId}\\("${bundle.publicId}"\\)`,
           ).test(entry),
         );
       }
@@ -1445,6 +1476,34 @@ describe('output formats', function () {
     assert.deepEqual(calls, [[['a', 10]]]);
   });
 
+  it('should support external parallel dependencies', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/library-parallel-deps/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'out.js',
+        assets: ['index.js'],
+      },
+      {
+        assets: ['foo.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(res.default, 'foo bar');
+
+    let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/import [a-z0-9$]+ from "\.\//.test(content));
+  });
+
   describe('global', function () {
     it.skip('should support split bundles between main script and workers', async function () {
       let b = await bundle(
@@ -1528,6 +1587,7 @@ describe('output formats', function () {
                 filePath: source,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 21,

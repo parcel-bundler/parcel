@@ -5,8 +5,13 @@ on:
   issue_comment:
     types: [created]
 
+permissions: {}
 jobs:
   stale:
+    permissions:
+      issues: write # to comment on issues
+      pull-requests: write # to comment on pull requests
+
     runs-on: ubuntu-latest
     steps:
       - uses: DeMoorJasper/stale@master

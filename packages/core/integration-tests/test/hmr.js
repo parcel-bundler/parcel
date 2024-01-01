@@ -447,10 +447,10 @@ module.hot.dispose((data) => {
         ['eval:local', 1, null],
         ['eval:index', 1, null],
         ['dispose:other', 1],
-        ['eval:other', 3, {value: 1}],
         ['dispose:local', 1],
-        ['eval:local', 3, {value: 1}],
         ['dispose:index', 1],
+        ['eval:other', 3, {value: 1}],
+        ['eval:local', 3, {value: 1}],
         ['eval:index', 3, {value: 1}],
       ]);
     });

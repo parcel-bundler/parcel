@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-jsonld",
-  "version": "2.7.0",
+  "version": "2.10.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,14 +17,14 @@
   "source": "src/JSONLDTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.7.0"
+    "parcel": "^2.10.3"
   },
   "scripts": {
     "test": "yarn workspace @parcel/integration-tests test -g jsonld"
   },
   "dependencies": {
-    "@parcel/plugin": "2.7.0",
-    "@parcel/types": "2.7.0",
+    "@parcel/plugin": "2.10.3",
+    "@parcel/types": "2.10.3",
     "json5": "^2.2.0"
   }
 }

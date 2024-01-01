@@ -1,0 +1,15 @@
+{
+  "source": "test.js",
+  "scope-hoist": "dist/scope-hoist.js",
+  "no-scope-hoist": "dist/no-scope-hoist.js",
+  "targets": {
+    "scope-hoist": {
+      "scopeHoist": true,
+      "optimize": false
+    },
+    "no-scope-hoist": {
+      "scopeHoist": false,
+      "optimize": false
+    }
+  }
+}

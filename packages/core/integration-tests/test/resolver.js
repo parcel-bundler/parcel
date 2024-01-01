@@ -1,3 +1,4 @@
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {bundle, run, ncp, overlayFS, outputFS} from '@parcel/test-utils';
@@ -125,6 +126,7 @@ describe('resolver', function () {
       );
 
       assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
+        message: undefined,
         start: {line: 1, column: 8},
         end: {line: 1, column: 25},
       });
@@ -149,6 +151,7 @@ describe('resolver', function () {
       );
 
       assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
+        message: undefined,
         start: {line: 1, column: 9},
         end: {line: 1, column: 32},
       });
@@ -257,7 +260,10 @@ describe('resolver', function () {
     } catch (e) {
       threw = true;
 
-      assert.equal(e.diagnostics[1].message, `Cannot find module @baebal/core`);
+      assert.equal(
+        e.diagnostics[1].message,
+        `Cannot find module '@baebal/core'`,
+      );
 
       assert.equal(
         e.diagnostics[1].hints[0],
@@ -397,5 +403,45 @@ describe('resolver', function () {
     await bundle(path.join(inputDir, 'index.html'), {
       inputFS: overlayFS,
     });
+  });
+
+  it('should support empty dependency specifiers', async function () {
+    // $FlowFixMe[prop-missing];
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(__dirname, '/integration/resolve-empty-specifier/index.js'),
+        ),
+      {
+        message: `Failed to resolve '' from './integration/resolve-empty-specifier/index.js'`,
+      },
+    );
+  });
+
+  it('should support package exports config option', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-exports/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 'hello bar');
+  });
+
+  it('should support the development and production import conditions', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-mode-condition/index.js'),
+      {mode: 'development'},
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 'development');
+
+    b = await bundle(
+      path.join(__dirname, '/integration/resolve-mode-condition/index.js'),
+      {mode: 'production'},
+    );
+
+    output = await run(b);
+    assert.strictEqual(output.default, 'production');
   });
 });

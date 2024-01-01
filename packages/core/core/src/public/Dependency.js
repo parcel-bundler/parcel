@@ -17,7 +17,11 @@ import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Target from './Target';
 import {MutableDependencySymbols} from './Symbols';
-import {SpecifierType as SpecifierTypeMap, Priority} from '../types';
+import {
+  SpecifierType as SpecifierTypeMap,
+  Priority,
+  ExportsCondition,
+} from '../types';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
 
@@ -38,16 +42,23 @@ export function dependencyToInternalDependency(
   return nullthrows(_dependencyToInternalDependency.get(dependency));
 }
 
+export function getPublicDependency(
+  dep: InternalDependency,
+  options: ParcelOptions,
+): Dependency {
+  let existing = internalDependencyToDependency.get(dep);
+  if (existing != null) {
+    return existing;
+  }
+
+  return new Dependency(dep, options);
+}
+
 export default class Dependency implements IDependency {
   #dep /*: InternalDependency */;
   #options /*: ParcelOptions */;
 
   constructor(dep: InternalDependency, options: ParcelOptions): Dependency {
-    let existing = internalDependencyToDependency.get(dep);
-    if (existing != null) {
-      return existing;
-    }
-
     this.#dep = dep;
     this.#options = options;
     _dependencyToInternalDependency.set(this, dep);
@@ -99,6 +110,23 @@ export default class Dependency implements IDependency {
 
   get env(): IEnvironment {
     return new Environment(this.#dep.env, this.#options);
+  }
+
+  get packageConditions(): ?Array<string> {
+    // Merge custom conditions with conditions stored as bitflags.
+    // Order is not important because exports conditions are resolved
+    // in the order they are declared in the package.json.
+    let conditions = this.#dep.customPackageConditions;
+    if (this.#dep.packageConditions) {
+      conditions = conditions ? [...conditions] : [];
+      for (let key in ExportsCondition) {
+        if (this.#dep.packageConditions & ExportsCondition[key]) {
+          conditions.push(key);
+        }
+      }
+    }
+
+    return conditions;
   }
 
   get meta(): Meta {

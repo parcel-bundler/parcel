@@ -1,6 +1,6 @@
 {
   "name": "@parcel/validator-eslint",
-  "version": "2.7.0",
+  "version": "2.10.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,17 +17,17 @@
   "source": "src/EslintValidator.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.7.0"
+    "parcel": "^2.10.3"
   },
   "dependencies": {
-    "@parcel/plugin": "2.7.0",
-    "@parcel/utils": "2.7.0",
+    "@parcel/plugin": "2.10.3",
+    "@parcel/utils": "2.10.3",
     "chalk": "^4.1.0"
   },
   "devDependencies": {
-    "eslint": "^6.0.0"
+    "eslint": "^6.0.0 || ^7.0.0"
   },
   "peerDependencies": {
-    "eslint": "^6.0.0"
+    "eslint": "^6.0.0 || ^7.0.0"
   }
 }

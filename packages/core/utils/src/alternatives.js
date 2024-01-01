@@ -42,6 +42,8 @@ export async function findAlternativeNodeModules(
               potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
             }),
           );
+        } else {
+          potentialModules.push(...modules);
         }
       }
     } catch (err) {

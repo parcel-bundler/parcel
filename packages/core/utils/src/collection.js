@@ -34,17 +34,25 @@ function sortEntry(entry: mixed) {
   return entry;
 }
 
-export function setDifference<T>(a: Set<T>, b: Set<T>): Set<T> {
+export function setDifference<T>(
+  a: $ReadOnlySet<T>,
+  b: $ReadOnlySet<T>,
+): Set<T> {
   let difference = new Set();
   for (let e of a) {
     if (!b.has(e)) {
       difference.add(e);
     }
   }
+  for (let d of b) {
+    if (!a.has(d)) {
+      difference.add(d);
+    }
+  }
   return difference;
 }
 
-export function setIntersect<T>(a: Set<T>, b: Set<T>): void {
+export function setIntersect<T>(a: Set<T>, b: $ReadOnlySet<T>): void {
   for (let entry of a) {
     if (!b.has(entry)) {
       a.delete(entry);
@@ -56,7 +64,7 @@ export function setUnion<T>(a: Iterable<T>, b: Iterable<T>): Set<T> {
   return new Set([...a, ...b]);
 }
 
-export function setEqual<T>(a: Set<T>, b: Set<T>): boolean {
+export function setEqual<T>(a: $ReadOnlySet<T>, b: $ReadOnlySet<T>): boolean {
   if (a.size != b.size) {
     return false;
   }

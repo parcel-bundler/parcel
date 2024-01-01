@@ -78,6 +78,15 @@ describe('ParcelConfigRequest', () => {
         'transformers',
       );
     });
+
+    it('should succeed on a local package', () => {
+      validatePackageName(
+        './parcel-transform-bar',
+        'transform',
+        'transformers',
+      );
+      validatePackageName('./bar', 'transform', 'transformers');
+    });
   });
 
   describe('validateConfigFile', () => {

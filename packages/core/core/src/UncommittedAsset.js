@@ -28,7 +28,7 @@ import {
   loadSourceMap,
   SOURCEMAP_RE,
 } from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {serializeRaw} from './serializer';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -92,7 +92,7 @@ export default class UncommittedAsset {
   }
 
   /*
-   * Prepares the asset for being serialized to the cache by commiting its
+   * Prepares the asset for being serialized to the cache by committing its
    * content and map of the asset to the cache.
    */
   async commit(pipelineKey: string): Promise<void> {

@@ -5,7 +5,7 @@ import type {
   FilePath,
 } from '@parcel/types';
 import type {Environment, InternalSourceLocation} from './types';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {toInternalSourceLocation} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';

@@ -1,28 +1,44 @@
-/* global chrome, browser, addEventListener, fetch, Response, HMR_HOST, HMR_PORT */
-var env = typeof chrome == 'undefined' ? browser : chrome;
-env.runtime.onMessage.addListener(function (msg) {
+/* global chrome, browser */
+let env = typeof browser === 'undefined' ? chrome : browser;
+let origReload = env.runtime.reload;
+let avoidID = -1;
+
+let promisify =
+  (obj, fn) =>
+  (...args) => {
+    if (typeof browser === 'undefined') {
+      return new Promise((resolve, reject) =>
+        obj[fn](...args, res =>
+          env.runtime.lastError ? reject(env.runtime.lastError) : resolve(res),
+        ),
+      );
+    }
+    return obj[fn](...args);
+  };
+
+let queryTabs = promisify(env.tabs, 'query');
+let messageTab = promisify(env.tabs, 'sendMessage');
+
+env.runtime.reload = () => {
+  queryTabs({})
+    .then(tabs => {
+      return Promise.all(
+        tabs.map(tab => {
+          if (tab.id === avoidID) return;
+          return messageTab(tab.id, {
+            __parcel_hmr_reload__: true,
+          }).catch(() => {});
+        }),
+      );
+    })
+    .then(() => {
+      origReload.call(env.runtime);
+    });
+};
+
+env.runtime.onMessage.addListener((msg, sender) => {
   if (msg.__parcel_hmr_reload__) {
+    avoidID = sender.tab.id;
     env.runtime.reload();
   }
 });
-
-if (env.runtime.getManifest().manifest_version == 3) {
-  var proxyLoc = env.runtime.getURL('/__parcel_hmr_proxy__?url=');
-  addEventListener('fetch', function (evt) {
-    var url = evt.request.url;
-    if (url.startsWith(proxyLoc)) {
-      url = new URL(decodeURIComponent(url.slice(proxyLoc.length)));
-      if (url.hostname == HMR_HOST && url.port == HMR_PORT) {
-        evt.respondWith(
-          fetch(url).then(function (res) {
-            return new Response(res.body, {
-              headers: {
-                'Content-Type': res.headers.get('Content-Type'),
-              },
-            });
-          }),
-        );
-      }
-    }
-  });
-}

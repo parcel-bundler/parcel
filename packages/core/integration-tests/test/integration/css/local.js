@@ -1,3 +1,4 @@
+require('./c.js');
 require('./local.css');
 
 exports.a = 1;

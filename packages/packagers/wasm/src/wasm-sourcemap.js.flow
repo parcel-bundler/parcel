@@ -1,0 +1,16 @@
+// @flow
+
+declare module.exports: {|
+  /**
+   * GetSourceMapURL extracts the source map from a WASM buffer.
+   * @returns {String|null} The linked sourcemap URL if present.
+   */
+  GetSourceMapURL(buf: Uint8Array): string | null,
+  RemoveSourceMapURL(buf: Uint8Array): Uint8Array,
+  SetSourceMapURL(
+    buf: Uint8Array,
+    url: string,
+    urlLenOverride?: number,
+  ): Uint8Array,
+  SetSourceMapURLRelativeTo(buf: Uint8Array, relativeURL: string): Uint8Array,
+|};

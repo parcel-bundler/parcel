@@ -9,6 +9,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
+import {convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {
   PromiseQueue,
   replaceInlineReferences,
@@ -50,7 +51,11 @@ export default (new Packager({
           let resolved = bundleGraph.getResolvedAsset(node.value, bundle);
 
           // Hoist unresolved external dependencies (i.e. http: imports)
-          if (node.value.priority === 'sync' && !resolved) {
+          if (
+            node.value.priority === 'sync' &&
+            !bundleGraph.isDependencySkipped(node.value) &&
+            !resolved
+          ) {
             hoistedImports.push(node.value.specifier);
           }
 
@@ -285,7 +290,7 @@ async function processCSSModule(
             codeFrames: [
               {
                 filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
-                codeHighlights: [{start: loc.start, end: loc.end}],
+                codeHighlights: [convertSourceLocationToHighlight(loc)],
               },
             ],
           }),

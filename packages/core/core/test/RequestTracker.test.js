@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import RequestTracker from '../src/RequestTracker';
+import RequestTracker, {type RunAPI} from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {INITIAL_BUILD} from '../src/constants';
@@ -16,14 +16,14 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: () => {},
       input: null,
     });
     let called = false;
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: () => {
         called = true;
       },
@@ -36,7 +36,7 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: () => {},
       input: null,
     });
@@ -47,7 +47,7 @@ describe('RequestTracker', () => {
     let called = false;
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: () => {
         called = true;
       },
@@ -60,11 +60,11 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: async ({api}) => {
         await api.runRequest({
           id: 'xyz',
-          type: 'mock_request',
+          type: 7,
           run: () => {},
           input: null,
         });
@@ -88,7 +88,7 @@ describe('RequestTracker', () => {
     await tracker
       .runRequest({
         id: 'abc',
-        type: 'mock_request',
+        type: 7,
         run: async () => {
           await Promise.resolve();
           throw new Error('woops');
@@ -110,11 +110,11 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: async ({api}) => {
         await api.runRequest({
           id: 'xyz',
-          type: 'mock_request',
+          type: 7,
           run: () => {},
           input: null,
         });
@@ -125,11 +125,11 @@ describe('RequestTracker', () => {
     tracker.graph.invalidateNode(nodeId, INITIAL_BUILD);
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: async ({api}) => {
         await api.runRequest({
           id: '123',
-          type: 'mock_request',
+          type: 7,
           run: () => {},
           input: null,
         });
@@ -143,8 +143,8 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
-      run: async ({api}) => {
+      type: 7,
+      run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve('hello');
         api.storeResult(result);
       },
@@ -152,7 +152,7 @@ describe('RequestTracker', () => {
     });
     let result = await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: async () => {},
       input: null,
     });
@@ -164,7 +164,7 @@ describe('RequestTracker', () => {
     let p = tracker
       .runRequest({
         id: 'abc',
-        type: 'mock_request',
+        type: 7,
         run: async () => {
           await Promise.resolve('hello');
         },
@@ -192,8 +192,8 @@ describe('RequestTracker', () => {
 
     let requestA = tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
-      run: async ({api}) => {
+      type: 7,
+      run: async ({api}: {api: RunAPI<string>, ...}) => {
         await lockA.promise;
         api.storeResult('a');
         return 'a';
@@ -204,8 +204,8 @@ describe('RequestTracker', () => {
     let calledB = false;
     let requestB = tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
-      run: async ({api}) => {
+      type: 7,
+      run: async ({api}: {api: RunAPI<string>, ...}) => {
         calledB = true;
         await lockB.promise;
         api.storeResult('b');
@@ -224,7 +224,7 @@ describe('RequestTracker', () => {
 
     let cachedResult = await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: () => {},
       input: null,
     });
@@ -240,7 +240,7 @@ describe('RequestTracker', () => {
     let requestA = tracker
       .runRequest({
         id: 'abc',
-        type: 'mock_request',
+        type: 7,
         run: async () => {
           await lockA.promise;
           throw new Error('whoops');
@@ -253,8 +253,8 @@ describe('RequestTracker', () => {
 
     let requestB = tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
-      run: async ({api}) => {
+      type: 7,
+      run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         await lockB.promise;
         api.storeResult('b');
       },
@@ -269,7 +269,7 @@ describe('RequestTracker', () => {
     let called = false;
     let cachedResult = await tracker.runRequest({
       id: 'abc',
-      type: 'mock_request',
+      type: 7,
       run: () => {
         called = true;
       },

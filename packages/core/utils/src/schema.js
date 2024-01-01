@@ -6,8 +6,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import type {Mapping} from '@mischnic/json-sourcemap';
 import nullthrows from 'nullthrows';
-// flowlint-next-line untyped-import:off
-import levenshtein from 'fastest-levenshtein';
+import * as levenshtein from 'fastest-levenshtein';
 
 export type SchemaEntity =
   | SchemaObject

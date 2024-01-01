@@ -3,9 +3,9 @@ use std::collections::HashSet;
 
 use crate::id;
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, Id};
+use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::{self, Id};
+use swc_core::ecma::atoms::{js_word, JsWord};
 
 pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &HashSet<Id>) -> bool {
   use ast::{Expr, Ident, Lit, MemberProp, Str};
@@ -42,7 +42,7 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &Hash
   false
 }
 
-pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
+pub fn create_require(specifier: swc_core::ecma::atoms::JsWord) -> ast::CallExpr {
   let mut normalized_specifier = specifier;
   if normalized_specifier.starts_with("node:") {
     normalized_specifier = normalized_specifier.replace("node:", "").into();
@@ -93,7 +93,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
 
 pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
   match &node.prop {
-    ast::MemberProp::Computed(s) => match_str(&*s.expr),
+    ast::MemberProp::Computed(s) => match_str(&s.expr),
     ast::MemberProp::Ident(id) => Some((id.sym.clone(), id.span)),
     ast::MemberProp::PrivateName(_) => None,
   }
@@ -126,7 +126,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -135,7 +135,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
         Expr::Member(member) => {
           if match_member_expr(member, vec!["module", "require"], decls) {
             if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -156,7 +156,7 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
     Expr::Call(call) => match &call.callee {
       Callee::Import(ident) if !is_marked(ident.span, ignore_mark) => {
         if let Some(arg) = call.args.get(0) {
-          return match_str(&*arg.expr).map(|(name, _)| name);
+          return match_str(&arg.expr).map(|(name, _)| name);
         }
         None
       }
@@ -168,7 +168,7 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
 
 // `name` must not be an existing binding.
 pub fn create_global_decl_stmt(
-  name: swc_atoms::JsWord,
+  name: swc_core::ecma::atoms::JsWord,
   init: ast::Expr,
   global_mark: Mark,
 ) -> (ast::Stmt, SyntaxContext) {
@@ -177,7 +177,7 @@ pub fn create_global_decl_stmt(
   let span = DUMMY_SP.apply_mark(global_mark);
 
   (
-    ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
+    ast::Stmt::Decl(ast::Decl::Var(Box::new(ast::VarDecl {
       kind: ast::VarDeclKind::Var,
       declare: false,
       span: DUMMY_SP,
@@ -187,7 +187,7 @@ pub fn create_global_decl_stmt(
         definite: false,
         init: Some(Box::new(init)),
       }],
-    })),
+    }))),
     span.ctxt,
   )
 }
@@ -197,6 +197,7 @@ pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+/// Corresponds to the JS SourceLocation type (1-based, end exclusive)
 pub struct SourceLocation {
   pub start_line: usize,
   pub start_col: usize,
@@ -205,26 +206,25 @@ pub struct SourceLocation {
 }
 
 impl SourceLocation {
-  pub fn from(source_map: &swc_common::SourceMap, span: swc_common::Span) -> Self {
+  pub fn from(source_map: &swc_core::common::SourceMap, span: swc_core::common::Span) -> Self {
     if span.lo.is_dummy() || span.hi.is_dummy() {
       return SourceLocation {
         start_line: 1,
         start_col: 1,
         end_line: 1,
-        end_col: 1,
+        end_col: 2,
       };
     }
 
     let start = source_map.lookup_char_pos(span.lo);
     let end = source_map.lookup_char_pos(span.hi);
-    // - SWC's columns are exclusive, ours are inclusive (column - 1)
-    // - SWC has 0-based columns, ours are 1-based (column + 1)
-    // = +-0
+    // SWC's columns are exclusive, ours are exclusive
+    // SWC has 0-based columns, ours are 1-based (column + 1)
     SourceLocation {
       start_line: start.line,
       start_col: start.col_display + 1,
       end_line: end.line,
-      end_col: end.col_display,
+      end_col: end.col_display + 1,
     }
   }
 }
@@ -306,6 +306,7 @@ pub enum BailoutReason {
   ModuleReassignment,
   NonStaticDynamicImport,
   NonStaticAccess,
+  ThisInExport,
 }
 
 impl BailoutReason {
@@ -355,6 +356,10 @@ impl BailoutReason {
         "Non-static access of an `import` or `require`. This causes tree shaking to be disabled for the resolved module.",
         "https://parceljs.org/features/scope-hoisting/#dynamic-member-accesses"
       ),
+      BailoutReason::ThisInExport => (
+        "Module contains `this` access of an exported value. This causes the module to be wrapped and tree-shaking to be disabled.",
+        "https://parceljs.org/features/scope-hoisting/#avoiding-bail-outs"
+      ),
     }
   }
 }
@@ -364,11 +369,11 @@ macro_rules! fold_member_expr_skip_prop {
   () => {
     fn fold_member_expr(
       &mut self,
-      mut node: swc_ecmascript::ast::MemberExpr,
-    ) -> swc_ecmascript::ast::MemberExpr {
+      mut node: swc_core::ecma::ast::MemberExpr,
+    ) -> swc_core::ecma::ast::MemberExpr {
       node.obj = node.obj.fold_with(self);
 
-      if let swc_ecmascript::ast::MemberProp::Computed(_) = node.prop {
+      if let swc_core::ecma::ast::MemberProp::Computed(_) = node.prop {
         node.prop = node.prop.fold_with(self);
       }
 

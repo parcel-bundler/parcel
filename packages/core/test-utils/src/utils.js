@@ -12,6 +12,7 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
+import type {IncomingMessage} from 'http';
 
 import invariant from 'assert';
 import util from 'util';
@@ -33,6 +34,8 @@ import https from 'https';
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
+
+export {fsFixture} from './fsFixture';
 
 export const workerFarm = (createWorkerFarm(): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();
@@ -113,12 +116,9 @@ export function getParcelOptions(
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
-      defaultConfig: path.join(
-        __dirname,
-        process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
-          ? '.parcelrc-no-reporters'
-          : '.parcelrc-experimental-bundler',
-      ),
+      shouldBundleIncrementally:
+        process.env.NO_INCREMENTAL == null ? true : false,
+      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
       inputFS,
       outputFS,
       workerFarm,
@@ -340,7 +340,7 @@ export async function runBundles(
 
   // A utility to prevent optimizers from removing side-effect-free code needed for testing
   // $FlowFixMe[prop-missing]
-  ctx.sideEffectNoop = () => {};
+  ctx.sideEffectNoop = v => v;
 
   vm.createContext(ctx);
   let esmOutput;
@@ -668,7 +668,7 @@ function prepareBrowserContext(
 
   function PatchedError(message) {
     const patchedError = new Error(message);
-    const stackStart = patchedError.stack.indexOf('at new Error');
+    const stackStart = patchedError.stack.match(/at (new )?Error/)?.index;
     const stackEnd = patchedError.stack.includes('at Script.runInContext')
       ? patchedError.stack.indexOf('at Script.runInContext')
       : patchedError.stack.indexOf('at runNextTicks');
@@ -970,7 +970,10 @@ export async function runESM(
 ): Promise<Array<{|[string]: mixed|}>> {
   let id = instanceId++;
   let cache = new Map();
-  function load(specifier, referrer, code = null) {
+  function load(inputSpecifier, referrer, code = null) {
+    // ESM can request bundles with an absolute URL. Normalize this to the baseDir.
+    let specifier = inputSpecifier.replace('http://localhost', baseDir);
+
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
       if (extname && extname !== '.js' && extname !== '.mjs') {
@@ -1165,6 +1168,40 @@ export async function assertNoFilePathInCache(
       }
     }
   }
+}
+
+export function requestRaw(
+  file: string,
+  port: number,
+  options: ?requestOptions,
+  client: typeof http | typeof https = http,
+): Promise<{|res: IncomingMessage, data: string|}> {
+  return new Promise((resolve, reject) => {
+    client
+      // $FlowFixMe
+      .request(
+        {
+          hostname: 'localhost',
+          port: port,
+          path: file,
+          rejectUnauthorized: false,
+          ...options,
+        },
+        (res: IncomingMessage) => {
+          res.setEncoding('utf8');
+          let data = '';
+          res.on('data', c => (data += c));
+          res.on('end', () => {
+            if (res.statusCode !== 200) {
+              return reject({res, data});
+            }
+
+            resolve({res, data});
+          });
+        },
+      )
+      .end();
+  });
 }
 
 export function request(

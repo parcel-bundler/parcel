@@ -9,8 +9,13 @@ import type {
   SemverRange,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
-import {hashString} from '@parcel/hash';
-import {SpecifierType, Priority, BundleBehavior} from './types';
+import {hashString} from '@parcel/rust';
+import {
+  SpecifierType,
+  Priority,
+  BundleBehavior,
+  ExportsCondition,
+} from './types';
 
 import {toInternalSourceLocation} from './utils';
 import {toProjectPath} from './projectPath';
@@ -28,11 +33,12 @@ type DependencyOpts = {|
   isOptional?: boolean,
   loc?: SourceLocation,
   env: Environment,
+  packageConditions?: Array<string>,
   meta?: Meta,
   resolveFrom?: FilePath,
   range?: SemverRange,
   target?: Target,
-  symbols?: Map<
+  symbols?: ?Map<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
@@ -53,15 +59,13 @@ export function createDependency(
         (opts.pipeline ?? '') +
         opts.specifierType +
         (opts.bundleBehavior ?? '') +
-        (opts.priority ?? 'sync'),
+        (opts.priority ?? 'sync') +
+        (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
     );
 
-  return {
-    ...opts,
-    resolveFrom: toProjectPath(projectRoot, opts.resolveFrom),
-    sourcePath: toProjectPath(projectRoot, opts.sourcePath),
+  let dep: Dependency = {
     id,
-    loc: toInternalSourceLocation(projectRoot, opts.loc),
+    specifier: opts.specifier,
     specifierType: SpecifierType[opts.specifierType],
     priority: Priority[opts.priority ?? 'sync'],
     needsStableName: opts.needsStableName ?? false,
@@ -70,7 +74,13 @@ export function createDependency(
       : null,
     isEntry: opts.isEntry ?? false,
     isOptional: opts.isOptional ?? false,
+    loc: toInternalSourceLocation(projectRoot, opts.loc),
+    env: opts.env,
     meta: opts.meta || {},
+    target: opts.target,
+    sourceAssetId: opts.sourceAssetId,
+    sourcePath: toProjectPath(projectRoot, opts.sourcePath),
+    resolveFrom: toProjectPath(projectRoot, opts.resolveFrom),
     range: opts.range,
     symbols:
       opts.symbols &&
@@ -85,7 +95,14 @@ export function createDependency(
           },
         ]),
       ),
+    pipeline: opts.pipeline,
   };
+
+  if (opts.packageConditions) {
+    convertConditions(opts.packageConditions, dep);
+  }
+
+  return dep;
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
@@ -100,4 +117,26 @@ export function mergeDependencies(a: Dependency, b: Dependency): void {
   if (needsStableName) a.needsStableName = true;
   if (isEntry) a.isEntry = true;
   if (!isOptional) a.isOptional = false;
+}
+
+function convertConditions(conditions: Array<string>, dep: Dependency) {
+  // Store common package conditions as bit flags to reduce size.
+  // Custom conditions are stored as strings.
+  let packageConditions = 0;
+  let customConditions = [];
+  for (let condition of conditions) {
+    if (ExportsCondition[condition]) {
+      packageConditions |= ExportsCondition[condition];
+    } else {
+      customConditions.push(condition);
+    }
+  }
+
+  if (packageConditions) {
+    dep.packageConditions = packageConditions;
+  }
+
+  if (customConditions.length) {
+    dep.customPackageConditions = customConditions;
+  }
 }

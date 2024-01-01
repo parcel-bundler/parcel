@@ -5,6 +5,7 @@ import type {
   FilePath,
   Symbol,
   TraversalActions,
+  BundleBehavior as IBundleBehavior,
 } from '@parcel/types';
 import type {
   ContentKey,
@@ -19,8 +20,10 @@ import type {
   Bundle,
   BundleGraphNode,
   BundleGroup,
+  BundleNode,
   Dependency,
   DependencyNode,
+  Environment,
   InternalSourceLocation,
   Target,
 } from './types';
@@ -31,13 +34,14 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
-import {Hash, hashString} from '@parcel/hash';
+import {Hash, hashString} from '@parcel/rust';
 import {DefaultMap, objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
 import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
-import {fromProjectPath} from './projectPath';
+import {fromProjectPath, fromProjectPathRelative} from './projectPath';
+import {HASH_REF_PREFIX} from './constants';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -83,7 +87,6 @@ type BundleGraphOpts = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  symbolPropagationRan: boolean,
 |};
 
 type SerializedBundleGraph = {|
@@ -92,7 +95,6 @@ type SerializedBundleGraph = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  symbolPropagationRan: boolean,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -109,40 +111,55 @@ function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
   });
 }
 
+/**
+ * Stores assets, dependencies, bundle groups, bundles, and the relationships between them.
+ * The BundleGraph is passed to the bundler plugin wrapped in a MutableBundleGraph,
+ * and is passed to packagers and optimizers wrapped in the public BundleGraph object, both
+ * of which implement public api for this structure. This is the internal structure.
+ */
 export default class BundleGraph {
+  /** A set of all existing concise asset ids present in the BundleGraph */
   _assetPublicIds: Set<string>;
+  /** Maps full asset ids (currently 32-character strings) to concise ids (minimum of 5 character strings) */
   _publicIdByAssetId: Map<string, string>;
-  // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
-  // property so it is possible to reach in and mutate the graph without invalidating these hashes.
-  // It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
-  // BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
+  /**
+   * A cache of bundle hashes by bundle id.
+   *
+   * TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
+   * property so it is possible to reach in and mutate the graph without invalidating these hashes.
+   * It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
+   * BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
+   */
   _bundleContentHashes: Map<string, string>;
   _targetEntryRoots: Map<ProjectPath, FilePath> = new Map();
+  /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
-  _symbolPropagationRan /*: boolean*/;
+  _bundlePublicIds /*: Set<string> */ = new Set<string>();
 
   constructor({
     graph,
     publicIdByAssetId,
     assetPublicIds,
     bundleContentHashes,
-    symbolPropagationRan,
   }: {|
     graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
-    symbolPropagationRan: boolean,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
     this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
-    this._symbolPropagationRan = symbolPropagationRan;
   }
 
+  /**
+   * Produce a BundleGraph from an AssetGraph by removing asset groups and retargeting dependencies
+   * based on the symbol data (resolving side-effect free reexports).
+   */
   static fromAssetGraph(
     assetGraph: AssetGraph,
+    isProduction: boolean,
     publicIdByAssetId: Map<string, string> = new Map(),
     assetPublicIds: Set<string> = new Set(),
   ): BundleGraph {
@@ -157,8 +174,8 @@ export default class BundleGraph {
         : null;
     invariant(assetGraphRootNode != null && assetGraphRootNode.type === 'root');
 
-    for (let [nodeId, node] of assetGraph.nodes) {
-      if (node.type === 'asset') {
+    for (let [nodeId, node] of assetGraph.nodes.entries()) {
+      if (node != null && node.type === 'asset') {
         let {id: assetId} = node.value;
         // Generate a new, short public id for this asset to use.
         // If one already exists, use it.
@@ -170,7 +187,7 @@ export default class BundleGraph {
           publicIdByAssetId.set(assetId, publicId);
           assetPublicIds.add(publicId);
         }
-      } else if (node.type === 'asset_group') {
+      } else if (node != null && node.type === 'asset_group') {
         assetGroupIds.set(nodeId, assetGraph.getNodeIdsConnectedFrom(nodeId));
       }
     }
@@ -181,7 +198,15 @@ export default class BundleGraph {
       walkVisited.add(nodeId);
 
       let node = nullthrows(assetGraph.getNode(nodeId));
-      if (node.type === 'dependency' && node.value.symbols != null) {
+      if (
+        node.type === 'dependency' &&
+        node.value.symbols != null &&
+        node.value.env.shouldScopeHoist &&
+        // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
+        isProduction
+      ) {
+        let nodeValueSymbols = node.value.symbols;
+
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
           () => new Map(),
@@ -203,13 +228,17 @@ export default class BundleGraph {
         }
 
         if (
-          // Only perform rewriting when there is an imported symbol
+          // Only perform retargeting when there is an imported symbol
           // - If the target is side-effect-free, the symbols point to the actual target and removing
           //   the original dependency resolution is fine
           // - Otherwise, keep this dependency unchanged for its potential side effects
           node.usedSymbolsUp.size > 0 &&
-          // Only perform rewriting if the dependency only points to a single asset (e.g. CSS modules)
+          // Only perform retargeting if the dependency only points to a single asset (e.g. CSS modules)
           !hasAmbiguousSymbols &&
+          // It doesn't make sense to retarget dependencies where `*` is used, because the
+          // retargeting won't enable any benefits in that case (apart from potentially even more
+          // code being generated).
+          !node.usedSymbolsUp.has('*') &&
           // TODO We currently can't rename imports in async imports, e.g. from
           //      (parcelRequire("...")).then(({ a }) => a);
           // to
@@ -217,8 +246,19 @@ export default class BundleGraph {
           // or
           //      (parcelRequire("...")).then((a)=>a);
           // if the reexporting asset did `export {a as b}` or `export * as a`
-          node.value.priority === Priority.sync
+          node.value.priority === Priority.sync &&
+          // For every asset, no symbol is imported multiple times (with a different local name).
+          // Don't retarget because this cannot be resolved without also changing the asset symbols
+          // (and the asset content itself).
+          [...targets].every(
+            ([, t]) => new Set([...t.values()]).size === t.size,
+          )
         ) {
+          let isReexportAll = nodeValueSymbols.get('*')?.local === '*';
+          let reexportAllLoc = isReexportAll
+            ? nullthrows(nodeValueSymbols.get('*')).loc
+            : undefined;
+
           // TODO adjust sourceAssetIdNode.value.dependencies ?
           let deps = [
             // Keep the original dependency
@@ -228,13 +268,11 @@ export default class BundleGraph {
                 ...node,
                 value: {
                   ...node.value,
-                  symbols: node.value.symbols
-                    ? new Map(
-                        [...node.value.symbols].filter(([k]) =>
-                          externalSymbols.has(k),
-                        ),
-                      )
-                    : undefined,
+                  symbols: new Map(
+                    [...nodeValueSymbols].filter(([k]) =>
+                      externalSymbols.has(k),
+                    ),
+                  ),
                 },
                 usedSymbolsUp: new Map(
                   [...node.usedSymbolsUp].filter(([k]) =>
@@ -249,6 +287,61 @@ export default class BundleGraph {
               let newNodeId = hashString(
                 node.id + [...target.keys()].join(','),
               );
+
+              let symbols = new Map();
+              for (let [as, from] of target) {
+                let existing = nodeValueSymbols.get(as);
+                if (existing) {
+                  symbols.set(from, existing);
+                } else {
+                  invariant(isReexportAll);
+                  if (as === from) {
+                    // Keep the export-all for non-renamed reexports, this still correctly models
+                    // ambiguous resolution with multiple export-alls.
+                    symbols.set('*', {
+                      isWeak: true,
+                      local: '*',
+                      loc: reexportAllLoc,
+                    });
+                  } else {
+                    let local = `${node.value.id}$rewrite$${asset}$${from}`;
+                    symbols.set(from, {
+                      isWeak: true,
+                      local,
+                      loc: reexportAllLoc,
+                    });
+                    if (node.value.sourceAssetId != null) {
+                      let sourceAssetId = nullthrows(
+                        assetGraphNodeIdToBundleGraphNodeId.get(
+                          assetGraph.getNodeIdByContentKey(
+                            node.value.sourceAssetId,
+                          ),
+                        ),
+                      );
+                      let sourceAsset = nullthrows(
+                        graph.getNode(sourceAssetId),
+                      );
+                      invariant(sourceAsset.type === 'asset');
+                      let sourceAssetSymbols = sourceAsset.value.symbols;
+                      if (sourceAssetSymbols) {
+                        // The `as == from` case above should handle multiple export-alls causing
+                        // ambiguous resolution. So the current symbol is unambiguous and shouldn't
+                        // already exist on the importer.
+                        invariant(!sourceAssetSymbols.has(as));
+                        sourceAssetSymbols.set(as, {
+                          loc: reexportAllLoc,
+                          local: local,
+                        });
+                      }
+                    }
+                  }
+                }
+              }
+              let usedSymbolsUp = new Map(
+                [...node.usedSymbolsUp]
+                  .filter(([k]) => target.has(k) || k === '*')
+                  .map(([k, v]) => [target.get(k) ?? k, v]),
+              );
               return {
                 asset,
                 dep: graph.addNodeByContentKey(newNodeId, {
@@ -257,24 +350,17 @@ export default class BundleGraph {
                   value: {
                     ...node.value,
                     id: newNodeId,
-                    symbols: node.value.symbols
-                      ? new Map(
-                          [...node.value.symbols]
-                            .filter(([k]) => target.has(k) || k === '*')
-                            .map(([k, v]) => [target.get(k) ?? k, v]),
-                        )
-                      : undefined,
+                    symbols,
                   },
-                  usedSymbolsUp: new Map(
-                    [...node.usedSymbolsUp]
-                      .filter(([k]) => target.has(k) || k === '*')
-                      .map(([k, v]) => [target.get(k) ?? k, v]),
-                  ),
+                  usedSymbolsUp,
+                  // This is only a temporary helper needed during symbol propagation and is never
+                  // read afterwards (and also not exposed through the public API).
                   usedSymbolsDown: new Set(),
                 }),
               };
             }),
           ];
+
           dependencies.set(nodeId, deps);
 
           // Jump to the dependencies that are used in this dependency
@@ -290,7 +376,14 @@ export default class BundleGraph {
       }
       // Don't copy over asset groups into the bundle graph.
       else if (node.type !== 'asset_group') {
-        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
+        let nodeToAdd =
+          node.type === 'asset'
+            ? {
+                ...node,
+                value: {...node.value, symbols: new Map(node.value.symbols)},
+              }
+            : node;
+        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, nodeToAdd);
         if (node.id === assetGraphRootNode?.id) {
           graph.setRootNodeId(bundleGraphNodeId);
         }
@@ -341,13 +434,11 @@ export default class BundleGraph {
         );
       }
     }
-
     return new BundleGraph({
       graph,
       assetPublicIds,
       bundleContentHashes: new Map(),
       publicIdByAssetId,
-      symbolPropagationRan: assetGraph.symbolPropagationRan,
     });
   }
 
@@ -358,7 +449,6 @@ export default class BundleGraph {
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,
-      symbolPropagationRan: this._symbolPropagationRan,
     };
   }
 
@@ -368,8 +458,97 @@ export default class BundleGraph {
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
       publicIdByAssetId: serialized.publicIdByAssetId,
-      symbolPropagationRan: serialized.symbolPropagationRan,
     });
+  }
+
+  createBundle(
+    opts:
+      | {|
+          +entryAsset: Asset,
+          +target: Target,
+          +needsStableName?: ?boolean,
+          +bundleBehavior?: ?IBundleBehavior,
+          +shouldContentHash: boolean,
+          +env: Environment,
+        |}
+      | {|
+          +type: string,
+          +env: Environment,
+          +uniqueKey: string,
+          +target: Target,
+          +needsStableName?: ?boolean,
+          +bundleBehavior?: ?IBundleBehavior,
+          +isSplittable?: ?boolean,
+          +pipeline?: ?string,
+          +shouldContentHash: boolean,
+        |},
+  ): Bundle {
+    let {entryAsset, target} = opts;
+    let bundleId = hashString(
+      'bundle:' +
+        (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
+        fromProjectPathRelative(target.distDir) +
+        (opts.bundleBehavior ?? ''),
+    );
+
+    let existing = this._graph.getNodeByContentKey(bundleId);
+    if (existing != null) {
+      invariant(existing.type === 'bundle');
+      return existing.value;
+    }
+
+    let publicId = getPublicId(bundleId, existing =>
+      this._bundlePublicIds.has(existing),
+    );
+    this._bundlePublicIds.add(publicId);
+
+    let isPlaceholder = false;
+    if (entryAsset) {
+      let entryAssetNode = this._graph.getNodeByContentKey(entryAsset.id);
+      invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
+      isPlaceholder = entryAssetNode.requested === false;
+    }
+
+    let bundleNode: BundleNode = {
+      type: 'bundle',
+      id: bundleId,
+      value: {
+        id: bundleId,
+        hashReference: opts.shouldContentHash
+          ? HASH_REF_PREFIX + bundleId
+          : bundleId.slice(-8),
+        type: opts.entryAsset ? opts.entryAsset.type : opts.type,
+        env: opts.env,
+        entryAssetIds: entryAsset ? [entryAsset.id] : [],
+        mainEntryId: entryAsset?.id,
+        pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
+        needsStableName: opts.needsStableName,
+        bundleBehavior:
+          opts.bundleBehavior != null
+            ? BundleBehavior[opts.bundleBehavior]
+            : null,
+        isSplittable: opts.entryAsset
+          ? opts.entryAsset.isBundleSplittable
+          : opts.isSplittable,
+        isPlaceholder,
+        target,
+        name: null,
+        displayName: null,
+        publicId,
+      },
+    };
+
+    let bundleNodeId = this._graph.addNodeByContentKey(bundleId, bundleNode);
+
+    if (opts.entryAsset) {
+      this._graph.addEdge(
+        bundleNodeId,
+        this._graph.getNodeIdByContentKey(opts.entryAsset.id),
+      );
+    }
+
+    invariant;
+    return bundleNode.value;
   }
 
   addAssetToBundle(asset: Asset, bundle: Bundle) {
@@ -546,7 +725,7 @@ export default class BundleGraph {
       this._graph.getNodeIdByContentKey(dependency.id),
       bundleGraphEdgeTypes.internal_async,
     );
-    this.removeExternalDependency(bundle, dependency);
+    this._removeExternalDependency(bundle, dependency);
   }
 
   isDependencySkipped(dependency: Dependency): boolean {
@@ -716,7 +895,7 @@ export default class BundleGraph {
       }
 
       if (node.type === 'dependency') {
-        this.removeExternalDependency(bundle, node.value);
+        this._removeExternalDependency(bundle, node.value);
         if (
           this._graph.hasEdge(
             bundleNodeId,
@@ -755,6 +934,10 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
+  /**
+   * Remove a bundle from the bundle graph. Remove its bundle group if it is
+   * the only bundle in the group.
+   */
   removeBundle(bundle: Bundle): Set<BundleGroup> {
     // Remove bundle node if it no longer has any entry assets
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
@@ -824,7 +1007,7 @@ export default class BundleGraph {
     );
   }
 
-  removeExternalDependency(bundle: Bundle, dependency: Dependency) {
+  _removeExternalDependency(bundle: Bundle, dependency: Dependency) {
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     for (let bundleGroupNode of this._graph
       .getNodeIdsConnectedFrom(this._graph.getNodeIdByContentKey(dependency.id))
@@ -998,6 +1181,15 @@ export default class BundleGraph {
   }
 
   isAssetReferenced(bundle: Bundle, asset: Asset): boolean {
+    // If the asset is available in multiple bundles in the same target, it's referenced.
+    if (
+      this.getBundlesWithAsset(asset).filter(
+        b => b.target.distDir === bundle.target.distDir,
+      ).length > 1
+    ) {
+      return true;
+    }
+
     let assetNodeId = nullthrows(this._graph.getNodeIdByContentKey(asset.id));
 
     if (
@@ -1648,6 +1840,7 @@ export default class BundleGraph {
         }
       }
     }
+
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
       // ..., but if it does exist, it has to be behind this one reexport.
@@ -1807,6 +2000,10 @@ export default class BundleGraph {
       bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
     );
 
+    if (bundle.isPlaceholder) {
+      hash.writeString('placeholder');
+    }
+
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
       hash.writeString(this.getContentHash(inlineBundle));
@@ -1863,7 +2060,7 @@ export default class BundleGraph {
   getUsedSymbolsAsset(asset: Asset): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(asset.id);
     invariant(node && node.type === 'asset');
-    return this._symbolPropagationRan
+    return node.value.symbols
       ? makeReadOnlySet(new Set(node.usedSymbols.keys()))
       : null;
   }
@@ -1871,20 +2068,21 @@ export default class BundleGraph {
   getUsedSymbolsDependency(dep: Dependency): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
-    let result = new Set(node.usedSymbolsUp.keys());
-    return this._symbolPropagationRan ? makeReadOnlySet(result) : null;
+    return node.value.symbols
+      ? makeReadOnlySet(new Set(node.usedSymbolsUp.keys()))
+      : null;
   }
 
   merge(other: BundleGraph) {
     let otherGraphIdToThisNodeId = new Map<NodeId, NodeId>();
-    for (let [otherNodeId, otherNode] of other._graph.nodes) {
+    for (let [otherNodeId, otherNode] of other._graph.nodes.entries()) {
+      if (!otherNode) continue;
       if (this._graph.hasContentKey(otherNode.id)) {
         let existingNodeId = this._graph.getNodeIdByContentKey(otherNode.id);
         otherGraphIdToThisNodeId.set(otherNodeId, existingNodeId);
 
         let existingNode = nullthrows(this._graph.getNode(existingNodeId));
-        // Merge symbols, recompute dep.exluded based on that
-
+        // Merge symbols, recompute dep.excluded based on that
         if (existingNode.type === 'asset') {
           invariant(otherNode.type === 'asset');
           existingNode.usedSymbols = new Set([
@@ -1934,6 +2132,18 @@ export default class BundleGraph {
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .some(n => n.type === 'root');
+  }
+
+  /**
+   * Update the asset in a Bundle Graph and clear the associated Bundle hash.
+   */
+  updateAsset(asset: AssetNode) {
+    this._graph.updateNode(this._graph.getNodeIdByContentKey(asset.id), asset);
+    let bundles = this.getBundlesWithAsset(asset.value);
+    for (let bundle of bundles) {
+      // the bundle content will change with a modified asset
+      this._bundleContentHashes.delete(bundle.id);
+    }
   }
 
   getEntryRoot(projectRoot: FilePath, target: Target): FilePath {

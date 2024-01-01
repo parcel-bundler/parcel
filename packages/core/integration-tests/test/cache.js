@@ -21,12 +21,19 @@ import {
   getParcelOptions,
   assertNoFilePathInCache,
   findAsset,
+  bundle,
+  fsFixture,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
 import resolveOptions from '@parcel/core/src/resolveOptions';
+import logger from '@parcel/logger';
+import sinon from 'sinon';
+import {version} from '@parcel/core/package.json';
+import {deserialize} from '@parcel/core/src/serializer';
+import {hashString} from '@parcel/rust';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
@@ -232,7 +239,7 @@ describe('cache', function () {
       {name: 'babel.config.json', formatter: json, nesting: false},
       {name: 'babel.config.js', formatter: cjs, nesting: false},
       {name: 'babel.config.cjs', formatter: cjs, nesting: false},
-      // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
+      // {name: 'babel.config.mjs', formatter: mjs, nesting: false},
     ];
 
     before(async () => {
@@ -3088,6 +3095,256 @@ describe('cache', function () {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
+    it('should invalidate when switching to a different resolver plugin', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!res.includes('FOO'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(res.includes('FOO'));
+    });
+
+    it('should invalidate when a resolver is updated', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.ts'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(res.includes('FOO'));
+          assert(!res.includes('BAR'));
+
+          let resolver = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-resolver-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            resolver,
+            (
+              await overlayFS.readFile(resolver, 'utf8')
+            ).replace(/\.js/g, '.ts'),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!res.includes('FOO'));
+      assert(res.includes('BAR'));
+    });
+
+    it('should invalidate when adding resolver config', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/bar.js'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(res.includes('FOO'));
+          assert(!res.includes('BAR'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'bar.js'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!res.includes('FOO'));
+      assert(res.includes('BAR'));
+    });
+
+    it('should invalidate when updating resolver config', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/bar.js'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'bar.js'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!res.includes('FOO'));
+          assert(res.includes('BAR'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'foo.js'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(res.includes('FOO'));
+      assert(!res.includes('BAR'));
+    });
+
+    it('should invalidate when removing resolver config', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/bar.js'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'bar.js'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!res.includes('FOO'));
+          assert(res.includes('BAR'));
+
+          await overlayFS.unlink(path.join(inputDir, '.resolverrc'));
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(res.includes('FOO'));
+      assert(!res.includes('BAR'));
+    });
+
     describe('pnp', function () {
       it('should invalidate when the .pnp.js file changes', async function () {
         let Module = require('module');
@@ -3114,6 +3371,15 @@ describe('cache', function () {
                 Module.findPnpApi = () =>
                   // $FlowFixMe
                   require(path.join(inputDir, '.pnp.js'));
+
+                let pnp = await inputFS.readFile(
+                  path.join(inputDir, '.pnp.js'),
+                  'utf8',
+                );
+                await inputFS.writeFile(
+                  path.join(inputDir, '.pnp.js'),
+                  pnp.replace("'zipfs',", ''),
+                );
 
                 await inputFS.mkdirp(path.join(inputDir, 'pnp/testmodule2'));
                 await inputFS.writeFile(
@@ -3178,8 +3444,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.a {'));
@@ -3199,7 +3467,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.a {'));
@@ -3221,8 +3491,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.a {'));
@@ -3241,7 +3513,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.a {'));
@@ -3254,8 +3528,10 @@ describe('cache', function () {
             entries: ['index.js'],
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.index'));
@@ -3284,7 +3560,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.index'));
@@ -3319,8 +3597,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.index'));
@@ -3349,7 +3629,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.index'));
@@ -3376,8 +3658,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.a'));
@@ -3402,7 +3686,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.a'));
@@ -3454,7 +3740,9 @@ describe('cache', function () {
 
         let b = await runBundle('index.js');
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.d'));
@@ -3477,8 +3765,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.included'));
@@ -3495,7 +3785,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.included'));
@@ -3511,6 +3803,7 @@ describe('cache', function () {
             },
             async setup() {
               await overlayFS.mkdirp(path.join(inputDir, 'include2'));
+              await overlayFS.rimraf(path.join(inputDir, '.sassrc.js'));
               await overlayFS.writeFile(
                 path.join(inputDir, 'include2/style.sass'),
                 `.test
@@ -3520,8 +3813,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.included'));
@@ -3537,7 +3832,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.included'));
@@ -3579,7 +3876,9 @@ describe('cache', function () {
 
         let b = await runBundle('index.sass');
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.d'));
@@ -3866,10 +4165,15 @@ describe('cache', function () {
               `
                 const path = require('path');
                 const resolve = request => {
-                  if (request === 'parcel-transformer-mock' || request === 'foo') {
+                  if (request === 'parcel-transformer-mock/' || request === 'foo/') {
                     return path.join(__dirname, 'pnp', request);
                   } else if (request === 'pnpapi') {
                     return __filename;
+                  } else if (request.startsWith('@parcel/')) {
+                    // Use node_modules path for parcel packages so source field is used.
+                    return path.join(__dirname, '../../../../../../node_modules/', request);
+                  } else if (/^((@[^/]+\\/[^/]+)|[^/]+)\\/?$/.test(request)) {
+                    return path.dirname(require.resolve(path.join(request, 'package.json')));
                   } else {
                     return require.resolve(request);
                   }
@@ -3906,10 +4210,15 @@ describe('cache', function () {
               `
                 const path = require('path');
                 const resolve = request => {
-                  if (request === 'parcel-transformer-mock' || request === 'foo') {
+                  if (request === 'parcel-transformer-mock/' || request === 'foo/') {
                     return path.join(__dirname, 'pnp2', request);
                   } else if (request === 'pnpapi') {
                     return __filename;
+                  } else if (request.startsWith('@parcel/')) {
+                    // Use node_modules path for parcel packages so source field is used.
+                    return path.join(__dirname, '../../../../../../node_modules/', request);
+                  } else if (/^((@[^/]+\\/[^/]+)|[^/]+)\\/?$/.test(request)) {
+                    return path.dirname(require.resolve(path.join(request, 'package.json')));
                   } else {
                     return require.resolve(request);
                   }
@@ -3935,6 +4244,223 @@ describe('cache', function () {
         Module._resolveFilename = origModuleResolveFilename;
         await workerFarm.end();
       }
+    });
+
+    describe('esm', function () {
+      async function setup() {
+        await inputFS.mkdirp(inputDir);
+        await inputFS.ncp(path.join(__dirname, '/integration/cache'), inputDir);
+        await inputFS.writeFile(
+          path.join(inputDir, '.parcelrc'),
+          JSON.stringify({
+            extends: '@parcel/config-default',
+            transformers: {
+              '*.js': ['parcel-transformer-esm'],
+            },
+          }),
+        );
+      }
+
+      it('should invalidate when updating an ESM parcel transformer plugin', async function () {
+        // We cannot invalidate an ESM module in node, so for the test, create a separate worker farm.
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('TRANSFORMED CODE'));
+
+              let transformerDir = path.join(
+                inputDir,
+                'node_modules',
+                'parcel-transformer-esm',
+              );
+              await inputFS.writeFile(
+                path.join(transformerDir, 'constants.js'),
+                'export const message = "UPDATED"',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('UPDATED'));
+      });
+
+      it('should invalidate when updating a CJS dependency in an ESM plugin', async function () {
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('TRANSFORMED CODE 2'));
+
+              let dir = path.join(inputDir, 'node_modules', 'foo');
+              await inputFS.writeFile(
+                path.join(dir, 'foo.js'),
+                'module.exports = 3',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('TRANSFORMED CODE 3'));
+      });
+
+      it('should invalidate on dynamic imports', async function () {
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('console.log("a")'));
+
+              let dir = path.join(
+                inputDir,
+                'node_modules',
+                'parcel-transformer-esm',
+              );
+              await inputFS.writeFile(
+                path.join(dir, 'data/a.js'),
+                'export const value = "updated";',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('console.log("updated")'));
+      });
+
+      it('should invalidate on startup for non-static imports', async function () {
+        let spy = sinon.spy(logger, 'warn');
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+              await inputFS.writeFile(
+                path.join(
+                  inputDir,
+                  'node_modules',
+                  'parcel-transformer-esm',
+                  'dep.cjs',
+                ),
+                'var dep = "foo";exports.value = require(dep);',
+              );
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('TRANSFORMED CODE 2'));
+              assert(
+                spy.calledWith([
+                  {
+                    message: md`${path.normalize(
+                      'node_modules/parcel-transformer-esm/index.js',
+                    )} contains non-statically analyzable dependencies in its module graph. This causes Parcel to invalidate the cache on startup.`,
+                    origin: '@parcel/package-manager',
+                  },
+                ]),
+              );
+
+              await inputFS.writeFile(
+                path.join(inputDir, 'node_modules', 'foo', 'foo.js'),
+                'module.exports = 3',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          spy.restore();
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('TRANSFORMED CODE 3'));
+      });
     });
 
     describe('postcss', function () {
@@ -4017,6 +4543,120 @@ describe('cache', function () {
           },
           'postcss-js-config-7',
         );
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('background-color: green'));
+      });
+
+      it('should invalidate when a JS postcss config dependency changes', async function () {
+        let b = await testCache(
+          {
+            entries: ['index.css'],
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/postcss-autoinstall/npm'),
+                inputDir,
+              );
+              await inputFS.ncp(
+                path.join(
+                  path.join(
+                    __dirname,
+                    'integration',
+                    'postcss-autoinstall',
+                    'postcss-test',
+                  ),
+                ),
+                path.join(inputDir, 'node_modules', 'postcss-test'),
+              );
+
+              await inputFS.rimraf(path.join(inputDir, '.postcssrc'));
+              let config = path.join(inputDir, 'postcss.config.js');
+              await inputFS.writeFile(
+                config,
+                'module.exports = { plugins: [require("postcss-test")] };',
+              );
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('background: green'));
+
+              let plugin = path.join(
+                inputDir,
+                'node_modules',
+                'postcss-test',
+                'index.js',
+              );
+              let pluginContents = await inputFS.readFile(plugin, 'utf8');
+              await inputFS.writeFile(
+                plugin,
+                pluginContents.replace('green', 'red'),
+              );
+
+              await sleep(100);
+            },
+          },
+          'postcss-autoinstall/npm',
+        );
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('background: red'));
+      });
+
+      it('should invalidate when an ESM postcss config changes', async function () {
+        // We cannot invalidate an ESM module in node, so for the test, create a separate worker farm.
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache(
+            {
+              entries: ['style.css'],
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.mkdirp(inputDir);
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/postcss-esm-config'),
+                  inputDir,
+                );
+              },
+              async update(b) {
+                let output = await inputFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(output.includes('background-color: red;'));
+
+                let config = path.join(inputDir, 'postcss.config.mjs');
+                let configContents = await inputFS.readFile(config, 'utf8');
+                await inputFS.writeFile(
+                  config,
+                  configContents.replace('red', 'green'),
+                );
+                await sleep(100);
+                return {workerFarm};
+              },
+            },
+            'postcss-esm-config',
+          );
+        } finally {
+          await workerFarm.end();
+        }
 
         let output = await inputFS.readFile(
           b.bundleGraph.getBundles()[0].filePath,
@@ -5464,6 +6104,7 @@ describe('cache', function () {
 
     it('should invalidate when deleting a dist file', async function () {
       let b = await testCache({
+        outputFS: overlayFS,
         async update(b) {
           assert(await overlayFS.exists(path.join(distDir, 'index.js')));
           let res = await run(b.bundleGraph);
@@ -5480,6 +6121,7 @@ describe('cache', function () {
 
     it('should invalidate when deleting a source map', async function () {
       await testCache({
+        outputFS: overlayFS,
         async update() {
           assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
 
@@ -5492,6 +6134,7 @@ describe('cache', function () {
 
     it('should invalidate when the dist directory', async function () {
       await testCache({
+        outputFS: overlayFS,
         async update() {
           assert(await overlayFS.exists(path.join(distDir, 'index.js')));
           assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
@@ -5514,6 +6157,75 @@ describe('cache', function () {
 
       let res = await run(b.bundleGraph);
       assert.equal(res, 4);
+    });
+
+    it('should write bundle graph to cache on bundling error', async function () {
+      let overlayFSPackageManager = new NodePackageManager(
+        overlayFS,
+        __dirname,
+      );
+      let entries = 'source/index.js';
+      let options = {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+        packageManager: overlayFSPackageManager,
+        shouldDisableCache: false,
+        inputFS: overlayFS,
+        cacheDir: path.join(__dirname, '.parcel-cache'),
+      };
+
+      await fsFixture(overlayFS)`
+      source
+        foo.js:
+
+          export default 2;
+        index.js:
+          import('./foo');
+
+          export default 1;
+        .parcelrc:
+          {
+            "extends": "@parcel/config-default",
+            "bundler": "./test-bundler.js"
+          }
+        test-bundler.js:
+          import {Bundler} from '@parcel/plugin'
+          import DefaultBundler from '@parcel/bundler-default'
+
+          const CONFIG = Symbol.for('parcel-plugin-config');
+
+          export default new Bundler({
+            loadConfig({config, options}) {
+              return DefaultBundler[CONFIG].loadConfig({config, options});
+            },
+          
+            bundle({bundleGraph, config}) {
+              DefaultBundler[CONFIG].bundle({bundleGraph, config});
+            },
+            optimize() {throw new Error("Intentionally throw error")},
+          });
+        yarn.lock:`;
+      // $FlowFixMe
+      await assert.rejects(() => bundle(entries, options));
+
+      let resolvedOptions = await resolveOptions(
+        getParcelOptions(entries, options),
+      );
+
+      let bundleGraphCacheKey =
+        hashString(
+          `${version}:BundleGraph:${
+            JSON.stringify(resolvedOptions.entries) ?? ''
+          }${resolvedOptions.mode}`,
+        ) + '-BundleGraph';
+
+      assert(
+        deserialize(
+          await resolvedOptions.cache.getLargeBlob(bundleGraphCacheKey),
+        ),
+      );
     });
 
     it('should invalidate when a terser config is modified', async function () {

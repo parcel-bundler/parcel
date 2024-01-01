@@ -17,14 +17,15 @@ import Transformation, {
   type TransformationOpts,
   type TransformationResult,
 } from './Transformation';
-import {reportWorker} from './ReporterRunner';
+import {reportWorker, report} from './ReporterRunner';
 import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
-import {registerCoreWithSerializer} from './utils';
+import {registerCoreWithSerializer} from './registerCoreWithSerializer';
 import {clearBuildCaches} from './buildCache';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initHash} from '@parcel/hash';
+import {init as initRust} from '@parcel/rust';
+import WorkerFarm from '@parcel/workers';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -137,7 +138,7 @@ export async function runPackage(
   let runner = new PackagerRunner({
     config: parcelConfig,
     options,
-    report: reportWorker.bind(null, workerApi),
+    report: WorkerFarm.isWorker() ? reportWorker.bind(null, workerApi) : report,
     previousDevDeps,
     previousInvalidations,
   });
@@ -147,7 +148,7 @@ export async function runPackage(
 
 export async function childInit() {
   await initSourcemaps;
-  await initHash;
+  await initRust?.();
 }
 
 const PKG_RE =

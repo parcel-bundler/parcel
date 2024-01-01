@@ -26,6 +26,14 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['screenshot.png'],
       },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
+      {
+        type: 'png',
+        assets: ['file-handler-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -34,6 +42,8 @@ describe('webmanifest', function () {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/file-handler-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
   it('should support .json', async function () {
@@ -58,6 +68,14 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['screenshot.png'],
       },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
+      {
+        type: 'png',
+        assets: ['file-handler-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -66,9 +84,11 @@ describe('webmanifest', function () {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/file-handler-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
-  it('should throw on malformed icons and screenshots', async function () {
+  it('should throw on malformed icons, screenshots, shortcuts, and file handlers', async function () {
     let manifestPath = path.join(
       __dirname,
       '/integration/webmanifest-schema/manifest.webmanifest',
@@ -124,6 +144,50 @@ describe('webmanifest', function () {
                       line: 15,
                     },
                   },
+                  {
+                    end: {
+                      column: 17,
+                      line: 18,
+                    },
+                    message: 'Expected type array',
+                    start: {
+                      column: 16,
+                      line: 18,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 9,
+                      line: 30,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 27,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 10,
+                      line: 31,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 31,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 21,
+                      line: 35,
+                    },
+                    message: 'Expected type array',
+                    start: {
+                      column: 20,
+                      line: 35,
+                    },
+                  },
                 ],
               },
             ],
@@ -159,6 +223,7 @@ describe('webmanifest', function () {
                 code: manifest,
                 codeHighlights: [
                   {
+                    message: undefined,
                     end: {
                       column: 23,
                       line: 5,

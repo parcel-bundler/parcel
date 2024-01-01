@@ -2,6 +2,7 @@
 .*/node_modules/@choojs/**/.*
 .*/node_modules/config-chain/.*
 .*/node_modules/graphviz/documentation.json
+.*/node_modules/resolve/test/**/.*
 <PROJECT_ROOT>/.nyc_output/.*
 .*/tmp/**/.*
 .*/.parcel-cache/.*
@@ -9,6 +10,7 @@
 <PROJECT_ROOT>/packages/core/integration-tests/test/input/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/integration/babel-strip-flow-types/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/integration/diagnostic-sourcemap/**
+<PROJECT_ROOT>/packages/utils/node-resolver-core/test/fixture/node_modules/json-error/package.json
 
 [untyped]
 .*/node_modules/graphql/error/GraphQLError.js.flow

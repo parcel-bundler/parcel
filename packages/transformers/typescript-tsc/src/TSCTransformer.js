@@ -13,9 +13,10 @@ export default (new Transformer({
   },
 
   async transform({asset, config, options}) {
-    asset.type = 'js';
-
-    let code = await asset.getCode();
+    let [code, originalMap] = await Promise.all([
+      asset.getCode(),
+      asset.getMap(),
+    ]);
 
     let transpiled = typescript.transpileModule(
       code,
@@ -30,30 +31,32 @@ export default (new Transformer({
           // Don't compile ES `import`s -- scope hoisting prefers them and they will
           // otherwise compiled to CJS via babel in the js transformer
           module: typescript.ModuleKind.ESNext,
-          sourceMap: !!asset.env.sourceMap,
+          sourceMap: Boolean(asset.env.sourceMap),
+          mapRoot: options.projectRoot,
         },
         fileName: asset.filePath, // Should be relativePath?
       }: TranspileOptions),
     );
 
-    let map;
     let {outputText, sourceMapText} = transpiled;
-    if (sourceMapText != null) {
-      map = new SourceMap(options.projectRoot);
-      map.addVLQMap(JSON.parse(sourceMapText));
 
+    if (sourceMapText != null) {
       outputText = outputText.substring(
         0,
         outputText.lastIndexOf('//# sourceMappingURL'),
       );
+
+      let map = new SourceMap(options.projectRoot);
+      map.addVLQMap(JSON.parse(sourceMapText));
+      if (originalMap) {
+        map.extends(originalMap);
+      }
+      asset.setMap(map);
     }
 
-    return [
-      {
-        type: 'js',
-        content: outputText,
-        map,
-      },
-    ];
+    asset.type = 'js';
+    asset.setCode(outputText);
+
+    return [asset];
   },
 }): Transformer);

@@ -1,0 +1,1 @@
+import '@parcel/lsp';

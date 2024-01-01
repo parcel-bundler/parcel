@@ -1,0 +1,31 @@
+{
+  "name": "@parcel/profiler",
+  "version": "2.10.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/index.js",
+  "source": "src/index.js",
+  "engines": {
+    "node": ">= 12.0.0"
+  },
+  "scripts": {
+    "build-ts": "flow-to-ts src/*.js --write && tsc --emitDeclarationOnly --declaration --esModuleInterop --target es2015 --moduleResolution node16 --module node16 src/*.ts && mkdir -p lib && mv src/*.d.ts lib/. && rm src/*.ts && node build-ts.js",
+    "check-ts": "tsc --noEmit lib/index.d.ts"
+  },
+  "dependencies": {
+    "@parcel/diagnostic": "2.10.3",
+    "@parcel/events": "2.10.3",
+    "chrome-trace-event": "^1.0.2"
+  }
+}

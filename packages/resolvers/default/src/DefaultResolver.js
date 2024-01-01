@@ -8,27 +8,27 @@ import NodeResolver from '@parcel/node-resolver-core';
 const WEBPACK_IMPORT_REGEX = /^\w+-loader(?:\?\S*)?!/;
 
 export default (new Resolver({
-  resolve({dependency, options, specifier, logger}) {
+  async loadConfig({config, options, logger}) {
+    let conf = await config.getConfig([], {
+      packageKey: '@parcel/resolver-default',
+    });
+
+    return new NodeResolver({
+      fs: options.inputFS,
+      projectRoot: options.projectRoot,
+      packageManager: options.packageManager,
+      shouldAutoInstall: options.shouldAutoInstall,
+      mode: options.mode,
+      logger,
+      packageExports: conf?.contents?.packageExports ?? false,
+    });
+  },
+  resolve({dependency, specifier, config: resolver}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.specifier)) {
       throw new Error(
         `The import path: ${dependency.specifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
       );
     }
-
-    const resolver = new NodeResolver({
-      fs: options.inputFS,
-      projectRoot: options.projectRoot,
-      // Extensions are always required in URL dependencies.
-      extensions:
-        dependency.specifierType === 'commonjs' ||
-        dependency.specifierType === 'esm'
-          ? ['ts', 'tsx', 'js', 'jsx', 'json']
-          : [],
-      mainFields: ['source', 'browser', 'module', 'main'],
-      packageManager: options.packageManager,
-      shouldAutoInstall: options.shouldAutoInstall,
-      logger,
-    });
 
     return resolver.resolve({
       filename: specifier,
@@ -38,6 +38,7 @@ export default (new Resolver({
       env: dependency.env,
       sourcePath: dependency.sourcePath,
       loc: dependency.loc,
+      packageConditions: dependency.packageConditions,
     });
   },
 }): Resolver);

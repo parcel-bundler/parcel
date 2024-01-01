@@ -1,11 +1,12 @@
+use indexmap::IndexMap;
 use path_slash::PathBufExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
-use swc_atoms::JsWord;
-use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, ComputedPropName, Id};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::{self, ComputedPropName, Id};
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::utils::{create_global_decl_stmt, create_require, SourceLocation, SourceType};
@@ -14,7 +15,7 @@ pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub global_mark: Mark,
-  pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
+  pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
   pub decls: &'a mut HashSet<Id>,
@@ -67,7 +68,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
           }
         }
         "Buffer" => {
-          let specifier = swc_atoms::JsWord::from("buffer");
+          let specifier = swc_core::ecma::atoms::JsWord::from("buffer");
           if self.update_binding(id, |_| {
             Member(MemberExpr {
               obj: Box::new(Call(create_require(specifier.clone()))),
@@ -97,7 +98,9 @@ impl<'a> Fold for GlobalReplacer<'a> {
               } else {
                 String::from("/unknown.js")
               };
-            ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(filename).into()))
+            ast::Expr::Lit(ast::Lit::Str(
+              swc_core::ecma::atoms::JsWord::from(filename).into(),
+            ))
           });
         }
         "__dirname" => {
@@ -111,7 +114,9 @@ impl<'a> Fold for GlobalReplacer<'a> {
             } else {
               String::from("/")
             };
-            ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(dirname).into()))
+            ast::Expr::Lit(ast::Lit::Str(
+              swc_core::ecma::atoms::JsWord::from(dirname).into(),
+            ))
           });
         }
         "global" => {
@@ -137,7 +142,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
 
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
     // Insert globals at the top of the program
-    let mut node = swc_ecmascript::visit::fold_module(self, node);
+    let mut node = swc_core::ecma::visit::fold_module(self, node);
     node.body.splice(
       0..0,
       self

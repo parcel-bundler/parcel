@@ -1,5 +1,5 @@
 // @flow
-import type {DependencySpecifier} from '@parcel/types';
+import type {DependencySpecifier, SemverRange} from '@parcel/types';
 import type ParcelConfig from '../ParcelConfig';
 import type {
   DevDepRequest,
@@ -18,6 +18,7 @@ import {
   fromProjectPathRelative,
   toProjectPath,
 } from '../projectPath';
+import {requestTypes} from '../RequestTracker';
 
 // A cache of dev dep requests keyed by invalidations.
 // If the package manager returns the same invalidation object, then
@@ -83,6 +84,7 @@ export async function createDevDependency(
       invalidateOnFileCreateToInternal(options.projectRoot, i),
     ),
     invalidateOnFileChange: new Set(invalidateOnFileChangeProject),
+    invalidateOnStartup: invalidations.invalidateOnStartup,
     additionalInvalidations,
   };
 
@@ -100,12 +102,14 @@ type DevDepRequests = {|
   invalidDevDeps: Array<DevDepSpecifier>,
 |};
 
-export async function getDevDepRequests(api: RunAPI): Promise<DevDepRequests> {
+export async function getDevDepRequests<TResult>(
+  api: RunAPI<TResult>,
+): Promise<DevDepRequests> {
   let previousDevDepRequests = new Map(
     await Promise.all(
       api
         .getSubRequests()
-        .filter(req => req.type === 'dev_dep_request')
+        .filter(req => req.requestType === requestTypes.dev_dep_request)
         .map(async req => [
           req.id,
           nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),
@@ -163,13 +167,24 @@ export function invalidateDevDeps(
   }
 }
 
-export async function runDevDepRequest(
-  api: RunAPI,
+type DevDepRequestResult = {|
+  specifier: DependencySpecifier,
+  resolveFrom: ProjectPath,
+  hash: string,
+  additionalInvalidations: void | Array<{|
+    range?: ?SemverRange,
+    resolveFrom: ProjectPath,
+    specifier: DependencySpecifier,
+  |}>,
+|};
+
+export async function runDevDepRequest<TResult>(
+  api: RunAPI<TResult>,
   devDepRequest: DevDepRequest,
 ) {
-  await api.runRequest<null, void>({
+  await api.runRequest<null, DevDepRequestResult | void>({
     id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
-    type: 'dev_dep_request',
+    type: requestTypes.dev_dep_request,
     run: ({api}) => {
       for (let filePath of nullthrows(devDepRequest.invalidateOnFileChange)) {
         api.invalidateOnFileUpdate(filePath);
@@ -180,6 +195,10 @@ export async function runDevDepRequest(
         devDepRequest.invalidateOnFileCreate,
       )) {
         api.invalidateOnFileCreate(invalidation);
+      }
+
+      if (devDepRequest.invalidateOnStartup) {
+        api.invalidateOnStartup();
       }
 
       api.storeResult({

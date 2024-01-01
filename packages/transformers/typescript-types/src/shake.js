@@ -4,13 +4,22 @@ import type {TSModuleGraph} from './TSModuleGraph';
 
 import ts from 'typescript';
 import nullthrows from 'nullthrows';
-import {getExportedName, isDeclaration, createImportSpecifier} from './utils';
+import {getExportedName, isDeclaration} from './utils';
+import {
+  createImportClause,
+  createImportDeclaration,
+  createImportSpecifier,
+  updateExportDeclaration,
+} from './wrappers';
 
 export function shake(
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
 ): any {
+  // Factory only exists on TS >= 4.0
+  const {factory = ts} = context;
+
   // We traverse things out of order which messes with typescript's internal state.
   // We don't rely on the lexical environment, so just overwrite with noops to avoid errors.
   context.suspendLexicalEnvironment = () => {};
@@ -28,7 +37,7 @@ export function shake(
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
-      return ts.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
+      return factory.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
     }
 
     // Flatten all module declarations into the top-level scope
@@ -43,7 +52,7 @@ export function shake(
         node.modifiers.splice(
           index,
           0,
-          ts.createModifier(ts.SyntaxKind.DeclareKeyword),
+          factory.createModifier(ts.SyntaxKind.DeclareKeyword),
         );
         return node;
       }
@@ -55,7 +64,7 @@ export function shake(
       _currentModule = moduleStack.pop();
 
       if (isFirstModule && !addedGeneratedImports) {
-        statements.unshift(...generateImports(moduleGraph));
+        statements.unshift(...generateImports(factory, moduleGraph));
         addedGeneratedImports = true;
       }
 
@@ -92,12 +101,14 @@ export function shake(
           }
 
           if (exported.length > 0) {
-            return ts.updateExportDeclaration(
+            return updateExportDeclaration(
+              factory,
               node,
-              undefined, // decorators
               undefined, // modifiers
-              ts.updateNamedExports(node.exportClause, exported),
+              false, // isTypeOnly
+              factory.updateNamedExports(node.exportClause, exported),
               undefined, // moduleSpecifier
+              undefined, // assertClause
             );
           }
         }
@@ -114,8 +125,8 @@ export function shake(
       }
     }
 
-    if (isDeclaration(ts, node)) {
-      let name = getExportedName(ts, node) || node.name.text;
+    if (isDeclaration(node)) {
+      let name = getExportedName(node) || node.name.text;
 
       // Remove unused declarations
       if (!currentModule.used.has(name)) {
@@ -123,7 +134,6 @@ export function shake(
       }
 
       // Remove original export modifiers
-      node = ts.getMutableClone(node);
       node.modifiers = (node.modifiers || []).filter(
         m =>
           m.kind !== ts.SyntaxKind.ExportKeyword &&
@@ -133,23 +143,27 @@ export function shake(
       // Rename declarations
       let newName = currentModule.getName(name);
       if (newName !== name && newName !== 'default') {
-        node.name = ts.createIdentifier(newName);
+        node.name = factory.createIdentifier(newName);
       }
 
       // Export declarations that should be exported
       if (exportedNames.get(newName) === currentModule) {
         if (newName === 'default') {
           node.modifiers.unshift(
-            ts.createModifier(ts.SyntaxKind.DefaultKeyword),
+            factory.createModifier(ts.SyntaxKind.DefaultKeyword),
           );
         }
 
-        node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.ExportKeyword));
+        node.modifiers.unshift(
+          factory.createModifier(ts.SyntaxKind.ExportKeyword),
+        );
       } else if (
         ts.isFunctionDeclaration(node) ||
         ts.isClassDeclaration(node)
       ) {
-        node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.DeclareKeyword));
+        node.modifiers.unshift(
+          factory.createModifier(ts.SyntaxKind.DeclareKeyword),
+        );
       }
     }
 
@@ -173,10 +187,14 @@ export function shake(
         d => exportedNames.get(d.name.text) === currentModule,
       );
       if (isExported) {
-        node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.ExportKeyword));
+        node.modifiers.unshift(
+          factory.createModifier(ts.SyntaxKind.ExportKeyword),
+        );
       } else {
         // Otherwise, add `declare` modifier (required for top-level declarations in d.ts files).
-        node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.DeclareKeyword));
+        node.modifiers.unshift(
+          factory.createModifier(ts.SyntaxKind.DeclareKeyword),
+        );
       }
 
       return node;
@@ -193,7 +211,7 @@ export function shake(
     if (ts.isIdentifier(node) && currentModule.names.has(node.text)) {
       let newName = nullthrows(currentModule.getName(node.text));
       if (newName !== 'default') {
-        return ts.createIdentifier(newName);
+        return factory.createIdentifier(newName);
       }
     }
 
@@ -205,11 +223,11 @@ export function shake(
         node.right.text,
       );
       if (resolved && resolved.module.hasBinding(resolved.name)) {
-        return ts.createIdentifier(resolved.name);
+        return factory.createIdentifier(resolved.name);
       } else {
-        return ts.updateQualifiedName(
+        return factory.updateQualifiedName(
           node,
-          ts.createIdentifier(currentModule.getName(node.left.text)),
+          factory.createIdentifier(currentModule.getName(node.left.text)),
           node.right,
         );
       }
@@ -231,7 +249,7 @@ export function shake(
   return ts.visitNode(sourceFile, visit);
 }
 
-function generateImports(moduleGraph: TSModuleGraph) {
+function generateImports(factory: any, moduleGraph: TSModuleGraph) {
   let importStatements = [];
   for (let [specifier, names] of moduleGraph.getAllImports()) {
     let defaultSpecifier;
@@ -239,53 +257,58 @@ function generateImports(moduleGraph: TSModuleGraph) {
     let namedSpecifiers = [];
     for (let [name, imported] of names) {
       if (imported === 'default') {
-        defaultSpecifier = ts.createIdentifier(name);
+        defaultSpecifier = factory.createIdentifier(name);
       } else if (imported === '*') {
-        namespaceSpecifier = ts.createNamespaceImport(
-          ts.createIdentifier(name),
+        namespaceSpecifier = factory.createNamespaceImport(
+          factory.createIdentifier(name),
         );
       } else {
         namedSpecifiers.push(
           createImportSpecifier(
-            ts,
-            name === imported ? undefined : ts.createIdentifier(imported),
-            ts.createIdentifier(name),
+            factory,
+            false,
+            name === imported ? undefined : factory.createIdentifier(imported),
+            factory.createIdentifier(name),
           ),
         );
       }
     }
 
     if (namespaceSpecifier) {
-      let importClause = ts.createImportClause(
+      let importClause = createImportClause(
+        factory,
+        false,
         defaultSpecifier,
         namespaceSpecifier,
       );
       importStatements.push(
-        ts.createImportDeclaration(
-          undefined,
+        createImportDeclaration(
+          factory,
           undefined,
           importClause,
-          // $FlowFixMe
-          ts.createLiteral(specifier),
+          factory.createStringLiteral(specifier),
+          undefined,
         ),
       );
       defaultSpecifier = undefined;
     }
 
     if (defaultSpecifier || namedSpecifiers.length > 0) {
-      let importClause = ts.createImportClause(
+      let importClause = createImportClause(
+        factory,
+        false,
         defaultSpecifier,
         namedSpecifiers.length > 0
-          ? ts.createNamedImports(namedSpecifiers)
+          ? factory.createNamedImports(namedSpecifiers)
           : undefined,
       );
       importStatements.push(
-        ts.createImportDeclaration(
-          undefined,
+        createImportDeclaration(
+          factory,
           undefined,
           importClause,
-          // $FlowFixMe
-          ts.createLiteral(specifier),
+          factory.createStringLiteral(specifier),
+          undefined,
         ),
       );
     }

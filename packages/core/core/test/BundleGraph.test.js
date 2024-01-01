@@ -23,6 +23,7 @@ describe('BundleGraph', () => {
   it('assigns publicIds to assets', () => {
     let bundleGraph = BundleGraph.fromAssetGraph(
       createMockAssetGraph([id1, id2]),
+      false,
     );
     assert.deepEqual(
       getAssets(bundleGraph).map(a => bundleGraph.getAssetPublicId(a)),
@@ -33,6 +34,7 @@ describe('BundleGraph', () => {
   it('uses a longer publicId if there is a collision', () => {
     let bundleGraph = BundleGraph.fromAssetGraph(
       createMockAssetGraph([id1, id1.slice(0, 16) + '7' + id1.slice(17)]),
+      false,
     );
     assert.deepEqual(
       getAssets(bundleGraph).map(a => bundleGraph.getAssetPublicId(a)),

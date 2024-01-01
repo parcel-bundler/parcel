@@ -31,7 +31,7 @@ for (let path in projects) {
   exec('yarn install && yarn unlink ; yarn link', path);
 }
 count = 0;
-// then link to eachother
+// then link to each other
 for (let path in projects) {
   let pack = projects[path];
   console.log(`${++count}/${names.size} link ${path}`);

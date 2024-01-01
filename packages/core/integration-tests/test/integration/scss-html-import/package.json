@@ -1,0 +1,18 @@
+{
+    "name": "scss-import-targets",
+    "private": true,
+    "targets": {
+        "target1": {
+            "source": [
+                "./target1.html"
+            ],
+            "distDir": "./target1/"
+        },
+        "target2": {
+            "source": [
+                "./target2.html"
+            ],
+            "distDir": "./target2/"
+        }
+    }
+}

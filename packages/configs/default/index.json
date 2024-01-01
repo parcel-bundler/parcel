@@ -39,7 +39,9 @@
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
-    "*.{png,jpg,jpeg,webp,gif,tiff,avif,heic,heif}": ["@parcel/transformer-image"],
+    "*.{png,jpg,jpeg,webp,gif,tiff,avif,heic,heif}": [
+      "@parcel/transformer-image"
+    ],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
     "url:*": ["...", "@parcel/transformer-raw"]
@@ -55,7 +57,7 @@
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-css"],
     "*.{html,xhtml}": ["@parcel/optimizer-htmlnano"],
-    "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
+    "*.{js,mjs,cjs}": ["@parcel/optimizer-swc"],
     "*.svg": ["@parcel/optimizer-svgo"],
     "*.{jpg,jpeg,png}": ["@parcel/optimizer-image"]
   },
@@ -66,6 +68,7 @@
     "*.svg": "@parcel/packager-svg",
     "*.{xml,rss,atom}": "@parcel/packager-xml",
     "*.ts": "@parcel/packager-ts",
+    "*.wasm": "@parcel/packager-wasm",
     "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },

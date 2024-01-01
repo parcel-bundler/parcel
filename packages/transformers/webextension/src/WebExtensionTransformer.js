@@ -7,6 +7,7 @@ import {parse} from '@mischnic/json-sourcemap';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
+  getJSONHighlightLocation,
   getJSONSourceLocation,
   md,
 } from '@parcel/diagnostic';
@@ -26,6 +27,7 @@ const DEP_LOCS = [
   ['devtools_page'],
   ['options_ui', 'page'],
   ['sandbox', 'pages'],
+  ['side_panel', 'default_path'],
   ['sidebar_action', 'default_icon'],
   ['sidebar_action', 'default_panel'],
   ['storage', 'managed_schema'],
@@ -66,7 +68,7 @@ async function collectDependencies(
                 filePath,
                 codeHighlights: [
                   {
-                    ...getJSONSourceLocation(ptrs['/default_locale'], err),
+                    ...getJSONHighlightLocation(ptrs['/default_locale'], err),
                     message: md`Localization ${
                       err == 'value'
                         ? 'file for ' + program.default_locale
@@ -92,7 +94,6 @@ async function collectDependencies(
       }
     }
   }
-  let needRuntimeBG = false;
   if (program.content_scripts) {
     for (let i = 0; i < program.content_scripts.length; ++i) {
       const sc = program.content_scripts[i];
@@ -112,7 +113,6 @@ async function collectDependencies(
         }
       }
       if (hot && sc.js && sc.js.length) {
-        needRuntimeBG = true;
         sc.js.push(
           asset.addURLDependency('./runtime/autoreload.js', {
             resolveFrom: __filename,
@@ -123,14 +123,6 @@ async function collectDependencies(
   }
   if (program.dictionaries) {
     for (const dict in program.dictionaries) {
-      const sourceLoc = getJSONSourceLocation(
-        ptrs[`/dictionaries/${dict}`],
-        'value',
-      );
-      const loc = {
-        filePath,
-        ...sourceLoc,
-      };
       const dictFile = program.dictionaries[dict];
       if (path.extname(dictFile) != '.dic') {
         throw new ThrowableDiagnostic({
@@ -143,7 +135,10 @@ async function collectDependencies(
                   filePath,
                   codeHighlights: [
                     {
-                      ...sourceLoc,
+                      ...getJSONHighlightLocation(
+                        ptrs[`/dictionaries/${dict}`],
+                        'value',
+                      ),
                       message: 'Dictionaries must be .dic files',
                     },
                   ],
@@ -153,6 +148,10 @@ async function collectDependencies(
           ],
         });
       }
+      const loc = {
+        filePath,
+        ...getJSONSourceLocation(ptrs[`/dictionaries/${dict}`], 'value'),
+      };
       program.dictionaries[dict] = asset.addURLDependency(dictFile, {
         needsStableName: true,
         loc,
@@ -266,91 +265,90 @@ async function collectDependencies(
       }
     }
   }
-  if (isMV2) {
-    if (program.background?.page) {
-      program.background.page = asset.addURLDependency(
-        program.background.page,
-        {
-          bundleBehavior: 'isolated',
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
-          },
+  if (program.background?.page) {
+    program.background.page = asset.addURLDependency(program.background.page, {
+      bundleBehavior: 'isolated',
+      loc: {
+        filePath,
+        ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
+      },
+    });
+  } else if (program.background?.service_worker) {
+    program.background.service_worker = asset.addURLDependency(
+      program.background.service_worker,
+      {
+        bundleBehavior: 'isolated',
+        loc: {
+          filePath,
+          ...getJSONSourceLocation(ptrs['/background/service_worker'], 'value'),
         },
-      );
-      if (needRuntimeBG) {
-        asset.meta.webextBGInsert = program.background.page;
-      }
-    }
-    if (hot) {
+        env: {
+          context: 'service-worker',
+          sourceType: program.background.type == 'module' ? 'module' : 'script',
+        },
+      },
+    );
+  }
+  if (hot) {
+    if (isMV2) {
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       program.content_security_policy = cspPatchHMR(
         program.content_security_policy,
       );
-
-      if (needRuntimeBG && !program.background?.page) {
-        if (!program.background) {
-          program.background = {};
-        }
-        if (!program.background.scripts) {
-          program.background.scripts = [];
-        }
-        if (program.background.scripts.length == 0) {
-          program.background.scripts.push(
-            asset.addURLDependency('./runtime/default-bg.js', {
-              resolveFrom: __filename,
-            }),
-          );
-        }
-        asset.meta.webextBGInsert = program.background.scripts[0];
-      }
-    }
-  } else {
-    if (program.background?.service_worker) {
-      program.background.service_worker = asset.addURLDependency(
-        program.background.service_worker,
-        {
-          bundleBehavior: 'isolated',
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(
-              ptrs['/background/service_worker'],
-              'value',
-            ),
-          },
-          env: {
-            context: 'service-worker',
-            sourceType:
-              program.background.type == 'module' ? 'module' : 'script',
-          },
-        },
-      );
-    }
-    if (hot) {
-      // Enable eval HMR for sandbox,
+    } else {
+      // Enable HMR for fetched localhost chunks
       const csp = program.content_security_policy || {};
       csp.extension_pages = cspPatchHMR(
         csp.extension_pages,
-        `http://${hmrOptions?.host || 'localhost'}`,
+        `http://${hmrOptions?.host || 'localhost'}:*`,
       );
       // Sandbox allows eval by default
       if (csp.sandbox) csp.sandbox = cspPatchHMR(csp.sandbox);
       program.content_security_policy = csp;
-      if (needRuntimeBG) {
-        if (!program.background) {
-          program.background = {};
-        }
-        if (!program.background.service_worker) {
-          program.background.service_worker = asset.addURLDependency(
-            './runtime/default-bg.js',
-            {
-              resolveFrom: __filename,
-              env: {context: 'service-worker'},
-            },
-          );
-        }
-        asset.meta.webextBGInsert = program.background.service_worker;
+    }
+
+    if (!program.background) {
+      program.background = {};
+    }
+
+    if (program.background.page) {
+      asset.meta.webextBGInsert = program.background.page;
+    } else if (isMV2 || program.background.scripts) {
+      if (!program.background.scripts) {
+        program.background.scripts = [];
       }
+      if (program.background.scripts.length == 0) {
+        program.background.scripts.push(
+          asset.addURLDependency('./runtime/default-bg.js', {
+            resolveFrom: __filename,
+          }),
+        );
+      }
+      asset.meta.webextBGInsert = program.background.scripts[0];
+    } else {
+      if (!program.background.service_worker) {
+        program.background.service_worker = asset.addURLDependency(
+          './runtime/default-bg.js',
+          {
+            resolveFrom: __filename,
+            env: {context: 'service-worker'},
+          },
+        );
+      }
+      asset.meta.webextBGInsert = program.background.service_worker;
+    }
+
+    if (!program.permissions) program.permissions = [];
+    if (!isMV2 && !program.permissions.includes('scripting')) {
+      program.permissions.push('scripting');
+    }
+    const hostPerms = [
+      ...new Set(program.content_scripts?.flatMap(sc => sc.matches)),
+    ];
+    if (isMV2) program.permissions = program.permissions.concat(hostPerms);
+    else {
+      if (!program.host_permissions) program.host_permissions = [];
+      program.host_permissions = program.host_permissions.concat(hostPerms);
     }
   }
 }
@@ -397,8 +395,9 @@ export default (new Transformer({
       },
       sourceMap: asset.env.sourceMap && {
         ...asset.env.sourceMap,
-        inline: true,
-        inlineSources: true,
+        // Inline source maps work most reliably on web extensions but allow users to overwrite
+        inline: asset.env.sourceMap.inline ?? true,
+        inlineSources: asset.env.sourceMap.inlineSources ?? true,
       },
       includeNodeModules: asset.env.includeNodeModules,
       sourceType: asset.env.sourceType,

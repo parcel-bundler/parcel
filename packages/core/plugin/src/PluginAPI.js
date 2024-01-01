@@ -23,7 +23,7 @@ export class Transformer {
 }
 
 export class Resolver {
-  constructor(opts: ResolverOpts) {
+  constructor<T>(opts: ResolverOpts<T>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }

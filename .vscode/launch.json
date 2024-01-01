@@ -12,9 +12,9 @@
       "outFiles": [
         "${workspaceFolder}/packages/utils/parcelforvscode/out/**/*.js"
       ],
-      "preLaunchTask": "npm: compile - packages/utils/parcelforvscode",
+      "preLaunchTask": "Watch VSCode Extension",
       "request": "launch",
-      "type": "pwa-extensionHost"
+      "type": "extensionHost"
     }
   ]
 }

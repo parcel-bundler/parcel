@@ -4,20 +4,17 @@ import type {PackageInstaller, InstallerOptions} from './types';
 
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
-import {exec as _exec} from 'child_process';
-import {promisify} from 'util';
 import logger from '@parcel/logger';
 import split from 'split2';
 import JSONParseStream from './JSONParseStream';
 import promiseFromProcess from './promiseFromProcess';
 import {registerSerializableClass} from '@parcel/core';
-import {npmSpecifierFromModuleRequest} from './utils';
+import {exec, npmSpecifierFromModuleRequest} from './utils';
 
 // $FlowFixMe
 import pkg from '../package.json';
 
 const YARN_CMD = 'yarn';
-const exec = promisify(_exec);
 
 type YarnStdOutMessage =
   | {|
