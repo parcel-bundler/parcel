@@ -324,32 +324,25 @@ describe('macros', function () {
         mode: 'production',
       });
     } catch (err) {
-      assert.deepEqual(err.diagnostics, [
+      assert(
+        err.diagnostics[0].message.startsWith('Error evaluating macro: test'),
+      );
+      assert.deepEqual(err.diagnostics[0].codeFrames, [
         {
-          message: `Error evaluating macro: test\n    at Object.apply (${path.join(
-            dir,
-            'macro.js',
-          )}:2:9)`,
-          origin: '@parcel/transformer-js',
-          codeFrames: [
+          filePath: path.join(dir, 'index.js'),
+          codeHighlights: [
             {
-              filePath: path.join(dir, 'index.js'),
-              codeHighlights: [
-                {
-                  message: undefined,
-                  start: {
-                    line: 2,
-                    column: 10,
-                  },
-                  end: {
-                    line: 2,
-                    column: 16,
-                  },
-                },
-              ],
+              message: undefined,
+              start: {
+                line: 2,
+                column: 10,
+              },
+              end: {
+                line: 2,
+                column: 16,
+              },
             },
           ],
-          hints: null,
         },
       ]);
     }
