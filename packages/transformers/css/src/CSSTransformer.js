@@ -180,8 +180,6 @@ export default (new Transformer({
       }
     }
 
-    asset.setBuffer(Buffer.from(res.code));
-
     if (res.map != null) {
       let vlqMap = JSON.parse(Buffer.from(res.map).toString());
       let map = new SourceMap(options.projectRoot);
@@ -211,7 +209,6 @@ export default (new Transformer({
               // For the glob resolver to distinguish between `@import` and other URL dependencies.
               isCSSImport: true,
               media: dep.media,
-              // $FlowFixMe - TODO fix in lightningcss.
               placeholder: dep.placeholder,
             },
           });
@@ -227,6 +224,7 @@ export default (new Transformer({
     }
 
     let assets = [asset];
+    let buffer = Buffer.from(res.code);
 
     if (res.exports != null) {
       let exports = res.exports;
@@ -238,6 +236,7 @@ export default (new Transformer({
       let c = 0;
       let depjs = '';
       let js = '';
+      let cssImports = '';
 
       let jsDeps = [];
 
@@ -280,6 +279,7 @@ export default (new Transformer({
                 ref.specifier,
               )};\n`;
               dependencies.set(ref.specifier, d);
+              cssImports += `@import "${ref.specifier}";\n`;
               asset.addDependency({
                 specifier: ref.specifier,
                 specifierType: 'esm',
@@ -341,6 +341,7 @@ export default (new Transformer({
           });
 
           asset.meta.hasReferences = true;
+          cssImports += `@import "${reference.specifier}";\n`;
         }
       }
 
@@ -350,8 +351,14 @@ export default (new Transformer({
         dependencies: jsDeps,
         env,
       });
+
+      // Prepend @import rules for each composes dependency so packager knows where to insert them.
+      if (cssImports.length > 0) {
+        buffer = Buffer.concat([Buffer.from(cssImports), buffer]);
+      }
     }
 
+    asset.setBuffer(buffer);
     return assets;
   },
 }): Transformer);

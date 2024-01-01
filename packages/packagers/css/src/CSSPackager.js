@@ -44,8 +44,25 @@ export default (new Packager({
     });
     let hoistedImports = [];
     let assetsByPlaceholder = new Map();
+    let entry = null;
+    let entryContents = '';
 
     bundle.traverse({
+      enter: (node, context) => {
+        if (node.type === 'asset' && !context) {
+          // If there is only one entry, we'll use it directly.
+          // Otherwise, we'll create a fake bundle entry with @import rules for each root asset.
+          if (entry == null) {
+            entry = node.value.id;
+          } else {
+            entry = bundle.id;
+          }
+
+          assetsByPlaceholder.set(node.value.id, node.value);
+          entryContents += `@import "${node.value.id}";\n`;
+        }
+        return true;
+      },
       exit: node => {
         if (node.type === 'dependency') {
           let resolved = bundleGraph.getResolvedAsset(node.value, bundle);
@@ -60,7 +77,10 @@ export default (new Packager({
           }
 
           if (resolved && bundle.hasAsset(resolved)) {
-            assetsByPlaceholder.set(node.value.meta.placeholder, resolved);
+            assetsByPlaceholder.set(
+              node.value.meta.placeholder ?? node.value.specifier,
+              resolved,
+            );
           }
 
           return;
@@ -126,28 +146,8 @@ export default (new Packager({
     let outputs = new Map(
       (await queue.run()).map(([asset, code, map]) => [asset, [code, map]]),
     );
-    let contents = '';
     let map = new SourceMap(options.projectRoot);
 
-    // Collect entry assets.
-    let entry = null;
-    bundle.traverse((node, _, actions) => {
-      if (node.type === 'asset') {
-        // If there is only one entry, we'll use it directly.
-        // Otherwise, we'll create a fake bundle entry with @import rules for each root asset.
-        if (entry == null) {
-          entry = node.value.id;
-        } else {
-          entry = bundle.id;
-        }
-
-        assetsByPlaceholder.set(node.value.id, node.value);
-        contents += `@import "${node.value.id}";\n`;
-        actions.skipChildren();
-      }
-    });
-
-    // $FlowFixMe - TODO: something is broken in types, fix in next release of lightningcss.
     let res = await bundleAsync({
       filename: nullthrows(entry),
       sourceMap: !!bundle.env.sourceMap,
@@ -157,7 +157,7 @@ export default (new Packager({
         },
         async read(file) {
           if (file === bundle.id) {
-            return contents;
+            return entryContents;
           }
 
           let asset = assetsByPlaceholder.get(file);
@@ -175,7 +175,7 @@ export default (new Packager({
       },
     });
 
-    contents = res.code.toString();
+    let contents = res.code.toString();
 
     if (res.map) {
       let vlqMap = JSON.parse(res.map.toString());
