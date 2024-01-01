@@ -50,6 +50,7 @@ import {
   AssetFlags,
   ParcelDb,
   readCachedString,
+  SymbolFlags,
 } from '@parcel/rust';
 
 export const bundleGraphEdgeTypes = {
@@ -218,6 +219,9 @@ export default class BundleGraph {
         // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
         isProduction
       ) {
+        let dep = DbDependency.get(db, node.value);
+        let nodeValueSymbols = dep.symbols;
+
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<number, number>>(
           () => new Map(),
@@ -265,6 +269,12 @@ export default class BundleGraph {
             ([, t]) => new Set([...t.values()]).size === t.size,
           )
         ) {
+          let starSymbol = nodeValueSymbols.find(s => s.exported === db.starSymbol);
+          let isReexportAll = starSymbol?.local === db.starSymbol;
+          let reexportAllLoc = isReexportAll
+            ? nullthrows(starSymbol).loc
+            : undefined;
+
           // TODO adjust sourceAssetIdNode.value.dependencies ?
 
           let clonedDep = new DbDependency(db);
@@ -303,18 +313,55 @@ export default class BundleGraph {
 
               let symbols = clonedDep.symbols;
               symbols.init();
-              for (let sym of dep.symbols) {
-                if (
-                  target.has(sym.exported) ||
-                  sym.exported === db.starSymbol
-                ) {
+              for (let [as, from] of target) {
+                let existing = nodeValueSymbols.find(s => s.exported === as);
+                if (existing) {
                   let s = symbols.extend();
-                  s.exported = target.get(sym.exported) ?? sym.exported;
-                  s.local = sym.local;
-                  s.flags = sym.flags;
-                  s.loc = sym.loc;
+                  s.exported = from;
+                  s.local = existing.local;
+                  s.flags = existing.flags;
+                  s.loc = existing.loc;
+                } else {
+                  invariant(isReexportAll);
+                  if (as === from) {
+                    // Keep the export-all for non-renamed reexports, this still correctly models
+                    // ambiguous resolution with multiple export-alls.
+                    // TODO: can this happen multiple times? Do we need to check if the symbol already exists here?
+                    let s = symbols.extend();
+                    s.exported = db.starSymbol;
+                    s.local = db.starSymbol;
+                    s.flags = SymbolFlags.IS_WEAK;
+                    s.loc = reexportAllLoc;
+                  } else {
+                    let local = db.getStringId(`${readCachedString(db, dep.id)}$rewrite$${asset}$${from}`);
+                    let s = symbols.extend();
+                    s.exported = from;
+                    s.local = local;
+                    s.flags = SymbolFlags.IS_WEAK;
+                    s.loc = reexportAllLoc;
+                    if (dep.sourceAssetId != null) {
+                      let sourceAsset = DbAsset.get(db, dep.sourceAssetId);
+                      let sourceAssetSymbols = sourceAsset.symbols;
+                      if (sourceAssetSymbols) {
+                        // The `as == from` case above should handle multiple export-alls causing
+                        // ambiguous resolution. So the current symbol is unambiguous and shouldn't
+                        // already exist on the importer.
+                        let s = sourceAssetSymbols.extend();
+                        s.exported = as;
+                        s.local = local;
+                        s.flags = 0;
+                        s.loc = reexportAllLoc;
+                      }
+                    }
+                  }
                 }
               }
+
+              let usedSymbolsUp = new Map(
+                [...node.usedSymbolsUp]
+                  .filter(([k]) => target.has(k) || k === db.starSymbol)
+                  .map(([k, v]) => [target.get(k) ?? k, v]),
+              );
 
               return {
                 asset,
@@ -322,16 +369,15 @@ export default class BundleGraph {
                   ...node,
                   id: clonedDep.id,
                   value: clonedDep.addr,
-                  usedSymbolsUp: new Map(
-                    [...node.usedSymbolsUp]
-                      .filter(([k]) => target.has(k) || k === db.starSymbol)
-                      .map(([k, v]) => [target.get(k) ?? k, v]),
-                  ),
+                  usedSymbolsUp,
+                  // This is only a temporary helper needed during symbol propagation and is never
+                  // read afterwards (and also not exposed through the public API).
                   usedSymbolsDown: new Set(),
                 }),
               };
             }),
           ];
+
           dependencies.set(nodeId, deps);
 
           // Jump to the dependencies that are used in this dependency
@@ -1869,6 +1915,7 @@ export default class BundleGraph {
         }
       }
     }
+
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
       // ..., but if it does exist, it has to be behind this one reexport.

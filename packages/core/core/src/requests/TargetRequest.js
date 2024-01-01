@@ -58,6 +58,7 @@ import {
   toDbSourceLocationFromInternal,
 } from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
+import {requestTypes} from '../RequestTracker';
 
 type RunOpts<TResult> = {|
   input: Entry,
@@ -99,7 +100,7 @@ const DEFAULT_ENGINES = {
 
 export type TargetRequest = {|
   id: string,
-  +type: 'target_request',
+  +type: typeof requestTypes.target_request,
   run: (RunOpts<Array<TargetAddr>>) => Async<Array<TargetAddr>>,
   input: Entry,
 |};
@@ -110,7 +111,7 @@ let tmpTarget = Symbol('tmpTarget');
 export default function createTargetRequest(input: Entry): TargetRequest {
   return {
     id: `${type}:${hashObject(input)}`,
-    type,
+    type: requestTypes.target_request,
     run,
     input,
   };

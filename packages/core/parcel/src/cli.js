@@ -73,6 +73,8 @@ const commonOptions = {
   '--config <path>':
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
+  '--watch-dir <path>':
+    'set the root watch directory. defaults to nearest lockfile or source control dir.',
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
@@ -285,16 +287,7 @@ async function run(
           // We don't use the SIGINT event for this because when run inside yarn, the parent
           // yarn process ends before Parcel and it appears that Parcel has ended while it may still
           // be cleaning up. Handling events from stdin prevents this impression.
-
-          // Enqueue a busy message to be shown if Parcel doesn't shut down
-          // within the timeout.
-          setTimeout(
-            () =>
-              INTERNAL_ORIGINAL_CONSOLE.log(
-                chalk.bold.yellowBright('Parcel is shutting down...'),
-              ),
-            500,
-          );
+          //
           // When watching, a 0 success code is acceptable when Parcel is interrupted with ctrl-c.
           // When building, fail with a code as if we received a SIGINT.
           await exit(isWatching ? 0 : SIGINT_EXIT_CODE);
@@ -482,6 +475,7 @@ async function normalizeOptions(
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    watchDir: command.watchDir,
     config: command.config,
     mode,
     hmrOptions,

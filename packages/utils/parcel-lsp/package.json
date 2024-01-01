@@ -1,6 +1,6 @@
 {
   "name": "@parcel/lsp",
-  "version": "2.10.2",
+  "version": "2.10.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -22,10 +22,10 @@
   },
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.10.2"
+    "parcel": "^2.10.3"
   },
   "dependencies": {
-    "@parcel/lsp-protocol": "2.10.2",
+    "@parcel/lsp-protocol": "2.10.3",
     "@parcel/watcher": "^2.0.7",
     "common-path-prefix": "^3.0.0",
     "nullthrows": "^1.1.1",
@@ -35,7 +35,7 @@
     "vscode-languageserver-textdocument": "^1.0.0"
   },
   "devDependencies": {
-    "@types/node": "^15.12.4",
+    "@types/node": ">= 18",
     "@typescript-eslint/eslint-plugin": "^4.14.1",
     "@typescript-eslint/parser": "^4.14.1",
     "eslint": "^7.19.0",

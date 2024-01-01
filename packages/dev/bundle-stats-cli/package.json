@@ -1,25 +1,36 @@
 {
-  "name": "@parcel/bundle-stats-cli",
-  "version": "2.10.2",
-  "private": true,
+  "name": "@parcel/bundle-stats",
+  "version": "2.10.3",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
   "main": "lib/cli.js",
   "source": "src/cli.js",
   "bin": {
-    "parcel-bundle-stats": "bin.js"
+    "parcel-bundle-stats": "src/bin.js"
   },
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.9.3"
   },
   "dependencies": {
-    "@parcel/core": "2.10.2",
-    "@parcel/reporter-bundle-stats": "2.10.2",
-    "@parcel/utils": "2.10.2",
+    "@parcel/core": "2.10.3",
+    "@parcel/reporter-bundle-stats": "2.10.3",
+    "@parcel/utils": "2.10.3",
     "commander": "^7.0.0",
-    "parcel-query": "2.10.2"
+    "@parcel/query": "2.10.3"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.10.2",
-    "@parcel/types": "2.10.2"
+    "@parcel/babel-register": "2.10.3",
+    "@parcel/types": "2.10.3"
   }
 }

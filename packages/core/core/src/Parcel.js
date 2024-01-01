@@ -33,7 +33,7 @@ import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
-import {registerCoreWithSerializer} from './utils';
+import {registerCoreWithSerializer} from './registerCoreWithSerializer';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
@@ -176,10 +176,8 @@ export default class Parcel {
   async _end(): Promise<void> {
     this.#initialized = false;
 
-    await Promise.all([
-      this.#disposable.dispose(),
-      await this.#requestTracker.writeToCache(),
-    ]);
+    await this.#requestTracker.writeToCache();
+    await this.#disposable.dispose();
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -396,7 +394,7 @@ export default class Parcel {
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
     let sub = await resolvedOptions.inputFS.watch(
-      resolvedOptions.projectRoot,
+      resolvedOptions.watchDir,
       (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
@@ -560,6 +558,9 @@ export function createWorkerFarm(
 ): WorkerFarm {
   return new WorkerFarm({
     ...options,
-    workerPath: require.resolve('./worker'),
+    // $FlowFixMe
+    workerPath: process.browser
+      ? '@parcel/core/src/worker.js'
+      : require.resolve('./worker'),
   });
 }

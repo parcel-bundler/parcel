@@ -29,6 +29,7 @@ import createParcelConfigRequest, {
 } from './ParcelConfigRequest';
 import {invalidateOnFileCreateToInternal} from '../utils';
 import {
+  fromProjectPath,
   fromProjectPathRelative,
   toProjectPath,
   toProjectPathUnsafe,
@@ -44,11 +45,12 @@ import {
   runDevDepRequest,
 } from './DevDepRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 import {Dependency as DbDependency, Asset as DbAsset} from '@parcel/rust';
 
 export type PathRequest = {|
   id: string,
-  +type: 'path_request',
+  +type: typeof requestTypes.path_request,
   run: (RunOpts<?AssetGroup>) => Async<?AssetGroup>,
   input: PathRequestInput,
 |};
@@ -63,7 +65,6 @@ type RunOpts<TResult> = {|
   ...StaticRunOpts<TResult>,
 |};
 
-const type = 'path_request';
 const PIPELINE_REGEX = /^([a-z0-9-]+?):(.*)$/i;
 
 export default function createPathRequest(
@@ -71,7 +72,7 @@ export default function createPathRequest(
 ): PathRequest {
   return {
     id: String(input.dependency) + ':' + input.name,
-    type,
+    type: requestTypes.path_request,
     run,
     input,
   };
@@ -177,13 +178,16 @@ export class ResolverRunner {
     };
 
     if (dependency.loc && dependency.sourcePath != null) {
+      let filePath = fromProjectPath(
+        this.options.projectRoot,
+        dependency.sourcePath,
+      );
       diagnostic.codeFrames = [
         {
-          filePath: dependency.sourcePath,
-          code: await this.options.inputFS.readFile(
-            dependency.sourcePath,
-            'utf8',
-          ),
+          filePath,
+          code: await this.options.inputFS
+            .readFile(filePath, 'utf8')
+            .catch(() => ''),
           codeHighlights: dependency.loc
             ? [convertSourceLocationToHighlight(dependency.loc)]
             : [],

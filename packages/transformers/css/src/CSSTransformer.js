@@ -6,20 +6,18 @@ import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {
-  transform,
-  transformStyleAttribute,
-  browserslistToTargets,
-  type SourceLocation as LightningSourceLocation,
-} from 'lightningcss';
-import {
   remapSourceLocation,
   relativePath,
   globToRegex,
   normalizeSeparators,
 } from '@parcel/utils';
+import {type SourceLocation as LightningSourceLocation} from 'lightningcss';
+import * as native from 'lightningcss';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+
+const {transform, transformStyleAttribute, browserslistToTargets} = native;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
@@ -60,6 +58,8 @@ export default (new Transformer({
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
+      // $FlowFixMe native.default is the init function only when bundled for the browser build
+      process.browser && native.default(),
     ]);
 
     let targets = getTargets(asset.env.engines.browsers);
@@ -175,10 +175,10 @@ export default (new Transformer({
       }
     }
 
-    asset.setBuffer(res.code);
+    asset.setBuffer(Buffer.from(res.code));
 
     if (res.map != null) {
-      let vlqMap = JSON.parse(res.map.toString());
+      let vlqMap = JSON.parse(Buffer.from(res.map).toString());
       let map = new SourceMap(options.projectRoot);
       map.addVLQMap(vlqMap);
 
