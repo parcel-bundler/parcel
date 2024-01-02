@@ -189,11 +189,12 @@ class BundlerRunner {
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, api.invalidateOnOptionChange),
     );
-    this.cacheKey = hashString(
-      `${PARCEL_VERSION}:BundleGraph:${JSON.stringify(options.entries) ?? ''}${
-        options.mode
-      }`,
-    );
+    this.cacheKey =
+      hashString(
+        `${PARCEL_VERSION}:BundleGraph:${
+          JSON.stringify(options.entries) ?? ''
+        }${options.mode}`,
+      ) + '-BundleGraph';
   }
 
   async loadConfigs() {

@@ -266,6 +266,7 @@ export type ParcelOptions = {|
 
   shouldDisableCache: boolean,
   cacheDir: FilePath,
+  watchDir: FilePath,
   mode: BuildMode,
   hmrOptions: ?HMROptions,
   shouldContentHash: boolean,
