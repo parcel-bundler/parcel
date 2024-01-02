@@ -105,6 +105,7 @@ export function createAsset(
 
   asset.symbols.init();
   if (options.symbols) {
+    asset.flags |= AssetFlags.HAS_SYMBOLS;
     for (let [exported, {local, loc, meta}] of options.symbols) {
       let sym = asset.symbols.extend();
       sym.exported = db.getStringId(exported);

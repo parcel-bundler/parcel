@@ -176,6 +176,14 @@ class Vec<T> {
     return this.get(this.length - 1);
   }
 
+  delete(index: number): void {
+    let bufAddr = readU32(this.db, this.addr + 0);
+    let fromAddr = bufAddr + (index + 1) * this.size;
+    let toAddr = bufAddr + index * this.size;
+    copy(this.db, fromAddr, toAddr, (this.length - index + 1) * this.size);
+    writeU32(this.db, this.addr + 4, readU32(this.db, this.addr + 4) - 1);
+  }
+
   clear(): void {
     // TODO: run Rust destructors?
     writeU32(this.db, this.addr + 4, 0);
@@ -212,6 +220,17 @@ class Vec<T> {
         return value;
       }
     }
+  }
+
+  findIndex(pred: (value: T) => mixed): number {
+    let addr = readU32(this.db, this.addr + 0);
+    for (let i = 0, len = this.length; i < len; i++, addr += this.size) {
+      let value = this.accessor.get(this.db, addr);
+      if (pred(value)) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   some(pred: (value: T) => mixed): boolean {
