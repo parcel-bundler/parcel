@@ -379,7 +379,6 @@ export default class UncommittedAsset {
     let asset = new UncommittedAsset({
       value: createAsset(this.options.projectRoot, {
         idBase: this.idBase,
-        hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
         bundleBehavior:

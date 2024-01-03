@@ -95,7 +95,6 @@ export function createAsset(
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
-    hash: options.hash,
     filePath: options.filePath,
     query: options.query,
     bundleBehavior: options.bundleBehavior
