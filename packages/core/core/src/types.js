@@ -396,7 +396,6 @@ export type AssetGroupNode = {|
 
 export type TransformationRequest = {|
   ...AssetGroup,
-  invalidations: Array<RequestInvalidation>,
   invalidateReason: number,
   devDeps: Map<PackageName, string>,
   invalidDevDeps: Array<{|

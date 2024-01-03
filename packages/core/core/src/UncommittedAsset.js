@@ -28,7 +28,7 @@ import {
   loadSourceMap,
   SOURCEMAP_RE,
 } from '@parcel/utils';
-import {hashString} from '@parcel/rust';
+import {hashString, hashBuffer, Hash} from '@parcel/rust';
 import {serializeRaw} from './serializer';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -37,7 +37,6 @@ import {
   createAsset,
   createAssetIdFromOptions,
   getInvalidationId,
-  getInvalidationHash,
 } from './assetUtils';
 import {BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal} from './utils';
@@ -95,7 +94,7 @@ export default class UncommittedAsset {
    * Prepares the asset for being serialized to the cache by committing its
    * content and map of the asset to the cache.
    */
-  async commit(pipelineKey: string): Promise<void> {
+  async commit(): Promise<void> {
     // If there is a dirty AST, clear out any old content and map as these
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
@@ -104,18 +103,18 @@ export default class UncommittedAsset {
     }
 
     let size = 0;
-    let contentKey =
-      this.content == null ? null : this.getCacheKey('content' + pipelineKey);
-    let mapKey =
-      this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
-    let astKey =
-      this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
+    let outputHash = '';
+    let contentKey = this.content == null ? null : this.getCacheKey('content');
+    let mapKey = this.mapBuffer == null ? null : this.getCacheKey('map');
+    let astKey = this.ast == null ? null : this.getCacheKey('ast');
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
-        this.commitContent(contentKey).then(s => (size = s)),
+        this.commitContent(contentKey).then(
+          s => ((size = s.size), (outputHash = s.hash)),
+        ),
       this.mapBuffer != null &&
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
@@ -125,11 +124,7 @@ export default class UncommittedAsset {
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
-    this.value.outputHash = hashString(
-      (this.value.hash ?? '') +
-        pipelineKey +
-        (await getInvalidationHash(this.getInvalidations(), this.options)),
-    );
+    this.value.outputHash = outputHash;
 
     if (this.content != null) {
       this.value.stats.size = size;
@@ -139,34 +134,41 @@ export default class UncommittedAsset {
     this.value.committed = true;
   }
 
-  async commitContent(contentKey: string): Promise<number> {
+  async commitContent(
+    contentKey: string,
+  ): Promise<{|size: number, hash: string|}> {
     let content = await this.content;
     if (content == null) {
-      return 0;
+      return {size: 0, hash: ''};
     }
 
     let size = 0;
     if (content instanceof Readable) {
+      let hash = new Hash();
       await this.options.cache.setStream(
         contentKey,
         content.pipe(
           new TapStream(buf => {
+            hash.writeBuffer(buf);
             size += buf.length;
           }),
         ),
       );
 
-      return size;
+      return {size, hash: hash.finish()};
     }
 
+    let hash;
     if (typeof content === 'string') {
+      hash = hashString(content);
       size = Buffer.byteLength(content);
     } else {
+      hash = hashBuffer(content);
       size = content.length;
     }
 
     await this.options.cache.setBlob(contentKey, content);
-    return size;
+    return {size, hash};
   }
 
   async getCode(): Promise<string> {
@@ -308,9 +310,7 @@ export default class UncommittedAsset {
   }
 
   getCacheKey(key: string): string {
-    return hashString(
-      PARCEL_VERSION + key + this.value.id + (this.value.hash || ''),
-    );
+    return hashString(PARCEL_VERSION + key + this.value.id);
   }
 
   addDependency(opts: DependencyOptions): string {
