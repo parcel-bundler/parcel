@@ -43,7 +43,6 @@ import {PluginTracer} from '@parcel/profiler';
 type AssetOptions = {|
   id?: string,
   committed?: boolean,
-  hash?: ?string,
   idBase?: ?string,
   filePath: ProjectPath,
   query?: ?string,
