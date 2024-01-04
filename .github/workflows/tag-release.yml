@@ -131,7 +131,7 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ubuntu-20.04
     container:
-      image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+      image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:5a99e45446355d25c20e95d35231d84e9ce472280d8c0b1be53281bade905f09
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_TOKEN }}
