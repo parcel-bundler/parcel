@@ -1,0 +1,123 @@
+.file-browser {
+  background: var(--background-header);
+
+  min-width: 200px;
+  overflow: hidden;
+}
+.file-browser > div {
+  border-radius: var(--radius);
+  background: white;
+  margin: var(--gap);
+  padding: 0.4em 0;
+}
+
+.file-browser .header,
+.file-browser .presets,
+.file-browser .options,
+.file-browser .download {
+  padding: 0.4em;
+}
+
+.file-browser .header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--background-light);
+}
+
+.file-browser .presets {
+  display: flex;
+  justify-content: space-between;
+  user-select: none;
+}
+.file-browser .presets > select {
+  min-width: 0;
+}
+
+.file-browser .options {
+  display: flex;
+  justify-content: space-between;
+}
+.file-browser .options > .view {
+  padding: 0.2em;
+}
+.file-browser .options > .view span {
+  display: inline-block;
+  vertical-align: middle;
+  width: 16px;
+  height: 16px;
+  background: url(../assets/lines.svg) 50% no-repeat;
+}
+.file-browser .options > .view.tabs span {
+  transform: rotate(90deg);
+}
+
+.file-browser ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  padding-left: 1em;
+}
+.file-browser li > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.file-browser li > div:hover {
+  background: var(--background-dark);
+}
+
+.file-browser li > div > .name {
+  display: flex;
+  flex: 1;
+}
+.file-browser li > div > .name form {
+  flex: 1;
+}
+.file-browser li > div > .name form input {
+  width: 100%;
+}
+.file-browser li > div > .controls {
+  display: inline;
+  flex-shrink: 0;
+}
+
+.file-browser li > div > .controls button {
+  margin-top: auto;
+  width: 16px;
+  height: 16px;
+}
+.file-browser li > div > .controls .delete {
+  background: url(../assets/remove.svg) 50% no-repeat;
+}
+.file-browser li > div > .controls .rename {
+  background: url(../assets/edit.svg) 50% no-repeat;
+}
+
+.file-browser li > .dir .icon {
+  display: inline-block;
+  vertical-align: middle;
+  width: 16px;
+  height: 16px;
+  background: url(../assets/chevron.svg) 50% no-repeat;
+}
+.file-browser li > .dir.expanded .icon {
+  transform: rotate(90deg);
+}
+
+.file-browser li > .file .icon {
+  display: inline-block;
+  margin: auto 0;
+  width: 16px;
+  height: 16px;
+  background: url(../assets/file.svg) 50% no-repeat;
+}
+
+.file-browser .download {
+  display: flex;
+  padding-bottom: 0;
+}
+
+.file-browser .download button {
+  flex: 1;
+}

@@ -1,0 +1,265 @@
+@import './file-browser.css';
+@import './options.css';
+
+button {
+  appearance: none;
+  border: none;
+  color: var(--color);
+  user-select: none;
+  background: var(--background-button);
+  border-radius: var(--radius);
+  font-size: inherit;
+}
+button:disabled {
+  filter: opacity(0.5);
+}
+button:hover {
+  background: var(--background-dark);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.panel > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.resize-handle {
+  width: 0.3rem;
+  transition: 200ms ease-in-out background-color;
+  background-color: var(--handle-color);
+  outline: none;
+}
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
+  background-color: var(--handle-color-active);
+}
+
+.editor,
+pre {
+  background-color: var(--background-editor);
+}
+
+main > .output {
+  overflow: auto;
+}
+
+main > .editors,
+main > .output {
+  min-height: 25em;
+}
+
+.editors {
+  background: var(--background-light);
+  display: flex;
+  flex-direction: column;
+  margin-right: 0.3em;
+}
+
+.editors:not(.tabs) {
+  overflow-y: auto;
+}
+
+.editors .switcher {
+  display: flex;
+  justify-content: flex-start;
+  overflow-x: auto;
+}
+
+.switcher div {
+  border-top-left-radius: 0.25em;
+  border-top-right-radius: 0.25em;
+}
+
+.editors .switcher div,
+.view .name {
+  flex-grow: 1;
+  text-align: center;
+  padding: 0.4em 0.3em;
+  display: flex;
+  justify-content: space-between;
+}
+.editors .switcher div {
+  background-color: var(--background-button);
+  max-width: calc(max(15em, 33%));
+}
+.views div.selected {
+  background-color: var(--background-editor);
+}
+
+.editors.list {
+  margin: 0.3em;
+}
+
+.list {
+  gap: var(--gap);
+  display: flex;
+  flex-direction: column;
+}
+.list .view {
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.list .view .name {
+  border-bottom: 2px solid var(--background-light);
+}
+
+.switcher div .close,
+.view .name .close {
+  width: 16px;
+  height: 16px;
+  margin-top: auto;
+
+  background: url(../assets/remove.svg) 50% no-repeat;
+}
+
+.editors .switcher div .close.modified,
+.editors .view .name .close.modified {
+  background: url(../assets/circle.svg) 50% no-repeat;
+}
+
+.editors .content {
+  flex: 1;
+  background: var(--background-editor);
+  overflow-y: auto;
+}
+.editors .content .editor,
+.editors .content .editor .cm-wrap {
+  height: 100%;
+}
+
+.editors .help {
+  user-select: none;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+input[type='text'],
+select {
+  padding: 0.1em 0.2em;
+}
+
+.output {
+  background: var(--background-light);
+  padding: 0.3em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+.output .header button,
+.output .preview button {
+  background: var(--background-button-light);
+}
+.output .header button:hover,
+.output .preview button:hover {
+  background: var(--background-button);
+}
+
+.output .header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+.output .header button {
+  flex: 1;
+  padding: 0.5em 3em;
+  color: var(--color);
+}
+.output .status {
+  border-radius: var(--radius);
+  padding: 0.5em;
+  text-align: center;
+  user-select: none;
+  transition: background-color 0.3s;
+}
+
+.output .build-error .content {
+  white-space: pre;
+  font-family: monospace;
+  overflow-y: scroll;
+
+  border: 1px solid red;
+  background: white;
+
+  padding: 0.3em;
+}
+
+.output .files {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.output .files .tabs {
+  background-color: var(--background-dark);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.output .files .tabs > .switcher {
+  display: flex;
+}
+
+.output .files .tabs > .switcher div {
+  background-color: var(--background-button);
+  flex: 1;
+  text-align: center;
+  padding: 0.4em 0em;
+}
+.output .files .tabs > .switcher div.selected {
+  background-color: var(--background-editor);
+}
+.output .files .tabs > :not(.switcher) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-light);
+}
+.output .files .tabs .views {
+  flex: 1;
+}
+
+.output .graphs {
+  padding: 0.5em;
+  background: var(--background-editor);
+  border-radius: var(--radius);
+}
+.output .graphs > div {
+  padding-top: 0.5em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.preview .controls {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.preview .controls > button {
+  flex: 1;
+}
+.preview button {
+  padding: 0.3em 3em;
+  border-radius: 0;
+}
+.preview .file {
+  width: 100%;
+}
+.preview iframe {
+  width: 100%;
+  border: none;
+  flex: 1;
+  background: white;
+}
