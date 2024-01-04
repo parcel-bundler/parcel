@@ -14,7 +14,7 @@ jobs:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -39,7 +39,7 @@ jobs:
     container:
       image: docker.io/mischnic/centos7-node16
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install yarn
         run: npm install --global yarn@1
       - name: Install Rust
@@ -77,7 +77,7 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -130,7 +130,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install build tools
         run: apk add --no-cache python3 make gcc g++ musl-dev curl
       - name: Install Rust
@@ -161,7 +161,7 @@ jobs:
     name: aarch64-apple-darwin
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -194,7 +194,7 @@ jobs:
       - build-linux-gnu-arm
       - build-apple-silicon
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: bahmutov/npm-install@v1.1.0
