@@ -48,6 +48,7 @@ declare var globalThis: typeof self;
 declare var ServiceWorkerGlobalScope: Object;
 */
 
+var HMR_ENDPOINT = '/__parcel_hmr';
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
@@ -100,7 +101,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var ws;
   try {
     ws = new WebSocket(
-      protocol + '://' + hostname + (port ? ':' + port : '') + '/',
+      protocol + '://' + hostname + (port ? ':' + port : '') + HMR_ENDPOINT,
     );
   } catch (err) {
     if (err.message) {

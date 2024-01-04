@@ -90,10 +90,11 @@ export default class HMRServer {
     server.on('upgrade', (req, ws, head) => {
       let {pathname} = url.parse(req.originalUrl || req.url);
       if (pathname != null && pathname.startsWith(HMR_ENDPOINT)) {
-        const emitConnection = this.wss.emit.bind(this.wss, 'connection');
-        this.wss.handleUpgrade(req, ws, head, emitConnection);
+        this.wss.handleUpgrade(req, ws, head, (...args) =>
+          this.wss.emit('connection', ...args),
+        );
       }
-    })
+    });
 
     this.wss.on('connection', ws => {
       if (this.unresolvedError) {
