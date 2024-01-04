@@ -106,14 +106,6 @@ jobs:
       - run: yarn build-native-release
       - run: yarn build
       - run: yarn test:integration-ci
-      # Similar to
-      # https://github.com/marketplace/actions/publish-unit-test-results#use-with-matrix-strategy
-      - name: Upload JUnit results
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: Integration tests (${{matrix.os}}, node ${{matrix.node}})
-          path: '**/junit-*.xml'
 
   # Deployment steps taken from https://github.com/colinwilson/static-site-to-vercel/blob/master/.github/workflows/deploy-preview.yml
   repl_build:
@@ -185,14 +177,3 @@ jobs:
           status: ${{ job.status }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           env_url: ${{ steps.vercel-action.outputs.preview-url }}
-
-  test_report:
-    name: Test report
-    runs-on: ubuntu-latest
-    needs: [unit_tests, integration_tests]
-    if: always()
-    steps:
-      - name: Create test report
-        uses: mikepenz/action-junit-report@v2
-        with:
-          report_paths: artifacts/**/*.xml
