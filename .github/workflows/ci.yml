@@ -14,10 +14,9 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           cache: yarn
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
@@ -58,10 +57,9 @@ jobs:
         with:
           cache: yarn
           node-version: ${{matrix.node}}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
       - name: Bump max inotify watches (Linux only)
@@ -96,10 +94,9 @@ jobs:
         with:
           cache: yarn
           node-version: ${{matrix.node}}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
       - name: Bump max inotify watches (Linux only)
@@ -131,8 +128,9 @@ jobs:
         with:
           cache: yarn
           node-version: 20
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: stable
           targets: wasm32-unknown-unknown
       - name: Install wasm-opt
         run: |
