@@ -18,7 +18,7 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - run: yarn --frozen-lockfile
@@ -61,7 +61,7 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Bump max inotify watches (Linux only)
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
@@ -98,7 +98,7 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Bump max inotify watches (Linux only)
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
@@ -129,7 +129,7 @@ jobs:
           curl -L -O https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
           tar -xf binaryen-version_116-x86_64-linux.tar.gz
           echo "$PWD/binaryen-version_116/bin" >> $GITHUB_PATH
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: wasm
       - name: Bump max inotify watches
