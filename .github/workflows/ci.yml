@@ -156,6 +156,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.head_ref }}
           env: Preview
+          override: false
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         id: vercel-action
@@ -175,6 +176,7 @@ jobs:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
           env: ${{ steps.deployment.outputs.env }}
+          override: false
           status: ${{ job.status }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           env_url: ${{ steps.vercel-action.outputs.preview-url }}
