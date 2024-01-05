@@ -417,4 +417,77 @@ describe('macros', function () {
     res = await overlayFS.readFile(b.getBundles()[1].filePath, 'utf8');
     assert(res.includes('.foo{color:pink;background:red}'));
   });
+
+  it('should invalidate the cache when changing a macro', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { test } from "./macro.js" with { type: "macro" };
+        output = test();
+
+      macro.js:
+        export function test() {
+          return 2;
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+      shouldDisableCache: false,
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('output=2'));
+
+    await fsFixture(overlayFS, dir)`
+      macro.js:
+        export function test() {
+          return 3;
+        }
+    `;
+
+    b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+      shouldDisableCache: false,
+    });
+
+    res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('output=3'));
+  });
+
+  it('should invalidate the cache on build', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { test } from "./macro.js" with { type: "macro" };
+        output = test('test.txt');
+
+      macro.js:
+        export function test() {
+          this.invalidateOnBuild();
+          return Date.now();
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+      shouldDisableCache: false,
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    let match = res.match(/output=(\d+)/);
+    assert(match);
+
+    b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+      shouldDisableCache: false,
+    });
+
+    res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    let match2 = res.match(/output=(\d+)/);
+    assert(match2);
+    assert.notEqual(match[1], match2[1]);
+  });
 });

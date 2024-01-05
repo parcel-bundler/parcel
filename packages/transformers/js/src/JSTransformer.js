@@ -1,5 +1,11 @@
 // @flow
-import type {JSONObject, EnvMap, SourceLocation} from '@parcel/types';
+import type {
+  JSONObject,
+  EnvMap,
+  SourceLocation,
+  FilePath,
+  FileCreateInvalidation,
+} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
@@ -157,6 +163,15 @@ type TSConfig = {
 type MacroAsset = {|
   type: string,
   content: string,
+|};
+
+type MacroContext = {|
+  addAsset(asset: MacroAsset): void,
+  invalidateOnFileChange(FilePath): void,
+  invalidateOnFileCreate(FileCreateInvalidation): void,
+  invalidateOnEnvChange(string): void,
+  invalidateOnStartup(): void,
+  invalidateOnBuild(): void,
 |};
 
 export default (new Transformer({
@@ -469,7 +484,7 @@ export default (new Transformer({
               }
 
               if (typeof mod[exportName] === 'function') {
-                let ctx = {
+                let ctx: MacroContext = {
                   // Allows macros to emit additional assets to add as dependencies (e.g. css).
                   addAsset(a: MacroAsset) {
                     let k = String(macroAssets.length);
@@ -515,6 +530,21 @@ export default (new Transformer({
                       specifier: k,
                       specifierType: 'esm',
                     });
+                  },
+                  invalidateOnFileChange(filePath) {
+                    asset.invalidateOnFileChange(filePath);
+                  },
+                  invalidateOnFileCreate(invalidation) {
+                    asset.invalidateOnFileCreate(invalidation);
+                  },
+                  invalidateOnEnvChange(env) {
+                    asset.invalidateOnEnvChange(env);
+                  },
+                  invalidateOnStartup() {
+                    asset.invalidateOnStartup();
+                  },
+                  invalidateOnBuild() {
+                    asset.invalidateOnBuild();
                   },
                 };
 
