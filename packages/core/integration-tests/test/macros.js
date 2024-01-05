@@ -18,12 +18,13 @@ describe('macros', function () {
   it('should support named imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import { test } from "./macro.js" with { type: "macro" };
-        output = test(1, 2);
+        import { hash } from "./macro.js" with { type: "macro" };
+        output = hash('hi');
 
       macro.js:
-        export function test(a, b) {
-          return a + b;
+        import {hashString} from '@parcel/rust';
+        export function hash(s) {
+          return hashString(s);
         }
     `;
 
@@ -33,19 +34,14 @@ describe('macros', function () {
     });
 
     let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(res.includes('output=3'));
+    assert(res.includes('output="2a2300bbd7ea6e9a"'));
   });
 
   it('should support renamed imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import { test as foo } from "./macro.js" with { type: "macro" };
-        output = foo(1, 2);
-
-      macro.js:
-        export function test(a, b) {
-          return a + b;
-        }
+        import { hashString as foo } from "@parcel/rust" with { type: "macro" };
+        output = foo('hi');
     `;
 
     let b = await bundle(path.join(dir, '/index.js'), {
@@ -54,18 +50,19 @@ describe('macros', function () {
     });
 
     let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(res.includes('output=3'));
+    assert(res.includes('output="2a2300bbd7ea6e9a"'));
   });
 
   it('should support default imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
         import test from "./macro.js" with { type: "macro" };
-        output = test(1, 2);
+        output = test('hi');
 
       macro.js:
-        export default function test(a, b) {
-          return a + b;
+        import {hashString} from '@parcel/rust';
+        export default function test(s) {
+          return hashString(s);
         }
     `;
 
@@ -75,19 +72,14 @@ describe('macros', function () {
     });
 
     let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(res.includes('output=3'));
+    assert(res.includes('output="2a2300bbd7ea6e9a"'));
   });
 
   it('should support namespace imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import * as ns from "./macro.js" with { type: "macro" };
-        output = ns.test(1, 2);
-
-      macro.js:
-        export function test(a, b) {
-          return a + b;
-        }
+        import * as ns from "@parcel/rust" with { type: "macro" };
+        output = ns.hashString('hi');
     `;
 
     let b = await bundle(path.join(dir, '/index.js'), {
@@ -96,7 +88,7 @@ describe('macros', function () {
     });
 
     let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(res.includes('output=3'));
+    assert(res.includes('output="2a2300bbd7ea6e9a"'));
   });
 
   it('should support various JS value types', async function () {
