@@ -149,7 +149,7 @@ jobs:
       #     name: REPL
       #     path: 'packages/dev/repl/dist'
       - name: Start Deployment
-        uses: bobheadxi/deployments@v0.4.3
+        uses: bobheadxi/deployments@v1
         id: deployment
         with:
           step: start
@@ -169,11 +169,12 @@ jobs:
           alias-domains: |
             pr-{{PR_NUMBER}}.repl.parceljs.org
       - name: Update Deployment Status
-        uses: bobheadxi/deployments@v0.4.3
+        uses: bobheadxi/deployments@v1
         if: always()
         with:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
+          env: ${{ steps.deployment.outputs.env }}
           status: ${{ job.status }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           env_url: ${{ steps.vercel-action.outputs.preview-url }}
