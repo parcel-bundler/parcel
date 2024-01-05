@@ -1943,14 +1943,7 @@ export default class BundleGraph {
     this.traverseAssets(bundle, asset => {
       {
         hash.writeString(
-          [
-            this.getAssetPublicId(asset),
-            asset.outputHash,
-            asset.filePath,
-            asset.query,
-            asset.type,
-            asset.uniqueKey,
-          ].join(':'),
+          [this.getAssetPublicId(asset), asset.id, asset.outputHash].join(':'),
         );
       }
     });
@@ -1997,7 +1990,7 @@ export default class BundleGraph {
   getHash(bundle: Bundle): string {
     let hash = new Hash();
     hash.writeString(
-      bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
+      bundle.id + JSON.stringify(bundle.target) + this.getContentHash(bundle),
     );
 
     if (bundle.isPlaceholder) {
