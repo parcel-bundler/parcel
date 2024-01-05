@@ -97,6 +97,21 @@ export class IDBCache implements Cache {
     await (await this.store).put(STORE_NAME, data, key);
   }
 
+  // async setBlobs(
+  //   entries: $ReadOnlyArray<[string, Buffer | string]>,
+  // ): Promise<void> {
+  //   const tx = (await this.store).transaction(STORE_NAME, 'readwrite');
+  //   await Promise.all([
+  //     ...entries.map(([key, value]) =>
+  //       tx.store.put(
+  //         value instanceof Uint8Array ? value : Buffer.from(value),
+  //         key,
+  //       ),
+  //     ),
+  //     tx.done,
+  //   ]);
+  // }
+
   async getBuffer(key: string): Promise<?Buffer> {
     let data = await (await this.store).get(STORE_NAME, key);
     if (data == null) {
