@@ -46,7 +46,7 @@
     "@types/node": ">= 18",
     "buffer": "mischnic/buffer#b8a4fa94",
     "cross-env": "^7.0.0",
-    "eslint": "^7.20.0",
+    "eslint": "^8.41.0",
     "flow-bin": "0.184.0",
     "glob": "^7.1.6",
     "gulp": "^4.0.2",

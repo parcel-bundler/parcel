@@ -13,12 +13,11 @@ import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
   TransformationRequest,
-  RequestInvalidation,
   Config,
   DevDepRequest,
   ParcelOptions,
-  InternalFileCreateInvalidation,
   InternalDevDepOptions,
+  Invalidations,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -46,7 +45,7 @@ import {
   mutableAssetToUncommittedAsset,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset, getInvalidationId} from './assetUtils';
+import {createAsset} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {optionsProxy} from './utils';
@@ -68,7 +67,7 @@ import {
   toProjectPathUnsafe,
   toProjectPath,
 } from './projectPath';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import invariant from 'assert';
 import {tracer, PluginTracer} from '@parcel/profiler';
 
@@ -89,8 +88,7 @@ export type TransformationResult = {|
   assets?: Array<AssetValue>,
   error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
-  invalidations: Array<RequestInvalidation>,
-  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
+  invalidations: Invalidations,
   devDepRequests: Array<DevDepRequest>,
 |};
 
@@ -103,8 +101,7 @@ export default class Transformation {
   pluginOptions: PluginOptions;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
-  invalidations: Map<string, RequestInvalidation>;
-  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>;
+  invalidations: Invalidations;
   resolverRunner: ResolverRunner;
 
   constructor({request, options, config, workerApi}: TransformationOpts) {
@@ -113,8 +110,7 @@ export default class Transformation {
     this.options = options;
     this.request = request;
     this.workerApi = workerApi;
-    this.invalidations = new Map();
-    this.invalidateOnFileCreate = [];
+    this.invalidations = createInvalidations();
     this.devDepRequests = new Map();
     this.pluginDevDeps = [];
     this.resolverRunner = new ResolverRunner({
@@ -127,12 +123,7 @@ export default class Transformation {
       optionsProxy(
         this.options,
         option => {
-          let invalidation: RequestInvalidation = {
-            type: 'option',
-            key: option,
-          };
-
-          this.invalidations.set(getInvalidationId(invalidation), invalidation);
+          this.invalidations.invalidateOnOptionChange.add(option);
         },
         devDep => {
           this.pluginDevDeps.push(devDep);
@@ -213,8 +204,7 @@ export default class Transformation {
       configRequests,
       // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
       error: error ? anyToDiagnostic(error) : undefined,
-      invalidateOnFileCreate: this.invalidateOnFileCreate,
-      invalidations: [...this.invalidations.values()],
+      invalidations: this.invalidations,
       devDepRequests,
     };
   }
@@ -266,7 +256,6 @@ export default class Transformation {
       options: this.options,
       content,
       invalidations: this.invalidations,
-      fileCreateInvalidations: this.invalidateOnFileCreate,
     });
   }
 
@@ -598,7 +587,7 @@ export default class Transformation {
       );
 
       if (result.invalidateOnFileCreate) {
-        this.invalidateOnFileCreate.push(
+        this.invalidations.invalidateOnFileCreate.push(
           ...result.invalidateOnFileCreate.map(i =>
             invalidateOnFileCreateToInternal(this.options.projectRoot, i),
           ),
@@ -607,12 +596,9 @@ export default class Transformation {
 
       if (result.invalidateOnFileChange) {
         for (let filePath of result.invalidateOnFileChange) {
-          let invalidation = {
-            type: 'file',
-            filePath: toProjectPath(this.options.projectRoot, filePath),
-          };
-
-          this.invalidations.set(getInvalidationId(invalidation), invalidation);
+          this.invalidations.invalidateOnFileChange.add(
+            toProjectPath(this.options.projectRoot, filePath),
+          );
         }
       }
 

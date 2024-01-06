@@ -27,12 +27,10 @@ describe('InternalAsset', () => {
     });
     asset.invalidateOnFileChange(toProjectPath('/', '/foo/file'));
     asset.invalidateOnFileChange(toProjectPath('/', '/foo/file'));
-    assert.deepEqual(asset.getInvalidations(), [
-      {
-        type: 'file',
-        filePath: 'foo/file',
-      },
-    ]);
+    assert.deepEqual(
+      asset.invalidations.invalidateOnFileChange,
+      new Set(['foo/file']),
+    );
   });
 
   it('only includes dependencies once per id', () => {

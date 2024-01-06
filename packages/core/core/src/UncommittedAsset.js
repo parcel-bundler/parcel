@@ -9,13 +9,7 @@ import type {
   PackageName,
   TransformerResult,
 } from '@parcel/types';
-import type {
-  Asset,
-  RequestInvalidation,
-  Dependency,
-  ParcelOptions,
-  InternalFileCreateInvalidation,
-} from './types';
+import type {Asset, Dependency, ParcelOptions, Invalidations} from './types';
 
 import invariant from 'assert';
 import {Readable} from 'stream';
@@ -33,13 +27,9 @@ import {serializeRaw} from './serializer';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
-import {
-  createAsset,
-  createAssetIdFromOptions,
-  getInvalidationId,
-} from './assetUtils';
+import {createAsset, createAssetIdFromOptions} from './assetUtils';
 import {BundleBehaviorNames} from './types';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
 
 type UncommittedAssetOptions = {|
@@ -50,8 +40,7 @@ type UncommittedAssetOptions = {|
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
-  invalidations?: Map<string, RequestInvalidation>,
-  fileCreateInvalidations?: Array<InternalFileCreateInvalidation>,
+  invalidations?: Invalidations,
 |};
 
 export default class UncommittedAsset {
@@ -64,8 +53,7 @@ export default class UncommittedAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
-  invalidations: Map<string, RequestInvalidation>;
-  fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
+  invalidations: Invalidations;
   generate: ?() => Promise<GenerateOutput>;
 
   constructor({
@@ -77,7 +65,6 @@ export default class UncommittedAsset {
     isASTDirty,
     idBase,
     invalidations,
-    fileCreateInvalidations,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -86,8 +73,7 @@ export default class UncommittedAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
-    this.invalidations = invalidations || new Map();
-    this.fileCreateInvalidations = fileCreateInvalidations || [];
+    this.invalidations = invalidations || createInvalidations();
   }
 
   /*
@@ -337,31 +323,25 @@ export default class UncommittedAsset {
   }
 
   invalidateOnFileChange(filePath: ProjectPath) {
-    let invalidation: RequestInvalidation = {
-      type: 'file',
-      filePath,
-    };
-
-    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+    this.invalidations.invalidateOnFileChange.add(filePath);
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
-    this.fileCreateInvalidations.push(
+    this.invalidations.invalidateOnFileCreate.push(
       invalidateOnFileCreateToInternal(this.options.projectRoot, invalidation),
     );
   }
 
   invalidateOnEnvChange(key: string) {
-    let invalidation: RequestInvalidation = {
-      type: 'env',
-      key,
-    };
-
-    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+    this.invalidations.invalidateOnEnvChange.add(key);
   }
 
-  getInvalidations(): Array<RequestInvalidation> {
-    return [...this.invalidations.values()];
+  invalidateOnBuild() {
+    this.invalidations.invalidateOnBuild = true;
+  }
+
+  invalidateOnStartup() {
+    this.invalidations.invalidateOnStartup = true;
   }
 
   getDependencies(): Array<Dependency> {
@@ -427,7 +407,6 @@ export default class UncommittedAsset {
       mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
       invalidations: this.invalidations,
-      fileCreateInvalidations: this.fileCreateInvalidations,
     });
 
     let dependencies = result.dependencies;
