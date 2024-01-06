@@ -1215,6 +1215,7 @@ dependencies = [
 name = "parcel-node-bindings"
 version = "0.1.0"
 dependencies = [
+ "crossbeam-channel",
  "dashmap",
  "getrandom",
  "jemallocator",

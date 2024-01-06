@@ -242,6 +242,15 @@ export type InternalFileCreateInvalidation =
   | InternalGlobInvalidation
   | InternalFileAboveInvalidation;
 
+export type Invalidations = {|
+  invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
+  invalidateOnEnvChange: Set<string>,
+  invalidateOnOptionChange: Set<string>,
+  invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
+|};
+
 export type DevDepRequest = {|
   specifier: DependencySpecifier,
   resolveFrom: ProjectPath,

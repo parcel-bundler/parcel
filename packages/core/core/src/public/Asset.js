@@ -312,6 +312,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.invalidateOnEnvChange(env);
   }
 
+  invalidateOnStartup(): void {
+    this.#asset.invalidateOnStartup();
+  }
+
+  invalidateOnBuild(): void {
+    this.#asset.invalidateOnBuild();
+  }
+
   isASTDirty(): boolean {
     return this.#asset.isASTDirty;
   }
