@@ -39,7 +39,7 @@ jobs:
     container:
       image: docker.io/mischnic/centos7-node16
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - name: Install yarn
         run: npm install --global yarn@1
       - name: Install Rust
