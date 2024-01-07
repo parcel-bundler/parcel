@@ -34,6 +34,7 @@ use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Vers
 use swc_core::ecma::transforms::base::fixer::paren_remover;
 use swc_core::ecma::transforms::base::helpers;
 use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
+use swc_core::ecma::transforms::proposal::decorator_2022_03;
 use swc_core::ecma::transforms::proposal::decorators;
 use swc_core::ecma::transforms::{
   compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
@@ -234,6 +235,7 @@ pub fn transform(
                   }),
                   config.decorators
                 ),
+                Optional::new(decorator_2022_03::decorator_2022_03(), !config.decorators),
                 Optional::new(
                   typescript::tsx(
                     source_map.clone(),
@@ -540,14 +542,14 @@ fn parse(
   let syntax = if config.is_type_script {
     Syntax::Typescript(TsConfig {
       tsx: config.is_jsx,
-      decorators: config.decorators,
+      decorators: true,
       ..Default::default()
     })
   } else {
     Syntax::Es(EsConfig {
       jsx: config.is_jsx,
       export_default_from: true,
-      decorators: config.decorators,
+      decorators: true,
       import_attributes: true,
       ..Default::default()
     })
