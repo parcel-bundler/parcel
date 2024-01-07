@@ -1,5 +1,8 @@
 use dashmap::DashMap;
-use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown, Ref, Result};
+use napi::{
+  bindgen_prelude::Either3, Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown,
+  Ref, Result,
+};
 use napi_derive::napi;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
@@ -17,7 +20,7 @@ use parcel_resolver::{
   IncludeNodeModules, Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
 };
 
-type NapiSideEffectsVariants = napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>;
+type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
 #[napi(object)]
 pub struct JsFileSystemOptions {
@@ -197,12 +200,8 @@ pub struct GlobCreateInvalidation {
 pub struct ResolveResult {
   pub resolution: JsUnknown,
   pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create: Vec<
-    napi::Either<
-      FilePathCreateInvalidation,
-      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
-    >,
-  >,
+  pub invalidate_on_file_create:
+    Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
   pub query: Option<String>,
   pub side_effects: bool,
   pub error: JsUnknown,
@@ -212,12 +211,8 @@ pub struct ResolveResult {
 #[napi(object)]
 pub struct JsInvalidations {
   pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create: Vec<
-    napi::Either<
-      FilePathCreateInvalidation,
-      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
-    >,
-  >,
+  pub invalidate_on_file_create:
+    Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
   pub invalidate_on_startup: bool,
 }
 
@@ -272,9 +267,9 @@ impl Resolver {
 
     if let Some(include_node_modules) = options.include_node_modules {
       resolver.include_node_modules = Cow::Owned(match include_node_modules {
-        napi::Either::A(b) => IncludeNodeModules::Bool(b),
-        napi::Either::B(napi::Either::A(v)) => IncludeNodeModules::Array(v),
-        napi::Either::B(napi::Either::B(v)) => IncludeNodeModules::Map(v),
+        Either3::A(b) => IncludeNodeModules::Bool(b),
+        Either3::B(v) => IncludeNodeModules::Array(v),
+        Either3::C(v) => IncludeNodeModules::Map(v),
       });
     }
 
@@ -360,7 +355,7 @@ impl Resolver {
 
     if self.mode == 2 {
       if let Ok((Resolution::Path(p), _)) = &res.result {
-        module_type = match self.resolver.resolve_module_type(&p, &res.invalidations) {
+        module_type = match self.resolver.resolve_module_type(p, &res.invalidations) {
           Ok(t) => match t {
             ModuleType::CommonJs | ModuleType::Json => 1,
             ModuleType::Module => 2,
@@ -483,12 +478,7 @@ fn convert_invalidations(
   invalidations: Invalidations,
 ) -> (
   Vec<String>,
-  Vec<
-    napi::Either<
-      FilePathCreateInvalidation,
-      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
-    >,
-  >,
+  Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
 ) {
   let invalidate_on_file_change = invalidations
     .invalidate_on_file_change
@@ -499,18 +489,16 @@ fn convert_invalidations(
     .invalidate_on_file_create
     .into_iter()
     .map(|i| match i {
-      FileCreateInvalidation::Path(p) => napi::Either::A(FilePathCreateInvalidation {
+      FileCreateInvalidation::Path(p) => Either3::A(FilePathCreateInvalidation {
         file_path: p.to_string_lossy().into_owned(),
       }),
       FileCreateInvalidation::FileName { file_name, above } => {
-        napi::Either::B(napi::Either::A(FileNameCreateInvalidation {
+        Either3::B(FileNameCreateInvalidation {
           file_name,
           above_file_path: above.to_string_lossy().into_owned(),
-        }))
+        })
       }
-      FileCreateInvalidation::Glob(glob) => {
-        napi::Either::B(napi::Either::B(GlobCreateInvalidation { glob }))
-      }
+      FileCreateInvalidation::Glob(glob) => Either3::C(GlobCreateInvalidation { glob }),
     })
     .collect();
   (invalidate_on_file_change, invalidate_on_file_create)

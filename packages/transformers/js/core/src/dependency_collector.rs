@@ -238,7 +238,7 @@ impl<'a> DependencyCollector<'a> {
 }
 
 fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
-  if let Some(arg) = node.args.get(0) {
+  if let Some(arg) = node.args.first() {
     if let Some((value, _)) = match_str(&arg.expr) {
       if value.starts_with("node:") {
         // create_require will take care of replacing the node: prefix...
@@ -384,7 +384,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 if self.config.is_worker {
                   let (msg, span) = if self.config.source_type == SourceType::Script {
                     // Ignore if argument is not a string literal.
-                    let span = if let Some(ast::ExprOrSpread { expr, .. }) = node.args.get(0) {
+                    let span = if let Some(ast::ExprOrSpread { expr, .. }) = node.args.first() {
                       match &**expr {
                         Lit(ast::Lit::Str(ast::Str { value, span, .. })) => {
                           // Ignore absolute URLs.
@@ -481,7 +481,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               // Match compiled dynamic imports (Parcel)
               // Promise.resolve(require('foo'))
               if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
-                if let Some(expr) = node.args.get(0) {
+                if let Some(expr) = node.args.first() {
                   if match_require(&expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                     self.in_promise = true;
                     let node = node.fold_children_with(self);
@@ -508,7 +508,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                     {
                       if let MemberProp::Ident(id) = &member.prop {
                         if id.sym.to_string().as_str() == "then" {
-                          if let Some(arg) = node.args.get(0) {
+                          if let Some(arg) = node.args.first() {
                             match &*arg.expr {
                               Fn(_) | Arrow(_) => {
                                 self.in_promise = true;
@@ -578,7 +578,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       }
     }
 
-    let node = if let Some(arg) = node.args.get(0) {
+    let node = if let Some(arg) = node.args.first() {
       if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
         let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
           match_worker_type(node.args.get(1))
@@ -888,10 +888,10 @@ impl<'a> DependencyCollector<'a> {
     // new Promise(function (resolve) { resolve(require('foo')) })
     // new Promise(function (resolve) { return resolve(require('foo')) })
     if let Some(args) = &node.args {
-      if let Some(arg) = args.get(0) {
+      if let Some(arg) = args.first() {
         let (resolve, expr) = match &*arg.expr {
           Fn(f) => {
-            let param = f.function.params.get(0).map(|param| &param.pat);
+            let param = f.function.params.first().map(|param| &param.pat);
             let body = if let Some(body) = &f.function.body {
               self.match_block_stmt_expr(body)
             } else {
@@ -900,7 +900,7 @@ impl<'a> DependencyCollector<'a> {
             (param, body)
           }
           Arrow(f) => {
-            let param = f.params.get(0);
+            let param = f.params.first();
             let body = match &*f.body {
               ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
               ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
@@ -919,7 +919,7 @@ impl<'a> DependencyCollector<'a> {
           if let ast::Callee::Expr(callee) = &call.callee {
             if let ast::Expr::Ident(id) = &**callee {
               if id.to_id() == resolve_id {
-                if let Some(arg) = call.args.get(0) {
+                if let Some(arg) = call.args.first() {
                   if match_require(&arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                     let was_in_promise = self.in_promise;
                     self.in_promise = true;
@@ -968,7 +968,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
   let node = node.fold_with(&mut transformer);
 
   if let Some(require_node) = &transformer.require_node {
-    if let Some(f) = node.args.get(0) {
+    if let Some(f) = node.args.first() {
       // Add `res` as an argument to the original function
       let f = match &*f.expr {
         ast::Expr::Fn(f) => {
@@ -1154,7 +1154,7 @@ impl<'a> DependencyCollector<'a> {
       }
 
       if let Some(args) = &new.args {
-        let (specifier, span) = if let Some(arg) = args.get(0) {
+        let (specifier, span) = if let Some(arg) = args.first() {
           match_str(&arg.expr)?
         } else {
           return None;
