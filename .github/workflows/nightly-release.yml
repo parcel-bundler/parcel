@@ -119,9 +119,11 @@ jobs:
           - target: x86_64-unknown-linux-musl
             strip: strip
             cflags: -msse4.2
+            arch: x86_64
           - target: aarch64-unknown-linux-musl
             strip: aarch64-linux-musl-strip
             cflags: ''
+            arch: aarch64
     name: ${{ matrix.target }}
     runs-on: ubuntu-20.04
     container:
@@ -149,7 +151,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: bindings-linux-musl
+          name: bindings-linux-musl-${{ matrix.arch }}
           path: packages/*/*/*.node
       - name: debug
         run: ls -l packages/*/*/*.node
