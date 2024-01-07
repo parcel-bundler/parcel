@@ -175,7 +175,7 @@ jobs:
         with:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
-          env: ${{ steps.deployment.outputs.env }}
+          env: Preview
           override: false
           status: ${{ job.status }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
