@@ -3,7 +3,8 @@
 import type {Root} from 'postcss';
 import type {Asset, Dependency} from '@parcel/types';
 import typeof PostCSS from 'postcss';
-import {bundleAsync} from 'lightningcss';
+// $FlowFixMe - init for browser build.
+import init, {bundleAsync} from 'lightningcss';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -147,6 +148,11 @@ export default (new Packager({
       (await queue.run()).map(([asset, code, map]) => [asset, [code, map]]),
     );
     let map = new SourceMap(options.projectRoot);
+
+    // $FlowFixMe
+    if (process.browser) {
+      await init();
+    }
 
     let res = await bundleAsync({
       filename: nullthrows(entry),
