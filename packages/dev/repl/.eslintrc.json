@@ -1,0 +1,18 @@
+{
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 6
+  },
+  "extends": ["eslint:recommended", "react-app"],
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "rules": {
+    "react/jsx-no-bind": "off",
+    "no-console": "off"
+  },
+  "globals": {
+    "globalThis": "readonly"
+  }
+}

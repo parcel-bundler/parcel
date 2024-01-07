@@ -706,6 +706,8 @@ function prepareBrowserContext(
       module: {exports},
       document: fakeDocument,
       WebSocket,
+      TextEncoder,
+      TextDecoder,
       console: {...console, clear: () => {}},
       location: {
         hostname: 'localhost',
@@ -805,6 +807,8 @@ function prepareWorkerContext(
       module: {exports},
       WebSocket,
       console,
+      TextEncoder,
+      TextDecoder,
       location: {hostname: 'localhost', origin: 'http://localhost'},
       importScripts(...urls) {
         for (let u of urls) {
@@ -955,6 +959,8 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   ctx.setImmediate = setImmediate;
   ctx.global = ctx;
   ctx.URL = URL;
+  ctx.TextEncoder = TextEncoder;
+  ctx.TextDecoder = TextDecoder;
   Object.assign(ctx, globals);
   return ctx;
 }
