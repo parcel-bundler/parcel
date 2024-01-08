@@ -8,9 +8,22 @@ edition = "2021"
 crate-type = ["rlib"]
 
 [dependencies]
-swc_ecmascript = { version = "0.228.16", features = ["parser", "transforms", "module", "optimization", "react", "typescript", "utils", "visit", "codegen", "utils", "preset_env"] }
-swc_common = { version = "0.31.10", features = ["tty-emitter", "sourcemap"] }
-swc_atoms = "0.5.6"
+swc_core = { version = "0.86.93", features = [
+  "common",
+  "common_ahash",
+  "common_sourcemap",
+  "ecma_ast",
+  "ecma_codegen",
+  "ecma_parser",
+  "ecma_preset_env",
+  "ecma_transforms",
+  "ecma_transforms_compat",
+  "ecma_transforms_optimization",
+  "ecma_transforms_proposal",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_visit",
+] }
 indoc = "1.0.3"
 serde = "1.0.123"
 serde_bytes = "0.11.5"

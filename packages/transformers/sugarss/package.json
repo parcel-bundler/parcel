@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-sugarss",
-  "version": "2.9.2",
+  "version": "2.11.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,10 +17,10 @@
   "source": "src/SugarssTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.9.2"
+    "parcel": "^2.11.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.9.2",
+    "@parcel/plugin": "2.11.0",
     "postcss": "^8.4.5",
     "sugarss": "^3.0.3"
   }

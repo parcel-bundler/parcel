@@ -5,18 +5,19 @@ use crate::utils::SourceLocation;
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use swc_atoms::JsWord;
-use swc_common::{Mark, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
+use swc_core::common::{Mark, Span, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::{Fold, FoldWith, VisitWith};
 
 pub fn inline_fs<'a>(
   filename: &str,
-  source_map: swc_common::sync::Lrc<swc_common::SourceMap>,
+  source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   decls: HashSet<Id>,
   global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut Vec<DependencyDescriptor>,
+  is_module: bool,
 ) -> impl Fold + 'a {
   InlineFS {
     filename: Path::new(filename).to_path_buf(),
@@ -26,6 +27,7 @@ pub fn inline_fs<'a>(
       Mark::fresh(Mark::root()),
       global_mark,
       false,
+      is_module,
     ),
     global_mark,
     project_root,
@@ -52,7 +54,7 @@ impl<'a> Fold for InlineFS<'a> {
       if let Callee::Expr(expr) = &call.callee {
         if let Some((source, specifier)) = self.match_module_reference(expr) {
           if &source == "fs" && &specifier == "readFileSync" {
-            if let Some(arg) = call.args.get(0) {
+            if let Some(arg) = call.args.first() {
               if let Some(res) = self.evaluate_fs_arg(&arg.expr, call.args.get(1), call.span) {
                 return res;
               }

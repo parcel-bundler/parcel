@@ -6,7 +6,7 @@ import {Packager} from '@parcel/plugin';
 import {replaceURLReferences, relativeBundlePath} from '@parcel/utils';
 
 export default (new Packager({
-  async package({bundle, bundleGraph, options}) {
+  async package({bundle, bundleGraph}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -43,14 +43,24 @@ export default (new Packager({
 
       contentScript.css = [
         ...new Set(
-          (contentScript.css || []).concat(
-            srcBundles
-              .flatMap(b => bundleGraph.getReferencedBundles(b))
-              .filter(b => b.type == 'css')
-              .map(relPath),
-          ),
+          srcBundles
+            .flatMap(b => bundleGraph.getReferencedBundles(b))
+            .filter(b => b.type == 'css')
+            .map(relPath)
+            .concat(contentScript.css || []),
         ),
       ];
+
+      contentScript.js = [
+        ...new Set(
+          srcBundles
+            .flatMap(b => bundleGraph.getReferencedBundles(b))
+            .filter(b => b.type == 'js')
+            .map(relPath)
+            .concat(contentScript.js || []),
+        ),
+      ];
+
       const resources = srcBundles
         .flatMap(b => {
           const children = [];
@@ -78,10 +88,6 @@ export default (new Packager({
           resources,
         });
       }
-    }
-
-    if (manifest.manifest_version == 3 && options.hmrOptions) {
-      war.push({matches: ['<all_urls>'], resources: ['__parcel_hmr_proxy__']});
     }
 
     const warResult = (manifest.web_accessible_resources || []).concat(

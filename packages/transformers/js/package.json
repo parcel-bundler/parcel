@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.9.2",
+  "version": "2.11.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,46 +15,28 @@
   },
   "main": "lib/JSTransformer.js",
   "source": "src/JSTransformer.js",
-  "napi": {
-    "name": "parcel-swc"
-  },
   "engines": {
-    "parcel": "^2.9.2",
+    "parcel": "^2.11.0",
     "node": ">= 12.0.0"
   },
   "files": [
     "lib",
-    "native-browser.js",
-    "native.js",
-    "src",
-    "*.node"
+    "src"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.9.2",
-    "@parcel/plugin": "2.9.2",
+    "@parcel/diagnostic": "2.11.0",
+    "@parcel/plugin": "2.11.0",
+    "@parcel/rust": "2.11.0",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.9.2",
-    "@parcel/workers": "2.9.2",
+    "@parcel/utils": "2.11.0",
+    "@parcel/workers": "2.11.0",
     "@swc/helpers": "^0.5.0",
     "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
-    "semver": "^5.7.1"
-  },
-  "devDependencies": {
-    "@napi-rs/cli": "^2.15.2"
+    "semver": "^7.5.2"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.9.2"
-  },
-  "scripts": {
-    "build": "napi build --platform --cargo-cwd napi --js native.js --dts native.d.ts",
-    "build-release": "napi build --platform --release --cargo-cwd napi --js native.js --dts native.d.ts",
-    "build:wasm-base": "wasm-pack build wasm --no-typescript --release",
-    "build:wasm-node": "yarn build:wasm-base --target nodejs --out-dir dist-node",
-    "build:wasm-web": "CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_OPT_LEVEL=z yarn build:wasm-base --target web --out-dir dist-web"
-  },
-  "browser": {
-    "./native.js": "./native-browser.js"
+    "@parcel/core": "^2.11.0"
   }
 }

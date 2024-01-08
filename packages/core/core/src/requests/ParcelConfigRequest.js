@@ -37,6 +37,7 @@ import {optionsProxy} from '../utils';
 import ParcelConfig from '../ParcelConfig';
 import {createBuildCache} from '../buildCache';
 import {toProjectPath} from '../projectPath';
+import {requestTypes} from '../RequestTracker';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -52,7 +53,7 @@ type RunOpts<TResult> = {|
 
 export type ParcelConfigRequest = {|
   id: string,
-  type: string,
+  type: typeof requestTypes.parcel_config_request,
   input: null,
   run: (RunOpts<ConfigAndCachePath>) => Async<ConfigAndCachePath>,
 |};
@@ -67,7 +68,7 @@ const type = 'parcel_config_request';
 export default function createParcelConfigRequest(): ParcelConfigRequest {
   return {
     id: type,
-    type,
+    type: requestTypes[type],
     async run({api, options}) {
       let {
         config,

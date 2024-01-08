@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "2.9.2",
+  "version": "2.11.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -24,7 +24,7 @@
       "includeNodeModules": {
         "@parcel/codeframe": false,
         "@parcel/diagnostic": false,
-        "@parcel/hash": false,
+        "@parcel/rust": false,
         "@parcel/logger": false,
         "@parcel/markdown-ansi": false,
         "@parcel/source-map": false,
@@ -33,11 +33,11 @@
     }
   },
   "dependencies": {
-    "@parcel/codeframe": "2.9.2",
-    "@parcel/diagnostic": "2.9.2",
-    "@parcel/hash": "2.9.2",
-    "@parcel/logger": "2.9.2",
-    "@parcel/markdown-ansi": "2.9.2",
+    "@parcel/codeframe": "2.11.0",
+    "@parcel/diagnostic": "2.11.0",
+    "@parcel/logger": "2.11.0",
+    "@parcel/markdown-ansi": "2.11.0",
+    "@parcel/rust": "2.11.0",
     "@parcel/source-map": "^2.1.1",
     "chalk": "^4.1.0",
     "nullthrows": "^1.1.1"
@@ -57,12 +57,14 @@
     "nullthrows": "^1.1.1",
     "open": "^7.0.3",
     "random-int": "^1.0.0",
+    "snarkdown": "^2.0.0",
     "strip-ansi": "^6.0.0",
     "terminal-link": "^2.1.1"
   },
   "browser": {
     "./src/generateCertificate.js": false,
     "./src/http-server.js": false,
-    "./src/openInBrowser.js": false
+    "./src/openInBrowser.js": false,
+    "@parcel/markdown-ansi": false
   }
 }

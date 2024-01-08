@@ -17,6 +17,7 @@ import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
 import {PluginTracer} from '@parcel/profiler';
+import {hashString} from '@parcel/rust';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -189,7 +190,7 @@ export default class Validation {
 
   async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
     let {filePath, env, code, sideEffects, query} = request;
-    let {content, size, hash, isSource} = await summarizeRequest(
+    let {content, size, isSource} = await summarizeRequest(
       this.options.inputFS,
       {
         filePath: fromProjectPath(this.options.projectRoot, request.filePath),
@@ -198,7 +199,8 @@ export default class Validation {
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the base for the id to ensure it is unique.
-    let idBase = code != null ? hash : fromProjectPathRelative(filePath);
+    let idBase =
+      code != null ? hashString(code) : fromProjectPathRelative(filePath);
     return new UncommittedAsset({
       idBase,
       value: createAsset(this.options.projectRoot, {
@@ -206,7 +208,6 @@ export default class Validation {
         filePath: filePath,
         isSource,
         type: path.extname(fromProjectPathRelative(filePath)).slice(1),
-        hash,
         query,
         env: env,
         stats: {

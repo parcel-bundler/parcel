@@ -48,6 +48,7 @@ import {
 import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
+import {requestTypes} from '../RequestTracker';
 
 type RunOpts<TResult> = {|
   input: Entry,
@@ -89,7 +90,7 @@ const DEFAULT_ENGINES = {
 
 export type TargetRequest = {|
   id: string,
-  +type: 'target_request',
+  +type: typeof requestTypes.target_request,
   run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
   input: Entry,
 |};
@@ -99,7 +100,7 @@ const type = 'target_request';
 export default function createTargetRequest(input: Entry): TargetRequest {
   return {
     id: `${type}:${hashObject(input)}`,
-    type,
+    type: requestTypes.target_request,
     run,
     input,
   };

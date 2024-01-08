@@ -3,20 +3,24 @@
 import {fromNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
-import type {TraversalActions, GraphVisitor} from '@parcel/types';
+import type {
+  TraversalActions,
+  GraphVisitor,
+  GraphTraversalCallback,
+} from '@parcel/types';
+import {BitSet} from './BitSet';
 
-import assert from 'assert';
 import nullthrows from 'nullthrows';
 
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
-  nodes?: Map<NodeId, TNode>,
+  nodes?: Array<TNode | null>,
   adjacencyList?: SerializedAdjacencyList<TEdgeType>,
   rootNodeId?: ?NodeId,
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
-  nodes: Map<NodeId, TNode>,
+  nodes: Array<TNode | null>,
   adjacencyList: SerializedAdjacencyList<TEdgeType>,
   rootNodeId: ?NodeId,
 |};
@@ -25,12 +29,13 @@ export type AllEdgeTypes = -1;
 export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
 
 export default class Graph<TNode, TEdgeType: number = 1> {
-  nodes: Map<NodeId, TNode>;
+  nodes: Array<TNode | null>;
   adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;
+  _visited: ?BitSet;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
-    this.nodes = opts?.nodes || new Map();
+    this.nodes = opts?.nodes || [];
     this.setRootNodeId(opts?.rootNodeId);
 
     let adjacencyList = opts?.adjacencyList;
@@ -69,16 +74,16 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   addNode(node: TNode): NodeId {
     let id = this.adjacencyList.addNode();
-    this.nodes.set(id, node);
+    this.nodes.push(node);
     return id;
   }
 
   hasNode(id: NodeId): boolean {
-    return this.nodes.has(id);
+    return this.nodes[id] != null;
   }
 
   getNode(id: NodeId): ?TNode {
-    return this.nodes.get(id);
+    return this.nodes[id];
   }
 
   addEdge(
@@ -90,11 +95,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       throw new Error(`Edge type "${type}" not allowed`);
     }
 
-    if (!this.getNode(from)) {
+    if (this.getNode(from) == null) {
       throw new Error(`"from" node '${fromNodeId(from)}' not found`);
     }
 
-    if (!this.getNode(to)) {
+    if (this.getNode(to) == null) {
       throw new Error(`"to" node '${fromNodeId(to)}' not found`);
     }
 
@@ -156,8 +161,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       this._removeEdge(nodeId, to, type);
     }
 
-    let wasRemoved = this.nodes.delete(nodeId);
-    assert(wasRemoved);
+    this.nodes[nodeId] = null;
   }
 
   removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 1) {
@@ -237,7 +241,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   updateNode(nodeId: NodeId, node: TNode): void {
     this._assertHasNodeId(nodeId);
-    this.nodes.set(nodeId, node);
+    this.nodes[nodeId] = node;
   }
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
@@ -277,11 +281,20 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       | Array<TEdgeType | NullEdgeType>
       | AllEdgeTypes = 1,
   ): ?TContext {
-    return this.dfs({
-      visit,
-      startNodeId,
-      getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
-    });
+    let enter = typeof visit === 'function' ? visit : visit.enter;
+    if (
+      type === ALL_EDGE_TYPES &&
+      enter &&
+      (typeof visit === 'function' || !visit.exit)
+    ) {
+      return this.dfsFast(enter, startNodeId);
+    } else {
+      return this.dfs({
+        visit,
+        startNodeId,
+        getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
+      });
+    }
   }
 
   filteredTraverse<TValue, TContext>(
@@ -309,6 +322,133 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     });
   }
 
+  dfsFast<TContext>(
+    visit: GraphTraversalCallback<NodeId, TContext>,
+    startNodeId: ?NodeId,
+  ): ?TContext {
+    let traversalStartNode = nullthrows(
+      startNodeId ?? this.rootNodeId,
+      'A start node is required to traverse',
+    );
+    this._assertHasNodeId(traversalStartNode);
+
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new BitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    // Take shared instance to avoid re-entrancy issues.
+    this._visited = null;
+
+    let stopped = false;
+    let skipped = false;
+    let actions: TraversalActions = {
+      skipChildren() {
+        skipped = true;
+      },
+      stop() {
+        stopped = true;
+      },
+    };
+
+    let queue = [{nodeId: traversalStartNode, context: null}];
+    while (queue.length !== 0) {
+      let {nodeId, context} = queue.pop();
+      if (!this.hasNode(nodeId) || visited.has(nodeId)) continue;
+      visited.add(nodeId);
+
+      skipped = false;
+      let newContext = visit(nodeId, context, actions);
+      if (typeof newContext !== 'undefined') {
+        // $FlowFixMe[reassign-const]
+        context = newContext;
+      }
+
+      if (skipped) {
+        continue;
+      }
+
+      if (stopped) {
+        this._visited = visited;
+        return context;
+      }
+
+      this.adjacencyList.forEachNodeIdConnectedFromReverse(nodeId, child => {
+        if (!visited.has(child)) {
+          queue.push({nodeId: child, context});
+        }
+        return false;
+      });
+    }
+
+    this._visited = visited;
+    return null;
+  }
+
+  // A post-order implementation of dfsFast
+  postOrderDfsFast(
+    visit: GraphTraversalCallback<NodeId, TraversalActions>,
+    startNodeId: ?NodeId,
+  ): void {
+    let traversalStartNode = nullthrows(
+      startNodeId ?? this.rootNodeId,
+      'A start node is required to traverse',
+    );
+    this._assertHasNodeId(traversalStartNode);
+
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new BitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    this._visited = null;
+
+    let stopped = false;
+    let actions: TraversalActions = {
+      stop() {
+        stopped = true;
+      },
+      skipChildren() {
+        throw new Error(
+          'Calling skipChildren inside a post-order traversal is not allowed',
+        );
+      },
+    };
+
+    let queue = [traversalStartNode];
+    while (queue.length !== 0) {
+      let nodeId = queue[queue.length - 1];
+
+      if (!visited.has(nodeId)) {
+        visited.add(nodeId);
+
+        this.adjacencyList.forEachNodeIdConnectedFromReverse(nodeId, child => {
+          if (!visited.has(child)) {
+            queue.push(child);
+          }
+          return false;
+        });
+      } else {
+        queue.pop();
+        visit(nodeId, null, actions);
+
+        if (stopped) {
+          this._visited = visited;
+          return;
+        }
+      }
+    }
+
+    this._visited = visited;
+    return;
+  }
+
   dfs<TContext>({
     visit,
     startNodeId,
@@ -324,7 +464,17 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     );
     this._assertHasNodeId(traversalStartNode);
 
-    let visited = new Set<NodeId>();
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new BitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    // Take shared instance to avoid re-entrancy issues.
+    this._visited = null;
+
     let stopped = false;
     let skipped = false;
     let actions: TraversalActions = {
@@ -392,7 +542,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       }
     };
 
-    return walk(traversalStartNode);
+    let result = walk(traversalStartNode);
+    this._visited = visited;
+    return result;
   }
 
   bfs(visit: (nodeId: NodeId) => ?boolean): ?NodeId {

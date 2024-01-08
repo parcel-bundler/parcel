@@ -7,6 +7,8 @@ import {
   assertBundles,
   distDir,
   outputFS,
+  overlayFS,
+  fsFixture,
 } from '@parcel/test-utils';
 import postcss from 'postcss';
 
@@ -547,6 +549,33 @@ describe('css modules', () => {
       },
     ]);
   });
+
+  it('should not fail with many css modules', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-bug/src/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'button.module.css',
+          'main.js',
+          'main.module.css',
+          'other.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['button.module.css', 'main.module.css', 'other.module.css'],
+      },
+    ]);
+  });
+
   // Forked because experimental bundler will not merge bundles of same types if they do not share all their bundlegroups
   it('should handle @import in css modules', async function () {
     let b = await bundle(
@@ -748,5 +777,46 @@ describe('css modules', () => {
         assets: ['index.js', 'bar.module.css'],
       },
     ]);
+  });
+
+  it('should support the "include" and "exclude" options', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      css-module-include
+        a.css:
+          .foo { color: red }
+        modules/b.css:
+          .bar { color: yellow }
+        modules/_c.css:
+          .baz { color: pink }
+        index.js:
+          import './a.css';
+          import {bar} from './modules/b.css';
+          import './modules/_c.css';
+          export default bar;
+
+        package.json:
+          {
+            "@parcel/transformer-css": {
+              "cssModules": {
+                "include": "modules/*.css",
+                "exclude": "modules/_*.css"
+              }
+            }
+          }
+
+        yarn.lock:`;
+
+    let b = await bundle(path.join(__dirname, 'css-module-include/index.js'), {
+      mode: 'production',
+      inputFS: overlayFS,
+    });
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.foo'));
+    assert(contents.includes('.rp85ja_bar'));
+    assert(contents.includes('.baz'));
   });
 });

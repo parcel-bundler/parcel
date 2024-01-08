@@ -1,10 +1,12 @@
 mod collect;
+mod constant_module;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
 mod global_replacer;
 mod hoist;
+mod macros;
 mod modules;
 mod node_replacer;
 mod typeof_replacer;
@@ -14,25 +16,30 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use constant_module::ConstantModule;
 use indexmap::IndexMap;
+use macros::MacroCallback;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
-use swc_common::comments::SingleThreadedComments;
-use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
-use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecmascript::ast::{Module, ModuleItem, Program};
-use swc_ecmascript::codegen::text_writer::JsWriter;
-use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
-use swc_ecmascript::transforms::fixer::paren_remover;
-use swc_ecmascript::transforms::{
-  compat::reserved_words::reserved_words, fixer, helpers, hygiene,
-  optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
-  pass::Optional, proposals::decorators, react, typescript,
+use swc_core::common::comments::SingleThreadedComments;
+use swc_core::common::errors::Handler;
+use swc_core::common::pass::Optional;
+use swc_core::common::source_map::SourceMapGenConfig;
+use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
+use swc_core::ecma::ast::{Module, ModuleItem, Program};
+use swc_core::ecma::codegen::text_writer::JsWriter;
+use swc_core::ecma::parser::lexer::Lexer;
+use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
+use swc_core::ecma::transforms::base::fixer::paren_remover;
+use swc_core::ecma::transforms::base::helpers;
+use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
+use swc_core::ecma::transforms::proposal::decorators;
+use swc_core::ecma::transforms::{
+  compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
+  optimization::simplify::expr_simplifier, react, typescript,
 };
-use swc_ecmascript::transforms::{resolver, Assumptions};
-use swc_ecmascript::visit::{FoldWith, VisitWith};
+use swc_core::ecma::visit::{FoldWith, VisitWith};
 
 use collect::{Collect, CollectResult};
 use decl_collector::*;
@@ -44,9 +51,13 @@ use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
-use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+use utils::{error_buffer_to_diagnostics, Diagnostic, DiagnosticSeverity, ErrorBuffer, SourceType};
 
-type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
+pub use crate::macros::JsValue;
+use crate::macros::Macros;
+pub use utils::SourceLocation;
+
+type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -56,7 +67,7 @@ pub struct Config {
   module_id: String,
   project_root: String,
   replace_env: bool,
-  env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
+  env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
   inline_fs: bool,
   insert_node_globals: bool,
   node_replacer: bool,
@@ -81,6 +92,8 @@ pub struct Config {
   is_esm_output: bool,
   trace_bailouts: bool,
   is_swc_helpers: bool,
+  standalone: bool,
+  inline_constants: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -94,8 +107,9 @@ pub struct TransformResult {
   symbol_result: Option<CollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
-  used_env: HashSet<swc_atoms::JsWord>,
+  used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
+  is_constant_module: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -128,16 +142,10 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
   None
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_common::errors::Diagnostic>>>);
-
-impl Emitter for ErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.lock().unwrap().push((**db).clone());
-  }
-}
-
-pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
+pub fn transform(
+  config: Config,
+  call_macro: Option<MacroCallback>,
+) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
   let mut map_buf = vec![];
 
@@ -177,10 +185,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
         SourceType::Script => false,
       };
 
-      swc_common::GLOBALS.set(&Globals::new(), || {
+      swc_core::common::GLOBALS.set(&Globals::new(), || {
         let error_buffer = ErrorBuffer::default();
         let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
-        swc_common::errors::HANDLER.set(&handler, || {
+        swc_core::common::errors::HANDLER.set(&handler, || {
           helpers::HELPERS.set(
             &helpers::Helpers::new(
               /* external helpers from @swc/helpers */ should_import_swc_helpers,
@@ -227,12 +235,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.decorators
                 ),
                 Optional::new(
-                  typescript::strip_with_jsx(
+                  typescript::tsx(
                     source_map.clone(),
-                    typescript::Config {
+                    Default::default(),
+                    typescript::TsxConfig {
                       pragma: react_options.pragma.clone(),
                       pragma_frag: react_options.pragma_frag.clone(),
-                      ..Default::default()
                     },
                     Some(&comments),
                     global_mark,
@@ -245,6 +253,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
               ));
 
+              let is_module = module.is_module();
               // If it's a script, convert into module. This needs to happen after
               // the resolver (which behaves differently for non-/strict mode).
               let module = match module {
@@ -256,7 +265,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 },
               };
 
-              let module = module.fold_with(&mut Optional::new(
+              let mut module = module.fold_with(&mut Optional::new(
                 react::react(
                   source_map.clone(),
                   Some(&comments),
@@ -269,7 +278,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
               let mut decls = collect_decls(&module);
 
-              let mut preset_env_config = swc_ecmascript::preset_env::Config {
+              let mut preset_env_config = swc_core::ecma::preset_env::Config {
                 dynamic_import: true,
                 ..Default::default()
               };
@@ -294,6 +303,17 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               }
 
               let mut diagnostics = vec![];
+              if let Some(call_macro) = call_macro {
+                module =
+                  module.fold_with(&mut Macros::new(call_macro, &source_map, &mut diagnostics));
+              }
+
+              if config.scope_hoist && config.inline_constants {
+                let mut constant_module = ConstantModule::new();
+                module.visit_with(&mut constant_module);
+                result.is_constant_module = constant_module.is_constant_module;
+              }
+
               let module = {
                 let mut passes = chain!(
                   Optional::new(
@@ -329,6 +349,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       global_mark,
                       &config.project_root,
                       &mut fs_deps,
+                      is_module
                     ),
                     should_inline_fs
                   ),
@@ -374,7 +395,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   // Transpile new syntax to older syntax if needed
                   Optional::new(
                     preset_env(
-                      global_mark,
+                      unresolved_mark,
                       Some(&comments),
                       preset_env_config,
                       assumptions,
@@ -435,6 +456,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
+                is_module,
               );
               module.visit_with(&mut collect);
               if let Some(bailouts) = &collect.bailouts {
@@ -482,7 +504,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
-                  .build_source_map(&src_map_buf)
+                  .build_source_map_with_config(&src_map_buf, None, SourceMapConfig)
                   .to_writer(&mut map_buf)
                   .is_ok()
               {
@@ -526,6 +548,7 @@ fn parse(
       jsx: config.is_jsx,
       export_default_from: true,
       decorators: config.decorators,
+      import_attributes: true,
       ..Default::default()
     })
   };
@@ -563,13 +586,11 @@ fn emit(
         None
       },
     ));
-    let config = swc_ecmascript::codegen::Config {
-      minify: false,
-      ascii_only: false,
-      target: swc_ecmascript::ast::EsVersion::Es5,
-      omit_last_semi: false,
-    };
-    let mut emitter = swc_ecmascript::codegen::Emitter {
+    let config = swc_core::ecma::codegen::Config::default()
+      .with_target(swc_core::ecma::ast::EsVersion::Es5)
+      // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
+      .with_ascii_only(true);
+    let mut emitter = swc_core::ecma::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
       cm: source_map,
@@ -582,51 +603,14 @@ fn emit(
   Ok((buf, src_map_buf))
 }
 
-fn error_buffer_to_diagnostics(
-  error_buffer: &ErrorBuffer,
-  source_map: &Lrc<SourceMap>,
-) -> Vec<Diagnostic> {
-  let s = error_buffer.0.lock().unwrap().clone();
-  s.iter()
-    .map(|diagnostic| {
-      let message = diagnostic.message();
-      let span = diagnostic.span.clone();
-      let suggestions = diagnostic.suggestions.clone();
+// Exclude macro expansions from source maps.
+struct SourceMapConfig;
+impl SourceMapGenConfig for SourceMapConfig {
+  fn file_name_to_source(&self, f: &FileName) -> String {
+    f.to_string()
+  }
 
-      let span_labels = span.span_labels();
-      let code_highlights = if !span_labels.is_empty() {
-        let mut highlights = vec![];
-        for span_label in span_labels {
-          highlights.push(CodeHighlight {
-            message: span_label.label,
-            loc: SourceLocation::from(source_map, span_label.span),
-          });
-        }
-
-        Some(highlights)
-      } else {
-        None
-      };
-
-      let hints = if !suggestions.is_empty() {
-        Some(
-          suggestions
-            .into_iter()
-            .map(|suggestion| suggestion.msg)
-            .collect(),
-        )
-      } else {
-        None
-      };
-
-      Diagnostic {
-        message,
-        code_highlights,
-        hints,
-        show_environment: false,
-        severity: DiagnosticSeverity::Error,
-        documentation_url: None,
-      }
-    })
-    .collect()
+  fn skip(&self, f: &FileName) -> bool {
+    matches!(f, FileName::MacroExpansion | FileName::Internal(..))
+  }
 }

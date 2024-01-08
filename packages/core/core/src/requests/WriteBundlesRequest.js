@@ -4,6 +4,7 @@ import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
+import {requestTypes} from '../RequestTracker';
 import type {PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
@@ -11,7 +12,7 @@ import type {BundleInfo} from '../PackagerRunner';
 import {HASH_REF_PREFIX} from '../constants';
 import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
 
@@ -27,7 +28,7 @@ type RunInput<TResult> = {|
 
 export type WriteBundlesRequest = {|
   id: ContentKey,
-  +type: 'write_bundles_request',
+  +type: typeof requestTypes.write_bundles_request,
   run: (
     RunInput<Map<string, PackagedBundleInfo>>,
   ) => Async<Map<string, PackagedBundleInfo>>,
@@ -41,7 +42,7 @@ export default function createWriteBundlesRequest(
   input: WriteBundlesRequestInput,
 ): WriteBundlesRequest {
   return {
-    type: 'write_bundles_request',
+    type: requestTypes.write_bundles_request,
     id: 'write_bundles:' + input.bundleGraph.getBundleGraphHash(),
     run,
     input,
@@ -100,6 +101,18 @@ async function run({input, api, farm, options}) {
         });
 
         let info = await api.runRequest(request);
+
+        if (!useMainThread) {
+          // Force a refresh of the cache to avoid a race condition
+          // between threaded reads and writes that can result in an LMDB cache miss:
+          //   1. The main thread has read some value from cache, necessitating a read transaction.
+          //   2. Concurrently, Thread A finishes a packaging request.
+          //   3. Subsequently, the main thread is tasked with this request, but fails because the read transaction is stale.
+          // This only occurs if the reading thread has a transaction that was created before the writing thread committed,
+          // and the transaction is still live when the reading thread attempts to get the written value.
+          // See https://github.com/parcel-bundler/parcel/issues/9121
+          options.cache.refresh();
+        }
 
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {

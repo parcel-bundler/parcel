@@ -1,0 +1,13 @@
+{
+  "module": "dist/module.js",
+  "imports": {
+    "#is-development": {
+      "development": "./dev.js",
+      "production": "./prod.js",
+      "default": "./default.js"
+    }
+  },
+  "@parcel/resolver-default": {
+    "packageExports": true
+  }
+}

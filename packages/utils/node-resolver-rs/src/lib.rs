@@ -762,7 +762,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     package: &PackageJson,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
-    for (entry, field) in package.entries(self.resolver.entries) {
+    if let Some((entry, field)) = package.entries(self.resolver.entries).next() {
       if let Some(res) = self.load_path(&entry, Some(package))? {
         return Ok(Some(res));
       } else {
@@ -1145,7 +1145,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 entries: Fields::TSCONFIG,
                 flags: Flags::NODE_CJS,
                 cache: CacheCow::Borrowed(&self.resolver.cache),
-                include_node_modules: Cow::Borrowed(self.resolver.include_node_modules.as_ref()),
+                include_node_modules: Cow::Owned(IncludeNodeModules::default()),
                 conditions: ExportsCondition::TYPES,
                 module_dir_resolver: self.resolver.module_dir_resolver.clone(),
               };
@@ -1203,17 +1203,11 @@ mod tests {
   }
 
   fn test_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::parcel(
-      root().into(),
-      CacheCow::Owned(Cache::new(OsFileSystem::default())),
-    )
+    Resolver::parcel(root().into(), CacheCow::Owned(Cache::new(OsFileSystem)))
   }
 
   fn node_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::node(
-      root().into(),
-      CacheCow::Owned(Cache::new(OsFileSystem::default())),
-    )
+    Resolver::node(root().into(), CacheCow::Owned(Cache::new(OsFileSystem)))
   }
 
   #[test]
@@ -2297,6 +2291,18 @@ mod tests {
         .0,
       Resolution::Builtin("zlib".into())
     );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "node:fs/promises",
+          &root().join("foo.js"),
+          SpecifierType::Cjs
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Builtin("fs/promises".into())
+    );
   }
 
   #[test]
@@ -2369,6 +2375,22 @@ mod tests {
         .0,
       Resolution::Path(root().join("tsconfig/extends-extension/foo.js"))
     );
+
+    let mut extends_node_module_resolver = test_resolver();
+    extends_node_module_resolver.include_node_modules = Cow::Owned(IncludeNodeModules::Bool(false));
+    assert_eq!(
+      extends_node_module_resolver
+        .resolve(
+          "./bar",
+          &root().join("tsconfig/extends-node-module/index.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("tsconfig/extends-node-module/bar.ts"))
+    );
+
     assert_eq!(
       test_resolver()
         .resolve(

@@ -48,19 +48,25 @@ export default class Worker extends EventEmitter {
   }
 
   async fork(forkModule: FilePath) {
-    let filteredArgs = process.execArgv.filter(
-      v => !/^--(debug|inspect|max-old-space-size=)/.test(v),
-    );
+    let filteredArgs = [];
+    if (process.execArgv) {
+      filteredArgs = process.execArgv.filter(
+        v =>
+          !/^--(debug|inspect|no-opt|max-old-space-size=|max-semi-space-size=|expose-gc)/.test(
+            v,
+          ),
+      );
 
-    for (let i = 0; i < filteredArgs.length; i++) {
-      let arg = filteredArgs[i];
-      let isArgWithParam =
-        ((arg === '-r' || arg === '--require') &&
-          filteredArgs[i + 1] === '@parcel/register') ||
-        arg === '--title';
-      if (isArgWithParam) {
-        filteredArgs.splice(i, 2);
-        i--;
+      for (let i = 0; i < filteredArgs.length; i++) {
+        let arg = filteredArgs[i];
+        let isArgWithParam =
+          ((arg === '-r' || arg === '--require') &&
+            filteredArgs[i + 1] === '@parcel/register') ||
+          arg === '--title';
+        if (isArgWithParam) {
+          filteredArgs.splice(i, 2);
+          i--;
+        }
       }
     }
 

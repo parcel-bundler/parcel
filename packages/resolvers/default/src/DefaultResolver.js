@@ -18,6 +18,7 @@ export default (new Resolver({
       projectRoot: options.projectRoot,
       packageManager: options.packageManager,
       shouldAutoInstall: options.shouldAutoInstall,
+      mode: options.mode,
       logger,
       packageExports: conf?.contents?.packageExports ?? false,
     });

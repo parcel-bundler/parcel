@@ -5,10 +5,10 @@ use crate::utils::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{sync::Lrc, Mark, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_core::common::{sync::Lrc, Mark, Span, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Visit, VisitWith};
 
 macro_rules! collect_visit_fn {
   ($name:ident, $type:ident) => {
@@ -48,7 +48,7 @@ pub struct Export {
 }
 
 pub struct Collect {
-  pub source_map: Lrc<swc_common::SourceMap>,
+  pub source_map: Lrc<swc_core::common::SourceMap>,
   pub decls: HashSet<Id>,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
@@ -58,6 +58,7 @@ pub struct Collect {
   pub should_wrap: bool,
   /// local variable binding -> descriptor
   pub imports: HashMap<Id, Import>,
+  pub this_exprs: HashMap<Id, (Ident, Span)>,
   /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   /// local variable binding -> exported name
@@ -76,6 +77,8 @@ pub struct Collect {
   in_export_decl: bool,
   in_function: bool,
   in_assign: bool,
+  in_class: bool,
+  is_module: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -113,22 +116,25 @@ pub struct CollectResult {
 
 impl Collect {
   pub fn new(
-    source_map: Lrc<swc_common::SourceMap>,
+    source_map: Lrc<swc_core::common::SourceMap>,
     decls: HashSet<Id>,
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
+    is_module: bool,
   ) -> Self {
     Collect {
       source_map,
       decls,
       ignore_mark,
       global_mark,
+      is_module,
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
       should_wrap: false,
       imports: HashMap::new(),
+      this_exprs: HashMap::new(),
       exports: HashMap::new(),
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
@@ -142,6 +148,7 @@ impl Collect {
       in_export_decl: false,
       in_function: false,
       in_assign: false,
+      in_class: false,
       bailouts: if trace_bailouts { Some(vec![]) } else { None },
     }
   }
@@ -241,6 +248,13 @@ impl Visit for Collect {
     }
     self.in_module_this = false;
 
+    for (_key, (ident, span)) in std::mem::take(&mut self.this_exprs) {
+      if self.exports.contains_key(&ident.sym) {
+        self.should_wrap = true;
+        self.add_bailout(span, BailoutReason::ThisInExport);
+      }
+    }
+
     if let Some(bailouts) = &mut self.bailouts {
       for (key, Import { specifier, .. }) in &self.imports {
         if specifier == "*" {
@@ -260,7 +274,6 @@ impl Visit for Collect {
   }
 
   collect_visit_fn!(visit_function, Function);
-  collect_visit_fn!(visit_class, Class);
   collect_visit_fn!(visit_getter_prop, GetterProp);
   collect_visit_fn!(visit_setter_prop, SetterProp);
 
@@ -654,8 +667,10 @@ impl Visit for Collect {
       Expr::Member(member) => {
         if match_member_expr(member, vec!["module", "exports"], &self.decls) {
           handle_export!();
+          return;
+        } else {
+          member.visit_with(self);
         }
-        return;
       }
       Expr::Ident(ident) => {
         if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
@@ -678,7 +693,13 @@ impl Visit for Collect {
       }
       Expr::This(_this) => {
         if self.in_module_this {
-          handle_export!();
+          if !self.is_module {
+            handle_export!();
+          }
+        } else if !self.in_class {
+          if let MemberProp::Ident(prop) = &node.prop {
+            self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
+          }
         }
         return;
       }
@@ -757,8 +778,33 @@ impl Visit for Collect {
     }
   }
 
+  fn visit_ident(&mut self, node: &Ident) {
+    // This visitor helps us identify used imports in cases like:
+    //
+    //   import { foo } from "bar";
+    //   const baz = { foo };
+    if self.imports.contains_key(&id!(node)) {
+      self.used_imports.insert(id!(node));
+    }
+  }
+
+  fn visit_class(&mut self, class: &Class) {
+    let in_module_this = self.in_module_this;
+    let in_function = self.in_function;
+    let in_class = self.in_class;
+
+    self.in_module_this = false;
+    self.in_function = true;
+    self.in_class = true;
+
+    class.visit_children_with(self);
+    self.in_module_this = in_module_this;
+    self.in_function = in_function;
+    self.in_class = in_class;
+  }
+
   fn visit_this_expr(&mut self, node: &ThisExpr) {
-    if self.in_module_this {
+    if !self.is_module && self.in_module_this {
       self.has_cjs_exports = true;
       self.static_cjs_exports = false;
       self.add_bailout(node.span, BailoutReason::FreeExports);
@@ -873,10 +919,10 @@ impl Visit for Collect {
           // import('foo').then(foo => ...);
           if let Some(source) = match_import(&member.obj, self.ignore_mark) {
             if match_property_name(member).map_or(false, |f| &*f.0 == "then") {
-              if let Some(ExprOrSpread { expr, .. }) = node.args.get(0) {
+              if let Some(ExprOrSpread { expr, .. }) = node.args.first() {
                 let param = match &**expr {
-                  Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
-                  Expr::Arrow(arrow) => arrow.params.get(0),
+                  Expr::Fn(func) => func.function.params.first().map(|param| &param.pat),
+                  Expr::Arrow(arrow) => arrow.params.first(),
                   _ => None,
                 };
 

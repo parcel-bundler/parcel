@@ -23,7 +23,7 @@ import type {
 } from './types';
 
 import invariant from 'assert';
-import {hashString, Hash} from '@parcel/hash';
+import {hashString, Hash} from '@parcel/rust';
 import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
@@ -353,10 +353,12 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         nodeId !== traversedNodeId
       ) {
         if (!ctx?.hasDeferred) {
+          this.safeToIncrementallyBundle = false;
           delete traversedNode.hasDeferred;
         }
         actions.skipChildren();
       } else if (traversedNode.type === 'dependency') {
+        this.safeToIncrementallyBundle = false;
         traversedNode.hasDeferred = false;
       } else if (nodeId !== traversedNodeId) {
         actions.skipChildren();

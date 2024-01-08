@@ -1,6 +1,6 @@
 {
   "name": "@parcel/eslint-example",
-  "version": "2.9.2",
+  "version": "2.11.0",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -17,10 +17,10 @@
     }
   },
   "devDependencies": {
-    "@babel/core": "^7.0.0",
-    "@parcel/babel-register": "2.9.2",
-    "@parcel/core": "2.9.2",
-    "@parcel/validator-eslint": "2.9.2",
-    "parcel": "2.9.2"
+    "@babel/core": "^7.22.11",
+    "@parcel/babel-register": "2.11.0",
+    "@parcel/core": "2.11.0",
+    "@parcel/validator-eslint": "2.11.0",
+    "parcel": "2.11.0"
   }
 }
