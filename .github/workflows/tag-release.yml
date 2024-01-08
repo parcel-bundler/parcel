@@ -19,7 +19,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-release
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
@@ -43,10 +43,12 @@ jobs:
       - name: Install yarn
         run: npm install --global yarn@1
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - uses: bahmutov/npm-install@v1.1.0
+          profile: minimal
+          override: true
+      - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-release
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
@@ -87,7 +89,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-release
         env:
@@ -140,7 +142,7 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-release
         env:
@@ -169,7 +171,7 @@ jobs:
         with:
           toolchain: stable
           target: aarch64-apple-darwin
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: |
           sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
@@ -199,7 +201,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-release
       - name: Download artifacts
