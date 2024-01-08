@@ -26,7 +26,7 @@ jobs:
         if: ${{ matrix.os == 'macos-latest' }}
         run: strip -x packages/*/*/*.node # Must use -x on macOS. This produces larger results on linux.
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-${{ matrix.os }}
           path: packages/*/*/*.node
@@ -54,7 +54,7 @@ jobs:
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip packages/*/*/*.node
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-linux-gnu-x64
           path: packages/*/*/*.node
@@ -98,7 +98,7 @@ jobs:
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-${{ matrix.target }}
           path: packages/*/*/*.node
@@ -151,7 +151,7 @@ jobs:
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-linux-musl-${{ matrix.arch }}
           path: packages/*/*/*.node
@@ -182,7 +182,7 @@ jobs:
       - name: Strip debug symbols
         run: strip -x packages/*/*/*.node
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-apple-aarch64
           path: packages/*/*/*.node
@@ -205,7 +205,7 @@ jobs:
       - name: Build native packages
         run: yarn build-native-release
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
       - name: Move artifacts

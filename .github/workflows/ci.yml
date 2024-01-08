@@ -70,7 +70,7 @@ jobs:
       - run: yarn test:unit
       - name: Upload @parcel/rust Linux Binaries artifact
         if: ${{matrix.os == 'ubuntu-latest' && matrix.node == 20}}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: Rust Linux Binaries
           path: |
@@ -136,7 +136,7 @@ jobs:
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
       - run: yarn --frozen-lockfile
       - name: Download @parcel/rust Linux Binaries artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: Rust Linux Binaries
           path: packages/core/rust
@@ -144,7 +144,7 @@ jobs:
       - run: yarn build-native-wasm
       - run: yarn workspace @parcel/repl build
       # - name: Upload REPL
-      #   uses: actions/upload-artifact@v4
+      #   uses: actions/upload-artifact@v3
       #   with:
       #     name: REPL
       #     path: 'packages/dev/repl/dist'
