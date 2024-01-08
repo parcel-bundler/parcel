@@ -363,7 +363,7 @@ graph LR
 Because edge records are only created once per unique pair of node ids
 and edge type, and deleted edges do not get reclaimed (without a resize
 and rehash of every edge, see [Resizing the `EdgeTypeMap`](#resizing-the-edgetypemap)),
-the maximum number of node records that will be stored is `d + n * n * e`,
+the maximum number of edge records that will be stored is `d + n * n * e`,
 where `n` is the number of nodes and `e` is the number of _unique_ edge types,
 and `d` is the number of deleted edges.
 
