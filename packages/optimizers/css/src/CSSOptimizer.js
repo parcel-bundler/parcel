@@ -2,7 +2,8 @@
 
 import SourceMap from '@parcel/source-map';
 import {Optimizer} from '@parcel/plugin';
-import {
+// $FlowFixMe - init for browser build.
+import init, {
   transform,
   transformStyleAttribute,
   browserslistToTargets,
@@ -153,6 +154,11 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
           contents: Buffer.from(result.code),
         };
       }
+    }
+
+    // $FlowFixMe
+    if (process.browser) {
+      await init();
     }
 
     let result = transform({
