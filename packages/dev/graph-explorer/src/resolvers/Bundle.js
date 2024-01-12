@@ -15,6 +15,7 @@ import {
   registerNodeType,
 } from './Node';
 import {Asset} from './Asset';
+import {BundleBehaviorNames} from '../types';
 
 export const typeDefs: string = `#graphql
   enum BundleBehavior {
@@ -38,7 +39,7 @@ export const typeDefs: string = `#graphql
     needsStableName: Boolean!
     isSplittable: Boolean!
     isPlaceholder: Boolean!
-    bundleBehavior: BundleBehavior!
+    bundleBehavior: BundleBehavior
     displayName: String!
     name: String!
 
@@ -110,8 +111,11 @@ export class Bundle extends Node {
     return this.#node.value.displayName;
   }
 
-  bundleBehavior(): ?number {
-    return this.#node.value.bundleBehavior;
+  bundleBehavior(): ?string {
+    if (this.#node.value.bundleBehavior == null) {
+      return null;
+    }
+    return BundleBehaviorNames[this.#node.value.bundleBehavior];
   }
 
   needsStableName(): boolean {
