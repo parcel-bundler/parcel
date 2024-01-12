@@ -4,11 +4,24 @@ import * as React from 'react';
 import {GraphView as DigraphGraphView} from 'react-digraph';
 import NodeText from './NodeText';
 
+import type {Node, NodeId} from './NodeText';
+
 type GraphViewProps = {|
   selectedNodeId: string,
   selectedNode: any,
-  convertedGraph: any,
+  graph: Graph,
   dispatch: any,
+|};
+
+type Graph = {|
+  nodes: Array<Node>,
+  edges: Array<Edge>,
+|};
+
+type Edge = {|
+  source: NodeId,
+  target: NodeId,
+  type: string,
 |};
 
 const COLORS = {
@@ -33,15 +46,48 @@ const TYPE_COLORS = {
   invalidated_by_delete: 'red',
 };
 
+const ROOT_NODE_OFFSET = 200;
+
 export default function GraphView({
   selectedNodeId,
   selectedNode,
-  convertedGraph,
+  graph,
   dispatch,
 }: GraphViewProps): React.Node {
-  const config = React.useMemo(() => {
-    const allNodeTypes = new Set(convertedGraph.nodes.map(node => node.type));
-    const allEdgeTypes = new Set(convertedGraph.edges.map(edge => edge.type));
+  const config = useGraphConfig(graph);
+  const edges = useEdges(graph);
+  const nodes = useNodes(graph);
+  return (
+    <DigraphGraphView
+      nodeKey="id"
+      layoutEngineType="VerticalTree"
+      allowMultiselect={false}
+      readOnly={true}
+      renderNodeText={(node, id, isSelected) => (
+        <NodeText node={node} id={id} isSelected={isSelected} />
+      )}
+      nodeTypes={config.NodeTypes}
+      edgeTypes={config.EdgeTypes}
+      nodeSubtypes={config.NodeSubtypes}
+      onSelect={select => {
+        if (select.nodes?.size) {
+          dispatch({
+            type: 'select',
+            nodeId: select.nodes.keys().next().value,
+          });
+        }
+      }}
+      selected={[selectedNodeId, selectedNode]}
+      nodes={nodes}
+      edges={edges}
+    />
+  );
+}
+
+function useGraphConfig(graph) {
+  return React.useMemo(() => {
+    const allNodeTypes = new Set(graph.nodes.map(node => node.type));
+    const allEdgeTypes = new Set(graph.edges.map(edge => edge.type));
     const extendedGraphConfig = {
       NodeTypes: {...GraphConfig.NodeTypes},
       NodeSubtypes: {...GraphConfig.NodeSubtypes},
@@ -66,32 +112,7 @@ export default function GraphView({
       }
     });
     return extendedGraphConfig;
-  }, [convertedGraph, GraphConfig]);
-  return (
-    <DigraphGraphView
-      nodeKey="id"
-      layoutEngineType="VerticalTree"
-      allowMultiselect={false}
-      readOnly={true}
-      renderNodeText={(node, id, isSelected) => (
-        <NodeText node={node} id={id} isSelected={isSelected} />
-      )}
-      nodeTypes={config.NodeTypes}
-      edgeTypes={config.EdgeTypes}
-      nodeSubtypes={config.NodeSubtypes}
-      onSelect={select => {
-        if (select.nodes?.size) {
-          dispatch({
-            type: 'select',
-            nodeId: select.nodes.keys().next().value,
-          });
-        }
-      }}
-      selected={[selectedNodeId, selectedNode]}
-      nodes={convertedGraph.nodes}
-      edges={convertedGraph.edges}
-    />
-  );
+  }, [graph, GraphConfig]);
 }
 
 const GraphConfig = {
@@ -186,4 +207,38 @@ function makeEdge({type, size}) {
       ></symbol>
     ),
   };
+}
+
+function useEdges(graph) {
+  return React.useMemo(() => {
+    return graph.edges.map(edge => ({
+      ...edge,
+      type: edge.type ?? 'null',
+    }));
+  }, [graph]);
+}
+
+function useNodes(graph) {
+  return React.useMemo(() => {
+    let roots = 0;
+    let nodes = [];
+    for (let node of graph.nodes) {
+      if (isRootNode(node.id, graph.edges)) {
+        nodes.push({...node, x: roots * ROOT_NODE_OFFSET, y: 0});
+        roots++;
+      } else {
+        nodes.push({...node});
+      }
+    }
+    return nodes;
+  }, [graph]);
+}
+
+function isRootNode(nodeId, edges) {
+  for (let edge of edges) {
+    if (edge.target === nodeId) {
+      return false;
+    }
+  }
+  return true;
 }

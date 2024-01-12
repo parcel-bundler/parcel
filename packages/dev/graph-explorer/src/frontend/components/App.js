@@ -15,8 +15,8 @@ const query = graphql`
   query AppQuery {
     allBundles(args: {}) {
       id
-      type
       name
+      bundleBehavior
     }
   }
 `;
@@ -26,16 +26,40 @@ export default function App(): React.Node {
 
   const data = useLazyLoadQuery(query, {});
 
+  const graph = React.useMemo(() => {
+    const nodes = [];
+    const edges = [];
+
+    for (let bundle of data.allBundles) {
+      nodes.push({
+        id: bundle.id,
+        type: 'bundle',
+        title: bundle.name,
+        bundleBehavior: bundle.bundleBehavior,
+      });
+    }
+
+    return {
+      nodes,
+      edges,
+    };
+  }, [data]);
+
   return (
     <div style={{height: '100%', width: '100%'}}>
       {/* <div className="tools tools--left"> */}
       {/*   <SearchView /> */}
       {/* </div> */}
 
-      <h1>TODO: Turn this into a graph visualization</h1>
-      <pre>{JSON.stringify(data, null, 2)}</pre>
+      {/* <h1>TODO: Turn this into a graph visualization</h1> */}
+      {/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
 
-      {/* <GraphView></GraphView> */}
+      <GraphView
+        selectedNodeId={graph.nodes[0].id}
+        selectedNode={graph.nodes[0]}
+        graph={graph}
+        dispatch={() => {}}
+      />
     </div>
   );
 }

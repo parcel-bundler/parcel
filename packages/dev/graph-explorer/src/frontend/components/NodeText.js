@@ -3,22 +3,38 @@
 import * as React from 'react';
 import path from 'path';
 
-type Node = {|
-  id: string,
-  type: string,
+export type NodeId = string;
+
+export type AssetNode = {|
+  id: NodeId,
+  type: 'asset',
   title: string,
+  filePath: ?string,
 |};
 
-type NodeTextProps = {|
+export type BundleNode = {|
+  id: NodeId,
+  type: 'bundle',
+  title: string,
+  bundleBehavior: ?string,
+|};
+
+export type DependencyNode = {|
+  id: NodeId,
+  type: 'dependency',
+  title: string,
+  priority: ?string,
+|};
+
+export type Node = AssetNode | BundleNode | DependencyNode;
+
+export type NodeTextProps = {|
   node: Node,
   id: string,
   isSelected: boolean,
 |};
 
 const NODE_TEXT_LINE_HEIGHT = 18;
-
-const Priority = ['sync', 'parallel', 'lazy'];
-const BundleBehavior = ['inline', 'isolated'];
 
 export default function NodeText({
   node,
@@ -57,10 +73,9 @@ NodeTextProps): React.Node {
 }
 
 const extraFields = {
-  asset: node => [path.basename(node.value.filePath)],
-  bundle: node =>
-    node.value.bundleBehavior === null
-      ? ['']
-      : [BundleBehavior[node.value.bundleBehavior] || 'unknown'],
-  dependency: node => [Priority[node.value.priority] || 'unknown'],
+  asset: node => [
+    node.filePath != null ? path.basename(node.filePath) : 'unknown',
+  ],
+  bundle: node => [node.bundleBehavior ?? 'unknown'],
+  dependency: node => [node.priority ?? 'unknown'],
 };
