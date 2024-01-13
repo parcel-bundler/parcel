@@ -27,6 +27,7 @@ untyped-type-import=error
 [options]
 module.system.node.main_field=source
 module.system.node.main_field=main
+react.runtime=automatic
 
 [strict]
 nonstrict-import

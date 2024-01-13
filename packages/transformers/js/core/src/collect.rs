@@ -919,10 +919,10 @@ impl Visit for Collect {
           // import('foo').then(foo => ...);
           if let Some(source) = match_import(&member.obj, self.ignore_mark) {
             if match_property_name(member).map_or(false, |f| &*f.0 == "then") {
-              if let Some(ExprOrSpread { expr, .. }) = node.args.get(0) {
+              if let Some(ExprOrSpread { expr, .. }) = node.args.first() {
                 let param = match &**expr {
-                  Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
-                  Expr::Arrow(arrow) => arrow.params.get(0),
+                  Expr::Fn(func) => func.function.params.first().map(|param| &param.pat),
+                  Expr::Arrow(arrow) => arrow.params.first(),
                   _ => None,
                 };
 

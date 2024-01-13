@@ -389,7 +389,7 @@ export default class Parcel {
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
     let sub = await resolvedOptions.inputFS.watch(
-      resolvedOptions.projectRoot,
+      resolvedOptions.watchDir,
       (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});

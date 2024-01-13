@@ -1,0 +1,19 @@
+// @flow
+
+declare module 'preact/hooks' {
+  declare export function useState<T>(
+    initialState: T | (() => T),
+  ): [T, (T) => void];
+  declare export function useMemo<T>(cb: T, deps: Array<mixed>): T;
+  declare export function useCallback<T>(cb: T, deps: Array<mixed>): T;
+  declare export function useEffect(
+    () => void | Promise<void> | (() => mixed),
+    Array<mixed>,
+  ): void;
+  declare export function useRef<T>(T): {|current: T|};
+  declare export function useReducer<S, A>(
+    reducer: (S, A) => S,
+    initialState: ?S,
+    getInitialState: ?(?S) => S,
+  ): [S, (A) => void];
+}

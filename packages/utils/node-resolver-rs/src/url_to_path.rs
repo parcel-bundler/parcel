@@ -1,4 +1,5 @@
 //! An implementation url.to_file_path that behaves like Unix on Wasm
+#![allow(clippy::items_after_test_module)]
 
 use crate::specifier::SpecifierError;
 #[cfg(any(target_arch = "wasm32", test))]
