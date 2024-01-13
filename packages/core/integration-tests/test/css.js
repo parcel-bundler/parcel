@@ -170,7 +170,9 @@ describe('css', () => {
     let css = await outputFS.readFile(path.join(distDir, '/index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.other'));
-    assert(/@media print {\s*.other/.test(css));
+    assert(
+      /@media print {\s*\.local(.|\n)*\.other(.|\n)*}(.|\n)*\.index/.test(css),
+    );
     assert(css.includes('.index'));
   });
 
@@ -561,5 +563,18 @@ describe('css', () => {
 
     let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(res.includes('.foo.bar'));
+  });
+
+  it('should support @layer', async function () {
+    let b = await bundle(path.join(__dirname, '/integration/css-layer/a.css'), {
+      mode: 'production',
+    });
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      res.includes(
+        '@layer b.c{.c{color:#ff0}}@layer b{.b{color:#00f}}.a{color:red}',
+      ),
+    );
   });
 });
