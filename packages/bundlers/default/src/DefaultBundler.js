@@ -31,7 +31,7 @@ type ManualSharedBundles = Array<{|
   name: string,
   assets: Array<Glob>,
   types?: Array<string>,
-  parent?: string,
+  root?: string,
   split?: number,
 |}>;
 
@@ -41,7 +41,7 @@ type BaseBundlerConfig = {|
   minBundleSize?: number,
   maxParallelRequests?: number,
   disableSharedBundles?: boolean,
-  unstable_manualSharedBundles?: ManualSharedBundles,
+  manualSharedBundles?: ManualSharedBundles,
 |};
 
 type BundlerConfig = {|
@@ -437,8 +437,8 @@ function createIdealGraph(
     let parentsToConfig = new DefaultMap(() => []);
 
     for (let c of config.manualSharedBundles) {
-      if (c.parent != null) {
-        parentsToConfig.get(path.join(config.projectRoot, c.parent)).push(c);
+      if (c.root != null) {
+        parentsToConfig.get(path.join(config.projectRoot, c.root)).push(c);
       }
     }
     let numParentsToFind = parentsToConfig.size;
@@ -462,7 +462,7 @@ function createIdealGraph(
     // Process in reverse order so earlier configs take precedence
     for (let c of config.manualSharedBundles.reverse()) {
       invariant(
-        c.parent == null || configToParentAsset.has(c),
+        c.root == null || configToParentAsset.has(c),
         'Invalid manual shared bundle. Could not find parent asset.',
       );
 
@@ -1700,7 +1700,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
       type: 'number',
       enum: Object.keys(HTTP_OPTIONS).map(k => Number(k)),
     },
-    unstable_manualSharedBundles: {
+    manualSharedBundles: {
       type: 'array',
       items: {
         type: 'object',
@@ -1720,7 +1720,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
               type: 'string',
             },
           },
-          parent: {
+          root: {
             type: 'string',
           },
           split: {
@@ -1889,12 +1889,12 @@ async function loadBundlerConfig(
     });
   }
 
-  if (modeConfig.unstable_manualSharedBundles) {
-    let nameArray = modeConfig.unstable_manualSharedBundles.map(a => a.name);
+  if (modeConfig.manualSharedBundles) {
+    let nameArray = modeConfig.manualSharedBundles.map(a => a.name);
     let nameSet = new Set(nameArray);
     invariant(
       nameSet.size == nameArray.length,
-      'The name field must be unique for property unstable_manualSharedBundles',
+      'The name field must be unique for property manualSharedBundles',
     );
   }
 
@@ -1922,7 +1922,7 @@ async function loadBundlerConfig(
     disableSharedBundles:
       modeConfig.disableSharedBundles ?? defaults.disableSharedBundles,
     manualSharedBundles:
-      modeConfig.unstable_manualSharedBundles ?? defaults.manualSharedBundles,
+      modeConfig.manualSharedBundles ?? defaults.manualSharedBundles,
   };
 }
 
