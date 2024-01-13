@@ -43,7 +43,37 @@ Note: Within `createIdealGraph()`, the local IdealGraph is referred to simply as
 
 ## Step: Create Entries
 
-Create bundles for each entry the user as specified to the project. Entries can be specified in the build command.
+Create bundles for each entry to the project. Entries can be specified in the build command by the user.
+
+To create an entry bundle we just need to provide the actual asset, target, and `needsStableName`. `needsStableName` refers to the bundle name. If set, the name will not have a hash for loading purposes.
+
+```js
+let bundle = createBundle({
+  asset,
+  target: nullthrows(dependency.target),
+  needsStableName: dependency.isEntry,
+});
+```
+
+Entries are a type of **bundleGroup** and are thus added to the graph with a connection to the root to denote this. You'll notice some redundancies throughout the algorithm. Here is one such case. `bundleGroupBundleIds` tracks **bundleGroups**, all of which are connected to the root of the `bundleGraph`. An optimization here would be to replace all usage of `bundleGroupBundleIds` with a look up to the graph.
+
+### How to create a bundle
+
+A bundle is just a representation of a asset or assets with information about how to package them. Below are the options you may pass in. Different bundle types require different information. For example, some bundles have a `mainEntryAsset`, like entries, and some do not. We'll get into what bundles contain what information later.
+
+```js
+    uniqueKey: opts.uniqueKey, // can be read by namers for more functionality
+    assets: new Set([asset]), // The set of all assets in the bundle
+    mainEntryAsset: asset, // The main or initial asset of the bundle, can be null
+    size: asset.stats.size, // size
+    sourceBundles: new Set(), // The bundles which load and require this bundle
+    target: opts.target, // Target for output purposes
+    type: opts.type ?? asset.type, // type, js, html etc
+    env: opts.env ?? asset.env,
+    needsStableName: Boolean(opts.needsStableName), // whether to hash the final name
+    bundleBehavior: opts.bundleBehavior ?? asset.bundleBehavior,
+    manualSharedBundle: opts.manualSharedBundle,
+```
 
 ## Step: Create Bundles for explicit code split points
 
@@ -51,19 +81,19 @@ Create bundles for each entry the user as specified to the project. Entries can 
 
 This step creates bundles for explicit code split points. These are…
 
-- Asynchronous: this bundle does not need to load automatically
+- Asynchronous: this bundle does not need to load automatically, it can load in tandem with others
 
 - Isolated: Cannot share any assets with other bundles
 
   - Example: A URL import import url from 'url:./resource.txt';
 
-  - A key difference between bundlers here is that we’ve implicitly created a relationship of one asset to one bundle, and so if a dependency is isolated for example, then we mark that bundle isolated for all purposes. This means it cannot share any assets with other bundles.
+  - A key difference between bundlers (past and present) here is that we’ve implicitly created a relationship of one asset to one bundle, and so if a dependency is isolated for example, then we mark that bundle isolated for all purposes. This means it cannot share any assets with other bundles.
 
-- A type change: If the parent asset is a different type than the child.
+- A type change: If the parent asset is a different type than the child. Assets of different types do not belong in the same bundle.
 
 - Parallel: Separate bundle but loaded with the parent.
 
-- Inline: Separate bundle, which is placed into the parent bundle before writing to dist
+- Inline: Separate bundle, which is placed into the parent bundle before writing to dist.
 
   - SVG image inlined into html: `<img src="data-url:./img.svg"/>`
 
@@ -71,11 +101,11 @@ More on code splitting: [Code Splitting](https://parceljs.org/features/code-spli
 
 ### Deep Dive: Traverse The AssetGraph
 
-First, we traverse the assetGraph, skipping any entries of different targets. On an asset, we begin to populate `assetIndex`, a mapping by which to look up any `bitSet` values. Then, we grab the `bundleIdTuple` from the `bundleRoots` structure.
+After creating our entry points, we traverse the assetGraph, skipping any entries of different targets. On an asset, we begin to populate `assetIndex`, a mapping by which to look up any `bitSet` values. Then, we grab the `bundleIdTuple` from the `bundleRoots` structure.
 
 - `bundleRoots: Map<Asset,[NodeId, NodeId]` is a mapping of bundle-root assets. This means they are roots of a bundle. Think of these assets as assets which triggered the creation of a bundle, and are the **main entry** of a bundle. All explicit code-split points (all of which are handled in this step), are "bundleRoots"
 
-We use the `stack` to track what bundleGroup we are currently in, so that we can accurately draw edges between bundles. BundleIds and BundleGroupIds are not the same, but can be. This is how we are able to reduce node bloat in the graph. In `createIdealGraph`, "bundleGroups" are simply represented by bundles that are attached to the root. Thus, when `bundleId === bundleGroupId`, or in this case, the tuple values are equivalent, we know we have entered a new bundleGroup.
+We use the `stack` to track what bundleGroup we are currently in, so that we can accurately draw edges between bundles. `BundleIds` and `BundleGroupIds` are not the same, but can be. This is how we are able to reduce node bloat in the graph. In `createIdealGraph`, "bundleGroups" are simply represented by bundles that are attached to the root. Thus, when `bundleId === bundleGroupId`, or in this case, the tuple values are equivalent, we know we have entered a new bundleGroup.
 
 ```js
 if (bundleIdTuple[0] === bundleIdTuple[1]) {
@@ -114,7 +144,7 @@ import html from './local.html'; //isolated
 
 IdealBundleGraph from `integration/shared-bundle-single-source/index.js`
 
-All the bundles above are explicit code-split points, but not all of them are "bundleGroups". As a rule of thumb, only Entry bundles, Async Bundles, and "isolated" Assets are bundleGroups. `Isolated` is found on the `bundleBehavior` property of bundles, which is typically set in a Transformer. `HTML` and Images tend to be `isolated`.
+All the bundles above are explicit code-split points, but not all of them are "bundleGroups". As a rule of thumb, only Entry bundles, Async Bundles, and "isolated" Assets are bundleGroups. `Isolated` is found on the `bundleBehavior` property of bundles, which is typically set in a Transformer. `HTML` and images tend to be `isolated`.
 
 #### Code Split for Type Change, Parallel, and Inline Dependencies
 
@@ -161,21 +191,40 @@ import foo from './foo';
 <td>
 </tr></table>
 
-Given those imports, here are our synchronous:
+Given those imports, here are our synchronous relationships. This means `bar.js` synchronously requires `foo`, `b.js`, and `a.js`. Leaf nodes (Nodes with **only** incoming connections), are **not** bundleRoots and will therefore be placed into a number of existing bundles. Nodes with **outgoing** edges **are** bundleRoots and correspond to a bundle we've already created.
 ![image info](./BundlerGraphs/steps/reachableRoots_sharedsinglesource.png)
 
-We also begin building up the bundleRootGraph which maintains bundleRoots and their parallel and async relationships via different edge types. First, we add `bundleRoots` to the bundleRoot graph.
+We also begin building up the **bundleRootGraph** which maintains bundleRoots and their **parallel** and **async** relationships via different edge types.
 
-From the same example, here are the asynchronous and parallel relationships:
+From the same example, here are the asynchronous and parallel relationships. Below shows that `index.js` requires `foo.js` and `bar.js` bundles.
 ![image info](./BundlerGraphs/steps/bundleRootGraph.png)
 
-_Note: In order to optimize structures, ReachableRoots is a bitSet and bundleRootGraph is a graph of numbers, as of the writing of this document. Both, however, represent assets and used to be graphs of asset nodes. Below is a graph representation of reachableRoots and BundleRoot graph. To produce such a graph for developmental purposes, the graph visualizer at `dumpGraphToGraphViz.js` could be expanded to translate these bitSets or graph of numbers._
+This graph does utilize edge types to differentiate between parallel and async relationships, so querying the graph may look something like this:
+
+```
+bundleRootGraph.getNodeIdsConnectedTo(id, ALL_EDGE_TYPES);
+```
+
+_Note: In order to optimize structures, ReachableRoots is a bitSet and bundleRootGraph is a graph of numbers, as of the writing of this document. Both, however, represent assets and used to be graphs of asset nodes. The above example uses a graph representation of reachableRoots and BundleRoot graphs. To produce such a graph for developmental purposes, the graph visualizer at `dumpGraphToGraphViz.js` could be expanded to translate these bitSets or graph of numbers._
 
 ## Step: Determine Availability
 
 Now, in order to know where to place assets, we construct a mapping of all assets available to a bundleRoot (or bundle). This is called ancestorAssets and it is populated with assets available via older siblings, assets within the same bundleGroup, and parent and ancestor bundles.
 
-At each bundleRoot, we first determine the assets that would be available via bundleGroup, since the bundles in a bundleGroup are loaded together. This is the bundles in the bundleGroup (BundleRoot Assets + Synchronously available Assets)
+In general, this is the formula we follow for populating the assets available to a particular bundle:
+
+```
+  (assets(P1) ∩ assets(P2) ..... ∩ assets(Pn)) U
+  (assets(S1) ..... U assets(Sn)) U
+```
+
+Where _P_ is parent, and _S_ is an **older** sibling, i.e. first in load order. And the assets of a parent can be defined as the following, where _B_ is a bundle in the current bundleGroup defined as a bundle connected **directly** to the Parent bundle we are currently processing
+
+```
+assets(B1) U assets(B2) .... assets(Bn)
+```
+
+At each bundleRoot, we first determine the assets that would be available via bundleGroup, since the bundles in a bundleGroup are loaded together. This is the bundles in the bundleGroup (BundleRoot Assets + Synchronously available Assets).
 
 Next, we “peek ahead” to the children, and propagate the available assets down, intersecting as we go since that will be the set of assets available by any “path”.
 
@@ -201,33 +250,76 @@ component1 => {},
 component2 => {html-js-dedup/component-1.js}
 ```
 
-Making the final bundles the following
+Because component1 bundle loads first, there is no need to add `obj` to both siblings. `Index.html` is isolated and thus its availability is not propagated down to the children.
 
 ```
-[index.html]
-[component1, obj.js]
-[component2]
+Entry Bundle =>     [index.html]
+Sibling Bundle 1 => [component1, obj.js]
+Sibling Bundle 2 => [component2]
 ```
 
 ## Step: Internalize Async Bundles
 
-Internalization is when some asset requires an asset synchronously, but also asynchronously. This is redundant so we don’t need to load the extra (async) bundle. We mark this in `bundle.internalizedAssetIds`, and an internalized asset is ultimately displayed as an orange edge.
+Internalization is when some bundle requires an asset synchronously, but also asynchronously. This is redundant so we do not load the extra (async) bundle. We mark this in `bundle.internalizedAssetIds`, and an internalized asset is ultimately displayed as an orange edge.
+
+In previous iterations of the bundler, this step would have been costly, since to determine if an asset is available synchronously, we would've traversed the graph upwards in search of it. Now we simply consult `reachableRoots` and `ancestorAssets`, which tells us if the asset we want to load via asynchronous bundle is either available to us synchronously or via our ancestors.
+
+```js
+if (
+  reachableAssets[parentId].has(bundleRootId) ||
+  ancestorAssets[parentId]?.has(bundleRootId)
+) {
+  // internalize
+}
+```
+
+A bundle can be **deleted** in this step if we determine that all those who request this particular asynchronous bundle already have it available to them by some other means. We denote this with `canDelete`.
 
 ## Step: Insert or Share
 
-Here, we place assets into bundles since they require them synchronously, or by other means (like entries need all their assets within their bundle). If an asset is “reachable” from many bundles, we can extract it into a shared bundle.
+Here, we finally place assets into bundles which require them. All of the previous work we've done assumes all synchronous assets will be available to the bundle that needs it, but we haven't actually placed those assets in yet. If an asset is “reachable” from many bundles, we can extract it into a shared bundle.
 
 You may think of reachable as all the bundles that still need an asset by some means. We filter it down to ensure we only place assets where they need to be. Any bundle that contains the asset in question in its ancestorAssets is filtered out, & entries are filtered out.
 
 ### Reused Bundles
 
-There’s a special case here that is unique to the experimental bundler, which is reusing bundles. We noticed sometimes, if two or more bundles shared the whole contents of another bundle, reusing that bundle is as simple as drawing an edge, as opposed to creating a shared bundle that would essentially be a copy of another. In the above example, foo.js is a reused bundle. You can tell a bundle is reused if it has both an entry asset and source bundles.
+There’s a special case here that is unique to the experimental bundler, which is reusing bundles. We noticed sometimes, if two or more bundles shared the whole contents of another bundle, reusing that bundle is as simple as drawing an edge, as opposed to creating a shared bundle that would essentially be a copy of another.
 
 ![image info](./BundlerGraphs/steps/idealBundleGraph_final_reusedFoo.png)
 
+In the above example, foo.js is a reused bundle. You can tell a bundle is reused if it has both an entry asset and source bundles.
+
+For a step by step explanation through the code and example, checkout the "Reused Example" in [BundlerExamples.md](BundlerExamples.md)
+
 ### Other special cases
 
-Throughout the `DefaultBundler` There are referrences to `ManualSharedBundles`, this is an unstable feature, please see Manual Bundling for contributor notes on that feature.
+Throughout the `DefaultBundler` There are references to `ManualSharedBundles`, this is an unstable feature, please see [Manual Bundling](ManualBundling.md) for contributor notes on that feature.
+
+### Other special cases
+
+Finally, after we've considered our asset for the above special cases, we're now left to create shared bundles. Generally, the rule is that if our `reachable(asset) > 1`, we can place our asset into a shared bundles and draw an edge to those `reachable` bundleRoots.
+
+Config can change this behavior, so beware. Since we process assets one by one, we need a key by which to look up if this particular set of `bundleRoots` already has a shared bundles.
+
+```js
+let key = reachableArray.map(a => a.id).join(',');
+```
+
+The key-to-bundle mapping is stored at `bundles`. That way if we have the following reachable, we can create a shared bundle the first time we need some sharing between bundleRoots `foo.js` and `bar.js` and the second time we hit that exact reachable, we can simple add in `b.js`.
+
+```
+reachable
+a => {bar, foo}
+b => {bar, foo}
+```
+
+Shared bundles can also have internalized assets, so we need to update upon creation of this bundle.
+
+```
+sharedInternalizedAssets.intersect(parentBundle.internalizedAssets);
+```
+
+That's it! The next few steps only kick in if your bundler config specifies.
 
 ## Step: Merge Shared Bundles
 
