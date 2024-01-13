@@ -340,6 +340,50 @@ describe('macros', function () {
     }
   });
 
+  it('should throw a diagnostic when a macro cannot be resolved', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { test } from "./macro.js" with { type: "macro" };
+        output = test(1, 2);
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: `Error evaluating macro: Could not resolve module \"./macro.js\" from \"${path.join(
+            dir,
+            'index.js',
+          )}\"`,
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 2,
+                    column: 10,
+                  },
+                  end: {
+                    line: 2,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+      ]);
+    }
+  });
+
   it('should support returning functions', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
