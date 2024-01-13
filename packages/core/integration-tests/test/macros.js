@@ -355,10 +355,10 @@ describe('macros', function () {
     } catch (err) {
       assert.deepEqual(err.diagnostics, [
         {
-          message: `Error evaluating macro: Could not resolve module \"./macro.js\" from \"${path.join(
+          message: `Error evaluating macro: Could not resolve module "./macro.js" from "${path.join(
             dir,
             'index.js',
-          )}\"`,
+          )}"`,
           origin: '@parcel/transformer-js',
           codeFrames: [
             {
@@ -410,6 +410,9 @@ describe('macros', function () {
       index.js:
         import { test } from "./macro.ts" with { type: "macro" };
         output = test(1, 2);
+
+      macro.ts:
+        export function test(a: number, b: number) {
           return a + b;
         }
     `;
@@ -428,9 +431,6 @@ describe('macros', function () {
       index.js:
         import { test } from "./macro" with { type: "macro" };
         output = test(1, 2);
-
-      macro.ts:
-        export function test(a: number, b: number) {
 
       macro.ts:
         export function test(a: number, b: number) {
