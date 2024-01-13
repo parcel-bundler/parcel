@@ -1218,6 +1218,7 @@ dependencies = [
  "crossbeam-channel",
  "dashmap",
  "getrandom",
+ "indexmap 1.9.3",
  "jemallocator",
  "libc",
  "mimalloc",

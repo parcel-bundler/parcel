@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use swc_core::common::errors::Handler;
@@ -22,6 +23,7 @@ pub type MacroCallback = Arc<
 pub struct Macros<'a> {
   /// Mapping of imported identifiers to import metadata.
   macros: HashMap<Id, MacroImport>,
+  constants: HashMap<Id, Result<JsValue, Span>>,
   callback: MacroCallback,
   source_map: &'a SourceMap,
   diagnostics: &'a mut Vec<Diagnostic>,
@@ -42,6 +44,7 @@ impl<'a> Macros<'a> {
   ) -> Self {
     Macros {
       macros: HashMap::new(),
+      constants: HashMap::new(),
       callback,
       source_map,
       diagnostics,
@@ -90,7 +93,7 @@ impl<'a> Macros<'a> {
     // Try to statically evaluate all of the function arguments.
     let mut args = Vec::with_capacity(call.args.len());
     for arg in &call.args {
-      match eval(&*arg.expr) {
+      match self.eval(&*arg.expr) {
         Ok(val) => {
           if arg.spread.is_none() {
             args.push(val);
@@ -200,6 +203,21 @@ impl<'a> Fold for Macros<'a> {
 
     node
   }
+
+  fn fold_var_decl(&mut self, mut node: VarDecl) -> VarDecl {
+    node = node.fold_children_with(self);
+
+    if node.kind == VarDeclKind::Const {
+      for decl in &node.decls {
+        if let Some(expr) = &decl.init {
+          let val = self.eval(&*expr);
+          self.eval_pat(val, &decl.name);
+        }
+      }
+    }
+
+    node
+  }
 }
 
 /// Checks if an object literal (from import attributes) has type: 'macro'.
@@ -227,13 +245,16 @@ fn handle_error(result: Result<Expr, Diagnostic>, diagnostics: &mut Vec<Diagnost
   match result {
     Ok(expr) => expr,
     Err(err) => {
-      diagnostics.push(err);
+      if !diagnostics.iter().any(|d| *d == err) {
+        diagnostics.push(err);
+      }
       Expr::Lit(Lit::Null(Null::dummy()))
     }
   }
 }
 
 // A type that represents a basic JS value.
+#[derive(Clone, Debug)]
 pub enum JsValue {
   Undefined,
   Null,
@@ -242,89 +263,85 @@ pub enum JsValue {
   String(String),
   Regex { source: String, flags: String },
   Array(Vec<JsValue>),
-  Object(Vec<(String, JsValue)>),
+  Object(IndexMap<String, JsValue>),
   Function(String),
 }
 
-/// Statically evaluate a JS expression to a value, if possible.
-fn eval(expr: &Expr) -> Result<JsValue, Span> {
-  match expr.unwrap_parens() {
-    Expr::Lit(lit) => match lit {
-      Lit::Null(_) => Ok(JsValue::Null),
-      Lit::Bool(v) => Ok(JsValue::Bool(v.value)),
-      Lit::Num(v) => Ok(JsValue::Number(v.value)),
-      Lit::Str(v) => Ok(JsValue::String(v.value.to_string())),
-      Lit::JSXText(v) => Ok(JsValue::String(v.value.to_string())),
-      Lit::Regex(v) => Ok(JsValue::Regex {
-        source: v.exp.to_string(),
-        flags: v.flags.to_string(),
-      }),
-      Lit::BigInt(v) => Err(v.span),
-    },
-    Expr::Tpl(tpl) => {
-      let exprs: Vec<_> = tpl
-        .exprs
-        .iter()
-        .filter_map(|expr| eval(&*expr).ok())
-        .collect();
-      if exprs.len() == tpl.exprs.len() {
-        let mut res = String::new();
-        let mut expr_iter = exprs.iter();
-        for quasi in &tpl.quasis {
-          res.push_str(&quasi.raw);
-          match expr_iter.next() {
-            None => {}
-            Some(JsValue::String(s)) => res.push_str(s),
-            Some(JsValue::Number(n)) => res.push_str(&n.to_string()),
-            Some(JsValue::Bool(b)) => res.push_str(&b.to_string()),
-            _ => return Err(tpl.span),
-          }
-        }
-
-        Ok(JsValue::String(res))
-      } else {
-        Err(tpl.span)
-      }
-    }
-    Expr::Array(arr) => {
-      let mut res = Vec::with_capacity(arr.elems.len());
-      for elem in &arr.elems {
-        if let Some(elem) = elem {
-          match eval(&*elem.expr) {
-            Err(e) => return Err(e),
-            Ok(val) => {
-              if elem.spread.is_some() {
-                match val {
-                  JsValue::Array(arr) => {
-                    res.extend(arr);
-                  }
-                  _ => return Err(arr.span),
-                }
-              } else {
-                res.push(val);
-              }
+impl<'a> Macros<'a> {
+  /// Statically evaluate a JS expression to a value, if possible.
+  fn eval(&self, expr: &Expr) -> Result<JsValue, Span> {
+    match expr.unwrap_parens() {
+      Expr::Lit(lit) => match lit {
+        Lit::Null(_) => Ok(JsValue::Null),
+        Lit::Bool(v) => Ok(JsValue::Bool(v.value)),
+        Lit::Num(v) => Ok(JsValue::Number(v.value)),
+        Lit::Str(v) => Ok(JsValue::String(v.value.to_string())),
+        Lit::JSXText(v) => Ok(JsValue::String(v.value.to_string())),
+        Lit::Regex(v) => Ok(JsValue::Regex {
+          source: v.exp.to_string(),
+          flags: v.flags.to_string(),
+        }),
+        Lit::BigInt(v) => Err(v.span),
+      },
+      Expr::Tpl(tpl) => {
+        let exprs: Vec<_> = tpl
+          .exprs
+          .iter()
+          .filter_map(|expr| self.eval(&*expr).ok())
+          .collect();
+        if exprs.len() == tpl.exprs.len() {
+          let mut res = String::new();
+          let mut expr_iter = exprs.iter();
+          for quasi in &tpl.quasis {
+            res.push_str(&quasi.raw);
+            match expr_iter.next() {
+              None => {}
+              Some(JsValue::String(s)) => res.push_str(s),
+              Some(JsValue::Number(n)) => res.push_str(&n.to_string()),
+              Some(JsValue::Bool(b)) => res.push_str(&b.to_string()),
+              _ => return Err(tpl.span),
             }
           }
+
+          Ok(JsValue::String(res))
         } else {
-          res.push(JsValue::Undefined);
+          Err(tpl.span)
         }
       }
-      Ok(JsValue::Array(res))
-    }
-    Expr::Object(obj) => {
-      let mut res = Vec::with_capacity(obj.props.len());
-      for prop in &obj.props {
-        match prop {
-          PropOrSpread::Prop(prop) => match &**prop {
-            Prop::KeyValue(kv) => match eval(&*kv.value) {
-              Err(e) => return Err(e),
-              Ok(v) => {
+      Expr::Array(arr) => {
+        let mut res = Vec::with_capacity(arr.elems.len());
+        for elem in &arr.elems {
+          if let Some(elem) = elem {
+            let val = self.eval(&*elem.expr)?;
+            if elem.spread.is_some() {
+              match val {
+                JsValue::Array(arr) => {
+                  res.extend(arr);
+                }
+                _ => return Err(arr.span),
+              }
+            } else {
+              res.push(val);
+            }
+          } else {
+            res.push(JsValue::Undefined);
+          }
+        }
+        Ok(JsValue::Array(res))
+      }
+      Expr::Object(obj) => {
+        let mut res = IndexMap::with_capacity(obj.props.len());
+        for prop in &obj.props {
+          match prop {
+            PropOrSpread::Prop(prop) => match &**prop {
+              Prop::KeyValue(kv) => {
+                let v = self.eval(&*kv.value)?;
                 let k = match &kv.key {
                   PropName::Ident(Ident { sym, .. }) | PropName::Str(Str { value: sym, .. }) => {
                     sym.to_string()
                   }
                   PropName::Num(n) => n.value.to_string(),
-                  PropName::Computed(c) => match eval(&*c.expr) {
+                  PropName::Computed(c) => match self.eval(&*c.expr) {
                     Err(e) => return Err(e),
                     Ok(JsValue::String(s)) => s,
                     Ok(JsValue::Number(n)) => n.to_string(),
@@ -334,167 +351,228 @@ fn eval(expr: &Expr) -> Result<JsValue, Span> {
                   PropName::BigInt(v) => return Err(v.span),
                 };
 
-                res.push((k.to_string(), v))
+                res.insert(k.to_string(), v);
               }
-            },
-            _ => return Err(obj.span),
-          },
-          PropOrSpread::Spread(spread) => match eval(&*spread.expr) {
-            Err(e) => return Err(e),
-            Ok(v) => match v {
-              JsValue::Object(o) => res.extend(o),
+              Prop::Shorthand(s) => {
+                if let Some(val) = self.constants.get(&s.to_id()) {
+                  res.insert(s.sym.to_string(), val.clone()?);
+                } else {
+                  return Err(s.span);
+                }
+              }
               _ => return Err(obj.span),
             },
-          },
+            PropOrSpread::Spread(spread) => {
+              let v = self.eval(&*spread.expr)?;
+              match v {
+                JsValue::Object(o) => res.extend(o),
+                _ => return Err(obj.span),
+              }
+            }
+          }
+        }
+        Ok(JsValue::Object(res))
+      }
+      Expr::Bin(bin) => match (bin.op, self.eval(&*bin.left), self.eval(&*bin.right)) {
+        (BinaryOp::Add, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
+          Ok(JsValue::String(format!("{}{}", a, b)))
+        }
+        (BinaryOp::Add, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(a + b))
+        }
+        (BinaryOp::Add, Ok(JsValue::String(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::String(format!("{}{}", a, b)))
+        }
+        (BinaryOp::Add, Ok(JsValue::Number(a)), Ok(JsValue::String(b))) => {
+          Ok(JsValue::String(format!("{}{}", a, b)))
+        }
+        (BinaryOp::BitAnd, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(((a as i32) & (b as i32)) as f64))
+        }
+        (BinaryOp::BitOr, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(((a as i32) | (b as i32)) as f64))
+        }
+        (BinaryOp::BitXor, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(((a as i32) ^ (b as i32)) as f64))
+        }
+        (BinaryOp::LShift, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(((a as i32) << (b as i32)) as f64))
+        }
+        (BinaryOp::RShift, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(((a as i32) >> (b as i32)) as f64))
+        }
+        (BinaryOp::ZeroFillRShift, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(((a as i32) >> (b as u32)) as f64))
+        }
+        (BinaryOp::Sub, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(a - b))
+        }
+        (BinaryOp::Div, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(a / b))
+        }
+        (BinaryOp::Mul, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(a * b))
+        }
+        (BinaryOp::Mod, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(a % b))
+        }
+        (BinaryOp::Exp, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Number(a.powf(b)))
+        }
+        (BinaryOp::EqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a == b)),
+        (BinaryOp::EqEqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a == b)),
+        (BinaryOp::NotEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a != b)),
+        (BinaryOp::NotEqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => {
+          Ok(JsValue::Bool(a != b))
+        }
+        (BinaryOp::EqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Bool(a == b))
+        }
+        (BinaryOp::EqEqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Bool(a == b))
+        }
+        (BinaryOp::NotEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Bool(a != b))
+        }
+        (BinaryOp::NotEqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Bool(a != b))
+        }
+        (BinaryOp::EqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
+          Ok(JsValue::Bool(a == b))
+        }
+        (BinaryOp::EqEqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
+          Ok(JsValue::Bool(a == b))
+        }
+        (BinaryOp::NotEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
+          Ok(JsValue::Bool(a != b))
+        }
+        (BinaryOp::NotEqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
+          Ok(JsValue::Bool(a != b))
+        }
+        (BinaryOp::Gt, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a > b)),
+        (BinaryOp::GtEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Bool(a >= b))
+        }
+        (BinaryOp::Lt, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a < b)),
+        (BinaryOp::LtEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+          Ok(JsValue::Bool(a <= b))
+        }
+        (BinaryOp::LogicalAnd, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => {
+          Ok(JsValue::Bool(a && b))
+        }
+        (BinaryOp::LogicalOr, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => {
+          Ok(JsValue::Bool(a || b))
+        }
+        (BinaryOp::NullishCoalescing, Ok(JsValue::Null | JsValue::Undefined), Ok(b)) => Ok(b),
+        (BinaryOp::NullishCoalescing, Ok(a), Ok(_)) => Ok(a),
+        _ => Err(bin.span),
+      },
+      Expr::Unary(unary) => match (unary.op, self.eval(&*unary.arg)) {
+        (UnaryOp::Bang, Ok(JsValue::Bool(v))) => Ok(JsValue::Bool(!v)),
+        (UnaryOp::Minus, Ok(JsValue::Number(v))) => Ok(JsValue::Number(-v)),
+        (UnaryOp::Plus, Ok(JsValue::Number(v))) => Ok(JsValue::Number(v)),
+        (UnaryOp::Plus, Ok(JsValue::String(v))) => {
+          if let Ok(v) = v.parse() {
+            Ok(JsValue::Number(v))
+          } else {
+            Err(unary.span)
+          }
+        }
+        (UnaryOp::Tilde, Ok(JsValue::Number(v))) => Ok(JsValue::Number((!(v as i32)) as f64)),
+        (UnaryOp::Void, Ok(_)) => Ok(JsValue::Undefined),
+        (UnaryOp::TypeOf, Ok(JsValue::Bool(_))) => Ok(JsValue::String("boolean".to_string())),
+        (UnaryOp::TypeOf, Ok(JsValue::Number(_))) => Ok(JsValue::String("number".to_string())),
+        (UnaryOp::TypeOf, Ok(JsValue::String(_))) => Ok(JsValue::String("string".to_string())),
+        (UnaryOp::TypeOf, Ok(JsValue::Object(_))) => Ok(JsValue::String("object".to_string())),
+        (UnaryOp::TypeOf, Ok(JsValue::Array(_))) => Ok(JsValue::String("object".to_string())),
+        (UnaryOp::TypeOf, Ok(JsValue::Regex { .. })) => Ok(JsValue::String("object".to_string())),
+        (UnaryOp::TypeOf, Ok(JsValue::Null)) => Ok(JsValue::String("object".to_string())),
+        (UnaryOp::TypeOf, Ok(JsValue::Undefined)) => Ok(JsValue::String("undefined".to_string())),
+        _ => Err(unary.span),
+      },
+      Expr::Cond(cond) => match self.eval(&*&cond.test) {
+        Ok(JsValue::Bool(v)) => {
+          if v {
+            self.eval(&*&cond.cons)
+          } else {
+            self.eval(&*cond.alt)
+          }
+        }
+        Ok(JsValue::Null) | Ok(JsValue::Undefined) => self.eval(&*cond.alt),
+        Ok(JsValue::Object(_))
+        | Ok(JsValue::Array(_))
+        | Ok(JsValue::Function(_))
+        | Ok(JsValue::Regex { .. }) => self.eval(&*cond.cons),
+        Ok(JsValue::String(s)) => {
+          if s.is_empty() {
+            self.eval(&*cond.alt)
+          } else {
+            self.eval(&*cond.cons)
+          }
+        }
+        Ok(JsValue::Number(n)) => {
+          if n == 0.0 {
+            self.eval(&*cond.alt)
+          } else {
+            self.eval(&*cond.cons)
+          }
+        }
+        Err(e) => Err(e),
+      },
+      Expr::Ident(id) if &id.sym == "undefined" => Ok(JsValue::Undefined),
+      Expr::Ident(id) => {
+        if let Some(val) = self.constants.get(&id.to_id()) {
+          val.clone()
+        } else {
+          Err(id.span)
         }
       }
-      Ok(JsValue::Object(res))
+      Expr::Member(member) => {
+        let obj = self.eval(&*member.obj)?;
+        self.eval_member_prop(obj, &member)
+      }
+      Expr::OptChain(opt) => {
+        if let OptChainBase::Member(member) = &*opt.base {
+          let obj = self.eval(&*member.obj)?;
+          match obj {
+            JsValue::Undefined | JsValue::Null => Ok(JsValue::Undefined),
+            _ => self.eval_member_prop(obj, &member),
+          }
+        } else {
+          Err(opt.span)
+        }
+      }
+      Expr::Fn(FnExpr { function, .. }) => Err(function.span),
+      Expr::Class(ClassExpr { class, .. }) => Err(class.span),
+      Expr::JSXElement(el) => Err(el.span),
+      Expr::This(ThisExpr { span, .. })
+      | Expr::Update(UpdateExpr { span, .. })
+      | Expr::Assign(AssignExpr { span, .. })
+      | Expr::Call(CallExpr { span, .. })
+      | Expr::New(NewExpr { span, .. })
+      | Expr::Seq(SeqExpr { span, .. })
+      | Expr::TaggedTpl(TaggedTpl { span, .. })
+      | Expr::Arrow(ArrowExpr { span, .. })
+      | Expr::Yield(YieldExpr { span, .. })
+      | Expr::Await(AwaitExpr { span, .. })
+      | Expr::JSXFragment(JSXFragment { span, .. })
+      | Expr::PrivateName(PrivateName { span, .. }) => Err(*span),
+      _ => Err(DUMMY_SP),
     }
-    Expr::Bin(bin) => match (bin.op, eval(&*bin.left), eval(&*bin.right)) {
-      (BinaryOp::Add, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
-        Ok(JsValue::String(format!("{}{}", a, b)))
-      }
-      (BinaryOp::BitAnd, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Number(((a as i32) & (b as i32)) as f64))
-      }
-      (BinaryOp::BitOr, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Number(((a as i32) | (b as i32)) as f64))
-      }
-      (BinaryOp::BitXor, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Number(((a as i32) ^ (b as i32)) as f64))
-      }
-      (BinaryOp::LShift, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Number(((a as i32) << (b as i32)) as f64))
-      }
-      (BinaryOp::RShift, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Number(((a as i32) >> (b as i32)) as f64))
-      }
-      (BinaryOp::ZeroFillRShift, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Number(((a as i32) >> (b as u32)) as f64))
-      }
-      (BinaryOp::Add, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Number(a + b)),
-      (BinaryOp::Sub, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Number(a - b)),
-      (BinaryOp::Div, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Number(a / b)),
-      (BinaryOp::Mul, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Number(a * b)),
-      (BinaryOp::Mod, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Number(a % b)),
-      (BinaryOp::Exp, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Number(a.powf(b)))
-      }
-      (BinaryOp::EqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a == b)),
-      (BinaryOp::EqEqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a == b)),
-      (BinaryOp::NotEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a != b)),
-      (BinaryOp::NotEqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a != b)),
-      (BinaryOp::EqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a == b)),
-      (BinaryOp::EqEqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Bool(a == b))
-      }
-      (BinaryOp::NotEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Bool(a != b))
-      }
-      (BinaryOp::NotEqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
-        Ok(JsValue::Bool(a != b))
-      }
-      (BinaryOp::EqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => Ok(JsValue::Bool(a == b)),
-      (BinaryOp::EqEqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
-        Ok(JsValue::Bool(a == b))
-      }
-      (BinaryOp::NotEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
-        Ok(JsValue::Bool(a != b))
-      }
-      (BinaryOp::NotEqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
-        Ok(JsValue::Bool(a != b))
-      }
-      (BinaryOp::Gt, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a > b)),
-      (BinaryOp::GtEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a >= b)),
-      (BinaryOp::Lt, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a < b)),
-      (BinaryOp::LtEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a <= b)),
-      (BinaryOp::LogicalAnd, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => {
-        Ok(JsValue::Bool(a && b))
-      }
-      (BinaryOp::LogicalOr, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => {
-        Ok(JsValue::Bool(a || b))
-      }
-      (BinaryOp::NullishCoalescing, Ok(JsValue::Null | JsValue::Undefined), Ok(b)) => Ok(b),
-      (BinaryOp::NullishCoalescing, Ok(a), Ok(_)) => Ok(a),
-      _ => Err(bin.span),
-    },
-    Expr::Unary(unary) => match (unary.op, eval(&*unary.arg)) {
-      (UnaryOp::Bang, Ok(JsValue::Bool(v))) => Ok(JsValue::Bool(!v)),
-      (UnaryOp::Minus, Ok(JsValue::Number(v))) => Ok(JsValue::Number(-v)),
-      (UnaryOp::Plus, Ok(JsValue::Number(v))) => Ok(JsValue::Number(v)),
-      (UnaryOp::Plus, Ok(JsValue::String(v))) => {
-        if let Ok(v) = v.parse() {
-          Ok(JsValue::Number(v))
-        } else {
-          Err(unary.span)
-        }
-      }
-      (UnaryOp::Tilde, Ok(JsValue::Number(v))) => Ok(JsValue::Number((!(v as i32)) as f64)),
-      (UnaryOp::Void, Ok(_)) => Ok(JsValue::Undefined),
-      (UnaryOp::TypeOf, Ok(JsValue::Bool(_))) => Ok(JsValue::String("boolean".to_string())),
-      (UnaryOp::TypeOf, Ok(JsValue::Number(_))) => Ok(JsValue::String("number".to_string())),
-      (UnaryOp::TypeOf, Ok(JsValue::String(_))) => Ok(JsValue::String("string".to_string())),
-      (UnaryOp::TypeOf, Ok(JsValue::Object(_))) => Ok(JsValue::String("object".to_string())),
-      (UnaryOp::TypeOf, Ok(JsValue::Array(_))) => Ok(JsValue::String("object".to_string())),
-      (UnaryOp::TypeOf, Ok(JsValue::Regex { .. })) => Ok(JsValue::String("object".to_string())),
-      (UnaryOp::TypeOf, Ok(JsValue::Null)) => Ok(JsValue::String("object".to_string())),
-      (UnaryOp::TypeOf, Ok(JsValue::Undefined)) => Ok(JsValue::String("undefined".to_string())),
-      _ => Err(unary.span),
-    },
-    Expr::Ident(id) if &id.sym == "undefined" => Ok(JsValue::Undefined),
-    Expr::Cond(cond) => match eval(&*&cond.test) {
-      Ok(JsValue::Bool(v)) => {
-        if v {
-          eval(&*&cond.cons)
-        } else {
-          eval(&*cond.alt)
-        }
-      }
-      Ok(JsValue::Null) | Ok(JsValue::Undefined) => eval(&*cond.alt),
-      Ok(JsValue::Object(_))
-      | Ok(JsValue::Array(_))
-      | Ok(JsValue::Function(_))
-      | Ok(JsValue::Regex { .. }) => eval(&*cond.cons),
-      Ok(JsValue::String(s)) => {
-        if s.is_empty() {
-          eval(&*cond.alt)
-        } else {
-          eval(&*cond.cons)
-        }
-      }
-      Ok(JsValue::Number(n)) => {
-        if n == 0.0 {
-          eval(&*cond.alt)
-        } else {
-          eval(&*cond.cons)
-        }
-      }
-      Err(e) => Err(e),
-    },
-    Expr::Fn(FnExpr { function, .. }) => Err(function.span),
-    Expr::Class(ClassExpr { class, .. }) => Err(class.span),
-    Expr::JSXElement(el) => Err(el.span),
-    Expr::This(ThisExpr { span, .. })
-    | Expr::Update(UpdateExpr { span, .. })
-    | Expr::Assign(AssignExpr { span, .. })
-    | Expr::Member(MemberExpr { span, .. })
-    | Expr::Call(CallExpr { span, .. })
-    | Expr::New(NewExpr { span, .. })
-    | Expr::Seq(SeqExpr { span, .. })
-    | Expr::TaggedTpl(TaggedTpl { span, .. })
-    | Expr::Arrow(ArrowExpr { span, .. })
-    | Expr::Yield(YieldExpr { span, .. })
-    | Expr::Await(AwaitExpr { span, .. })
-    | Expr::JSXFragment(JSXFragment { span, .. })
-    | Expr::PrivateName(PrivateName { span, .. })
-    | Expr::OptChain(OptChainExpr { span, .. })
-    | Expr::Ident(Ident { span, .. }) => Err(*span),
-    _ => Err(DUMMY_SP),
   }
-}
 
-// Convert JS value to AST.
-impl<'a> Macros<'a> {
+  fn eval_member_prop(&self, obj: JsValue, member: &MemberExpr) -> Result<JsValue, Span> {
+    match &member.prop {
+      MemberProp::Ident(id) => obj.get_id(id.as_ref()).ok_or(member.span),
+      MemberProp::Computed(prop) => {
+        let k = self.eval(&*prop.expr)?;
+        obj.get(&k).ok_or(prop.span)
+      }
+      _ => Err(member.span),
+    }
+  }
+
+  /// Convert JS value to AST.
   fn value_to_expr(&self, value: JsValue) -> Result<Expr, Diagnostic> {
     Ok(match value {
       JsValue::Null => Expr::Lit(Lit::Null(Null::dummy())),
@@ -574,5 +652,178 @@ impl<'a> Macros<'a> {
         }
       }
     })
+  }
+
+  fn eval_pat(&mut self, value: Result<JsValue, Span>, pat: &Pat) {
+    match pat {
+      Pat::Ident(name) => {
+        self.constants.insert(name.to_id(), value);
+      }
+      Pat::Array(arr) => {
+        for (index, elem) in arr.elems.iter().enumerate() {
+          if let Some(elem) = elem {
+            match elem {
+              Pat::Array(ArrayPat { span, .. })
+              | Pat::Object(ObjectPat { span, .. })
+              | Pat::Ident(BindingIdent {
+                id: Ident { span, .. },
+                ..
+              }) => self.eval_pat(
+                value
+                  .as_ref()
+                  .and_then(|v| v.get_index(index).ok_or(span))
+                  .map_err(|s| *s),
+                elem,
+              ),
+              Pat::Rest(rest) => self.eval_pat(
+                value
+                  .as_ref()
+                  .and_then(|v| v.rest(index).ok_or(&rest.span))
+                  .map_err(|s| *s),
+                &*rest.arg,
+              ),
+              Pat::Assign(assign) => self.eval_pat(
+                value.as_ref().map_err(|e| *e).and_then(|v| {
+                  v.get_index(index)
+                    .ok_or(assign.span)
+                    .or_else(|_| self.eval(&*assign.right))
+                }),
+                &*assign.left,
+              ),
+              _ => {}
+            }
+          }
+        }
+      }
+      Pat::Object(obj) => {
+        let mut consumed = HashSet::new();
+        for prop in &obj.props {
+          match prop {
+            ObjectPatProp::KeyValue(kv) => {
+              let val = value
+                .as_ref()
+                .map_err(|e| *e)
+                .and_then(|value| match &kv.key {
+                  PropName::Ident(id) => {
+                    consumed.insert(id.sym.clone());
+                    value.get_id(id.sym.as_str()).ok_or(id.span)
+                  }
+                  PropName::Str(s) => {
+                    consumed.insert(s.value.clone());
+                    value.get_id(s.value.as_str()).ok_or(s.span)
+                  }
+                  PropName::Num(n) => {
+                    consumed.insert(n.value.to_string().into());
+                    value.get_index(n.value as usize).ok_or(n.span)
+                  }
+                  PropName::Computed(c) => {
+                    let k = &self.eval(&*c.expr)?;
+                    match k {
+                      JsValue::String(s) => {
+                        consumed.insert(s.clone().into());
+                      }
+                      JsValue::Number(n) => {
+                        consumed.insert(n.to_string().into());
+                      }
+                      _ => {}
+                    }
+                    value.get(&k).ok_or(c.span)
+                  }
+                  PropName::BigInt(v) => Err(v.span),
+                });
+              self.eval_pat(val, &*kv.value)
+            }
+            ObjectPatProp::Assign(assign) => {
+              let val = value.as_ref().map_err(|e| *e).and_then(|value| {
+                value
+                  .get_id(assign.key.sym.as_str())
+                  .ok_or(assign.span)
+                  .or_else(|_| {
+                    assign
+                      .value
+                      .as_ref()
+                      .map_or(Err(assign.span), |v| self.eval(&*v))
+                  })
+              });
+              self.constants.insert(assign.key.to_id(), val);
+              consumed.insert(assign.key.sym.clone());
+            }
+            ObjectPatProp::Rest(rest) => {
+              let val = value.as_ref().map_err(|e| *e).and_then(|value| {
+                if let JsValue::Object(obj) = value {
+                  let filtered = obj
+                    .iter()
+                    .filter(|(k, _)| !consumed.contains(&k.as_str().into()))
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                  Ok(JsValue::Object(filtered))
+                } else {
+                  Err(rest.span)
+                }
+              });
+              self.eval_pat(val, &*rest.arg);
+            }
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+}
+
+impl JsValue {
+  fn get(&self, prop: &JsValue) -> Option<JsValue> {
+    match self {
+      JsValue::Array(arr) => {
+        if let JsValue::Number(n) = prop {
+          arr.get(*n as usize).cloned()
+        } else {
+          None
+        }
+      }
+      JsValue::Object(_) => match prop {
+        JsValue::Number(n) => {
+          let index = n.to_string();
+          self.get_id(&index)
+        }
+        JsValue::String(s) => self.get_id(s),
+        _ => None,
+      },
+      JsValue::String(s) => match prop {
+        JsValue::String(prop) => self.get_id(prop),
+        JsValue::Number(n) => s
+          .get(*n as usize..=*n as usize)
+          .map(|c| JsValue::String(c.to_owned())),
+        _ => None,
+      },
+      _ => None,
+    }
+  }
+
+  fn get_index(&self, index: usize) -> Option<JsValue> {
+    if let JsValue::Array(arr) = self {
+      arr.get(index).cloned()
+    } else {
+      None
+    }
+  }
+
+  fn get_id(&self, prop: &str) -> Option<JsValue> {
+    match self {
+      JsValue::Object(obj) => obj.get(prop).cloned(),
+      JsValue::String(s) => match prop {
+        "length" => Some(JsValue::Number(s.len() as f64)),
+        _ => None,
+      },
+      _ => None,
+    }
+  }
+
+  fn rest(&self, index: usize) -> Option<JsValue> {
+    if let JsValue::Array(arr) = self {
+      arr.get(index..).map(|s| JsValue::Array(s.to_vec()))
+    } else {
+      None
+    }
   }
 }

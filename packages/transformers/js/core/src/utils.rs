@@ -239,13 +239,13 @@ impl PartialOrd for SourceLocation {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct CodeHighlight {
   pub message: Option<String>,
   pub loc: SourceLocation,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Diagnostic {
   pub message: String,
   pub code_highlights: Option<Vec<CodeHighlight>>,
