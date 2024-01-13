@@ -29,7 +29,7 @@ This will then be interpreted from the `AssetGraph` into a map of targets, which
   }
 ```
 
-`bundle()` is then called for **each** entry in the Map, creating two distict `IdealGraphs`, and in this case, identical graphs. `createIdealGraph` skips any subtrees of another target.
+`bundle()` is then called for **each** entry in the Map, creating two distinct `IdealGraphs`, and in this case, identical graphs. `createIdealGraph` skips any subtrees of another target.
 
 ```js
 if (!entries.has(node.value)) {
@@ -112,7 +112,7 @@ _The full test case can be found in the `multi-css-multi-entry-bug/src/` integra
 
 ## Reused Bundle
 
-Reused bundles are a special type of shared bundle. Consider the following code. (taken from the 'should reuse a bundle when its main asset (aka bundleroot) is imported sychronously' test case in `javascript.js`)
+Reused bundles are a special type of shared bundle. Consider the following code. (taken from the 'should reuse a bundle when its main asset (aka bundleroot) is imported synchronously'' test case in `javascript.js`)
 
 <table><tr>
 <td>
@@ -170,7 +170,7 @@ foo => [a,b]
 bar => [a, b, foo]
 ```
 
-From the availability above, it should be clear that the best way to place `a` and `b` would to be to place them into our existing `foo` bundle, and simply connect `bar` to it, since `bar` requires `foo` as well. That is exactly what we do.
+From the availability above, it should be clear that the best way to place `a` and `b` would be to place them into our existing `foo` bundle, and simply connect `bar` to it, since `bar` requires `foo` as well. That is exactly what we do.
 
 ![image info](./BundlerGraphs/steps/idealBundleGraph_final_reusedFoo.png)
 
@@ -193,7 +193,7 @@ We loop through them, searching for a `candidate`. Since we don't know which ass
 1. Asset is a bundleRoot, in this case `foo.js`.
 2. Asset is not a bundleRoot, in this case `a.js` or `b.js`
 
-In the first case, we simply draw teh edge and delete the `candidate` from this assets reachable. We must delete it because this loop does not terminate asset placement, if reachable was still populated, we would go on to try to place our asset in the remaining reachable bundleroots.
+In the first case, we simply draw an edge and delete the `candidate` from this asset's reachable. We must delete it because this loop does not terminate asset placement, if reachable was still populated, we would go on to try to place our asset in the remaining reachable bundleroots.
 
 ```js
   let reuseableBundleId = bundles.get(asset.id);
@@ -249,11 +249,107 @@ _The full test case can be found in the `shared-bundle-single-source/` case in `
 
 ## Manual Bundles
 
-Manual Bundles override Parcel's automatice code splitting. Consider the code below, with the following config in `package.json`.
+Manual Bundles override Parcel's automatic code splitting. Consider the code below, with the following config in `package.json`.
+
+```json
+package.json:
+    {
+      "@parcel/bundler-default": {
+        "manualSharedBundles": [{
+          "name": "vendor",
+          "root": "math/math.js",
+          "assets": ["math/!(divide).js"]
+        }]
+      }
+    }
+
+```
+
+From the above, the pertinent data structures will be populated as such:
+
+```json
+manualSharedObject =
+  {
+    "name": "vendor",
+    "root": "math/math.js",
+    "assets": ["math/!(divide).js"]
+  }
+
+parentsToConfig =
+{
+  "math/math.js": {
+    "name": "vendor"
+    "root": etc ...
+  }
+}
+
+manualAssetToConfig = {
+  "project/math/math.js": {
+    {manualSharedObject}
+  },
+  "project/add.js": {
+    {manualSharedObject}
+  },
+  "project/subtract.js": {
+    {manualSharedObject}
+  }
+}
+```
+
+This allows us to look up any asset's `manualSharedObject`.
+
+Below are the relevant files, our root, `math.js`, and `index.js`, which imports it. Please refer to the full test case in `bundler.js` for all source code.
+
+<table><tr>
+<td>
+<td>
+
+```js
+//math:
+math.js:
+export * from './add';
+export * from './subtract';
+export * from './divide';
+```
+
+</td>
+<td>
+
+```js
+index.js:
+        import {add, subtract, divide} from './math/math';
+        sideEffectNoop(divide(subtract(add(1, 2), 3), 4));
+
+```
+
+</td>
+</tr></table>
+
+After **Step Create Bundles**, we are left with two bundles, one bundle group. There are no manual bundles in the graph below because the config does not math any explicit code split point.
+
+![image info](./BundlerGraphs/manual-bundles/msb_step1.png)
+
+The remaining assets left to place during asset placement are, `math.js`, `add.js`, `subtract.js`, and `divide.js`. From `reachable` you can infer what Parcel would/should do. Simply place all remaining assets into `index.js`, right?
+
+However, we've specified via config that we want `math` and its imports which match the glob `!(divide)` in one bundle with nothing else.
+
+```
+//reachable
+
+math =>     [index.js]
+add =>      [index.js]
+subtract => [index.js]
+divide =>   [index.js]
+```
+
+So that is exactly what happens. Looking up assets in the `manualAssetToConfig`, we place them into their own bundle, and connect it via edge and property `sourceBundles`. Source bundles property is equivalent to `reachable`.
+![image info](./BundlerGraphs/manual-bundles/msb_stepfinal.png)
+
+_The full test case can be found in the `bundler.js` test suite._
 
 ## Debugging Notes
 
-There are many more cases that what I've discussed above. To understand the algorithm fully, debugging and visualizing the idealGraph structure is extremely beneficial. To do so, you may add the following in between steps within `DefaultBundler.js`,
+There are many more intricate and complex cases than what I've discussed above within Parcel's test suite. To understand the algorithm fully, debugging and visualizing the idealGraph structure is extremely beneficial. To do so, you may add the following in between steps within `DefaultBundler.js`,
 
 ```
 dumpGraphToGraphViz(
