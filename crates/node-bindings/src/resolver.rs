@@ -41,6 +41,7 @@ pub struct JsResolverOptions {
   pub entries: Option<u8>,
   pub extensions: Option<Vec<String>>,
   pub package_exports: bool,
+  pub typescript: Option<bool>,
 }
 
 struct FunctionRef {
@@ -286,6 +287,10 @@ impl Resolver {
     }
 
     resolver.flags.set(Flags::EXPORTS, options.package_exports);
+
+    if matches!(options.typescript, Some(true)) {
+      resolver.flags |= Flags::TYPESCRIPT;
+    }
 
     if let Some(module_dir_resolver) = options.module_dir_resolver {
       let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
