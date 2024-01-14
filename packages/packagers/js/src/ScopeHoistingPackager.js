@@ -137,10 +137,19 @@ export class ScopeHoistingPackager {
       for (let b of this.bundleGraph.getReferencedBundles(this.bundle)) {
         let entry = b.getMainEntry();
         let symbols = new Map();
-        if (entry && !this.isAsyncBundle && entry.type === 'js') {
+        if (entry && entry.type === 'js') {
           this.externalAssets.add(entry);
 
           let usedSymbols = this.bundleGraph.getUsedSymbols(entry) || new Set();
+          let exportedSymbols = this.bundleGraph.getExportedSymbols(entry);
+          let hasNamespaceExport = exportedSymbols.some(
+            s => s.exportAs === '*',
+          );
+          if (usedSymbols.has('*') && !hasNamespaceExport) {
+            // Use all exported symbols if a namespace is requested but does not exist.
+            usedSymbols = new Set(exportedSymbols.map(e => e.exportSymbol));
+          }
+
           for (let s of usedSymbols) {
             // If the referenced bundle is ESM, and we are importing '*', use 'default' instead.
             // This matches the logic below in buildExportedSymbols.
@@ -324,7 +333,6 @@ export class ScopeHoistingPackager {
 
       if (
         asset.meta.shouldWrap ||
-        this.isAsyncBundle ||
         this.bundle.env.sourceType === 'script' ||
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
@@ -361,7 +369,6 @@ export class ScopeHoistingPackager {
 
   buildExportedSymbols() {
     if (
-      this.isAsyncBundle ||
       !this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat !== 'esmodule'
     ) {
@@ -1043,6 +1050,7 @@ ${code}
             .some(
               dep =>
                 !dep.isEntry &&
+                this.bundle.hasDependency(dep) &&
                 nullthrows(this.bundleGraph.getUsedSymbols(dep)).has('*'),
             ))) ||
       // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
