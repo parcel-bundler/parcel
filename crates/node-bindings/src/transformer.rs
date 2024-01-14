@@ -1,4 +1,3 @@
-use indexmap::IndexMap;
 use napi::{Env, JsObject, JsUnknown};
 use napi_derive::napi;
 
@@ -20,6 +19,7 @@ mod native_only {
   };
   use parcel_js_swc_core::{JsValue, SourceLocation};
   use std::sync::Arc;
+  use indexmap::IndexMap;
 
   // Allocate a single channel per thread to communicate with the JS thread.
   thread_local! {
