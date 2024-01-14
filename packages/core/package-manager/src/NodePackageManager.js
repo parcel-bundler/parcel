@@ -31,6 +31,7 @@ import {installPackage} from './installPackage';
 import pkg from '../package.json';
 import {ResolverBase} from '@parcel/node-resolver-core';
 import {pathToFileURL} from 'url';
+import {transformSync} from '@swc/core';
 
 // Package.json fields. Must match package_json.rs.
 const MAIN = 1 << 0;
@@ -41,6 +42,8 @@ const ENTRIES =
   process.env.PARCEL_SELF_BUILD
     ? SOURCE
     : 0);
+
+const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
@@ -103,6 +106,7 @@ export class NodePackageManager implements PackageManager {
             }
           : undefined,
       extensions: this.currentExtensions,
+      typescript: true,
     });
   }
 
@@ -207,6 +211,29 @@ export class NodePackageManager implements PackageManager {
     nativeFS.statSync = filename => {
       return this.fs.statSync(filename);
     };
+
+    if (!filePath.includes(NODE_MODULES)) {
+      let extname = path.extname(filePath);
+      if (
+        (extname === '.ts' || extname === '.tsx') &&
+        // $FlowFixMe
+        !Module._extensions[extname]
+      ) {
+        let compile = m._compile;
+        m._compile = (code, filename) => {
+          let out = transformSync(code, {filename, module: {type: 'commonjs'}});
+          compile.call(m, out.code, filename);
+        };
+
+        // $FlowFixMe
+        Module._extensions[extname] = (m, filename) => {
+          // $FlowFixMe
+          delete Module._extensions[extname];
+          // $FlowFixMe
+          Module._extensions['.js'](m, filename);
+        };
+      }
+    }
 
     try {
       m.load(filePath);

@@ -31,6 +31,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
+import type {EventType} from '@parcel/watcher';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -168,7 +169,6 @@ export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
 export type Asset = {|
   id: ContentKey,
   committed: boolean,
-  hash: ?string,
   filePath: ProjectPath,
   query: ?string,
   type: string,
@@ -242,6 +242,15 @@ export type InternalFileCreateInvalidation =
   | InternalGlobInvalidation
   | InternalFileAboveInvalidation;
 
+export type Invalidations = {|
+  invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
+  invalidateOnEnvChange: Set<string>,
+  invalidateOnOptionChange: Set<string>,
+  invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
+|};
+
 export type DevDepRequest = {|
   specifier: DependencySpecifier,
   resolveFrom: ProjectPath,
@@ -265,6 +274,7 @@ export type ParcelOptions = {|
 
   shouldDisableCache: boolean,
   cacheDir: FilePath,
+  watchDir: FilePath,
   mode: BuildMode,
   hmrOptions: ?HMROptions,
   shouldContentHash: boolean,
@@ -280,6 +290,10 @@ export type ParcelOptions = {|
   shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
+  unstableFileInvalidations?: Array<{|
+    path: FilePath,
+    type: EventType,
+  |}>,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -390,7 +404,6 @@ export type AssetGroupNode = {|
 
 export type TransformationRequest = {|
   ...AssetGroup,
-  invalidations: Array<RequestInvalidation>,
   invalidateReason: number,
   devDeps: Map<PackageName, string>,
   invalidDevDeps: Array<{|

@@ -32,7 +32,9 @@ const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
 const seenPhases = new Set();
 const seenPhasesGen = new Set();
-const phaseStartTimes = {};
+
+let phaseStartTimes = {};
+let pendingIncrementalBuild = false;
 
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
@@ -74,6 +76,13 @@ export async function _report(
     case 'buildProgress': {
       if (logLevelFilter < logLevels.info) {
         break;
+      }
+
+      if (pendingIncrementalBuild) {
+        pendingIncrementalBuild = false;
+        phaseStartTimes = {};
+        seenPhasesGen.clear();
+        seenPhases.clear();
       }
 
       if (!seenPhasesGen.has(event.phase)) {
@@ -127,9 +136,12 @@ export async function _report(
           options.projectRoot,
           options.detailedReport?.assetsPerBundle,
         );
-        if (process.env.PARCEL_SHOW_PHASE_TIMES) {
-          phaseReport(phaseStartTimes);
-        }
+      } else {
+        pendingIncrementalBuild = true;
+      }
+
+      if (process.env.PARCEL_SHOW_PHASE_TIMES) {
+        phaseReport(phaseStartTimes);
       }
       break;
     case 'buildFailure':
@@ -144,7 +156,7 @@ export async function _report(
       await writeDiagnostic(options, event.diagnostics, 'red', true);
       break;
     case 'cache':
-      if (event.size > 5000) {
+      if (event.size > 500000) {
         switch (event.phase) {
           case 'start':
             if (!bar) {

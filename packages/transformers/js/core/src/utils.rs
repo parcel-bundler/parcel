@@ -3,7 +3,8 @@ use std::collections::HashSet;
 
 use crate::id;
 use serde::{Deserialize, Serialize};
-use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::common::errors::{DiagnosticBuilder, Emitter};
+use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
 use swc_core::ecma::ast::{self, Id};
 use swc_core::ecma::atoms::{js_word, JsWord};
 
@@ -33,7 +34,7 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &Hash
     match &*member.obj {
       Expr::Member(m) => member = m,
       Expr::Ident(id) => {
-        return idents.len() == 1 && &id.sym == idents.pop().unwrap() && !decls.contains(&id!(id));
+        return idents.len() == 1 && id.sym == idents.pop().unwrap() && !decls.contains(&id!(id));
       }
       _ => return false,
     }
@@ -125,7 +126,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
             && !decls.contains(&(ident.sym.clone(), ident.span.ctxt))
             && !is_marked(ident.span, ignore_mark)
           {
-            if let Some(arg) = call.args.get(0) {
+            if let Some(arg) = call.args.first() {
               return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
@@ -134,7 +135,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
         }
         Expr::Member(member) => {
           if match_member_expr(member, vec!["module", "require"], decls) {
-            if let Some(arg) = call.args.get(0) {
+            if let Some(arg) = call.args.first() {
               return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
@@ -155,7 +156,7 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
   match node {
     Expr::Call(call) => match &call.callee {
       Callee::Import(ident) if !is_marked(ident.span, ignore_mark) => {
-        if let Some(arg) = call.args.get(0) {
+        if let Some(arg) = call.args.first() {
           return match_str(&arg.expr).map(|(name, _)| name);
         }
         None
@@ -387,4 +388,62 @@ macro_rules! id {
   ($ident: expr) => {
     $ident.to_id()
   };
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
+
+impl Emitter for ErrorBuffer {
+  fn emit(&mut self, db: &DiagnosticBuilder) {
+    self.0.lock().unwrap().push((**db).clone());
+  }
+}
+
+pub fn error_buffer_to_diagnostics(
+  error_buffer: &ErrorBuffer,
+  source_map: &SourceMap,
+) -> Vec<Diagnostic> {
+  let s = error_buffer.0.lock().unwrap().clone();
+  s.iter()
+    .map(|diagnostic| {
+      let message = diagnostic.message();
+      let span = diagnostic.span.clone();
+      let suggestions = diagnostic.suggestions.clone();
+
+      let span_labels = span.span_labels();
+      let code_highlights = if !span_labels.is_empty() {
+        let mut highlights = vec![];
+        for span_label in span_labels {
+          highlights.push(CodeHighlight {
+            message: span_label.label,
+            loc: SourceLocation::from(source_map, span_label.span),
+          });
+        }
+
+        Some(highlights)
+      } else {
+        None
+      };
+
+      let hints = if !suggestions.is_empty() {
+        Some(
+          suggestions
+            .into_iter()
+            .map(|suggestion| suggestion.msg)
+            .collect(),
+        )
+      } else {
+        None
+      };
+
+      Diagnostic {
+        message,
+        code_highlights,
+        hints,
+        show_environment: false,
+        severity: DiagnosticSeverity::Error,
+        documentation_url: None,
+      }
+    })
+    .collect()
 }
