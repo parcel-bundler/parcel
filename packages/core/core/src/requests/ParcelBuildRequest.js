@@ -89,14 +89,13 @@ async function run({input, api, options}) {
     phase: 'bundled',
     bundleGraph: new IBundleGraph(
       bundleGraph,
-      (bundle, bundleGraph, options) =>
-        NamedBundle.get(bundle, bundleGraph, options),
+      NamedBundle.get.bind(NamedBundle),
       options,
     ),
     changedAssets: new Map(
       Array.from(changedAssets).map(([id, asset]) => [
         readCachedString(options.db, DbAsset.get(options.db, id).id),
-        assetFromValue(asset, options, bundleGraph),
+        assetFromValue(asset, options, bundleGraph, bundleGraphRequest),
       ]),
     ),
   });

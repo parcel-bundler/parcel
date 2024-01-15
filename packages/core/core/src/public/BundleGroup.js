@@ -8,11 +8,9 @@ import type {BundleGroup as InternalBundleGroup, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import Target from './Target';
+import type {Scope} from '../scopeCache';
+import {getScopeCache} from '../scopeCache';
 
-const internalBundleGroupToBundleGroup: WeakMap<
-  InternalBundleGroup,
-  BundleGroup,
-> = new WeakMap();
 const _bundleGroupToInternalBundleGroup: WeakMap<
   IBundleGroup,
   InternalBundleGroup,
@@ -26,25 +24,30 @@ export function bundleGroupToInternalBundleGroup(
 export default class BundleGroup implements IBundleGroup {
   #bundleGroup /*: InternalBundleGroup */;
   #options /*: ParcelOptions */;
+  #scope: Scope;
 
   constructor(
     bundleGroup: InternalBundleGroup,
     options: ParcelOptions,
+    scope: Scope,
   ): BundleGroup {
-    let existing = internalBundleGroupToBundleGroup.get(bundleGroup);
+    let cache = getScopeCache(scope, 'BundleGroup');
+
+    let existing = cache.get(bundleGroup);
     if (existing != null) {
       return existing;
     }
 
     this.#bundleGroup = bundleGroup;
     this.#options = options;
+    this.#scope = scope;
     _bundleGroupToInternalBundleGroup.set(this, bundleGroup);
-    internalBundleGroupToBundleGroup.set(bundleGroup, this);
+    cache.set(bundleGroup, this);
     return this;
   }
 
   get target(): ITarget {
-    return new Target(this.#bundleGroup.target, this.#options);
+    return new Target(this.#bundleGroup.target, this.#options, this.#scope);
   }
 
   get entryAssetId(): string {

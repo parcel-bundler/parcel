@@ -223,7 +223,7 @@ class BundlerRunner {
       searchPath: toProjectPathUnsafe('index'),
     });
 
-    await loadPluginConfig(plugin, config, this.options);
+    await loadPluginConfig(plugin, config, this.options, this);
     await runConfigRequest(this.api, config);
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(
@@ -424,9 +424,19 @@ class BundlerRunner {
       // inline bundles must still be named so the PackagerRunner
       // can match them to the correct packager/optimizer plugins.
       let bundles = internalBundleGraph.getBundles({includeInline: true});
+      let publicBundleGraph = new BundleGraph<IBundle>(
+        internalBundleGraph,
+        NamedBundle.get.bind(NamedBundle),
+        this.options,
+      );
       await Promise.all(
         bundles.map(bundle =>
-          this.nameBundle(namers, bundle, internalBundleGraph),
+          this.nameBundle(
+            namers,
+            bundle,
+            internalBundleGraph,
+            publicBundleGraph,
+          ),
         ),
       );
 
@@ -508,12 +518,13 @@ class BundlerRunner {
     namers: Array<LoadedPlugin<Namer<mixed>>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
+    publicBundleGraph: BundleGraph<IBundle>,
   ): Promise<void> {
-    let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
-    let bundleGraph = new BundleGraph<IBundle>(
+    let bundle = Bundle.get(
+      internalBundle,
       internalBundleGraph,
-      NamedBundle.get.bind(NamedBundle),
       this.options,
+      publicBundleGraph,
     );
 
     for (let namer of namers) {
@@ -522,7 +533,7 @@ class BundlerRunner {
         measurement = tracer.createMeasurement(namer.name, 'namer', bundle.id);
         let name = await namer.plugin.name({
           bundle,
-          bundleGraph,
+          bundleGraph: publicBundleGraph,
           config: this.configs.get(namer.name)?.result,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: namer.name}),

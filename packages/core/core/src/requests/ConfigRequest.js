@@ -16,6 +16,7 @@ import type {
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
+import type {Scope} from '../scopeCache';
 
 import {serializeRaw} from '../serializer.js';
 import {PluginLogger} from '@parcel/logger';
@@ -71,6 +72,7 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   loadedPlugin: LoadedPlugin<T>,
   config: Config,
   options: ParcelOptions,
+  scope: Scope,
 ): Promise<void> {
   let loadConfig = loadedPlugin.plugin.loadConfig;
   if (!loadConfig) {
@@ -79,7 +81,7 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
 
   try {
     config.result = await loadConfig({
-      config: new PublicConfig(config, options),
+      config: new PublicConfig(config, options, scope),
       options: new PluginOptions(
         optionsProxy(options, option => {
           config.invalidateOnOptionChange.add(option);

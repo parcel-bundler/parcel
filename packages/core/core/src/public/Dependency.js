@@ -26,12 +26,11 @@ import {
   Asset as DbAsset,
   readCachedString,
 } from '@parcel/rust';
-import {createBuildCache} from '../buildCache';
+import {getScopeCache} from '../scopeCache';
+import type {Scope} from '../scopeCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalDependencyToDependency: Map<DependencyAddr, Dependency> =
-  createBuildCache();
 const _dependencyToInternalDependency: WeakMap<IDependency, DependencyAddr> =
   new WeakMap();
 export function dependencyToInternalDependency(
@@ -43,24 +42,35 @@ export function dependencyToInternalDependency(
 export function getPublicDependency(
   dep: DependencyAddr,
   options: ParcelOptions,
+  scope: Scope,
 ): Dependency {
-  let existing = internalDependencyToDependency.get(dep);
+  let cache = getScopeCache(scope, 'Dependency');
+
+  let existing = cache.get(dep);
   if (existing != null) {
     return existing;
   }
 
-  return new Dependency(dep, options);
+  let dependency = new Dependency(dep, options, scope);
+  cache.set(dep, dependency);
+
+  return dependency;
 }
 
 export default class Dependency implements IDependency {
   #dep /*: DbDependency */;
   #options /*: ParcelOptions */;
+  #scope: Scope;
 
-  constructor(dep: DependencyAddr, options: ParcelOptions): Dependency {
+  constructor(
+    dep: DependencyAddr,
+    options: ParcelOptions,
+    scope: Scope,
+  ): Dependency {
     this.#dep = DbDependency.get(options.db, dep);
     this.#options = options;
+    this.#scope = scope;
     _dependencyToInternalDependency.set(this, dep);
-    internalDependencyToDependency.set(dep, this);
     return this;
   }
 
@@ -107,7 +117,7 @@ export default class Dependency implements IDependency {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#dep.env, this.#options);
+    return new Environment(this.#dep.env, this.#options, this.#scope);
   }
 
   get packageConditions(): ?Array<string> {
@@ -145,12 +155,16 @@ export default class Dependency implements IDependency {
   }
 
   get symbols(): IMutableDependencySymbols {
-    return new MutableDependencySymbols(this.#options, this.#dep.addr);
+    return new MutableDependencySymbols(
+      this.#options,
+      this.#dep.addr,
+      this.#scope,
+    );
   }
 
   get target(): ?Target {
     let target = this.#dep.target;
-    return target ? new Target(target, this.#options) : null;
+    return target ? new Target(target, this.#options, this.#scope) : null;
   }
 
   get sourceAssetId(): ?string {

@@ -13,11 +13,11 @@ import Environment from './Environment';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
 import {Target as DbTarget} from '@parcel/rust';
-import {createBuildCache} from '../buildCache';
+import {getScopeCache} from '../scopeCache';
+import type {Scope} from '../scopeCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalTargetToTarget: Map<TargetAddr, Target> = createBuildCache();
 const _targetToInternalTarget: WeakMap<ITarget, TargetAddr> = new WeakMap();
 export function targetToInternalTarget(target: ITarget): TargetAddr {
   return nullthrows(_targetToInternalTarget.get(target));
@@ -26,17 +26,25 @@ export function targetToInternalTarget(target: ITarget): TargetAddr {
 export default class Target implements ITarget {
   #target /*: DbTarget */;
   #options /*: ParcelOptions */;
+  #scope: Scope;
 
-  constructor(target: TargetAddr, options: ParcelOptions): Target {
-    let existing = internalTargetToTarget.get(target);
+  constructor(
+    target: TargetAddr,
+    options: ParcelOptions,
+    scope: Scope,
+  ): Target {
+    let cache = getScopeCache(scope, 'Target');
+
+    let existing = cache.get(target);
     if (existing != null) {
       return existing;
     }
 
     this.#target = DbTarget.get(options.db, target);
     this.#options = options;
+    this.#scope = scope;
     _targetToInternalTarget.set(this, target);
-    internalTargetToTarget.set(target, this);
+    cache.set(target, this);
     return this;
   }
 
@@ -49,7 +57,7 @@ export default class Target implements ITarget {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#target.env, this.#options);
+    return new Environment(this.#target.env, this.#options, this.#scope);
   }
 
   get name(): string {

@@ -80,7 +80,7 @@ export default class ReporterRunner {
       // $FlowFixMe[incompatible-call]
       this.report({
         ...event,
-        bundle: NamedBundle.get(bundle, bundleGraph, this.options),
+        bundle: NamedBundle.get(bundle, bundleGraph, this.options, event),
       });
       return;
     }

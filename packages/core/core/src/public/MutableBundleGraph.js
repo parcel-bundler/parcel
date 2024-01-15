@@ -23,7 +23,10 @@ import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {assetFromValue, assetToAssetValue} from './Asset';
 import {getBundleGroupId, getPublicId} from '../utils';
-import Dependency, {dependencyToInternalDependency} from './Dependency';
+import {
+  dependencyToInternalDependency,
+  getPublicDependency,
+} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
@@ -66,7 +69,7 @@ export default class MutableBundleGraph
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d, this.#options))
+        ? d => shouldSkipDependency(getPublicDependency(d, this.#options, this))
         : undefined,
     );
   }
@@ -80,7 +83,7 @@ export default class MutableBundleGraph
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d, this.#options))
+        ? d => shouldSkipDependency(getPublicDependency(d, this.#options, this))
         : undefined,
     );
   }
@@ -167,7 +170,7 @@ export default class MutableBundleGraph
       }
     }
 
-    return new BundleGroup(bundleGroup, this.#options);
+    return new BundleGroup(bundleGroup, this.#options, this);
   }
 
   removeBundleGroup(bundleGroup: IBundleGroup): void {
@@ -205,7 +208,7 @@ export default class MutableBundleGraph
     let existing = this.#graph._graph.getNodeByContentKey(bundleId);
     if (existing != null) {
       invariant(existing.type === 'bundle');
-      return Bundle.get(existing.value, this.#graph, this.#options);
+      return Bundle.get(existing.value, this.#graph, this.#options, this);
     }
 
     let publicId = getPublicId(bundleId, existing =>
@@ -265,7 +268,7 @@ export default class MutableBundleGraph
         this.#graph._graph.getNodeIdByContentKey(entryAsset.id),
       );
     }
-    return Bundle.get(bundleNode.value, this.#graph, this.#options);
+    return Bundle.get(bundleNode.value, this.#graph, this.#options, this);
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: IBundleGroup) {
@@ -297,13 +300,13 @@ export default class MutableBundleGraph
   getDependencyAssets(dependency: IDependency): Array<IAsset> {
     return this.#graph
       .getDependencyAssets(dependencyToInternalDependency(dependency))
-      .map(asset => assetFromValue(asset, this.#options, this.#graph));
+      .map(asset => assetFromValue(asset, this.#options, this.#graph, this));
   }
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<IBundleGroup> {
     return this.#graph
       .getBundleGroupsContainingBundle(bundleToInternalBundle(bundle))
-      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options));
+      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options, this));
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: IBundleGroup): Array<IBundle> {
@@ -311,7 +314,7 @@ export default class MutableBundleGraph
       .getParentBundlesOfBundleGroup(
         bundleGroupToInternalBundleGroup(bundleGroup),
       )
-      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options, this));
   }
 
   getTotalSize(asset: IAsset): number {

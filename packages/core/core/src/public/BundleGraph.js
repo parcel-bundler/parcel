@@ -31,6 +31,7 @@ import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
 import {readCachedString} from '@parcel/rust';
+import type {Scope} from '../scopeCache';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -48,6 +49,7 @@ type BundleFactory<TBundle: IBundle> = (
   InternalBundle,
   InternalBundleGraph,
   ParcelOptions,
+  Scope,
 ) => TBundle;
 
 export default class BundleGraph<TBundle: IBundle>
@@ -55,7 +57,7 @@ export default class BundleGraph<TBundle: IBundle>
 {
   #graph: InternalBundleGraph;
   #options: ParcelOptions;
-  #createBundle: BundleFactory<TBundle>;
+  #bundleFactory: BundleFactory<TBundle>;
 
   constructor(
     graph: InternalBundleGraph,
@@ -64,9 +66,13 @@ export default class BundleGraph<TBundle: IBundle>
   ) {
     this.#graph = graph;
     this.#options = options;
-    this.#createBundle = createBundle;
+    this.#bundleFactory = createBundle;
     // $FlowFixMe
     _bundleGraphToInternalBundleGraph.set(this, graph);
+  }
+
+  #createBundle(bundle: InternalBundle): TBundle {
+    return this.#bundleFactory(bundle, this.#graph, this.#options, this);
   }
 
   getAssetById(id: string): CommittedAsset {
@@ -74,6 +80,7 @@ export default class BundleGraph<TBundle: IBundle>
       this.#graph.getAssetById(id),
       this.#options,
       this.#graph,
+      this,
     );
   }
 
@@ -91,14 +98,14 @@ export default class BundleGraph<TBundle: IBundle>
       bundle && bundleToInternalBundle(bundle),
     );
     if (resolution != null) {
-      return assetFromValue(resolution, this.#options, this.#graph);
+      return assetFromValue(resolution, this.#options, this.#graph, this);
     }
   }
 
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getIncomingDependencies(assetToAssetValue(asset))
-      .map(dep => getPublicDependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options, this));
   }
 
   getAssetWithDependency(dep: IDependency): ?IAsset {
@@ -106,14 +113,14 @@ export default class BundleGraph<TBundle: IBundle>
       dependencyToInternalDependency(dep),
     );
     if (asset != null) {
-      return assetFromValue(asset, this.#options, this.#graph);
+      return assetFromValue(asset, this.#options, this.#graph, this);
     }
   }
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<IBundleGroup> {
     return this.#graph
       .getBundleGroupsContainingBundle(bundleToInternalBundle(bundle))
-      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options));
+      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options, this));
   }
 
   getReferencedBundles(
@@ -122,7 +129,7 @@ export default class BundleGraph<TBundle: IBundle>
   ): Array<TBundle> {
     return this.#graph
       .getReferencedBundles(bundleToInternalBundle(bundle), opts)
-      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+      .map(bundle => this.#createBundle(bundle));
   }
 
   resolveAsyncDependency(
@@ -142,13 +149,13 @@ export default class BundleGraph<TBundle: IBundle>
     } else if (resolved.type === 'bundle_group') {
       return {
         type: 'bundle_group',
-        value: new BundleGroup(resolved.value, this.#options),
+        value: new BundleGroup(resolved.value, this.#options, this),
       };
     }
 
     return {
       type: 'asset',
-      value: assetFromValue(resolved.value, this.#options, this.#graph),
+      value: assetFromValue(resolved.value, this.#options, this.#graph, this),
     };
   }
 
@@ -159,14 +166,14 @@ export default class BundleGraph<TBundle: IBundle>
     );
 
     if (result != null) {
-      return this.#createBundle(result, this.#graph, this.#options);
+      return this.#createBundle(result);
     }
   }
 
   getDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getDependencies(assetToAssetValue(asset))
-      .map(dep => getPublicDependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options, this));
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
@@ -199,13 +206,13 @@ export default class BundleGraph<TBundle: IBundle>
         bundleGroupToInternalBundleGroup(bundleGroup),
         opts,
       )
-      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+      .map(bundle => this.#createBundle(bundle));
   }
 
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle> {
     return this.#graph
       .getBundles(opts)
-      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+      .map(bundle => this.#createBundle(bundle));
   }
 
   isEntryBundleGroup(bundleGroup: IBundleGroup): boolean {
@@ -217,13 +224,13 @@ export default class BundleGraph<TBundle: IBundle>
   getChildBundles(bundle: IBundle): Array<TBundle> {
     return this.#graph
       .getChildBundles(bundleToInternalBundle(bundle))
-      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+      .map(bundle => this.#createBundle(bundle));
   }
 
   getParentBundles(bundle: IBundle): Array<TBundle> {
     return this.#graph
       .getParentBundles(bundleToInternalBundle(bundle))
-      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+      .map(bundle => this.#createBundle(bundle));
   }
 
   getSymbolResolution(
@@ -237,7 +244,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return {
-      asset: assetFromValue(res.asset, this.#options, this.#graph),
+      asset: assetFromValue(res.asset, this.#options, this.#graph, this),
       exportSymbol: readCachedString(this.#options.db, res.exportSymbol),
       symbol:
         typeof res.symbol === 'number'
@@ -256,7 +263,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return res.map(e => ({
-      asset: assetFromValue(e.asset, this.#options, this.#graph),
+      asset: assetFromValue(e.asset, this.#options, this.#graph, this),
       exportSymbol: readCachedString(this.#options.db, e.exportSymbol),
       symbol:
         typeof e.symbol === 'number'
@@ -287,11 +294,16 @@ export default class BundleGraph<TBundle: IBundle>
         return node.type === 'asset'
           ? {
               type: 'asset',
-              value: assetFromValue(node.value, this.#options, this.#graph),
+              value: assetFromValue(
+                node.value,
+                this.#options,
+                this.#graph,
+                this,
+              ),
             }
           : {
               type: 'dependency',
-              value: getPublicDependency(node.value, this.#options),
+              value: getPublicDependency(node.value, this.#options, this),
             };
       }, visit),
       start ? assetToAssetValue(start) : undefined,
@@ -303,10 +315,7 @@ export default class BundleGraph<TBundle: IBundle>
     startBundle: ?IBundle,
   ): ?TContext {
     return this.#graph.traverseBundles(
-      mapVisitor(
-        bundle => this.#createBundle(bundle, this.#graph, this.#options),
-        visit,
-      ),
+      mapVisitor(bundle => this.#createBundle(bundle), visit),
       startBundle == null ? undefined : bundleToInternalBundle(startBundle),
     );
   }
@@ -314,13 +323,13 @@ export default class BundleGraph<TBundle: IBundle>
   getBundlesWithAsset(asset: IAsset): Array<TBundle> {
     return this.#graph
       .getBundlesWithAsset(assetToAssetValue(asset))
-      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+      .map(bundle => this.#createBundle(bundle));
   }
 
   getBundlesWithDependency(dependency: IDependency): Array<TBundle> {
     return this.#graph
       .getBundlesWithDependency(dependencyToInternalDependency(dependency))
-      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+      .map(bundle => this.#createBundle(bundle));
   }
 
   getUsedSymbols(v: IAsset | IDependency): ?$ReadOnlySet<Symbol> {

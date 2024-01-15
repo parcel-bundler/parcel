@@ -94,11 +94,22 @@ export default async function applyRuntimes<TResult>({
     },
   });
 
+  let publicBundleGraph = new BundleGraph<INamedBundle>(
+    bundleGraph,
+    NamedBundle.get.bind(NamedBundle),
+    options,
+  );
+
   for (let bundle of bundles) {
     for (let runtime of runtimes) {
       let measurement;
       try {
-        const namedBundle = NamedBundle.get(bundle, bundleGraph, options);
+        const namedBundle = NamedBundle.get(
+          bundle,
+          bundleGraph,
+          options,
+          publicBundleGraph,
+        );
         measurement = tracer.createMeasurement(
           runtime.name,
           'applyRuntime',
@@ -106,11 +117,7 @@ export default async function applyRuntimes<TResult>({
         );
         let applied = await runtime.plugin.apply({
           bundle: namedBundle,
-          bundleGraph: new BundleGraph<INamedBundle>(
-            bundleGraph,
-            NamedBundle.get.bind(NamedBundle),
-            options,
-          ),
+          bundleGraph: publicBundleGraph,
           config: configs.get(runtime.name)?.result,
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),

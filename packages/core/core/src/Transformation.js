@@ -44,7 +44,6 @@ import {
   Asset,
   MutableAsset,
   mutableAssetToUncommittedAsset,
-  removeAssetFromCache,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
 import {createAsset, getInvalidationId} from './assetUtils';
@@ -534,7 +533,6 @@ export default class Transformation {
       // Deallocate any assets that we don't need anymore.
       for (let asset of deletedAssets) {
         // TODO: dealloc dependencies also?
-        removeAssetFromCache(asset.value.addr);
         asset.value.dealloc();
       }
 
@@ -744,7 +742,7 @@ export default class Transformation {
       env: this.request.env,
     });
 
-    await loadPluginConfig(transformer, config, this.options);
+    await loadPluginConfig(transformer, config, this.options, this);
 
     for (let devDep of config.devDeps) {
       await this.addDevDependency(devDep);
@@ -838,7 +836,7 @@ export default class Transformation {
     let parse = transformer.parse?.bind(transformer);
     if (!asset.ast && parse) {
       let ast = await parse({
-        asset: new Asset(asset),
+        asset: new Asset(asset, this),
         config,
         options: pipeline.pluginOptions,
         resolve,
@@ -855,7 +853,7 @@ export default class Transformation {
     let transfomerResult: Array<TransformerResult | MutableAsset> =
       // $FlowFixMe the returned IMutableAsset really is a MutableAsset
       await transformer.transform({
-        asset: new MutableAsset(asset),
+        asset: new MutableAsset(asset, this),
         config,
         options: pipeline.pluginOptions,
         resolve,
@@ -866,7 +864,7 @@ export default class Transformation {
 
     // Create generate and postProcess function that can be called later
     asset.generate = (): Promise<GenerateOutput> => {
-      let publicAsset = new Asset(asset);
+      let publicAsset = new Asset(asset, this);
       if (transformer.generate && asset.ast) {
         let generated = transformer.generate({
           asset: publicAsset,
@@ -890,7 +888,7 @@ export default class Transformation {
         assets: Array<UncommittedAsset>,
       ): Promise<Array<UncommittedAsset> | null> => {
         let results = await postProcess.call(transformer, {
-          assets: assets.map(asset => new MutableAsset(asset)),
+          assets: assets.map(asset => new MutableAsset(asset, this)),
           config,
           options: pipeline.pluginOptions,
           resolve,

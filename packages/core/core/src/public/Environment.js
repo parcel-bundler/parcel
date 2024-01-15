@@ -18,7 +18,8 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import {fromInternalSourceLocation} from '../utils';
 import {Environment as DbEnvironment, EnvironmentFlags} from '@parcel/rust';
-import {createBuildCache} from '../buildCache';
+import {getScopeCache} from '../scopeCache';
+import type {Scope} from '../scopeCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -141,8 +142,6 @@ const supportData = {
   },
 };
 
-const internalEnvironmentToEnvironment: Map<EnvironmentAddr, Environment> =
-  createBuildCache();
 const _environmentToInternalEnvironment: WeakMap<
   IEnvironment,
   EnvironmentAddr,
@@ -158,8 +157,14 @@ export default class Environment implements IEnvironment {
   #options /*: ParcelOptions */;
   #engines /*: ?Engines */;
 
-  constructor(env: EnvironmentAddr, options: ParcelOptions): Environment {
-    let existing = internalEnvironmentToEnvironment.get(env);
+  constructor(
+    env: EnvironmentAddr,
+    options: ParcelOptions,
+    scope: Scope,
+  ): Environment {
+    let cache = getScopeCache(scope, 'Environment');
+
+    let existing = cache.get(env);
     if (existing != null) {
       return existing;
     }
@@ -167,7 +172,7 @@ export default class Environment implements IEnvironment {
     this.#environment = DbEnvironment.get(options.db, env);
     this.#options = options;
     _environmentToInternalEnvironment.set(this, env);
-    internalEnvironmentToEnvironment.set(env, this);
+    cache.set(env, this);
     return this;
   }
 

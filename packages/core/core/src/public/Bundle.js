@@ -22,7 +22,6 @@ import type BundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {DefaultWeakMap} from '@parcel/utils';
 
 import {assetToAssetValue, assetFromValue} from './Asset';
 import {mapVisitor} from '@parcel/graph';
@@ -34,19 +33,8 @@ import {
 import Target from './Target';
 import {BundleBehaviorNames} from '../types';
 import {fromProjectPath} from '../projectPath';
-
-const internalBundleToBundle: DefaultWeakMap<
-  ParcelOptions,
-  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, Bundle>>,
-> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
-const internalBundleToNamedBundle: DefaultWeakMap<
-  ParcelOptions,
-  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, NamedBundle>>,
-> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
-const internalBundleToPackagedBundle: DefaultWeakMap<
-  ParcelOptions,
-  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, PackagedBundle>>,
-> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
+import type {Scope} from '../scopeCache';
+import {getScopeCache} from '../scopeCache';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -68,12 +56,14 @@ export class Bundle implements IBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
   #options /*: ParcelOptions */;
+  #scope: Scope;
 
   constructor(
     sentinel: mixed,
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
+    scope: Scope,
   ) {
     if (sentinel !== _private) {
       throw new Error('Unexpected public usage');
@@ -82,23 +72,32 @@ export class Bundle implements IBundle {
     this.#bundle = bundle;
     this.#bundleGraph = bundleGraph;
     this.#options = options;
+    this.#scope = scope;
   }
 
   static get(
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
+    scope: Scope,
   ): Bundle {
-    let existingMap = internalBundleToBundle.get(options).get(bundleGraph);
-    let existing = existingMap.get(internalBundle);
+    let cache = getScopeCache(scope, 'Bundle');
+
+    let existing = cache.get(internalBundle);
     if (existing != null) {
       return existing;
     }
 
-    let bundle = new Bundle(_private, internalBundle, bundleGraph, options);
+    let bundle = new Bundle(
+      _private,
+      internalBundle,
+      bundleGraph,
+      options,
+      scope,
+    );
     _bundleToInternalBundle.set(bundle, internalBundle);
     _bundleToInternalBundleGraph.set(bundle, bundleGraph);
-    existingMap.set(internalBundle, bundle);
+    cache.set(internalBundle, bundle);
 
     return bundle;
   }
@@ -116,7 +115,7 @@ export class Bundle implements IBundle {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#bundle.env, this.#options);
+    return new Environment(this.#bundle.env, this.#options, this.#scope);
   }
 
   get needsStableName(): ?boolean {
@@ -137,7 +136,7 @@ export class Bundle implements IBundle {
   }
 
   get target(): ITarget {
-    return new Target(this.#bundle.target, this.#options);
+    return new Target(this.#bundle.target, this.#options, this);
   }
 
   hasAsset(asset: IAsset): boolean {
@@ -158,7 +157,12 @@ export class Bundle implements IBundle {
     return this.#bundle.entryAssetIds.map(id => {
       let assetNode = this.#bundleGraph._graph.getNodeByContentKey(id);
       invariant(assetNode != null && assetNode.type === 'asset');
-      return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);
+      return assetFromValue(
+        assetNode.value,
+        this.#options,
+        this.#bundleGraph,
+        this.#scope,
+      );
     });
   }
 
@@ -168,7 +172,12 @@ export class Bundle implements IBundle {
         this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
-      return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);
+      return assetFromValue(
+        assetNode.value,
+        this.#options,
+        this.#bundleGraph,
+        this.#scope,
+      );
     }
   }
 
@@ -181,12 +190,17 @@ export class Bundle implements IBundle {
         if (node.type === 'asset') {
           return {
             type: 'asset',
-            value: assetFromValue(node.value, this.#options, this.#bundleGraph),
+            value: assetFromValue(
+              node.value,
+              this.#options,
+              this.#bundleGraph,
+              this.#scope,
+            ),
           };
         } else if (node.type === 'dependency') {
           return {
             type: 'dependency',
-            value: getPublicDependency(node.value, this.#options),
+            value: getPublicDependency(node.value, this.#options, this.#scope),
           };
         }
       }, visit),
@@ -200,7 +214,8 @@ export class Bundle implements IBundle {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
       mapVisitor(
-        asset => assetFromValue(asset, this.#options, this.#bundleGraph),
+        asset =>
+          assetFromValue(asset, this.#options, this.#bundleGraph, this.#scope),
         visit,
       ),
       startAsset ? assetToAssetValue(startAsset) : undefined,
@@ -218,8 +233,9 @@ export class NamedBundle extends Bundle implements INamedBundle {
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
+    scope: Scope,
   ) {
-    super(sentinel, bundle, bundleGraph, options);
+    super(sentinel, bundle, bundleGraph, options, scope);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
     this.#options = options;
@@ -229,9 +245,11 @@ export class NamedBundle extends Bundle implements INamedBundle {
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
+    scope: Scope,
   ): NamedBundle {
-    let existingMap = internalBundleToNamedBundle.get(options).get(bundleGraph);
-    let existing = existingMap.get(internalBundle);
+    let cache = getScopeCache(scope, 'NamedBundle');
+
+    let existing = cache.get(internalBundle);
     if (existing != null) {
       return existing;
     }
@@ -241,10 +259,11 @@ export class NamedBundle extends Bundle implements INamedBundle {
       internalBundle,
       bundleGraph,
       options,
+      scope,
     );
     _bundleToInternalBundle.set(namedBundle, internalBundle);
     _bundleToInternalBundleGraph.set(namedBundle, bundleGraph);
-    existingMap.set(internalBundle, namedBundle);
+    cache.set(internalBundle, namedBundle);
 
     return namedBundle;
   }
@@ -273,8 +292,9 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
+    scope: Scope,
   ) {
-    super(sentinel, bundle, bundleGraph, options);
+    super(sentinel, bundle, bundleGraph, options, scope);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
     this.#options = options; // Repeating for flow
@@ -284,11 +304,11 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
+    scope: Scope,
   ): PackagedBundle {
-    let existingMap = internalBundleToPackagedBundle
-      .get(options)
-      .get(bundleGraph);
-    let existing = existingMap.get(internalBundle);
+    let cache = getScopeCache(scope, 'PackagedBundle');
+
+    let existing = cache.get(internalBundle);
     if (existing != null) {
       return existing;
     }
@@ -298,10 +318,11 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
       internalBundle,
       bundleGraph,
       options,
+      scope,
     );
     _bundleToInternalBundle.set(packagedBundle, internalBundle);
     _bundleToInternalBundleGraph.set(packagedBundle, bundleGraph);
-    existingMap.set(internalBundle, packagedBundle);
+    cache.set(internalBundle, packagedBundle);
 
     return packagedBundle;
   }
@@ -310,12 +331,14 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
+    scope: Scope,
     bundleInfo: ?PackagedBundleInfo,
   ): PackagedBundle {
     let packagedBundle = PackagedBundle.get(
       internalBundle,
       bundleGraph,
       options,
+      scope,
     );
     packagedBundle.#bundleInfo = bundleInfo;
     return packagedBundle;

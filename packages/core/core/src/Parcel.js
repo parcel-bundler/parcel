@@ -307,7 +307,7 @@ export default class Parcel {
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [
             readCachedString(db, DbAsset.get(db, id).id),
-            assetFromValue(asset, options, bundleGraph),
+            assetFromValue(asset, options, bundleGraph, request),
           ]),
         ),
         bundleGraph: new BundleGraph<IPackagedBundle>(
@@ -317,6 +317,7 @@ export default class Parcel {
               bundle,
               bundleGraph,
               options,
+              bundleInfo,
               bundleInfo.get(bundle.id),
             ),
           options,
@@ -486,6 +487,7 @@ export default class Parcel {
         asset,
         nullthrows(this.#resolvedOptions),
         dependencies,
+        res,
       ),
     );
   }
