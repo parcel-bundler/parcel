@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-preset",
-  "version": "2.10.2",
+  "version": "2.10.3",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -9,9 +9,6 @@
     "directory": "packages/dev/babel-preset"
   },
   "dependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
-    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.18.6",
-    "@babel/plugin-proposal-optional-chaining": "^7.21.0",
     "@babel/plugin-transform-modules-commonjs": "^7.22.11",
     "@babel/preset-env": "^7.22.14",
     "@babel/preset-flow": "^7.22.5",

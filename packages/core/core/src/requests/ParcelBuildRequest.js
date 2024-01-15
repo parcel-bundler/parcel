@@ -24,6 +24,7 @@ import {assetFromValue} from '../public/Asset';
 import {readCachedString, Asset as DbAsset} from '@parcel/rust';
 
 import {tracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
@@ -45,7 +46,7 @@ type RunInput<TResult> = {|
 
 export type ParcelBuildRequest = {|
   id: string,
-  +type: 'parcel_build_request',
+  +type: typeof requestTypes.parcel_build_request,
   run: (RunInput<ParcelBuildRequestResult>) => Async<ParcelBuildRequestResult>,
   input: ParcelBuildRequestInput,
 |};
@@ -54,7 +55,7 @@ export default function createParcelBuildRequest(
   input: ParcelBuildRequestInput,
 ): ParcelBuildRequest {
   return {
-    type: 'parcel_build_request',
+    type: requestTypes.parcel_build_request,
     id: 'parcel_build_request',
     run,
     input,

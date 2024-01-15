@@ -135,6 +135,7 @@ describe('scope hoisting', function () {
       let output = await run(b);
       assert.equal(output, 2);
     });
+
     it('supports named exports of variables with a different name when wrapped', async function () {
       let b = await bundle(
         path.join(
@@ -145,6 +146,25 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.equal(output, 2);
+    });
+
+    it('supports dependency rewriting for import * as from a library that has export *', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/rewrite-export-star/index.js',
+        ),
+        {mode: 'production'},
+      );
+      let output = await run(b);
+      assert.equal(output, 2);
+
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(findDependency(b, 'index.js', './library/a.js')),
+        ),
+        new Set(['bar']),
+      );
     });
 
     it('supports renaming non-ASCII identifiers', async function () {
@@ -381,6 +401,21 @@ describe('scope hoisting', function () {
         'utf8',
       );
       assert.match(contents, /output="foo bar"/);
+    });
+
+    it('supports re-exporting all with ambiguous CJS and non-renaming and renaming dependency retargeting', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-ambiguous/entry.js',
+        ),
+        {
+          mode: 'production',
+        },
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, '123 999');
     });
 
     it('supports re-exporting all exports from an external module', async function () {

@@ -239,8 +239,12 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
 
   delete(exportSymbol: ISymbol) {
-    // nullthrows(this.#value.symbols).delete(exportSymbol);
-    // TODO
+    let symbols = this.#value.symbols;
+    let id = this.#options.db.getStringId(exportSymbol);
+    let index = symbols.findIndex(s => s.exported === id);
+    if (index !== -1) {
+      symbols.delete(index);
+    }
   }
 }
 
@@ -378,8 +382,12 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 
   delete(exportSymbol: ISymbol) {
-    // nullthrows(this.#value.symbols).delete(exportSymbol);
-    throw new Error('todo');
+    let symbols = this.#value.symbols;
+    let id = this.#options.db.getStringId(exportSymbol);
+    let index = symbols.findIndex(s => s.exported === id);
+    if (index !== -1) {
+      symbols.delete(index);
+    }
   }
 }
 

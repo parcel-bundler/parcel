@@ -56,6 +56,7 @@ import {
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 import {Target as DbTarget, Asset as DbAsset} from '@parcel/rust';
 
 type BundleGraphRequestInput = {|
@@ -81,7 +82,7 @@ export type BundleGraphResult = {|
 
 type BundleGraphRequest = {|
   id: string,
-  +type: 'bundle_graph_request',
+  +type: typeof requestTypes.bundle_graph_request,
   run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
@@ -90,7 +91,7 @@ export default function createBundleGraphRequest(
   input: BundleGraphRequestInput,
 ): BundleGraphRequest {
   return {
-    type: 'bundle_graph_request',
+    type: requestTypes.bundle_graph_request,
     id: 'BundleGraph',
     run: async input => {
       let {options, api, invalidateReason} = input;
@@ -191,11 +192,12 @@ class BundlerRunner {
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, api.invalidateOnOptionChange),
     );
-    this.cacheKey = hashString(
-      `${PARCEL_VERSION}:BundleGraph:${JSON.stringify(options.entries) ?? ''}${
-        options.mode
-      }`,
-    );
+    this.cacheKey =
+      hashString(
+        `${PARCEL_VERSION}:BundleGraph:${
+          JSON.stringify(options.entries) ?? ''
+        }${options.mode}`,
+      ) + '-BundleGraph';
   }
 
   async loadConfigs() {
@@ -389,6 +391,17 @@ class BundlerRunner {
         await this.runDevDepRequest(devDepRequest);
       }
     } catch (e) {
+      if (internalBundleGraph != null) {
+        this.api.storeResult(
+          {
+            bundleGraph: internalBundleGraph,
+            changedAssets: new Map(),
+            assetRequests: [],
+          },
+          this.cacheKey,
+        );
+      }
+
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
           origin: name,

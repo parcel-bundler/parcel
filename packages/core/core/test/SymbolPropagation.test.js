@@ -21,23 +21,23 @@ import {
 } from '../src/projectPath';
 import {propagateSymbols} from '../src/SymbolPropagation';
 import dumpGraphToGraphViz from '../src/dumpGraphToGraphViz';
-import {DEFAULT_ENV, DEFAULT_OPTIONS, DEFAULT_TARGETS} from './test-utils';
+import {DEFAULT_ENV, DEFAULT_OPTIONS, DEFAULT_TARGETS, DB} from './test-utils';
 import type {
-  Asset,
   AssetNode,
   AssetGraphNode,
-  Dependency,
   DependencyNode,
 } from '../src/types';
+import {Asset, type AssetAddr, Dependency, type DependencyAddr, DependencyFlags, SymbolFlags} from '@parcel/rust';
+import { MutableDependencySymbols, MutableAssetSymbols } from '../src/public/Symbols';
 
 const stats = {size: 0, time: 0};
 
 function createAsset(opts) {
-  return _createAsset('/', opts);
+  return _createAsset(DB, '/', opts).addr;
 }
 
 function createDependency(opts) {
-  return _createDependency('/', opts);
+  return _createDependency(DB, '/', opts);
 }
 
 function toProjectPath(p) {
@@ -87,7 +87,7 @@ function createAssetGraph(
   >,
   isLibrary?: boolean,
 ) {
-  let graph = new AssetGraph();
+  let graph = new AssetGraph(DB);
   let entryFilePath = '/index.js';
   graph.setRootConnections({
     entries: [toProjectPath(entryFilePath)],
@@ -105,17 +105,22 @@ function createAssetGraph(
   if (isLibrary) {
     let entryDependencyNode = nullthrows(graph.getNode(entryDependencyId));
     invariant(entryDependencyNode.type === 'dependency');
-    entryDependencyNode.value.symbols = new Map([
-      ['*', {local: '*', isWeak: true, loc: null}],
-    ]);
-    entryDependencyNode.usedSymbolsDown.add('*');
-    entryDependencyNode.usedSymbolsUp.set('*', undefined);
+    let entryDep = Dependency.get(DB, entryDependencyNode.value);
+    let s = entryDep.symbols.extend();
+    s.exported = DB.starSymbol;
+    s.local = DB.starSymbol;
+    s.flags = SymbolFlags.IS_WEAK;
+    s.loc = null;
+    entryDep.flags |= DependencyFlags.HAS_SYMBOLS;
+    entryDependencyNode.usedSymbolsDown.add(DB.starSymbol);
+    entryDependencyNode.usedSymbolsUp.set(DB.starSymbol, undefined);
   }
 
   let assetId = 1;
   let changedAssets = new Map();
   let assetGroupNodes = new Map<FilePath, NodeId>();
   let assetNodes = new Map<FilePath, NodeId>();
+  let assetAddrs = new Map<FilePath, AssetAddr>();
   for (let [filePath, symbols, sideEffects] of assets) {
     let assetGroup = nodeFromAssetGroup({
       filePath: toProjectPath(filePath),
@@ -126,6 +131,7 @@ function createAssetGraph(
     assetGroupNodes.set(filePath, assetGroupNodeId);
 
     let asset = nodeFromAsset(
+      DB,
       createAsset({
         id: String(assetId),
         filePath: toProjectPath(filePath),
@@ -139,7 +145,8 @@ function createAssetGraph(
     );
     let assetNodeId = graph.addNodeByContentKey(asset.id, asset);
     assetNodes.set(filePath, assetNodeId);
-    changedAssets.set(String(assetId), asset.value);
+    changedAssets.set(asset.value, asset.value);
+    assetAddrs.set(filePath, asset.value);
 
     graph.addEdge(assetGroupNodeId, assetNodeId);
 
@@ -148,13 +155,13 @@ function createAssetGraph(
 
   for (let [from, to, symbols] of dependencies) {
     let dependencyNode = nodeFromDep(
+      DB,
       createDependency({
         specifier: to,
         specifierType: 'esm',
         env: DEFAULT_ENV,
         symbols: symbols ? new Map(symbols) : symbols,
-        sourcePath: from,
-        sourceAssetId: from,
+        sourceAssetId: assetAddrs.get(from),
       }),
     );
     let dependencyNodeId = graph.addNodeByContentKey(
@@ -197,7 +204,7 @@ function assertUsedSymbols(
   if (isLibrary) {
     let entryDep = nullthrows(
       [...graph.nodes.values()].find(
-        n => n?.type === 'dependency' && n.value.sourceAssetId == null,
+        n => n?.type === 'dependency' && Dependency.get(DB, n.value).sourceAssetId == null,
       ),
     );
     invariant(entryDep.type === 'dependency');
@@ -210,28 +217,29 @@ function assertUsedSymbols(
 
   function assertDependencyUsedSymbols(usedSymbolsUp, expectedMap, id) {
     assertSetEqual(
-      new Set(usedSymbolsUp.keys()),
+      readSymbolSet(new Set(usedSymbolsUp.keys())),
       new Set(expectedMap.keys()),
       id,
     );
 
     for (let [s, resolved] of usedSymbolsUp) {
-      let exp = expectedMap.get(s);
+      let exp = expectedMap.get(DB.readString(s));
       if (resolved && exp) {
-        let asset = nullthrows(graph.getNodeByContentKey(resolved.asset));
-        invariant(asset.type === 'asset');
+        let assetNode = nullthrows(graph.getNodeByContentKey(resolved.asset));
+        invariant(assetNode.type === 'asset');
+        let asset = Asset.get(DB, assetNode.value);
         assert.strictEqual(
-          fromProjectPathUnix(asset.value.filePath),
+          fromProjectPathUnix(asset.filePath),
           exp[0],
           `dep ${id}@${s} resolved asset: ${fromProjectPathUnix(
-            asset.value.filePath,
+            asset.filePath,
           )} !== ${exp[0]}`,
         );
         assert.strictEqual(
-          resolved.symbol,
+          DB.readString(nullthrows(resolved.symbol)),
           exp[1],
           `dep ${id}@${s} resolved symbol: ${String(
-            resolved.symbol,
+            DB.readString(nullthrows(resolved.symbol)),
           )} !== ${String(exp[1])}`,
         );
       } else {
@@ -242,23 +250,25 @@ function assertUsedSymbols(
 
   for (let [nodeId, node] of graph.nodes.entries()) {
     if (node?.type === 'asset') {
-      let filePath = fromProjectPathUnix(node.value.filePath);
+      let asset = Asset.get(DB, node.value);
+      let filePath = fromProjectPathUnix(asset.filePath);
       let expected = new Set(nullthrows(expectedAsset.get(filePath)));
-      assertSetEqual(node.usedSymbols, expected, filePath);
-    } else if (node?.type === 'dependency' && node.value.sourcePath != null) {
+      assertSetEqual(readSymbolSet(node.usedSymbols), expected, filePath);
+    } else if (node?.type === 'dependency' && Dependency.get(DB, node.value).sourceAssetId != null) {
+      let dep = Dependency.get(DB, node.value);
       let resolutionId = graph.getNodeIdsConnectedFrom(nodeId)[0];
       let resolution = nullthrows(graph.getNode(resolutionId));
       invariant(resolution.type === 'asset_group');
       let to = resolution.value.filePath;
 
       let id =
-        fromProjectPathUnix(nullthrows(node.value.sourcePath)) +
+        fromProjectPathUnix(nullthrows(Asset.get(DB, nullthrows(dep.sourceAssetId)).filePath)) +
         ':' +
         fromProjectPathUnix(nullthrows(to));
       let expected = expectedDependency.get(id);
       if (!expected) {
         assert(expected === null);
-        assertSetEqual(new Set(node.usedSymbolsUp.keys()), new Set(), id);
+        assertSetEqual(readSymbolSet(new Set(node.usedSymbolsUp.keys())), new Set(), id);
         assert(node.excluded, `${id} should be excluded`);
       } else {
         assert(!node.excluded, `${id} should not be excluded`);
@@ -268,6 +278,10 @@ function assertUsedSymbols(
       }
     }
   }
+}
+
+function readSymbolSet(s: $ReadOnlySet<number>): $ReadOnlySet<string> {
+  return new Set([...s].map(s => DB.readString(s)));
 }
 
 function assertSetEqual<T>(
@@ -319,7 +333,7 @@ async function testPropagation(
     dependencies.map(([from, to, symbols]) => [from, to, symbols]),
     isLibrary,
   );
-  await dumpGraphToGraphViz(graph, 'test_before');
+  await dumpGraphToGraphViz(DB, graph, 'test_before');
 
   handlePropagationErrors(
     propagateSymbols({
@@ -331,7 +345,7 @@ async function testPropagation(
     }),
   );
 
-  await dumpGraphToGraphViz(graph, 'test_after');
+  await dumpGraphToGraphViz(DB, graph, 'test_after');
 
   assertUsedSymbols(
     graph,
@@ -358,7 +372,7 @@ function assertPropagationErrors(
 ) {
   assert.deepEqual(
     [...actual].map(([k, v]) => [
-      nullthrowsAssetNode(graph.getNode(k)).value.filePath,
+      Asset.get(DB, nullthrowsAssetNode(graph.getNode(k)).value).filePath,
       v,
     ]),
     [...expected],
@@ -369,11 +383,11 @@ function changeDependency(
   graph: AssetGraph,
   from: FilePath,
   to: FilePath,
-  cb: ($NonMaybeType<Dependency['symbols']>) => void,
-): Iterable<[ContentKey, Asset]> {
+  cb: (MutableDependencySymbols) => void,
+): Iterable<[AssetAddr, Asset]> {
   let sourceAssetNode = nullthrowsAssetNode(
     [...graph.nodes.values()].find(
-      n => n?.type === 'asset' && n.value.filePath === from,
+      n => n?.type === 'asset' && Asset.get(DB, n.value).filePath === from,
     ),
   );
   sourceAssetNode.usedSymbolsDownDirty = true;
@@ -381,28 +395,29 @@ function changeDependency(
     [...graph.nodes.values()].find(
       n =>
         n?.type === 'dependency' &&
-        n.value.sourcePath === from &&
-        n.value.specifier === to,
+        Dependency.get(DB, n.value).sourceAssetId != null &&
+        Asset.get(DB, nullthrows(Dependency.get(DB, n.value).sourceAssetId)).filePath === from &&
+        Dependency.get(DB, n.value).specifier === to,
     ),
   );
-  cb(nullthrows(depNode.value.symbols));
-  return [[sourceAssetNode.id, sourceAssetNode.value]];
+  cb(new MutableDependencySymbols(DEFAULT_OPTIONS, depNode.value));
+  return [[sourceAssetNode.value, Asset.get(DB, sourceAssetNode.value)]];
 }
 
 function changeAsset(
   graph: AssetGraph,
   asset: FilePath,
-  cb: ($NonMaybeType<Asset['symbols']>) => void,
-): Iterable<[ContentKey, Asset]> {
+  cb: (MutableAssetSymbols) => void,
+): Iterable<[AssetAddr, Asset]> {
   let node = nullthrowsAssetNode(
     [...graph.nodes.values()].find(
-      n => n?.type === 'asset' && n.value.filePath === asset,
+      n => n?.type === 'asset' && Asset.get(DB, n.value).filePath === asset,
     ),
   );
   node.usedSymbolsUpDirty = true;
   node.usedSymbolsDownDirty = true;
-  cb(nullthrows(node.value.symbols));
-  return [[node.id, node.value]];
+  cb(new MutableAssetSymbols(DEFAULT_OPTIONS, node.value));
+  return [[node.value, Asset.get(DB, node.value)]];
 }
 
 // process.env.PARCEL_DUMP_GRAPHVIZ = '';
@@ -440,11 +455,7 @@ describe('SymbolPropagation', () => {
 
     let changedAssets = [
       ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
-        symbols.set('b', {
-          local: 'b',
-          isWeak: false,
-          loc: undefined,
-        });
+        symbols.set('b', 'b');
       }),
     ];
     propagateSymbols({
@@ -481,11 +492,7 @@ describe('SymbolPropagation', () => {
     let changedAssets = [
       ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
         symbols.delete('f');
-        symbols.set('f2', {
-          local: 'f2',
-          isWeak: false,
-          loc: undefined,
-        });
+        symbols.set('f2', 'f2');
       }),
     ];
     let errors = propagateSymbols({
@@ -524,10 +531,7 @@ describe('SymbolPropagation', () => {
     let changedAssets = [
       ...changeAsset(graph, 'lib.js', symbols => {
         symbols.delete('f');
-        symbols.set('f2', {
-          local: 'f2',
-          loc: undefined,
-        });
+        symbols.set('f2', 'f2');
       }),
     ];
 
@@ -570,11 +574,7 @@ describe('SymbolPropagation', () => {
 
     let changedAssets = [
       ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
-        symbols.set('b', {
-          local: 'b',
-          isWeak: false,
-          loc: undefined,
-        });
+        symbols.set('b', 'b');
       }),
     ];
     propagateSymbols({

@@ -16,6 +16,7 @@ import type {
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
+import type {Scope} from '../scopeCache';
 
 import {serializeRaw} from '../serializer.js';
 import {PluginLogger} from '@parcel/logger';
@@ -26,7 +27,7 @@ import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
 import {Hash} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
-import type {Scope} from '../scopeCache';
+import {requestTypes} from '../RequestTracker';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
@@ -127,7 +128,7 @@ export async function runConfigRequest<TResult>(
 
   await api.runRequest<null, void>({
     id: 'config_request:' + configRequest.id,
-    type: 'config_request',
+    type: requestTypes.config_request,
     run: ({api}) => {
       for (let filePath of invalidateOnFileChange) {
         api.invalidateOnFileUpdate(filePath);

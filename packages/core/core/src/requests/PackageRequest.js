@@ -4,6 +4,7 @@ import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 
 import type {StaticRunOpts} from '../RequestTracker';
+import {requestTypes} from '../RequestTracker';
 import type {Bundle} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo, PackageRequestResult} from '../PackagerRunner';
@@ -29,7 +30,7 @@ type RunInput<TResult> = {|
 
 export type PackageRequest = {|
   id: string,
-  +type: 'package_request',
+  +type: typeof requestTypes.package_request,
   run: (RunInput<BundleInfo>) => Async<BundleInfo>,
   input: PackageRequestInput,
 |};
@@ -38,7 +39,7 @@ export function createPackageRequest(
   input: PackageRequestInput,
 ): PackageRequest {
   return {
-    type: 'package_request',
+    type: requestTypes.package_request,
     id: input.bundleGraph.getHash(input.bundle),
     run,
     input,

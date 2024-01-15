@@ -98,6 +98,14 @@ export default async function resolveOptions(
       ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
+  // Make the root watch directory configurable. This is useful in some cases
+  // where symlinked dependencies outside the project root need to trigger HMR
+  // updates. Default to the project root if not provided.
+  let watchDir =
+    initialOptions.watchDir != null
+      ? path.resolve(initialOptions.watchDir)
+      : projectRoot;
+
   let cache =
     initialOptions.cache ??
     (outputFS instanceof NodeFS
@@ -195,6 +203,7 @@ export default async function resolveOptions(
     shouldBuildLazily,
     lazyIncludes,
     lazyExcludes,
+    unstableFileInvalidations: initialOptions.unstableFileInvalidations,
     shouldBundleIncrementally: initialOptions.shouldBundleIncrementally ?? true,
     shouldContentHash,
     serveOptions: initialOptions.serveOptions
@@ -208,6 +217,7 @@ export default async function resolveOptions(
     shouldProfile: initialOptions.shouldProfile ?? false,
     shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
+    watchDir,
     entries,
     targets: initialOptions.targets,
     logLevel,

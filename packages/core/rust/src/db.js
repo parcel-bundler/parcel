@@ -176,6 +176,14 @@ class Vec<T> {
     return this.get(this.length - 1);
   }
 
+  delete(index: number): void {
+    let bufAddr = readU32(this.db, this.addr + 0);
+    let fromAddr = bufAddr + (index + 1) * this.size;
+    let toAddr = bufAddr + index * this.size;
+    copy(this.db, fromAddr, toAddr, (this.length - index + 1) * this.size);
+    writeU32(this.db, this.addr + 4, readU32(this.db, this.addr + 4) - 1);
+  }
+
   clear(): void {
     // TODO: run Rust destructors?
     writeU32(this.db, this.addr + 4, 0);
@@ -212,6 +220,17 @@ class Vec<T> {
         return value;
       }
     }
+  }
+
+  findIndex(pred: (value: T) => mixed): number {
+    let addr = readU32(this.db, this.addr + 0);
+    for (let i = 0, len = this.length; i < len; i++, addr += this.size) {
+      let value = this.accessor.get(this.db, addr);
+      if (pred(value)) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   some(pred: (value: T) => mixed): boolean {
@@ -262,76 +281,76 @@ export class Target {
   }
 
   get env(): EnvironmentAddr {
-    return readU32(this.db, this.addr + 28);
+    return readU32(this.db, this.addr + 0);
   }
 
   set env(value: EnvironmentAddr): void {
-    writeU32(this.db, this.addr + 28, value);
+    writeU32(this.db, this.addr + 0, value);
   }
 
   get distDir(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 32));
+    return readCachedString(this.db, readU32(this.db, this.addr + 4));
   }
 
   set distDir(value: string): void {
-    writeU32(this.db, this.addr + 32, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 4, this.db.getStringId(value));
   }
 
   get distEntry(): ?string {
-    return readU32(this.db, this.addr + 0 + 0) === 0
+    return readU32(this.db, this.addr + 16 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 0));
+      : readCachedString(this.db, readU32(this.db, this.addr + 16));
   }
 
   set distEntry(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 0 + 0, 0);
+      writeU32(this.db, this.addr + 16 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 0, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 16, this.db.getStringId(value));
     }
   }
 
   get name(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 36));
+    return readCachedString(this.db, readU32(this.db, this.addr + 8));
   }
 
   set name(value: string): void {
-    writeU32(this.db, this.addr + 36, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 8, this.db.getStringId(value));
   }
 
   get publicUrl(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 40));
+    return readCachedString(this.db, readU32(this.db, this.addr + 12));
   }
 
   set publicUrl(value: string): void {
-    writeU32(this.db, this.addr + 40, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 12, this.db.getStringId(value));
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.db, this.addr + 4 + 16) === 0
+    return readU32(this.db, this.addr + 20 + 0) === 0
       ? null
-      : SourceLocation.get(this.db, this.addr + 4);
+      : SourceLocation.get(this.db, this.addr + 20);
   }
 
   set loc(value: ?SourceLocation): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 4 + 16, 0);
+      writeU32(this.db, this.addr + 20 + 0, 0);
     } else {
-      SourceLocation.set(this.db, this.addr + 4, value);
+      SourceLocation.set(this.db, this.addr + 20, value);
     }
   }
 
   get pipeline(): ?string {
-    return readU32(this.db, this.addr + 24 + 0) === 0
+    return readU32(this.db, this.addr + 40 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 24));
+      : readCachedString(this.db, readU32(this.db, this.addr + 40));
   }
 
   set pipeline(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 24 + 0, 0);
+      writeU32(this.db, this.addr + 40 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 24, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 40, this.db.getStringId(value));
     }
   }
 }
@@ -393,28 +412,28 @@ export class Environment {
   }
 
   get sourceMap(): ?TargetSourceMapOptions {
-    return readU8(this.db, this.addr + 24 + 4) === 2
+    return readU8(this.db, this.addr + 24 + 5) === 2
       ? null
       : TargetSourceMapOptions.get(this.db, this.addr + 24);
   }
 
   set sourceMap(value: ?TargetSourceMapOptions): void {
     if (value == null) {
-      writeU8(this.db, this.addr + 24 + 4, 2);
+      writeU8(this.db, this.addr + 24 + 5, 2);
     } else {
       TargetSourceMapOptions.set(this.db, this.addr + 24, value);
     }
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.db, this.addr + 32 + 16) === 0
+    return readU32(this.db, this.addr + 32 + 0) === 0
       ? null
       : SourceLocation.get(this.db, this.addr + 32);
   }
 
   set loc(value: ?SourceLocation): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 32 + 16, 0);
+      writeU32(this.db, this.addr + 32 + 0, 0);
     } else {
       SourceLocation.set(this.db, this.addr + 32, value);
     }
@@ -603,27 +622,27 @@ export class SourceLocation {
   }
 
   get filePath(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 16));
+    return readCachedString(this.db, readU32(this.db, this.addr + 0));
   }
 
   set filePath(value: string): void {
-    writeU32(this.db, this.addr + 16, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 0, this.db.getStringId(value));
   }
 
   get start(): Location {
-    return Location.get(this.db, this.addr + 0);
+    return Location.get(this.db, this.addr + 4);
   }
 
   set start(value: Location): void {
-    Location.set(this.db, this.addr + 0, value);
+    Location.set(this.db, this.addr + 4, value);
   }
 
   get end(): Location {
-    return Location.get(this.db, this.addr + 8);
+    return Location.get(this.db, this.addr + 12);
   }
 
   set end(value: Location): void {
-    Location.set(this.db, this.addr + 8, value);
+    Location.set(this.db, this.addr + 12, value);
   }
 }
 
@@ -829,36 +848,102 @@ export class Asset {
   }
 
   get id(): number {
-    return readU32(this.db, this.addr + 76);
+    return readU32(this.db, this.addr + 8);
   }
 
   set id(value: number): void {
-    writeU32(this.db, this.addr + 76, value);
+    writeU32(this.db, this.addr + 8, value);
   }
 
   get filePath(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 80));
+    return readCachedString(this.db, readU32(this.db, this.addr + 12));
   }
 
   set filePath(value: string): void {
-    writeU32(this.db, this.addr + 80, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 12, this.db.getStringId(value));
   }
 
   get env(): EnvironmentAddr {
-    return readU32(this.db, this.addr + 84);
+    return readU32(this.db, this.addr + 16);
   }
 
   set env(value: EnvironmentAddr): void {
-    writeU32(this.db, this.addr + 84, value);
+    writeU32(this.db, this.addr + 16, value);
   }
 
   get query(): ?string {
+    return readU32(this.db, this.addr + 28 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 28));
+  }
+
+  set query(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 28 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 28, this.db.getStringId(value));
+    }
+  }
+
+  get assetType(): AssetTypeVariants {
+    return AssetType.get(this.db, this.addr + 0);
+  }
+
+  set assetType(value: AssetTypeVariants): void {
+    AssetType.set(this.db, this.addr + 0, value);
+  }
+
+  get contentKey(): string {
+    return readCachedString(this.db, readU32(this.db, this.addr + 20));
+  }
+
+  set contentKey(value: string): void {
+    writeU32(this.db, this.addr + 20, this.db.getStringId(value));
+  }
+
+  get mapKey(): ?string {
+    return readU32(this.db, this.addr + 32 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 32));
+  }
+
+  set mapKey(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 32 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 32, this.db.getStringId(value));
+    }
+  }
+
+  get outputHash(): string {
+    return readCachedString(this.db, readU32(this.db, this.addr + 24));
+  }
+
+  set outputHash(value: string): void {
+    writeU32(this.db, this.addr + 24, this.db.getStringId(value));
+  }
+
+  get pipeline(): ?string {
+    return readU32(this.db, this.addr + 36 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 36));
+  }
+
+  set pipeline(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 36 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 36, this.db.getStringId(value));
+    }
+  }
+
+  get meta(): ?string {
     return readU32(this.db, this.addr + 40 + 0) === 0
       ? null
       : readCachedString(this.db, readU32(this.db, this.addr + 40));
   }
 
-  set query(value: ?string): void {
+  set meta(value: ?string): void {
     if (value == null) {
       writeU32(this.db, this.addr + 40 + 0, 0);
     } else {
@@ -866,78 +951,12 @@ export class Asset {
     }
   }
 
-  get assetType(): AssetTypeVariants {
-    return AssetType.get(this.db, this.addr + 32);
-  }
-
-  set assetType(value: AssetTypeVariants): void {
-    AssetType.set(this.db, this.addr + 32, value);
-  }
-
-  get contentKey(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 88));
-  }
-
-  set contentKey(value: string): void {
-    writeU32(this.db, this.addr + 88, this.db.getStringId(value));
-  }
-
-  get mapKey(): ?string {
-    return readU32(this.db, this.addr + 44 + 0) === 0
-      ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 44));
-  }
-
-  set mapKey(value: ?string): void {
-    if (value == null) {
-      writeU32(this.db, this.addr + 44 + 0, 0);
-    } else {
-      writeU32(this.db, this.addr + 44, this.db.getStringId(value));
-    }
-  }
-
-  get outputHash(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 92));
-  }
-
-  set outputHash(value: string): void {
-    writeU32(this.db, this.addr + 92, this.db.getStringId(value));
-  }
-
-  get pipeline(): ?string {
-    return readU32(this.db, this.addr + 48 + 0) === 0
-      ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 48));
-  }
-
-  set pipeline(value: ?string): void {
-    if (value == null) {
-      writeU32(this.db, this.addr + 48 + 0, 0);
-    } else {
-      writeU32(this.db, this.addr + 48, this.db.getStringId(value));
-    }
-  }
-
-  get meta(): ?string {
-    return readU32(this.db, this.addr + 52 + 0) === 0
-      ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 52));
-  }
-
-  set meta(value: ?string): void {
-    if (value == null) {
-      writeU32(this.db, this.addr + 52 + 0, 0);
-    } else {
-      writeU32(this.db, this.addr + 52, this.db.getStringId(value));
-    }
-  }
-
   get stats(): AssetStats {
-    return AssetStats.get(this.db, this.addr + 0);
+    return AssetStats.get(this.db, this.addr + 44);
   }
 
   set stats(value: AssetStats): void {
-    AssetStats.set(this.db, this.addr + 0, value);
+    AssetStats.set(this.db, this.addr + 44, value);
   }
 
   get bundleBehavior(): BundleBehaviorVariants {
@@ -949,46 +968,46 @@ export class Asset {
   }
 
   get flags(): number {
-    return readU32(this.db, this.addr + 56);
+    return readU32(this.db, this.addr + 52);
   }
 
   set flags(value: number): void {
-    writeU32(this.db, this.addr + 56, value);
+    writeU32(this.db, this.addr + 52, value);
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.db, this.addr + 60, 32, Symbol);
+    return new Vec(this.db, this.addr + 56, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    copy(this.db, value.addr, this.addr + 60, 12);
+    copy(this.db, value.addr, this.addr + 56, 12);
   }
 
   get uniqueKey(): ?string {
-    return readU32(this.db, this.addr + 72 + 0) === 0
+    return readU32(this.db, this.addr + 68 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 72));
+      : readCachedString(this.db, readU32(this.db, this.addr + 68));
   }
 
   set uniqueKey(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 72 + 0, 0);
+      writeU32(this.db, this.addr + 68 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 72, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 68, this.db.getStringId(value));
     }
   }
 
   get ast(): ?AssetAst {
-    return readU32(this.db, this.addr + 8 + 4) === 0
+    return readU32(this.db, this.addr + 72 + 0) === 0
       ? null
-      : AssetAst.get(this.db, this.addr + 8);
+      : AssetAst.get(this.db, this.addr + 72);
   }
 
   set ast(value: ?AssetAst): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 8 + 4, 0);
+      writeU32(this.db, this.addr + 72 + 0, 0);
     } else {
-      AssetAst.set(this.db, this.addr + 8, value);
+      AssetAst.set(this.db, this.addr + 72, value);
     }
   }
 }
@@ -1018,57 +1037,57 @@ export class AssetAst {
   }
 
   get key(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 4));
+    return readCachedString(this.db, readU32(this.db, this.addr + 0));
   }
 
   set key(value: string): void {
-    writeU32(this.db, this.addr + 4, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 0, this.db.getStringId(value));
   }
 
   get plugin(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 8));
+    return readCachedString(this.db, readU32(this.db, this.addr + 4));
   }
 
   set plugin(value: string): void {
-    writeU32(this.db, this.addr + 8, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 4, this.db.getStringId(value));
   }
 
   get configPath(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 12));
+    return readCachedString(this.db, readU32(this.db, this.addr + 8));
   }
 
   set configPath(value: string): void {
-    writeU32(this.db, this.addr + 12, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 8, this.db.getStringId(value));
   }
 
   get configKeyPath(): ?string {
-    return readU32(this.db, this.addr + 0 + 0) === 0
+    return readU32(this.db, this.addr + 20 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 0));
+      : readCachedString(this.db, readU32(this.db, this.addr + 20));
   }
 
   set configKeyPath(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 0 + 0, 0);
+      writeU32(this.db, this.addr + 20 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 0, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 20, this.db.getStringId(value));
     }
   }
 
   get generator(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 16));
+    return readCachedString(this.db, readU32(this.db, this.addr + 12));
   }
 
   set generator(value: string): void {
-    writeU32(this.db, this.addr + 16, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 12, this.db.getStringId(value));
   }
 
   get version(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 20));
+    return readCachedString(this.db, readU32(this.db, this.addr + 16));
   }
 
   set version(value: string): void {
-    writeU32(this.db, this.addr + 20, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 16, this.db.getStringId(value));
   }
 }
 
@@ -1346,14 +1365,14 @@ export class Dependency {
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.db, this.addr + 12 + 16) === 0
+    return readU32(this.db, this.addr + 12 + 0) === 0
       ? null
       : SourceLocation.get(this.db, this.addr + 12);
   }
 
   set loc(value: ?SourceLocation): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 12 + 16, 0);
+      writeU32(this.db, this.addr + 12 + 0, 0);
     } else {
       SourceLocation.set(this.db, this.addr + 12, value);
     }
@@ -1629,32 +1648,32 @@ export class Symbol {
   }
 
   get exported(): number {
-    return readU32(this.db, this.addr + 20);
+    return readU32(this.db, this.addr + 0);
   }
 
   set exported(value: number): void {
-    writeU32(this.db, this.addr + 20, value);
+    writeU32(this.db, this.addr + 0, value);
   }
 
   get local(): number {
-    return readU32(this.db, this.addr + 24);
+    return readU32(this.db, this.addr + 4);
   }
 
   set local(value: number): void {
-    writeU32(this.db, this.addr + 24, value);
+    writeU32(this.db, this.addr + 4, value);
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.db, this.addr + 0 + 16) === 0
+    return readU32(this.db, this.addr + 8 + 0) === 0
       ? null
-      : SourceLocation.get(this.db, this.addr + 0);
+      : SourceLocation.get(this.db, this.addr + 8);
   }
 
   set loc(value: ?SourceLocation): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 0 + 16, 0);
+      writeU32(this.db, this.addr + 8 + 0, 0);
     } else {
-      SourceLocation.set(this.db, this.addr + 0, value);
+      SourceLocation.set(this.db, this.addr + 8, value);
     }
   }
 

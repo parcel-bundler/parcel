@@ -38,6 +38,7 @@ import {
 import ParcelConfig from '../ParcelConfig';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginTracer, tracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 import {Environment as DbEnvironment, Target as DbTarget} from '@parcel/rust';
 
 const HASH_REF_PREFIX_LEN = HASH_REF_PREFIX.length;
@@ -57,7 +58,7 @@ type RunInput<TResult> = {|
 
 export type WriteBundleRequest = {|
   id: string,
-  +type: 'write_bundle_request',
+  +type: typeof requestTypes.write_bundle_request,
   run: (RunInput<PackagedBundleInfo>) => Async<PackagedBundleInfo>,
   input: WriteBundleRequestInput,
 |};
@@ -74,7 +75,7 @@ export default function createWriteBundleRequest(
   );
   return {
     id: `${input.bundle.id}:${input.info.hash}:${nameHash}:${name}`,
-    type: 'write_bundle_request',
+    type: requestTypes.write_bundle_request,
     run,
     input,
   };
