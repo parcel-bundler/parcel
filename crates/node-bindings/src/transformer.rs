@@ -13,13 +13,13 @@ pub fn transform(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
 mod native_only {
   use super::*;
   use crossbeam_channel::{Receiver, Sender};
+  use indexmap::IndexMap;
   use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
     JsBoolean, JsFunction, JsNumber, JsString, ValueType,
   };
   use parcel_js_swc_core::{JsValue, SourceLocation};
   use std::sync::Arc;
-  use indexmap::IndexMap;
 
   // Allocate a single channel per thread to communicate with the JS thread.
   thread_local! {

@@ -604,4 +604,120 @@ describe('macros', function () {
       assert(res.includes(`output${i}="2a2300bbd7ea6e9a"`));
     }
   });
+
+  it('should throw a diagnostic when a constant is mutated', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        const object = {foo: 'bar'};
+        object.foo = 'test';
+        output = hashString(object.foo);
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 3,
+                    column: 1,
+                  },
+                  end: {
+                    line: 3,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+      ]);
+    }
+  });
+
+  it('should throw a diagnostic when a constant object is passed to a function', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        const bar = 'bar';
+        const object = {foo: bar};
+        doSomething(bar); // ok (string)
+        doSomething(object.foo); // ok (evaluates to a string)
+        doSomething(object); // error (object could be mutated)
+        output = hashString(object.foo);
+
+        const object2 = {foo: bar, obj: {}};
+        doSomething(object2.obj); // error (object could be mutated)
+        output2 = hashString(object2);
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 6,
+                    column: 13,
+                  },
+                  end: {
+                    line: 6,
+                    column: 18,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 10,
+                    column: 13,
+                  },
+                  end: {
+                    line: 10,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+      ]);
+    }
+  });
 });

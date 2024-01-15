@@ -27,6 +27,8 @@ pub struct Macros<'a> {
   callback: MacroCallback,
   source_map: &'a SourceMap,
   diagnostics: &'a mut Vec<Diagnostic>,
+  assignment_span: Option<Span>,
+  in_call: bool,
 }
 
 struct MacroImport {
@@ -48,6 +50,8 @@ impl<'a> Macros<'a> {
       callback,
       source_map,
       diagnostics,
+      assignment_span: None,
+      in_call: false,
     }
   }
 
@@ -89,7 +93,7 @@ impl<'a> Macros<'a> {
     }
   }
 
-  fn call_macro(&self, src: &JsWord, export: &JsWord, call: &CallExpr) -> Result<Expr, Diagnostic> {
+  fn call_macro(&self, src: String, export: String, call: CallExpr) -> Result<Expr, Diagnostic> {
     // Try to statically evaluate all of the function arguments.
     let mut args = Vec::with_capacity(call.args.len());
     for arg in &call.args {
@@ -111,7 +115,7 @@ impl<'a> Macros<'a> {
 
     // If that was successful, call the function callback (on the JS thread).
     let loc = SourceLocation::from(self.source_map, call.span);
-    match (self.callback)(src.to_string(), export.to_string(), args, loc.clone()) {
+    match (self.callback)(src, export, args, loc.clone()) {
       Ok(val) => Ok(self.value_to_expr(val)?),
       Err(err) => Err(Diagnostic {
         message: format!("Error evaluating macro: {}", err),
@@ -163,17 +167,18 @@ impl<'a> Fold for Macros<'a> {
     node
   }
 
-  fn fold_expr(&mut self, mut node: Expr) -> Expr {
-    node = node.fold_children_with(self);
-
-    if let Expr::Call(call) = &node {
+  fn fold_expr(&mut self, node: Expr) -> Expr {
+    if let Expr::Call(call) = node {
       if let Callee::Expr(expr) = &call.callee {
         match &**expr {
           Expr::Ident(ident) => {
             if let Some(specifier) = self.macros.get(&ident.to_id()) {
               if let Some(imported) = &specifier.imported {
+                let specifier = specifier.src.to_string();
+                let imported = imported.to_string();
+                let call = call.fold_with(self);
                 return handle_error(
-                  self.call_macro(&specifier.src, imported, call),
+                  self.call_macro(specifier, imported, call),
                   &mut self.diagnostics,
                 );
               }
@@ -188,8 +193,11 @@ impl<'a> Fold for Macros<'a> {
               ) {
                 // Check that this is a namespace import.
                 if specifier.imported.is_none() {
+                  let specifier = specifier.src.to_string();
+                  let imported = prop.0.to_string();
+                  let call = call.fold_with(self);
                   return handle_error(
-                    self.call_macro(&specifier.src, &prop.0, call),
+                    self.call_macro(specifier, imported, call),
                     &mut self.diagnostics,
                   );
                 }
@@ -199,9 +207,16 @@ impl<'a> Fold for Macros<'a> {
           _ => {}
         }
       }
+
+      // Not a macro. Track if we're in a call so we can error if constant
+      // objects are referenced that might be mutated.
+      self.in_call = true;
+      let call = call.fold_with(self);
+      self.in_call = false;
+      return Expr::Call(call);
     }
 
-    node
+    node.fold_children_with(self)
   }
 
   fn fold_var_decl(&mut self, mut node: VarDecl) -> VarDecl {
@@ -212,6 +227,56 @@ impl<'a> Fold for Macros<'a> {
         if let Some(expr) = &decl.init {
           let val = self.eval(&*expr);
           self.eval_pat(val, &decl.name);
+        }
+      }
+    }
+
+    node
+  }
+
+  fn fold_assign_expr(&mut self, mut node: AssignExpr) -> AssignExpr {
+    self.assignment_span = Some(node.span.clone());
+    node.left = node.left.fold_with(self);
+    self.assignment_span = None;
+
+    node.right = node.right.fold_with(self);
+    node
+  }
+
+  fn fold_member_expr(&mut self, node: MemberExpr) -> MemberExpr {
+    if let Some(assignment_span) = self.assignment_span {
+      // Error when re-assigning a property of a constant that's used in a macro.
+      let node = node.fold_children_with(self);
+      if let Expr::Ident(id) = &*node.obj {
+        if let Some(constant) = self.constants.get_mut(&id.to_id()) {
+          if constant.is_ok() {
+            *constant = Err(assignment_span.clone());
+          }
+        }
+      }
+
+      return node;
+    } else if self.in_call {
+      // We need to error when passing a constant object into a non-macro call, since it might be mutated.
+      // If the member expression evaluates to an object, continue traversing so we error in fold_ident.
+      // Otherwise, return early to allow other properties to be accessed without error.
+      let value = self
+        .eval(&*node.obj)
+        .and_then(|obj| self.eval_member_prop(obj, &node));
+      if !matches!(value, Ok(JsValue::Object(..))) {
+        return node;
+      }
+    }
+
+    node.fold_children_with(self)
+  }
+
+  fn fold_ident(&mut self, node: Ident) -> Ident {
+    if self.in_call {
+      if let Some(constant) = self.constants.get_mut(&node.to_id()) {
+        if matches!(constant, Ok(JsValue::Object(..))) {
+          // Mark access to constant object inside a call as an error since it could potentially be mutated.
+          *constant = Err(node.span.clone());
         }
       }
     }
