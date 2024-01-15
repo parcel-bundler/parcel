@@ -137,7 +137,11 @@ export class ScopeHoistingPackager {
       for (let b of this.bundleGraph.getReferencedBundles(this.bundle)) {
         let entry = b.getMainEntry();
         let symbols = new Map();
-        if (entry && entry.type === 'js') {
+        if (
+          entry &&
+          !this.bundleGraph.isAssetReferenced(b, entry) &&
+          entry.type === 'js'
+        ) {
           this.externalAssets.add(entry);
 
           let usedSymbols = this.bundleGraph.getUsedSymbols(entry) || new Set();
