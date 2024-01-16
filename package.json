@@ -17,6 +17,7 @@
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
     "build-native-wasm": "node scripts/build-native.js --release --wasm",
+    "build-repl": "yarn build-native-release && yarn build-native-wasm && yarn workspace @parcel/repl build",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rimraf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" && cargo fmt --all",
@@ -34,7 +35,8 @@
     "tag:release": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
     "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
@@ -42,8 +44,9 @@
     "@napi-rs/cli": "^2.15.2",
     "@parcel/babel-register": "*",
     "@types/node": ">= 18",
+    "buffer": "mischnic/buffer#b8a4fa94",
     "cross-env": "^7.0.0",
-    "eslint": "^7.20.0",
+    "eslint": "^8.41.0",
     "flow-bin": "0.184.0",
     "glob": "^7.1.6",
     "gulp": "^4.0.2",
@@ -72,6 +75,14 @@
     "url": "https://opencollective.com/parcel"
   },
   "packageManager": "yarn@1.22.19",
+  "browser": {
+    "react-dom": "preact/compat",
+    "react": "preact/compat",
+    "scheduler": false
+  },
+  "dependencies": {
+    "patch-package": "^8.0.0"
+  },
   "_": "See issue #9405 for the Vue problem",
   "__": "The watcher complains about non-existing dirs in the integration tests on >=2.3.0",
   "resolutions": {

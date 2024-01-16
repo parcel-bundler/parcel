@@ -52,6 +52,7 @@ bitflags! {
     /// Optional extensions in specifiers, using the `extensions` setting.
     const OPTIONAL_EXTENSIONS = 1 << 7;
     /// Whether extensions are replaced in specifiers, e.g. `./foo.js` -> `./foo.ts`.
+    /// This also allows omitting the `.ts` and `.tsx` extensions when outside node_modules.
     const TYPESCRIPT_EXTENSIONS = 1 << 8;
     /// Whether to allow omitting the extension when resolving the same file type.
     const PARENT_EXTENSION = 1 << 9;
@@ -166,7 +167,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
   pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
       project_root,
-      extensions: Extensions::Borrowed(&["ts", "tsx", "mjs", "js", "jsx", "cjs", "json"]),
+      extensions: Extensions::Borrowed(&["mjs", "js", "jsx", "cjs", "json"]),
       index_file: "index",
       entries: Fields::MAIN | Fields::SOURCE | Fields::BROWSER | Fields::MODULE,
       flags: Flags::all(),
@@ -762,7 +763,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     package: &PackageJson,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
-    for (entry, field) in package.entries(self.resolver.entries) {
+    if let Some((entry, field)) = package.entries(self.resolver.entries).next() {
       if let Some(res) = self.load_path(&entry, Some(package))? {
         return Ok(Some(res));
       } else {
@@ -872,6 +873,20 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       // where URL dependencies could omit the extension if it was the same as the parent.
       // TODO: Revert this in the next major version.
       if let Some(res) = self.try_suffixes(path, ext, package, false)? {
+        return Ok(Some(res));
+      }
+    }
+
+    // Try adding typescript extensions if outside node_modules.
+    if self
+      .resolver
+      .flags
+      .contains(Flags::TYPESCRIPT_EXTENSIONS | Flags::OPTIONAL_EXTENSIONS)
+      && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
+    {
+      if let Some(res) =
+        self.try_extensions(path, package, &Extensions::Borrowed(&["ts", "tsx"]), true)?
+      {
         return Ok(Some(res));
       }
     }
@@ -1203,17 +1218,11 @@ mod tests {
   }
 
   fn test_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::parcel(
-      root().into(),
-      CacheCow::Owned(Cache::new(OsFileSystem::default())),
-    )
+    Resolver::parcel(root().into(), CacheCow::Owned(Cache::new(OsFileSystem)))
   }
 
   fn node_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::node(
-      root().into(),
-      CacheCow::Owned(Cache::new(OsFileSystem::default())),
-    )
+    Resolver::node(root().into(), CacheCow::Owned(Cache::new(OsFileSystem)))
   }
 
   #[test]
