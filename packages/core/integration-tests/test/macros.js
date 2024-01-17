@@ -612,6 +612,10 @@ describe('macros', function () {
         const object = {foo: 'bar'};
         object.foo = 'test';
         output = hashString(object.foo);
+
+        const arr = ['foo'];
+        arr[0] = 'bar';
+        output = hashString(arr[0]);
     `;
 
     try {
@@ -644,6 +648,29 @@ describe('macros', function () {
           ],
           hints: null,
         },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 7,
+                    column: 1,
+                  },
+                  end: {
+                    line: 7,
+                    column: 14,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
       ]);
     }
   });
@@ -662,6 +689,10 @@ describe('macros', function () {
         const object2 = {foo: bar, obj: {}};
         doSomething(object2.obj); // error (object could be mutated)
         output2 = hashString(object2);
+
+        const arr = ['foo'];
+        doSomething(arr);
+        output3 = hashString(arr[0]);
     `;
 
     try {
@@ -710,6 +741,29 @@ describe('macros', function () {
                   end: {
                     line: 10,
                     column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 14,
+                    column: 13,
+                  },
+                  end: {
+                    line: 14,
+                    column: 15,
                   },
                 },
               ],

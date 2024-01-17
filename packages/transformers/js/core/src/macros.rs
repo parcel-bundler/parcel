@@ -263,7 +263,7 @@ impl<'a> Fold for Macros<'a> {
       let value = self
         .eval(&*node.obj)
         .and_then(|obj| self.eval_member_prop(obj, &node));
-      if !matches!(value, Ok(JsValue::Object(..))) {
+      if !matches!(value, Ok(JsValue::Object(..) | JsValue::Array(..))) {
         return node;
       }
     }
@@ -274,7 +274,7 @@ impl<'a> Fold for Macros<'a> {
   fn fold_ident(&mut self, node: Ident) -> Ident {
     if self.in_call {
       if let Some(constant) = self.constants.get_mut(&node.to_id()) {
-        if matches!(constant, Ok(JsValue::Object(..))) {
+        if matches!(constant, Ok(JsValue::Object(..) | JsValue::Array(..))) {
           // Mark access to constant object inside a call as an error since it could potentially be mutated.
           *constant = Err(node.span.clone());
         }
