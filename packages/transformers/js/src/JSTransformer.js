@@ -556,7 +556,7 @@ export default (new Transformer({
               }
             } catch (err) {
               // Remove parcel core from stack and build string so Rust can process errors more easily.
-              let stack = err.stack.split('\n').slice(1);
+              let stack = (err.stack || '').split('\n').slice(1);
               let message = err.message;
               for (let line of stack) {
                 if (line.includes(__filename)) {

@@ -106,6 +106,7 @@ export class NodePackageManager implements PackageManager {
             }
           : undefined,
       extensions: this.currentExtensions,
+      typescript: true,
     });
   }
 
