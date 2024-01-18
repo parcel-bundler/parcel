@@ -693,6 +693,10 @@ describe('macros', function () {
         const arr = ['foo'];
         doSomething(arr);
         output3 = hashString(arr[0]);
+
+        const object3 = {foo: bar};
+        doSomething(object3[unknown]);
+        output4 = hashString(object3);
     `;
 
     try {
@@ -764,6 +768,29 @@ describe('macros', function () {
                   end: {
                     line: 14,
                     column: 15,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 18,
+                    column: 13,
+                  },
+                  end: {
+                    line: 18,
+                    column: 19,
                   },
                 },
               ],

@@ -263,7 +263,10 @@ impl<'a> Fold for Macros<'a> {
       let value = self
         .eval(&*node.obj)
         .and_then(|obj| self.eval_member_prop(obj, &node));
-      if !matches!(value, Ok(JsValue::Object(..) | JsValue::Array(..))) {
+      if !matches!(
+        value,
+        Err(..) | Ok(JsValue::Object(..) | JsValue::Array(..))
+      ) {
         return node;
       }
     }
