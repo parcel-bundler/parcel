@@ -18,12 +18,12 @@ mod native_only {
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
     JsBoolean, JsFunction, JsNumber, JsString, ValueType,
   };
-  use parcel_js_swc_core::{JsValue, SourceLocation};
+  use parcel_js_swc_core::{JsValue, MacroError, SourceLocation};
   use std::sync::Arc;
 
   // Allocate a single channel per thread to communicate with the JS thread.
   thread_local! {
-    static CHANNEL: (Sender<Result<JsValue, String>>, Receiver<Result<JsValue, String>>) = crossbeam_channel::unbounded();
+    static CHANNEL: (Sender<Result<JsValue, MacroError>>, Receiver<Result<JsValue, MacroError>>) = crossbeam_channel::unbounded();
   }
 
   struct CallMacroMessage {
@@ -31,6 +31,12 @@ mod native_only {
     export: String,
     args: Vec<JsValue>,
     loc: SourceLocation,
+  }
+
+  #[napi(object)]
+  struct JsMacroError {
+    pub kind: u32,
+    pub message: String,
   }
 
   #[napi]
@@ -203,7 +209,7 @@ mod native_only {
   fn await_promise(
     env: Env,
     result: JsUnknown,
-    tx: Sender<Result<JsValue, String>>,
+    tx: Sender<Result<JsValue, MacroError>>,
   ) -> napi::Result<()> {
     // If the result is a promise, wait for it to resolve, and send the result to the channel.
     // Otherwise, send the result immediately.
@@ -217,12 +223,13 @@ mod native_only {
         ctx.env.get_undefined()
       })?;
       let eb = env.create_function_from_closure("error_callback", move |ctx| {
-        let res = ctx.get::<JsUnknown>(0)?;
-        let message = match napi_to_js_value(res, env)? {
-          JsValue::String(s) => s,
-          _ => "Unknown error".into(),
+        let res = ctx.get::<JsMacroError>(0)?;
+        let err = match res.kind {
+          1 => MacroError::LoadError(res.message),
+          2 => MacroError::ExecutionError(res.message),
+          _ => MacroError::LoadError("Invalid error kind".into()),
         };
-        tx2.send(Err(message)).expect("send failure");
+        tx2.send(Err(err)).expect("send failure");
         ctx.env.get_undefined()
       })?;
       then.call(Some(&result), &[cb, eb])?;
