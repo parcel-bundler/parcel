@@ -1,5 +1,6 @@
 // @flow strict-local
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   bundle,
@@ -624,6 +625,7 @@ describe('macros', function () {
 
       buildEvent = await getNextBuild(b);
       assert.equal(buildEvent.type, 'buildSuccess');
+      invariant(buildEvent.type === 'buildSuccess'); // flow
 
       let res = await overlayFS.readFile(
         buildEvent.bundleGraph.getBundles()[0].filePath,
@@ -632,7 +634,7 @@ describe('macros', function () {
       let match = res.match(/output=(\d+)/);
       assert(match);
     } finally {
-      await subscription.unsubscribe();
+      await subscription?.unsubscribe();
     }
   });
 
