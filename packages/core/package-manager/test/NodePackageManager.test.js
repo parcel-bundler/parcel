@@ -12,6 +12,32 @@ import {MockPackageInstaller, NodePackageManager} from '../src';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
+function normalize(res) {
+  return {
+    ...res,
+    invalidateOnFileCreate:
+      res?.invalidateOnFileCreate?.sort((a, b) => {
+        let ax =
+          a.filePath ??
+          a.glob ??
+          (a.aboveFilePath != null && a.fileName != null
+            ? a.aboveFilePath + a.fileName
+            : '');
+        let bx =
+          b.filePath ??
+          b.glob ??
+          (b.aboveFilePath != null && b.fileName != null
+            ? b.aboveFilePath + b.fileName
+            : '');
+        return ax < bx ? -1 : 1;
+      }) ?? [],
+  };
+}
+
+function check(resolved, expected) {
+  assert.deepEqual(normalize(resolved), normalize(expected));
+}
+
 describe('NodePackageManager', function () {
   let fs;
   let packageManager;
@@ -36,7 +62,7 @@ describe('NodePackageManager', function () {
   });
 
   it('resolves packages that exist', async () => {
-    assert.deepEqual(
+    check(
       await packageManager.resolve(
         'foo',
         path.join(FIXTURES_DIR, 'has-foo/index.js'),
@@ -46,12 +72,29 @@ describe('NodePackageManager', function () {
           version: '1.1.0',
         },
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/index.js'),
+        type: 1,
         invalidateOnFileChange: new Set([
           path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/package.json'),
         ]),
         invalidateOnFileCreate: [
           {
+            filePath: path.join(
+              FIXTURES_DIR,
+              'has-foo/node_modules/foo/index.ts',
+            ),
+          },
+          {
+            filePath: path.join(
+              FIXTURES_DIR,
+              'has-foo/node_modules/foo/index.tsx',
+            ),
+          },
+          {
             fileName: 'node_modules/foo',
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo'),
+          },
+          {
+            fileName: 'tsconfig.json',
             aboveFilePath: path.join(FIXTURES_DIR, 'has-foo'),
           },
         ],
@@ -72,7 +115,7 @@ describe('NodePackageManager', function () {
   it("autoinstalls packages that don't exist", async () => {
     packageInstaller.register('a', fs, path.join(FIXTURES_DIR, 'packages/a'));
 
-    assert.deepEqual(
+    check(
       await packageManager.resolve(
         'a',
         path.join(FIXTURES_DIR, 'has-foo/index.js'),
@@ -83,12 +126,29 @@ describe('NodePackageManager', function () {
           name: 'a',
         },
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/a/index.js'),
+        type: 1,
         invalidateOnFileChange: new Set([
           path.join(FIXTURES_DIR, 'has-foo/node_modules/a/package.json'),
         ]),
         invalidateOnFileCreate: [
           {
+            filePath: path.join(
+              FIXTURES_DIR,
+              'has-foo/node_modules/a/index.ts',
+            ),
+          },
+          {
+            filePath: path.join(
+              FIXTURES_DIR,
+              'has-foo/node_modules/a/index.tsx',
+            ),
+          },
+          {
             fileName: 'node_modules/a',
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo'),
+          },
+          {
+            fileName: 'tsconfig.json',
             aboveFilePath: path.join(FIXTURES_DIR, 'has-foo'),
           },
         ],
@@ -217,7 +277,7 @@ describe('NodePackageManager', function () {
       );
 
       let spy = sinon.spy(packageInstaller, 'install');
-      assert.deepEqual(
+      check(
         await packageManager.resolve(
           'foo',
           path.join(FIXTURES_DIR, 'has-foo/subpackage/index.js'),
@@ -235,6 +295,7 @@ describe('NodePackageManager', function () {
             FIXTURES_DIR,
             'has-foo/subpackage/node_modules/foo/index.js',
           ),
+          type: 1,
           invalidateOnFileChange: new Set([
             path.join(
               FIXTURES_DIR,
@@ -243,7 +304,23 @@ describe('NodePackageManager', function () {
           ]),
           invalidateOnFileCreate: [
             {
+              filePath: path.join(
+                FIXTURES_DIR,
+                'has-foo/subpackage/node_modules/foo/index.ts',
+              ),
+            },
+            {
+              filePath: path.join(
+                FIXTURES_DIR,
+                'has-foo/subpackage/node_modules/foo/index.tsx',
+              ),
+            },
+            {
               fileName: 'node_modules/foo',
+              aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/subpackage'),
+            },
+            {
+              fileName: 'tsconfig.json',
               aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/subpackage'),
             },
           ],

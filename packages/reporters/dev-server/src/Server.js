@@ -18,7 +18,8 @@ import url from 'url';
 import {
   ansiHtml,
   createHTTPServer,
-  loadConfig,
+  resolveConfig,
+  readConfig,
   prettyDiagnostic,
   relativePath,
 } from '@parcel/utils';
@@ -44,6 +45,8 @@ export function setHeaders(res: Response) {
   );
   res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
 }
+
+const SLASH_REGEX = /\//g;
 
 export const SOURCES_ENDPOINT = '/__parcel_source_root';
 const EDITOR_ENDPOINT = '/__parcel_launch_editor';
@@ -183,7 +186,7 @@ export default class Server {
       // If the main asset is an HTML file, serve it
       let htmlBundleFilePaths = this.bundleGraph
         .getBundles()
-        .filter(bundle => bundle.type === 'html')
+        .filter(bundle => path.posix.extname(bundle.name) === '.html')
         .map(bundle => {
           return `/${relativePath(
             this.options.distDir,
@@ -193,21 +196,50 @@ export default class Server {
         });
 
       let indexFilePath = null;
+      let {pathname: reqURL} = url.parse(req.originalUrl || req.url);
+
+      if (!reqURL) {
+        reqURL = '/';
+      }
+
       if (htmlBundleFilePaths.length === 1) {
         indexFilePath = htmlBundleFilePaths[0];
       } else {
-        indexFilePath = htmlBundleFilePaths
-          .filter(v => {
-            let dir = path.posix.dirname(v);
-            let withoutExtension = path.posix.basename(
-              v,
-              path.posix.extname(v),
-            );
-            return withoutExtension === 'index' && req.url.startsWith(dir);
-          })
-          .sort((a, b) => {
-            return b.length - a.length;
-          })[0];
+        let bestMatch = null;
+        for (let bundle of htmlBundleFilePaths) {
+          let bundleDir = path.posix.dirname(bundle);
+          let bundleDirSubdir = bundleDir === '/' ? bundleDir : bundleDir + '/';
+          let withoutExtension = path.posix.basename(
+            bundle,
+            path.posix.extname(bundle),
+          );
+          let isIndex = withoutExtension === 'index';
+
+          let matchesIsIndex = null;
+          if (
+            isIndex &&
+            (reqURL.startsWith(bundleDirSubdir) || reqURL === bundleDir)
+          ) {
+            // bundle is /bar/index.html and (/bar or something inside of /bar/** was requested was requested)
+            matchesIsIndex = true;
+          } else if (reqURL == path.posix.join(bundleDir, withoutExtension)) {
+            // bundle is /bar/foo.html and /bar/foo was requested
+            matchesIsIndex = false;
+          }
+          if (matchesIsIndex != null) {
+            let depth = bundle.match(SLASH_REGEX)?.length ?? 0;
+            if (
+              bestMatch == null ||
+              // This one is more specific (deeper)
+              bestMatch.depth < depth ||
+              // This one is just as deep, but the bundle name matches and not just index.html
+              (bestMatch.depth === depth && bestMatch.isIndex)
+            ) {
+              bestMatch = {bundle, depth, isIndex: matchesIsIndex};
+            }
+          }
+        }
+        indexFilePath = bestMatch?.['bundle'] ?? htmlBundleFilePaths[0];
       }
 
       if (indexFilePath) {
@@ -381,23 +413,45 @@ export default class Server {
    */
   async applyProxyTable(app: any): Promise<Server> {
     // avoid skipping project root
-    const fileInRoot: string = path.join(this.options.projectRoot, '_');
+    const fileInRoot: string = path.join(this.options.projectRoot, 'index');
 
-    const pkg = await loadConfig(
+    const configFilePath = await resolveConfig(
       this.options.inputFS,
       fileInRoot,
-      ['.proxyrc.cjs', '.proxyrc.js', '.proxyrc', '.proxyrc.json'],
+      [
+        '.proxyrc.cjs',
+        '.proxyrc.mjs',
+        '.proxyrc.js',
+        '.proxyrc',
+        '.proxyrc.json',
+      ],
       this.options.projectRoot,
     );
 
-    if (!pkg || !pkg.config || !pkg.files) {
+    if (!configFilePath) {
       return this;
     }
 
-    const cfg = pkg.config;
-    const filename = path.basename(pkg.files[0].filePath);
+    const filename = path.basename(configFilePath);
 
-    if (filename === '.proxyrc.js' || filename === '.proxyrc.cjs') {
+    if (
+      filename === '.proxyrc.js' ||
+      filename === '.proxyrc.cjs' ||
+      filename === '.proxyrc.mjs'
+    ) {
+      // $FlowFixMe
+      // let cfg = (await import(configFilePath)).default;
+      let cfg = await this.options.packageManager.require(
+        configFilePath,
+        fileInRoot,
+      );
+      if (
+        // $FlowFixMe
+        Object.prototype.toString.call(cfg) === '[object Module]'
+      ) {
+        cfg = cfg.default;
+      }
+
       if (typeof cfg !== 'function') {
         this.options.logger.warn({
           message: `Proxy configuration file '${filename}' should export a function. Skipping...`,
@@ -406,6 +460,11 @@ export default class Server {
       }
       cfg(app);
     } else if (filename === '.proxyrc' || filename === '.proxyrc.json') {
+      let conf = await readConfig(this.options.inputFS, configFilePath);
+      if (!conf) {
+        return this;
+      }
+      let cfg = conf.config;
       if (typeof cfg !== 'object') {
         this.options.logger.warn({
           message:

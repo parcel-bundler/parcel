@@ -24,20 +24,23 @@ bitflags! {
     const BROWSER = 1 << 3;
     const ALIAS = 1 << 4;
     const TSCONFIG = 1 << 5;
+    const TYPES = 1 << 6;
   }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson<'a> {
   #[serde(skip)]
   pub path: PathBuf,
   #[serde(default)]
   pub name: &'a str,
+  #[serde(rename = "type", default)]
+  pub module_type: ModuleType,
   main: Option<&'a str>,
   module: Option<&'a str>,
-  #[serde(default)]
   tsconfig: Option<&'a str>,
+  types: Option<&'a str>,
   #[serde(default)]
   pub source: SourceField<'a>,
   #[serde(default)]
@@ -52,42 +55,30 @@ pub struct PackageJson<'a> {
   side_effects: SideEffects<'a>,
 }
 
-impl<'a> Default for PackageJson<'a> {
-  fn default() -> Self {
-    PackageJson {
-      path: Default::default(),
-      name: "",
-      main: None,
-      module: None,
-      tsconfig: None,
-      source: Default::default(),
-      browser: Default::default(),
-      alias: Default::default(),
-      exports: Default::default(),
-      imports: Default::default(),
-      side_effects: Default::default(),
-    }
-  }
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ModuleType {
+  Module,
+  Json,
+  #[default]
+  #[serde(other)]
+  CommonJs,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 #[serde(untagged)]
 pub enum BrowserField<'a> {
+  #[default]
   None,
   #[serde(borrow)]
   String(&'a str),
   Map(IndexMap<Specifier<'a>, AliasValue<'a>>),
 }
 
-impl<'a> Default for BrowserField<'a> {
-  fn default() -> Self {
-    BrowserField::None
-  }
-}
-
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 #[serde(untagged)]
 pub enum SourceField<'a> {
+  #[default]
   None,
   #[serde(borrow)]
   String(&'a str),
@@ -96,26 +87,15 @@ pub enum SourceField<'a> {
   Bool(bool),
 }
 
-impl<'a> Default for SourceField<'a> {
-  fn default() -> Self {
-    SourceField::None
-  }
-}
-
-#[derive(serde::Deserialize, Debug, PartialEq)]
+#[derive(serde::Deserialize, Debug, Default, PartialEq)]
 #[serde(untagged)]
 pub enum ExportsField<'a> {
+  #[default]
   None,
   #[serde(borrow)]
   String(&'a str),
   Array(Vec<ExportsField<'a>>),
   Map(IndexMap<ExportsKey<'a>, ExportsField<'a>>),
-}
-
-impl<'a> Default for ExportsField<'a> {
-  fn default() -> Self {
-    ExportsField::None
-  }
 }
 
 bitflags! {
@@ -182,10 +162,10 @@ impl<'a> From<&'a str> for ExportsKey<'a> {
   fn from(key: &'a str) -> Self {
     if key == "." {
       ExportsKey::Main
-    } else if key.starts_with("./") {
-      ExportsKey::Pattern(&key[2..])
-    } else if key.starts_with('#') {
-      ExportsKey::Pattern(&key[1..])
+    } else if let Some(key) = key.strip_prefix("./") {
+      ExportsKey::Pattern(key)
+    } else if let Some(key) = key.strip_prefix('#') {
+      ExportsKey::Pattern(key)
     } else if let Ok(c) = ExportsCondition::try_from(key) {
       ExportsKey::Condition(c)
     } else {
@@ -215,20 +195,15 @@ pub enum AliasValue<'a> {
   },
 }
 
-#[derive(serde::Deserialize, Clone, PartialEq, Debug)]
+#[derive(serde::Deserialize, Clone, Default, PartialEq, Debug)]
 #[serde(untagged)]
 pub enum SideEffects<'a> {
+  #[default]
   None,
   Boolean(bool),
   #[serde(borrow)]
   String(&'a str),
   Array(Vec<&'a str>),
-}
-
-impl<'a> Default for SideEffects<'a> {
-  fn default() -> Self {
-    SideEffects::None
-  }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -254,10 +229,24 @@ impl<'a> PackageJson<'a> {
   }
 
   pub fn entries(&self, fields: Fields) -> EntryIter {
-    return EntryIter {
+    EntryIter {
       package: self,
       fields,
-    };
+    }
+  }
+
+  pub fn source(&self) -> Option<PathBuf> {
+    match &self.source {
+      SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => None,
+      SourceField::String(source) => Some(resolve_path(&self.path, source)),
+      SourceField::Map(map) => match map.get(&Specifier::Package(
+        Cow::Borrowed(self.name),
+        Cow::Borrowed(""),
+      )) {
+        Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(resolve_path(&self.path, s)),
+        _ => None,
+      },
+    }
   }
 
   pub fn has_exports(&self) -> bool {
@@ -312,7 +301,7 @@ impl<'a> PackageJson<'a> {
       // All exports must start with "." at this point.
       match self.resolve_package_imports_exports(
         subpath,
-        &exports,
+        exports,
         false,
         conditions,
         custom_conditions,
@@ -364,7 +353,7 @@ impl<'a> PackageJson<'a> {
             return Err(PackageJsonError::InvalidPackageTarget);
           }
 
-          if pattern_match != "" {
+          if !pattern_match.is_empty() {
             let target = target.replace('*', pattern_match);
             return Ok(ExportsResolution::Package(Cow::Owned(target)));
           }
@@ -372,7 +361,7 @@ impl<'a> PackageJson<'a> {
           return Ok(ExportsResolution::Package(Cow::Borrowed(target)));
         }
 
-        let target = if pattern_match == "" {
+        let target = if pattern_match.is_empty() {
           Cow::Borrowed(*target)
         } else {
           Cow::Owned(target.replace('*', pattern_match))
@@ -498,12 +487,11 @@ impl<'a> PackageJson<'a> {
     fields: Fields,
   ) -> Option<Cow<'_, AliasValue>> {
     if fields.contains(Fields::SOURCE) {
-      match &self.source {
-        SourceField::Map(source) => match self.resolve_alias(source, specifier) {
+      if let SourceField::Map(source) = &self.source {
+        match self.resolve_alias(source, specifier) {
           None => {}
           res => return res,
-        },
-        _ => {}
+        }
       }
     }
 
@@ -515,12 +503,11 @@ impl<'a> PackageJson<'a> {
     }
 
     if fields.contains(Fields::BROWSER) {
-      match &self.browser {
-        BrowserField::Map(browser) => match self.resolve_alias(browser, specifier) {
+      if let BrowserField::Map(browser) = &self.browser {
+        match self.resolve_alias(browser, specifier) {
           None => {}
           res => return res,
-        },
-        _ => {}
+        }
       }
     }
 
@@ -536,63 +523,60 @@ impl<'a> PackageJson<'a> {
       return Some(alias);
     }
 
-    match specifier {
-      Specifier::Package(package, subpath) => {
-        if let Some(alias) =
-          self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed("")))
-        {
-          match alias.as_ref() {
-            AliasValue::Specifier(base) => {
-              // Join the subpath back onto the resolved alias.
-              match base {
-                Specifier::Package(base_pkg, base_subpath) => {
-                  let subpath = if !base_subpath.is_empty() && !subpath.is_empty() {
-                    Cow::Owned(format!("{}/{}", base_subpath, subpath))
-                  } else if !subpath.is_empty() {
-                    subpath.clone()
-                  } else {
-                    return Some(alias);
-                  };
-                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Package(
-                    base_pkg.clone(),
-                    subpath,
+    if let Specifier::Package(package, subpath) = specifier {
+      if let Some(alias) =
+        self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed("")))
+      {
+        match alias.as_ref() {
+          AliasValue::Specifier(base) => {
+            // Join the subpath back onto the resolved alias.
+            match base {
+              Specifier::Package(base_pkg, base_subpath) => {
+                let subpath = if !base_subpath.is_empty() && !subpath.is_empty() {
+                  Cow::Owned(format!("{}/{}", base_subpath, subpath))
+                } else if !subpath.is_empty() {
+                  subpath.clone()
+                } else {
+                  return Some(alias);
+                };
+                return Some(Cow::Owned(AliasValue::Specifier(Specifier::Package(
+                  base_pkg.clone(),
+                  subpath,
+                ))));
+              }
+              Specifier::Relative(path) => {
+                if subpath.is_empty() {
+                  return Some(alias);
+                } else {
+                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(
+                    Cow::Owned(path.join(subpath.as_ref())),
                   ))));
                 }
-                Specifier::Relative(path) => {
-                  if subpath.is_empty() {
-                    return Some(alias);
-                  } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(
-                      Cow::Owned(path.join(subpath.as_ref())),
-                    ))));
-                  }
-                }
-                Specifier::Absolute(path) => {
-                  if subpath.is_empty() {
-                    return Some(alias);
-                  } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(
-                      Cow::Owned(path.join(subpath.as_ref())),
-                    ))));
-                  }
-                }
-                Specifier::Tilde(path) => {
-                  if subpath.is_empty() {
-                    return Some(alias);
-                  } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(
-                      Cow::Owned(path.join(subpath.as_ref())),
-                    ))));
-                  }
-                }
-                _ => return Some(alias),
               }
+              Specifier::Absolute(path) => {
+                if subpath.is_empty() {
+                  return Some(alias);
+                } else {
+                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(
+                    Cow::Owned(path.join(subpath.as_ref())),
+                  ))));
+                }
+              }
+              Specifier::Tilde(path) => {
+                if subpath.is_empty() {
+                  return Some(alias);
+                } else {
+                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(
+                    Cow::Owned(path.join(subpath.as_ref())),
+                  ))));
+                }
+              }
+              _ => return Some(alias),
             }
-            _ => return Some(alias),
-          };
-        }
+          }
+          _ => return Some(alias),
+        };
       }
-      _ => {}
     }
 
     None
@@ -612,29 +596,34 @@ impl<'a> PackageJson<'a> {
       let (glob, path) = match (key, specifier) {
         (Specifier::Relative(glob), Specifier::Relative(path))
         | (Specifier::Absolute(glob), Specifier::Absolute(path))
-        | (Specifier::Tilde(glob), Specifier::Tilde(path)) => {
-          (glob.as_os_str().to_str()?, path.as_os_str().to_str()?)
-        }
+        | (Specifier::Tilde(glob), Specifier::Tilde(path)) => (
+          glob.as_os_str().to_string_lossy(),
+          path.as_os_str().to_string_lossy(),
+        ),
         (Specifier::Package(module_a, glob), Specifier::Package(module_b, path))
           if module_a == module_b =>
         {
-          (glob.as_ref(), path.as_ref())
+          (Cow::Borrowed(glob.as_ref()), Cow::Borrowed(path.as_ref()))
+        }
+        (pkg_a @ Specifier::Package(..), pkg_b @ Specifier::Package(..)) => {
+          // Glob could be in the package name, e.g. "@internal/*"
+          (pkg_a.to_string(), pkg_b.to_string())
         }
         _ => continue,
       };
 
-      if let Some(captures) = glob_match_with_captures(glob, path) {
+      if let Some(captures) = glob_match_with_captures(&glob, &path) {
         let res = match value {
           AliasValue::Specifier(specifier) => AliasValue::Specifier(match specifier {
             Specifier::Relative(r) => {
-              Specifier::Relative(replace_path_captures(r, path, &captures)?)
+              Specifier::Relative(replace_path_captures(r, &path, &captures)?)
             }
             Specifier::Absolute(r) => {
-              Specifier::Absolute(replace_path_captures(r, path, &captures)?)
+              Specifier::Absolute(replace_path_captures(r, &path, &captures)?)
             }
-            Specifier::Tilde(r) => Specifier::Tilde(replace_path_captures(r, path, &captures)?),
+            Specifier::Tilde(r) => Specifier::Tilde(replace_path_captures(r, &path, &captures)?),
             Specifier::Package(module, subpath) => {
-              Specifier::Package(module.clone(), replace_captures(subpath, path, &captures))
+              Specifier::Package(module.clone(), replace_captures(subpath, &path, &captures))
             }
             _ => return Some(Cow::Borrowed(value)),
           }),
@@ -661,11 +650,7 @@ impl<'a> PackageJson<'a> {
 
     fn side_effects_glob_matches(glob: &str, path: &str) -> bool {
       // Trim leading "./"
-      let glob = if glob.starts_with("./") {
-        &glob[2..]
-      } else {
-        &glob
-      };
+      let glob = glob.strip_prefix("./").unwrap_or(glob);
 
       // If the glob does not contain any '/' characters, prefix with "**/" to match webpack.
       let glob = if !glob.contains('/') {
@@ -694,7 +679,7 @@ fn replace_path_captures<'a>(
   captures: &Vec<Range<usize>>,
 ) -> Option<Cow<'a, Path>> {
   Some(
-    match replace_captures(s.as_os_str().to_str()?, path, &captures) {
+    match replace_captures(s.as_os_str().to_str()?, path, captures) {
       Cow::Borrowed(b) => Cow::Borrowed(Path::new(b)),
       Cow::Owned(b) => Cow::Owned(PathBuf::from(b)),
     },
@@ -736,11 +721,11 @@ fn pattern_key_compare(a: &str, b: &str) -> Ordering {
     return cmp;
   }
 
-  if a_pos == None {
+  if a_pos.is_none() {
     return Ordering::Greater;
   }
 
-  if b_pos == None {
+  if b_pos.is_none() {
     return Ordering::Less;
   }
 
@@ -758,21 +743,15 @@ impl<'a> Iterator for EntryIter<'a> {
   fn next(&mut self) -> Option<Self::Item> {
     if self.fields.contains(Fields::SOURCE) {
       self.fields.remove(Fields::SOURCE);
-      match &self.package.source {
-        SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => {}
-        SourceField::String(source) => {
-          return Some((resolve_path(&self.package.path, source), "source"))
-        }
-        SourceField::Map(map) => match map.get(&Specifier::Package(
-          Cow::Borrowed(self.package.name),
-          Cow::Borrowed(""),
-        )) {
-          Some(AliasValue::Specifier(s)) => match s {
-            Specifier::Relative(s) => return Some((resolve_path(&self.package.path, s), "source")),
-            _ => {}
-          },
-          _ => {}
-        },
+      if let Some(source) = self.package.source() {
+        return Some((source, "source"));
+      }
+    }
+
+    if self.fields.contains(Fields::TYPES) {
+      self.fields.remove(Fields::TYPES);
+      if let Some(types) = self.package.types {
+        return Some((resolve_path(&self.package.path, types), "types"));
       }
     }
 
@@ -783,18 +762,14 @@ impl<'a> Iterator for EntryIter<'a> {
         BrowserField::String(browser) => {
           return Some((resolve_path(&self.package.path, browser), "browser"))
         }
-        BrowserField::Map(map) => match map.get(&Specifier::Package(
-          Cow::Borrowed(self.package.name),
-          Cow::Borrowed(""),
-        )) {
-          Some(AliasValue::Specifier(s)) => match s {
-            Specifier::Relative(s) => {
-              return Some((resolve_path(&self.package.path, s), "browser"))
-            }
-            _ => {}
-          },
-          _ => {}
-        },
+        BrowserField::Map(map) => {
+          if let Some(AliasValue::Specifier(Specifier::Relative(s))) = map.get(&Specifier::Package(
+            Cow::Borrowed(self.package.name),
+            Cow::Borrowed(""),
+          )) {
+            return Some((resolve_path(&self.package.path, s), "browser"));
+          }
+        }
       }
     }
 
@@ -1481,6 +1456,9 @@ mod tests {
         "./foo/src/**".into() => AliasValue::Specifier("./foo/lib/$1".into()),
         "/foo/src/**".into() => AliasValue::Specifier("/foo/lib/$1".into()),
         "~/foo/src/**".into() => AliasValue::Specifier("~/foo/lib/$1".into()),
+        "url".into() => AliasValue::Bool(false),
+        "@internal/**".into() => AliasValue::Specifier("./internal/$1".into()),
+        "@foo/*/bar/*".into() => AliasValue::Specifier("./test/$1/$2".into()),
       },
       ..PackageJson::default()
     };
@@ -1529,8 +1507,27 @@ mod tests {
       pkg.resolve_aliases(&"~/foo/src/a/b".into(), Fields::ALIAS),
       Some(Cow::Owned(AliasValue::Specifier("~/foo/lib/a/b".into())))
     );
+    assert_eq!(
+      pkg.resolve_aliases(&"url".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Bool(false)))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"@internal/foo".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./internal/foo".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"@internal/foo/bar".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier(
+        "./internal/foo/bar".into()
+      )))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"@foo/a/bar/b".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./test/a/b".into())))
+    );
   }
 
+  #[allow(clippy::single_range_in_vec_init)]
   #[test]
   fn test_replace_captures() {
     assert_eq!(
@@ -1650,5 +1647,13 @@ mod tests {
     assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
     assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
     assert!(pkg.has_side_effects(Path::new("/index.js")));
+  }
+
+  #[test]
+  fn parsing() {
+    let pkg: PackageJson = serde_json::from_str(r#"{"type":"script"}"#).unwrap();
+    assert_eq!(pkg.module_type, ModuleType::CommonJs);
+    let pkg: PackageJson = serde_json::from_str(r#"{"name":"foo"}"#).unwrap();
+    assert_eq!(pkg.module_type, ModuleType::CommonJs);
   }
 }

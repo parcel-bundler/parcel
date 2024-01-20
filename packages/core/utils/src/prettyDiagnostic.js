@@ -3,11 +3,16 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginOptions} from '@parcel/types';
 
 import formatCodeFrame from '@parcel/codeframe';
-import mdAnsi from '@parcel/markdown-ansi';
-import chalk from 'chalk';
+import _mdAnsi from '@parcel/markdown-ansi';
+import _chalk from 'chalk';
 import path from 'path';
 // $FlowFixMe
-import terminalLink from 'terminal-link';
+import _terminalLink from 'terminal-link';
+
+/* eslint-disable import/no-extraneous-dependencies */
+// $FlowFixMe
+import snarkdown from 'snarkdown';
+/* eslint-enable import/no-extraneous-dependencies */
 
 export type FormattedCodeFrame = {|
   location: string,
@@ -29,6 +34,7 @@ export default async function prettyDiagnostic(
   diagnostic: Diagnostic,
   options?: PluginOptions,
   terminalWidth?: number,
+  format: 'ansi' | 'html' = 'ansi',
 ): Promise<AnsiDiagnosticResult> {
   let {
     origin,
@@ -40,10 +46,26 @@ export default async function prettyDiagnostic(
     documentationURL,
   } = diagnostic;
 
+  const md = format === 'ansi' ? _mdAnsi : snarkdown;
+  const terminalLink =
+    format === 'ansi'
+      ? _terminalLink
+      : // eslint-disable-next-line no-unused-vars
+        (text, url, _) => `<a href="${url}">${text}</a>`;
+  const chalk =
+    format === 'ansi'
+      ? _chalk
+      : {
+          gray: {
+            underline: v =>
+              `<span style="color: grey; text-decoration: underline;">${v}</span>`,
+          },
+        };
+
   let result = {
     message:
-      mdAnsi(`**${origin ?? 'unknown'}**: `) +
-      (skipFormatting ? message : mdAnsi(message)),
+      md(`**${origin ?? 'unknown'}**: `) +
+      (skipFormatting ? message : md(message)),
     stack: '',
     codeframe: '',
     frames: [],
@@ -77,10 +99,14 @@ export default async function prettyDiagnostic(
         });
       }
 
-      let location =
-        typeof filePath !== 'string'
-          ? ''
-          : `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}`;
+      let location;
+      if (typeof filePath !== 'string') {
+        location = '';
+      } else if (highlights.length === 0) {
+        location = filePath;
+      } else {
+        location = `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}`;
+      }
       result.codeframe += location ? chalk.gray.underline(location) + '\n' : '';
       result.codeframe += formattedCodeFrame;
       if (codeFrame !== codeFrames[codeFrames.length - 1]) {
@@ -100,7 +126,7 @@ export default async function prettyDiagnostic(
 
   if (Array.isArray(hints) && hints.length) {
     result.hints = hints.map(h => {
-      return mdAnsi(h);
+      return md(h);
     });
   }
 

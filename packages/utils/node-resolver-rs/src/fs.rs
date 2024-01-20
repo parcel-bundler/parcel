@@ -3,6 +3,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::path::canonicalize;
 use dashmap::DashMap;
 
@@ -17,9 +18,11 @@ pub trait FileSystem: Send + Sync {
   fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 pub struct OsFileSystem;
 
+#[cfg(not(target_arch = "wasm32"))]
 impl FileSystem for OsFileSystem {
   fn canonicalize<P: AsRef<Path>>(
     &self,

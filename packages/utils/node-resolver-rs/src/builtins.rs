@@ -1,5 +1,5 @@
 // node -p "[...require('module').builtinModules].map(b => JSON.stringify(b)).join(',\n')"
-pub const BUILTINS: &'static [&'static str] = &[
+pub const BUILTINS: &[&str] = &[
   "_http_agent",
   "_http_client",
   "_http_common",

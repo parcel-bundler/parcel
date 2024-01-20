@@ -18,6 +18,7 @@ import {
   distDir,
   outputFS,
   inputFS,
+  fsFixture,
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
@@ -207,6 +208,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -304,6 +306,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -1294,7 +1297,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1395,7 +1398,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 15,
@@ -1617,7 +1620,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1732,6 +1735,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 55,
                     line: 1,
@@ -1780,6 +1784,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -1902,6 +1907,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 33,
                     line: 1,
@@ -2104,11 +2110,10 @@ describe('javascript', function () {
           'get-worker-url.js',
           'lodash.js',
           'esmodule-helpers.js',
-          'bundle-url.js',
         ],
       },
       {
-        assets: ['bundle-manifest.js'],
+        assets: ['bundle-manifest.js', 'bundle-url.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],
@@ -2186,6 +2191,7 @@ describe('javascript', function () {
       {
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'large.js',
@@ -2582,6 +2588,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 36,
                     line: 1,
@@ -3168,7 +3175,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -3191,7 +3198,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 2,
                     column: 1,
@@ -3214,7 +3221,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 3,
                     column: 1,
@@ -3237,7 +3244,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 4,
                     column: 1,
@@ -3280,7 +3287,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 8,
@@ -3306,7 +3313,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 8,
@@ -3332,7 +3339,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 3,
                       column: 8,
@@ -4986,8 +4993,8 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: 'Name expected',
-            origin: '@parcel/optimizer-terser',
+            message: '`let` cannot be used as an identifier in strict mode',
+            origin: '@parcel/optimizer-swc',
             codeFrames: [
               {
                 filePath: undefined,
@@ -4995,20 +5002,18 @@ describe('javascript', function () {
                 code,
                 codeHighlights: [
                   {
-                    message: 'Name expected',
                     start: {
-                      column: 4,
+                      column: 1,
                       line: 1,
                     },
                     end: {
-                      column: 4,
+                      column: 1,
                       line: 1,
                     },
                   },
                 ],
               },
             ],
-            hints: ["It's likely that Terser doesn't support this syntax yet."],
           },
         ],
       },
@@ -5076,7 +5081,7 @@ describe('javascript', function () {
     }
   });
 
-  it('should throw a diagnostic for unkown pipelines', async function () {
+  it('should throw a diagnostic for unknown pipelines', async function () {
     let fixture = path.join(__dirname, 'integration/pipeline-unknown/a.js');
     let code = await inputFS.readFileSync(fixture, 'utf8');
     await assert.rejects(() => bundle(fixture), {
@@ -5091,6 +5096,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     column: 19,
                     line: 1,
@@ -5185,6 +5191,12 @@ describe('javascript', function () {
   it('should not use arrow functions for reexport declarations unless supported', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-arrow-support/index.js'),
+      {
+        // Remove comments containing "=>"
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!content.includes('=>'));
@@ -5228,6 +5240,38 @@ describe('javascript', function () {
     );
     let res = await run(b);
     assert.deepEqual(res, {other: 1});
+  });
+
+  it('should hoist function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-named/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
+  });
+
+  it('should hoist anonymous function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-anonymous/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
   });
 
   it('should work with many different types of exports', async function () {
@@ -5378,6 +5422,25 @@ describe('javascript', function () {
     assert.strictEqual(output, 'a');
   });
 
+  it('should support import and non-top-level require of same asset from different assets', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
+  it('should support import and non-top-level require of same asset from different assets with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
   it('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
@@ -5456,6 +5519,7 @@ describe('javascript', function () {
                 code,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 11,
                       column: 17,
@@ -5546,6 +5610,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 19,
@@ -5611,7 +5676,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5621,6 +5686,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 1,
@@ -5699,7 +5765,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5709,6 +5775,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 1,
@@ -5724,7 +5791,7 @@ describe('javascript', function () {
           },
           {
             message:
-              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.12".',
+              'External dependency "@swc/helpers" does not satisfy required semver range "^0.5.0".',
             origin: '@parcel/resolver-default',
             codeFrames: [
               {
@@ -5747,7 +5814,7 @@ describe('javascript', function () {
               },
             ],
             hints: [
-              'Update the dependency on "@swc/helpers" to satisfy "^0.4.12".',
+              'Update the dependency on "@swc/helpers" to satisfy "^0.5.0".',
             ],
           },
         ],
@@ -6266,11 +6333,113 @@ describe('javascript', function () {
     assert.equal(await res.default, 'target');
   });
 
+  it('should detect shorthand identifier imports', async function () {
+    const dir = path.join(__dirname, 'js-import-shorthand-identifier');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      package.json:
+        {
+          "name": "app",
+          "private": true,
+          "sideEffects": false
+        }
+
+      index.js:
+        import { tokens, mode } from "./tokens.js";
+
+        export default tokens;
+
+      tokens.js:
+        import { color } from "./color.js";
+
+        export const tokens = {
+          color,
+        };
+
+        export { mode } from "./color.js";
+
+      color.js:
+        export const color = "blue";
+        export const mode = "dark";`;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let output = await run(b);
+    assert.deepEqual(output.default, {color: 'blue'});
+  });
+
+  it('should retain unicode escape sequences', async function () {
+    // See issue #8877
+    await fsFixture(overlayFS, __dirname)`
+        src/index.js:
+          export default ['\\u0085', '\\u200b', '\\ufffe'];
+      `;
+
+    let b = await bundle(path.join(__dirname, 'src/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let output = (await run(b)).default;
+    assert.deepEqual(output, ['\u0085', '\u200b', '\ufffe']);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert.equal(contents.match(/\\/g).length, 3);
+    assert(!contents.includes('\u0085'));
+    assert(!contents.includes('\u200b'));
+    assert(!contents.includes('\ufffe'));
+  });
+
+  it(`should not wrap assets that are duplicated in different targets`, async function () {
+    const dir = path.join(__dirname, 'multi-target-duplicates');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      shared/index.js:
+        export default 2;
+
+      packages/a/package.json:
+        {
+          "source": "index.js",
+          "module": "dist/module.js"
+        }
+
+      packages/a/index.js:
+        import shared from '../../shared';
+        export default shared + 2;
+
+      packages/b/package.json:
+        {
+          "source": "index.js",
+          "module": "dist/module.js"
+        }
+
+      packages/b/index.js:
+        import shared from '../../shared';
+        export default shared + 2;
+    `;
+
+    let b = await bundle(path.join(dir, '/packages/*'), {
+      inputFS: overlayFS,
+    });
+
+    for (let bundle of b.getBundles()) {
+      let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+      assert(
+        !contents.includes('parcelRequire'),
+        'should not include parcelRequire',
+      );
+    }
+  });
+
   for (let shouldScopeHoist of [false, true]) {
     let options = {
       defaultTargetOptions: {
         shouldScopeHoist,
       },
+      mode: 'production',
     };
     let usesSymbolPropagation = shouldScopeHoist;
     describe(`sideEffects: false with${
@@ -6372,13 +6541,7 @@ describe('javascript', function () {
             type: 'js',
             assets: usesSymbolPropagation
               ? ['a.js', 'message1.js']
-              : [
-                  'a.js',
-                  'esmodule-helpers.js',
-                  'index.js',
-                  'message1.js',
-                  'message3.js',
-                ],
+              : ['a.js', 'esmodule-helpers.js', 'index.js', 'message1.js'],
           },
         ]);
 
@@ -6400,7 +6563,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['message1'] : ['message1', 'message3', 'index'],
+          shouldScopeHoist ? ['message1'] : ['message1', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -6448,9 +6611,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist
-            ? ['message2']
-            : ['message1', 'message2', 'message3', 'index'],
+          shouldScopeHoist ? ['message2'] : ['message2', 'index'],
         );
         assert.deepEqual(res.output, 'Message 2');
       });
@@ -6469,13 +6630,7 @@ describe('javascript', function () {
             type: 'js',
             assets: usesSymbolPropagation
               ? ['c.js', 'message3.js']
-              : [
-                  'c.js',
-                  'esmodule-helpers.js',
-                  'index.js',
-                  'message1.js',
-                  'message3.js',
-                ],
+              : ['c.js', 'esmodule-helpers.js', 'index.js', 'message3.js'],
           },
         ]);
 
@@ -6496,7 +6651,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['message3'] : ['message1', 'message3', 'index'],
+          shouldScopeHoist ? ['message3'] : ['message3', 'index'],
         );
         assert.deepEqual(res.output, {default: 'Message 3'});
       });
@@ -6527,10 +6682,7 @@ describe('javascript', function () {
           {require: false},
         );
 
-        assert.deepEqual(
-          calls,
-          shouldScopeHoist ? ['index'] : ['message1', 'message3', 'index'],
-        );
+        assert.deepEqual(calls, ['index']);
         assert.deepEqual(res.output, 'Message 4');
       });
 
@@ -6566,7 +6718,7 @@ describe('javascript', function () {
             assert.deepEqual(calls, ['foo', 'key', 'index']);
           }
         } else {
-          assert.deepEqual(calls, ['key', 'foo', 'bar', 'types', 'index']);
+          assert.deepEqual(calls, ['key', 'foo', 'types', 'index']);
         }
 
         assert.deepEqual(res.output, ['key', 'foo']);
@@ -6702,8 +6854,8 @@ describe('javascript', function () {
           );
 
           assert(!contents.includes('$import$'));
-          assert(contents.includes('= 1234;'));
-          assert(!contents.includes('= 5678;'));
+          assert(/=\s*1234/.test(contents));
+          assert(!/=\s*5678/.test(contents));
 
           let output = await run(b);
           assert.deepEqual(output, [1234, {default: 1234}]);
@@ -6993,16 +7145,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist
-            ? ['message1']
-            : [
-                'message1',
-                'message2',
-                'message',
-                'symbol1',
-                'symbol2',
-                'symbol',
-              ],
+          shouldScopeHoist ? ['message1'] : ['message1', 'message'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7031,10 +7174,7 @@ describe('javascript', function () {
           {require: false},
         );
 
-        assert.deepEqual(
-          calls,
-          usesSymbolPropagation ? ['index'] : ['other', 'index'],
-        );
+        assert.deepEqual(calls, ['index']);
         assert.deepEqual(res.output, 'Message 1');
       });
 
@@ -7064,7 +7204,7 @@ describe('javascript', function () {
           calls,
           shouldScopeHoist
             ? ['message1']
-            : ['message1', 'message2', 'message', 'index2', 'index'],
+            : ['message1', 'message', 'index2', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7292,7 +7432,7 @@ describe('javascript', function () {
 
         let [v, async] = res;
 
-        assert.deepEqual(calls, shouldScopeHoist ? ['b'] : ['a', 'b', 'index']);
+        assert.deepEqual(calls, shouldScopeHoist ? ['b'] : ['b', 'index']);
         assert.deepEqual(v, 2);
 
         v = await async();
@@ -7300,7 +7440,7 @@ describe('javascript', function () {
           calls,
           shouldScopeHoist
             ? ['b', 'a', 'index', 'dynamic']
-            : ['a', 'b', 'index', 'dynamic'],
+            : ['b', 'index', 'a', 'dynamic'],
         );
         assert.deepEqual(v.default, [1, 3]);
       });
@@ -7329,7 +7469,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['esm1'] : ['esm1', 'other', 'esm2', 'index'],
+          shouldScopeHoist ? ['esm1'] : ['esm1', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7408,10 +7548,89 @@ describe('javascript', function () {
         );
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['commonjs'] : ['esm', 'commonjs', 'index'],
+          shouldScopeHoist ? ['commonjs'] : ['commonjs', 'index'],
         );
         assert.deepEqual(res.output, 'Message 2');
       });
+    });
+
+    it(`ignores missing unused import specifiers in source assets ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
+      let b = await bundle(
+        path.join(__dirname, 'integration/js-unused-import-specifier/a.js'),
+        options,
+      );
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
+    });
+
+    it(`ignores missing unused import specifiers in node-modules ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/js-unused-import-specifier-node-modules/a.js',
+        ),
+        options,
+      );
+
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
+    });
+
+    it(`duplicate assets should share module scope  ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
+      let b = await bundle(
+        [
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/multi-entry-duplicates/one.js',
+          ),
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/multi-entry-duplicates/two.js',
+          ),
+        ],
+        options,
+      );
+
+      let result = await runBundle(b, b.getBundles()[0], {}, {require: false});
+
+      assert.equal(await result.output, 2);
+    });
+
+    it(`should work correctly with export called hasOwnProperty ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        js-export-all-hasOwnProperty
+          a.js:
+            export function hasOwnProperty() {
+              throw new Error("Shouldn't be called");
+            }
+          b.js:
+            module.exports = { other: 123 };
+
+          library.js:
+            export * from './a';
+            export * from './b';
+
+          index.js:
+            import * as x from './library';
+            output = sideEffectNoop(x).other;`;
+
+      let b = await bundle(
+        path.join(__dirname, 'js-export-all-hasOwnProperty/index.js'),
+        {
+          ...options,
+          inputFS: overlayFS,
+        },
+      );
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
     });
   }
 });

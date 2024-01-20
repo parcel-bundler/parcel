@@ -1,26 +1,19 @@
 // @flow
 
 import nullthrows from 'nullthrows';
-import {minify} from '@swc/core';
+import {transform} from '@swc/core';
 import {Optimizer} from '@parcel/plugin';
-import {blobToString} from '@parcel/utils';
+import {blobToString, stripAnsi} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
-
+import ThrowableDiagnostic, {escapeMarkdown} from '@parcel/diagnostic';
 import path from 'path';
 
 export default (new Optimizer({
   async loadConfig({config, options}) {
     let userConfig = await config.getConfigFrom(
       path.join(options.projectRoot, 'index'),
-      ['.terserrc', '.terserrc.js', '.terserrc.cjs'],
+      ['.terserrc', '.terserrc.js', '.terserrc.cjs', '.terserrc.mjs'],
     );
-
-    if (userConfig) {
-      let isJavascript = path.extname(userConfig.filePath) === '.js';
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-    }
 
     return userConfig?.contents;
   },
@@ -37,25 +30,83 @@ export default (new Optimizer({
     }
 
     let code = await blobToString(contents);
-    let config = {
-      mangle: true,
-      compress: true,
-      ...userConfig,
-      sourceMap: bundle.env.sourceMap
-        ? {
-            filename: path.relative(
-              options.projectRoot,
-              path.join(bundle.target.distDir, bundle.name),
-            ),
-          }
-        : false,
-      toplevel:
-        bundle.env.outputFormat === 'esmodule' ||
-        bundle.env.outputFormat === 'commonjs',
-      module: bundle.env.outputFormat === 'esmodule',
-    };
+    let result;
+    try {
+      result = await transform(code, {
+        jsc: {
+          target: 'es2022',
+          minify: {
+            mangle: true,
+            compress: true,
+            ...userConfig,
+            toplevel:
+              bundle.env.outputFormat === 'esmodule' ||
+              bundle.env.outputFormat === 'commonjs',
+            module: bundle.env.outputFormat === 'esmodule',
+          },
+        },
+        minify: true,
+        sourceMaps: !!bundle.env.sourceMap,
+        configFile: false,
+        swcrc: false,
+      });
+    } catch (err) {
+      // SWC doesn't give us nice error objects, so we need to parse the message.
+      let message = escapeMarkdown(
+        (
+          stripAnsi(err.message)
+            .split('\n')
+            .find(line => line.trim().length > 0) || ''
+        )
+          .trim()
+          .replace(/^(×|x)\s+/, ''),
+      );
+      let location = err.message.match(/(?:╭─|,-)\[(\d+):(\d+)\]/);
+      if (location) {
+        let line = Number(location[1]);
+        let col = Number(location[1]);
+        let mapping = originalMap?.findClosestMapping(line, col);
+        if (mapping && mapping.original && mapping.source) {
+          let {source, original} = mapping;
+          let filePath = path.resolve(options.projectRoot, source);
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message,
+              origin: '@parcel/optimizer-swc',
+              codeFrames: [
+                {
+                  language: 'js',
+                  filePath,
+                  codeHighlights: [{start: original, end: original}],
+                },
+              ],
+            },
+          });
+        }
 
-    let result = await minify(code, config);
+        let loc = {
+          line: line,
+          column: col,
+        };
+
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message,
+            origin: '@parcel/optimizer-swc',
+            codeFrames: [
+              {
+                language: 'js',
+                filePath: undefined,
+                code,
+                codeHighlights: [{start: loc, end: loc}],
+              },
+            ],
+          },
+        });
+      }
+
+      throw err;
+    }
 
     let sourceMap = null;
     let minifiedContents: string = nullthrows(result.code);

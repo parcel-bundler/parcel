@@ -167,7 +167,10 @@ function elmCompileErrorToParcelDiagnostics(error) {
 }
 
 function formatElmError(problem, relativePath) {
-  const padLength = 80 - 5 - problem.title.length - relativePath.length;
+  const padLength = Math.max(
+    80 - 5 - problem.title.length - relativePath.length,
+    1,
+  );
   const dashes = '-'.repeat(padLength);
   const message = [
     '',

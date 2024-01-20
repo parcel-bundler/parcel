@@ -21,6 +21,9 @@ import IBundleGraph from '../public/BundleGraph';
 import {NamedBundle} from '../public/Bundle';
 import {assetFromValue} from '../public/Asset';
 
+import {tracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
+
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
   requestedAssetIds: Set<string>,
@@ -41,7 +44,7 @@ type RunInput<TResult> = {|
 
 export type ParcelBuildRequest = {|
   id: ContentKey,
-  +type: 'parcel_build_request',
+  +type: typeof requestTypes.parcel_build_request,
   run: (RunInput<ParcelBuildRequestResult>) => Async<ParcelBuildRequestResult>,
   input: ParcelBuildRequestInput,
 |};
@@ -50,7 +53,7 @@ export default function createParcelBuildRequest(
   input: ParcelBuildRequestInput,
 ): ParcelBuildRequest {
   return {
-    type: 'parcel_build_request',
+    type: requestTypes.parcel_build_request,
     id: 'parcel_build_request',
     run,
     input,
@@ -91,12 +94,14 @@ async function run({input, api, options}) {
     ),
   });
 
+  let packagingMeasurement = tracer.createMeasurement('packaging');
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,
     optionsRef,
   });
 
   let bundleInfo = await api.runRequest(writeBundlesRequest);
+  packagingMeasurement && packagingMeasurement.end();
   assertSignalNotAborted(signal);
 
   return {bundleGraph, bundleInfo, changedAssets, assetRequests};

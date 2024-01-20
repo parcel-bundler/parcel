@@ -1,0 +1,24 @@
+{
+  "name": "@parcel/reporter-bundle-stats",
+  "version": "2.11.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "lib/BundleStatsReporter.js",
+  "source": "src/BundleStatsReporter.js",
+  "bin": {
+    "parcel-bundle-stats": "bin.js"
+  },
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.11.0"
+  },
+  "dependencies": {
+    "@parcel/core": "2.11.0",
+    "@parcel/plugin": "2.11.0",
+    "@parcel/utils": "2.11.0"
+  },
+  "devDependencies": {
+    "@parcel/types": "2.11.0"
+  }
+}

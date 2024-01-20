@@ -6,7 +6,6 @@ import type {
   PluginLogger,
 } from '@parcel/types';
 import path from 'path';
-import {relativePath} from '@parcel/utils';
 import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
@@ -165,8 +164,10 @@ export async function load({
       '.postcssrc.json',
       '.postcssrc.js',
       '.postcssrc.cjs',
+      '.postcssrc.mjs',
       'postcss.config.js',
       'postcss.config.cjs',
+      'postcss.config.mjs',
     ],
     {packageKey: 'postcss'},
   );
@@ -188,17 +189,6 @@ export async function load({
       logger.warn({
         message:
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
-      });
-
-      config.invalidateOnStartup();
-
-      // Also add the config as a dev dependency so we attempt to reload in watch mode.
-      config.addDevDependency({
-        specifier: relativePath(
-          path.dirname(config.searchPath),
-          configFile.filePath,
-        ),
-        resolveFrom: config.searchPath,
       });
     }
 

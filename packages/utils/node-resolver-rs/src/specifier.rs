@@ -1,10 +1,9 @@
-use crate::{builtins::BUILTINS, Flags};
+use crate::{builtins::BUILTINS, url_to_path::url_to_path, Flags};
 use percent_encoding::percent_decode_str;
 use std::{
   borrow::Cow,
   path::{is_separator, Path, PathBuf},
 };
-use url::Url;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum SpecifierType {
@@ -60,8 +59,8 @@ impl<'a> Specifier<'a> {
 
     Ok(match specifier.as_bytes()[0] {
       b'.' => {
-        let specifier = if specifier.starts_with("./") {
-          &specifier[2..]
+        let specifier = if let Some(specifier) = specifier.strip_prefix("./") {
+          specifier.trim_start_matches('/')
         } else {
           specifier
         };
@@ -96,7 +95,7 @@ impl<'a> Specifier<'a> {
               let (query, _) = parse_query(rest);
               match scheme.as_ref() {
                 "npm" if flags.contains(Flags::NPM_SCHEME) => {
-                  if BUILTINS.contains(&path.as_ref()) {
+                  if BUILTINS.contains(&path) {
                     return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
                   }
 
@@ -110,18 +109,10 @@ impl<'a> Specifier<'a> {
                   // See https://github.com/nodejs/node/issues/39710.
                   (Specifier::Builtin(Cow::Borrowed(path)), None)
                 }
-                "file" => {
-                  // Fully parsing file urls is somewhat complex, so use the url crate for this.
-                  let url = Url::parse(specifier)?;
-                  (
-                    Specifier::Absolute(Cow::Owned(
-                      url
-                        .to_file_path()
-                        .map_err(|_| SpecifierError::InvalidFileUrl)?,
-                    )),
-                    query,
-                  )
-                }
+                "file" => (
+                  Specifier::Absolute(Cow::Owned(url_to_path(specifier)?)),
+                  query,
+                ),
                 _ => (Specifier::Url(specifier), None),
               }
             } else {
@@ -129,7 +120,7 @@ impl<'a> Specifier<'a> {
               // otherwise treat this as a relative path.
               let (path, rest) = parse_path(specifier);
               if specifier_type == SpecifierType::Esm {
-                if BUILTINS.contains(&path.as_ref()) {
+                if BUILTINS.contains(&path) {
                   return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
                 }
 
@@ -145,7 +136,11 @@ impl<'a> Specifier<'a> {
             }
           }
           SpecifierType::Cjs => {
-            if BUILTINS.contains(&specifier.as_ref()) {
+            if let Some(node_prefixed) = specifier.strip_prefix("node:") {
+              return Ok((Specifier::Builtin(Cow::Borrowed(node_prefixed)), None));
+            }
+
+            if BUILTINS.contains(&specifier) {
               (Specifier::Builtin(Cow::Borrowed(specifier)), None)
             } else {
               #[cfg(windows)]
@@ -163,17 +158,34 @@ impl<'a> Specifier<'a> {
       }
     })
   }
+
+  pub fn to_string(&'a self) -> Cow<'a, str> {
+    match self {
+      Specifier::Relative(path) | Specifier::Absolute(path) | Specifier::Tilde(path) => {
+        path.as_os_str().to_string_lossy()
+      }
+      Specifier::Hash(path) => path.clone(),
+      Specifier::Package(module, subpath) => {
+        if subpath.is_empty() {
+          Cow::Borrowed(module)
+        } else {
+          Cow::Owned(format!("{}/{}", module, subpath))
+        }
+      }
+      Specifier::Builtin(builtin) => Cow::Borrowed(builtin),
+      Specifier::Url(url) => Cow::Borrowed(url),
+    }
+  }
 }
 
 // https://url.spec.whatwg.org/#scheme-state
 // https://github.com/servo/rust-url/blob/1c1e406874b3d2aa6f36c5d2f3a5c2ea74af9efb/url/src/parser.rs#L387
-pub fn parse_scheme<'a>(input: &'a str) -> Result<(Cow<'a, str>, &'a str), ()> {
+pub fn parse_scheme(input: &str) -> Result<(Cow<'_, str>, &str), ()> {
   if input.is_empty() || !input.starts_with(ascii_alpha) {
     return Err(());
   }
-  let mut i = 0;
   let mut is_lowercase = true;
-  for c in input.chars() {
+  for (i, c) in input.chars().enumerate() {
     match c {
       'A'..='Z' => {
         is_lowercase = false;
@@ -192,7 +204,6 @@ pub fn parse_scheme<'a>(input: &'a str) -> Result<(Cow<'a, str>, &'a str), ()> {
         return Err(());
       }
     }
-    i += 1;
   }
 
   // EOF before ':'
@@ -200,7 +211,7 @@ pub fn parse_scheme<'a>(input: &'a str) -> Result<(Cow<'a, str>, &'a str), ()> {
 }
 
 // https://url.spec.whatwg.org/#path-state
-fn parse_path<'a>(input: &'a str) -> (&'a str, &'a str) {
+fn parse_path(input: &str) -> (&str, &str) {
   // We don't really want to normalize the path (e.g. replacing ".." and "." segments).
   // That is done later. For now, we just need to find the end of the path.
   if let Some(pos) = input.chars().position(|c| c == '?' || c == '#') {
@@ -211,7 +222,7 @@ fn parse_path<'a>(input: &'a str) -> (&'a str, &'a str) {
 }
 
 // https://url.spec.whatwg.org/#query-state
-fn parse_query<'a>(input: &'a str) -> (Option<&'a str>, &'a str) {
+fn parse_query(input: &str) -> (Option<&str>, &str) {
   if !input.is_empty() && input.as_bytes()[0] == b'?' {
     if let Some(pos) = input.chars().position(|c| c == '#') {
       (Some(&input[0..pos]), &input[pos..])
@@ -226,10 +237,10 @@ fn parse_query<'a>(input: &'a str) -> (Option<&'a str>, &'a str) {
 /// https://url.spec.whatwg.org/#ascii-alpha
 #[inline]
 fn ascii_alpha(ch: char) -> bool {
-  matches!(ch, 'a'..='z' | 'A'..='Z')
+  ch.is_ascii_alphabetic()
 }
 
-fn parse_package<'a>(specifier: Cow<'a, str>) -> Result<Specifier, SpecifierError> {
+fn parse_package(specifier: Cow<'_, str>) -> Result<Specifier, SpecifierError> {
   match specifier {
     Cow::Borrowed(specifier) => {
       let (module, subpath) = parse_package_specifier(specifier)?;
@@ -258,19 +269,19 @@ pub fn parse_package_specifier(specifier: &str) -> Result<(&str, &str), Specifie
         &specifier[idx + *next + 2..],
       ))
     } else {
-      Ok((&specifier[..], ""))
+      Ok((specifier, ""))
     }
   } else if let Some(idx) = idx {
     Ok((&specifier[0..idx], &specifier[idx + 1..]))
   } else {
-    Ok((&specifier[..], ""))
+    Ok((specifier, ""))
   }
 }
 
-pub fn decode_path<'a>(
-  specifier: &'a str,
+pub fn decode_path(
+  specifier: &str,
   specifier_type: SpecifierType,
-) -> (Cow<'a, Path>, Option<&'a str>) {
+) -> (Cow<'_, Path>, Option<&str>) {
   match specifier_type {
     SpecifierType::Url | SpecifierType::Esm => {
       let (path, rest) = parse_path(specifier);

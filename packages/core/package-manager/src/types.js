@@ -14,6 +14,7 @@ export type ResolveResult = {|
   pkg?: ?PackageJSON,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
+  type: number,
 |};
 
 export type InstallOptions = {
@@ -38,6 +39,7 @@ export interface PackageInstaller {
 export type Invalidations = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
+  invalidateOnStartup: boolean,
 |};
 
 export interface PackageManager {

@@ -1,0 +1,37 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-node-bindings"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi-derive = "2.12.5"
+parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
+parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+dashmap = "5.4.0"
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi5"]}
+parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
+oxipng = "8.0.0"
+mozjpeg-sys = "1.0.0"
+libc = "0.2"
+rayon = "1.7.0"
+crossbeam-channel = "0.5.6"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+napi = {version =  "2.12.6", features = ["serde-json"]}
+getrandom = { version = "0.2", features = ["custom"], default-features = false }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
+
+[target.'cfg(windows)'.dependencies]
+mimalloc = { version = "0.1.25", default-features = false }
+
+[build-dependencies]
+napi-build = "2"

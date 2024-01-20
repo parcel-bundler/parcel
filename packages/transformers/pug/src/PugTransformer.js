@@ -10,18 +10,13 @@ export default (new Transformer({
       '.pugrc',
       '.pugrc.js',
       '.pugrc.cjs',
+      '.pugrc.mjs',
       'pug.config.js',
       'pug.config.cjs',
+      'pug.config.mjs',
     ]);
 
-    if (configFile) {
-      let isJavascript = path.extname(configFile.filePath).endsWith('js');
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-
-      return configFile.contents;
-    }
+    return configFile?.contents;
   },
 
   async transform({asset, config}) {
@@ -36,7 +31,7 @@ export default (new Transformer({
     });
 
     for (let filePath of render.dependencies) {
-      await asset.invalidateOnFileChange(filePath);
+      asset.invalidateOnFileChange(filePath);
     }
 
     asset.type = 'html';

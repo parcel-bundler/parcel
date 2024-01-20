@@ -28,6 +28,7 @@ describe('PublicMutableBundleGraph', () => {
   it('creates publicIds for bundles', () => {
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
       createMockAssetGraph(),
+      false,
     );
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
@@ -63,6 +64,7 @@ describe('PublicMutableBundleGraph', () => {
   it('is safe to add a bundle to a bundleGroup multiple times', () => {
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
       createMockAssetGraph(),
+      false,
     );
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
@@ -161,7 +163,6 @@ function createMockAssetGraph() {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#1',
         stats,
         env: DEFAULT_ENV,
       }),
@@ -180,7 +181,6 @@ function createMockAssetGraph() {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#2',
         stats,
         env: DEFAULT_ENV,
       }),

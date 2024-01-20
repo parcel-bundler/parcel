@@ -124,6 +124,18 @@ const supportData = {
     and_qq: '12.12',
     op_mob: '64',
   },
+  'global-this': {
+    chrome: '75',
+    edge: '79',
+    safari: '12.1',
+    firefox: '65',
+    opera: '58',
+    node: '12',
+    and_chr: '71',
+    ios: '12.2',
+    android: '71',
+    samsung: '10.1',
+  },
 };
 
 const internalEnvironmentToEnvironment: WeakMap<

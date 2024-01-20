@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use swc_atoms::js_word;
-use swc_ecmascript::ast::{Expr, Id, Lit, Str, UnaryOp};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::ecma::ast::{Expr, Id, Lit, Str, UnaryOp};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::id;
 

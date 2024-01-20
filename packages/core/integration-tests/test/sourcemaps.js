@@ -424,9 +424,12 @@ describe('sourcemaps', function () {
     let sourceMap = new SourceMap('/');
     sourceMap.addVLQMap(map);
     let mapData = sourceMap.getMap();
-    assert.equal(mapData.sources.length, 3);
+    assert.equal(mapData.sources.length, 4);
 
     for (let source of mapData.sources) {
+      if (source === '<anon>') {
+        continue;
+      }
       assert(
         await inputFS.exists(path.resolve(distDir + sourceRoot + source)),
         'combining sourceRoot and sources object should resolve to the original file',
@@ -445,7 +448,7 @@ describe('sourcemaps', function () {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      generatedStr: 'const r',
+      generatedStr: 'let o',
       sourcePath: 'index.js',
     });
 
@@ -454,7 +457,7 @@ describe('sourcemaps', function () {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      generatedStr: 'r.a',
+      generatedStr: 'o.a',
       sourcePath: 'index.js',
     });
 
@@ -463,7 +466,7 @@ describe('sourcemaps', function () {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      generatedStr: 'o.a',
+      generatedStr: 't.a',
       sourcePath: 'local.js',
     });
 
@@ -472,7 +475,7 @@ describe('sourcemaps', function () {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      generatedStr: 'o.count=function(e,n){',
+      generatedStr: 't.count=function(e,n){',
       sourcePath: 'utils/util.js',
     });
   });
@@ -827,12 +830,11 @@ describe('sourcemaps', function () {
     // This should actually just be `./integration/scss-sourcemap-imports/with_url.scss`
     // but this is a small bug in the extend utility of the source-map library
     assert.deepEqual(mapData.sources, [
-      'integration/scss-sourcemap-imports/style.scss',
       'integration/scss-sourcemap-imports/with_url.scss',
     ]);
 
     let input = await inputFS.readFile(
-      path.join(path.dirname(filename), map.sourceRoot, map.sources[1]),
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
       'utf-8',
     );
 

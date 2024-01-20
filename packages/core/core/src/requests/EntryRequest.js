@@ -18,6 +18,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import path from 'path';
 import {parse, type Mapping} from '@mischnic/json-sourcemap';
+import {requestTypes} from '../RequestTracker';
 import {
   type ProjectPath,
   fromProjectPath,
@@ -32,7 +33,7 @@ type RunOpts<TResult> = {|
 
 export type EntryRequest = {|
   id: string,
-  +type: 'entry_request',
+  +type: typeof requestTypes.entry_request,
   run: (RunOpts<EntryResult>) => Async<EntryResult>,
   input: ProjectPath,
 |};
@@ -47,7 +48,7 @@ const type = 'entry_request';
 export default function createEntryRequest(input: ProjectPath): EntryRequest {
   return {
     id: `${type}:${fromProjectPathRelative(input)}`,
-    type,
+    type: requestTypes.entry_request,
     run,
     input,
   };
@@ -154,7 +155,17 @@ export class EntryResolver {
   }
 
   async resolveEntry(entry: FilePath): Promise<EntryResult> {
-    if (isGlob(entry)) {
+    let stat;
+    try {
+      stat = await this.options.inputFS.stat(entry);
+    } catch (err) {
+      if (!isGlob(entry)) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`Entry ${entry} does not exist`,
+          },
+        });
+      }
       let files = await glob(entry, this.options.inputFS, {
         absolute: true,
         onlyFiles: false,
@@ -169,17 +180,6 @@ export class EntryResolver {
         }),
         {entries: [], files: []},
       );
-    }
-
-    let stat;
-    try {
-      stat = await this.options.inputFS.stat(entry);
-    } catch (err) {
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: md`Entry ${entry} does not exist`,
-        },
-      });
     }
 
     if (stat.isDirectory()) {

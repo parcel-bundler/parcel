@@ -23,7 +23,7 @@ import type {
 } from './types';
 
 import invariant from 'assert';
-import {hashString, Hash} from '@parcel/hash';
+import {hashString, Hash} from '@parcel/rust';
 import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
@@ -38,14 +38,12 @@ type InitOpts = {|
 
 type AssetGraphOpts = {|
   ...ContentGraphOpts<AssetGraphNode>,
-  symbolPropagationRan: boolean,
   hash?: ?string,
 |};
 
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
-  symbolPropagationRan: boolean,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -113,15 +111,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
-  symbolPropagationRan: boolean;
   safeToIncrementallyBundle: boolean = true;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {
-      let {hash, symbolPropagationRan, ...rest} = opts;
+      let {hash, ...rest} = opts;
       super(rest);
       this.hash = hash;
-      this.symbolPropagationRan = symbolPropagationRan;
     } else {
       super();
       this.setRootNodeId(
@@ -133,7 +129,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
     }
     this.envCache = new Map();
-    this.symbolPropagationRan = false;
   }
 
   // $FlowFixMe[prop-missing]
@@ -146,7 +141,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
-      symbolPropagationRan: this.symbolPropagationRan,
     };
   }
 
@@ -199,19 +193,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   removeNode(nodeId: NodeId): void {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(nodeId);
-    // This needs to mark all connected nodes that doesn't become orphaned
-    // due to replaceNodesConnectedTo to make sure that the symbols of
-    // nodes from which at least one parent was removed are updated.
-    let node = nullthrows(this.getNode(nodeId));
-    if (this.isOrphanedNode(nodeId) && node.type === 'dependency') {
-      let children = this.getNodeIdsConnectedFrom(nodeId).map(id =>
-        nullthrows(this.getNode(id)),
-      );
-      for (let n of children) {
-        invariant(n.type === 'asset_group' || n.type === 'asset');
-        n.usedSymbolsDownDirty = true;
-      }
-    }
     return super.removeNode(nodeId);
   }
 
@@ -258,6 +239,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       if (node.value.env.isLibrary) {
         // in library mode, all of the entry's symbols are "used"
         node.usedSymbolsDown.add('*');
+        node.usedSymbolsUp.set('*', undefined);
       }
       return node;
     });
@@ -371,10 +353,12 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         nodeId !== traversedNodeId
       ) {
         if (!ctx?.hasDeferred) {
+          this.safeToIncrementallyBundle = false;
           delete traversedNode.hasDeferred;
         }
         actions.skipChildren();
       } else if (traversedNode.type === 'dependency') {
+        this.safeToIncrementallyBundle = false;
         traversedNode.hasDeferred = false;
       } else if (nodeId !== traversedNodeId) {
         actions.skipChildren();
@@ -473,6 +457,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         let dependentAsset = assetsByKey.get(dep.specifier);
         if (dependentAsset) {
           dependentAssets.push(dependentAsset);
+          if (dependentAsset.id === asset.id) {
+            // Don't orphan circular dependencies.
+            isDirect = true;
+          }
         }
       }
       let id = this.addNode(nodeFromAsset(asset));
@@ -526,6 +514,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       depNodeIds.push(this.addNode(depNode));
     }
 
+    assetNode.usedSymbolsUpDirty = true;
     assetNode.usedSymbolsDownDirty = true;
     this.replaceNodeIdsConnectedTo(
       this.getNodeIdByContentKey(assetNode.id),

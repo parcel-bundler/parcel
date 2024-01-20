@@ -12,6 +12,7 @@ import {NodeFS} from '@parcel/fs';
 import packageJson from '../package.json';
 // $FlowFixMe
 import lmdb from 'lmdb';
+import {WRITE_LIMIT_CHUNK} from './constants';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
@@ -91,16 +92,58 @@ export class LMDBCache implements Cache {
     return Promise.resolve(this.store.get(key));
   }
 
-  hasLargeBlob(key: string): Promise<boolean> {
-    return this.fs.exists(path.join(this.dir, key));
+  #getFilePath(key: string, index: number): string {
+    return path.join(this.dir, `${key}-${index}`);
   }
 
-  getLargeBlob(key: string): Promise<Buffer> {
-    return this.fs.readFile(path.join(this.dir, key));
+  hasLargeBlob(key: string): Promise<boolean> {
+    return this.fs.exists(this.#getFilePath(key, 0));
+  }
+
+  async getLargeBlob(key: string): Promise<Buffer> {
+    const buffers: Promise<Buffer>[] = [];
+    for (let i = 0; await this.fs.exists(this.#getFilePath(key, i)); i += 1) {
+      const file: Promise<Buffer> = this.fs.readFile(this.#getFilePath(key, i));
+
+      buffers.push(file);
+    }
+
+    return Buffer.concat(await Promise.all(buffers));
   }
 
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
-    await this.fs.writeFile(path.join(this.dir, key), contents);
+    const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
+
+    if (chunks === 1) {
+      // If there's one chunk, don't slice the content
+      await this.fs.writeFile(this.#getFilePath(key, 0), contents);
+      return;
+    }
+
+    const writePromises: Promise<void>[] = [];
+    for (let i = 0; i < chunks; i += 1) {
+      writePromises.push(
+        this.fs.writeFile(
+          this.#getFilePath(key, i),
+          typeof contents === 'string'
+            ? contents.slice(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK)
+            : contents.subarray(
+                i * WRITE_LIMIT_CHUNK,
+                (i + 1) * WRITE_LIMIT_CHUNK,
+              ),
+        ),
+      );
+    }
+
+    await Promise.all(writePromises);
+  }
+
+  refresh(): void {
+    // Reset the read transaction for the store. This guarantees that
+    // the next read will see the latest changes to the store.
+    // Useful in scenarios where reads and writes are multi-threaded.
+    // See https://github.com/kriszyp/lmdb-js#resetreadtxn-void
+    this.store.resetReadTxn();
   }
 }
 

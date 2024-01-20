@@ -13,15 +13,8 @@ export default (new Optimizer({
   async loadConfig({config, options}) {
     let userConfig = await config.getConfigFrom(
       path.join(options.projectRoot, 'index'),
-      ['.terserrc', '.terserrc.js', '.terserrc.cjs'],
+      ['.terserrc', '.terserrc.js', '.terserrc.cjs', '.terserrc.mjs'],
     );
-
-    if (userConfig) {
-      let isJavascript = path.extname(userConfig.filePath) === '.js';
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-    }
 
     return userConfig?.contents;
   },

@@ -467,6 +467,24 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return nodes;
   }
 
+  forEachNodeIdConnectedFromReverse(
+    from: NodeId,
+    fn: (nodeId: NodeId) => boolean,
+  ) {
+    let node = this.#nodes.head(from);
+    while (node !== null) {
+      let edge = this.#nodes.lastOut(node);
+      while (edge !== null) {
+        let to = this.#edges.to(edge);
+        if (fn(to)) {
+          return;
+        }
+        edge = this.#edges.prevOut(edge);
+      }
+      node = this.#nodes.next(node);
+    }
+  }
+
   /**
    * Get the list of nodes connected to this node.
    */

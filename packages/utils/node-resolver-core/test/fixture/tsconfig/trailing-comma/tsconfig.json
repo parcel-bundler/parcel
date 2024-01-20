@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "paths": {
+      /* some comment */
+      "foo": ["bar.js"]
+    }
+  }
+  // another comment
+}

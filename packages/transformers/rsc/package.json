@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-rsc",
-  "version": "2.8.3",
+  "version": "2.11.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,8 @@
     "parcel": "^2.8.3"
   },
   "dependencies": {
-    "@parcel/plugin": "2.8.3",
-    "@parcel/utils": "2.8.3",
-    "nullthrows": "^1.1.1",
-    "react-refresh": "^0.9.0"
+    "@parcel/plugin": "2.11.0",
+    "@parcel/utils": "2.11.0",
+    "nullthrows": "^1.1.1"
   }
 }

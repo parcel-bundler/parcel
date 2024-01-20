@@ -1,6 +1,6 @@
 {
   "name": "@parcel/namer-default",
-  "version": "2.8.3",
+  "version": "2.11.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,11 +17,11 @@
   "source": "src/DefaultNamer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.8.3"
+    "parcel": "^2.11.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.8.3",
-    "@parcel/plugin": "2.8.3",
+    "@parcel/diagnostic": "2.11.0",
+    "@parcel/plugin": "2.11.0",
     "nullthrows": "^1.1.1"
   }
 }

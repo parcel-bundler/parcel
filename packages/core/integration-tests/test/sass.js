@@ -6,6 +6,8 @@ import {
   assertBundles,
   distDir,
   outputFS,
+  overlayFS,
+  fsFixture,
 } from '@parcel/test-utils';
 
 describe('sass', function () {
@@ -312,5 +314,47 @@ describe('sass', function () {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.external'));
+  });
+
+  it('should import from packages with a string key of `sass` in package.json', async function () {
+    const dir = path.join(__dirname, 'sass-package-import-edge-case');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import './main.css';
+
+      main.css:
+        @import './edge/main.scss'
+
+      edge
+        package.json:
+          {
+            "name": "edge",
+            "sass": "main.scss"
+          }
+
+        main.scss:
+          .foo {
+            .bar {
+              color: green;
+            }
+          }
+        `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['main.css', 'main.scss'],
+      },
+    ]);
   });
 });

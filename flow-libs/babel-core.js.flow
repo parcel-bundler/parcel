@@ -74,7 +74,7 @@ declare module "@babel/core" {
     getModuleId?: (name: string) => string,
     moduleRoot?: string,
   |};
-  declare type Result = {| code: string, map: ?SourceMap, ast: File |};
+  declare type Result = {| code: string, map: ?SourceMap, ast: File, externalDependencies: Set<string> |};
 
   declare export function transform(
     code: string,

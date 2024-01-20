@@ -5,8 +5,6 @@ module.exports = {
     'plugin:monorepo/recommended',
     'plugin:react/recommended',
     'prettier',
-    'prettier/flowtype',
-    'prettier/react',
   ],
   parser: '@babel/eslint-parser',
   plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react', 'mocha'],
@@ -18,8 +16,8 @@ module.exports = {
     sourceType: 'module',
   },
   env: {
+    es2020: true,
     node: true,
-    es6: true,
   },
   globals: {
     parcelRequire: true,

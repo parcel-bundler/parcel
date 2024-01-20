@@ -1,1 +1,4 @@
-export const a = 'a'
+
+import {c} from './b';
+
+const ignore = () => import('./c');

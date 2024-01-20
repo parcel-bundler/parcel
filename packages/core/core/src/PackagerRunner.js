@@ -31,7 +31,7 @@ import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
-import {hashString, hashBuffer, Hash} from '@parcel/hash';
+import {hashString, hashBuffer, Hash} from '@parcel/rust';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
@@ -61,6 +61,7 @@ import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
 import {invalidateDevDeps} from './requests/DevDepRequest';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
@@ -275,6 +276,7 @@ export default class PackagerRunner {
         config: new PublicConfig(config, this.options),
         options: new PluginOptions(this.options),
         logger: new PluginLogger({origin: plugin.name}),
+        tracer: new PluginTracer({origin: plugin.name, category: 'loadConfig'}),
       });
       bundleConfigs.set(plugin.name, config);
     }
@@ -394,7 +396,11 @@ export default class PackagerRunner {
 
     let packager = await this.config.getPackager(bundle.name);
     let {name, resolveFrom, plugin} = packager;
+    let measurement;
     try {
+      measurement = tracer.createMeasurement(name, 'packaging', bundle.name, {
+        type: bundle.type,
+      });
       return await plugin.package({
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
@@ -409,6 +415,7 @@ export default class PackagerRunner {
         },
         options: this.pluginOptions,
         logger: new PluginLogger({origin: name}),
+        tracer: new PluginTracer({origin: name, category: 'package'}),
         getInlineBundleContents: async (
           bundle: BundleType,
           bundleGraph: BundleGraphType<NamedBundleType>,
@@ -438,6 +445,7 @@ export default class PackagerRunner {
         }),
       });
     } finally {
+      measurement && measurement.end();
       // Add dev dependency for the packager. This must be done AFTER running it due to
       // the potential for lazy require() that aren't executed until the request runs.
       let devDepRequest = await createDevDependency(
@@ -495,7 +503,13 @@ export default class PackagerRunner {
     };
 
     for (let optimizer of optimizers) {
+      let measurement;
       try {
+        measurement = tracer.createMeasurement(
+          optimizer.name,
+          'optimize',
+          bundle.name,
+        );
         let next = await optimizer.plugin.optimize({
           config: configs.get(optimizer.name)?.result,
           bundleConfig: bundleConfigs.get(optimizer.name)?.result,
@@ -508,6 +522,10 @@ export default class PackagerRunner {
           },
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
+          tracer: new PluginTracer({
+            origin: optimizer.name,
+            category: 'optimize',
+          }),
         });
 
         optimized.type = next.type ?? optimized.type;
@@ -521,6 +539,7 @@ export default class PackagerRunner {
           }),
         });
       } finally {
+        measurement && measurement.end();
         // Add dev dependency for the optimizer. This must be done AFTER running it due to
         // the potential for lazy require() that aren't executed until the request runs.
         let devDepRequest = await createDevDependency(

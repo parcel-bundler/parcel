@@ -16,6 +16,7 @@ import type {Entry, ParcelOptions, Target} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
   generateJSONCodeHighlights,
   getJSONSourceLocation,
   encodeJSONKeyComponent,
@@ -47,6 +48,7 @@ import {
 import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
+import {requestTypes} from '../RequestTracker';
 
 type RunOpts<TResult> = {|
   input: Entry,
@@ -88,7 +90,7 @@ const DEFAULT_ENGINES = {
 
 export type TargetRequest = {|
   id: string,
-  +type: 'target_request',
+  +type: typeof requestTypes.target_request,
   run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
   input: Entry,
 |};
@@ -98,7 +100,7 @@ const type = 'target_request';
 export default function createTargetRequest(input: Entry): TargetRequest {
   return {
     id: `${type}:${hashObject(input)}`,
-    type,
+    type: requestTypes.target_request,
     run,
     input,
   };
@@ -1417,21 +1419,16 @@ function assertTargetsAreNotEntries(
         codeFrames.push({
           filePath: fromProjectPath(options.projectRoot, loc.filePath),
           codeHighlights: [
-            {
-              start: loc.start,
-              end: loc.end,
-              message: 'Target defined here',
-            },
+            convertSourceLocationToHighlight(loc, 'Target defined here'),
           ],
         });
 
         let inputLoc = input.loc;
         if (inputLoc) {
-          let highlight = {
-            start: inputLoc.start,
-            end: inputLoc.end,
-            message: 'Entry defined here',
-          };
+          let highlight = convertSourceLocationToHighlight(
+            inputLoc,
+            'Entry defined here',
+          );
 
           if (inputLoc.filePath === loc.filePath) {
             codeFrames[0].codeHighlights.push(highlight);
@@ -1497,11 +1494,9 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
     let highlights = [];
     if (input.loc) {
-      highlights.push({
-        start: input.loc.start,
-        end: input.loc.end,
-        message: 'entry defined here',
-      });
+      highlights.push(
+        convertSourceLocationToHighlight(input.loc, 'entry defined here'),
+      );
     }
 
     // Read package.json where target is defined.

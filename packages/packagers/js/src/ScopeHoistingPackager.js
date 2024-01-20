@@ -18,14 +18,16 @@ import {
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
+} from '@parcel/diagnostic';
 import globals from 'globals';
 import path from 'path';
 
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
-import {prelude, helpers} from './helpers';
+import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
 import {replaceScriptDependencies, getSpecifier} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
@@ -72,6 +74,7 @@ export class ScopeHoistingPackager {
   bundleGraph: BundleGraph<NamedBundle>;
   bundle: NamedBundle;
   parcelRequireName: string;
+  useAsyncBundleRuntime: boolean;
   outputFormat: OutputFormat;
   isAsyncBundle: boolean;
   globalNames: $ReadOnlySet<string>;
@@ -92,17 +95,20 @@ export class ScopeHoistingPackager {
   hoistedRequires: Map<string, Map<string, string>> = new Map();
   needsPrelude: boolean = false;
   usedHelpers: Set<string> = new Set();
+  externalAssets: Set<Asset> = new Set();
 
   constructor(
     options: PluginOptions,
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
     parcelRequireName: string,
+    useAsyncBundleRuntime: boolean,
   ) {
     this.options = options;
     this.bundleGraph = bundleGraph;
     this.bundle = bundle;
     this.parcelRequireName = parcelRequireName;
+    this.useAsyncBundleRuntime = useAsyncBundleRuntime;
 
     let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
     this.outputFormat = new OutputFormat(this);
@@ -128,9 +134,25 @@ export class ScopeHoistingPackager {
       this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat === 'commonjs'
     ) {
-      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
-      for (let b of bundles) {
-        // this.externals.set(relativeBundlePath(this.bundle, b), new Map());
+      for (let b of this.bundleGraph.getReferencedBundles(this.bundle)) {
+        let entry = b.getMainEntry();
+        let symbols = new Map();
+        if (entry && !this.isAsyncBundle && entry.type === 'js') {
+          this.externalAssets.add(entry);
+
+          let usedSymbols = this.bundleGraph.getUsedSymbols(entry) || new Set();
+          for (let s of usedSymbols) {
+            // If the referenced bundle is ESM, and we are importing '*', use 'default' instead.
+            // This matches the logic below in buildExportedSymbols.
+            let imported = s;
+            if (imported === '*' && b.env.outputFormat === 'esmodule') {
+              imported = 'default';
+            }
+            symbols.set(imported, this.getSymbolResolution(entry, entry, s));
+          }
+        }
+
+        this.externals.set(relativeBundlePath(this.bundle, b), symbols);
       }
     }
 
@@ -183,6 +205,8 @@ export class ScopeHoistingPackager {
       mainEntry = null;
     }
 
+    let needsBundleQueue = this.shouldBundleQueue(this.bundle);
+
     // If any of the entry assets are wrapped, call parcelRequire so they are executed.
     for (let entry of entries) {
       if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
@@ -191,13 +215,22 @@ export class ScopeHoistingPackager {
         )});\n`;
 
         let entryExports = entry.symbols.get('*')?.local;
+
         if (
           entryExports &&
           entry === mainEntry &&
           this.exportedSymbols.has(entryExports)
         ) {
+          invariant(
+            !needsBundleQueue,
+            'Entry exports are not yet compaitble with async bundles',
+          );
           res += `\nvar ${entryExports} = ${parcelRequire}`;
         } else {
+          if (needsBundleQueue) {
+            parcelRequire = this.runWhenReady(this.bundle, parcelRequire);
+          }
+
           res += `\n${parcelRequire}`;
         }
 
@@ -245,6 +278,38 @@ export class ScopeHoistingPackager {
     };
   }
 
+  shouldBundleQueue(bundle: NamedBundle): boolean {
+    return (
+      this.useAsyncBundleRuntime &&
+      bundle.type === 'js' &&
+      bundle.bundleBehavior !== 'inline' &&
+      bundle.env.outputFormat === 'esmodule' &&
+      !bundle.env.isIsolated() &&
+      bundle.bundleBehavior !== 'isolated' &&
+      !this.bundleGraph.hasParentBundleOfType(bundle, 'js')
+    );
+  }
+
+  runWhenReady(bundle: NamedBundle, codeToRun: string): string {
+    let deps = this.bundleGraph
+      .getReferencedBundles(bundle)
+      .filter(b => this.shouldBundleQueue(b))
+      .map(b => b.publicId);
+
+    if (deps.length === 0) {
+      // If no deps we can safely execute immediately
+      return codeToRun;
+    }
+
+    let params = [
+      JSON.stringify(this.bundle.publicId),
+      fnExpr(this.bundle.env, [], [codeToRun]),
+      JSON.stringify(deps),
+    ];
+
+    return `$parcel$global.rwr(${params.join(', ')});`;
+  }
+
   async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = [];
@@ -266,8 +331,10 @@ export class ScopeHoistingPackager {
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }
     });
 
@@ -281,9 +348,10 @@ export class ScopeHoistingPackager {
           actions.skipChildren();
           return;
         }
-
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }, wrappedAssetRoot);
     }
 
@@ -559,7 +627,7 @@ export class ScopeHoistingPackager {
       sourceMap?.offsetLines(1, 1);
       lineCount++;
 
-      code = `parcelRequire.register(${JSON.stringify(
+      code = `parcelRegister(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(asset),
       )}, function(module, exports) {
 ${code}
@@ -578,6 +646,14 @@ ${code}
       }
 
       this.needsPrelude = true;
+    }
+
+    if (
+      !shouldWrap &&
+      this.shouldBundleQueue(this.bundle) &&
+      this.bundle.getEntryAssets().some(entry => entry.id === asset.id)
+    ) {
+      code = this.runWhenReady(this.bundle, code);
     }
 
     return [code, sourceMap, lineCount];
@@ -682,12 +758,7 @@ ${code}
             {
               filePath: nullthrows(dep.sourcePath),
               codeHighlights: dep.loc
-                ? [
-                    {
-                      start: dep.loc.start,
-                      end: dep.loc.end,
-                    },
-                  ]
+                ? [convertSourceLocationToHighlight(dep.loc)]
                 : [],
             },
           ],
@@ -759,6 +830,20 @@ ${code}
     }
   }
 
+  isWrapped(resolved: Asset, parentAsset: Asset): boolean {
+    if (resolved.meta.isConstantModule) {
+      invariant(
+        this.bundle.hasAsset(resolved),
+        'Constant module not found in bundle',
+      );
+      return false;
+    }
+    return (
+      (!this.bundle.hasAsset(resolved) && !this.externalAssets.has(resolved)) ||
+      (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset)
+    );
+  }
+
   getSymbolResolution(
     parentAsset: Asset,
     resolved: Asset,
@@ -780,12 +865,17 @@ ${code}
       return '{}';
     }
 
-    let isWrapped =
-      !this.bundle.hasAsset(resolvedAsset) ||
-      (this.wrappedAssets.has(resolvedAsset.id) &&
-        resolvedAsset !== parentAsset);
+    let isWrapped = this.isWrapped(resolvedAsset, parentAsset);
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
+
+    // External CommonJS dependencies need to be accessed as an object property rather than imported
+    // directly to maintain live binding.
+    let isExternalCommonJS =
+      !isWrapped &&
+      this.bundle.env.isLibrary &&
+      this.bundle.env.outputFormat === 'commonjs' &&
+      !this.bundle.hasAsset(resolvedAsset);
 
     // If the resolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
@@ -852,7 +942,7 @@ ${code}
         return obj;
       }
     } else if (
-      (!staticExports || isWrapped || !symbol) &&
+      (!staticExports || isWrapped || !symbol || isExternalCommonJS) &&
       resolvedAsset !== parentAsset
     ) {
       // If the resolved asset is wrapped or has non-static exports,
@@ -890,9 +980,7 @@ ${code}
     let hoisted = this.hoistedRequires.get(dep.id);
     let res = '';
     let lineCount = 0;
-    let isWrapped =
-      !this.bundle.hasAsset(resolved) ||
-      (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset);
+    let isWrapped = this.isWrapped(resolved, parentAsset);
 
     // If the resolved asset is wrapped and is imported in the top-level by this asset,
     // we need to run side effects when this asset runs. If the resolved asset is not
@@ -1096,9 +1184,11 @@ ${code}
           .map(exp => {
             let resolved = this.getSymbolResolution(asset, asset, exp);
             let get = this.buildFunctionExpression([], resolved);
-            let set = asset.meta.hasCJSExports
-              ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
-              : '';
+            let isEsmExport = !!asset.symbols.get(exp)?.meta?.isEsm;
+            let set =
+              !isEsmExport && asset.meta.hasCJSExports
+                ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
+                : '';
             return `$parcel$export($${assetId}$exports, ${JSON.stringify(
               exp,
             )}, ${get}${set});`;
@@ -1144,9 +1234,13 @@ ${code}
     }
 
     for (let helper of this.usedHelpers) {
-      res += helpers[helper];
+      let currentHelper = helpers[helper];
+      if (typeof currentHelper === 'function') {
+        currentHelper = helpers[helper](this.bundle.env);
+      }
+      res += currentHelper;
       if (enableSourceMaps) {
-        lines += countLines(helpers[helper]) - 1;
+        lines += countLines(currentHelper) - 1;
       }
     }
 
@@ -1169,11 +1263,20 @@ ${code}
         if (enableSourceMaps) {
           lines += countLines(preludeCode) - 1;
         }
+
+        if (this.shouldBundleQueue(this.bundle)) {
+          let bundleQueuePreludeCode = bundleQueuePrelude(this.bundle.env);
+          res += bundleQueuePreludeCode;
+          if (enableSourceMaps) {
+            lines += countLines(bundleQueuePreludeCode) - 1;
+          }
+        }
       } else {
         // Otherwise, get the current parcelRequire global.
-        res += `var parcelRequire = $parcel$global[${JSON.stringify(
-          this.parcelRequireName,
-        )}];\n`;
+        const escaped = JSON.stringify(this.parcelRequireName);
+        res += `var parcelRequire = $parcel$global[${escaped}];\n`;
+        lines++;
+        res += `var parcelRegister = parcelRequire.register;\n`;
         lines++;
       }
     }

@@ -1,4 +1,6 @@
+#[cfg(not(target_arch = "wasm32"))]
 use dashmap::DashMap;
+#[cfg(not(target_arch = "wasm32"))]
 use std::collections::VecDeque;
 use std::path::{Component, Path, PathBuf};
 
@@ -57,7 +59,8 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
   ret
 }
 
-// A reimplementation of std::fs::canonicalize with intermediary caching.
+#[cfg(not(target_arch = "wasm32"))]
+/// A reimplementation of std::fs::canonicalize with intermediary caching.
 pub fn canonicalize(
   path: &Path,
   cache: &DashMap<PathBuf, Option<PathBuf>>,
@@ -193,10 +196,7 @@ mod test {
       canonicalize(dir.child("recursive").path(), &cache)?,
       canonicalize(dir.child("root.js").path(), &cache)?
     );
-    assert!(matches!(
-      canonicalize(dir.child("cycle").path(), &cache),
-      Err(_)
-    ));
+    assert!(canonicalize(dir.child("cycle").path(), &cache).is_err());
     assert_eq!(
       canonicalize(dir.child("a/b/e/d/a/b/e/d/a").path(), &cache)?,
       canonicalize(dir.child("a").path(), &cache)?

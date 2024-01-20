@@ -35,6 +35,8 @@ import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
+export {fsFixture} from './fsFixture';
+
 export const workerFarm = (createWorkerFarm(): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();
 export let outputFS: MemoryFS = new MemoryFS(workerFarm);
@@ -666,7 +668,7 @@ function prepareBrowserContext(
 
   function PatchedError(message) {
     const patchedError = new Error(message);
-    const stackStart = patchedError.stack.indexOf('at new Error');
+    const stackStart = patchedError.stack.match(/at (new )?Error/)?.index;
     const stackEnd = patchedError.stack.includes('at Script.runInContext')
       ? patchedError.stack.indexOf('at Script.runInContext')
       : patchedError.stack.indexOf('at runNextTicks');
@@ -704,6 +706,8 @@ function prepareBrowserContext(
       module: {exports},
       document: fakeDocument,
       WebSocket,
+      TextEncoder,
+      TextDecoder,
       console: {...console, clear: () => {}},
       location: {
         hostname: 'localhost',
@@ -803,6 +807,8 @@ function prepareWorkerContext(
       module: {exports},
       WebSocket,
       console,
+      TextEncoder,
+      TextDecoder,
       location: {hostname: 'localhost', origin: 'http://localhost'},
       importScripts(...urls) {
         for (let u of urls) {
@@ -953,6 +959,8 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   ctx.setImmediate = setImmediate;
   ctx.global = ctx;
   ctx.URL = URL;
+  ctx.TextEncoder = TextEncoder;
+  ctx.TextDecoder = TextDecoder;
   Object.assign(ctx, globals);
   return ctx;
 }
@@ -968,7 +976,10 @@ export async function runESM(
 ): Promise<Array<{|[string]: mixed|}>> {
   let id = instanceId++;
   let cache = new Map();
-  function load(specifier, referrer, code = null) {
+  function load(inputSpecifier, referrer, code = null) {
+    // ESM can request bundles with an absolute URL. Normalize this to the baseDir.
+    let specifier = inputSpecifier.replace('http://localhost', baseDir);
+
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
       if (extname && extname !== '.js' && extname !== '.mjs') {

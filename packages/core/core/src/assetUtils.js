@@ -36,13 +36,13 @@ import {
   fromProjectPath,
   fromProjectPathRelative,
 } from './projectPath';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {BundleBehavior as BundleBehaviorMap} from './types';
+import {PluginTracer} from '@parcel/profiler';
 
 type AssetOptions = {|
   id?: string,
   committed?: boolean,
-  hash?: ?string,
   idBase?: ?string,
   filePath: ProjectPath,
   query?: ?string,
@@ -94,7 +94,6 @@ export function createAsset(
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
-    hash: options.hash,
     filePath: options.filePath,
     query: options.query,
     bundleBehavior: options.bundleBehavior
@@ -172,6 +171,7 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     ast,
     options: new PluginOptions(asset.options),
     logger: new PluginLogger({origin: pluginName}),
+    tracer: new PluginTracer({origin: pluginName, category: 'asset-generate'}),
   });
 
   let mapBuffer = map?.toBuffer();
