@@ -16,8 +16,15 @@ use crate::utils::{
   ErrorBuffer, SourceLocation,
 };
 
+pub enum MacroError {
+  /// An error occurred loading a macro (e.g. resolution or syntax error).
+  LoadError(String),
+  /// An error was thrown when executing a macro.
+  ExecutionError(String),
+}
+
 pub type MacroCallback = Arc<
-  dyn Fn(String, String, Vec<JsValue>, SourceLocation) -> Result<JsValue, String> + Send + Sync,
+  dyn Fn(String, String, Vec<JsValue>, SourceLocation) -> Result<JsValue, MacroError> + Send + Sync,
 >;
 
 pub struct Macros<'a> {
@@ -27,6 +34,7 @@ pub struct Macros<'a> {
   callback: MacroCallback,
   source_map: &'a SourceMap,
   diagnostics: &'a mut Vec<Diagnostic>,
+  load_errors: HashSet<String>,
   assignment_span: Option<Span>,
   in_call: bool,
 }
@@ -36,6 +44,8 @@ struct MacroImport {
   src: JsWord,
   /// The imported identifier. None if this is a namespace import.
   imported: Option<JsWord>,
+  /// The location of the import specifier.
+  span: Span,
 }
 
 impl<'a> Macros<'a> {
@@ -47,6 +57,7 @@ impl<'a> Macros<'a> {
     Macros {
       macros: HashMap::new(),
       constants: HashMap::new(),
+      load_errors: HashSet::new(),
       callback,
       source_map,
       diagnostics,
@@ -68,6 +79,7 @@ impl<'a> Macros<'a> {
             MacroImport {
               src: import.src.value.clone(),
               imported: Some(imported),
+              span: import.span,
             },
           );
         }
@@ -77,6 +89,7 @@ impl<'a> Macros<'a> {
             MacroImport {
               src: import.src.value.clone(),
               imported: Some(js_word!("default")),
+              span: import.span,
             },
           );
         }
@@ -86,6 +99,7 @@ impl<'a> Macros<'a> {
             MacroImport {
               src: import.src.value.clone(),
               imported: None,
+              span: import.span,
             },
           );
         }
@@ -93,7 +107,18 @@ impl<'a> Macros<'a> {
     }
   }
 
-  fn call_macro(&self, src: String, export: String, call: CallExpr) -> Result<Expr, Diagnostic> {
+  fn call_macro(
+    &mut self,
+    src: String,
+    export: String,
+    call: CallExpr,
+    import_span: Span,
+  ) -> Result<Expr, Diagnostic> {
+    // If a macro already errorered during loading, don't try callinbg it again.
+    if self.load_errors.contains(&src) {
+      return Ok(Expr::Lit(Lit::Null(Null::dummy())));
+    }
+
     // Try to statically evaluate all of the function arguments.
     let mut args = Vec::with_capacity(call.args.len());
     for arg in &call.args {
@@ -115,16 +140,32 @@ impl<'a> Macros<'a> {
 
     // If that was successful, call the function callback (on the JS thread).
     let loc = SourceLocation::from(self.source_map, call.span);
-    match (self.callback)(src, export, args, loc.clone()) {
+    match (self.callback)(src.clone(), export, args, loc.clone()) {
       Ok(val) => Ok(self.value_to_expr(val)?),
-      Err(err) => Err(Diagnostic {
-        message: format!("Error evaluating macro: {}", err),
-        code_highlights: Some(vec![CodeHighlight { message: None, loc }]),
-        hints: None,
-        show_environment: false,
-        severity: crate::utils::DiagnosticSeverity::Error,
-        documentation_url: None,
-      }),
+      Err(err) => match err {
+        MacroError::LoadError(err) => {
+          self.load_errors.insert(src);
+          Err(Diagnostic {
+            message: format!("Error loading macro: {}", err),
+            code_highlights: Some(vec![CodeHighlight {
+              message: None,
+              loc: SourceLocation::from(self.source_map, import_span),
+            }]),
+            hints: None,
+            show_environment: false,
+            severity: crate::utils::DiagnosticSeverity::Error,
+            documentation_url: None,
+          })
+        }
+        MacroError::ExecutionError(err) => Err(Diagnostic {
+          message: format!("Error evaluating macro: {}", err),
+          code_highlights: Some(vec![CodeHighlight { message: None, loc }]),
+          hints: None,
+          show_environment: false,
+          severity: crate::utils::DiagnosticSeverity::Error,
+          documentation_url: None,
+        }),
+      },
     }
   }
 
@@ -174,11 +215,12 @@ impl<'a> Fold for Macros<'a> {
           Expr::Ident(ident) => {
             if let Some(specifier) = self.macros.get(&ident.to_id()) {
               if let Some(imported) = &specifier.imported {
-                let specifier = specifier.src.to_string();
+                let src = specifier.src.to_string();
                 let imported = imported.to_string();
+                let span = specifier.span;
                 let call = call.fold_with(self);
                 return handle_error(
-                  self.call_macro(specifier, imported, call),
+                  self.call_macro(src, imported, call, span),
                   &mut self.diagnostics,
                 );
               }
@@ -193,11 +235,12 @@ impl<'a> Fold for Macros<'a> {
               ) {
                 // Check that this is a namespace import.
                 if specifier.imported.is_none() {
-                  let specifier = specifier.src.to_string();
+                  let src = specifier.src.to_string();
                   let imported = prop.0.to_string();
+                  let span = specifier.span;
                   let call = call.fold_with(self);
                   return handle_error(
-                    self.call_macro(specifier, imported, call),
+                    self.call_macro(src, imported, call, span),
                     &mut self.diagnostics,
                   );
                 }
