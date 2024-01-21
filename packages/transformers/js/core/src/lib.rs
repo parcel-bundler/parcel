@@ -53,8 +53,8 @@ use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::{error_buffer_to_diagnostics, Diagnostic, DiagnosticSeverity, ErrorBuffer, SourceType};
 
-pub use crate::macros::JsValue;
 use crate::macros::Macros;
+pub use crate::macros::{JsValue, MacroError};
 pub use utils::SourceLocation;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
