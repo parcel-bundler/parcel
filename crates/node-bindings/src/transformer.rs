@@ -13,6 +13,7 @@ pub fn transform(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
 mod native_only {
   use super::*;
   use crossbeam_channel::{Receiver, Sender};
+  use indexmap::IndexMap;
   use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
     JsBoolean, JsFunction, JsNumber, JsString, ValueType,
@@ -177,12 +178,12 @@ mod native_only {
 
           let names = obj.get_property_names()?;
           let len = names.get_array_length()?;
-          let mut props = Vec::with_capacity(len as usize);
+          let mut props = IndexMap::with_capacity(len as usize);
           for i in 0..len {
             let prop = names.get_element::<JsString>(i)?;
             let name = prop.into_utf8()?.into_owned()?;
             let value = napi_to_js_value(obj.get_property(prop)?, env)?;
-            props.push((name, value));
+            props.insert(name, value);
           }
           Ok(JsValue::Object(props))
         }

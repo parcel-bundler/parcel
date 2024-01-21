@@ -163,7 +163,7 @@ describe('macros', function () {
     await fsFixture(overlayFS, dir)`
       index.js:
         import { test } from "./macro.js" with { type: "macro" };
-        output = test(1 + 2, 'foo ' + 'bar', !true, [1, ...[2, 3]], true ? 1 : 0, typeof false, null ?? 2);
+        output = test(1 + 2, 'foo ' + 'bar', 3 + 'em', 'test'.length, 'test'['length'], 'test'[1], !true, [1, ...[2, 3]], {x: 2, ...{y: 3}}, true ? 1 : 0, typeof false, null ?? 2);
 
       macro.js:
         export function test(...args) {
@@ -177,7 +177,20 @@ describe('macros', function () {
     });
 
     let res = await run(b);
-    assert.deepEqual(res, [3, 'foo bar', false, [1, 2, 3], 1, 'boolean', 2]);
+    assert.deepEqual(res, [
+      3,
+      'foo bar',
+      '3em',
+      4,
+      4,
+      'e',
+      false,
+      [1, 2, 3],
+      {x: 2, y: 3},
+      1,
+      'boolean',
+      2,
+    ]);
   });
 
   it('should dead code eliminate falsy branches', async function () {
@@ -546,5 +559,246 @@ describe('macros', function () {
     let match2 = res.match(/output=(\d+)/);
     assert(match2);
     assert.notEqual(match[1], match2[1]);
+  });
+
+  it('should support evaluating constants', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        import { test } from './macro' with { type: "macro" };
+        const hi = "hi";
+        const ref = hi;
+        const arr = [hi];
+        const obj = {a: {b: hi}};
+        const [a, [b], ...c] = [hi, [hi], 2, 3, hi];
+        const [x, y = hi] = [1];
+        const {hi: d, e, ...f} = {hi, e: hi, x: 2, y: hi};
+        const res = test();
+        output1 = hashString(hi);
+        output2 = hashString(ref);
+        output3 = hashString(arr[0]);
+        output4 = hashString(obj.a.b);
+        output5 = hashString(a);
+        output6 = hashString(b);
+        output7 = hashString(c[2]);
+        output8 = hashString(y);
+        output9 = hashString(d);
+        output10 = hashString(e);
+        output11 = hashString(f.y);
+        output12 = hashString(f?.y);
+        output13 = hashString(res);
+
+      macro.js:
+        export function test() {
+          return "hi";
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    for (let i = 1; i <= 13; i++) {
+      assert(res.includes(`output${i}="2a2300bbd7ea6e9a"`));
+    }
+  });
+
+  it('should throw a diagnostic when a constant is mutated', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        const object = {foo: 'bar'};
+        object.foo = 'test';
+        output = hashString(object.foo);
+
+        const arr = ['foo'];
+        arr[0] = 'bar';
+        output = hashString(arr[0]);
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 3,
+                    column: 1,
+                  },
+                  end: {
+                    line: 3,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 7,
+                    column: 1,
+                  },
+                  end: {
+                    line: 7,
+                    column: 14,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+      ]);
+    }
+  });
+
+  it('should throw a diagnostic when a constant object is passed to a function', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        const bar = 'bar';
+        const object = {foo: bar};
+        doSomething(bar); // ok (string)
+        doSomething(object.foo); // ok (evaluates to a string)
+        doSomething(object); // error (object could be mutated)
+        output = hashString(object.foo);
+
+        const object2 = {foo: bar, obj: {}};
+        doSomething(object2.obj); // error (object could be mutated)
+        output2 = hashString(object2);
+
+        const arr = ['foo'];
+        doSomething(arr);
+        output3 = hashString(arr[0]);
+
+        const object3 = {foo: bar};
+        doSomething(object3[unknown]);
+        output4 = hashString(object3);
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 6,
+                    column: 13,
+                  },
+                  end: {
+                    line: 6,
+                    column: 18,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 10,
+                    column: 13,
+                  },
+                  end: {
+                    line: 10,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 14,
+                    column: 13,
+                  },
+                  end: {
+                    line: 14,
+                    column: 15,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 18,
+                    column: 13,
+                  },
+                  end: {
+                    line: 18,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+      ]);
+    }
   });
 });
