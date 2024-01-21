@@ -18,7 +18,7 @@ export default (new Transformer({
             server += `Object.defineProperties(${local}, {
               name: { value: ${JSON.stringify(symbol)} },
               $$typeof: {value: CLIENT_REFERENCE},
-              filepath: {value: ${JSON.stringify(asset.filePath)} }
+              $$id: {value: ${JSON.stringify(asset.filePath + '#' + symbol)}}
             });\n`;
             symbols.set(symbol, {local, loc});
           }

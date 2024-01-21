@@ -12584,14 +12584,6 @@ rc@^1.2.7:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-react-dom@0.0.0-experimental-4fcc9184a-20230217:
-  version "0.0.0-experimental-4fcc9184a-20230217"
-  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-0.0.0-experimental-4fcc9184a-20230217.tgz#be9ad38890eb09d5be4e0740c06205ab81add3a0"
-  integrity sha512-jfGKG7+nlMPsnhB7HlXtds8kY7QuPUnKDuy8uin2Qbak+oYIp4etsRFRQo8VCqFn/D1Ea+4a72bancNIbp4Ylw==
-  dependencies:
-    loose-envify "^1.1.0"
-    scheduler "0.0.0-experimental-4fcc9184a-20230217"
-
 react-dom@^17.0.2:
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-17.0.2.tgz#ecffb6845e3ad8dbfcdc498f0d0a939736502c23"
@@ -12608,6 +12600,14 @@ react-dom@^18.2.0:
   dependencies:
     loose-envify "^1.1.0"
     scheduler "^0.23.0"
+
+react-dom@canary:
+  version "18.3.0-canary-feed8f3f9-20240118"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.3.0-canary-feed8f3f9-20240118.tgz#2d3e06e4be652ef503840baee881f4e640f280ec"
+  integrity sha512-vXOpy38nJhAuR4PmeIUvEKKoZ/lRDG9WJp2BTBIiigCvgHb11cTR4uIA+xcv8bXhy+/bKuICICVDKNKxEVPZ2g==
+  dependencies:
+    loose-envify "^1.1.0"
+    scheduler "0.24.0-canary-feed8f3f9-20240118"
 
 react-error-overlay@6.0.9:
   version "6.0.9"
@@ -12634,10 +12634,10 @@ react-resizable-panels@^0.0.61:
   resolved "https://registry.yarnpkg.com/react-resizable-panels/-/react-resizable-panels-0.0.61.tgz#2260ec8ca591431d367d172bced49733cc3308aa"
   integrity sha512-Vk2a4LEHWkI6hGPnPmXxa/2twLYMAMMUTyA2PtR1ijvH2Nkg/AhGqrPsIi/eI85uVWtYCFNZKEsbR3uGuJl/yg==
 
-react-server-dom-webpack@^0.0.0-experimental-4fcc9184a-20230217:
-  version "0.0.0-experimental-feed8f3f9-20240118"
-  resolved "https://registry.yarnpkg.com/react-server-dom-webpack/-/react-server-dom-webpack-0.0.0-experimental-feed8f3f9-20240118.tgz#b2a8c0c8f16b0810fef2ec005fa3fd25f61de96f"
-  integrity sha512-9+gS3ydJF5aYwKkvfzN+DtHfICzvQ+gYGv+2MVZo65gDSit1wC0vwOd0YebHqJNC2JruND+nEyd7wQAYmVdAZA==
+react-server-dom-webpack@canary:
+  version "18.3.0-canary-feed8f3f9-20240118"
+  resolved "https://registry.yarnpkg.com/react-server-dom-webpack/-/react-server-dom-webpack-18.3.0-canary-feed8f3f9-20240118.tgz#515c175f712c48771302e9dbcbac67c0388fcba3"
+  integrity sha512-VNjkZPhaS2or1d94rTd1g/fE47wmNBAm2RgeOpoZVaEINB6DpL2PR72XPbrlj9DSANL9zoF0ecGcU1YfZFCiJQ==
   dependencies:
     acorn-loose "^8.3.0"
     loose-envify "^1.1.0"
@@ -12668,13 +12668,6 @@ react-use@^17.4.0:
     ts-easing "^0.2.0"
     tslib "^2.1.0"
 
-react@0.0.0-experimental-4fcc9184a-20230217:
-  version "0.0.0-experimental-4fcc9184a-20230217"
-  resolved "https://registry.yarnpkg.com/react/-/react-0.0.0-experimental-4fcc9184a-20230217.tgz#4bbe4202b3309ad4d44e5987b738d9df31d98ca4"
-  integrity sha512-8vYYomLRnCAcbdx7mcSWGt8HCNq4hXlIHLJXnJZiLP6tsNRcomTwmM5VSAyzHLKnw0GSbJ9BBExFaicabJje4w==
-  dependencies:
-    loose-envify "^1.1.0"
-
 react@^17.0.2:
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/react/-/react-17.0.2.tgz#d0b5cc516d29eb3eee383f75b62864cfb6800037"
@@ -12687,6 +12680,13 @@ react@^18.2.0:
   version "18.2.0"
   resolved "https://registry.yarnpkg.com/react/-/react-18.2.0.tgz#555bd98592883255fa00de14f1151a917b5d77d5"
   integrity sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==
+  dependencies:
+    loose-envify "^1.1.0"
+
+react@canary:
+  version "18.3.0-canary-feed8f3f9-20240118"
+  resolved "https://registry.yarnpkg.com/react/-/react-18.3.0-canary-feed8f3f9-20240118.tgz#69139ccde625cbdb0fb49d5ab6d7c16c02222d74"
+  integrity sha512-IcG51zKx2rwV/skaC51g7AnaygsIvUii5v56uiKYdPrVkKFVKExLcCG15vAAYu0v6NiL1jLla+CwUHQn8gI7dA==
   dependencies:
     loose-envify "^1.1.0"
 
@@ -13347,10 +13347,10 @@ saxes@^5.0.1:
   dependencies:
     xmlchars "^2.2.0"
 
-scheduler@0.0.0-experimental-4fcc9184a-20230217:
-  version "0.0.0-experimental-4fcc9184a-20230217"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.0.0-experimental-4fcc9184a-20230217.tgz#0ce14422daf6183ef2484733c32a630904d2c9b0"
-  integrity sha512-6dg7BDP+mEiDM31zpfLuqIBYhyC2dRbRLV2ybyZ6Fe03WoUzHv8DvFqw5nhOYH9icarKUxGk8qwHSo15YEZIBA==
+scheduler@0.24.0-canary-feed8f3f9-20240118:
+  version "0.24.0-canary-feed8f3f9-20240118"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.24.0-canary-feed8f3f9-20240118.tgz#d11f6f55e5b0d9bde5ce9da408547f0ac7cd4eee"
+  integrity sha512-LVtHnpvR6zIQoxe+IoL9m1aJmfIYlQNn20LFrkhUYK1Uwcp/UcbMCvD5x+fbltWwf5Msy3AQh7Lrln1K4oMieA==
   dependencies:
     loose-envify "^1.1.0"
 

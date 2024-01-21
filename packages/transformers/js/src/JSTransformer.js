@@ -437,7 +437,7 @@ export default (new Transformer({
       code,
       module_id: asset.id,
       project_root: options.projectRoot,
-      replace_env: !asset.env.isNode(),
+      replace_env: true,//!asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
       insert_node_globals:
         !asset.env.isNode() && asset.env.sourceType !== 'script',
@@ -530,6 +530,9 @@ export default (new Transformer({
                       specifier: k,
                       specifierType: 'esm',
                     });
+                  },
+                  addDependency(opts) {
+                    return asset.addDependency(opts);
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);
@@ -834,6 +837,22 @@ export default (new Transformer({
           };
         }
 
+        if (dep.attributes?.condition) {
+          env = {
+            ...env,
+            packageConditions: [dep.attributes.condition]
+          };
+        }
+
+        if (dep.attributes?.context) {
+          env = {
+            ...env,
+            context: dep.attributes.context,
+            outputFormat: 'esmodule',
+            includeNodeModules: true
+          };
+        }
+
         // Add required version range for helpers.
         let range;
         if (isHelper) {
@@ -855,6 +874,7 @@ export default (new Transformer({
           resolveFrom: isHelper ? __filename : undefined,
           range,
           env,
+          bundleBehavior: dep.attributes?.context ? 'isolated' : undefined
         });
       }
     }

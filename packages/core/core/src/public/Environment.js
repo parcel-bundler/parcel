@@ -81,6 +81,7 @@ const supportData = {
     samsung: '8',
     and_qq: '10.4',
     op_mob: '64',
+    node: '13.2.0'
   },
   'worker-module': {
     edge: '80',
@@ -105,6 +106,7 @@ const supportData = {
     samsung: '9.2',
     and_qq: '10.4',
     op_mob: '64',
+    node: '10.4.0'
   },
   'arrow-functions': {
     chrome: '47',
@@ -210,6 +212,10 @@ export default class Environment implements IEnvironment {
 
   get sourceMap(): ?TargetSourceMapOptions {
     return this.#environment.sourceMap;
+  }
+
+  get packageConditions(): ?$ReadOnlyArray<string> {
+    return this.#environment.packageConditions;
   }
 
   get loc(): ?SourceLocation {

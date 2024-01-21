@@ -1,11 +1,14 @@
+import './env';
 import express from 'express';
 import React from 'react';
-import {renderToPipeableStream} from 'react-server-dom-webpack/server.node';
+// import ReactClient
+// import {renderToPipeableStream} from 'react-server-dom-webpack/server.node' with {condition: 'react-server'};
 import {renderToReadableStream} from 'react-server-dom-webpack/server.browser';
-import {createFromReadableStream} from 'react-server-dom-webpack/client.browser';
-import {renderToReadableStream as renderHTMLToReadableStream} from 'react-dom/server.browser';
+// import {createFromReadableStream} from 'react-server-dom-webpack/client.browser';
+// import {renderToReadableStream as renderHTMLToReadableStream} from 'react-dom/server.browser';
 import {Readable} from 'node:stream';
 import {manifest} from '@parcel/rsc-manifest';
+import {addDependency} from './macro' with {type: 'macro'};
 
 const app = express();
 
@@ -16,21 +19,32 @@ app.options('/', function (req, res) {
   res.end();
 });
 
-app.get('/', async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  const App = (await import('./App')).default;
-  const {pipe} = renderToPipeableStream(
-    React.createElement(App),
-    manifest,
-  );
-  pipe(res);
-});
+app.use(express.static('dist'));
 
-globalThis.__webpack_chunk_load__ = (c) => __parcel__import__('.' + c);
-globalThis.__webpack_require__ = id => parcelRequire(id);
+// app.get('/', async (req, res) => {
+//   res.setHeader('Access-Control-Allow-Origin', '*');
+//   const App = (await import('./App')).default;
+//   const {pipe} = renderToPipeableStream(
+//     React.createElement(App),
+//     manifest,
+//   );
+//   pipe(res);
+// });
 
 app.get('/ssr', async (req, res) => {
+  let bootstrap = addDependency({
+    specifier: 'bootstrap.js',
+    specifierType: 'url',
+    priority: 'parallel',
+    // bundleBehavior: 'isolated',
+    env: {
+      context: 'browser',
+      outputFormat: 'esmodule',
+      includeNodeModules: true
+    }
+  })();
   const App = (await import('./App')).default;
+  const {createFromReadableStream, renderHTMLToReadableStream, ReactClient} = (await import('./serverClient', {context: 'browser'}));
 
   const stream = renderToReadableStream(
     React.createElement(App),
@@ -39,7 +53,7 @@ app.get('/ssr', async (req, res) => {
   const [s1, s2] = stream.tee();
   const data = createFromReadableStream(s1);
   function Content() {
-    return React.use(data);
+    return ReactClient.use(data);
   }
 
   let flight = await streamToString(s2);
@@ -48,7 +62,7 @@ app.get('/ssr', async (req, res) => {
   const response = await renderHTMLToReadableStream(<Content />, {
     bootstrapScriptContent: `window.__FLIGHT_DATA = ${JSON.stringify(flight)}`,
     // TODO: also get a list of all scripts needed to render the component and preload them.
-    bootstrapScripts: ['http://localhost:8080/' + new URL('bootstrap.js', import.meta.url).pathname.split('/').pop()]
+    bootstrapModules: bootstrap.map(url => url.split('/').pop())
   });
   
   res.setHeader('content-type', 'text/html');

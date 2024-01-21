@@ -32,16 +32,15 @@ export default (new Runtime({
           let id = bundleGraph.getAssetPublicId(asset);
           let b = bundleGraph.getBundlesWithAsset(asset)[0]; // TODO
           let bundles = bundleGraph.getReferencedBundles(b, {recursive: true});
-          let chunks = [b, ...bundles].map(b => urlJoin(b.target.publicUrl, b.name));
+          let chunks = [b, ...bundles].flatMap(b => [urlJoin(b.target.publicUrl, b.name), urlJoin(b.target.publicUrl, b.name)]);
           let exports = {};
           for (let symbol of asset.symbols.exportSymbols()) {
-            exports[symbol] = {
+            manifest[asset.filePath + '#' + symbol] = {
               id,
               chunks,
               name: symbol
             };
           }
-          manifest[asset.filePath] = exports;
         }
       }
     });

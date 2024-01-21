@@ -203,6 +203,12 @@ export default (new Runtime({
         continue;
       }
 
+      if (referencedBundle && dependency.bundleBehavior !== 'isolated' && !dependency.env.isIsolated()) {
+        console.log("DOIFHodifhODIFH", getUrlListRuntime(dependency, bundle, bundleGraph.getReferencedBundles(referencedBundle), options))
+        assets.push(getUrlListRuntime(dependency, bundle, [...bundleGraph.getReferencedBundles(referencedBundle), referencedBundle], options));
+        continue;
+      }
+
       // Otherwise, try to resolve the dependency to an external bundle group
       // and insert a URL to that bundle.
       let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
@@ -222,7 +228,7 @@ export default (new Runtime({
         continue;
       }
 
-      let bundleGroup = resolved.value;
+      let bundleGroup = resolved.value;      
       let mainBundle = nullthrows(
         bundleGraph.getBundlesInBundleGroup(bundleGroup).find(b => {
           let entries = b.getEntryAssets();
@@ -612,6 +618,26 @@ function getURLRuntime(
     code = `module.exports = ${getAbsoluteUrlExpr(relativePathExpr, from)};`;
   }
 
+  return {
+    filePath: __filename,
+    code,
+    dependency,
+    env: {sourceType: 'module'},
+  };
+}
+
+function getUrlListRuntime(
+  dependency: Dependency,
+  from: NamedBundle,
+  to: Array<NamedBundle>,
+  options: PluginOptions,
+): RuntimeAsset {
+  let expressions = to.map(to => {
+    let relativePathExpr = getRelativePathExpr(from, to, options);
+    return getAbsoluteUrlExpr(relativePathExpr, from);
+  });
+
+  let code = `module.exports = [${expressions.join(', ')}];`
   return {
     filePath: __filename,
     code,

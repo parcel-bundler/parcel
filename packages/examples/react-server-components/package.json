@@ -2,37 +2,29 @@
   "name": "parcel-react-server-components-example",
   "version": "1.0.0",
   "private": true,
-  "react-server": "dist/server.js",
-  "react-client": "dist/index.html",
+  "react-server": "dist/server.mjs",
+  "type": "module",
   "targets": {
     "react-server": {
       "context": "node",
-      "outputFormat": "commonjs",
-      "source": "src/server.js",
-      "includeNodeModules": [
-        "@parcel/rsc-manifest"
-      ],
-      "isLibrary": false
-    },
-    "react-client": {
-      "context": "browser",
       "outputFormat": "esmodule",
-      "source": "src/index.html",
-      "includeNodeModules": true,
+      "source": "src/server.js",
+      "includeNodeModules": {
+        "express": false
+      },
       "isLibrary": false
     }
   },
-  "alias": {
-    "react": "./react.js",
-    "react/jsx-runtime": "react/jsx-runtime"
+  "engines": {
+    "node": ">= 16"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "react": "0.0.0-experimental-4fcc9184a-20230217",
-    "react-dom": "0.0.0-experimental-4fcc9184a-20230217",
-    "react-server-dom-webpack": "^0.0.0-experimental-4fcc9184a-20230217"
+    "react": "18.3.0-canary-feed8f3f9-20240118",
+    "react-dom": "18.3.0-canary-feed8f3f9-20240118",
+    "react-server-dom-webpack": "18.3.0-canary-feed8f3f9-20240118"
   },
-  "@parcel/bundler-default": {
-    "minBundleSize": 0
+  "@parcel/resolver-default": {
+    "packageExports": true
   }
 }

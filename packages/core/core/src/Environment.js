@@ -30,6 +30,7 @@ export function createEnvironment({
   isLibrary = false,
   shouldScopeHoist = false,
   sourceMap,
+  packageConditions,
   loc,
 }: EnvironmentOpts = {
   /*::...null*/
@@ -105,6 +106,7 @@ export function createEnvironment({
     shouldOptimize,
     shouldScopeHoist,
     sourceMap,
+    packageConditions,
     loc,
   };
 
@@ -146,6 +148,7 @@ function getEnvironmentHash(env: Environment): string {
       env.shouldOptimize,
       env.shouldScopeHoist,
       env.sourceMap,
+      env.packageConditions,
     ]),
   );
 }

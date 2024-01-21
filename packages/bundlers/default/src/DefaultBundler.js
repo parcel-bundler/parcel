@@ -652,6 +652,7 @@ function createIdealGraph(
               );
             } else if (
               parentAsset.type !== childAsset.type ||
+              parentAsset.env.context !== childAsset.env.context ||
               dependency.priority === 'parallel' ||
               childAsset.bundleBehavior === 'inline'
             ) {
@@ -680,7 +681,7 @@ function createIdealGraph(
                */
               let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
               if (
-                parentAsset.type !== childAsset.type &&
+                (parentAsset.type !== childAsset.type || parentAsset.env.context !== childAsset.env.context) &&
                 entries.has(bundleGroupRootAsset) &&
                 canMerge(bundleGroupRootAsset, childAsset) &&
                 dependency.bundleBehavior == null &&
@@ -708,7 +709,7 @@ function createIdealGraph(
                 bundleId = bundleGraph.addNode(bundle);
 
                 // Store Type-Change bundles for later since we need to know ALL bundlegroups they are part of to reduce/combine them
-                if (parentAsset.type !== childAsset.type) {
+                if (parentAsset.type !== childAsset.type || parentAsset.env.context !== childAsset.env.context) {
                   typeChangeIds.add(bundleId);
                 }
               } else {
@@ -1028,7 +1029,7 @@ function createIdealGraph(
         }
         //asset node type
         let asset = node.value;
-        if (asset.bundleBehavior != null || root.type !== asset.type) {
+        if (asset.bundleBehavior != null || root.type !== asset.type || root.env.context !== asset.env.context) {
           actions.skipChildren();
           return;
         }
@@ -1091,7 +1092,7 @@ function createIdealGraph(
       ]) {
         let bundleInGroup = nullthrows(bundleGraph.getNode(bundleIdInGroup));
         invariant(bundleInGroup !== 'root');
-        if (bundleInGroup.bundleBehavior != null) {
+        if (bundleInGroup.bundleBehavior != null || bundleInGroup.env.context !== bundleRoot.env.context) {
           continue;
         }
 

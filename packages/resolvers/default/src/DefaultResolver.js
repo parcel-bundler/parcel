@@ -38,7 +38,7 @@ export default (new Resolver({
       env: dependency.env,
       sourcePath: dependency.sourcePath,
       loc: dependency.loc,
-      packageConditions: dependency.packageConditions,
+      packageConditions: dependency.packageConditions ?? (dependency.env.isNode() ? ['react-server'] : undefined),
     });
   },
 }): Resolver);

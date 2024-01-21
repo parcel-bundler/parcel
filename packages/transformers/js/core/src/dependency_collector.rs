@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
-use swc_core::ecma::ast::{self, Callee, Id, MemberProp};
+use swc_core::ecma::ast::{self, Callee, Id, MemberProp, ObjectLit, Lit, Str, Ident, Expr, Number};
 use swc_core::ecma::atoms::{js_word, JsWord};
 use swc_core::ecma::visit::{Fold, FoldWith};
 
@@ -42,13 +42,21 @@ impl fmt::Display for DependencyKind {
   }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ImportAttribute {
+  Boolean(bool),
+  Number(f64),
+  String(JsWord)
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
-  pub specifier: swc_core::ecma::atoms::JsWord,
-  pub attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
+  pub specifier: JsWord,
+  pub attributes: Option<HashMap<JsWord, ImportAttribute>>,
   pub is_optional: bool,
   pub is_helper: bool,
   pub source_type: Option<SourceType>,
@@ -100,7 +108,7 @@ impl<'a> DependencyCollector<'a> {
     mut specifier: JsWord,
     span: swc_core::common::Span,
     kind: DependencyKind,
-    attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
+    attributes: Option<HashMap<JsWord, ImportAttribute>>,
     is_optional: bool,
     source_type: SourceType,
   ) -> Option<JsWord> {
@@ -286,11 +294,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       return node;
     }
 
+    let attributes = node.with.as_ref().map(|attrs| resolve_import_attributes(&*attrs));
     let rewritten = self.add_dependency(
       node.src.value.clone(),
       node.src.span,
       DependencyKind::Import,
-      None,
+      attributes,
       false,
       self.config.source_type,
     );
@@ -308,11 +317,12 @@ impl<'a> Fold for DependencyCollector<'a> {
         return node;
       }
 
+      let attributes = node.with.as_ref().map(|attrs| resolve_import_attributes(&*attrs));
       let rewritten = self.add_dependency(
         src.value.clone(),
         src.span,
         DependencyKind::Export,
-        None,
+        attributes,
         false,
         self.config.source_type,
       );
@@ -326,11 +336,12 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_export_all(&mut self, mut node: ast::ExportAll) -> ast::ExportAll {
+    let attributes = node.with.as_ref().map(|attrs| resolve_import_attributes(&*attrs));
     let rewritten = self.add_dependency(
       node.src.value.clone(),
       node.src.span,
       DependencyKind::Export,
-      None,
+      attributes,
       false,
       self.config.source_type,
     );
@@ -360,7 +371,7 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_call_expr(&mut self, node: ast::CallExpr) -> ast::CallExpr {
-    use ast::{Expr::*, Ident};
+    use ast::Expr::*;
 
     let kind = match &node.callee {
       Callee::Import(_) => DependencyKind::DynamicImport,
@@ -438,6 +449,14 @@ impl<'a> Fold for DependencyCollector<'a> {
                 call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
                   "require".into(),
                   DUMMY_SP.apply_mark(self.ignore_mark),
+                ))));
+                return call;
+              }
+              "__parcel__require2__" => {
+                let mut call = node.fold_children_with(self);
+                call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+                  "require".into(),
+                  DUMMY_SP//.apply_mark(self.ignore_mark),
                 ))));
                 return call;
               }
@@ -547,33 +566,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     if kind == DependencyKind::DynamicImport {
       if let Some(arg) = node.args.get(1) {
         if let Object(arg) = &*arg.expr {
-          let mut attrs = HashMap::new();
-          for key in &arg.props {
-            let prop = match key {
-              ast::PropOrSpread::Prop(prop) => prop,
-              _ => continue,
-            };
-
-            let kv = match &**prop {
-              ast::Prop::KeyValue(kv) => kv,
-              _ => continue,
-            };
-
-            let k = match &kv.key {
-              ast::PropName::Ident(Ident { sym, .. })
-              | ast::PropName::Str(ast::Str { value: sym, .. }) => sym.clone(),
-              _ => continue,
-            };
-
-            let v = match &*kv.value {
-              Lit(ast::Lit::Bool(ast::Bool { value, .. })) => *value,
-              _ => continue,
-            };
-
-            attrs.insert(k, v);
-          }
-
-          attributes = Some(attrs);
+          attributes = Some(resolve_import_attributes(arg));
         }
       }
     }
@@ -1398,4 +1391,36 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
   }
 
   (SourceType::Script, expr.cloned())
+}
+
+fn resolve_import_attributes(arg: &ObjectLit) -> HashMap<JsWord, ImportAttribute> {
+  let mut attrs = HashMap::new();
+  for key in &arg.props {
+    let prop = match key {
+      ast::PropOrSpread::Prop(prop) => prop,
+      _ => continue,
+    };
+
+    let kv = match &**prop {
+      ast::Prop::KeyValue(kv) => kv,
+      _ => continue,
+    };
+
+    let k = match &kv.key {
+      ast::PropName::Ident(Ident { sym, .. })
+      | ast::PropName::Str(ast::Str { value: sym, .. }) => sym.clone(),
+      _ => continue,
+    };
+
+    let v = match &*kv.value {
+      Expr::Lit(ast::Lit::Bool(ast::Bool { value, .. })) => ImportAttribute::Boolean(*value),
+      Expr::Lit(Lit::Str(Str { value, ..})) => ImportAttribute::String(value.clone()),
+      Expr::Lit(Lit::Num(Number { value, ..})) => ImportAttribute::Number(*value),
+      _ => continue,
+    };
+
+    attrs.insert(k, v);
+  }
+
+  attrs
 }
