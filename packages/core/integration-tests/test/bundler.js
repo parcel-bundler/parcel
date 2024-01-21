@@ -1473,7 +1473,7 @@ describe('bundler', function () {
             "minBundleSize": 0,
             "unstable_manualSharedBundles": [{
               "name": "vendor",
-              "parent": "math/math.js",
+              "root": "math/math.js",
               "assets": ["math/!(divide).js"]
             }]
           }
@@ -1616,7 +1616,7 @@ describe('bundler', function () {
             "minBundleSize": 0,
             "unstable_manualSharedBundles": [{
               "name": "vendor",
-              "parent": "manual.js",
+              "root": "manual.js",
               "assets": ["**/*"],
               "types": ["js"]
             }]
@@ -1684,7 +1684,7 @@ describe('bundler', function () {
               "minBundleSize": 0,
               "unstable_manualSharedBundles": [{
                 "name": "vendor",
-                "parent": "vendor.js",
+                "root": "vendor.js",
                 "assets": ["**/*"],
                 "split": 3
               }]
@@ -1756,6 +1756,152 @@ describe('bundler', function () {
         },
         {
           assets: ['esmodule-helpers.js', 'index.js'],
+        },
+      ]);
+    });
+
+    it('should support manual shared bundles for specific bundles, and duplicate the assets for others', async function () {
+      await fsFixture(overlayFS, dir)`
+      yarn.lock:
+        // Required for config loading
+      package.json:
+        {
+          "@parcel/bundler-default": {
+            "maxParallelRequests": 10,
+            "minBundleSize": 0,
+            "unstable_manualSharedBundles": [{
+              "name": "vendor",
+              "root": "vendor.js",
+              "assets": ["**/*"],
+              "requestedBy": ["activeSource.js"]
+            }]
+          }
+        }
+  
+      index.js:
+        import('./activeSource');
+        import('./bar');
+        export default 1;
+
+      vendor.js:
+        import b from './b';
+        let str = 'Lorem ipsum dolor sit amet';
+        export default 'a';
+
+      b.js:
+        export default 'b';
+
+      activeSource.js:
+        import a from './vendor';
+
+        export default a;
+
+      bar.js:
+        import b from './b';
+
+        export default b;
+    `;
+
+      // In this case we want to allow for manual shared bundles to only deduplicate for specific bundles
+      let b = await bundle(path.join(dir, 'index.js'), {
+        inputFS: overlayFS,
+      });
+      //assert that activeSource has vendor in bundlegroup, while bar (non-active source), contains b
+      assertBundles(b, [
+        {
+          assets: ['activeSource.js'],
+        },
+        {
+          assets: ['vendor.js', 'b.js'],
+        },
+        {
+          assets: ['bar.js', 'b.js'], // b is duplicated because 'bar' is not an 'Active' for this MSB
+        },
+        {
+          assets: [
+            'bundle-url.js',
+            'cacheLoader.js',
+            'esmodule-helpers.js',
+            'index.js',
+            'js-loader.js',
+          ],
+        },
+      ]);
+    });
+
+    it('should allow shared bundles for assets in MSBs via active property set', async function () {
+      await fsFixture(overlayFS, dir)`
+        yarn.lock:
+          // Required for config loading
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "maxParallelRequests": 10,
+              "minBundleSize": 0,
+              "unstable_manualSharedBundles": [{
+                "name": "vendor",
+                "root": "vendor.js",
+                "assets": ["**/*"],
+                "requestedBy": ["activeSource.js"]
+              }]
+            }
+          }
+    
+        index.js:
+          import('./activeSource');
+          import('./bar');
+          import('./bazz');
+          export default 1;
+
+        vendor.js:
+          import b from './b';
+          let str = 'Lorem ipsum dolor sit amet';
+          export default 'a';
+
+        b.js:
+          export default 'b';
+
+        bazz.js: 
+          import b from './b';
+          export default 'bazz' + b;
+
+        activeSource.js:
+          import a from './vendor';
+          export default a;
+
+        bar.js:
+          import b from './b';
+          export default 'bar';
+      `;
+
+      let b = await bundle(path.join(dir, 'index.js'), {
+        inputFS: overlayFS,
+      });
+      //assert that bar and bazz share b, despite b being a "manual asset"
+      assertBundles(b, [
+        {
+          assets: ['activeSource.js'],
+        },
+        {
+          assets: ['vendor.js', 'b.js'],
+        },
+        {
+          assets: ['bar.js'],
+        },
+        {
+          assets: ['bazz.js'],
+        },
+        {
+          assets: ['b.js'], // b is still in a shared bundle despite being in a Manual Shared Bundle
+        },
+        {
+          assets: [
+            'bundle-url.js',
+            'cacheLoader.js',
+            'esmodule-helpers.js',
+            'index.js',
+            'js-loader.js',
+          ],
         },
       ]);
     });
