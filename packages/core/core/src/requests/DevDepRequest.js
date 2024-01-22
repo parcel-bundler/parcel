@@ -49,7 +49,12 @@ export async function createDevDependency(
   let resolveFromAbsolute = fromProjectPath(options.projectRoot, resolveFrom);
 
   // Ensure that the package manager has an entry for this resolution.
-  await options.packageManager.resolve(specifier, resolveFromAbsolute);
+  try {
+    await options.packageManager.resolve(specifier, resolveFromAbsolute);
+  } catch (err) {
+    // ignore
+  }
+
   let invalidations = options.packageManager.getInvalidations(
     specifier,
     resolveFromAbsolute,
