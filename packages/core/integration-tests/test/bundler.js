@@ -1760,4 +1760,55 @@ describe('bundler', function () {
       ]);
     });
   });
+
+  it.only('should reuse type change bundles from parent bundle groups', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      reuse-type-change-bundles
+        index.html:
+          <link rel="stylesheet" type="text/css" href="./style.css">
+          <script src="./index.js" type="module"></script>
+      
+        style.css:
+          @import "common.css";
+          body { color: red }
+        
+        common.css:
+          .common { color: green }
+
+        index.js:
+          import('./async');
+
+        async.js:
+          import './common.css';
+    `;
+
+    let b = await bundle(
+      path.join(__dirname, 'reuse-type-change-bundles', 'index.html'),
+      {
+        mode: 'production',
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.html'],
+      },
+      {
+        assets: ['style.css', 'common.css'],
+      },
+      {
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esm-js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
+  });
 });
