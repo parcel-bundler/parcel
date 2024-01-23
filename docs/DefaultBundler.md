@@ -160,7 +160,7 @@ Bundles created by this path are **not** bundleGroups, and can also be merged wi
 
 ## Step: Merge Type Change Bundles
 
-Type change bundles are a special case of bundle, because they require consistent or “stable” names. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
+Type change bundles are a special case of bundle, because they require consistent or “stable” names, when in an entry bundleGroup, meaning they are directly connected to an entry of the project. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
 
 See CSS example in [BundlerExamples.md](./BundlerExamples.md) for a step-by-step example of how we merge type change bundles.
 
