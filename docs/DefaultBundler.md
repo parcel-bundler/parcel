@@ -156,7 +156,7 @@ parentAsset.type !== childAsset.type ||
   childAsset.bundleBehavior === 'inline';
 ```
 
-Bundles created by this path are **not** bundleGroups, and can also be merged with bundles of the same time. The stack not only tracks what bundleGroup we're in, but also the last "parent" bundle, or `referencingBundleRoot`. We draw an edge from the `referencingBundleRoot` to our new bundle. We preemptively attempt to merge this bundle into any existing bundle of the same type **within our bundleGroup**. Merging is also handled in the next step, we track what bundles are eligible for merging via `typeChangeIds`.
+Bundles created by this path are **not** bundleGroups, and can also be merged with bundles of the same type. The stack not only tracks what bundleGroup we're in, but also the last "parent" bundle, or `referencingBundleRoot`. We draw an edge from the `referencingBundleRoot` to our new bundle. We preemptively attempt to merge this bundle into any existing bundle of the same type **within our bundleGroup**. Merging is also handled in the next step, we track what bundles are eligible for merging via `typeChangeIds`.
 
 ## Step: Merge Type Change Bundles
 
