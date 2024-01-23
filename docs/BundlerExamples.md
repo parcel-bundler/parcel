@@ -184,7 +184,7 @@ During placement, we go through each asset, one by one, and determine the set of
 for (let i = 0; i < assets.length; i++) { ... }
 ```
 
-Then we handle placement for entries and manual shared assets, see (DefaultBundler.md)[DefaultBundler.md] for a more detailed look at that section.
+Then we handle placement for entries and manual shared assets, see [DefaultBundler.md](DefaultBundler.md) for a more detailed look at that section.
 
 `ReachableNonEntries` is the set of bundleRoots needed by our asset, a, that are _not_ entries, isolated, etc.
 
