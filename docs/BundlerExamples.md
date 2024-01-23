@@ -112,7 +112,7 @@ _The full test case can be found in the `multi-css-multi-entry-bug/src/` integra
 
 ## Reused Bundle
 
-Reused bundles are a special type of shared bundle. Consider the following code. (taken from the 'should reuse a bundle when its main asset (aka bundleroot) is imported synchronously'' test case in `javascript.js`)
+Reused bundles are a special type of shared bundle. Consider the following code. (taken from the 'should reuse a bundle when its main asset (aka bundleroot) is imported synchronously' test case in `javascript.js`)
 
 <table><tr>
 <td>

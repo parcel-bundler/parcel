@@ -283,7 +283,7 @@ You may think of reachable as all the bundles that still need an asset by some m
 
 ### Reused Bundles
 
-There’s a special case here that is unique to the experimental bundler, which is reusing bundles. We noticed sometimes, if two or more bundles shared the whole contents of another bundle, reusing that bundle is as simple as drawing an edge, as opposed to creating a shared bundle that would essentially be a copy of another.
+There’s a special case here, which is reusing bundles. We noticed sometimes, if two or more bundles shared the whole contents of another bundle, reusing that bundle is as simple as drawing an edge, as opposed to creating a shared bundle that would essentially be a copy of another.
 
 ![image info](./BundlerGraphs/steps/idealBundleGraph_final_reusedFoo.png)
 
@@ -323,15 +323,15 @@ That's it! The next few steps only kick in if your bundler config specifies.
 
 ## Step: Merge Shared Bundles
 
-Users of Parcel can specify a bundler config, which sets minbundleSize, maxParallelRequests, and minBundles. In this step we merge back and shared bundles that are smaller than minBundleSize.
+Users of Parcel can specify a bundler config, which sets `minbundleSize`, `maxParallelRequests`, and `minBundles`. In this step we merge back and shared bundles that are smaller than `minBundleSize`.
 
 These config options only affect shared bundles. For more on the config options, visit the [Parcel Docs on Shared Bundles](https://parceljs.org/features/code-splitting/#shared-bundles).
 
 ## Step: Remove Shared Bundles
 
-Finally, we remove shared bundles to abide by maxParallelRequests. maxParallelRequests semantically affects how many bundles are to be loaded at once, and syntactically affects how many bundles can be in a bundle group.
+Finally, we remove shared bundles to abide by `maxParallelRequests`. `maxParallelRequests` semantically affects how many bundles are to be loaded at once, and syntactically affects how many bundles can be in a bundle group.
 
-One difference between the default and experimental bundler is here, where we also merge back “reused” bundles. Unlike shared bundles, reused bundles may have children, so we must update the graph accordingly. Below is an example graph from shared-bundle-reused-bundle-remove-reuse/index.js
+One difference between the previous implementation and the current is here, where we also merge back “reused” bundles. Unlike shared bundles, reused bundles may have children, so we must update the graph accordingly. Below is an example graph from shared-bundle-reused-bundle-remove-reuse/index.js
 
 # BundleGraph Decoration
 
