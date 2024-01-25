@@ -1524,7 +1524,7 @@ describe('bundler', function () {
       ]);
 
       let targetDistDir = normalizePath(path.join(__dirname, '../dist'));
-      let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
+      let hashedIdWithMSB = hashString('bundle:' + 'vendor,js' + targetDistDir);
       assert(
         b.getBundles().find(b => b.id == hashedIdWithMSB),
         'MSB id does not match expected',
@@ -1761,7 +1761,7 @@ describe('bundler', function () {
     });
   });
 
-  it.only('should reuse type change bundles from parent bundle groups', async function () {
+  it('should reuse type change bundles from parent bundle groups', async function () {
     await fsFixture(overlayFS, __dirname)`
       reuse-type-change-bundles
         index.html:
@@ -1798,13 +1798,7 @@ describe('bundler', function () {
         assets: ['style.css', 'common.css'],
       },
       {
-        assets: [
-          'index.js',
-          'bundle-manifest.js',
-          'cacheLoader.js',
-          'css-loader.js',
-          'esm-js-loader.js',
-        ],
+        assets: ['index.js', 'bundle-manifest.js', 'esm-js-loader.js'],
       },
       {
         assets: ['async.js'],
