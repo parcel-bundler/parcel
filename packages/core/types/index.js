@@ -294,6 +294,7 @@ export type InitialParcelOptions = {|
 
   +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
+  +watchDir?: FilePath,
   +mode?: BuildMode,
   +hmrOptions?: ?HMROptions,
   +shouldContentHash?: boolean,
@@ -797,6 +798,10 @@ export interface MutableAsset extends BaseAsset {
   invalidateOnFileCreate(FileCreateInvalidation): void;
   /** Invalidates the transformation when the given environment variable changes. */
   invalidateOnEnvChange(string): void;
+  /** Invalidates the transformation only when Parcel restarts. */
+  invalidateOnStartup(): void;
+  /** Invalidates the transformation on every build. */
+  invalidateOnBuild(): void;
   /** Sets the asset contents as a string. */
   setCode(string): void;
   /** Sets the asset contents as a buffer. */

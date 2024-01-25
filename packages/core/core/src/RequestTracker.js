@@ -1262,9 +1262,9 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     return new RequestGraph();
   }
 
-  const cacheKey = getCacheKey(options);
-  const hashedCacheKey = hashString(cacheKey);
-  const requestGraphKey = `requestGraph-${hashedCacheKey}`;
+  let cacheKey = getCacheKey(options);
+  let hashedCacheKey = hashString(cacheKey);
+  let requestGraphKey = `requestGraph-${hashedCacheKey}`;
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     const getAndDeserialize = async (key: string) => {
       return deserialize(await options.cache.getLargeBlob(key));
@@ -1283,8 +1283,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       i += 1;
     }
 
-    const serializedRequestGraph = await getAndDeserialize(requestGraphKey);
-    const requestGraph = RequestGraph.deserialize({
+    let serializedRequestGraph = await getAndDeserialize(requestGraphKey);
+    let requestGraph = RequestGraph.deserialize({
       ...serializedRequestGraph,
       nodes: (await Promise.all(nodePromises)).flatMap(nodeChunk => nodeChunk),
     });
@@ -1293,7 +1293,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     let snapshotKey = `snapshot-${hashedCacheKey}`;
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
-      options.projectRoot,
+      options.watchDir,
       snapshotPath,
       opts,
     );

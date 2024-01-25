@@ -19,7 +19,13 @@ import {ContentGraph, Graph, BitSet, ALL_EDGE_TYPES} from '@parcel/graph';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {setEqual, validateSchema, DefaultMap, globToRegex} from '@parcel/utils';
+import {
+  setEqual,
+  setIntersect,
+  validateSchema,
+  DefaultMap,
+  globToRegex,
+} from '@parcel/utils';
 import logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -31,7 +37,7 @@ type ManualSharedBundles = Array<{|
   name: string,
   assets: Array<Glob>,
   types?: Array<string>,
-  parent?: string,
+  root?: string,
   split?: number,
 |}>;
 
@@ -41,7 +47,7 @@ type BaseBundlerConfig = {|
   minBundleSize?: number,
   maxParallelRequests?: number,
   disableSharedBundles?: boolean,
-  unstable_manualSharedBundles?: ManualSharedBundles,
+  manualSharedBundles?: ManualSharedBundles,
 |};
 
 type BundlerConfig = {|
@@ -437,8 +443,8 @@ function createIdealGraph(
     let parentsToConfig = new DefaultMap(() => []);
 
     for (let c of config.manualSharedBundles) {
-      if (c.parent != null) {
-        parentsToConfig.get(path.join(config.projectRoot, c.parent)).push(c);
+      if (c.root != null) {
+        parentsToConfig.get(path.join(config.projectRoot, c.root)).push(c);
       }
     }
     let numParentsToFind = parentsToConfig.size;
@@ -462,7 +468,7 @@ function createIdealGraph(
     // Process in reverse order so earlier configs take precedence
     for (let c of config.manualSharedBundles.reverse()) {
       invariant(
-        c.parent == null || configToParentAsset.has(c),
+        c.root == null || configToParentAsset.has(c),
         'Invalid manual shared bundle. Could not find parent asset.',
       );
 
@@ -844,6 +850,89 @@ function createIdealGraph(
           }
           if (!shouldMerge) continue;
           mergeBundle(nodeIdA, nodeIdB);
+        } else if (a.needsStableName || b.needsStableName) {
+          let overlap = new Set(bundleBbundleGroups);
+          setIntersect(overlap, bundleABundleGroups);
+          if (overlap.size > 0) {
+            // Two bundles are the same type and exist in the same bundle group but cannot be (fully) merged
+            // We must duplicate or create a new bundle in this case
+
+            let shouldCreateNewBundle =
+              overlap.size == bundleBbundleGroups.size ||
+              overlap.size == bundleABundleGroups.size
+                ? false
+                : true;
+            if (shouldCreateNewBundle) {
+              // Neither bundle can be the a host since both have unique groups
+              // So we may need to generate a new bundle for the intersection instead
+            } else {
+              // If the overlap of bundleGroups is a subset, then we should duplicate the bundle
+              // that results in a correct graph
+              let hostBundle =
+                overlap.size == bundleBbundleGroups.size
+                  ? [nodeIdB, b, bundleBbundleGroups]
+                  : [nodeIdA, a, bundleABundleGroups];
+              let duplicatedBundle =
+                overlap.size == bundleBbundleGroups.size
+                  ? [nodeIdA, a, bundleABundleGroups]
+                  : [nodeIdB, b, bundleBbundleGroups];
+              for (let asset of duplicatedBundle[1].assets) {
+                hostBundle[1].assets.add(asset);
+                hostBundle[1].size += asset.stats.size;
+              }
+              for (let group of overlap) {
+                let bundleGroup = nullthrows(bundleGraph.getNode(group));
+                invariant(
+                  bundleGroup != null && bundleGroup !== 'root',
+                  'Something went wrong with accessing a bundleGroup',
+                );
+                // Patch up dependency bundleGraph
+                for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
+                  dependencyBundleGraph.getNodeIdByContentKey(
+                    String(duplicatedBundle[0]),
+                  ),
+                  ALL_EDGE_TYPES,
+                )) {
+                  let depNode = dependencyBundleGraph.getNode(depId);
+                  invariant(bundleGroup.mainEntryAsset != null);
+                  if (
+                    depNode &&
+                    depNode.type === 'dependency' &&
+                    depNode.value.sourcePath ==
+                      bundleGroup.mainEntryAsset.filePath
+                  ) {
+                    dependencyBundleGraph.addEdge(
+                      depId,
+                      dependencyBundleGraph.getNodeIdByContentKey(
+                        String(hostBundle[0]),
+                      ),
+                      dependencyPriorityEdges.parallel,
+                    );
+
+                    dependencyBundleGraph.removeEdge(
+                      depId,
+                      dependencyBundleGraph.getNodeIdByContentKey(
+                        String(duplicatedBundle[0]),
+                      ),
+                      dependencyPriorityEdges.parallel,
+                    );
+                    for (let asset of duplicatedBundle[1].assets) {
+                      replaceAssetReference(
+                        asset,
+                        duplicatedBundle[1],
+                        hostBundle[1],
+                        depNode.value,
+                      );
+                    }
+                  }
+                }
+                // This might be a referencing bundle, not necessarily the group, so we
+                detachFromBundleGroup(group, duplicatedBundle[0]);
+              }
+            }
+            //We might've changed the bundleGroups of A, which should be recalculated;
+            bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
+          }
         }
       }
     }
@@ -1580,7 +1669,24 @@ function createIdealGraph(
       );
     }
   }
-
+  function detachFromBundleGroup(groupId: NodeId, bundleId: NodeId) {
+    // This removes a particular bundle from the specfied bundleGroup
+    if (bundleGraph.hasEdge(groupId, bundleId)) {
+      bundleGraph.removeEdge(groupId, bundleId);
+    } else {
+      let referencingBundleId;
+      bundleGraph.traverse(nodeId => {
+        if (bundleGraph.hasEdge(nodeId, bundleId)) {
+          referencingBundleId = nodeId;
+        }
+      }, groupId);
+      invariant(
+        referencingBundleId != null,
+        'Expected to remove bundle from group but could not find it...',
+      );
+      bundleGraph.removeEdge(referencingBundleId, bundleId);
+    }
+  }
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
@@ -1672,11 +1778,17 @@ function createIdealGraph(
     bundleRoot: BundleRoot,
     toReplace: Bundle,
     replaceWith: Bundle,
+    dependency?: Dependency,
   ): void {
     let replaceAssetReference = assetReference.get(bundleRoot).map(entry => {
       let bundle = entry[1];
+      let dep = entry[0];
       if (bundle == toReplace) {
-        return [entry[0], replaceWith];
+        if (dependency && dependency == dep) {
+          return [entry[0], replaceWith];
+        } else if (dependency == null) {
+          return [entry[0], replaceWith];
+        }
       }
       return entry;
     });
@@ -1700,7 +1812,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
       type: 'number',
       enum: Object.keys(HTTP_OPTIONS).map(k => Number(k)),
     },
-    unstable_manualSharedBundles: {
+    manualSharedBundles: {
       type: 'array',
       items: {
         type: 'object',
@@ -1720,7 +1832,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
               type: 'string',
             },
           },
-          parent: {
+          root: {
             type: 'string',
           },
           split: {
@@ -1889,12 +2001,12 @@ async function loadBundlerConfig(
     });
   }
 
-  if (modeConfig.unstable_manualSharedBundles) {
-    let nameArray = modeConfig.unstable_manualSharedBundles.map(a => a.name);
+  if (modeConfig.manualSharedBundles) {
+    let nameArray = modeConfig.manualSharedBundles.map(a => a.name);
     let nameSet = new Set(nameArray);
     invariant(
       nameSet.size == nameArray.length,
-      'The name field must be unique for property unstable_manualSharedBundles',
+      'The name field must be unique for property manualSharedBundles',
     );
   }
 
@@ -1922,7 +2034,7 @@ async function loadBundlerConfig(
     disableSharedBundles:
       modeConfig.disableSharedBundles ?? defaults.disableSharedBundles,
     manualSharedBundles:
-      modeConfig.unstable_manualSharedBundles ?? defaults.manualSharedBundles,
+      modeConfig.manualSharedBundles ?? defaults.manualSharedBundles,
   };
 }
 

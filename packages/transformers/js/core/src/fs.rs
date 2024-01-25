@@ -54,7 +54,7 @@ impl<'a> Fold for InlineFS<'a> {
       if let Callee::Expr(expr) = &call.callee {
         if let Some((source, specifier)) = self.match_module_reference(expr) {
           if &source == "fs" && &specifier == "readFileSync" {
-            if let Some(arg) = call.args.get(0) {
+            if let Some(arg) = call.args.first() {
               if let Some(res) = self.evaluate_fs_arg(&arg.expr, call.args.get(1), call.span) {
                 return res;
               }

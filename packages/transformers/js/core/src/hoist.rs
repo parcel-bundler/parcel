@@ -3473,7 +3473,7 @@ mod tests {
         .collect::<Vec<_>>(),
       vec![&BailoutReason::ThisInExport]
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     // module is not wrapped when `this` inside a class collides with an export
     let (collect, _code, _hoist) = parse(
@@ -3505,6 +3505,6 @@ mod tests {
         .collect::<Vec<_>>(),
       Vec::<&BailoutReason>::new()
     );
-    assert_eq!(collect.should_wrap, false);
+    assert!(!collect.should_wrap);
   }
 }

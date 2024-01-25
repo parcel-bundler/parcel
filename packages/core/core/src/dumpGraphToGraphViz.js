@@ -48,18 +48,27 @@ export default async function dumpGraphToGraphViz(
   edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
 ): Promise<void> {
   if (
-    process.env.PARCEL_BUILD_ENV === 'production' ||
-    process.env.PARCEL_DUMP_GRAPHVIZ == null ||
-    // $FlowFixMe
-    process.env.PARCEL_DUMP_GRAPHVIZ == false
+    process.env.PARCEL_BUILD_ENV === 'production' &&
+    !process.env.PARCEL_BUILD_REPL
   ) {
     return;
   }
-  let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
 
-  const graphviz = require('graphviz');
-  const tempy = require('tempy');
-  let g = graphviz.digraph('G');
+  let mode: ?string = process.env.PARCEL_BUILD_REPL
+    ? // $FlowFixMe
+      globalThis.PARCEL_DUMP_GRAPHVIZ?.mode
+    : process.env.PARCEL_DUMP_GRAPHVIZ;
+
+  // $FlowFixMe[invalid-compare]
+  if (mode == null || mode == false) {
+    return;
+  }
+
+  let detailedSymbols = mode === 'symbols';
+
+  let GraphVizGraph = require('graphviz/lib/deps/graph').Graph;
+  let g = new GraphVizGraph(null, 'G');
+  g.type = 'digraph';
   // $FlowFixMe
   for (let [id, node] of graph.nodes.entries()) {
     if (node == null) continue;
@@ -201,10 +210,17 @@ export default async function dumpGraphToGraphViz(
       gEdge.set('color', color);
     }
   }
-  let tmp = tempy.file({name: `parcel-${name}.png`});
-  await g.output('png', tmp);
-  // eslint-disable-next-line no-console
-  console.log('Dumped', tmp);
+
+  if (process.env.PARCEL_BUILD_REPL) {
+    // $FlowFixMe
+    globalThis.PARCEL_DUMP_GRAPHVIZ?.(name, g.to_dot());
+  } else {
+    const tempy = require('tempy');
+    let tmp = tempy.file({name: `parcel-${name}.png`});
+    await g.output('png', tmp);
+    // eslint-disable-next-line no-console
+    console.log('Dumped', tmp);
+  }
 }
 
 function nodeId(id) {

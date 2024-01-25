@@ -1,0 +1,52 @@
+@import './main.css';
+@import './app.css';
+
+html {
+  box-sizing: border-box;
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Ubuntu, Arial, sans-serif;
+  margin: 0;
+
+  /* --color: white;
+  --background-dark: #0F172A;
+  --background-light: #334155;
+  --background-editor: #121927;
+  --background-editor-active: var(--background-light); */
+
+  --color: black;
+  --background-header: #21374b;
+  --background-dark: #d1d5db;
+  --background-light: #d1d5db;
+  --background-button: #dde1e6;
+  --background-button-light: white;
+  --background-editor: white;
+  --gap: 0.5rem;
+  --radius: 0.3rem;
+
+  --parcel-color: #e7b37d;
+  --handle-color: rgba(0, 0, 0, 0.1);
+  --handle-color-active: var(--parcel-color);
+
+  background-color: var(--background-light);
+  color: var(--color);
+}
+* {
+  box-sizing: inherit;
+}
+
+html,
+body,
+#root,
+main {
+  height: 100vh;
+  margin: 0;
+}
+
+html {
+  box-sizing: border-box;
+}
+* {
+  box-sizing: inherit;
+}
+
+
