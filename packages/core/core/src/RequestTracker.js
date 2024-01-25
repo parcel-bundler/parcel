@@ -856,6 +856,7 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
+  cachedRequestsLastChunk: number | null;
 
   constructor({
     graph,
@@ -869,6 +870,7 @@ export default class RequestTracker {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
+    this.cachedRequestsLastChunk = null;
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1114,15 +1116,15 @@ export default class RequestTracker {
   }
 
   async writeToCache(signal?: AbortSignal) {
-    const cacheKey = getCacheKey(this.options);
-    const requestGraphKey = `requestGraph-${hashString(cacheKey)}`;
-    const snapshotKey = `snapshot-${hashString(cacheKey)}`;
+    let cacheKey = getCacheKey(this.options);
+    let requestGraphKey = `requestGraph-${hashString(cacheKey)}`;
+    let snapshotKey = `snapshot-${hashString(cacheKey)}`;
 
     if (this.options.shouldDisableCache) {
       return;
     }
 
-    const serialisedGraph = this.graph.serialize();
+    let serialisedGraph = this.graph.serialize();
 
     let total = 0;
     const serialiseAndSet = async (
@@ -1154,7 +1156,7 @@ export default class RequestTracker {
       });
     };
 
-    const queue = new PromiseQueue({
+    let queue = new PromiseQueue({
       maxConcurrent: 32,
     });
 
@@ -1166,9 +1168,9 @@ export default class RequestTracker {
     });
 
     // Preallocating a sparse array is faster than pushing when N is high enough
-    const cacheableNodes = new Array(serialisedGraph.nodes.length);
+    let cacheableNodes = new Array(serialisedGraph.nodes.length);
     for (let i = 0; i < serialisedGraph.nodes.length; i += 1) {
-      const node = serialisedGraph.nodes[i];
+      let node = serialisedGraph.nodes[i];
 
       let resultCacheKey = node?.resultCacheKey;
       if (
@@ -1180,7 +1182,7 @@ export default class RequestTracker {
           .add(() => serialiseAndSet(resultCacheKey, node.result))
           .catch(() => {});
         // eslint-disable-next-line no-unused-vars
-        const {result: _, ...newNode} = node;
+        let {result: _, ...newNode} = node;
         cacheableNodes[i] = newNode;
       } else {
         cacheableNodes[i] = node;
@@ -1188,6 +1190,13 @@ export default class RequestTracker {
     }
 
     for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
+      if (
+        this.cachedRequestsLastChunk !== null &&
+        i < this.cachedRequestsLastChunk
+      ) {
+        continue;
+      }
+
       queue
         .add(() =>
           serialiseAndSet(
@@ -1196,6 +1205,8 @@ export default class RequestTracker {
           ),
         )
         .catch(() => {});
+
+      this.cachedRequestsLastChunk = i;
     }
 
     queue
