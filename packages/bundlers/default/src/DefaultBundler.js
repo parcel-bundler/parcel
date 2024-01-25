@@ -1444,8 +1444,6 @@ function createIdealGraph(
             modifiedSourceBundles.add(sourceBundle);
             bundleToRemove.sourceBundles.delete(sourceBundleId);
             for (let asset of bundleToRemove.assets) {
-              // sourceBundle.assets.add(asset);
-              // sourceBundle.size += asset.stats.size;
               addAssetToBundleRoot(
                 asset,
                 nullthrows(sourceBundle.mainEntryAsset),
