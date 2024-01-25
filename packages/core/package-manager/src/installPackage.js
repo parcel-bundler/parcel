@@ -26,6 +26,7 @@ import {Npm} from './Npm';
 import {Yarn} from './Yarn';
 import {Pnpm} from './Pnpm.js';
 import {getConflictingLocalDependencies} from './utils';
+import getCurrentPackageManager from './getCurrentPackageManager';
 import validateModuleSpecifier from './validateModuleSpecifier';
 
 async function install(
@@ -171,6 +172,15 @@ async function determinePackageInstaller(
     return new Pnpm();
   } else if (configName === 'yarn.lock') {
     return new Yarn();
+  }
+
+  const name = getCurrentPackageManager().name;
+  if (name === 'npm') {
+    return new Npm();
+  } else if (name === 'yarn') {
+    return new Yarn();
+  } else if (name === 'pnpm') {
+    return new Pnpm();
   }
 
   if (await Yarn.exists()) {
