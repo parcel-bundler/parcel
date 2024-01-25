@@ -546,10 +546,18 @@ export function assertBundles(
     return 0;
   };
 
+  const byType = (a, b) => {
+    if (a.type != null && b.type != null) {
+      return a.type < b.type ? -1 : 1;
+    }
+
+    return 0;
+  };
+
   const byAssets = (a, b) =>
     a.assets.join(',').localeCompare(b.assets.join(','));
-  expectedBundles.sort(byName).sort(byAssets);
-  actualBundles.sort(byName).sort(byAssets);
+  expectedBundles.sort(byName).sort(byType).sort(byAssets);
+  actualBundles.sort(byName).sort(byType).sort(byAssets);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
