@@ -1,8 +1,8 @@
 // @flow
 
 export default function getCurrentPackageManager(
-  userAgent = process.env.npm_config_user_agent,
-) {
+  userAgent: ?string = process.env.npm_config_user_agent,
+): ?{|name: string, version: string|} {
   if (!userAgent) {
     return undefined;
   }
