@@ -174,16 +174,13 @@ async function determinePackageInstaller(
     return new Yarn();
   }
 
-  const currentPackageManager = getCurrentPackageManager();
-  if (currentPackageManager) {
-    const name = currentPackageManager.name;
-    if (name === 'npm') {
-      return new Npm();
-    } else if (name === 'yarn') {
-      return new Yarn();
-    } else if (name === 'pnpm') {
-      return new Pnpm();
-    }
+  let currentPackageManager = getCurrentPackageManager()?.name;
+  if (currentPackageManager === 'npm') {
+    return new Npm();
+  } else if (currentPackageManager === 'yarn') {
+    return new Yarn();
+  } else if (currentPackageManager === 'pnpm') {
+    return new Pnpm();
   }
 
   if (await Yarn.exists()) {
