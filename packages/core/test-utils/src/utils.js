@@ -538,61 +538,48 @@ export function assertBundles(
     bundle.assets.sort(byAlphabet);
   }
 
-  const byName = (a, b) => {
-    if (typeof a.name === 'string' && typeof b.name === 'string') {
-      return a.name.localeCompare(b.name);
-    }
-
-    return 0;
-  };
-
-  const byType = (a, b) => {
-    if (a.type != null && b.type != null) {
-      return a.type < b.type ? -1 : 1;
-    }
-
-    return 0;
-  };
-
-  const byAssets = (a, b) =>
-    a.assets.join(',').localeCompare(b.assets.join(','));
-  expectedBundles.sort(byName).sort(byType).sort(byAssets);
-  actualBundles.sort(byName).sort(byType).sort(byAssets);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
     'expected number of bundles mismatched',
   );
 
-  let i = 0;
   for (let bundle of expectedBundles) {
-    let actualBundle = actualBundles[i++];
     let name = bundle.name;
-    let actualName = actualBundle.name;
-    if (name != null && actualName != null) {
-      if (typeof name === 'string') {
-        assert.equal(
-          actualName,
-          name,
-          `Bundle name "${actualName}", does not match expected name "${name}"`,
-        );
-      } else if (name instanceof RegExp) {
-        assert(
-          actualName.match(name),
-          `${actualName} does not match regexp ${name.toString()}`,
-        );
-      } else {
-        // $FlowFixMe[incompatible-call]
-        assert.fail('Expected bundle name has invalid type');
+    let found = actualBundles.some(b => {
+      if (name != null && b.name != null) {
+        if (typeof name === 'string') {
+          if (name !== b.name) {
+            return false;
+          }
+        } else if (name instanceof RegExp) {
+          if (!name.test(b.name)) {
+            return false;
+          }
+        } else {
+          // $FlowFixMe[incompatible-call]
+          assert.fail('Expected bundle name has invalid type');
+        }
       }
-    }
 
-    if (bundle.type != null) {
-      assert.equal(actualBundle.type, bundle.type);
-    }
+      if (bundle.type != null && bundle.type !== b.type) {
+        return false;
+      }
 
-    if (bundle.assets) {
-      assert.deepEqual(actualBundle.assets, bundle.assets);
+      return (
+        bundle.assets &&
+        bundle.assets.length === b.assets.length &&
+        bundle.assets.every((a, i) => a === b.assets[i])
+      );
+    });
+
+    if (!found) {
+      // $FlowFixMe[incompatible-call]
+      assert.fail(
+        `Could not find expected bundle: \n\n${util.inspect(
+          bundle,
+        )} \n\nActual bundles: \n\n${util.inspect(actualBundles)}`,
+      );
     }
   }
 }
