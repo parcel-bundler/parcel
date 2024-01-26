@@ -48,6 +48,7 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
+    "@parcel/core": "2.11.0",
     "@parcel/rust": "2.11.0",
     "@parcel/types": "2.11.0",
     "@parcel/utils": "2.11.0",
