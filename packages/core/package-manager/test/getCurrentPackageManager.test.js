@@ -1,24 +1,6 @@
 // @flow
 import assert from 'assert';
-import {Yarn} from '../src/Yarn';
-import {Pnpm} from '../src/Pnpm.js';
-import {execSync} from 'child_process';
 import getCurrentPackageManager from '../src/getCurrentPackageManager';
-
-const pmlist: Array<{exists: () => Promise<boolean>, pm: string, ...}> = [
-  {
-    pm: 'npm',
-    exists: () => Promise.resolve(true),
-  },
-  {
-    pm: 'yarn',
-    exists: () => Yarn.exists(),
-  },
-  {
-    pm: 'pnpm',
-    exists: () => Pnpm.exists(),
-  },
-];
 
 describe('getCurrentPackageManager', () => {
   it('yarn', () => {
