@@ -938,7 +938,7 @@ function createIdealGraph(
       ]) {
         let bundleInGroup = nullthrows(bundleGraph.getNode(bundleIdInGroup));
         invariant(bundleInGroup !== 'root');
-        if (bundleInGroup.bundleBehavior != null || bundleInGroup.env.context !== bundleRoot.env.context) {
+        if (bundleInGroup.bundleBehavior != null) {
           continue;
         }
 
@@ -1122,7 +1122,7 @@ function createIdealGraph(
           uniqueKey: manualSharedBundleKey,
           target: firstSourceBundle.target,
           type: asset.type,
-          env: firstSourceBundle.env,
+          env: asset.env,
           manualSharedBundle: manualSharedObject?.name,
         });
         bundle.sourceBundles = new Set(sourceBundles);
@@ -1229,7 +1229,7 @@ function createIdealGraph(
       let sourceBundles = reachableArray.map(
         a => nullthrows(bundleRoots.get(a))[0],
       );
-      let key = reachableArray.map(a => a.id).join(',') + '.' + asset.type;
+      let key = reachableArray.map(a => a.id).join(',') + '.' + asset.env.context + '.' + asset.type;
       let bundleId = bundles.get(key);
       let bundle;
       if (bundleId == null) {
@@ -1240,7 +1240,7 @@ function createIdealGraph(
         bundle = createBundle({
           target: firstSourceBundle.target,
           type: asset.type,
-          env: firstSourceBundle.env,
+          env: asset.env,
         });
         bundle.sourceBundles = new Set(sourceBundles);
         let sharedInternalizedAssets = firstSourceBundle.internalizedAssets
@@ -1535,10 +1535,10 @@ function createIdealGraph(
     let bundle = nullthrows(bundleGraph.getNode(bundleId));
     invariant(bundle !== 'root');
 
-    if (asset.type !== bundle.type) {
+    if (asset.type !== bundle.type || asset.env.context !== bundle.env.context) {
       let bundleGroup = nullthrows(bundleGraph.getNode(bundleGroupId));
       invariant(bundleGroup !== 'root');
-      let key = nullthrows(bundleGroup.mainEntryAsset).id + '.' + asset.type;
+      let key = nullthrows(bundleGroup.mainEntryAsset).id + '.' + asset.env.context + '.' + asset.type;
       let typeChangeBundleId = bundles.get(key);
       if (typeChangeBundleId == null) {
         let typeChangeBundle = createBundle({
@@ -1547,7 +1547,7 @@ function createIdealGraph(
           bundleBehavior: bundle.bundleBehavior,
           type: asset.type,
           target: bundle.target,
-          env: bundle.env,
+          env: asset.env,
         });
         typeChangeBundleId = bundleGraph.addNode(typeChangeBundle);
         bundleGraph.addEdge(bundleId, typeChangeBundleId);
