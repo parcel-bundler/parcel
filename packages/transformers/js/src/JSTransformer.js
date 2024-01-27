@@ -474,15 +474,20 @@ export default (new Transformer({
       inline_constants: config.inlineConstants,
       callMacro: asset.isSource
         ? async (err, src, exportName, args, loc) => {
+            let mod;
             try {
-              let mod = await options.packageManager.require(
-                src,
-                asset.filePath,
-              );
+              mod = await options.packageManager.require(src, asset.filePath);
               if (!Object.hasOwnProperty.call(mod, exportName)) {
                 throw new Error(`"${src}" does not export "${exportName}".`);
               }
+            } catch (err) {
+              throw {
+                kind: 1,
+                message: err.message,
+              };
+            }
 
+            try {
               if (typeof mod[exportName] === 'function') {
                 let ctx: MacroContext = {
                   // Allows macros to emit additional assets to add as dependencies (e.g. css).
@@ -567,7 +572,10 @@ export default (new Transformer({
                 }
                 message += '\n' + line;
               }
-              throw message;
+              throw {
+                kind: 2,
+                message,
+              };
             }
           }
         : null,

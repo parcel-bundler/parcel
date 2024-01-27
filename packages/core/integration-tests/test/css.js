@@ -77,19 +77,12 @@ describe('css', () => {
       {
         name: 'entry.js',
         type: 'js',
-        assets: [
-          'bundle-url.js',
-          'cacheLoader.js',
-          'css-loader.js',
-          'entry.js',
-          'js-loader.js',
-        ],
+        assets: ['bundle-url.js', 'cacheLoader.js', 'entry.js', 'js-loader.js'],
       },
       {
         type: 'js',
         assets: ['esmodule-helpers.js', 'index.js'],
       },
-      {name: 'Foo.css', type: 'css', assets: ['foo.css']},
       {name: 'entry.css', type: 'css', assets: ['foo.css', 'main.css']},
     ]);
   });
