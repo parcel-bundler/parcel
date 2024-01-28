@@ -30,9 +30,18 @@ export default (new Runtime({
         let asset = node.value;
         if (asset.meta.isClientComponent === true) {
           let id = bundleGraph.getAssetPublicId(asset);
-          let b = bundleGraph.getBundlesWithAsset(asset)[0]; // TODO
-          let bundles = bundleGraph.getReferencedBundles(b, {recursive: true});
-          let chunks = [b, ...bundles].flatMap(b => [urlJoin(b.target.publicUrl, b.name), urlJoin(b.target.publicUrl, b.name)]);
+          let bundles = [];
+          for (let bundle of bundleGraph.getBundlesWithAsset(asset)) {
+            for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(bundle)) {
+              for (let bundle of bundleGraph.getBundlesInBundleGroup(bundleGroup, {includeInline: false})) {
+                if (bundle.env.context === 'browser') {
+                  bundles.push(bundle);
+                }
+              }
+            }
+          }
+          // let bundles = bundleGraph.getReferencedBundles(b, {recursive: true});
+          let chunks = bundles.map(b => urlJoin(b.target.publicUrl, b.name));
           let exports = {};
           for (let symbol of asset.symbols.exportSymbols()) {
             manifest[asset.filePath + '#' + symbol] = {

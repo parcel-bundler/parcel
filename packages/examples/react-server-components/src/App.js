@@ -5,6 +5,9 @@ import {Counter} from './Counter.js';
 
 import ShowMore from './ShowMore.js';
 import Button from './Button.js';
+import {Files} from './Files';
+import {Suspense} from 'react';
+import './App.css';
 
 // import {like} from './actions.js';
 
@@ -34,6 +37,9 @@ export default async function App() {
             {/* <Button action={like}>Like</Button> */}
           </div>
         </Container>
+        <Suspense fallback={<>Loading files...</>}>
+          <Files />
+        </Suspense>
       </body>
     </html>
   );

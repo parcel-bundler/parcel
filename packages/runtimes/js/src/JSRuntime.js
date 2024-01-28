@@ -203,7 +203,7 @@ export default (new Runtime({
         continue;
       }
 
-      if (referencedBundle && dependency.bundleBehavior !== 'isolated' && !dependency.env.isIsolated()) {
+      if (dependency.specifierType === 'url' && referencedBundle && dependency.bundleBehavior !== 'isolated' && !dependency.env.isIsolated()) {
         console.log("DOIFHodifhODIFH", getUrlListRuntime(dependency, bundle, bundleGraph.getReferencedBundles(referencedBundle), options))
         assets.push(getUrlListRuntime(dependency, bundle, [...bundleGraph.getReferencedBundles(referencedBundle), referencedBundle], options));
         continue;

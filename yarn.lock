@@ -12634,6 +12634,13 @@ react-resizable-panels@^0.0.61:
   resolved "https://registry.yarnpkg.com/react-resizable-panels/-/react-resizable-panels-0.0.61.tgz#2260ec8ca591431d367d172bced49733cc3308aa"
   integrity sha512-Vk2a4LEHWkI6hGPnPmXxa/2twLYMAMMUTyA2PtR1ijvH2Nkg/AhGqrPsIi/eI85uVWtYCFNZKEsbR3uGuJl/yg==
 
+"react-server-dom-parcel@file:../../Downloads/react-e2b93afc604f857f7b59788920533ff7d1c72563/build/oss-stable/react-server-dom-parcel":
+  version "18.3.0-canary--"
+  dependencies:
+    acorn-loose "^8.3.0"
+    loose-envify "^1.1.0"
+    neo-async "^2.6.1"
+
 react-server-dom-webpack@18.3.0-canary-feed8f3f9-20240118:
   version "18.3.0-canary-feed8f3f9-20240118"
   resolved "https://registry.yarnpkg.com/react-server-dom-webpack/-/react-server-dom-webpack-18.3.0-canary-feed8f3f9-20240118.tgz#515c175f712c48771302e9dbcbac67c0388fcba3"

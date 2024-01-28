@@ -1,27 +1,40 @@
-import './env';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import ReactServerDOMReader from 'react-server-dom-webpack/client';
-
-// globalThis.__webpack_chunk_load__ = (c) => __parcel__import__('http://localhost:8080' + c);
-// globalThis.__webpack_require__ = id => parcelRequire(id);
+import ReactServerDOMReader from 'react-server-dom-parcel/client';
 
 const encoder = new TextEncoder();
+let streamController;
 const readable = new ReadableStream({
   start(controller) {
-    console.log(controller, window.__FLIGHT_DATA)
-    controller.enqueue(encoder.encode(window.__FLIGHT_DATA));
-    controller.close();
+    for (let chunk of window.__FLIGHT_DATA || []) {
+      controller.enqueue(encoder.encode(chunk));
+    }
+    console.log('queued')
+    streamController = controller;
+    window.__FLIGHT_DATA.push = (chunk) => {
+      controller.enqueue(encoder.encode(chunk));
+    };
   },
-})
+});
+
+console.log(document.readyState, streamController);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    streamController?.close();
+  });
+} else {
+  streamController?.close();
+}
 
 console.log(readable, React)
-let data = ReactServerDOMReader.createFromReadableStream(
-  readable
-);
-
+let data;
 function Content() {
+  data ??= ReactServerDOMReader.createFromReadableStream(
+    readable
+  );
   return React.use(data);
 }
 
-ReactDOM.hydrateRoot(document, <Content />);
+React.startTransition(() => {
+  ReactDOM.hydrateRoot(document, <Content />);
+});
