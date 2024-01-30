@@ -185,6 +185,10 @@ const commonProps = {
           enum: ['document_idle', 'document_start', 'document_end'],
         },
         all_frames: boolean,
+        world: {
+          type: 'string',
+          enum: ['ISOLATED', 'MAIN'],
+        },
       },
       additionalProperties: false,
       required: ['matches'],

@@ -6,6 +6,7 @@ mod env_replacer;
 mod fs;
 mod global_replacer;
 mod hoist;
+mod macros;
 mod modules;
 mod node_replacer;
 mod typeof_replacer;
@@ -17,11 +18,13 @@ use std::str::FromStr;
 
 use constant_module::ConstantModule;
 use indexmap::IndexMap;
+use macros::MacroCallback;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
-use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
+use swc_core::common::errors::Handler;
 use swc_core::common::pass::Optional;
+use swc_core::common::source_map::SourceMapGenConfig;
 use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_core::ecma::ast::{Module, ModuleItem, Program};
 use swc_core::ecma::codegen::text_writer::JsWriter;
@@ -48,7 +51,11 @@ use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
-use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+use utils::{error_buffer_to_diagnostics, Diagnostic, DiagnosticSeverity, ErrorBuffer, SourceType};
+
+use crate::macros::Macros;
+pub use crate::macros::{JsValue, MacroError};
+pub use utils::SourceLocation;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -135,16 +142,10 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
   None
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
-
-impl Emitter for ErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.lock().unwrap().push((**db).clone());
-  }
-}
-
-pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
+pub fn transform(
+  config: Config,
+  call_macro: Option<MacroCallback>,
+) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
   let mut map_buf = vec![];
 
@@ -264,7 +265,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 },
               };
 
-              let module = module.fold_with(&mut Optional::new(
+              let mut module = module.fold_with(&mut Optional::new(
                 react::react(
                   source_map.clone(),
                   Some(&comments),
@@ -301,13 +302,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 assumptions.set_public_class_fields |= true;
               }
 
+              let mut diagnostics = vec![];
+              if let Some(call_macro) = call_macro {
+                module =
+                  module.fold_with(&mut Macros::new(call_macro, &source_map, &mut diagnostics));
+              }
+
               if config.scope_hoist && config.inline_constants {
                 let mut constant_module = ConstantModule::new();
                 module.visit_with(&mut constant_module);
                 result.is_constant_module = constant_module.is_constant_module;
               }
 
-              let mut diagnostics = vec![];
               let module = {
                 let mut passes = chain!(
                   Optional::new(
@@ -498,7 +504,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
-                  .build_source_map(&src_map_buf)
+                  .build_source_map_with_config(&src_map_buf, None, SourceMapConfig)
                   .to_writer(&mut map_buf)
                   .is_ok()
               {
@@ -542,6 +548,7 @@ fn parse(
       jsx: config.is_jsx,
       export_default_from: true,
       decorators: config.decorators,
+      import_attributes: true,
       ..Default::default()
     })
   };
@@ -596,51 +603,14 @@ fn emit(
   Ok((buf, src_map_buf))
 }
 
-fn error_buffer_to_diagnostics(
-  error_buffer: &ErrorBuffer,
-  source_map: &Lrc<SourceMap>,
-) -> Vec<Diagnostic> {
-  let s = error_buffer.0.lock().unwrap().clone();
-  s.iter()
-    .map(|diagnostic| {
-      let message = diagnostic.message();
-      let span = diagnostic.span.clone();
-      let suggestions = diagnostic.suggestions.clone();
+// Exclude macro expansions from source maps.
+struct SourceMapConfig;
+impl SourceMapGenConfig for SourceMapConfig {
+  fn file_name_to_source(&self, f: &FileName) -> String {
+    f.to_string()
+  }
 
-      let span_labels = span.span_labels();
-      let code_highlights = if !span_labels.is_empty() {
-        let mut highlights = vec![];
-        for span_label in span_labels {
-          highlights.push(CodeHighlight {
-            message: span_label.label,
-            loc: SourceLocation::from(source_map, span_label.span),
-          });
-        }
-
-        Some(highlights)
-      } else {
-        None
-      };
-
-      let hints = if !suggestions.is_empty() {
-        Some(
-          suggestions
-            .into_iter()
-            .map(|suggestion| suggestion.msg)
-            .collect(),
-        )
-      } else {
-        None
-      };
-
-      Diagnostic {
-        message,
-        code_highlights,
-        hints,
-        show_environment: false,
-        severity: DiagnosticSeverity::Error,
-        documentation_url: None,
-      }
-    })
-    .collect()
+  fn skip(&self, f: &FileName) -> bool {
+    matches!(f, FileName::MacroExpansion | FileName::Internal(..))
+  }
 }

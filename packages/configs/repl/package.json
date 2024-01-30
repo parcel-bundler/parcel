@@ -1,0 +1,41 @@
+{
+  "name": "@parcel/config-repl",
+  "version": "2.11.0",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "index.json",
+  "scripts": {
+    "test-ci": "mocha"
+  },
+  "dependencies": {
+    "@parcel/bundler-default": "^2.11.0",
+    "@parcel/compressor-raw": "^2.11.0",
+    "@parcel/namer-default": "^2.11.0",
+    "@parcel/optimizer-terser": "^2.11.0",
+    "@parcel/packager-css": "^2.11.0",
+    "@parcel/packager-html": "^2.11.0",
+    "@parcel/packager-js": "^2.11.0",
+    "@parcel/packager-raw": "^2.11.0",
+    "@parcel/reporter-dev-server-sw": "^2.11.0",
+    "@parcel/reporter-json": "^2.11.0",
+    "@parcel/resolver-default": "^2.11.0",
+    "@parcel/resolver-repl-runtimes": "^2.11.0",
+    "@parcel/runtime-browser-hmr": "^2.11.0",
+    "@parcel/runtime-js": "^2.11.0",
+    "@parcel/runtime-react-refresh": "^2.11.0",
+    "@parcel/transformer-babel": "^2.11.0",
+    "@parcel/transformer-css": "^2.11.0",
+    "@parcel/transformer-html": "^2.11.0",
+    "@parcel/transformer-inline-string": "^2.11.0",
+    "@parcel/transformer-js": "^2.11.0",
+    "@parcel/transformer-json": "^2.11.0",
+    "@parcel/transformer-postcss": "^2.11.0",
+    "@parcel/transformer-posthtml": "^2.11.0",
+    "@parcel/transformer-raw": "^2.11.0",
+    "@parcel/transformer-react-refresh-wrap": "^2.11.0"
+  }
+}

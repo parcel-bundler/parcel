@@ -13,12 +13,11 @@ import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
   TransformationRequest,
-  RequestInvalidation,
   Config,
   DevDepRequest,
   ParcelOptions,
-  InternalFileCreateInvalidation,
   InternalDevDepOptions,
+  Invalidations,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -46,18 +45,12 @@ import {
   mutableAssetToUncommittedAsset,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {
-  createAsset,
-  getInvalidationId,
-  getInvalidationHash,
-} from './assetUtils';
+import {createAsset} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
-import {PARCEL_VERSION, FILE_CREATE} from './constants';
 import {optionsProxy} from './utils';
 import {createConfig} from './InternalConfig';
 import {
-  getConfigHash,
   loadPluginConfig,
   getConfigRequests,
   type ConfigRequest,
@@ -74,7 +67,7 @@ import {
   toProjectPathUnsafe,
   toProjectPath,
 } from './projectPath';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import invariant from 'assert';
 import {tracer, PluginTracer} from '@parcel/profiler';
 
@@ -95,8 +88,7 @@ export type TransformationResult = {|
   assets?: Array<AssetValue>,
   error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
-  invalidations: Array<RequestInvalidation>,
-  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
+  invalidations: Invalidations,
   devDepRequests: Array<DevDepRequest>,
 |};
 
@@ -109,8 +101,7 @@ export default class Transformation {
   pluginOptions: PluginOptions;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
-  invalidations: Map<string, RequestInvalidation>;
-  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>;
+  invalidations: Invalidations;
   resolverRunner: ResolverRunner;
 
   constructor({request, options, config, workerApi}: TransformationOpts) {
@@ -119,8 +110,7 @@ export default class Transformation {
     this.options = options;
     this.request = request;
     this.workerApi = workerApi;
-    this.invalidations = new Map();
-    this.invalidateOnFileCreate = [];
+    this.invalidations = createInvalidations();
     this.devDepRequests = new Map();
     this.pluginDevDeps = [];
     this.resolverRunner = new ResolverRunner({
@@ -133,12 +123,7 @@ export default class Transformation {
       optionsProxy(
         this.options,
         option => {
-          let invalidation: RequestInvalidation = {
-            type: 'option',
-            key: option,
-          };
-
-          this.invalidations.set(getInvalidationId(invalidation), invalidation);
+          this.invalidations.invalidateOnOptionChange.add(option);
         },
         devDep => {
           this.pluginDevDeps.push(devDep);
@@ -197,6 +182,7 @@ export default class Transformation {
     let assets, error;
     try {
       let results = await this.runPipelines(pipeline, asset);
+      await Promise.all(results.map(asset => asset.commit()));
       assets = results.map(a => a.value);
     } catch (e) {
       error = e;
@@ -218,8 +204,7 @@ export default class Transformation {
       configRequests,
       // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
       error: error ? anyToDiagnostic(error) : undefined,
-      invalidateOnFileCreate: this.invalidateOnFileCreate,
-      invalidations: [...this.invalidations.values()],
+      invalidations: this.invalidations,
       devDepRequests,
     };
   }
@@ -237,7 +222,6 @@ export default class Transformation {
     let {
       content,
       size,
-      hash,
       isSource: summarizedIsSource,
     } = await summarizeRequest(this.options.inputFS, {
       filePath: fromProjectPath(this.options.projectRoot, filePath),
@@ -251,7 +235,7 @@ export default class Transformation {
     // to the filename as the base for the id to ensure it is unique.
     let idBase = fromProjectPathRelative(filePath);
     if (code != null) {
-      idBase += hash;
+      idBase += hashString(code);
     }
     return new UncommittedAsset({
       idBase,
@@ -260,7 +244,6 @@ export default class Transformation {
         filePath,
         isSource,
         type: path.extname(fromProjectPathRelative(filePath)).slice(1),
-        hash,
         pipeline,
         env,
         query,
@@ -273,7 +256,6 @@ export default class Transformation {
       options: this.options,
       content,
       invalidations: this.invalidations,
-      fileCreateInvalidations: this.invalidateOnFileCreate,
     });
   }
 
@@ -282,53 +264,23 @@ export default class Transformation {
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
     let initialType = initialAsset.value.type;
-    let initialPipelineHash = await this.getPipelineHash(pipeline);
-    let initialAssetCacheKey = this.getCacheKey(
-      [initialAsset],
-      await getInvalidationHash(this.request.invalidations, this.options), // TODO: should be per-pipeline
-      initialPipelineHash,
-    );
-    let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
+    let assets: Array<UncommittedAsset>;
+    try {
+      assets = await this.runPipeline(pipeline, initialAsset);
+    } finally {
+      // Add dev dep requests for each transformer
+      for (let transformer of pipeline.transformers) {
+        await this.addDevDependency({
+          specifier: transformer.name,
+          resolveFrom: transformer.resolveFrom,
+          range: transformer.range,
+        });
+      }
 
-    let assets: Array<UncommittedAsset> =
-      initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
-
-    // Add dev dep requests for each transformer
-    for (let transformer of pipeline.transformers) {
-      await this.addDevDependency({
-        specifier: transformer.name,
-        resolveFrom: transformer.resolveFrom,
-        range: transformer.range,
-      });
-    }
-
-    // Add dev dep requests for dependencies of transformer plugins
-    // (via proxied packageManager.require calls).
-    for (let devDep of this.pluginDevDeps) {
-      await this.addDevDependency(devDep);
-    }
-
-    if (!initialCacheEntry) {
-      let pipelineHash = await this.getPipelineHash(pipeline);
-      let invalidationCacheKey = await getInvalidationHash(
-        assets.flatMap(asset => asset.getInvalidations()),
-        this.options,
-      );
-      let resultCacheKey = this.getCacheKey(
-        [initialAsset],
-        invalidationCacheKey,
-        pipelineHash,
-      );
-      await this.writeToCache(
-        resultCacheKey,
-        assets,
-        invalidationCacheKey,
-        pipelineHash,
-      );
-    } else {
-      // See above TODO, this should be per-pipeline
-      for (let i of this.request.invalidations) {
-        this.invalidations.set(getInvalidationId(i), i);
+      // Add dev dep requests for dependencies of transformer plugins
+      // (via proxied packageManager.require calls).
+      for (let devDep of this.pluginDevDeps) {
+        await this.addDevDependency(devDep);
       }
     }
 
@@ -357,57 +309,11 @@ export default class Transformation {
       return finalAssets;
     }
 
-    let pipelineHash = await this.getPipelineHash(pipeline);
-    let invalidationHash = await getInvalidationHash(
-      finalAssets.flatMap(asset => asset.getInvalidations()),
-      this.options,
-    );
-    let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(finalAssets, invalidationHash, pipelineHash),
-    );
-
     invariant(pipeline.postProcess != null);
     let processedFinalAssets: Array<UncommittedAsset> =
-      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
-
-    if (!processedCacheEntry) {
-      await this.writeToCache(
-        this.getCacheKey(processedFinalAssets, invalidationHash, pipelineHash),
-        processedFinalAssets,
-
-        invalidationHash,
-        pipelineHash,
-      );
-    }
+      (await pipeline.postProcess(finalAssets)) ?? [];
 
     return processedFinalAssets;
-  }
-
-  async getPipelineHash(pipeline: Pipeline): Promise<string> {
-    let hashes = '';
-    for (let transformer of pipeline.transformers) {
-      let key = `${transformer.name}:${fromProjectPathRelative(
-        transformer.resolveFrom,
-      )}`;
-      hashes +=
-        this.request.devDeps.get(key) ??
-        this.devDepRequests.get(key)?.hash ??
-        ':';
-
-      let config = this.configs.get(transformer.name);
-      if (config) {
-        hashes += await getConfigHash(config, transformer.name, this.options);
-
-        for (let devDep of config.devDeps) {
-          let key = `${devDep.specifier}:${fromProjectPathRelative(
-            devDep.resolveFrom,
-          )}`;
-          hashes += nullthrows(this.devDepRequests.get(key)).hash;
-        }
-      }
-    }
-
-    return hashString(hashes);
   }
 
   async addDevDependency(opts: InternalDevDepOptions): Promise<void> {
@@ -418,13 +324,17 @@ export default class Transformation {
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(
-      specifier,
-      fromProjectPath(this.options.projectRoot, opts.resolveFrom),
-      {
-        range,
-      },
-    );
+    try {
+      await this.options.packageManager.resolve(
+        specifier,
+        fromProjectPath(this.options.projectRoot, opts.resolveFrom),
+        {
+          range,
+        },
+      );
+    } catch (err) {
+      // ignore
+    }
 
     let devDepRequest = await createDevDependency(
       opts,
@@ -560,94 +470,6 @@ export default class Transformation {
     return finalAssets.concat(resultingAssets);
   }
 
-  async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (
-      this.options.shouldDisableCache ||
-      this.request.code != null ||
-      this.request.invalidateReason & FILE_CREATE
-    ) {
-      return null;
-    }
-
-    let cached = await this.options.cache.get<{|assets: Array<AssetValue>|}>(
-      cacheKey,
-    );
-    if (!cached) {
-      return null;
-    }
-
-    let cachedAssets = cached.assets;
-
-    return Promise.all(
-      cachedAssets.map(async (value: AssetValue) => {
-        let content =
-          value.contentKey != null
-            ? value.isLargeBlob
-              ? this.options.cache.getStream(value.contentKey)
-              : await this.options.cache.getBlob(value.contentKey)
-            : null;
-        let mapBuffer =
-          value.astKey != null
-            ? await this.options.cache.getBlob(value.astKey)
-            : null;
-        let ast =
-          value.astKey != null
-            ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
-              // $FlowFixMe[incompatible-call]
-              await this.options.cache.getBlob(value.astKey)
-            : null;
-
-        return new UncommittedAsset({
-          value,
-          options: this.options,
-          content,
-          mapBuffer,
-          ast,
-        });
-      }),
-    );
-  }
-
-  async writeToCache(
-    cacheKey: string,
-    assets: Array<UncommittedAsset>,
-    invalidationHash: string,
-    pipelineHash: string,
-  ): Promise<void> {
-    await Promise.all(
-      assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
-    );
-
-    this.options.cache.set(cacheKey, {
-      $$raw: true,
-      assets: assets.map(a => a.value),
-    });
-  }
-
-  getCacheKey(
-    assets: Array<UncommittedAsset>,
-    invalidationHash: string,
-    pipelineHash: string,
-  ): string {
-    let assetsKeyInfo = assets
-      .map(a => [
-        a.value.filePath,
-        a.value.pipeline,
-        a.value.hash,
-        a.value.uniqueKey,
-        a.value.query ?? '',
-      ])
-      .join('');
-
-    return hashString(
-      PARCEL_VERSION +
-        assetsKeyInfo +
-        this.request.env.id +
-        invalidationHash +
-        pipelineHash,
-    );
-  }
-
   async loadPipeline(
     filePath: ProjectPath,
     isSource: boolean,
@@ -769,7 +591,7 @@ export default class Transformation {
       );
 
       if (result.invalidateOnFileCreate) {
-        this.invalidateOnFileCreate.push(
+        this.invalidations.invalidateOnFileCreate.push(
           ...result.invalidateOnFileCreate.map(i =>
             invalidateOnFileCreateToInternal(this.options.projectRoot, i),
           ),
@@ -778,12 +600,9 @@ export default class Transformation {
 
       if (result.invalidateOnFileChange) {
         for (let filePath of result.invalidateOnFileChange) {
-          let invalidation = {
-            type: 'file',
-            filePath: toProjectPath(this.options.projectRoot, filePath),
-          };
-
-          this.invalidations.set(getInvalidationId(invalidation), invalidation);
+          this.invalidations.invalidateOnFileChange.add(
+            toProjectPath(this.options.projectRoot, filePath),
+          );
         }
       }
 

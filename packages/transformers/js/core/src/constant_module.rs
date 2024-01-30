@@ -7,14 +7,10 @@ use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::Visit;
 
 fn is_safe_literal(lit: &Lit) -> bool {
-  match lit {
-    Lit::Str(..) | Lit::Bool(..) | Lit::BigInt(..) | Lit::Null(..) | Lit::Num(..) => {
-      return true;
-    }
-    _ => {
-      return false;
-    }
-  }
+  matches!(
+    lit,
+    Lit::Str(..) | Lit::Bool(..) | Lit::BigInt(..) | Lit::Null(..) | Lit::Num(..)
+  )
 }
 
 pub struct ConstantModule {
@@ -33,14 +29,12 @@ impl ConstantModule {
   fn is_constant_declarator(&mut self, decl: &VarDeclarator) -> bool {
     if let Some(init) = &decl.init {
       match &**init {
-        Expr::Lit(lit) => {
-          return is_safe_literal(&lit);
-        }
+        Expr::Lit(lit) => is_safe_literal(lit),
         Expr::Tpl(tpl) => {
           for expr in &tpl.exprs {
             match &**expr {
               Expr::Lit(lit) => {
-                if !is_safe_literal(&lit) {
+                if !is_safe_literal(lit) {
                   return false;
                 }
               }
@@ -55,14 +49,12 @@ impl ConstantModule {
             }
           }
 
-          return true;
+          true
         }
-        _ => {
-          return false;
-        }
+        _ => false,
       }
     } else {
-      return true;
+      true
     }
   }
 
@@ -73,7 +65,7 @@ impl ConstantModule {
       }
 
       for declarator in &var_decl.decls {
-        if !self.is_constant_declarator(&declarator) {
+        if !self.is_constant_declarator(declarator) {
           return false;
         }
 
@@ -84,16 +76,16 @@ impl ConstantModule {
         }
       }
 
-      return true;
+      true
     } else {
-      return false;
+      false
     }
   }
 }
 
 impl Visit for ConstantModule {
   fn visit_module(&mut self, module: &Module) {
-    if module.body.len() == 0 {
+    if module.body.is_empty() {
       // Empty modules should not be marked as constant modules
       self.is_constant_module = false;
       return;
@@ -117,7 +109,7 @@ impl Visit for ConstantModule {
         },
         ModuleItem::Stmt(stmt) => match stmt {
           Stmt::Decl(decl) => {
-            let result = self.is_constant_declaration(&decl);
+            let result = self.is_constant_declaration(decl);
 
             if !result {
               self.is_constant_module = false;
@@ -183,7 +175,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -194,7 +186,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -205,7 +197,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -216,7 +208,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -227,7 +219,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -239,7 +231,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -250,7 +242,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -262,7 +254,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -273,7 +265,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -284,7 +276,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -296,7 +288,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -308,7 +300,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -319,7 +311,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -330,7 +322,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -341,7 +333,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -352,13 +344,13 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
   fn empty_file() {
     let result = is_constant_module(r#""#);
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 }

@@ -4,6 +4,7 @@ import {parse, print} from '@swc/core';
 import {RequireInliningVisitor} from './RequireInliningVisitor';
 import type {SideEffectsMap} from './types';
 import nullthrows from 'nullthrows';
+import SourceMap from '@parcel/source-map';
 
 let publicIdToAssetSideEffects = null;
 
@@ -46,9 +47,17 @@ module.exports = new Optimizer<empty, BundleConfig>({
     return {publicIdToAssetSideEffects};
   },
 
-  async optimize({bundle, contents, map, tracer, logger, bundleConfig}) {
+  async optimize({
+    bundle,
+    contents,
+    map: originalMap,
+    tracer,
+    logger,
+    bundleConfig,
+    options,
+  }) {
     if (!bundle.env.shouldOptimize) {
-      return {contents, map};
+      return {contents, map: originalMap};
     }
 
     try {
@@ -66,9 +75,23 @@ module.exports = new Optimizer<empty, BundleConfig>({
         publicIdToAssetSideEffects: bundleConfig.publicIdToAssetSideEffects,
       });
       visitor.visitProgram(ast);
+
       if (visitor.dirty) {
-        const newContents = await print(ast, {});
-        return {contents: newContents.code, map};
+        const result = await print(ast, {sourceMaps: !!bundle.env.sourceMap});
+
+        let sourceMap = null;
+        let resultMap = result.map;
+        let contents: string = nullthrows(result.code);
+
+        if (resultMap != null) {
+          sourceMap = new SourceMap(options.projectRoot);
+          sourceMap.addVLQMap(JSON.parse(resultMap));
+          if (originalMap) {
+            sourceMap.extends(originalMap);
+          }
+        }
+
+        return {contents, map: sourceMap};
       }
     } catch (err) {
       logger.error({
@@ -77,6 +100,6 @@ module.exports = new Optimizer<empty, BundleConfig>({
         stack: err.stack,
       });
     }
-    return {contents, map};
+    return {contents, map: originalMap};
   },
 });
