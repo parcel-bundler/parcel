@@ -218,7 +218,9 @@ impl<'a> Fold for Macros<'a> {
                 let src = specifier.src.to_string();
                 let imported = imported.to_string();
                 let span = specifier.span;
+                let in_call = std::mem::take(&mut self.in_call);
                 let call = call.fold_with(self);
+                self.in_call = in_call;
                 return handle_error(
                   self.call_macro(src, imported, call, span),
                   &mut self.diagnostics,
@@ -238,7 +240,9 @@ impl<'a> Fold for Macros<'a> {
                   let src = specifier.src.to_string();
                   let imported = prop.0.to_string();
                   let span = specifier.span;
+                  let in_call = std::mem::take(&mut self.in_call);
                   let call = call.fold_with(self);
+                  self.in_call = in_call;
                   return handle_error(
                     self.call_macro(src, imported, call, span),
                     &mut self.diagnostics,
