@@ -58,23 +58,23 @@ graph TD;
 
 ```mermaid
 graph LR
-  0[Node 0] -- outgoing --> a[[edge a]] -- outgoing --> b[[edge b]]
-  0[Node 0] -- outgoingReverse  --> b[[edge b]] -- outgoingReverse --> a[[edge a]]
+  subgraph 0[Node 0]
+    direction LR
+    0o([outgoing]) --- 0oa[[a]] <--> 0ob[[b]] --- 0or([outgoingReverse])
+  end
+
+  subgraph 1[Node 1]
+    direction LR
+    1i([incoming]) --- 1ia[[a]] --- 1ir([incomingReverse])
+    1o([outgoing]) --- 1oc[[c]] --- 1or([outgoingReverse])
+  end
+
+  subgraph 2[Node 2]
+    direction LR
+    2i([incoming]) --- 2ib[[b]] <--> 2ic[[c]] --- 2ir([incomingReverse])
+  end
 ```
 
-```mermaid
-graph LR
-  1[Node 1] -- incoming  --> a[[edge a]]
-  1[Node 1] -- incomingReverse   --> a[[edge a]]
-  1[Node 1] -- outgoing --> c[[edge c]]
-  1[Node 1] -- outgoingReverse  --> c[[edge c]]
-```
-
-```mermaid
-graph LR
-  2[Node 2] -- incoming --> b[[edge b]] -- incoming --> c[[edge c]]
-  2[Node 2] -- incomingReverse  --> c[[edge c]] -- incomingReverse --> b[[edge b]]
-```
 This makes traversal of every edge of the graph _from any node_
 a straightforward process of following the links.
 
@@ -360,6 +360,7 @@ graph LR
   e1 -- next out --> e2 -- prev out --> e1
   e2 -- next in  --> e4 -- prev in  --> e2
 ```
+
 Because edge records are only created once per unique pair of node ids
 and edge type, and deleted edges do not get reclaimed (without a resize
 and rehash of every edge, see [Resizing the `EdgeTypeMap`](#resizing-the-edgetypemap)),
@@ -423,7 +424,7 @@ and scaled inversely linearly the `minGrowFactor (defaulting to 2)` from capacit
 0 to `peakCapacity`. Roughly the following formula:
 
 ```js
-maxGrowFactor + (minGrowFactor - maxGrowFactor) * (capacity / peakCapacity)
+maxGrowFactor + (minGrowFactor - maxGrowFactor) * (capacity / peakCapacity);
 ```
 
 Once the `capacity` exceeds `peakCapacity`, the capacity grows by the `minGrowFactor`.
@@ -644,8 +645,9 @@ don't need to change at all (as its size hasn't changed).
 
 ## What AdjacencyList really looks like
 
-
-given a graph like:
+<table style="white-space: nowrap">
+<tr><th>given a graph like:</th><th>AdjacencyList looks like:</th><tr>
+<tr><td>
 
 ```mermaid
 graph TD;
