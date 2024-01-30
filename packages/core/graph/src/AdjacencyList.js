@@ -55,6 +55,47 @@ const DEFAULT_PARAMS: AdjacencyListParams = {
 };
 
 /**
+ * An Enum representing the result of a call to `link`.
+ *
+ * `EdgeAdded`       = `0`: the edge was successfully linked
+ * `EdgeExists`      = `1`: the edge already exists
+ * `EdgesOverloaded` = `2`: the edge map is overloaded
+ * `TooManyDeletes`  = `3`: the edge map has too many deleted edges
+ * `NodesOverloaded` = `4`: the node map is overloaded
+ */
+const LinkResult: {|
+  /** The edge was successfully linked */
+  EdgeAdded: 0,
+  /** The edge already exists */
+  EdgeExists: 1,
+  /** The edge map is overloaded */
+  EdgesOverloaded: 2,
+  /** The edge map has too many deleted edges */
+  TooManyDeletes: 3,
+  /** The node map is overloaded */
+  NodesOverloaded: 4,
+|} = {
+  EdgeAdded: 0,
+  EdgeExists: 1,
+  EdgesOverloaded: 2,
+  TooManyDeletes: 3,
+  NodesOverloaded: 4,
+};
+
+/**
+ * Allow 3 attempts to link an edge before erroring.
+ *
+ * The three attempts correspond to the three possible inconclusive link results:
+ * - `LinkResult.EdgesOverloaded`
+ * - `LinkResult.TooManyDeletes`
+ * - `LinkResult.NodesOverloaded`
+ *
+ * If after 3 tries, the link result is still one of these,
+ * this is considered an error.
+ */
+const MAX_LINK_TRIES: 3 = 3;
+
+/**
  * `AdjacencyList` maps nodes to lists of their adjacent nodes.
  *
  * It is implemented as a hashmap of nodes, where each node has
@@ -329,11 +370,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     assert(type > 0, `Unsupported edge type ${type}`);
 
     let result;
-    let maxTries = 3; // allow 3 tries: no resize, resize edges, resize nodes.
     let tries = 0;
 
     do {
-      assert(tries++ < maxTries, 'Failed to addEdge too many times!');
+      assert(tries++ < MAX_LINK_TRIES, 'Failed to addEdge too many times!');
 
       result = link(
         from,
@@ -346,28 +386,28 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
       // Sometimes we need to resize before we can add.
       switch (result) {
-        case 'resizeNodes': {
+        case LinkResult.NodesOverloaded: {
           this.resizeNodes(
             increaseNodeCapacity(this.#nodes.capacity, this.#params),
           );
           break;
         }
-        case 'resizeEdges': {
+        case LinkResult.EdgesOverloaded: {
           this.resizeEdges(
             increaseEdgeCapacity(this.#edges.capacity, this.#params),
           );
           break;
         }
-        case 'reclaimDeletes': {
+        case LinkResult.TooManyDeletes: {
           this.resizeEdges(
             decreaseEdgeCapacity(this.#edges.capacity, this.#params),
           );
           break;
         }
       }
-    } while (typeof result !== 'boolean');
+    } while (result > LinkResult.EdgeExists);
 
-    return result;
+    return result === LinkResult.EdgeAdded;
   }
 
   /**
@@ -1467,12 +1507,12 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
 /**
  * Links a node to another node with an edge of the given type.
  *
- * Returns:
- * - `true` if the edge was added
- * - `false` if the edge already exists
- * - `'resizeEdges'` if the edge map is overloaded
- * - `'reclaimDeletes'` if the edge map has too many deleted edges
- * - `'resizeNodes'` if the node map is overloaded
+ * Returns one of the following numeric status codes:
+ * - `0` EdgeAdded: the edge was added
+ * - `1` EdgeExists: the edge already exists
+ * - `2` EdgesOverloaded: the edge map is overloaded
+ * - `3` TooManyDeletes: the edge map has too many deleted edges
+ * - `4` NodesOverloaded: the node map is overloaded
  */
 function link<TEdgeType: number>(
   from: NodeId,
@@ -1481,12 +1521,12 @@ function link<TEdgeType: number>(
   edges: EdgeTypeMap<TEdgeType | NullEdgeType>,
   nodes: NodeTypeMap<TEdgeType | NullEdgeType>,
   unloadFactor: number = DEFAULT_PARAMS.unloadFactor,
-): boolean | 'resizeEdges' | 'reclaimDeletes' | 'resizeNodes' {
+): $Values<typeof LinkResult> {
   let hash = edges.hash(from, to, type);
   let edge = edges.addressOf(hash, from, to, type);
 
   // The edge is already in the graph; do nothing.
-  if (edge !== null) return false;
+  if (edge !== null) return LinkResult.EdgeExists;
 
   let toNode = nodes.addressOf(to, type);
   let fromNode = nodes.addressOf(from, type);
@@ -1497,7 +1537,7 @@ function link<TEdgeType: number>(
   if (fromNode === null) nodeCount++;
   // If we're in danger of overflowing the `nodes` array, resize it.
   if (nodes.getLoad(nodeCount) >= 1) {
-    return 'resizeNodes';
+    return LinkResult.NodesOverloaded;
   }
 
   // We add 1 to account for the edge we are adding.
@@ -1512,9 +1552,9 @@ function link<TEdgeType: number>(
       edges.getLoad(count) < unloadFactor
     ) {
       // If we have a significant number of deletes, reclaim the space.
-      return 'reclaimDeletes';
+      return LinkResult.TooManyDeletes;
     } else {
-      return 'resizeEdges';
+      return LinkResult.EdgesOverloaded;
     }
   }
 
@@ -1532,7 +1572,7 @@ function link<TEdgeType: number>(
   let prevOut = nodes.linkOut(fromNode, edge);
   if (prevOut !== null) edges.linkOut(prevOut, edge);
 
-  return true;
+  return LinkResult.EdgeAdded;
 }
 
 // From https://gist.github.com/badboy/6267743#32-bit-mix-functions
