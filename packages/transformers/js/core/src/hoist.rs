@@ -155,6 +155,7 @@ impl<'a> Fold for Hoist<'a> {
                     format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
                   ),
                   type_only: false,
+                  phase: Default::default(),
                 })),
               );
               // Ensure that all import specifiers are constant.
@@ -204,6 +205,7 @@ impl<'a> Fold for Hoist<'a> {
                       raw: None,
                     }),
                     type_only: false,
+                    phase: Default::default(),
                   })),
                 );
 
@@ -297,6 +299,7 @@ impl<'a> Fold for Hoist<'a> {
                     format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
                   ),
                   type_only: false,
+                  phase: Default::default(),
                 })),
               );
               self.re_exports.push(ImportedSymbol {
@@ -405,6 +408,7 @@ impl<'a> Fold for Hoist<'a> {
                                 raw: None,
                               }),
                               type_only: false,
+                              phase: Default::default(),
                             })));
 
                           // Create variable assignments for any declarations that are not constant.
@@ -446,6 +450,7 @@ impl<'a> Fold for Hoist<'a> {
                                   raw: None,
                                 }),
                                 type_only: false,
+                                phase: Default::default(),
                               })));
 
                             self.handle_non_const_require(v, &source);
@@ -1002,6 +1007,7 @@ impl<'a> Hoist<'a> {
         span: DUMMY_SP,
         src: Box::new(src.into()),
         type_only: false,
+        phase: Default::default(),
       })));
   }
 
