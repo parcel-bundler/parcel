@@ -1210,11 +1210,24 @@ dependencies = [
  "dunce",
  "indexmap 1.9.3",
  "indoc",
+ "parcel-macros",
  "path-slash",
  "pathdiff",
  "serde",
  "serde_bytes",
  "sha-1",
+ "swc_core",
+]
+
+[[package]]
+name = "parcel-macros"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
+ "indexmap 1.9.3",
+ "napi",
+ "napi-derive",
+ "serde",
  "swc_core",
 ]
 
@@ -1236,6 +1249,7 @@ dependencies = [
  "oxipng",
  "parcel-dev-dep-resolver",
  "parcel-js-swc-core",
+ "parcel-macros",
  "parcel-resolver",
  "rayon",
  "xxhash-rust",

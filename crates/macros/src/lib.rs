@@ -2,30 +2,37 @@ use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use swc_core::common::errors::Handler;
 use swc_core::common::util::take::Take;
 use swc_core::common::{SourceMap, Span, DUMMY_SP};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::{js_word, JsWord};
 use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::{Parser, StringInput};
+use swc_core::ecma::parser::{error::Error, Parser, StringInput};
 use swc_core::ecma::visit::{Fold, FoldWith};
 
-use crate::utils::{
-  error_buffer_to_diagnostics, match_export_name, match_property_name, CodeHighlight, Diagnostic,
-  ErrorBuffer, SourceLocation,
-};
+#[cfg(feature = "napi")]
+pub mod napi;
 
+#[derive(PartialEq)]
 pub enum MacroError {
+  /// Could not statically evaluate macro argument.
+  EvaluationError(Span),
   /// An error occurred loading a macro (e.g. resolution or syntax error).
-  LoadError(String),
+  LoadError(String, Span),
   /// An error was thrown when executing a macro.
-  ExecutionError(String),
+  ExecutionError(String, Span),
+  /// Could not parse the result of a function returned by a macro.
+  ParseError(Error),
 }
 
-pub type MacroCallback = Arc<
-  dyn Fn(String, String, Vec<JsValue>, SourceLocation) -> Result<JsValue, MacroError> + Send + Sync,
->;
+#[derive(serde::Serialize)]
+pub struct Location {
+  pub line: u32,
+  pub col: u32,
+}
+
+pub type MacroCallback =
+  Arc<dyn Fn(String, String, Vec<JsValue>, Location) -> Result<JsValue, MacroError> + Send + Sync>;
 
 pub struct Macros<'a> {
   /// Mapping of imported identifiers to import metadata.
@@ -33,7 +40,7 @@ pub struct Macros<'a> {
   constants: HashMap<Id, Result<JsValue, Span>>,
   callback: MacroCallback,
   source_map: &'a SourceMap,
-  diagnostics: &'a mut Vec<Diagnostic>,
+  errors: &'a mut Vec<MacroError>,
   load_errors: HashSet<String>,
   assignment_span: Option<Span>,
   in_call: bool,
@@ -52,7 +59,7 @@ impl<'a> Macros<'a> {
   pub fn new(
     callback: MacroCallback,
     source_map: &'a SourceMap,
-    diagnostics: &'a mut Vec<Diagnostic>,
+    errors: &'a mut Vec<MacroError>,
   ) -> Self {
     Macros {
       macros: HashMap::new(),
@@ -60,7 +67,7 @@ impl<'a> Macros<'a> {
       load_errors: HashSet::new(),
       callback,
       source_map,
-      diagnostics,
+      errors,
       assignment_span: None,
       in_call: false,
     }
@@ -71,7 +78,8 @@ impl<'a> Macros<'a> {
       match specifier {
         ImportSpecifier::Named(named) => {
           let imported = match &named.imported {
-            Some(imported) => match_export_name(imported).0.clone(),
+            Some(ModuleExportName::Ident(id)) => id.sym.clone(),
+            Some(ModuleExportName::Str(s)) => s.value.clone(),
             None => named.local.sym.clone(),
           };
           self.macros.insert(
@@ -113,8 +121,8 @@ impl<'a> Macros<'a> {
     export: String,
     call: CallExpr,
     import_span: Span,
-  ) -> Result<Expr, Diagnostic> {
-    // If a macro already errorered during loading, don't try callinbg it again.
+  ) -> Result<Expr, MacroError> {
+    // If a macro already errorered during loading, don't try calling it again.
     if self.load_errors.contains(&src) {
       return Ok(Expr::Lit(Lit::Null(Null::dummy())));
     }
@@ -129,57 +137,31 @@ impl<'a> Macros<'a> {
           } else if let JsValue::Array(val) = val {
             args.extend(val);
           } else {
-            return Err(self.create_diagnostic(call.span));
+            return Err(MacroError::EvaluationError(call.span));
           }
         }
         Err(span) => {
-          return Err(self.create_diagnostic(span));
+          return Err(MacroError::EvaluationError(span));
         }
       }
     }
 
     // If that was successful, call the function callback (on the JS thread).
-    let loc = SourceLocation::from(self.source_map, call.span);
-    match (self.callback)(src.clone(), export, args, loc.clone()) {
+    let loc = self.source_map.lookup_char_pos(call.span.lo);
+    let loc = Location {
+      line: loc.line as u32,
+      col: loc.col_display as u32,
+    };
+    match (self.callback)(src.clone(), export, args, loc) {
       Ok(val) => Ok(self.value_to_expr(val)?),
       Err(err) => match err {
-        MacroError::LoadError(err) => {
+        MacroError::LoadError(err, _) => {
           self.load_errors.insert(src);
-          Err(Diagnostic {
-            message: format!("Error loading macro: {}", err),
-            code_highlights: Some(vec![CodeHighlight {
-              message: None,
-              loc: SourceLocation::from(self.source_map, import_span),
-            }]),
-            hints: None,
-            show_environment: false,
-            severity: crate::utils::DiagnosticSeverity::Error,
-            documentation_url: None,
-          })
+          Err(MacroError::LoadError(err, import_span))
         }
-        MacroError::ExecutionError(err) => Err(Diagnostic {
-          message: format!("Error evaluating macro: {}", err),
-          code_highlights: Some(vec![CodeHighlight { message: None, loc }]),
-          hints: None,
-          show_environment: false,
-          severity: crate::utils::DiagnosticSeverity::Error,
-          documentation_url: None,
-        }),
+        MacroError::ExecutionError(err, _) => Err(MacroError::ExecutionError(err, call.span)),
+        err => Err(err),
       },
-    }
-  }
-
-  fn create_diagnostic(&self, span: Span) -> Diagnostic {
-    Diagnostic {
-      message: "Could not statically evaluate macro argument".into(),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(self.source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: crate::utils::DiagnosticSeverity::Error,
-      documentation_url: None,
     }
   }
 }
@@ -221,33 +203,35 @@ impl<'a> Fold for Macros<'a> {
                 let in_call = std::mem::take(&mut self.in_call);
                 let call = call.fold_with(self);
                 self.in_call = in_call;
-                return handle_error(
-                  self.call_macro(src, imported, call, span),
-                  &mut self.diagnostics,
-                );
+                return handle_error(self.call_macro(src, imported, call, span), &mut self.errors);
               }
             }
           }
-          Expr::Member(member) => {
+          Expr::Member(member) => 'block: {
             // e.g. ns.macro()
             if let Expr::Ident(ident) = &*member.obj {
-              if let (Some(specifier), Some(prop)) = (
-                self.macros.get(&ident.to_id()),
-                match_property_name(&member),
-              ) {
-                // Check that this is a namespace import.
-                if specifier.imported.is_none() {
-                  let src = specifier.src.to_string();
-                  let imported = prop.0.to_string();
-                  let span = specifier.span;
-                  let in_call = std::mem::take(&mut self.in_call);
-                  let call = call.fold_with(self);
-                  self.in_call = in_call;
-                  return handle_error(
-                    self.call_macro(src, imported, call, span),
-                    &mut self.diagnostics,
-                  );
-                }
+              // Check that this is a namespace import.
+              if let Some(specifier @ MacroImport { imported: None, .. }) =
+                self.macros.get(&ident.to_id())
+              {
+                let imported = match &member.prop {
+                  MemberProp::Ident(id) => id.sym.to_string(),
+                  MemberProp::Computed(s) => {
+                    if let Ok(JsValue::String(s)) = self.eval(&s.expr) {
+                      s
+                    } else {
+                      break 'block;
+                    }
+                  }
+                  MemberProp::PrivateName(_) => break 'block,
+                };
+
+                let src = specifier.src.to_string();
+                let span = specifier.span;
+                let in_call = std::mem::take(&mut self.in_call);
+                let call = call.fold_with(self);
+                self.in_call = in_call;
+                return handle_error(self.call_macro(src, imported, call, span), &mut self.errors);
               }
             }
           }
@@ -356,19 +340,19 @@ fn is_macro(with: &ObjectLit) -> bool {
   false
 }
 
-fn handle_error(result: Result<Expr, Diagnostic>, diagnostics: &mut Vec<Diagnostic>) -> Expr {
+fn handle_error(result: Result<Expr, MacroError>, errors: &mut Vec<MacroError>) -> Expr {
   match result {
     Ok(expr) => expr,
     Err(err) => {
-      if !diagnostics.iter().any(|d| *d == err) {
-        diagnostics.push(err);
+      if !errors.iter().any(|d| *d == err) {
+        errors.push(err);
       }
       Expr::Lit(Lit::Null(Null::dummy()))
     }
   }
 }
 
-// A type that represents a basic JS value.
+/// A type that represents a basic JS value.
 #[derive(Clone, Debug)]
 pub enum JsValue {
   Undefined,
@@ -688,7 +672,7 @@ impl<'a> Macros<'a> {
   }
 
   /// Convert JS value to AST.
-  fn value_to_expr(&self, value: JsValue) -> Result<Expr, Diagnostic> {
+  fn value_to_expr(&self, value: JsValue) -> Result<Expr, MacroError> {
     Ok(match value {
       JsValue::Null => Expr::Lit(Lit::Null(Null::dummy())),
       JsValue::Undefined => Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP)),
@@ -715,19 +699,19 @@ impl<'a> Macros<'a> {
         span: DUMMY_SP,
         elems: arr
           .into_iter()
-          .map(|elem| -> Result<_, Diagnostic> {
+          .map(|elem| -> Result<_, MacroError> {
             Ok(Some(ExprOrSpread {
               spread: None,
               expr: Box::new(self.value_to_expr(elem)?),
             }))
           })
-          .collect::<Result<Vec<_>, Diagnostic>>()?,
+          .collect::<Result<Vec<_>, MacroError>>()?,
       }),
       JsValue::Object(obj) => Expr::Object(ObjectLit {
         span: DUMMY_SP,
         props: obj
           .into_iter()
-          .map(|(k, v)| -> Result<_, Diagnostic> {
+          .map(|(k, v)| -> Result<_, MacroError> {
             Ok(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
               key: if Ident::verify_symbol(&k).is_ok() {
                 PropName::Ident(Ident::new(k.into(), DUMMY_SP))
@@ -741,7 +725,7 @@ impl<'a> Macros<'a> {
               value: Box::new(self.value_to_expr(v)?),
             }))))
           })
-          .collect::<Result<Vec<_>, Diagnostic>>()?,
+          .collect::<Result<Vec<_>, MacroError>>()?,
       }),
       JsValue::Function(source) => {
         let source_file = self
@@ -757,13 +741,7 @@ impl<'a> Macros<'a> {
         let mut parser = Parser::new_from(lexer);
         match parser.parse_expr() {
           Ok(expr) => *expr,
-          Err(err) => {
-            let error_buffer = ErrorBuffer::default();
-            let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
-            err.into_diagnostic(&handler).emit();
-            let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, &self.source_map);
-            return Err(diagnostics.pop().unwrap());
-          }
+          Err(err) => return Err(MacroError::ParseError(err)),
         }
       }
     })

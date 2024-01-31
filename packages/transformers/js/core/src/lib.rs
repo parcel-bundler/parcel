@@ -6,7 +6,6 @@ mod env_replacer;
 mod fs;
 mod global_replacer;
 mod hoist;
-mod macros;
 mod modules;
 mod node_replacer;
 mod typeof_replacer;
@@ -18,7 +17,7 @@ use std::str::FromStr;
 
 use constant_module::ConstantModule;
 use indexmap::IndexMap;
-use macros::MacroCallback;
+use parcel_macros::{MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
@@ -51,10 +50,11 @@ use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
-use utils::{error_buffer_to_diagnostics, Diagnostic, DiagnosticSeverity, ErrorBuffer, SourceType};
+use utils::{
+  error_buffer_to_diagnostics, CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer,
+  SourceType,
+};
 
-use crate::macros::Macros;
-pub use crate::macros::{JsValue, MacroError};
 pub use utils::SourceLocation;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
@@ -304,8 +304,11 @@ pub fn transform(
 
               let mut diagnostics = vec![];
               if let Some(call_macro) = call_macro {
-                module =
-                  module.fold_with(&mut Macros::new(call_macro, &source_map, &mut diagnostics));
+                let mut errors = Vec::new();
+                module = module.fold_with(&mut Macros::new(call_macro, &source_map, &mut errors));
+                for error in errors {
+                  diagnostics.push(macro_error_to_diagnostic(error, &source_map));
+                }
               }
 
               if config.scope_hoist && config.inline_constants {
@@ -612,5 +615,50 @@ impl SourceMapGenConfig for SourceMapConfig {
 
   fn skip(&self, f: &FileName) -> bool {
     matches!(f, FileName::MacroExpansion | FileName::Internal(..))
+  }
+}
+
+fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagnostic {
+  match error {
+    MacroError::EvaluationError(span) => Diagnostic {
+      message: "Could not statically evaluate macro argument".into(),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::LoadError(err, span) => Diagnostic {
+      message: format!("Error loading macro: {}", err),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::ExecutionError(err, span) => Diagnostic {
+      message: format!("Error evaluating macro: {}", err),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::ParseError(err) => {
+      let error_buffer = ErrorBuffer::default();
+      let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
+      err.into_diagnostic(&handler).emit();
+      let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, source_map);
+      return diagnostics.pop().unwrap();
+    }
   }
 }
