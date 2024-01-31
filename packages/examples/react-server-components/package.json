@@ -2,12 +2,11 @@
   "name": "parcel-react-server-components-example",
   "version": "1.0.0",
   "private": true,
-  "react-server": "dist/server.mjs",
-  "type": "module",
+  "react-server": "dist/server.js",
   "targets": {
     "react-server": {
       "context": "node",
-      "outputFormat": "esmodule",
+      "outputFormat": "commonjs",
       "source": "src/server.js",
       "includeNodeModules": {
         "express": false
@@ -22,7 +21,7 @@
     "express": "^4.18.2",
     "react": "18.3.0-canary-feed8f3f9-20240118",
     "react-dom": "18.3.0-canary-feed8f3f9-20240118",
-    "react-server-dom-webpack": "18.3.0-canary-feed8f3f9-20240118"
+    "@parcel/rsc": "*"
   },
   "@parcel/resolver-default": {
     "packageExports": true

@@ -12,7 +12,7 @@ export default (new Runtime({
     let asset = bundle.traverse((node, _, actions) => {
       if (
         node.type === 'dependency' &&
-        node.value.specifier === '@parcel/rsc-manifest' &&
+        node.value.specifier === '@parcel/rsc/manifest' &&
         !bundleGraph.isDependencySkipped(node.value)
       ) {
         actions.stop();
@@ -54,7 +54,7 @@ export default (new Runtime({
       }
     });
 
-    let code = `import {_register} from '@parcel/rsc-manifest';
+    let code = `import {_register} from '@parcel/rsc/manifest';
 _register(${JSON.stringify(manifest, null, 2)});
 `;
 

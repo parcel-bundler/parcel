@@ -59,6 +59,8 @@
     "mocha-multi-reporters": "^1.5.1",
     "prettier": "2.4.1",
     "punycode": "^1.4.1",
+    "react": "18.3.0-canary-feed8f3f9-20240118",
+    "react-dom": "18.3.0-canary-feed8f3f9-20240118",
     "rimraf": "^5.0.5",
     "semver": "^7.5.2",
     "sinon": "^7.3.1"

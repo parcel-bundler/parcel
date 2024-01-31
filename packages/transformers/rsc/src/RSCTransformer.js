@@ -1,6 +1,5 @@
 // @flow
 
-import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 
@@ -10,14 +9,14 @@ export default (new Transformer({
       if (asset.env.isNode()) {
         let client = await asset.getCode();
         if (client.includes('"use client";')) {
-          let server = `const CLIENT_REFERENCE = Symbol.for('react.client.reference');\n`;
+          let server = '';
           let symbols = new Map();
           for (let symbol of asset.symbols.exportSymbols()) {
             let {local, loc} = nullthrows(asset.symbols.get(symbol));
             server += `function ${local}() {}\n`;
             server += `Object.defineProperties(${local}, {
               name: { value: ${JSON.stringify(symbol)} },
-              $$typeof: {value: CLIENT_REFERENCE},
+              $$typeof: {value:  Symbol.for('react.client.reference')},
               $$id: {value: ${JSON.stringify(asset.filePath + '#' + symbol)}}
             });\n`;
             symbols.set(symbol, {local, loc});

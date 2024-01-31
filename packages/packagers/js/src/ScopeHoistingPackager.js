@@ -135,6 +135,10 @@ export class ScopeHoistingPackager {
       this.bundle.env.outputFormat === 'commonjs'
     ) {
       for (let b of this.bundleGraph.getReferencedBundles(this.bundle)) {
+        if (b.env.context !== this.bundle.env.context) {
+          continue;
+        }
+
         let entry = b.getMainEntry();
         let symbols = new Map();
         if (entry && !this.isAsyncBundle && entry.type === 'js') {
