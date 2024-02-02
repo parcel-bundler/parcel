@@ -665,7 +665,8 @@ export default class PackagerRunner {
         bundleGraph.getHash(bundle) +
         JSON.stringify(configResults) +
         JSON.stringify(globalInfoResults) +
-        this.options.mode,
+        this.options.mode +
+        (this.options.shouldBuildLazily ? 'lazy' : 'eager'),
     );
   }
 
