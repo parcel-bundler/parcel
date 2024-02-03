@@ -95,7 +95,10 @@ impl ESMFold {
       decls: vec![VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(ident.into()),
-        init: Some(Box::new(Expr::Call(crate::utils::create_require(src)))),
+        init: Some(Box::new(Expr::Call(crate::utils::create_require(
+          src,
+          self.unresolved_mark,
+        )))),
         definite: false,
       }],
       declare: false,
@@ -556,6 +559,7 @@ impl Fold for ESMFold {
             ),
             init: Some(Box::new(Expr::Call(crate::utils::create_require(
               "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+              self.unresolved_mark,
             )))),
             definite: false,
           }],
