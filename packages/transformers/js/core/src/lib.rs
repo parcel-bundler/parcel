@@ -1,6 +1,5 @@
 mod collect;
 mod constant_module;
-mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
@@ -41,7 +40,6 @@ use swc_core::ecma::transforms::{
 use swc_core::ecma::visit::{FoldWith, VisitWith};
 
 use collect::{Collect, CollectResult};
-use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
@@ -276,8 +274,6 @@ pub fn transform(
                 config.is_jsx,
               ));
 
-              let mut decls = collect_decls(&module);
-
               let mut preset_env_config = swc_core::ecma::preset_env::Config {
                 dynamic_import: true,
                 ..Default::default()
@@ -320,7 +316,7 @@ pub fn transform(
               let module = {
                 let mut passes = chain!(
                   Optional::new(
-                    TypeofReplacer { decls: &decls },
+                    TypeofReplacer { unresolved_mark },
                     config.source_type != SourceType::Script
                   ),
                   // Inline process.env and process.browser
@@ -329,7 +325,6 @@ pub fn transform(
                       replace_env: config.replace_env,
                       env: &config.env,
                       is_browser: config.is_browser,
-                      decls: &decls,
                       used_env: &mut result.used_env,
                       source_map: &source_map,
                       diagnostics: &mut diagnostics,
@@ -347,8 +342,7 @@ pub fn transform(
                     inline_fs(
                       config.filename.as_str(),
                       source_map.clone(),
-                      // TODO this clone is unnecessary if we get the lifetimes right
-                      decls.clone(),
+                      unresolved_mark,
                       global_mark,
                       &config.project_root,
                       &mut fs_deps,
@@ -371,7 +365,7 @@ pub fn transform(
                     globals: HashMap::new(),
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
-                    decls: &mut decls,
+                    unresolved_mark,
                     scope_hoist: config.scope_hoist,
                     has_node_replacements: &mut result.has_node_replacements,
                   },
@@ -390,7 +384,7 @@ pub fn transform(
                       globals: IndexMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
-                      decls: &mut decls,
+                      unresolved_mark,
                       scope_hoist: config.scope_hoist
                     },
                     config.insert_node_globals
@@ -415,18 +409,16 @@ pub fn transform(
 
               // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
               // set global_mark for all nodes, even generated ones.
-              // - This changes the syntax context ids and therefore invalidates decls
               // - This will also remove any other other marks (like ignore_mark)
               // This only needs to be done if preset_env ran because all other transforms
               // insert declarations with global_mark (even though they are generated).
-              let (decls, module) = if config.scope_hoist && should_run_preset_env {
-                let module = module.fold_with(&mut chain!(
+              let module = if config.scope_hoist && should_run_preset_env {
+                module.fold_with(&mut chain!(
                   hygiene(),
                   resolver(unresolved_mark, global_mark, false)
-                ));
-                (collect_decls(&module), module)
+                ))
               } else {
-                (decls, module)
+                module
               };
 
               let ignore_mark = Mark::fresh(Mark::root());
@@ -435,7 +427,6 @@ pub fn transform(
                 &mut dependency_collector(
                   &source_map,
                   &mut result.dependencies,
-                  &decls,
                   ignore_mark,
                   unresolved_mark,
                   &config,
@@ -455,7 +446,7 @@ pub fn transform(
 
               let mut collect = Collect::new(
                 source_map.clone(),
-                decls,
+                unresolved_mark,
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
