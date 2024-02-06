@@ -508,8 +508,8 @@ export default (new Transformer({
                             },
                             source: asset.filePath,
                             original: {
-                              line: loc.start_line,
-                              column: loc.start_col - 1,
+                              line: loc.line,
+                              column: loc.col,
                             },
                           });
                           line++;
