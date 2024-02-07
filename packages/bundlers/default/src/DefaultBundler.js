@@ -459,10 +459,12 @@ function createIdealGraph(
 
     // Process in reverse order so earlier configs take precedence
     for (let c of config.manualSharedBundles.reverse()) {
-      invariant(
-        c.root == null || configToParentAsset.has(c),
-        'Invalid manual shared bundle. Could not find parent asset.',
-      );
+      if (c.root != null && !configToParentAsset.has(c)) {
+        logger.warn(
+          `Invalid manual shared bundle. Could not find parent asset. Should only occur for single entry point builds.`,
+        );
+        continue;
+      }
 
       let parentAsset = configToParentAsset.get(c);
       let assetRegexes = c.assets.map(glob => globToRegex(glob));
