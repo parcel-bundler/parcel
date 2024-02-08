@@ -1117,8 +1117,9 @@ export default class RequestTracker {
 
   async writeToCache(signal?: AbortSignal) {
     let cacheKey = getCacheKey(this.options);
-    let requestGraphKey = `requestGraph-${hashString(cacheKey)}`;
-    let snapshotKey = `snapshot-${hashString(cacheKey)}`;
+    let hashedCacheKey = hashString(cacheKey);
+    let requestGraphKey = `requestGraph-${hashedCacheKey}`;
+    let snapshotKey = `snapshot-${hashedCacheKey}`;
 
     if (this.options.shouldDisableCache) {
       return;
@@ -1180,7 +1181,10 @@ export default class RequestTracker {
       ) {
         queue
           .add(() => serialiseAndSet(resultCacheKey, node.result))
-          .catch(() => {});
+          .catch(err => {
+            // If we have aborted, ignore the error and continue
+            if (!signal?.aborted) throw err;
+          });
         // eslint-disable-next-line no-unused-vars
         let {result: _, ...newNode} = node;
         cacheableNodes[i] = newNode;
@@ -1189,22 +1193,23 @@ export default class RequestTracker {
       }
     }
 
-    for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
-      if (
-        this.cachedRequestsLastChunk !== null &&
-        i < this.cachedRequestsLastChunk
-      ) {
-        continue;
-      }
-
+    for (
+      let i = this.cachedRequestsLastChunk ?? 0;
+      i * NODES_PER_BLOB < cacheableNodes.length;
+      i += 1
+    ) {
+      // We assume the request graph nodes are immutable and won't change
       queue
         .add(() =>
           serialiseAndSet(
-            `requestGraph-nodes-${i}-${hashString(cacheKey)}`,
+            getRequestGraphNodeKey(i, hashedCacheKey),
             cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
           ),
         )
-        .catch(() => {});
+        .catch(err => {
+          // If we have aborted, ignore the error and continue
+          if (!signal?.aborted) throw err;
+        });
 
       this.cachedRequestsLastChunk = i;
     }
@@ -1216,19 +1221,20 @@ export default class RequestTracker {
           nodes: undefined,
         }),
       )
-      .catch(() => {});
+      .catch(err => {
+        // If we have aborted, ignore the error and continue
+        if (!signal?.aborted) throw err;
+      });
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
-    queue
-      .add(() =>
-        this.options.inputFS.writeSnapshot(
-          this.options.projectRoot,
-          snapshotPath,
-          opts,
-        ),
-      )
-      .catch(() => {});
+    queue.add(() =>
+      this.options.inputFS.writeSnapshot(
+        this.options.projectRoot,
+        snapshotPath,
+        opts,
+      ),
+    );
 
     await queue.run();
 
@@ -1259,6 +1265,10 @@ function getCacheKey(options) {
   }:${options.shouldBuildLazily ? 'lazy' : 'eager'}`;
 }
 
+function getRequestGraphNodeKey(index: number, hashedCacheKey: string) {
+  return `requestGraph-nodes-${index}-${hashedCacheKey}`;
+}
+
 async function loadRequestGraph(options): Async<RequestGraph> {
   if (options.shouldDisableCache) {
     return new RequestGraph();
@@ -1276,11 +1286,11 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     let nodePromises = [];
     while (
       await options.cache.hasLargeBlob(
-        `requestGraph-nodes-${i}-${hashedCacheKey}`,
+        getRequestGraphNodeKey(i, hashedCacheKey),
       )
     ) {
       nodePromises.push(
-        getAndDeserialize(`requestGraph-nodes-${i}-${hashedCacheKey}`),
+        getAndDeserialize(getRequestGraphNodeKey(i, hashedCacheKey)),
       );
       i += 1;
     }
