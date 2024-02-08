@@ -1179,7 +1179,11 @@ export default class RequestTracker {
         resultCacheKey != null &&
         node?.result != null
       ) {
-        queue.add(() => serialiseAndSet(resultCacheKey, node.result));
+        queue
+          .add(() => serialiseAndSet(resultCacheKey, node.result))
+          .catch(() => {
+            // Handle promise rejection
+          });
 
         // eslint-disable-next-line no-unused-vars
         let {result: _, ...newNode} = node;
@@ -1192,34 +1196,49 @@ export default class RequestTracker {
     for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
       if (!this.cachedRequests.has(i)) {
         // We assume the request graph nodes are immutable and won't change
-        queue.add(() =>
-          serialiseAndSet(
-            getRequestGraphNodeKey(i, hashedCacheKey),
-            cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
-          ).then(() => {
-            // Succeeded in writing to disk, save that we have completed this chunk
-            this.cachedRequests.add(i);
-          }),
-        );
+        queue
+          .add(() =>
+            serialiseAndSet(
+              getRequestGraphNodeKey(i, hashedCacheKey),
+              cacheableNodes.slice(
+                i * NODES_PER_BLOB,
+                (i + 1) * NODES_PER_BLOB,
+              ),
+            ).then(() => {
+              // Succeeded in writing to disk, save that we have completed this chunk
+              this.cachedRequests.add(i);
+            }),
+          )
+          .catch(() => {
+            // Handle promise rejection
+          });
       }
     }
 
-    queue.add(() =>
-      serialiseAndSet(requestGraphKey, {
-        ...serialisedGraph,
-        nodes: undefined,
-      }),
-    );
+    queue
+      .add(() =>
+        serialiseAndSet(requestGraphKey, {
+          ...serialisedGraph,
+          nodes: undefined,
+        }),
+      )
+      .catch(() => {
+        // Handle promise rejection
+      });
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
-    queue.add(() =>
-      this.options.inputFS.writeSnapshot(
-        this.options.projectRoot,
-        snapshotPath,
-        opts,
-      ),
-    );
+    queue
+      .add(() =>
+        this.options.inputFS.writeSnapshot(
+          this.options.projectRoot,
+          snapshotPath,
+          opts,
+        ),
+      )
+      .catch(() => {
+        // Handle promise rejection
+      });
 
     try {
       await queue.run();
