@@ -856,7 +856,7 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
-  cachedRequestsLastChunk: number | null;
+  cachedRequests: Set<number>;
 
   constructor({
     graph,
@@ -870,7 +870,7 @@ export default class RequestTracker {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
-    this.cachedRequestsLastChunk = null;
+    this.cachedRequests = new Set();
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1179,12 +1179,8 @@ export default class RequestTracker {
         resultCacheKey != null &&
         node?.result != null
       ) {
-        queue
-          .add(() => serialiseAndSet(resultCacheKey, node.result))
-          .catch(err => {
-            // If we have aborted, ignore the error and continue
-            if (!signal?.aborted) throw err;
-          });
+        queue.add(() => serialiseAndSet(resultCacheKey, node.result));
+
         // eslint-disable-next-line no-unused-vars
         let {result: _, ...newNode} = node;
         cacheableNodes[i] = newNode;
@@ -1193,38 +1189,27 @@ export default class RequestTracker {
       }
     }
 
-    for (
-      let i = this.cachedRequestsLastChunk ?? 0;
-      i * NODES_PER_BLOB < cacheableNodes.length;
-      i += 1
-    ) {
-      // We assume the request graph nodes are immutable and won't change
-      queue
-        .add(() =>
+    for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
+      if (!this.cachedRequests.has(i)) {
+        // We assume the request graph nodes are immutable and won't change
+        queue.add(() =>
           serialiseAndSet(
             getRequestGraphNodeKey(i, hashedCacheKey),
             cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
-          ),
-        )
-        .catch(err => {
-          // If we have aborted, ignore the error and continue
-          if (!signal?.aborted) throw err;
-        });
-
-      this.cachedRequestsLastChunk = i;
+          ).then(() => {
+            // Succeeded in writing to disk, save that we have completed this chunk
+            this.cachedRequests.add(i);
+          }),
+        );
+      }
     }
 
-    queue
-      .add(() =>
-        serialiseAndSet(requestGraphKey, {
-          ...serialisedGraph,
-          nodes: undefined,
-        }),
-      )
-      .catch(err => {
-        // If we have aborted, ignore the error and continue
-        if (!signal?.aborted) throw err;
-      });
+    queue.add(() =>
+      serialiseAndSet(requestGraphKey, {
+        ...serialisedGraph,
+        nodes: undefined,
+      }),
+    );
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
@@ -1236,7 +1221,12 @@ export default class RequestTracker {
       ),
     );
 
-    await queue.run();
+    try {
+      await queue.run();
+    } catch (err) {
+      // If we have aborted, ignore the error and continue
+      if (!signal?.aborted) throw err;
+    }
 
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
