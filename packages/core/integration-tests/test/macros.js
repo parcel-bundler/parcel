@@ -642,7 +642,7 @@ describe('macros', function () {
     await fsFixture(overlayFS, dir)`
       index.js:
         import { hashString } from "@parcel/rust" with { type: "macro" };
-        import { test } from './macro' with { type: "macro" };
+        import { test, test2 } from './macro' with { type: "macro" };
         const hi = "hi";
         const ref = hi;
         const arr = [hi];
@@ -664,10 +664,16 @@ describe('macros', function () {
         output11 = hashString(f.y);
         output12 = hashString(f?.y);
         output13 = hashString(res);
+        output14 = test2(obj)();
 
       macro.js:
+        import { hashString } from "@parcel/rust";
         export function test() {
           return "hi";
+        }
+
+        export function test2(obj) {
+          return new Function('return "' + hashString(obj.a.b) + '"');
         }
     `;
 
@@ -677,7 +683,7 @@ describe('macros', function () {
     });
 
     let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    for (let i = 1; i <= 13; i++) {
+    for (let i = 1; i <= 14; i++) {
       assert(res.includes(`output${i}="2a2300bbd7ea6e9a"`));
     }
   });
