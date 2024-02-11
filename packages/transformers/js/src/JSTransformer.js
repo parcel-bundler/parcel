@@ -482,6 +482,7 @@ export default (new Transformer({
               if (
                 exportName === 'default' &&
                 !mod.__esModule &&
+                // $FlowFixMe
                 Object.prototype.toString.call(config) !== '[object Module]'
               ) {
                 mod = {default: mod};
