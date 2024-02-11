@@ -83,6 +83,28 @@ describe('macros', function () {
     assert(res.includes('output="2a2300bbd7ea6e9a"'));
   });
 
+  it('should support default interop with CommonJS modules', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import test from "./macro.js" with { type: "macro" };
+        output = test('hi');
+
+      macro.js:
+        import {hashString} from '@parcel/rust';
+        module.exports = function(s) {
+          return hashString(s);
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('output="2a2300bbd7ea6e9a"'));
+  });
+
   it('should support namespace imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
