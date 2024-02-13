@@ -477,6 +477,17 @@ export default (new Transformer({
             let mod;
             try {
               mod = await options.packageManager.require(src, asset.filePath);
+
+              // Default interop for CommonJS modules.
+              if (
+                exportName === 'default' &&
+                !mod.__esModule &&
+                // $FlowFixMe
+                Object.prototype.toString.call(config) !== '[object Module]'
+              ) {
+                mod = {default: mod};
+              }
+
               if (!Object.hasOwnProperty.call(mod, exportName)) {
                 throw new Error(`"${src}" does not export "${exportName}".`);
               }
