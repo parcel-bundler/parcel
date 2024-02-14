@@ -359,6 +359,9 @@ export default class Parcel {
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
         {force: assetRequests.length > 0},
       );
+      if (process.env.PARCEL_GENERATE_INVALIDATION_REPORT != null) {
+        this.#requestTracker.generateInvalidationReport();
+      }
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {

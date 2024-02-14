@@ -120,6 +120,11 @@ type Request<TInput, TResult> = {|
 |};
 
 type InvalidateReason = number;
+type InvalidationEntry = {|
+  invalidated: NodeId,
+  cause?: NodeId,
+|};
+
 type RequestNode = {|
   id: ContentKey,
   +type: typeof REQUEST,
@@ -233,6 +238,7 @@ export class RequestGraph extends ContentGraph<
   RequestGraphEdgeType,
 > {
   invalidNodeIds: Set<NodeId> = new Set();
+  invalidationReport: InvalidationEntry[] = [];
   incompleteNodeIds: Set<NodeId> = new Set();
   incompleteNodePromises: Map<NodeId, Promise<boolean>> = new Map();
   globNodeIds: Set<NodeId> = new Set();
@@ -332,18 +338,21 @@ export class RequestGraph extends ContentGraph<
     );
   }
 
-  invalidateNode(nodeId: NodeId, reason: InvalidateReason) {
+  invalidateNode(nodeId: NodeId, reason: InvalidateReason, cause?: NodeId) {
     let node = nullthrows(this.getNode(nodeId));
     invariant(node.type === REQUEST);
     node.invalidateReason |= reason;
     this.invalidNodeIds.add(nodeId);
+    if (process.env.PARCEL_GENERATE_INVALIDATION_REPORT != null) {
+      this.invalidationReport.push({invalidated: nodeId, cause: cause});
+    }
 
     let parentNodes = this.getNodeIdsConnectedTo(
       nodeId,
       requestGraphEdgeTypes.subrequest,
     );
     for (let parentNode of parentNodes) {
-      this.invalidateNode(parentNode, reason);
+      this.invalidateNode(parentNode, reason, nodeId);
     }
   }
 
@@ -373,7 +382,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_update,
         );
         for (let parentNode of parentNodes) {
-          this.invalidateNode(parentNode, ENV_CHANGE);
+          this.invalidateNode(parentNode, ENV_CHANGE, nodeId);
         }
       }
     }
@@ -391,7 +400,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_update,
         );
         for (let parentNode of parentNodes) {
-          this.invalidateNode(parentNode, OPTION_CHANGE);
+          this.invalidateNode(parentNode, OPTION_CHANGE, nodeId);
         }
       }
     }
@@ -710,7 +719,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_create,
         );
         for (let connectedNode of connectedNodes) {
-          this.invalidateNode(connectedNode, FILE_CREATE);
+          this.invalidateNode(connectedNode, FILE_CREATE, matchNodeId);
         }
       }
     }
@@ -770,7 +779,7 @@ export class RequestGraph extends ContentGraph<
 
         for (let connectedNode of nodes) {
           didInvalidate = true;
-          this.invalidateNode(connectedNode, FILE_UPDATE);
+          this.invalidateNode(connectedNode, FILE_UPDATE, nodeId);
         }
 
         if (type === 'create') {
@@ -780,7 +789,7 @@ export class RequestGraph extends ContentGraph<
           );
           for (let connectedNode of nodes) {
             didInvalidate = true;
-            this.invalidateNode(connectedNode, FILE_CREATE);
+            this.invalidateNode(connectedNode, FILE_CREATE, nodeId);
           }
         }
       } else if (type === 'create') {
@@ -821,7 +830,7 @@ export class RequestGraph extends ContentGraph<
             );
             for (let connectedNode of connectedNodes) {
               didInvalidate = true;
-              this.invalidateNode(connectedNode, FILE_CREATE);
+              this.invalidateNode(connectedNode, FILE_CREATE, globeNodeId);
             }
           }
         }
@@ -832,7 +841,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_delete,
         )) {
           didInvalidate = true;
-          this.invalidateNode(connectedNode, FILE_DELETE);
+          this.invalidateNode(connectedNode, FILE_DELETE, nodeId);
         }
 
         // Delete the file node since it doesn't exist anymore.
@@ -1106,6 +1115,74 @@ export default class RequestTracker {
     };
 
     return {api, subRequestContentKeys};
+  }
+
+  generateInvalidationReport(): void {
+    let nodes = {};
+    let invalidationRelations = {};
+    for (let {invalidated, cause} of this.graph.invalidationReport) {
+      let invalidatedNode = this.graph.getNode(invalidated);
+      let causeNode =
+        cause !== undefined ? this.graph.getNode(cause) : undefined;
+      if (
+        invalidatedNode === null ||
+        causeNode === null ||
+        invalidatedNode === undefined ||
+        causeNode === undefined
+      ) {
+        continue;
+      }
+
+      if (invalidatedNode.id !== 'Main') {
+        if (!invalidationRelations[invalidated]) {
+          invalidationRelations[invalidated] = [];
+        }
+
+        if (!invalidationRelations[invalidated].includes(cause)) {
+          invariant(cause !== undefined);
+          invalidationRelations[invalidated].push(cause);
+        }
+      }
+
+      invariant(invalidatedNode.type === 1);
+      nodes[invalidated] = {
+        id: invalidatedNode.id,
+        type: invalidatedNode.type,
+        requestType: invalidatedNode.requestType,
+        invalidateReason: invalidatedNode.invalidateReason,
+      };
+
+      invariant(cause !== undefined);
+      if (
+        causeNode.requestType !== undefined &&
+        causeNode.invalidateReason !== undefined
+      ) {
+        nodes[cause] = {
+          id: causeNode.id,
+          type: causeNode.type,
+          requestType: causeNode.requestType,
+          invalidateReason: causeNode.invalidateReason,
+        };
+      } else {
+        nodes[cause] = {
+          id: causeNode.id,
+          type: causeNode.type,
+        };
+      }
+    }
+
+    const fs = require('fs');
+    fs.writeFile(
+      'cache-invalidation-report.json',
+      JSON.stringify(
+        {invalidationRelations: invalidationRelations, nodes: nodes},
+        undefined,
+        4,
+      ),
+      function (err) {
+        if (err) throw err;
+      },
+    );
   }
 
   async writeToCache() {
