@@ -200,7 +200,7 @@ describe('RequestTracker', () => {
 
     await tracker.writeToCache();
 
-    assert(tracker.cachedRequests.size > 0);
+    assert(tracker.graph.cachedRequestChunks.size > 0);
   });
 
   it('should not write to cache when the abort controller aborts', async () => {
@@ -211,7 +211,7 @@ describe('RequestTracker', () => {
 
     await tracker.writeToCache(abortController.signal);
 
-    assert(tracker.cachedRequests.size === 0);
+    assert(tracker.graph.cachedRequestChunks.size === 0);
   });
 
   it('should not requeue requests if the previous request is still running', async () => {
