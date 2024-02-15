@@ -353,7 +353,7 @@ export class RequestGraph extends ContentGraph<
     }
 
     // If the node is invalidated, the cached request chunk on disk needs to be re-written
-    this.cachedRequestChunks.delete(Math.floor(nodeId / NODES_PER_BLOB));
+    this.removeCachedRequestChunkForNode(nodeId);
   }
 
   invalidateUnpredictableNodes() {
@@ -861,6 +861,10 @@ export class RequestGraph extends ContentGraph<
   setCachedRequestChunk(index: number): void {
     this.cachedRequestChunks.add(index);
   }
+
+  removeCachedRequestChunkForNode(nodeId: number): void {
+    this.cachedRequestChunks.delete(Math.floor(nodeId / NODES_PER_BLOB));
+  }
 }
 
 // This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
@@ -967,6 +971,7 @@ export default class RequestTracker {
     if (node && node.type === REQUEST) {
       node.invalidateReason = VALID;
     }
+    this.graph.removeCachedRequestChunkForNode(nodeId);
   }
 
   rejectRequest(nodeId: NodeId) {
