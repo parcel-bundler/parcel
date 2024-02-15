@@ -73,6 +73,7 @@ type RequestGraphOpts = {|
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
+  cachedRequestChunks: Set<number>,
 |};
 
 type SerializedRequestGraph = {|
@@ -84,6 +85,7 @@ type SerializedRequestGraph = {|
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
+  cachedRequestChunks: Set<number>,
 |};
 
 const FILE: 0 = 0;
@@ -243,6 +245,7 @@ export class RequestGraph extends ContentGraph<
   // filesystem changes alone. They should rerun on each startup of Parcel.
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
+  cachedRequestChunks: Set<number> = new Set();
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -255,6 +258,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.optionNodeIds = opts.optionNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
+    deserialized.cachedRequestChunks = opts.cachedRequestChunks;
     return deserialized;
   }
 
@@ -269,6 +273,7 @@ export class RequestGraph extends ContentGraph<
       optionNodeIds: this.optionNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
       invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
+      cachedRequestChunks: this.cachedRequestChunks,
     };
   }
 
@@ -346,6 +351,9 @@ export class RequestGraph extends ContentGraph<
     for (let parentNode of parentNodes) {
       this.invalidateNode(parentNode, reason);
     }
+
+    // If the node is invalidated, the cached request chunk on disk needs to be re-written
+    this.cachedRequestChunks.delete(Math.floor(nodeId / NODES_PER_BLOB));
   }
 
   invalidateUnpredictableNodes() {
@@ -845,10 +853,18 @@ export class RequestGraph extends ContentGraph<
 
     return didInvalidate && this.invalidNodeIds.size > 0;
   }
+
+  hasCachedRequestChunk(index: number): boolean {
+    return this.cachedRequestChunks.has(index);
+  }
+
+  setCachedRequestChunk(index: number): void {
+    this.cachedRequestChunks.add(index);
+  }
 }
 
 // This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
-// The goal is to free up the event loop periodically to allow interuption by the user.
+// The goal is to free up the event loop periodically to allow interruption by the user.
 const NODES_PER_BLOB = 2 ** 14;
 
 export default class RequestTracker {
@@ -856,7 +872,6 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
-  cachedRequests: Set<number>;
 
   constructor({
     graph,
@@ -870,7 +885,6 @@ export default class RequestTracker {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
-    this.cachedRequests = new Set();
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1194,7 +1208,7 @@ export default class RequestTracker {
     }
 
     for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
-      if (!this.cachedRequests.has(i)) {
+      if (!this.graph.hasCachedRequestChunk(i)) {
         // We assume the request graph nodes are immutable and won't change
         queue
           .add(() =>
@@ -1206,7 +1220,7 @@ export default class RequestTracker {
               ),
             ).then(() => {
               // Succeeded in writing to disk, save that we have completed this chunk
-              this.cachedRequests.add(i);
+              this.graph.setCachedRequestChunk(i);
             }),
           )
           .catch(() => {
