@@ -255,6 +255,10 @@ describe('monorepos', function () {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
+      {
+        name: 'pkg-b.module.css',
+        assets: ['index.module.css'],
+      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -300,7 +304,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.cjs.css"'));
+    assert(contents.includes('import "./pkg-b.module.css"'));
   });
 
   it('should build using root targets with a glob pointing at files inside packages and cwd at project root', async function () {
@@ -531,6 +535,10 @@ describe('monorepos', function () {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
+      {
+        name: 'pkg-b.module.css',
+        assets: ['index.module.css'],
+      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -576,7 +584,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.cjs.css"'));
+    assert(contents.includes('import "./pkg-b.module.css"'));
   });
 
   it('should watch glob entries and build new packages that are added', async function () {
@@ -632,6 +640,10 @@ describe('monorepos', function () {
       },
       {
         name: 'pkg-b.cjs.css',
+        assets: ['index.module.css'],
+      },
+      {
+        name: 'pkg-b.module.css',
         assets: ['index.module.css'],
       },
     ]);
@@ -789,6 +801,10 @@ describe('monorepos', function () {
         assets: ['index.module.css'],
       },
       {
+        name: 'pkg-a.module.css',
+        assets: ['index.module.css'],
+      },
+      {
         name: 'pkg-b.cjs.js',
         assets: ['index.js', 'index.module.css'],
       },
@@ -798,6 +814,10 @@ describe('monorepos', function () {
       },
       {
         name: 'pkg-b.cjs.css',
+        assets: ['index.module.css'],
+      },
+      {
+        name: 'pkg-b.module.css',
         assets: ['index.module.css'],
       },
     ]);
@@ -820,7 +840,7 @@ describe('monorepos', function () {
       'utf8',
     );
     assert(contents.includes('export {'));
-    assert(contents.includes('import "./pkg-a.cjs.css"'));
+    assert(contents.includes('import "./pkg-a.module.css"'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -856,7 +876,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.cjs.css"'));
+    assert(contents.includes('import "./pkg-b.module.css"'));
   });
 
   it('should search for .parcelrc at cwd in monorepos', async () => {

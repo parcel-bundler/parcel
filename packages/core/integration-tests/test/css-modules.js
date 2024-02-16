@@ -619,29 +619,19 @@ describe('css modules', () => {
       },
       {
         type: 'js',
-        assets: [
-          'page1.js',
-          'index.module.css',
-          'a.module.css',
-          'b.module.css',
-        ],
+        assets: ['page1.js'],
       },
       {
         type: 'js',
-        assets: [
-          'page2.js',
-          'index.module.css',
-          'a.module.css',
-          'b.module.css',
-        ],
+        assets: ['page2.js'],
       },
       {
         type: 'css',
-        assets: ['a.module.css', 'b.module.css'],
+        assets: ['a.module.css', 'b.module.css', 'index.module.css'],
       },
       {
-        type: 'css',
-        assets: ['index.module.css'],
+        type: 'js',
+        assets: ['a.module.css', 'b.module.css', 'index.module.css'],
       },
     ]);
   });
@@ -745,7 +735,7 @@ describe('css modules', () => {
     assert(res[0][1].includes('container') && res[0][1].includes('expand'));
   });
 
-  it('should allow css modules to be shared between targets', async function () {
+  it('should duplicate css modules between targets', async function () {
     let b = await bundle([
       path.join(__dirname, '/integration/css-module-self-references/a'),
       path.join(__dirname, '/integration/css-module-self-references/b'),
@@ -758,6 +748,14 @@ describe('css modules', () => {
       },
       {
         name: 'main.css',
+        assets: ['bar.module.css'],
+      },
+      {
+        name: 'module.css',
+        assets: ['bar.module.css'],
+      },
+      {
+        name: 'module.css',
         assets: ['bar.module.css'],
       },
       {
