@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import assert from 'assert';
+import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import nullthrows from 'nullthrows';
 import RequestTracker, {type RunAPI} from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
@@ -182,6 +183,35 @@ describe('RequestTracker', () => {
         .map(req => req.id)
         .includes('abc'),
     );
+  });
+
+  it('should write cache to disk and store index', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    await tracker.runRequest({
+      id: 'abc',
+      type: 7,
+      run: async ({api}: {api: RunAPI<string | void>, ...}) => {
+        let result = await Promise.resolve();
+        api.storeResult(result);
+      },
+      input: null,
+    });
+
+    await tracker.writeToCache();
+
+    assert(tracker.graph.cachedRequestChunks.size > 0);
+  });
+
+  it('should not write to cache when the abort controller aborts', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    const abortController = new AbortController();
+    abortController.abort();
+
+    await tracker.writeToCache(abortController.signal);
+
+    assert(tracker.graph.cachedRequestChunks.size === 0);
   });
 
   it('should not requeue requests if the previous request is still running', async () => {
