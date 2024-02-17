@@ -15,6 +15,7 @@ import {
   relativeBundlePath,
   validateSchema,
   type SchemaEntity,
+  urlJoin,
 } from '@parcel/utils';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import path from 'path';
@@ -614,6 +615,8 @@ function getURLRuntime(
         from.env.outputFormat === 'esmodule',
       )});`;
     }
+  } else if (from.env.context === 'node' && to.env.context === 'browser') {
+    code = `module.exports = "${urlJoin(to.target.publicUrl, to.name)}";`;
   } else {
     code = `module.exports = ${getAbsoluteUrlExpr(relativePathExpr, from)};`;
   }

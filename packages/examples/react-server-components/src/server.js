@@ -1,6 +1,6 @@
 import express from 'express';
 import {Readable} from 'node:stream';
-import {addDependency} from './macro' with {type: 'macro'};
+import { createBootstrapScript } from '@parcel/rsc/macro' with {type: 'macro'};
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {renderRSCPayload, renderHTML} from '@parcel/rsc';
 
@@ -17,17 +17,9 @@ app.options('/', function (req, res) {
 
 app.use(express.static('dist'));
 
-let bootstrap = addDependency({
-  specifier: 'bootstrap.js',
-  specifierType: 'url',
-  priority: 'parallel',
-  // bundleBehavior: 'isolated',
-  env: {
-    context: 'browser',
-    outputFormat: 'esmodule',
-    includeNodeModules: true
-  }
-})();
+// let bootstrap = createBootstrapScript('bootstrap.js');
+
+// console.log(bootstrap)
 
 app.get('/ssr', async (req, res) => {
   const {default: App} = await import('./App');
@@ -35,7 +27,7 @@ app.get('/ssr', async (req, res) => {
   let stream = renderRSCPayload(<App />);
   if (req.accepts('text/html')) {
     res.setHeader('Content-Type', 'text/html');
-    Readable.fromWeb(await renderHTML(stream, bootstrap)).pipe(res);  
+    Readable.fromWeb(await renderHTML(stream, [])).pipe(res);  
   } else {
     res.set('Content-Type', 'text/x-component');
     Readable.fromWeb(stream).pipe(res);

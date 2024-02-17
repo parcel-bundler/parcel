@@ -4,8 +4,7 @@ use crate::{JsValue, Location, MacroCallback, MacroError};
 use crossbeam_channel::{Receiver, Sender};
 use indexmap::IndexMap;
 use napi::{
-  threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
-  Env, JsBoolean, JsFunction, JsNumber, JsObject, JsString, JsUnknown, ValueType,
+  bindgen_prelude::FromNapiRef, threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode}, Env, JsBoolean, JsFunction, JsNumber, JsObject, JsString, JsUnknown, NapiRaw, ValueType
 };
 use napi_derive::napi;
 use swc_core::common::DUMMY_SP;
@@ -21,6 +20,11 @@ struct CallMacroMessage {
 struct JsMacroError {
   pub kind: u32,
   pub message: String,
+}
+
+#[napi(constructor)]
+struct JsExpression {
+  pub expr: String
 }
 
 // Allocate a single channel per thread to communicate with the JS thread.
@@ -133,6 +137,9 @@ fn napi_to_js_value(value: napi::JsUnknown, env: Env) -> napi::Result<JsValue> {
           arr.push(elem);
         }
         Ok(JsValue::Array(arr))
+      } else if JsExpression::instance_of(env, &value)? {
+        let expr = unsafe { JsExpression::from_napi_ref(env.raw(), value.raw())? };
+        Ok(JsValue::Function(expr.expr.clone()))
       } else {
         let regexp_class: JsFunction = env.get_global()?.get_named_property("RegExp")?;
         if obj.instanceof(regexp_class)? {

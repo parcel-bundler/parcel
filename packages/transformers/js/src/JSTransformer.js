@@ -5,12 +5,13 @@ import type {
   SourceLocation,
   FilePath,
   FileCreateInvalidation,
+  DependencyOptions,
 } from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {transform, transformAsync} from '@parcel/rust';
+import {transform, transformAsync, JsExpression} from '@parcel/rust';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -19,7 +20,7 @@ import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
+import {validateSchema, remapSourceLocation, globMatch, hashObject} from '@parcel/utils';
 import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
@@ -165,8 +166,11 @@ type MacroAsset = {|
   content: string,
 |};
 
+opaque type DependencyPlaceholder = JsExpression;
+
 type MacroContext = {|
-  addAsset(asset: MacroAsset): void,
+  addAsset(MacroAsset): void,
+  addDependency(DependencyOptions): DependencyPlaceholder,
   invalidateOnFileChange(FilePath): void,
   invalidateOnFileCreate(FileCreateInvalidation): void,
   invalidateOnEnvChange(string): void,
@@ -537,7 +541,15 @@ export default (new Transformer({
                     });
                   },
                   addDependency(opts) {
-                    return asset.addDependency(opts);
+                    let placeholder = typeof opts.meta?.placeholder === 'string' ? opts.meta.placeholder : hashObject(opts);
+                    asset.addDependency({
+                      ...opts,
+                      meta: {
+                        ...opts.meta,
+                        placeholder
+                      }
+                    });
+                    return new JsExpression(`__parcel__require2__("${placeholder}")`);
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);

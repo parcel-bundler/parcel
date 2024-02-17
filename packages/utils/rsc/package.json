@@ -18,7 +18,9 @@
       "node": "./server.js",
       "browser": "./client.js"
     },
-    "./manifest": "./manifest.js"
+    "./manifest": "./manifest.js",
+    "./resources": "./resources.js",
+    "./macro": "./macro.js"
   },
   "sideEffects": false,
   "engines": {

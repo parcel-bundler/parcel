@@ -38,6 +38,7 @@ type RuntimeConnection = {|
   assetGroup: AssetGroup,
   dependency: ?Dependency,
   isEntry: ?boolean,
+  shouldReplaceResolution: ?boolean
 |};
 
 function nameRuntimeBundle(
@@ -129,6 +130,7 @@ export default async function applyRuntimes<TResult>({
             isEntry,
             env,
             priority,
+            shouldReplaceResolution,
           } of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),
@@ -177,6 +179,7 @@ export default async function applyRuntimes<TResult>({
               assetGroup,
               dependency,
               isEntry,
+              shouldReplaceResolution,
             });
           }
         }
@@ -231,7 +234,7 @@ export default async function applyRuntimes<TResult>({
     bundleGraph._assetPublicIds.add(publicId);
   }
 
-  for (let {bundle, assetGroup, dependency, isEntry} of connections) {
+  for (let {bundle, assetGroup, dependency, isEntry, shouldReplaceResolution} of connections) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
     let assetGroupAssetNodeIds = runtimesAssetGraph.getNodeIdsConnectedFrom(
       runtimesAssetGraph.getNodeIdByContentKey(assetGroupNode.id),
@@ -318,6 +321,12 @@ export default async function applyRuntimes<TResult>({
         dependency.id,
       );
       bundleGraph._graph.addEdge(dependencyNodeId, bundleGraphRuntimeNodeId);
+
+      if (shouldReplaceResolution && resolution) {
+        let resolutionNodeId = bundleGraph._graph.getNodeIdByContentKey(resolution.id);
+        bundleGraph._graph.removeEdge(dependencyNodeId, resolutionNodeId);
+        // TODO: remove asset from bundle?
+      }
     }
   }
 
