@@ -1682,6 +1682,7 @@ export type RuntimeAsset = {|
   +isEntry?: boolean,
   +env?: EnvironmentOptions,
   +priority?: RuntimeAssetPriority,
+  +shouldReplaceResolution?: boolean
 |};
 
 /**

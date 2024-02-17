@@ -1543,7 +1543,7 @@ function createIdealGraph(
       if (typeChangeBundleId == null) {
         let typeChangeBundle = createBundle({
           uniqueKey: key,
-          needsStableName: bundle.needsStableName,
+          needsStableName: asset.env.context !== bundle.env.context ? false : bundle.needsStableName,
           bundleBehavior: bundle.bundleBehavior,
           type: asset.type,
           target: bundle.target,
