@@ -113,8 +113,10 @@ export class ScopeHoistingPackager {
     let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
     this.outputFormat = new OutputFormat(this);
 
+    let parentBundles = this.bundleGraph.getParentBundles(this.bundle);        
     this.isAsyncBundle =
-      this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
+      parentBundles.length > 0 &&
+      parentBundles.every(b => b.type === 'js' && b.env.context === this.bundle.env.context) &&
       !this.bundle.env.isIsolated() &&
       this.bundle.bundleBehavior !== 'isolated';
 
@@ -329,6 +331,7 @@ export class ScopeHoistingPackager {
       if (
         asset.meta.shouldWrap ||
         this.isAsyncBundle ||
+        !this.bundle.getMainEntry() ||
         this.bundle.env.sourceType === 'script' ||
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
@@ -1254,7 +1257,7 @@ ${code}
       let parentBundles = this.bundleGraph.getParentBundles(this.bundle);
       let mightBeFirstJS =
         parentBundles.length === 0 ||
-        parentBundles.some(b => b.type !== 'js') ||
+        parentBundles.some(b => b.type !== 'js' || b.env.context !== this.bundle.env.context) ||
         this.bundleGraph
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
