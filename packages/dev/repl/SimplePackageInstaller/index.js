@@ -116,7 +116,7 @@ export default class SimplePackageInstaller implements PackageInstaller {
     if (!res.arrayBuffer) {
       // node
       var bufs = [];
-      res.body.on('data', function(d) {
+      res.body.on('data', function (d) {
         bufs.push(d);
       });
 
