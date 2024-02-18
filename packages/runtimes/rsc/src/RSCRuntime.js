@@ -11,16 +11,9 @@ export default (new Runtime({
       return [];
     }
 
-    let manifestAsset;
     let runtimes = [];
     bundle.traverse((node) => {
-      if (
-        node.type === 'dependency' &&
-        node.value.specifier === '@parcel/rsc/manifest' &&
-        !bundleGraph.isDependencySkipped(node.value)
-      ) {
-        manifestAsset = nullthrows(bundleGraph.getResolvedAsset(node.value, bundle));
-      } else if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/rsc/resources?') && !bundleGraph.isDependencySkipped(node.value)) {
+      if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/rsc/resources?') && !bundleGraph.isDependencySkipped(node.value)) {
         let query = new URLSearchParams(node.value.specifier.split('?')[1]);
         let containingAsset = nullthrows(bundleGraph.getAssetWithDependency(node.value));
         let dep = nullthrows(bundleGraph.getDependencies(containingAsset).find(dep => dep.specifier === query.get('specifier')));
@@ -49,38 +42,34 @@ export default (new Runtime({
           env: {sourceType: 'module'},
           shouldReplaceResolution: true
         });
+      } else if (node.type === 'dependency' && node.value.env.isNode()) {
+        let resolvedAsset = bundleGraph.getResolvedAsset(node.value, bundle);
+        if (resolvedAsset) console.log(node.value, resolvedAsset.env, resolvedAsset?.meta)
+        if (resolvedAsset?.meta?.isClientComponent === true) {
+          let usedSymbols = nullthrows(bundleGraph.getUsedSymbols(resolvedAsset));
+          if (usedSymbols.has('*')) {
+            // TODO
+          }
+
+          let code = '';
+          for (let symbol of usedSymbols) {
+            let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
+            code += `exports[${JSON.stringify(symbol)}] = {\n`;
+            code += `  $$typeof: Symbol.for('react.client.reference'),\n`;
+            code += `  id: ${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))},\n`;
+            code += `  name: ${JSON.stringify(resolved.exportSymbol)}\n`;
+            code += `};\n`;
+          }
+
+          runtimes.push({
+            filePath: resolvedAsset.filePath,
+            code,
+            dependency: node.value,
+            env: {sourceType: 'module'},
+          });
+        }
       }
     });
-
-    if (manifestAsset) {
-      let manifest = {};
-      bundleGraph.traverse(node => {
-        if (node.type === 'asset') {
-          let asset = node.value;
-          if (asset.meta.isClientComponent === true) {
-            let id = bundleGraph.getAssetPublicId(asset);
-            manifest[asset.filePath] = {};
-            for (let symbol of asset.symbols.exportSymbols()) {
-              manifest[asset.filePath][symbol] = {
-                id,
-                name: symbol
-              };
-            }
-          }
-        }
-      });
-
-      let code = `import {_register} from '@parcel/rsc/manifest';
-  _register(${JSON.stringify(manifest, null, 2)});
-  `;
-
-      runtimes.push({
-        filePath: manifestAsset.filePath,
-        code,
-        isEntry: true,
-        env: {sourceType: 'module'},
-      });
-    }
 
     console.log(runtimes)
     return runtimes;
