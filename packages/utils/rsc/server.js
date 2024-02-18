@@ -1,6 +1,6 @@
 import {renderToReadableStream} from 'react-server-dom-parcel/server.edge';
 import {manifest} from '@parcel/rsc/manifest';
-import { addDependency } from './macro' with {type: 'macro'};
+import { getClientReact } from './macro' with {type: 'macro'};
 
 export function renderRSCPayload(content) {
   return renderToReadableStream(content, manifest);
@@ -12,35 +12,18 @@ export async function renderHTML(stream, bootstrap) {
   // client components reference. In addition, client React has different exports than
   // server React (via the react-server package exports condition), and we need to ensure
   // the full React is available when rendering client components.
-  const {createFromReadableStream, renderHTMLToReadableStream, ReactClient} = await addDependency({
-    specifier: './serverClient',
-    specifierType: 'esm',
-    priority: 'lazy',
-    bundleBehavior: 'isolated',
-    env: {
-      context: 'browser',
-      outputFormat: 'esmodule',
-      includeNodeModules: true
-    }
-  });
+  const {createFromReadableStream, renderHTMLToReadableStream, ReactClient} = await getClientReact();
 
   const [s1, s2] = stream.tee();
   let data;
   function Content() {
-    data ??= createFromReadableStream(s1, {
-      ssrManifest: {
-        moduleMap: null,
-        moduleLoading: {
-          prefix: ''
-        }
-      }
-    });
+    data ??= createFromReadableStream(s1);
     return ReactClient.use(data);
   }
 
   const response = await renderHTMLToReadableStream([
     <Content />,
-    ...bootstrap.map(url => <script type="module" src={url.split('/').pop()} />),
+    ...bootstrap.map(r => <script async type="module" src={r.url.split('/').pop()} />),
   ]);
 
   return response.pipeThrough(createRSCTransformScreen(s2));

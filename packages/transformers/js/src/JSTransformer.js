@@ -560,7 +560,7 @@ export default (new Transformer({
                         placeholder
                       }
                     });
-                    return new JsExpression(`__parcel__require2__("${placeholder}")`);
+                    return new JsExpression(`__parcel__dependency__("${placeholder}")`);
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);

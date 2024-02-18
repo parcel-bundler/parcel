@@ -205,7 +205,6 @@ export default (new Runtime({
       }
 
       if (dependency.specifierType === 'url' && referencedBundle && dependency.bundleBehavior !== 'isolated' && !dependency.env.isIsolated()) {
-        console.log("DOIFHodifhODIFH", getUrlListRuntime(dependency, bundle, bundleGraph.getReferencedBundles(referencedBundle), options))
         assets.push(getUrlListRuntime(dependency, bundle, [...bundleGraph.getReferencedBundles(referencedBundle), referencedBundle], options));
         continue;
       }
@@ -637,7 +636,7 @@ function getUrlListRuntime(
 ): RuntimeAsset {
   let expressions = to.map(to => {
     let relativePathExpr = getRelativePathExpr(from, to, options);
-    return getAbsoluteUrlExpr(relativePathExpr, from);
+    return `{url: ${getAbsoluteUrlExpr(relativePathExpr, from)}, type: ${JSON.stringify(to.type)}}`;
   });
 
   let code = `module.exports = [${expressions.join(', ')}];`

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
-use swc_core::ecma::ast::{self, Callee, Id, MemberProp, ObjectLit, Lit, Str, Ident, Expr, Number};
+use swc_core::ecma::ast::{self, Callee, MemberProp, ObjectLit, Lit, Str, Ident, Expr, Number};
 use swc_core::ecma::atoms::{js_word, JsWord};
 use swc_core::ecma::visit::{Fold, FoldWith};
 
@@ -83,6 +83,7 @@ pub fn dependency_collector<'a>(
     config,
     diagnostics,
     import_meta: None,
+    directives: Vec::new(),
   }
 }
 
@@ -97,6 +98,7 @@ struct DependencyCollector<'a> {
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
+  directives: Vec<JsWord>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -256,6 +258,16 @@ fn rewrite_require_specifier(node: ast::CallExpr, unresolved_mark: Mark) -> ast:
 
 impl<'a> Fold for DependencyCollector<'a> {
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
+    for item in &node.body {
+      if let ast::ModuleItem::Stmt(ast::Stmt::Expr(ast::ExprStmt { expr, .. })) = item {
+        if let ast::Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
+          self.directives.push(value.clone());
+          continue;
+        }
+      }
+      break;
+    }
+
     let mut res = node.fold_children_with(self);
     if let Some(decl) = self.import_meta.take() {
       res.body.insert(
@@ -449,11 +461,11 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ))));
                 return call;
               }
-              "__parcel__require2__" => {
+              "__parcel__dependency__" => {
                 let mut call = node.fold_children_with(self);
                 call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
                   "require".into(),
-                  DUMMY_SP//.apply_mark(self.ignore_mark),
+                  DUMMY_SP.apply_mark(self.unresolved_mark),
                 ))));
                 return call;
               }

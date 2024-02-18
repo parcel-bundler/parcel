@@ -3,6 +3,7 @@
 import {Runtime} from '@parcel/plugin';
 import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 
 export default (new Runtime({
   apply({bundle, bundleGraph}) {
@@ -19,29 +20,27 @@ export default (new Runtime({
         !bundleGraph.isDependencySkipped(node.value)
       ) {
         manifestAsset = nullthrows(bundleGraph.getResolvedAsset(node.value, bundle));
-      } else if (node.type === 'dependency' && node.value.specifier === '@parcel/rsc/resources' && !bundleGraph.isDependencySkipped(node.value)) {
-        let asset = nullthrows(bundleGraph.getResolvedAsset(node.value, bundle));
+      } else if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/rsc/resources?') && !bundleGraph.isDependencySkipped(node.value)) {
+        let query = new URLSearchParams(node.value.specifier.split('?')[1]);
+        let containingAsset = nullthrows(bundleGraph.getAssetWithDependency(node.value));
+        let dep = nullthrows(bundleGraph.getDependencies(containingAsset).find(dep => dep.specifier === query.get('specifier')));
+        let bundleGroup = bundleGraph.resolveAsyncDependency(dep, bundle);
+        invariant(bundleGroup?.type === 'bundle_group');
+        
+        let asset = nullthrows(bundleGraph.getResolvedAsset(dep, bundle));
         let bundles = [];
-        for (let bundle of bundleGraph.getBundlesWithDependency(node.value)) {
-          for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(bundle)) {
-            for (let bundle of bundleGraph.getBundlesInBundleGroup(bundleGroup, {includeInline: false})) {
-              if (bundle.env.context === 'browser' && !bundle.getMainEntry()) {
-                bundles.push(bundle);
-              }
-            }
+        for (let bundle of bundleGraph.getBundlesInBundleGroup(bundleGroup.value, {includeInline: false})) {
+          if (bundle.env.context === 'browser' && !bundle.getMainEntry()) {
+            bundles.push(bundle);
           }
         }
 
-        let code = 'export function Resources() {\n  return [\n';
+        let code = 'module.exports = [\n'
         for (let bundle of bundles) {
           let url = urlJoin(bundle.target.publicUrl, bundle.name);
-          if (bundle.type === 'css') {
-            code += `    <link rel="stylesheet" href={'${url}'} precedence="default" />,\n`
-          } else if (bundle.type === 'js') {
-            code += `    <script type="module" src={'${url}'} />,\n`
-          }
+          code += `  {url: ${JSON.stringify(url)}, type: ${JSON.stringify(bundle.type)}},\n`;
         }
-        code += '  ];\n}\n';
+        code += '];\n';
 
         runtimes.push({
           filePath: asset.filePath,
@@ -60,22 +59,10 @@ export default (new Runtime({
           let asset = node.value;
           if (asset.meta.isClientComponent === true) {
             let id = bundleGraph.getAssetPublicId(asset);
-            let bundles = [];
-            for (let bundle of bundleGraph.getBundlesWithAsset(asset)) {
-              for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(bundle)) {
-                for (let bundle of bundleGraph.getBundlesInBundleGroup(bundleGroup, {includeInline: false})) {
-                  if (bundle.env.context === 'browser' && !bundle.getMainEntry()) {
-                    bundles.push(bundle);
-                  }
-                }
-              }
-            }
-            // let bundles = bundleGraph.getReferencedBundles(b, {recursive: true});
-            let chunks = bundles.map(b => urlJoin(b.target.publicUrl, b.name));
+            manifest[asset.filePath] = {};
             for (let symbol of asset.symbols.exportSymbols()) {
-              manifest[asset.filePath + '#' + symbol] = {
+              manifest[asset.filePath][symbol] = {
                 id,
-                chunks,
                 name: symbol
               };
             }

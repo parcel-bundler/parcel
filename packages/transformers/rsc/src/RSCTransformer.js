@@ -15,9 +15,9 @@ export default (new Transformer({
             let {local, loc} = nullthrows(asset.symbols.get(symbol));
             server += `function ${local}() {}\n`;
             server += `Object.defineProperties(${local}, {
-              name: { value: ${JSON.stringify(symbol)} },
               $$typeof: {value:  Symbol.for('react.client.reference')},
-              $$id: {value: ${JSON.stringify(asset.filePath + '#' + symbol)}}
+              id: {value: ${JSON.stringify(asset.filePath)}},
+              name: {value: ${JSON.stringify(symbol)}},
             });\n`;
             symbols.set(symbol, {local, loc});
           }
