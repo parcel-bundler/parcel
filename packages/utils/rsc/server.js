@@ -11,11 +11,9 @@ export async function renderHTML(stream, bootstrap) {
   // client components reference. In addition, client React has different exports than
   // server React (via the react-server package exports condition), and we need to ensure
   // the full React is available when rendering client components.
-  // const {createFromReadableStream, renderHTMLToReadableStream, ReactClient} = await getClientReact();
   const {createFromReadableStream} = requireClient('react-server-dom-parcel/client.edge');
   const {renderToReadableStream: renderHTMLToReadableStream} = requireClient('react-dom/server.edge');
   const ReactClient = requireClient('react');
-  requireClient('react/jsx-runtime')
 
   const [s1, s2] = stream.tee();
   let data;

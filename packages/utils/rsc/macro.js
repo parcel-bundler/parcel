@@ -11,20 +11,6 @@ export function createBootstrapScript(url) {
   });
 }
 
-export function getClientReact() {
-  return this.addDependency({
-    specifier: './serverClient',
-    specifierType: 'esm',
-    priority: 'lazy',
-    bundleBehavior: 'isolated',
-    env: {
-      context: 'browser',
-      outputFormat: 'esmodule',
-      includeNodeModules: true
-    }
-  });
-}
-
 export function requireClient(specifier) {
   return this.addDependency({
     specifier,

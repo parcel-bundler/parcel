@@ -1253,7 +1253,8 @@ export default class BundleGraph {
 
         if (
           descendant.type !== bundle.type ||
-          descendant.env.context !== bundle.env.context
+          bundle.bundleBehavior != null ||
+          ISOLATED_ENVS.has(bundle.env.context)
         ) {
           actions.skipChildren();
           return;

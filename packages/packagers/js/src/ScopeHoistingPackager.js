@@ -142,10 +142,6 @@ export class ScopeHoistingPackager {
         }
 
         let entry = b.getMainEntry();
-        if (!this.bundle.env.isLibrary && entry) {
-          continue;
-        }
-
         let symbols = new Map();
         if (entry && !this.isAsyncBundle && entry.type === 'js') {
           this.externalAssets.add(entry);

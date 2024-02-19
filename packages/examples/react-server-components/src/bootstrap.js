@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import {Content} from '@parcel/rsc';
 
-React.startTransition(() => {
-  ReactDOM.hydrateRoot(document, <Content />);
-});
+if (typeof document !== 'undefined') {
+  React.startTransition(() => {
+    ReactDOM.hydrateRoot(document, <Content />);
+  });
+}

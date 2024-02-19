@@ -5,6 +5,9 @@ const encoder = new TextEncoder();
 let streamController;
 const readable = new ReadableStream({
   start(controller) {
+    if (typeof window === 'undefined') {
+      return;
+    }
     for (let chunk of window.__FLIGHT_DATA || []) {
       controller.enqueue(encoder.encode(chunk));
     }
@@ -15,7 +18,7 @@ const readable = new ReadableStream({
   },
 });
 
-if (document.readyState === 'loading') {
+if (typeof document !== 'undefined' && document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     streamController?.close();
   });
