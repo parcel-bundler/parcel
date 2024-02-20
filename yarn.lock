@@ -12611,7 +12611,7 @@ react-resizable-panels@^0.0.61:
   integrity sha512-Vk2a4LEHWkI6hGPnPmXxa/2twLYMAMMUTyA2PtR1ijvH2Nkg/AhGqrPsIi/eI85uVWtYCFNZKEsbR3uGuJl/yg==
 
 "react-server-dom-parcel@file:../react/build/oss-stable/react-server-dom-parcel":
-  version "18.3.0-canary-81dc4d8d1-20240217"
+  version "18.3.0-canary-ba0ee14e8-20240217"
 
 react-universal-interface@^0.6.2:
   version "0.6.2"
@@ -13220,6 +13220,11 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
   dependencies:
     hash-base "^3.0.0"
     inherits "^2.0.1"
+
+rsc-html-stream@0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/rsc-html-stream/-/rsc-html-stream-0.0.2.tgz#6e59c8788e64a96b7122ea87f4d5232c06f784f4"
+  integrity sha512-H6KSfry8qbwc/9eq1mv88WYiYXOHd8KpqVfmJ6s4xTEeaEgL2mqYoVvNLjZi0OYcBeshE7053CjEq4srHLVOrA==
 
 rtl-css-js@^1.14.0:
   version "1.16.1"

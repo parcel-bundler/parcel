@@ -134,7 +134,8 @@ export class ScopeHoistingPackager {
     // picked up by another bundler later at which point runtimes will be added.
     if (
       this.bundle.env.isLibrary ||
-      this.bundle.env.outputFormat === 'commonjs'
+      this.bundle.env.outputFormat === 'commonjs' ||
+      (this.bundle.env.outputFormat === 'esmodule' && !this.isAsyncBundle)
     ) {
       for (let b of this.bundleGraph.getReferencedBundles(this.bundle)) {
         if (!this.bundle.env.isLibrary && b.type !== 'js') {
@@ -143,7 +144,7 @@ export class ScopeHoistingPackager {
 
         let entry = b.getMainEntry();
         let symbols = new Map();
-        if (entry && !this.isAsyncBundle && entry.type === 'js') {
+        if (entry && !this.isAsyncBundle && entry.type === 'js' && entry.env.isLibrary) {
           this.externalAssets.add(entry);
 
           let usedSymbols = this.bundleGraph.getUsedSymbols(entry) || new Set();
