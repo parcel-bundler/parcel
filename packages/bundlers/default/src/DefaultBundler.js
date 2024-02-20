@@ -461,7 +461,7 @@ function createIdealGraph(
     for (let c of config.manualSharedBundles.reverse()) {
       if (c.root != null && !configToParentAsset.has(c)) {
         logger.warn(
-          `Invalid manual shared bundle. Could not find parent asset. Should only occur for single entry point builds.`,
+          `Manual shared bundle "${c.name}" skipped, no root asset found`,
         );
         continue;
       }
