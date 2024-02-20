@@ -83,7 +83,6 @@ pub fn dependency_collector<'a>(
     config,
     diagnostics,
     import_meta: None,
-    directives: Vec::new(),
   }
 }
 
@@ -98,7 +97,6 @@ struct DependencyCollector<'a> {
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
-  directives: Vec<JsWord>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -258,16 +256,6 @@ fn rewrite_require_specifier(node: ast::CallExpr, unresolved_mark: Mark) -> ast:
 
 impl<'a> Fold for DependencyCollector<'a> {
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
-    for item in &node.body {
-      if let ast::ModuleItem::Stmt(ast::Stmt::Expr(ast::ExprStmt { expr, .. })) = item {
-        if let ast::Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-          self.directives.push(value.clone());
-          continue;
-        }
-      }
-      break;
-    }
-
     let mut res = node.fold_children_with(self);
     if let Some(decl) = self.import_meta.take() {
       res.body.insert(
@@ -401,7 +389,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 }
               }
               "importScripts" => {
-                if self.config.is_worker {
+                if self.config.is_worker() {
                   let (msg, span) = if self.config.source_type == SourceType::Script {
                     // Ignore if argument is not a string literal.
                     let span = if let Some(ast::ExprOrSpread { expr, .. }) = node.args.first() {
@@ -491,7 +479,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           Member(member) => {
             if match_member_expr(member, vec!["module", "require"], self.unresolved_mark) {
               DependencyKind::Require
-            } else if self.config.is_browser
+            } else if self.config.is_browser()
               && match_member_expr(
                 member,
                 vec!["navigator", "serviceWorker", "register"],
@@ -499,7 +487,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               )
             {
               DependencyKind::ServiceWorker
-            } else if self.config.is_browser
+            } else if self.config.is_browser()
               && match_member_expr(
                 member,
                 vec!["CSS", "paintWorklet", "addModule"],
@@ -730,7 +718,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       Ident(id) => {
         if id.sym == "Worker" || id.sym == "SharedWorker" {
           // Bail if defined in scope
-          self.config.is_browser && is_unresolved(&id, self.unresolved_mark)
+          self.config.is_browser() && is_unresolved(&id, self.unresolved_mark)
         } else if id.sym == "Promise" {
           // Match requires inside promises (e.g. Rollup compiled dynamic imports)
           // new Promise(resolve => resolve(require('foo')))

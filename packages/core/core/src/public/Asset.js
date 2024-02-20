@@ -298,10 +298,6 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  removeAllDependencies() {
-    this.#asset.value.dependencies = new Map();
-  }
-
   invalidateOnFileChange(filePath: FilePath): void {
     this.#asset.invalidateOnFileChange(
       toProjectPath(this.#asset.options.projectRoot, filePath),

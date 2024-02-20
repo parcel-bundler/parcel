@@ -436,18 +436,14 @@ export default (new Transformer({
       used_env,
       has_node_replacements,
       is_constant_module,
+      directives,
     } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
       module_id: asset.id,
       project_root: options.projectRoot,
-      replace_env: true,//!asset.env.isNode(),
-      inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
-      insert_node_globals:
-        !asset.env.isNode() && asset.env.sourceType !== 'script',
-      node_replacer: asset.env.isNode(),
-      is_browser: asset.env.isBrowser(),
-      is_worker: asset.env.isWorker(),
+      inline_fs: Boolean(config?.inlineFS),
+      context: asset.env.context,
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: isJSX,
@@ -456,12 +452,7 @@ export default (new Transformer({
       automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
       jsx_import_source: config?.jsxImportSource,
       is_development: options.mode === 'development',
-      react_refresh:
-        asset.env.isBrowser() &&
-        !asset.env.isLibrary &&
-        !asset.env.isWorker() &&
-        !asset.env.isWorklet() &&
-        Boolean(config?.reactRefresh),
+      react_refresh: Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
       use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
       targets,
@@ -710,6 +701,22 @@ export default (new Transformer({
       asset.meta.has_node_replacements = has_node_replacements;
     }
 
+    asset.meta.id = asset.id;
+    asset.meta.directives = directives;
+    if (asset.env.isNode() && !asset.env.isLibrary && directives.includes('use client')) {
+      asset.setEnvironment({
+        context: 'browser',
+        sourceType: 'module',
+        outputFormat: 'esmodule',
+        engines: asset.env.engines,
+        includeNodeModules: true,
+        isLibrary: false,
+        sourceMap: asset.env.sourceMap,
+        shouldOptimize: asset.env.shouldOptimize,
+        shouldScopeHoist: asset.env.shouldScopeHoist,
+      });
+    }
+
     for (let env of used_env) {
       asset.invalidateOnEnvChange(env);
     }
@@ -781,11 +788,6 @@ export default (new Transformer({
           meta: {
             placeholder: dep.placeholder,
           },
-          env: {
-            context: 'browser',
-            outputFormat: 'esmodule',
-            includeNodeModules: true
-          }
         });
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);
@@ -868,22 +870,6 @@ export default (new Transformer({
           };
         }
 
-        if (dep.attributes?.condition) {
-          env = {
-            ...env,
-            packageConditions: [dep.attributes.condition]
-          };
-        }
-
-        if (dep.attributes?.context) {
-          env = {
-            ...env,
-            context: dep.attributes.context,
-            outputFormat: 'esmodule',
-            includeNodeModules: true
-          };
-        }
-
         // Add required version range for helpers.
         let range;
         if (isHelper) {
@@ -905,12 +891,10 @@ export default (new Transformer({
           resolveFrom: isHelper ? __filename : undefined,
           range,
           env,
-          bundleBehavior: dep.attributes?.context ? 'isolated' : undefined
         });
       }
     }
 
-    asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
       for (let {

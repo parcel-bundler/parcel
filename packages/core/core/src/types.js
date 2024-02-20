@@ -73,7 +73,6 @@ export type Environment = {|
   shouldOptimize: boolean,
   shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
-  packageConditions: ?Array<string>,
   loc: ?InternalSourceLocation,
 |};
 

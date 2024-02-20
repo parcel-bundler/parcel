@@ -24,7 +24,7 @@ use swc_core::common::errors::Handler;
 use swc_core::common::pass::Optional;
 use swc_core::common::source_map::SourceMapGenConfig;
 use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_core::ecma::ast::{Module, ModuleItem, Program};
+use swc_core::ecma::ast::{Module, ModuleItem, Program, Stmt, Expr, Lit, Str, ExprStmt};
 use swc_core::ecma::codegen::text_writer::JsWriter;
 use swc_core::ecma::parser::lexer::Lexer;
 use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -38,6 +38,7 @@ use swc_core::ecma::transforms::{
   optimization::simplify::expr_simplifier, react, typescript,
 };
 use swc_core::ecma::visit::{FoldWith, VisitWith};
+use swc_core::ecma::atoms::js_word;
 
 use collect::{Collect, CollectResult};
 use dependency_collector::*;
@@ -64,13 +65,9 @@ pub struct Config {
   code: Vec<u8>,
   module_id: String,
   project_root: String,
-  replace_env: bool,
   env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
   inline_fs: bool,
-  insert_node_globals: bool,
-  node_replacer: bool,
-  is_browser: bool,
-  is_worker: bool,
+  context: EnvContext,
   is_type_script: bool,
   is_jsx: bool,
   jsx_pragma: Option<String>,
@@ -94,6 +91,60 @@ pub struct Config {
   inline_constants: bool,
 }
 
+#[derive(Serialize, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum EnvContext {
+  Browser,
+  WebWorker,
+  ServiceWorker,
+  Worklet,
+  Node,
+  ElectronRenderer,
+  ElectronMain
+}
+
+impl Config {
+  fn is_browser(&self) -> bool {
+    use EnvContext::*;
+    matches!(self.context, Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer)
+  }
+
+  fn is_node(&self) -> bool {
+    use EnvContext::*;
+    matches!(self.context, Node | ElectronMain | ElectronRenderer)
+  }
+
+  fn is_worker(&self) -> bool {
+    use EnvContext::*;
+    matches!(self.context, WebWorker | ServiceWorker)
+  }
+
+  fn is_worklet(&self) -> bool {
+    use EnvContext::*;
+    matches!(self.context, Worklet)
+  }
+
+  fn react_refresh(&self) -> bool {
+    self.is_browser() && !self.is_library && !self.is_worker() && !self.is_worklet() && self.react_refresh
+  }
+
+  fn inline_fs(&self) -> bool {
+    self.inline_fs && !self.is_node() && self.source_type != SourceType::Script
+  }
+
+  fn node_replacer(&self) -> bool {
+    self.is_node()
+  }
+
+  fn insert_node_globals(&self) -> bool {
+    !self.is_node() && self.source_type != SourceType::Script
+  }
+
+  fn replace_env(&self) -> bool {
+    !self.is_node()
+  }
+}
+
 #[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
@@ -108,6 +159,7 @@ pub struct TransformResult {
   used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
   is_constant_module: bool,
+  directives: Vec<swc_core::ecma::atoms::JsWord>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -141,7 +193,7 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
 }
 
 pub fn transform(
-  config: Config,
+  mut config: Config,
   call_macro: Option<MacroCallback>,
 ) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
@@ -173,10 +225,39 @@ pub fn transform(
         Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
       };
 
+      match &module {
+        Program::Module(module) => {
+          for item in &module.body {
+            if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item {
+              if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
+                result.directives.push(value.clone());
+                continue;
+              }
+            }
+            break;
+          }
+        }
+        Program::Script(script) => {
+          for item in &script.body {
+            if let Stmt::Expr(ExprStmt { expr, .. }) = item {
+              if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
+                result.directives.push(value.clone());
+                continue;
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      if config.is_node() && !config.is_library && result.directives.contains(&js_word!("use client")) {
+        config.context = EnvContext::Browser;
+        config.is_esm_output = true;
+      }
+
       let mut global_deps = vec![];
       let mut fs_deps = vec![];
-      let should_inline_fs = config.inline_fs
-        && config.source_type != SourceType::Script
+      let should_inline_fs = config.inline_fs()
         && code.contains("readFileSync");
       let should_import_swc_helpers = match config.source_type {
         SourceType::Module => true,
@@ -201,7 +282,7 @@ pub fn transform(
                   react_options.pragma_frag = Some(jsx_pragma_frag.clone());
                 }
                 react_options.development = Some(config.is_development);
-                react_options.refresh = if config.react_refresh {
+                react_options.refresh = if config.react_refresh() {
                   Some(react::RefreshOptions::default())
                 } else {
                   None
@@ -322,9 +403,9 @@ pub fn transform(
                   // Inline process.env and process.browser
                   Optional::new(
                     EnvReplacer {
-                      replace_env: config.replace_env,
+                      replace_env: config.replace_env(),
                       env: &config.env,
-                      is_browser: config.is_browser,
+                      is_browser: config.is_browser(),
                       used_env: &mut result.used_env,
                       source_map: &source_map,
                       diagnostics: &mut diagnostics,
@@ -369,7 +450,7 @@ pub fn transform(
                     scope_hoist: config.scope_hoist,
                     has_node_replacements: &mut result.has_node_replacements,
                   },
-                  config.node_replacer,
+                  config.node_replacer(),
                 ),
               );
 
@@ -387,7 +468,7 @@ pub fn transform(
                       unresolved_mark,
                       scope_hoist: config.scope_hoist
                     },
-                    config.insert_node_globals
+                    config.insert_node_globals()
                   ),
                   // Transpile new syntax to older syntax if needed
                   Optional::new(

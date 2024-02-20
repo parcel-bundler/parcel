@@ -214,10 +214,6 @@ export default class Environment implements IEnvironment {
     return this.#environment.sourceMap;
   }
 
-  get packageConditions(): ?$ReadOnlyArray<string> {
-    return this.#environment.packageConditions;
-  }
-
   get loc(): ?SourceLocation {
     return fromInternalSourceLocation(
       this.#options.projectRoot,

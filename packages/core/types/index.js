@@ -171,7 +171,6 @@ export type EnvironmentOptions = {|
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
-  +packageConditions?: ?Array<string>,
   +loc?: ?SourceLocation,
 |};
 
@@ -225,7 +224,6 @@ export interface Environment {
   /** Whether scope hoisting is enabled. */
   +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
-  +packageConditions: ?$ReadOnlyArray<string>;
   +loc: ?SourceLocation;
 
   /** Whether <code>context</code> specifies a browser context. */

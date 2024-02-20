@@ -615,7 +615,7 @@ function getURLRuntime(
       )});`;
     }
   } else if (from.env.context === 'node' && to.env.context === 'browser') {
-    code = `module.exports = "${urlJoin(to.target.publicUrl, to.name)}";`;
+    code = `module.exports = ${JSON.stringify(urlJoin(to.target.publicUrl, to.name))};`;
   } else {
     code = `module.exports = ${getAbsoluteUrlExpr(relativePathExpr, from)};`;
   }
@@ -635,6 +635,9 @@ function getUrlListRuntime(
   options: PluginOptions,
 ): RuntimeAsset {
   let expressions = to.map(to => {
+    if (from.env.context === 'node' && to.env.context === 'browser') {
+      return `{url: ${JSON.stringify(urlJoin(to.target.publicUrl, to.name))}, type: ${JSON.stringify(to.type)}}`;
+    }
     let relativePathExpr = getRelativePathExpr(from, to, options);
     return `{url: ${getAbsoluteUrlExpr(relativePathExpr, from)}, type: ${JSON.stringify(to.type)}}`;
   });

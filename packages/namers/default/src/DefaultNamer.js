@@ -96,7 +96,6 @@ export default (new Namer({
       bundleGroup.entryAssetId,
       bundleGraph.getEntryRoot(bundle.target),
     );
-    name += '.' + bundle.env.context;
     if (!bundle.needsStableName) {
       name += '.' + bundle.hashReference;
     }

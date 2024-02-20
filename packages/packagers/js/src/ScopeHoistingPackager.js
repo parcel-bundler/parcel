@@ -113,7 +113,7 @@ export class ScopeHoistingPackager {
     let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
     this.outputFormat = new OutputFormat(this);
 
-    let parentBundles = this.bundleGraph.getParentBundles(this.bundle);        
+    let parentBundles = this.bundleGraph.getParentBundles(this.bundle);
     this.isAsyncBundle =
       parentBundles.length > 0 &&
       parentBundles.every(b => b.type === 'js' && b.env.context === this.bundle.env.context) &&

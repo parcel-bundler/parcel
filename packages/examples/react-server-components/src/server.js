@@ -1,8 +1,13 @@
 import express from 'express';
 import {Readable} from 'node:stream';
-import { createBootstrapScript, getClientResources } from '@parcel/rsc/macro' with {type: 'macro'};
+import { createBootstrapScript, getClientResources, requireClient } from '@parcel/rsc/macro' with {type: 'macro'};
 import {AsyncLocalStorage} from 'node:async_hooks';
-import {renderRSCPayload, renderHTML} from '@parcel/rsc';
+import {renderToReadableStream} from 'react-server-dom-parcel/server.edge';
+import {injectRSCPayload} from 'rsc-html-stream/server';
+
+const {createFromReadableStream} = requireClient('react-server-dom-parcel/client.edge');
+const {renderToReadableStream: renderHTMLToReadableStream} = requireClient('react-dom/server.edge');
+const ReactClient = requireClient('react');
 
 globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
@@ -26,11 +31,27 @@ app.get('/', async (req, res) => {
   let resources = getClientResources('./App');
   console.log(resources)
   // let {default: App, resources} = await createRoute('./App');
-
-  let stream = renderRSCPayload([<App />, ...renderResources(resources)]);
+  
+  // Render RSC payload.
+  let stream = renderToReadableStream([<App />, ...renderResources(resources)]);
   if (req.accepts('text/html')) {
     res.setHeader('Content-Type', 'text/html');
-    Readable.fromWeb(await renderHTML(stream, bootstrap)).pipe(res);  
+
+    // Use client react to render the RSC payload to HTML.
+    let [s1, s2] = stream.tee();
+    let data;
+    function Content() {
+      data ??= createFromReadableStream(s1);
+      return ReactClient.use(data);
+    }
+
+    let htmlStream = await renderHTMLToReadableStream([
+      <Content />,
+      ...renderResources(bootstrap),
+    ]);
+
+    let response = htmlStream.pipeThrough(injectRSCPayload(s2));
+    Readable.fromWeb(response).pipe(res);  
   } else {
     res.set('Content-Type', 'text/x-component');
     Readable.fromWeb(stream).pipe(res);
@@ -42,7 +63,7 @@ function renderResources(resources) {
     if (r.type === 'css') {
       return <link key={r.url} rel="stylesheet" href={r.url} precedence="default" />;
     } else {
-      return <script async type="module" src={r.url} />;
+      return <script key={r.url} async type="module" src={r.url} />;
     }
   })
 }

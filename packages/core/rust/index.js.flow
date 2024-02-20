@@ -60,6 +60,10 @@ declare export class Hash {
   writeBuffer(b: Buffer): void;
   finish(): string;
 }
+declare export class JsExpression {
+  expr: string;
+  constructor(expr: string): JsExpression;
+}
 export interface ResolverOptions {
   fs?: JsFileSystemOptions;
   includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};

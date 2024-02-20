@@ -44,7 +44,8 @@ export default (new Runtime({
         });
       } else if (node.type === 'dependency' && node.value.env.isNode()) {
         let resolvedAsset = bundleGraph.getResolvedAsset(node.value, bundle);
-        if (resolvedAsset?.meta?.isClientComponent === true) {
+        let directives = resolvedAsset?.meta?.directives;
+        if (resolvedAsset && Array.isArray(directives) && directives.includes('use client')) {
           let usedSymbols = nullthrows(bundleGraph.getUsedSymbols(resolvedAsset));
           if (usedSymbols.has('*')) {
             // TODO
