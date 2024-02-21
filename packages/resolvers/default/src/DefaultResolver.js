@@ -21,6 +21,7 @@ export default (new Resolver({
       mode: options.mode,
       logger,
       packageExports: conf?.contents?.packageExports ?? false,
+      featureFlags: options.featureFlags,
     });
   },
   resolve({dependency, specifier, config: resolver}) {

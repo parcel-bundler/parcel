@@ -25,6 +25,7 @@ import type {
   TargetDescriptor,
   HMROptions,
   DetailedReportOptions,
+  FeatureFlags,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -57,6 +58,7 @@ export type ProcessedParcelConfig = {|
   validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   filePath: ProjectPath,
   resolveFrom?: ProjectPath,
+  featureFlags: FeatureFlags,
 |};
 
 export type Environment = {|
@@ -316,6 +318,7 @@ export type ParcelOptions = {|
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
   |},
+  featureFlags: FeatureFlags,
 |};
 
 export type AssetNode = {|

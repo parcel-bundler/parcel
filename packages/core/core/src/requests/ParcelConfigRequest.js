@@ -134,7 +134,6 @@ export async function loadParcelConfig(
   if (!parcelConfig) {
     throw new Error('Could not find a .parcelrc');
   }
-
   return parcelConfig;
 }
 
@@ -409,6 +408,7 @@ export async function processConfig(
       configFile.filePath,
       options,
     ),
+    featureFlags: {...configFile.featureFlags, ...options.featureFlags},
   };
 }
 
@@ -615,6 +615,7 @@ export function mergeConfigs(
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),
+    featureFlags: {...base.featureFlags, ...ext.featureFlags},
   };
 }
 

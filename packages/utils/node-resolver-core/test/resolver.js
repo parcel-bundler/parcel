@@ -80,6 +80,7 @@ describe('resolver', function () {
       projectRoot: rootDir,
       mode: 'development',
       packageExports: true,
+      featureFlags: {},
     });
 
     prodResolver = new NodeResolver({
@@ -87,6 +88,7 @@ describe('resolver', function () {
       projectRoot: rootDir,
       mode: 'production',
       packageExports: true,
+      featureFlags: {},
     });
 
     configCache.clear();
@@ -2896,6 +2898,7 @@ describe('resolver', function () {
         projectRoot: rootDir,
         mode: 'development',
         extensions: ['html'],
+        featureFlags: {},
       });
 
       let resolved = await resolver.resolve({
@@ -2935,6 +2938,7 @@ describe('resolver', function () {
         projectRoot: rootDir,
         mode: 'development',
         mainFields: ['types', 'main'],
+        featureFlags: {},
       });
 
       resolved = await typesResolver.resolve({

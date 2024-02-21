@@ -15,6 +15,7 @@ import type {
   SemverRange,
   Validator,
   FilePath,
+  FeatureFlags,
 } from '@parcel/types';
 import type {
   ProcessedParcelConfig,
@@ -57,6 +58,7 @@ export type LoadedPlugin<T> = {|
 
 export default class ParcelConfig {
   options: ParcelOptions;
+  featureFlags: FeatureFlags;
   filePath: ProjectPath;
   resolvers: PureParcelConfigPipeline;
   transformers: GlobMap<ExtendableParcelConfigPipeline>;
@@ -86,6 +88,7 @@ export default class ParcelConfig {
     this.validators = config.validators || {};
     this.pluginCache = new Map();
     this.regexCache = new Map();
+    this.featureFlags = config.featureFlags || {};
   }
 
   static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
@@ -105,6 +108,7 @@ export default class ParcelConfig {
       optimizers: this.optimizers,
       compressors: this.compressors,
       reporters: this.reporters,
+      featureFlags: this.featureFlags,
     };
   }
 

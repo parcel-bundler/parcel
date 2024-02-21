@@ -155,9 +155,9 @@ export async function runPackage(
   return runner.run(bundleGraph, bundle, invalidDevDeps);
 }
 
-export async function childInit() {
+export async function childInit(options) {
   await initSourcemaps;
-  await initRust?.();
+  await initRust?.(options);
 }
 
 const PKG_RE =

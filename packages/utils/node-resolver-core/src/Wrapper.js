@@ -8,6 +8,7 @@ import type {
   BuildMode,
   ResolveResult,
   PluginLogger,
+  FeatureFlags,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
@@ -51,6 +52,7 @@ type Options = {|
   mainFields?: Array<string>,
   extensions?: Array<string>,
   packageExports?: boolean,
+  featureFlags: FeatureFlags,
 |};
 
 type ResolveOptions = {|
@@ -81,7 +83,7 @@ export default class NodeResolver {
 
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
-      await init?.();
+      await init?.(this.options);
       resolver = new Resolver(this.options.projectRoot, {
         fs:
           this.options.fs instanceof NodeFS &&

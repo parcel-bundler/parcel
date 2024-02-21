@@ -16,7 +16,7 @@
   "main": "lib/cli.js",
   "source": "src/cli.js",
   "bin": {
-    "parcel-bundle-stats": "src/bin.js"
+    "parcel-bundle-stats": "lib/bin.js"
   },
   "engines": {
     "node": ">= 12.0.0",

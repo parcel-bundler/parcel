@@ -115,7 +115,8 @@ export class Child {
     this.childId = childId;
 
     if (this.module.childInit != null) {
-      await this.module.childInit();
+      // FIXME how do we get feature flags here?
+      await this.module.childInit({featureFlags: {sayHelloOnStartup: true}});
     }
   }
 

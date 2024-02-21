@@ -111,6 +111,13 @@ export default {
         },
       ],
     },
+    featureFlags: {
+      type: 'object',
+      properties: {
+        // FIXME can this be derived from the type?
+        sayHelloOnStartup: {type: 'boolean'},
+      },
+    },
     bundler: {
       type: 'string',
       __validate: (validatePluginName('bundler', 'bundler'): string => void),

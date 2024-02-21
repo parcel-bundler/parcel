@@ -67,6 +67,7 @@ export type RawParcelConfig = {|
   compressors?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
   validators?: {[Glob]: RawParcelConfigPipeline, ...},
+  featureFlags: FeatureFlags,
 |};
 
 /** A .parcelrc where all package names are resolved */
@@ -285,6 +286,10 @@ export type DetailedReportOptions = {|
   assetsPerBundle?: number,
 |};
 
+export type FeatureFlags = {|
+  +sayHelloOnStartup?: boolean,
+|};
+
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
   +config?: DependencySpecifier,
@@ -333,6 +338,8 @@ export type InitialParcelOptions = {|
     resolveFrom: FilePath,
   |}>,
 
+  +featureFlags?: FeatureFlags,
+
   // throwErrors
   // global?
 |};
@@ -359,6 +366,7 @@ export interface PluginOptions {
   +packageManager: PackageManager;
   +instanceId: string;
   +detailedReport: ?DetailedReportOptions;
+  +featureFlags: FeatureFlags;
 }
 
 export type ServerOptions = {|

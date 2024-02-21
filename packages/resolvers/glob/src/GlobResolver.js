@@ -118,6 +118,7 @@ export default (new Resolver({
             : undefined,
           mode: options.mode,
           logger,
+          featureFlags: options.featureFlags,
         });
 
         let result;

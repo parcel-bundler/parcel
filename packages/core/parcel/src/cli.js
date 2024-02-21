@@ -509,5 +509,8 @@ async function normalizeOptions(
       publicUrl: command.publicUrl,
       distDir: command.distDir,
     },
+    featureFlags: {
+      sayHelloOnStartup: true,
+    },
   };
 }

@@ -48,6 +48,9 @@ export async function _report(
 
   switch (event.type) {
     case 'buildStart': {
+      if (options.featureFlags.sayHelloOnStartup) {
+        process.stdout.write('Saying hello in plugin...\n');
+      }
       seenWarnings.clear();
       seenPhases.clear();
       if (logLevelFilter < logLevels.info) {

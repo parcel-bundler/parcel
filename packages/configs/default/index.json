@@ -1,4 +1,7 @@
 {
+  "featureFlags": {
+    "sayHelloOnStartup": false
+  },
   "bundler": "@parcel/bundler-default",
   "transformers": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],

@@ -3,6 +3,8 @@
 #[cfg(target_arch = "wasm32")]
 use std::alloc::{alloc, Layout};
 
+use napi_derive::napi;
+
 #[cfg(target_os = "macos")]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
@@ -18,6 +20,26 @@ mod hash;
 mod image;
 mod resolver;
 mod transformer;
+
+#[napi(object)]
+#[derive(Debug)]
+pub struct FeatureFlags {
+  pub say_hello_on_startup: bool,
+}
+
+#[napi(object)]
+#[derive(Debug)]
+pub struct ParcelOptions {
+  pub feature_flags: FeatureFlags,
+}
+
+#[napi]
+pub fn init(options: ParcelOptions) {
+  println!("#{:?}", options.feature_flags);
+  if options.feature_flags.say_hello_on_startup {
+    println!("Hello on startup from Rust!");
+  }
+}
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]

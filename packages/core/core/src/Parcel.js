@@ -101,7 +101,6 @@ export default class Parcel {
     }
 
     await initSourcemaps;
-    await initRust?.();
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
@@ -109,6 +108,20 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
+    // console.log(
+    //   `Initial Opts: ${JSON.stringify(this.#initialOptions.featureFlags ?? {}, null, 2)}`,
+    // );
+    // console.log(
+    //   `Resolved Opts: ${JSON.stringify(resolvedOptions.featureFlags ?? {}, null, 2)}`,
+    // );
+    // console.log(
+    //   `config: ${JSON.stringify(config.featureFlags ?? {}, null, 2)}`,
+    // );
+    // console.log(
+    //   `Feature Flags: ${JSON.stringify(this.#config.featureFlags, null, 2)}`,
+    // );
+
+    await initRust?.(this.#config);
 
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {
@@ -298,6 +311,9 @@ export default class Parcel {
       }
       if (options.shouldTrace) {
         tracer.enable();
+      }
+      if (options.featureFlags?.sayHelloOnStartup) {
+        console.log(`Saying hello`);
       }
       this.#reporterRunner.report({
         type: 'buildStart',

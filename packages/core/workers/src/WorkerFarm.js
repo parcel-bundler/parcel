@@ -1,6 +1,6 @@
 // @flow
 
-import type {ErrorWithCode, FilePath} from '@parcel/types';
+import type {ErrorWithCode, FilePath, FeatureFlags} from '@parcel/types';
 import type {
   CallRequest,
   HandleCallRequest,
@@ -46,6 +46,7 @@ export type FarmOptions = {|
   backend: BackendType,
   shouldPatchConsole?: boolean,
   shouldTrace?: boolean,
+  featureFlags: FeatureFlags,
 |};
 
 type WorkerModule = {
@@ -117,8 +118,11 @@ export default class WorkerFarm extends EventEmitter {
       this.localWorker = require(this.options.workerPath);
     }
 
+    // FIXME get feature flags in here
     this.localWorkerInit =
-      this.localWorker.childInit != null ? this.localWorker.childInit() : null;
+      this.localWorker.childInit != null
+        ? this.localWorker.childInit({featureFlags: {sayHelloOnStartup: true}})
+        : null;
 
     this.run = this.createHandle('run');
 
