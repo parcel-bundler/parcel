@@ -1,6 +1,6 @@
 import express from 'express';
 import {Readable} from 'node:stream';
-import { createBootstrapScript, getClientResources, requireClient } from '@parcel/rsc/macro' with {type: 'macro'};
+import { createBootstrapScript, importServerComponent, requireClient } from '@parcel/rsc/macro' with {type: 'macro'};
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {renderToReadableStream} from 'react-server-dom-parcel/server.edge';
 import {injectRSCPayload} from 'rsc-html-stream/server';
@@ -27,10 +27,7 @@ let bootstrap = createBootstrapScript('bootstrap.js');
 console.log(bootstrap)
 
 app.get('/', async (req, res) => {
-  const {default: App} = await import('./App');
-  let resources = getClientResources('./App');
-  console.log(resources)
-  // let {default: App, resources} = await createRoute('./App');
+  let [{default: App}, resources] = await importServerComponent('./App');
   
   // Render RSC payload.
   let stream = renderToReadableStream([<App />, ...renderResources(resources)]);

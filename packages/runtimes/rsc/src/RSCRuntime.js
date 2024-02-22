@@ -13,14 +13,12 @@ export default (new Runtime({
 
     let runtimes = [];
     bundle.traverse((node) => {
-      if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/rsc/resources?') && !bundleGraph.isDependencySkipped(node.value)) {
+      if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/runtime-rsc/resources?id=') && !bundleGraph.isDependencySkipped(node.value)) {
         let query = new URLSearchParams(node.value.specifier.split('?')[1]);
-        let containingAsset = nullthrows(bundleGraph.getAssetWithDependency(node.value));
-        let dep = nullthrows(bundleGraph.getDependencies(containingAsset).find(dep => dep.specifier === query.get('specifier')));
+        let dep = bundleGraph.getDependencyById(nullthrows(query.get('id')));
         let bundleGroup = bundleGraph.resolveAsyncDependency(dep, bundle);
         invariant(bundleGroup?.type === 'bundle_group');
         
-        let asset = nullthrows(bundleGraph.getResolvedAsset(dep, bundle));
         let bundles = [];
         for (let bundle of bundleGraph.getBundlesInBundleGroup(bundleGroup.value, {includeInline: false})) {
           if (bundle.env.context === 'browser' && !bundle.getMainEntry()) {
@@ -36,7 +34,7 @@ export default (new Runtime({
         code += '];\n';
 
         runtimes.push({
-          filePath: asset.filePath,
+          filePath: __filename,
           code,
           dependency: node.value,
           env: {sourceType: 'module'},

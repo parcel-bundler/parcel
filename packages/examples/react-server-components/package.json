@@ -4,16 +4,14 @@
   "private": true,
   "type": "module",
   "react-server": "dist/server.js",
+  "source": "src/server.js",
   "targets": {
     "react-server": {
-      "context": "node",
-      "outputFormat": "esmodule",
-      "source": "src/server.js",
-      "isLibrary": false
+      "outputFormat": "esmodule"
     }
   },
   "engines": {
-    "node": ">= 16"
+    "node": ">= 18"
   },
   "dependencies": {
     "express": "^4.18.2",

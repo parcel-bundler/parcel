@@ -20,7 +20,7 @@ import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, globMatch, hashObject} from '@parcel/utils';
+import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
@@ -166,7 +166,14 @@ type MacroAsset = {|
   content: string,
 |};
 
-opaque type DependencyPlaceholder = JsExpression;
+class DependencyPlaceholder extends JsExpression {
+  id: string;
+
+  constructor(id: string) {
+    super(`__parcel__dependency__("${id}")`);
+    this.id = id;
+  }
+}
 
 type MacroContext = {|
   addAsset(MacroAsset): void,
@@ -543,15 +550,11 @@ export default (new Transformer({
                     });
                   },
                   addDependency(opts) {
-                    let placeholder = typeof opts.meta?.placeholder === 'string' ? opts.meta.placeholder : hashObject(opts);
-                    asset.addDependency({
-                      ...opts,
-                      meta: {
-                        ...opts.meta,
-                        placeholder
-                      }
-                    });
-                    return new JsExpression(`__parcel__dependency__("${placeholder}")`);
+                    let id = asset.addDependency(opts);
+                    // Other code depends on dep.meta.placeholder being set also. :/
+                    let dep = nullthrows(asset.getDependencies().find(d => d.id === id));
+                    dep.meta.placeholder = id;
+                    return new DependencyPlaceholder(id);
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);

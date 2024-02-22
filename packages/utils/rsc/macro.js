@@ -1,3 +1,5 @@
+import { JsExpression } from '@parcel/rust';
+
 export function createBootstrapScript(url) {
   return this.addDependency({
     specifier: url,
@@ -23,10 +25,17 @@ export function requireClient(specifier) {
   });
 }
 
-export function getClientResources(specifier) {
-  // TODO: this should use a dependency id instead of a specifier so it is unique.
-  return this.addDependency({
-    specifier: `@parcel/rsc/resources?specifier=${encodeURIComponent(specifier)}`,
+export function importServerComponent(specifier) {
+  let componentDep = this.addDependency({
+    specifier,
+    specifierType: 'esm',
+    priority: 'lazy'
+  });
+
+  let resourcesDep = this.addDependency({
+    specifier: `@parcel/runtime-rsc/resources?id=${encodeURIComponent(componentDep.id)}`,
     specifierType: 'esm',
   });
+
+  return new JsExpression(`Promise.all([${componentDep}, ${resourcesDep}])`)
 }

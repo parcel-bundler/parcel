@@ -27,6 +27,14 @@ struct JsExpression {
   pub expr: String
 }
 
+#[napi]
+impl JsExpression {
+  #[napi]
+  pub fn to_string(&self) -> String {
+    self.expr.clone()
+  }
+}
+
 // Allocate a single channel per thread to communicate with the JS thread.
 thread_local! {
   static CHANNEL: (Sender<Result<JsValue, MacroError>>, Receiver<Result<JsValue, MacroError>>) = crossbeam_channel::unbounded();
