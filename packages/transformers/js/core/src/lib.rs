@@ -253,6 +253,9 @@ pub fn transform(
       if config.is_node() && !config.is_library && result.directives.contains(&js_word!("use client")) {
         config.context = EnvContext::Browser;
         config.is_esm_output = true;
+      } else if !config.is_node() && !config.is_library && result.directives.contains(&js_word!("use server")) {
+        config.context = EnvContext::Node;
+        // is_esm_output??
       }
 
       let mut global_deps = vec![];

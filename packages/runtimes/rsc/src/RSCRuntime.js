@@ -54,8 +54,8 @@ export default (new Runtime({
             let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
             code += `exports[${JSON.stringify(symbol)}] = {\n`;
             code += `  $$typeof: Symbol.for('react.client.reference'),\n`;
-            code += `  id: ${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))},\n`;
-            code += `  name: ${JSON.stringify(resolved.exportSymbol)}\n`;
+            code += `  $$id: ${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))},\n`;
+            code += `  $$name: ${JSON.stringify(resolved.exportSymbol)}\n`;
             code += `};\n`;
           }
 
@@ -64,6 +64,41 @@ export default (new Runtime({
             code,
             dependency: node.value,
             env: {sourceType: 'module'},
+          });
+        } else if (resolvedAsset && Array.isArray(directives) && directives.includes('use server')) {
+          let usedSymbols = nullthrows(bundleGraph.getUsedSymbols(resolvedAsset));
+          if (usedSymbols.has('*')) {
+            // TODO
+          }
+
+          let code = `function bind(_, ...args) {
+            let f = Function.prototype.bind.call(this, arguments);
+            f.$$typeof = this.$$typeof;
+            f.$$id = this.$$id;
+            f.$$name = this.$$name;
+            f.$$bound = (f.$$bound || []).concat(args);
+            f.bind = bind;
+            return f;
+          };\n`;
+          let count = 0;
+          for (let symbol of usedSymbols) {
+            let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
+            let name = `_${++count}`;
+            code += `function ${name}() {}\n`;
+            code += `${name}.$$typeof = Symbol.for('react.server.reference');\n`;
+            code += `${name}.$$id = ${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))};\n`;
+            code += `${name}.$$name = ${JSON.stringify(resolved.exportSymbol)};\n`;
+            code += `${name}.$$bound = null;\n`;
+            code += `${name}.bind = bind;\n`;
+            code += `exports[${JSON.stringify(symbol)}] = ${name};\n`;
+          }
+
+          runtimes.push({
+            filePath: resolvedAsset.filePath,
+            code,
+            dependency: node.value,
+            env: {sourceType: 'module'},
+            shouldReplaceResolution: true
           });
         }
       }

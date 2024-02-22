@@ -2,8 +2,9 @@ import express from 'express';
 import {Readable} from 'node:stream';
 import { createBootstrapScript, importServerComponent, requireClient } from '@parcel/rsc/macro' with {type: 'macro'};
 import {AsyncLocalStorage} from 'node:async_hooks';
-import {renderToReadableStream} from 'react-server-dom-parcel/server.edge';
+import {renderToReadableStream, decodeReply} from 'react-server-dom-parcel/server.edge';
 import {injectRSCPayload} from 'rsc-html-stream/server';
+import bodyParser from 'body-parser';
 
 const {createFromReadableStream} = requireClient('react-server-dom-parcel/client.edge');
 const {renderToReadableStream: renderHTMLToReadableStream} = requireClient('react-dom/server.edge');
@@ -53,6 +54,36 @@ app.get('/', async (req, res) => {
     res.set('Content-Type', 'text/x-component');
     Readable.fromWeb(stream).pipe(res);
   }
+});
+
+app.post('/', bodyParser.text(), async (req, res) => {
+  let id = req.get('rsc-action-id');
+  let name = req.get('rsc-action-name');
+  if (!id || !name) {
+    throw new Error('Invalid action');
+  }
+
+  // TODO: verify that this is a valid action?
+  let action = parcelRequire(id)[name];
+  console.log(id, name, action);
+  if (typeof action !== 'function') {
+    throw new Error('Invalid action');
+  }
+  
+  console.log(req.body)
+  let args = await decodeReply(req.body);
+  let result = action.apply(null, args);
+  try {
+    // Wait for any mutations
+    await result;
+  } catch (x) {
+    // We handle the error on the client
+  }
+
+  let [{default: App}, resources] = await importServerComponent('./App');
+  let stream = renderToReadableStream({result, root: [<App />, ...renderResources(resources)]});
+  res.set('Content-Type', 'text/x-component');
+  Readable.fromWeb(stream).pipe(res);
 });
 
 function renderResources(resources) {

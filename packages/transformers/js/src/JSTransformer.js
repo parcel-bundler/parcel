@@ -718,6 +718,18 @@ export default (new Transformer({
         shouldOptimize: asset.env.shouldOptimize,
         shouldScopeHoist: asset.env.shouldScopeHoist,
       });
+    } else if (!asset.env.isNode() && !asset.env.isLibrary && directives.includes('use server')) {
+      asset.setEnvironment({
+        context: 'node',
+        sourceType: 'module',
+        outputFormat: 'esmodule', // ???
+        engines: asset.env.engines,
+        includeNodeModules: false, // ???
+        isLibrary: false,
+        sourceMap: asset.env.sourceMap,
+        shouldOptimize: asset.env.shouldOptimize,
+        shouldScopeHoist: asset.env.shouldScopeHoist,
+      });
     }
 
     for (let env of used_env) {

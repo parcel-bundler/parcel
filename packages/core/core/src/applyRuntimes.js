@@ -325,6 +325,7 @@ export default async function applyRuntimes<TResult>({
       if (shouldReplaceResolution && resolution) {
         let resolutionNodeId = bundleGraph._graph.getNodeIdByContentKey(resolution.id);
         bundleGraph._graph.removeEdge(dependencyNodeId, resolutionNodeId);
+        bundleGraph._graph.addEdge(dependencyNodeId, resolutionNodeId);
         // TODO: remove asset from bundle?
       }
     }
