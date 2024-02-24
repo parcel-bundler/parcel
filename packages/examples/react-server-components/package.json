@@ -7,7 +7,8 @@
   "source": "src/server.js",
   "targets": {
     "react-server": {
-      "outputFormat": "esmodule"
+      "outputFormat": "esmodule",
+      "includeNodeModules": ["@parcel/runtime-rsc"]
     }
   },
   "engines": {

@@ -5,6 +5,7 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 import {renderToReadableStream, decodeReply} from 'react-server-dom-parcel/server.edge';
 import {injectRSCPayload} from 'rsc-html-stream/server';
 import bodyParser from 'body-parser';
+import {importServerAction} from '@parcel/runtime-rsc/actions';
 
 const {createFromReadableStream} = requireClient('react-server-dom-parcel/client.edge');
 const {renderToReadableStream: renderHTMLToReadableStream} = requireClient('react-dom/server.edge');
@@ -63,14 +64,7 @@ app.post('/', bodyParser.text(), async (req, res) => {
     throw new Error('Invalid action');
   }
 
-  // TODO: verify that this is a valid action?
-  let action = parcelRequire(id)[name];
-  console.log(id, name, action);
-  if (typeof action !== 'function') {
-    throw new Error('Invalid action');
-  }
-  
-  console.log(req.body)
+  let action = await importServerAction(id, name);
   let args = await decodeReply(req.body);
   let result = action.apply(null, args);
   try {

@@ -4,14 +4,12 @@ import {Runtime} from '@parcel/plugin';
 import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import path from 'path';
 
 export default (new Runtime({
   apply({bundle, bundleGraph}) {
-    if (bundle.env.context !== 'node') {
-      return [];
-    }
-
     let runtimes = [];
+    let actionsAsset;
     bundle.traverse((node) => {
       if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/runtime-rsc/resources?id=') && !bundleGraph.isDependencySkipped(node.value)) {
         let query = new URLSearchParams(node.value.specifier.split('?')[1]);
@@ -40,23 +38,19 @@ export default (new Runtime({
           env: {sourceType: 'module'},
           shouldReplaceResolution: true
         });
-      } else if (node.type === 'dependency' && node.value.env.isNode()) {
+      } else if (node.type === 'dependency') {
         let resolvedAsset = bundleGraph.getResolvedAsset(node.value, bundle);
         let directives = resolvedAsset?.meta?.directives;
-        if (resolvedAsset && Array.isArray(directives) && directives.includes('use client')) {
+        if (node.value.env.isNode() && resolvedAsset && Array.isArray(directives) && directives.includes('use client')) {
           let usedSymbols = nullthrows(bundleGraph.getUsedSymbols(resolvedAsset));
           if (usedSymbols.has('*')) {
             // TODO
           }
 
-          let code = '';
+          let code = `import {createClientReference} from "react-server-dom-parcel/server.edge";\n`;
           for (let symbol of usedSymbols) {
             let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
-            code += `exports[${JSON.stringify(symbol)}] = {\n`;
-            code += `  $$typeof: Symbol.for('react.client.reference'),\n`;
-            code += `  $$id: ${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))},\n`;
-            code += `  $$name: ${JSON.stringify(resolved.exportSymbol)}\n`;
-            code += `};\n`;
+            code += `exports[${JSON.stringify(symbol)}] = createClientReference(${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))}, ${JSON.stringify(resolved.exportSymbol)});\n`;
           }
 
           runtimes.push({
@@ -71,26 +65,29 @@ export default (new Runtime({
             // TODO
           }
 
-          let code = `function bind(_, ...args) {
-            let f = Function.prototype.bind.call(this, arguments);
-            f.$$typeof = this.$$typeof;
-            f.$$id = this.$$id;
-            f.$$name = this.$$name;
-            f.$$bound = (f.$$bound || []).concat(args);
-            f.bind = bind;
-            return f;
-          };\n`;
-          let count = 0;
-          for (let symbol of usedSymbols) {
-            let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
-            let name = `_${++count}`;
-            code += `function ${name}() {}\n`;
-            code += `${name}.$$typeof = Symbol.for('react.server.reference');\n`;
-            code += `${name}.$$id = ${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))};\n`;
-            code += `${name}.$$name = ${JSON.stringify(resolved.exportSymbol)};\n`;
-            code += `${name}.$$bound = null;\n`;
-            code += `${name}.bind = bind;\n`;
-            code += `exports[${JSON.stringify(symbol)}] = ${name};\n`;
+          let code;
+          if (node.value.env.isNode()) {
+            // Dependency on a "use server" module from a server environment.
+            // Mark each export as a server reference that can be passed to a client component as a prop.
+            code = `import {registerServerReference} from "react-server-dom-parcel/server.edge";\n`;
+            for (let symbol of usedSymbols) {
+              let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
+              let publicId = JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset));
+              let name = JSON.stringify(resolved.exportSymbol);
+              code += `exports[${JSON.stringify(symbol)}] = registerServerReference(function() {
+                let originalModule = parcelRequire(${publicId});
+                let fn = originalModule[${name}];
+                return fn.apply(this, arguments);
+              }, ${publicId}, ${name});\n`;
+            }
+          } else {
+            // Dependency on a "use server" module from a client environment.
+            // Create a client proxy module that will call the server.
+            code = `import {createServerReference} from "react-server-dom-parcel/client";\n`;
+            for (let symbol of usedSymbols) {
+              let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
+              code += `exports[${JSON.stringify(symbol)}] = createServerReference([${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))}, ${JSON.stringify(resolved.exportSymbol)}]);\n`;
+            }
           }
 
           runtimes.push({
@@ -101,8 +98,50 @@ export default (new Runtime({
             shouldReplaceResolution: true
           });
         }
+      } else if (node.value.filePath === path.resolve(__dirname, '..', 'actions.js')) {
+        actionsAsset = node.value;
       }
     });
+
+    if (actionsAsset) {
+      if (!actionsAsset.env.isNode()) {
+        throw new Error('importServerAction can only be imported on the server');
+      }
+
+      let code = 'import {registerServerActions} from "../actions";\n';
+      code += `registerServerActions({\n`;
+      bundleGraph.traverse(node => {
+        if (node.type === 'asset' && Array.isArray(node.value.meta?.directives) && node.value.meta.directives.includes('use server')) {
+          let bundlesWithAsset = bundleGraph.getBundlesWithAsset(node.value);
+          let allBundles = new Set();
+          for (let b of bundlesWithAsset) {
+            if (b.type !== 'js') {
+              continue;
+            }
+
+            let referenced = bundleGraph.getReferencedBundles(b);
+            allBundles.add(b);
+            for (let r of referenced) {
+              if (r.type === 'js') {
+                allBundles.add(r);
+              }
+            }
+          }
+
+          code += `  ${JSON.stringify(bundleGraph.getAssetPublicId(node.value))}: () => Promise.all([` + 
+            [...allBundles].map(b => `__parcel__import__(${JSON.stringify('./' + b.name)})`).join(', ') + 
+          `]).then(() => parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(node.value))})),\n`;
+        }
+      });
+
+      code += '});\n';
+      runtimes.push({
+        filePath: __filename,
+        code,
+        isEntry: true,
+        env: {sourceType: 'module'},
+      });
+    }
 
     console.log(runtimes)
     return runtimes;

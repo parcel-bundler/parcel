@@ -1294,7 +1294,7 @@ export default class BundleGraph {
     // in any ancestor bundles. Don't consider any assets reachable.
     if (
       ISOLATED_ENVS.has(bundle.env.context) ||
-      !bundle.isSplittable ||
+      bundle.isSplittable === false ||
       bundle.bundleBehavior === BundleBehavior.isolated ||
       bundle.bundleBehavior === BundleBehavior.inline
     ) {
@@ -1347,7 +1347,7 @@ export default class BundleGraph {
               node.type === 'root' ||
               (node.type === 'bundle' &&
                 (node.value.id === bundle.id ||
-                  node.value.env.context !== bundle.env.context))
+                  ISOLATED_ENVS.has(node.value.env.context)))
             ) {
               isReachable = false;
               actions.stop();

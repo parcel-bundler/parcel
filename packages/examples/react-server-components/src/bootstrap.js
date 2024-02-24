@@ -1,10 +1,10 @@
 import {useState, use, startTransition} from 'react';
 import ReactDOM from 'react-dom/client';
-import {createFromReadableStream, createFromFetch, encodeReply} from 'react-server-dom-parcel/client';
+import {createFromReadableStream, createFromFetch, encodeReply, setServerCallback} from 'react-server-dom-parcel/client';
 import {rscStream} from 'rsc-html-stream/client';
 
 let updateRoot;
-async function callServer([id, name], args) {
+setServerCallback(async function([id, name], args) {
   console.log(id, args)
   const response = fetch('/', {
     method: 'POST',
@@ -15,19 +15,16 @@ async function callServer([id, name], args) {
     },
     body: await encodeReply(args),
   });
-  const {result, root} = await createFromFetch(response, {callServer});
+  const {result, root} = await createFromFetch(response);
   // startTransition(() => {
     updateRoot(root);
   // });
   return result;
-}
+});
 
 let data;
 function Content() {
-  data ??= createFromReadableStream(
-    rscStream,
-    {callServer}
-  );
+  data ??= createFromReadableStream(rscStream);
   let [root, setRoot] = useState(use(data));
   updateRoot = setRoot;
   return root;

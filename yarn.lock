@@ -12639,7 +12639,7 @@ react-resizable-panels@^0.0.61:
   integrity sha512-Vk2a4LEHWkI6hGPnPmXxa/2twLYMAMMUTyA2PtR1ijvH2Nkg/AhGqrPsIi/eI85uVWtYCFNZKEsbR3uGuJl/yg==
 
 "react-server-dom-parcel@file:../react/build/oss-stable/react-server-dom-parcel":
-  version "18.3.0-canary-81dc4d8d1-20240217"
+  version "18.3.0-canary-b16533125-20240222"
 
 react-universal-interface@^0.6.2:
   version "0.6.2"
