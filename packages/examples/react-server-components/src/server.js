@@ -2,10 +2,9 @@ import express from 'express';
 import {Readable} from 'node:stream';
 import { createBootstrapScript, importServerComponent, requireClient } from '@parcel/rsc/macro' with {type: 'macro'};
 import {AsyncLocalStorage} from 'node:async_hooks';
-import {renderToReadableStream, decodeReply} from 'react-server-dom-parcel/server.edge';
+import {renderToReadableStream, loadServerAction, decodeReply, decodeAction} from 'react-server-dom-parcel/server.edge';
 import {injectRSCPayload} from 'rsc-html-stream/server';
 import bodyParser from 'body-parser';
-import {importServerAction} from '@parcel/runtime-rsc/actions';
 
 const {createFromReadableStream} = requireClient('react-server-dom-parcel/client.edge');
 const {renderToReadableStream: renderHTMLToReadableStream} = requireClient('react-dom/server.edge');
@@ -28,11 +27,72 @@ let bootstrap = createBootstrapScript('bootstrap.js');
 
 console.log(bootstrap)
 
+function getWebRequest(req) {
+  let headers = new Headers();
+  for (let key in req.headers) {
+    let value = req.headers[key];
+    const values = Array.isArray(value) ? value : [value]
+    for (let v of values) {
+      if (typeof v === 'undefined') continue
+      if (typeof v === 'number') {
+        v = v.toString()
+      }
+
+      headers.append(key, v)
+    }
+  }
+
+  return new Request('http://localhost' + req.url, {
+    method: 'POST',
+    headers,
+    body: Readable.toWeb(req),
+    duplex: 'half'
+  });
+}
+
 app.get('/', async (req, res) => {
-  let [{default: App}, resources] = await importServerComponent('./App');
-  
+  await render(req, res);
+});
+
+app.post('/', async (req, res) => {
+  let id = req.get('rsc-action-id');
+  let request = getWebRequest(req);
+
+  if (id) {
+    let action = await loadServerAction(id);
+    let body = req.is('multipart/form-data') ? await request.formData() : await request.text();
+    let args = await decodeReply(body);
+    let result = action.apply(null, args);
+    try {
+      // Wait for any mutations
+      await result;
+    } catch (x) {
+      // We handle the error on the client
+    }
+
+    await render(req, res, result);
+  } else {
+    // Form submitted by browser (progressive enhancement).
+    let formData = await request.formData();
+    let action = await decodeAction(formData);
+    try {
+      // Wait for any mutations
+      await action();
+    } catch (err) {
+      // TODO render error page?
+    }
+    await render(req, res);
+  }
+});
+
+async function render(req, res, actionResult) {
   // Render RSC payload.
-  let stream = renderToReadableStream([<App />, ...renderResources(resources)]);
+  let [{default: App}, resources] = await importServerComponent('./App');
+  let root = [<App />, ...renderResources(resources)];
+  if (actionResult) {
+    root = {result: actionResult, root};
+  }
+  let stream = renderToReadableStream(root);
   if (req.accepts('text/html')) {
     res.setHeader('Content-Type', 'text/html');
 
@@ -55,30 +115,7 @@ app.get('/', async (req, res) => {
     res.set('Content-Type', 'text/x-component');
     Readable.fromWeb(stream).pipe(res);
   }
-});
-
-app.post('/', bodyParser.text(), async (req, res) => {
-  let id = req.get('rsc-action-id');
-  let name = req.get('rsc-action-name');
-  if (!id || !name) {
-    throw new Error('Invalid action');
-  }
-
-  let action = await importServerAction(id, name);
-  let args = await decodeReply(req.body);
-  let result = action.apply(null, args);
-  try {
-    // Wait for any mutations
-    await result;
-  } catch (x) {
-    // We handle the error on the client
-  }
-
-  let [{default: App}, resources] = await importServerComponent('./App');
-  let stream = renderToReadableStream({result, root: [<App />, ...renderResources(resources)]});
-  res.set('Content-Type', 'text/x-component');
-  Readable.fromWeb(stream).pipe(res);
-});
+}
 
 function renderResources(resources) {
   return resources.map(r => {

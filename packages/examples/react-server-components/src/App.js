@@ -36,6 +36,9 @@ export default async function App() {
           <div>
             <Button action={like.bind(null, 'hi')}>Like</Button>
           </div>
+          <form>
+            <button formAction={like.bind(null, 'yoo')}>Like form</button>
+          </form>
         </Container>
         <Suspense fallback={<>Loading files...</>}>
           <Files />

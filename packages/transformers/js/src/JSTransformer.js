@@ -106,6 +106,10 @@ const CONFIG_SCHEMA: SchemaEntity = {
             type: 'string',
           },
         },
+        {
+          type: 'string',
+          enum: ['force']
+        }
       ],
     },
     unstable_inlineConstants: {
@@ -450,6 +454,7 @@ export default (new Transformer({
       module_id: asset.id,
       project_root: options.projectRoot,
       inline_fs: Boolean(config?.inlineFS),
+      force_inline_env: config?.inlineEnvironment === 'force',
       context: asset.env.context,
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',

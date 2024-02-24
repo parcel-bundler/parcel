@@ -67,6 +67,7 @@ pub struct Config {
   project_root: String,
   env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
   inline_fs: bool,
+  force_inline_env: bool,
   context: EnvContext,
   is_type_script: bool,
   is_jsx: bool,
@@ -141,7 +142,7 @@ impl Config {
   }
 
   fn replace_env(&self) -> bool {
-    !self.is_node()
+    self.force_inline_env || !self.is_node()
   }
 }
 
@@ -496,7 +497,7 @@ pub fn transform(
               // - This will also remove any other other marks (like ignore_mark)
               // This only needs to be done if preset_env ran because all other transforms
               // insert declarations with global_mark (even though they are generated).
-              let module = if config.scope_hoist && should_run_preset_env {
+              let module = if should_run_preset_env {
                 module.fold_with(&mut chain!(
                   hygiene(),
                   resolver(unresolved_mark, global_mark, false)

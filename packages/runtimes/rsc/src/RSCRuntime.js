@@ -8,6 +8,10 @@ import path from 'path';
 
 export default (new Runtime({
   apply({bundle, bundleGraph}) {
+    if (bundle.type !== 'js') {
+      return [];
+    }
+
     let runtimes = [];
     let actionsAsset;
     bundle.traverse((node) => {
@@ -53,6 +57,8 @@ export default (new Runtime({
             code += `exports[${JSON.stringify(symbol)}] = createClientReference(${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))}, ${JSON.stringify(resolved.exportSymbol)});\n`;
           }
 
+          code += `exports.__esModule = true`;
+
           runtimes.push({
             filePath: resolvedAsset.filePath,
             code,
@@ -89,6 +95,8 @@ export default (new Runtime({
               code += `exports[${JSON.stringify(symbol)}] = createServerReference([${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))}, ${JSON.stringify(resolved.exportSymbol)}]);\n`;
             }
           }
+          
+          code += `exports.__esModule = true`;
 
           runtimes.push({
             filePath: resolvedAsset.filePath,
@@ -98,17 +106,22 @@ export default (new Runtime({
             shouldReplaceResolution: true
           });
         }
-      } else if (node.value.filePath === path.resolve(__dirname, '..', 'actions.js')) {
-        actionsAsset = node.value;
       }
     });
 
-    if (actionsAsset) {
-      if (!actionsAsset.env.isNode()) {
-        throw new Error('importServerAction can only be imported on the server');
-      }
-
-      let code = 'import {registerServerActions} from "../actions";\n';
+    let parentBundles = bundleGraph.getParentBundles(bundle);
+    let isEntry = parentBundles.length === 0 ||
+      parentBundles.some(b => b.type !== 'js' || b.env.context !== bundle.env.context) ||
+      bundleGraph
+        .getBundleGroupsContainingBundle(bundle)
+        .some(g => bundleGraph.isEntryBundleGroup(g)) ||
+      bundle.env.isIsolated() ||
+      bundle.bundleBehavior === 'isolated';
+    if (
+      bundle.env.isNode() &&
+      isEntry
+    ) {
+      let code = 'import {registerServerActions} from "react-server-dom-parcel/server.edge";\n';
       code += `registerServerActions({\n`;
       bundleGraph.traverse(node => {
         if (node.type === 'asset' && Array.isArray(node.value.meta?.directives) && node.value.meta.directives.includes('use server')) {

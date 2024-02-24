@@ -116,7 +116,7 @@ export class DevPackager {
         let output = code || '';
         wrapped +=
           JSON.stringify(this.bundleGraph.getAssetPublicId(asset)) +
-          ':[function(require,module,exports) {\n' +
+          ':[function(require,module,exports,parcelRequire) {\n' +
           output +
           '\n},';
         wrapped += JSON.stringify(deps);
@@ -232,6 +232,17 @@ export class DevPackager {
           b,
         )}");\n`;
       }
+    } else if (this.bundle.env.isNode()) {
+      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
+      for (let b of bundles) {
+        if (b.type !== 'js') {
+          continue;
+        }
+        importScripts += `require("${relativeBundlePath(
+          this.bundle,
+          b,
+        )}");\n`;
+      }
     }
 
     return (
@@ -243,10 +254,13 @@ export class DevPackager {
   }
 
   isEntry(): boolean {
-    return (
-      !this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') ||
+    let parentBundles = this.bundleGraph.getParentBundles(this.bundle);
+    return parentBundles.length === 0 ||
+      parentBundles.some(b => b.type !== 'js' || b.env.context !== this.bundle.env.context) ||
+      this.bundleGraph
+        .getBundleGroupsContainingBundle(this.bundle)
+        .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
       this.bundle.env.isIsolated() ||
-      this.bundle.bundleBehavior === 'isolated'
-    );
+      this.bundle.bundleBehavior === 'isolated';
   }
 }

@@ -4,14 +4,13 @@ import {createFromReadableStream, createFromFetch, encodeReply, setServerCallbac
 import {rscStream} from 'rsc-html-stream/client';
 
 let updateRoot;
-setServerCallback(async function([id, name], args) {
+setServerCallback(async function(id, args) {
   console.log(id, args)
   const response = fetch('/', {
     method: 'POST',
     headers: {
       Accept: 'text/x-component',
       'rsc-action-id': id,
-      'rsc-action-name': name,
     },
     body: await encodeReply(args),
   });
