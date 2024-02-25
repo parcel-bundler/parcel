@@ -1,5 +1,5 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, HMR_USE_SSE, chrome, browser, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */
+/* global HMR_HOST, HMR_PORT, HMR_SECURE, HMR_USE_SSE, chrome, browser, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */
 
 /*::
 import type {
@@ -38,7 +38,6 @@ interface ExtensionContext {
 declare var module: {bundle: ParcelRequire, ...};
 declare var HMR_HOST: string;
 declare var HMR_PORT: string;
-declare var HMR_ENV_HASH: string;
 declare var HMR_SECURE: boolean;
 declare var HMR_USE_SSE: boolean;
 declare var chrome: ExtensionContext;
@@ -78,13 +77,16 @@ var checkedAssets /*: {|[string]: boolean|} */,
 function getHostname() {
   return (
     HMR_HOST ||
-    (location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost')
+    (typeof location !== 'undefined' && location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost')
   );
 }
 
 function getPort() {
-  return HMR_PORT || location.port;
+  return HMR_PORT || (typeof location !== 'undefined' ? location.port : 1234);
 }
+
+// eslint-disable-next-line no-redeclare
+const WebSocket = globalThis.WebSocket ?? (typeof module.bundle.root === 'function' ? module.bundle.root('ws') : null);
 
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
@@ -93,7 +95,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var port = getPort();
   var protocol =
     HMR_SECURE ||
-    (location.protocol == 'https:' &&
+    (typeof location !== 'undefined' && location.protocol == 'https:' &&
       !['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname))
       ? 'wss'
       : 'ws';
@@ -145,7 +147,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         removeErrorOverlay();
       }
 
-      let assets = data.assets.filter(asset => asset.envHash === HMR_ENV_HASH);
+      let assets = data.assets;
 
       // Handle HMR Update
       let handled = assets.every(asset => {
@@ -287,9 +289,9 @@ ${frame.code}`;
 }
 
 function fullReload() {
-  if ('reload' in location) {
+  if (typeof location !== 'undefined' && 'reload' in location) {
     location.reload();
-  } else if (extCtx && extCtx.runtime && extCtx.runtime.reload) {
+  } else if (typeof extCtx !== 'undefined' && extCtx && extCtx.runtime && extCtx.runtime.reload) {
     extCtx.runtime.reload();
   }
 }
@@ -570,7 +572,7 @@ function hmrAcceptCheckOne(
     // If we reached the root bundle without finding where the asset should go,
     // there's nothing to do. Mark as "accepted" so we don't reload the page.
     if (!bundle.parent) {
-      return true;
+      return false;
     }
 
     return hmrAcceptCheck(bundle.parent, id, depsByBundle);
@@ -610,7 +612,7 @@ function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
 function hmrAccept(bundle /*: ParcelRequire */, id /*: string */) {
   // Execute the module.
   bundle(id);
-
+  
   // Run the accept callbacks in the new version of the module.
   var cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {

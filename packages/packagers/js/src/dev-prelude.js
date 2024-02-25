@@ -77,6 +77,7 @@
         localRequire,
         module,
         module.exports,
+        globalObject,
         globalParcelRequire
       );
     }

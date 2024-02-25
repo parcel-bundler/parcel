@@ -7,7 +7,6 @@ function shouldExclude(asset, options) {
   return (
     !asset.isSource ||
     !options.hmrOptions ||
-    !asset.env.isBrowser() ||
     asset.env.isLibrary ||
     asset.env.isWorker() ||
     asset.env.isWorklet() ||
@@ -38,33 +37,60 @@ export default (new Transformer({
 
     let code = await asset.getCode();
     let map = await asset.getMap();
-    let name = `$parcel$ReactRefreshHelpers$${asset.id.slice(-4)}`;
+    if (asset.env.isBrowser()) {
+      let name = `$parcel$ReactRefreshHelpers$${asset.id.slice(-4)}`;
 
-    code = `var ${name} = require(${JSON.stringify(wrapperPath)});
-var prevRefreshReg = window.$RefreshReg$;
-var prevRefreshSig = window.$RefreshSig$;
+      code = `var ${name} = require(${JSON.stringify(wrapperPath)});
+var prevRefreshReg = globalThis.$RefreshReg$;
+var prevRefreshSig = globalThis.$RefreshSig$;
 ${name}.prelude(module);
 
 try {
 ${code}
   ${name}.postlude(module);
 } finally {
-  window.$RefreshReg$ = prevRefreshReg;
-  window.$RefreshSig$ = prevRefreshSig;
+  globalThis.$RefreshReg$ = prevRefreshReg;
+  globalThis.$RefreshSig$ = prevRefreshSig;
 }`;
 
-    asset.setCode(code);
-    if (map) {
-      map.offsetLines(1, 6);
-      asset.setMap(map);
-    }
+      asset.setCode(code);
+      if (map) {
+        map.offsetLines(1, 6);
+        asset.setMap(map);
+      }
 
-    // The JSTransformer has already run, do it manually
-    asset.addDependency({
-      specifier: wrapperPath,
-      specifierType: 'esm',
-      resolveFrom: __filename,
-    });
+      // The JSTransformer has already run, do it manually
+      asset.addDependency({
+        specifier: wrapperPath,
+        specifierType: 'esm',
+        resolveFrom: __filename,
+      });
+    } else {
+      code += `if (module.hot) {
+  let prevExports;
+  module.hot.dispose(function (data) {
+    data.prevExports = prevExports || module.exports;
+  });
+
+  module.hot.accept(function () {
+    prevExports = module.hot.data.prevExports;
+    if (prevExports) {
+      for (let key in prevExports) {
+        if (!(key in module.exports)) {
+          delete module.exports[key];
+        }
+      }
+      for (let key in module.exports) {
+        Object.defineProperty(prevExports, key, {
+          get: () => module.exports[key],
+          configurable: true
+        });
+      }
+    }
+  });
+}`;
+      asset.setCode(code);
+    }
 
     return [asset];
   },

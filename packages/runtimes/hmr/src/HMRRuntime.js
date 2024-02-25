@@ -48,7 +48,6 @@ export default (new Runtime({
         `var HMR_SECURE = ${JSON.stringify(
           !!(options.serveOptions && options.serveOptions.https),
         )};` +
-        `var HMR_ENV_HASH = "${bundle.env.id}";` +
         `var HMR_USE_SSE = ${
           // $FlowFixMe
           JSON.stringify(!!(process.env.PARCEL_BUILD_REPL && process.browser))

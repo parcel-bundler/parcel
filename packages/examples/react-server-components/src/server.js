@@ -4,7 +4,6 @@ import { createBootstrapScript, importServerComponent, requireClient } from '@pa
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {renderToReadableStream, loadServerAction, decodeReply, decodeAction} from 'react-server-dom-parcel/server.edge';
 import {injectRSCPayload} from 'rsc-html-stream/server';
-import bodyParser from 'body-parser';
 
 const {createFromReadableStream} = requireClient('react-server-dom-parcel/client.edge');
 const {renderToReadableStream: renderHTMLToReadableStream} = requireClient('react-dom/server.edge');

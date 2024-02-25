@@ -37,10 +37,10 @@ var enqueueUpdate = debounce(function () {
 // MIT License - Copyright (c) Facebook, Inc. and its affiliates.
 
 module.exports.prelude = function (module) {
-  window.$RefreshReg$ = function (type, id) {
+  globalThis.$RefreshReg$ = function (type, id) {
     Refresh.register(type, module.id + ' ' + id);
   };
-  window.$RefreshSig$ = Refresh.createSignatureFunctionForTransform;
+  globalThis.$RefreshSig$ = Refresh.createSignatureFunctionForTransform;
 };
 
 module.exports.postlude = function (module) {
@@ -49,7 +49,7 @@ module.exports.postlude = function (module) {
 
     if (module.hot) {
       module.hot.dispose(function (data) {
-        if (Refresh.hasUnrecoverableErrors()) {
+        if (Refresh.hasUnrecoverableErrors() && typeof window !== 'undefined') {
           window.location.reload();
         }
 
@@ -77,7 +77,7 @@ module.exports.postlude = function (module) {
           // reload is if all parent modules are also refresh boundaries.
           // In that case we'll add them to the current queue.
           var parents = getParents();
-          if (parents.length === 0) {
+          if (parents.length === 0 && typeof window !== 'undefined') {
             // Looks like we bubbled to the root. Can't recover from that.
             window.location.reload();
             return;
