@@ -126,4 +126,12 @@ function renderResources(resources) {
   })
 }
 
-app.listen(3001);
+let server = app.listen(3001);
+
+if (module.hot) {
+  module.hot.dispose(() => {
+    server.close();
+  });
+
+  module.hot.accept();
+}

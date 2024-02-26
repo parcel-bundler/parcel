@@ -1,6 +1,6 @@
 'use server';
 
-import { setServerState } from "./serverState";
+import { setServerState } from "./ServerState";
 
 let likeCount = 0;
 

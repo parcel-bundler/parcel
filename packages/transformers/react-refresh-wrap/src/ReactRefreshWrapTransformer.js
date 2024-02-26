@@ -66,28 +66,10 @@ ${code}
         resolveFrom: __filename,
       });
     } else {
+      // In a server component, accept the update so the exports of the original 
+      // module get updated in place and is ready for the next re-render.
       code += `if (module.hot) {
-  let prevExports;
-  module.hot.dispose(function (data) {
-    data.prevExports = prevExports || module.exports;
-  });
-
-  module.hot.accept(function () {
-    prevExports = module.hot.data.prevExports;
-    if (prevExports) {
-      for (let key in prevExports) {
-        if (!(key in module.exports)) {
-          delete module.exports[key];
-        }
-      }
-      for (let key in module.exports) {
-        Object.defineProperty(prevExports, key, {
-          get: () => module.exports[key],
-          configurable: true
-        });
-      }
-    }
-  });
+  module.hot.accept();
 }`;
       asset.setCode(code);
     }

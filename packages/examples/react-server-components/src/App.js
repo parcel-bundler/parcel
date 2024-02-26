@@ -1,19 +1,13 @@
 import Container from './Container.js';
-
 import {Counter} from './Counter.js';
-// import {Counter as Counter2} from './Counter2.js';
-
-// import ShowMore from './ShowMore.js';
 import Button from './Button.js';
 import {Files} from './Files';
 import {Suspense} from 'react';
 import './App.css';
-import {getServerState} from './serverState';
+import {getServerState} from './ServerState';
 import {like} from './actions.js';
 
 export default async function App() {
-  // const res = await fetch('http://localhost:3001/todos');
-  // const todos = await res.json();
   let todos = [];
   return (
     <html>
@@ -24,17 +18,13 @@ export default async function App() {
         <Container>
           <h1>{getServerState()}</h1>
           <Counter />
-          {/* <Counter2 /> */}
           <ul>
             {todos.map(todo => (
               <li key={todo.id}>{todo.text}</li>
             ))}
           </ul>
-          {/* <ShowMore>
-            <p>Lorem ipsum</p>
-          </ShowMore> */}
           <div>
-            <Button action={like.bind(null, 'hi')}>Like</Button>
+            <Button action={like.bind(null, 'hi')}>Like server action</Button>
           </div>
           <form>
             <button formAction={like.bind(null, 'yoo')}>Like form</button>

@@ -9,7 +9,7 @@ import type {
 interface ParcelRequire {
   (string): mixed;
   cache: {|[string]: ParcelModule|};
-  hotData: {|[string]: mixed|};
+  disposedAssets: {|[string]: ParcelModule|};
   Module: any;
   parent: ?ParcelRequire;
   isParcelRequire: true;
@@ -18,6 +18,7 @@ interface ParcelRequire {
   root: ParcelRequire;
 }
 interface ParcelModule {
+  exports: any,
   hot: {|
     data: mixed,
     accept(cb: (Function) => void): void,
@@ -52,10 +53,20 @@ var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
 
-function Module(moduleName) {
-  OldModule.call(this, moduleName);
+function Module(id) {
+  OldModule.call(this, id);
+
+  // Since ES module exports are live binding, reuse the previous exports object so they are updated in place.
+  let previousModule = module.bundle.disposedAssets[id];
+  if (typeof previousModule?.exports === 'object' && previousModule.exports?.__esModule) {
+    this.exports = previousModule.exports;
+    for (let key in this.exports) {
+      delete this.exports[key];
+    }
+  }
+
   this.hot = {
-    data: module.bundle.hotData[moduleName],
+    data: previousModule ? previousModule.hot.data : {},
     _acceptCallbacks: [],
     _disposeCallbacks: [],
     accept: function (fn) {
@@ -65,14 +76,15 @@ function Module(moduleName) {
       this._disposeCallbacks.push(fn);
     },
   };
-  module.bundle.hotData[moduleName] = undefined;
+  delete module.bundle.disposedAssets[id];
 }
 module.bundle.Module = Module;
-module.bundle.hotData = {};
+module.bundle.disposedAssets = {};
 
 var checkedAssets /*: {|[string]: boolean|} */,
   assetsToDispose /*: Array<[ParcelRequire, string]> */,
-  assetsToAccept /*: Array<[ParcelRequire, string]> */;
+  assetsToAccept /*: Array<[ParcelRequire, string]> */,
+  bundleNotFound = false;
 
 function getHostname() {
   return (
@@ -138,6 +150,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     checkedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
     assetsToDispose = [];
+    bundleNotFound = false;
 
     var data /*: HMRMessage */ = JSON.parse(event.data);
 
@@ -158,6 +171,20 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         );
       });
 
+      // Dispatch a custom event in case a bundle was not found. This might mean
+      // an asset on the server changed and we should reload the page. This event
+      // gives the client an opportunity to refresh without losing state 
+      // (e.g. via React Server Components). If e.preventDefault() is not called,
+      // we will trigger a full page reload.
+      if (
+        handled &&
+        bundleNotFound &&
+        typeof window !== 'undefined' &&
+        typeof CustomEvent !== 'undefined'
+      ) {
+        handled = !window.dispatchEvent(new CustomEvent('parcelhmrreload', {cancelable: true}));
+      }
+      
       if (handled) {
         console.clear();
 
@@ -293,6 +320,8 @@ function fullReload() {
     location.reload();
   } else if (typeof extCtx !== 'undefined' && extCtx && extCtx.runtime && extCtx.runtime.reload) {
     extCtx.runtime.reload();
+  } else {
+    console.log('[parcel] ⚠️ An HMR update was not accepted. Please restart the process.')
   }
 }
 
@@ -346,7 +375,7 @@ function updateLink(link) {
 
 var cssTimeout = null;
 function reloadCSS() {
-  if (cssTimeout) {
+  if (cssTimeout || typeof document === 'undefined') {
     return;
   }
 
@@ -515,6 +544,7 @@ function hmrDelete(bundle, id) {
     // Delete the module. This must be done before deleting dependencies in case of circular dependencies.
     delete modules[id];
     delete bundle.cache[id];
+    delete bundle.disposedAssets[id];
 
     // Now delete the orphans.
     orphans.forEach(id => {
@@ -572,7 +602,8 @@ function hmrAcceptCheckOne(
     // If we reached the root bundle without finding where the asset should go,
     // there's nothing to do. Mark as "accepted" so we don't reload the page.
     if (!bundle.parent) {
-      return false;
+      bundleNotFound = true;
+      return true;
     }
 
     return hmrAcceptCheck(bundle.parent, id, depsByBundle);
@@ -587,7 +618,7 @@ function hmrAcceptCheckOne(
   var cached = bundle.cache[id];
   assetsToDispose.push([bundle, id]);
 
-  if (!cached || (cached.hot && cached.hot._acceptCallbacks.length)) {
+  if (cached && (cached.hot && cached.hot._acceptCallbacks.length)) {
     assetsToAccept.push([bundle, id]);
     return true;
   }
@@ -595,17 +626,17 @@ function hmrAcceptCheckOne(
 
 function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
   var cached = bundle.cache[id];
-  bundle.hotData[id] = {};
   if (cached && cached.hot) {
-    cached.hot.data = bundle.hotData[id];
+    cached.hot.data = {};
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
     cached.hot._disposeCallbacks.forEach(function (cb) {
-      cb(bundle.hotData[id]);
+      cb(cached.hot.data);
     });
   }
 
+  bundle.disposedAssets[id] = cached;
   delete bundle.cache[id];
 }
 

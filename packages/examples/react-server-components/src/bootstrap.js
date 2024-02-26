@@ -15,9 +15,9 @@ setServerCallback(async function(id, args) {
     body: await encodeReply(args),
   });
   const {result, root} = await createFromFetch(response);
-  // startTransition(() => {
+  startTransition(() => {
     updateRoot(root);
-  // });
+  });
   return result;
 });
 
@@ -29,8 +29,25 @@ function Content() {
   return root;
 }
 
+async function refresh() {
+  let res = fetch('/', {
+    headers: {
+      Accept: 'text/x-component'
+    }
+  });
+  let root = await createFromFetch(res);
+  startTransition(() => {
+    updateRoot(root);
+  });
+}
+
 if (typeof document !== 'undefined') {
   startTransition(() => {
     ReactDOM.hydrateRoot(document, <Content />);
+  });
+
+  window.addEventListener('parcelhmrreload', e => {
+    e.preventDefault();
+    refresh();
   });
 }

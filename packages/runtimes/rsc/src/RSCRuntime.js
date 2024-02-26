@@ -57,7 +57,7 @@ export default (new Runtime({
             code += `exports[${JSON.stringify(symbol)}] = createClientReference(${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))}, ${JSON.stringify(resolved.exportSymbol)});\n`;
           }
 
-          code += `exports.__esModule = true`;
+          code += `exports.__esModule = true;\n`;
 
           runtimes.push({
             filePath: resolvedAsset.filePath,
@@ -96,7 +96,7 @@ export default (new Runtime({
             }
           }
           
-          code += `exports.__esModule = true`;
+          code += `exports.__esModule = true;\n`;
 
           runtimes.push({
             filePath: resolvedAsset.filePath,

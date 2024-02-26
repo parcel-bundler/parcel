@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-
 import Container from './Container.js';
 
 export function Counter() {

@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 
 export async function Files() {
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // await new Promise(resolve => setTimeout(resolve, 1000));
   let files = await fs.readdir(process.cwd());
   return (
     <ul>
