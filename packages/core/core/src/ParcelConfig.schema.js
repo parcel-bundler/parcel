@@ -1,6 +1,8 @@
 // @flow strict-local
 import type {PackageName} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
+
+import {featureFlags} from '@parcel/feature-flags';
 import assert from 'assert';
 
 // Reasoning behind this validation:
@@ -90,6 +92,19 @@ const mapStringSchema = (pluginType: string, key: string): SchemaEntity => {
   };
 };
 
+const featureFlagProperties = (): SchemaEntity => {
+  const props = {};
+  for (const name of Object.keys(featureFlags)) {
+    props[name] = {
+      type: featureFlags[name].type,
+    };
+  }
+  return {
+    type: 'object',
+    properties: props,
+  };
+};
+
 export default {
   type: 'object',
   properties: {
@@ -133,6 +148,7 @@ export default {
     resolveFrom: {
       type: 'string',
     },
+    featureFlags: (featureFlagProperties(): SchemaEntity),
   },
   additionalProperties: false,
 };

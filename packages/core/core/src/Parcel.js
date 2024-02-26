@@ -110,6 +110,11 @@ export default class Parcel {
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
 
+    nullthrows(
+      this.#config.options.featureFlags.exampleFeature,
+      'Expected feature flags to be set',
+    );
+
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {
         throw new Error('Supplied WorkerFarm is ending');
