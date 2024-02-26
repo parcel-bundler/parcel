@@ -218,6 +218,7 @@ export default async function resolveOptions(
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
       isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
+    featureFlags: initialOptions.featureFlags ?? {},
   };
 }
 
