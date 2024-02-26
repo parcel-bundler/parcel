@@ -58,6 +58,7 @@ export type ProcessedParcelConfig = {|
   validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   filePath: ProjectPath,
   resolveFrom?: ProjectPath,
+  featureFlags?: FeatureFlags,
 |};
 
 export type Environment = {|
@@ -318,7 +319,7 @@ export type ParcelOptions = {|
     +isLibrary?: boolean,
   |},
 
-  +featureFlags: FeatureFlags,
+  +featureFlags?: FeatureFlags,
 |};
 
 export type AssetNode = {|

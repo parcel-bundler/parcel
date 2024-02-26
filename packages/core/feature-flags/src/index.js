@@ -2,9 +2,13 @@
 
 type FeatureFlagDefinitions = {|
   [string]: {|
-    type: 'boolean' | 'string',
     description: string,
+    defaultValue: boolean | string,
   |},
+|};
+
+export type FeatureFlags = {|
+  +exampleFeature?: boolean,
 |};
 
 // This export is designed to be used for when feature flag information is required in other
@@ -12,12 +16,12 @@ type FeatureFlagDefinitions = {|
 // convert them to `FeatureFlags` passed to the Parcel API.
 export const featureFlags: FeatureFlagDefinitions = {
   exampleFeature: {
-    type: 'boolean',
     description:
       'Test feature flag to ensure the feature flag types flow correctly.',
+    defaultValue: false,
   },
 };
 
-export type FeatureFlags = {|
-  +exampleFeature?: boolean,
-|};
+export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
+  exampleFeature: false,
+};

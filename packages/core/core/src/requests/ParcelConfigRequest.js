@@ -38,6 +38,7 @@ import ParcelConfig from '../ParcelConfig';
 import {createBuildCache} from '../buildCache';
 import {toProjectPath} from '../projectPath';
 import {requestTypes} from '../RequestTracker';
+import type {FeatureFlags} from '@parcel/feature-flags';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -409,6 +410,7 @@ export async function processConfig(
       configFile.filePath,
       options,
     ),
+    featureFlags: mergeFlags(configFile.featureFlags, options.featureFlags),
   };
 }
 
@@ -591,6 +593,16 @@ export function validateNotEmpty(
   invariant.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
+function mergeFlags(base?: FeatureFlags, ext?: FeatureFlags) {
+  if (!base) {
+    return ext;
+  }
+  if (!ext) {
+    return base;
+  }
+  return {...base, ...ext};
+}
+
 export function mergeConfigs(
   base: ProcessedParcelConfig,
   ext: ProcessedParcelConfig,
@@ -615,6 +627,7 @@ export function mergeConfigs(
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),
+    featureFlags: mergeFlags(base.featureFlags, ext.featureFlags),
   };
 }
 

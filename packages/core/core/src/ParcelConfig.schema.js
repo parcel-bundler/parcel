@@ -96,12 +96,13 @@ const featureFlagProperties = (): SchemaEntity => {
   const props = {};
   for (const name of Object.keys(featureFlags)) {
     props[name] = {
-      type: featureFlags[name].type,
+      type: typeof featureFlags[name].defaultValue,
     };
   }
   return {
     type: 'object',
     properties: props,
+    additionalProperties: false,
   };
 };
 

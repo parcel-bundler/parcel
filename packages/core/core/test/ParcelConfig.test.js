@@ -402,4 +402,30 @@ describe('ParcelConfig', () => {
       });
     });
   });
+
+  describe('featureFlags', () => {
+    it('should use defaults if not specified', () => {
+      let config = new ParcelConfig(
+        {
+          bundler: undefined,
+          filePath: PARCELRC_PATH,
+        },
+        DEFAULT_OPTIONS,
+      );
+      assert.equal(config.featureFlags.exampleFeature, false);
+    });
+    it('should correctly merge feature flags', () => {
+      let config = new ParcelConfig(
+        {
+          bundler: undefined,
+          filePath: PARCELRC_PATH,
+          featureFlags: {
+            exampleFeature: true,
+          },
+        },
+        DEFAULT_OPTIONS,
+      );
+      assert.equal(config.featureFlags.exampleFeature, true);
+    });
+  });
 });

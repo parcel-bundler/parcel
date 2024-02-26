@@ -583,6 +583,9 @@ describe('ParcelConfigRequest', () => {
             resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/bundler',
           },
+          featureFlags: {
+            exampleFeature: false,
+          },
         },
         DEFAULT_OPTIONS,
       );
@@ -606,6 +609,9 @@ describe('ParcelConfigRequest', () => {
             },
             '...',
           ],
+        },
+        featureFlags: {
+          exampleFeature: true,
         },
       };
 
@@ -656,6 +662,9 @@ describe('ParcelConfigRequest', () => {
         packagers: {},
         reporters: [],
         validators: {},
+        featureFlags: {
+          exampleFeature: true,
+        },
       };
 
       // $FlowFixMe
