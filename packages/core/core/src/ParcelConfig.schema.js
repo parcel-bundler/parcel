@@ -1,7 +1,6 @@
 // @flow strict-local
 import type {PackageName} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
-
 import {featureFlags} from '@parcel/feature-flags';
 import assert from 'assert';
 

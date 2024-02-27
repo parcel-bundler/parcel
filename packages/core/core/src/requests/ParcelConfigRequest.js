@@ -38,7 +38,7 @@ import ParcelConfig from '../ParcelConfig';
 import {createBuildCache} from '../buildCache';
 import {toProjectPath} from '../projectPath';
 import {requestTypes} from '../RequestTracker';
-import type {FeatureFlags} from '@parcel/feature-flags';
+import {type FeatureFlags, DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -410,7 +410,10 @@ export async function processConfig(
       configFile.filePath,
       options,
     ),
-    featureFlags: mergeFlags(configFile.featureFlags, options.featureFlags),
+    featureFlags: mergeFlagsWithDefaults(
+      configFile.featureFlags,
+      options.featureFlags,
+    ),
   };
 }
 
@@ -593,14 +596,18 @@ export function validateNotEmpty(
   invariant.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
-function mergeFlags(base?: FeatureFlags, ext?: FeatureFlags) {
+export function mergeFlagsWithDefaults(
+  base?: FeatureFlags,
+  ext?: FeatureFlags,
+): FeatureFlags {
   if (!base) {
-    return ext;
+    return {...DEFAULT_FEATURE_FLAGS, ...ext};
   }
-  if (!ext) {
-    return base;
+  if (!ext && base) {
+    return {...DEFAULT_FEATURE_FLAGS, ...base};
   }
-  return {...base, ...ext};
+
+  return {...DEFAULT_FEATURE_FLAGS, ...base, ...ext};
 }
 
 export function mergeConfigs(
@@ -627,7 +634,7 @@ export function mergeConfigs(
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),
-    featureFlags: mergeFlags(base.featureFlags, ext.featureFlags),
+    featureFlags: mergeFlagsWithDefaults(base.featureFlags, ext.featureFlags),
   };
 }
 
