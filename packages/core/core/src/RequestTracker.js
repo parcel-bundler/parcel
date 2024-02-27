@@ -1290,7 +1290,7 @@ export default class RequestTracker {
 }
 
 export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
-  let ignore = options.baseWatcherOptions.ignore.map(dir =>
+  let ignore = (options.baseWatcherOptions.ignore ?? ['.git', '.hg']).map(dir =>
     path.join(options.projectRoot, dir),
   );
   return {
