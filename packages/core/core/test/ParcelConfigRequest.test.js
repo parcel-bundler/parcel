@@ -12,10 +12,12 @@ import {
   parseAndProcessConfig,
   resolveParcelConfig,
   processConfig,
+  mergeFlagsWithDefaults,
 } from '../src/requests/ParcelConfigRequest';
 import {validatePackageName} from '../src/ParcelConfig.schema';
 import {DEFAULT_OPTIONS, relative} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 describe('ParcelConfigRequest', () => {
   describe('validatePackageName', () => {
@@ -982,5 +984,28 @@ describe('ParcelConfigRequest', () => {
 
       assert(resolved !== null);
     });
+  });
+
+  it('should mergeFlagsWithDefaults', () => {
+    assert.deepEqual(
+      mergeFlagsWithDefaults(undefined, undefined),
+      DEFAULT_FEATURE_FLAGS,
+    );
+    assert.deepEqual(
+      mergeFlagsWithDefaults({exampleFeature: true}, undefined),
+      {exampleFeature: true},
+    );
+    assert.deepEqual(
+      mergeFlagsWithDefaults(undefined, {exampleFeature: true}),
+      {exampleFeature: true},
+    );
+    assert.deepEqual(
+      mergeFlagsWithDefaults({exampleFeature: true}, {exampleFeature: false}),
+      {exampleFeature: false},
+    );
+    assert.deepEqual(
+      mergeFlagsWithDefaults({exampleFeature: false}, {exampleFeature: true}),
+      {exampleFeature: true},
+    );
   });
 });
