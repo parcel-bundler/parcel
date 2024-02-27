@@ -1290,9 +1290,13 @@ export default class RequestTracker {
 }
 
 export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
-  let vcsDirs = ['.git', '.hg'].map(dir => path.join(options.projectRoot, dir));
-  let ignore = [options.cacheDir, ...vcsDirs];
-  return {ignore};
+  let ignore = options.baseWatcherOptions.ignore.map(dir =>
+    path.join(options.projectRoot, dir),
+  );
+  return {
+    ignore: [options.cacheDir, ...ignore],
+    backend: options.baseWatcherOptions.backend,
+  };
 }
 
 function getCacheKey(options) {

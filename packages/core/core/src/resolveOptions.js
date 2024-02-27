@@ -191,6 +191,9 @@ export default async function resolveOptions(
     shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
     watchDir,
+    baseWatcherOptions: initialOptions.baseWatcherOptions ?? {
+      ignore: ['.git', '.hg'],
+    },
     entries: entries.map(e => toProjectPath(projectRoot, e)),
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',

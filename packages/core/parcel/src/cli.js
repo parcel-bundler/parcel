@@ -76,6 +76,11 @@ const commonOptions = {
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--watch-dir <path>':
     'set the root watch directory. defaults to nearest lockfile or source control dir.',
+  '--watcher-ignore-dirs [path]': `list of directories watcher should not be tracking for changes. defaults to ['.git', '.hg']`,
+  '--watcher-backend': new commander.Option(
+    '--watcher-backend <name>',
+    'set watcher backend',
+  ).choices(['fs-events', 'watchman', 'inotify', 'windows', 'brute-force']),
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
@@ -497,10 +502,15 @@ async function normalizeOptions(
     if (typeof input !== 'string') return [];
     return input.split(',').map(value => value.trim());
   };
+
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
     watchDir: command.watchDir,
+    baseWatcherOptions: {
+      backend: command.watcherBackend,
+      ignore: command.watcherIgnoreDirs ?? ['.git', '.hg'],
+    },
     config: command.config,
     mode,
     hmrOptions,
