@@ -50,7 +50,13 @@ function getWebRequest(req) {
 }
 
 app.get('/', async (req, res) => {
-  await render(req, res);
+  let [{default: App}, resources] = await importServerComponent('./App');
+  await render(req, res, <App />, resources);
+});
+
+app.get('/files/*', async (req, res) => {
+  let [{default: FilePage}, resources] = await importServerComponent('./FilePage');
+  await render(req, res, <FilePage file={req.params[0]} />, resources);
 });
 
 app.post('/', async (req, res) => {
@@ -69,7 +75,8 @@ app.post('/', async (req, res) => {
       // We handle the error on the client
     }
 
-    await render(req, res, result);
+    let [{default: App}, resources] = await importServerComponent('./App');
+    await render(req, res, <App />, resources, result);
   } else {
     // Form submitted by browser (progressive enhancement).
     let formData = await request.formData();
@@ -80,14 +87,14 @@ app.post('/', async (req, res) => {
     } catch (err) {
       // TODO render error page?
     }
-    await render(req, res);
+    let [{default: App}, resources] = await importServerComponent('./App');
+    await render(req, res, <App />, resources);
   }
 });
 
-async function render(req, res, actionResult) {
+async function render(req, res, component, resources, actionResult) {
   // Render RSC payload.
-  let [{default: App}, resources] = await importServerComponent('./App');
-  let root = [<App />, ...renderResources(resources)];
+  let root = [component, ...renderResources(resources)];
   if (actionResult) {
     root = {result: actionResult, root};
   }

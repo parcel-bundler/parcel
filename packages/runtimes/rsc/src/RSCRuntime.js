@@ -13,7 +13,6 @@ export default (new Runtime({
     }
 
     let runtimes = [];
-    let actionsAsset;
     bundle.traverse((node) => {
       if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/runtime-rsc/resources?id=') && !bundleGraph.isDependencySkipped(node.value)) {
         let query = new URLSearchParams(node.value.specifier.split('?')[1]);
