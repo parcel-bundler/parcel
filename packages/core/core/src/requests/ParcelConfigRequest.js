@@ -596,6 +596,10 @@ export function validateNotEmpty(
   invariant.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
+// Merges two `FeatureFlag` objects that might be undefined, with defaults as a base, resulting
+// in a feature flag object that is guaranteed to contain values for all `FeatureFlags`.
+//
+// Mostly this function exists because Flow isn't happy about `{...DEFAULTS, ...base, ...ext}` when base or ext might be undefined
 export function mergeFlagsWithDefaults(
   base?: FeatureFlags,
   ext?: FeatureFlags,
