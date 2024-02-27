@@ -8,7 +8,7 @@ type FeatureFlagDefinitions = {|
 |};
 
 export type FeatureFlags = {|
-  +exampleFeature?: boolean,
+  +exampleFeature: boolean,
 |};
 
 // This export is designed to be used for when feature flag information is required in other
