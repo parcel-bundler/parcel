@@ -362,6 +362,7 @@ export interface PluginOptions {
   +packageManager: PackageManager;
   +instanceId: string;
   +detailedReport: ?DetailedReportOptions;
+  +featureFlags: FeatureFlags;
 }
 
 export type ServerOptions = {|
