@@ -58,7 +58,6 @@ export type ProcessedParcelConfig = {|
   validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   filePath: ProjectPath,
   resolveFrom?: ProjectPath,
-  featureFlags?: FeatureFlags,
 |};
 
 export type Environment = {|

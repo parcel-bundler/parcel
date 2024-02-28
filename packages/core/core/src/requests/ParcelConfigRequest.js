@@ -410,10 +410,6 @@ export async function processConfig(
       configFile.filePath,
       options,
     ),
-    featureFlags: mergeFlagsWithDefaults(
-      configFile.featureFlags,
-      options.featureFlags,
-    ),
   };
 }
 
@@ -596,24 +592,6 @@ export function validateNotEmpty(
   invariant.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
-// Merges two `FeatureFlag` objects that might be undefined, with defaults as a base, resulting
-// in a feature flag object that is guaranteed to contain values for all `FeatureFlags`.
-//
-// Mostly this function exists because Flow isn't happy about `{...DEFAULTS, ...base, ...ext}` when base or ext might be undefined
-export function mergeFlagsWithDefaults(
-  base?: FeatureFlags,
-  ext?: FeatureFlags,
-): FeatureFlags {
-  if (!base) {
-    return {...DEFAULT_FEATURE_FLAGS, ...ext};
-  }
-  if (!ext && base) {
-    return {...DEFAULT_FEATURE_FLAGS, ...base};
-  }
-
-  return {...DEFAULT_FEATURE_FLAGS, ...base, ...ext};
-}
-
 export function mergeConfigs(
   base: ProcessedParcelConfig,
   ext: ProcessedParcelConfig,
@@ -638,7 +616,6 @@ export function mergeConfigs(
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),
-    featureFlags: mergeFlagsWithDefaults(base.featureFlags, ext.featureFlags),
   };
 }
 

@@ -27,7 +27,6 @@ import ThrowableDiagnostic, {
   md,
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-import {DEFAULT_FEATURE_FLAGS, type FeatureFlags} from '@parcel/feature-flags';
 import json5 from 'json5';
 
 import {globToRegex} from '@parcel/utils';
@@ -71,7 +70,6 @@ export default class ParcelConfig {
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
   regexCache: Map<string, RegExp>;
-  featureFlags: FeatureFlags;
 
   constructor(config: ProcessedParcelConfig, options: ParcelOptions) {
     this.options = options;
@@ -88,7 +86,6 @@ export default class ParcelConfig {
     this.validators = config.validators || {};
     this.pluginCache = new Map();
     this.regexCache = new Map();
-    this.featureFlags = {...DEFAULT_FEATURE_FLAGS, ...config.featureFlags};
   }
 
   static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
@@ -108,7 +105,6 @@ export default class ParcelConfig {
       optimizers: this.optimizers,
       compressors: this.compressors,
       reporters: this.reporters,
-      featureFlags: this.featureFlags,
     };
   }
 

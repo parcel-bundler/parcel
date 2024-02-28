@@ -37,7 +37,6 @@ describe('feature flags', () => {
                 if (code.includes('MARKER') && options.featureFlags.exampleFeature) {
                     asset.setCode(code.replace('MARKER', 'REPLACED'));
                 }
-                console.log(await asset.getCode());
                 return [asset];
             }
         });
