@@ -195,6 +195,7 @@ jobs:
     needs:
       - build
       - build-linux-musl
+      - build-linux-gnu-x64
       - build-linux-gnu-arm
       - build-apple-silicon
     steps:
@@ -221,6 +222,7 @@ jobs:
   repl_build:
     name: Build REPL
     runs-on: ubuntu-latest
+    needs: [build-linux-gnu-x64]
     permissions:
       deployments: write
     steps:
@@ -247,7 +249,7 @@ jobs:
       - name: Download @parcel/rust Linux Binaries artifact
         uses: actions/download-artifact@v3
         with:
-          name: Rust Linux Binaries
+          name: bindings-linux-gnu-x64
           path: packages/core/rust
       - run: yarn build
       - run: yarn build-native-wasm
