@@ -221,7 +221,6 @@ jobs:
   repl_build:
     name: Build REPL
     runs-on: ubuntu-latest
-    needs: [unit_tests]
     permissions:
       deployments: write
     steps:
