@@ -12,7 +12,7 @@ import type {
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
-import {type FeatureFlags, DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+import {type FeatureFlags} from '@parcel/feature-flags';
 
 let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
   new WeakMap();
@@ -90,6 +90,6 @@ export default class PluginOptions implements IPluginOptions {
   }
 
   get featureFlags(): FeatureFlags {
-    return this.#options.featureFlags ?? DEFAULT_FEATURE_FLAGS;
+    return this.#options.featureFlags;
   }
 }

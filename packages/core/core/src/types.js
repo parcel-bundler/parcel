@@ -318,7 +318,7 @@ export type ParcelOptions = {|
     +isLibrary?: boolean,
   |},
 
-  +featureFlags?: FeatureFlags,
+  +featureFlags: FeatureFlags,
 |};
 
 export type AssetNode = {|

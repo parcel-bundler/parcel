@@ -25,6 +25,8 @@ import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
 
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
 const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
@@ -218,7 +220,7 @@ export default async function resolveOptions(
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
       isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
-    featureFlags: initialOptions?.featureFlags,
+    featureFlags: {...DEFAULT_FEATURE_FLAGS, ...initialOptions?.featureFlags},
   };
 }
 

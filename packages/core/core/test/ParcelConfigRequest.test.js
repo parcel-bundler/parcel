@@ -607,9 +607,6 @@ describe('ParcelConfigRequest', () => {
             '...',
           ],
         },
-        featureFlags: {
-          exampleFeature: true,
-        },
       };
 
       let merged = {
@@ -659,9 +656,6 @@ describe('ParcelConfigRequest', () => {
         packagers: {},
         reporters: [],
         validators: {},
-        featureFlags: {
-          exampleFeature: true,
-        },
       };
 
       // $FlowFixMe

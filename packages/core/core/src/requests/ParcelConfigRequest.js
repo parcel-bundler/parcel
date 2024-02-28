@@ -38,7 +38,6 @@ import ParcelConfig from '../ParcelConfig';
 import {createBuildCache} from '../buildCache';
 import {toProjectPath} from '../projectPath';
 import {requestTypes} from '../RequestTracker';
-import {type FeatureFlags, DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
