@@ -252,7 +252,7 @@ jobs:
           name: bindings-linux-gnu-x64
           path: artifacts
       - name: Move artifacts
-        run: for d in artifacts/*/*/*; do cp $d/*.node packages/$(basename $(dirname $d))/$(basename $d); done
+        run: cp artifacts/core/rust/*.node packages/core/rust/.
       - run: yarn build
       - run: yarn build-native-wasm
       - run: yarn workspace @parcel/repl build
