@@ -41,6 +41,17 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
       - uses: bahmutov/npm-install@v1.8.35
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          key: ${{ matrix.name }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/git/db/
+            ~/.cargo/registry/cache/
+            ~/.cargo/registry/index/
+            target/
+          restore-keys: ${{ matrix.name }}-cargo-
       - name: Remove CommandLineTools SDKs
         if: ${{ matrix.target == 'aarch64-apple-darwin' }}
         run: sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
