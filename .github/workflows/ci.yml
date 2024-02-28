@@ -1,6 +1,6 @@
-on: pull_request
-
 name: Continuous Integration
+
+on: pull_request
 
 permissions:
   contents: read
