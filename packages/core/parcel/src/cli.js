@@ -104,7 +104,7 @@ const commonOptions = {
     },
     [],
   ],
-  '-F, --feature-flag <name=value>': [
+  '--feature-flag <name=value>': [
     'sets the value of a feature flag',
     (value, previousValue) => {
       let [name, val] = value.split('=');
