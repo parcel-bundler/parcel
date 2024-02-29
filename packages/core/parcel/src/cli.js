@@ -110,7 +110,6 @@ const commonOptions = {
       let [name, val] = value.split('=');
       if (name in DEFAULT_FEATURE_FLAGS) {
         let featureFlagValue;
-        console.log(typeof DEFAULT_FEATURE_FLAGS[name]);
         if (typeof DEFAULT_FEATURE_FLAGS[name] === 'boolean') {
           if (val !== 'true' && val !== 'false') {
             throw new Error(
