@@ -12,6 +12,7 @@ import commander from 'commander';
 import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 const program = new commander.Command();
 
@@ -102,6 +103,30 @@ const commonOptions = {
       return acc;
     },
     [],
+  ],
+  '--feature-flag <name=value>': [
+    'sets the value of a feature flag',
+    (value, previousValue) => {
+      let [name, val] = value.split('=');
+      if (name in DEFAULT_FEATURE_FLAGS) {
+        let featureFlagValue;
+        if (typeof DEFAULT_FEATURE_FLAGS[name] === 'boolean') {
+          if (val !== 'true' && val !== 'false') {
+            throw new Error(
+              `Feature flag ${name} must be set to true or false`,
+            );
+          }
+          featureFlagValue = val;
+        }
+        previousValue[name] = featureFlagValue ?? String(val);
+      } else {
+        INTERNAL_ORIGINAL_CONSOLE.warn(
+          `Unknown feature flag ${name} specified, it will be ignored`,
+        );
+      }
+      return previousValue;
+    },
+    {},
   ],
 };
 
@@ -509,5 +534,6 @@ async function normalizeOptions(
       publicUrl: command.publicUrl,
       distDir: command.distDir,
     },
+    featureFlags: command.featureFlag,
   };
 }

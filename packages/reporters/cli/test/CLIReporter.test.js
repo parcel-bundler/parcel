@@ -10,6 +10,7 @@ import {NodePackageManager} from '@parcel/package-manager';
 import stripAnsi from 'strip-ansi';
 import * as bundleReport from '../src/bundleReport';
 import * as render from '../src/render';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
@@ -36,6 +37,7 @@ const EMPTY_OPTIONS = {
   detailedReport: {
     assetsPerBundle: 10,
   },
+  featureFlags: DEFAULT_FEATURE_FLAGS,
 };
 
 describe('CLIReporter', () => {
