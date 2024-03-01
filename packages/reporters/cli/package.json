@@ -38,6 +38,7 @@
     "term-size": "^2.2.1"
   },
   "devDependencies": {
+    "@parcel/feature-flags": "2.12.0",
     "filesize": "^6.1.0",
     "nullthrows": "^1.1.1",
     "ora": "^5.2.0",

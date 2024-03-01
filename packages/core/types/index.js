@@ -15,6 +15,7 @@ import type {Cache} from '@parcel/cache';
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 import type {TraceMeasurement} from '@parcel/profiler';
 import type {EventType} from '@parcel/watcher';
+import type {FeatureFlags} from '@parcel/feature-flags';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -333,6 +334,8 @@ export type InitialParcelOptions = {|
     resolveFrom: FilePath,
   |}>,
 
+  +featureFlags?: FeatureFlags,
+
   // throwErrors
   // global?
 |};
@@ -359,6 +362,7 @@ export interface PluginOptions {
   +packageManager: PackageManager;
   +instanceId: string;
   +detailedReport: ?DetailedReportOptions;
+  +featureFlags: FeatureFlags;
 }
 
 export type ServerOptions = {|
