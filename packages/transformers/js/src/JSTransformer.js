@@ -165,6 +165,7 @@ type MacroAsset = {|
   content: string,
 |};
 
+// NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
 type MacroContext = {|
   addAsset(asset: MacroAsset): void,
   invalidateOnFileChange(FilePath): void,

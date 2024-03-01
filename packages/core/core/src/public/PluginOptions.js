@@ -12,6 +12,7 @@ import type {
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
+import {type FeatureFlags} from '@parcel/feature-flags';
 
 let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
   new WeakMap();
@@ -86,5 +87,9 @@ export default class PluginOptions implements IPluginOptions {
 
   get detailedReport(): ?DetailedReportOptions {
     return this.#options.detailedReport;
+  }
+
+  get featureFlags(): FeatureFlags {
+    return this.#options.featureFlags;
   }
 }

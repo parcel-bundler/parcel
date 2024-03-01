@@ -13,6 +13,7 @@ export default class PromiseQueue<T> {
   _error: mixed;
   _count: number = 0;
   _results: Array<T> = [];
+  _addSubscriptions: Set<() => void> = new Set();
 
   constructor(opts: PromiseQueueOpts = {maxConcurrent: Infinity}) {
     if (opts.maxConcurrent <= 0) {
@@ -43,10 +44,22 @@ export default class PromiseQueue<T> {
 
       this._queue.push(wrapped);
 
+      for (const addFn of this._addSubscriptions) {
+        addFn();
+      }
+
       if (this._numRunning > 0 && this._numRunning < this._maxConcurrent) {
         this._next();
       }
     });
+  }
+
+  subscribeToAdd(fn: () => void): () => void {
+    this._addSubscriptions.add(fn);
+
+    return () => {
+      this._addSubscriptions.delete(fn);
+    };
   }
 
   run(): Promise<Array<T>> {

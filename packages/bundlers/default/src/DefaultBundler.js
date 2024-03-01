@@ -140,12 +140,12 @@ export default (new Bundler({
     return loadBundlerConfig(config, options, logger);
   },
 
-  bundle({bundleGraph, config}) {
+  bundle({bundleGraph, config, logger}) {
     let targetMap = getEntryByTarget(bundleGraph); // Organize entries by target output folder/ distDir
     let graphs = [];
     for (let entries of targetMap.values()) {
       // Create separate bundleGraphs per distDir
-      graphs.push(createIdealGraph(bundleGraph, config, entries));
+      graphs.push(createIdealGraph(bundleGraph, config, entries, logger));
     }
     for (let g of graphs) {
       decorateLegacyGraph(g, bundleGraph); //mutate original graph
@@ -365,6 +365,7 @@ function createIdealGraph(
   assetGraph: MutableBundleGraph,
   config: ResolvedBundlerConfig,
   entries: Map<Asset, Dependency>,
+  logger: PluginLogger,
 ): IdealGraph {
   // Asset to the bundle and group it's an entry of
   let bundleRoots: Map<BundleRoot, [NodeId, NodeId]> = new Map();
@@ -459,10 +460,13 @@ function createIdealGraph(
 
     // Process in reverse order so earlier configs take precedence
     for (let c of config.manualSharedBundles.reverse()) {
-      invariant(
-        c.root == null || configToParentAsset.has(c),
-        'Invalid manual shared bundle. Could not find parent asset.',
-      );
+      if (c.root != null && !configToParentAsset.has(c)) {
+        logger.warn({
+          origin: '@parcel/bundler-default',
+          message: `Manual shared bundle "${c.name}" skipped, no root asset found`,
+        });
+        continue;
+      }
 
       let parentAsset = configToParentAsset.get(c);
       let assetRegexes = c.assets.map(glob => globToRegex(glob));
