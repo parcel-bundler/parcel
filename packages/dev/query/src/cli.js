@@ -10,19 +10,26 @@ import repl from 'repl';
 import os from 'os';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
-import {serialize} from 'v8';
 // $FlowFixMe
 import {table} from 'table';
 
-import {loadGraphs} from './index.js';
+import {
+  filesByTypeAndModifiedTime,
+  loadAssetGraph,
+  loadBundleGraph,
+  loadBundleInfo,
+  loadCacheInfo,
+  loadRequestTracker,
+} from './index.js';
 
 const {
   BundleGraph: {bundleGraphEdgeTypes: bundleGraphEdgeTypes},
   Priority,
   fromProjectPathRelative,
+  LMDBCache,
 } = require('./deep-imports.js');
 
-export async function run(input: string[]) {
+export function run(input: string[]) {
   let args = input;
   let cacheDir = path.join(process.cwd(), '.parcel-cache');
   if (args[0] === '--cache') {
@@ -38,60 +45,27 @@ export async function run(input: string[]) {
     process.exit(1);
   }
 
-  console.log('Loading graphs...');
-  let {assetGraph, bundleGraph, bundleInfo, requestTracker, cacheInfo} =
-    await loadGraphs(cacheDir);
-
-  function hasRequestTracker() {
-    if (requestTracker == null) {
-      console.error('Request Graph could not be found');
-      return false;
-    }
-    return true;
-  }
-
-  function hasBundleGraph() {
-    if (bundleGraph == null) {
-      console.error('Bundle Graph could not be found');
-      return false;
-    }
-    return true;
-  }
-
-  function hasAssetGraph() {
-    if (assetGraph == null) {
-      console.error('Asset Graph could not be found');
-      return false;
-    }
-    return true;
-  }
-
-  function hasBundleInfo() {
-    if (bundleInfo == null) {
-      console.error('Bundle Info could not be found');
-      return false;
-    }
-    return true;
-  }
+  const cache = new LMDBCache(cacheDir);
+  let {requestGraphFiles, bundleGraphFiles, assetGraphFiles} =
+    filesByTypeAndModifiedTime(cacheDir);
+  let cacheInfo: Map<string, Array<string | number>> = new Map();
+  let assetGraph, bundleGraph, requestTracker, bundleInfo;
 
   // -------------------------------------------------------
 
-  function getBundleFilePath(id: ContentKey) {
-    if (!hasBundleInfo()) {
-      return;
-    }
+  async function getBundleFilePath(id: ContentKey) {
+    requestTracker = await loadRequestTracker(requestGraphFiles, cache);
+    bundleInfo = loadBundleInfo(requestTracker);
     invariant(bundleInfo != null);
     return fromProjectPathRelative(nullthrows(bundleInfo.get(id)?.filePath));
   }
 
-  function parseAssetLocator(v: string) {
+  async function parseAssetLocator(v: string) {
     let id: ?string = null;
     if (v.length === 16) {
       id = v;
     } else {
-      if (!hasBundleGraph()) {
-        return;
-      }
+      bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
       invariant(bundleGraph != null);
       for (let [assetId, publicId] of bundleGraph._publicIdByAssetId) {
         if (publicId === v) {
@@ -102,9 +76,7 @@ export async function run(input: string[]) {
     }
 
     if (id == null && v.length > 0) {
-      if (!hasAssetGraph()) {
-        return;
-      }
+      assetGraph = await loadAssetGraph(assetGraphFiles, cache);
       invariant(assetGraph != null);
       let assetRegex = new RegExp(v);
       for (let node of assetGraph.nodes.values()) {
@@ -120,14 +92,12 @@ export async function run(input: string[]) {
     return id;
   }
 
-  function parseBundleLocator(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function parseBundleLocator(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let bundleRegex = new RegExp(v);
     for (let b of bundleGraph.getBundles()) {
-      let bundleFilePath = getBundleFilePath(b.id);
+      let bundleFilePath = await getBundleFilePath(b.id);
       if (
         (bundleFilePath !== undefined && bundleRegex.test(bundleFilePath)) ||
         b.id === v
@@ -137,24 +107,20 @@ export async function run(input: string[]) {
     }
   }
 
-  function getAsset(v: string) {
-    let id: ?string = parseAssetLocator(v);
+  async function getAsset(v: string) {
+    let id: ?string = await parseAssetLocator(v);
 
     if (id == null) {
       console.log(null);
     } else {
       try {
-        if (!hasBundleGraph()) {
-          return;
-        }
+        bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
         invariant(bundleGraph != null);
         let asset = bundleGraph.getAssetById(id);
         console.log('Public id', bundleGraph.getAssetPublicId(asset));
         console.log(asset);
       } catch (e) {
-        if (!hasAssetGraph()) {
-          return;
-        }
+        assetGraph = await loadAssetGraph(assetGraphFiles, cache);
         invariant(assetGraph != null);
         let node = nullthrows(assetGraph.getNodeByContentKey(id));
         invariant(node.type === 'asset');
@@ -163,10 +129,8 @@ export async function run(input: string[]) {
     }
   }
 
-  function _findAssetNode(v: string) {
-    if (!hasAssetGraph()) {
-      return;
-    }
+  async function _findAssetNode(v: string) {
+    assetGraph = await loadAssetGraph(assetGraphFiles, cache);
     invariant(assetGraph != null);
     let assetRegex = new RegExp(v);
     for (let node of assetGraph.nodes.values()) {
@@ -179,13 +143,11 @@ export async function run(input: string[]) {
     }
   }
 
-  function findAsset(v: string) {
-    let node = _findAssetNode(v);
+  async function findAsset(v: string) {
+    let node = await _findAssetNode(v);
     if (node) {
       try {
-        if (!hasBundleGraph()) {
-          return;
-        }
+        bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
         invariant(bundleGraph != null);
         console.log(
           `${bundleGraph.getAssetPublicId(
@@ -198,10 +160,9 @@ export async function run(input: string[]) {
     }
   }
 
-  function findAssetWithSymbol(local: string) {
-    if (!hasBundleGraph() || !hasAssetGraph()) {
-      return;
-    }
+  async function findAssetWithSymbol(local: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
+    assetGraph = await loadAssetGraph(assetGraphFiles, cache);
     invariant(bundleGraph != null);
     invariant(assetGraph != null);
     let [, assetId, binding, ref] = nullthrows(
@@ -254,7 +215,7 @@ export async function run(input: string[]) {
         if (symbol.local === local) {
           if (symbol.loc) {
             let locPath = symbol.loc.filePath;
-            let locAsset = _findAssetNode(String(locPath));
+            let locAsset = await _findAssetNode(String(locPath));
             if (locAsset != null) {
               try {
                 console.log(
@@ -286,17 +247,13 @@ export async function run(input: string[]) {
     }
   }
 
-  function getNodeAssetGraph(v: string) {
-    if (!hasAssetGraph()) {
-      return;
-    }
+  async function getNodeAssetGraph(v: string) {
+    assetGraph = await loadAssetGraph(assetGraphFiles, cache);
     invariant(assetGraph != null);
     console.log(assetGraph.getNodeByContentKey(v));
   }
-  function getNodeBundleGraph(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getNodeBundleGraph(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     console.log(bundleGraph._graph.getNodeByContentKey(v));
   }
@@ -326,13 +283,13 @@ export async function run(input: string[]) {
     }
   }
 
-  function _findEntries(
+  async function _findEntries(
     graph:
       | ContentGraph<BundleGraphNode, BundleGraphEdgeType>
       | ContentGraph<AssetGraphNode>,
     v: string,
   ) {
-    let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
+    let asset = nullthrows(await parseAssetLocator(v), 'Asset not found');
 
     let paths = new Paths<NodeId>(graph.getNodeIdByContentKey(asset), ' ');
     let cb = (id, ctx, revisiting) => {
@@ -375,34 +332,28 @@ export async function run(input: string[]) {
     });
   }
 
-  function findEntriesAssetGraph(v: string) {
-    if (!hasAssetGraph()) {
-      return;
-    }
+  async function findEntriesAssetGraph(v: string) {
+    assetGraph = await loadAssetGraph(assetGraphFiles, cache);
     invariant(assetGraph != null);
-    _findEntries(assetGraph, v);
+    await _findEntries(assetGraph, v);
   }
-  function findEntriesBundleGraph(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function findEntriesBundleGraph(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
-    _findEntries(bundleGraph._graph, v);
+    await _findEntries(bundleGraph._graph, v);
   }
-  function findEntries(v: string) {
-    findEntriesBundleGraph(v);
+  async function findEntries(v: string) {
+    await findEntriesBundleGraph(v);
   }
 
-  function getBundlesWithAsset(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getBundlesWithAsset(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
-    let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
+    let asset = nullthrows(await parseAssetLocator(v), 'Asset not found');
     for (let b of bundleGraph.getBundlesWithAsset(
       bundleGraph.getAssetById(asset),
     )) {
-      let bundleFilePath = getBundleFilePath(b.id);
+      let bundleFilePath = await getBundleFilePath(b.id);
       if (bundleFilePath !== undefined) {
         console.log(
           `${b.id} ${bundleFilePath} ${
@@ -413,16 +364,14 @@ export async function run(input: string[]) {
     }
   }
 
-  function getBundlesWithDependency(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getBundlesWithDependency(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let node = nullthrows(bundleGraph._graph.getNodeByContentKey(v));
     invariant(node.type === 'dependency');
 
     for (let b of bundleGraph.getBundlesWithDependency(node.value)) {
-      let bundleFilePath = getBundleFilePath(b.id);
+      let bundleFilePath = await getBundleFilePath(b.id);
       if (bundleFilePath !== undefined) {
         console.log(
           `${b.id} ${bundleFilePath} ${
@@ -434,13 +383,11 @@ export async function run(input: string[]) {
   }
 
   // eslint-disable-next-line no-unused-vars
-  function getBundles(_) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getBundles(_) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     for (let b of bundleGraph.getBundles()) {
-      let bundleFilePath = getBundleFilePath(b.id);
+      let bundleFilePath = await getBundleFilePath(b.id);
       if (bundleFilePath !== undefined) {
         console.log(
           `${b.id} ${bundleFilePath} ${
@@ -451,10 +398,8 @@ export async function run(input: string[]) {
     }
   }
 
-  function getReferencingBundles(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getReferencingBundles(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
     let bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundleId);
@@ -465,7 +410,7 @@ export async function run(input: string[]) {
     invariant(bundleNode.type === 'bundle', 'Not a bundle');
 
     for (let b of bundleGraph.getReferencingBundles(bundleNode.value)) {
-      let bundleFilePath = getBundleFilePath(b.id);
+      let bundleFilePath = await getBundleFilePath(b.id);
       if (bundleFilePath !== undefined) {
         console.log(
           `${b.id} ${bundleFilePath} ${
@@ -476,23 +421,19 @@ export async function run(input: string[]) {
     }
   }
 
-  function getIncomingDependenciesAssetGraph(v: string) {
-    if (!hasAssetGraph()) {
-      return;
-    }
+  async function getIncomingDependenciesAssetGraph(v: string) {
+    assetGraph = await loadAssetGraph(assetGraphFiles, cache);
     invariant(assetGraph != null);
-    let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
+    let asset = nullthrows(await parseAssetLocator(v), 'Asset not found');
     let node = nullthrows(assetGraph.getNodeByContentKey(asset));
     invariant(node.type === 'asset');
 
     console.log(assetGraph.getIncomingDependencies(node.value));
   }
-  function getIncomingDependenciesBundleGraph(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getIncomingDependenciesBundleGraph(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
-    let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
+    let asset = nullthrows(await parseAssetLocator(v), 'Asset not found');
     let value = nullthrows(bundleGraph.getAssetById(asset));
 
     console.log(bundleGraph.getIncomingDependencies(value));
@@ -502,10 +443,8 @@ export async function run(input: string[]) {
     getIncomingDependenciesBundleGraph(v);
   }
 
-  function getResolvedAsset(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getResolvedAsset(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let node = nullthrows(
       bundleGraph._graph.getNodeByContentKey(v),
@@ -518,10 +457,8 @@ export async function run(input: string[]) {
     console.log(bundleGraph.getResolvedAsset(node.value));
   }
 
-  function getAssetWithDependency(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getAssetWithDependency(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let node = nullthrows(
       bundleGraph._graph.getNodeByContentKey(v),
@@ -534,10 +471,8 @@ export async function run(input: string[]) {
     console.log(bundleGraph.getAssetWithDependency(node.value));
   }
 
-  function traverseAssets(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function traverseAssets(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
     let node = nullthrows(
@@ -553,10 +488,8 @@ export async function run(input: string[]) {
       console.log(asset.id, asset.filePath);
     });
   }
-  function traverseBundle(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function traverseBundle(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
     let node = nullthrows(
@@ -586,27 +519,23 @@ export async function run(input: string[]) {
     });
   }
 
-  function getBundle(v: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function getBundle(v: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let bundleRegex = new RegExp(v);
     for (let b of bundleGraph.getBundles()) {
-      let bundleFilePath = getBundleFilePath(b.id);
+      let bundleFilePath = await getBundleFilePath(b.id);
       if (
         (bundleFilePath !== undefined && bundleRegex.test(bundleFilePath)) ||
         b.id === v
       ) {
-        console.log(getBundleFilePath(b.id), b);
+        console.log(await getBundleFilePath(b.id), b);
       }
     }
   }
 
-  function findBundleReason(bundle: string, asset: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function findBundleReason(bundle: string, asset: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(bundle), 'Bundle not found');
     let bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundleId);
@@ -615,7 +544,7 @@ export async function run(input: string[]) {
       'Bundle not found',
     );
     invariant(bundleNode.type === 'bundle', 'Not a bundle');
-    let assetId = nullthrows(parseAssetLocator(asset), 'Asset not found');
+    let assetId = nullthrows(await parseAssetLocator(asset), 'Asset not found');
     let assetNodeId = bundleGraph._graph.getNodeIdByContentKey(assetId);
     let assetNode = nullthrows(
       bundleGraph._graph.getNode(assetNodeId),
@@ -680,10 +609,8 @@ export async function run(input: string[]) {
     }
   }
 
-  function _getIncomingNodeOfType(bundleGraph, node, type: string) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function _getIncomingNodeOfType(bundleGraph, node, type: string) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
     return bundleGraph._graph
@@ -695,17 +622,15 @@ export async function run(input: string[]) {
   // We find the priority of a Bundle or BundleGroup by looking at its incoming dependencies.
   // If a Bundle does not have an incoming dependency, we look for an incoming BundleGroup and its dependency
   // e.g. Dep(priority = 1) -> BundleGroup -> Bundle means that the Bundle has priority 1.
-  function _getBundlePriority(bundleGraph, bundle) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function _getBundlePriority(bundleGraph, bundle) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
-    let node = _getIncomingNodeOfType(bundleGraph, bundle, 'dependency');
+    let node = await _getIncomingNodeOfType(bundleGraph, bundle, 'dependency');
 
     if (node == null) {
-      node = _getIncomingNodeOfType(bundleGraph, bundle, 'bundle_group');
+      node = await _getIncomingNodeOfType(bundleGraph, bundle, 'bundle_group');
       if (node == null) return null;
-      node = _getIncomingNodeOfType(bundleGraph, node, 'dependency');
+      node = await _getIncomingNodeOfType(bundleGraph, node, 'dependency');
     }
 
     if (node == null) return null;
@@ -715,10 +640,8 @@ export async function run(input: string[]) {
     return node.value.priority;
   }
 
-  function _findEntryBundle(bundleGraph, node) {
-    if (!hasBundleGraph()) {
-      return;
-    }
+  async function _findEntryBundle(bundleGraph, node) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
     const entryBundleGroup = bundleGraph._graph
@@ -733,8 +656,14 @@ export async function run(input: string[]) {
     return entryBundleGroup;
   }
   // eslint-disable-next-line no-unused-vars
-  function inspectCache(_) {
+  async function inspectCache(_) {
     // displays sizing of various entries of the cache
+    cacheInfo = await loadCacheInfo(
+      requestGraphFiles,
+      bundleGraphFiles,
+      assetGraphFiles,
+      cache,
+    );
     let table: Array<Array<string | number>> = [];
     table.push([
       'Graphs',
@@ -742,21 +671,9 @@ export async function run(input: string[]) {
       'Deserialize (ms)',
       'Serialize (ms)',
     ]);
-    let serialized: Map<string, number> = new Map();
-    serialized.set('RequestGraph', timeSerialize(requestTracker));
-    serialized.set('BundleGraph', timeSerialize(bundleGraph));
-    serialized.set('AssetGraph', timeSerialize(assetGraph));
+
     for (let [name, info] of nullthrows(cacheInfo).entries()) {
-      if (
-        (name === 'RequestGraph' && !hasRequestTracker()) ||
-        (name === 'BundleGraph' && !hasBundleGraph()) ||
-        (name === 'AssetGraph' && !hasAssetGraph())
-      ) {
-        continue;
-      }
-      let s = serialized.get(name);
-      invariant(s != null);
-      table.push([name, ...info, s]);
+      table.push([name, ...info]);
     }
     function getColumnSum(t: Array<Array<string | number>>, col: number) {
       if (t == null) {
@@ -780,12 +697,6 @@ export async function run(input: string[]) {
     _printStatsTable('Cache Info', table);
   }
 
-  function timeSerialize(graph) {
-    let date = Date.now();
-    serialize(graph);
-    date = Date.now() - date;
-    return date;
-  }
   function _printStatsTable(header, data) {
     const config = {
       columnDefault: {
@@ -801,14 +712,15 @@ export async function run(input: string[]) {
   }
 
   // eslint-disable-next-line no-unused-vars
-  function stats(_) {
+  async function stats(_) {
     let ag = {
       asset: 0,
       dependency: 0,
       asset_group: 0,
     };
 
-    if (hasAssetGraph()) {
+    assetGraph = await loadAssetGraph(assetGraphFiles, cache);
+    if (assetGraph) {
       invariant(assetGraph != null);
       for (let n of assetGraph.nodes) {
         if (n && n.type in ag) {
@@ -819,9 +731,7 @@ export async function run(input: string[]) {
       _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
     }
 
-    if (!hasBundleGraph()) {
-      return;
-    }
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
     invariant(bundleGraph != null);
     let bg = {
       dependency: 0,
@@ -853,7 +763,7 @@ export async function run(input: string[]) {
         b_ext[n.value.type] = (b_ext[n.value.type] || 0) + 1;
 
         // $FlowFixMe
-        const entry_group = _findEntryBundle(bundleGraph, n);
+        const entry_group = await _findEntryBundle(bundleGraph, n);
 
         if (entry_group != null && !entries.has(entry_group.id)) {
           b_type.entry++;
@@ -862,7 +772,7 @@ export async function run(input: string[]) {
           // In general, !bundle.mainEntryId means that it is shared. In the case of an async and shared bundle, only count it as shared.
           b_type.shared++;
         } else {
-          const priority = _getBundlePriority(bundleGraph, n);
+          const priority = await _getBundlePriority(bundleGraph, n);
 
           if (priority == Priority.lazy) {
             b_type.async++;
