@@ -1137,6 +1137,7 @@ export default class BundleGraph {
         ? firstAsset
         : // Otherwise, find the first asset that belongs to this bundle.
           assets.find(asset => this.bundleHasAsset(bundle, asset)) ||
+          assets.find(a => a.type === bundle.type) ||
           firstAsset;
 
     // If a resolution still hasn't been found, return the first referenced asset.
@@ -1735,7 +1736,7 @@ export default class BundleGraph {
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
-        let resolved = this.getResolvedAsset(dep);
+        let resolved = this.getResolvedAsset(dep, boundary);
         if (!resolved || resolved.id === asset.id) {
           // External module or self-reference
           return {
@@ -1785,7 +1786,7 @@ export default class BundleGraph {
         depSymbols.get('*')?.local === '*' &&
         symbol !== 'default'
       ) {
-        let resolved = this.getResolvedAsset(dep);
+        let resolved = this.getResolvedAsset(dep, boundary);
         if (!resolved) {
           continue;
         }
@@ -1918,7 +1919,7 @@ export default class BundleGraph {
       if (!depSymbols) continue;
 
       if (depSymbols.get('*')?.local === '*') {
-        let resolved = this.getResolvedAsset(dep);
+        let resolved = this.getResolvedAsset(dep, boundary);
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')

@@ -59,7 +59,7 @@ export default class SimplePackageInstaller implements PackageInstaller {
       return cacheEntry;
     }
 
-    const res = await fetch(`https://registry.npmjs.cf/${name}`, {
+    const res = await fetch(`https://registry.npmjs.org/${name}`, {
       headers: {
         Accept: 'application/vnd.npm.install-v1+json',
         Origin: 'repl.parceljs.org',
@@ -105,9 +105,7 @@ export default class SimplePackageInstaller implements PackageInstaller {
       return cacheEntry;
     }
 
-    const res = await fetch(
-      tarball.replace('registry.npmjs.org', 'registry.npmjs.cf'),
-    );
+    const res = await fetch(tarball);
     if (!res.ok) {
       throw new Error(`npmFetch failed: fetching ${tarball} - ${res.status}`);
     }
@@ -116,7 +114,7 @@ export default class SimplePackageInstaller implements PackageInstaller {
     if (!res.arrayBuffer) {
       // node
       var bufs = [];
-      res.body.on('data', function(d) {
+      res.body.on('data', function (d) {
         bufs.push(d);
       });
 

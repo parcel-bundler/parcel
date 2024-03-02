@@ -1,7 +1,15 @@
 // @flow strict-local
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
-import {bundle, run, overlayFS, fsFixture} from '@parcel/test-utils';
+import {
+  bundle,
+  bundler,
+  run,
+  overlayFS,
+  fsFixture,
+  getNextBuild,
+} from '@parcel/test-utils';
 
 describe('macros', function () {
   let count = 0;
@@ -62,6 +70,28 @@ describe('macros', function () {
       macro.js:
         import {hashString} from '@parcel/rust';
         export default function test(s) {
+          return hashString(s);
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('output="2a2300bbd7ea6e9a"'));
+  });
+
+  it('should support default interop with CommonJS modules', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import test from "./macro.js" with { type: "macro" };
+        output = test('hi');
+
+      macro.js:
+        import {hashString} from '@parcel/rust';
+        module.exports = function(s) {
           return hashString(s);
         }
     `;
@@ -163,7 +193,7 @@ describe('macros', function () {
     await fsFixture(overlayFS, dir)`
       index.js:
         import { test } from "./macro.js" with { type: "macro" };
-        output = test(1 + 2, 'foo ' + 'bar', !true, [1, ...[2, 3]], true ? 1 : 0, typeof false, null ?? 2);
+        output = test(1 + 2, 'foo ' + 'bar', 3 + 'em', 'test'.length, 'test'['length'], 'test'[1], !true, [1, ...[2, 3]], {x: 2, ...{y: 3}}, true ? 1 : 0, typeof false, null ?? 2);
 
       macro.js:
         export function test(...args) {
@@ -177,7 +207,20 @@ describe('macros', function () {
     });
 
     let res = await run(b);
-    assert.deepEqual(res, [3, 'foo bar', false, [1, 2, 3], 1, 'boolean', 2]);
+    assert.deepEqual(res, [
+      3,
+      'foo bar',
+      '3em',
+      4,
+      4,
+      'e',
+      false,
+      [1, 2, 3],
+      {x: 2, y: 3},
+      1,
+      'boolean',
+      2,
+    ]);
   });
 
   it('should dead code eliminate falsy branches', async function () {
@@ -355,7 +398,7 @@ describe('macros', function () {
     } catch (err) {
       assert.deepEqual(err.diagnostics, [
         {
-          message: `Error evaluating macro: Could not resolve module "./macro.js" from "${path.join(
+          message: `Error loading macro: Could not resolve module "./macro.js" from "${path.join(
             dir,
             'index.js',
           )}"`,
@@ -367,12 +410,12 @@ describe('macros', function () {
                 {
                   message: undefined,
                   start: {
-                    line: 2,
-                    column: 10,
+                    line: 1,
+                    column: 1,
                   },
                   end: {
-                    line: 2,
-                    column: 19,
+                    line: 1,
+                    column: 57,
                   },
                 },
               ],
@@ -546,5 +589,321 @@ describe('macros', function () {
     let match2 = res.match(/output=(\d+)/);
     assert(match2);
     assert.notEqual(match[1], match2[1]);
+  });
+
+  it('should only error once if a macro errors during loading', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { test } from "./macro.js" with { type: "macro" };
+        output = test(1, 2);
+        output2 = test(1, 3);
+
+      macro.js:
+        export function test() {
+          return Date.now(
+        }
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.equal(err.diagnostics.length, 1);
+    }
+  });
+
+  it('should rebuild in watch mode after fixing an error', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { test } from "./macro.ts" with { type: "macro" };
+        output = test('test.txt');
+
+      macro.ts:
+        export function test() {
+          return Date.now(
+        }
+    `;
+
+    let b = await bundler(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+      shouldDisableCache: false,
+    });
+
+    let subscription;
+    try {
+      subscription = await b.watch();
+      let buildEvent = await getNextBuild(b);
+      assert.equal(buildEvent.type, 'buildFailure');
+
+      await fsFixture(overlayFS, dir)`
+        macro.ts:
+          export function test() {
+            return Date.now();
+          }
+      `;
+
+      buildEvent = await getNextBuild(b);
+      assert.equal(buildEvent.type, 'buildSuccess');
+      invariant(buildEvent.type === 'buildSuccess'); // flow
+
+      let res = await overlayFS.readFile(
+        buildEvent.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      let match = res.match(/output=(\d+)/);
+      assert(match);
+    } finally {
+      await subscription?.unsubscribe();
+    }
+  });
+
+  it('should support evaluating constants', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        import { test, test2 } from './macro' with { type: "macro" };
+        const hi = "hi";
+        const ref = hi;
+        const arr = [hi];
+        const obj = {a: {b: hi}};
+        const [a, [b], ...c] = [hi, [hi], 2, 3, hi];
+        const [x, y = hi] = [1];
+        const {hi: d, e, ...f} = {hi, e: hi, x: 2, y: hi};
+        const res = test();
+        output1 = hashString(hi);
+        output2 = hashString(ref);
+        output3 = hashString(arr[0]);
+        output4 = hashString(obj.a.b);
+        output5 = hashString(a);
+        output6 = hashString(b);
+        output7 = hashString(c[2]);
+        output8 = hashString(y);
+        output9 = hashString(d);
+        output10 = hashString(e);
+        output11 = hashString(f.y);
+        output12 = hashString(f?.y);
+        output13 = hashString(res);
+        output14 = test2(obj)();
+
+      macro.js:
+        import { hashString } from "@parcel/rust";
+        export function test() {
+          return "hi";
+        }
+
+        export function test2(obj) {
+          return new Function('return "' + hashString(obj.a.b) + '"');
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    for (let i = 1; i <= 14; i++) {
+      assert(res.includes(`output${i}="2a2300bbd7ea6e9a"`));
+    }
+  });
+
+  it('should throw a diagnostic when a constant is mutated', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        const object = {foo: 'bar'};
+        object.foo = 'test';
+        output = hashString(object.foo);
+
+        const arr = ['foo'];
+        arr[0] = 'bar';
+        output = hashString(arr[0]);
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 3,
+                    column: 1,
+                  },
+                  end: {
+                    line: 3,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 7,
+                    column: 1,
+                  },
+                  end: {
+                    line: 7,
+                    column: 14,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+      ]);
+    }
+  });
+
+  it('should throw a diagnostic when a constant object is passed to a function', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hashString } from "@parcel/rust" with { type: "macro" };
+        const bar = 'bar';
+        const object = {foo: bar};
+        doSomething(bar); // ok (string)
+        doSomething(object.foo); // ok (evaluates to a string)
+        doSomething(object); // error (object could be mutated)
+        output = hashString(object.foo);
+
+        const object2 = {foo: bar, obj: {}};
+        doSomething(object2.obj); // error (object could be mutated)
+        output2 = hashString(object2);
+
+        const arr = ['foo'];
+        doSomething(arr);
+        output3 = hashString(arr[0]);
+
+        const object3 = {foo: bar};
+        doSomething(object3[unknown]);
+        output4 = hashString(object3);
+    `;
+
+    try {
+      await bundle(path.join(dir, '/index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+      });
+    } catch (err) {
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 6,
+                    column: 13,
+                  },
+                  end: {
+                    line: 6,
+                    column: 18,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 10,
+                    column: 13,
+                  },
+                  end: {
+                    line: 10,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 14,
+                    column: 13,
+                  },
+                  end: {
+                    line: 14,
+                    column: 15,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+        {
+          message: 'Could not statically evaluate macro argument',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(dir, 'index.js'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 18,
+                    column: 13,
+                  },
+                  end: {
+                    line: 18,
+                    column: 19,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: null,
+        },
+      ]);
+    }
   });
 });

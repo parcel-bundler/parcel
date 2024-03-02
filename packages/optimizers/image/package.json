@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-image",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "license": "MIT",
   "main": "lib/ImageOptimizer.js",
   "source": "src/ImageOptimizer.js",
@@ -17,19 +17,19 @@
   },
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.11.0"
+    "parcel": "^2.12.0"
   },
   "files": [
     "lib"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.11.0",
-    "@parcel/plugin": "2.11.0",
-    "@parcel/rust": "2.11.0",
-    "@parcel/utils": "2.11.0",
-    "@parcel/workers": "2.11.0"
+    "@parcel/diagnostic": "2.12.0",
+    "@parcel/plugin": "2.12.0",
+    "@parcel/rust": "2.12.0",
+    "@parcel/utils": "2.12.0",
+    "@parcel/workers": "2.12.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.11.0"
+    "@parcel/core": "^2.12.0"
   }
 }

@@ -32,6 +32,7 @@ import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
 import type {EventType} from '@parcel/watcher';
+import type {FeatureFlags} from '@parcel/feature-flags';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -316,6 +317,8 @@ export type ParcelOptions = {|
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
   |},
+
+  +featureFlags: FeatureFlags,
 |};
 
 export type AssetNode = {|

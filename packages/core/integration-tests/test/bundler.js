@@ -1223,7 +1223,7 @@ describe('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"]
             }]
@@ -1305,7 +1305,7 @@ describe('bundler', function () {
       package.json:
         {
           "@parcel/bundler-default": {
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "manual-inline",
               "assets": ["shared.js"]
             }]
@@ -1386,7 +1386,7 @@ describe('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"],
               "types": ["js"]
@@ -1471,9 +1471,9 @@ describe('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
-              "parent": "math/math.js",
+              "root": "math/math.js",
               "assets": ["math/!(divide).js"]
             }]
           }
@@ -1524,7 +1524,7 @@ describe('bundler', function () {
       ]);
 
       let targetDistDir = normalizePath(path.join(__dirname, '../dist'));
-      let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
+      let hashedIdWithMSB = hashString('bundle:' + 'vendor,js' + targetDistDir);
       assert(
         b.getBundles().find(b => b.id == hashedIdWithMSB),
         'MSB id does not match expected',
@@ -1542,7 +1542,7 @@ describe('bundler', function () {
           },
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"],
               "types": ["js"]
@@ -1614,9 +1614,9 @@ describe('bundler', function () {
           },
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
-              "parent": "manual.js",
+              "root": "manual.js",
               "assets": ["**/*"],
               "types": ["js"]
             }]
@@ -1682,9 +1682,9 @@ describe('bundler', function () {
           {
             "@parcel/bundler-default": {
               "minBundleSize": 0,
-              "unstable_manualSharedBundles": [{
+              "manualSharedBundles": [{
                 "name": "vendor",
-                "parent": "vendor.js",
+                "root": "vendor.js",
                 "assets": ["**/*"],
                 "split": 3
               }]
@@ -1759,5 +1759,50 @@ describe('bundler', function () {
         },
       ]);
     });
+  });
+
+  it('should reuse type change bundles from parent bundle groups', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      reuse-type-change-bundles
+        index.html:
+          <link rel="stylesheet" type="text/css" href="./style.css">
+          <script src="./index.js" type="module"></script>
+      
+        style.css:
+          @import "common.css";
+          body { color: red }
+        
+        common.css:
+          .common { color: green }
+
+        index.js:
+          import('./async');
+
+        async.js:
+          import './common.css';
+    `;
+
+    let b = await bundle(
+      path.join(__dirname, 'reuse-type-change-bundles', 'index.html'),
+      {
+        mode: 'production',
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.html'],
+      },
+      {
+        assets: ['style.css', 'common.css'],
+      },
+      {
+        assets: ['index.js', 'bundle-manifest.js', 'esm-js-loader.js'],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
   });
 });

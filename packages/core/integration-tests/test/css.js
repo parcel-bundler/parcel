@@ -68,7 +68,52 @@ describe('css', () => {
         css.indexOf('.e {') < css.indexOf('.a {'),
     );
   });
+  it('should place one css bundle per bundlegroup for naming reasons', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/multi-css-bug/src/entry.js'),
+    );
 
+    assertBundles(b, [
+      {
+        name: 'entry.js',
+        type: 'js',
+        assets: ['bundle-url.js', 'cacheLoader.js', 'entry.js', 'js-loader.js'],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'index.js'],
+      },
+      {name: 'entry.css', type: 'css', assets: ['foo.css', 'main.css']},
+    ]);
+  });
+  it.skip('create a new css bundle to maintain one css bundle per bundlegroup constraint', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/multi-css-multi-entry-bug/src/entry.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'entry.js',
+        type: 'js',
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'entry.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'index.js'],
+      },
+      {name: 'Foo.css', type: 'css', assets: ['foo.css']},
+      {name: 'entry.css', type: 'css', assets: ['foo.css', 'main.css']},
+    ]);
+  });
   it('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-css/index.js'),

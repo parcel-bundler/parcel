@@ -26,7 +26,6 @@ import {
 } from './render';
 import * as emoji from './emoji';
 import wrapAnsi from 'wrap-ansi';
-import cliProgress from 'cli-progress';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
@@ -39,7 +38,6 @@ let pendingIncrementalBuild = false;
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
 }, THROTTLE_DELAY);
-let bar;
 
 // Exported only for test
 export async function _report(
@@ -159,22 +157,14 @@ export async function _report(
       if (event.size > 500000) {
         switch (event.phase) {
           case 'start':
-            if (!bar) {
-              bar = new cliProgress.SingleBar(
-                {},
-                cliProgress.Presets.shades_classic,
-              );
-            }
-            writeOut('Writing to cache...');
-            bar.start(event.total, 0);
-            break;
-          case 'write':
-            bar.setTotal(event.total);
-            bar.increment();
+            updateSpinner('Writing cache to disk');
             break;
           case 'end':
-            bar.stop();
-            writeOut('Done.');
+            persistSpinner(
+              'cache',
+              'success',
+              chalk.grey.bold(`Cache written to disk`),
+            );
             break;
         }
       }

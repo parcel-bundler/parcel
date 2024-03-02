@@ -165,6 +165,7 @@ type MacroAsset = {|
   content: string,
 |};
 
+// NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
 type MacroContext = {|
   addAsset(asset: MacroAsset): void,
   invalidateOnFileChange(FilePath): void,
@@ -474,15 +475,31 @@ export default (new Transformer({
       inline_constants: config.inlineConstants,
       callMacro: asset.isSource
         ? async (err, src, exportName, args, loc) => {
+            let mod;
             try {
-              let mod = await options.packageManager.require(
-                src,
-                asset.filePath,
-              );
+              mod = await options.packageManager.require(src, asset.filePath);
+
+              // Default interop for CommonJS modules.
+              if (
+                exportName === 'default' &&
+                !mod.__esModule &&
+                // $FlowFixMe
+                Object.prototype.toString.call(config) !== '[object Module]'
+              ) {
+                mod = {default: mod};
+              }
+
               if (!Object.hasOwnProperty.call(mod, exportName)) {
                 throw new Error(`"${src}" does not export "${exportName}".`);
               }
+            } catch (err) {
+              throw {
+                kind: 1,
+                message: err.message,
+              };
+            }
 
+            try {
               if (typeof mod[exportName] === 'function') {
                 let ctx: MacroContext = {
                   // Allows macros to emit additional assets to add as dependencies (e.g. css).
@@ -503,8 +520,8 @@ export default (new Transformer({
                             },
                             source: asset.filePath,
                             original: {
-                              line: loc.start_line,
-                              column: loc.start_col - 1,
+                              line: loc.line,
+                              column: loc.col,
                             },
                           });
                           line++;
@@ -564,7 +581,10 @@ export default (new Transformer({
                 }
                 message += '\n' + line;
               }
-              throw message;
+              throw {
+                kind: 2,
+                message,
+              };
             }
           }
         : null,
