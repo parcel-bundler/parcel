@@ -16,6 +16,7 @@ import type {
   InternalFileCreateInvalidation,
   InternalGlob,
 } from './types';
+import logger from '@parcel/logger';
 import type {Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
@@ -759,6 +760,13 @@ export class RequestGraph extends ContentGraph<
       // this means the project root was moved and we need to
       // re-run all requests.
       if (type === 'create' && filePath === '') {
+        // $FlowFixMe(incompatible-call) `trackableEvent` isn't part of the Diagnostic interface
+        logger.verbose({
+          origin: '@parcel/core',
+          message:
+            'Watcher reported project root create event. Invalidate all nodes.',
+          trackableEvent: 'project_root_create',
+        });
         for (let [id, node] of this.nodes.entries()) {
           if (node?.type === REQUEST) {
             this.invalidNodeIds.add(id);
