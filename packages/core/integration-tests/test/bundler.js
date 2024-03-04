@@ -117,7 +117,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(__dirname, 'disable-shared-bundles-true-parallel/index.js'),
@@ -200,7 +202,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(
@@ -286,7 +290,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(__dirname, 'disable-shared-bundles-true-min-bundles/index.js'),
@@ -371,7 +377,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(
@@ -481,7 +489,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(__dirname, 'disable-shared-bundles-false/index.js'),
