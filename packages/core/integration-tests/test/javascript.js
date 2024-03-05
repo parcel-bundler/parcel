@@ -5445,7 +5445,7 @@ describe('javascript', function () {
     assert.deepEqual(output, [123, {HooksContext: 123}]);
   });
 
-  it('should support runtime module deduplication', async function () {
+  it.only('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
     );

@@ -303,6 +303,9 @@ export class ResolverRunner {
         });
         measurement && measurement.end();
 
+        if (specifier.includes('esm-helpers')) {
+          console.log('resolving', specifier, result);
+        }
         if (result) {
           if (result.meta) {
             dependency.resolverMeta = result.meta;
@@ -424,6 +427,7 @@ export class ResolverRunner {
         ? normalizePath(fromProjectPathRelative(resolveFrom))
         : '';
 
+    console.log('failed to resolve in path request');
     let diagnostic = await this.getDiagnostic(
       dependency,
       md`Failed to resolve '${dependency.specifier}' ${
