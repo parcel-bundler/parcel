@@ -4748,7 +4748,7 @@ describe.only('javascript', function () {
     assert(url.parse(await res.default()).pathname.startsWith('/resource'));
   });
 
-  it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
+  it.only('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-bundle.js'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
@@ -4770,7 +4770,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
   });
 
-  it('async dependency can be resolved internally and externally from two different bundles', async () => {
+  it.only('async dependency can be resolved internally and externally from two different bundles', async () => {
     let b = await bundle(
       ['entry1.js', 'entry2.js'].map(entry =>
         path.join(
@@ -4809,7 +4809,7 @@ describe.only('javascript', function () {
     ]);
   });
 
-  it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
+  it.only('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
@@ -4836,7 +4836,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 42]);
   });
 
-  it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
+  it.only('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
     let b = await bundle(
       ['same-bundle.js', 'get-dep.js'].map(entry =>
         path.join(__dirname, '/integration/sync-async/', entry),
@@ -4889,7 +4889,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await runBundle(b, getDep)).default, 42);
   });
 
-  it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
+  it.only("can share dependencies between a shared bundle and its sibling's descendants", async () => {
     let b = await bundle(
       path.join(
         __dirname,
@@ -4960,7 +4960,7 @@ describe.only('javascript', function () {
     assert.equal(await (await run(b)).default, 43);
   });
 
-  it('can run an async bundle whose entry asset is present in another bundle', async () => {
+  it.only('can run an async bundle whose entry asset is present in another bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/async-entry-shared/index.js'),
     );
@@ -4983,7 +4983,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 43]);
   });
 
-  it('should display a codeframe on a Terser parse error', async () => {
+  it.only('should display a codeframe on a Terser parse error', async () => {
     let fixture = path.join(__dirname, 'integration/terser-codeframe/index.js');
     let code = await inputFS.readFileSync(fixture, 'utf8');
     await assert.rejects(
