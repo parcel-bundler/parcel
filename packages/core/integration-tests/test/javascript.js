@@ -7449,7 +7449,7 @@ describe.only('javascript', function () {
         assert.deepEqual(v.default, [1, 3]);
       });
 
-      it('supports deferring non-weak dependencies that are not used', async function () {
+      it.only('supports deferring non-weak dependencies that are not used', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -7478,7 +7478,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it('supports excluding CommonJS (CommonJS unused)', async function () {
+      it.only('supports excluding CommonJS (CommonJS unused)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -7521,7 +7521,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it('supports excluding CommonJS (CommonJS used)', async function () {
+      it.only('supports excluding CommonJS (CommonJS used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -7558,7 +7558,7 @@ describe.only('javascript', function () {
       });
     });
 
-    it(`ignores missing unused import specifiers in source assets ${
+    it.only(`ignores missing unused import specifiers in source assets ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async function () {
       let b = await bundle(
@@ -7569,7 +7569,7 @@ describe.only('javascript', function () {
       assert.equal(res.output, 123);
     });
 
-    it(`ignores missing unused import specifiers in node-modules ${
+    it.only(`ignores missing unused import specifiers in node-modules ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async function () {
       let b = await bundle(
@@ -7584,7 +7584,7 @@ describe.only('javascript', function () {
       assert.equal(res.output, 123);
     });
 
-    it(`duplicate assets should share module scope  ${
+    it.only(`duplicate assets should share module scope  ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async function () {
       let b = await bundle(
@@ -7606,7 +7606,7 @@ describe.only('javascript', function () {
       assert.equal(await result.output, 2);
     });
 
-    it(`should work correctly with export called hasOwnProperty ${
+    it.only(`should work correctly with export called hasOwnProperty ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async () => {
       await fsFixture(overlayFS, __dirname)`
