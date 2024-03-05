@@ -10,7 +10,7 @@ import {
   runBundle,
 } from '@parcel/test-utils';
 
-describe.only('workers', function () {
+describe('workers', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

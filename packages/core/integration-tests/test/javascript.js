@@ -23,7 +23,7 @@ import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe('javascript', function () {
+describe.only('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
