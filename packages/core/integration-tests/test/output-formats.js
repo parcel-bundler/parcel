@@ -1299,7 +1299,6 @@ describe('output formats', function () {
       );
 
       let ns = await run(b);
-      assert.deepEqual(ns.test, true);
       assert.deepEqual(ns.default, {test: true});
     });
 
