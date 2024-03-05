@@ -396,34 +396,41 @@ describe('macros', function () {
         mode: 'production',
       });
     } catch (err) {
-      assert.deepEqual(err.diagnostics, [
-        {
-          message: `Error loading macro: Could not resolve module "./macro.js" from "${path.join(
-            dir,
-            'index.js',
-          )}"`,
-          origin: '@parcel/transformer-js',
-          codeFrames: [
-            {
-              filePath: path.join(dir, 'index.js'),
-              codeHighlights: [
-                {
-                  message: undefined,
-                  start: {
-                    line: 1,
-                    column: 1,
+      assert.deepEqual(
+        // \ gets escaped by Node -> Rust -> Node in Windows, so we normalize it for the test
+        err.diagnostics.map(d => ({
+          ...d,
+          message: d.message.replace(/\\\\/g, '\\'),
+        })),
+        [
+          {
+            message: `Error loading macro: Could not resolve module "./macro.js" from "${path.join(
+              dir,
+              'index.js',
+            )}"`,
+            origin: '@parcel/transformer-js',
+            codeFrames: [
+              {
+                filePath: path.join(dir, 'index.js'),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 57,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 57,
-                  },
-                },
-              ],
-            },
-          ],
-          hints: null,
-        },
-      ]);
+                ],
+              },
+            ],
+            hints: null,
+          },
+        ],
+      );
     }
   });
 
