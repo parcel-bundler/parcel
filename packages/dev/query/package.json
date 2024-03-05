@@ -14,7 +14,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "bin": {
-    "parcel-query": "lib/bin.js"
+    "parcel-query": "src/bin.js"
   },
   "main": "src/index.js",
   "dependencies": {
