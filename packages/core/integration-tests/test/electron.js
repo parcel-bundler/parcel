@@ -9,7 +9,7 @@ import {
   outputFS,
 } from '@parcel/test-utils';
 
-describe.only('electron', function () {
+describe('electron', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

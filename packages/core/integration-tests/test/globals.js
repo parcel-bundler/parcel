@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {assertBundles, bundle, run} from '@parcel/test-utils';
 
-describe.only('globals', function () {
+describe('globals', function () {
   it('should support global alias syntax', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/global-alias/index.js'),

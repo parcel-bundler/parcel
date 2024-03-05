@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, removeDistDirectory, run} from '@parcel/test-utils';
 
-describe.only('data-url:', function () {
+describe('data-url:', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

@@ -9,7 +9,7 @@ import {
   run,
 } from '@parcel/test-utils';
 
-describe.only('json', function () {
+describe('json', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

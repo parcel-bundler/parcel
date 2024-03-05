@@ -3,14 +3,12 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  inputFS,
   outputFS,
   removeDistDirectory,
   run,
-  runBundle,
 } from '@parcel/test-utils';
 
-describe.only('yaml', function () {
+describe('yaml', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

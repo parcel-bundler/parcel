@@ -8,7 +8,7 @@ import {
   removeDistDirectory,
 } from '@parcel/test-utils';
 
-describe.only('worklet', function () {
+describe('worklet', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

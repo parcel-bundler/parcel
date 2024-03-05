@@ -13,7 +13,7 @@ import {
   run,
 } from '@parcel/test-utils';
 
-describe.only('url', function () {
+describe('url', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

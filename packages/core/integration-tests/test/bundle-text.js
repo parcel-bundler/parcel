@@ -8,7 +8,7 @@ import {
 } from '@parcel/test-utils';
 import vm from 'vm';
 
-describe.only('bundle-text:', function () {
+describe('bundle-text:', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

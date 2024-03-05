@@ -3,7 +3,7 @@ import path from 'path';
 import Logger from '@parcel/logger';
 import {bundle, outputFS, run, removeDistDirectory} from '@parcel/test-utils';
 
-describe.only('env', function () {
+describe('env', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

@@ -7,7 +7,7 @@ import {
   removeDistDirectory,
 } from '@parcel/test-utils';
 
-describe.only('hasbang', function () {
+describe('hasbang', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
