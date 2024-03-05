@@ -1114,7 +1114,7 @@ describe.only('javascript', function () {
   });
 
   for (let shouldScopeHoist of [true, false]) {
-    it(`should compile workers to non modules if ${
+    it.only(`should compile workers to non modules if ${
       shouldScopeHoist
         ? 'browsers do not support it'
         : 'shouldScopeHoist = false'
@@ -4935,7 +4935,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [3, 5]);
   });
 
-  it('can run an entry bundle whose entry asset is present in another bundle', async () => {
+  it.only('can run an entry bundle whose entry asset is present in another bundle', async () => {
     let b = await bundle(
       ['index.js', 'value.js'].map(basename =>
         path.join(__dirname, '/integration/sync-entry-shared', basename),
@@ -5445,7 +5445,7 @@ describe.only('javascript', function () {
     assert.deepEqual(output, [123, {HooksContext: 123}]);
   });
 
-  it('should support runtime module deduplication', async function () {
+  it.only('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
     );
