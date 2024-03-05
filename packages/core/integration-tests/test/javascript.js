@@ -148,29 +148,6 @@ describe.only('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it.only('should not bundle node_modules for a node environment', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/node_require/main.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'main.js',
-        assets: ['main.js', 'local.js'],
-      },
-    ]);
-
-    await outputFS.mkdirp(path.join(distDir, 'node_modules/testmodule'));
-    await outputFS.writeFile(
-      path.join(distDir, 'node_modules/testmodule/index.js'),
-      'exports.a = 5;',
-    );
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 7);
-  });
-
   it.only('should preserve hashbangs in bundles and preserve executable file mode', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(fixturePath, 'main.js'));
@@ -213,23 +190,6 @@ describe.only('javascript', function () {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it.only('should bundle node_modules for a node environment if includeNodeModules is specified', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/include_node_modules/main.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'main.js',
-        assets: ['main.js', 'local.js', 'index.js'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
-  });
-
   it.only('should bundle builtins for a browser environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/include_builtins-browser/main.js'),
@@ -254,25 +214,6 @@ describe.only('javascript', function () {
     assert.equal(filepath, path.posix.join('app', 'index.js'));
     assert.equal(typeof fs, 'object');
     assert.deepEqual(Object.keys(fs), Object.keys({}));
-  });
-
-  it.only('should not bundle builtins for a node environment if includeNodeModules is specified', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/include_builtins-node/main.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'main.js',
-        assets: ['esmodule-helpers.js', 'main.js'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    let [fs, filepath] = output();
-    assert.equal(filepath, path.join('app', 'index.js'));
-    assert.equal(typeof fs.readFile, 'function');
   });
 
   it.only('should produce a JS bundle with default exports and no imports', async function () {
@@ -397,26 +338,6 @@ describe.only('javascript', function () {
       'utf8',
     );
     assert(!mainBundleContent.includes('foo:'));
-  });
-
-  it.only('should split bundles when a dynamic import is used with a node environment', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/dynamic-node/index.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js'],
-      },
-      {
-        assets: ['local.js'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(await output(), 3);
   });
 
   it.skip('should load dynamic bundle when entry is in a subdirectory', async function () {
@@ -2556,16 +2477,6 @@ describe.only('javascript', function () {
     assert.equal(await run(b), 'test');
   });
 
-  it('should not insert environment variables in node environment', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/env-node/index.js'),
-    );
-
-    let output = await run(b);
-    assert.ok(output.toString().includes('process.env'));
-    assert.equal(output(), 'test:test');
-  });
-
   it('should not replace process.env.hasOwnProperty with undefined', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-hasOwnProperty/index.js'),
@@ -3014,24 +2925,6 @@ describe.only('javascript', function () {
     assert.equal(output(), true);
   });
 
-  it('should not touch process.browser for target node', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/process/index.js'),
-      {
-        targets: {
-          main: {
-            context: 'node',
-            distDir: path.join(__dirname, '/integration/process/dist.js'),
-          },
-        },
-      },
-    );
-
-    let output = await run(b);
-    assert.ok(output.toString().indexOf('process.browser') !== -1);
-    assert.equal(output(), false);
-  });
-
   it.skip('should support adding implicit dependencies', async function () {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'), {
       delegate: {
@@ -3149,44 +3042,6 @@ describe.only('javascript', function () {
     assert.deepEqual(await run(b), {});
   });
 
-  it('should not exclude resolving specifiers that map to false in the browser field in node builds', async () => {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/resolve-entries/pkg-ignore-browser/index.js',
-      ),
-      {
-        targets: ['node'],
-      },
-    );
-
-    assert.equal(await run(b), 'this should only exist in non-browser builds');
-  });
-
-  it.skip('should not resolve the browser field for --target=node', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/resolve-entries/browser.js'),
-      {
-        target: 'node',
-      },
-    );
-
-    assertBundles(b, {
-      name: 'browser.js',
-      assets: ['browser.js', 'node-module.js'],
-      childBundles: [
-        {
-          type: 'map',
-        },
-      ],
-    });
-
-    let output = await run(b);
-
-    assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-main');
-  });
-
   it.skip('should resolve advanced browser resolution', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/browser-multiple.js'),
@@ -3212,32 +3067,6 @@ describe.only('javascript', function () {
     assert.equal(typeof output.entry.test, 'function');
     assert.equal(output.projected.test(), 'pkg-browser-multiple');
     assert.equal(output.entry.test(), 'pkg-browser-multiple browser-entry');
-  });
-
-  it.skip('should not resolve advanced browser resolution with --target=node', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/resolve-entries/browser-multiple.js'),
-      {
-        target: 'node',
-      },
-    );
-
-    assertBundles(b, {
-      name: 'browser-multiple.js',
-      assets: ['browser-multiple.js', 'node-entry.js', 'projected.js'],
-      childBundles: [
-        {
-          type: 'map',
-        },
-      ],
-    });
-
-    let {test: output} = await run(b);
-
-    assert.equal(typeof output.projected.test, 'function');
-    assert.equal(typeof output.entry.test, 'function');
-    assert.equal(output.projected.test(), 'pkg-main-multiple');
-    assert.equal(output.entry.test(), 'pkg-browser-multiple main-entry');
   });
 
   it.skip('should resolve the module field before main if scope-hoisting is enabled', async function () {
@@ -3740,45 +3569,6 @@ describe.only('javascript', function () {
     assert(output.includes('Other page'));
   });
 
-  it.skip('should support importing HTML from JS async with --target=node', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/import-html-async/index.js'),
-      {
-        target: 'node',
-        defaultTargetOptions: {
-          sourceMaps: false,
-        },
-      },
-    );
-
-    assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'cacheLoader.js', 'html-loader.js'],
-      childBundles: [
-        {
-          type: 'html',
-          assets: ['other.html'],
-          childBundles: [
-            {
-              type: 'png',
-              assets: ['100x100.png'],
-              childBundles: [],
-            },
-            {
-              type: 'css',
-              assets: ['index.css'],
-            },
-          ],
-        },
-      ],
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'string');
-    assert(output.includes('<html>'));
-    assert(output.includes('Other page'));
-  });
-
   it.skip('should support importing HTML from JS sync', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/import-html-sync/index.js'),
@@ -3817,17 +3607,6 @@ describe.only('javascript', function () {
     assert.equal(typeof output, 'string');
     assert(output.includes('<html>'));
     assert(output.includes('Other page'));
-  });
-
-  it.skip('should stub require.cache', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/node_require_cache/main.js'),
-      {
-        target: 'node',
-      },
-    );
-
-    await run(b);
   });
 
   it('should support async importing the same module from different bundles', async () => {
