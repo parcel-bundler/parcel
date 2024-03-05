@@ -318,9 +318,11 @@ describe.only('workers', function () {
           defaultTargetOptions: {
             shouldOptimize: false,
             shouldScopeHoist,
-            engines: {
-              browsers: '>= 0.25%',
-            },
+            ...(shouldScopeHoist && {
+              engines: {
+                browsers: '>= 0.25%',
+              },
+            }),
           },
         },
       );
