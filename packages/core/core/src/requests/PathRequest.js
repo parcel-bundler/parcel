@@ -304,7 +304,7 @@ export class ResolverRunner {
         measurement && measurement.end();
 
         if (specifier.includes('esm-helpers')) {
-          console.log('resolving', specifier, result);
+          //   console.log('resolving', specifier, result);
         }
         if (result) {
           if (result.meta) {

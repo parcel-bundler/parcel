@@ -547,7 +547,6 @@ impl Fold for ESMFold {
     items.splice(0..0, self.exports.clone());
 
     if self.needs_helpers {
-      println!("Needs esm helpers from JS module.rs");
       items.insert(
         0,
         ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {

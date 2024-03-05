@@ -1055,10 +1055,10 @@ export default (new Transformer({
       }
 
       if (needs_esm_helpers) {
-        console.log(
-          'resolving JSTransformer esmodule-helpers',
-          require.resolve('@parcel/transformer-js/src/esmodule-helpers.js'),
-        );
+        // console.log(
+        //   'resolving JSTransformer esmodule-helpers',
+        //   require.resolve('@parcel/transformer-js/src/esmodule-helpers.js'),
+        // );
         asset.addDependency({
           specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
           specifierType: 'esm',
