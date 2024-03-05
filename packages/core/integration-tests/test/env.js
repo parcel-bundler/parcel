@@ -1,13 +1,9 @@
 import assert from 'assert';
 import path from 'path';
 import Logger from '@parcel/logger';
-import {bundle, outputFS, run, removeDistDirectory} from '@parcel/test-utils';
+import {bundle, outputFS, run} from '@parcel/test-utils';
 
 describe('env', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should not replace process.env.hasOwnProperty with undefined', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-hasOwnProperty/index.js'),

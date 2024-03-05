@@ -5,15 +5,10 @@ import {
   bundle,
   distDir,
   outputFS,
-  removeDistDirectory,
   run,
 } from '@parcel/test-utils';
 
 describe('json', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should support requiring JSON files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'));
 

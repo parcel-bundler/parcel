@@ -9,15 +9,10 @@ import {
   ncp,
   outputFS,
   overlayFS,
-  removeDistDirectory,
   run,
 } from '@parcel/test-utils';
 
 describe('url', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should support url: imports with CommonJS output', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),

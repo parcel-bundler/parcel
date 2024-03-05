@@ -1,18 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  assertBundles,
-  bundle,
-  outputFS,
-  removeDistDirectory,
-  run,
-} from '@parcel/test-utils';
+import {assertBundles, bundle, outputFS, run} from '@parcel/test-utils';
 
 describe('yaml', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should support requiring YAML files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/yaml/index.js'));
 

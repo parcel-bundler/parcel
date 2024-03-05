@@ -1,18 +1,9 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  assertBundles,
-  bundle,
-  removeDistDirectory,
-  run,
-} from '@parcel/test-utils';
+import {assertBundles, bundle, run} from '@parcel/test-utils';
 import vm from 'vm';
 
 describe('bundle-text:', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it("should inline a bundle's compiled text with `bundle-text`", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/index.js'),

@@ -1,18 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  bundle,
-  run,
-  runBundle,
-  assertBundles,
-  removeDistDirectory,
-} from '@parcel/test-utils';
+import {bundle, run, runBundle, assertBundles} from '@parcel/test-utils';
 
 describe('worklet', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should support url: imports of another javascript file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/pipeline.js'),

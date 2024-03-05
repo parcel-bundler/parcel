@@ -5,15 +5,10 @@ import {
   bundle,
   distDir,
   outputFS,
-  removeDistDirectory,
   run,
 } from '@parcel/test-utils';
 
 describe('node', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should not bundle node_modules for a node environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/node_require/main.js'),

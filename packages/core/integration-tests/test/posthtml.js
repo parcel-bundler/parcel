@@ -2,7 +2,6 @@ import assert from 'assert';
 import {
   bundle,
   assertBundles,
-  removeDistDirectory,
   distDir,
   inputFS,
   outputFS,
@@ -16,10 +15,6 @@ import {
 } from '@parcel/package-manager';
 
 describe('posthtml', function () {
-  afterEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should support transforming HTML with posthtml', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/posthtml/index.html'),

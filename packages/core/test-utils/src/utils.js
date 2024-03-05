@@ -139,6 +139,12 @@ export function bundler(
   entries: FilePath | Array<FilePath>,
   opts?: $Shape<InitialParcelOptions>,
 ): Parcel {
+  if (!opts?.shouldDisableCache) {
+    afterEach(async () => {
+      await removeDistDirectory();
+    });
+  }
+
   return new Parcel(getParcelOptions(entries, opts));
 }
 

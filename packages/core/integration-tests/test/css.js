@@ -6,16 +6,11 @@ import {
   run,
   assertBundles,
   distDir,
-  removeDistDirectory,
   inputFS,
   outputFS,
 } from '@parcel/test-utils';
 
 describe('css', () => {
-  afterEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should produce two bundles when importing a CSS file', async () => {
     let b = await bundle(path.join(__dirname, '/integration/css/index.js'));
 

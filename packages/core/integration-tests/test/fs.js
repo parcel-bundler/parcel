@@ -6,7 +6,6 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  removeDistDirectory,
   run,
   overlayFS,
   outputFS,
@@ -14,10 +13,6 @@ import {
 } from '@parcel/test-utils';
 
 describe('fs', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   describe('browser environment', function () {
     it('should not inline a file if disabled via config', async function () {
       let b = await bundle(

@@ -1,12 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, removeDistDirectory, run} from '@parcel/test-utils';
+import {bundle, run} from '@parcel/test-utils';
 
 describe('data-url:', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
     let b = await bundle(path.join(__dirname, '/integration/data-url/text.js'));
 

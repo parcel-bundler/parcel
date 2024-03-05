@@ -13,7 +13,6 @@ import {
   runBundles,
   assertBundles,
   overlayFS,
-  removeDistDirectory,
   distDir,
   outputFS,
   inputFS,
@@ -23,11 +22,7 @@ import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe.only('javascript', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
+describe('javascript', function () {
   it('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js'),

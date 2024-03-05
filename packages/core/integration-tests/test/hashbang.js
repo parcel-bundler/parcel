@@ -1,17 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  bundle,
-  inputFS,
-  outputFS,
-  removeDistDirectory,
-} from '@parcel/test-utils';
+import {bundle, inputFS, outputFS} from '@parcel/test-utils';
 
 describe('hasbang', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should preserve hashbangs in bundles and preserve executable file mode', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(fixturePath, 'main.js'));

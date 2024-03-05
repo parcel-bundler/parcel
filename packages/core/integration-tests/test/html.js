@@ -3,7 +3,6 @@ import {
   bundle,
   bundler,
   assertBundles,
-  removeDistDirectory,
   distDir,
   getNextBuild,
   run,
@@ -15,10 +14,6 @@ import {
 import path from 'path';
 
 describe('html', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   let subscription;
   afterEach(async () => {
     if (subscription) {

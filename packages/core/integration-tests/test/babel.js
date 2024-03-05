@@ -9,7 +9,6 @@ import {
   getNextBuild,
   inputFS as fs,
   outputFS,
-  removeDistDirectory,
   run,
   sleep,
 } from '@parcel/test-utils';
@@ -32,7 +31,6 @@ describe('babel', function () {
   });
 
   afterEach(async () => {
-    await removeDistDirectory();
     if (subscription) {
       await subscription.unsubscribe();
       subscription = null;

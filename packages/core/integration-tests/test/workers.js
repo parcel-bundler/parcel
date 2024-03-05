@@ -5,16 +5,11 @@ import {
   bundle,
   inputFS,
   outputFS,
-  removeDistDirectory,
   run,
   runBundle,
 } from '@parcel/test-utils';
 
 describe('workers', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it('should support bundling workers', async function () {
     let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
 

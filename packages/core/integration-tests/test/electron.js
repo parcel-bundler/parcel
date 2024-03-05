@@ -4,16 +4,11 @@ import {
   bundle,
   run,
   assertBundles,
-  removeDistDirectory,
   distDir,
   outputFS,
 } from '@parcel/test-utils';
 
 describe('electron', function () {
-  beforeEach(async () => {
-    await removeDistDirectory();
-  });
-
   it.skip('should not bundle node_modules on --target=electron', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/node_require/main.js'),
