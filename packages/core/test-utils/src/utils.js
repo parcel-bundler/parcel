@@ -854,10 +854,10 @@ function prepareWorkerContext(
 
 const nodeCache = new Map();
 // no filepath = ESM
-// $FlowFixMe
 function prepareNodeContext(
   filePath,
   globals,
+  // $FlowFixMe
   ctx: any = {},
   externalModules?: ExternalModules,
 ) {
