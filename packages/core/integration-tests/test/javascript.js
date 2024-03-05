@@ -31,7 +31,7 @@ describe.only('javascript', function () {
     await removeDistDirectory();
   });
 
-  it.only('should produce a basic JS bundle with CommonJS requires', async function () {
+  it('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js'),
     );
@@ -44,7 +44,7 @@ describe.only('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it.only('should support url: imports with CommonJS output', async function () {
+  it('should support url: imports with CommonJS output', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),
     );
@@ -66,7 +66,7 @@ describe.only('javascript', function () {
     assert.strictEqual(path.basename(output), path.basename(txtBundle));
   });
 
-  it.only('should produce a basic JS bundle with ES6 imports', async function () {
+  it('should produce a basic JS bundle with ES6 imports', async function () {
     let b = await bundle(path.join(__dirname, '/integration/es6/index.js'));
 
     // assert.equal(b.assets.size, 8);
@@ -78,7 +78,7 @@ describe.only('javascript', function () {
     assert.equal(output.default(), 3);
   });
 
-  it.only('should detect dependencies inserted by a prior transform', async () => {
+  it('should detect dependencies inserted by a prior transform', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dependency-prior-transform/index.js'),
     );
@@ -89,7 +89,7 @@ describe.only('javascript', function () {
     assert(!contents.includes('import'));
   });
 
-  it.only('should ignore unused requires after process.env inlining', async function () {
+  it('should ignore unused requires after process.env inlining', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-unused-require/index.js'),
       {
@@ -111,7 +111,7 @@ describe.only('javascript', function () {
     assert.strictEqual(output(), 'ok');
   });
 
-  it.only('should produce a basic JS bundle with object rest spread support', async function () {
+  it('should produce a basic JS bundle with object rest spread support', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -131,7 +131,7 @@ describe.only('javascript', function () {
     assert.deepEqual(res.ys, {b: 'b'});
   });
 
-  it.only('should bundle node_modules for a browser environment', async function () {
+  it('should bundle node_modules for a browser environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/node_require_browser/main.js'),
     );
@@ -148,7 +148,7 @@ describe.only('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it.only('should preserve hashbangs in bundles and preserve executable file mode', async () => {
+  it('should preserve hashbangs in bundles and preserve executable file mode', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(fixturePath, 'main.js'));
 
@@ -162,7 +162,7 @@ describe.only('javascript', function () {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it.only('should not preserve hashbangs in browser bundles', async () => {
+  it('should not preserve hashbangs in browser bundles', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(fixturePath, 'main.js'));
 
@@ -174,7 +174,7 @@ describe.only('javascript', function () {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it.only('should preserve hashbangs in scopehoisted bundles', async () => {
+  it('should preserve hashbangs in scopehoisted bundles', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(__dirname, '/integration/node_hashbang/main.js'), {
       defaultTargetOptions: {
@@ -190,7 +190,7 @@ describe.only('javascript', function () {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it.only('should bundle builtins for a browser environment', async function () {
+  it('should bundle builtins for a browser environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/include_builtins-browser/main.js'),
     );
@@ -216,7 +216,7 @@ describe.only('javascript', function () {
     assert.deepEqual(Object.keys(fs), Object.keys({}));
   });
 
-  it.only('should produce a JS bundle with default exports and no imports', async function () {
+  it('should produce a JS bundle with default exports and no imports', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/es6-default-only/index.js'),
     );
@@ -230,7 +230,7 @@ describe.only('javascript', function () {
     assert.equal(output.default(), 3);
   });
 
-  it.only('should split bundles when a dynamic import is used a browser environment', async function () {
+  it('should split bundles when a dynamic import is used a browser environment', async function () {
     let b = await bundle(path.join(__dirname, '/integration/dynamic/index.js'));
 
     assertBundles(b, [
@@ -248,7 +248,7 @@ describe.only('javascript', function () {
     assert.equal(await output(), 3);
   });
 
-  it.only('should prefetch bundles when declared as an import attribute statically', async function () {
+  it('should prefetch bundles when declared as an import attribute statically', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-static-prefetch/index.js'),
     );
@@ -272,7 +272,7 @@ describe.only('javascript', function () {
     assert(headChildren[3].href.match(/prefetched\..*\.css/));
   });
 
-  it.only('should load additional links that were prefetched', async function () {
+  it('should load additional links that were prefetched', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -301,7 +301,7 @@ describe.only('javascript', function () {
     assert(cssBundles[1].href.match(/prefetched-loaded\..*\.css/));
   });
 
-  it.only('should preload bundles when declared as an import attribute statically', async function () {
+  it('should preload bundles when declared as an import attribute statically', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-static-preload/index.js'),
     );
@@ -327,7 +327,7 @@ describe.only('javascript', function () {
     'targetting esmodule, should modulepreload bundles when declared as an import attribute statically',
   );
 
-  it.only('should remove import attributes', async () => {
+  it('should remove import attributes', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
     );
@@ -375,7 +375,7 @@ describe.only('javascript', function () {
     ]);
   });
 
-  it.only('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function () {
+  it('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-imports-high-prio/index.js'),
       {
@@ -2797,7 +2797,7 @@ describe.only('javascript', function () {
     assert(url.parse(await res.default()).pathname.startsWith('/resource'));
   });
 
-  it.only('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
+  it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-bundle.js'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
@@ -2819,7 +2819,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
   });
 
-  it.only('async dependency can be resolved internally and externally from two different bundles', async () => {
+  it('async dependency can be resolved internally and externally from two different bundles', async () => {
     let b = await bundle(
       ['entry1.js', 'entry2.js'].map(entry =>
         path.join(
@@ -2858,7 +2858,7 @@ describe.only('javascript', function () {
     ]);
   });
 
-  it.only('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
+  it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
@@ -2885,7 +2885,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 42]);
   });
 
-  it.only('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
+  it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
     let b = await bundle(
       ['same-bundle.js', 'get-dep.js'].map(entry =>
         path.join(__dirname, '/integration/sync-async/', entry),
@@ -2938,7 +2938,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await runBundle(b, getDep)).default, 42);
   });
 
-  it.only("can share dependencies between a shared bundle and its sibling's descendants", async () => {
+  it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
     let b = await bundle(
       path.join(
         __dirname,
@@ -2984,7 +2984,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [3, 5]);
   });
 
-  it.only('can run an entry bundle whose entry asset is present in another bundle', async () => {
+  it('can run an entry bundle whose entry asset is present in another bundle', async () => {
     let b = await bundle(
       ['index.js', 'value.js'].map(basename =>
         path.join(__dirname, '/integration/sync-entry-shared', basename),
@@ -3009,7 +3009,7 @@ describe.only('javascript', function () {
     assert.equal(await (await run(b)).default, 43);
   });
 
-  it.only('can run an async bundle whose entry asset is present in another bundle', async () => {
+  it('can run an async bundle whose entry asset is present in another bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/async-entry-shared/index.js'),
     );
@@ -3032,7 +3032,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 43]);
   });
 
-  it.only('should display a codeframe on a Terser parse error', async () => {
+  it('should display a codeframe on a Terser parse error', async () => {
     let fixture = path.join(__dirname, 'integration/terser-codeframe/index.js');
     let code = await inputFS.readFileSync(fixture, 'utf8');
     await assert.rejects(
@@ -3494,7 +3494,7 @@ describe.only('javascript', function () {
     assert.deepEqual(output, [123, {HooksContext: 123}]);
   });
 
-  it.only('should support runtime module deduplication', async function () {
+  it('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
     );
@@ -4192,7 +4192,7 @@ describe.only('javascript', function () {
     });
   });
 
-  it.only('should avoid creating a bundle for lazy dependencies already available in a shared bundle', async function () {
+  it('should avoid creating a bundle for lazy dependencies already available in a shared bundle', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -4209,7 +4209,7 @@ describe.only('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 42]);
   });
 
-  it.only('should support standalone import.meta', async function () {
+  it('should support standalone import.meta', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/import-meta/index.js'),
     );
@@ -4232,7 +4232,7 @@ describe.only('javascript', function () {
     });
   });
 
-  it.only('should support importing async bundles from bundles with different dist paths', async function () {
+  it('should support importing async bundles from bundles with different dist paths', async function () {
     let bundleGraph = await bundle(
       ['bar/entry/entry-a.js', 'foo/entry-b.js'].map(f =>
         path.join(__dirname, 'integration/differing-bundle-urls', f),
@@ -4286,7 +4286,7 @@ describe.only('javascript', function () {
     assert.deepEqual(calls, ['common', 'deep']);
   });
 
-  it.only('supports deferring unused ESM imports with sideEffects: false', async function () {
+  it('supports deferring unused ESM imports with sideEffects: false', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/side-effects-false/import.js'),
     );
@@ -4306,7 +4306,7 @@ describe.only('javascript', function () {
     assert.strictEqual(output.default, 4);
   });
 
-  it.only('supports ESM imports and requires with sideEffects: false', async function () {
+  it('supports ESM imports and requires with sideEffects: false', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/side-effects-false/import-require.js'),
     );
@@ -4318,7 +4318,7 @@ describe.only('javascript', function () {
     assert.strictEqual(output.default, '4returned from bar');
   });
 
-  it.only('should not affect ESM import order', async function () {
+  it('should not affect ESM import order', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
     );
@@ -4329,7 +4329,7 @@ describe.only('javascript', function () {
     );
   });
 
-  it.only('should not affect ESM import order with scope hoisting', async function () {
+  it('should not affect ESM import order with scope hoisting', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
       {
@@ -4345,7 +4345,7 @@ describe.only('javascript', function () {
     );
   });
 
-  it.only('should produce working output with both scope hoisting and non scope hoisting targets', async function () {
+  it('should produce working output with both scope hoisting and non scope hoisting targets', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/re-export-no-scope-hoist'),
       {
@@ -4369,7 +4369,7 @@ describe.only('javascript', function () {
     assert.deepEqual(o2, ['UIIcon', 'Icon']);
   });
 
-  it.only('should not deduplicate an asset if it will become unreachable', async function () {
+  it('should not deduplicate an asset if it will become unreachable', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -4386,7 +4386,7 @@ describe.only('javascript', function () {
     assert.equal(await res.default, 'target');
   });
 
-  it.only('should detect shorthand identifier imports', async function () {
+  it('should detect shorthand identifier imports', async function () {
     const dir = path.join(__dirname, 'js-import-shorthand-identifier');
     overlayFS.mkdirp(dir);
 
@@ -4424,7 +4424,7 @@ describe.only('javascript', function () {
     assert.deepEqual(output.default, {color: 'blue'});
   });
 
-  it.only('should retain unicode escape sequences', async function () {
+  it('should retain unicode escape sequences', async function () {
     // See issue #8877
     await fsFixture(overlayFS, __dirname)`
         src/index.js:
@@ -4445,7 +4445,7 @@ describe.only('javascript', function () {
     assert(!contents.includes('\ufffe'));
   });
 
-  it.only(`should not wrap assets that are duplicated in different targets`, async function () {
+  it(`should not wrap assets that are duplicated in different targets`, async function () {
     const dir = path.join(__dirname, 'multi-target-duplicates');
     overlayFS.mkdirp(dir);
 
@@ -4499,7 +4499,7 @@ describe.only('javascript', function () {
       shouldScopeHoist ? '' : 'out'
     } scope-hoisting`, function () {
       if (usesSymbolPropagation) {
-        it.only('supports excluding unused CSS imports', async function () {
+        it('supports excluding unused CSS imports', async function () {
           let b = await bundle(
             path.join(
               __dirname,
@@ -4544,7 +4544,7 @@ describe.only('javascript', function () {
           assert(!css.includes('.b2'));
         });
 
-        it.only("doesn't create new bundles for dynamic imports in excluded assets", async function () {
+        it("doesn't create new bundles for dynamic imports in excluded assets", async function () {
           let b = await bundle(
             path.join(
               __dirname,
@@ -4580,7 +4580,7 @@ describe.only('javascript', function () {
         });
       }
 
-      it.only('supports deferring unused ES6 re-exports (namespace used)', async function () {
+      it('supports deferring unused ES6 re-exports (namespace used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4621,7 +4621,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it.only('supports deferring an unused ES6 re-export (wildcard, empty, unused)', async function () {
+      it('supports deferring an unused ES6 re-export (wildcard, empty, unused)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4637,7 +4637,7 @@ describe.only('javascript', function () {
         assert.deepEqual((await run(b, null, {require: false})).output, 123);
       });
 
-      it.only('supports deferring unused ES6 re-exports (reexport named used)', async function () {
+      it('supports deferring unused ES6 re-exports (reexport named used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4669,7 +4669,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 2');
       });
 
-      it.only('supports deferring unused ES6 re-exports (namespace rename used)', async function () {
+      it('supports deferring unused ES6 re-exports (namespace rename used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4709,7 +4709,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, {default: 'Message 3'});
       });
 
-      it.only('supports deferring unused ES6 re-exports (direct export used)', async function () {
+      it('supports deferring unused ES6 re-exports (direct export used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4739,7 +4739,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 4');
       });
 
-      it.only('supports chained ES6 re-exports', async function () {
+      it('supports chained ES6 re-exports', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4777,7 +4777,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, ['key', 'foo']);
       });
 
-      it.only('should not optimize away an unused ES6 re-export and an used import', async function () {
+      it('should not optimize away an unused ES6 re-export and an used import', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4790,7 +4790,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 123);
       });
 
-      it.only('should not optimize away an unused ES6 re-export and an used import (different symbols)', async function () {
+      it('should not optimize away an unused ES6 re-export and an used import (different symbols)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4803,7 +4803,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 123);
       });
 
-      it.only('correctly handles ES6 re-exports in library mode entries', async function () {
+      it('correctly handles ES6 re-exports in library mode entries', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4826,7 +4826,7 @@ describe.only('javascript', function () {
       });
 
       if (shouldScopeHoist) {
-        it.only('correctly updates deferred assets that are reexported', async function () {
+        it('correctly updates deferred assets that are reexported', async function () {
           let testDir = path.join(
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported',
@@ -4859,7 +4859,7 @@ describe.only('javascript', function () {
           await subscription.unsubscribe();
         });
 
-        it.only('correctly updates deferred assets that are reexported and imported directly', async function () {
+        it('correctly updates deferred assets that are reexported and imported directly', async function () {
           let testDir = path.join(
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-update-deferred-direct',
@@ -4892,7 +4892,7 @@ describe.only('javascript', function () {
           await subscription.unsubscribe();
         });
 
-        it.only('removes deferred reexports when imported from multiple asssets', async function () {
+        it('removes deferred reexports when imported from multiple asssets', async function () {
           let b = await bundle(
             path.join(
               __dirname,
@@ -4915,7 +4915,7 @@ describe.only('javascript', function () {
         });
       }
 
-      it.only('keeps side effects by default', async function () {
+      it('keeps side effects by default', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4939,7 +4939,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 4);
       });
 
-      it.only('supports the package.json sideEffects: false flag', async function () {
+      it('supports the package.json sideEffects: false flag', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4963,7 +4963,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 4);
       });
 
-      it.only('supports removing a deferred dependency', async function () {
+      it('supports removing a deferred dependency', async function () {
         let testDir = path.join(
           __dirname,
           '/integration/scope-hoisting/es6/side-effects-false',
@@ -5021,7 +5021,7 @@ describe.only('javascript', function () {
         }
       });
 
-      it.only('supports wildcards', async function () {
+      it('supports wildcards', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5046,7 +5046,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'bar');
       });
 
-      it.only('correctly handles excluded and wrapped reexport assets', async function () {
+      it('correctly handles excluded and wrapped reexport assets', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5059,7 +5059,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 4);
       });
 
-      it.only('supports the package.json sideEffects flag with an array', async function () {
+      it('supports the package.json sideEffects flag with an array', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5083,7 +5083,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 4);
       });
 
-      it.only('supports the package.json sideEffects: false flag with shared dependencies', async function () {
+      it('supports the package.json sideEffects: false flag with shared dependencies', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5107,7 +5107,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 6);
       });
 
-      it.only('supports the package.json sideEffects: false flag with shared dependencies and code splitting', async function () {
+      it('supports the package.json sideEffects: false flag with shared dependencies and code splitting', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5120,7 +5120,7 @@ describe.only('javascript', function () {
         assert.deepEqual(await res.output, 581);
       });
 
-      it.only('supports the package.json sideEffects: false flag with shared dependencies and code splitting II', async function () {
+      it('supports the package.json sideEffects: false flag with shared dependencies and code splitting II', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5133,7 +5133,7 @@ describe.only('javascript', function () {
         assert.deepEqual(await res.output, [{default: 123, foo: 2}, 581]);
       });
 
-      it.only('missing exports should be replaced with an empty object', async function () {
+      it('missing exports should be replaced with an empty object', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5146,7 +5146,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, {b: {}});
       });
 
-      it.only('supports namespace imports of theoretically excluded reexporting assets', async function () {
+      it('supports namespace imports of theoretically excluded reexporting assets', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5159,7 +5159,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, {Main: 'main', a: 'foo', b: 'bar'});
       });
 
-      it.only('can import from a different bundle via a re-export', async function () {
+      it('can import from a different bundle via a re-export', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5172,7 +5172,7 @@ describe.only('javascript', function () {
         assert.deepEqual(await res.output, ['operational', 'ui']);
       });
 
-      it.only('supports excluding multiple chained namespace reexports', async function () {
+      it('supports excluding multiple chained namespace reexports', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5203,7 +5203,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it.only('supports excluding when doing both exports and reexports', async function () {
+      it('supports excluding when doing both exports and reexports', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5231,7 +5231,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it.only('supports deferring with chained renaming reexports', async function () {
+      it('supports deferring with chained renaming reexports', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5262,7 +5262,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it.only('supports named and renamed reexports of the same asset (default used)', async function () {
+      it('supports named and renamed reexports of the same asset (default used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5296,7 +5296,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'bar');
       });
 
-      it.only('supports named and renamed reexports of the same asset (named used)', async function () {
+      it('supports named and renamed reexports of the same asset (named used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5330,7 +5330,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'bar');
       });
 
-      it.only('supports named and renamed reexports of the same asset (namespace used)', async function () {
+      it('supports named and renamed reexports of the same asset (namespace used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5343,7 +5343,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, [{value1: 123, value2: 123}, 123, 123]);
       });
 
-      it.only('supports reexports via variable declaration (unused)', async function () {
+      it('supports reexports via variable declaration (unused)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5356,7 +5356,7 @@ describe.only('javascript', function () {
         assert.deepEqual((await res.output).foo, 'foo');
       });
 
-      it.only('supports named and namespace exports of the same asset (named used)', async function () {
+      it('supports named and namespace exports of the same asset (named used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5391,7 +5391,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, ['foo']);
       });
 
-      it.only('supports named and namespace exports of the same asset (namespace used)', async function () {
+      it('supports named and namespace exports of the same asset (namespace used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5426,7 +5426,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, ['bar']);
       });
 
-      it.only('supports named and namespace exports of the same asset (both used)', async function () {
+      it('supports named and namespace exports of the same asset (both used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5461,7 +5461,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, ['foo', 'bar']);
       });
 
-      it.only('supports partially used reexporting index file', async function () {
+      it('supports partially used reexporting index file', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5498,7 +5498,7 @@ describe.only('javascript', function () {
         assert.deepEqual(v.default, [1, 3]);
       });
 
-      it.only('supports deferring non-weak dependencies that are not used', async function () {
+      it('supports deferring non-weak dependencies that are not used', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5527,7 +5527,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it.only('supports excluding CommonJS (CommonJS unused)', async function () {
+      it('supports excluding CommonJS (CommonJS unused)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5570,7 +5570,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 'Message 1');
       });
 
-      it.only('supports excluding CommonJS (CommonJS used)', async function () {
+      it('supports excluding CommonJS (CommonJS used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -5607,7 +5607,7 @@ describe.only('javascript', function () {
       });
     });
 
-    it.only(`ignores missing unused import specifiers in source assets ${
+    it(`ignores missing unused import specifiers in source assets ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async function () {
       let b = await bundle(
@@ -5618,7 +5618,7 @@ describe.only('javascript', function () {
       assert.equal(res.output, 123);
     });
 
-    it.only(`ignores missing unused import specifiers in node-modules ${
+    it(`ignores missing unused import specifiers in node-modules ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async function () {
       let b = await bundle(
@@ -5633,7 +5633,7 @@ describe.only('javascript', function () {
       assert.equal(res.output, 123);
     });
 
-    it.only(`duplicate assets should share module scope  ${
+    it(`duplicate assets should share module scope  ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async function () {
       let b = await bundle(
@@ -5655,7 +5655,7 @@ describe.only('javascript', function () {
       assert.equal(await result.output, 2);
     });
 
-    it.only(`should work correctly with export called hasOwnProperty ${
+    it(`should work correctly with export called hasOwnProperty ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async () => {
       await fsFixture(overlayFS, __dirname)`
