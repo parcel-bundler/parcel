@@ -3,6 +3,7 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
+  distDir,
   outputFS,
   removeDistDirectory,
   run,

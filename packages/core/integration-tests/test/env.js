@@ -1,6 +1,7 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, run, removeDistDirectory} from '@parcel/test-utils';
+import Logger from '@parcel/logger';
+import {bundle, outputFS, run, removeDistDirectory} from '@parcel/test-utils';
 
 describe.only('env', function () {
   beforeEach(async () => {
@@ -610,5 +611,17 @@ describe.only('env', function () {
       output.sub.filename,
       path.join(__dirname, '/integration/env-node-replacements/sub/index.js'),
     );
+  });
+
+  it('should insert environment variables inserted by a prior transform', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-prior-transform/index.js'),
+    );
+
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
+
+    assert(!contents.includes('process.env'));
+    assert.equal(await run(b), 'test');
   });
 });

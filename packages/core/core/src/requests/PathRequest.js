@@ -427,7 +427,7 @@ export class ResolverRunner {
         ? normalizePath(fromProjectPathRelative(resolveFrom))
         : '';
 
-    console.log('failed to resolve in path request');
+    console.log('failed to resolve in path request', dependency.specifier);
     let diagnostic = await this.getDiagnostic(
       dependency,
       md`Failed to resolve '${dependency.specifier}' ${
