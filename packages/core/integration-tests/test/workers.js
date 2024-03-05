@@ -462,77 +462,70 @@ describe('workers', function () {
   });
 
   it('should error if importing in a worker without type: module', async function () {
-    let errored = false;
-    try {
-      await bundle(
-        path.join(__dirname, '/integration/workers-module/error.js'),
-        {
+    await assert.rejects(
+      () =>
+        bundle(path.join(__dirname, '/integration/workers-module/error.js'), {
           defaultTargetOptions: {
             shouldScopeHoist: true,
           },
-        },
-      );
-    } catch (err) {
-      errored = true;
-      assert.equal(
-        err.message,
-        'Web workers cannot have imports or exports without the `type: "module"` option.',
-      );
-      assert.deepEqual(err.diagnostics, [
-        {
-          message:
-            'Web workers cannot have imports or exports without the `type: "module"` option.',
-          origin: '@parcel/transformer-js',
-          codeFrames: [
-            {
-              filePath: path.join(
-                __dirname,
-                '/integration/workers-module/dedicated-worker.js',
-              ),
-              codeHighlights: [
-                {
-                  message: undefined,
-                  start: {
-                    line: 1,
-                    column: 1,
+        }),
+      {
+        message:
+          'Web workers cannot have imports or exports without the `type: "module"` option.',
+        diagnostics: [
+          {
+            message:
+              'Web workers cannot have imports or exports without the `type: "module"` option.',
+            origin: '@parcel/transformer-js',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/workers-module/dedicated-worker.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 22,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 22,
+                ],
+              },
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/workers-module/error.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: 'The environment was originally created here',
+                    start: {
+                      line: 1,
+                      column: 20,
+                    },
+                    end: {
+                      line: 1,
+                      column: 40,
+                    },
                   },
-                },
-              ],
-            },
-            {
-              filePath: path.join(
-                __dirname,
-                '/integration/workers-module/error.js',
-              ),
-              codeHighlights: [
-                {
-                  message: 'The environment was originally created here',
-                  start: {
-                    line: 1,
-                    column: 20,
-                  },
-                  end: {
-                    line: 1,
-                    column: 40,
-                  },
-                },
-              ],
-            },
-          ],
-          hints: [
-            "Add {type: 'module'} as a second argument to the Worker constructor.",
-          ],
-          documentationURL:
-            'https://parceljs.org/languages/javascript/#classic-scripts',
-        },
-      ]);
-    }
-
-    assert(errored);
+                ],
+              },
+            ],
+            hints: [
+              "Add {type: 'module'} as a second argument to the Worker constructor.",
+            ],
+            documentationURL:
+              'https://parceljs.org/languages/javascript/#classic-scripts',
+          },
+        ],
+      },
+    );
   });
 
   it('should support bundling workers with different order', async function () {
@@ -570,16 +563,10 @@ describe('workers', function () {
         __dirname,
         `/integration/worker-import-scripts/index-${workerType}.js`,
       );
-      let errored = false;
-      try {
-        await bundle(filePath);
-      } catch (err) {
-        errored = true;
-        assert.equal(
-          err.message,
-          'Argument to importScripts() must be a fully qualified URL.',
-        );
-        assert.deepEqual(err.diagnostics, [
+
+      await assert.rejects(() => bundle(filePath), {
+        message: 'Argument to importScripts() must be a fully qualified URL.',
+        diagnostics: [
           {
             message:
               'Argument to importScripts() must be a fully qualified URL.',
@@ -634,10 +621,8 @@ describe('workers', function () {
             documentationURL:
               'https://parceljs.org/languages/javascript/#classic-script-workers',
           },
-        ]);
-      }
-
-      assert(errored);
+        ],
+      });
     });
   }
 
@@ -766,77 +751,69 @@ describe('workers', function () {
   });
 
   it('should error if importing in a service worker without type: module', async function () {
-    let errored = false;
-    try {
-      await bundle(
-        path.join(__dirname, '/integration/service-worker/error.js'),
-        {
-          defaultTargetOptions: {
-            shouldScopeHoist: true,
+    await assert.rejects(
+      bundle(path.join(__dirname, '/integration/service-worker/error.js'), {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      }),
+      {
+        message:
+          'Service workers cannot have imports or exports without the `type: "module"` option.',
+        diagnostics: [
+          {
+            message:
+              'Service workers cannot have imports or exports without the `type: "module"` option.',
+            origin: '@parcel/transformer-js',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/service-worker/module-worker.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 19,
+                    },
+                  },
+                ],
+              },
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/service-worker/error.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: 'The environment was originally created here',
+                    start: {
+                      line: 1,
+                      column: 42,
+                    },
+                    end: {
+                      line: 1,
+                      column: 59,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+            ],
+            documentationURL:
+              'https://parceljs.org/languages/javascript/#classic-scripts',
           },
-        },
-      );
-    } catch (err) {
-      errored = true;
-      assert.equal(
-        err.message,
-        'Service workers cannot have imports or exports without the `type: "module"` option.',
-      );
-      assert.deepEqual(err.diagnostics, [
-        {
-          message:
-            'Service workers cannot have imports or exports without the `type: "module"` option.',
-          origin: '@parcel/transformer-js',
-          codeFrames: [
-            {
-              filePath: path.join(
-                __dirname,
-                '/integration/service-worker/module-worker.js',
-              ),
-              codeHighlights: [
-                {
-                  message: undefined,
-                  start: {
-                    line: 1,
-                    column: 1,
-                  },
-                  end: {
-                    line: 1,
-                    column: 19,
-                  },
-                },
-              ],
-            },
-            {
-              filePath: path.join(
-                __dirname,
-                'integration/service-worker/error.js',
-              ),
-              codeHighlights: [
-                {
-                  message: 'The environment was originally created here',
-                  start: {
-                    line: 1,
-                    column: 42,
-                  },
-                  end: {
-                    line: 1,
-                    column: 59,
-                  },
-                },
-              ],
-            },
-          ],
-          hints: [
-            "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
-          ],
-          documentationURL:
-            'https://parceljs.org/languages/javascript/#classic-scripts',
-        },
-      ]);
-    }
-
-    assert(errored);
+        ],
+      },
+    );
   });
 
   it('should expose a manifest to service workers', async function () {
@@ -919,6 +896,7 @@ describe('workers', function () {
       'integration/service-worker-import-meta-url/missing.js',
     );
     let code = await inputFS.readFileSync(fixture, 'utf8');
+
     await assert.rejects(() => bundle(fixture), {
       name: 'BuildError',
       diagnostics: [
@@ -955,67 +933,65 @@ describe('workers', function () {
   });
 
   it('should error on dynamic import() inside service workers', async function () {
-    let errored = false;
-    try {
-      await bundle(
-        path.join(
-          __dirname,
-          '/integration/service-worker/dynamic-import-index.js',
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(
+            __dirname,
+            '/integration/service-worker/dynamic-import-index.js',
+          ),
         ),
-      );
-    } catch (err) {
-      errored = true;
-      assert.equal(err.message, 'import() is not allowed in service workers.');
-      assert.deepEqual(err.diagnostics, [
-        {
-          message: 'import() is not allowed in service workers.',
-          origin: '@parcel/transformer-js',
-          codeFrames: [
-            {
-              filePath: path.join(
-                __dirname,
-                '/integration/service-worker/dynamic-import.js',
-              ),
-              codeHighlights: [
-                {
-                  message: undefined,
-                  start: {
-                    line: 1,
-                    column: 8,
+      {
+        message: 'import() is not allowed in service workers.',
+        diagnostics: [
+          {
+            message: 'import() is not allowed in service workers.',
+            origin: '@parcel/transformer-js',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/service-worker/dynamic-import.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 1,
+                      column: 8,
+                    },
+                    end: {
+                      line: 1,
+                      column: 27,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 27,
+                ],
+              },
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/service-worker/dynamic-import-index.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: 'The environment was originally created here',
+                    start: {
+                      line: 1,
+                      column: 42,
+                    },
+                    end: {
+                      line: 1,
+                      column: 60,
+                    },
                   },
-                },
-              ],
-            },
-            {
-              filePath: path.join(
-                __dirname,
-                'integration/service-worker/dynamic-import-index.js',
-              ),
-              codeHighlights: [
-                {
-                  message: 'The environment was originally created here',
-                  start: {
-                    line: 1,
-                    column: 42,
-                  },
-                  end: {
-                    line: 1,
-                    column: 60,
-                  },
-                },
-              ],
-            },
-          ],
-          hints: ['Try using a static `import`.'],
-        },
-      ]);
-    }
-
-    assert(errored);
+                ],
+              },
+            ],
+            hints: ['Try using a static `import`.'],
+          },
+        ],
+      },
+    );
   });
 
   it('should support bundling workers with circular dependencies', async function () {
@@ -1091,6 +1067,7 @@ describe('workers', function () {
       'integration/worker-import-meta-url/missing.js',
     );
     let code = await inputFS.readFileSync(fixture, 'utf8');
+
     await assert.rejects(() => bundle(fixture), {
       name: 'BuildError',
       diagnostics: [
