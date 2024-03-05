@@ -1501,7 +1501,7 @@ describe('output formats', function () {
     assert.equal(res.default, 'foo bar');
 
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(/import [a-z0-9$]+ from "\.\//.test(content));
+    assert(/import [^\s]+ from "\.\//.test(content));
   });
 
   describe('global', function () {
