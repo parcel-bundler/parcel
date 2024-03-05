@@ -101,13 +101,12 @@ describe('babel', function () {
   it('should support compiling with babel using babel.config.json config without warnings', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     await bundle(
       path.join(__dirname, '/integration/babel-config-json-custom/index.js'),
-      {
-        logLevel: 'verbose',
-      },
     );
     loggerDisposable.dispose();
 
@@ -621,7 +620,9 @@ describe('babel', function () {
   it('should warn when a babel config contains only redundant plugins', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let filePath = path.join(__dirname, '/integration/babel-warn-all/index.js');
     await bundle(filePath);
@@ -699,7 +700,9 @@ describe('babel', function () {
   it('should warn when a babel config contains redundant plugins', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let filePath = path.join(
       __dirname,
@@ -755,7 +758,9 @@ describe('babel', function () {
   it('should warn when a JSON5 babel config contains redundant plugins', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let filePath = path.join(
       __dirname,
