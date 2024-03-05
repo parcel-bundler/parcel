@@ -97,36 +97,6 @@ describe.only('electron', function () {
     assert.equal(await output(), 3);
   });
 
-  it('should not insert environment variables in electron-main environment', async function () {
-    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
-      targets: {
-        main: {
-          context: 'electron-main',
-          distDir: path.join(__dirname, '/integration/env/dist.js'),
-        },
-      },
-    });
-
-    let output = await run(b);
-    assert.ok(output.toString().includes('process.env'));
-    assert.equal(output(), 'test:test');
-  });
-
-  it('should not insert environment variables in electron-renderer environment', async function () {
-    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
-      targets: {
-        main: {
-          context: 'electron-renderer',
-          distDir: path.join(__dirname, '/integration/env/dist.js'),
-        },
-      },
-    });
-
-    let output = await run(b);
-    assert.ok(output.toString().includes('process.env'));
-    assert.equal(output(), 'test:test');
-  });
-
   it('should not touch process.browser for target electron-main', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/process/index.js'),

@@ -1,11 +1,13 @@
 import assert from 'assert';
 import path from 'path';
 import {
+  assertBundles,
   bundle,
+  inputFS,
+  outputFS,
+  removeDistDirectory,
   run,
   runBundle,
-  assertBundles,
-  removeDistDirectory,
 } from '@parcel/test-utils';
 
 describe.only('workers', function () {

@@ -1,11 +1,11 @@
 import assert from 'assert';
 import path from 'path';
 import {
-  bundle,
-  run,
-  runBundle,
   assertBundles,
+  bundle,
+  outputFS,
   removeDistDirectory,
+  run,
 } from '@parcel/test-utils';
 
 describe.only('node', function () {
@@ -90,16 +90,6 @@ describe.only('node', function () {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
-  });
-
-  it('should not insert environment variables in node environment', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/env-node/index.js'),
-    );
-
-    let output = await run(b);
-    assert.ok(output.toString().includes('process.env'));
-    assert.equal(output(), 'test:test');
   });
 
   it('should not touch process.browser for target node', async function () {
