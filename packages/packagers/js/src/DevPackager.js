@@ -68,6 +68,15 @@ export class DevPackager {
           node.value,
           this.bundle,
         );
+        // if (
+        //   node.value.specifier ===
+        //   '@parcel/transformer-js/src/esmodule-helpers.js'
+        // ) {
+        //   console.log(
+        //     'Resolved @parcel/transformer-js/src/esmodule/helpers.js',
+        //     resolved,
+        //   );
+        // }
         if (resolved && resolved.type !== 'js') {
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
