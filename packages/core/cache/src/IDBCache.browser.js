@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {Cache} from './types';
+import type {Cache} from '@parcel/types';
 
 import {Readable} from 'stream';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';

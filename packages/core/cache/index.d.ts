@@ -1,7 +1,7 @@
-import type {FilePath} from '@parcel/types';
-import type {Cache} from './lib/types';
+import type {FilePath, Cache} from '@parcel/types';
 
-export type {Cache} from './lib/types';
+export type {Cache} from '@parcel/types';
+
 export const FSCache: {
   new (cacheDir: FilePath): Cache;
 };

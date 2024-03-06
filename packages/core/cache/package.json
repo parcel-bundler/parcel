@@ -26,6 +26,7 @@
   "dependencies": {
     "@parcel/fs": "2.12.0",
     "@parcel/logger": "2.12.0",
+    "@parcel/types": "2.12.0",
     "@parcel/utils": "2.12.0",
     "lmdb": "2.8.5"
   },

@@ -1,9 +1,8 @@
 // @flow strict-local
 
 import type {Readable, Writable} from 'stream';
-import type {FilePath} from '@parcel/types';
+import type {FilePath, Cache} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {Cache} from './types';
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import stream from 'stream';

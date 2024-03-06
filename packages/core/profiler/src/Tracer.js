@@ -4,11 +4,10 @@ import type {
   TraceEvent,
   IDisposable,
   PluginTracer as IPluginTracer,
-} from '@parcel/types';
-import type {
   TraceMeasurement as ITraceMeasurement,
   TraceMeasurementData,
-} from './types';
+} from '@parcel/types';
+
 // @ts-ignore
 import {ValueEmitter} from '@parcel/events';
 
