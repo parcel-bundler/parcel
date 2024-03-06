@@ -11,7 +11,7 @@ export default function test(params: Params): number;
 export function foo(): number;
 export var x: number;
 export var hi: number;
-export declare module mod {
+export declare namespace mod {
     function bar(): number;
 }
 

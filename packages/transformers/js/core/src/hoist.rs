@@ -1,16 +1,17 @@
 use crate::collect::{Collect, Export, Import, ImportKind};
 use crate::utils::{
-  get_undefined_ident, match_export_name, match_export_name_ident, match_property_name,
+  get_undefined_ident, is_unresolved, match_export_name, match_export_name_ident,
+  match_property_name,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::id;
 use crate::utils::{
@@ -149,12 +150,13 @@ impl<'a> Fold for Hoist<'a> {
                 import.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
                   ),
                   type_only: false,
+                  phase: Default::default(),
                 })),
               );
               // Ensure that all import specifiers are constant.
@@ -196,7 +198,7 @@ impl<'a> Fold for Hoist<'a> {
                   src.value.clone(),
                   ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     specifiers: vec![],
-                    asserts: None,
+                    with: None,
                     span: DUMMY_SP,
                     src: Box::new(Str {
                       value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
@@ -204,6 +206,7 @@ impl<'a> Fold for Hoist<'a> {
                       raw: None,
                     }),
                     type_only: false,
+                    phase: Default::default(),
                   })),
                 );
 
@@ -291,12 +294,13 @@ impl<'a> Fold for Hoist<'a> {
                 export.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
                   ),
                   type_only: false,
+                  phase: Default::default(),
                 })),
               );
               self.re_exports.push(ImportedSymbol {
@@ -371,7 +375,7 @@ impl<'a> Fold for Hoist<'a> {
                     if let Some(init) = &v.init {
                       // Match var x = require('foo');
                       if let Some(source) =
-                        match_require(init, &self.collect.decls, self.collect.ignore_mark)
+                        match_require(init, self.unresolved_mark, self.collect.ignore_mark)
                       {
                         // If the require is accessed in a way we cannot analyze, do not replace.
                         // e.g. const {x: {y: z}} = require('x');
@@ -397,7 +401,7 @@ impl<'a> Fold for Hoist<'a> {
                             .module_items
                             .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                               specifiers: vec![],
-                              asserts: None,
+                              with: None,
                               span: DUMMY_SP,
                               src: Box::new(Str {
                                 value: format!("{}:{}", self.module_id, source).into(),
@@ -405,6 +409,7 @@ impl<'a> Fold for Hoist<'a> {
                                 raw: None,
                               }),
                               type_only: false,
+                              phase: Default::default(),
                             })));
 
                           // Create variable assignments for any declarations that are not constant.
@@ -416,7 +421,7 @@ impl<'a> Fold for Hoist<'a> {
                       if let Expr::Member(member) = &**init {
                         // Match var x = require('foo').bar;
                         if let Some(source) =
-                          match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
+                          match_require(&member.obj, self.unresolved_mark, self.collect.ignore_mark)
                         {
                           if !self.collect.non_static_requires.contains(&source) {
                             // If this is not the first declarator in the variable declaration, we need to
@@ -438,7 +443,7 @@ impl<'a> Fold for Hoist<'a> {
                               .module_items
                               .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                                 specifiers: vec![],
-                                asserts: None,
+                                with: None,
                                 span: DUMMY_SP,
                                 src: Box::new(Str {
                                   value: format!("{}:{}", self.module_id, source,).into(),
@@ -446,6 +451,7 @@ impl<'a> Fold for Hoist<'a> {
                                   raw: None,
                                 }),
                                 type_only: false,
+                                phase: Default::default(),
                               })));
 
                             self.handle_non_const_require(v, &source);
@@ -499,7 +505,7 @@ impl<'a> Fold for Hoist<'a> {
             }
             Stmt::Expr(ExprStmt { expr, span }) => {
               if let Some(source) =
-                match_require(&expr, &self.collect.decls, self.collect.ignore_mark)
+                match_require(&expr, self.unresolved_mark, self.collect.ignore_mark)
               {
                 // Require in statement position (`require('other');`) should behave just
                 // like `import 'other';` in that it doesn't add any symbols (not even '*').
@@ -538,7 +544,7 @@ impl<'a> Fold for Hoist<'a> {
       Expr::OptChain(opt) => {
         return Expr::OptChain(OptChainExpr {
           span: opt.span,
-          question_dot_token: opt.question_dot_token,
+          optional: opt.optional,
           base: Box::new(match *opt.base {
             OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
             OptChainBase::Member(member) => {
@@ -558,12 +564,12 @@ impl<'a> Fold for Hoist<'a> {
       }
       Expr::Member(member) => {
         if !self.collect.should_wrap {
-          if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
+          if match_member_expr(&member, vec!["module", "exports"], self.unresolved_mark) {
             self.self_references.insert("*".into());
             return Expr::Ident(self.get_export_ident(member.span, &"*".into()));
           }
 
-          if match_member_expr(&member, vec!["module", "hot"], &self.collect.decls) {
+          if match_member_expr(&member, vec!["module", "hot"], self.unresolved_mark) {
             return Expr::Lit(Lit::Null(Null { span: member.span }));
           }
         }
@@ -620,7 +626,7 @@ impl<'a> Fold for Hoist<'a> {
 
             // exports.foo -> $id$export$foo
             if &*ident.sym == "exports"
-              && !self.collect.decls.contains(&id!(ident))
+              && is_unresolved(&ident, self.unresolved_mark)
               && self.collect.static_cjs_exports
               && !self.collect.should_wrap
             {
@@ -631,7 +637,7 @@ impl<'a> Fold for Hoist<'a> {
           Expr::Call(_) => {
             // require('foo').bar -> $id$import$foo$bar
             if let Some(source) =
-              match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
+              match_require(&member.obj, self.unresolved_mark, self.collect.ignore_mark)
             {
               self.add_require(&source, ImportKind::Require);
               return Expr::Ident(self.get_import_ident(
@@ -647,7 +653,7 @@ impl<'a> Fold for Hoist<'a> {
             // module.exports.foo -> $id$export$foo
             if self.collect.static_cjs_exports
               && !self.collect.should_wrap
-              && match_member_expr(mem, vec!["module", "exports"], &self.collect.decls)
+              && match_member_expr(mem, vec!["module", "exports"], self.unresolved_mark)
             {
               self.self_references.insert(key.clone());
               return Expr::Ident(self.get_export_ident(member.span, &key));
@@ -676,7 +682,7 @@ impl<'a> Fold for Hoist<'a> {
       }
       Expr::Call(ref call) => {
         // require('foo') -> $id$import$foo
-        if let Some(source) = match_require(&node, &self.collect.decls, self.collect.ignore_mark) {
+        if let Some(source) = match_require(&node, self.unresolved_mark, self.collect.ignore_mark) {
           self.add_require(&source, ImportKind::Require);
           return Expr::Ident(self.get_import_ident(
             call.span,
@@ -749,7 +755,7 @@ impl<'a> Fold for Hoist<'a> {
       .enumerate()
       .map(|(i, expr)| {
         if i != len - 1
-          && match_require(&expr, &self.collect.decls, self.collect.ignore_mark).is_some()
+          && match_require(&expr, self.unresolved_mark, self.collect.ignore_mark).is_some()
         {
           return Box::new(Expr::Unary(UnaryExpr {
             op: UnaryOp::Bang,
@@ -841,19 +847,19 @@ impl<'a> Fold for Hoist<'a> {
     }
 
     if &*node.sym == "exports"
-      && !self.collect.decls.contains(&id!(node))
+      && is_unresolved(&node, self.unresolved_mark)
       && !self.collect.should_wrap
     {
       self.self_references.insert("*".into());
       return self.get_export_ident(node.span, &"*".into());
     }
 
-    if node.sym == js_word!("global") && !self.collect.decls.contains(&id!(node)) {
+    if node.sym == js_word!("global") && is_unresolved(&node, self.unresolved_mark) {
       return Ident::new("$parcel$global".into(), node.span);
     }
 
     if node.span.has_mark(self.collect.global_mark)
-      && self.collect.decls.contains(&id!(node))
+      && !is_unresolved(&node, self.unresolved_mark)
       && !self.collect.should_wrap
     {
       let new_name: JsWord = format!("${}$var${}", self.module_id, node.sym).into();
@@ -877,7 +883,7 @@ impl<'a> Fold for Hoist<'a> {
     };
 
     if let Expr::Member(member) = &**expr {
-      if match_member_expr(member, vec!["module", "exports"], &self.collect.decls) {
+      if match_member_expr(member, vec!["module", "exports"], self.unresolved_mark) {
         let ident = BindingIdent::from(self.get_export_ident(member.span, &"*".into()));
         return AssignExpr {
           span: node.span,
@@ -889,9 +895,11 @@ impl<'a> Fold for Hoist<'a> {
 
       let is_cjs_exports = match &*member.obj {
         Expr::Member(member) => {
-          match_member_expr(member, vec!["module", "exports"], &self.collect.decls)
+          match_member_expr(member, vec!["module", "exports"], self.unresolved_mark)
         }
-        Expr::Ident(ident) => &*ident.sym == "exports" && !self.collect.decls.contains(&id!(ident)),
+        Expr::Ident(ident) => {
+          &*ident.sym == "exports" && is_unresolved(&ident, self.unresolved_mark)
+        }
         Expr::This(_) if !self.in_function_scope => true,
         _ => false,
       };
@@ -979,7 +987,6 @@ impl<'a> Fold for Hoist<'a> {
             left: Box::new(Pat::Ident(BindingIdent::from(assign.key.fold_with(self)))),
             right: value.fold_with(self),
             span: DUMMY_SP,
-            type_ann: None,
           }),
           None => Pat::Ident(BindingIdent::from(assign.key.fold_with(self))),
         }),
@@ -999,10 +1006,11 @@ impl<'a> Hoist<'a> {
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         specifiers: vec![],
-        asserts: None,
+        with: None,
         span: DUMMY_SP,
         src: Box::new(src.into()),
         type_only: false,
+        phase: Default::default(),
       })));
   }
 
@@ -1053,10 +1061,10 @@ impl<'a> Hoist<'a> {
       format!("${}$export${:x}", self.module_id, hash!(exported)).into()
     };
 
-    let is_esm = match self.collect.exports.get(exported) {
-      Some(Export { is_esm: true, .. }) => true,
-      _ => false,
-    };
+    let is_esm = matches!(
+      self.collect.exports.get(exported),
+      Some(Export { is_esm: true, .. })
+    );
 
     self.exported_symbols.push(ExportedSymbol {
       local: new_name.clone(),
@@ -1114,17 +1122,16 @@ impl<'a> Hoist<'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::collect_decls;
   use crate::utils::BailoutReason;
   use std::iter::FromIterator;
-  use swc_common::chain;
-  use swc_common::comments::SingleThreadedComments;
-  use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
-  use swc_ecmascript::codegen::text_writer::JsWriter;
-  use swc_ecmascript::parser::lexer::Lexer;
-  use swc_ecmascript::parser::{Parser, StringInput};
-  use swc_ecmascript::transforms::{fixer, hygiene, resolver};
-  use swc_ecmascript::visit::VisitWith;
+  use swc_core::common::chain;
+  use swc_core::common::comments::SingleThreadedComments;
+  use swc_core::common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
+  use swc_core::ecma::codegen::text_writer::JsWriter;
+  use swc_core::ecma::parser::lexer::Lexer;
+  use swc_core::ecma::parser::{Parser, StringInput};
+  use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver};
+  use swc_core::ecma::visit::VisitWith;
   extern crate indoc;
   use self::indoc::indoc;
 
@@ -1141,21 +1148,32 @@ mod tests {
     );
 
     let mut parser = Parser::new_from(lexer);
-    match parser.parse_module() {
-      Ok(module) => swc_common::GLOBALS.set(&Globals::new(), || {
-        swc_ecmascript::transforms::helpers::HELPERS.set(
-          &swc_ecmascript::transforms::helpers::Helpers::new(false),
+    match parser.parse_program() {
+      Ok(program) => swc_core::common::GLOBALS.set(&Globals::new(), || {
+        swc_core::ecma::transforms::base::helpers::HELPERS.set(
+          &swc_core::ecma::transforms::base::helpers::Helpers::new(false),
           || {
+            let is_module = program.is_module();
+            let module = match program {
+              Program::Module(module) => module,
+              Program::Script(script) => Module {
+                span: script.span,
+                shebang: None,
+                body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
+              },
+            };
+
             let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
 
             let mut collect = Collect::new(
               source_map.clone(),
-              collect_decls(&module),
+              unresolved_mark,
               Mark::fresh(Mark::root()),
               global_mark,
               true,
+              is_module,
             );
             module.visit_with(&mut collect);
 
@@ -1188,13 +1206,9 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_ecmascript::codegen::Config {
-        minify: false,
-        ascii_only: false,
-        target: swc_ecmascript::ast::EsVersion::Es5,
-        omit_last_semi: false,
-      };
-      let mut emitter = swc_ecmascript::codegen::Emitter {
+      let config =
+        swc_core::ecma::codegen::Config::default().with_target(swc_core::ecma::ast::EsVersion::Es5);
+      let mut emitter = swc_core::ecma::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
         cm: source_map,
@@ -1309,7 +1323,7 @@ mod tests {
             start_line: 3,
             start_col: 20,
             end_line: 3,
-            end_col: 23
+            end_col: 24
           },
           is_esm: true
         }
@@ -1318,7 +1332,7 @@ mod tests {
 
     let (collect, _code, _hoist) = parse(
       r#"
-    import { a, b, c, d } from "other";
+    import { a, b, c, d, e } from "other";
     import * as x from "other";
     import * as y from "other";
 
@@ -1327,11 +1341,12 @@ mod tests {
     c();
     log(x);
     y.foo();
+    e.foo.bar();
     "#,
     );
     assert_eq_set!(
       collect.used_imports,
-      set! { w!("a"), w!("b"), w!("c"), w!("x"), w!("y") }
+      set! { w!("a"), w!("b"), w!("c"), w!("e"), w!("x"), w!("y") }
     );
     assert_eq_imports!(
       collect.imports,
@@ -1340,6 +1355,7 @@ mod tests {
         w!("b") => (w!("other"), w!("b"), false),
         w!("c") => (w!("other"), w!("c"), false),
         w!("d") => (w!("other"), w!("d"), false),
+        w!("e") => (w!("other"), w!("e"), false),
         w!("x") => (w!("other"), w!("*"), false),
         w!("y") => (w!("other"), w!("*"), false)
       }
@@ -1425,6 +1441,33 @@ mod tests {
     "#,
     );
     assert!(collect.should_wrap);
+  }
+
+  #[test]
+  fn collect_has_cjs_exports() {
+    let (collect, _code, _hoist) = parse(
+      r#"
+      module.exports = {};
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+      this.someExport = 'true';
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    // Some TSC polyfills use a pattern like below.
+    // We want to avoid marking these modules as CJS
+    let (collect, _code, _hoist) = parse(
+      r#"
+      import 'something';
+      var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function () {}
+    "#,
+    );
+    assert!(!collect.has_cjs_exports);
   }
 
   #[test]
@@ -1968,7 +2011,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    const { foo: $abc$var$foo , ...$abc$var$bar } = $abc$import$70a00e0a8474f72a;
+    const { foo: $abc$var$foo, ...$abc$var$bar } = $abc$import$70a00e0a8474f72a;
     console.log($abc$var$foo, $abc$var$bar);
     "#}
     );
@@ -1984,7 +2027,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:x";
-    const { x: { y: $abc$var$z  }  } = $abc$import$d141bba7fdc215a3;
+    const { x: { y: $abc$var$z } } = $abc$import$d141bba7fdc215a3;
     console.log($abc$var$z);
     "#}
     );
@@ -2073,7 +2116,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    const { foo: $abc$var$foo  } = $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa;
+    const { foo: $abc$var$foo } = $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa;
     console.log($abc$var$foo);
     "#}
     );
@@ -2205,7 +2248,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     function $abc$var$x() {
-        const { foo: foo  } = $abc$import$70a00e0a8474f72a;
+        const { foo: foo } = $abc$import$70a00e0a8474f72a;
         console.log(foo);
     }
     "#}
@@ -2462,9 +2505,9 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var { x: $abc$export$d141bba7fdc215a3 , ...$abc$export$4a5767248b18ef41 } = something;
+    var { x: $abc$export$d141bba7fdc215a3, ...$abc$export$4a5767248b18ef41 } = something;
     var [$abc$export$ffb5f4729a158638, ...$abc$export$9e5f44173e64f162] = something;
-    var { x: $abc$export$d141bba7fdc215a3 = 3  } = something;
+    var { x: $abc$export$d141bba7fdc215a3 = 3 } = something;
     "#}
     );
 
@@ -2952,7 +2995,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const { foo: foo  } = await $abc$importAsync$70a00e0a8474f72a;
+        const { foo: foo } = await $abc$importAsync$70a00e0a8474f72a;
         console.log(foo);
     }
     "#}
@@ -2983,7 +3026,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const { foo: bar  } = await $abc$importAsync$70a00e0a8474f72a;
+        const { foo: bar } = await $abc$importAsync$70a00e0a8474f72a;
         console.log(bar);
     }
     "#}
@@ -3060,7 +3103,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo  })=>foo);
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo })=>foo);
     "#}
     );
 
@@ -3085,7 +3128,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar  })=>bar);
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar })=>bar);
     "#}
     );
 
@@ -3164,7 +3207,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo  }) {});
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo }) {});
     "#}
     );
 
@@ -3189,7 +3232,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar  }) {});
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar }) {});
     "#}
     );
   }
@@ -3241,7 +3284,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 29
+            end_col: 30
           },
           is_esm: true
         }
@@ -3259,7 +3302,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 34
+            end_col: 35
           },
           is_esm: true
         }
@@ -3277,7 +3320,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 23
+            end_col: 24
           },
           is_esm: true
         }
@@ -3295,7 +3338,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 28
+            end_col: 29
           },
           is_esm: true
         }
@@ -3313,7 +3356,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 19
+            end_col: 20
           },
           is_esm: true
         }
@@ -3331,7 +3374,7 @@ mod tests {
             start_line: 1,
             start_col: 16,
             end_line: 1,
-            end_col: 18
+            end_col: 19
           },
           is_esm: false
         }
@@ -3349,7 +3392,7 @@ mod tests {
             start_line: 1,
             start_col: 16,
             end_line: 1,
-            end_col: 20
+            end_col: 21
           },
           is_esm: false
         }
@@ -3367,7 +3410,7 @@ mod tests {
             start_line: 1,
             start_col: 16,
             end_line: 1,
-            end_col: 20
+            end_col: 21
           },
           is_esm: false
         }
@@ -3385,7 +3428,7 @@ mod tests {
             start_line: 1,
             start_col: 9,
             end_line: 1,
-            end_col: 11
+            end_col: 12
           },
           is_esm: false
         }
@@ -3403,11 +3446,73 @@ mod tests {
             start_line: 1,
             start_col: 6,
             end_line: 1,
-            end_col: 8
+            end_col: 9
           },
           is_esm: false
         }
       }
     );
+  }
+
+  #[test]
+  fn collect_this_exports() {
+    // module is wrapped when `this` accessor matches an export
+    let (collect, _code, _hoist) = parse(
+      r#"
+      exports.foo = function() {
+        exports.bar()
+      }
+
+      exports.bar = function() {
+        this.baz()
+      }
+
+      exports.baz = function() {
+        return 2
+      }
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      vec![&BailoutReason::ThisInExport]
+    );
+    assert!(collect.should_wrap);
+
+    // module is not wrapped when `this` inside a class collides with an export
+    let (collect, _code, _hoist) = parse(
+      r#"
+      class Foo {
+        constructor() {
+          this.a = 4
+        }
+
+        bar() {
+          return this.baz()
+        }
+
+        baz() {
+          return this.a
+        }
+      }
+
+      exports.baz = new Foo()
+      exports.a = 2
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      Vec::<&BailoutReason>::new()
+    );
+    assert!(!collect.should_wrap);
   }
 }

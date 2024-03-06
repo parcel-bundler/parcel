@@ -12,10 +12,12 @@
   ],
   "scripts": {
     "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
-    "build-bundles": "rm -rf packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol}",
+    "build-bundles": "rimraf --glob packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol}",
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
+    "build-native-wasm": "node scripts/build-native.js --release --wasm",
+    "build-repl": "yarn build-native-release && yarn build-native-wasm && yarn workspace @parcel/repl build",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rimraf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" && cargo fmt --all",
@@ -28,35 +30,38 @@
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
-    "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
+    "dev:release": "lerna publish -y --canary --preid dev --dist-tag=dev --exact --force-publish=* --no-git-tag-version --no-push",
+    "canary:release": "lerna publish -y --canary --preid canary --dist-tag=canary --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions --exact",
     "tag:release": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
     "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.0",
+    "@babel/core": "^7.22.11",
     "@khanacademy/flow-to-ts": "^0.5.2",
     "@napi-rs/cli": "^2.15.2",
-    "@parcel/babel-register": "2.8.3",
-    "@types/node": "^15.12.4",
+    "@parcel/babel-register": "*",
+    "@types/node": ">= 18",
+    "buffer": "mischnic/buffer#b8a4fa94",
     "cross-env": "^7.0.0",
-    "eslint": "^7.20.0",
+    "eslint": "^8.41.0",
     "flow-bin": "0.184.0",
     "glob": "^7.1.6",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "husky": "^6.0.0",
-    "lerna": "^3.22.1",
+    "lerna": "^6.6.2",
     "lint-staged": "^10.2.11",
     "mocha": "^8.3.0",
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
     "prettier": "2.4.1",
     "punycode": "^1.4.1",
-    "rimraf": "^3.0.2",
-    "semver": "^5.7.1",
+    "rimraf": "^5.0.5",
+    "semver": "^7.5.2",
     "sinon": "^7.3.1"
   },
   "engines": {
@@ -69,5 +74,21 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
+  },
+  "packageManager": "yarn@1.22.19",
+  "browser": {
+    "react-dom": "preact/compat",
+    "react": "preact/compat",
+    "scheduler": false
+  },
+  "dependencies": {
+    "patch-package": "^8.0.0"
+  },
+  "_": "See issue #9405 for the Vue problem",
+  "__": "The watcher complains about non-existing dirs in the integration tests on >=2.3.0",
+  "resolutions": {
+    "@parcel/watcher": "~2.2.0",
+    "@vue/compiler-sfc": "~3.2.47",
+    "vue": "~3.2.47"
   }
 }

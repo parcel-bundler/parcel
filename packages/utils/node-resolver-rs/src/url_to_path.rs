@@ -1,4 +1,5 @@
 //! An implementation url.to_file_path that behaves like Unix on Wasm
+#![allow(clippy::items_after_test_module)]
 
 use crate::specifier::SpecifierError;
 #[cfg(any(target_arch = "wasm32", test))]
@@ -16,11 +17,9 @@ pub fn url_to_path(input: &str) -> Result<PathBuf, SpecifierError> {
 
   #[cfg(not(target_arch = "wasm32"))]
   {
-    Ok(
-      url
-        .to_file_path()
-        .map_err(|_| SpecifierError::InvalidFileUrl)?,
-    )
+    url
+      .to_file_path()
+      .map_err(|_| SpecifierError::InvalidFileUrl)
   }
 }
 
@@ -98,6 +97,7 @@ pub fn to_file_path(this: &Url) -> Result<PathBuf, ()> {
   Err(())
 }
 
+#[allow(clippy::manual_is_ascii_check)]
 #[cfg(any(target_arch = "wasm32", test))]
 fn file_url_segments_to_pathbuf(
   host: Option<&str>,

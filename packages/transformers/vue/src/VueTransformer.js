@@ -6,6 +6,7 @@ import nullthrows from 'nullthrows';
 import {hashObject} from '@parcel/utils';
 import ThrowableDiagnostic, {
   type Diagnostic,
+  convertSourceLocationToHighlight,
   escapeMarkdown,
   md,
 } from '@parcel/diagnostic';
@@ -186,26 +187,15 @@ function createDiagnostic(err, filePath) {
     origin: '@parcel/transformer-vue',
     name: err.name,
     stack: err.stack,
-  };
-  if (err.loc) {
-    diagnostic.codeFrames = [
-      {
-        filePath,
-        codeHighlights: [
+    codeFrames: err.loc
+      ? [
           {
-            start: {
-              line: err.loc.start.line,
-              column: err.loc.start.column,
-            },
-            end: {
-              line: err.loc.end.line,
-              column: err.loc.end.column,
-            },
+            filePath,
+            codeHighlights: [convertSourceLocationToHighlight(err.loc)],
           },
-        ],
-      },
-    ];
-  }
+        ]
+      : [],
+  };
   return diagnostic;
 }
 

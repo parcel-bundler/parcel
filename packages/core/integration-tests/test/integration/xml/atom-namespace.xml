@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="atom.xsl"?>
 <atom:feed xmlns:atom="http://www.w3.org/2005/Atom">
 	<atom:title>Example Feed</atom:title>
 	<atom:subtitle>A subtitle.</atom:subtitle>

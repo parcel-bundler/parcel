@@ -91,7 +91,13 @@ export default (new Reporter({
         }
         break;
       case 'buildProgress':
-        if (event.phase === 'bundled' && hmrServer) {
+        if (
+          event.phase === 'bundled' &&
+          hmrServer &&
+          // Only send HMR updates before packaging if the built in dev server is used to ensure that
+          // no stale bundles are served. Otherwise emit it for 'buildSuccess'.
+          options.serveOptions !== false
+        ) {
           await hmrServer.emitUpdate(event);
         }
         break;
@@ -105,6 +111,9 @@ export default (new Reporter({
           }
 
           server.buildSuccess(event.bundleGraph, event.requestBundle);
+        }
+        if (hmrServer && options.serveOptions === false) {
+          await hmrServer.emitUpdate(event);
         }
         break;
       case 'buildFailure':

@@ -3,7 +3,10 @@
 import type {Bundle, FilePath} from '@parcel/types';
 
 import {Namer} from '@parcel/plugin';
-import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
+  md,
+} from '@parcel/diagnostic';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -28,7 +31,7 @@ export default (new Namer({
       assert(
         entryBundlesOfType.length === 1,
         // Otherwise, we'd end up naming two bundles the same thing.
-        'Bundle group cannot have more than one entry bundle of the same type',
+        `Bundle group cannot have more than one entry bundle of the same type. The offending bundle type is ${entryBundlesOfType[0].type}`,
       );
     }
 
@@ -60,15 +63,14 @@ export default (new Namer({
               {
                 filePath: loc.filePath,
                 codeHighlights: [
-                  {
-                    start: loc.start,
-                    end: loc.end,
-                    message: md`Did you mean "${
+                  convertSourceLocationToHighlight(
+                    loc,
+                    md`Did you mean "${
                       fullName.slice(0, -path.extname(fullName).length) +
                       '.' +
                       bundle.type
                     }"?`,
-                  },
+                  ),
                 ],
               },
             ],
@@ -134,7 +136,7 @@ function nameFromContent(
       }
     }
 
-    return name;
+    return name || 'bundle';
   }
 }
 

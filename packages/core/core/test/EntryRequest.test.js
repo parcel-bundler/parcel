@@ -34,6 +34,11 @@ const INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH = path.join(
   'fixtures/invalid-target-source-not-file',
 );
 
+const GLOB_LIKE_FIXTURE_PATH = path.join(
+  __dirname,
+  'fixtures/glob-like/[entry].js',
+);
+
 describe('EntryResolver', function () {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
 
@@ -202,5 +207,9 @@ describe('EntryResolver', function () {
         ],
       },
     );
+  });
+  it('does not time out on glob-like entry', async function () {
+    this.timeout(10000);
+    await entryResolver.resolveEntry(GLOB_LIKE_FIXTURE_PATH);
   });
 });

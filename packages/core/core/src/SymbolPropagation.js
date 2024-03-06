@@ -15,7 +15,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {setEqual} from '@parcel/utils';
 import logger from '@parcel/logger';
-import {md} from '@parcel/diagnostic';
+import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {BundleBehavior} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
@@ -444,12 +444,7 @@ export function propagateSymbols({
                         fromProjectPath(options.projectRoot, loc?.filePath) ??
                         undefined,
                       language: incomingDep.value.sourceAssetType ?? undefined,
-                      codeHighlights: [
-                        {
-                          start: loc.start,
-                          end: loc.end,
-                        },
-                      ],
+                      codeHighlights: [convertSourceLocationToHighlight(loc)],
                     },
                   ]
                 : undefined,
@@ -634,7 +629,7 @@ function propagateSymbolsUp(
   let runFullPass =
     // If there are n nodes in the graph, then the asset count is approximately
     // n/6 (for every asset, there are ~4 dependencies and ~1 asset_group).
-    assetGraph.nodes.size * (1 / 6) * 0.5 <
+    assetGraph.nodes.length * (1 / 6) * 0.5 <
     changedDepsUsedSymbolsUpDirtyDownAssets.size;
 
   let dirtyDeps;
@@ -644,21 +639,18 @@ function propagateSymbolsUp(
       assetGraph.rootNodeId,
       'A root node is required to traverse',
     );
-    let visited = new Set([rootNodeId]);
-    const walk = (nodeId: NodeId) => {
+
+    const nodeVisitor = nodeId => {
       let node = nullthrows(assetGraph.getNode(nodeId));
       let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
+
       for (let childId of outgoing) {
-        if (!visited.has(childId)) {
-          visited.add(childId);
-          walk(childId);
-          let child = nullthrows(assetGraph.getNode(childId));
-          if (node.type === 'asset') {
-            invariant(child.type === 'dependency');
-            if (child.usedSymbolsUpDirtyUp) {
-              node.usedSymbolsUpDirty = true;
-              child.usedSymbolsUpDirtyUp = false;
-            }
+        let child = nullthrows(assetGraph.getNode(childId));
+        if (node.type === 'asset') {
+          invariant(child.type === 'dependency');
+          if (child.usedSymbolsUpDirtyUp) {
+            node.usedSymbolsUpDirty = true;
+            child.usedSymbolsUpDirtyUp = false;
           }
         }
       }
@@ -703,7 +695,7 @@ function propagateSymbolsUp(
         }
       }
     };
-    walk(rootNodeId);
+    assetGraph.postOrderDfsFast(nodeVisitor, rootNodeId);
   }
 
   let queue = dirtyDeps ?? changedDepsUsedSymbolsUpDirtyDownAssets;

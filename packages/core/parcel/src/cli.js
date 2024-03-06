@@ -12,6 +12,7 @@ import commander from 'commander';
 import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 const program = new commander.Command();
 
@@ -73,6 +74,8 @@ const commonOptions = {
   '--config <path>':
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
+  '--watch-dir <path>':
+    'set the root watch directory. defaults to nearest lockfile or source control dir.',
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
@@ -86,7 +89,8 @@ const commonOptions = {
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
-  '--profile': 'enable build profiling',
+  '--profile': 'enable sampling build profiling',
+  '--trace': 'enable build tracing',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
@@ -99,6 +103,30 @@ const commonOptions = {
       return acc;
     },
     [],
+  ],
+  '--feature-flag <name=value>': [
+    'sets the value of a feature flag',
+    (value, previousValue) => {
+      let [name, val] = value.split('=');
+      if (name in DEFAULT_FEATURE_FLAGS) {
+        let featureFlagValue;
+        if (typeof DEFAULT_FEATURE_FLAGS[name] === 'boolean') {
+          if (val !== 'true' && val !== 'false') {
+            throw new Error(
+              `Feature flag ${name} must be set to true or false`,
+            );
+          }
+          featureFlagValue = val;
+        }
+        previousValue[name] = featureFlagValue ?? String(val);
+      } else {
+        INTERNAL_ORIGINAL_CONSOLE.warn(
+          `Unknown feature flag ${name} specified, it will be ignored`,
+        );
+      }
+      return previousValue;
+    },
+    {},
   ],
 };
 
@@ -138,8 +166,12 @@ let serve = program
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
   .option(
-    '--lazy',
-    'Build async bundles on demand, when requested in the browser',
+    '--lazy [includes]',
+    'Build async bundles on demand, when requested in the browser. Defaults to all async bundles, unless a comma separated list of source file globs is provided. Only async bundles whose entry points match these globs will be built lazily',
+  )
+  .option(
+    '--lazy-exclude <excludes>',
+    'Can only be used in combination with --lazy. Comma separated list of source file globs, async bundles whose entry points match these globs will not be built lazily',
   )
   .action(runCommand);
 
@@ -227,11 +259,10 @@ async function run(
   let options = await normalizeOptions(command, fs);
   let parcel = new Parcel({
     entries,
-    // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
-    shouldPatchConsole: true,
+    shouldPatchConsole: false,
     ...options,
   });
 
@@ -281,16 +312,7 @@ async function run(
           // We don't use the SIGINT event for this because when run inside yarn, the parent
           // yarn process ends before Parcel and it appears that Parcel has ended while it may still
           // be cleaning up. Handling events from stdin prevents this impression.
-
-          // Enqueue a busy message to be shown if Parcel doesn't shut down
-          // within the timeout.
-          setTimeout(
-            () =>
-              INTERNAL_ORIGINAL_CONSOLE.log(
-                chalk.bold.yellowBright('Parcel is shutting down...'),
-              ),
-            500,
-          );
+          //
           // When watching, a 0 success code is acceptable when Parcel is interrupted with ctrl-c.
           // When building, fail with a code as if we received a SIGINT.
           await exit(isWatching ? 0 : SIGINT_EXIT_CODE);
@@ -338,8 +360,8 @@ async function run(
 
     // In non-tty cases, respond to SIGINT by cleaning up. Since we're watching,
     // a 0 success code is acceptable.
-    process.on('SIGINT', exit);
-    process.on('SIGTERM', exit);
+    process.on('SIGINT', () => exit());
+    process.on('SIGTERM', () => exit());
   } else {
     try {
       await parcel.run();
@@ -462,10 +484,23 @@ async function normalizeOptions(
     })),
   ];
 
+  if (command.trace) {
+    additionalReporters.unshift({
+      packageName: '@parcel/reporter-tracer',
+      resolveFrom: __filename,
+    });
+  }
+
   let mode = command.name() === 'build' ? 'production' : 'development';
+
+  const normalizeIncludeExcludeList = (input?: string): string[] => {
+    if (typeof input !== 'string') return [];
+    return input.split(',').map(value => value.trim());
+  };
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    watchDir: command.watchDir,
     config: command.config,
     mode,
     hmrOptions,
@@ -475,7 +510,10 @@ async function normalizeOptions(
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
-    shouldBuildLazily: command.lazy,
+    shouldTrace: command.trace,
+    shouldBuildLazily: typeof command.lazy !== 'undefined',
+    lazyIncludes: normalizeIncludeExcludeList(command.lazy),
+    lazyExcludes: normalizeIncludeExcludeList(command.lazyExclude),
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:
@@ -496,5 +534,6 @@ async function normalizeOptions(
       publicUrl: command.publicUrl,
       distDir: command.distDir,
     },
+    featureFlags: command.featureFlag,
   };
 }

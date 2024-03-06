@@ -1,12 +1,17 @@
 // @flow strict-local
 
 import type {
+  Asset,
   AsyncSubscription,
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
   PackagedBundle as IPackagedBundle,
+  ParcelTransformOptions,
+  ParcelResolveOptions,
+  ParcelResolveResult,
 } from '@parcel/types';
+import path from 'path';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
@@ -26,7 +31,7 @@ import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
-import {registerCoreWithSerializer} from './utils';
+import {registerCoreWithSerializer} from './registerCoreWithSerializer';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
@@ -37,10 +42,19 @@ import RequestTracker, {
 } from './RequestTracker';
 import createValidationRequest from './requests/ValidationRequest';
 import createParcelBuildRequest from './requests/ParcelBuildRequest';
+import createAssetRequest from './requests/AssetRequest';
+import createPathRequest from './requests/PathRequest';
+import {createEnvironment} from './Environment';
+import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initHash} from '@parcel/hash';
-import {toProjectPath} from './projectPath';
+import {init as initRust} from '@parcel/rust';
+import {
+  fromProjectPath,
+  toProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
+import {tracer} from '@parcel/profiler';
 
 registerCoreWithSerializer();
 
@@ -87,7 +101,7 @@ export default class Parcel {
     }
 
     await initSourcemaps;
-    await initHash;
+    await initRust?.();
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
@@ -104,6 +118,7 @@ export default class Parcel {
     } else {
       this.#farm = createWorkerFarm({
         shouldPatchConsole: resolvedOptions.shouldPatchConsole,
+        shouldTrace: resolvedOptions.shouldTrace,
       });
     }
 
@@ -126,17 +141,21 @@ export default class Parcel {
     this.#watchEvents = new ValueEmitter();
     this.#disposable.add(() => this.#watchEvents.dispose());
 
-    this.#requestTracker = await RequestTracker.init({
-      farm: this.#farm,
-      options: resolvedOptions,
-    });
-
     this.#reporterRunner = new ReporterRunner({
       config: this.#config,
       options: resolvedOptions,
       workerFarm: this.#farm,
     });
     this.#disposable.add(this.#reporterRunner);
+
+    logger.verbose({
+      origin: '@parcel/core',
+      message: 'Intializing request tracker...',
+    });
+    this.#requestTracker = await RequestTracker.init({
+      farm: this.#farm,
+      options: resolvedOptions,
+    });
 
     this.#initialized = true;
   }
@@ -148,6 +167,8 @@ export default class Parcel {
     }
 
     let result = await this._build({startTime});
+
+    await this.#requestTracker.writeToCache();
     await this._end();
 
     if (result.type === 'buildFailure') {
@@ -160,10 +181,29 @@ export default class Parcel {
   async _end(): Promise<void> {
     this.#initialized = false;
 
-    await Promise.all([
-      this.#disposable.dispose(),
-      await this.#requestTracker.writeToCache(),
-    ]);
+    await this.#disposable.dispose();
+  }
+
+  async writeRequestTrackerToCache(): Promise<void> {
+    if (this.#watchQueue.getNumWaiting() === 0) {
+      // If there's no queued events, we are safe to write the request graph to disk
+      const abortController = new AbortController();
+
+      const unsubscribe = this.#watchQueue.subscribeToAdd(() => {
+        abortController.abort();
+      });
+
+      try {
+        await this.#requestTracker.writeToCache(abortController.signal);
+      } catch (err) {
+        if (!abortController.signal.aborted) {
+          // We expect abort errors if we interrupt the cache write
+          throw err;
+        }
+      }
+
+      unsubscribe();
+    }
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -185,6 +225,9 @@ export default class Parcel {
       if (!(err instanceof BuildAbortError)) {
         throw err;
       }
+    } finally {
+      // If the build passes or fails, we want to cache the request graph
+      await this.writeRequestTrackerToCache();
     }
   }
 
@@ -256,6 +299,9 @@ export default class Parcel {
     try {
       if (options.shouldProfile) {
         await this.startProfiling();
+      }
+      if (options.shouldTrace) {
+        tracer.enable();
       }
       this.#reporterRunner.report({
         type: 'buildStart',
@@ -356,7 +402,6 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-
       return event;
     } finally {
       if (this.isProfiling) {
@@ -373,7 +418,7 @@ export default class Parcel {
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
     let sub = await resolvedOptions.inputFS.watch(
-      resolvedOptions.projectRoot,
+      resolvedOptions.watchDir,
       (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
@@ -432,6 +477,86 @@ export default class Parcel {
     logger.info({origin: '@parcel/core', message: 'Taking heap snapshot...'});
     return this.#farm.takeHeapSnapshot();
   }
+
+  async unstable_transform(
+    options: ParcelTransformOptions,
+  ): Promise<Array<Asset>> {
+    if (!this.#initialized) {
+      await this._init();
+    }
+
+    let projectRoot = nullthrows(this.#resolvedOptions).projectRoot;
+    let request = createAssetRequest({
+      ...options,
+      filePath: toProjectPath(projectRoot, options.filePath),
+      optionsRef: this.#optionsRef,
+      env: createEnvironment({
+        ...options.env,
+        loc:
+          options.env?.loc != null
+            ? {
+                ...options.env.loc,
+                filePath: toProjectPath(projectRoot, options.env.loc.filePath),
+              }
+            : undefined,
+      }),
+    });
+
+    let res = await this.#requestTracker.runRequest(request, {
+      force: true,
+    });
+    return res.map(asset =>
+      assetFromValue(asset, nullthrows(this.#resolvedOptions)),
+    );
+  }
+
+  async unstable_resolve(
+    request: ParcelResolveOptions,
+  ): Promise<?ParcelResolveResult> {
+    if (!this.#initialized) {
+      await this._init();
+    }
+
+    let projectRoot = nullthrows(this.#resolvedOptions).projectRoot;
+    if (request.resolveFrom == null && path.isAbsolute(request.specifier)) {
+      request.specifier = fromProjectPathRelative(
+        toProjectPath(projectRoot, request.specifier),
+      );
+    }
+
+    let dependency = createDependency(projectRoot, {
+      ...request,
+      env: createEnvironment({
+        ...request.env,
+        loc:
+          request.env?.loc != null
+            ? {
+                ...request.env.loc,
+                filePath: toProjectPath(projectRoot, request.env.loc.filePath),
+              }
+            : undefined,
+      }),
+    });
+
+    let req = createPathRequest({
+      dependency,
+      name: request.specifier,
+    });
+
+    let res = await this.#requestTracker.runRequest(req, {
+      force: true,
+    });
+    if (!res) {
+      return null;
+    }
+
+    return {
+      filePath: fromProjectPath(projectRoot, res.filePath),
+      code: res.code,
+      query: res.query,
+      sideEffects: res.sideEffects,
+    };
+  }
 }
 
 export class BuildError extends ThrowableDiagnostic {
@@ -446,6 +571,9 @@ export function createWorkerFarm(
 ): WorkerFarm {
   return new WorkerFarm({
     ...options,
-    workerPath: require.resolve('./worker'),
+    // $FlowFixMe
+    workerPath: process.browser
+      ? '@parcel/core/src/worker.js'
+      : require.resolve('./worker'),
   });
 }

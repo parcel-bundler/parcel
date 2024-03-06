@@ -20,6 +20,13 @@ export default (new Transformer({
 
     let configResult = configFile ? configFile.contents : {};
 
+    // Some packages in the wild declare a field `sass` in the package.json that
+    // is a relative path to the sass entrypoint. In those cases we simply
+    // initialize the config to an empty object.
+    if (typeof configResult === 'string') {
+      configResult = {};
+    }
+
     // Resolve relative paths from config file
     if (configFile && configResult.includePaths) {
       configResult.includePaths = configResult.includePaths.map(p =>

@@ -1,17 +1,25 @@
 // @flow
-import type {JSONObject, EnvMap} from '@parcel/types';
+import type {
+  JSONObject,
+  EnvMap,
+  SourceLocation,
+  FilePath,
+  FileCreateInvalidation,
+} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {init, transform} from '../native';
+import {transform, transformAsync} from '@parcel/rust';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
-import WorkerFarm from '@parcel/workers';
+import ThrowableDiagnostic, {
+  encodeJSONKeyComponent,
+  convertSourceLocationToHighlight,
+} from '@parcel/diagnostic';
+import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
@@ -99,6 +107,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
         },
       ],
     },
+    unstable_inlineConstants: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
@@ -107,6 +118,7 @@ type PackageJSONConfig = {|
   '@parcel/transformer-js'?: {|
     inlineFS?: boolean,
     inlineEnvironment?: boolean | Array<string>,
+    unstable_inlineConstants?: boolean,
   |},
 |};
 
@@ -147,6 +159,21 @@ type TSConfig = {
   },
   ...
 };
+
+type MacroAsset = {|
+  type: string,
+  content: string,
+|};
+
+// NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
+type MacroContext = {|
+  addAsset(asset: MacroAsset): void,
+  invalidateOnFileChange(FilePath): void,
+  invalidateOnFileCreate(FileCreateInvalidation): void,
+  invalidateOnEnvChange(string): void,
+  invalidateOnStartup(): void,
+  invalidateOnBuild(): void,
+|};
 
 export default (new Transformer({
   async loadConfig({config, options}) {
@@ -268,6 +295,7 @@ export default (new Transformer({
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
+    let inlineConstants = false;
     if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
@@ -287,6 +315,9 @@ export default (new Transformer({
         rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
         inlineEnvironment;
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+      inlineConstants =
+        rootPkg['@parcel/transformer-js']?.unstable_inlineConstants ??
+        inlineConstants;
     }
 
     return {
@@ -297,6 +328,7 @@ export default (new Transformer({
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
+      inlineConstants,
       reactRefresh,
       decorators,
       useDefineForClassFields,
@@ -306,8 +338,6 @@ export default (new Transformer({
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
-      init,
-      loadOnMainThreadIfNeeded(),
     ]);
 
     let targets;
@@ -365,10 +395,11 @@ export default (new Transformer({
         env.PARCEL_BUILD_ENV = 'test';
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
-      for (let key in options.env) {
-        if (isGlobMatch(key, config.inlineEnvironment)) {
-          env[key] = String(options.env[key]);
-        }
+      for (let match of globMatch(
+        Object.keys(options.env),
+        config.inlineEnvironment,
+      )) {
+        env[match] = String(options.env[match]);
       }
     } else {
       for (let key in options.env) {
@@ -389,6 +420,7 @@ export default (new Transformer({
       }
     }
 
+    let macroAssets = [];
     let {
       dependencies,
       code: compiledCode,
@@ -400,7 +432,8 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
-    } = transform({
+      is_constant_module,
+    } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
       module_id: asset.id,
@@ -438,9 +471,130 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+      standalone: asset.query.has('standalone'),
+      inline_constants: config.inlineConstants,
+      callMacro: asset.isSource
+        ? async (err, src, exportName, args, loc) => {
+            let mod;
+            try {
+              mod = await options.packageManager.require(src, asset.filePath);
+
+              // Default interop for CommonJS modules.
+              if (
+                exportName === 'default' &&
+                !mod.__esModule &&
+                // $FlowFixMe
+                Object.prototype.toString.call(config) !== '[object Module]'
+              ) {
+                mod = {default: mod};
+              }
+
+              if (!Object.hasOwnProperty.call(mod, exportName)) {
+                throw new Error(`"${src}" does not export "${exportName}".`);
+              }
+            } catch (err) {
+              throw {
+                kind: 1,
+                message: err.message,
+              };
+            }
+
+            try {
+              if (typeof mod[exportName] === 'function') {
+                let ctx: MacroContext = {
+                  // Allows macros to emit additional assets to add as dependencies (e.g. css).
+                  addAsset(a: MacroAsset) {
+                    let k = String(macroAssets.length);
+                    let map;
+                    if (asset.env.sourceMap) {
+                      // Generate a source map that maps each line of the asset to the original macro call.
+                      map = new SourceMap(options.projectRoot);
+                      let mappings = [];
+                      let line = 1;
+                      for (let i = 0; i <= a.content.length; i++) {
+                        if (i === a.content.length || a.content[i] === '\n') {
+                          mappings.push({
+                            generated: {
+                              line,
+                              column: 0,
+                            },
+                            source: asset.filePath,
+                            original: {
+                              line: loc.line,
+                              column: loc.col,
+                            },
+                          });
+                          line++;
+                        }
+                      }
+
+                      map.addIndexedMappings(mappings);
+                      if (originalMap) {
+                        map.extends(originalMap);
+                      } else {
+                        map.setSourceContent(asset.filePath, code.toString());
+                      }
+                    }
+
+                    macroAssets.push({
+                      type: a.type,
+                      content: a.content,
+                      map,
+                      uniqueKey: k,
+                    });
+
+                    asset.addDependency({
+                      specifier: k,
+                      specifierType: 'esm',
+                    });
+                  },
+                  invalidateOnFileChange(filePath) {
+                    asset.invalidateOnFileChange(filePath);
+                  },
+                  invalidateOnFileCreate(invalidation) {
+                    asset.invalidateOnFileCreate(invalidation);
+                  },
+                  invalidateOnEnvChange(env) {
+                    asset.invalidateOnEnvChange(env);
+                  },
+                  invalidateOnStartup() {
+                    asset.invalidateOnStartup();
+                  },
+                  invalidateOnBuild() {
+                    asset.invalidateOnBuild();
+                  },
+                };
+
+                return mod[exportName].apply(ctx, args);
+              } else {
+                throw new Error(
+                  `"${exportName}" in "${src}" is not a function.`,
+                );
+              }
+            } catch (err) {
+              // Remove parcel core from stack and build string so Rust can process errors more easily.
+              let stack = (err.stack || '').split('\n').slice(1);
+              let message = err.message;
+              for (let line of stack) {
+                if (line.includes(__filename)) {
+                  break;
+                }
+                message += '\n' + line;
+              }
+              throw {
+                kind: 2,
+                message,
+              };
+            }
+          }
+        : null,
     });
 
-    let convertLoc = loc => {
+    if (is_constant_module) {
+      asset.meta.isConstantModule = true;
+    }
+
+    let convertLoc = (loc): SourceLocation => {
       let location = {
         filePath: asset.filePath,
         start: {
@@ -484,14 +638,12 @@ export default (new Transformer({
           codeFrames: [
             {
               filePath: asset.filePath,
-              codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                let {start, end} = convertLoc(highlight.loc);
-                return {
-                  message: highlight.message,
-                  start,
-                  end,
-                };
-              }),
+              codeHighlights: diagnostic.code_highlights?.map(highlight =>
+                convertSourceLocationToHighlight(
+                  convertLoc(highlight.loc),
+                  highlight.message ?? undefined,
+                ),
+              ),
             },
           ],
           hints: diagnostic.hints,
@@ -506,11 +658,10 @@ export default (new Transformer({
             res.codeFrames?.push({
               filePath: asset.env.loc.filePath,
               codeHighlights: [
-                {
-                  start: asset.env.loc.start,
-                  end: asset.env.loc.end,
-                  message: 'The environment was originally created here',
-                },
+                convertSourceLocationToHighlight(
+                  asset.env.loc,
+                  'The environment was originally created here',
+                ),
               ],
             });
           }
@@ -641,12 +792,7 @@ export default (new Transformer({
               codeFrames: [
                 {
                   filePath: asset.filePath,
-                  codeHighlights: [
-                    {
-                      start: loc.start,
-                      end: loc.end,
-                    },
-                  ],
+                  codeHighlights: [convertSourceLocationToHighlight(loc)],
                 },
               ],
               hints: ['Try using a static `import`.'],
@@ -656,11 +802,10 @@ export default (new Transformer({
               diagnostic.codeFrames.push({
                 filePath: asset.env.loc.filePath,
                 codeHighlights: [
-                  {
-                    start: asset.env.loc.start,
-                    end: asset.env.loc.end,
-                    message: 'The environment was originally created here',
-                  },
+                  convertSourceLocationToHighlight(
+                    asset.env.loc,
+                    'The environment was originally created here',
+                  ),
                 ],
               });
             }
@@ -811,18 +956,26 @@ export default (new Transformer({
           });
         }
 
+        // Use the asset id as a unique key if one has not already been set.
+        // This lets us create a dependency on the asset itself by using it as a specifier.
+        // Using the unique key ensures that the dependency always resolves to the correct asset,
+        // even if it came from a transformer that produced multiple assets (e.g. css modules).
+        // Also avoids needing a resolution request.
+        asset.uniqueKey ||= asset.id;
         asset.addDependency({
-          specifier: `./${path.basename(asset.filePath)}`,
+          specifier: asset.uniqueKey,
           specifierType: 'esm',
           symbols,
         });
       }
 
-      // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+      // Add * symbol if there are CJS exports, no imports/exports at all
+      // (and the asset has side effects), or the asset is wrapped.
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
         hoist_result.has_cjs_exports ||
         (!hoist_result.is_esm &&
+          asset.sideEffects &&
           deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
@@ -927,31 +1080,6 @@ export default (new Transformer({
       asset.setMap(sourceMap);
     }
 
-    return [asset];
+    return [asset, ...macroAssets];
   },
 }): Transformer);
-
-// On linux with older versions of glibc (e.g. CentOS 7), we encounter a segmentation fault
-// when worker threads exit due to thread local variables used by SWC. A workaround is to
-// also load the native module on the main thread, so that it is not unloaded until process exit.
-// See https://github.com/rust-lang/rust/issues/91979.
-let isLoadedOnMainThread = false;
-async function loadOnMainThreadIfNeeded() {
-  if (
-    !isLoadedOnMainThread &&
-    process.platform === 'linux' &&
-    WorkerFarm.isWorker()
-  ) {
-    // $FlowFixMe
-    let {glibcVersionRuntime} = process.report.getReport().header;
-    if (glibcVersionRuntime && parseFloat(glibcVersionRuntime) <= 2.17) {
-      let api = WorkerFarm.getWorkerApi();
-      await api.callMaster({
-        location: __dirname + '/loadNative.js',
-        args: [],
-      });
-
-      isLoadedOnMainThread = true;
-    }
-  }
-}

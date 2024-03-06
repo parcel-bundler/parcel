@@ -4,6 +4,7 @@ import type {
   MutableAsset,
   AST,
   PluginOptions,
+  PluginTracer,
   PluginLogger,
 } from '@parcel/types';
 import typeof * as BabelCore from '@babel/core';
@@ -25,12 +26,13 @@ type Babel7TransformOptions = {|
   logger: PluginLogger,
   babelOptions: any,
   additionalPlugins?: Array<any>,
+  tracer: PluginTracer,
 |};
 
 export default async function babel7(
   opts: Babel7TransformOptions,
 ): Promise<?AST> {
-  let {asset, options, babelOptions, additionalPlugins = []} = opts;
+  let {asset, options, babelOptions, additionalPlugins = [], tracer} = opts;
   const babelCore: BabelCore = await options.packageManager.require(
     '@babel/core',
     asset.filePath,
@@ -73,6 +75,28 @@ export default async function babel7(
       outputFormat: asset.env.outputFormat,
     },
   };
+
+  if (tracer.enabled) {
+    config.wrapPluginVisitorMethod = (
+      key: string,
+      nodeType: string,
+      fn: Function,
+    ) => {
+      return function () {
+        let pluginKey = key;
+        if (pluginKey.startsWith(options.projectRoot)) {
+          pluginKey = path.relative(options.projectRoot, pluginKey);
+        }
+        const measurement = tracer.createMeasurement(
+          pluginKey,
+          nodeType,
+          path.relative(options.projectRoot, asset.filePath),
+        );
+        fn.apply(this, arguments);
+        measurement && measurement.end();
+      };
+    };
+  }
 
   let ast = await asset.getAST();
   let res;

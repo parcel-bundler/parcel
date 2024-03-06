@@ -12,9 +12,13 @@
   ],
   "content_scripts": [{
     "matches": ["https://*.google.com/*"],
-    "js": ["other-content-script.js"]
+    "js": ["other-content-script.js"],
+    "world": "ISOLATED"
   }],
   "action": {
     "default_popup": "popup.html"
+  },
+  "side_panel": {
+    "default_path": "side-panel.html"
   }
 }

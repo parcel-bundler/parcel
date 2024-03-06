@@ -13,7 +13,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
-import {init, Resolver} from '../native';
+import {init, Resolver} from '@parcel/rust';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
@@ -24,6 +24,7 @@ import {
   getModuleParts,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
   encodeJSONKeyComponent,
   errorToDiagnostic,
   generateJSONCodeHighlights,
@@ -46,9 +47,10 @@ type Options = {|
   packageManager?: PackageManager,
   logger?: PluginLogger,
   shouldAutoInstall?: boolean,
-  mode?: BuildMode,
+  mode: BuildMode,
   mainFields?: Array<string>,
   extensions?: Array<string>,
+  packageExports?: boolean,
 |};
 
 type ResolveOptions = {|
@@ -103,6 +105,7 @@ export default class NodeResolver {
           options.env,
           this.options.mode,
         ),
+        packageExports: this.options.packageExports ?? false,
         moduleDirResolver:
           process.versions.pnp != null
             ? (module, from) => {
@@ -131,8 +134,17 @@ export default class NodeResolver {
       }
     }
 
-    // $FlowFixMe[incompatible-call] - parent is not null here.
-    let res = resolver.resolve(options);
+    // Async resolver is only supported in non-WASM environments, and does not support JS callbacks (e.g. FS, PnP).
+    let canResolveAsync =
+      !init &&
+      this.options.fs instanceof NodeFS &&
+      process.versions.pnp == null;
+
+    let res = canResolveAsync
+      ? // $FlowFixMe[incompatible-call] - parent is not null here.
+        await resolver.resolveAsync(options)
+      : // $FlowFixMe[incompatible-call] - parent is not null here.
+        resolver.resolve(options);
 
     // Invalidate whenever the .pnp.js file changes.
     // TODO: only when we actually resolve a node_modules package?
@@ -261,11 +273,10 @@ export default class NodeResolver {
                     filePath: options.loc.filePath,
                     codeHighlights: options.loc
                       ? [
-                          {
-                            message: 'used here',
-                            start: options.loc.start,
-                            end: options.loc.end,
-                          },
+                          convertSourceLocationToHighlight(
+                            options.loc,
+                            'used here',
+                          ),
                         ]
                       : [],
                   },
@@ -303,11 +314,10 @@ export default class NodeResolver {
                     {
                       filePath: options.loc.filePath,
                       codeHighlights: [
-                        {
-                          message: 'used here',
-                          start: options.loc.start,
-                          end: options.loc.end,
-                        },
+                        convertSourceLocationToHighlight(
+                          options.loc,
+                          'used here',
+                        ),
                       ],
                     },
                   ]
@@ -487,6 +497,7 @@ export default class NodeResolver {
               filePath: error.path,
               language: 'json',
               code: pkgContent,
+              // TODO
               codeHighlights: [
                 {
                   message: error.message,

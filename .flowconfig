@@ -2,6 +2,7 @@
 .*/node_modules/@choojs/**/.*
 .*/node_modules/config-chain/.*
 .*/node_modules/graphviz/documentation.json
+.*/node_modules/resolve/test/**/.*
 <PROJECT_ROOT>/.nyc_output/.*
 .*/tmp/**/.*
 .*/.parcel-cache/.*
@@ -26,6 +27,7 @@ untyped-type-import=error
 [options]
 module.system.node.main_field=source
 module.system.node.main_field=main
+react.runtime=automatic
 
 [strict]
 nonstrict-import

@@ -16,6 +16,8 @@ import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
+import {PluginTracer} from '@parcel/profiler';
+import {hashString} from '@parcel/rust';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -66,6 +68,10 @@ export default class Validation {
         if (assets) {
           let plugin = this.allValidators[validatorName];
           let validatorLogger = new PluginLogger({origin: validatorName});
+          let validatorTracer = new PluginTracer({
+            origin: validatorName,
+            category: 'validator',
+          });
           let validatorResults: Array<?ValidateResult> = [];
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
@@ -74,6 +80,7 @@ export default class Validation {
                 assets: assets.map(asset => new Asset(asset)),
                 options: pluginOptions,
                 logger: validatorLogger,
+                tracer: validatorTracer,
                 resolveConfigWithPath: (
                   configNames: Array<string>,
                   assetFilePath: string,
@@ -98,6 +105,7 @@ export default class Validation {
                       asset: publicAsset,
                       options: pluginOptions,
                       logger: validatorLogger,
+                      tracer: validatorTracer,
                       resolveConfig: (configNames: Array<string>) =>
                         resolveConfig(
                           this.options.inputFS,
@@ -113,6 +121,7 @@ export default class Validation {
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
+                    tracer: validatorTracer,
                   });
                   validatorResults.push(validatorResult);
                 }),
@@ -181,7 +190,7 @@ export default class Validation {
 
   async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
     let {filePath, env, code, sideEffects, query} = request;
-    let {content, size, hash, isSource} = await summarizeRequest(
+    let {content, size, isSource} = await summarizeRequest(
       this.options.inputFS,
       {
         filePath: fromProjectPath(this.options.projectRoot, request.filePath),
@@ -190,7 +199,8 @@ export default class Validation {
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the base for the id to ensure it is unique.
-    let idBase = code != null ? hash : fromProjectPathRelative(filePath);
+    let idBase =
+      code != null ? hashString(code) : fromProjectPathRelative(filePath);
     return new UncommittedAsset({
       idBase,
       value: createAsset(this.options.projectRoot, {
@@ -198,7 +208,6 @@ export default class Validation {
         filePath: filePath,
         isSource,
         type: path.extname(fromProjectPathRelative(filePath)).slice(1),
-        hash,
         query,
         env: env,
         stats: {

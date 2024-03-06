@@ -68,7 +68,52 @@ describe('css', () => {
         css.indexOf('.e {') < css.indexOf('.a {'),
     );
   });
+  it('should place one css bundle per bundlegroup for naming reasons', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/multi-css-bug/src/entry.js'),
+    );
 
+    assertBundles(b, [
+      {
+        name: 'entry.js',
+        type: 'js',
+        assets: ['bundle-url.js', 'cacheLoader.js', 'entry.js', 'js-loader.js'],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'index.js'],
+      },
+      {name: 'entry.css', type: 'css', assets: ['foo.css', 'main.css']},
+    ]);
+  });
+  it.skip('create a new css bundle to maintain one css bundle per bundlegroup constraint', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/multi-css-multi-entry-bug/src/entry.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'entry.js',
+        type: 'js',
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'entry.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'index.js'],
+      },
+      {name: 'Foo.css', type: 'css', assets: ['foo.css']},
+      {name: 'entry.css', type: 'css', assets: ['foo.css', 'main.css']},
+    ]);
+  });
   it('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-css/index.js'),
@@ -118,7 +163,9 @@ describe('css', () => {
     let css = await outputFS.readFile(path.join(distDir, '/index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.other'));
-    assert(/@media print {\s*.other/.test(css));
+    assert(
+      /@media print {\s*\.local(.|\n)*\.other(.|\n)*}(.|\n)*\.index/.test(css),
+    );
     assert(css.includes('.index'));
   });
 
@@ -423,6 +470,7 @@ describe('css', () => {
                 code,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 5,
                       column: 3,
@@ -508,5 +556,18 @@ describe('css', () => {
 
     let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(res.includes('.foo.bar'));
+  });
+
+  it('should support @layer', async function () {
+    let b = await bundle(path.join(__dirname, '/integration/css-layer/a.css'), {
+      mode: 'production',
+    });
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      res.includes(
+        '@layer b.c{.c{color:#ff0}}@layer b{.b{color:#00f}}.a{color:red}',
+      ),
+    );
   });
 });

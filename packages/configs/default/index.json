@@ -68,6 +68,7 @@
     "*.svg": "@parcel/packager-svg",
     "*.{xml,rss,atom}": "@parcel/packager-xml",
     "*.ts": "@parcel/packager-ts",
+    "*.wasm": "@parcel/packager-wasm",
     "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },

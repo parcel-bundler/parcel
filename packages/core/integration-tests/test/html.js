@@ -36,32 +36,40 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
+        // index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
-        type: 'png',
-        assets: ['100x100.png'],
+        // other.html
+        name: 'other.html',
+        assets: ['other.html'],
+      },
+      {
+        // foo/other.html
+        name: 'other.html',
+        assets: ['other.html'],
       },
       {
         type: 'svg',
         assets: ['icons.svg'],
       },
       {
-        type: 'css',
-        assets: ['index.css'],
-      },
-      {
-        type: 'html',
-        assets: ['other.html'],
+        type: 'png',
+        assets: ['100x100.png'],
       },
       {
         type: 'js',
         assets: ['index.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
       },
     ]);
 
@@ -1432,7 +1440,7 @@ describe('html', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 5,
                     column: 7,
@@ -1721,7 +1729,7 @@ describe('html', function () {
               filePath: path.join(__dirname, '/integration/html-js/index.js'),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1794,7 +1802,13 @@ describe('html', function () {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'index.js', 'index.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'esm-js-loader.js',
+          'index.js',
+          'index.js',
+          'index.js',
+        ],
       },
       {
         name: 'index.html',
@@ -1875,6 +1889,7 @@ describe('html', function () {
         type: 'js',
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'lodash.js',
@@ -1936,6 +1951,7 @@ describe('html', function () {
         type: 'js',
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'lodash.js',
@@ -2068,6 +2084,59 @@ describe('html', function () {
     }
   });
 
+  it('supports multiple dist targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-multi-targets/'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
+      },
+    );
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
+      },
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
   it('should isolate async scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-async-script/index.html'),
@@ -2122,7 +2191,7 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
-        assets: ['a.js', 'bundle-manifest.js'],
+        assets: ['a.js', 'bundle-manifest.js', 'esm-js-loader.js'],
       },
       {
         assets: [
@@ -2173,6 +2242,18 @@ describe('html', function () {
 
     assertBundles(b, [
       {
+        type: 'js',
+        assets: ['a.html'],
+      },
+      {
+        type: 'js',
+        assets: ['b.html'],
+      },
+      {
+        type: 'js',
+        assets: ['c.html'],
+      },
+      {
         name: 'a.html',
         type: 'html',
         assets: ['a.html'],
@@ -2188,24 +2269,12 @@ describe('html', function () {
         assets: ['c.html'],
       },
       {
-        type: 'js',
-        assets: ['a.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['b.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['c.html', 'shared.js'],
-      },
-      {
         type: 'css',
-        assets: ['other.css'],
+        assets: ['other.css', 'shared.css'],
       },
       {
-        type: 'css',
-        assets: ['shared.css'],
+        type: 'js',
+        assets: ['shared.js'],
       },
     ]);
 
@@ -2250,6 +2319,7 @@ describe('html', function () {
           'index.js',
           'client.js',
           'bundle-manifest.js',
+          'esm-js-loader.js',
         ],
       },
       {
@@ -2418,6 +2488,14 @@ describe('html', function () {
       {
         type: 'js',
         assets: ['form.js', 'a.js', 'a.module.css', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css'],
       },
       {
         type: 'css',

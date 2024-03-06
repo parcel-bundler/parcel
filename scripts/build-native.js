@@ -5,6 +5,7 @@ const path = require('path');
 const {spawn, execSync} = require('child_process');
 
 let release = process.argv.includes('--release');
+let wasm = process.argv.includes('--wasm');
 build();
 
 async function build() {
@@ -16,14 +17,17 @@ async function build() {
   for (let pkg of packages) {
     try {
       let pkgJSON = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json')));
-      if (!pkgJSON.napi) continue;
+      if (!wasm && !pkgJSON.napi) continue;
+      if (wasm && !pkgJSON.scripts?.['wasm:build-release']) continue;
     } catch (err) {
       continue;
     }
 
     console.log(`Building ${pkg}...`);
     await new Promise((resolve, reject) => {
-      let args = [release ? 'build-release' : 'build'];
+      let args = [
+        (wasm ? 'wasm:' : '') + (release ? 'build-release' : 'build'),
+      ];
       if (process.env.RUST_TARGET) {
         args.push('--target', process.env.RUST_TARGET);
       }
@@ -39,9 +43,9 @@ async function build() {
   }
 }
 
-// This forces Clang/LLVM to be used as a C compiler instead of GCC.
-// This is necessary for cross-compilation for Apple Silicon in GitHub Actions.
+// This setup is necessary for cross-compilation for Apple Silicon in GitHub Actions.
 function setupMacBuild() {
+  // This forces Clang/LLVM to be used as a C compiler instead of GCC.
   process.env.CC = execSync('xcrun -f clang', {encoding: 'utf8'}).trim();
   process.env.CXX = execSync('xcrun -f clang++', {encoding: 'utf8'}).trim();
 
@@ -50,4 +54,10 @@ function setupMacBuild() {
   }).trim();
   process.env.CFLAGS = `-isysroot ${sysRoot} -isystem ${sysRoot}`;
   process.env.MACOSX_DEPLOYMENT_TARGET = '10.9';
+
+  if (process.env.RUST_TARGET === 'aarch64-apple-darwin') {
+    // Prevents the "<jemalloc>: Unsupported system page size" error when
+    // requiring parcel-node-bindings.darwin-arm64.node
+    process.env.JEMALLOC_SYS_WITH_LG_PAGE = 14;
+  }
 }

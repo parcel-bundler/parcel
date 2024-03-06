@@ -12,30 +12,21 @@ import type {
   InternalFileCreateInvalidation,
   InternalSourceLocation,
   InternalDevDepOptions,
+  Invalidations,
 } from './types';
 import type {PackageManager} from '@parcel/package-manager';
 
 import invariant from 'assert';
 import baseX from 'base-x';
-import {Graph} from '@parcel/graph';
 import {hashObject} from '@parcel/utils';
-
-import {registerSerializableClass} from './serializer';
-import AssetGraph from './AssetGraph';
-import BundleGraph from './BundleGraph';
-import ParcelConfig from './ParcelConfig';
-import {RequestGraph} from './RequestTracker';
-import Config from './public/Config';
 import {fromProjectPath, toProjectPath} from './projectPath';
-// flowlint-next-line untyped-import:off
-import packageJson from '../package.json';
 
 const base62 = baseX(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
 );
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
-  return 'bundle_group:' + bundleGroup.entryAssetId;
+  return 'bundle_group:' + bundleGroup.target.name + bundleGroup.entryAssetId;
 }
 
 export function assertSignalNotAborted(signal: ?AbortSignal): void {
@@ -46,33 +37,6 @@ export function assertSignalNotAborted(signal: ?AbortSignal): void {
 
 export class BuildAbortError extends Error {
   name: string = 'BuildAbortError';
-}
-
-let coreRegistered;
-export function registerCoreWithSerializer() {
-  if (coreRegistered) {
-    return;
-  }
-
-  const packageVersion: mixed = packageJson.version;
-  if (typeof packageVersion !== 'string') {
-    throw new Error('Expected package version to be a string');
-  }
-
-  // $FlowFixMe[incompatible-cast]
-  for (let [name, ctor] of (Object.entries({
-    AssetGraph,
-    Config,
-    BundleGraph,
-    Graph,
-    ParcelConfig,
-    RequestGraph,
-    // $FlowFixMe[unclear-type]
-  }): Array<[string, Class<any>]>)) {
-    registerSerializableClass(packageVersion + ':' + name, ctor);
-  }
-
-  coreRegistered = true;
 }
 
 export function getPublicId(
@@ -103,6 +67,7 @@ const ignoreOptions = new Set([
   'shouldAutoInstall',
   'logLevel',
   'shouldProfile',
+  'shouldTrace',
   'shouldPatchConsole',
   'projectRoot',
   'additionalReporters',
@@ -188,6 +153,17 @@ export function invalidateOnFileCreateToInternal(
       aboveFilePath: toProjectPath(projectRoot, invalidation.aboveFilePath),
     };
   }
+}
+
+export function createInvalidations(): Invalidations {
+  return {
+    invalidateOnBuild: false,
+    invalidateOnStartup: false,
+    invalidateOnOptionChange: new Set(),
+    invalidateOnEnvChange: new Set(),
+    invalidateOnFileChange: new Set(),
+    invalidateOnFileCreate: [],
+  };
 }
 
 export function fromInternalSourceLocation(

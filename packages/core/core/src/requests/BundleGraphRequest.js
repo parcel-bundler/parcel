@@ -28,7 +28,7 @@ import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {unique, setDifference} from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION, OPTION_CHANGE} from '../constants';
@@ -54,6 +54,8 @@ import {
   toProjectPathUnsafe,
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
+import {tracer, PluginTracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -78,7 +80,7 @@ export type BundleGraphResult = {|
 
 type BundleGraphRequest = {|
   id: string,
-  +type: 'bundle_graph_request',
+  +type: typeof requestTypes.bundle_graph_request,
   run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
@@ -87,16 +89,19 @@ export default function createBundleGraphRequest(
   input: BundleGraphRequestInput,
 ): BundleGraphRequest {
   return {
-    type: 'bundle_graph_request',
+    type: requestTypes.bundle_graph_request,
     id: 'BundleGraph',
     run: async input => {
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
+      let measurement = tracer.createMeasurement('building');
       let request = createAssetGraphRequest({
         name: 'Main',
         entries: options.entries,
         optionsRef,
         shouldBuildLazily: options.shouldBuildLazily,
+        lazyIncludes: options.lazyIncludes,
+        lazyExcludes: options.lazyExcludes,
         requestedAssetIds,
       });
       let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
@@ -105,7 +110,7 @@ export default function createBundleGraphRequest(
           force: options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
-
+      measurement && measurement.end();
       assertSignalNotAborted(signal);
 
       // If any subrequests are invalid (e.g. dev dep requests or config requests),
@@ -133,13 +138,14 @@ export default function createBundleGraphRequest(
       let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
+      let bundlingMeasurement = tracer.createMeasurement('bundling');
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
         changedAssets: changedAssets,
         assetRequests,
       });
-
+      bundlingMeasurement && bundlingMeasurement.end();
       for (let [id, asset] of changedAssets) {
         res.changedAssets.set(id, asset);
       }
@@ -183,11 +189,12 @@ class BundlerRunner {
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, api.invalidateOnOptionChange),
     );
-    this.cacheKey = hashString(
-      `${PARCEL_VERSION}:BundleGraph:${JSON.stringify(options.entries) ?? ''}${
-        options.mode
-      }`,
-    );
+    this.cacheKey =
+      hashString(
+        `${PARCEL_VERSION}:BundleGraph:${
+          JSON.stringify(options.entries) ?? ''
+        }${options.mode}${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
+      ) + '-BundleGraph';
   }
 
   async loadConfigs() {
@@ -268,7 +275,10 @@ class BundlerRunner {
     let internalBundleGraph;
 
     let logger = new PluginLogger({origin: name});
-
+    let tracer = new PluginTracer({
+      origin: name,
+      category: 'bundle',
+    });
     try {
       if (previousBundleGraphResult) {
         internalBundleGraph = previousBundleGraphResult.bundleGraph;
@@ -298,16 +308,41 @@ class BundlerRunner {
           this.options,
         );
 
+        let measurement;
+        let measurementFilename;
+        if (tracer.enabled) {
+          measurementFilename = graph
+            .getEntryAssets()
+            .map(asset => fromProjectPathRelative(asset.filePath))
+            .join(', ');
+          measurement = tracer.createMeasurement(
+            plugin.name,
+            'bundling:bundle',
+            measurementFilename,
+          );
+        }
+
         // this the normal bundle workflow (bundle, optimizing, run-times, naming)
         await bundler.bundle({
           bundleGraph: mutableBundleGraph,
           config: this.configs.get(plugin.name)?.result,
           options: this.pluginOptions,
           logger,
+          tracer,
         });
 
+        measurement && measurement.end();
+
         if (this.pluginOptions.mode === 'production') {
+          let optimizeMeasurement;
           try {
+            if (tracer.enabled) {
+              optimizeMeasurement = tracer.createMeasurement(
+                plugin.name,
+                'bundling:optimize',
+                nullthrows(measurementFilename),
+              );
+            }
             await bundler.optimize({
               bundleGraph: mutableBundleGraph,
               config: this.configs.get(plugin.name)?.result,
@@ -321,6 +356,7 @@ class BundlerRunner {
               }),
             });
           } finally {
+            optimizeMeasurement && optimizeMeasurement.end();
             await dumpGraphToGraphViz(
               // $FlowFixMe[incompatible-call]
               internalBundleGraph._graph,
@@ -342,6 +378,17 @@ class BundlerRunner {
         await this.runDevDepRequest(devDepRequest);
       }
     } catch (e) {
+      if (internalBundleGraph != null) {
+        this.api.storeResult(
+          {
+            bundleGraph: internalBundleGraph,
+            changedAssets: new Map(),
+            assetRequests: [],
+          },
+          this.cacheKey,
+        );
+      }
+
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
           origin: name,
@@ -379,8 +426,6 @@ class BundlerRunner {
         previousDevDeps: this.previousDevDeps,
         devDepRequests: this.devDepRequests,
         configs: this.configs,
-        nameRuntimeBundle: bundle =>
-          this.nameBundle(namers, bundle, internalBundleGraph),
       });
 
       // Add dev deps for namers, AFTER running them to account for lazy require().
@@ -454,13 +499,16 @@ class BundlerRunner {
     );
 
     for (let namer of namers) {
+      let measurement;
       try {
+        measurement = tracer.createMeasurement(namer.name, 'namer', bundle.id);
         let name = await namer.plugin.name({
           bundle,
           bundleGraph,
           config: this.configs.get(namer.name)?.result,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: namer.name}),
+          tracer: new PluginTracer({origin: namer.name, category: 'namer'}),
         });
 
         if (name != null) {
@@ -478,6 +526,8 @@ class BundlerRunner {
             origin: namer.name,
           }),
         });
+      } finally {
+        measurement && measurement.end();
       }
     }
 

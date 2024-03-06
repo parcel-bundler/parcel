@@ -21,6 +21,7 @@ import logger, {
 } from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
@@ -44,6 +45,7 @@ export default class ReporterRunner {
     this.pluginOptions = new PluginOptions(this.options);
 
     logger.onLog(event => this.report(event));
+    tracer.onTrace(event => this.report(event));
 
     bus.on('reporterEvent', this.eventHandler);
     instances.add(this);
@@ -93,14 +95,26 @@ export default class ReporterRunner {
       }
 
       for (let reporter of this.reporters) {
+        let measurement;
         try {
+          // To avoid an infinite loop we don't measure trace events, as they'll
+          // result in another trace!
+          if (event.type !== 'trace') {
+            measurement = tracer.createMeasurement(reporter.name, 'reporter');
+          }
           await reporter.plugin.report({
             event,
             options: this.pluginOptions,
             logger: new PluginLogger({origin: reporter.name}),
+            tracer: new PluginTracer({
+              origin: reporter.name,
+              category: 'reporter',
+            }),
           });
         } catch (reportError) {
           INTERNAL_ORIGINAL_CONSOLE.error(reportError);
+        } finally {
+          measurement && measurement.end();
         }
       }
     } catch (err) {

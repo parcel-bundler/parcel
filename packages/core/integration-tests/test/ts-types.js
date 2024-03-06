@@ -351,7 +351,7 @@ describe('typescript types', function () {
                 codeHighlights: [
                   {
                     start: {line: 13, column: 17},
-                    end: {line: 13, column: 32},
+                    end: {line: 13, column: 31},
                     message,
                   },
                 ],

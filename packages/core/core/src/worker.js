@@ -21,15 +21,24 @@ import {reportWorker, report} from './ReporterRunner';
 import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
-import {registerCoreWithSerializer} from './utils';
+import {registerCoreWithSerializer} from './registerCoreWithSerializer';
 import {clearBuildCaches} from './buildCache';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initHash} from '@parcel/hash';
+import {init as initRust} from '@parcel/rust';
 import WorkerFarm from '@parcel/workers';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
 import '@parcel/fs';
+
+// $FlowFixMe
+if (process.env.PARCEL_BUILD_REPL && process.browser) {
+  /* eslint-disable import/no-extraneous-dependencies, monorepo/no-internal-import */
+  require('@parcel/repl/src/parcel/BrowserPackageManager.js');
+  // $FlowFixMe
+  require('@parcel/repl/src/parcel/ExtendedMemoryFS.js');
+  /* eslint-enable import/no-extraneous-dependencies, monorepo/no-internal-import */
+}
 
 registerCoreWithSerializer();
 
@@ -148,7 +157,7 @@ export async function runPackage(
 
 export async function childInit() {
   await initSourcemaps;
-  await initHash;
+  await initRust?.();
 }
 
 const PKG_RE =

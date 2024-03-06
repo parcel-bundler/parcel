@@ -2,11 +2,11 @@ use crate::id;
 use crate::utils::{get_undefined_ident, match_export_name, match_export_name_ident};
 use inflector::Inflector;
 use std::collections::{HashMap, HashSet};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::preset_env::{Feature, Versions};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::preset_env::{Feature, Versions};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
 
@@ -95,7 +95,10 @@ impl ESMFold {
       decls: vec![VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(ident.into()),
-        init: Some(Box::new(Expr::Call(crate::utils::create_require(src)))),
+        init: Some(Box::new(Expr::Call(crate::utils::create_require(
+          src,
+          self.unresolved_mark,
+        )))),
         definite: false,
       }],
       declare: false,
@@ -460,20 +463,16 @@ impl Fold for ESMFold {
                       declare: false,
                       function: func.function.clone(),
                     }))));
-                    items.push(self.create_exports_assign(
-                      "default".into(),
-                      Expr::Ident(ident.clone()),
-                      DUMMY_SP,
-                    ));
+                    self.create_export("default".into(), Expr::Ident(ident.clone()), DUMMY_SP);
                   } else {
-                    items.push(self.create_exports_assign(
+                    self.create_export(
                       "default".into(),
                       Expr::Fn(FnExpr {
                         ident: None,
                         function: func.function.clone(),
                       }),
                       export.span,
-                    ));
+                    );
                   }
                 }
                 _ => {
@@ -560,6 +559,7 @@ impl Fold for ESMFold {
             ),
             init: Some(Box::new(Expr::Call(crate::utils::create_require(
               "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+              self.unresolved_mark,
             )))),
             definite: false,
           }],

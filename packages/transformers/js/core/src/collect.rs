@@ -1,14 +1,14 @@
 use crate::id;
 use crate::utils::{
-  match_export_name, match_export_name_ident, match_import, match_member_expr, match_property_name,
-  match_require, Bailout, BailoutReason, SourceLocation,
+  is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
+  match_property_name, match_require, Bailout, BailoutReason, SourceLocation,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{sync::Lrc, Mark, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_core::common::{sync::Lrc, Mark, Span, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Visit, VisitWith};
 
 macro_rules! collect_visit_fn {
   ($name:ident, $type:ident) => {
@@ -48,8 +48,8 @@ pub struct Export {
 }
 
 pub struct Collect {
-  pub source_map: Lrc<swc_common::SourceMap>,
-  pub decls: HashSet<Id>,
+  pub source_map: Lrc<swc_core::common::SourceMap>,
+  pub unresolved_mark: Mark,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
   pub static_cjs_exports: bool,
@@ -58,6 +58,7 @@ pub struct Collect {
   pub should_wrap: bool,
   /// local variable binding -> descriptor
   pub imports: HashMap<Id, Import>,
+  pub this_exprs: HashMap<Id, (Ident, Span)>,
   /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   /// local variable binding -> exported name
@@ -76,6 +77,8 @@ pub struct Collect {
   in_export_decl: bool,
   in_function: bool,
   in_assign: bool,
+  in_class: bool,
+  is_module: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -113,22 +116,25 @@ pub struct CollectResult {
 
 impl Collect {
   pub fn new(
-    source_map: Lrc<swc_common::SourceMap>,
-    decls: HashSet<Id>,
+    source_map: Lrc<swc_core::common::SourceMap>,
+    unresolved_mark: Mark,
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
+    is_module: bool,
   ) -> Self {
     Collect {
       source_map,
-      decls,
+      unresolved_mark,
       ignore_mark,
       global_mark,
+      is_module,
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
       should_wrap: false,
       imports: HashMap::new(),
+      this_exprs: HashMap::new(),
       exports: HashMap::new(),
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
@@ -142,6 +148,7 @@ impl Collect {
       in_export_decl: false,
       in_function: false,
       in_assign: false,
+      in_class: false,
       bailouts: if trace_bailouts { Some(vec![]) } else { None },
     }
   }
@@ -241,6 +248,13 @@ impl Visit for Collect {
     }
     self.in_module_this = false;
 
+    for (_key, (ident, span)) in std::mem::take(&mut self.this_exprs) {
+      if self.exports.contains_key(&ident.sym) {
+        self.should_wrap = true;
+        self.add_bailout(span, BailoutReason::ThisInExport);
+      }
+    }
+
     if let Some(bailouts) = &mut self.bailouts {
       for (key, Import { specifier, .. }) in &self.imports {
         if specifier == "*" {
@@ -260,7 +274,6 @@ impl Visit for Collect {
   }
 
   collect_visit_fn!(visit_function, Function);
-  collect_visit_fn!(visit_class, Class);
   collect_visit_fn!(visit_getter_prop, GetterProp);
   collect_visit_fn!(visit_setter_prop, SetterProp);
 
@@ -616,17 +629,17 @@ impl Visit for Collect {
     // if exports, ensure only static member expression
     // if require, could be static access (handle in fold)
 
-    if match_member_expr(node, vec!["module", "exports"], &self.decls) {
+    if match_member_expr(node, vec!["module", "exports"], self.unresolved_mark) {
       self.static_cjs_exports = false;
       self.has_cjs_exports = true;
       return;
     }
 
-    if match_member_expr(node, vec!["module", "hot"], &self.decls) {
+    if match_member_expr(node, vec!["module", "hot"], self.unresolved_mark) {
       return;
     }
 
-    if match_member_expr(node, vec!["module", "require"], &self.decls) {
+    if match_member_expr(node, vec!["module", "require"], self.unresolved_mark) {
       return;
     }
 
@@ -652,35 +665,41 @@ impl Visit for Collect {
 
     match &*node.obj {
       Expr::Member(member) => {
-        if match_member_expr(member, vec!["module", "exports"], &self.decls) {
+        if match_member_expr(member, vec!["module", "exports"], self.unresolved_mark) {
           handle_export!();
+          return;
+        } else {
+          member.visit_with(self);
         }
-        return;
       }
       Expr::Ident(ident) => {
-        if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
+        if &*ident.sym == "exports" && is_unresolved(&ident, self.unresolved_mark) {
           handle_export!();
-        } else if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
+        } else if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           self.should_wrap = true;
           self.add_bailout(node.span, BailoutReason::FreeModule);
-        } else {
-          if match_property_name(node).is_none() {
-            self
-              .non_static_access
-              .entry(id!(ident))
-              .or_default()
-              .push(node.span);
-          } else if self.imports.contains_key(&id!(ident)) {
-            self.used_imports.insert(id!(ident));
-          }
+        } else if match_property_name(node).is_none() {
+          self
+            .non_static_access
+            .entry(id!(ident))
+            .or_default()
+            .push(node.span);
+        } else if self.imports.contains_key(&id!(ident)) {
+          self.used_imports.insert(id!(ident));
         }
         return;
       }
       Expr::This(_this) => {
         if self.in_module_this {
-          handle_export!();
+          if !self.is_module {
+            handle_export!();
+          }
+        } else if !self.in_class {
+          if let MemberProp::Ident(prop) = &node.prop {
+            self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
+          }
         }
         return;
       }
@@ -694,7 +713,7 @@ impl Visit for Collect {
     if node.op == UnaryOp::TypeOf {
       match &*node.arg {
         Expr::Ident(ident)
-          if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) =>
+          if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) =>
         {
           // Do nothing to avoid the ident visitor from marking the module as non-static.
         }
@@ -732,7 +751,7 @@ impl Visit for Collect {
         // Bail if `module` or `exports` are accessed non-statically.
         let is_module = ident.sym == js_word!("module");
         let is_exports = &*ident.sym == "exports";
-        if (is_module || is_exports) && !self.decls.contains(&id!(ident)) {
+        if (is_module || is_exports) && is_unresolved(&ident, self.unresolved_mark) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           if is_module {
@@ -759,8 +778,33 @@ impl Visit for Collect {
     }
   }
 
+  fn visit_ident(&mut self, node: &Ident) {
+    // This visitor helps us identify used imports in cases like:
+    //
+    //   import { foo } from "bar";
+    //   const baz = { foo };
+    if self.imports.contains_key(&id!(node)) {
+      self.used_imports.insert(id!(node));
+    }
+  }
+
+  fn visit_class(&mut self, class: &Class) {
+    let in_module_this = self.in_module_this;
+    let in_function = self.in_function;
+    let in_class = self.in_class;
+
+    self.in_module_this = false;
+    self.in_function = true;
+    self.in_class = true;
+
+    class.visit_children_with(self);
+    self.in_module_this = in_module_this;
+    self.in_function = in_function;
+    self.in_class = in_class;
+  }
+
   fn visit_this_expr(&mut self, node: &ThisExpr) {
-    if self.in_module_this {
+    if !self.is_module && self.in_module_this {
       self.has_cjs_exports = true;
       self.static_cjs_exports = false;
       self.add_bailout(node.span, BailoutReason::FreeExports);
@@ -779,7 +823,7 @@ impl Visit for Collect {
     node.right.visit_with(self);
 
     if let PatOrExpr::Pat(pat) = &node.left {
-      if has_binding_identifier(pat, &"exports".into(), &self.decls) {
+      if has_binding_identifier(pat, &"exports".into(), self.unresolved_mark) {
         // Must wrap for cases like
         // ```
         // function logExports() {
@@ -794,7 +838,7 @@ impl Visit for Collect {
         self.has_cjs_exports = true;
         self.should_wrap = true;
         self.add_bailout(node.span, BailoutReason::ExportsReassignment);
-      } else if has_binding_identifier(pat, &"module".into(), &self.decls) {
+      } else if has_binding_identifier(pat, &"module".into(), self.unresolved_mark) {
         // Same for `module`. If it is reassigned we can't correctly statically analyze.
         self.static_cjs_exports = false;
         self.has_cjs_exports = true;
@@ -866,7 +910,7 @@ impl Visit for Collect {
     if let Callee::Expr(expr) = &node.callee {
       match &**expr {
         Expr::Ident(ident) => {
-          if ident.sym == js_word!("eval") && !self.decls.contains(&id!(ident)) {
+          if ident.sym == js_word!("eval") && is_unresolved(&ident, self.unresolved_mark) {
             self.should_wrap = true;
             self.add_bailout(node.span, BailoutReason::Eval);
           }
@@ -875,10 +919,10 @@ impl Visit for Collect {
           // import('foo').then(foo => ...);
           if let Some(source) = match_import(&member.obj, self.ignore_mark) {
             if match_property_name(member).map_or(false, |f| &*f.0 == "then") {
-              if let Some(ExprOrSpread { expr, .. }) = node.args.get(0) {
+              if let Some(ExprOrSpread { expr, .. }) = node.args.first() {
                 let param = match &**expr {
-                  Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
-                  Expr::Arrow(arrow) => arrow.params.get(0),
+                  Expr::Fn(func) => func.function.params.first().map(|param| &param.pat),
+                  Expr::Arrow(arrow) => arrow.params.first(),
                   _ => None,
                 };
 
@@ -906,7 +950,7 @@ impl Visit for Collect {
 
 impl Collect {
   pub fn match_require(&self, node: &Expr) -> Option<JsWord> {
-    match_require(node, &self.decls, self.ignore_mark)
+    match_require(node, self.unresolved_mark, self.ignore_mark)
   }
 
   fn add_pat_imports(&mut self, node: &Pat, src: &JsWord, kind: ImportKind) {
@@ -1080,10 +1124,10 @@ impl Collect {
   }
 }
 
-fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool {
+fn has_binding_identifier(node: &Pat, sym: &JsWord, unresolved_mark: Mark) -> bool {
   match node {
     Pat::Ident(ident) => {
-      if ident.id.sym == *sym && !decls.contains(&id!(ident.id)) {
+      if ident.id.sym == *sym && is_unresolved(&ident, unresolved_mark) {
         return true;
       }
     }
@@ -1091,17 +1135,17 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool
       for prop in &object.props {
         match prop {
           ObjectPatProp::KeyValue(kv) => {
-            if has_binding_identifier(&kv.value, sym, decls) {
+            if has_binding_identifier(&kv.value, sym, unresolved_mark) {
               return true;
             }
           }
           ObjectPatProp::Assign(assign) => {
-            if assign.key.sym == *sym && !decls.contains(&id!(assign.key)) {
+            if assign.key.sym == *sym && is_unresolved(&assign.key, unresolved_mark) {
               return true;
             }
           }
           ObjectPatProp::Rest(rest) => {
-            if has_binding_identifier(&rest.arg, sym, decls) {
+            if has_binding_identifier(&rest.arg, sym, unresolved_mark) {
               return true;
             }
           }
@@ -1110,7 +1154,7 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool
     }
     Pat::Array(array) => {
       for el in array.elems.iter().flatten() {
-        if has_binding_identifier(el, sym, decls) {
+        if has_binding_identifier(el, sym, unresolved_mark) {
           return true;
         }
       }

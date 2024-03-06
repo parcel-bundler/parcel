@@ -1,24 +1,45 @@
 // @flow strict-local
 
+import type {SourceLocation} from '@parcel/types';
+
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {
-  transform,
-  transformStyleAttribute,
-  browserslistToTargets,
-} from 'lightningcss';
-import {remapSourceLocation, relativePath} from '@parcel/utils';
+  remapSourceLocation,
+  relativePath,
+  globToRegex,
+  normalizeSeparators,
+} from '@parcel/utils';
+import {type SourceLocation as LightningSourceLocation} from 'lightningcss';
+import * as native from 'lightningcss';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+
+const {transform, transformStyleAttribute, browserslistToTargets} = native;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
       packageKey: '@parcel/transformer-css',
     });
-    return conf?.contents;
+    let contents = conf?.contents;
+    if (typeof contents?.cssModules?.include === 'string') {
+      contents.cssModules.include = [globToRegex(contents.cssModules.include)];
+    } else if (Array.isArray(contents?.cssModules?.include)) {
+      contents.cssModules.include = contents.cssModules.include.map(include =>
+        typeof include === 'string' ? globToRegex(include) : include,
+      );
+    }
+    if (typeof contents?.cssModules?.exclude === 'string') {
+      contents.cssModules.exclude = [globToRegex(contents.cssModules.exclude)];
+    } else if (Array.isArray(contents?.cssModules?.exclude)) {
+      contents.cssModules.exclude = contents.cssModules.exclude.map(exclude =>
+        typeof exclude === 'string' ? globToRegex(exclude) : exclude,
+      );
+    }
+    return contents;
   },
   async transform({asset, config, options, logger}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
@@ -37,6 +58,8 @@ export default (new Transformer({
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
+      // $FlowFixMe native.default is the init function only when bundled for the browser build
+      process.browser && native.default(),
     ]);
 
     let targets = getTargets(asset.env.engines.browsers);
@@ -56,12 +79,32 @@ export default (new Transformer({
           asset.meta.cssModulesCompiled == null
         ) {
           let cssModulesConfig = config?.cssModules;
-          if (
-            (asset.isSource &&
-              (typeof cssModulesConfig === 'boolean' ||
-                cssModulesConfig?.global)) ||
-            /\.module\./.test(asset.filePath)
-          ) {
+          let isCSSModule = /\.module\./.test(asset.filePath);
+          if (asset.isSource) {
+            let projectRootPath = path.relative(
+              options.projectRoot,
+              asset.filePath,
+            );
+            if (typeof cssModulesConfig === 'boolean') {
+              isCSSModule = true;
+            } else if (cssModulesConfig?.include) {
+              isCSSModule = cssModulesConfig.include.some(include =>
+                include.test(projectRootPath),
+              );
+            } else if (cssModulesConfig?.global) {
+              isCSSModule = true;
+            }
+
+            if (
+              cssModulesConfig?.exclude?.some(exclude =>
+                exclude.test(projectRootPath),
+              )
+            ) {
+              isCSSModule = false;
+            }
+          }
+
+          if (isCSSModule) {
             if (cssModulesConfig?.dashedIdents && !asset.isSource) {
               cssModulesConfig.dashedIdents = false;
             }
@@ -71,10 +114,17 @@ export default (new Transformer({
         }
 
         res = transform({
-          filename: path.relative(options.projectRoot, asset.filePath),
+          filename: normalizeSeparators(
+            path.relative(options.projectRoot, asset.filePath),
+          ),
           code,
           cssModules,
-          analyzeDependencies: asset.meta.hasDependencies !== false,
+          analyzeDependencies:
+            asset.meta.hasDependencies !== false
+              ? {
+                  preserveImports: true,
+                }
+              : false,
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,
           pseudoClasses: config?.pseudoClasses,
@@ -116,11 +166,11 @@ export default (new Transformer({
                 {
                   start: {
                     line: warning.loc.line,
-                    column: warning.loc.column,
+                    column: warning.loc.column + 1,
                   },
                   end: {
                     line: warning.loc.line,
-                    column: warning.loc.column,
+                    column: warning.loc.column + 1,
                   },
                 },
               ],
@@ -130,10 +180,8 @@ export default (new Transformer({
       }
     }
 
-    asset.setBuffer(res.code);
-
     if (res.map != null) {
-      let vlqMap = JSON.parse(res.map.toString());
+      let vlqMap = JSON.parse(Buffer.from(res.map).toString());
       let map = new SourceMap(options.projectRoot);
       map.addVLQMap(vlqMap);
 
@@ -146,7 +194,7 @@ export default (new Transformer({
 
     if (res.dependencies) {
       for (let dep of res.dependencies) {
-        let loc = dep.loc;
+        let loc = convertLoc(dep.loc);
         if (originalMap) {
           loc = remapSourceLocation(loc, originalMap);
         }
@@ -161,6 +209,7 @@ export default (new Transformer({
               // For the glob resolver to distinguish between `@import` and other URL dependencies.
               isCSSImport: true,
               media: dep.media,
+              placeholder: dep.placeholder,
             },
           });
         } else if (dep.type === 'url') {
@@ -175,6 +224,7 @@ export default (new Transformer({
     }
 
     let assets = [asset];
+    let buffer = Buffer.from(res.code);
 
     if (res.exports != null) {
       let exports = res.exports;
@@ -186,12 +236,15 @@ export default (new Transformer({
       let c = 0;
       let depjs = '';
       let js = '';
+      let cssImports = '';
 
       let jsDeps = [];
 
       for (let key in exports) {
         locals.set(exports[key].name, key);
       }
+
+      asset.uniqueKey ??= asset.id;
 
       let seen = new Set();
       let add = key => {
@@ -206,13 +259,16 @@ export default (new Transformer({
         for (let ref of e.composes) {
           s += ' ';
           if (ref.type === 'local') {
-            add(nullthrows(locals.get(ref.name)));
-            s +=
-              '${' +
-              `module.exports[${JSON.stringify(
-                nullthrows(locals.get(ref.name)),
-              )}]` +
-              '}';
+            let exported = nullthrows(locals.get(ref.name));
+            add(exported);
+            s += '${' + `module.exports[${JSON.stringify(exported)}]` + '}';
+            asset.addDependency({
+              specifier: nullthrows(asset.uniqueKey),
+              specifierType: 'esm',
+              symbols: new Map([
+                [exported, {local: ref.name, isWeak: false, loc: null}],
+              ]),
+            });
           } else if (ref.type === 'global') {
             s += ref.name;
           } else if (ref.type === 'dependency') {
@@ -223,6 +279,7 @@ export default (new Transformer({
                 ref.specifier,
               )};\n`;
               dependencies.set(ref.specifier, d);
+              cssImports += `@import "${ref.specifier}";\n`;
               asset.addDependency({
                 specifier: ref.specifier,
                 specifierType: 'esm',
@@ -239,6 +296,13 @@ export default (new Transformer({
         // to the JS so the symbol is retained during tree-shaking.
         if (e.isReferenced) {
           s += `module.exports[${JSON.stringify(key)}];\n`;
+          asset.addDependency({
+            specifier: nullthrows(asset.uniqueKey),
+            specifierType: 'esm',
+            symbols: new Map([
+              [key, {local: exports[key].name, isWeak: false, loc: null}],
+            ]),
+          });
         }
 
         js += s;
@@ -277,6 +341,7 @@ export default (new Transformer({
           });
 
           asset.meta.hasReferences = true;
+          cssImports += `@import "${reference.specifier}";\n`;
         }
       }
 
@@ -286,8 +351,14 @@ export default (new Transformer({
         dependencies: jsDeps,
         env,
       });
+
+      // Prepend @import rules for each composes dependency so packager knows where to insert them.
+      if (cssImports.length > 0) {
+        buffer = Buffer.concat([Buffer.from(cssImports), buffer]);
+      }
     }
 
+    asset.setBuffer(buffer);
     return assets;
   },
 }): Transformer);
@@ -308,4 +379,12 @@ function getTargets(browsers) {
 
   cache.set(browsers, targets);
   return targets;
+}
+
+function convertLoc(loc: LightningSourceLocation): SourceLocation {
+  return {
+    filePath: loc.filePath,
+    start: {line: loc.start.line, column: loc.start.column},
+    end: {line: loc.end.line, column: loc.end.column + 1},
+  };
 }

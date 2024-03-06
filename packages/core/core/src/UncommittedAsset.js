@@ -9,13 +9,7 @@ import type {
   PackageName,
   TransformerResult,
 } from '@parcel/types';
-import type {
-  Asset,
-  RequestInvalidation,
-  Dependency,
-  ParcelOptions,
-  InternalFileCreateInvalidation,
-} from './types';
+import type {Asset, Dependency, ParcelOptions, Invalidations} from './types';
 
 import invariant from 'assert';
 import {Readable} from 'stream';
@@ -28,19 +22,14 @@ import {
   loadSourceMap,
   SOURCEMAP_RE,
 } from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString, hashBuffer, Hash} from '@parcel/rust';
 import {serializeRaw} from './serializer';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
-import {
-  createAsset,
-  createAssetIdFromOptions,
-  getInvalidationId,
-  getInvalidationHash,
-} from './assetUtils';
+import {createAsset, createAssetIdFromOptions} from './assetUtils';
 import {BundleBehaviorNames} from './types';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
 
 type UncommittedAssetOptions = {|
@@ -51,8 +40,7 @@ type UncommittedAssetOptions = {|
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
-  invalidations?: Map<string, RequestInvalidation>,
-  fileCreateInvalidations?: Array<InternalFileCreateInvalidation>,
+  invalidations?: Invalidations,
 |};
 
 export default class UncommittedAsset {
@@ -65,8 +53,7 @@ export default class UncommittedAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
-  invalidations: Map<string, RequestInvalidation>;
-  fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
+  invalidations: Invalidations;
   generate: ?() => Promise<GenerateOutput>;
 
   constructor({
@@ -78,7 +65,6 @@ export default class UncommittedAsset {
     isASTDirty,
     idBase,
     invalidations,
-    fileCreateInvalidations,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -87,15 +73,14 @@ export default class UncommittedAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
-    this.invalidations = invalidations || new Map();
-    this.fileCreateInvalidations = fileCreateInvalidations || [];
+    this.invalidations = invalidations || createInvalidations();
   }
 
   /*
    * Prepares the asset for being serialized to the cache by committing its
    * content and map of the asset to the cache.
    */
-  async commit(pipelineKey: string): Promise<void> {
+  async commit(): Promise<void> {
     // If there is a dirty AST, clear out any old content and map as these
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
@@ -104,18 +89,18 @@ export default class UncommittedAsset {
     }
 
     let size = 0;
-    let contentKey =
-      this.content == null ? null : this.getCacheKey('content' + pipelineKey);
-    let mapKey =
-      this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
-    let astKey =
-      this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
+    let outputHash = '';
+    let contentKey = this.content == null ? null : this.getCacheKey('content');
+    let mapKey = this.mapBuffer == null ? null : this.getCacheKey('map');
+    let astKey = this.ast == null ? null : this.getCacheKey('ast');
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
-        this.commitContent(contentKey).then(s => (size = s)),
+        this.commitContent(contentKey).then(
+          s => ((size = s.size), (outputHash = s.hash)),
+        ),
       this.mapBuffer != null &&
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
@@ -125,11 +110,7 @@ export default class UncommittedAsset {
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
-    this.value.outputHash = hashString(
-      (this.value.hash ?? '') +
-        pipelineKey +
-        (await getInvalidationHash(this.getInvalidations(), this.options)),
-    );
+    this.value.outputHash = outputHash;
 
     if (this.content != null) {
       this.value.stats.size = size;
@@ -139,34 +120,41 @@ export default class UncommittedAsset {
     this.value.committed = true;
   }
 
-  async commitContent(contentKey: string): Promise<number> {
+  async commitContent(
+    contentKey: string,
+  ): Promise<{|size: number, hash: string|}> {
     let content = await this.content;
     if (content == null) {
-      return 0;
+      return {size: 0, hash: ''};
     }
 
     let size = 0;
     if (content instanceof Readable) {
+      let hash = new Hash();
       await this.options.cache.setStream(
         contentKey,
         content.pipe(
           new TapStream(buf => {
+            hash.writeBuffer(buf);
             size += buf.length;
           }),
         ),
       );
 
-      return size;
+      return {size, hash: hash.finish()};
     }
 
+    let hash;
     if (typeof content === 'string') {
+      hash = hashString(content);
       size = Buffer.byteLength(content);
     } else {
+      hash = hashBuffer(content);
       size = content.length;
     }
 
     await this.options.cache.setBlob(contentKey, content);
-    return size;
+    return {size, hash};
   }
 
   async getCode(): Promise<string> {
@@ -308,9 +296,7 @@ export default class UncommittedAsset {
   }
 
   getCacheKey(key: string): string {
-    return hashString(
-      PARCEL_VERSION + key + this.value.id + (this.value.hash || ''),
-    );
+    return hashString(PARCEL_VERSION + key + this.value.id);
   }
 
   addDependency(opts: DependencyOptions): string {
@@ -337,31 +323,25 @@ export default class UncommittedAsset {
   }
 
   invalidateOnFileChange(filePath: ProjectPath) {
-    let invalidation: RequestInvalidation = {
-      type: 'file',
-      filePath,
-    };
-
-    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+    this.invalidations.invalidateOnFileChange.add(filePath);
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
-    this.fileCreateInvalidations.push(
+    this.invalidations.invalidateOnFileCreate.push(
       invalidateOnFileCreateToInternal(this.options.projectRoot, invalidation),
     );
   }
 
   invalidateOnEnvChange(key: string) {
-    let invalidation: RequestInvalidation = {
-      type: 'env',
-      key,
-    };
-
-    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+    this.invalidations.invalidateOnEnvChange.add(key);
   }
 
-  getInvalidations(): Array<RequestInvalidation> {
-    return [...this.invalidations.values()];
+  invalidateOnBuild() {
+    this.invalidations.invalidateOnBuild = true;
+  }
+
+  invalidateOnStartup() {
+    this.invalidations.invalidateOnStartup = true;
   }
 
   getDependencies(): Array<Dependency> {
@@ -379,7 +359,6 @@ export default class UncommittedAsset {
     let asset = new UncommittedAsset({
       value: createAsset(this.options.projectRoot, {
         idBase: this.idBase,
-        hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
         bundleBehavior:
@@ -428,7 +407,6 @@ export default class UncommittedAsset {
       mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
       invalidations: this.invalidations,
-      fileCreateInvalidations: this.fileCreateInvalidations,
     });
 
     let dependencies = result.dependencies;

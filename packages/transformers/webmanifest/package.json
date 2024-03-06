@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-webmanifest",
-  "version": "2.8.3",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,12 +16,12 @@
   "main": "lib/WebManifestTransformer.js",
   "source": "src/WebManifestTransformer.js",
   "engines": {
-    "parcel": "^2.8.3"
+    "parcel": "^2.12.0"
   },
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
-    "@parcel/diagnostic": "2.8.3",
-    "@parcel/plugin": "2.8.3",
-    "@parcel/utils": "2.8.3"
+    "@parcel/diagnostic": "2.12.0",
+    "@parcel/plugin": "2.12.0",
+    "@parcel/utils": "2.12.0"
   }
 }

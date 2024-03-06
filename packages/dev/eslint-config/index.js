@@ -5,8 +5,6 @@ module.exports = {
     'plugin:monorepo/recommended',
     'plugin:react/recommended',
     'prettier',
-    'prettier/flowtype',
-    'prettier/react',
   ],
   parser: '@babel/eslint-parser',
   plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react', 'mocha'],

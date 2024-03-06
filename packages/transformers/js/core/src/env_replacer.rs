@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::vec;
 
-use swc_atoms::JsWord;
-use swc_common::{Mark, DUMMY_SP};
-use swc_ecmascript::ast;
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, DUMMY_SP};
+use swc_core::ecma::ast;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::utils::*;
 use ast::*;
@@ -12,10 +12,9 @@ use ast::*;
 pub struct EnvReplacer<'a> {
   pub replace_env: bool,
   pub is_browser: bool,
-  pub env: &'a HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
-  pub decls: &'a HashSet<Id>,
+  pub env: &'a HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
   pub used_env: &'a mut HashSet<JsWord>,
-  pub source_map: &'a swc_common::SourceMap,
+  pub source_map: &'a swc_core::common::SourceMap,
   pub diagnostics: &'a mut Vec<Diagnostic>,
   pub unresolved_mark: Mark,
 }
@@ -28,7 +27,8 @@ impl<'a> Fold for EnvReplacer<'a> {
       if let PatOrExpr::Pat(ref pat) = assign.left {
         if let Pat::Expr(ref expr) = &**pat {
           if let Expr::Member(ref member) = &**expr {
-            if self.is_browser && match_member_expr(member, vec!["process", "browser"], self.decls)
+            if self.is_browser
+              && match_member_expr(member, vec!["process", "browser"], self.unresolved_mark)
             {
               let mut res = assign.clone();
               res.right = Box::new(Expr::Lit(Lit::Bool(Bool {
@@ -46,7 +46,7 @@ impl<'a> Fold for EnvReplacer<'a> {
     match &node {
       Expr::Bin(binary) if binary.op == BinaryOp::In => {
         if let (Expr::Lit(Lit::Str(left)), Expr::Member(member)) = (&*binary.left, &*binary.right) {
-          if match_member_expr(member, vec!["process", "env"], self.decls) {
+          if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
             return Expr::Lit(Lit::Bool(Bool {
               value: self.env.contains_key(&left.value),
               span: DUMMY_SP,
@@ -58,7 +58,9 @@ impl<'a> Fold for EnvReplacer<'a> {
     }
 
     if let Expr::Member(ref member) = node {
-      if self.is_browser && match_member_expr(member, vec!["process", "browser"], self.decls) {
+      if self.is_browser
+        && match_member_expr(member, vec!["process", "browser"], self.unresolved_mark)
+      {
         return Expr::Lit(Lit::Bool(Bool {
           value: true,
           span: DUMMY_SP,
@@ -70,7 +72,7 @@ impl<'a> Fold for EnvReplacer<'a> {
       }
 
       if let Expr::Member(obj) = &*member.obj {
-        if match_member_expr(obj, vec!["process", "env"], self.decls) {
+        if match_member_expr(obj, vec!["process", "env"], self.unresolved_mark) {
           if let Some((sym, _)) = match_property_name(member) {
             if let Some(replacement) = self.replace(&sym, true) {
               return replacement;
@@ -91,7 +93,7 @@ impl<'a> Fold for EnvReplacer<'a> {
             Some(&**expr)
           } else if let Expr::Member(member) = &*assign.right {
             if assign.op == AssignOp::Assign
-              && match_member_expr(member, vec!["process", "env"], self.decls)
+              && match_member_expr(member, vec!["process", "env"], self.unresolved_mark)
             {
               let mut decls = vec![];
               self.collect_pat_bindings(pat, &mut decls);
@@ -132,7 +134,7 @@ impl<'a> Fold for EnvReplacer<'a> {
 
       if let Some(Expr::Member(MemberExpr { obj, .. })) = &expr {
         if let Expr::Member(member) = &**obj {
-          if match_member_expr(member, vec!["process", "env"], self.decls) {
+          if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
             self.emit_mutating_error(assign.span);
             return *assign.right.clone().fold_with(self);
           }
@@ -148,7 +150,7 @@ impl<'a> Fold for EnvReplacer<'a> {
         Expr::Update(UpdateExpr { arg, span, .. }) => {
           if let Expr::Member(MemberExpr { ref obj, .. }) = &**arg {
             if let Expr::Member(member) = &**obj {
-              if match_member_expr(member, vec!["process", "env"], self.decls) {
+              if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
                 self.emit_mutating_error(*span);
                 return match &node {
                   Expr::Unary(_) => Expr::Lit(Lit::Bool(Bool { span: *span, value: true })),
@@ -175,7 +177,7 @@ impl<'a> Fold for EnvReplacer<'a> {
     for decl in &node.decls {
       if let Some(init) = &decl.init {
         if let Expr::Member(member) = &**init {
-          if match_member_expr(member, vec!["process", "env"], self.decls) {
+          if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
             self.collect_pat_bindings(&decl.name, &mut decls);
             continue;
           }
@@ -200,7 +202,7 @@ impl<'a> EnvReplacer<'a> {
       self.used_env.insert(sym.clone());
       return Some(Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: val.into(),
+        value: val.clone(),
         raw: None,
       })));
     } else if fallback_undefined {
@@ -289,7 +291,7 @@ impl<'a> EnvReplacer<'a> {
     }
   }
 
-  fn emit_mutating_error(&mut self, span: swc_common::Span) {
+  fn emit_mutating_error(&mut self, span: swc_core::common::Span) {
     self.diagnostics.push(Diagnostic {
       message: "Mutating process.env is not supported".into(),
       code_highlights: Some(vec![CodeHighlight {

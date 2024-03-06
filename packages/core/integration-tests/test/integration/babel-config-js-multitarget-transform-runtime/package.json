@@ -5,8 +5,8 @@
   "module": "dist/module.js",
   "dependencies": {
     "@parcel/babel-plugin-tranform-runtime": "^2.0.0",
-    "@babel/plugin-proposal-object-rest-spread": "^7.8.3",
-    "@babel/plugin-transform-runtime": "^7.8.3",
-    "@babel/runtime": "^7.8.7"
+    "@babel/plugin-transform-object-rest-spread": "^7.22.11",
+    "@babel/plugin-transform-runtime": "^7.22.10",
+    "@babel/runtime": "^7.22.11"
   }
 }

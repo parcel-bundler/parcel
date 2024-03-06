@@ -5,6 +5,415 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2024-02-28
+
+### Added
+
+- Core
+
+  - Add REPL playground for Parcel to the website – [Details](https://github.com/parcel-bundler/parcel/pull/9365)
+  - Improve package manager detection for auto install – [Details](https://github.com/parcel-bundler/parcel/pull/9505)
+
+- JavaScript
+
+  - Add support for JS macros – [Details](https://github.com/parcel-bundler/parcel/pull/9299)
+  - Statically evaluate constants referenced by macros – [Details](https://github.com/parcel-bundler/parcel/pull/9487)
+  - Upgrade to ESLint 8 – [Details](https://github.com/parcel-bundler/parcel/pull/8580)
+  - Bump swc – [Details](https://github.com/parcel-bundler/parcel/pull/9498)
+
+- CSS
+
+  - Use lightningcss to implement CSS packager – [Details](https://github.com/parcel-bundler/parcel/pull/8492)
+
+- Bundler
+
+  - Rename "parentAsset" to "root" for Manual Shared Bundle config and remove unstable prefix – [Details](https://github.com/parcel-bundler/parcel/pull/9486)
+
+- Web Extensions
+
+  - Add content script world property to manifest schema validation – [Details](https://github.com/parcel-bundler/parcel/pull/9510)
+
+- Performance
+  - Adjacency list optimizations – [Details](https://github.com/parcel-bundler/parcel/pull/9444)
+  - Break up request graph cache serialisation and run after build completion – [Details](https://github.com/parcel-bundler/parcel/pull/9384)
+
+### Fixed
+
+- Core
+
+  - Drop per-pipeline transformation cache – [Details](https://github.com/parcel-bundler/parcel/pull/9459)
+  - Clippy and use napi's Either3 – [Details](https://github.com/parcel-bundler/parcel/pull/9047)
+  - Add lazy/eager cache key to avoid invalid change when switching modes – [Details](https://github.com/parcel-bundler/parcel/pull/9518)
+
+- JavaScript
+
+  - Remove decl_collector pass and use SWC's unresolved_mark instead – [Details](https://github.com/parcel-bundler/parcel/pull/9520)
+
+- Bundler
+  - Fix multiple css bundles in entry bundle groups issue – [Details](https://github.com/parcel-bundler/parcel/pull/9023)
+  - Allow parallel type change bundles to be reused by async siblings – [Details](https://github.com/parcel-bundler/parcel/pull/9504)
+  - Skip on missing parent asset for manual shared bundles – [Details](https://github.com/parcel-bundler/parcel/pull/9538)
+
+### Unstable
+
+- Add source map support to the inline-require optimizer – [Details](https://github.com/parcel-bundler/parcel/pull/9511)
+
+## [2.11.0] - 2023-12-19
+
+### Added
+
+- Dev
+
+  - Log build phase times for dev builds [Details](https://github.com/parcel-bundler/parcel/pull/9371)
+  - Progress messages for writing to cache [Details](https://github.com/parcel-bundler/parcel/pull/9368)
+  - VSC Extension JSON schema [Details](https://github.com/parcel-bundler/parcel/pull/9386)
+  - Print phase times on development builds [Details](https://github.com/parcel-bundler/parcel/pull/9417)
+  - Publish bundle-stats-cli and parcel-query [Details](https://github.com/parcel-bundler/parcel/pull/9431)
+
+### Fixed
+
+- Dev
+
+  - Increase threshold for showing progress bar to 500k nodes [Details](https://github.com/parcel-bundler/parcel/pull/9421)
+  - Fix parcel-query [Details](https://github.com/parcel-bundler/parcel/pull/9425)
+  - FIX[dev-server]: Fix html file matching from URL [Details](https://github.com/parcel-bundler/parcel/pull/9347)
+  - Fix parcel query's inspect cache [Details](https://github.com/parcel-bundler/parcel/pull/9436)
+  - Bug fix for exiting early when identifying requestGraph in loadGraphs [Details](https://github.com/parcel-bundler/parcel/pull/9437)
+  - Fix HMR on .localhost domains [Details](https://github.com/parcel-bundler/parcel/pull/9435)
+  - Modify parcel query to not require all graphs on startup [Details](https://github.com/parcel-bundler/parcel/pull/9426)
+  - Bug fix for async Parcel-query [Details](https://github.com/parcel-bundler/parcel/pull/9442)
+  - Remove reliance on requestTracker in loadGraphs [Details](https://github.com/parcel-bundler/parcel/pull/9440)
+
+- Core
+
+  - Reduce redundancy in the RequestGraph's Request, Env, and Option nodes [Details](https://github.com/parcel-bundler/parcel/pull/9383)
+  - Move registerCoreWithSerializer to its own file [Details](https://github.com/parcel-bundler/parcel/pull/9396)
+  - Filter --expose-gc and --max-semi-space-size execArgv Node args from workers [Details](https://github.com/parcel-bundler/parcel/pull/9399)
+  - Optimize Symbol Propagation (propagateSymbolsUp) [Details](https://github.com/parcel-bundler/parcel/pull/9337)
+  - Convert Request Graph node types + request node requestTypes to numbers [Details](https://github.com/parcel-bundler/parcel/pull/9412)
+  - fsFixture: ignore empty lines in fixtures [Details](https://github.com/parcel-bundler/parcel/pull/9423)
+  - Unstable File Invalidations [Details](https://github.com/parcel-bundler/parcel/pull/9420)
+  - Configurable watch root [Details](https://github.com/parcel-bundler/parcel/pull/9424)
+
+- Resolver
+
+  - Add ~ and / support to the glob resolver [Details](https://github.com/parcel-bundler/parcel/pull/9188)
+
+- JavaScript
+
+  - Bump swc [Details](https://github.com/parcel-bundler/parcel/pull/9389)
+  - Bumping lightningcss to 1.22.1 [Details](https://github.com/parcel-bundler/parcel/pull/9401)
+  - Fix CI [Details](https://github.com/parcel-bundler/parcel/pull/9404)
+  - Change inline-requires to only run when optimizing [Details](https://github.com/parcel-bundler/parcel/pull/9403)
+  - Fix tsconfig extends from node_modules [Details](https://github.com/parcel-bundler/parcel/pull/9419)
+  - Bump some deps [Details](https://github.com/parcel-bundler/parcel/pull/9406)
+  - Bump swc and napi-rs [Details](https://github.com/parcel-bundler/parcel/pull/9408)
+  - Fix references to packages.atlassian.com [Details](https://github.com/parcel-bundler/parcel/pull/9430)
+  - Fix build-ts step [Details](https://github.com/parcel-bundler/parcel/pull/9439)
+  - Bump rimraf version to ^5.05 [Details](https://github.com/parcel-bundler/parcel/pull/9438)
+  - Use centos image with newer Node 16 [Details](https://github.com/parcel-bundler/parcel/pull/9447)
+
+## [2.10.3] - 2023-11-14
+
+### Added
+
+- Dev
+  - Added `cacheInfo` to Parcel Query - [Details](https://github.com/parcel-bundler/parcel/pull/9361)
+  - Add `parcel-link` and `parcel-unlink` dev CLIs - [Details](https://github.com/parcel-bundler/parcel/pull/8618)
+
+### Fixed
+
+- Core
+
+  - Mark previously deferred assets as dirty for symbol prop - [Details](https://github.com/parcel-bundler/parcel/pull/9369)
+  - Write bundle graph to cache if error occurs during bundling - [Details](https://github.com/parcel-bundler/parcel/pull/9366)
+  - Fixing issues when `import * as` is used with `export *` - [Details](https://github.com/parcel-bundler/parcel/pull/9331)
+  - Writing cache in chunks - [Details](https://github.com/parcel-bundler/parcel/pull/9355)
+  - Reduce redundancy in the RequestGraph's file nodes - [Details](https://github.com/parcel-bundler/parcel/pull/9360)
+  - Fix dependency retargeting with ambiguous reexports - [Details](https://github.com/parcel-bundler/parcel/pull/9380)
+
+- JavaScript
+
+  - Fixing behavior for `hasOwnProperty` in modules exporting member with same name - [Details](https://github.com/parcel-bundler/parcel/pull/9362)
+
+- WebbExtension
+
+  - Don't crash if WebExt has no content_scripts - [Details](https://github.com/parcel-bundler/parcel/pull/9341)
+
+- PostHTML, Pug, Stylus
+  - Simplified calls to `invalidateOnFileChange` - [Details](https://github.com/parcel-bundler/parcel/pull/9379)
+
+## [2.10.2] - 2023-11-01
+
+### Fixed
+
+- Core
+
+  - Use clz32 for counting trailing zeroes – [Details](https://github.com/parcel-bundler/parcel/pull/9340)
+
+- JavaScript
+  - Do not wrap duplicated assets when they are in different targets – [Details](https://github.com/parcel-bundler/parcel/pull/9348)
+
+## [2.10.1] – 2023-10-23
+
+### Fixed
+
+- Core
+
+  - Use modern node versions in CI [Details](https://github.com/parcel-bundler/parcel/pull/9323)
+  - Support multiple workspaces/clients in Parcel for VSCode [Details](https://github.com/parcel-bundler/parcel/pull/9278)
+
+- Bundler
+
+  - Make sure to set unique key [Details](https://github.com/parcel-bundler/parcel/pull/9326)
+  - Fix bundler tests assertions on Windows [Details](https://github.com/parcel-bundler/parcel/pull/9333)
+
+- JavaScript
+
+  - Add logic to disable scope hoisting if the `this` key word is pointing to an export module [Details](https://github.com/parcel-bundler/parcel/pull/9291)
+  - Detect TSC polyfills to avoid marking them as CJS [Details](https://github.com/parcel-bundler/parcel/pull/9318)
+  - Remove `this` exports tracking for files with module syntax [Details](https://github.com/parcel-bundler/parcel/pull/9330)
+  - Bump swc [Details](https://github.com/parcel-bundler/parcel/pull/9306)
+
+### Unstable
+
+- Bundler
+
+  - Fix inline constants in shared bundles [Details](https://github.com/parcel-bundler/parcel/pull/9313)
+  - Ensure manualSharedBundles have unique names [Details](https://github.com/parcel-bundler/parcel/pull/9298)
+  - Simplify MSB code for code split bundle creation section [Details](https://github.com/parcel-bundler/parcel/pull/9312)
+
+## [2.10.0] – 2023-10-11
+
+### Added
+
+- Core
+
+  - Add support for include and exclude globs for `--lazy` mode – [Details](https://github.com/parcel-bundler/parcel/pull/9166), [Details](https://github.com/parcel-bundler/parcel/pull/9260)
+  - Merge all native Rust modules into one package – [Details](https://github.com/parcel-bundler/parcel/pull/9146)
+  - Add async resolver and JS transformer functions using rayon – [Details](https://github.com/parcel-bundler/parcel/pull/9147)
+  - Support "register" tools in module loader (e.g. `@babel/register`, `esbuild-register`, `ts-node`) – [Details](https://github.com/parcel-bundler/parcel/pull/9285)
+  - Limit default number of JS workers to 4 to improve memory usage/performance – [Details](https://github.com/parcel-bundler/parcel/pull/9300)
+
+- Bundler
+
+  - Optimize bundler performance – [Details](https://github.com/parcel-bundler/parcel/pull/9266)
+  - Add disableSharedBundles config option – [Details](https://github.com/parcel-bundler/parcel/pull/9209)
+
+- Resolver
+
+  - Support node: prefix for CJS dependencies – [Details](https://github.com/parcel-bundler/parcel/pull/9244), [Details](https://github.com/parcel-bundler/parcel/pull/9250)
+
+- JavaScript
+
+  - Add import helper to decrease ESM loader runtime footprint – [Details](https://github.com/parcel-bundler/parcel/pull/9148)
+  - Support parallel bundle imports in libraries – [Details](https://github.com/parcel-bundler/parcel/pull/9156)
+  - Only include `globalThis` polyfill for old browsers – [Details](https://github.com/parcel-bundler/parcel/pull/9199)
+  - Updated parcelRequire.register to be minifiable – [Details](https://github.com/parcel-bundler/parcel/pull/9216)
+
+- CSS
+
+  - Add include and exclude globs for CSS modules – [Details](https://github.com/parcel-bundler/parcel/pull/9301)
+
+- WASM
+
+  - Add WASM packager with source map support – [Details](https://github.com/parcel-bundler/parcel/pull/9009)
+
+- XML
+
+  - Transform xml-stylesheet processing instructions – [Details](https://github.com/parcel-bundler/parcel/pull/9102)
+
+- Web Extensions
+
+  - Add support for Chrome Extension manifest V3 side_panel property – [Details](https://github.com/parcel-bundler/parcel/pull/9178)
+  - Improve HMR for web extensions – [Details](https://github.com/parcel-bundler/parcel/pull/9068)
+
+- Web Manifest
+  - Add support for icons in file_handlers – [Details](https://github.com/parcel-bundler/parcel/pull/9152)
+
+### Fixed
+
+- Core
+
+  - Query glibc version only once to speed up JSTransformer on Linux – [Details](https://github.com/parcel-bundler/parcel/pull/9117)
+  - Refresh cache before writing contents to bundle – [Details](https://github.com/parcel-bundler/parcel/pull/9123)
+  - Fix `--lazy` mode bugs – [Details](https://github.com/parcel-bundler/parcel/pull/9093)
+  - Ignore no-opt command line option – [Details](https://github.com/parcel-bundler/parcel/pull/9239)
+  - Bump lmdb – [Details](https://github.com/parcel-bundler/parcel/pull/9253)
+  - Don't hide error when diagnostic is malformed – [Details](https://github.com/parcel-bundler/parcel/pull/9283)
+  - Don't autoinstall local files in package manager – [Details](https://github.com/parcel-bundler/parcel/pull/9242)
+  - Fix bug with cache and glob entries – [Details](https://github.com/parcel-bundler/parcel/pull/9264)
+
+- JavaScript
+
+  - Migrate to swc_core – [Details](https://github.com/parcel-bundler/parcel/pull/9131)
+  - Move ESM loader runtime to absolute URLs – [Details](https://github.com/parcel-bundler/parcel/pull/9172)
+  - Fix duplicate asset references – [Details](https://github.com/parcel-bundler/parcel/pull/9109)
+  - Bump swc – [Details](https://github.com/parcel-bundler/parcel/pull/9200), [Details](https://github.com/parcel-bundler/parcel/pull/9234), [Details](https://github.com/parcel-bundler/parcel/pull/9271)
+  - Fix shorthand identifier import usage – [Details](https://github.com/parcel-bundler/parcel/pull/9222)
+  - Ensure nested member expressions are marked used in dev mode – [Details](https://github.com/parcel-bundler/parcel/pull/9258)
+  - Set ascii_only for swc emit – [Details](https://github.com/parcel-bundler/parcel/pull/9243)
+  - Add tests for non-identifier symbol names – [Details](https://github.com/parcel-bundler/parcel/pull/8388)
+
+- Bundler
+
+  - Exclude inline assests from parallel request limit – [Details](https://github.com/parcel-bundler/parcel/pull/9194)
+  - Fix unexpected undefined when creating shared bundles – [Details](https://github.com/parcel-bundler/parcel/pull/9195)
+
+- Images
+
+  - Bump oxipng from 6.0.0 -> 8.0.0 – [Details](https://github.com/parcel-bundler/parcel/pull/9135)
+
+- Sass
+
+  - Fix sass import edge case – [Details](https://github.com/parcel-bundler/parcel/pull/9256)
+
+- Dev Server
+  - Fix index page loading in dev server when bundle type isn't html – [Details](https://github.com/parcel-bundler/parcel/pull/9282)
+
+### Unstable
+
+- Core
+
+  - Expose unstable_transform and unstable_resolve APIs – [Details](https://github.com/parcel-bundler/parcel/pull/9193)
+
+- Bundler
+
+  - Add unstable manual shared bundles config – [Details](https://github.com/parcel-bundler/parcel/pull/9251)
+
+- JavaScript
+  - Experimental inline / deferred requires optimiser – [Details](https://github.com/parcel-bundler/parcel/pull/9221)
+  - Add constants inlining optimization – [Details](https://github.com/parcel-bundler/parcel/pull/9241)
+  - Add unstable async bundle runtime to the JS Packager – [Details](https://github.com/parcel-bundler/parcel/pull/9227)
+
+## [2.9.3] – 2023-06-24
+
+### Fixed
+
+- Resolver
+
+  - Fix the development and production package conditions – [Details](https://github.com/parcel-bundler/parcel/pull/9108)
+
+- JavaScript
+  - Update SWC to fix generics in JSX elements – [Details](https://github.com/parcel-bundler/parcel/pull/9104)
+
+## [2.9.2] - 2023-06-08
+
+### Fixed
+
+- Core
+
+  - Fix infinite loop when entries look like globs – [Details](https://github.com/parcel-bundler/parcel/pull/9020)
+  - Fix proxyrc require from path – [Details](https://github.com/parcel-bundler/parcel/pull/9069)
+
+- JavaScript
+
+  - Treat re-exports of `*` from empty files with `sideEffects: false` as ESM – [Details](https://github.com/parcel-bundler/parcel/pull/9079)
+
+- CSS
+
+  - Fix self references error in CSS module JS assets causing "Bundle group cannot have more than one entry bundle of the same type" – [Details](https://github.com/parcel-bundler/parcel/pull/9080)
+
+- Dev server
+
+  - Serve folder's index when requesting folder without slash – [Details](https://github.com/parcel-bundler/parcel/pull/9066)
+
+- Web extensions
+
+  - Allow source maps files in webextension – [Details](https://github.com/parcel-bundler/parcel/pull/8541)
+
+- Image
+  - Add core as peerdep to image optimizer – [Details](https://github.com/parcel-bundler/parcel/pull/9070)
+
+## [2.9.1] - 2023-06-07
+
+### Fixed
+
+- Resolver
+  - Ignore invalid package.json "type" field values – [Details](https://github.com/parcel-bundler/parcel/pull/9049)
+  - Ignore duplicate slashes at the start of relative path specifiers – [Details](https://github.com/parcel-bundler/parcel/pull/9048)
+
+## [2.9.0] - 2023-05-26
+
+### Added
+
+- Core
+
+  - Add support for ESM plugins and configs – [Details](https://github.com/parcel-bundler/parcel/pull/8913)
+  - Add support for local parcel plugins – [Details](https://github.com/parcel-bundler/parcel/pull/8925)
+  - Incremental Symbol Propagation for improved performance and improved export errors in development – [Details](https://github.com/parcel-bundler/parcel/pull/8723)
+  - Add support for plugin tracing, which shows where time is being spent during a Parcel build – [Details](https://github.com/parcel-bundler/parcel/pull/8695)
+  - Support `.proxyrc.cjs` config files – [Details](https://github.com/parcel-bundler/parcel/pull/8833)
+  - Add support for `loadConfig` function to resolver plugins – [Details](https://github.com/parcel-bundler/parcel/pull/8847)
+
+- Resolver
+
+  - New resolver implementation in Rust supporting package.json "exports" and "imports", and tsconfig.json "baseUrl", "paths", and "moduleSuffixes" – [Details](https://github.com/parcel-bundler/parcel/pull/8807)
+
+- JavaScript
+
+  - Switch to SWC minifier instead of Terser by default – [Details](https://github.com/parcel-bundler/parcel/pull/8860)
+  - Split large runtime manifest into separate bundles to reduce cache invalidations – [Details](https://github.com/parcel-bundler/parcel/pull/8837)
+  - Respect `addExternalDependency` in Babel plugins – [Details](https://github.com/parcel-bundler/parcel/pull/7820)
+
+- Bundler
+
+  - Use BitSet for bundler intersections for improved performance – [Details](https://github.com/parcel-bundler/parcel/pull/8862)
+
+- Web Extensions
+  - Add support for `chrome_style` field – [Details](https://github.com/parcel-bundler/parcel/pull/8867)
+
+### Fixed
+
+- Core
+
+  - Improve error message when bundles do not have unique file names – [Details](https://github.com/parcel-bundler/parcel/pull/8784)
+  - Bump napi-rs to latest – [Details](https://github.com/parcel-bundler/parcel/pull/8838), [Details](https://github.com/parcel-bundler/parcel/pull/8918)
+  - Fix pnpm autoinstall – [Details](https://github.com/parcel-bundler/parcel/pull/8788)
+  - Fix "does not exports" error for multiple assets returned by transformers – [Details](https://github.com/parcel-bundler/parcel/pull/8947)
+  - Remove v8-compile-cache – [Details](https://github.com/parcel-bundler/parcel/pull/8990)
+  - Update fast-glob – [Details](https://github.com/parcel-bundler/parcel/pull/8996)
+  - Update lmdb – [Details](https://github.com/parcel-bundler/parcel/pull/8999)
+  - Fixup DiagnosticCodeHighlight and SourceLocation columns – [Details](https://github.com/parcel-bundler/parcel/pull/8965)
+  - Bump `fastest-levenshtein` and `xmldom` dependencies – [Details](https://github.com/parcel-bundler/parcel/pull/9017)
+
+- JavaScript
+
+  - Sort global deps before injecting imports to reduce cache invalidations – [Details](https://github.com/parcel-bundler/parcel/pull/8818)
+  - Only add export setter for non-ESM exports – [Details](https://github.com/parcel-bundler/parcel/pull/8910)
+  - Bump SWC – [Details](https://github.com/parcel-bundler/parcel/pull/8881), [Details](https://github.com/parcel-bundler/parcel/pull/8933), [Details](https://github.com/parcel-bundler/parcel/pull/8983), [Details](https://github.com/parcel-bundler/parcel/pull/9010),
+    [Details](https://github.com/parcel-bundler/parcel/pull/9034)
+  - Deduplicate imports in hoist transformer – [Details](https://github.com/parcel-bundler/parcel/pull/8954)
+  - Allow buffer polyfill v5 or v6 – [Details](https://github.com/parcel-bundler/parcel/pull/8959)
+  - Fix packaging of synchronous reused bundles – [Details](https://github.com/parcel-bundler/parcel/pull/8934)
+  - Support eslint ^7.0.0 in `@parcel/validator-eslint` – [Details](https://github.com/parcel-bundler/parcel/pull/8997)
+  - Improve `inlineEnvironment` performance – [Details](https://github.com/parcel-bundler/parcel/pull/9014)
+  - Hoist exports to allow circular dependencies – [Details](https://github.com/parcel-bundler/parcel/pull/9024)
+
+- TypeScript
+
+  - Throw diagnostics as error on empty emit - [Details](https://github.com/parcel-bundler/parcel/pull/8914)
+
+- CSS
+
+  - Sort CSS module exports to reduce cache invalidations – [Details](https://github.com/parcel-bundler/parcel/pull/8817)
+
+- Bundler
+
+  - Fix missing edge error when using for multiple targets – [Details](https://github.com/parcel-bundler/parcel/pull/8854)
+  - Fix non-deterministic builds between project directories – [Details](https://github.com/parcel-bundler/parcel/pull/8869)
+  - Fix css-module related build error in bundling – [Details](https://github.com/parcel-bundler/parcel/pull/8885)
+  - Fix multiple entries pointing to wrong bundle in dist – [Details](https://github.com/parcel-bundler/parcel/pull/8991)
+
+- Dev server
+
+  - Don't error during HMR on `<link>` elements without hrefs – [Details](https://github.com/parcel-bundler/parcel/pull/8800)
+  - Improve server index file matching – [Details](https://github.com/parcel-bundler/parcel/pull/8957)
+  - Don't send HMR updates before packaging in watch mode – [Details](https://github.com/parcel-bundler/parcel/pull/9026)
+
+- Elm
+  - Fix error when formatting build errors – [Details](https://github.com/parcel-bundler/parcel/pull/8882)
+
 # [2.8.3] - 2023-01-18
 
 - Core
@@ -28,7 +437,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Apply HMR updates in topological order – [Details](https://github.com/parcel-bundler/parcel/pull/8752)
   - Fixed the hmr connection with host 0.0.0.0 – [Details](https://github.com/parcel-bundler/parcel/pull/7357)
 
-# [2.8.2] - 2022-12-14
+## [2.8.2] - 2022-12-14
 
 - Core
   - Ensure maxListeners for process.stdout accounts for workers – [Details](https://github.com/parcel-bundler/parcel/pull/8689)
@@ -307,7 +716,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Upgrades postcss-modules and removes css-module-loader-core with old PostCSS dependencies - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
 - Upgrade Vue compiler - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
 - Upgrade SVGR to v6 - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
-- Upgade JSON5 to v2 - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Upgrade JSON5 to v2 - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
 - Don't discard invalidations when transformer throws an error - [Details](https://github.com/parcel-bundler/parcel/pull/7547)
 
 ## [2.2.0] - 2022-01-12
@@ -435,7 +844,7 @@ See the [blog post](https://parceljs.org/blog/v2/).
 - Add disabling of autoinstall globally via environment variable [Details](https://github.com/parcel-bundler/parcel/pull/2152)
 - Add support for `chrome-extension://` protocol to bundle-url.js [Details](https://github.com/parcel-bundler/parcel/pull/2434)
 - Add support for Firefox's 'moz-extension://' protocol, to bundle-url.js [Details](https://github.com/parcel-bundler/parcel/pull/2465)
-- Generate source map files with long extentions (e.g. .js.map) [Details](https://github.com/parcel-bundler/parcel/pull/2472)
+- Generate source map files with long extensions (e.g. .js.map) [Details](https://github.com/parcel-bundler/parcel/pull/2472)
 - upgrade htmlnano dep [Details](https://github.com/parcel-bundler/parcel/pull/2506)
 - Default port to process.env.PORT [Details](https://github.com/parcel-bundler/parcel/pull/2559)
 - Inline process.browser for better code elimination [Details](https://github.com/parcel-bundler/parcel/pull/2583)
@@ -451,7 +860,7 @@ See the [blog post](https://parceljs.org/blog/v2/).
 - Use Buffer.from [Details](https://github.com/parcel-bundler/parcel/pull/2512)
 - addURLDependency: use always relative path [Details](https://github.com/parcel-bundler/parcel/pull/2518)
 - reexporting + renaming when scopehoisting [Details](https://github.com/parcel-bundler/parcel/pull/2491)
-- Fix and reenable windows scope-hoisting tests [Details](https://github.com/parcel-bundler/parcel/pull/2537)
+- Fix and re-enable windows scope-hoisting tests [Details](https://github.com/parcel-bundler/parcel/pull/2537)
 - Fix for typescript asset invalidation [Details](https://github.com/parcel-bundler/parcel/pull/2485)
 - Fix hang up when a lot of parallel operation request the file system [Details](https://github.com/parcel-bundler/parcel/pull/2452)
 - Fix localRequire with package/path requests [Details](https://github.com/parcel-bundler/parcel/pull/2425)
@@ -708,7 +1117,7 @@ See the [blog post](https://parceljs.org/blog/v2/).
 - Enforce Prettier (check if prettier is run in lint script) [Details](https://github.com/parcel-bundler/parcel/commit/523ee0fcabd194e2daf79f13ab7dd9d0b23203e1)
 - Add support for Cargo workspaces in Rust integration [Details](https://github.com/parcel-bundler/parcel/commit/24f28bc5d7dd4324841209379d2823654ab9c8e7)
 - Surface Bundler error to browser [Details](https://github.com/parcel-bundler/parcel/commit/82a80bbf6518b526d99cd1bac34be9f53494dd68)
-- Programatically pass env vars as a whitelist [Details](https://github.com/parcel-bundler/parcel/commit/a662f90a93f2b5b61eebc2aea67c5a77467963e7)
+- Programmatically pass env vars as a whitelist [Details](https://github.com/parcel-bundler/parcel/commit/a662f90a93f2b5b61eebc2aea67c5a77467963e7)
 
 ### Fixed
 
@@ -818,7 +1227,7 @@ See the [blog post](https://parceljs.org/blog/v2/).
 - Refactor prettifySize [Details](https://github.com/parcel-bundler/parcel/commit/f897bf72819ea0a3bfe6522fc5aa73f47b84f6c2)
 - Fix property descriptor of config.internal in transforms/babel.js [Details](https://github.com/parcel-bundler/parcel/commit/eaf51d01462b353aeaf78ebe80d797477ae1938d)
 - only transform safe cssnano minifiers [Details](https://github.com/parcel-bundler/parcel/commit/55814c0da0be226924d6f3077d0c2d5f62cc8335)
-- fix electon hmr bug [Details](https://github.com/parcel-bundler/parcel/commit/88630f2a7aebf141ae060f9dc6edaa1dc2089f37)
+- fix electron hmr bug [Details](https://github.com/parcel-bundler/parcel/commit/88630f2a7aebf141ae060f9dc6edaa1dc2089f37)
 - Fix HMR hostname in browser [Details](https://github.com/parcel-bundler/parcel/commit/0dc062f77e36a19297dac542be33cded04580e89)
 - Fix srcset not working for `source` element [Details](https://github.com/parcel-bundler/parcel/commit/c469751e145a426fee2f1de27ccb2a747c7f5d1e)
 - Update htmlnano [Details](https://github.com/parcel-bundler/parcel/commit/a7b72f25e275a596e98716cdc15d78fdb23f9992)
@@ -1047,7 +1456,7 @@ See the [blog post](https://parceljs.org/blog/v2/).
 - Global env problem [Details](https://github.com/parcel-bundler/parcel/commit/355c63bc956bf24dd7d040e52dd3be2fda47ad9c)
 - Exit on build error when using build command [Details](https://github.com/parcel-bundler/parcel/commit/34b84e44573fd583689ccefde5a8bd9f46de203b)
 - Remove circular require in Asset.js [Details](https://github.com/parcel-bundler/parcel/commit/7c0acb32bc7374a294f53d758e330c52966919dd)
-- Give high priotity to extension of parent [Details](https://github.com/parcel-bundler/parcel/commit/2e3266242f7f2dd01fd21c3ba58d0fb575635e43)
+- Give high priority to extension of parent [Details](https://github.com/parcel-bundler/parcel/commit/2e3266242f7f2dd01fd21c3ba58d0fb575635e43)
 - Fallback to `os.cpus()` for cpu count [Details](https://github.com/parcel-bundler/parcel/commit/9d319afd7683468361dc2f04b253aaca38e779ee)
 - Windows test issues [Details](https://github.com/parcel-bundler/parcel/commit/0eb7a930ffcd4fc77b5b6c75e490299f92ca8a8e)
 - Raw Asset loading [Details](https://github.com/parcel-bundler/parcel/commit/51b90d7458fca5b10dbaa0605c33223b8884b6e1)
@@ -1063,7 +1472,7 @@ See the [blog post](https://parceljs.org/blog/v2/).
 - Typescript support [Details](https://github.com/parcel-bundler/parcel/commit/757b67362e1fce076241fa31afe2179db93cff18)
 - Browser gets notified of errors [Details](https://github.com/parcel-bundler/parcel/commit/d9d8bab2a9bcd2efd23bd824d4c24af1d66a3f77)
 - Community section to Readme [Details](https://github.com/parcel-bundler/parcel/commit/11d109b4b4e03f8ab5da253f9c70b0e6e11e8f3b)
-- More helpfull json parsing error messages using `parse-json` [Details](https://github.com/parcel-bundler/parcel/commit/2b26f9691d3dc489c509476718fa852b231ffde1)
+- More helpful json parsing error messages using `parse-json` [Details](https://github.com/parcel-bundler/parcel/commit/2b26f9691d3dc489c509476718fa852b231ffde1)
 - Issue template [Details](https://github.com/parcel-bundler/parcel/commit/f8dd2f2aea167f011a5c885b20390521798c8c9f)
 
 ### Fixed
