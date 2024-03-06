@@ -200,6 +200,10 @@ function createDiagnostic(err, filePath) {
 }
 
 function getScriptType(script) {
+  if (!script) {
+    return 'js';
+  }
+
   if (script.src) {
     script.lang = extname(script.src).slice(1);
   }
