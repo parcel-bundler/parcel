@@ -7,7 +7,15 @@ module.exports = {
     'prettier',
   ],
   parser: '@babel/eslint-parser',
-  plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react', 'mocha'],
+  plugins: [
+    '@parcel',
+    'flowtype',
+    'import',
+    'monorepo',
+    'react',
+    'mocha',
+    'workspaces',
+  ],
   parserOptions: {
     ecmaVersion: 2018,
     ecmaFeatures: {
@@ -43,23 +51,15 @@ module.exports = {
     '@parcel/no-self-package-imports': 'error',
     'import/first': 'error',
     'import/newline-after-import': 'error',
-    'import/no-extraneous-dependencies': [
-      'error',
-      {
-        // "includeTypes": true,
-        // "packageDir": require('../../../package.json')
-        //   .workspaces
-        //   .map(workspace => require('glob').sync(workspace, {
-        //     cwd: require('path').join(__dirname, '..', '..', '..')
-        //   })),
-      },
-    ],
+    'import/no-extraneous-dependencies': ['error'],
     'import/no-self-import': 'error',
     'no-prototype-builtins': 'off',
     'no-console': 'error',
     'no-return-await': 'error',
     'require-atomic-updates': 'off',
     'require-await': 'error',
+    'workspaces/no-relative-imports': 'error',
+    'workspaces/require-dependency': 'warn',
   },
   settings: {
     flowtype: {
