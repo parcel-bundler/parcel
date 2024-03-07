@@ -1,6 +1,10 @@
 ---
-name: 💬 Request For Comment (RFC)
+name: "\U0001F4AC Request For Comment (RFC)"
 about: Feature discussion
+title: ''
+labels: ''
+assignees: ''
+
 ---
 
 <!---
