@@ -157,22 +157,30 @@ export class TSModuleGraph {
   getAllExports(
     module: TSModule = nullthrows(this.mainModule),
     excludeDefault: boolean = false,
-  ): Array<{|imported: string, module: TSModule, name: string|}> {
-    let res = [];
+  ): Iterator<{|imported: string, module: TSModule, name: string|}> {
+    let res = new Map();
     for (let e of module.exports) {
       if (e.name && (!excludeDefault || e.name !== 'default')) {
         let exp = this.getExport(module, e);
         if (exp) {
-          res.push(exp);
+          res.set(exp.name, exp);
         }
       } else if (e.specifier) {
         let m = this.getModule(e.specifier);
         if (m) {
-          res.push(...this.getAllExports(m, true));
+          const allWildcardExports = this.getAllExports(m, true);
+          for (let exp of allWildcardExports) {
+            // Contents of modules exported through a wildcard that conflict with a named export in this module
+            // will get over-ridden at runtime by the named export, so we don't want to include them.
+            if (res.has(exp.name)) {
+              continue;
+            }
+            res.set(exp.name, exp);
+          }
         }
       }
     }
-    return res;
+    return res.values();
   }
 
   getAllImports(): Map<string, Map<string, string>> {

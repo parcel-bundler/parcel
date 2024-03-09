@@ -450,4 +450,44 @@ describe('typescript types', function () {
     );
     assert.equal(dist, expected);
   });
+
+  it('should handle naming collisions between top-level exports and wildcard exports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/exporting-collision/index.ts',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'types.d.ts',
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+      {
+        name: 'main.js',
+        type: 'js',
+        assets: ['index.ts', 'other1.ts', 'other2.ts', 'consumer.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/exporting-collision/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/exporting-collision/expected.d.ts',
+      ),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
 });
