@@ -32,7 +32,7 @@ var enqueueUpdate = debounce(function () {
   Refresh.performReactRefresh();
 }, 30);
 
-// Everthing below is either adapted or copied from
+// Everything below is either adapted or copied from
 // https://github.com/facebook/metro/blob/61de16bd1edd7e738dd0311c89555a644023ab2d/packages/metro/src/lib/polyfills/require.js
 // MIT License - Copyright (c) Facebook, Inc. and its affiliates.
 

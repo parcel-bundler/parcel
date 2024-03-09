@@ -179,6 +179,7 @@ class DependencyPlaceholder extends JsExpression {
   }
 }
 
+// NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
 type MacroContext = {|
   addAsset(MacroAsset): void,
   addDependency(DependencyOptions): DependencyPlaceholder,

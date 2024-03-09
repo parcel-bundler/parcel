@@ -16,6 +16,7 @@ import type {
   InternalFileCreateInvalidation,
   InternalGlob,
 } from './types';
+import logger from '@parcel/logger';
 import type {Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
@@ -52,6 +53,7 @@ import {
 
 import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
+import type {Cache} from '@parcel/cache';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -759,6 +761,13 @@ export class RequestGraph extends ContentGraph<
       // this means the project root was moved and we need to
       // re-run all requests.
       if (type === 'create' && filePath === '') {
+        // $FlowFixMe(incompatible-call) `trackableEvent` isn't part of the Diagnostic interface
+        logger.verbose({
+          origin: '@parcel/core',
+          message:
+            'Watcher reported project root create event. Invalidate all nodes.',
+          trackableEvent: 'project_root_create',
+        });
         for (let [id, node] of this.nodes.entries()) {
           if (node?.type === REQUEST) {
             this.invalidNodeIds.add(id);
@@ -1136,9 +1145,8 @@ export default class RequestTracker {
 
   async writeToCache(signal?: AbortSignal) {
     let cacheKey = getCacheKey(this.options);
-    let hashedCacheKey = hashString(cacheKey);
-    let requestGraphKey = `requestGraph-${hashedCacheKey}`;
-    let snapshotKey = `snapshot-${hashedCacheKey}`;
+    let requestGraphKey = `requestGraph-${cacheKey}`;
+    let snapshotKey = `snapshot-${cacheKey}`;
 
     if (this.options.shouldDisableCache) {
       return;
@@ -1218,7 +1226,7 @@ export default class RequestTracker {
         queue
           .add(() =>
             serialiseAndSet(
-              getRequestGraphNodeKey(i, hashedCacheKey),
+              getRequestGraphNodeKey(i, cacheKey),
               cacheableNodes.slice(
                 i * NODES_PER_BLOB,
                 (i + 1) * NODES_PER_BLOB,
@@ -1288,13 +1296,46 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
 }
 
 function getCacheKey(options) {
-  return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${
-    options.mode
-  }:${options.shouldBuildLazily ? 'lazy' : 'eager'}`;
+  return hashString(
+    `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
+      options.shouldBuildLazily ? 'lazy' : 'eager'
+    }`,
+  );
 }
 
-function getRequestGraphNodeKey(index: number, hashedCacheKey: string) {
-  return `requestGraph-nodes-${index}-${hashedCacheKey}`;
+function getRequestGraphNodeKey(index: number, cacheKey: string) {
+  return `requestGraph-nodes-${index}-${cacheKey}`;
+}
+
+export async function readAndDeserializeRequestGraph(
+  cache: Cache,
+  requestGraphKey: string,
+  cacheKey: string,
+): Async<{|requestGraph: RequestGraph, bufferLength: number|}> {
+  let bufferLength = 0;
+  const getAndDeserialize = async (key: string) => {
+    let buffer = await cache.getLargeBlob(key);
+    bufferLength += Buffer.byteLength(buffer);
+    return deserialize(buffer);
+  };
+
+  let i = 0;
+  let nodePromises = [];
+  while (await cache.hasLargeBlob(getRequestGraphNodeKey(i, cacheKey))) {
+    nodePromises.push(getAndDeserialize(getRequestGraphNodeKey(i, cacheKey)));
+    i += 1;
+  }
+
+  let serializedRequestGraph = await getAndDeserialize(requestGraphKey);
+
+  return {
+    requestGraph: RequestGraph.deserialize({
+      ...serializedRequestGraph,
+      nodes: (await Promise.all(nodePromises)).flatMap(nodeChunk => nodeChunk),
+    }),
+    // This is used inside parcel query for `.inspectCache`
+    bufferLength,
+  };
 }
 
 async function loadRequestGraph(options): Async<RequestGraph> {
@@ -1303,34 +1344,17 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   }
 
   let cacheKey = getCacheKey(options);
-  let hashedCacheKey = hashString(cacheKey);
-  let requestGraphKey = `requestGraph-${hashedCacheKey}`;
+  let requestGraphKey = `requestGraph-${cacheKey}`;
+
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
-    const getAndDeserialize = async (key: string) => {
-      return deserialize(await options.cache.getLargeBlob(key));
-    };
-
-    let i = 0;
-    let nodePromises = [];
-    while (
-      await options.cache.hasLargeBlob(
-        getRequestGraphNodeKey(i, hashedCacheKey),
-      )
-    ) {
-      nodePromises.push(
-        getAndDeserialize(getRequestGraphNodeKey(i, hashedCacheKey)),
-      );
-      i += 1;
-    }
-
-    let serializedRequestGraph = await getAndDeserialize(requestGraphKey);
-    let requestGraph = RequestGraph.deserialize({
-      ...serializedRequestGraph,
-      nodes: (await Promise.all(nodePromises)).flatMap(nodeChunk => nodeChunk),
-    });
+    let {requestGraph} = await readAndDeserializeRequestGraph(
+      options.cache,
+      requestGraphKey,
+      cacheKey,
+    );
 
     let opts = getWatcherOptions(options);
-    let snapshotKey = `snapshot-${hashedCacheKey}`;
+    let snapshotKey = `snapshot-${cacheKey}`;
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.watchDir,

@@ -141,17 +141,21 @@ export default class Parcel {
     this.#watchEvents = new ValueEmitter();
     this.#disposable.add(() => this.#watchEvents.dispose());
 
-    this.#requestTracker = await RequestTracker.init({
-      farm: this.#farm,
-      options: resolvedOptions,
-    });
-
     this.#reporterRunner = new ReporterRunner({
       config: this.#config,
       options: resolvedOptions,
       workerFarm: this.#farm,
     });
     this.#disposable.add(this.#reporterRunner);
+
+    logger.verbose({
+      origin: '@parcel/core',
+      message: 'Intializing request tracker...',
+    });
+    this.#requestTracker = await RequestTracker.init({
+      farm: this.#farm,
+      options: resolvedOptions,
+    });
 
     this.#initialized = true;
   }
