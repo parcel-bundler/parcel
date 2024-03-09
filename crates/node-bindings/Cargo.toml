@@ -19,7 +19,7 @@ napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi5"]}
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 oxipng = "8.0.0"
-mozjpeg-sys = "1.0.0"
+mozjpeg-sys = "1.1.1"
 libc = "0.2.153"
 rayon = "1.7.0"
 crossbeam-channel = "0.5.12"
