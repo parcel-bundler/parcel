@@ -116,7 +116,7 @@ describe('typescript types', function () {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'message.ts', 'other.ts', 'test.ts'],
+        assets: ['index.ts', 'message.ts', 'module1.ts', 'other.ts', 'test.ts'],
       },
       {
         type: 'ts',
