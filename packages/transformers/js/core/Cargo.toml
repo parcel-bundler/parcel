@@ -24,14 +24,14 @@ swc_core = { version = "0.89.6", features = [
   "ecma_transforms_typescript",
   "ecma_visit",
 ] }
-indoc = "1.0.3"
+indoc = "1.0.9"
 serde = "1.0.197"
 serde_bytes = "0.11.14"
 Inflector = "0.11.4"
-data-encoding = "2.3.2"
+data-encoding = "2.5.0"
 sha-1 = "0.10.0"
-dunce = "1.0.1"
-pathdiff = "0.2.0"
+dunce = "1.0.4"
+pathdiff = "0.2.1"
 path-slash = "0.1.4"
 indexmap = "1.9.3"
 parcel-macros = { path = "../../../../crates/macros" }
