@@ -25,8 +25,8 @@ swc_core = { version = "0.89.6", features = [
   "ecma_visit",
 ] }
 indoc = "1.0.3"
-serde = "1.0.123"
-serde_bytes = "0.11.5"
+serde = "1.0.197"
+serde_bytes = "0.11.14"
 Inflector = "0.11.4"
 data-encoding = "2.3.2"
 sha-1 = "0.10.0"

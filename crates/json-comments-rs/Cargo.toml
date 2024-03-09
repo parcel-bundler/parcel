@@ -12,4 +12,4 @@ description = "Library to strip comments from JSON before parsing"
 travis-ci = { repository = "tmccombs/json-comments-rs" }
 
 [dev-dependencies]
-serde_json = "1.0"
+serde_json = "1.0.114"
