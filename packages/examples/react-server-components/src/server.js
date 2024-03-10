@@ -1,6 +1,6 @@
 import express from 'express';
 import {Readable} from 'node:stream';
-import { createBootstrapScript, importServerComponent, requireClient } from '@parcel/rsc/macro' with {type: 'macro'};
+import { createClientEntry, importServerEntry, requireClient } from '@parcel/macros' with {type: 'macro'};
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {renderToReadableStream, loadServerAction, decodeReply, decodeAction} from 'react-server-dom-parcel/server.edge';
 import {injectRSCPayload} from 'rsc-html-stream/server';
@@ -22,9 +22,9 @@ app.options('/', function (req, res) {
 
 app.use(express.static('dist'));
 
-let bootstrap = createBootstrapScript('bootstrap.js');
+let bootstrapResources = createClientEntry('bootstrap.js');
 
-console.log(bootstrap)
+console.log(bootstrapResources)
 
 function getWebRequest(req) {
   let headers = new Headers();
@@ -50,12 +50,12 @@ function getWebRequest(req) {
 }
 
 app.get('/', async (req, res) => {
-  let [{default: App}, resources] = await importServerComponent('./App');
+  let [{default: App}, resources] = await importServerEntry('./App');
   await render(req, res, <App />, resources);
 });
 
 app.get('/files/*', async (req, res) => {
-  let [{default: FilePage}, resources] = await importServerComponent('./FilePage');
+  let [{default: FilePage}, resources] = await importServerEntry('./FilePage');
   await render(req, res, <FilePage file={req.params[0]} />, resources);
 });
 
@@ -75,7 +75,7 @@ app.post('/', async (req, res) => {
       // We handle the error on the client
     }
 
-    let [{default: App}, resources] = await importServerComponent('./App');
+    let [{default: App}, resources] = await importServerEntry('./App');
     await render(req, res, <App />, resources, result);
   } else {
     // Form submitted by browser (progressive enhancement).
@@ -87,7 +87,7 @@ app.post('/', async (req, res) => {
     } catch (err) {
       // TODO render error page?
     }
-    let [{default: App}, resources] = await importServerComponent('./App');
+    let [{default: App}, resources] = await importServerEntry('./App');
     await render(req, res, <App />, resources);
   }
 });
@@ -112,11 +112,11 @@ async function render(req, res, component, resources, actionResult) {
 
     let htmlStream = await renderHTMLToReadableStream([
       <Content />,
-      ...renderResources(bootstrap),
+      ...renderResources(bootstrapResources),
     ]);
 
     let response = htmlStream.pipeThrough(injectRSCPayload(s2));
-    Readable.fromWeb(response).pipe(res);  
+    Readable.fromWeb(response).pipe(res);
   } else {
     res.set('Content-Type', 'text/x-component');
     Readable.fromWeb(stream).pipe(res);

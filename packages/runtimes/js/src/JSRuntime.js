@@ -352,7 +352,8 @@ function getLoaderRuntime({
     return;
   }
 
-  let externalBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+  let bundlesInBundleGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+  let externalBundles = bundlesInBundleGroup;
   let mainBundle = nullthrows(
     externalBundles.find(
       bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
@@ -496,7 +497,12 @@ function getLoaderRuntime({
     code.push(`let load = require('./helpers/browser/esm-js-loader');`);
   }
 
-  code.push(`module.exports = ${loaderCode};`);
+  if (typeof dependency.meta.includeResources === 'string') {
+    let bundles = bundlesInBundleGroup.filter(b => b.env.context === dependency.meta.includeResources);
+    code.push(`module.exports = Promise.all([${loaderCode}, ${getResources(dependency, bundle, bundles, options)}]);`);
+  } else {
+    code.push(`module.exports = ${loaderCode};`);
+  }
 
   return {
     filePath: __filename,
@@ -634,6 +640,21 @@ function getUrlListRuntime(
   to: Array<NamedBundle>,
   options: PluginOptions,
 ): RuntimeAsset {
+  let code = `module.exports = ${getResources(dependency, from, to, options)};`
+  return {
+    filePath: __filename,
+    code,
+    dependency,
+    env: {sourceType: 'module'},
+  };
+}
+
+function getResources(
+  dependency: Dependency,
+  from: NamedBundle,
+  to: Array<NamedBundle>,
+  options: PluginOptions
+): string {
   let expressions = to.map(to => {
     if (from.env.context === 'node' && to.env.context === 'browser') {
       return `{url: ${JSON.stringify(urlJoin(to.target.publicUrl, to.name))}, type: ${JSON.stringify(to.type)}}`;
@@ -641,14 +662,7 @@ function getUrlListRuntime(
     let relativePathExpr = getRelativePathExpr(from, to, options);
     return `{url: ${getAbsoluteUrlExpr(relativePathExpr, from)}, type: ${JSON.stringify(to.type)}}`;
   });
-
-  let code = `module.exports = [${expressions.join(', ')}];`
-  return {
-    filePath: __filename,
-    code,
-    dependency,
-    env: {sourceType: 'module'},
-  };
+  return `[${expressions.join(', ')}]`
 }
 
 function getRegisterCode(

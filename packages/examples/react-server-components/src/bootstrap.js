@@ -42,9 +42,12 @@ async function navigate(pathname, push) {
   });
   let root = await createFromFetch(res);
   startTransition(() => {
-    updateRoot(root, push ? (() => {
-      history.pushState(null, '', pathname);
-    }) : null);
+    updateRoot(root, () => {
+      if (push) {
+        history.pushState(null, '', pathname);
+        push = false;
+      }
+    });
   });
 }
 

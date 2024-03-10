@@ -32,10 +32,6 @@
     typeof module.require === 'function' &&
     module.require.bind(module);
 
-  function globalParcelRequire(id) {
-    return globalObject[parcelRequireName](id);
-  }
-
   function newRequire(name, jumped) {
     if (!cache[name]) {
       if (!modules[name]) {
@@ -77,8 +73,7 @@
         localRequire,
         module,
         module.exports,
-        globalObject,
-        globalParcelRequire
+        globalObject
       );
     }
 

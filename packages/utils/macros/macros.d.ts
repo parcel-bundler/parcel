@@ -40,3 +40,14 @@ export interface FileAboveInvalidation {
   fileName: string;
   aboveFilePath: string;
 }
+
+// Built-in macros...
+
+interface Resource {
+  url: string,
+  type: string
+}
+
+export declare function createClientEntry(url: string): Array<Resource>;
+export declare function requireClient<M>(specifier: string): M;
+export declare function importServerEntry<M>(specifier: string): Promise<[M, Array<Resource>]>;

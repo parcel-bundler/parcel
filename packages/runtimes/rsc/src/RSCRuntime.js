@@ -1,10 +1,7 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import invariant from 'assert';
-import path from 'path';
 
 export default (new Runtime({
   apply({bundle, bundleGraph}) {
@@ -12,36 +9,13 @@ export default (new Runtime({
       return [];
     }
 
+    let browserBundles = bundleGraph.getReferencedBundles(bundle)
+      .filter(b => b.type === 'js' && b.env.isBrowser())
+      .map(b => b.name);
+
     let runtimes = [];
     bundle.traverse((node) => {
-      if (node.type === 'dependency' && node.value.specifier.startsWith('@parcel/runtime-rsc/resources?id=') && !bundleGraph.isDependencySkipped(node.value)) {
-        let query = new URLSearchParams(node.value.specifier.split('?')[1]);
-        let dep = bundleGraph.getDependencyById(nullthrows(query.get('id')));
-        let bundleGroup = bundleGraph.resolveAsyncDependency(dep, bundle);
-        invariant(bundleGroup?.type === 'bundle_group');
-        
-        let bundles = [];
-        for (let bundle of bundleGraph.getBundlesInBundleGroup(bundleGroup.value, {includeInline: false})) {
-          if (bundle.env.context === 'browser' && !bundle.getMainEntry()) {
-            bundles.push(bundle);
-          }
-        }
-
-        let code = 'module.exports = [\n'
-        for (let bundle of bundles) {
-          let url = urlJoin(bundle.target.publicUrl, bundle.name);
-          code += `  {url: ${JSON.stringify(url)}, type: ${JSON.stringify(bundle.type)}},\n`;
-        }
-        code += '];\n';
-
-        runtimes.push({
-          filePath: __filename,
-          code,
-          dependency: node.value,
-          env: {sourceType: 'module'},
-          shouldReplaceResolution: true
-        });
-      } else if (node.type === 'dependency') {
+      if (node.type === 'dependency') {
         let resolvedAsset = bundleGraph.getResolvedAsset(node.value, bundle);
         let directives = resolvedAsset?.meta?.directives;
         if (node.value.env.isNode() && resolvedAsset && Array.isArray(directives) && directives.includes('use client')) {
@@ -53,7 +27,7 @@ export default (new Runtime({
           let code = `import {createClientReference} from "react-server-dom-parcel/server.edge";\n`;
           for (let symbol of usedSymbols) {
             let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
-            code += `exports[${JSON.stringify(symbol)}] = createClientReference(${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))}, ${JSON.stringify(resolved.exportSymbol)});\n`;
+            code += `exports[${JSON.stringify(symbol)}] = createClientReference(${JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset))}, ${JSON.stringify(resolved.exportSymbol)}, ${JSON.stringify(browserBundles)});\n`;
           }
 
           code += `exports.__esModule = true;\n`;
@@ -75,12 +49,13 @@ export default (new Runtime({
             // Dependency on a "use server" module from a server environment.
             // Mark each export as a server reference that can be passed to a client component as a prop.
             code = `import {registerServerReference} from "react-server-dom-parcel/server.edge";\n`;
+            code += `import {requireModuleById} from "@parcel/intrinsics";\n`;
             for (let symbol of usedSymbols) {
               let resolved = bundleGraph.getSymbolResolution(resolvedAsset, symbol);
               let publicId = JSON.stringify(bundleGraph.getAssetPublicId(resolved.asset));
               let name = JSON.stringify(resolved.exportSymbol);
               code += `exports[${JSON.stringify(symbol)}] = registerServerReference(function() {
-                let originalModule = parcelRequire(${publicId});
+                let originalModule = requireModuleById(${publicId});
                 let fn = originalModule[${name}];
                 return fn.apply(this, arguments);
               }, ${publicId}, ${name});\n`;
@@ -125,24 +100,15 @@ export default (new Runtime({
       bundleGraph.traverse(node => {
         if (node.type === 'asset' && Array.isArray(node.value.meta?.directives) && node.value.meta.directives.includes('use server')) {
           let bundlesWithAsset = bundleGraph.getBundlesWithAsset(node.value);
-          let allBundles = new Set();
-          for (let b of bundlesWithAsset) {
-            if (b.type !== 'js') {
-              continue;
-            }
-
-            let referenced = bundleGraph.getReferencedBundles(b);
-            allBundles.add(b);
-            for (let r of referenced) {
-              if (r.type === 'js') {
-                allBundles.add(r);
-              }
+          let bundles = new Set();
+          let referenced = bundleGraph.getReferencedBundles(bundlesWithAsset[0]);
+          bundles.add(bundlesWithAsset[0].name);
+          for (let r of referenced) {
+            if (r.type === 'js' && r.env.context === bundle.env.context) {
+              bundles.add(r.name);
             }
           }
-
-          code += `  ${JSON.stringify(bundleGraph.getAssetPublicId(node.value))}: () => Promise.all([` + 
-            [...allBundles].map(b => `__parcel__import__(${JSON.stringify('./' + b.name)})`).join(', ') + 
-          `]).then(() => parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(node.value))})),\n`;
+          code += `  ${JSON.stringify(bundleGraph.getAssetPublicId(node.value))}: ${JSON.stringify([...bundles])},\n`;
         }
       });
 

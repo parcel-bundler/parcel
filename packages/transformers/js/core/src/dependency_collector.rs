@@ -109,6 +109,10 @@ impl<'a> DependencyCollector<'a> {
     is_optional: bool,
     source_type: SourceType,
   ) -> Option<JsWord> {
+    if specifier == "@parcel/intrinsics" {
+      return None
+    }
+
     // Rewrite SWC helpers from ESM to CJS for library output.
     let mut is_specifier_rewritten = false;
     if self.config.is_library && !self.config.is_esm_output {

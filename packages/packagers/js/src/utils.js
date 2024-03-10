@@ -1,7 +1,9 @@
 // @flow
-import type {BundleGraph, Dependency, NamedBundle} from '@parcel/types';
+import type {Asset, BundleGraph, Dependency, NamedBundle} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
+import path from 'path';
+import {relativePath} from '@parcel/utils';
 
 // This replaces __parcel__require__ references left by the transformer with
 // parcelRequire calls of the resolved asset id. This lets runtimes work within
@@ -54,4 +56,34 @@ export function getSpecifier(dep: Dependency): string {
   }
 
   return dep.specifier;
+}
+
+export function replaceIntrinsics(bundle: NamedBundle, asset: Asset, code: string): string {
+  let intrinsics = asset.meta.intrinsics;
+  if (!intrinsics || typeof intrinsics !== 'object' || Array.isArray(intrinsics)) {
+    return code;
+  }
+
+  for (let symbol in intrinsics) {
+    let intrinsic = intrinsics[symbol];
+    let replacement;
+    switch (intrinsic) {
+      case 'requireModuleById':
+        replacement = bundle.env.shouldScopeHoist ? 'parcelRequire(' : 'module.bundle.root(';
+        break;
+      case 'loadESMBundle': {
+        // import path argument should be absolute from the dist dir.
+        // Generate a relative path from this bundle to the target.
+        let relative = relativePath(path.dirname(bundle.name), '') + '/';
+        replacement = `import(${JSON.stringify(relative)} +`
+        break;
+      }
+      default:
+        throw new Error(`Unknown intrinsic ${String(intrinsic)} imported from @parcel/intrinsics by ${asset.filePath}`);
+    }
+
+    code = code.replaceAll(symbol + '(', replacement);
+  }
+
+  return code;
 }

@@ -11,7 +11,7 @@ import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
-import {replaceScriptDependencies, getSpecifier} from './utils';
+import {replaceScriptDependencies, getSpecifier, replaceIntrinsics} from './utils';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'dev-prelude.js'), 'utf8')
@@ -116,7 +116,7 @@ export class DevPackager {
         let output = code || '';
         wrapped +=
           JSON.stringify(this.bundleGraph.getAssetPublicId(asset)) +
-          ':[function(require,module,exports,____global,parcelRequire) {\n' +
+          ':[function(require,module,exports) {\n' +
           output +
           '\n},';
         wrapped += JSON.stringify(deps);
@@ -135,6 +135,8 @@ export class DevPackager {
           wrapped = wrapped.replace('$parcel$dirnameReplace', relPath);
           wrapped = wrapped.replace('$parcel$filenameReplace', relPath);
         }
+
+        wrapped = replaceIntrinsics(this.bundle, asset, wrapped);
 
         if (this.bundle.env.sourceMap) {
           if (mapBuffer) {

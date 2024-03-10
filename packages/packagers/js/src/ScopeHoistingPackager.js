@@ -28,7 +28,7 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
-import {replaceScriptDependencies, getSpecifier} from './utils';
+import {replaceScriptDependencies, getSpecifier, replaceIntrinsics} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
 const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
@@ -517,6 +517,8 @@ export class ScopeHoistingPackager {
       code = code.replace('$parcel$dirnameReplace', relPath);
       code = code.replace('$parcel$filenameReplace', relPath);
     }
+
+    code = replaceIntrinsics(this.bundle, asset, code);
 
     let [depMap, replacements] = this.buildReplacements(asset, deps);
     let [prepend, prependLines, append] = this.buildAssetPrelude(asset, deps);

@@ -9,6 +9,7 @@ mod modules;
 mod node_replacer;
 mod typeof_replacer;
 mod utils;
+mod intrinsics;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -161,6 +162,7 @@ pub struct TransformResult {
   has_node_replacements: bool,
   is_constant_module: bool,
   directives: Vec<swc_core::ecma::atoms::JsWord>,
+  intrinsics: HashMap<String, swc_core::ecma::atoms::JsWord>
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -304,6 +306,7 @@ pub fn transform(
 
               let global_mark = Mark::fresh(Mark::root());
               let unresolved_mark = Mark::fresh(Mark::root());
+              let ignore_mark = Mark::fresh(Mark::root());
               let module = module.fold_with(&mut chain!(
                 resolver(unresolved_mark, global_mark, config.is_type_script),
                 // Decorators can use type information, so must run before the TypeScript pass.
@@ -506,8 +509,7 @@ pub fn transform(
                 module
               };
 
-              let ignore_mark = Mark::fresh(Mark::root());
-              let module = module.fold_with(
+              let mut module = module.fold_with(
                 // Collect dependencies
                 &mut dependency_collector(
                   &source_map,
@@ -540,6 +542,10 @@ pub fn transform(
               module.visit_with(&mut collect);
               if let Some(bailouts) = &collect.bailouts {
                 diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+              }
+
+              if collect.imports.iter().any(|(_, v)| v.source == "@parcel/intrinsics") {
+                module = module.fold_with(&mut intrinsics::Intrinsics::new(&collect, &config.module_id, &mut result.intrinsics, unresolved_mark, ignore_mark));
               }
 
               let module = if config.scope_hoist {
