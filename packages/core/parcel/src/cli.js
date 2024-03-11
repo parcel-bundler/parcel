@@ -76,7 +76,7 @@ const commonOptions = {
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--watch-dir <path>':
     'set the root watch directory. defaults to nearest lockfile or source control dir.',
-  '--watcher-ignore-dirs [path]': `list of directories watcher should not be tracking for changes. defaults to ['.git', '.hg']`,
+  '--watch-ignore [path]': `list of directories watcher should not be tracking for changes. defaults to ['.git', '.hg']`,
   '--watcher-backend': new commander.Option(
     '--watcher-backend <name>',
     'set watcher backend',
