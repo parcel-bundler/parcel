@@ -83,6 +83,26 @@ export function collect(
       }
     }
 
+    node = ts.visitEachChild(node, visit, context);
+
+    if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteral(node.argument.literal)
+    ) {
+      let local = `$$parcel$import$${currentModule.imports.size}`;
+      if (node.qualifier) {
+        currentModule.addImport(
+          local,
+          node.argument.literal.text,
+          node.qualifier.text,
+        );
+      } else {
+        currentModule.addImport(local, node.argument.literal.text, '*');
+      }
+      return factory.createTypeReferenceNode(local, node.typeArguments);
+    }
+
     // Handle `export default name;`
     if (ts.isExportAssignment(node) && ts.isIdentifier(node.expression)) {
       currentModule.addExport('default', node.expression.text);
@@ -112,13 +132,12 @@ export function collect(
       }
     }
 
-    const results = ts.visitEachChild(node, visit, context);
     // After we finish traversing the children of a module definition,
     // we need to make sure that subsequent nodes get associated with the next-highest level module.
     if (ts.isModuleDeclaration(node)) {
       _currentModule = moduleStack.pop();
     }
-    return results;
+    return node;
   };
 
   return ts.visitNode(sourceFile, visit);
