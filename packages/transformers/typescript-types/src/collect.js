@@ -90,7 +90,7 @@ export function collect(
       ts.isLiteralTypeNode(node.argument) &&
       ts.isStringLiteral(node.argument.literal)
     ) {
-      let local = `$$parcel$import$${currentModule.imports.size}`;
+      let local = `$$parcel$import$${moduleGraph.syntheticImportCount++}`;
       if (node.qualifier) {
         currentModule.addImport(
           local,
