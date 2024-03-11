@@ -67,7 +67,7 @@ export function isValidIdentifier(id: string): boolean {
 
 export function makeValidIdentifier(name: string): string {
   name = name.replace(NON_ID_CONTINUE_RE, '');
-  if (!ID_START_RE.test(name) || this.globalNames.has(name)) {
+  if (!ID_START_RE.test(name)) {
     name = '_' + name;
   }
   return name;
