@@ -232,7 +232,7 @@ export default (new Runtime({
 
       // Skip URL runtimes for library builds. This is handled in packaging so that
       // the url is inlined and statically analyzable.
-      if (bundle.env.isLibrary && dependency.meta?.placeholder != null) {
+      if (bundle.env.isLibrary && mainBundle.bundleBehavior !== 'isolated') {
         continue;
       }
 

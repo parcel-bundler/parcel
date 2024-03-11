@@ -1300,7 +1300,8 @@ describe('output formats', function () {
 
       let ns = await run(b);
       assert.deepEqual(ns.test, true);
-      assert.deepEqual(ns.default, {test: true});
+      assert.deepEqual(ns.default, {test: true, 'foo-bar': true});
+      assert.deepEqual(ns['foo-bar'], true);
     });
 
     it('should support outputting .mjs files', async function () {
@@ -1501,7 +1502,7 @@ describe('output formats', function () {
     assert.equal(res.default, 'foo bar');
 
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(/import [a-z0-9$]+ from "\.\//.test(content));
+    assert(/import [^\s]+ from "\.\//.test(content));
   });
 
   describe('global', function () {
