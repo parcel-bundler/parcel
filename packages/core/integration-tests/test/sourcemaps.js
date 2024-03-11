@@ -830,12 +830,11 @@ describe('sourcemaps', function () {
     // This should actually just be `./integration/scss-sourcemap-imports/with_url.scss`
     // but this is a small bug in the extend utility of the source-map library
     assert.deepEqual(mapData.sources, [
-      'integration/scss-sourcemap-imports/style.scss',
       'integration/scss-sourcemap-imports/with_url.scss',
     ]);
 
     let input = await inputFS.readFile(
-      path.join(path.dirname(filename), map.sourceRoot, map.sources[1]),
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
       'utf-8',
     );
 

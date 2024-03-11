@@ -17,12 +17,12 @@ use typed_arena::Arena;
 
 pub struct Cache<Fs> {
   pub fs: Fs,
-  // This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
+  /// This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
   arena: Mutex<Arena<Box<str>>>,
-  // These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
-  // way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
-  // from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
-  // to insert into. Since each value is in a Box, it won't move and therefore references are stable.
+  /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
+  /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
+  /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
+  /// to insert into. Since each value is in a Box, it won't move and therefore references are stable.
   packages: FrozenMap<PathBuf, Box<Result<PackageJson<'static>, ResolverError>>>,
   tsconfigs: FrozenMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
   is_file_cache: DashMap<PathBuf, bool>,
@@ -30,7 +30,8 @@ pub struct Cache<Fs> {
   realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
 }
 
-// Special Cow implementation for a Cache that doesn't require Clone.
+#[allow(clippy::large_enum_variant)]
+/// Special Cow implementation for a Cache that doesn't require Clone.
 pub enum CacheCow<'a, Fs> {
   Borrowed(&'a Cache<Fs>),
   Owned(Cache<Fs>),

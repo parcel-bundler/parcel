@@ -10,7 +10,12 @@ import {relativePath} from '@parcel/utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createEnvironment} from '../src/Environment';
 import {toProjectPath} from '../src/projectPath';
-import {ParcelDb, type EnvironmentAddr, type TargetAddr, Target} from '@parcel/rust';
+import {
+  ParcelDb,
+  type EnvironmentAddr,
+  type TargetAddr,
+  Target,
+} from '@parcel/rust';
 
 let cacheDir = tempy.directory();
 export let cache: FSCache = new FSCache(outputFS, cacheDir);
@@ -20,7 +25,7 @@ export const DB: ParcelDb = ParcelDb.create({
   mode: 'development',
   env: {},
   log_level: 'info',
-  project_root: __dirname
+  project_root: __dirname,
 });
 
 export const DEFAULT_OPTIONS: ParcelOptions = {
@@ -58,6 +63,9 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
     sourceMaps: false,
   },
   db: DB,
+  featureFlags: {
+    exampleFeature: false,
+  },
 };
 
 export const DEFAULT_ENV: EnvironmentAddr = createEnvironment(DB, {

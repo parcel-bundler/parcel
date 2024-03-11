@@ -12,6 +12,7 @@ import type {
   InternalFileCreateInvalidation,
   InternalSourceLocation,
   InternalDevDepOptions,
+  Invalidations,
 } from './types';
 import type {PackageManager} from '@parcel/package-manager';
 
@@ -23,6 +24,7 @@ import {fromProjectPath, toProjectPath} from './projectPath';
 import packageJson from '../package.json';
 import {PARCEL_VERSION} from './constants';
 import {
+  hashString,
   Target as DbTarget,
   SourceLocation as DbSourceLocation,
   ParcelDb,
@@ -176,6 +178,17 @@ function copyLocation(l) {
   };
 }
 
+export function createInvalidations(): Invalidations {
+  return {
+    invalidateOnBuild: false,
+    invalidateOnStartup: false,
+    invalidateOnOptionChange: new Set(),
+    invalidateOnEnvChange: new Set(),
+    invalidateOnFileChange: new Set(),
+    invalidateOnFileCreate: [],
+  };
+}
+
 export function fromInternalSourceLocation(
   projectRoot: FilePath,
   loc: ?InternalSourceLocation,
@@ -255,6 +268,10 @@ export function toDbSourceLocationFromInternal(
   return tmpSourceLocation;
 }
 
-export function getCacheKey(entries: string[], mode: string): string {
-  return `${PARCEL_VERSION}:${JSON.stringify(entries)}:${mode}`;
+export function getCacheKey(options: ParcelOptions): string {
+  return hashString(
+    `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
+      options.shouldBuildLazily ? 'lazy' : 'eager'
+    }`,
+  );
 }

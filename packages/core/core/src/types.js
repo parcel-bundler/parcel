@@ -33,6 +33,8 @@ import type {
   DependencyAddr,
   TargetAddr,
 } from '@parcel/rust';
+import type {EventType} from '@parcel/watcher';
+import type {FeatureFlags} from '@parcel/feature-flags';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -243,6 +245,15 @@ export type InternalFileCreateInvalidation =
   | InternalGlobInvalidation
   | InternalFileAboveInvalidation;
 
+export type Invalidations = {|
+  invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
+  invalidateOnEnvChange: Set<string>,
+  invalidateOnOptionChange: Set<string>,
+  invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
+|};
+
 export type DevDepRequest = {|
   specifier: DependencySpecifier,
   resolveFrom: ProjectPath,
@@ -309,6 +320,8 @@ export type ParcelOptions = {|
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
   |},
+
+  +featureFlags: FeatureFlags,
 |};
 
 export type AssetNode = {|

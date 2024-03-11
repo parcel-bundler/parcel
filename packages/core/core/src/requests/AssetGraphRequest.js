@@ -165,13 +165,14 @@ export class AssetGraphBuilder {
       hashString(
         `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${
           options.mode
-        }`,
+        }${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
       ) + '-AssetGraph';
 
     this.isSingleChangeRebuild =
       api
         .getInvalidSubRequests()
-        .filter(req => req.requestType === requestTypes.asset_request).length === 1;
+        .filter(req => req.requestType === requestTypes.asset_request)
+        .length === 1;
     this.queue = new PromiseQueue();
 
     assetGraph.onNodeRemoved = nodeId => {

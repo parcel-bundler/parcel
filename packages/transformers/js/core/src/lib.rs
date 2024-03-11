@@ -1,6 +1,5 @@
 mod collect;
 mod constant_module;
-mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
@@ -16,11 +15,13 @@ use std::path::{Path, PathBuf};
 
 use constant_module::ConstantModule;
 use indexmap::IndexMap;
+use parcel_macros::{MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
-use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
+use swc_core::common::errors::Handler;
 use swc_core::common::pass::Optional;
+use swc_core::common::source_map::SourceMapGenConfig;
 use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_core::ecma::ast::{Module, ModuleItem, Program};
 use swc_core::ecma::codegen::text_writer::JsWriter;
@@ -38,7 +39,6 @@ use swc_core::ecma::transforms::{
 use swc_core::ecma::visit::{FoldWith, VisitWith};
 
 use collect::{Collect, CollectResult};
-use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
@@ -50,7 +50,13 @@ use typeof_replacer::*;
 
 pub use dependency_collector::{DependencyDescriptor, DependencyKind};
 pub use swc_core::ecma::preset_env::{Version, Versions};
-pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+use utils::{
+  error_buffer_to_diagnostics, CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer,
+  SourceType,
+};
+
+pub use utils::SourceLocation;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -113,16 +119,11 @@ pub struct TransformResult {
   pub is_constant_module: bool,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
-
-impl Emitter for ErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.lock().unwrap().push((**db).clone());
-  }
-}
-
-pub fn transform(code: &[u8], config: &Config) -> TransformResult {
+pub fn transform(
+  code: &[u8],
+  config: &Config,
+  call_macro: Option<MacroCallback>,
+) -> TransformResult {
   let mut result = TransformResult::default();
   let mut map_buf = vec![];
 
@@ -241,7 +242,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                 },
               };
 
-              let module = module.fold_with(&mut Optional::new(
+              let mut module = module.fold_with(&mut Optional::new(
                 react::react(
                   source_map.clone(),
                   Some(&comments),
@@ -251,8 +252,6 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                 ),
                 config.is_jsx,
               ));
-
-              let mut decls = collect_decls(&module);
 
               let mut preset_env_config = swc_core::ecma::preset_env::Config {
                 dynamic_import: true,
@@ -278,17 +277,25 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                 assumptions.set_public_class_fields |= true;
               }
 
+              let mut diagnostics = vec![];
+              if let Some(call_macro) = call_macro {
+                let mut errors = Vec::new();
+                module = module.fold_with(&mut Macros::new(call_macro, &source_map, &mut errors));
+                for error in errors {
+                  diagnostics.push(macro_error_to_diagnostic(error, &source_map));
+                }
+              }
+
               if config.scope_hoist && config.inline_constants {
                 let mut constant_module = ConstantModule::new();
                 module.visit_with(&mut constant_module);
                 result.is_constant_module = constant_module.is_constant_module;
               }
 
-              let mut diagnostics = vec![];
               let module = {
                 let mut passes = chain!(
                   Optional::new(
-                    TypeofReplacer { decls: &decls },
+                    TypeofReplacer { unresolved_mark },
                     config.source_type != SourceType::Script
                   ),
                   // Inline process.env and process.browser
@@ -298,7 +305,6 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                       env: &config.env,
                       inline_environment: &config.inline_environment,
                       is_browser: config.is_browser,
-                      decls: &decls,
                       used_env: &mut result.used_env,
                       source_map: &source_map,
                       diagnostics: &mut diagnostics,
@@ -316,8 +322,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                     inline_fs(
                       &config.filename,
                       source_map.clone(),
-                      // TODO this clone is unnecessary if we get the lifetimes right
-                      decls.clone(),
+                      unresolved_mark,
                       global_mark,
                       &config.project_root,
                       &mut dependencies,
@@ -340,7 +345,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                     globals: HashMap::new(),
                     project_root: &config.project_root,
                     filename: &config.filename,
-                    decls: &mut decls,
+                    unresolved_mark,
                     scope_hoist: config.scope_hoist,
                     has_node_replacements: &mut result.has_node_replacements,
                   },
@@ -359,7 +364,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                       globals: IndexMap::new(),
                       project_root: &config.project_root,
                       filename: &config.filename,
-                      decls: &mut decls,
+                      unresolved_mark,
                       scope_hoist: config.scope_hoist
                     },
                     config.insert_node_globals
@@ -384,18 +389,16 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
 
               // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
               // set global_mark for all nodes, even generated ones.
-              // - This changes the syntax context ids and therefore invalidates decls
               // - This will also remove any other other marks (like ignore_mark)
               // This only needs to be done if preset_env ran because all other transforms
               // insert declarations with global_mark (even though they are generated).
-              let (decls, module) = if config.scope_hoist && should_run_preset_env {
-                let module = module.fold_with(&mut chain!(
+              let module = if config.scope_hoist && should_run_preset_env {
+                module.fold_with(&mut chain!(
                   hygiene(),
                   resolver(unresolved_mark, global_mark, false)
-                ));
-                (collect_decls(&module), module)
+                ))
               } else {
-                (decls, module)
+                module
               };
 
               let ignore_mark = Mark::fresh(Mark::root());
@@ -404,7 +407,6 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                 &mut dependency_collector(
                   &source_map,
                   &mut dependencies,
-                  &decls,
                   ignore_mark,
                   unresolved_mark,
                   &config,
@@ -425,7 +427,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
 
               let mut collect = Collect::new(
                 source_map.clone(),
-                decls,
+                unresolved_mark,
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
@@ -487,7 +489,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                 };
               if config.source_maps
                 && source_map
-                  .build_source_map(&src_map_buf)
+                  .build_source_map_with_config(&src_map_buf, None, SourceMapConfig)
                   .to_writer(&mut map_buf)
                   .is_ok()
               {
@@ -531,6 +533,7 @@ fn parse(
       jsx: config.is_jsx,
       export_default_from: true,
       decorators: config.decorators,
+      import_attributes: true,
       ..Default::default()
     })
   };
@@ -585,51 +588,59 @@ fn emit(
   Ok((buf, src_map_buf))
 }
 
-fn error_buffer_to_diagnostics(
-  error_buffer: &ErrorBuffer,
-  source_map: &Lrc<SourceMap>,
-) -> Vec<Diagnostic> {
-  let s = error_buffer.0.lock().unwrap().clone();
-  s.iter()
-    .map(|diagnostic| {
-      let message = diagnostic.message();
-      let span = diagnostic.span.clone();
-      let suggestions = diagnostic.suggestions.clone();
+// Exclude macro expansions from source maps.
+struct SourceMapConfig;
+impl SourceMapGenConfig for SourceMapConfig {
+  fn file_name_to_source(&self, f: &FileName) -> String {
+    f.to_string()
+  }
 
-      let span_labels = span.span_labels();
-      let code_highlights = if !span_labels.is_empty() {
-        let mut highlights = vec![];
-        for span_label in span_labels {
-          highlights.push(CodeHighlight {
-            message: span_label.label,
-            loc: SourceLocation::from(source_map, span_label.span),
-          });
-        }
+  fn skip(&self, f: &FileName) -> bool {
+    matches!(f, FileName::MacroExpansion | FileName::Internal(..))
+  }
+}
 
-        Some(highlights)
-      } else {
-        None
-      };
-
-      let hints = if !suggestions.is_empty() {
-        Some(
-          suggestions
-            .into_iter()
-            .map(|suggestion| suggestion.msg)
-            .collect(),
-        )
-      } else {
-        None
-      };
-
-      Diagnostic {
-        message,
-        code_highlights,
-        hints,
-        show_environment: false,
-        severity: DiagnosticSeverity::Error,
-        documentation_url: None,
-      }
-    })
-    .collect()
+fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagnostic {
+  match error {
+    MacroError::EvaluationError(span) => Diagnostic {
+      message: "Could not statically evaluate macro argument".into(),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::LoadError(err, span) => Diagnostic {
+      message: format!("Error loading macro: {}", err),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::ExecutionError(err, span) => Diagnostic {
+      message: format!("Error evaluating macro: {}", err),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::ParseError(err) => {
+      let error_buffer = ErrorBuffer::default();
+      let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
+      err.into_diagnostic(&handler).emit();
+      let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, source_map);
+      return diagnostics.pop().unwrap();
+    }
+  }
 }

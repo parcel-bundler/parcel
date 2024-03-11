@@ -27,7 +27,6 @@ async function summarizeDiskRequest(
 ): Promise<{|content: Blob, size: number|}> {
   let code = req.code;
   let content: Blob;
-  // let hash: string;
   let size: number;
   if (code == null) {
     // Get the filesize. If greater than BUFFER_LIMIT, use a stream to
@@ -35,19 +34,6 @@ async function summarizeDiskRequest(
     // file first and do the hash all at once without the overhead of streams.
     size = (await fs.stat(req.filePath)).size;
     if (size > BUFFER_LIMIT) {
-      // return new Promise((resolve, reject) => {
-      //   let stream = fs.createReadStream(req.filePath);
-      //   stream.on('error', reject);
-      //   hashStream(stream).then(
-      //     hash =>
-      //       resolve({
-      //         content: fs.createReadStream(req.filePath),
-      //         hash,
-      //         size,
-      //       }),
-      //     reject,
-      //   );
-      // });
       content = fs.createReadStream(req.filePath);
     } else {
       content = await fs.readFile(req.filePath);
@@ -55,7 +41,6 @@ async function summarizeDiskRequest(
     }
   } else {
     content = code;
-    // hash = hashString(code);
     size = Buffer.byteLength(code);
   }
 

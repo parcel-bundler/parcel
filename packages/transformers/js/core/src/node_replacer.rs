@@ -1,16 +1,17 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 
 use indexmap::IndexMap;
 use swc_core::common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
-use swc_core::ecma::ast::{self, Id};
+use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::utils::{
-  add_dependency, create_global_decl_stmt, create_require, SourceLocation, SourceType,
+  add_dependency, create_global_decl_stmt, create_require, is_unresolved, SourceLocation,
+  SourceType,
 };
 
 pub struct NodeReplacer<'a> {
@@ -20,7 +21,7 @@ pub struct NodeReplacer<'a> {
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a str,
   pub filename: &'a Path,
-  pub decls: &'a mut HashSet<Id>,
+  pub unresolved_mark: Mark,
   pub scope_hoist: bool,
   pub has_node_replacements: &'a mut bool,
 }
@@ -50,10 +51,11 @@ impl<'a> Fold for NodeReplacer<'a> {
 
     if let Ident(id) = &mut node {
       // Only handle global variables
-      if self.decls.contains(&(id.sym.clone(), id.span.ctxt())) {
+      if !is_unresolved(&id, self.unresolved_mark) {
         return node;
       }
 
+      let unresolved_mark = self.unresolved_mark;
       match id.sym.to_string().as_str() {
         "__filename" => {
           let specifier = swc_core::ecma::atoms::JsWord::from("path");
@@ -98,7 +100,7 @@ impl<'a> Fold for NodeReplacer<'a> {
               ],
               callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
                 span: DUMMY_SP,
-                obj: (Box::new(Call(create_require(specifier.clone())))),
+                obj: (Box::new(Call(create_require(specifier.clone(), unresolved_mark)))),
                 prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
               }))),
             })
@@ -151,7 +153,7 @@ impl<'a> Fold for NodeReplacer<'a> {
               ],
               callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
                 span: DUMMY_SP,
-                obj: (Box::new(Call(create_require(specifier.clone())))),
+                obj: (Box::new(Call(create_require(specifier.clone(), unresolved_mark)))),
                 prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
               }))),
             })
@@ -212,8 +214,6 @@ impl NodeReplacer<'_> {
       id_ref.span.ctxt = ctxt;
 
       self.globals.insert(id_ref.sym.clone(), (ctxt, decl));
-      self.decls.insert(id_ref.to_id());
-
       true
     }
   }

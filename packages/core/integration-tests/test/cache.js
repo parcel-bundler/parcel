@@ -6204,7 +6204,7 @@ describe('cache', function () {
             loadConfig({config, options}) {
               return DefaultBundler[CONFIG].loadConfig({config, options});
             },
-          
+
             bundle({bundleGraph, config}) {
               DefaultBundler[CONFIG].bundle({bundleGraph, config});
             },
@@ -6222,7 +6222,9 @@ describe('cache', function () {
         hashString(
           `${version}:BundleGraph:${
             JSON.stringify(resolvedOptions.entries) ?? ''
-          }${resolvedOptions.mode}`,
+          }${resolvedOptions.mode}${
+            resolvedOptions.shouldBuildLazily ? 'lazy' : 'eager'
+          }`,
         ) + '-BundleGraph';
 
       assert(
@@ -6791,5 +6793,44 @@ describe('cache', function () {
 
     let res = await run(build.bundleGraph);
     assert.deepEqual(res, {default: 'foo'});
+  });
+
+  it('invalidates correctly when switching from lazy to eager modes', async function () {
+    let overlayFSPackageManager = new NodePackageManager(overlayFS, __dirname);
+    let entry = 'source/index.js';
+    let options = {
+      mode: 'production',
+      defaultTargetOptions: {
+        shouldScopeHoist: false,
+      },
+      packageManager: overlayFSPackageManager,
+      shouldContentHash: false,
+      shouldDisableCache: false,
+      inputFS: overlayFS,
+      cacheDir: path.join(__dirname, '.parcel-cache'),
+    };
+
+    await fsFixture(overlayFS)`
+    source
+      lazy.js:
+
+        export default 'lazy-file';
+      index.js:
+        import('./lazy');
+
+        export default 'index-file';
+    `;
+
+    let lazyBundleGraph = await bundle(entry, {
+      ...options,
+      shouldBuildLazily: true,
+    });
+    assert.equal(lazyBundleGraph.getBundles().length, 1);
+
+    let eagerBundleGraph = await bundle(entry, {
+      ...options,
+      shouldBuildLazily: false,
+    });
+    assert.equal(eagerBundleGraph.getBundles().length, 2);
   });
 });

@@ -127,21 +127,15 @@ async function run({input, api, farm, invalidateReason, options}) {
     ),
   };
 
-  let {
-    assets,
-    configRequests,
-    error,
-    invalidations,
-    invalidateOnFileCreate,
-    devDepRequests,
-  } = (await farm.createHandle(
-    'runTransform',
-    input.isSingleChangeRebuild,
-  )({
-    configCachePath: cachePath,
-    optionsRef,
-    request,
-  }): TransformationResult);
+  let {assets, configRequests, error, invalidations, devDepRequests} =
+    (await farm.createHandle(
+      'runTransform',
+      input.isSingleChangeRebuild,
+    )({
+      configCachePath: cachePath,
+      optionsRef,
+      request,
+    }): TransformationResult);
 
   let time = Date.now() - start;
   if (assets) {
@@ -150,25 +144,29 @@ async function run({input, api, farm, invalidateReason, options}) {
     }
   }
 
-  for (let invalidation of invalidateOnFileCreate) {
+  for (let filePath of invalidations.invalidateOnFileChange) {
+    api.invalidateOnFileUpdate(filePath);
+    api.invalidateOnFileDelete(filePath);
+  }
+
+  for (let invalidation of invalidations.invalidateOnFileCreate) {
     api.invalidateOnFileCreate(invalidation);
   }
 
-  for (let invalidation of invalidations) {
-    switch (invalidation.type) {
-      case 'file':
-        api.invalidateOnFileUpdate(invalidation.filePath);
-        api.invalidateOnFileDelete(invalidation.filePath);
-        break;
-      case 'env':
-        api.invalidateOnEnvChange(invalidation.key);
-        break;
-      case 'option':
-        api.invalidateOnOptionChange(invalidation.key);
-        break;
-      default:
-        throw new Error(`Unknown invalidation type: ${invalidation.type}`);
-    }
+  for (let env of invalidations.invalidateOnEnvChange) {
+    api.invalidateOnEnvChange(env);
+  }
+
+  for (let option of invalidations.invalidateOnOptionChange) {
+    api.invalidateOnOptionChange(option);
+  }
+
+  if (invalidations.invalidateOnStartup) {
+    api.invalidateOnStartup();
+  }
+
+  if (invalidations.invalidateOnBuild) {
+    api.invalidateOnBuild();
   }
 
   for (let devDepRequest of devDepRequests) {

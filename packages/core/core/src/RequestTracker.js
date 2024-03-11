@@ -11,6 +11,7 @@ import type {
   InternalFileCreateInvalidation,
   InternalGlob,
 } from './types';
+import logger from '@parcel/logger';
 import type {Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
@@ -46,6 +47,8 @@ import {
 } from './constants';
 
 import {report} from './ReporterRunner';
+import {PromiseQueue} from '@parcel/utils';
+import type {Cache} from '@parcel/cache';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -67,6 +70,7 @@ type SerializedRequestGraph = {|
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
+  cachedRequestChunks: Set<number>,
 |};
 
 const FILE: 0 = 0;
@@ -226,6 +230,7 @@ export class RequestGraph extends ContentGraph<
   // filesystem changes alone. They should rerun on each startup of Parcel.
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
+  cachedRequestChunks: Set<number> = new Set();
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: SerializedRequestGraph): RequestGraph {
@@ -238,6 +243,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.optionNodeIds = opts.optionNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
+    deserialized.cachedRequestChunks = opts.cachedRequestChunks;
     return deserialized;
   }
 
@@ -252,6 +258,7 @@ export class RequestGraph extends ContentGraph<
       optionNodeIds: this.optionNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
       invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
+      cachedRequestChunks: this.cachedRequestChunks,
     };
   }
 
@@ -329,6 +336,9 @@ export class RequestGraph extends ContentGraph<
     for (let parentNode of parentNodes) {
       this.invalidateNode(parentNode, reason);
     }
+
+    // If the node is invalidated, the cached request chunk on disk needs to be re-written
+    this.removeCachedRequestChunkForNode(nodeId);
   }
 
   invalidateUnpredictableNodes() {
@@ -738,6 +748,13 @@ export class RequestGraph extends ContentGraph<
       // this means the project root was moved and we need to
       // re-run all requests.
       if (type === 'create' && filePath === '') {
+        // $FlowFixMe(incompatible-call) `trackableEvent` isn't part of the Diagnostic interface
+        logger.verbose({
+          origin: '@parcel/core',
+          message:
+            'Watcher reported project root create event. Invalidate all nodes.',
+          trackableEvent: 'project_root_create',
+        });
         for (let [id, node] of this.nodes.entries()) {
           if (node?.type === REQUEST) {
             this.invalidNodeIds.add(id);
@@ -832,7 +849,23 @@ export class RequestGraph extends ContentGraph<
 
     return didInvalidate && this.invalidNodeIds.size > 0;
   }
+
+  hasCachedRequestChunk(index: number): boolean {
+    return this.cachedRequestChunks.has(index);
+  }
+
+  setCachedRequestChunk(index: number): void {
+    this.cachedRequestChunks.add(index);
+  }
+
+  removeCachedRequestChunkForNode(nodeId: number): void {
+    this.cachedRequestChunks.delete(Math.floor(nodeId / NODES_PER_BLOB));
+  }
 }
+
+// This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
+// The goal is to free up the event loop periodically to allow interruption by the user.
+const NODES_PER_BLOB = 2 ** 14;
 
 export default class RequestTracker {
   graph: RequestGraph;
@@ -935,6 +968,7 @@ export default class RequestTracker {
     if (node && node.type === REQUEST) {
       node.invalidateReason = VALID;
     }
+    this.graph.removeCachedRequestChunkForNode(nodeId);
   }
 
   rejectRequest(nodeId: NodeId) {
@@ -1097,76 +1131,138 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
-  async writeToCache() {
+  async writeToCache(signal?: AbortSignal) {
     if (this.options.shouldDisableCache) {
       return;
     }
 
-    let cacheKey = getCacheKey(this.options.entries, this.options.mode);
-    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
-    let snapshotKey = hashString(`${cacheKey}:snapshot`);
-    let dbKey = hashString(`${cacheKey}:parceldb`);
+    let cacheKey = getCacheKey(this.options);
+    let requestGraphKey = `requestGraph-${cacheKey}`;
+    let snapshotKey = `snapshot-${cacheKey}`;
+    let dbKey = `parceldb-${cacheKey}:parceldb`;
 
     let total = 2;
+    let serialisedGraph = this.graph.serialize();
+
+    let total = 0;
+    const serialiseAndSet = async (
+      key: string,
+      // $FlowFixMe serialise input is any type
+      contents: any,
+    ): Promise<void> => {
+      if (signal?.aborted) {
+        throw new Error('Serialization was aborted');
+      }
+
+      await this.options.cache.setLargeBlob(
+        key,
+        serialize(contents),
+        signal
+          ? {
+              signal: signal,
+            }
+          : undefined,
+      );
+
+      total += 1;
+
+      report({
+        type: 'cache',
+        phase: 'write',
+        total,
+        size: this.graph.nodes.length,
+      });
+    };
+
+    let queue = new PromiseQueue({
+      maxConcurrent: 32,
+    });
+
     report({
       type: 'cache',
       phase: 'start',
       total,
       size: this.graph.nodes.length,
     });
-    let promises = [];
-    for (let node of this.graph.nodes) {
-      if (!node || node.type !== REQUEST) {
-        continue;
-      }
 
-      let resultCacheKey = node.resultCacheKey;
-      if (resultCacheKey != null && node.result != null) {
-        promises.push(
-          this.options.cache.setLargeBlob(
-            resultCacheKey,
-            serialize(node.result),
-          ),
-        );
-        total++;
-        report({
-          type: 'cache',
-          phase: 'write',
-          total,
-          size: this.graph.nodes.length,
-        });
-        delete node.result;
+    // Preallocating a sparse array is faster than pushing when N is high enough
+    let cacheableNodes = new Array(serialisedGraph.nodes.length);
+    for (let i = 0; i < serialisedGraph.nodes.length; i += 1) {
+      let node = serialisedGraph.nodes[i];
+
+      let resultCacheKey = node?.resultCacheKey;
+      if (
+        node?.type === REQUEST &&
+        resultCacheKey != null &&
+        node?.result != null
+      ) {
+        queue
+          .add(() => serialiseAndSet(resultCacheKey, node.result))
+          .catch(() => {
+            // Handle promise rejection
+          });
+
+        // eslint-disable-next-line no-unused-vars
+        let {result: _, ...newNode} = node;
+        cacheableNodes[i] = newNode;
+      } else {
+        cacheableNodes[i] = node;
       }
     }
 
-    promises.push(
-      this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
-    );
-    report({
-      type: 'cache',
-      phase: 'write',
-      total,
-      size: this.graph.nodes.length,
-    });
+    for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
+      if (!this.graph.hasCachedRequestChunk(i)) {
+        // We assume the request graph nodes are immutable and won't change
+        queue
+          .add(() =>
+            serialiseAndSet(
+              getRequestGraphNodeKey(i, cacheKey),
+              cacheableNodes.slice(
+                i * NODES_PER_BLOB,
+                (i + 1) * NODES_PER_BLOB,
+              ),
+            ).then(() => {
+              // Succeeded in writing to disk, save that we have completed this chunk
+              this.graph.setCachedRequestChunk(i);
+            }),
+          )
+          .catch(() => {
+            // Handle promise rejection
+          });
+      }
+    }
+
+    queue
+      .add(() =>
+        serialiseAndSet(requestGraphKey, {
+          ...serialisedGraph,
+          nodes: undefined,
+        }),
+      )
+      .catch(() => {
+        // Handle promise rejection
+      });
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
-    promises.push(
-      this.options.inputFS.writeSnapshot(
-        this.options.projectRoot,
-        snapshotPath,
-        opts,
-      ),
-    );
-    report({
-      type: 'cache',
-      phase: 'write',
-      total,
-      size: this.graph.nodes.length,
-    });
-    report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
+    queue
+      .add(() =>
+        this.options.inputFS.writeSnapshot(
+          this.options.projectRoot,
+          snapshotPath,
+          opts,
+        ),
+      )
+      .catch(() => {
+        // Handle promise rejection
+      });
 
-    await Promise.all(promises);
+    try {
+      await queue.run();
+    } catch (err) {
+      // If we have aborted, ignore the error and continue
+      if (!signal?.aborted) throw err;
+    }
 
     if (this.options.outputFS instanceof NodeFS) {
       let cachePath = path.join(this.options.cacheDir, dbKey);
@@ -1175,6 +1271,8 @@ export default class RequestTracker {
       let buffer = this.options.db.toBuffer();
       await this.options.cache.setLargeBlob(dbKey, buffer);
     }
+
+    report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
 
   static async init({
@@ -1195,26 +1293,65 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
   return {ignore};
 }
 
+function getRequestGraphNodeKey(index: number, cacheKey: string) {
+  return `requestGraph-nodes-${index}-${cacheKey}`;
+}
+
+export async function readAndDeserializeRequestGraph(
+  cache: Cache,
+  requestGraphKey: string,
+  cacheKey: string,
+): Async<{|requestGraph: RequestGraph, bufferLength: number|}> {
+  let bufferLength = 0;
+  const getAndDeserialize = async (key: string) => {
+    let buffer = await cache.getLargeBlob(key);
+    bufferLength += Buffer.byteLength(buffer);
+    return deserialize(buffer);
+  };
+
+  let i = 0;
+  let nodePromises = [];
+  while (await cache.hasLargeBlob(getRequestGraphNodeKey(i, cacheKey))) {
+    nodePromises.push(getAndDeserialize(getRequestGraphNodeKey(i, cacheKey)));
+    i += 1;
+  }
+
+  let serializedRequestGraph = await getAndDeserialize(requestGraphKey);
+
+  return {
+    requestGraph: RequestGraph.deserialize({
+      ...serializedRequestGraph,
+      nodes: (await Promise.all(nodePromises)).flatMap(nodeChunk => nodeChunk),
+    }),
+    // This is used inside parcel query for `.inspectCache`
+    bufferLength,
+  };
+}
+
 async function loadRequestGraph(options): Async<RequestGraph> {
   if (options.shouldDisableCache) {
     return new RequestGraph();
   }
 
-  let cacheKey = getCacheKey(options.entries, options.mode);
-  let requestGraphKey =
-    hashString(`${cacheKey}:requestGraph`);
+  let cacheKey = getCacheKey(options);
+  let requestGraphKey = `requestGraph-${cacheKey}`;
+
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
-    let requestGraph: RequestGraph = deserialize(
-      await options.cache.getLargeBlob(requestGraphKey),
+    let {requestGraph} = await readAndDeserializeRequestGraph(
+      options.cache,
+      requestGraphKey,
+      cacheKey,
     );
+
     let opts = getWatcherOptions(options);
-    let snapshotKey = hashString(`${cacheKey}:snapshot`);
+    let snapshotKey = `snapshot-${cacheKey}`;
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.watchDir,
       snapshotPath,
       opts,
     );
+
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateOnBuildNodes();
     requestGraph.invalidateEnvNodes(options.env);

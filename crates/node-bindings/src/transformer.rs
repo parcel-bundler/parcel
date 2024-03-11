@@ -49,44 +49,60 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[napi]
-pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsObject> {
-  let mut code = opts.get_named_property::<JsBuffer>("code")?.into_ref()?;
-  let map: Result<JsBuffer> = opts.get_named_property::<JsUnknown>("map")?.try_into();
-  let mut map = if let Ok(buf) = map {
-    Some(buf.into_ref()?)
-  } else {
-    None
-  };
+mod native_only {
+  use super::*;
+  use parcel_macros::napi::create_macro_callback;
 
-  let config: Config2 = env.from_js_value(opts)?;
-  let asset_id = AssetId(config.asset_id);
-
-  let (deferred, promise) = env.create_deferred()?;
-  let db = db.db();
-
-  rayon::spawn(move || {
-    let transformer_config = db.with(|db| convert_config(db, &config));
-    let result = parcel_js_swc_core::transform(&code, &transformer_config);
-    deferred.resolve(move |env| {
-      let res = db.with(|db| {
-        convert_result(
-          db,
-          asset_id,
-          &config,
-          map.as_ref().map(|m| m.as_ref()),
-          result,
-        )
-      });
-      code.unref(env)?;
-      if let Some(map) = &mut map {
-        map.unref(env)?;
+  #[napi]
+  pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsObject> {
+    let call_macro = if opts.has_named_property("callMacro")? {
+      let func = opts.get_named_property::<JsUnknown>("callMacro")?;
+      if let Ok(func) = func.try_into() {
+        Some(create_macro_callback(func, env)?)
+      } else {
+        None
       }
-      env.to_js_value(&res)
-    })
-  });
+    } else {
+      None
+    };
 
-  Ok(promise)
+    let mut code = opts.get_named_property::<JsBuffer>("code")?.into_ref()?;
+    let map: Result<JsBuffer> = opts.get_named_property::<JsUnknown>("map")?.try_into();
+    let mut map = if let Ok(buf) = map {
+      Some(buf.into_ref()?)
+    } else {
+      None
+    };
+
+    let config: Config2 = env.from_js_value(opts)?;
+    let asset_id = AssetId(config.asset_id);
+
+    let (deferred, promise) = env.create_deferred()?;
+    let db = db.db();
+
+    rayon::spawn(move || {
+      let transformer_config = db.with(|db| convert_config(db, &config));
+      let result = parcel_js_swc_core::transform(&code, &transformer_config);
+      deferred.resolve(move |env| {
+        let res = db.with(|db| {
+          convert_result(
+            db,
+            asset_id,
+            &config,
+            map.as_ref().map(|m| m.as_ref()),
+            result,
+          )
+        });
+        code.unref(env)?;
+        if let Some(map) = &mut map {
+          map.unref(env)?;
+        }
+        env.to_js_value(&res)
+      })
+    });
+
+    Ok(promise)
+  }
 }
 
 #[derive(Serialize, Debug, Deserialize)]

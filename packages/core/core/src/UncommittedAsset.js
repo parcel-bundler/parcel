@@ -15,6 +15,7 @@ import type {
 import type {
   RequestInvalidation,
   ParcelOptions,
+  Invalidations,
   InternalFileCreateInvalidation,
 } from './types';
 import type {DependencyAddr} from '@parcel/rust';
@@ -36,13 +37,9 @@ import {serializeRaw} from './serializer';
 import {createDependency, dependencyId, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
-import {
-  createAsset,
-  createAssetIdFromOptions,
-  getInvalidationId,
-  getInvalidationHash,
-} from './assetUtils';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {createAsset, createAssetIdFromOptions} from './assetUtils';
+import {createAsset, createAssetIdFromOptions} from './assetUtils';
+import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
 import {
   Asset as DbAsset,
@@ -63,8 +60,7 @@ type UncommittedAssetOptions = {|
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
-  invalidations?: Map<string, RequestInvalidation>,
-  fileCreateInvalidations?: Array<InternalFileCreateInvalidation>,
+  invalidations?: Invalidations,
   dependencies?: Map<number, DependencyAddr>,
 |};
 
@@ -78,8 +74,7 @@ export default class UncommittedAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
-  invalidations: Map<string, RequestInvalidation>;
-  fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
+  invalidations: Invalidations;
   generate: ?() => Promise<GenerateOutput>;
 
   dependencies: Map<number, DependencyAddr>;
@@ -98,7 +93,6 @@ export default class UncommittedAsset {
     isASTDirty,
     idBase,
     invalidations,
-    fileCreateInvalidations,
     plugin,
     configPath,
     configKeyPath,
@@ -111,8 +105,7 @@ export default class UncommittedAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
-    this.invalidations = invalidations || new Map();
-    this.fileCreateInvalidations = fileCreateInvalidations || [];
+    this.invalidations = invalidations || createInvalidations();
     this.plugin = plugin;
     this.configPath = configPath;
     this.configKeyPath = configKeyPath;
@@ -168,11 +161,6 @@ export default class UncommittedAsset {
 
     this.value.meta = JSON.stringify(this.meta);
     this.value.outputHash = outputHash;
-    // this.value.outputHash = hashString(
-    //   (this.hash ?? '') +
-    //     pipelineKey +
-    //     (await getInvalidationHash(this.getInvalidations(), this.options)),
-    // );
 
     if (this.content != null) {
       this.value.stats.size = size;
@@ -419,31 +407,25 @@ export default class UncommittedAsset {
   }
 
   invalidateOnFileChange(filePath: ProjectPath) {
-    let invalidation: RequestInvalidation = {
-      type: 'file',
-      filePath,
-    };
-
-    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+    this.invalidations.invalidateOnFileChange.add(filePath);
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
-    this.fileCreateInvalidations.push(
+    this.invalidations.invalidateOnFileCreate.push(
       invalidateOnFileCreateToInternal(this.options.projectRoot, invalidation),
     );
   }
 
   invalidateOnEnvChange(key: string) {
-    let invalidation: RequestInvalidation = {
-      type: 'env',
-      key,
-    };
-
-    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+    this.invalidations.invalidateOnEnvChange.add(key);
   }
 
-  getInvalidations(): Array<RequestInvalidation> {
-    return [...this.invalidations.values()];
+  invalidateOnBuild() {
+    this.invalidations.invalidateOnBuild = true;
+  }
+
+  invalidateOnStartup() {
+    this.invalidations.invalidateOnStartup = true;
   }
 
   getDependencies(): Array<DependencyAddr> {
@@ -495,7 +477,6 @@ export default class UncommittedAsset {
       mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
       invalidations: this.invalidations,
-      fileCreateInvalidations: this.fileCreateInvalidations,
     });
 
     asset.astGenerator = result.ast

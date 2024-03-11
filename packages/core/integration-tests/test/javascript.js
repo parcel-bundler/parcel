@@ -3265,7 +3265,11 @@ describe('javascript', function () {
 
   it('should warn on process.env mutations in node_modules', async function () {
     let logs = [];
-    let disposable = Logger.onLog(d => logs.push(d));
+    let disposable = Logger.onLog(d => {
+      if (d.level !== 'verbose') {
+        logs.push(d);
+      }
+    });
     let b = await bundle(
       path.join(__dirname, '/integration/env-mutate/warn.js'),
     );

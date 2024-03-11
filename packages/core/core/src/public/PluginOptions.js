@@ -11,8 +11,9 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
-import type {ParcelOptions} from '../types';
+import {type FeatureFlags} from '@parcel/feature-flags';
 import type {ParcelDb} from '@parcel/rust';
+import type {ParcelOptions} from '../types';
 
 let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
   new WeakMap();
@@ -91,5 +92,9 @@ export default class PluginOptions implements IPluginOptions {
 
   get db(): ParcelDb {
     return this.#options.db;
+  }
+
+  get featureFlags(): FeatureFlags {
+    return this.#options.featureFlags;
   }
 }

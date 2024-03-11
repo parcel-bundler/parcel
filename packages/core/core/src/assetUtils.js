@@ -42,7 +42,6 @@ import type BundleGraph from './BundleGraph';
 type AssetOptions = {|
   id?: string,
   committed?: boolean,
-  hash?: ?string,
   idBase?: ?string,
   filePath: ProjectPath,
   query?: ?string,

@@ -269,7 +269,9 @@ export default class BundleGraph {
             ([, t]) => new Set([...t.values()]).size === t.size,
           )
         ) {
-          let starSymbol = nodeValueSymbols.find(s => s.exported === db.starSymbol);
+          let starSymbol = nodeValueSymbols.find(
+            s => s.exported === db.starSymbol,
+          );
           let isReexportAll = starSymbol?.local === db.starSymbol;
           let reexportAllLoc = isReexportAll
             ? nullthrows(starSymbol).loc
@@ -333,7 +335,12 @@ export default class BundleGraph {
                     s.flags = SymbolFlags.IS_WEAK;
                     s.loc = reexportAllLoc;
                   } else {
-                    let local = db.getStringId(`${readCachedString(db, dep.id)}$rewrite$${asset}$${from}`);
+                    let local = db.getStringId(
+                      `${readCachedString(
+                        db,
+                        dep.id,
+                      )}$rewrite$${asset}$${from}`,
+                    );
                     let s = symbols.extend();
                     s.exported = from;
                     s.local = local;
@@ -1191,6 +1198,7 @@ export default class BundleGraph {
         ? firstAsset
         : // Otherwise, find the first asset that belongs to this bundle.
           assets.find(asset => this.bundleHasAsset(bundle, asset)) ||
+          assets.find(a => a.type === bundle.type) ||
           firstAsset;
 
     // If a resolution still hasn't been found, return the first referenced asset.
@@ -1807,7 +1815,7 @@ export default class BundleGraph {
       let symbolLookup = new Map(depSymbols.map(s => [s.local, s]));
       let depSymbol = symbolLookup.get(foundSymbol?.local);
       if (depSymbol != null) {
-        let resolved = this.getResolvedAsset(depId);
+        let resolved = this.getResolvedAsset(depId, boundary);
         if (resolved == null || resolved === assetId) {
           // External module or self-reference
           return {
@@ -1858,7 +1866,7 @@ export default class BundleGraph {
           this.db.starSymbol &&
         symbol !== this.db.defaultSymbol
       ) {
-        let resolved = this.getResolvedAsset(depId);
+        let resolved = this.getResolvedAsset(depId, boundary);
         if (resolved == null) {
           continue;
         }
@@ -2002,7 +2010,7 @@ export default class BundleGraph {
         depSymbols.find(s => s.exported === this.db.starSymbol)?.local ===
         this.db.starSymbol
       ) {
-        let resolved = this.getResolvedAsset(depId);
+        let resolved = this.getResolvedAsset(depId, boundary);
         if (resolved == null) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== this.db.defaultSymbol)
@@ -2079,7 +2087,7 @@ export default class BundleGraph {
   getHash(bundle: Bundle): string {
     let hash = new Hash();
     hash.writeString(
-      bundle.id + String(bundle.target) + this.getContentHash(bundle),
+      bundle.id + JSON.stringify(bundle.target) + this.getContentHash(bundle),
     );
 
     if (bundle.isPlaceholder) {
