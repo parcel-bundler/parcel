@@ -1303,7 +1303,7 @@ function getCacheKey(options) {
   return hashString(
     `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
       options.shouldBuildLazily ? 'lazy' : 'eager'
-    }`,
+    }:${options.baseWatcherOptions.backend ?? ''}`,
   );
 }
 

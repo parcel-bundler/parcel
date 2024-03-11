@@ -666,7 +666,8 @@ export default class PackagerRunner {
         JSON.stringify(configResults) +
         JSON.stringify(globalInfoResults) +
         this.options.mode +
-        (this.options.shouldBuildLazily ? 'lazy' : 'eager'),
+        (this.options.shouldBuildLazily ? 'lazy' : 'eager') +
+        this.options.baseWatcherOptions.backend ?? '',
     );
   }
 
