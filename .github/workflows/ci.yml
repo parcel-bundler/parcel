@@ -2,6 +2,9 @@ name: Continuous Integration
 
 on:
   pull_request:
+  push:
+    branches:
+      - v2
 
 permissions:
   contents: read
@@ -112,8 +115,8 @@ jobs:
   # Deployment steps taken from https://github.com/colinwilson/static-site-to-vercel/blob/master/.github/workflows/deploy-preview.yml
   repl_build:
     name: Build REPL
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
-    needs: [unit_tests]
     permissions:
       deployments: write
     steps:
@@ -137,11 +140,8 @@ jobs:
       - name: Bump max inotify watches
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
       - run: yarn --frozen-lockfile
-      - name: Download @parcel/rust Linux Binaries artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: Rust Linux Binaries
-          path: packages/core/rust
+      - name: Build native packages
+        run: yarn build-native-release
       - run: yarn build
       - run: yarn build-native-wasm
       - run: yarn workspace @parcel/repl build
