@@ -28,12 +28,12 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
-import {replaceScriptDependencies, getSpecifier} from './utils';
-
-// https://262.ecma-international.org/6.0/#sec-names-and-keywords
-const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
-const ID_START_RE = /^[$_\p{ID_Start}]/u;
-const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
+import {
+  replaceScriptDependencies,
+  getSpecifier,
+  makeValidIdentifier,
+} from './utils';
+import {isValidIdentifier} from '@babel/types';
 
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
@@ -354,8 +354,6 @@ export class ScopeHoistingPackager {
     // TODO: handle ESM exports of wrapped entry assets...
     let entry = this.bundle.getMainEntry();
     if (entry && !this.wrappedAssets.has(entry.id)) {
-      let hasNamespace = entry.symbols.hasExportSymbol('*');
-
       for (let {
         asset,
         exportAs,
@@ -363,11 +361,6 @@ export class ScopeHoistingPackager {
         exportSymbol,
       } of this.bundleGraph.getExportedSymbols(entry)) {
         if (typeof symbol === 'string') {
-          // Only export default if the module has a namespace (e.g. commonjs).
-          if (hasNamespace && exportAs !== '*') {
-            continue;
-          }
-
           let symbols = this.exportedSymbols.get(
             symbol === '*' ? nullthrows(entry.symbols.get('*')?.local) : symbol,
           )?.exportAs;
@@ -408,8 +401,8 @@ export class ScopeHoistingPackager {
   }
 
   getTopLevelName(name: string): string {
-    name = name.replace(NON_ID_CONTINUE_RE, '');
-    if (!ID_START_RE.test(name) || this.globalNames.has(name)) {
+    name = makeValidIdentifier(name);
+    if (this.globalNames.has(name)) {
       name = '_' + name;
     }
 
@@ -424,7 +417,7 @@ export class ScopeHoistingPackager {
   }
 
   getPropertyAccess(obj: string, property: string): string {
-    if (IDENTIFIER_RE.test(property)) {
+    if (isValidIdentifier(property)) {
       return `${obj}.${property}`;
     }
 

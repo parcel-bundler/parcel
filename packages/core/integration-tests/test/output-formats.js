@@ -1299,7 +1299,9 @@ describe('output formats', function () {
       );
 
       let ns = await run(b);
-      assert.deepEqual(ns.default, {test: true});
+      assert.deepEqual(ns.test, true);
+      assert.deepEqual(ns.default, {test: true, 'foo-bar': true});
+      assert.deepEqual(ns['foo-bar'], true);
     });
 
     it('should support outputting .mjs files', async function () {
