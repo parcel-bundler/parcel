@@ -13,6 +13,7 @@ import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
 import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+import os from 'node:os';
 
 const program = new commander.Command();
 
@@ -66,9 +67,31 @@ process.on('unhandledRejection', handleUncaughtException);
 program.storeOptionsAsProperties();
 program.version(version);
 
+// Only display choices available to callers OS
+let watcherBackendChoices = ['brute-force'];
+switch (os.platform()) {
+  case 'darwin': {
+    watcherBackendChoices.push('watchman', 'fs-events');
+    break;
+  }
+  case 'linux': {
+    watcherBackendChoices.push('watchman', 'inotify');
+    break;
+  }
+  case 'win32': {
+    watcherBackendChoices.push('watchman', 'windows');
+    break;
+  }
+  case 'freebsd' || 'openbsd': {
+    watcherBackendChoices.push('watchman');
+    break;
+  }
+  default:
+    break;
+}
+
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
 // --no-content-hash, --experimental-scope-hoisting, --detailed-report
-
 const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
   '--config <path>':
@@ -80,7 +103,7 @@ const commonOptions = {
   '--watcher-backend': new commander.Option(
     '--watcher-backend <name>',
     'set watcher backend',
-  ).choices(['fs-events', 'watchman', 'inotify', 'windows', 'brute-force']),
+  ).choices(watcherBackendChoices),
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
