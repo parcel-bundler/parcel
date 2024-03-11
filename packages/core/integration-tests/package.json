@@ -21,6 +21,7 @@
     "@babel/preset-typescript": "^7.22.11",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@mdx-js/react": "^1.5.3",
+    "@types/react": "^17",
     "autoprefixer": "^10.4.0",
     "chalk": "^4.1.0",
     "command-exists": "^1.2.6",
