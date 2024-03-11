@@ -31,9 +31,9 @@ import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
 import {
   replaceScriptDependencies,
   getSpecifier,
+  isValidIdentifier,
   makeValidIdentifier,
 } from './utils';
-import {isValidIdentifier} from '@babel/types';
 
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
