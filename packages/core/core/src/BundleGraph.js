@@ -1888,17 +1888,6 @@ export default class BundleGraph {
     return node.value;
   }
 
-  getDependencyById(contentKey: string): Dependency {
-    let node = this._graph.getNodeByContentKey(contentKey);
-    if (node == null) {
-      throw new Error('Node not found');
-    } else if (node.type !== 'dependency') {
-      throw new Error('Node was not an asset');
-    }
-
-    return node.value;
-  }
-
   getAssetPublicId(asset: Asset): string {
     let publicId = this._publicIdByAssetId.get(asset.id);
     if (publicId == null) {

@@ -20,7 +20,7 @@
     "react-dom": "18.3.0-canary-feed8f3f9-20240118",
     "react-server-dom-parcel": "file:/Users/devongovett/dev/react/build/oss-stable/react-server-dom-parcel",
     "rsc-html-stream": "0.0.2",
-    "@parcel/rsc": "*"
+    "@parcel/macros": "^2.12.0"
   },
   "@parcel/resolver-default": {
     "packageExports": true

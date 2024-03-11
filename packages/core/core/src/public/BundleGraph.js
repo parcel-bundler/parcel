@@ -72,10 +72,6 @@ export default class BundleGraph<TBundle: IBundle>
     return assetFromValue(this.#graph.getAssetById(id), this.#options);
   }
 
-  getDependencyById(id: string): Dependency {
-    return getPublicDependency(this.#graph.getDependencyById(id), this.#options);
-  }
-
   getAssetPublicId(asset: IAsset): string {
     return this.#graph.getAssetPublicId(assetToAssetValue(asset));
   }

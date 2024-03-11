@@ -1457,8 +1457,6 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
 export interface BundleGraph<TBundle: Bundle> {
   /** Retrieves an asset by id. */
   getAssetById(id: string): Asset;
-  /** Retrieves a dependency by id. */
-  getDependencyById(id: string): Dependency;
   /** Returns the public (short) id for an asset. */
   getAssetPublicId(asset: Asset): string;
   /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
