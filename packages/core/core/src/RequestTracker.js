@@ -1289,18 +1289,17 @@ export default class RequestTracker {
   }
 }
 
-export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
+export function getWatcherOptions({
+  watchIgnore = [],
+  cacheDir,
+  projectRoot,
+  watchBackend,
+}: ParcelOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
-  const watchIgnore = options.watchIgnore
-    ? options.watchIgnore.filter(dir => !vcsDirs.includes(dir)).concat(vcsDirs)
-    : vcsDirs;
+  const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
+  const ignore = uniqueDirs.map(dir => path.join(projectRoot, dir));
 
-  const ignore = watchIgnore.map(dir => path.join(options.projectRoot, dir));
-
-  return {
-    ignore: [options.cacheDir, ...ignore],
-    backend: options.watchBackend,
-  };
+  return {ignore, backend: watchBackend};
 }
 
 function getCacheKey(options) {
