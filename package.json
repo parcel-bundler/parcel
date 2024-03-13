@@ -31,7 +31,7 @@
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
     "dev:release": "lerna publish -y --canary --preid dev --dist-tag=dev --exact --force-publish=* --no-git-tag-version --no-push",
-    "canary:release": "lerna publish -y --canary --preid canary --dist-tag=canary --exact --force-publish=* --no-git-tag-version --no-push",
+    "canary:release": "PARCEL_CANARY_BUILD=true lerna publish -y --canary --preid canary --dist-tag=canary --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions --exact",
     "tag:release": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
     "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
