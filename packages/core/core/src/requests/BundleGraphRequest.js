@@ -193,9 +193,7 @@ class BundlerRunner {
       hashString(
         `${PARCEL_VERSION}:BundleGraph:${
           JSON.stringify(options.entries) ?? ''
-        }${options.mode}${options.shouldBuildLazily ? 'lazy' : 'eager'}${
-          options.baseWatcherOptions.backend ?? ''
-        }`,
+        }${options.mode}${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
       ) + '-BundleGraph';
   }
 

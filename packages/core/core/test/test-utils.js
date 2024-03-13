@@ -18,7 +18,8 @@ cache.ensure();
 export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: path.join(__dirname, '.parcel-cache'),
   watchDir: __dirname,
-  baseWatcherOptions: {},
+  watchIgnore: undefined,
+  watchBackend: undefined,
   entries: [],
   logLevel: 'info',
   targets: undefined,

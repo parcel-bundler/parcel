@@ -99,8 +99,8 @@ const commonOptions = {
   '--watch-dir <path>':
     'set the root watch directory. defaults to nearest lockfile or source control dir.',
   '--watch-ignore [path]': `list of directories watcher should not be tracking for changes. defaults to ['.git', '.hg']`,
-  '--watcher-backend': new commander.Option(
-    '--watcher-backend <name>',
+  '--watch-backend': new commander.Option(
+    '--watch-backend <name>',
     'set watcher backend',
   ).choices(watcherBackendChoices),
   '--no-source-maps': 'disable sourcemaps',
@@ -529,10 +529,8 @@ async function normalizeOptions(
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
     watchDir: command.watchDir,
-    baseWatcherOptions: {
-      backend: command.watcherBackend,
-      ignore: command.watcherIgnoreDirs,
-    },
+    watchBackend: command.watchBackend,
+    watchIgnore: command.watchIgnore,
     config: command.config,
     mode,
     hmrOptions,

@@ -33,7 +33,7 @@ import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
 import type {EventType} from '@parcel/watcher';
 import type {FeatureFlags} from '@parcel/feature-flags';
-import type {Options as WatcherOptions} from '@parcel/watcher';
+import type {BackendType} from '@parcel/watcher';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -267,6 +267,8 @@ export type DevDepRequest = {|
   |}>,
 |};
 
+declare type GlobPattern = string;
+
 export type ParcelOptions = {|
   entries: Array<ProjectPath>,
   config?: DependencySpecifier,
@@ -276,7 +278,8 @@ export type ParcelOptions = {|
   shouldDisableCache: boolean,
   cacheDir: FilePath,
   watchDir: FilePath,
-  baseWatcherOptions: WatcherOptions,
+  watchIgnore?: Array<FilePath | GlobPattern>,
+  watchBackend?: BackendType,
   mode: BuildMode,
   hmrOptions: ?HMROptions,
   shouldContentHash: boolean,

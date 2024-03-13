@@ -161,9 +161,7 @@ export class AssetGraphBuilder {
       hashString(
         `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${
           options.mode
-        }${options.shouldBuildLazily ? 'lazy' : 'eager'}${
-          options.baseWatcherOptions.backend ?? ''
-        }`,
+        }${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
       ) + '-AssetGraph';
 
     this.isSingleChangeRebuild =

@@ -1290,12 +1290,18 @@ export default class RequestTracker {
 }
 
 export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
-  let ignore = (options.baseWatcherOptions.ignore ?? ['.git', '.hg']).map(dir =>
-    path.join(options.projectRoot, dir),
-  );
+  const defaultIgnoreDirs = ['.git', '.hg'];
+  const watchIgnore = options.watchIgnore
+    ? options.watchIgnore
+        .filter(dir => !defaultIgnoreDirs.includes(dir))
+        .concat(defaultIgnoreDirs)
+    : defaultIgnoreDirs;
+
+  const ignore = watchIgnore.map(dir => path.join(options.projectRoot, dir));
+
   return {
     ignore: [options.cacheDir, ...ignore],
-    backend: options.baseWatcherOptions.backend,
+    backend: options.watchBackend,
   };
 }
 
@@ -1303,7 +1309,7 @@ function getCacheKey(options) {
   return hashString(
     `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
       options.shouldBuildLazily ? 'lazy' : 'eager'
-    }:${options.baseWatcherOptions.backend ?? ''}`,
+    }:${options.watchBackend ?? ''}`,
   );
 }
 
