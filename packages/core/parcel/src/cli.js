@@ -13,7 +13,6 @@ import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
 import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
-import os from 'node:os';
 
 const program = new commander.Command();
 
@@ -69,7 +68,7 @@ program.version(version);
 
 // Only display choices available to callers OS
 let watcherBackendChoices = ['brute-force'];
-switch (os.platform()) {
+switch (process.platform) {
   case 'darwin': {
     watcherBackendChoices.push('watchman', 'fs-events');
     break;
