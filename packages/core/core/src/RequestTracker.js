@@ -1290,12 +1290,10 @@ export default class RequestTracker {
 }
 
 export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
-  const defaultIgnoreDirs = ['.git', '.hg'];
+  const vcsDirs = ['.git', '.hg'];
   const watchIgnore = options.watchIgnore
-    ? options.watchIgnore
-        .filter(dir => !defaultIgnoreDirs.includes(dir))
-        .concat(defaultIgnoreDirs)
-    : defaultIgnoreDirs;
+    ? options.watchIgnore.filter(dir => !vcsDirs.includes(dir)).concat(vcsDirs)
+    : vcsDirs;
 
   const ignore = watchIgnore.map(dir => path.join(options.projectRoot, dir));
 
