@@ -1289,17 +1289,24 @@ export default class RequestTracker {
   }
 }
 
-export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
-  let vcsDirs = ['.git', '.hg'].map(dir => path.join(options.projectRoot, dir));
-  let ignore = [options.cacheDir, ...vcsDirs];
-  return {ignore};
+export function getWatcherOptions({
+  watchIgnore = [],
+  cacheDir,
+  projectRoot,
+  watchBackend,
+}: ParcelOptions): WatcherOptions {
+  const vcsDirs = ['.git', '.hg'];
+  const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
+  const ignore = uniqueDirs.map(dir => path.join(projectRoot, dir));
+
+  return {ignore, backend: watchBackend};
 }
 
 function getCacheKey(options) {
   return hashString(
     `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
       options.shouldBuildLazily ? 'lazy' : 'eager'
-    }`,
+    }:${options.watchBackend ?? ''}`,
   );
 }
 
