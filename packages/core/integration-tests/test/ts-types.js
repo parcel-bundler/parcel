@@ -466,6 +466,7 @@ describe('typescript types', function () {
       index.ts:
         export * from "./ErrorBoundary";
         export * from "./ErrorBoundaryContext";
+        export * from "./Component";
 
       foo.js:
         import {baz} from './baz';
@@ -495,6 +496,11 @@ describe('typescript types', function () {
             );
           }
         }
+
+      Component.tsx:
+        export function Foo() {
+          return <h1>Foo</h1>;
+        }
     `;
 
     let b = await bundle(path.join(dir, '/index.ts'), {
@@ -505,12 +511,13 @@ describe('typescript types', function () {
     let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert.equal(
       output,
-      `import { Context, Component, PropsWithChildren, ProviderProps, FunctionComponentElement } from "react";
+      `import { Context, Component, PropsWithChildren, ProviderProps, FunctionComponentElement, JSX } from "react";
 export type ErrorBoundaryContextType = {};
 export const ErrorBoundaryContext: Context<ErrorBoundaryContextType>;
 export class ErrorBoundary extends Component<PropsWithChildren> {
     render(): FunctionComponentElement<ProviderProps<ErrorBoundaryContextType>>;
 }
+export function Foo(): JSX.Element;
 
 //# sourceMappingURL=types.d.ts.map
 `,
