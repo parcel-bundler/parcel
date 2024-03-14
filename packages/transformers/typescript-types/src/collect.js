@@ -2,7 +2,7 @@
 import type {TSModuleGraph} from './TSModuleGraph';
 
 import nullthrows from 'nullthrows';
-import ts from 'typescript';
+import ts, {type EntityName} from 'typescript';
 import {TSModule} from './TSModule';
 import {getExportedName, isDeclaration} from './utils';
 
@@ -91,16 +91,9 @@ export function collect(
       ts.isStringLiteral(node.argument.literal)
     ) {
       let local = `$$parcel$import$${moduleGraph.syntheticImportCount++}`;
-      if (node.qualifier) {
-        currentModule.addImport(
-          local,
-          node.argument.literal.text,
-          node.qualifier.text,
-        );
-      } else {
-        currentModule.addImport(local, node.argument.literal.text, '*');
-      }
-      return factory.createTypeReferenceNode(local, node.typeArguments);
+      let [specifier, entity] = getImportName(node.qualifier, local, factory);
+      currentModule.addImport(local, node.argument.literal.text, specifier);
+      return factory.createTypeReferenceNode(entity, node.typeArguments);
     }
 
     // Handle `export default name;`
@@ -141,4 +134,24 @@ export function collect(
   };
 
   return ts.visitNode(sourceFile, visit);
+}
+
+// Traverse down an EntityName to the root identifier. Return that to use as the named import specifier,
+// and collect the remaining parts into a new QualifiedName with the local replacement at the root.
+// import('react').JSX.Element => import {JSX} from 'react'; JSX.Element
+function getImportName(
+  qualifier: ?EntityName,
+  local: string,
+  factory: typeof ts,
+) {
+  if (!qualifier) {
+    return ['*', factory.createIdentifier(local)];
+  }
+
+  if (qualifier.kind === ts.SyntaxKind.Identifier) {
+    return [qualifier.text, factory.createIdentifier(local)];
+  }
+
+  let [name, entity] = getImportName(qualifier.left, local, factory);
+  return [name, factory.createQualifiedName(entity, qualifier.right)];
 }
