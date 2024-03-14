@@ -48,6 +48,7 @@ export type DiagnosticCodeFrame = {|
 
 /** A JSON object (as in "map") */
 type JSONObject = {
+  // $FlowFixMe
   [key: string]: any,
 };
 
