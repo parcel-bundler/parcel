@@ -426,10 +426,9 @@ export default class Parcel {
         }
 
         let isInvalid = this.#requestTracker.respondToFSEvents(
-          events.map(e => ({
-            type: e.type,
-            path: toProjectPath(resolvedOptions.projectRoot, e.path),
-          })),
+          events,
+          resolvedOptions.projectRoot,
+          Number.POSITIVE_INFINITY,
         );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
