@@ -1413,7 +1413,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     }, 5000);
     let startTime = Date.now();
     let events = await options.inputFS.getEventsSince(
-      options.projectRoot,
+      options.watchDir,
       snapshotPath,
       opts,
     );
