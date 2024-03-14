@@ -31,7 +31,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
-import type {EventType} from '@parcel/watcher';
+import type {Event} from '@parcel/watcher';
 import type {FeatureFlags} from '@parcel/feature-flags';
 import type {BackendType} from '@parcel/watcher';
 
@@ -295,10 +295,7 @@ export type ParcelOptions = {|
   shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
-  unstableFileInvalidations?: Array<{|
-    path: FilePath,
-    type: EventType,
-  |}>,
+  unstableFileInvalidations?: Array<Event>,
 
   inputFS: FileSystem,
   outputFS: FileSystem,

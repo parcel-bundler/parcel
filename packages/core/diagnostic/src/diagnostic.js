@@ -46,6 +46,18 @@ export type DiagnosticCodeFrame = {|
   codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
+type JSONValue =
+  | null
+  | void // ? Is this okay?
+  | boolean
+  | number
+  | string
+  | Array<JSONValue>
+  | JSONObject;
+
+/** A JSON object (as in "map") */
+type JSONObject = {[key: string]: JSONValue, ...};
+
 /**
  * A style agnostic way of emitting errors, warnings and info.
  * Reporters are responsible for rendering the message, codeframes, hints, ...
@@ -72,6 +84,9 @@ export type Diagnostic = {|
 
   /** A URL to documentation to learn more about the diagnostic. */
   documentationURL?: string,
+
+  /** Diagnostic specific metadata (optional) */
+  meta?: JSONObject,
 |};
 
 // This type should represent all error formats Parcel can encounter...

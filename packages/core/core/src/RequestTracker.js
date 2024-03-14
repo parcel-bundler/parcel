@@ -2,7 +2,7 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, EnvMap} from '@parcel/types';
-import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
+import type {Options as WatcherOptions, Event} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {
   ContentGraphOpts,
@@ -750,10 +750,37 @@ export class RequestGraph extends ContentGraph<
   }
 
   respondToFSEvents(
-    events: Array<{|path: ProjectPath, type: EventType|}>,
+    events: Array<Event>,
+    projectRoot: string,
+    threshold: number,
   ): boolean {
     let didInvalidate = false;
-    for (let {path: _filePath, type} of events) {
+    let count = 0;
+    let predictedTime = 0;
+    let startTime = Date.now();
+
+    for (let {path: _path, type} of events) {
+      if (++count === 256) {
+        let duration = Date.now() - startTime;
+        predictedTime = duration * (events.length >> 8);
+        if (predictedTime > threshold) {
+          logger.warn({
+            origin: '@parcel/core',
+            message:
+              'Building with clean cache. Cache invalidation took too long.',
+            meta: {
+              trackableEvent: 'cache_invalidation_timeout',
+              watcherEventCount: events.length,
+              predictedTime,
+            },
+          });
+          throw new Error(
+            'Responding to file system events exceeded threshold, start with empty cache.',
+          );
+        }
+      }
+
+      let _filePath = toProjectPath(projectRoot, _path);
       let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
 
@@ -761,12 +788,13 @@ export class RequestGraph extends ContentGraph<
       // this means the project root was moved and we need to
       // re-run all requests.
       if (type === 'create' && filePath === '') {
-        // $FlowFixMe(incompatible-call) `trackableEvent` isn't part of the Diagnostic interface
         logger.verbose({
           origin: '@parcel/core',
           message:
             'Watcher reported project root create event. Invalidate all nodes.',
-          trackableEvent: 'project_root_create',
+          meta: {
+            trackableEvent: 'project_root_create',
+          },
         });
         for (let [id, node] of this.nodes.entries()) {
           if (node?.type === REQUEST) {
@@ -859,6 +887,17 @@ export class RequestGraph extends ContentGraph<
         this.removeNode(nodeId);
       }
     }
+
+    let duration = Date.now() - startTime;
+    logger.verbose({
+      origin: '@parcel/core',
+      message: `RequestGraph.respondToFSEvents duration: ${duration}`,
+      meta: {
+        trackableEvent: 'fsevent_response_time',
+        duration,
+        predictedTime,
+      },
+    });
 
     return didInvalidate && this.invalidNodeIds.size > 0;
   }
@@ -994,9 +1033,11 @@ export default class RequestTracker {
   }
 
   respondToFSEvents(
-    events: Array<{|path: ProjectPath, type: EventType|}>,
+    events: Array<Event>,
+    projectRoot: string,
+    threshold: number,
   ): boolean {
-    return this.graph.respondToFSEvents(events);
+    return this.graph.respondToFSEvents(events, projectRoot, threshold);
   }
 
   hasInvalidRequests(): boolean {
@@ -1363,24 +1404,48 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     let opts = getWatcherOptions(options);
     let snapshotKey = `snapshot-${cacheKey}`;
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
+
+    let timeout = setTimeout(() => {
+      logger.warn({
+        origin: '@parcel/core',
+        message: `Retrieving file system events since last build...\nThis can take upto a minute after branch changes or npm/yarn installs.`,
+      });
+    }, 5000);
+    let startTime = Date.now();
     let events = await options.inputFS.getEventsSince(
-      options.watchDir,
+      options.projectRoot,
       snapshotPath,
       opts,
     );
+    clearTimeout(timeout);
+
+    logger.verbose({
+      origin: '@parcel/core',
+      message: `File system event count: ${events.length}`,
+      meta: {
+        trackableEvent: 'watcher_events_count',
+        watcherEventCount: events.length,
+        duration: Date.now() - startTime,
+      },
+    });
 
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateOnBuildNodes();
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
-    requestGraph.respondToFSEvents(
-      (options.unstableFileInvalidations || events).map(e => ({
-        type: e.type,
-        path: toProjectPath(options.projectRoot, e.path),
-      })),
-    );
 
-    return requestGraph;
+    try {
+      requestGraph.respondToFSEvents(
+        options.unstableFileInvalidations || events,
+        options.projectRoot,
+        10000,
+      );
+      return requestGraph;
+    } catch (e) {
+      // This error means respondToFSEvents timed out handling the invalidation events
+      // In this case we'll return a fresh RequestGraph
+      return new RequestGraph();
+    }
   }
 
   return new RequestGraph();
