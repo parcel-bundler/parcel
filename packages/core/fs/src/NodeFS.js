@@ -238,7 +238,7 @@ function shouldUseOsTmpDir(filePath) {
     const tmpDirStats = nativeFS.statSync(tmpDir);
     const filePathStats = nativeFS.statSync(filePath);
     // Check the tmpdir is on the same partition as the target directory.
-    // This is required to allow renaming to occur.
+    // This is required to ensure renaming is an atomic operation.
     useOsTmpDir = tmpDirStats.dev === filePathStats.dev;
   } catch (e) {
     // We don't have read/write access to the OS tmp directory
