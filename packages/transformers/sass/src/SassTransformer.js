@@ -41,11 +41,13 @@ export default (new Transformer({
     }
 
     // Always emit sourcemap
-    configResult.sourceMap = true;
-    // sources are created relative to the directory of outFile
-    configResult.outFile = path.join(options.projectRoot, 'style.css.map');
-    configResult.omitSourceMapUrl = true;
-    configResult.sourceMapContents = false;
+    configResult.sourceMap = configResult.sourceMap ?? true;
+    if (configResult.sourceMap) {
+      // sources are created relative to the directory of outFile
+      configResult.outFile = path.join(options.projectRoot, 'style.css.map');
+      configResult.omitSourceMapUrl = true;
+      configResult.sourceMapContents = false;
+    }
 
     return configResult;
   },
