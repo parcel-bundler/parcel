@@ -268,7 +268,15 @@ export function toDbSourceLocationFromInternal(
   return tmpSourceLocation;
 }
 
-export function getCacheKey(options: ParcelOptions): string {
+// TODO Pick does not work for some reason
+export function getCacheKey(
+  options: $ReadOnly<{
+    entries: ParcelOptions['entries'],
+    mode: ParcelOptions['mode'],
+    shouldBuildLazily: ParcelOptions['shouldBuildLazily'],
+    ...
+  }>,
+): string {
   return hashString(
     `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
       options.shouldBuildLazily ? 'lazy' : 'eager'

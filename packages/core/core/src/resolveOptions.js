@@ -171,7 +171,7 @@ export default async function resolveOptions(
   };
 
   let db;
-  let dbKey = hashString(`${getCacheKey(entries, mode)}:parceldb`);
+  let dbKey = `parceldb-${getCacheKey({entries, mode, shouldBuildLazily})}`;
   if (outputFS instanceof NodeFS) {
     let cachePath = path.join(cacheDir, dbKey);
     if (await outputFS.exists(cachePath)) {

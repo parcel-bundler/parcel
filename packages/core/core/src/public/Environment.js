@@ -177,7 +177,8 @@ export default class Environment implements IEnvironment {
   }
 
   get id(): string {
-    return this.#environment.addr;
+    // TODO ParcelDB
+    return String(this.#environment.addr);
   }
 
   get context(): EnvironmentContext {

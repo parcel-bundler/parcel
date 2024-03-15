@@ -1139,7 +1139,7 @@ export default class RequestTracker {
     let cacheKey = getCacheKey(this.options);
     let requestGraphKey = `requestGraph-${cacheKey}`;
     let snapshotKey = `snapshot-${cacheKey}`;
-    let dbKey = `parceldb-${cacheKey}:parceldb`;
+    let dbKey = `parceldb-${cacheKey}`;
 
     let total = 2;
     let serialisedGraph = this.graph.serialize();
@@ -1154,15 +1154,7 @@ export default class RequestTracker {
         throw new Error('Serialization was aborted');
       }
 
-      await this.options.cache.setLargeBlob(
-        key,
-        serialize(contents),
-        signal
-          ? {
-              signal: signal,
-            }
-          : undefined,
-      );
+      await this.options.cache.setLargeBlob(key, serialize(contents), {signal});
 
       total += 1;
 
@@ -1269,7 +1261,7 @@ export default class RequestTracker {
       this.options.db.write(cachePath);
     } else {
       let buffer = this.options.db.toBuffer();
-      await this.options.cache.setLargeBlob(dbKey, buffer);
+      await this.options.cache.setLargeBlob(dbKey, buffer, {signal});
     }
 
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
