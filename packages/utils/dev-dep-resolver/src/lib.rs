@@ -103,8 +103,9 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
       ModuleType::CommonJs | ModuleType::Json => &self.cjs_resolver,
       ModuleType::Module => &self.esm_resolver,
     };
-    let contents = resolver.cache.fs.read_to_string(&file)?;
+    let contents = resolver.cache.fs.read_to_string(file)?;
     let module = lex(&contents)?;
+    #[allow(clippy::map_collect_result_unit)]
     module
       .imports()
       // .par_bridge()
@@ -113,7 +114,7 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
           ImportKind::DynamicExpression => {
             if let Some(glob) = specifier_to_glob(&import.specifier()) {
               // println!("GLOB {:?} {:?}", import.specifier(), glob);
-              self.expand_glob(&glob, file, &resolver, &invalidations)?;
+              self.expand_glob(&glob, file, resolver, &invalidations)?;
             } else {
               // println!("DYNAMIC: {} {:?}", import.specifier(), file);
               invalidations.invalidate_on_startup();
@@ -125,27 +126,25 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
               return Ok(());
             }
 
-            match resolver.resolve_with_invalidations(
+            if let Ok((Resolution::Path(p), _)) = resolver.resolve_with_invalidations(
               &import.specifier(),
-              &file,
+              file,
               SpecifierType::Esm,
               &invalidations,
               ResolveOptions::default(),
             ) {
-              Ok((Resolution::Path(p), _)) => {
-                // println!(
-                //   "IMPORT {} {:?} {:?} {:?}",
-                //   import.specifier(),
-                //   import.kind(),
-                //   file,
-                //   p
-                // );
-                invalidations.invalidate_on_file_change(&p);
-                self.build(&p)?;
-              }
+              // println!(
+              //   "IMPORT {} {:?} {:?} {:?}",
+              //   import.specifier(),
+              //   import.kind(),
+              //   file,
+              //   p
+              // );
+              invalidations.invalidate_on_file_change(&p);
+              self.build(&p)?;
+            } else {
               // Ignore dependencies that don't resolve to anything.
               // The resolver calls invalidate_on_file_create already.
-              _ => {}
             }
           }
           ImportKind::Meta => {}
@@ -360,7 +359,7 @@ fn read_template_string(mut bytes: &[u8]) -> Option<(Cow<'_, str>, &[u8])> {
   None
 }
 
-fn escape_glob<'a>(s: &'a str) -> Cow<'a, str> {
+fn escape_glob(s: &str) -> Cow<'_, str> {
   let mut result = Cow::Borrowed("");
   let mut start = 0;
   for (index, matched) in s.match_indices(&['*', '?', '[', ']', '{', '}', '(', ')', '!', '\\']) {
@@ -481,7 +480,7 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
   ret
 }
 
-pub fn build_esm_graph<'a, Fs: FileSystem>(
+pub fn build_esm_graph<Fs: FileSystem>(
   file: &Path,
   project_root: &Path,
   resolver_cache: &parcel_resolver::Cache<Fs>,
@@ -492,12 +491,12 @@ pub fn build_esm_graph<'a, Fs: FileSystem>(
     visited_globs: DashSet::new(),
     invalidations: Invalidations::default(),
     cjs_resolver: Resolver::node(
-      Cow::Borrowed(&project_root),
-      CacheCow::Borrowed(&resolver_cache),
+      Cow::Borrowed(project_root),
+      CacheCow::Borrowed(resolver_cache),
     ),
     esm_resolver: Resolver::node_esm(
-      Cow::Borrowed(&project_root),
-      CacheCow::Borrowed(&resolver_cache),
+      Cow::Borrowed(project_root),
+      CacheCow::Borrowed(resolver_cache),
     ),
     cache,
   };

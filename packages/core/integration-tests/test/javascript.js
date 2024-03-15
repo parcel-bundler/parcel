@@ -18,6 +18,7 @@ import {
   distDir,
   outputFS,
   inputFS,
+  fsFixture,
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
@@ -3263,7 +3264,11 @@ describe('javascript', function () {
 
   it('should warn on process.env mutations in node_modules', async function () {
     let logs = [];
-    let disposable = Logger.onLog(d => logs.push(d));
+    let disposable = Logger.onLog(d => {
+      if (d.level !== 'verbose') {
+        logs.push(d);
+      }
+    });
     let b = await bundle(
       path.join(__dirname, '/integration/env-mutate/warn.js'),
     );
@@ -5190,6 +5195,12 @@ describe('javascript', function () {
   it('should not use arrow functions for reexport declarations unless supported', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-arrow-support/index.js'),
+      {
+        // Remove comments containing "=>"
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!content.includes('=>'));
@@ -6324,6 +6335,107 @@ describe('javascript', function () {
     );
     let res = await run(b);
     assert.equal(await res.default, 'target');
+  });
+
+  it('should detect shorthand identifier imports', async function () {
+    const dir = path.join(__dirname, 'js-import-shorthand-identifier');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      package.json:
+        {
+          "name": "app",
+          "private": true,
+          "sideEffects": false
+        }
+
+      index.js:
+        import { tokens, mode } from "./tokens.js";
+
+        export default tokens;
+
+      tokens.js:
+        import { color } from "./color.js";
+
+        export const tokens = {
+          color,
+        };
+
+        export { mode } from "./color.js";
+
+      color.js:
+        export const color = "blue";
+        export const mode = "dark";`;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let output = await run(b);
+    assert.deepEqual(output.default, {color: 'blue'});
+  });
+
+  it('should retain unicode escape sequences', async function () {
+    // See issue #8877
+    await fsFixture(overlayFS, __dirname)`
+        src/index.js:
+          export default ['\\u0085', '\\u200b', '\\ufffe'];
+      `;
+
+    let b = await bundle(path.join(__dirname, 'src/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let output = (await run(b)).default;
+    assert.deepEqual(output, ['\u0085', '\u200b', '\ufffe']);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert.equal(contents.match(/\\/g).length, 3);
+    assert(!contents.includes('\u0085'));
+    assert(!contents.includes('\u200b'));
+    assert(!contents.includes('\ufffe'));
+  });
+
+  it(`should not wrap assets that are duplicated in different targets`, async function () {
+    const dir = path.join(__dirname, 'multi-target-duplicates');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      shared/index.js:
+        export default 2;
+
+      packages/a/package.json:
+        {
+          "source": "index.js",
+          "module": "dist/module.js"
+        }
+
+      packages/a/index.js:
+        import shared from '../../shared';
+        export default shared + 2;
+
+      packages/b/package.json:
+        {
+          "source": "index.js",
+          "module": "dist/module.js"
+        }
+
+      packages/b/index.js:
+        import shared from '../../shared';
+        export default shared + 2;
+    `;
+
+    let b = await bundle(path.join(dir, '/packages/*'), {
+      inputFS: overlayFS,
+    });
+
+    for (let bundle of b.getBundles()) {
+      let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+      assert(
+        !contents.includes('parcelRequire'),
+        'should not include parcelRequire',
+      );
+    }
   });
 
   for (let shouldScopeHoist of [false, true]) {
@@ -7472,7 +7584,9 @@ describe('javascript', function () {
       assert.equal(res.output, 123);
     });
 
-    it('duplicate assets should share module scope', async function () {
+    it(`duplicate assets should share module scope  ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
       let b = await bundle(
         [
           path.join(
@@ -7490,6 +7604,37 @@ describe('javascript', function () {
       let result = await runBundle(b, b.getBundles()[0], {}, {require: false});
 
       assert.equal(await result.output, 2);
+    });
+
+    it(`should work correctly with export called hasOwnProperty ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        js-export-all-hasOwnProperty
+          a.js:
+            export function hasOwnProperty() {
+              throw new Error("Shouldn't be called");
+            }
+          b.js:
+            module.exports = { other: 123 };
+
+          library.js:
+            export * from './a';
+            export * from './b';
+
+          index.js:
+            import * as x from './library';
+            output = sideEffectNoop(x).other;`;
+
+      let b = await bundle(
+        path.join(__dirname, 'js-export-all-hasOwnProperty/index.js'),
+        {
+          ...options,
+          inputFS: overlayFS,
+        },
+      );
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
     });
   }
 });

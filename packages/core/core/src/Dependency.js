@@ -9,7 +9,7 @@ import type {
   SemverRange,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {
   SpecifierType,
   Priority,

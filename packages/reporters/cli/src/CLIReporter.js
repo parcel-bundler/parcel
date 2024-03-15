@@ -15,6 +15,7 @@ import chalk from 'chalk';
 import {getTerminalWidth} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
+import phaseReport from './phaseReport';
 import {
   writeOut,
   updateSpinner,
@@ -29,6 +30,10 @@ import wrapAnsi from 'wrap-ansi';
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
 const seenPhases = new Set();
+const seenPhasesGen = new Set();
+
+let phaseStartTimes = {};
+let pendingIncrementalBuild = false;
 
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
@@ -71,6 +76,18 @@ export async function _report(
         break;
       }
 
+      if (pendingIncrementalBuild) {
+        pendingIncrementalBuild = false;
+        phaseStartTimes = {};
+        seenPhasesGen.clear();
+        seenPhases.clear();
+      }
+
+      if (!seenPhasesGen.has(event.phase)) {
+        phaseStartTimes[event.phase] = Date.now();
+        seenPhasesGen.add(event.phase);
+      }
+
       if (!isTTY && logLevelFilter != logLevels.verbose) {
         if (event.phase == 'transforming' && !seenPhases.has('transforming')) {
           updateSpinner('Building...');
@@ -84,7 +101,6 @@ export async function _report(
           updateSpinner('Packaging & Optimizing...');
         }
         seenPhases.add(event.phase);
-
         break;
       }
 
@@ -103,6 +119,8 @@ export async function _report(
         break;
       }
 
+      phaseStartTimes['buildSuccess'] = Date.now();
+
       persistSpinner(
         'buildProgress',
         'success',
@@ -116,6 +134,12 @@ export async function _report(
           options.projectRoot,
           options.detailedReport?.assetsPerBundle,
         );
+      } else {
+        pendingIncrementalBuild = true;
+      }
+
+      if (process.env.PARCEL_SHOW_PHASE_TIMES) {
+        phaseReport(phaseStartTimes);
       }
       break;
     case 'buildFailure':
@@ -128,6 +152,22 @@ export async function _report(
       persistSpinner('buildProgress', 'error', chalk.red.bold('Build failed.'));
 
       await writeDiagnostic(options, event.diagnostics, 'red', true);
+      break;
+    case 'cache':
+      if (event.size > 500000) {
+        switch (event.phase) {
+          case 'start':
+            updateSpinner('Writing cache to disk');
+            break;
+          case 'end':
+            persistSpinner(
+              'cache',
+              'success',
+              chalk.grey.bold(`Cache written to disk`),
+            );
+            break;
+        }
+      }
       break;
     case 'log': {
       if (logLevelFilter < logLevels[event.level]) {

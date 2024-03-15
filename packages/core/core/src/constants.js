@@ -5,8 +5,9 @@ import {version} from '../package.json';
 
 export const PARCEL_VERSION = version;
 export const HASH_REF_PREFIX = 'HASH_REF_';
+export const HASH_REF_HASH_LEN = 16;
 export const HASH_REF_REGEX: RegExp = new RegExp(
-  `${HASH_REF_PREFIX}\\w{16}`,
+  `${HASH_REF_PREFIX}\\w{${HASH_REF_HASH_LEN}}`,
   'g',
 );
 

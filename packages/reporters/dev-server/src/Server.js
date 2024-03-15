@@ -186,7 +186,7 @@ export default class Server {
       // If the main asset is an HTML file, serve it
       let htmlBundleFilePaths = this.bundleGraph
         .getBundles()
-        .filter(bundle => bundle.type === 'html')
+        .filter(bundle => path.posix.extname(bundle.name) === '.html')
         .map(bundle => {
           return `/${relativePath(
             this.options.distDir,
@@ -196,6 +196,12 @@ export default class Server {
         });
 
       let indexFilePath = null;
+      let {pathname: reqURL} = url.parse(req.originalUrl || req.url);
+
+      if (!reqURL) {
+        reqURL = '/';
+      }
+
       if (htmlBundleFilePaths.length === 1) {
         indexFilePath = htmlBundleFilePaths[0];
       } else {
@@ -212,11 +218,11 @@ export default class Server {
           let matchesIsIndex = null;
           if (
             isIndex &&
-            (req.url.startsWith(bundleDirSubdir) || req.url === bundleDir)
+            (reqURL.startsWith(bundleDirSubdir) || reqURL === bundleDir)
           ) {
             // bundle is /bar/index.html and (/bar or something inside of /bar/** was requested was requested)
             matchesIsIndex = true;
-          } else if (req.url == path.posix.join(bundleDir, withoutExtension)) {
+          } else if (reqURL == path.posix.join(bundleDir, withoutExtension)) {
             // bundle is /bar/foo.html and /bar/foo was requested
             matchesIsIndex = false;
           }

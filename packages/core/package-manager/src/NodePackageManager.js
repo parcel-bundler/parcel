@@ -31,6 +31,7 @@ import {installPackage} from './installPackage';
 import pkg from '../package.json';
 import {ResolverBase} from '@parcel/node-resolver-core';
 import {pathToFileURL} from 'url';
+import {transformSync} from '@swc/core';
 
 // Package.json fields. Must match package_json.rs.
 const MAIN = 1 << 0;
@@ -41,6 +42,8 @@ const ENTRIES =
   process.env.PARCEL_SELF_BUILD
     ? SOURCE
     : 0);
+
+const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
@@ -58,6 +61,7 @@ export class NodePackageManager implements PackageManager {
   projectRoot: FilePath;
   installer: ?PackageInstaller;
   resolver: ResolverBase;
+  currentExtensions: Array<string>;
 
   constructor(
     fs: FileSystem,
@@ -67,6 +71,11 @@ export class NodePackageManager implements PackageManager {
     this.fs = fs;
     this.projectRoot = projectRoot;
     this.installer = installer;
+
+    // $FlowFixMe - no type for _extensions
+    this.currentExtensions = Object.keys(Module._extensions).map(e =>
+      e.substring(1),
+    );
   }
 
   _createResolver(): ResolverBase {
@@ -96,6 +105,8 @@ export class NodePackageManager implements PackageManager {
               );
             }
           : undefined,
+      extensions: this.currentExtensions,
+      typescript: true,
     });
   }
 
@@ -170,6 +181,17 @@ export class NodePackageManager implements PackageManager {
 
     // $FlowFixMe
     let m = new Module(filePath, Module._cache[from] || module.parent);
+
+    // $FlowFixMe _extensions not in type
+    const extensions = Object.keys(Module._extensions);
+    // This handles supported extensions changing due to, for example, esbuild/register being used
+    // We assume that the extension list will change in size - as these tools usually add support for
+    // additional extensions.
+    if (extensions.length !== this.currentExtensions.length) {
+      this.currentExtensions = extensions.map(e => e.substring(1));
+      this.resolver = this._createResolver();
+    }
+
     // $FlowFixMe[prop-missing]
     Module._cache[filePath] = m;
 
@@ -189,6 +211,29 @@ export class NodePackageManager implements PackageManager {
     nativeFS.statSync = filename => {
       return this.fs.statSync(filename);
     };
+
+    if (!filePath.includes(NODE_MODULES)) {
+      let extname = path.extname(filePath);
+      if (
+        (extname === '.ts' || extname === '.tsx') &&
+        // $FlowFixMe
+        !Module._extensions[extname]
+      ) {
+        let compile = m._compile;
+        m._compile = (code, filename) => {
+          let out = transformSync(code, {filename, module: {type: 'commonjs'}});
+          compile.call(m, out.code, filename);
+        };
+
+        // $FlowFixMe
+        Module._extensions[extname] = (m, filename) => {
+          // $FlowFixMe
+          delete Module._extensions[extname];
+          // $FlowFixMe
+          Module._extensions['.js'](m, filename);
+        };
+      }
+    }
 
     try {
       m.load(filePath);
@@ -225,7 +270,8 @@ export class NodePackageManager implements PackageManager {
       } catch (e) {
         if (
           e.code !== 'MODULE_NOT_FOUND' ||
-          options?.shouldAutoInstall !== true
+          options?.shouldAutoInstall !== true ||
+          id.startsWith('.') // a local file, don't autoinstall
         ) {
           if (
             e.code === 'MODULE_NOT_FOUND' &&

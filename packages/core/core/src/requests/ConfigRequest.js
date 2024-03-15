@@ -24,8 +24,9 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
-import {Hash} from '@parcel/hash';
+import {Hash} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
@@ -125,7 +126,7 @@ export async function runConfigRequest<TResult>(
 
   await api.runRequest<null, void>({
     id: 'config_request:' + configRequest.id,
-    type: 'config_request',
+    type: requestTypes.config_request,
     run: ({api}) => {
       for (let filePath of invalidateOnFileChange) {
         api.invalidateOnFileUpdate(filePath);

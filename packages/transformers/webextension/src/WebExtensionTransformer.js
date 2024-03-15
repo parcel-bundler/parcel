@@ -27,6 +27,7 @@ const DEP_LOCS = [
   ['devtools_page'],
   ['options_ui', 'page'],
   ['sandbox', 'pages'],
+  ['side_panel', 'default_path'],
   ['sidebar_action', 'default_icon'],
   ['sidebar_action', 'default_panel'],
   ['storage', 'managed_schema'],
@@ -93,7 +94,6 @@ async function collectDependencies(
       }
     }
   }
-  let needRuntimeBG = false;
   if (program.content_scripts) {
     for (let i = 0; i < program.content_scripts.length; ++i) {
       const sc = program.content_scripts[i];
@@ -113,7 +113,6 @@ async function collectDependencies(
         }
       }
       if (hot && sc.js && sc.js.length) {
-        needRuntimeBG = true;
         sc.js.push(
           asset.addURLDependency('./runtime/autoreload.js', {
             resolveFrom: __filename,
@@ -266,91 +265,90 @@ async function collectDependencies(
       }
     }
   }
-  if (isMV2) {
-    if (program.background?.page) {
-      program.background.page = asset.addURLDependency(
-        program.background.page,
-        {
-          bundleBehavior: 'isolated',
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
-          },
+  if (program.background?.page) {
+    program.background.page = asset.addURLDependency(program.background.page, {
+      bundleBehavior: 'isolated',
+      loc: {
+        filePath,
+        ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
+      },
+    });
+  } else if (program.background?.service_worker) {
+    program.background.service_worker = asset.addURLDependency(
+      program.background.service_worker,
+      {
+        bundleBehavior: 'isolated',
+        loc: {
+          filePath,
+          ...getJSONSourceLocation(ptrs['/background/service_worker'], 'value'),
         },
-      );
-      if (needRuntimeBG) {
-        asset.meta.webextBGInsert = program.background.page;
-      }
-    }
-    if (hot) {
+        env: {
+          context: 'service-worker',
+          sourceType: program.background.type == 'module' ? 'module' : 'script',
+        },
+      },
+    );
+  }
+  if (hot) {
+    if (isMV2) {
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       program.content_security_policy = cspPatchHMR(
         program.content_security_policy,
       );
-
-      if (needRuntimeBG && !program.background?.page) {
-        if (!program.background) {
-          program.background = {};
-        }
-        if (!program.background.scripts) {
-          program.background.scripts = [];
-        }
-        if (program.background.scripts.length == 0) {
-          program.background.scripts.push(
-            asset.addURLDependency('./runtime/default-bg.js', {
-              resolveFrom: __filename,
-            }),
-          );
-        }
-        asset.meta.webextBGInsert = program.background.scripts[0];
-      }
-    }
-  } else {
-    if (program.background?.service_worker) {
-      program.background.service_worker = asset.addURLDependency(
-        program.background.service_worker,
-        {
-          bundleBehavior: 'isolated',
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(
-              ptrs['/background/service_worker'],
-              'value',
-            ),
-          },
-          env: {
-            context: 'service-worker',
-            sourceType:
-              program.background.type == 'module' ? 'module' : 'script',
-          },
-        },
-      );
-    }
-    if (hot) {
-      // Enable eval HMR for sandbox,
+    } else {
+      // Enable HMR for fetched localhost chunks
       const csp = program.content_security_policy || {};
       csp.extension_pages = cspPatchHMR(
         csp.extension_pages,
-        `http://${hmrOptions?.host || 'localhost'}`,
+        `http://${hmrOptions?.host || 'localhost'}:*`,
       );
       // Sandbox allows eval by default
       if (csp.sandbox) csp.sandbox = cspPatchHMR(csp.sandbox);
       program.content_security_policy = csp;
-      if (needRuntimeBG) {
-        if (!program.background) {
-          program.background = {};
-        }
-        if (!program.background.service_worker) {
-          program.background.service_worker = asset.addURLDependency(
-            './runtime/default-bg.js',
-            {
-              resolveFrom: __filename,
-              env: {context: 'service-worker'},
-            },
-          );
-        }
-        asset.meta.webextBGInsert = program.background.service_worker;
+    }
+
+    if (!program.background) {
+      program.background = {};
+    }
+
+    if (program.background.page) {
+      asset.meta.webextBGInsert = program.background.page;
+    } else if (isMV2 || program.background.scripts) {
+      if (!program.background.scripts) {
+        program.background.scripts = [];
       }
+      if (program.background.scripts.length == 0) {
+        program.background.scripts.push(
+          asset.addURLDependency('./runtime/default-bg.js', {
+            resolveFrom: __filename,
+          }),
+        );
+      }
+      asset.meta.webextBGInsert = program.background.scripts[0];
+    } else {
+      if (!program.background.service_worker) {
+        program.background.service_worker = asset.addURLDependency(
+          './runtime/default-bg.js',
+          {
+            resolveFrom: __filename,
+            env: {context: 'service-worker'},
+          },
+        );
+      }
+      asset.meta.webextBGInsert = program.background.service_worker;
+    }
+
+    if (!program.permissions) program.permissions = [];
+    if (!isMV2 && !program.permissions.includes('scripting')) {
+      program.permissions.push('scripting');
+    }
+    const hostPerms = [
+      ...new Set(program.content_scripts?.flatMap(sc => sc.matches)),
+    ];
+    if (isMV2) program.permissions = program.permissions.concat(hostPerms);
+    else {
+      if (!program.host_permissions) program.host_permissions = [];
+      program.host_permissions = program.host_permissions.concat(hostPerms);
     }
   }
 }

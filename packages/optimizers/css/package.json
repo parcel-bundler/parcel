@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-css",
-  "version": "2.9.3",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,15 +17,21 @@
   "source": "src/CSSOptimizer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.9.3"
+    "parcel": "^2.12.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.9.3",
-    "@parcel/plugin": "2.9.3",
+    "@parcel/diagnostic": "2.12.0",
+    "@parcel/plugin": "2.12.0",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.9.3",
+    "@parcel/utils": "2.12.0",
     "browserslist": "^4.6.6",
-    "lightningcss": "^1.16.1",
+    "lightningcss": "^1.22.1",
     "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
+    "lightningcss-wasm": "^1.22.1"
+  },
+  "browser": {
+    "lightningcss": "lightningcss-wasm"
   }
 }

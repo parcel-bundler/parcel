@@ -2,6 +2,7 @@
 import {Transformer} from '@parcel/plugin';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 import * as atom from './atom';
+import * as processingInstruction from './processing-instruction';
 import * as rss from './rss';
 
 const HANDLERS = {
@@ -24,13 +25,14 @@ export default (new Transformer({
       : {};
 
     walk(dom, node => {
-      if (node.nodeType !== 1) {
-        return;
-      }
-
-      let handler = node.namespaceURI
-        ? HANDLERS[node.namespaceURI]?.[node.localName]
-        : nonNamespacedHandlers[node.nodeName];
+      let handler =
+        node.nodeType === node.ELEMENT_NODE
+          ? node.namespaceURI
+            ? HANDLERS[node.namespaceURI]?.[node.localName]
+            : nonNamespacedHandlers[node.nodeName]
+          : node.nodeType === node.PROCESSING_INSTRUCTION_NODE
+          ? processingInstruction[node.target]
+          : undefined;
 
       if (handler) {
         handler(node, asset, parts);

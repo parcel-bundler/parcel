@@ -1,0 +1,27 @@
+header {
+  user-select: none;
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+
+  background: var(--background-header);
+  color: #e7dacb;
+  font-family: 'Gill Sans', 'Avenir Next', Avenir, 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+}
+
+header a {
+  overflow: hidden;
+  margin: 0 auto;
+
+  display: flex;
+  align-items: center;
+
+  text-decoration: none;
+  color: inherit;
+}
+
+header a > * {
+  margin-right: 5px;
+}

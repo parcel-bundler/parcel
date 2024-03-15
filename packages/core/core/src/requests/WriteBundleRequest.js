@@ -12,7 +12,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {ProjectPath} from '../projectPath';
 
-import {HASH_REF_PREFIX, HASH_REF_REGEX} from '../constants';
+import {HASH_REF_HASH_LEN, HASH_REF_PREFIX} from '../constants';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {NamedBundle} from '../public/Bundle';
@@ -39,7 +39,9 @@ import {
 import ParcelConfig from '../ParcelConfig';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginTracer, tracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 
+const HASH_REF_PREFIX_LEN = HASH_REF_PREFIX.length;
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
 type WriteBundleRequestInput = {|
@@ -56,7 +58,7 @@ type RunInput<TResult> = {|
 
 export type WriteBundleRequest = {|
   id: ContentKey,
-  +type: 'write_bundle_request',
+  +type: typeof requestTypes.write_bundle_request,
   run: (RunInput<PackagedBundleInfo>) => Async<PackagedBundleInfo>,
   input: WriteBundleRequestInput,
 |};
@@ -73,7 +75,7 @@ export default function createWriteBundleRequest(
   );
   return {
     id: `${input.bundle.id}:${input.info.hash}:${nameHash}:${name}`,
-    type: 'write_bundle_request',
+    type: requestTypes.write_bundle_request,
     run,
     input,
   };
@@ -295,17 +297,46 @@ async function runCompressor(
 }
 
 function replaceStream(hashRefToNameHash) {
-  let boundaryStr = '';
+  let boundaryStr = Buffer.alloc(0);
+  let replaced = Buffer.alloc(0);
   return new Transform({
     transform(chunk, encoding, cb) {
-      let str = boundaryStr + chunk.toString();
-      let replaced = str.replace(HASH_REF_REGEX, match => {
-        return hashRefToNameHash.get(match) || match;
-      });
-      boundaryStr = replaced.slice(replaced.length - BOUNDARY_LENGTH);
-      let strUpToBoundary = replaced.slice(
+      let str = Buffer.concat([boundaryStr, Buffer.from(chunk)]);
+      let lastMatchI = 0;
+      if (replaced.length < str.byteLength) {
+        replaced = Buffer.alloc(str.byteLength);
+      }
+      let replacedLength = 0;
+
+      while (lastMatchI < str.byteLength) {
+        let matchI = str.indexOf(HASH_REF_PREFIX, lastMatchI);
+        if (matchI === -1) {
+          replaced.set(
+            str.subarray(lastMatchI, str.byteLength),
+            replacedLength,
+          );
+          replacedLength += str.byteLength - lastMatchI;
+          break;
+        } else {
+          let match = str
+            .subarray(matchI, matchI + HASH_REF_PREFIX_LEN + HASH_REF_HASH_LEN)
+            .toString();
+          let replacement = Buffer.from(hashRefToNameHash.get(match) ?? match);
+          replaced.set(str.subarray(lastMatchI, matchI), replacedLength);
+          replacedLength += matchI - lastMatchI;
+          replaced.set(replacement, replacedLength);
+          replacedLength += replacement.byteLength;
+          lastMatchI = matchI + HASH_REF_PREFIX_LEN + HASH_REF_HASH_LEN;
+        }
+      }
+
+      boundaryStr = replaced.subarray(
+        replacedLength - BOUNDARY_LENGTH,
+        replacedLength,
+      );
+      let strUpToBoundary = replaced.subarray(
         0,
-        replaced.length - BOUNDARY_LENGTH,
+        replacedLength - BOUNDARY_LENGTH,
       );
       cb(null, strUpToBoundary);
     },

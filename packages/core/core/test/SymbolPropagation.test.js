@@ -197,7 +197,7 @@ function assertUsedSymbols(
   if (isLibrary) {
     let entryDep = nullthrows(
       [...graph.nodes.values()].find(
-        n => n.type === 'dependency' && n.value.sourceAssetId == null,
+        n => n?.type === 'dependency' && n.value.sourceAssetId == null,
       ),
     );
     invariant(entryDep.type === 'dependency');
@@ -240,12 +240,12 @@ function assertUsedSymbols(
     }
   }
 
-  for (let [nodeId, node] of graph.nodes) {
-    if (node.type === 'asset') {
+  for (let [nodeId, node] of graph.nodes.entries()) {
+    if (node?.type === 'asset') {
       let filePath = fromProjectPathUnix(node.value.filePath);
       let expected = new Set(nullthrows(expectedAsset.get(filePath)));
       assertSetEqual(node.usedSymbols, expected, filePath);
-    } else if (node.type === 'dependency' && node.value.sourcePath != null) {
+    } else if (node?.type === 'dependency' && node.value.sourcePath != null) {
       let resolutionId = graph.getNodeIdsConnectedFrom(nodeId)[0];
       let resolution = nullthrows(graph.getNode(resolutionId));
       invariant(resolution.type === 'asset_group');
@@ -373,14 +373,14 @@ function changeDependency(
 ): Iterable<[ContentKey, Asset]> {
   let sourceAssetNode = nullthrowsAssetNode(
     [...graph.nodes.values()].find(
-      n => n.type === 'asset' && n.value.filePath === from,
+      n => n?.type === 'asset' && n.value.filePath === from,
     ),
   );
   sourceAssetNode.usedSymbolsDownDirty = true;
   let depNode = nullthrowsDependencyNode(
     [...graph.nodes.values()].find(
       n =>
-        n.type === 'dependency' &&
+        n?.type === 'dependency' &&
         n.value.sourcePath === from &&
         n.value.specifier === to,
     ),
@@ -396,7 +396,7 @@ function changeAsset(
 ): Iterable<[ContentKey, Asset]> {
   let node = nullthrowsAssetNode(
     [...graph.nodes.values()].find(
-      n => n.type === 'asset' && n.value.filePath === asset,
+      n => n?.type === 'asset' && n.value.filePath === asset,
     ),
   );
   node.usedSymbolsUpDirty = true;

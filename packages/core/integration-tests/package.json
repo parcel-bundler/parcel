@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.9.3",
+  "version": "2.12.0",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -12,23 +12,24 @@
     "test-ci": "yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.0",
-    "@babel/plugin-syntax-class-properties": "^7.12.1",
-    "@babel/plugin-syntax-export-default-from": "^7.2.0",
-    "@babel/plugin-syntax-export-namespace-from": "^7.2.0",
+    "@babel/core": "^7.22.11",
+    "@babel/plugin-syntax-class-properties": "^7.12.13",
+    "@babel/plugin-syntax-export-default-from": "^7.22.5",
+    "@babel/plugin-syntax-export-namespace-from": "^7.8.3",
     "@babel/plugin-syntax-module-attributes": "^7.10.4",
-    "@babel/preset-env": "^7.12.11",
-    "@babel/preset-typescript": "^7.14.5",
+    "@babel/preset-env": "^7.22.14",
+    "@babel/preset-typescript": "^7.22.11",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@mdx-js/react": "^1.5.3",
+    "@types/react": "^17",
     "autoprefixer": "^10.4.0",
     "chalk": "^4.1.0",
-    "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
     "core-js": "^3.2.1",
     "cross-env": "^7.0.0",
     "elm": "^0.19.1-5",
     "elm-hot": "^1.1.5",
+    "esbuild-register": "^3.5.0",
     "exif-reader": "^1.0.3",
     "get-port": "^5.0.0",
     "graphql": "^15.0.0",
@@ -42,7 +43,7 @@
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
     "node-elm-compiler": "^5.0.5",
-    "parcel": "2.9.3",
+    "parcel": "2.12.0",
     "postcss": "^8.4.5",
     "postcss-custom-properties": "^12.1.2",
     "postcss-import": "^14.0.2",
@@ -54,6 +55,7 @@
     "sugarss": "^3.0.3",
     "tailwindcss": "^3.0.2",
     "tempy": "^0.3.0",
+    "wasm-sourcemap": "^1.0.0",
     "ws": "^7.0.0"
   }
 }

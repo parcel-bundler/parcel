@@ -36,14 +36,13 @@ import {
   fromProjectPath,
   fromProjectPathRelative,
 } from './projectPath';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {BundleBehavior as BundleBehaviorMap} from './types';
 import {PluginTracer} from '@parcel/profiler';
 
 type AssetOptions = {|
   id?: string,
   committed?: boolean,
-  hash?: ?string,
   idBase?: ?string,
   filePath: ProjectPath,
   query?: ?string,
@@ -95,7 +94,6 @@ export function createAsset(
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
-    hash: options.hash,
     filePath: options.filePath,
     query: options.query,
     bundleBehavior: options.bundleBehavior

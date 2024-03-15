@@ -18,6 +18,7 @@ import {
   fromProjectPathRelative,
   toProjectPath,
 } from '../projectPath';
+import {requestTypes} from '../RequestTracker';
 
 // A cache of dev dep requests keyed by invalidations.
 // If the package manager returns the same invalidation object, then
@@ -48,7 +49,12 @@ export async function createDevDependency(
   let resolveFromAbsolute = fromProjectPath(options.projectRoot, resolveFrom);
 
   // Ensure that the package manager has an entry for this resolution.
-  await options.packageManager.resolve(specifier, resolveFromAbsolute);
+  try {
+    await options.packageManager.resolve(specifier, resolveFromAbsolute);
+  } catch (err) {
+    // ignore
+  }
+
   let invalidations = options.packageManager.getInvalidations(
     specifier,
     resolveFromAbsolute,
@@ -108,7 +114,7 @@ export async function getDevDepRequests<TResult>(
     await Promise.all(
       api
         .getSubRequests()
-        .filter(req => req.type === 'dev_dep_request')
+        .filter(req => req.requestType === requestTypes.dev_dep_request)
         .map(async req => [
           req.id,
           nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),
@@ -183,7 +189,7 @@ export async function runDevDepRequest<TResult>(
 ) {
   await api.runRequest<null, DevDepRequestResult | void>({
     id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
-    type: 'dev_dep_request',
+    type: requestTypes.dev_dep_request,
     run: ({api}) => {
       for (let filePath of nullthrows(devDepRequest.invalidateOnFileChange)) {
         api.invalidateOnFileUpdate(filePath);

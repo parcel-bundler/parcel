@@ -17,6 +17,9 @@ cache.ensure();
 
 export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: path.join(__dirname, '.parcel-cache'),
+  watchDir: __dirname,
+  watchIgnore: undefined,
+  watchBackend: undefined,
   entries: [],
   logLevel: 'info',
   targets: undefined,
@@ -25,6 +28,8 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   hmrOptions: undefined,
   shouldContentHash: true,
   shouldBuildLazily: false,
+  lazyIncludes: [],
+  lazyExcludes: [],
   shouldBundleIncrementally: true,
   serveOptions: false,
   mode: 'development',
@@ -45,6 +50,9 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
     publicUrl: '/',
     distDir: undefined,
     sourceMaps: false,
+  },
+  featureFlags: {
+    exampleFeature: false,
   },
 };
 

@@ -3,6 +3,7 @@ import type {
   ScopeHoistingPackager,
   OutputFormat,
 } from './ScopeHoistingPackager';
+import {isValidIdentifier} from './utils';
 
 export class ESMOutputFormat implements OutputFormat {
   packager: ScopeHoistingPackager;
@@ -25,6 +26,9 @@ export class ESMOutputFormat implements OutputFormat {
           namespaceSpecifier = `* as ${symbol}`;
         } else {
           let specifier = imported;
+          if (!isValidIdentifier(specifier)) {
+            specifier = JSON.stringify(specifier);
+          }
           if (symbol !== imported) {
             specifier += ` as ${symbol}`;
           }
@@ -93,7 +97,10 @@ export class ESMOutputFormat implements OutputFormat {
 
       for (let as of exportAs) {
         let specifier = local;
-        if (exportAs !== local) {
+        if (as !== local) {
+          if (!isValidIdentifier(as)) {
+            as = JSON.stringify(as);
+          }
           specifier += ` as ${as}`;
         }
 
@@ -103,6 +110,17 @@ export class ESMOutputFormat implements OutputFormat {
 
     if (exportSpecifiers.length > 0) {
       res += `\nexport {${exportSpecifiers.join(', ')}};`;
+      lines++;
+    }
+
+    if (
+      this.packager.needsPrelude &&
+      this.packager.shouldBundleQueue(this.packager.bundle)
+    ) {
+      // Should be last thing the bundle executes on intial eval
+      res += `\n$parcel$global.rlb(${JSON.stringify(
+        this.packager.bundle.publicId,
+      )})`;
       lines++;
     }
 

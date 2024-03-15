@@ -31,7 +31,7 @@ import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
-import {hashString, hashBuffer, Hash} from '@parcel/hash';
+import {hashString, hashBuffer, Hash} from '@parcel/rust';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
@@ -665,7 +665,8 @@ export default class PackagerRunner {
         bundleGraph.getHash(bundle) +
         JSON.stringify(configResults) +
         JSON.stringify(globalInfoResults) +
-        this.options.mode,
+        this.options.mode +
+        (this.options.shouldBuildLazily ? 'lazy' : 'eager'),
     );
   }
 
