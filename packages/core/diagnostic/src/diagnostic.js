@@ -46,17 +46,11 @@ export type DiagnosticCodeFrame = {|
   codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
-type JSONValue =
-  | null
-  | void // ? Is this okay?
-  | boolean
-  | number
-  | string
-  | Array<JSONValue>
-  | JSONObject;
-
 /** A JSON object (as in "map") */
-type JSONObject = {[key: string]: JSONValue, ...};
+type JSONObject = {
+  // $FlowFixMe
+  [key: string]: any,
+};
 
 /**
  * A style agnostic way of emitting errors, warnings and info.
