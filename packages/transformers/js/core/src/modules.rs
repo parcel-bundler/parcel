@@ -221,11 +221,11 @@ impl ESMFold {
     ModuleItem::Stmt(Stmt::Expr(ExprStmt {
       expr: Box::new(Expr::Assign(AssignExpr {
         op: AssignOp::Assign,
-        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+        left: AssignTarget::Simple(SimpleAssignTarget::Member(MemberExpr {
           obj: Box::new(Expr::Ident(Ident::new("exports".into(), DUMMY_SP))),
           prop: MemberProp::Ident(Ident::new(name, DUMMY_SP)),
           span: DUMMY_SP,
-        }))),
+        })),
         right: Box::new(right),
         span: DUMMY_SP,
       })),
@@ -594,7 +594,7 @@ impl Fold for ESMFold {
     if self.in_export_decl {
       self.create_export(
         node.key.sym.clone(),
-        Expr::Ident(node.key.clone()),
+        Expr::Ident(node.key.id.clone()),
         DUMMY_SP,
       );
     }
