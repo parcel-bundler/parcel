@@ -112,6 +112,12 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
     scopeHoist: {
       type: 'boolean',
     },
+    packageConditions: {
+      type: 'array',
+      items: {
+        type: 'string'
+      }
+    }
   },
   additionalProperties: false,
 };

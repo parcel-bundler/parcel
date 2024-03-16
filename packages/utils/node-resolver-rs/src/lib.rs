@@ -91,6 +91,7 @@ pub struct Resolver<'a, Fs> {
   pub flags: Flags,
   pub include_node_modules: Cow<'a, IncludeNodeModules>,
   pub conditions: ExportsCondition,
+  pub custom_conditions: Vec<String>,
   pub module_dir_resolver: Option<Arc<ResolveModuleDir>>,
   pub cache: CacheCow<'a, Fs>,
 }
@@ -108,6 +109,31 @@ impl<'a> Extensions<'a> {
     }
   }
 }
+
+struct ChainedSlice<'a, T>(&'a [T], &'a [T]);
+
+impl<'a, T> ChainedSlice<'a, T> {
+  fn empty() -> Self {
+    Self(&[], &[])
+  }
+}
+
+impl<'a, T> IntoIterator for ChainedSlice<'a, T> {
+  type Item = &'a T;
+  type IntoIter = std::iter::Chain<std::slice::Iter<'a, T>, std::slice::Iter<'a, T>>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    self.0.iter().chain(self.1.iter())
+  }
+}
+
+impl<'a, T> Clone for ChainedSlice<'a, T> {
+  fn clone(&self) -> Self {
+    ChainedSlice(self.0, self.1)
+  }
+}
+
+impl<'a, T> Copy for ChainedSlice<'a, T> {}
 
 #[derive(Default)]
 pub struct ResolveOptions {
@@ -146,6 +172,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       cache,
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::NODE,
+      custom_conditions: Vec::new(),
       module_dir_resolver: None,
     }
   }
@@ -160,6 +187,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       cache,
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::NODE,
+      custom_conditions: Vec::new(),
       module_dir_resolver: None,
     }
   }
@@ -174,6 +202,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       cache,
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::empty(),
+      custom_conditions: Vec::new(),
       module_dir_resolver: None,
     }
   }
@@ -220,7 +249,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     if !options.conditions.is_empty() || !options.custom_conditions.is_empty() {
       // If custom conditions are defined, these override the default conditions inferred from the specifier type.
       request.conditions = self.conditions | options.conditions;
-      request.custom_conditions = options.custom_conditions.as_slice();
+      request.custom_conditions = ChainedSlice(self.custom_conditions.as_slice(), options.custom_conditions.as_slice());
     }
 
     match request.resolve() {
@@ -327,7 +356,7 @@ struct ResolveRequest<'a, Fs> {
   root_package: OnceCell<Option<&'a PackageJson<'a>>>,
   invalidations: &'a Invalidations,
   conditions: ExportsCondition,
-  custom_conditions: &'a [String],
+  custom_conditions: ChainedSlice<'a, String>,
   priority_extension: Option<&'a str>,
 }
 
@@ -396,7 +425,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       root_package: OnceCell::new(),
       invalidations,
       conditions,
-      custom_conditions: &[],
+      custom_conditions: ChainedSlice::empty(),
       priority_extension,
     }
   }
@@ -1162,6 +1191,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 cache: CacheCow::Borrowed(&self.resolver.cache),
                 include_node_modules: Cow::Owned(IncludeNodeModules::default()),
                 conditions: ExportsCondition::TYPES,
+                custom_conditions: Vec::new(),
                 module_dir_resolver: self.resolver.module_dir_resolver.clone(),
               };
 

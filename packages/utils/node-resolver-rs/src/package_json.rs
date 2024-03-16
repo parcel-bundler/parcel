@@ -99,7 +99,7 @@ pub enum ExportsField<'a> {
 }
 
 bitflags! {
-  pub struct ExportsCondition: u16 {
+  pub struct ExportsCondition: u32 {
     const IMPORT = 1 << 0;
     const REQUIRE = 1 << 1;
     const MODULE = 1 << 2;
@@ -116,6 +116,15 @@ bitflags! {
     const SASS = 1 << 13;
     const LESS = 1 << 14;
     const STYLUS = 1 << 15;
+    const EDGE_ROUTINE = 1 << 16;
+    const WORKERD = 1 << 17;
+    const DENO = 1 << 18;
+    const REACT_NATIVE = 1 << 19;
+    const NETLIFY = 1 << 20;
+    const BUN = 1 << 21;
+    const EDGE_LIGHT = 1 << 22;
+    const FASTLY = 1 << 23;
+    const REACT_SERVER = 1 << 24;
   }
 }
 
@@ -145,6 +154,15 @@ impl TryFrom<&str> for ExportsCondition {
       "sass" => ExportsCondition::SASS,
       "less" => ExportsCondition::LESS,
       "stylus" => ExportsCondition::STYLUS,
+      "edge-routine" => ExportsCondition::EDGE_ROUTINE,
+      "workerd" => ExportsCondition::WORKERD,
+      "deno" => ExportsCondition::DENO,
+      "react-native" => ExportsCondition::REACT_NATIVE,
+      "netlify" => ExportsCondition::NETLIFY,
+      "bun" => ExportsCondition::BUN,
+      "edge-light" => ExportsCondition::EDGE_LIGHT,
+      "fastly" => ExportsCondition::FASTLY,
+      "react-server" => ExportsCondition::REACT_SERVER,
       _ => return Err(()),
     })
   }
@@ -253,11 +271,11 @@ impl<'a> PackageJson<'a> {
     self.exports != ExportsField::None
   }
 
-  pub fn resolve_package_exports(
+  pub fn resolve_package_exports<'s>(
     &self,
     subpath: &'a str,
     conditions: ExportsCondition,
-    custom_conditions: &[String],
+    custom_conditions: impl IntoIterator<Item = &'s String> + std::marker::Copy,
   ) -> Result<PathBuf, PackageJsonError> {
     // If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
     if let ExportsField::Map(map) = &self.exports {
@@ -318,7 +336,7 @@ impl<'a> PackageJson<'a> {
     &self,
     specifier: &'a str,
     conditions: ExportsCondition,
-    custom_conditions: &[String],
+    custom_conditions: impl IntoIterator<Item = &'a String> + std::marker::Copy,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     if specifier == "#" || specifier.starts_with("#/") {
       return Err(PackageJsonError::InvalidSpecifier);
@@ -338,13 +356,13 @@ impl<'a> PackageJson<'a> {
     Err(PackageJsonError::ImportNotDefined)
   }
 
-  fn resolve_package_target(
+  fn resolve_package_target<'s>(
     &self,
     target: &'a ExportsField,
     pattern_match: &str,
     is_imports: bool,
     conditions: ExportsCondition,
-    custom_conditions: &[String],
+    custom_conditions: impl IntoIterator<Item = &'s String> + std::marker::Copy,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     match target {
       ExportsField::String(target) => {
@@ -394,7 +412,7 @@ impl<'a> PackageJson<'a> {
             ExportsKey::Condition(key) => {
               *key == ExportsCondition::DEFAULT || conditions.contains(*key)
             }
-            ExportsKey::CustomCondition(key) => custom_conditions.iter().any(|k| k == key),
+            ExportsKey::CustomCondition(key) => custom_conditions.into_iter().any(|k| k == key),
             _ => false,
           };
           if matches {
@@ -435,13 +453,13 @@ impl<'a> PackageJson<'a> {
     Ok(ExportsResolution::None)
   }
 
-  fn resolve_package_imports_exports(
+  fn resolve_package_imports_exports<'s>(
     &self,
     match_key: &'a str,
     match_obj: &'a IndexMap<ExportsKey<'a>, ExportsField<'a>>,
     is_imports: bool,
     conditions: ExportsCondition,
-    custom_conditions: &[String],
+    custom_conditions: impl IntoIterator<Item = &'s String> + std::marker::Copy,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     let pattern = ExportsKey::Pattern(match_key);
     if let Some(target) = match_obj.get(&pattern) {

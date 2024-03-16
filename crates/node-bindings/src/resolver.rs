@@ -35,7 +35,8 @@ pub struct JsFileSystemOptions {
 pub struct JsResolverOptions {
   pub fs: Option<JsFileSystemOptions>,
   pub include_node_modules: Option<NapiSideEffectsVariants>,
-  pub conditions: Option<u16>,
+  pub conditions: Option<u32>,
+  pub custom_conditions: Option<Vec<String>>,
   pub module_dir_resolver: Option<JsFunction>,
   pub mode: u8,
   pub entries: Option<u8>,
@@ -276,6 +277,10 @@ impl Resolver {
 
     if let Some(conditions) = options.conditions {
       resolver.conditions = ExportsCondition::from_bits_truncate(conditions);
+    }
+
+    if let Some(custom_conditions) = options.custom_conditions {
+      resolver.custom_conditions = custom_conditions;
     }
 
     if let Some(entries) = options.entries {

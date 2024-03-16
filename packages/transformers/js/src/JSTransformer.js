@@ -714,7 +714,7 @@ export default (new Transformer({
     asset.meta.id = asset.id;
     asset.meta.directives = directives;
     asset.meta.intrinsics = intrinsics;
-    if (asset.env.isNode() && !asset.env.isLibrary && directives.includes('use client')) {
+    if (asset.env.isServer() && !asset.env.isLibrary && directives.includes('use client')) {
       asset.setEnvironment({
         context: 'browser',
         sourceType: 'module',
@@ -725,10 +725,11 @@ export default (new Transformer({
         sourceMap: asset.env.sourceMap,
         shouldOptimize: asset.env.shouldOptimize,
         shouldScopeHoist: asset.env.shouldScopeHoist,
+        packageConditions: asset.env.packageConditions,
       });
-    } else if (!asset.env.isNode() && !asset.env.isLibrary && directives.includes('use server')) {
+    } else if (!asset.env.isServer() && !asset.env.isLibrary && directives.includes('use server')) {
       asset.setEnvironment({
-        context: 'node',
+        context: 'node', // ???
         sourceType: 'module',
         outputFormat: 'esmodule', // ???
         engines: asset.env.engines,
@@ -737,6 +738,7 @@ export default (new Transformer({
         sourceMap: asset.env.sourceMap,
         shouldOptimize: asset.env.shouldOptimize,
         shouldScopeHoist: asset.env.shouldScopeHoist,
+        packageConditions: asset.env.packageConditions,
       });
     }
 

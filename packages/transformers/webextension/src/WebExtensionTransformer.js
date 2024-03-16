@@ -404,6 +404,7 @@ export default (new Transformer({
       isLibrary: asset.env.isLibrary,
       shouldOptimize: asset.env.shouldOptimize,
       shouldScopeHoist: asset.env.shouldScopeHoist,
+      packageConditions: asset.env.packageConditions,
     });
     const code = await asset.getCode();
     const parsed = parse(code);

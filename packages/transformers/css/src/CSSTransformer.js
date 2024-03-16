@@ -53,6 +53,7 @@ export default (new Transformer({
       shouldOptimize: asset.env.shouldOptimize,
       shouldScopeHoist: asset.env.shouldScopeHoist,
       sourceMap: asset.env.sourceMap,
+      packageConditions: asset.env.packageConditions,
     });
 
     let [code, originalMap] = await Promise.all([

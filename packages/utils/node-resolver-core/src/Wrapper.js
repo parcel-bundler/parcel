@@ -105,7 +105,9 @@ export default class NodeResolver {
           options.env,
           this.options.mode,
         ),
-        packageExports: this.options.packageExports ?? false,
+        // react-server is handled specially in environmentToExportsConditions
+        customConditions: options.env.packageConditions.filter(c => c !== 'react-server'),
+        packageExports: this.options.packageExports || options.env.packageConditions.length > 0,
         moduleDirResolver:
           process.versions.pnp != null
             ? (module, from) => {
@@ -759,32 +761,71 @@ function environmentToExportsConditions(
   const ELECTRON = 1 << 7;
   const DEVELOPMENT = 1 << 8;
   const PRODUCTION = 1 << 9;
+  const EDGE_ROUTINE = 1 << 16;
+  const WORKERD = 1 << 17;
+  const DENO = 1 << 18;
+  const REACT_NATIVE = 1 << 19;
+  const NETLIFY = 1 << 20;
+  const BUN = 1 << 21;
+  const EDGE_LIGHT = 1 << 22;
+  const FASTLY = 1 << 23;
+  const REACT_SERVER = 1 << 24;
 
   let conditions = 0;
-  if (env.isBrowser()) {
-    conditions |= BROWSER;
-  }
-
-  if (env.isWorker()) {
-    conditions |= WORKER;
-  }
-
-  if (env.isWorklet()) {
-    conditions |= WORKLET;
-  }
-
-  if (env.isElectron()) {
-    conditions |= ELECTRON;
-  }
-
-  if (env.isNode()) {
-    conditions |= NODE;
+  switch (env.context) {
+    case 'browser':
+      conditions |= BROWSER;
+      break;
+    case 'web-worker':
+    case 'service-worker':
+      conditions |= BROWSER | WORKER;
+      break;
+    case 'worklet':
+      conditions |= BROWSER | WORKLET;
+      break;
+    case 'node':
+      conditions |= NODE;
+      break;
+    case 'electron-main':
+      conditions |= NODE | ELECTRON;
+      break;
+    case 'electron-renderer':
+      conditions |= BROWSER | NODE | ELECTRON;
+      break;
+    case 'edge-routine':
+      conditions |= EDGE_ROUTINE;
+      break;
+    case 'workerd':
+      conditions |= WORKERD;
+      break;
+    case 'deno':
+      conditions |= DENO;
+      break;
+    case 'react-native':
+      conditions |= REACT_NATIVE;
+      break;
+    case 'netlify':
+      conditions |= NETLIFY;
+      break;
+    case 'bun':
+      conditions |= BUN;
+      break;
+    case 'edge-light':
+      conditions |= EDGE_LIGHT;
+      break;
+    case 'fastly':
+      conditions |= FASTLY;
+      break;
   }
 
   if (mode === 'production') {
     conditions |= PRODUCTION;
   } else if (mode === 'development') {
     conditions |= DEVELOPMENT;
+  }
+
+  if (env.packageConditions.includes('react-server') && env.isServer()) {
+    conditions |= REACT_SERVER;
   }
 
   return conditions;

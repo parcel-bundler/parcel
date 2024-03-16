@@ -74,6 +74,7 @@ export type Environment = {|
   shouldOptimize: boolean,
   shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
+  packageConditions?: Array<string>,
   loc: ?InternalSourceLocation,
 |};
 
@@ -316,6 +317,7 @@ export type ParcelOptions = {|
     +engines?: Engines,
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
+    +packageConditions?: Array<string>,
   |},
 
   +featureFlags: FeatureFlags,

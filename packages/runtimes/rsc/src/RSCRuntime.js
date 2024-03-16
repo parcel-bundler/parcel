@@ -18,7 +18,7 @@ export default (new Runtime({
       if (node.type === 'dependency') {
         let resolvedAsset = bundleGraph.getResolvedAsset(node.value, bundle);
         let directives = resolvedAsset?.meta?.directives;
-        if (node.value.env.isNode() && resolvedAsset && Array.isArray(directives) && directives.includes('use client')) {
+        if (node.value.env.isServer() && resolvedAsset && Array.isArray(directives) && directives.includes('use client')) {
           let usedSymbols = nullthrows(bundleGraph.getUsedSymbols(resolvedAsset));
           if (usedSymbols.has('*')) {
             // TODO
@@ -45,7 +45,7 @@ export default (new Runtime({
           }
 
           let code;
-          if (node.value.env.isNode()) {
+          if (node.value.env.isServer()) {
             // Dependency on a "use server" module from a server environment.
             // Mark each export as a server reference that can be passed to a client component as a prop.
             code = `import {registerServerReference} from "react-server-dom-parcel/server.edge";\n`;
@@ -92,7 +92,7 @@ export default (new Runtime({
       bundle.env.isIsolated() ||
       bundle.bundleBehavior === 'isolated';
     if (
-      bundle.env.isNode() &&
+      bundle.env.isServer() &&
       isEntry
     ) {
       let code = 'import {registerServerActions} from "react-server-dom-parcel/server.edge";\n';

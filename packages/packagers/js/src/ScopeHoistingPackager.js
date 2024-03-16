@@ -40,7 +40,7 @@ const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
 const REPLACEMENT_RE =
   /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
 
-const BUILTINS = Object.keys(globals.builtin);
+const BUILTINS = new Set(Object.keys(globals.builtin));
 const GLOBALS_BY_CONTEXT = {
   browser: new Set([...BUILTINS, ...Object.keys(globals.browser)]),
   'web-worker': new Set([...BUILTINS, ...Object.keys(globals.worker)]),
@@ -48,7 +48,7 @@ const GLOBALS_BY_CONTEXT = {
     ...BUILTINS,
     ...Object.keys(globals.serviceworker),
   ]),
-  worklet: new Set([...BUILTINS]),
+  worklet: BUILTINS,
   node: new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-main': new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-renderer': new Set([
@@ -56,6 +56,15 @@ const GLOBALS_BY_CONTEXT = {
     ...Object.keys(globals.node),
     ...Object.keys(globals.browser),
   ]),
+  // TODO
+  'edge-routine': BUILTINS,
+  'workerd': BUILTINS,
+  'deno': BUILTINS,
+  'react-native': BUILTINS,
+  'netlify': BUILTINS,
+  'bun': BUILTINS,
+  'edge-light': BUILTINS,
+  'fastly': BUILTINS,
 };
 
 const OUTPUT_FORMATS = {

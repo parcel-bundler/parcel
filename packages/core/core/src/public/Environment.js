@@ -30,6 +30,16 @@ const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
 const WORKER_ENVS = new Set(['web-worker', 'service-worker']);
 export const ISOLATED_ENVS: Set<string> = new Set([...WORKER_ENVS, 'worklet']);
+const SERVER_ENVS = new Set([
+  'node',
+  'edge-routine',
+  'workerd',
+  'deno',
+  'netlify',
+  'bun',
+  'edge-light',
+  'fastly'
+]);
 
 const ALL_BROWSERS = [
   'chrome',
@@ -214,6 +224,10 @@ export default class Environment implements IEnvironment {
     return this.#environment.sourceMap;
   }
 
+  get packageConditions(): Array<string> {
+    return this.#environment.packageConditions || [];
+  }
+
   get loc(): ?SourceLocation {
     return fromInternalSourceLocation(
       this.#options.projectRoot,
@@ -232,6 +246,10 @@ export default class Environment implements IEnvironment {
 
   isNode(): boolean {
     return NODE_ENVS.has(this.#environment.context);
+  }
+
+  isServer(): boolean {
+    return SERVER_ENVS.has(this.#environment.context);
   }
 
   isElectron(): boolean {

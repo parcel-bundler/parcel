@@ -12,7 +12,7 @@ import {environmentToInternalEnvironment} from './public/Environment';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
-  node: '>= 8.0.0',
+  node: '>= 18.0.0',
 };
 
 type EnvironmentOpts = {|
@@ -30,6 +30,7 @@ export function createEnvironment({
   isLibrary = false,
   shouldScopeHoist = false,
   sourceMap,
+  packageConditions,
   loc,
 }: EnvironmentOpts = {
   /*::...null*/
@@ -94,6 +95,13 @@ export function createEnvironment({
     }
   }
 
+  if (packageConditions?.length) {
+    // Dedupe and sort so environment hashes are consistent.
+    packageConditions = [...new Set(packageConditions)].sort();
+  } else {
+    packageConditions = undefined;
+  }
+
   let res: Environment = {
     id: '',
     context,
@@ -105,6 +113,7 @@ export function createEnvironment({
     shouldOptimize,
     shouldScopeHoist,
     sourceMap,
+    packageConditions,
     loc,
   };
 
@@ -146,6 +155,7 @@ function getEnvironmentHash(env: Environment): string {
       env.shouldOptimize,
       env.shouldScopeHoist,
       env.sourceMap,
+      env.packageConditions,
     ]),
   );
 }

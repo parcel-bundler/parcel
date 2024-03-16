@@ -15,6 +15,7 @@ export default (new Transformer({
       sourceMap: asset.env.sourceMap,
       shouldOptimize: asset.env.shouldOptimize,
       shouldScopeHoist: asset.env.shouldScopeHoist,
+      packageConditions: asset.env.packageConditions,
     });
     return [asset];
   },

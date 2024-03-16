@@ -116,7 +116,16 @@ export type EnvironmentContext =
   | 'worklet'
   | 'node'
   | 'electron-main'
-  | 'electron-renderer';
+  | 'electron-renderer'
+  // From https://runtime-keys.proposal.wintercg.org/
+  | 'edge-routine'
+  | 'workerd'
+  | 'deno'
+  | 'react-native'
+  | 'netlify'
+  | 'bun'
+  | 'edge-light'
+  | 'fastly';
 
 /** The JS module format for the bundle output */
 export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
@@ -141,6 +150,7 @@ export type PackageTargetDescriptor = {|
   +optimize?: boolean,
   +scopeHoist?: boolean,
   +source?: FilePath | Array<FilePath>,
+  +packageConditions?: Array<string>,
 |};
 
 /**
@@ -172,6 +182,7 @@ export type EnvironmentOptions = {|
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
+  +packageConditions?: Array<string>,
   +loc?: ?SourceLocation,
 |};
 
@@ -225,12 +236,15 @@ export interface Environment {
   /** Whether scope hoisting is enabled. */
   +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
+  +packageConditions: Array<string>;
   +loc: ?SourceLocation;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
   /** Whether <code>context</code> specifies a node context. */
   isNode(): boolean;
+  /** Whether <code>context</code> specifies a server context. */
+  isServer(): boolean;
   /** Whether <code>context</code> specifies an electron context. */
   isElectron(): boolean;
   /** Whether <code>context</code> specifies a worker context. */

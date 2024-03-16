@@ -308,6 +308,7 @@ export class TargetResolver {
                   this.options,
                   descriptor.sourceMap,
                 ),
+                packageConditions: descriptor.packageConditions,
               }),
             };
 
@@ -377,6 +378,7 @@ export class TargetResolver {
               sourceMap: this.options.defaultTargetOptions.sourceMaps
                 ? {}
                 : undefined,
+                packageConditions: this.options.defaultTargetOptions.packageConditions
             }),
           },
         ];
@@ -872,6 +874,7 @@ export class TargetResolver {
               descriptor.optimize === true,
             shouldScopeHoist: true,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
+            packageConditions: descriptor.packageConditions,
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
@@ -1070,6 +1073,7 @@ export class TargetResolver {
             shouldScopeHoist:
               shouldScopeHoist && descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
+            packageConditions: descriptor.packageConditions,
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
@@ -1136,6 +1140,7 @@ export class TargetResolver {
           sourceMap: this.options.defaultTargetOptions.sourceMaps
             ? {}
             : undefined,
+          packageConditions: this.options.defaultTargetOptions.packageConditions,
         }),
       });
     }
