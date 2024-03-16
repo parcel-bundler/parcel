@@ -102,7 +102,15 @@ pub enum EnvContext {
   Worklet,
   Node,
   ElectronRenderer,
-  ElectronMain
+  ElectronMain,
+  EdgeRoutine,
+  Workerd,
+  Deno,
+  ReactNative,
+  Netlify,
+  Bun,
+  EdgeLight,
+  Fastly
 }
 
 impl Config {
@@ -114,6 +122,11 @@ impl Config {
   fn is_node(&self) -> bool {
     use EnvContext::*;
     matches!(self.context, Node | ElectronMain | ElectronRenderer)
+  }
+
+  fn is_server(&self) -> bool {
+    use EnvContext::*;
+    matches!(self.context, Node | EdgeRoutine | Workerd | Deno | Netlify | Bun | EdgeLight | Fastly)
   }
 
   fn is_worker(&self) -> bool {
@@ -253,10 +266,10 @@ pub fn transform(
         }
       }
 
-      if config.is_node() && !config.is_library && result.directives.contains(&js_word!("use client")) {
+      if config.is_server() && !config.is_library && result.directives.contains(&js_word!("use client")) {
         config.context = EnvContext::Browser;
         config.is_esm_output = true;
-      } else if !config.is_node() && !config.is_library && result.directives.contains(&js_word!("use server")) {
+      } else if !config.is_server() && !config.is_library && result.directives.contains(&js_word!("use server")) {
         config.context = EnvContext::Node;
         // is_esm_output??
       }
