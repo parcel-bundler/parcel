@@ -38,6 +38,16 @@ jobs:
       - run: yarn --frozen-lockfile
       - run: yarn flow check
 
+  ts-types:
+    name: TypeScript types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: yarn
+      - run: yarn build-ts
+
   benchmarks:
     name: Benchmarks
     runs-on: ubuntu-latest
