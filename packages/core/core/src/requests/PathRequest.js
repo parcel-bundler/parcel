@@ -368,7 +368,13 @@ export class ResolverRunner {
             };
           }
 
-          if (result.diagnostics) {
+          if (
+            result.diagnostics != null &&
+            !(
+              Array.isArray(result.diagnostics) &&
+              result.diagnostics.length === 0
+            )
+          ) {
             let errorDiagnostic = errorToDiagnostic(
               new ThrowableDiagnostic({diagnostic: result.diagnostics}),
               {

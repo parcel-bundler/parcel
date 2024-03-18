@@ -3,6 +3,7 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
+  run,
   runBundle,
   overlayFS,
   outputFS,
@@ -366,5 +367,55 @@ describe('library bundler', function () {
     );
     assert.equal(cjs.foo(), 'foo');
     assert.equal(cjs.bar(), 2);
+  });
+
+  it('should export CJS namespaces as default', async function () {
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      .parcelrc:
+        {
+          "extends": "@parcel/config-default",
+          "bundler": "@parcel/bundler-library"
+        }
+
+      package.json:
+        {
+          "module": "dist/module.js",
+          "engines": { "node": "*" }
+        }
+
+      index.js:
+        import ns from './foo.js';
+        export function test() {
+          return ns['foo-bar'];
+        }
+
+      foo.js:
+        exports['foo-bar'] = 'foo';
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    assertBundles(b, [
+      {
+        assets: ['index.js'],
+      },
+      {
+        type: 'js',
+        assets: ['foo.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(res.test(), 'foo');
+
+    // foo.js should only export default, to avoid non-identifier symbols.
+    let foo: any = await runBundle(b, b.getBundles()[1]);
+    assert.deepEqual(Object.keys(foo), ['default']);
+    assert.deepEqual(foo.default, {'foo-bar': 'foo'});
   });
 });
