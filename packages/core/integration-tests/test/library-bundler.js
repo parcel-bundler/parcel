@@ -414,7 +414,7 @@ describe('library bundler', function () {
     assert.equal(res.test(), 'foo');
 
     // foo.js should only export default, to avoid non-identifier symbols.
-    let foo = await runBundle(b, b.getBundles()[1]);
+    let foo: any = await runBundle(b, b.getBundles()[1]);
     assert.deepEqual(Object.keys(foo), ['default']);
     assert.deepEqual(foo.default, {'foo-bar': 'foo'});
   });
