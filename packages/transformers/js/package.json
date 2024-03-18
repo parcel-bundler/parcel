@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.10.3",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,7 +16,7 @@
   "main": "lib/JSTransformer.js",
   "source": "src/JSTransformer.js",
   "engines": {
-    "parcel": "^2.10.3",
+    "parcel": "^2.12.0",
     "node": ">= 12.0.0"
   },
   "files": [
@@ -24,12 +24,12 @@
     "src"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.10.3",
-    "@parcel/plugin": "2.10.3",
-    "@parcel/rust": "2.10.3",
+    "@parcel/diagnostic": "2.12.0",
+    "@parcel/plugin": "2.12.0",
+    "@parcel/rust": "2.12.0",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.10.3",
-    "@parcel/workers": "2.10.3",
+    "@parcel/utils": "2.12.0",
+    "@parcel/workers": "2.12.0",
     "@swc/helpers": "^0.5.0",
     "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1",
@@ -37,6 +37,6 @@
     "semver": "^7.5.2"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.10.3"
+    "@parcel/core": "^2.12.0"
   }
 }

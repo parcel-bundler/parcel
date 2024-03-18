@@ -325,7 +325,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#1',
         stats,
         dependencies: new Map([
           [
@@ -345,7 +344,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#2',
         stats,
         dependencies: new Map([
           [
@@ -365,7 +363,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#3',
         dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
@@ -406,7 +403,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#1',
         stats,
         dependencies: new Map([
           [
@@ -426,7 +422,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#2',
         stats,
         dependencies: new Map(),
         env: DEFAULT_ENV,
@@ -504,7 +499,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#1',
         stats,
         dependencies: new Map([['dep1', dep1]]),
         env: DEFAULT_ENV,
@@ -515,7 +509,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#1',
         stats,
         dependencies: new Map([['dep2', dep2]]),
         env: DEFAULT_ENV,
@@ -526,7 +519,6 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         isSource: true,
-        hash: '#1',
         stats,
         env: DEFAULT_ENV,
       }),
@@ -583,7 +575,6 @@ describe('AssetGraph', () => {
       filePath: toProjectPath('/index.js'),
       type: 'js',
       isSource: true,
-      hash: '#4',
       stats,
       dependencies: new Map([
         ['./foo', indexFooDep],
@@ -612,7 +603,6 @@ describe('AssetGraph', () => {
       filePath: toProjectPath('/foo.js'),
       type: 'js',
       isSource: true,
-      hash: '#1',
       stats,
       dependencies: new Map([['./utils', fooUtilsDep]]),
       env: DEFAULT_ENV,
@@ -655,7 +645,6 @@ describe('AssetGraph', () => {
       filePath: toProjectPath('/bar.js'),
       type: 'js',
       isSource: true,
-      hash: '#2',
       stats,
       dependencies: new Map([['./utils', barUtilsDep]]),
       env: DEFAULT_ENV,

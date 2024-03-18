@@ -1,0 +1,39 @@
+{
+  "bundler": "@parcel/bundler-default",
+  "transformers": {
+    "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
+    "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-babel",
+      "@parcel/transformer-js",
+      "@parcel/transformer-react-refresh-wrap"
+    ],
+    "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.css": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
+    "*.{htm,html}": [
+      "@parcel/transformer-posthtml",
+      "@parcel/transformer-html"
+    ],
+    "url:*": ["@parcel/transformer-raw"]
+  },
+  "namers": ["@parcel/namer-default"],
+  "runtimes": [
+    "@parcel/runtime-js",
+    "@parcel/runtime-browser-hmr",
+    "@parcel/runtime-react-refresh"
+  ],
+  "optimizers": {
+    "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
+    "*.css": ["@parcel/optimizer-css"]
+  },
+  "packagers": {
+    "*.{html,xhtml}": "@parcel/packager-html",
+    "*.css": "@parcel/packager-css",
+    "*.{js,mjs,cjs}": "@parcel/packager-js",
+    "*": "@parcel/packager-raw"
+  },
+  "compressors": {
+    "*": ["@parcel/compressor-raw"]
+  },
+  "resolvers": ["@parcel/resolver-repl-runtimes", "@parcel/resolver-default"],
+  "reporters": ["@parcel/reporter-dev-server-sw"]
+}

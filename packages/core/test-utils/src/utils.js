@@ -309,6 +309,8 @@ export async function runBundles(
       ctx = prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
+        undefined,
+        externalModules,
       );
       break;
     case 'electron-renderer': {
@@ -318,6 +320,7 @@ export async function runBundles(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
         prepared.ctx,
+        externalModules,
       );
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -356,10 +359,6 @@ export async function runBundles(
 
     esmOutput = bundles.length === 1 ? res[0] : res;
   } else {
-    invariant(
-      externalModules == null,
-      'externalModules are only supported with ESM',
-    );
     for (let [code, b] of bundles) {
       // require, parcelRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
@@ -538,53 +537,48 @@ export function assertBundles(
     bundle.assets.sort(byAlphabet);
   }
 
-  const byName = (a, b) => {
-    if (typeof a.name === 'string' && typeof b.name === 'string') {
-      return a.name.localeCompare(b.name);
-    }
-
-    return 0;
-  };
-
-  const byAssets = (a, b) =>
-    a.assets.join(',').localeCompare(b.assets.join(','));
-  expectedBundles.sort(byName).sort(byAssets);
-  actualBundles.sort(byName).sort(byAssets);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
     'expected number of bundles mismatched',
   );
 
-  let i = 0;
   for (let bundle of expectedBundles) {
-    let actualBundle = actualBundles[i++];
     let name = bundle.name;
-    let actualName = actualBundle.name;
-    if (name != null && actualName != null) {
-      if (typeof name === 'string') {
-        assert.equal(
-          actualName,
-          name,
-          `Bundle name "${actualName}", does not match expected name "${name}"`,
-        );
-      } else if (name instanceof RegExp) {
-        assert(
-          actualName.match(name),
-          `${actualName} does not match regexp ${name.toString()}`,
-        );
-      } else {
-        // $FlowFixMe[incompatible-call]
-        assert.fail('Expected bundle name has invalid type');
+    let found = actualBundles.some(b => {
+      if (name != null && b.name != null) {
+        if (typeof name === 'string') {
+          if (name !== b.name) {
+            return false;
+          }
+        } else if (name instanceof RegExp) {
+          if (!name.test(b.name)) {
+            return false;
+          }
+        } else {
+          // $FlowFixMe[incompatible-call]
+          assert.fail('Expected bundle name has invalid type');
+        }
       }
-    }
 
-    if (bundle.type != null) {
-      assert.equal(actualBundle.type, bundle.type);
-    }
+      if (bundle.type != null && bundle.type !== b.type) {
+        return false;
+      }
 
-    if (bundle.assets) {
-      assert.deepEqual(actualBundle.assets, bundle.assets);
+      return (
+        bundle.assets &&
+        bundle.assets.length === b.assets.length &&
+        bundle.assets.every((a, i) => a === b.assets[i])
+      );
+    });
+
+    if (!found) {
+      // $FlowFixMe[incompatible-call]
+      assert.fail(
+        `Could not find expected bundle: \n\n${util.inspect(
+          bundle,
+        )} \n\nActual bundles: \n\n${util.inspect(actualBundles)}`,
+      );
     }
   }
 }
@@ -706,6 +700,8 @@ function prepareBrowserContext(
       module: {exports},
       document: fakeDocument,
       WebSocket,
+      TextEncoder,
+      TextDecoder,
       console: {...console, clear: () => {}},
       location: {
         hostname: 'localhost',
@@ -805,6 +801,8 @@ function prepareWorkerContext(
       module: {exports},
       WebSocket,
       console,
+      TextEncoder,
+      TextDecoder,
       location: {hostname: 'localhost', origin: 'http://localhost'},
       importScripts(...urls) {
         for (let u of urls) {
@@ -856,12 +854,21 @@ function prepareWorkerContext(
 
 const nodeCache = new Map();
 // no filepath = ESM
-// $FlowFixMe
-function prepareNodeContext(filePath, globals, ctx: any = {}) {
+function prepareNodeContext(
+  filePath,
+  globals,
+  // $FlowFixMe
+  ctx: any = {},
+  externalModules?: ExternalModules,
+) {
   let exports = {};
   let req =
     filePath &&
     (specifier => {
+      if (externalModules && specifier in externalModules) {
+        return externalModules[specifier](ctx);
+      }
+
       // $FlowFixMe[prop-missing]
       let res = resolve.sync(specifier, {
         basedir: path.dirname(filePath),
@@ -904,6 +911,10 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
       if (res === specifier) {
         // $FlowFixMe[unsupported-syntax]
         return require(specifier);
+      }
+
+      if (path.extname(res) === '.css') {
+        return {};
       }
 
       let cached = nodeCache.get(res);
@@ -955,6 +966,8 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   ctx.setImmediate = setImmediate;
   ctx.global = ctx;
   ctx.URL = URL;
+  ctx.TextEncoder = TextEncoder;
+  ctx.TextDecoder = TextDecoder;
   Object.assign(ctx, globals);
   return ctx;
 }
@@ -976,7 +989,12 @@ export async function runESM(
 
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
-      if (extname && extname !== '.js' && extname !== '.mjs') {
+      if (
+        extname &&
+        extname !== '.js' &&
+        extname !== '.mjs' &&
+        extname !== '.css'
+      ) {
         throw new Error(
           'Unknown file extension in ' +
             specifier +
@@ -995,7 +1013,10 @@ export async function runESM(
         return m;
       }
 
-      let source = code ?? fs.readFileSync(filename, 'utf8');
+      let source =
+        code ??
+        (extname === '.css' ? '' : null) ??
+        fs.readFileSync(filename, 'utf8');
       // $FlowFixMe Experimental
       m = new vm.SourceTextModule(source, {
         identifier: `${normalizeSeparators(

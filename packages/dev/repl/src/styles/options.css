@@ -1,0 +1,41 @@
+.content .options {
+  display: flex;
+  flex-direction: column;
+}
+
+.content .options > hr {
+  width: 100%;
+}
+.content .options > *:not(hr) {
+  padding: 0.3em;
+  display: block;
+}
+.content .options > label > *:not(:first-child) {
+  float: right;
+}
+.content .options > label input[type='text'],
+.content .options > label select {
+  font-size: 0.9em;
+}
+.content .options > label > input[type='text'],
+.content .options > label > select {
+  width: 50%;
+}
+.content .options > .dependencies > ul {
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  max-width: 25em;
+}
+.content .options > .dependencies > ul > li {
+  margin: 0.3em 0;
+  display: flex;
+  justify-content: space-between;
+}
+.content .options > .dependencies button.remove {
+  margin-left: 0.3em;
+  padding: 0.2rem 0.4rem;
+}
+.content .options > .dependencies button.add {
+  width: 100%;
+}

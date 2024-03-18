@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.10.3",
+  "version": "2.12.0",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -21,6 +21,7 @@
     "@babel/preset-typescript": "^7.22.11",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@mdx-js/react": "^1.5.3",
+    "@types/react": "^17",
     "autoprefixer": "^10.4.0",
     "chalk": "^4.1.0",
     "command-exists": "^1.2.6",
@@ -42,7 +43,7 @@
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
     "node-elm-compiler": "^5.0.5",
-    "parcel": "2.10.3",
+    "parcel": "2.12.0",
     "postcss": "^8.4.5",
     "postcss-custom-properties": "^12.1.2",
     "postcss-import": "^14.0.2",

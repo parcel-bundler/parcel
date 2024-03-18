@@ -1,0 +1,20 @@
+# This workflow builds and releases all packages on the main branch with a canary
+# dist tag. These packages contain changes that are not yet available in a publicly
+# released version of Parcel.
+name: canary-release
+
+on:
+  push:
+    branches:
+      - v2
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Build and release canary
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    with:
+      release-command: |
+        yarn canary:release --summary-file
+        node scripts/tag-release.mjs --tag nightly

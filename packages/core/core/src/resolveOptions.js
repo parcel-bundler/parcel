@@ -25,6 +25,8 @@ import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
 
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
 const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
@@ -96,6 +98,14 @@ export default async function resolveOptions(
     initialOptions.cacheDir != null
       ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
+
+  // Make the root watch directory configurable. This is useful in some cases
+  // where symlinked dependencies outside the project root need to trigger HMR
+  // updates. Default to the project root if not provided.
+  let watchDir =
+    initialOptions.watchDir != null
+      ? path.resolve(initialOptions.watchDir)
+      : projectRoot;
 
   let cache =
     initialOptions.cache ??
@@ -180,6 +190,9 @@ export default async function resolveOptions(
     shouldProfile: initialOptions.shouldProfile ?? false,
     shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
+    watchDir,
+    watchBackend: initialOptions.watchBackend,
+    watchIgnore: initialOptions.watchIgnore,
     entries: entries.map(e => toProjectPath(projectRoot, e)),
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',
@@ -209,6 +222,7 @@ export default async function resolveOptions(
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
       isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
+    featureFlags: {...DEFAULT_FEATURE_FLAGS, ...initialOptions?.featureFlags},
   };
 }
 

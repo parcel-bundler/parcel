@@ -816,6 +816,24 @@ export default class BundleGraph {
   getReferencedBundle(dependency: Dependency, fromBundle: Bundle): ?Bundle {
     let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
 
+    // Find an attached bundle via a reference edge (e.g. from createAssetReference).
+    let bundleNodes = this._graph
+      .getNodeIdsConnectedFrom(
+        dependencyNodeId,
+        bundleGraphEdgeTypes.references,
+      )
+      .map(id => nullthrows(this._graph.getNode(id)))
+      .filter(node => node.type === 'bundle');
+
+    if (bundleNodes.length) {
+      let bundleNode =
+        bundleNodes.find(
+          b => b.type === 'bundle' && b.value.type === fromBundle.type,
+        ) || bundleNodes[0];
+      invariant(bundleNode.type === 'bundle');
+      return bundleNode.value;
+    }
+
     // If this dependency is async, there will be a bundle group attached to it.
     let node = this._graph
       .getNodeIdsConnectedFrom(dependencyNodeId)
@@ -830,20 +848,6 @@ export default class BundleGraph {
         let mainEntryId = b.entryAssetIds[b.entryAssetIds.length - 1];
         return mainEntryId != null && node.value.entryAssetId === mainEntryId;
       });
-    }
-
-    // Otherwise, find an attached bundle via a reference edge (e.g. from createAssetReference).
-    let bundleNode = this._graph
-      .getNodeIdsConnectedFrom(
-        dependencyNodeId,
-        bundleGraphEdgeTypes.references,
-      )
-      .map(id => nullthrows(this._graph.getNode(id)))
-      .find(node => node.type === 'bundle');
-
-    if (bundleNode) {
-      invariant(bundleNode.type === 'bundle');
-      return bundleNode.value;
     }
   }
 
@@ -1137,16 +1141,17 @@ export default class BundleGraph {
         ? firstAsset
         : // Otherwise, find the first asset that belongs to this bundle.
           assets.find(asset => this.bundleHasAsset(bundle, asset)) ||
+          assets.find(a => a.type === bundle.type) ||
           firstAsset;
 
     // If a resolution still hasn't been found, return the first referenced asset.
     if (resolved == null) {
+      let potential = [];
       this._graph.traverse(
         (nodeId, _, traversal) => {
           let node = nullthrows(this._graph.getNode(nodeId));
           if (node.type === 'asset') {
-            resolved = node.value;
-            traversal.stop();
+            potential.push(node.value);
           } else if (node.id !== dep.id) {
             traversal.skipChildren();
           }
@@ -1154,6 +1159,11 @@ export default class BundleGraph {
         this._graph.getNodeIdByContentKey(dep.id),
         bundleGraphEdgeTypes.references,
       );
+
+      if (bundle) {
+        resolved = potential.find(a => a.type === bundle.type);
+      }
+      resolved ||= potential[0];
     }
 
     return resolved;
@@ -1735,7 +1745,7 @@ export default class BundleGraph {
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
-        let resolved = this.getResolvedAsset(dep);
+        let resolved = this.getResolvedAsset(dep, boundary);
         if (!resolved || resolved.id === asset.id) {
           // External module or self-reference
           return {
@@ -1785,7 +1795,7 @@ export default class BundleGraph {
         depSymbols.get('*')?.local === '*' &&
         symbol !== 'default'
       ) {
-        let resolved = this.getResolvedAsset(dep);
+        let resolved = this.getResolvedAsset(dep, boundary);
         if (!resolved) {
           continue;
         }
@@ -1918,7 +1928,7 @@ export default class BundleGraph {
       if (!depSymbols) continue;
 
       if (depSymbols.get('*')?.local === '*') {
-        let resolved = this.getResolvedAsset(dep);
+        let resolved = this.getResolvedAsset(dep, boundary);
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')
@@ -1943,14 +1953,7 @@ export default class BundleGraph {
     this.traverseAssets(bundle, asset => {
       {
         hash.writeString(
-          [
-            this.getAssetPublicId(asset),
-            asset.outputHash,
-            asset.filePath,
-            asset.query,
-            asset.type,
-            asset.uniqueKey,
-          ].join(':'),
+          [this.getAssetPublicId(asset), asset.id, asset.outputHash].join(':'),
         );
       }
     });
@@ -1997,7 +2000,7 @@ export default class BundleGraph {
   getHash(bundle: Bundle): string {
     let hash = new Hash();
     hash.writeString(
-      bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
+      bundle.id + JSON.stringify(bundle.target) + this.getContentHash(bundle),
     );
 
     if (bundle.isPlaceholder) {

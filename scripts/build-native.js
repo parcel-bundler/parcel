@@ -43,9 +43,9 @@ async function build() {
   }
 }
 
-// This forces Clang/LLVM to be used as a C compiler instead of GCC.
-// This is necessary for cross-compilation for Apple Silicon in GitHub Actions.
+// This setup is necessary for cross-compilation for Apple Silicon in GitHub Actions.
 function setupMacBuild() {
+  // This forces Clang/LLVM to be used as a C compiler instead of GCC.
   process.env.CC = execSync('xcrun -f clang', {encoding: 'utf8'}).trim();
   process.env.CXX = execSync('xcrun -f clang++', {encoding: 'utf8'}).trim();
 
@@ -54,4 +54,10 @@ function setupMacBuild() {
   }).trim();
   process.env.CFLAGS = `-isysroot ${sysRoot} -isystem ${sysRoot}`;
   process.env.MACOSX_DEPLOYMENT_TARGET = '10.9';
+
+  if (process.env.RUST_TARGET === 'aarch64-apple-darwin') {
+    // Prevents the "<jemalloc>: Unsupported system page size" error when
+    // requiring parcel-node-bindings.darwin-arm64.node
+    process.env.JEMALLOC_SYS_WITH_LG_PAGE = 14;
+  }
 }

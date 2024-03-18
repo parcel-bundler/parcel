@@ -1,7 +1,7 @@
 use crate::id;
 use crate::utils::{
-  match_export_name, match_export_name_ident, match_import, match_member_expr, match_property_name,
-  match_require, Bailout, BailoutReason, SourceLocation,
+  is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
+  match_property_name, match_require, Bailout, BailoutReason, SourceLocation,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -49,7 +49,7 @@ pub struct Export {
 
 pub struct Collect {
   pub source_map: Lrc<swc_core::common::SourceMap>,
-  pub decls: HashSet<Id>,
+  pub unresolved_mark: Mark,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
   pub static_cjs_exports: bool,
@@ -117,7 +117,7 @@ pub struct CollectResult {
 impl Collect {
   pub fn new(
     source_map: Lrc<swc_core::common::SourceMap>,
-    decls: HashSet<Id>,
+    unresolved_mark: Mark,
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
@@ -125,7 +125,7 @@ impl Collect {
   ) -> Self {
     Collect {
       source_map,
-      decls,
+      unresolved_mark,
       ignore_mark,
       global_mark,
       is_module,
@@ -629,17 +629,17 @@ impl Visit for Collect {
     // if exports, ensure only static member expression
     // if require, could be static access (handle in fold)
 
-    if match_member_expr(node, vec!["module", "exports"], &self.decls) {
+    if match_member_expr(node, vec!["module", "exports"], self.unresolved_mark) {
       self.static_cjs_exports = false;
       self.has_cjs_exports = true;
       return;
     }
 
-    if match_member_expr(node, vec!["module", "hot"], &self.decls) {
+    if match_member_expr(node, vec!["module", "hot"], self.unresolved_mark) {
       return;
     }
 
-    if match_member_expr(node, vec!["module", "require"], &self.decls) {
+    if match_member_expr(node, vec!["module", "require"], self.unresolved_mark) {
       return;
     }
 
@@ -665,7 +665,7 @@ impl Visit for Collect {
 
     match &*node.obj {
       Expr::Member(member) => {
-        if match_member_expr(member, vec!["module", "exports"], &self.decls) {
+        if match_member_expr(member, vec!["module", "exports"], self.unresolved_mark) {
           handle_export!();
           return;
         } else {
@@ -673,9 +673,9 @@ impl Visit for Collect {
         }
       }
       Expr::Ident(ident) => {
-        if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
+        if &*ident.sym == "exports" && is_unresolved(&ident, self.unresolved_mark) {
           handle_export!();
-        } else if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
+        } else if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           self.should_wrap = true;
@@ -713,7 +713,7 @@ impl Visit for Collect {
     if node.op == UnaryOp::TypeOf {
       match &*node.arg {
         Expr::Ident(ident)
-          if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) =>
+          if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) =>
         {
           // Do nothing to avoid the ident visitor from marking the module as non-static.
         }
@@ -751,7 +751,7 @@ impl Visit for Collect {
         // Bail if `module` or `exports` are accessed non-statically.
         let is_module = ident.sym == js_word!("module");
         let is_exports = &*ident.sym == "exports";
-        if (is_module || is_exports) && !self.decls.contains(&id!(ident)) {
+        if (is_module || is_exports) && is_unresolved(&ident, self.unresolved_mark) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           if is_module {
@@ -823,7 +823,7 @@ impl Visit for Collect {
     node.right.visit_with(self);
 
     if let PatOrExpr::Pat(pat) = &node.left {
-      if has_binding_identifier(pat, &"exports".into(), &self.decls) {
+      if has_binding_identifier(pat, &"exports".into(), self.unresolved_mark) {
         // Must wrap for cases like
         // ```
         // function logExports() {
@@ -838,7 +838,7 @@ impl Visit for Collect {
         self.has_cjs_exports = true;
         self.should_wrap = true;
         self.add_bailout(node.span, BailoutReason::ExportsReassignment);
-      } else if has_binding_identifier(pat, &"module".into(), &self.decls) {
+      } else if has_binding_identifier(pat, &"module".into(), self.unresolved_mark) {
         // Same for `module`. If it is reassigned we can't correctly statically analyze.
         self.static_cjs_exports = false;
         self.has_cjs_exports = true;
@@ -910,7 +910,7 @@ impl Visit for Collect {
     if let Callee::Expr(expr) = &node.callee {
       match &**expr {
         Expr::Ident(ident) => {
-          if ident.sym == js_word!("eval") && !self.decls.contains(&id!(ident)) {
+          if ident.sym == js_word!("eval") && is_unresolved(&ident, self.unresolved_mark) {
             self.should_wrap = true;
             self.add_bailout(node.span, BailoutReason::Eval);
           }
@@ -919,10 +919,10 @@ impl Visit for Collect {
           // import('foo').then(foo => ...);
           if let Some(source) = match_import(&member.obj, self.ignore_mark) {
             if match_property_name(member).map_or(false, |f| &*f.0 == "then") {
-              if let Some(ExprOrSpread { expr, .. }) = node.args.get(0) {
+              if let Some(ExprOrSpread { expr, .. }) = node.args.first() {
                 let param = match &**expr {
-                  Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
-                  Expr::Arrow(arrow) => arrow.params.get(0),
+                  Expr::Fn(func) => func.function.params.first().map(|param| &param.pat),
+                  Expr::Arrow(arrow) => arrow.params.first(),
                   _ => None,
                 };
 
@@ -950,7 +950,7 @@ impl Visit for Collect {
 
 impl Collect {
   pub fn match_require(&self, node: &Expr) -> Option<JsWord> {
-    match_require(node, &self.decls, self.ignore_mark)
+    match_require(node, self.unresolved_mark, self.ignore_mark)
   }
 
   fn add_pat_imports(&mut self, node: &Pat, src: &JsWord, kind: ImportKind) {
@@ -1124,10 +1124,10 @@ impl Collect {
   }
 }
 
-fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool {
+fn has_binding_identifier(node: &Pat, sym: &JsWord, unresolved_mark: Mark) -> bool {
   match node {
     Pat::Ident(ident) => {
-      if ident.id.sym == *sym && !decls.contains(&id!(ident.id)) {
+      if ident.id.sym == *sym && is_unresolved(&ident, unresolved_mark) {
         return true;
       }
     }
@@ -1135,17 +1135,17 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool
       for prop in &object.props {
         match prop {
           ObjectPatProp::KeyValue(kv) => {
-            if has_binding_identifier(&kv.value, sym, decls) {
+            if has_binding_identifier(&kv.value, sym, unresolved_mark) {
               return true;
             }
           }
           ObjectPatProp::Assign(assign) => {
-            if assign.key.sym == *sym && !decls.contains(&id!(assign.key)) {
+            if assign.key.sym == *sym && is_unresolved(&assign.key, unresolved_mark) {
               return true;
             }
           }
           ObjectPatProp::Rest(rest) => {
-            if has_binding_identifier(&rest.arg, sym, decls) {
+            if has_binding_identifier(&rest.arg, sym, unresolved_mark) {
               return true;
             }
           }
@@ -1154,7 +1154,7 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool
     }
     Pat::Array(array) => {
       for el in array.elems.iter().flatten() {
-        if has_binding_identifier(el, sym, decls) {
+        if has_binding_identifier(el, sym, unresolved_mark) {
           return true;
         }
       }

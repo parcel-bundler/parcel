@@ -5,6 +5,7 @@ import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {Cache} from './types';
 
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import stream from 'stream';
 import path from 'path';
 import {promisify} from 'util';
@@ -12,7 +13,6 @@ import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
-
 import {WRITE_LIMIT_CHUNK} from './constants';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
@@ -87,6 +87,15 @@ export class FSCache implements Cache {
     return path.join(this.dir, `${key}-${index}`);
   }
 
+  async #unlinkChunks(key: string, index: number): Promise<void> {
+    try {
+      await this.fs.unlink(this.#getFilePath(key, index));
+      await this.#unlinkChunks(key, index + 1);
+    } catch (err) {
+      // If there's an error, no more chunks are left to delete
+    }
+  }
+
   hasLargeBlob(key: string): Promise<boolean> {
     return this.fs.exists(this.#getFilePath(key, 0));
   }
@@ -102,29 +111,43 @@ export class FSCache implements Cache {
     return Buffer.concat(await Promise.all(buffers));
   }
 
-  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
+  async setLargeBlob(
+    key: string,
+    contents: Buffer | string,
+    options?: {|signal?: AbortSignal|},
+  ): Promise<void> {
     const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
 
+    const writePromises: Promise<void>[] = [];
     if (chunks === 1) {
       // If there's one chunk, don't slice the content
-      await this.fs.writeFile(this.#getFilePath(key, 0), contents);
-      return;
+      writePromises.push(
+        this.fs.writeFile(this.#getFilePath(key, 0), contents, {
+          signal: options?.signal,
+        }),
+      );
+    } else {
+      for (let i = 0; i < chunks; i += 1) {
+        writePromises.push(
+          this.fs.writeFile(
+            this.#getFilePath(key, i),
+            typeof contents === 'string'
+              ? contents.slice(
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
+                )
+              : contents.subarray(
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
+                ),
+            {signal: options?.signal},
+          ),
+        );
+      }
     }
 
-    const writePromises: Promise<void>[] = [];
-    for (let i = 0; i < chunks; i += 1) {
-      writePromises.push(
-        this.fs.writeFile(
-          this.#getFilePath(key, i),
-          typeof contents === 'string'
-            ? contents.slice(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK)
-            : contents.subarray(
-                i * WRITE_LIMIT_CHUNK,
-                (i + 1) * WRITE_LIMIT_CHUNK,
-              ),
-        ),
-      );
-    }
+    // If there's already a files following this chunk, it's old and should be removed
+    writePromises.push(this.#unlinkChunks(key, chunks));
 
     await Promise.all(writePromises);
   }
