@@ -84,9 +84,10 @@ declare export class Resolver {
 }
 export type PackageVersions = Map<String, Array<String>>;
 declare export function getChangedPackages(
-  yarnLockContent: string,
+  packageVersions: PackageVersions,
   prevPackageVersions: PackageVersions,
 ): {|
   changedPackages: Array<String>,
   packageVersions: PackageVersions,
 |};
+declare export function getPackages(yarnLock: string): PackageVersions;

@@ -53,6 +53,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   },
   featureFlags: {
     exampleFeature: false,
+    yarnWatcher: false,
   },
 };
 

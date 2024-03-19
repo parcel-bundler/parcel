@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use anyhow::Context;
 use napi::{Env, JsObject, JsUnknown};
 use napi_derive::napi;
 use regex::Regex;
@@ -21,32 +22,32 @@ struct ChangedPackagesResult {
 
 #[napi]
 pub fn get_changed_packages(
-  yarn_lock_contents: String,
+  package_versions: JsObject,
   prev_package_versions: JsObject,
   env: Env,
 ) -> napi::Result<JsUnknown> {
-  let metadata = extract_yarn_metadata(&yarn_lock_contents);
-  let diff = diff_package_versions(&env.from_js_value(prev_package_versions)?, &metadata);
+  let diff = diff_package_versions(
+    &env.from_js_value(prev_package_versions)?,
+    &env.from_js_value(package_versions)?,
+  );
 
-  env.to_js_value(&ChangedPackagesResult {
-    changed_packages: diff,
-    package_versions: metadata,
-  })
+  env.to_js_value(&diff)
 }
 
 #[napi]
 pub fn get_packages(yarn_lock_contents: String, env: Env) -> napi::Result<JsUnknown> {
-  let metadata = extract_yarn_metadata(&yarn_lock_contents);
+  let metadata = extract_yarn_metadata(&yarn_lock_contents)?;
 
   env.to_js_value(&metadata)
 }
 
-fn extract_yarn_metadata(yarn_lock_contents: &str) -> PackageVersions {
-  let yarn_lock: HashMap<String, YarnLockEntry> = serde_yaml::from_str(yarn_lock_contents).unwrap();
+fn extract_yarn_metadata(yarn_lock_contents: &str) -> anyhow::Result<PackageVersions> {
+  let yarn_lock: HashMap<String, YarnLockEntry> = serde_yaml::from_str(yarn_lock_contents)
+    .with_context(|| "Failed to parse yarn.lock".to_string())?;
 
   let mut package_versions: PackageVersions = HashMap::new();
 
-  let yarn_lock_entry_re = Regex::new(r"(.+?)@npm:+").unwrap();
+  let yarn_lock_entry_re = Regex::new(r"(.+?)@npm:+")?;
 
   for (key, value) in &yarn_lock {
     if key == "__metadata" || value.version == "0.0.0-use.local" {
@@ -67,7 +68,7 @@ fn extract_yarn_metadata(yarn_lock_contents: &str) -> PackageVersions {
     }
   }
 
-  package_versions
+  Ok(package_versions)
 }
 
 fn diff_package_versions(a: &PackageVersions, b: &PackageVersions) -> HashSet<String> {
@@ -99,8 +100,10 @@ mod tests {
   macro_rules! assert_eq_package_versions {
     ($m: expr, $match: expr) => {{
       let mut map = HashMap::new();
-      for pair in $m {
-        map.insert(pair.0, pair.1);
+      if let Ok(m) = $m {
+        for pair in m {
+          map.insert(pair.0, pair.1);
+        }
       }
       assert_eq!(map, $match);
     }};
@@ -127,6 +130,13 @@ mod tests {
       }
       assert_eq!($m, set);
     }};
+  }
+
+  #[test]
+  fn returns_error_on_invalid_lockfile() {
+    let yarn_lock = r#"invalid"#;
+
+    assert!(extract_yarn_metadata(yarn_lock).is_err());
   }
 
   #[test]

@@ -1412,24 +1412,32 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       let packageVersionKey = 'packageVersions';
       let prevPackageVersions = await options.cache.get(packageVersionKey);
       console.log('ppv', prevPackageVersions);
-      let yarnLock = await options.inputFS.readFile(
-        path.join(options.projectRoot, 'yarn.lock'),
-        'utf8',
-      );
-      if (!prevPackageVersions) {
+      let packageVersions;
+      try {
+        let yarnLock = await options.inputFS.readFile(
+          path.join(options.projectRoot, 'yarn.lock'),
+          'utf8',
+        );
+        packageVersions = getPackages(yarnLock);
+      } catch (e) {
+        console.error('Unable to get package versions from yarn.lock', e);
+      }
+      if (!prevPackageVersions && packageVersions) {
         console.log('No prior package version info, starting with fresh cache');
-        const packageVersions = getPackages(yarnLock);
+
         await options.cache.set(packageVersionKey, packageVersions);
         // invalidate everything
         return new RequestGraph();
+      } else if (prevPackageVersions && packageVersions) {
+        let changedPackages = getChangedPackages(
+          packageVersions,
+          prevPackageVersions,
+        );
+        console.log('Changed packages:', changedPackages);
+        // requestGraph.invalidatePackages(changedPackages);
+        await options.cache.set(packageVersionKey, packageVersions);
       }
-      let {changedPackages, packageVersions} = getChangedPackages(
-        yarnLock,
-        prevPackageVersions,
-      );
-      console.log('Changed packages:', changedPackages);
-      // requestGraph.invalidatePackages(changedPackages);
-      await options.cache.set(packageVersionKey, packageVersions);
+      // else fall through to original behaviour because we couldn't read the yarn.lock
     }
 
     let opts = getWatcherOptions(options);
