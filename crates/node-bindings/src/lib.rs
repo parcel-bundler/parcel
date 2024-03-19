@@ -18,6 +18,7 @@ mod hash;
 mod image;
 mod resolver;
 mod transformer;
+mod yarn_watcher;
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
