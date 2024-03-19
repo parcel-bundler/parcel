@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use napi::{Env, JsObject, JsString, JsUnknown};
+use napi::{Env, JsObject, JsUnknown};
 use napi_derive::napi;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -15,17 +15,17 @@ type PackageVersions = HashMap<String, HashSet<String>>;
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct ChangedPackagesResult {
   pub changed_packages: HashSet<String>,
-  pub package_versions: HashMap<String, HashSet<String>>,
+  pub package_versions: PackageVersions,
 }
 
 #[napi]
 pub fn get_changed_packages(
   yarn_lock_contents: String,
-  previous_package_info: JsObject,
+  prev_package_versions: JsObject,
   env: Env,
 ) -> napi::Result<JsUnknown> {
   let metadata = extract_yarn_metadata(&yarn_lock_contents);
-  let diff = diff_package_versions(&env.from_js_value(&previous_package_info)?, &metadata);
+  let diff = diff_package_versions(&env.from_js_value(&prev_package_versions)?, &metadata);
 
   env.to_js_value(&ChangedPackagesResult {
     changed_packages: diff,

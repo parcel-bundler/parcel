@@ -1399,6 +1399,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   let cacheKey = getCacheKey(options);
   let requestGraphKey = `requestGraph-${cacheKey}`;
 
+  console.log('featureFlags', options.featureFlags);
+
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     let {requestGraph} = await readAndDeserializeRequestGraph(
       options.cache,
@@ -1407,23 +1409,24 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     );
 
     if (options.featureFlags.yarnWatcher) {
-      // get package diffs
-      const prevPackageInfo = await options.cache.get('packageInfo');
-      if (!prevPackageInfo) {
+      let packageVersionKey = 'packageVersions';
+      let prevPackageVersions = await options.cache.get(packageVersionKey);
+      if (!prevPackageVersions) {
+        console.log('No prior package version info, starting with fresh cache');
         // invalidate everything
         return new RequestGraph();
       }
-      const yarnLock = await options.inputFS.readFile(
+      let yarnLock = await options.inputFS.readFile(
         path.join(options.projectRoot, 'yarn.lock'),
         'utf8',
       );
-      const {changedPackages, packageInfo} = getChangedPackages(
+      let {changedPackages, packageVersions} = getChangedPackages(
         yarnLock,
-        prevPackageInfo,
+        prevPackageVersions,
       );
-      console.log(`Changed packages: ${changedPackages}`);
+      console.log('Changed packages:', changedPackages);
       // requestGraph.invalidatePackages(changedPackages);
-      await options.cache.set('packageInfo', packageInfo);
+      await options.cache.set(packageVersionKey, packageVersions);
     }
 
     let opts = getWatcherOptions(options);
