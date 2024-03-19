@@ -16,7 +16,7 @@ import {basename, extname, relative, dirname} from 'path';
 // $FlowFixMe
 import * as compiler from '@vue/compiler-sfc';
 // $FlowFixMe
-import consolidate from 'consolidate';
+import consolidate from '@ladjs/consolidate';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
