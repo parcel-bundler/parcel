@@ -13,6 +13,9 @@ parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+sentry = "0.32.2"
+once_cell = "1.19.0"
+whoami = "1.5.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi5"]}
