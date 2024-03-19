@@ -39,6 +39,28 @@ fn extract_yarn_metadata(yarn_lock_contents: &str) -> PackageVersions {
   package_versions
 }
 
+fn diff_package_versions(a: &PackageVersions, b: &PackageVersions) -> Vec<String> {
+  let mut diff = Vec::new();
+
+  for (package, versions) in a {
+    if let Some(b_versions) = b.get(package) {
+      if versions != b_versions {
+        diff.push(package.to_owned());
+      }
+    } else {
+      diff.push(package.to_owned());
+    }
+  }
+
+  for package in b.keys() {
+    if !a.contains_key(package) {
+      diff.push(package.to_owned());
+    }
+  }
+
+  diff
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -169,6 +191,59 @@ mod tests {
       map! {
         "@apollo/react-components" => vec!["3.1.5"]
       }
+    )
+  }
+
+  #[test]
+  fn diff_with_bump() {
+    assert_eq!(
+      diff_package_versions(
+        &map! {
+          "some-package" => vec!["1.0.0"],
+          "unchanged-package" => vec!["2.0.0"]
+        },
+        &map! {
+          "some-package" => vec!["1.2.3"],
+          "unchanged-package" => vec!["2.0.0"]
+        }
+      ),
+      vec!["some-package"]
+    )
+  }
+
+  #[test]
+  fn diff_with_addition() {
+    assert_eq!(
+      diff_package_versions(
+        &map! {
+          "some-package" => vec!["1.0.0"],
+          "unchanged-package" => vec!["2.0.0"]
+        },
+        &map! {
+          "some-package" => vec!["1.0.0", "1.2.3"],
+          "unchanged-package" => vec!["2.0.0"],
+          "new-package" => vec!["3.0.0"]
+        }
+      ),
+      vec!["some-package", "new-package"]
+    )
+  }
+
+  #[test]
+  fn diff_with_removal() {
+    assert_eq!(
+      diff_package_versions(
+        &map! {
+          "some-package" => vec!["1.0.0", "1.2.3"],
+          "unchanged-package" => vec!["2.0.0"],
+          "removed-package" => vec!["3.0.0"]
+        },
+        &map! {
+          "some-package" => vec!["1.0.0"],
+          "unchanged-package" => vec!["2.0.0"]
+        },
+      ),
+      vec!["some-package", "removed-package"]
     )
   }
 }
