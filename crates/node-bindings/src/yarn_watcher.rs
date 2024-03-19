@@ -12,20 +12,21 @@ struct YarnLockEntry {
 
 type PackageVersions = HashMap<String, HashSet<String>>;
 
-#[derive(Serialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct ChangedPackagesResult {
-  pub changed_packages: Vec<String>,
-  pub package_versions: PackageVersions,
+  pub changed_packages: HashSet<String>,
+  pub package_versions: HashMap<String, HashSet<String>>,
 }
 
 #[napi]
 pub fn get_changed_packages(
   yarn_lock_contents: String,
-  previous_package_info: PackageVersions,
+  previous_package_info: JsObject,
   env: Env,
 ) -> napi::Result<JsUnknown> {
   let metadata = extract_yarn_metadata(&yarn_lock_contents);
-  let diff = diff_package_versions(&previous_package_info, &metadata);
+  let diff = diff_package_versions(&env.from_js_value(&previous_package_info)?, &metadata);
+
   env.to_js_value(&ChangedPackagesResult {
     changed_packages: diff,
     package_versions: metadata,
@@ -61,22 +62,22 @@ fn extract_yarn_metadata(yarn_lock_contents: &str) -> PackageVersions {
   package_versions
 }
 
-fn diff_package_versions(a: &PackageVersions, b: &PackageVersions) -> Vec<String> {
-  let mut diff = Vec::new();
+fn diff_package_versions(a: &PackageVersions, b: &PackageVersions) -> HashSet<String> {
+  let mut diff = HashSet::new();
 
   for (package, versions) in a {
     if let Some(b_versions) = b.get(package) {
       if versions != b_versions {
-        diff.push(package.to_owned());
+        diff.insert(package.to_owned());
       }
     } else {
-      diff.push(package.to_owned());
+      diff.insert(package.to_owned());
     }
   }
 
   for package in b.keys() {
     if !a.contains_key(package) {
-      diff.push(package.to_owned());
+      diff.insert(package.to_owned());
     }
   }
 
@@ -109,6 +110,16 @@ mod tests {
       }
     };
   );
+
+  macro_rules! assert_set_values {
+    ($m: expr, $match: expr) => {{
+      let mut set = HashSet::new();
+      for value in $match {
+        set.insert(value.to_owned());
+      }
+      assert_eq!($m, set);
+    }};
+  }
 
   #[test]
   fn get_package_versions() {
@@ -218,7 +229,7 @@ mod tests {
 
   #[test]
   fn diff_with_bump() {
-    assert_eq!(
+    assert_set_values!(
       diff_package_versions(
         &map! {
           "some-package" => vec!["1.0.0"],
@@ -235,7 +246,7 @@ mod tests {
 
   #[test]
   fn diff_with_addition() {
-    assert_eq!(
+    assert_set_values!(
       diff_package_versions(
         &map! {
           "some-package" => vec!["1.0.0"],
@@ -253,7 +264,7 @@ mod tests {
 
   #[test]
   fn diff_with_removal() {
-    assert_eq!(
+    assert_set_values!(
       diff_package_versions(
         &map! {
           "some-package" => vec!["1.0.0", "1.2.3"],
