@@ -86,8 +86,5 @@ export type PackageVersions = Map<String, Array<String>>;
 declare export function getChangedPackages(
   packageVersions: PackageVersions,
   prevPackageVersions: PackageVersions,
-): {|
-  changedPackages: Array<String>,
-  packageVersions: PackageVersions,
-|};
+): Array<string>;
 declare export function getPackages(yarnLock: string): PackageVersions;

@@ -96,7 +96,11 @@ const FILE_NAME: 2 = 2;
 const ENV: 3 = 3;
 const OPTION: 4 = 4;
 const GLOB: 5 = 5;
+const NODE_MODULE: 6 = 6;
+
 type FileNode = {|id: ContentKey, +type: typeof FILE|};
+
+type NodeModuleNode = {|id: ContentKey, +type: typeof NODE_MODULE|};
 
 type GlobNode = {|id: ContentKey, +type: typeof GLOB, value: InternalGlob|};
 
@@ -160,7 +164,8 @@ type RequestGraphNode =
   | GlobNode
   | FileNameNode
   | EnvNode
-  | OptionNode;
+  | OptionNode
+  | NodeModuleNode;
 
 export type RunAPI<TResult> = {|
   invalidateOnFileCreate: InternalFileCreateInvalidation => void,
@@ -232,6 +237,26 @@ const keyFromEnvContentKey = (contentKey: ContentKey): string =>
 
 const keyFromOptionContentKey = (contentKey: ContentKey): string =>
   contentKey.slice('option:'.length);
+
+const nodeModuleRe = /.*\/node_modules\/(.+)\//;
+const nodeModuleOrFileNameNode = (
+  filePath: ProjectPath,
+  useNodeModuleNodes: boolean,
+): RequestGraphNode => {
+  let match =
+    useNodeModuleNodes && fromProjectPathRelative(filePath).match(nodeModuleRe);
+
+  if (!match) {
+    return nodeFromFilePath(filePath);
+  }
+
+  let [, nodeModule] = match;
+
+  return {
+    id: nodeModule,
+    type: NODE_MODULE,
+  };
+};
 
 export class RequestGraph extends ContentGraph<
   RequestGraphNode,
@@ -408,8 +433,18 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidateOnFileUpdate(requestNodeId: NodeId, filePath: ProjectPath) {
-    let fileNodeId = this.addNode(nodeFromFilePath(filePath));
+  invalidatePackages(changedPackages: Array<string>) {
+    // todo
+  }
+
+  invalidateOnFileUpdate(
+    requestNodeId: NodeId,
+    filePath: ProjectPath,
+    useNodeModuleNodes: boolean,
+  ) {
+    let fileNodeId = this.addNode(
+      nodeModuleOrFileNameNode(filePath, useNodeModuleNodes),
+    );
 
     if (
       !this.hasEdge(
@@ -426,8 +461,14 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidateOnFileDelete(requestNodeId: NodeId, filePath: ProjectPath) {
-    let fileNodeId = this.addNode(nodeFromFilePath(filePath));
+  invalidateOnFileDelete(
+    requestNodeId: NodeId,
+    filePath: ProjectPath,
+    useNodeModuleNodes: boolean,
+  ) {
+    let fileNodeId = this.addNode(
+      nodeModuleOrFileNameNode(filePath, useNodeModuleNodes),
+    );
 
     if (
       !this.hasEdge(
@@ -448,6 +489,15 @@ export class RequestGraph extends ContentGraph<
     requestNodeId: NodeId,
     input: InternalFileCreateInvalidation,
   ) {
+    if (
+      nodeModuleRe.test(input?.fileName ?? '') ||
+      // $FlowFixMe
+      nodeModuleRe.test(input?.aboveFilePath ?? '')
+    ) {
+      console.log('invalidateOnFileCreate (node_module)', input);
+      return;
+    }
+
     let node;
     if (input.glob != null) {
       node = nodeFromGlob(input.glob);
@@ -1137,9 +1187,17 @@ export default class RequestTracker {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
       invalidateOnFileDelete: filePath =>
-        this.graph.invalidateOnFileDelete(requestId, filePath),
+        this.graph.invalidateOnFileDelete(
+          requestId,
+          filePath,
+          this.options.featureFlags.yarnWatcher,
+        ),
       invalidateOnFileUpdate: filePath =>
-        this.graph.invalidateOnFileUpdate(requestId, filePath),
+        this.graph.invalidateOnFileUpdate(
+          requestId,
+          filePath,
+          this.options.featureFlags.yarnWatcher,
+        ),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
       invalidateOnBuild: () => this.graph.invalidateOnBuild(requestId),
       invalidateOnEnvChange: env =>
@@ -1436,7 +1494,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
           prevPackageVersions,
         );
         console.log('Changed packages:', changedPackages);
-        // requestGraph.invalidatePackages(changedPackages);
+        requestGraph.invalidatePackages(changedPackages);
         await options.cache.set(packageVersionKey, packageVersions);
       }
       // else fall through to original behaviour because we couldn't read the yarn.lock
