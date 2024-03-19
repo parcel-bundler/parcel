@@ -13,6 +13,7 @@ struct YarnLockEntry {
 type PackageVersions = HashMap<String, HashSet<String>>;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ChangedPackagesResult {
   pub changed_packages: HashSet<String>,
   pub package_versions: PackageVersions,
@@ -25,12 +26,19 @@ pub fn get_changed_packages(
   env: Env,
 ) -> napi::Result<JsUnknown> {
   let metadata = extract_yarn_metadata(&yarn_lock_contents);
-  let diff = diff_package_versions(&env.from_js_value(&prev_package_versions)?, &metadata);
+  let diff = diff_package_versions(&env.from_js_value(prev_package_versions)?, &metadata);
 
   env.to_js_value(&ChangedPackagesResult {
     changed_packages: diff,
     package_versions: metadata,
   })
+}
+
+#[napi]
+pub fn get_packages(yarn_lock_contents: String, env: Env) -> napi::Result<JsUnknown> {
+  let metadata = extract_yarn_metadata(&yarn_lock_contents);
+
+  env.to_js_value(&metadata)
 }
 
 fn extract_yarn_metadata(yarn_lock_contents: &str) -> PackageVersions {

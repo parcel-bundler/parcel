@@ -27,7 +27,7 @@ import {
   isDirectoryInside,
   makeDeferredWithPromise,
 } from '@parcel/utils';
-import {hashString, getChangedPackages} from '@parcel/rust';
+import {hashString, getChangedPackages, getPackages} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
@@ -1411,15 +1411,18 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     if (options.featureFlags.yarnWatcher) {
       let packageVersionKey = 'packageVersions';
       let prevPackageVersions = await options.cache.get(packageVersionKey);
-      if (!prevPackageVersions) {
-        console.log('No prior package version info, starting with fresh cache');
-        // invalidate everything
-        return new RequestGraph();
-      }
+      console.log('ppv', prevPackageVersions);
       let yarnLock = await options.inputFS.readFile(
         path.join(options.projectRoot, 'yarn.lock'),
         'utf8',
       );
+      if (!prevPackageVersions) {
+        console.log('No prior package version info, starting with fresh cache');
+        const packageVersions = getPackages(yarnLock);
+        await options.cache.set(packageVersionKey, packageVersions);
+        // invalidate everything
+        return new RequestGraph();
+      }
       let {changedPackages, packageVersions} = getChangedPackages(
         yarnLock,
         prevPackageVersions,
