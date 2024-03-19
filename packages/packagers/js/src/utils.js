@@ -55,3 +55,20 @@ export function getSpecifier(dep: Dependency): string {
 
   return dep.specifier;
 }
+
+// https://262.ecma-international.org/6.0/#sec-names-and-keywords
+const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
+const ID_START_RE = /^[$_\p{ID_Start}]/u;
+const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
+
+export function isValidIdentifier(id: string): boolean {
+  return IDENTIFIER_RE.test(id);
+}
+
+export function makeValidIdentifier(name: string): string {
+  name = name.replace(NON_ID_CONTINUE_RE, '');
+  if (!ID_START_RE.test(name)) {
+    name = '_' + name;
+  }
+  return name;
+}

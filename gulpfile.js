@@ -9,7 +9,6 @@ const IGNORED_PACKAGES = [
   '!packages/examples/**',
   '!packages/core/integration-tests/**',
   '!packages/core/workers/test/integration/**',
-  '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
 

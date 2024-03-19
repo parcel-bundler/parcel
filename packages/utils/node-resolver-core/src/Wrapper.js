@@ -165,7 +165,7 @@ export default class NodeResolver {
           ? diagnostic
           : diagnostic
           ? [diagnostic]
-          : [],
+          : undefined,
         invalidateOnFileCreate: res.invalidateOnFileCreate,
         invalidateOnFileChange: res.invalidateOnFileChange,
       };

@@ -309,6 +309,8 @@ export async function runBundles(
       ctx = prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
+        undefined,
+        externalModules,
       );
       break;
     case 'electron-renderer': {
@@ -318,6 +320,7 @@ export async function runBundles(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
         prepared.ctx,
+        externalModules,
       );
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -356,10 +359,6 @@ export async function runBundles(
 
     esmOutput = bundles.length === 1 ? res[0] : res;
   } else {
-    invariant(
-      externalModules == null,
-      'externalModules are only supported with ESM',
-    );
     for (let [code, b] of bundles) {
       // require, parcelRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
@@ -855,12 +854,21 @@ function prepareWorkerContext(
 
 const nodeCache = new Map();
 // no filepath = ESM
-// $FlowFixMe
-function prepareNodeContext(filePath, globals, ctx: any = {}) {
+function prepareNodeContext(
+  filePath,
+  globals,
+  // $FlowFixMe
+  ctx: any = {},
+  externalModules?: ExternalModules,
+) {
   let exports = {};
   let req =
     filePath &&
     (specifier => {
+      if (externalModules && specifier in externalModules) {
+        return externalModules[specifier](ctx);
+      }
+
       // $FlowFixMe[prop-missing]
       let res = resolve.sync(specifier, {
         basedir: path.dirname(filePath),
@@ -903,6 +911,10 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
       if (res === specifier) {
         // $FlowFixMe[unsupported-syntax]
         return require(specifier);
+      }
+
+      if (path.extname(res) === '.css') {
+        return {};
       }
 
       let cached = nodeCache.get(res);
@@ -977,7 +989,12 @@ export async function runESM(
 
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
-      if (extname && extname !== '.js' && extname !== '.mjs') {
+      if (
+        extname &&
+        extname !== '.js' &&
+        extname !== '.mjs' &&
+        extname !== '.css'
+      ) {
         throw new Error(
           'Unknown file extension in ' +
             specifier +
@@ -996,7 +1013,10 @@ export async function runESM(
         return m;
       }
 
-      let source = code ?? fs.readFileSync(filename, 'utf8');
+      let source =
+        code ??
+        (extname === '.css' ? '' : null) ??
+        fs.readFileSync(filename, 'utf8');
       // $FlowFixMe Experimental
       m = new vm.SourceTextModule(source, {
         identifier: `${normalizeSeparators(
