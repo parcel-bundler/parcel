@@ -1420,7 +1420,9 @@ async function loadRequestGraph(options): Async<RequestGraph> {
         );
         packageVersions = getPackages(yarnLock);
       } catch (e) {
-        console.error('Unable to get package versions from yarn.lock', e);
+        throw new Error(
+          'Unable to get package versions from yarn.lock - the `yarnWatcher` feature requires a Yarn v3 lockfile',
+        );
       }
       if (!prevPackageVersions && packageVersions) {
         console.log('No prior package version info, starting with fresh cache');
