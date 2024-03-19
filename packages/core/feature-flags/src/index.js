@@ -6,5 +6,6 @@ import type {FeatureFlags as _FeatureFlags} from './types';
 export type FeatureFlags = _FeatureFlags;
 
 export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
+  yarnWatcher: false,
   exampleFeature: false,
 };

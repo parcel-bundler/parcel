@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+use napi::{Env, JsObject, JsString, JsUnknown};
+use napi_derive::napi;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 struct YarnLockEntry {
@@ -9,6 +11,26 @@ struct YarnLockEntry {
 }
 
 type PackageVersions = HashMap<String, HashSet<String>>;
+
+#[derive(Serialize)]
+struct ChangedPackagesResult {
+  pub changed_packages: Vec<String>,
+  pub package_versions: PackageVersions,
+}
+
+#[napi]
+pub fn get_changed_packages(
+  yarn_lock_contents: String,
+  previous_package_info: PackageVersions,
+  env: Env,
+) -> napi::Result<JsUnknown> {
+  let metadata = extract_yarn_metadata(&yarn_lock_contents);
+  let diff = diff_package_versions(&previous_package_info, &metadata);
+  env.to_js_value(&ChangedPackagesResult {
+    changed_packages: diff,
+    package_versions: metadata,
+  })
+}
 
 fn extract_yarn_metadata(yarn_lock_contents: &str) -> PackageVersions {
   let yarn_lock: HashMap<String, YarnLockEntry> = serde_yaml::from_str(yarn_lock_contents).unwrap();

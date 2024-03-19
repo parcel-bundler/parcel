@@ -27,7 +27,7 @@ import {
   isDirectoryInside,
   makeDeferredWithPromise,
 } from '@parcel/utils';
-import {hashString} from '@parcel/rust';
+import {hashString, getChangedPackages} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
@@ -1335,10 +1335,15 @@ export function getWatcherOptions({
   cacheDir,
   projectRoot,
   watchBackend,
+  featureFlags,
 }: ParcelOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
   const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
   const ignore = uniqueDirs.map(dir => path.join(projectRoot, dir));
+
+  if (featureFlags.yarnWatcher) {
+    ignore.push('node_modules');
+  }
 
   return {ignore, backend: watchBackend};
 }
@@ -1400,6 +1405,26 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       requestGraphKey,
       cacheKey,
     );
+
+    if (options.featureFlags.yarnWatcher) {
+      // get package diffs
+      const prevPackageInfo = await options.cache.get('packageInfo');
+      if (!prevPackageInfo) {
+        // invalidate everything
+        return new RequestGraph();
+      }
+      const yarnLock = await options.inputFS.readFile(
+        path.join(options.projectRoot, 'yarn.lock'),
+        'utf8',
+      );
+      const {changedPackages, packageInfo} = getChangedPackages(
+        yarnLock,
+        prevPackageInfo,
+      );
+      console.log(`Changed packages: ${changedPackages}`);
+      // requestGraph.invalidatePackages(changedPackages);
+      await options.cache.set('packageInfo', packageInfo);
+    }
 
     let opts = getWatcherOptions(options);
     let snapshotKey = `snapshot-${cacheKey}`;
