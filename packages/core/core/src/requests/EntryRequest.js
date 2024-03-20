@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Async, FilePath, PackageJSON} from '@parcel/types';
+import type {Async, FilePath, PackageJSON, Glob} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, InternalFile, ParcelOptions} from '../types';
 import type {FileSystem} from '@parcel/fs';
@@ -41,6 +41,7 @@ export type EntryRequest = {|
 export type EntryResult = {|
   entries: Array<Entry>,
   files: Array<InternalFile>,
+  globs: Array<Glob>,
 |};
 
 const type = 'entry_request';
@@ -68,8 +69,10 @@ async function run({input, api, options}): Promise<EntryResult> {
 
   // If the entry specifier is a glob, add a glob node so
   // we invalidate when a new file matches.
-  if (isGlob(filePath)) {
-    api.invalidateOnFileCreate({glob: input});
+  for (let glob of result.globs) {
+    api.invalidateOnFileCreate({
+      glob: toProjectPath(options.projectRoot, glob),
+    });
   }
 
   // Invalidate whenever an entry is deleted.
@@ -177,8 +180,9 @@ export class EntryResolver {
         (p, res) => ({
           entries: p.entries.concat(res.entries),
           files: p.files.concat(res.files),
+          globs: p.globs.concat(res.globs),
         }),
-        {entries: [], files: []},
+        {entries: [], files: [], globs: [entry]},
       );
     }
 
@@ -193,6 +197,7 @@ export class EntryResolver {
             filePath: toProjectPath(this.options.projectRoot, filePath),
           },
         ];
+        let globs = [];
 
         let targetsWithSources = 0;
         if (pkg.targets) {
@@ -207,6 +212,7 @@ export class EntryResolver {
               for (let source of targetSources) {
                 let sources;
                 if (isGlob(source)) {
+                  globs.push(source);
                   sources = await glob(source, this.options.inputFS, {
                     onlyFiles: true,
                     cwd: entry,
@@ -264,6 +270,7 @@ export class EntryResolver {
           for (let pkgSource of pkgSources) {
             let sources;
             if (isGlob(pkgSource)) {
+              globs.push(pkgSource);
               sources = await glob(pkgSource, this.options.inputFS, {
                 onlyFiles: true,
                 cwd: path.dirname(filePath),
@@ -303,6 +310,7 @@ export class EntryResolver {
           return {
             entries,
             files,
+            globs,
           };
         }
       }
@@ -329,6 +337,7 @@ export class EntryResolver {
           },
         ],
         files: [],
+        globs: [],
       };
     }
 

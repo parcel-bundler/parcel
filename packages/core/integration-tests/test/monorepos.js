@@ -1011,7 +1011,7 @@ describe('monorepos', function () {
   });
 
   it('should support globs in target-specific source field', async function () {
-    const dir = path.join(__dirname, 'source-glob');
+    const dir = path.join(__dirname, 'source-target-glob');
     overlayFS.mkdirp(dir);
 
     await fsFixture(overlayFS, dir)`
@@ -1064,5 +1064,57 @@ describe('monorepos', function () {
       let res = await runBundle(b, bundle);
       assert.equal(res.default, bundle.name[0]);
     }
+  });
+
+  it('should watch globs in source field', async function () {
+    const dir = path.join(__dirname, 'input', 'source-glob-watch');
+    await overlayFS.mkdirp(dir);
+    await inputFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      package.json:
+        {
+          "source": "foo/*.js",
+          "targets": {
+            "default": {
+              "outputFormat": "esmodule",
+              "isLibrary": true
+            }
+          }
+        }
+
+      foo/a.js:
+        export default 'a';
+    `;
+
+    let b = await bundler(dir, {
+      inputFS: overlayFS,
+    });
+
+    subscription = await b.watch();
+    let evt = await getNextBuild(b);
+
+    assertBundles(evt.bundleGraph, [
+      {
+        assets: ['a.js'],
+      },
+    ]);
+
+    await fsFixture(overlayFS, dir)`
+      foo/b.js:
+        export default 'b';
+    `;
+
+    evt = await getNextBuild(b);
+    assertBundles(evt.bundleGraph, [
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+    ]);
   });
 });
