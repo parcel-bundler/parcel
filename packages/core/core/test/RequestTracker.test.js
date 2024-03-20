@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import assert from 'assert';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import nullthrows from 'nullthrows';
 import RequestTracker, {type RunAPI} from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
