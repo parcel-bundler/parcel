@@ -75,6 +75,7 @@ export function createEnvironment({
       case 'browser':
       case 'web-worker':
       case 'service-worker':
+      case 'edge':
       default:
         includeNodeModules = true;
         break;
@@ -87,6 +88,9 @@ export function createEnvironment({
       case 'electron-main':
       case 'electron-renderer':
         outputFormat = 'commonjs';
+        break;
+      case 'edge':
+        outputFormat = 'esmodule';
         break;
       default:
         outputFormat = 'global';

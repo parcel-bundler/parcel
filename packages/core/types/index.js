@@ -116,7 +116,8 @@ export type EnvironmentContext =
   | 'worklet'
   | 'node'
   | 'electron-main'
-  | 'electron-renderer';
+  | 'electron-renderer'
+  | 'edge';
 
 /** The JS module format for the bundle output */
 export type OutputFormat = 'esmodule' | 'commonjs' | 'global';

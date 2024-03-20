@@ -798,6 +798,24 @@ describe('javascript', function () {
     ]);
   });
 
+  it('should support edge context', async function () {
+    let b = await bundle(path.join(__dirname, '/integration/edge/index.js'));
+
+    let result;
+    await run(b, {
+      output(v) {
+        result = v;
+      },
+    });
+
+    assert(process.cwd() !== '/');
+    assert.deepEqual(result, {
+      browserResolution: 'main',
+      builtin: '/',
+      global: '616263',
+    });
+  });
+
   it('should support bundling workers', async function () {
     let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
 
