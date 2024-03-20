@@ -27,7 +27,12 @@ import {
   isDirectoryInside,
   makeDeferredWithPromise,
 } from '@parcel/utils';
-import {hashString, getChangedPackages, getPackages} from '@parcel/rust';
+import {
+  hashString,
+  getChangedPackages,
+  getPackages,
+  type PackageVersions,
+} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
@@ -76,6 +81,7 @@ type RequestGraphOpts = {|
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
   cachedRequestChunks: Set<number>,
+  packageVersions: PackageVersions,
 |};
 
 type SerializedRequestGraph = {|
@@ -88,6 +94,7 @@ type SerializedRequestGraph = {|
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
   cachedRequestChunks: Set<number>,
+  packageVersions: PackageVersions,
 |};
 
 const FILE: 0 = 0;
@@ -212,7 +219,10 @@ const nodeFromFileName = (fileName: string): RequestGraphNode => ({
   id: 'file_name:' + fileName,
   type: FILE_NAME,
 });
-
+const nodeFromPackageName = (pkgName: string): RequestGraphNode => ({
+  id: 'node_module:' + pkgName,
+  type: NODE_MODULE,
+});
 const nodeFromRequest = (request: RequestNode): RequestGraphNode => ({
   id: request.id,
   type: REQUEST,
@@ -238,7 +248,7 @@ const keyFromEnvContentKey = (contentKey: ContentKey): string =>
 const keyFromOptionContentKey = (contentKey: ContentKey): string =>
   contentKey.slice('option:'.length);
 
-const nodeModuleRe = /.*\/node_modules\/(.+)\//;
+const nodeModuleRe = /.*\/?node_modules\/(.+)\//;
 const nodeModuleOrFileNameNode = (
   filePath: ProjectPath,
   useNodeModuleNodes: boolean,
@@ -252,10 +262,7 @@ const nodeModuleOrFileNameNode = (
 
   let [, nodeModule] = match;
 
-  return {
-    id: nodeModule,
-    type: NODE_MODULE,
-  };
+  return nodeFromPackageName(nodeModule);
 };
 
 export class RequestGraph extends ContentGraph<
@@ -273,6 +280,7 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
   cachedRequestChunks: Set<number> = new Set();
+  packageVersions: PackageVersions = new Map();
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -286,6 +294,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
     deserialized.cachedRequestChunks = opts.cachedRequestChunks;
+    deserialized.packageVersions = opts.packageVersions;
     return deserialized;
   }
 
@@ -301,6 +310,7 @@ export class RequestGraph extends ContentGraph<
       unpredicatableNodeIds: this.unpredicatableNodeIds,
       invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
       cachedRequestChunks: this.cachedRequestChunks,
+      packageVersions: this.packageVersions,
     };
   }
 
@@ -312,6 +322,9 @@ export class RequestGraph extends ContentGraph<
     }
 
     nodeId = super.addNodeByContentKey(node.id, node);
+    if (node.id.startsWith('node_module:')) {
+      console.log('added ' + node.id);
+    }
     if (node.type === GLOB) {
       this.globNodeIds.add(nodeId);
     } else if (node.type === ENV) {
@@ -433,8 +446,39 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidatePackages(changedPackages: Array<string>) {
-    // todo
+  invalidatePackages(latestPackageVersions: PackageVersions) {
+    // try {
+    //   let yarnLock = await options.inputFS.readFile(
+    //     path.join(options.projectRoot, 'yarn.lock'),
+    //     'utf8',
+    //   );
+    //   requestGraph.packageVersions = getPackages(yarnLock);
+
+    let changedPackages = getChangedPackages(
+      this.packageVersions,
+      latestPackageVersions,
+    );
+    console.log('Changed packages:', changedPackages);
+
+    for (let pkg of changedPackages) {
+      let contentKey = 'node_module:' + pkg;
+      if (!this.hasContentKey(contentKey)) {
+        continue;
+      }
+      let nodeId = nullthrows(this.getNodeIdByContentKey(contentKey));
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type === NODE_MODULE);
+      console.log(`Invalidating NODE_MODULE node for ${pkg}`);
+      let parentNodes = this.getNodeIdsConnectedTo(nodeId, [
+        requestGraphEdgeTypes.invalidated_by_update,
+        requestGraphEdgeTypes.invalidated_by_delete,
+      ]);
+      for (const parentNode of parentNodes) {
+        console.log(` ... ${parentNode}`);
+        this.invalidateNode(parentNode, FILE_UPDATE);
+      }
+    }
+    this.packageVersions = latestPackageVersions;
   }
 
   invalidateOnFileUpdate(
@@ -494,7 +538,7 @@ export class RequestGraph extends ContentGraph<
       // $FlowFixMe
       nodeModuleRe.test(input?.aboveFilePath ?? '')
     ) {
-      console.log('invalidateOnFileCreate (node_module)', input);
+      // console.log('invalidateOnFileCreate (node_module)', input);
       return;
     }
 
@@ -1467,37 +1511,19 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     );
 
     if (options.featureFlags.yarnWatcher) {
-      let packageVersionKey = 'packageVersions';
-      let prevPackageVersions = await options.cache.get(packageVersionKey);
-      console.log('ppv', prevPackageVersions);
-      let packageVersions;
+      let latestPackageVersions;
       try {
         let yarnLock = await options.inputFS.readFile(
           path.join(options.projectRoot, 'yarn.lock'),
           'utf8',
         );
-        packageVersions = getPackages(yarnLock);
+        latestPackageVersions = getPackages(yarnLock);
       } catch (e) {
         throw new Error(
           'Unable to get package versions from yarn.lock - the `yarnWatcher` feature requires a Yarn v3 lockfile',
         );
       }
-      if (!prevPackageVersions && packageVersions) {
-        console.log('No prior package version info, starting with fresh cache');
-
-        await options.cache.set(packageVersionKey, packageVersions);
-        // invalidate everything
-        return new RequestGraph();
-      } else if (prevPackageVersions && packageVersions) {
-        let changedPackages = getChangedPackages(
-          packageVersions,
-          prevPackageVersions,
-        );
-        console.log('Changed packages:', changedPackages);
-        requestGraph.invalidatePackages(changedPackages);
-        await options.cache.set(packageVersionKey, packageVersions);
-      }
-      // else fall through to original behaviour because we couldn't read the yarn.lock
+      await requestGraph.invalidatePackages(latestPackageVersions);
     }
 
     let opts = getWatcherOptions(options);
