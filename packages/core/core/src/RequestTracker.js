@@ -248,7 +248,7 @@ const keyFromEnvContentKey = (contentKey: ContentKey): string =>
 const keyFromOptionContentKey = (contentKey: ContentKey): string =>
   contentKey.slice('option:'.length);
 
-const nodeModuleRe = /.*\/?node_modules\/(.+)\//;
+const nodeModuleRe = /.*\/?node_modules\/((@[^/]+\/[^/]+)|([^/]+))\//;
 const nodeModuleOrFileNameNode = (
   filePath: ProjectPath,
   useNodeModuleNodes: boolean,
@@ -323,7 +323,7 @@ export class RequestGraph extends ContentGraph<
 
     nodeId = super.addNodeByContentKey(node.id, node);
     if (node.id.startsWith('node_module:')) {
-      console.log('added ' + node.id);
+      // console.log('added ' + node.id);
     }
     if (node.type === GLOB) {
       this.globNodeIds.add(nodeId);
@@ -1441,11 +1441,10 @@ export function getWatcherOptions({
 }: ParcelOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
   const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
-  const ignore = uniqueDirs.map(dir => path.join(projectRoot, dir));
-
   if (featureFlags.yarnWatcher) {
-    ignore.push('node_modules');
+    uniqueDirs.push('node_modules');
   }
+  const ignore = uniqueDirs.map(dir => path.join(projectRoot, dir));
 
   return {ignore, backend: watchBackend};
 }
@@ -1544,6 +1543,12 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       opts,
     );
     clearTimeout(timeout);
+
+    require('fs').writeFileSync(
+      '/tmp/events.txt',
+      events.map(e => e.path).join('\n'),
+      'utf8',
+    );
 
     logger.verbose({
       origin: '@parcel/core',
