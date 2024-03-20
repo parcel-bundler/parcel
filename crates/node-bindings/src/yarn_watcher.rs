@@ -36,9 +36,10 @@ pub fn get_changed_packages(
 
 #[napi]
 pub fn get_packages(yarn_lock_contents: String, env: Env) -> napi::Result<JsUnknown> {
-  let metadata = extract_yarn_metadata(&yarn_lock_contents)?;
-
-  env.to_js_value(&metadata)
+  match extract_yarn_metadata(&yarn_lock_contents) {
+    Ok(metadata) => env.to_js_value(&metadata),
+    Err(err) => Err(napi::Error::from_reason(format!("{:#}", err))),
+  }
 }
 
 fn extract_yarn_metadata(yarn_lock_contents: &str) -> anyhow::Result<PackageVersions> {

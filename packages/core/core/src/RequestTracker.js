@@ -1520,7 +1520,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
         latestPackageVersions = getPackages(yarnLock);
       } catch (e) {
         throw new Error(
-          'Unable to get package versions from yarn.lock - the `yarnWatcher` feature requires a Yarn v3 lockfile',
+          'Unable to get package versions from yarn.lock (the `yarnWatcher` feature requires a Yarn v3 lockfile)\n' +
+            e.message,
         );
       }
       await requestGraph.invalidatePackages(latestPackageVersions);
