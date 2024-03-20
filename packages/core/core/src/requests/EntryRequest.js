@@ -204,36 +204,47 @@ export class EntryResolver {
                 ? target.source
                 : [target.source];
               let i = 0;
-              for (let relativeSource of targetSources) {
-                let source = path.join(entry, relativeSource);
+              for (let source of targetSources) {
+                let sources;
+                if (isGlob(source)) {
+                  sources = await glob(source, this.options.inputFS, {
+                    onlyFiles: true,
+                    cwd: entry,
+                  });
+                } else {
+                  sources = [source];
+                }
                 let keyPath = `/targets/${targetName}/source${
                   Array.isArray(target.source) ? `/${i}` : ''
                 }`;
-                await assertFile(
-                  this.options.inputFS,
-                  entry,
-                  relativeSource,
-                  filePath,
-                  keyPath,
-                  this.options,
-                );
+                for (let relativeSource of sources) {
+                  let source = path.join(entry, relativeSource);
+                  await assertFile(
+                    this.options.inputFS,
+                    entry,
+                    relativeSource,
+                    filePath,
+                    keyPath,
+                    this.options,
+                  );
 
-                entries.push({
-                  filePath: toProjectPath(this.options.projectRoot, source),
-                  packagePath: toProjectPath(this.options.projectRoot, entry),
-                  target: targetName,
-                  loc: {
-                    filePath: toProjectPath(
-                      this.options.projectRoot,
-                      pkg.filePath,
-                    ),
-                    ...getJSONSourceLocation(
-                      pkg.map.pointers[keyPath],
-                      'value',
-                    ),
-                  },
-                });
-                i++;
+                  entries.push({
+                    filePath: toProjectPath(this.options.projectRoot, source),
+                    packagePath: toProjectPath(this.options.projectRoot, entry),
+                    target: targetName,
+                    loc: {
+                      filePath: toProjectPath(
+                        this.options.projectRoot,
+                        pkg.filePath,
+                      ),
+                      ...getJSONSourceLocation(
+                        pkg.map.pointers[keyPath],
+                        'value',
+                      ),
+                    },
+                  });
+                  i++;
+                }
               }
             }
           }
@@ -251,25 +262,39 @@ export class EntryResolver {
             : [pkg.source];
           let i = 0;
           for (let pkgSource of pkgSources) {
-            let source = path.join(path.dirname(filePath), pkgSource);
+            let sources;
+            if (isGlob(pkgSource)) {
+              sources = await glob(pkgSource, this.options.inputFS, {
+                onlyFiles: true,
+                cwd: path.dirname(filePath),
+              });
+            } else {
+              sources = [pkgSource];
+            }
             let keyPath = `/source${Array.isArray(pkg.source) ? `/${i}` : ''}`;
-            await assertFile(
-              this.options.inputFS,
-              entry,
-              pkgSource,
-              filePath,
-              keyPath,
-              this.options,
-            );
-            entries.push({
-              filePath: toProjectPath(this.options.projectRoot, source),
-              packagePath: toProjectPath(this.options.projectRoot, entry),
-              loc: {
-                filePath: toProjectPath(this.options.projectRoot, pkg.filePath),
-                ...getJSONSourceLocation(pkg.map.pointers[keyPath], 'value'),
-              },
-            });
-            i++;
+            for (let relativeSource of sources) {
+              let source = path.join(path.dirname(filePath), relativeSource);
+              await assertFile(
+                this.options.inputFS,
+                entry,
+                relativeSource,
+                filePath,
+                keyPath,
+                this.options,
+              );
+              entries.push({
+                filePath: toProjectPath(this.options.projectRoot, source),
+                packagePath: toProjectPath(this.options.projectRoot, entry),
+                loc: {
+                  filePath: toProjectPath(
+                    this.options.projectRoot,
+                    pkg.filePath,
+                  ),
+                  ...getJSONSourceLocation(pkg.map.pointers[keyPath], 'value'),
+                },
+              });
+              i++;
+            }
           }
         }
 
