@@ -935,6 +935,15 @@ export class TargetResolver {
         if (customTargets.length >= 2) {
           distDir = path.join(distDir, targetName);
         }
+        invariant(pkgMap != null);
+        invariant(typeof pkgFilePath === 'string');
+        loc = {
+          filePath: pkgFilePath,
+          ...getJSONSourceLocation(
+            pkgMap.pointers[`/targets/${targetName}`],
+            'key',
+          ),
+        };
       } else {
         if (typeof distPath !== 'string') {
           let contents: string =

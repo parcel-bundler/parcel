@@ -418,4 +418,77 @@ describe('library bundler', function () {
     assert.deepEqual(Object.keys(foo), ['default']);
     assert.deepEqual(foo.default, {'foo-bar': 'foo'});
   });
+
+  it('should allow bundles to be reused between targets in the same package', async function () {
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      .parcelrc:
+        {
+          "extends": "@parcel/config-default",
+          "bundler": "@parcel/bundler-library"
+        }
+
+      package.json:
+        {
+          "engines": { "node": "*" },
+          "targets": {
+            "a": {
+              "source": "src/a.js",
+              "distDir": "a",
+              "outputFormat": "esmodule",
+              "isLibrary": true
+            },
+            "b": {
+              "source": "src/b.js",
+              "distDir": "b",
+              "outputFormat": "esmodule",
+              "isLibrary": true
+            }
+          }
+        }
+
+      src/a.js:
+        import shared from './shared';
+        export default shared + '-a';
+
+      src/b.js:
+        import shared from './shared';
+        export default shared + '-b';
+
+      src/shared.js:
+        export default 'shared';
+    `;
+
+    let b = await bundle(dir, {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        assets: ['shared.js'],
+      },
+    ]);
+
+    let res: any = await runBundle(
+      b,
+      nullthrows(b.getBundles().find(b => b.name === 'a.js')),
+    );
+
+    assert.equal(res.default, 'shared-a');
+
+    let res2: any = await runBundle(
+      b,
+      nullthrows(b.getBundles().find(b => b.name === 'b.js')),
+    );
+
+    assert.equal(res2.default, 'shared-b');
+  });
 });
