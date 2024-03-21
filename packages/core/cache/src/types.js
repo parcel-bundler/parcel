@@ -1,6 +1,5 @@
 // @flow
 import type {Readable} from 'stream';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 export interface Cache {
   ensure(): Promise<void>;

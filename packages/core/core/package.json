@@ -40,7 +40,6 @@
     "@parcel/types": "2.12.0",
     "@parcel/utils": "2.12.0",
     "@parcel/workers": "2.12.0",
-    "abortcontroller-polyfill": "^1.1.9",
     "base-x": "^3.0.8",
     "browserslist": "^4.6.6",
     "clone": "^2.1.1",
