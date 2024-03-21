@@ -485,6 +485,10 @@ export type Config = {|
   cacheKey: ?string,
   result: ConfigResult,
   invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnPackageKeyChange: Array<{|
+    filePath: ProjectPath,
+    packageKey: string,
+  |}>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,

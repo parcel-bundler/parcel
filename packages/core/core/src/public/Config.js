@@ -75,6 +75,13 @@ export default class PublicConfig implements IConfig {
     );
   }
 
+  invalidateOnPackageKeyChange(filePath: FilePath, packageKey: string) {
+    this.#config.invalidateOnPackageKeyChange.push({
+      filePath: toProjectPath(this.#options.projectRoot, filePath),
+      packageKey,
+    });
+  }
+
   addDevDependency(devDep: DevDepOptions) {
     this.#config.devDeps.push({
       ...devDep,
@@ -133,8 +140,18 @@ export default class PublicConfig implements IConfig {
   ): Promise<?ConfigResultWithFilePath<T>> {
     let packageKey = options?.packageKey;
     if (packageKey != null) {
-      let pkg = await this.getConfigFrom(searchPath, ['package.json']);
-      if (pkg && pkg.contents[packageKey]) {
+      let pkg = await this.getConfigFrom(searchPath, ['package.json'], {
+        exclude: true,
+      });
+
+      if (pkg) {
+        // Invalidate only when the package key changes
+        this.invalidateOnPackageKeyChange(pkg.filePath, packageKey);
+
+        if (!pkg.contents[packageKey]) {
+          return;
+        }
+
         return {
           contents: pkg.contents[packageKey],
           filePath: pkg.filePath,

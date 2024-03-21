@@ -17,7 +17,7 @@ import type {
   InternalGlob,
 } from './types';
 import logger from '@parcel/logger';
-import type {Deferred} from '@parcel/utils';
+import {readConfig, type Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -36,6 +36,7 @@ import {
   fromProjectPathRelative,
   toProjectPathUnsafe,
   toProjectPath,
+  fromProjectPath,
 } from './projectPath';
 
 import {
@@ -54,6 +55,7 @@ import {
 import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
+import {Hash} from '@parcel/rust';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -76,6 +78,7 @@ type RequestGraphOpts = {|
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
   cachedRequestChunks: Set<number>,
+  packageKeyNodes: Map<ProjectPath, Set<NodeId>>,
 |};
 
 type SerializedRequestGraph = {|
@@ -88,6 +91,7 @@ type SerializedRequestGraph = {|
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
   cachedRequestChunks: Set<number>,
+  packageKeyNodes: Map<ProjectPath, Set<NodeId>>,
 |};
 
 const FILE: 0 = 0;
@@ -96,6 +100,8 @@ const FILE_NAME: 2 = 2;
 const ENV: 3 = 3;
 const OPTION: 4 = 4;
 const GLOB: 5 = 5;
+const PACKAGE_KEY: 6 = 6;
+
 type FileNode = {|id: ContentKey, +type: typeof FILE|};
 
 type GlobNode = {|id: ContentKey, +type: typeof GLOB, value: InternalGlob|};
@@ -115,6 +121,13 @@ type OptionNode = {|
   id: ContentKey,
   +type: typeof OPTION,
   hash: string,
+|};
+
+type PackageKeyNode = {|
+  id: ContentKey,
+  +type: typeof PACKAGE_KEY,
+  packageKey: string,
+  contentHash: string,
 |};
 
 type Request<TInput, TResult> = {|
@@ -160,12 +173,18 @@ type RequestGraphNode =
   | GlobNode
   | FileNameNode
   | EnvNode
-  | OptionNode;
+  | OptionNode
+  | PackageKeyNode;
 
 export type RunAPI<TResult> = {|
   invalidateOnFileCreate: InternalFileCreateInvalidation => void,
   invalidateOnFileDelete: ProjectPath => void,
   invalidateOnFileUpdate: ProjectPath => void,
+  invalidateOnPackageKeyChange: (
+    filePath: ProjectPath,
+    packageKey: string,
+    contentHash: string,
+  ) => void,
   invalidateOnStartup: () => void,
   invalidateOnBuild: () => void,
   invalidateOnEnvChange: string => void,
@@ -227,6 +246,17 @@ const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   hash: hashFromOption(value),
 });
 
+const nodeFromPackageKey = (
+  fileName: ProjectPath,
+  packageKey: string,
+  contentHash: string,
+): RequestGraphNode => ({
+  id: `package_key:${fromProjectPathRelative(fileName)}:${packageKey}`,
+  type: PACKAGE_KEY,
+  packageKey,
+  contentHash,
+});
+
 const keyFromEnvContentKey = (contentKey: ContentKey): string =>
   contentKey.slice('env:'.length);
 
@@ -248,6 +278,7 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
   cachedRequestChunks: Set<number> = new Set();
+  packageKeyNodes: Map<ProjectPath, Set<NodeId>> = new Map();
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -261,6 +292,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
     deserialized.cachedRequestChunks = opts.cachedRequestChunks;
+    deserialized.packageKeyNodes = opts.packageKeyNodes;
     return deserialized;
   }
 
@@ -276,6 +308,7 @@ export class RequestGraph extends ContentGraph<
       unpredicatableNodeIds: this.unpredicatableNodeIds,
       invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
       cachedRequestChunks: this.cachedRequestChunks,
+      packageKeyNodes: this.packageKeyNodes,
     };
   }
 
@@ -405,6 +438,53 @@ export class RequestGraph extends ContentGraph<
           this.invalidateNode(parentNode, OPTION_CHANGE);
         }
       }
+    }
+  }
+
+  invalidateOnPackageKeyChange(
+    requestNodeId: NodeId,
+    filePath: ProjectPath,
+    packageKey: string,
+    contentHash: string,
+  ) {
+    let packageKeyNodeId = this.addNode(
+      nodeFromPackageKey(filePath, packageKey, contentHash),
+    );
+    let nodes = this.packageKeyNodes.get(filePath);
+
+    if (!nodes) {
+      nodes = new Set();
+      this.packageKeyNodes.set(filePath, nodes);
+    }
+
+    nodes.add(packageKeyNodeId);
+
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        packageKeyNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        packageKeyNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      );
+    }
+
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        packageKeyNodeId,
+        requestGraphEdgeTypes.invalidated_by_delete,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        packageKeyNodeId,
+        requestGraphEdgeTypes.invalidated_by_delete,
+      );
     }
   }
 
@@ -749,11 +829,11 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  respondToFSEvents(
+  async respondToFSEvents(
     events: Array<Event>,
-    projectRoot: string,
+    options: ParcelOptions,
     threshold: number,
-  ): boolean {
+  ): Async<boolean> {
     let didInvalidate = false;
     let count = 0;
     let predictedTime = 0;
@@ -780,7 +860,7 @@ export class RequestGraph extends ContentGraph<
         }
       }
 
-      let _filePath = toProjectPath(projectRoot, _path);
+      let _filePath = toProjectPath(options.projectRoot, _path);
       let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
 
@@ -885,6 +965,45 @@ export class RequestGraph extends ContentGraph<
         // This ensures that files that don't exist aren't sent
         // to requests as invalidations for future requests.
         this.removeNode(nodeId);
+      }
+
+      let packageKeyNodes = this.packageKeyNodes.get(_filePath);
+      if (packageKeyNodes) {
+        if (type === 'delete') {
+          for (let nodeId of packageKeyNodes) {
+            this.invalidateNode(nodeId, FILE_DELETE);
+            this.removeNode(nodeId);
+            didInvalidate = true;
+          }
+        } else if (type === 'update') {
+          // Read the file
+          let conf = await readConfig(
+            options.inputFS,
+            fromProjectPath(options.projectRoot, _filePath),
+          );
+
+          if (conf == null) {
+            throw new Error(`Expected config to exist: '${filePath}'`);
+          }
+
+          for (let nodeId of packageKeyNodes) {
+            let node = this.getNode(nodeId);
+            invariant(node && node.type === PACKAGE_KEY);
+
+            let contentHash = '';
+
+            if (conf.config[node.packageKey]) {
+              let hash = new Hash();
+              hash.writeString(conf.config[node.packageKey]);
+              contentHash = hash.finish();
+            }
+
+            if (node.contentHash !== contentHash) {
+              this.invalidateNode(nodeId, FILE_UPDATE);
+              didInvalidate = true;
+            }
+          }
+        }
       }
     }
 
@@ -1032,12 +1151,8 @@ export default class RequestTracker {
     }
   }
 
-  respondToFSEvents(
-    events: Array<Event>,
-    projectRoot: string,
-    threshold: number,
-  ): boolean {
-    return this.graph.respondToFSEvents(events, projectRoot, threshold);
+  respondToFSEvents(events: Array<Event>, threshold: number): Async<boolean> {
+    return this.graph.respondToFSEvents(events, this.options, threshold);
   }
 
   hasInvalidRequests(): boolean {
@@ -1136,6 +1251,13 @@ export default class RequestTracker {
     let api: RunAPI<TResult> = {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
+      invalidateOnPackageKeyChange: (filePath, packageKey, contentHash) =>
+        this.graph.invalidateOnPackageKeyChange(
+          requestId,
+          filePath,
+          packageKey,
+          contentHash,
+        ),
       invalidateOnFileDelete: filePath =>
         this.graph.invalidateOnFileDelete(requestId, filePath),
       invalidateOnFileUpdate: filePath =>
@@ -1435,9 +1557,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     requestGraph.invalidateOptionNodes(options);
 
     try {
-      requestGraph.respondToFSEvents(
+      await requestGraph.respondToFSEvents(
         options.unstableFileInvalidations || events,
-        options.projectRoot,
         10000,
       );
       return requestGraph;

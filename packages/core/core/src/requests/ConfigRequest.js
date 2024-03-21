@@ -8,6 +8,7 @@ import type {
   NamedBundle as INamedBundle,
   BundleGraph as IBundleGraph,
 } from '@parcel/types';
+import {readConfig} from '@parcel/utils';
 import type {
   Config,
   ParcelOptions,
@@ -27,6 +28,7 @@ import {getInvalidationHash} from '../assetUtils';
 import {Hash} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
+import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
@@ -56,16 +58,19 @@ export type PluginWithBundleConfig = {
   ...
 };
 
-export type ConfigRequest = {
+export type ConfigRequest = {|
   id: string,
   invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnPackageKeyChange: Array<{|
+    filePath: ProjectPath,
+    packageKey: string,
+  |}>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
   invalidateOnStartup: boolean,
   invalidateOnBuild: boolean,
-  ...
-};
+|};
 
 export async function loadPluginConfig<T: PluginWithLoadConfig>(
   loadedPlugin: LoadedPlugin<T>,
@@ -106,6 +111,7 @@ export async function runConfigRequest<TResult>(
 ) {
   let {
     invalidateOnFileChange,
+    invalidateOnPackageKeyChange,
     invalidateOnFileCreate,
     invalidateOnEnvChange,
     invalidateOnOptionChange,
@@ -116,6 +122,7 @@ export async function runConfigRequest<TResult>(
   // If there are no invalidations, then no need to create a node.
   if (
     invalidateOnFileChange.size === 0 &&
+    invalidateOnPackageKeyChange.length === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
     !invalidateOnStartup &&
@@ -127,10 +134,33 @@ export async function runConfigRequest<TResult>(
   await api.runRequest<null, void>({
     id: 'config_request:' + configRequest.id,
     type: requestTypes.config_request,
-    run: ({api}) => {
+    run: async ({api, options}) => {
       for (let filePath of invalidateOnFileChange) {
         api.invalidateOnFileUpdate(filePath);
         api.invalidateOnFileDelete(filePath);
+      }
+
+      for (let {filePath, packageKey} of invalidateOnPackageKeyChange) {
+        let conf = await readConfig(
+          options.inputFS,
+          fromProjectPath(options.projectRoot, filePath),
+        );
+
+        if (conf == null) {
+          throw new Error(
+            `Expected config to exist: '${fromProjectPathRelative(filePath)}'`,
+          );
+        }
+
+        let contentHash = '';
+
+        if (conf.config[packageKey]) {
+          let hash = new Hash();
+          hash.writeString(conf.config[packageKey]);
+          contentHash = hash.finish();
+        }
+
+        api.invalidateOnPackageKeyChange(filePath, packageKey, contentHash);
       }
 
       for (let invalidation of invalidateOnFileCreate) {
@@ -210,6 +240,7 @@ export function getConfigRequests(
       // No need to send to the graph if there are no invalidations.
       return (
         config.invalidateOnFileChange.size > 0 ||
+        config.invalidateOnPackageKeyChange.length > 0 ||
         config.invalidateOnFileCreate.length > 0 ||
         config.invalidateOnEnvChange.size > 0 ||
         config.invalidateOnOptionChange.size > 0 ||
@@ -220,6 +251,7 @@ export function getConfigRequests(
     .map(config => ({
       id: config.id,
       invalidateOnFileChange: config.invalidateOnFileChange,
+      invalidateOnPackageKeyChange: config.invalidateOnPackageKeyChange,
       invalidateOnFileCreate: config.invalidateOnFileCreate,
       invalidateOnEnvChange: config.invalidateOnEnvChange,
       invalidateOnOptionChange: config.invalidateOnOptionChange,
