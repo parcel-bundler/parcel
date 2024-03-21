@@ -9,6 +9,8 @@ import {promisify} from 'util';
 // E.g: ~library/file.sass
 const NODE_MODULE_ALIAS_RE = /^~[^/\\]/;
 
+const previousIncludedFiles = new Map();
+
 export default (new Transformer({
   async loadConfig({config, options}) {
     let configFile = await config.getConfig(
@@ -76,6 +78,7 @@ export default (new Transformer({
       });
 
       css = result.css;
+      previousIncludedFiles.set(asset.filePath, result.stats.includedFiles);
       for (let included of result.stats.includedFiles) {
         if (included !== asset.filePath) {
           asset.invalidateOnFileChange(included);
@@ -88,6 +91,13 @@ export default (new Transformer({
         asset.setMap(map);
       }
     } catch (err) {
+      const files = previousIncludedFiles.get(asset.filePath);
+      for (let included of files ?? []) {
+        if (included !== asset.filePath) {
+          asset.invalidateOnFileChange(included);
+        }
+      }
+
       // Adapt the Error object for the reporter.
       err.fileName = err.file;
       err.loc = {
