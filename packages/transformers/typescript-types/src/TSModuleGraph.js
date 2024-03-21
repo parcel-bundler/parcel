@@ -9,11 +9,13 @@ export class TSModuleGraph {
   modules: Map<string, TSModule>;
   mainModuleName: string;
   mainModule: ?TSModule;
+  syntheticImportCount: number;
 
   constructor(mainModuleName: string) {
     this.modules = new Map();
     this.mainModuleName = mainModuleName;
     this.mainModule = null;
+    this.syntheticImportCount = 0;
   }
 
   addModule(name: string, module: TSModule) {
