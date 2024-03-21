@@ -54,7 +54,6 @@ fn init_sentry() {
     }
   }
   println!("Parcel Sentry for rust setup done!");
-  panic!("Please ignore");
 }
 
 #[napi]
