@@ -343,6 +343,10 @@ export class RequestGraph extends ContentGraph<
       this.envNodeIds.delete(nodeId);
     } else if (node.type === OPTION) {
       this.optionNodeIds.delete(nodeId);
+    } else if (node.type === PACKAGE_KEY) {
+      for (let packageKeyNodes of this.packageKeyNodes.values()) {
+        packageKeyNodes.delete(nodeId);
+      }
     }
     return super.removeNode(nodeId);
   }
