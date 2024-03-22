@@ -27,7 +27,7 @@ import serverErrors from './serverErrors';
 import fs from 'fs';
 import ejs from 'ejs';
 import connect from 'connect';
-import serveHandler from 'serve-handler';
+import serveStatic from 'serve-static';
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL, URLSearchParams} from 'url';
 import launchEditor from 'launch-editor';
@@ -362,20 +362,11 @@ export default class Server {
       return;
     }
 
-    return serveHandler(
-      req,
-      res,
-      {
-        public: root,
-        cleanUrls: false,
-      },
-      {
-        lstat: path => fs.stat(path),
-        realpath: path => fs.realpath(path),
-        createReadStream: (path, options) => fs.createReadStream(path, options),
-        readdir: path => fs.readdir(path),
-      },
-    );
+      // Serve up public/ftp folder
+      const serve = serveStatic(root, {
+        index: false,
+      })
+      return serve(req, res, next);
   }
 
   sendError(res: Response, statusCode: number) {
