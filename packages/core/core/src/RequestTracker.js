@@ -994,7 +994,7 @@ export class RequestGraph extends ContentGraph<
 
             if (conf.config[node.packageKey]) {
               let hash = new Hash();
-              hash.writeString(conf.config[node.packageKey]);
+              hash.writeString(JSON.stringify(conf.config[node.packageKey]));
               contentHash = hash.finish();
             }
 
@@ -1559,6 +1559,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     try {
       await requestGraph.respondToFSEvents(
         options.unstableFileInvalidations || events,
+        options,
         10000,
       );
       return requestGraph;
