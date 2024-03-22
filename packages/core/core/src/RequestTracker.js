@@ -969,11 +969,9 @@ export class RequestGraph extends ContentGraph<
       let packageKeyNodes = this.packageKeyNodes.get(_filePath);
       if (packageKeyNodes && (type === 'delete' || type === 'update')) {
           for (let nodeId of packageKeyNodes) {
-          if (type === 'delete') {
-            this.invalidateNode(nodeId, FILE_DELETE);
-            this.removeNode(nodeId);
-            didInvalidate = true;
-          } else {
+          let isInvalid = type === 'delete';
+
+          if (type === 'update') {
             let node = this.getNode(nodeId);
             invariant(node && node.type === PACKAGE_KEY);
 
@@ -983,10 +981,19 @@ export class RequestGraph extends ContentGraph<
               options,
             );
 
-            if (node.contentHash !== contentHash) {
-              this.invalidateNode(nodeId, FILE_UPDATE);
-              didInvalidate = true;
+            isInvalid = node.contentHash !== contentHash;
+          }
+
+          if (isInvalid) {
+            for (let connectedNode of this.getNodeIdsConnectedTo(
+              nodeId,
+              requestGraphEdgeTypes.invalidated_by_delete,
+            )) {
+              this.invalidateNode(connectedNode, FILE_UPDATE);
             }
+            didInvalidate = true;
+            this.removeNode(nodeId);
+            packageKeyNodes.delete(nodeId);
           }
         }
       }

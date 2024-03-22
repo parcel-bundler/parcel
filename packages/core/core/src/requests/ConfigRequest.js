@@ -8,7 +8,7 @@ import type {
   NamedBundle as INamedBundle,
   BundleGraph as IBundleGraph,
 } from '@parcel/types';
-import {readConfig} from '@parcel/utils';
+import {readConfig, hashObject} from '@parcel/utils';
 import type {
   Config,
   ParcelOptions,
@@ -25,10 +25,11 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
-import {Hash} from '@parcel/rust';
+import {hashString, Hash} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
+import {createBuildCache} from '../buildCache';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
@@ -105,6 +106,41 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   }
 }
 
+const packageKeyCache = createBuildCache();
+
+export async function getPackageKeyContentHash(
+  filePath: ProjectPath,
+  packageKey: string,
+  options: ParcelOptions,
+): Async<string> {
+  let cacheKey = `${fromProjectPathRelative(filePath)}:${packageKey}`;
+  let cachedValue = packageKeyCache.get(cacheKey);
+
+  if (cachedValue) {
+    return cachedValue;
+  }
+
+  let conf = await readConfig(
+    options.inputFS,
+    fromProjectPath(options.projectRoot, filePath),
+  );
+
+  if (conf == null || conf.config[packageKey] == null) {
+    throw new Error(
+      `Expected config to exist: '${fromProjectPathRelative(filePath)}'`,
+    );
+  }
+
+  let contentHash =
+    typeof conf.config[packageKey] === 'object'
+      ? hashObject(conf.config[packageKey])
+      : hashString(JSON.stringify(conf.config[packageKey]));
+
+  packageKeyCache.set(cacheKey, contentHash);
+
+  return contentHash;
+}
+
 export async function runConfigRequest<TResult>(
   api: RunAPI<TResult>,
   configRequest: ConfigRequest,
@@ -141,24 +177,11 @@ export async function runConfigRequest<TResult>(
       }
 
       for (let {filePath, packageKey} of invalidateOnPackageKeyChange) {
-        let conf = await readConfig(
-          options.inputFS,
-          fromProjectPath(options.projectRoot, filePath),
+        let contentHash = await getPackageKeyContentHash(
+          filePath,
+          packageKey,
+          options,
         );
-
-        if (conf == null) {
-          throw new Error(
-            `Expected config to exist: '${fromProjectPathRelative(filePath)}'`,
-          );
-        }
-
-        let contentHash = '';
-
-        if (conf.config[packageKey]) {
-          let hash = new Hash();
-          hash.writeString(conf.config[packageKey]);
-          contentHash = hash.finish();
-        }
 
         api.invalidateOnPackageKeyChange(filePath, packageKey, contentHash);
       }
