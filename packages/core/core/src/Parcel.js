@@ -419,15 +419,14 @@ export default class Parcel {
     let opts = getWatcherOptions(resolvedOptions);
     let sub = await resolvedOptions.inputFS.watch(
       resolvedOptions.watchDir,
-      (err, events) => {
+      async (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
           return;
         }
 
-        let isInvalid = this.#requestTracker.respondToFSEvents(
+        let isInvalid = await this.#requestTracker.respondToFSEvents(
           events,
-          resolvedOptions.projectRoot,
           Number.POSITIVE_INFINITY,
         );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {

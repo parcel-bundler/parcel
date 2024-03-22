@@ -17,7 +17,7 @@ import type {
   InternalGlob,
 } from './types';
 import logger from '@parcel/logger';
-import {readConfig, type Deferred} from '@parcel/utils';
+import {type Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -36,7 +36,6 @@ import {
   fromProjectPathRelative,
   toProjectPathUnsafe,
   toProjectPath,
-  fromProjectPath,
 } from './projectPath';
 
 import {
@@ -55,7 +54,7 @@ import {
 import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
-import {Hash} from '@parcel/rust';
+import {getPackageKeyContentHash} from './requests/ConfigRequest';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -968,35 +967,21 @@ export class RequestGraph extends ContentGraph<
       }
 
       let packageKeyNodes = this.packageKeyNodes.get(_filePath);
-      if (packageKeyNodes) {
-        if (type === 'delete') {
+      if (packageKeyNodes && (type === 'delete' || type === 'update')) {
           for (let nodeId of packageKeyNodes) {
+          if (type === 'delete') {
             this.invalidateNode(nodeId, FILE_DELETE);
             this.removeNode(nodeId);
             didInvalidate = true;
-          }
-        } else if (type === 'update') {
-          // Read the file
-          let conf = await readConfig(
-            options.inputFS,
-            fromProjectPath(options.projectRoot, _filePath),
-          );
-
-          if (conf == null) {
-            throw new Error(`Expected config to exist: '${filePath}'`);
-          }
-
-          for (let nodeId of packageKeyNodes) {
+          } else {
             let node = this.getNode(nodeId);
             invariant(node && node.type === PACKAGE_KEY);
 
-            let contentHash = '';
-
-            if (conf.config[node.packageKey]) {
-              let hash = new Hash();
-              hash.writeString(JSON.stringify(conf.config[node.packageKey]));
-              contentHash = hash.finish();
-            }
+            let contentHash = await getPackageKeyContentHash(
+              _filePath,
+              node.packageKey,
+              options,
+            );
 
             if (node.contentHash !== contentHash) {
               this.invalidateNode(nodeId, FILE_UPDATE);
