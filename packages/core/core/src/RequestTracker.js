@@ -997,7 +997,6 @@ export class RequestGraph extends ContentGraph<
             }
             didInvalidate = true;
             this.removeNode(nodeId);
-            packageKeyNodes.delete(nodeId);
           }
         }
       }
