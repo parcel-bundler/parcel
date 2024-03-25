@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, EnvMap} from '@parcel/types';
 import type {Options as WatcherOptions, Event} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';

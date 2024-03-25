@@ -13,7 +13,6 @@ import type {
   ParcelOptions,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
 import assert from 'assert';

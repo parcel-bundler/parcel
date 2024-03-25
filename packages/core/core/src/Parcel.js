@@ -16,7 +16,6 @@ import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
@@ -32,7 +31,6 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import {registerCoreWithSerializer} from './registerCoreWithSerializer';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
