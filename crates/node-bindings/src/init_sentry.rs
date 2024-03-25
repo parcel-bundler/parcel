@@ -76,7 +76,6 @@ fn init_sentry() -> Result<(), Status> {
     configure_scope(|scope| scope.set_tag(&key, val));
   }
   println!("Parcel Sentry for rust setup done!");
-  panic!("Please ignore");
   return Ok(());
 }
 
