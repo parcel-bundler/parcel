@@ -11,7 +11,6 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform, transformAsync} from '@parcel/rust';
-import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
@@ -113,14 +112,6 @@ const CONFIG_SCHEMA: SchemaEntity = {
   },
   additionalProperties: false,
 };
-
-type PackageJSONConfig = {|
-  '@parcel/transformer-js'?: {|
-    inlineFS?: boolean,
-    inlineEnvironment?: boolean | Array<string>,
-    unstable_inlineConstants?: boolean,
-  |},
-|};
 
 const SCRIPT_ERRORS = {
   browser: {
