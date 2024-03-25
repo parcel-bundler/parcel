@@ -1312,6 +1312,128 @@ describe('cache', function () {
 
       assert.equal(await run(b.bundleGraph), 'updated');
     });
+
+    describe.only('package keys', () => {
+      it(`should not invalidate when package.json config keys don't change`, async function () {
+        let b = await testCache({
+          featureFlags: {
+            exampleFeature: false,
+            packageKeyInvalidation: true,
+          },
+          async setup() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/transformer-js': {
+                  inlineEnvironment: false,
+                  inlineFS: false,
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(
+              path.join(inputDir, '.parcelrc'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  // Remove react-refresh transformer and babel so we don't get extra config deps
+                  '*.js': ['@parcel/transformer-js'],
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'module.exports = process.env.TEST || "default"',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/package.json'),
+              '{}',
+            );
+          },
+          async update() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                inlineFS: false,
+                inlineEnvironment: false,
+              }),
+            );
+          },
+        });
+
+        assert.equal(await run(b.bundleGraph), 'default');
+        assert.equal(b.changedAssets.size, 0);
+      });
+
+      it('should invalidate when package.json config keys change', async function () {
+        let b = await testCache({
+          featureFlags: {
+            exampleFeature: false,
+            packageKeyInvalidation: true,
+          },
+          async setup() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/transformer-js': {
+                  inlineEnvironment: false,
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(
+              path.join(inputDir, '.parcelrc'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  // Remove react-refresh transformer and babel so we don't get extra config deps
+                  '*.js': ['@parcel/transformer-js'],
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'module.exports = process.env.TEST || "default"',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/package.json'),
+              '{}',
+            );
+          },
+          async update() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/transformer-js': {
+                  inlineEnvironment: ['TEST'],
+                },
+              }),
+            );
+          },
+        });
+
+        assert.equal(await run(b.bundleGraph), 'hi');
+        assert.equal(b.changedAssets.size, 1);
+      });
+    });
   });
 
   describe('entries', function () {
