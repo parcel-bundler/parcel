@@ -126,9 +126,8 @@ export async function getConfigKeyContentHash(
   );
 
   if (conf == null || conf.config[configKey] == null) {
-    throw new Error(
-      `Expected config to exist: '${fromProjectPathRelative(filePath)}'`,
-    );
+    // This can occur when a config key has been removed entirely during `respondToFSEvents`
+    return '';
   }
 
   let contentHash =
