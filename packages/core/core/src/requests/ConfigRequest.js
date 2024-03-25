@@ -59,7 +59,7 @@ export type PluginWithBundleConfig = {
   ...
 };
 
-export type ConfigRequest = {|
+export type ConfigRequest = {
   id: string,
   invalidateOnFileChange: Set<ProjectPath>,
   invalidateOnConfigKeyChange: Array<{|
@@ -71,7 +71,8 @@ export type ConfigRequest = {|
   invalidateOnOptionChange: Set<string>,
   invalidateOnStartup: boolean,
   invalidateOnBuild: boolean,
-|};
+  ...
+};
 
 export async function loadPluginConfig<T: PluginWithLoadConfig>(
   loadedPlugin: LoadedPlugin<T>,
