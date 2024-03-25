@@ -472,21 +472,8 @@ export class RequestGraph extends ContentGraph<
       this.addEdge(
         requestNodeId,
         packageKeyNodeId,
+        // Store as an update edge, but file deletes are handled too
         requestGraphEdgeTypes.invalidated_by_update,
-      );
-    }
-
-    if (
-      !this.hasEdge(
-        requestNodeId,
-        packageKeyNodeId,
-        requestGraphEdgeTypes.invalidated_by_delete,
-      )
-    ) {
-      this.addEdge(
-        requestNodeId,
-        packageKeyNodeId,
-        requestGraphEdgeTypes.invalidated_by_delete,
       );
     }
   }
@@ -991,9 +978,12 @@ export class RequestGraph extends ContentGraph<
           if (isInvalid) {
             for (let connectedNode of this.getNodeIdsConnectedTo(
               nodeId,
-              requestGraphEdgeTypes.invalidated_by_delete,
+              requestGraphEdgeTypes.invalidated_by_update,
             )) {
-              this.invalidateNode(connectedNode, FILE_UPDATE);
+              this.invalidateNode(
+                connectedNode,
+                type === 'delete' ? FILE_DELETE : FILE_UPDATE,
+              );
             }
             didInvalidate = true;
             this.removeNode(nodeId);

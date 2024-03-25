@@ -1313,7 +1313,7 @@ describe('cache', function () {
       assert.equal(await run(b.bundleGraph), 'updated');
     });
 
-    describe.only('package keys', () => {
+    describe('package keys', () => {
       it(`should not invalidate when package.json config keys don't change`, async function () {
         let b = await testCache({
           featureFlags: {
