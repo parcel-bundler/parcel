@@ -75,10 +75,10 @@ export default class PublicConfig implements IConfig {
     );
   }
 
-  invalidateOnPackageKeyChange(filePath: FilePath, packageKey: string) {
-    this.#config.invalidateOnPackageKeyChange.push({
+  invalidateOnConfigKeyChange(filePath: FilePath, configKey: string) {
+    this.#config.invalidateOnConfigKeyChange.push({
       filePath: toProjectPath(this.#options.projectRoot, filePath),
-      packageKey,
+      configKey,
     });
   }
 
@@ -141,13 +141,13 @@ export default class PublicConfig implements IConfig {
     let packageKey = options?.packageKey;
     if (packageKey != null) {
       let pkg = await this.getConfigFrom(searchPath, ['package.json'], {
-        exclude: this.#options.featureFlags.packageKeyInvalidation,
+        exclude: this.#options.featureFlags.configKeyInvalidation,
       });
 
       if (pkg && pkg.contents[packageKey]) {
-        if (this.#options.featureFlags.packageKeyInvalidation) {
+        if (this.#options.featureFlags.configKeyInvalidation) {
           // Invalidate only when the package key changes
-          this.invalidateOnPackageKeyChange(pkg.filePath, packageKey);
+          this.invalidateOnConfigKeyChange(pkg.filePath, packageKey);
         }
 
         return {

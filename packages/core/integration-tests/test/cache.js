@@ -1313,12 +1313,12 @@ describe('cache', function () {
       assert.equal(await run(b.bundleGraph), 'updated');
     });
 
-    describe('package keys', () => {
+    describe('config keys', () => {
       it(`should not invalidate when package.json config keys don't change`, async function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            packageKeyInvalidation: true,
+            configKeyInvalidation: true,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');
@@ -1378,7 +1378,7 @@ describe('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            packageKeyInvalidation: true,
+            configKeyInvalidation: true,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');

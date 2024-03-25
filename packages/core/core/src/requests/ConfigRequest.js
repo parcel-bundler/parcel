@@ -62,9 +62,9 @@ export type PluginWithBundleConfig = {
 export type ConfigRequest = {|
   id: string,
   invalidateOnFileChange: Set<ProjectPath>,
-  invalidateOnPackageKeyChange: Array<{|
+  invalidateOnConfigKeyChange: Array<{|
     filePath: ProjectPath,
-    packageKey: string,
+    configKey: string,
   |}>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnEnvChange: Set<string>,
@@ -106,15 +106,15 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   }
 }
 
-const packageKeyCache = createBuildCache();
+const configKeyCache = createBuildCache();
 
-export async function getPackageKeyContentHash(
+export async function getConfigKeyContentHash(
   filePath: ProjectPath,
-  packageKey: string,
+  configKey: string,
   options: ParcelOptions,
 ): Async<string> {
-  let cacheKey = `${fromProjectPathRelative(filePath)}:${packageKey}`;
-  let cachedValue = packageKeyCache.get(cacheKey);
+  let cacheKey = `${fromProjectPathRelative(filePath)}:${configKey}`;
+  let cachedValue = configKeyCache.get(cacheKey);
 
   if (cachedValue) {
     return cachedValue;
@@ -125,18 +125,18 @@ export async function getPackageKeyContentHash(
     fromProjectPath(options.projectRoot, filePath),
   );
 
-  if (conf == null || conf.config[packageKey] == null) {
+  if (conf == null || conf.config[configKey] == null) {
     throw new Error(
       `Expected config to exist: '${fromProjectPathRelative(filePath)}'`,
     );
   }
 
   let contentHash =
-    typeof conf.config[packageKey] === 'object'
-      ? hashObject(conf.config[packageKey])
-      : hashString(JSON.stringify(conf.config[packageKey]));
+    typeof conf.config[configKey] === 'object'
+      ? hashObject(conf.config[configKey])
+      : hashString(JSON.stringify(conf.config[configKey]));
 
-  packageKeyCache.set(cacheKey, contentHash);
+  configKeyCache.set(cacheKey, contentHash);
 
   return contentHash;
 }
@@ -147,7 +147,7 @@ export async function runConfigRequest<TResult>(
 ) {
   let {
     invalidateOnFileChange,
-    invalidateOnPackageKeyChange,
+    invalidateOnConfigKeyChange,
     invalidateOnFileCreate,
     invalidateOnEnvChange,
     invalidateOnOptionChange,
@@ -158,7 +158,7 @@ export async function runConfigRequest<TResult>(
   // If there are no invalidations, then no need to create a node.
   if (
     invalidateOnFileChange.size === 0 &&
-    invalidateOnPackageKeyChange.length === 0 &&
+    invalidateOnConfigKeyChange.length === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
     !invalidateOnStartup &&
@@ -176,14 +176,14 @@ export async function runConfigRequest<TResult>(
         api.invalidateOnFileDelete(filePath);
       }
 
-      for (let {filePath, packageKey} of invalidateOnPackageKeyChange) {
-        let contentHash = await getPackageKeyContentHash(
+      for (let {filePath, configKey} of invalidateOnConfigKeyChange) {
+        let contentHash = await getConfigKeyContentHash(
           filePath,
-          packageKey,
+          configKey,
           options,
         );
 
-        api.invalidateOnPackageKeyChange(filePath, packageKey, contentHash);
+        api.invalidateOnConfigKeyChange(filePath, configKey, contentHash);
       }
 
       for (let invalidation of invalidateOnFileCreate) {
@@ -263,7 +263,7 @@ export function getConfigRequests(
       // No need to send to the graph if there are no invalidations.
       return (
         config.invalidateOnFileChange.size > 0 ||
-        config.invalidateOnPackageKeyChange.length > 0 ||
+        config.invalidateOnConfigKeyChange.length > 0 ||
         config.invalidateOnFileCreate.length > 0 ||
         config.invalidateOnEnvChange.size > 0 ||
         config.invalidateOnOptionChange.size > 0 ||
@@ -274,7 +274,7 @@ export function getConfigRequests(
     .map(config => ({
       id: config.id,
       invalidateOnFileChange: config.invalidateOnFileChange,
-      invalidateOnPackageKeyChange: config.invalidateOnPackageKeyChange,
+      invalidateOnConfigKeyChange: config.invalidateOnConfigKeyChange,
       invalidateOnFileCreate: config.invalidateOnFileCreate,
       invalidateOnEnvChange: config.invalidateOnEnvChange,
       invalidateOnOptionChange: config.invalidateOnOptionChange,
