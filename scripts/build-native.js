@@ -5,7 +5,9 @@ const path = require('path');
 const {spawn, execSync} = require('child_process');
 
 let release = process.argv.includes('--release');
+let canary = process.argv.includes('--canary');
 let wasm = process.argv.includes('--wasm');
+
 build();
 
 async function build() {
@@ -26,7 +28,8 @@ async function build() {
     console.log(`Building ${pkg}...`);
     await new Promise((resolve, reject) => {
       let args = [
-        (wasm ? 'wasm:' : '') + (release ? 'build-release' : 'build'),
+        (wasm ? 'wasm:' : '') +
+          (release ? 'build-release' : canary ? 'build-canary' : 'build'),
       ];
       if (process.env.RUST_TARGET) {
         args.push('--target', process.env.RUST_TARGET);

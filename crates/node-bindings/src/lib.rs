@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+#[cfg(feature = "canary")]
 mod init_sentry;
 
 #[cfg(target_arch = "wasm32")]

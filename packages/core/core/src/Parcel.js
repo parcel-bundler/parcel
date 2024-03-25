@@ -102,9 +102,11 @@ export default class Parcel {
     await initSourcemaps;
     await initRust?.();
     try {
-      await initSentry(require(require.resolve('parcel/package.json')).version);
-    } catch {
+      await initSentry?.();
+    } catch (e) {
       // Fallthrough
+      // eslint-disable-next-line no-console
+      console.warn(e);
     }
 
     let resolvedOptions: ParcelOptions = await resolveOptions(

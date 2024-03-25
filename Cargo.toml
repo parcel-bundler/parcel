@@ -6,3 +6,6 @@ members = [
   "packages/utils/node-resolver-rs",
   "packages/utils/dev-dep-resolver"
 ]
+
+[profile.canary]
+inherits = "release"
