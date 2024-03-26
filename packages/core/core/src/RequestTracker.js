@@ -16,7 +16,7 @@ import type {
   InternalGlob,
 } from './types';
 import logger from '@parcel/logger';
-import type {Deferred} from '@parcel/utils';
+import {type Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -53,6 +53,7 @@ import {
 import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
+import {getConfigKeyContentHash} from './requests/ConfigRequest';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -75,6 +76,7 @@ type RequestGraphOpts = {|
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
   cachedRequestChunks: Set<number>,
+  configKeyNodes: Map<ProjectPath, Set<NodeId>>,
 |};
 
 type SerializedRequestGraph = {|
@@ -87,6 +89,7 @@ type SerializedRequestGraph = {|
   unpredicatableNodeIds: Set<NodeId>,
   invalidateOnBuildNodeIds: Set<NodeId>,
   cachedRequestChunks: Set<number>,
+  configKeyNodes: Map<ProjectPath, Set<NodeId>>,
 |};
 
 const FILE: 0 = 0;
@@ -95,6 +98,8 @@ const FILE_NAME: 2 = 2;
 const ENV: 3 = 3;
 const OPTION: 4 = 4;
 const GLOB: 5 = 5;
+const CONFIG_KEY: 6 = 6;
+
 type FileNode = {|id: ContentKey, +type: typeof FILE|};
 
 type GlobNode = {|id: ContentKey, +type: typeof GLOB, value: InternalGlob|};
@@ -114,6 +119,13 @@ type OptionNode = {|
   id: ContentKey,
   +type: typeof OPTION,
   hash: string,
+|};
+
+type ConfigKeyNode = {|
+  id: ContentKey,
+  +type: typeof CONFIG_KEY,
+  configKey: string,
+  contentHash: string,
 |};
 
 type Request<TInput, TResult> = {|
@@ -159,12 +171,18 @@ type RequestGraphNode =
   | GlobNode
   | FileNameNode
   | EnvNode
-  | OptionNode;
+  | OptionNode
+  | ConfigKeyNode;
 
 export type RunAPI<TResult> = {|
   invalidateOnFileCreate: InternalFileCreateInvalidation => void,
   invalidateOnFileDelete: ProjectPath => void,
   invalidateOnFileUpdate: ProjectPath => void,
+  invalidateOnConfigKeyChange: (
+    filePath: ProjectPath,
+    configKey: string,
+    contentHash: string,
+  ) => void,
   invalidateOnStartup: () => void,
   invalidateOnBuild: () => void,
   invalidateOnEnvChange: string => void,
@@ -226,6 +244,17 @@ const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   hash: hashFromOption(value),
 });
 
+const nodeFromConfigKey = (
+  fileName: ProjectPath,
+  configKey: string,
+  contentHash: string,
+): RequestGraphNode => ({
+  id: `config_key:${fromProjectPathRelative(fileName)}:${configKey}`,
+  type: CONFIG_KEY,
+  configKey,
+  contentHash,
+});
+
 const keyFromEnvContentKey = (contentKey: ContentKey): string =>
   contentKey.slice('env:'.length);
 
@@ -247,6 +276,7 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
   cachedRequestChunks: Set<number> = new Set();
+  configKeyNodes: Map<ProjectPath, Set<NodeId>> = new Map();
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -260,6 +290,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
     deserialized.cachedRequestChunks = opts.cachedRequestChunks;
+    deserialized.configKeyNodes = opts.configKeyNodes;
     return deserialized;
   }
 
@@ -275,6 +306,7 @@ export class RequestGraph extends ContentGraph<
       unpredicatableNodeIds: this.unpredicatableNodeIds,
       invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
       cachedRequestChunks: this.cachedRequestChunks,
+      configKeyNodes: this.configKeyNodes,
     };
   }
 
@@ -310,6 +342,10 @@ export class RequestGraph extends ContentGraph<
       this.envNodeIds.delete(nodeId);
     } else if (node.type === OPTION) {
       this.optionNodeIds.delete(nodeId);
+    } else if (node.type === CONFIG_KEY) {
+      for (let configKeyNodes of this.configKeyNodes.values()) {
+        configKeyNodes.delete(nodeId);
+      }
     }
     return super.removeNode(nodeId);
   }
@@ -404,6 +440,40 @@ export class RequestGraph extends ContentGraph<
           this.invalidateNode(parentNode, OPTION_CHANGE);
         }
       }
+    }
+  }
+
+  invalidateOnConfigKeyChange(
+    requestNodeId: NodeId,
+    filePath: ProjectPath,
+    configKey: string,
+    contentHash: string,
+  ) {
+    let configKeyNodeId = this.addNode(
+      nodeFromConfigKey(filePath, configKey, contentHash),
+    );
+    let nodes = this.configKeyNodes.get(filePath);
+
+    if (!nodes) {
+      nodes = new Set();
+      this.configKeyNodes.set(filePath, nodes);
+    }
+
+    nodes.add(configKeyNodeId);
+
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        configKeyNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        configKeyNodeId,
+        // Store as an update edge, but file deletes are handled too
+        requestGraphEdgeTypes.invalidated_by_update,
+      );
     }
   }
 
@@ -748,11 +818,11 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  respondToFSEvents(
+  async respondToFSEvents(
     events: Array<Event>,
-    projectRoot: string,
+    options: ParcelOptions,
     threshold: number,
-  ): boolean {
+  ): Async<boolean> {
     let didInvalidate = false;
     let count = 0;
     let predictedTime = 0;
@@ -779,7 +849,7 @@ export class RequestGraph extends ContentGraph<
         }
       }
 
-      let _filePath = toProjectPath(projectRoot, _path);
+      let _filePath = toProjectPath(options.projectRoot, _path);
       let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
 
@@ -884,6 +954,40 @@ export class RequestGraph extends ContentGraph<
         // This ensures that files that don't exist aren't sent
         // to requests as invalidations for future requests.
         this.removeNode(nodeId);
+      }
+
+      let configKeyNodes = this.configKeyNodes.get(_filePath);
+      if (configKeyNodes && (type === 'delete' || type === 'update')) {
+        for (let nodeId of configKeyNodes) {
+          let isInvalid = type === 'delete';
+
+          if (type === 'update') {
+            let node = this.getNode(nodeId);
+            invariant(node && node.type === CONFIG_KEY);
+
+            let contentHash = await getConfigKeyContentHash(
+              _filePath,
+              node.configKey,
+              options,
+            );
+
+            isInvalid = node.contentHash !== contentHash;
+          }
+
+          if (isInvalid) {
+            for (let connectedNode of this.getNodeIdsConnectedTo(
+              nodeId,
+              requestGraphEdgeTypes.invalidated_by_update,
+            )) {
+              this.invalidateNode(
+                connectedNode,
+                type === 'delete' ? FILE_DELETE : FILE_UPDATE,
+              );
+            }
+            didInvalidate = true;
+            this.removeNode(nodeId);
+          }
+        }
       }
     }
 
@@ -1031,12 +1135,8 @@ export default class RequestTracker {
     }
   }
 
-  respondToFSEvents(
-    events: Array<Event>,
-    projectRoot: string,
-    threshold: number,
-  ): boolean {
-    return this.graph.respondToFSEvents(events, projectRoot, threshold);
+  respondToFSEvents(events: Array<Event>, threshold: number): Async<boolean> {
+    return this.graph.respondToFSEvents(events, this.options, threshold);
   }
 
   hasInvalidRequests(): boolean {
@@ -1135,6 +1235,13 @@ export default class RequestTracker {
     let api: RunAPI<TResult> = {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
+      invalidateOnConfigKeyChange: (filePath, configKey, contentHash) =>
+        this.graph.invalidateOnConfigKeyChange(
+          requestId,
+          filePath,
+          configKey,
+          contentHash,
+        ),
       invalidateOnFileDelete: filePath =>
         this.graph.invalidateOnFileDelete(requestId, filePath),
       invalidateOnFileUpdate: filePath =>
@@ -1434,9 +1541,9 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     requestGraph.invalidateOptionNodes(options);
 
     try {
-      requestGraph.respondToFSEvents(
+      await requestGraph.respondToFSEvents(
         options.unstableFileInvalidations || events,
-        options.projectRoot,
+        options,
         10000,
       );
       return requestGraph;

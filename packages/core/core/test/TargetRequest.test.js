@@ -73,6 +73,7 @@ describe('TargetResolver', () => {
   let api = {
     invalidateOnFileCreate() {},
     invalidateOnFileUpdate() {},
+    invalidateOnConfigKeyChange() {},
     invalidateOnFileDelete() {},
     invalidateOnEnvChange() {},
     invalidateOnOptionChange() {},
