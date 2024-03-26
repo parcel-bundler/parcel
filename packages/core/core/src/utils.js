@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
   FilePath,
   FileCreateInvalidation,
@@ -12,6 +11,7 @@ import type {
   InternalFileCreateInvalidation,
   InternalSourceLocation,
   InternalDevDepOptions,
+  Invalidations,
 } from './types';
 import type {PackageManager} from '@parcel/package-manager';
 
@@ -152,6 +152,17 @@ export function invalidateOnFileCreateToInternal(
       aboveFilePath: toProjectPath(projectRoot, invalidation.aboveFilePath),
     };
   }
+}
+
+export function createInvalidations(): Invalidations {
+  return {
+    invalidateOnBuild: false,
+    invalidateOnStartup: false,
+    invalidateOnOptionChange: new Set(),
+    invalidateOnEnvChange: new Set(),
+    invalidateOnFileChange: new Set(),
+    invalidateOnFileCreate: [],
+  };
 }
 
 export function fromInternalSourceLocation(

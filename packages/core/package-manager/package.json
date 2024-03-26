@@ -1,6 +1,6 @@
 {
   "name": "@parcel/package-manager",
-  "version": "2.10.3",
+  "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -37,18 +37,20 @@
         "@parcel/types": false,
         "@parcel/utils": false,
         "@parcel/workers": false,
+        "@swc/core": false,
         "semver": false
       }
     }
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.10.3",
-    "@parcel/fs": "2.10.3",
-    "@parcel/logger": "2.10.3",
-    "@parcel/node-resolver-core": "3.1.3",
-    "@parcel/types": "2.10.3",
-    "@parcel/utils": "2.10.3",
-    "@parcel/workers": "2.10.3",
+    "@parcel/diagnostic": "2.12.0",
+    "@parcel/fs": "2.12.0",
+    "@parcel/logger": "2.12.0",
+    "@parcel/node-resolver-core": "3.3.0",
+    "@parcel/types": "2.12.0",
+    "@parcel/utils": "2.12.0",
+    "@parcel/workers": "2.12.0",
+    "@swc/core": "^1.3.36",
     "semver": "^7.5.2"
   },
   "devDependencies": {
@@ -58,9 +60,10 @@
     "split2": "^3.1.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.10.3"
+    "@parcel/core": "^2.12.0"
   },
   "browser": {
+    "./src/NodePackageManager.js": false,
     "./src/Npm.js": false,
     "./src/Pnpm.js": false,
     "./src/Yarn.js": false

@@ -12,7 +12,11 @@ export interface Cache {
   setBlob(key: string, contents: Buffer | string): Promise<void>;
   hasLargeBlob(key: string): Promise<boolean>;
   getLargeBlob(key: string): Promise<Buffer>;
-  setLargeBlob(key: string, contents: Buffer | string): Promise<void>;
+  setLargeBlob(
+    key: string,
+    contents: Buffer | string,
+    options?: {|signal?: AbortSignal|},
+  ): Promise<void>;
   getBuffer(key: string): Promise<?Buffer>;
   /**
    * In a multi-threaded environment, where there are potentially multiple Cache

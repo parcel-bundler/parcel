@@ -3261,7 +3261,11 @@ describe('javascript', function () {
 
   it('should warn on process.env mutations in node_modules', async function () {
     let logs = [];
-    let disposable = Logger.onLog(d => logs.push(d));
+    let disposable = Logger.onLog(d => {
+      if (d.level !== 'verbose') {
+        logs.push(d);
+      }
+    });
     let b = await bundle(
       path.join(__dirname, '/integration/env-mutate/warn.js'),
     );
@@ -5188,6 +5192,12 @@ describe('javascript', function () {
   it('should not use arrow functions for reexport declarations unless supported', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-arrow-support/index.js'),
+      {
+        // Remove comments containing "=>"
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!content.includes('=>'));

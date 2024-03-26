@@ -9,10 +9,10 @@ import type {
   TraceMeasurement as ITraceMeasurement,
   TraceMeasurementData,
 } from './types';
+// @ts-ignore
 import {ValueEmitter} from '@parcel/events';
 
-// $FlowFixMe
-import {performance as _performance} from 'perf_hooks';
+import {performance} from 'perf_hooks';
 
 let tid;
 try {
@@ -21,16 +21,16 @@ try {
   tid = 0;
 }
 
-const performance: Performance = _performance;
 const pid = process.pid;
 
 class TraceMeasurement implements ITraceMeasurement {
-  #active /* boolean */ = true;
-  #name /* string */;
-  #pid /* number */;
-  #tid /* number */;
-  #start /* number */;
-  #data /* any */;
+  #active: boolean = true;
+  #name: string;
+  #pid: number;
+  #tid: number;
+  #start: number;
+  // $FlowFixMe
+  #data: any;
   constructor(tracer: Tracer, name, pid, tid, data) {
     this.#name = name;
     this.#pid = pid;
@@ -56,9 +56,9 @@ class TraceMeasurement implements ITraceMeasurement {
 }
 
 export default class Tracer {
-  #traceEmitter /* ValueEmitter<TraceEvent> */ = new ValueEmitter();
+  #traceEmitter: ValueEmitter<TraceEvent> = new ValueEmitter();
 
-  #enabled /* boolean */ = false;
+  #enabled: boolean = false;
 
   onTrace(cb: (event: TraceEvent) => mixed): IDisposable {
     return this.#traceEmitter.addListener(cb);
@@ -75,7 +75,7 @@ export default class Tracer {
 
   createMeasurement(
     name: string,
-    category?: string = 'Core',
+    category: string = 'Core',
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
   ): ITraceMeasurement | null {

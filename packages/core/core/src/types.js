@@ -31,6 +31,9 @@ import type {FileSystem} from '@parcel/fs';
 import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
+import type {Event} from '@parcel/watcher';
+import type {FeatureFlags} from '@parcel/feature-flags';
+import type {BackendType} from '@parcel/watcher';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -168,7 +171,6 @@ export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
 export type Asset = {|
   id: ContentKey,
   committed: boolean,
-  hash: ?string,
   filePath: ProjectPath,
   query: ?string,
   type: string,
@@ -242,6 +244,15 @@ export type InternalFileCreateInvalidation =
   | InternalGlobInvalidation
   | InternalFileAboveInvalidation;
 
+export type Invalidations = {|
+  invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
+  invalidateOnEnvChange: Set<string>,
+  invalidateOnOptionChange: Set<string>,
+  invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
+|};
+
 export type DevDepRequest = {|
   specifier: DependencySpecifier,
   resolveFrom: ProjectPath,
@@ -256,15 +267,19 @@ export type DevDepRequest = {|
   |}>,
 |};
 
+declare type GlobPattern = string;
+
 export type ParcelOptions = {|
   entries: Array<ProjectPath>,
   config?: DependencySpecifier,
   defaultConfig?: DependencySpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
-
   shouldDisableCache: boolean,
   cacheDir: FilePath,
+  watchDir: FilePath,
+  watchIgnore?: Array<FilePath | GlobPattern>,
+  watchBackend?: BackendType,
   mode: BuildMode,
   hmrOptions: ?HMROptions,
   shouldContentHash: boolean,
@@ -280,6 +295,7 @@ export type ParcelOptions = {|
   shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
+  unstableFileInvalidations?: Array<Event>,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -302,6 +318,8 @@ export type ParcelOptions = {|
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
   |},
+
+  +featureFlags: FeatureFlags,
 |};
 
 export type AssetNode = {|
@@ -390,7 +408,6 @@ export type AssetGroupNode = {|
 
 export type TransformationRequest = {|
   ...AssetGroup,
-  invalidations: Array<RequestInvalidation>,
   invalidateReason: number,
   devDeps: Map<PackageName, string>,
   invalidDevDeps: Array<{|

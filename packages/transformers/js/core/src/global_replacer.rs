@@ -1,15 +1,16 @@
 use indexmap::IndexMap;
 use path_slash::PathBufExt;
-use std::collections::HashSet;
 use std::path::Path;
 
 use swc_core::common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
-use swc_core::ecma::ast::{self, ComputedPropName, Id};
+use swc_core::ecma::ast::{self, ComputedPropName};
 use swc_core::ecma::atoms::{js_word, JsWord};
 use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::utils::{create_global_decl_stmt, create_require, SourceLocation, SourceType};
+use crate::utils::{
+  create_global_decl_stmt, create_require, is_unresolved, SourceLocation, SourceType,
+};
 
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
@@ -18,7 +19,7 @@ pub struct GlobalReplacer<'a> {
   pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
-  pub decls: &'a mut HashSet<Id>,
+  pub unresolved_mark: Mark,
   pub scope_hoist: bool,
 }
 
@@ -47,13 +48,16 @@ impl<'a> Fold for GlobalReplacer<'a> {
 
     if let Ident(id) = &mut node {
       // Only handle global variables
-      if self.decls.contains(&(id.sym.clone(), id.span.ctxt())) {
+      if !is_unresolved(&id, self.unresolved_mark) {
         return node;
       }
 
+      let unresolved_mark = self.unresolved_mark;
       match id.sym.to_string().as_str() {
         "process" => {
-          if self.update_binding(id, |_| Call(create_require(js_word!("process")))) {
+          if self.update_binding(id, |_| {
+            Call(create_require(js_word!("process"), unresolved_mark))
+          }) {
             let specifier = id.sym.clone();
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
@@ -71,7 +75,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
           let specifier = swc_core::ecma::atoms::JsWord::from("buffer");
           if self.update_binding(id, |_| {
             Member(MemberExpr {
-              obj: Box::new(Call(create_require(specifier.clone()))),
+              obj: Box::new(Call(create_require(specifier.clone(), unresolved_mark))),
               prop: MemberProp::Ident(ast::Ident::new("Buffer".into(), DUMMY_SP)),
               span: DUMMY_SP,
             })
@@ -168,7 +172,6 @@ impl GlobalReplacer<'_> {
       id.span.ctxt = ctxt;
 
       self.globals.insert(id.sym.clone(), (ctxt, decl));
-      self.decls.insert(id.to_id());
 
       true
     }

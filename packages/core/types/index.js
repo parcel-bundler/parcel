@@ -14,6 +14,8 @@ import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 import type {TraceMeasurement} from '@parcel/profiler';
+import type {FeatureFlags} from '@parcel/feature-flags';
+import type {Event, BackendType} from '@parcel/watcher';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -284,6 +286,8 @@ export type DetailedReportOptions = {|
   assetsPerBundle?: number,
 |};
 
+declare type GlobPattern = string;
+
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
   +config?: DependencySpecifier,
@@ -293,6 +297,9 @@ export type InitialParcelOptions = {|
 
   +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
+  +watchDir?: FilePath,
+  +watchBackend?: BackendType,
+  +watchIgnore?: Array<FilePath | GlobPattern>,
   +mode?: BuildMode,
   +hmrOptions?: ?HMROptions,
   +shouldContentHash?: boolean,
@@ -306,6 +313,7 @@ export type InitialParcelOptions = {|
   +lazyIncludes?: string[],
   +lazyExcludes?: string[],
   +shouldBundleIncrementally?: boolean,
+  +unstableFileInvalidations?: Array<Event>,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
@@ -329,6 +337,8 @@ export type InitialParcelOptions = {|
     packageName: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
+
+  +featureFlags?: FeatureFlags,
 
   // throwErrors
   // global?
@@ -356,6 +366,7 @@ export interface PluginOptions {
   +packageManager: PackageManager;
   +instanceId: string;
   +detailedReport: ?DetailedReportOptions;
+  +featureFlags: FeatureFlags;
 }
 
 export type ServerOptions = {|
@@ -795,6 +806,10 @@ export interface MutableAsset extends BaseAsset {
   invalidateOnFileCreate(FileCreateInvalidation): void;
   /** Invalidates the transformation when the given environment variable changes. */
   invalidateOnEnvChange(string): void;
+  /** Invalidates the transformation only when Parcel restarts. */
+  invalidateOnStartup(): void;
+  /** Invalidates the transformation on every build. */
+  invalidateOnBuild(): void;
   /** Sets the asset contents as a string. */
   setCode(string): void;
   /** Sets the asset contents as a buffer. */
@@ -1974,6 +1989,13 @@ export type TraceEvent = {|
   +args?: {[key: string]: mixed},
 |};
 
+export type CacheEvent = {|
+  type: 'cache',
+  phase: string,
+  total: number,
+  size: number,
+|};
+
 /**
  * @section reporter
  */
@@ -1986,7 +2008,8 @@ export type ReporterEvent =
   | WatchStartEvent
   | WatchEndEvent
   | ValidationEvent
-  | TraceEvent;
+  | TraceEvent
+  | CacheEvent;
 
 /**
  * @section reporter

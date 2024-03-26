@@ -3,7 +3,6 @@
 import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
@@ -22,6 +21,7 @@ import {NamedBundle} from '../public/Bundle';
 import {assetFromValue} from '../public/Asset';
 
 import {tracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
@@ -43,7 +43,7 @@ type RunInput<TResult> = {|
 
 export type ParcelBuildRequest = {|
   id: ContentKey,
-  +type: 'parcel_build_request',
+  +type: typeof requestTypes.parcel_build_request,
   run: (RunInput<ParcelBuildRequestResult>) => Async<ParcelBuildRequestResult>,
   input: ParcelBuildRequestInput,
 |};
@@ -52,7 +52,7 @@ export default function createParcelBuildRequest(
   input: ParcelBuildRequestInput,
 ): ParcelBuildRequest {
   return {
-    type: 'parcel_build_request',
+    type: requestTypes.parcel_build_request,
     id: 'parcel_build_request',
     run,
     input,

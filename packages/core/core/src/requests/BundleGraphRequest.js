@@ -13,7 +13,6 @@ import type {
   ParcelOptions,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
 import assert from 'assert';
@@ -55,6 +54,7 @@ import {
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -79,7 +79,7 @@ export type BundleGraphResult = {|
 
 type BundleGraphRequest = {|
   id: string,
-  +type: 'bundle_graph_request',
+  +type: typeof requestTypes.bundle_graph_request,
   run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
@@ -88,7 +88,7 @@ export default function createBundleGraphRequest(
   input: BundleGraphRequestInput,
 ): BundleGraphRequest {
   return {
-    type: 'bundle_graph_request',
+    type: requestTypes.bundle_graph_request,
     id: 'BundleGraph',
     run: async input => {
       let {options, api, invalidateReason} = input;
@@ -188,11 +188,12 @@ class BundlerRunner {
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, api.invalidateOnOptionChange),
     );
-    this.cacheKey = hashString(
-      `${PARCEL_VERSION}:BundleGraph:${JSON.stringify(options.entries) ?? ''}${
-        options.mode
-      }`,
-    );
+    this.cacheKey =
+      hashString(
+        `${PARCEL_VERSION}:BundleGraph:${
+          JSON.stringify(options.entries) ?? ''
+        }${options.mode}${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
+      ) + '-BundleGraph';
   }
 
   async loadConfigs() {

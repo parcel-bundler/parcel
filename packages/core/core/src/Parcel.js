@@ -16,7 +16,6 @@ import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
@@ -32,7 +31,6 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import {registerCoreWithSerializer} from './registerCoreWithSerializer';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
@@ -141,17 +139,21 @@ export default class Parcel {
     this.#watchEvents = new ValueEmitter();
     this.#disposable.add(() => this.#watchEvents.dispose());
 
-    this.#requestTracker = await RequestTracker.init({
-      farm: this.#farm,
-      options: resolvedOptions,
-    });
-
     this.#reporterRunner = new ReporterRunner({
       config: this.#config,
       options: resolvedOptions,
       workerFarm: this.#farm,
     });
     this.#disposable.add(this.#reporterRunner);
+
+    logger.verbose({
+      origin: '@parcel/core',
+      message: 'Intializing request tracker...',
+    });
+    this.#requestTracker = await RequestTracker.init({
+      farm: this.#farm,
+      options: resolvedOptions,
+    });
 
     this.#initialized = true;
   }
@@ -163,6 +165,8 @@ export default class Parcel {
     }
 
     let result = await this._build({startTime});
+
+    await this.#requestTracker.writeToCache();
     await this._end();
 
     if (result.type === 'buildFailure') {
@@ -175,10 +179,29 @@ export default class Parcel {
   async _end(): Promise<void> {
     this.#initialized = false;
 
-    await Promise.all([
-      this.#disposable.dispose(),
-      await this.#requestTracker.writeToCache(),
-    ]);
+    await this.#disposable.dispose();
+  }
+
+  async writeRequestTrackerToCache(): Promise<void> {
+    if (this.#watchQueue.getNumWaiting() === 0) {
+      // If there's no queued events, we are safe to write the request graph to disk
+      const abortController = new AbortController();
+
+      const unsubscribe = this.#watchQueue.subscribeToAdd(() => {
+        abortController.abort();
+      });
+
+      try {
+        await this.#requestTracker.writeToCache(abortController.signal);
+      } catch (err) {
+        if (!abortController.signal.aborted) {
+          // We expect abort errors if we interrupt the cache write
+          throw err;
+        }
+      }
+
+      unsubscribe();
+    }
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -200,6 +223,9 @@ export default class Parcel {
       if (!(err instanceof BuildAbortError)) {
         throw err;
       }
+    } finally {
+      // If the build passes or fails, we want to cache the request graph
+      await this.writeRequestTrackerToCache();
     }
   }
 
@@ -374,7 +400,6 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-
       return event;
     } finally {
       if (this.isProfiling) {
@@ -391,7 +416,7 @@ export default class Parcel {
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
     let sub = await resolvedOptions.inputFS.watch(
-      resolvedOptions.projectRoot,
+      resolvedOptions.watchDir,
       (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
@@ -399,10 +424,9 @@ export default class Parcel {
         }
 
         let isInvalid = this.#requestTracker.respondToFSEvents(
-          events.map(e => ({
-            type: e.type,
-            path: toProjectPath(resolvedOptions.projectRoot, e.path),
-          })),
+          events,
+          resolvedOptions.projectRoot,
+          Number.POSITIVE_INFINITY,
         );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {

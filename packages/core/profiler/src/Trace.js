@@ -115,7 +115,7 @@ export default class Trace {
     });
   }
 
-  pipe(writable: Writable): stream$Writable {
+  pipe(writable: Writable): Writable {
     return this.tracer.pipe(writable);
   }
 

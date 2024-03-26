@@ -5,6 +5,107 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2024-02-28
+
+### Added
+
+- Core
+  - Add REPL playground for Parcel to the website – [Details](https://github.com/parcel-bundler/parcel/pull/9365)
+  - Improve package manager detection for auto install – [Details](https://github.com/parcel-bundler/parcel/pull/9505)
+
+- JavaScript
+  - Add support for JS macros – [Details](https://github.com/parcel-bundler/parcel/pull/9299)
+  - Statically evaluate constants referenced by macros – [Details](https://github.com/parcel-bundler/parcel/pull/9487)
+  - Upgrade to ESLint 8 – [Details](https://github.com/parcel-bundler/parcel/pull/8580)
+  - Bump swc – [Details](https://github.com/parcel-bundler/parcel/pull/9498)
+
+- CSS
+  - Use lightningcss to implement CSS packager – [Details](https://github.com/parcel-bundler/parcel/pull/8492)
+
+- Bundler
+  - Rename "parentAsset" to "root" for Manual Shared Bundle config and remove unstable prefix – [Details](https://github.com/parcel-bundler/parcel/pull/9486)
+
+- Web Extensions
+  - Add content script world property to manifest schema validation – [Details](https://github.com/parcel-bundler/parcel/pull/9510)
+
+- Performance
+  - Adjacency list optimizations – [Details](https://github.com/parcel-bundler/parcel/pull/9444)
+  - Break up request graph cache serialisation and run after build completion – [Details](https://github.com/parcel-bundler/parcel/pull/9384)
+
+### Fixed
+
+- Core
+  - Drop per-pipeline transformation cache – [Details](https://github.com/parcel-bundler/parcel/pull/9459)
+  - Clippy and use napi's Either3 – [Details](https://github.com/parcel-bundler/parcel/pull/9047)
+  - Add lazy/eager cache key to avoid invalid change when switching modes – [Details](https://github.com/parcel-bundler/parcel/pull/9518)
+
+- JavaScript
+  - Remove decl_collector pass and use SWC's unresolved_mark instead – [Details](https://github.com/parcel-bundler/parcel/pull/9520)
+
+- Bundler
+  - Fix multiple css bundles in entry bundle groups issue – [Details](https://github.com/parcel-bundler/parcel/pull/9023)
+  - Allow parallel type change bundles to be reused by async siblings – [Details](https://github.com/parcel-bundler/parcel/pull/9504)
+  - Skip on missing parent asset for manual shared bundles – [Details](https://github.com/parcel-bundler/parcel/pull/9538)
+
+### Unstable
+
+- Add source map support to the inline-require optimizer – [Details](https://github.com/parcel-bundler/parcel/pull/9511)
+
+## [2.11.0] - 2023-12-19
+
+### Added
+
+- Dev
+
+  - Log build phase times for dev builds [Details](https://github.com/parcel-bundler/parcel/pull/9371)
+  - Progress messages for writing to cache [Details](https://github.com/parcel-bundler/parcel/pull/9368)
+  - VSC Extension JSON schema [Details](https://github.com/parcel-bundler/parcel/pull/9386)
+  - Print phase times on development builds [Details](https://github.com/parcel-bundler/parcel/pull/9417)
+  - Publish bundle-stats-cli and parcel-query [Details](https://github.com/parcel-bundler/parcel/pull/9431)
+
+### Fixed
+
+- Dev
+
+  - Increase threshold for showing progress bar to 500k nodes [Details](https://github.com/parcel-bundler/parcel/pull/9421)
+  - Fix parcel-query [Details](https://github.com/parcel-bundler/parcel/pull/9425)
+  - FIX[dev-server]: Fix html file matching from URL [Details](https://github.com/parcel-bundler/parcel/pull/9347)
+  - Fix parcel query's inspect cache [Details](https://github.com/parcel-bundler/parcel/pull/9436)
+  - Bug fix for exiting early when identifying requestGraph in loadGraphs [Details](https://github.com/parcel-bundler/parcel/pull/9437)
+  - Fix HMR on .localhost domains [Details](https://github.com/parcel-bundler/parcel/pull/9435)
+  - Modify parcel query to not require all graphs on startup [Details](https://github.com/parcel-bundler/parcel/pull/9426)
+  - Bug fix for async Parcel-query [Details](https://github.com/parcel-bundler/parcel/pull/9442)
+  - Remove reliance on requestTracker in loadGraphs [Details](https://github.com/parcel-bundler/parcel/pull/9440)
+
+- Core
+
+  - Reduce redundancy in the RequestGraph's Request, Env, and Option nodes [Details](https://github.com/parcel-bundler/parcel/pull/9383)
+  - Move registerCoreWithSerializer to its own file [Details](https://github.com/parcel-bundler/parcel/pull/9396)
+  - Filter --expose-gc and --max-semi-space-size execArgv Node args from workers [Details](https://github.com/parcel-bundler/parcel/pull/9399)
+  - Optimize Symbol Propagation (propagateSymbolsUp) [Details](https://github.com/parcel-bundler/parcel/pull/9337)
+  - Convert Request Graph node types + request node requestTypes to numbers [Details](https://github.com/parcel-bundler/parcel/pull/9412)
+  - fsFixture: ignore empty lines in fixtures [Details](https://github.com/parcel-bundler/parcel/pull/9423)
+  - Unstable File Invalidations [Details](https://github.com/parcel-bundler/parcel/pull/9420)
+  - Configurable watch root [Details](https://github.com/parcel-bundler/parcel/pull/9424)
+
+- Resolver
+
+  - Add ~ and / support to the glob resolver [Details](https://github.com/parcel-bundler/parcel/pull/9188)
+
+- JavaScript
+
+  - Bump swc [Details](https://github.com/parcel-bundler/parcel/pull/9389)
+  - Bumping lightningcss to 1.22.1 [Details](https://github.com/parcel-bundler/parcel/pull/9401)
+  - Fix CI [Details](https://github.com/parcel-bundler/parcel/pull/9404)
+  - Change inline-requires to only run when optimizing [Details](https://github.com/parcel-bundler/parcel/pull/9403)
+  - Fix tsconfig extends from node_modules [Details](https://github.com/parcel-bundler/parcel/pull/9419)
+  - Bump some deps [Details](https://github.com/parcel-bundler/parcel/pull/9406)
+  - Bump swc and napi-rs [Details](https://github.com/parcel-bundler/parcel/pull/9408)
+  - Fix references to packages.atlassian.com [Details](https://github.com/parcel-bundler/parcel/pull/9430)
+  - Fix build-ts step [Details](https://github.com/parcel-bundler/parcel/pull/9439)
+  - Bump rimraf version to ^5.05 [Details](https://github.com/parcel-bundler/parcel/pull/9438)
+  - Use centos image with newer Node 16 [Details](https://github.com/parcel-bundler/parcel/pull/9447)
+
 ## [2.10.3] - 2023-11-14
 
 ### Added

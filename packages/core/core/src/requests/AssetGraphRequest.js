@@ -32,6 +32,7 @@ import createPathRequest from './PathRequest';
 import {type ProjectPath, fromProjectPathRelative} from '../projectPath';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {propagateSymbols} from '../SymbolPropagation';
+import {requestTypes} from '../RequestTracker';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -62,7 +63,7 @@ type RunInput = {|
 
 type AssetGraphRequest = {|
   id: string,
-  +type: 'asset_graph_request',
+  +type: typeof requestTypes.asset_graph_request,
   run: RunInput => Async<AssetGraphRequestResult>,
   input: AssetGraphRequestInput,
 |};
@@ -71,7 +72,7 @@ export default function createAssetGraphRequest(
   input: AssetGraphRequestInput,
 ): AssetGraphRequest {
   return {
-    type: 'asset_graph_request',
+    type: requestTypes.asset_graph_request,
     id: input.name,
     run: async input => {
       let prevResult =
@@ -156,9 +157,12 @@ export class AssetGraphBuilder {
     this.shouldBuildLazily = shouldBuildLazily ?? false;
     this.lazyIncludes = lazyIncludes ?? [];
     this.lazyExcludes = lazyExcludes ?? [];
-    this.cacheKey = hashString(
-      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
-    );
+    this.cacheKey =
+      hashString(
+        `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${
+          options.mode
+        }${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
+      ) + '-AssetGraph';
 
     this.isSingleChangeRebuild =
       api

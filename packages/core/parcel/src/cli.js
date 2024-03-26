@@ -12,6 +12,7 @@ import commander from 'commander';
 import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 const program = new commander.Command();
 
@@ -65,14 +66,46 @@ process.on('unhandledRejection', handleUncaughtException);
 program.storeOptionsAsProperties();
 program.version(version);
 
+// Only display choices available to callers OS
+let watcherBackendChoices = ['brute-force'];
+switch (process.platform) {
+  case 'darwin': {
+    watcherBackendChoices.push('watchman', 'fs-events');
+    break;
+  }
+  case 'linux': {
+    watcherBackendChoices.push('watchman', 'inotify');
+    break;
+  }
+  case 'win32': {
+    watcherBackendChoices.push('watchman', 'windows');
+    break;
+  }
+  case 'freebsd' || 'openbsd': {
+    watcherBackendChoices.push('watchman');
+    break;
+  }
+  default:
+    break;
+}
+
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
 // --no-content-hash, --experimental-scope-hoisting, --detailed-report
-
 const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
   '--config <path>':
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
+  '--watch-dir <path>':
+    'set the root watch directory. defaults to nearest lockfile or source control dir.',
+  '--watch-ignore [path]': [
+    `list of directories watcher should not be tracking for changes. defaults to ['.git', '.hg']`,
+    dirs => dirs.split(','),
+  ],
+  '--watch-backend': new commander.Option(
+    '--watch-backend <name>',
+    'set watcher backend',
+  ).choices(watcherBackendChoices),
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
@@ -100,6 +133,30 @@ const commonOptions = {
       return acc;
     },
     [],
+  ],
+  '--feature-flag <name=value>': [
+    'sets the value of a feature flag',
+    (value, previousValue) => {
+      let [name, val] = value.split('=');
+      if (name in DEFAULT_FEATURE_FLAGS) {
+        let featureFlagValue;
+        if (typeof DEFAULT_FEATURE_FLAGS[name] === 'boolean') {
+          if (val !== 'true' && val !== 'false') {
+            throw new Error(
+              `Feature flag ${name} must be set to true or false`,
+            );
+          }
+          featureFlagValue = val;
+        }
+        previousValue[name] = featureFlagValue ?? String(val);
+      } else {
+        INTERNAL_ORIGINAL_CONSOLE.warn(
+          `Unknown feature flag ${name} specified, it will be ignored`,
+        );
+      }
+      return previousValue;
+    },
+    {},
   ],
 };
 
@@ -285,16 +342,7 @@ async function run(
           // We don't use the SIGINT event for this because when run inside yarn, the parent
           // yarn process ends before Parcel and it appears that Parcel has ended while it may still
           // be cleaning up. Handling events from stdin prevents this impression.
-
-          // Enqueue a busy message to be shown if Parcel doesn't shut down
-          // within the timeout.
-          setTimeout(
-            () =>
-              INTERNAL_ORIGINAL_CONSOLE.log(
-                chalk.bold.yellowBright('Parcel is shutting down...'),
-              ),
-            500,
-          );
+          //
           // When watching, a 0 success code is acceptable when Parcel is interrupted with ctrl-c.
           // When building, fail with a code as if we received a SIGINT.
           await exit(isWatching ? 0 : SIGINT_EXIT_CODE);
@@ -479,9 +527,13 @@ async function normalizeOptions(
     if (typeof input !== 'string') return [];
     return input.split(',').map(value => value.trim());
   };
+
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    watchDir: command.watchDir,
+    watchBackend: command.watchBackend,
+    watchIgnore: command.watchIgnore,
     config: command.config,
     mode,
     hmrOptions,
@@ -515,5 +567,6 @@ async function normalizeOptions(
       publicUrl: command.publicUrl,
       distDir: command.distDir,
     },
+    featureFlags: command.featureFlag,
   };
 }

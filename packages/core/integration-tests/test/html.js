@@ -2242,6 +2242,18 @@ describe('html', function () {
 
     assertBundles(b, [
       {
+        type: 'js',
+        assets: ['a.html'],
+      },
+      {
+        type: 'js',
+        assets: ['b.html'],
+      },
+      {
+        type: 'js',
+        assets: ['c.html'],
+      },
+      {
         name: 'a.html',
         type: 'html',
         assets: ['a.html'],
@@ -2257,24 +2269,12 @@ describe('html', function () {
         assets: ['c.html'],
       },
       {
-        type: 'js',
-        assets: ['a.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['b.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['c.html', 'shared.js'],
-      },
-      {
         type: 'css',
-        assets: ['other.css'],
+        assets: ['other.css', 'shared.css'],
       },
       {
-        type: 'css',
-        assets: ['shared.css'],
+        type: 'js',
+        assets: ['shared.js'],
       },
     ]);
 
@@ -2488,6 +2488,14 @@ describe('html', function () {
       {
         type: 'js',
         assets: ['form.js', 'a.js', 'a.module.css', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css'],
       },
       {
         type: 'css',

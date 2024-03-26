@@ -90,7 +90,7 @@
       // Reload the page when an HMR update occurs.
       var protocol =
         (location.protocol == 'https:' &&
-          !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+          !['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname))
           ? 'wss'
           : 'ws';
       var hostname = <%- JSON.stringify(hmrOptions.host || null) %> || location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost';

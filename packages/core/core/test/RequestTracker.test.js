@@ -16,14 +16,14 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: () => {},
       input: null,
     });
     let called = false;
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: () => {
         called = true;
       },
@@ -36,7 +36,7 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: () => {},
       input: null,
     });
@@ -47,7 +47,7 @@ describe('RequestTracker', () => {
     let called = false;
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: () => {
         called = true;
       },
@@ -60,11 +60,11 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async ({api}) => {
         await api.runRequest({
           id: 'xyz',
-          type: 'path_request',
+          type: 7,
           run: () => {},
           input: null,
         });
@@ -88,7 +88,7 @@ describe('RequestTracker', () => {
     await tracker
       .runRequest({
         id: 'abc',
-        type: 'path_request',
+        type: 7,
         run: async () => {
           await Promise.resolve();
           throw new Error('woops');
@@ -110,11 +110,11 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async ({api}) => {
         await api.runRequest({
           id: 'xyz',
-          type: 'path_request',
+          type: 7,
           run: () => {},
           input: null,
         });
@@ -125,11 +125,11 @@ describe('RequestTracker', () => {
     tracker.graph.invalidateNode(nodeId, INITIAL_BUILD);
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async ({api}) => {
         await api.runRequest({
           id: '123',
-          type: 'path_request',
+          type: 7,
           run: () => {},
           input: null,
         });
@@ -143,7 +143,7 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve('hello');
         api.storeResult(result);
@@ -152,7 +152,7 @@ describe('RequestTracker', () => {
     });
     let result = await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async () => {},
       input: null,
     });
@@ -164,7 +164,7 @@ describe('RequestTracker', () => {
     let p = tracker
       .runRequest({
         id: 'abc',
-        type: 'path_request',
+        type: 7,
         run: async () => {
           await Promise.resolve('hello');
         },
@@ -184,6 +184,35 @@ describe('RequestTracker', () => {
     );
   });
 
+  it('should write cache to disk and store index', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    await tracker.runRequest({
+      id: 'abc',
+      type: 7,
+      run: async ({api}: {api: RunAPI<string | void>, ...}) => {
+        let result = await Promise.resolve();
+        api.storeResult(result);
+      },
+      input: null,
+    });
+
+    await tracker.writeToCache();
+
+    assert(tracker.graph.cachedRequestChunks.size > 0);
+  });
+
+  it('should not write to cache when the abort controller aborts', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    const abortController = new AbortController();
+    abortController.abort();
+
+    await tracker.writeToCache(abortController.signal);
+
+    assert(tracker.graph.cachedRequestChunks.size === 0);
+  });
+
   it('should not requeue requests if the previous request is still running', async () => {
     let tracker = new RequestTracker({farm, options});
 
@@ -192,7 +221,7 @@ describe('RequestTracker', () => {
 
     let requestA = tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         await lockA.promise;
         api.storeResult('a');
@@ -204,7 +233,7 @@ describe('RequestTracker', () => {
     let calledB = false;
     let requestB = tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         calledB = true;
         await lockB.promise;
@@ -224,7 +253,7 @@ describe('RequestTracker', () => {
 
     let cachedResult = await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: () => {},
       input: null,
     });
@@ -240,7 +269,7 @@ describe('RequestTracker', () => {
     let requestA = tracker
       .runRequest({
         id: 'abc',
-        type: 'path_request',
+        type: 7,
         run: async () => {
           await lockA.promise;
           throw new Error('whoops');
@@ -253,7 +282,7 @@ describe('RequestTracker', () => {
 
     let requestB = tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         await lockB.promise;
         api.storeResult('b');
@@ -269,7 +298,7 @@ describe('RequestTracker', () => {
     let called = false;
     let cachedResult = await tracker.runRequest({
       id: 'abc',
-      type: 'path_request',
+      type: 7,
       run: () => {
         called = true;
       },
