@@ -192,9 +192,6 @@ export default async function applyRuntimes<TResult>({
     }
   }
 
-  // Correct connection order after generating runtimes in reverse order
-  connections.reverse();
-
   // Add dev deps for runtime plugins AFTER running them, to account for lazy require().
   for (let runtime of runtimes) {
     let devDepRequest = await createDevDependency(
