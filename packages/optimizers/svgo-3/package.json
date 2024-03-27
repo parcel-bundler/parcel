@@ -1,0 +1,28 @@
+{
+  "name": "@parcel/optimizer-svgo3",
+  "version": "2.8.3",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/SVGOOptimizer.js",
+  "source": "src/SVGOOptimizer.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.8.3"
+  },
+  "dependencies": {
+    "@parcel/diagnostic": "2.8.3",
+    "@parcel/plugin": "2.8.3",
+    "@parcel/utils": "2.8.3",
+    "svgo": "^3.0.0"
+  }
+}
