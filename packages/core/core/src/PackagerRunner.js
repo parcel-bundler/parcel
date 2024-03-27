@@ -53,10 +53,7 @@ import {
   getConfigRequests,
   type PluginWithBundleConfig,
 } from './requests/ConfigRequest';
-import {
-  createDevDependency,
-  getWorkerDevDepRequests,
-} from './requests/DevDepRequest';
+import {createDevDependency} from './requests/DevDepRequest';
 import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
@@ -159,14 +156,11 @@ export default class PackagerRunner {
       ...configs.values(),
       ...bundleConfigs.values(),
     ]);
-    let devDepRequests = getWorkerDevDepRequests([
-      ...this.devDepRequests.values(),
-    ]);
 
     return {
       bundleInfo,
       configRequests,
-      devDepRequests,
+      devDepRequests: [...this.devDepRequests.values()],
       invalidations: [...this.invalidations.values()],
     };
   }
