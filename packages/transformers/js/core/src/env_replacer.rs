@@ -24,20 +24,16 @@ impl<'a> Fold for EnvReplacer<'a> {
     // Replace assignments to process.browser with `true`
     // TODO: this seems questionable but we did it in the JS version??
     if let Expr::Assign(ref assign) = node {
-      if let PatOrExpr::Pat(ref pat) = assign.left {
-        if let Pat::Expr(ref expr) = &**pat {
-          if let Expr::Member(ref member) = &**expr {
-            if self.is_browser
-              && match_member_expr(member, vec!["process", "browser"], self.unresolved_mark)
-            {
-              let mut res = assign.clone();
-              res.right = Box::new(Expr::Lit(Lit::Bool(Bool {
-                value: true,
-                span: DUMMY_SP,
-              })));
-              return Expr::Assign(res);
-            }
-          }
+      if let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left {
+        if self.is_browser
+          && match_member_expr(member, vec!["process", "browser"], self.unresolved_mark)
+        {
+          let mut res = assign.clone();
+          res.right = Box::new(Expr::Lit(Lit::Bool(Bool {
+            value: true,
+            span: DUMMY_SP,
+          })));
+          return Expr::Assign(res);
         }
       }
     }
@@ -87,56 +83,58 @@ impl<'a> Fold for EnvReplacer<'a> {
         return node.fold_children_with(self);
       }
 
-      let expr = match &assign.left {
-        PatOrExpr::Pat(pat) => {
-          if let Pat::Expr(expr) = &**pat {
-            Some(&**expr)
-          } else if let Expr::Member(member) = &*assign.right {
-            if assign.op == AssignOp::Assign
-              && match_member_expr(member, vec!["process", "env"], self.unresolved_mark)
-            {
-              let mut decls = vec![];
-              self.collect_pat_bindings(pat, &mut decls);
-
-              let mut exprs: Vec<Box<Expr>> = decls
-                .iter()
-                .map(|decl| {
-                  Box::new(Expr::Assign(AssignExpr {
-                    span: DUMMY_SP,
-                    op: AssignOp::Assign,
-                    left: PatOrExpr::Pat(Box::new(decl.name.clone())),
-                    right: Box::new(if let Some(init) = &decl.init {
-                      *init.clone()
-                    } else {
-                      Expr::Ident(get_undefined_ident(self.unresolved_mark))
-                    }),
-                  }))
-                })
-                .collect();
-
-              exprs.push(Box::new(Expr::Object(ObjectLit {
-                span: DUMMY_SP,
-                props: vec![],
-              })));
-
-              return Expr::Seq(SeqExpr {
-                span: assign.span,
-                exprs,
-              });
-            }
-            None
-          } else {
-            None
-          }
-        }
-        PatOrExpr::Expr(expr) => Some(&**expr),
-      };
-
-      if let Some(Expr::Member(MemberExpr { obj, .. })) = &expr {
-        if let Expr::Member(member) = &**obj {
-          if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
+      // process.env.FOO = ...;
+      if let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left {
+        if let Expr::Member(obj) = &*member.obj {
+          if match_member_expr(obj, vec!["process", "env"], self.unresolved_mark) {
             self.emit_mutating_error(assign.span);
             return *assign.right.clone().fold_with(self);
+          }
+        }
+      }
+
+      if let Expr::Member(member) = &*assign.right {
+        if assign.op == AssignOp::Assign
+          && match_member_expr(member, vec!["process", "env"], self.unresolved_mark)
+        {
+          let pat = match &assign.left {
+            // ({x, y, z, ...} = process.env);
+            AssignTarget::Simple(SimpleAssignTarget::Ident(ident)) => {
+              Some(Pat::Ident(ident.clone()))
+            }
+            // foo = process.env;
+            AssignTarget::Pat(AssignTargetPat::Object(obj)) => Some(obj.clone().into()),
+            _ => None,
+          };
+          if let Some(pat) = pat {
+            let mut decls = vec![];
+            self.collect_pat_bindings(&pat, &mut decls);
+
+            let mut exprs: Vec<Box<Expr>> = decls
+              .iter()
+              .map(|decl| {
+                Box::new(Expr::Assign(AssignExpr {
+                  span: DUMMY_SP,
+                  op: AssignOp::Assign,
+                  left: decl.name.clone().try_into().unwrap(),
+                  right: Box::new(if let Some(init) = &decl.init {
+                    *init.clone()
+                  } else {
+                    Expr::Ident(get_undefined_ident(self.unresolved_mark))
+                  }),
+                }))
+              })
+              .collect();
+
+            exprs.push(Box::new(Expr::Object(ObjectLit {
+              span: DUMMY_SP,
+              props: vec![],
+            })));
+
+            return Expr::Seq(SeqExpr {
+              span: assign.span,
+              exprs,
+            });
           }
         }
       }

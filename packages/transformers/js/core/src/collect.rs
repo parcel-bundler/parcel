@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use swc_core::common::{sync::Lrc, Mark, Span, DUMMY_SP};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::visit::{Visit, VisitWith};
+use swc_core::ecma::visit::{noop_visit_type, Visit, VisitWith};
 
 macro_rules! collect_visit_fn {
   ($name:ident, $type:ident) => {
@@ -822,29 +822,27 @@ impl Visit for Collect {
     self.in_assign = false;
     node.right.visit_with(self);
 
-    if let PatOrExpr::Pat(pat) = &node.left {
-      if has_binding_identifier(pat, &"exports".into(), self.unresolved_mark) {
-        // Must wrap for cases like
-        // ```
-        // function logExports() {
-        //   console.log(exports);
-        // }
-        // exports.test = 2;
-        // logExports();
-        // exports = {test: 4};
-        // logExports();
-        // ```
-        self.static_cjs_exports = false;
-        self.has_cjs_exports = true;
-        self.should_wrap = true;
-        self.add_bailout(node.span, BailoutReason::ExportsReassignment);
-      } else if has_binding_identifier(pat, &"module".into(), self.unresolved_mark) {
-        // Same for `module`. If it is reassigned we can't correctly statically analyze.
-        self.static_cjs_exports = false;
-        self.has_cjs_exports = true;
-        self.should_wrap = true;
-        self.add_bailout(node.span, BailoutReason::ModuleReassignment);
-      }
+    if has_binding_identifier(&node.left, &"exports".into(), self.unresolved_mark) {
+      // Must wrap for cases like
+      // ```
+      // function logExports() {
+      //   console.log(exports);
+      // }
+      // exports.test = 2;
+      // logExports();
+      // exports = {test: 4};
+      // logExports();
+      // ```
+      self.static_cjs_exports = false;
+      self.has_cjs_exports = true;
+      self.should_wrap = true;
+      self.add_bailout(node.span, BailoutReason::ExportsReassignment);
+    } else if has_binding_identifier(&node.left, &"module".into(), self.unresolved_mark) {
+      // Same for `module`. If it is reassigned we can't correctly statically analyze.
+      self.static_cjs_exports = false;
+      self.has_cjs_exports = true;
+      self.should_wrap = true;
+      self.add_bailout(node.span, BailoutReason::ModuleReassignment);
     }
   }
 
@@ -1096,7 +1094,7 @@ impl Collect {
             }
             ObjectPatProp::Assign(assign) => {
               if self.non_const_bindings.contains_key(&id!(assign.key)) {
-                idents.push(assign.key.clone());
+                idents.push(assign.key.id.clone());
               }
             }
             ObjectPatProp::Rest(rest) => {
@@ -1124,43 +1122,28 @@ impl Collect {
   }
 }
 
-fn has_binding_identifier(node: &Pat, sym: &JsWord, unresolved_mark: Mark) -> bool {
-  match node {
-    Pat::Ident(ident) => {
-      if ident.id.sym == *sym && is_unresolved(&ident, unresolved_mark) {
-        return true;
-      }
-    }
-    Pat::Object(object) => {
-      for prop in &object.props {
-        match prop {
-          ObjectPatProp::KeyValue(kv) => {
-            if has_binding_identifier(&kv.value, sym, unresolved_mark) {
-              return true;
-            }
-          }
-          ObjectPatProp::Assign(assign) => {
-            if assign.key.sym == *sym && is_unresolved(&assign.key, unresolved_mark) {
-              return true;
-            }
-          }
-          ObjectPatProp::Rest(rest) => {
-            if has_binding_identifier(&rest.arg, sym, unresolved_mark) {
-              return true;
-            }
-          }
-        }
-      }
-    }
-    Pat::Array(array) => {
-      for el in array.elems.iter().flatten() {
-        if has_binding_identifier(el, sym, unresolved_mark) {
-          return true;
-        }
-      }
-    }
-    _ => {}
+fn has_binding_identifier(node: &AssignTarget, sym: &JsWord, unresolved_mark: Mark) -> bool {
+  pub struct BindingIdentFinder<'a> {
+    sym: &'a JsWord,
+    unresolved_mark: Mark,
+    found: bool,
   }
 
-  false
+  impl Visit for BindingIdentFinder<'_> {
+    noop_visit_type!();
+
+    fn visit_binding_ident(&mut self, ident: &BindingIdent) {
+      if ident.id.sym == *self.sym && is_unresolved(&ident, self.unresolved_mark) {
+        self.found = true;
+      }
+    }
+  }
+
+  let mut visitor = BindingIdentFinder {
+    sym,
+    unresolved_mark,
+    found: false,
+  };
+  node.visit_with(&mut visitor);
+  visitor.found
 }
