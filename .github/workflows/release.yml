@@ -48,7 +48,7 @@ jobs:
         if: ${{ matrix.target == 'aarch64-apple-darwin' }}
         run: sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
       - name: Build native packages
-        run: yarn build-native-release
+        run: yarn build-native-${{ input.profile || 'release' }}
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
@@ -83,7 +83,7 @@ jobs:
           override: true
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
-        run: yarn build-native-release
+        run: yarn build-native-${{ input.profile || 'release' }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip packages/*/*/*.node
       - name: Upload artifacts
@@ -127,7 +127,7 @@ jobs:
         with:
           shared-key: ${{ matrix.target }}
       - name: Build native packages
-        run: yarn build-native-release
+        run: yarn build-native-${{ input.profile || 'release' }}
         env:
           RUST_TARGET: ${{ matrix.target }}
           CFLAGS: ${{ matrix.cflags }}
@@ -180,7 +180,7 @@ jobs:
           target: ${{ matrix.target }}
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
-        run: yarn build-native-release
+        run: yarn build-native-${{ input.profile || 'release' }}
         env:
           RUST_TARGET: ${{ matrix.target }}
           CFLAGS: ${{ matrix.cflags }}
@@ -210,7 +210,7 @@ jobs:
           fetch-depth: 0
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
-        run: yarn build-native-release
+        run: yarn build-native-${{ input.profile || 'release' }}
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:

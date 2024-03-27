@@ -16,6 +16,7 @@
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
+    "build-native-canary": "node scripts/build-native.js --canary",
     "build-native-wasm": "node scripts/build-native.js --release --wasm",
     "build-repl": "yarn build-native-release && yarn build-native-wasm && yarn workspace @parcel/repl build",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",

@@ -46,7 +46,7 @@ import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initRust} from '@parcel/rust';
+import {init as initRust, initSentry} from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
@@ -100,6 +100,13 @@ export default class Parcel {
 
     await initSourcemaps;
     await initRust?.();
+    try {
+      await initSentry?.();
+    } catch (e) {
+      // Fallthrough
+      // eslint-disable-next-line no-console
+      console.warn(e);
+    }
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
