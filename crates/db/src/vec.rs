@@ -2,8 +2,9 @@ use allocator_api2::vec::Vec;
 use std::{hash::Hash, marker::PhantomData};
 
 use crate::{
-  alloc::{current_heap, SlabAllocated, SlabAllocator},
   codegen::{JsValue, ToJs},
+  page_allocator::current_heap,
+  slab::{SlabAllocated, SlabAllocator},
 };
 
 /// A Vec that allocates in the ParcelDB arena.

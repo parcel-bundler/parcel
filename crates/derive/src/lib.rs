@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use proc_macro::{self, TokenStream};
+use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Fields, Ident, Type};
@@ -71,7 +71,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             let u8_ptr = p as *const u8;
             let mut js = String::new();
             let size = std::mem::size_of::<#self_name>();
-            let id = codegen::type_id::<#self_name>();
+            let id = crate::codegen::type_id::<#self_name>();
 
             js.push_str(&format!(
       r#"export opaque type {name}Addr = number;
@@ -115,8 +115,8 @@ export class {name} {{
         #[ctor::ctor]
         unsafe fn #register() {
           use std::io::Write;
-          codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()));
-          codegen::register_type::<#self_name>(codegen::Factory {
+          crate::codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()));
+          crate::codegen::register_type::<#self_name>(crate::codegen::Factory {
             alloc: #self_name::alloc_ptr,
             dealloc: #self_name::dealloc_ptr,
             extend_vec: #self_name::extend_vec,
@@ -143,7 +143,7 @@ export class {name} {{
           });
           getters.push(quote! {
             let name = stringify!(#name).to_case(Case::Kebab);
-            let value_offset = codegen::enum_value_offset(#self_name::#name, |v| match v {
+            let value_offset = crate::codegen::enum_value_offset(#self_name::#name, |v| match v {
               #self_name::#name(ref v) => v,
               _ => unreachable!()
             });
@@ -151,12 +151,12 @@ export class {name} {{
           r#"
       case {}:
         return {};"#,
-              codegen::discriminant_value(#self_name::#name(codegen::uninit()), offset, size),
+              crate::codegen::discriminant_value(#self_name::#name(crate::codegen::uninit()), offset, size),
               <#ty>::js_getter("db", "addr", value_offset)
             ));
           });
           setters.push(quote! {
-            let value_offset = codegen::enum_value_offset(#self_name::#name, |v| match v {
+            let value_offset = crate::codegen::enum_value_offset(#self_name::#name, |v| match v {
               #self_name::#name(ref v) => v,
               _ => unreachable!()
             });
@@ -167,7 +167,7 @@ export class {name} {{
         {setter};
         break;"#,
               offset = offset,
-              discriminant = codegen::discriminant_value(#self_name::#name(codegen::uninit()), offset, size),
+              discriminant = crate::codegen::discriminant_value(#self_name::#name(crate::codegen::uninit()), offset, size),
               setter = <#ty>::js_setter("db", "addr", value_offset, "value")
             ));
           });
@@ -181,7 +181,7 @@ export class {name} {{
           r#"
       case {}:
         return '{}';"#,
-              codegen::discriminant_value(#self_name::#name, offset, size),
+              crate::codegen::discriminant_value(#self_name::#name, offset, size),
               name
             ));
           });
@@ -194,7 +194,7 @@ export class {name} {{
         break;"#,
               name = name,
               offset = offset,
-              value = codegen::discriminant_value(#self_name::#name, offset, size),
+              value = crate::codegen::discriminant_value(#self_name::#name, offset, size),
             ));
           });
         } else {
@@ -208,7 +208,7 @@ export class {name} {{
         impl ToJs for #self_name {
           fn to_js() -> String {
             use convert_case::{Case, Casing};
-            let (offset, size) = codegen::discriminant(#self_name::#first_variant, |v| matches!(v, #self_name::#first_variant));
+            let (offset, size) = crate::codegen::discriminant(#self_name::#first_variant, |v| matches!(v, #self_name::#first_variant));
             let heap = match size {
               1 => "U8",
               2 => "U16",
@@ -267,7 +267,7 @@ export class {name} {{
         #[ctor::ctor]
         unsafe fn #register() {
           use std::io::Write;
-          codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()))
+          crate::codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()))
         }
       }
     }
@@ -362,16 +362,20 @@ pub fn derive_slab_allocated(input: TokenStream) -> TokenStream {
     #[automatically_derived]
     impl #impl_generics SlabAllocated for #self_name #ty_generics #where_clause {
       fn alloc(count: u32) -> (u32, *mut #self_name) {
-        unsafe {
-          let addr = crate::SLABS.as_mut().unwrap_unchecked().#slab_name.alloc(count);
-          (addr, crate::current_heap().get(addr))
-        }
+        let addr = crate::SLABS.with_borrow_mut(|s| {
+          let slabs = s.as_mut().unwrap();
+          slabs.#slab_name.alloc(count)
+        });
+
+        unsafe { (addr, crate::current_heap().get(addr)) }
       }
 
       fn dealloc(addr: u32, count: u32) {
-        unsafe {
-          crate::SLABS.as_mut().unwrap_unchecked().#slab_name.dealloc(addr, count);
-        }
+        crate::SLABS.with_borrow_mut(|s| {
+          let slabs = s.as_mut().unwrap();
+
+          slabs.#slab_name.dealloc(addr, count)
+        })
       }
     }
   };

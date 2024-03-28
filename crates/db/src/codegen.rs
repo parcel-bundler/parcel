@@ -383,7 +383,8 @@ macro_rules! js_bitflags {
       #[allow(non_snake_case)]
       unsafe fn [<register_ $BitFlags>]() {
         use std::io::Write;
-        codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", $BitFlags::to_js()))
+        use crate::codegen::WRITE_CALLBACKS;
+        WRITE_CALLBACKS.push(|file| write!(file, "{}", $BitFlags::to_js()))
       }
     }
   }
