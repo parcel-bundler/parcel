@@ -34,7 +34,7 @@ pub use vec::ArenaVec;
 
 use string::StringInterner;
 
-use crate::arena::ARENA_ADDR;
+use crate::arena::ARENA;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum BuildMode {
@@ -114,17 +114,13 @@ impl ParcelDbWrapper {
         .0
         .get();
 
-      slabs.arena.addr.with(|a| {
-        let addr = *a.borrow();
-        ARENA_ADDR.replace(addr);
-      });
-
+      ARENA.replace(Some(std::mem::transmute(&mut slabs.arena)));
       SLABS.replace(Some(std::mem::transmute(slabs)));
 
       let res = f(&self.inner);
       HEAP.replace(None);
       DB.replace(None);
-      ARENA_ADDR.replace(1);
+      ARENA.replace(None);
       SLABS.replace(None);
       res
     }
