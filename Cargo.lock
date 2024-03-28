@@ -206,27 +206,6 @@ dependencies = [
 
 [[package]]
 name = "browserslist-rs"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e33066f72a558361eeb1077b0aff0f1dce1ac75bdc20b38a642f155f767b2824"
-dependencies = [
- "ahash 0.8.6",
- "anyhow",
- "chrono",
- "either",
- "itertools 0.10.5",
- "nom",
- "once_cell",
- "quote",
- "serde",
- "serde_json",
- "string_cache",
- "string_cache_codegen",
- "thiserror",
-]
-
-[[package]]
-name = "browserslist-rs"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f2557836820eed97f79071bb3294b2640e71e0bc4301336a210a1b8b4947c15"
@@ -1409,7 +1388,7 @@ version = "0.1.0"
 dependencies = [
  "aligned",
  "bitflags 2.3.3",
- "browserslist-rs 0.13.0",
+ "browserslist-rs",
  "convert_case",
  "crossbeam-channel",
  "ctor",
@@ -1669,7 +1648,7 @@ checksum = "d4e9bedef66806cb32828719aa5cad298e363ad50d190538db40b5631b89d456"
 dependencies = [
  "ahash 0.8.6",
  "anyhow",
- "browserslist-rs 0.14.0",
+ "browserslist-rs",
  "dashmap",
  "from_variant",
  "once_cell",
