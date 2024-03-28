@@ -5,10 +5,11 @@ use dashmap::DashMap;
 use parcel_derive::SlabAllocated;
 
 use crate::{
-  alloc::SlabAllocated,
   atomics::AtomicVec,
   codegen::{JsValue, ToJs},
-  current_db, ArenaAllocated,
+  current_db,
+  slab::SlabAllocated,
+  ArenaAllocated,
 };
 
 /// An InternedString is a string that only ever exists once.
