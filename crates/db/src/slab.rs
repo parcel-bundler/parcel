@@ -3,7 +3,7 @@ use std::{marker::PhantomData, ptr::NonNull};
 use allocator_api2::alloc::Allocator;
 
 use crate::{
-  arena::{alloc_arena, ArenaAllocated},
+  arena::{ArenaAllocated, ARENA},
   page_allocator::current_heap,
   ArenaVec,
 };
@@ -65,7 +65,7 @@ impl<T> Slab<T> {
       }
     }
 
-    alloc_arena(size * count)
+    unsafe { ARENA.with_borrow_mut(|arena| arena.as_mut().unwrap_unchecked().alloc(size * count)) }
   }
 
   pub fn dealloc(&mut self, addr: u32, count: u32) {
