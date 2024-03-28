@@ -51,12 +51,9 @@ use typeof_replacer::*;
 pub use dependency_collector::{DependencyDescriptor, DependencyKind};
 pub use swc_core::ecma::preset_env::{Version, Versions};
 
-use utils::{
-  error_buffer_to_diagnostics, CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer,
-  SourceType,
-};
+use utils::{error_buffer_to_diagnostics, ErrorBuffer};
 
-pub use utils::SourceLocation;
+pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 

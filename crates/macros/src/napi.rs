@@ -161,10 +161,12 @@ fn napi_to_js_value(value: napi::JsUnknown, env: Env) -> napi::Result<JsValue> {
       let source = f.coerce_to_string()?.into_utf8()?.into_owned()?;
       Ok(JsValue::Function(source))
     }
-    ValueType::Symbol | ValueType::External | ValueType::Unknown => Err(napi::Error::new(
-      napi::Status::GenericFailure,
-      "Could not convert value returned from macro to AST.",
-    )),
+    ValueType::BigInt | ValueType::Symbol | ValueType::External | ValueType::Unknown => {
+      Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Could not convert value returned from macro to AST.",
+      ))
+    }
   }
 }
 

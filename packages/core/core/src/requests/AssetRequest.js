@@ -93,14 +93,6 @@ async function run({input, api, farm, invalidateReason, options}) {
   let request: TransformationRequest = {
     ...rest,
     invalidateReason,
-    // Add invalidations to the request if a node already exists in the graph.
-    // These are used to compute the cache key for assets during transformation.
-    // invalidations: api.getInvalidations().filter(invalidation => {
-    //   // Filter out invalidation node for the input file itself.
-    //   return (
-    //     invalidation.type !== 'file' || invalidation.filePath !== input.filePath
-    //   );
-    // }),
     devDeps: new Map(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))

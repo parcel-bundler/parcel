@@ -1141,10 +1141,9 @@ export default class RequestTracker {
     let snapshotKey = `snapshot-${cacheKey}`;
     let dbKey = `parceldb-${cacheKey}`;
 
-    let total = 2;
     let serialisedGraph = this.graph.serialize();
-
     let total = 0;
+
     const serialiseAndSet = async (
       key: string,
       // $FlowFixMe serialise input is any type

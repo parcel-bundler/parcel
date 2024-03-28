@@ -38,7 +38,6 @@ import {createDependency, dependencyId, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {createAsset, createAssetIdFromOptions} from './assetUtils';
-import {createAsset, createAssetIdFromOptions} from './assetUtils';
 import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
 import {

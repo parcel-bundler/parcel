@@ -10,7 +10,7 @@ use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
 use swc_core::ecma::ast::{self, Ident};
 use swc_core::ecma::atoms::{js_word, JsWord};
 
-use crate::{id, DependencyDescriptor, DependencyKind};
+use crate::{DependencyDescriptor, DependencyKind};
 
 pub fn is_unresolved(ident: &Ident, unresolved_mark: Mark) -> bool {
   ident.span.ctxt.outer() == unresolved_mark

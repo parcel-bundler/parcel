@@ -26,15 +26,14 @@ import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
 import type {
-  EventType,
   ParcelDb,
   EnvironmentAddr,
   AssetAddr,
   DependencyAddr,
   TargetAddr,
 } from '@parcel/rust';
-import type {EventType} from '@parcel/watcher';
 import type {FeatureFlags} from '@parcel/feature-flags';
+import type {EventType} from '@parcel/watcher';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -413,7 +412,6 @@ export type AssetGroupNode = {|
 
 export type TransformationRequest = {|
   ...AssetGroup,
-  // invalidations: Array<RequestInvalidation>,
   invalidateReason: number,
   devDeps: Map<PackageName, string>,
   invalidDevDeps: Array<{|

@@ -38,7 +38,7 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
       asset_id,
       &config,
       map.as_ref().map(|m| m.as_ref()),
-      parcel_js_swc_core::transform(&code, &transformer_config),
+      parcel_js_swc_core::transform(&code, &transformer_config, None),
     );
     code.unref(env)?;
     if let Some(map) = &mut map {
@@ -82,7 +82,7 @@ mod native_only {
 
     rayon::spawn(move || {
       let transformer_config = db.with(|db| convert_config(db, &config));
-      let result = parcel_js_swc_core::transform(&code, &transformer_config);
+      let result = parcel_js_swc_core::transform(&code, &transformer_config, call_macro);
       deferred.resolve(move |env| {
         let res = db.with(|db| {
           convert_result(

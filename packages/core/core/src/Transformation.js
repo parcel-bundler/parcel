@@ -45,7 +45,7 @@ import {
   mutableAssetToUncommittedAsset,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset, getInvalidationId} from './assetUtils';
+import {createAsset} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {optionsProxy} from './utils';
