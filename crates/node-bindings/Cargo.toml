@@ -29,7 +29,7 @@ path-slash = "0.1.4"
 indexmap = "1.9.3"
 parcel_sourcemap = "2.1.1"
 node-semver = { git = "https://github.com/devongovett/node-semver-rs", branch = "min-version" }
-browserslist-rs = "0.13.0"
+browserslist-rs = "0.14.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = {version =  "2.13.3", features = ["serde-json", "napi4", "napi6"]}
