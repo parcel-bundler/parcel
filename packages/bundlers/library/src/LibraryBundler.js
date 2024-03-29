@@ -63,7 +63,7 @@ export default (new Bundler({
         }
 
         // Reference the parent bundle so we create dependencies between them.
-        if (parentBundle) {
+        if (parentBundle && parentBundle !== bundle) {
           bundleGraph.createBundleReference(parentBundle, bundle);
           bundleGraph.createAssetReference(dependency, asset, bundle);
         }
