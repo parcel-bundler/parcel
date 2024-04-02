@@ -1,5 +1,6 @@
 {
   "name": "@parcel/cache",
+  "description": "Interface for defining caches and file-system, IDB and LMDB implementations.",
   "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
