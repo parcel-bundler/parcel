@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - v2
+      - molejniczak/parcel-db
 
 permissions:
   contents: read
