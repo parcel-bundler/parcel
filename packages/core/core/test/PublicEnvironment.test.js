@@ -3,12 +3,12 @@
 import assert from 'assert';
 import {createEnvironment} from '../src/Environment';
 import PublicEnvironment from '../src/public/Environment';
-import {DEFAULT_OPTIONS} from './test-utils';
+import {DB, DEFAULT_OPTIONS} from './test-utils';
 
 describe('Public Environment', () => {
   it('has correct support data for ChromeAndroid', () => {
     let env = new PublicEnvironment(
-      createEnvironment({
+      createEnvironment(DB, {
         context: 'browser',
         engines: {
           browsers: ['last 1 Chrome version', 'last 1 ChromeAndroid version'],
@@ -16,6 +16,7 @@ describe('Public Environment', () => {
         outputFormat: 'esmodule',
       }),
       DEFAULT_OPTIONS,
+      {},
     );
 
     assert(env.supports('esmodules'));

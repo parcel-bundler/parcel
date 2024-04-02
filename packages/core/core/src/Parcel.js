@@ -49,6 +49,7 @@ import createPathRequest from './requests/PathRequest';
 import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
+import {tracer} from '@parcel/profiler';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {
   init as initRust,
@@ -56,7 +57,7 @@ import {
   readCachedString,
 } from '@parcel/rust';
 import {toProjectPath} from './projectPath';
-import {tracer} from '@parcel/profiler';
+import CommittedAsset from './CommittedAsset';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
 registerCoreWithSerializer();
@@ -511,13 +512,9 @@ export default class Parcel {
     let res = await this.#requestTracker.runRequest(request, {
       force: true,
     });
-    return res.map(({asset, dependencies}) =>
-      uncommittedAssetFromValue(
-        asset,
-        nullthrows(this.#resolvedOptions),
-        dependencies,
-        res,
-      ),
+
+    return res.map(({asset}) =>
+      new CommittedAsset(asset, nullthrows(this.#resolvedOptions))
     );
   }
 

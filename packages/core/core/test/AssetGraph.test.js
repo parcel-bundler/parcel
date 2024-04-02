@@ -2,34 +2,44 @@
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import {Dependency} from '@parcel/rust';
 import AssetGraph, {
   nodeFromAssetGroup,
   nodeFromDep,
   nodeFromEntryFile,
   nodeFromAsset,
 } from '../src/AssetGraph';
-import {createDependency as _createDependency} from '../src/Dependency';
-import {createAsset as _createAsset} from '../src/assetUtils';
-import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
+import {
+  createDependency as _createDependency,
+  dependencyId,
+  type DependencyOpts,
+} from '../src/Dependency';
+import {
+  createAsset as _createAsset,
+  type AssetOptions,
+} from '../src/assetUtils';
+import {DB as db, DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
 import {toProjectPath as _toProjectPath} from '../src/projectPath';
 
 const stats = {size: 0, time: 0};
 
-function createAsset(opts) {
-  return _createAsset('/', opts);
+let projectRoot = '/';
+
+function createAsset(opts: AssetOptions) {
+  return _createAsset(db, projectRoot, opts);
 }
 
-function createDependency(opts) {
-  return _createDependency('/', opts);
+function createDependency(opts: DependencyOpts) {
+  return _createDependency(db, projectRoot, opts);
 }
 
 function toProjectPath(p) {
-  return _toProjectPath('/', p);
+  return _toProjectPath(projectRoot, p);
 }
 
 describe('AssetGraph', () => {
   it('initialization should create one root node with edges to entry_specifier nodes for each entry', () => {
-    let graph = new AssetGraph();
+    let graph = new AssetGraph(db);
     graph.setRootConnections({
       entries: [
         toProjectPath('/path/to/index1'),
@@ -43,7 +53,7 @@ describe('AssetGraph', () => {
   });
 
   it('resolveEntry should connect an entry_specifier node to entry_file nodes', () => {
-    let graph = new AssetGraph();
+    let graph = new AssetGraph(db);
     graph.setRootConnections({
       entries: [
         toProjectPath('/path/to/index1'),
@@ -84,7 +94,7 @@ describe('AssetGraph', () => {
   });
 
   it('resolveTargets should connect an entry_file node to dependencies for each target', () => {
-    let graph = new AssetGraph();
+    let graph = new AssetGraph(db);
     graph.setRootConnections({
       entries: [
         toProjectPath('/path/to/index1'),
@@ -102,6 +112,7 @@ describe('AssetGraph', () => {
       ],
       '1',
     );
+
     graph.resolveEntry(
       toProjectPath('/path/to/index2'),
       [
@@ -121,6 +132,7 @@ describe('AssetGraph', () => {
       DEFAULT_TARGETS,
       '3',
     );
+
     graph.resolveTargets(
       {
         filePath: toProjectPath('/path/to/index2/src/main.js'),
@@ -132,24 +144,30 @@ describe('AssetGraph', () => {
 
     assert(
       graph.hasContentKey(
-        createDependency({
-          specifier: 'path/to/index1/src/main.js',
-          specifierType: 'esm',
-          target: DEFAULT_TARGETS[0],
-          env: DEFAULT_ENV,
-        }).id,
+        db.getStringId(
+          dependencyId(db, {
+            specifier: 'path/to/index1/src/main.js',
+            specifierType: 'esm',
+            target: DEFAULT_TARGETS[0],
+            env: DEFAULT_ENV,
+          }),
+        ),
       ),
     );
+
     assert(
       graph.hasContentKey(
-        createDependency({
-          specifier: 'path/to/index2/src/main.js',
-          specifierType: 'esm',
-          target: DEFAULT_TARGETS[0],
-          env: DEFAULT_ENV,
-        }).id,
+        db.getStringId(
+          dependencyId(db, {
+            specifier: 'path/to/index2/src/main.js',
+            specifierType: 'esm',
+            target: DEFAULT_TARGETS[0],
+            env: DEFAULT_ENV,
+          }),
+        ),
       ),
     );
+
     assert.deepEqual(Array.from(graph.getAllEdges()), [
       {
         from: graph.rootNodeId,
@@ -189,12 +207,14 @@ describe('AssetGraph', () => {
           }).id,
         ),
         to: graph.getNodeIdByContentKey(
-          createDependency({
-            specifier: 'path/to/index1/src/main.js',
-            specifierType: 'esm',
-            target: DEFAULT_TARGETS[0],
-            env: DEFAULT_ENV,
-          }).id,
+          db.getStringId(
+            dependencyId(db, {
+              specifier: 'path/to/index1/src/main.js',
+              specifierType: 'esm',
+              target: DEFAULT_TARGETS[0],
+              env: DEFAULT_ENV,
+            }),
+          ),
         ),
         type: 1,
       },
@@ -206,12 +226,14 @@ describe('AssetGraph', () => {
           }).id,
         ),
         to: graph.getNodeIdByContentKey(
-          createDependency({
-            specifier: 'path/to/index2/src/main.js',
-            specifierType: 'esm',
-            target: DEFAULT_TARGETS[0],
-            env: DEFAULT_ENV,
-          }).id,
+          db.getStringId(
+            dependencyId(db, {
+              specifier: 'path/to/index2/src/main.js',
+              specifierType: 'esm',
+              target: DEFAULT_TARGETS[0],
+              env: DEFAULT_ENV,
+            }),
+          ),
         ),
         type: 1,
       },
@@ -219,7 +241,7 @@ describe('AssetGraph', () => {
   });
 
   it('resolveDependency should update the file a dependency is connected to', () => {
-    let graph = new AssetGraph();
+    let graph = new AssetGraph(db);
     graph.setRootConnections({
       targets: DEFAULT_TARGETS,
       entries: [toProjectPath('/path/to/index')],
@@ -235,6 +257,7 @@ describe('AssetGraph', () => {
       ],
       '1',
     );
+
     graph.resolveTargets(
       {
         filePath: toProjectPath('/path/to/index/src/main.js'),
@@ -250,6 +273,7 @@ describe('AssetGraph', () => {
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
+
     let req = {
       filePath: toProjectPath('/index.js'),
       env: DEFAULT_ENV,
@@ -259,7 +283,9 @@ describe('AssetGraph', () => {
     let assetGroupNodeId = graph.getNodeIdByContentKey(
       nodeFromAssetGroup(req).id,
     );
-    let dependencyNodeId = graph.getNodeIdByContentKey(dep.id);
+    let dependencyNodeId = graph.getNodeIdByContentKey(
+      Dependency.get(db, dep).id,
+    );
     assert(graph.hasNode(assetGroupNodeId));
     assert(graph.hasEdge(dependencyNodeId, assetGroupNodeId));
 
@@ -283,7 +309,7 @@ describe('AssetGraph', () => {
   });
 
   it('resolveAssetGroup should update the asset and dep nodes a file is connected to', () => {
-    let graph = new AssetGraph();
+    let graph = new AssetGraph(db);
     graph.setRootConnections({
       targets: DEFAULT_TARGETS,
       entries: [toProjectPath('/path/to/index')],
@@ -315,75 +341,84 @@ describe('AssetGraph', () => {
       env: DEFAULT_ENV,
       sourcePath: '',
     });
+
     let sourcePath = '/index.js';
     let filePath = toProjectPath(sourcePath);
+
+    let asset1 = createAsset({
+      id: '1',
+      filePath,
+      type: 'js',
+      isSource: true,
+      stats,
+      env: DEFAULT_ENV,
+    });
+
+    let asset2 = createAsset({
+      id: '2',
+      filePath,
+      type: 'js',
+      isSource: true,
+      stats,
+      env: DEFAULT_ENV,
+    });
+
+    let asset3 = createAsset({
+      id: '3',
+      filePath,
+      type: 'js',
+      isSource: true,
+      env: DEFAULT_ENV,
+      stats,
+    });
+
+    let dep1 = createDependency({
+      specifier: './utils',
+      specifierType: 'esm',
+      env: DEFAULT_ENV,
+      sourcePath,
+    });
+
+    let dep2 = createDependency({
+      specifier: './styles',
+      specifierType: 'esm',
+      env: DEFAULT_ENV,
+      sourcePath,
+    });
+
     let req = {filePath, env: DEFAULT_ENV};
-    graph.resolveDependency(dep, req, '3');
     let assets = [
-      createAsset({
-        id: '1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        dependencies: new Map([
-          [
-            'utils',
-            createDependency({
-              specifier: './utils',
-              specifierType: 'esm',
-              env: DEFAULT_ENV,
-              sourcePath,
-            }),
-          ],
-        ]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
-        id: '2',
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        dependencies: new Map([
-          [
-            'styles',
-            createDependency({
-              specifier: './styles',
-              specifierType: 'esm',
-              env: DEFAULT_ENV,
-              sourcePath,
-            }),
-          ],
-        ]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
-        id: '3',
-        filePath,
-        type: 'js',
-        isSource: true,
-        dependencies: new Map(),
-        env: DEFAULT_ENV,
-        stats,
-      }),
+      {
+        asset: asset1.addr,
+        dependencies: [dep1],
+      },
+      {
+        asset: asset2.addr,
+        dependencies: [dep2],
+      },
+      {
+        asset: asset3.addr,
+        dependencies: [],
+      },
     ];
 
+    graph.resolveDependency(dep, req, '3');
     graph.resolveAssetGroup(req, assets, '4');
 
-    let nodeId1 = graph.getNodeIdByContentKey('1');
-    let nodeId2 = graph.getNodeIdByContentKey('2');
-    let nodeId3 = graph.getNodeIdByContentKey('3');
+    let nodeId1 = graph.getNodeIdByContentKey(asset1.id);
+    let nodeId2 = graph.getNodeIdByContentKey(asset2.id);
+    let nodeId3 = graph.getNodeIdByContentKey(asset3.id);
 
     let assetGroupNode = graph.getNodeIdByContentKey(
       nodeFromAssetGroup(req).id,
     );
 
     let dependencyNodeId1 = graph.getNodeIdByContentKey(
-      [...assets[0].dependencies.values()][0].id,
+      Dependency.get(db, dep1).id,
     );
+
     let dependencyNodeId2 = graph.getNodeIdByContentKey(
-      [...assets[1].dependencies.values()][0].id,
+      Dependency.get(db, dep2).id,
     );
 
     assert(graph.hasNode(nodeId1));
@@ -398,34 +433,35 @@ describe('AssetGraph', () => {
     assert(graph.hasEdge(nodeId2, dependencyNodeId2));
 
     let assets2 = [
-      createAsset({
-        id: '1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        dependencies: new Map([
-          [
-            'utils',
-            createDependency({
-              specifier: './utils',
-              specifierType: 'esm',
-              env: DEFAULT_ENV,
-              sourcePath,
-            }),
-          ],
-        ]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
-        id: '2',
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        dependencies: new Map(),
-        env: DEFAULT_ENV,
-      }),
+      {
+        asset: createAsset({
+          id: '1',
+          filePath,
+          type: 'js',
+          isSource: true,
+          stats,
+          env: DEFAULT_ENV,
+        }).addr,
+        dependencies: [
+          createDependency({
+            specifier: './utils',
+            specifierType: 'esm',
+            env: DEFAULT_ENV,
+            sourcePath,
+          }),
+        ],
+      },
+      {
+        asset: createAsset({
+          id: '2',
+          filePath,
+          type: 'js',
+          isSource: true,
+          stats,
+          env: DEFAULT_ENV,
+        }).addr,
+        dependencies: [],
+      },
     ];
 
     graph.resolveAssetGroup(req, assets2, '5');
@@ -446,7 +482,7 @@ describe('AssetGraph', () => {
   // specifier that matches the dependent asset's unique key. These dependent assets are then connected
   // to the asset's dependency instead of the asset group.
   it('resolveAssetGroup should handle dependent assets in asset groups', () => {
-    let graph = new AssetGraph();
+    let graph = new AssetGraph(db);
     graph.setRootConnections({
       targets: DEFAULT_TARGETS,
       entries: [toProjectPath('/index')],
@@ -480,62 +516,78 @@ describe('AssetGraph', () => {
     let sourcePath = '/index.js';
     let filePath = toProjectPath(sourcePath);
     let req = {filePath, env: DEFAULT_ENV};
-    graph.resolveDependency(dep, req, '123');
+
+    let asset1 = createAsset({
+      id: '1',
+      filePath,
+      type: 'js',
+      isSource: true,
+      stats,
+      env: DEFAULT_ENV,
+    });
+
+    let asset2 = createAsset({
+      id: '2',
+      uniqueKey: 'dependent-asset-1',
+      filePath,
+      type: 'js',
+      isSource: true,
+      stats,
+      env: DEFAULT_ENV,
+    });
+
+    let asset3 = createAsset({
+      id: '3',
+      uniqueKey: 'dependent-asset-2',
+      filePath,
+      type: 'js',
+      isSource: true,
+      stats,
+      env: DEFAULT_ENV,
+    });
+
     let dep1 = createDependency({
       specifier: 'dependent-asset-1',
       specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath,
     });
+
     let dep2 = createDependency({
       specifier: 'dependent-asset-2',
       specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath,
     });
+
     let assets = [
-      createAsset({
-        id: '1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        dependencies: new Map([['dep1', dep1]]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
-        id: '2',
-        uniqueKey: 'dependent-asset-1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        dependencies: new Map([['dep2', dep2]]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
-        id: '3',
-        uniqueKey: 'dependent-asset-2',
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        env: DEFAULT_ENV,
-      }),
+      {
+        asset: asset1.addr,
+        dependencies: [dep1],
+      },
+      {
+        asset: asset2.addr,
+        dependencies: [dep2],
+      },
+      {
+        asset: asset3.addr,
+        dependencies: [],
+      },
     ];
 
+    graph.resolveDependency(dep, req, '123');
     graph.resolveAssetGroup(req, assets, '3');
 
-    let nodeId1 = graph.getNodeIdByContentKey('1');
-    let nodeId2 = graph.getNodeIdByContentKey('2');
-    let nodeId3 = graph.getNodeIdByContentKey('3');
+    let nodeId1 = graph.getNodeIdByContentKey(asset1.id);
+    let nodeId2 = graph.getNodeIdByContentKey(asset2.id);
+    let nodeId3 = graph.getNodeIdByContentKey(asset3.id);
 
     let assetGroupNodeId = graph.getNodeIdByContentKey(
       nodeFromAssetGroup(req).id,
     );
 
-    let depNodeId1 = graph.getNodeIdByContentKey(nodeFromDep(dep1).id);
-    let depNodeId2 = graph.getNodeIdByContentKey(nodeFromDep(dep2).id);
+    let depNodeId1 = graph.getNodeIdByContentKey(nodeFromDep(db, dep1).id);
+    let depNodeId2 = graph.getNodeIdByContentKey(nodeFromDep(db, dep2).id);
 
     assert(nodeId1);
     assert(nodeId2);
@@ -550,46 +602,54 @@ describe('AssetGraph', () => {
   });
 
   it('should support marking and unmarking all parents with hasDeferred', () => {
-    let graph = new AssetGraph();
+    let graph = new AssetGraph(db);
 
-    // index
     let indexAssetGroup = {
       filePath: toProjectPath('/index.js'),
       env: DEFAULT_ENV,
     };
-    graph.setRootConnections({assetGroups: [indexAssetGroup]});
+
     let indexFooDep = createDependency({
       specifier: './foo',
       specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath: '/index.js',
     });
+
     let indexBarDep = createDependency({
       specifier: './bar',
       specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath: '/index.js',
     });
-    let indexAsset = createAsset({
-      id: 'assetIndex',
-      filePath: toProjectPath('/index.js'),
-      type: 'js',
-      isSource: true,
-      stats,
-      dependencies: new Map([
-        ['./foo', indexFooDep],
-        ['./bar', indexBarDep],
-      ]),
-      env: DEFAULT_ENV,
-    });
-    graph.resolveAssetGroup(indexAssetGroup, [indexAsset], '0');
 
-    // index imports foo
     let fooAssetGroup = {
       filePath: toProjectPath('/foo.js'),
       env: DEFAULT_ENV,
     };
+
+    graph.setRootConnections({assetGroups: [indexAssetGroup]});
+    graph.resolveAssetGroup(
+      indexAssetGroup,
+      [
+        {
+          asset: createAsset({
+            id: 'assetIndex',
+            filePath: toProjectPath('/index.js'),
+            type: 'js',
+            isSource: true,
+            stats,
+            env: DEFAULT_ENV,
+          }).addr,
+          dependencies: [indexFooDep, indexBarDep],
+        },
+      ],
+      '0',
+    );
+
+    // index imports foo
     graph.resolveDependency(indexFooDep, fooAssetGroup, '0');
+
     let fooAssetGroupNode = nodeFromAssetGroup(fooAssetGroup);
     let fooUtilsDep = createDependency({
       specifier: './utils',
@@ -597,23 +657,27 @@ describe('AssetGraph', () => {
       env: DEFAULT_ENV,
       sourcePath: '/foo.js',
     });
-    let fooUtilsDepNode = nodeFromDep(fooUtilsDep);
+    let fooUtilsDepNode = nodeFromDep(db, fooUtilsDep);
     let fooAsset = createAsset({
       id: 'assetFoo',
       filePath: toProjectPath('/foo.js'),
       type: 'js',
       isSource: true,
       stats,
-      dependencies: new Map([['./utils', fooUtilsDep]]),
       env: DEFAULT_ENV,
     });
-    let fooAssetNode = nodeFromAsset(fooAsset);
-    graph.resolveAssetGroup(fooAssetGroup, [fooAsset], '0');
+    let fooAssetNode = nodeFromAsset(db, fooAsset.addr);
     let utilsAssetGroup = {
       filePath: toProjectPath('/utils.js'),
       env: DEFAULT_ENV,
     };
     let utilsAssetGroupNode = nodeFromAssetGroup(utilsAssetGroup);
+
+    graph.resolveAssetGroup(
+      fooAssetGroup,
+      [{asset: fooAsset.addr, dependencies: [fooUtilsDep]}],
+      '0',
+    );
     graph.resolveDependency(fooUtilsDep, utilsAssetGroup, '0');
 
     // foo's dependency is deferred
@@ -646,18 +710,24 @@ describe('AssetGraph', () => {
       type: 'js',
       isSource: true,
       stats,
-      dependencies: new Map([['./utils', barUtilsDep]]),
       env: DEFAULT_ENV,
     });
-    let barAssetNode = nodeFromAsset(barAsset);
-    graph.resolveAssetGroup(barAssetGroup, [barAsset], '3');
+    let barAssetNode = nodeFromAsset(db, barAsset.addr);
+
+    graph.resolveAssetGroup(
+      barAssetGroup,
+      [{asset: barAsset.addr, dependencies: [barUtilsDep]}],
+      '3',
+    );
     graph.resolveDependency(barUtilsDep, utilsAssetGroup, '4');
 
     // bar undeferres utils
     graph.unmarkParentsWithHasDeferred(
       graph.getNodeIdByContentKey(utilsAssetGroupNode.id),
     );
-    node = nullthrows(graph.getNodeByContentKey(fooUtilsDep.id));
+    node = nullthrows(
+      graph.getNodeByContentKey(Dependency.get(db, fooUtilsDep).id),
+    );
     invariant(node.type === 'dependency');
     assert(!node.hasDeferred);
     node = nullthrows(graph.getNodeByContentKey(fooAssetNode.id));
@@ -666,7 +736,9 @@ describe('AssetGraph', () => {
     node = nullthrows(graph.getNodeByContentKey(fooAssetGroupNode.id));
     invariant(node.type === 'asset_group');
     assert(!node.hasDeferred);
-    node = nullthrows(graph.getNodeByContentKey(barUtilsDep.id));
+    node = nullthrows(
+      graph.getNodeByContentKey(Dependency.get(db, barUtilsDep).id),
+    );
     invariant(node.type === 'dependency');
     assert(!node.hasDeferred);
     node = nullthrows(graph.getNodeByContentKey(barAssetNode.id));

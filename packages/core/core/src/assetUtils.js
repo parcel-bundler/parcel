@@ -39,7 +39,7 @@ import {PluginTracer} from '@parcel/profiler';
 import type {Scope} from './scopeCache';
 import type BundleGraph from './BundleGraph';
 
-type AssetOptions = {|
+export type AssetOptions = {|
   id?: string,
   committed?: boolean,
   idBase?: ?string,

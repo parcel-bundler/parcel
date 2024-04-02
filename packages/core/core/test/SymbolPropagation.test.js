@@ -3,7 +3,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import type {FilePath, SourceLocation, Meta, Symbol} from '@parcel/types';
-import type {ContentKey, NodeId} from '@parcel/graph';
+import type {NodeId} from '@parcel/graph';
 import type {Diagnostic} from '@parcel/diagnostic';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {setEqual} from '@parcel/utils';
@@ -22,13 +22,18 @@ import {
 import {propagateSymbols} from '../src/SymbolPropagation';
 import dumpGraphToGraphViz from '../src/dumpGraphToGraphViz';
 import {DEFAULT_ENV, DEFAULT_OPTIONS, DEFAULT_TARGETS, DB} from './test-utils';
-import type {
-  AssetNode,
-  AssetGraphNode,
-  DependencyNode,
-} from '../src/types';
-import {Asset, type AssetAddr, Dependency, type DependencyAddr, DependencyFlags, SymbolFlags} from '@parcel/rust';
-import { MutableDependencySymbols, MutableAssetSymbols } from '../src/public/Symbols';
+import type {AssetNode, AssetGraphNode, DependencyNode} from '../src/types';
+import {
+  Asset,
+  type AssetAddr,
+  Dependency,
+  DependencyFlags,
+  SymbolFlags,
+} from '@parcel/rust';
+import {
+  MutableDependencySymbols,
+  MutableAssetSymbols,
+} from '../src/public/Symbols';
 
 const stats = {size: 0, time: 0};
 
@@ -204,7 +209,9 @@ function assertUsedSymbols(
   if (isLibrary) {
     let entryDep = nullthrows(
       [...graph.nodes.values()].find(
-        n => n?.type === 'dependency' && Dependency.get(DB, n.value).sourceAssetId == null,
+        n =>
+          n?.type === 'dependency' &&
+          Dependency.get(DB, n.value).sourceAssetId == null,
       ),
     );
     invariant(entryDep.type === 'dependency');
@@ -254,7 +261,10 @@ function assertUsedSymbols(
       let filePath = fromProjectPathUnix(asset.filePath);
       let expected = new Set(nullthrows(expectedAsset.get(filePath)));
       assertSetEqual(readSymbolSet(node.usedSymbols), expected, filePath);
-    } else if (node?.type === 'dependency' && Dependency.get(DB, node.value).sourceAssetId != null) {
+    } else if (
+      node?.type === 'dependency' &&
+      Dependency.get(DB, node.value).sourceAssetId != null
+    ) {
       let dep = Dependency.get(DB, node.value);
       let resolutionId = graph.getNodeIdsConnectedFrom(nodeId)[0];
       let resolution = nullthrows(graph.getNode(resolutionId));
@@ -262,13 +272,19 @@ function assertUsedSymbols(
       let to = resolution.value.filePath;
 
       let id =
-        fromProjectPathUnix(nullthrows(Asset.get(DB, nullthrows(dep.sourceAssetId)).filePath)) +
+        fromProjectPathUnix(
+          nullthrows(Asset.get(DB, nullthrows(dep.sourceAssetId)).filePath),
+        ) +
         ':' +
         fromProjectPathUnix(nullthrows(to));
       let expected = expectedDependency.get(id);
       if (!expected) {
         assert(expected === null);
-        assertSetEqual(readSymbolSet(new Set(node.usedSymbolsUp.keys())), new Set(), id);
+        assertSetEqual(
+          readSymbolSet(new Set(node.usedSymbolsUp.keys())),
+          new Set(),
+          id,
+        );
         assert(node.excluded, `${id} should be excluded`);
       } else {
         assert(!node.excluded, `${id} should not be excluded`);
@@ -383,7 +399,7 @@ function changeDependency(
   graph: AssetGraph,
   from: FilePath,
   to: FilePath,
-  cb: (MutableDependencySymbols) => void,
+  cb: MutableDependencySymbols => void,
 ): Iterable<[AssetAddr, Asset]> {
   let sourceAssetNode = nullthrowsAssetNode(
     [...graph.nodes.values()].find(
@@ -396,18 +412,19 @@ function changeDependency(
       n =>
         n?.type === 'dependency' &&
         Dependency.get(DB, n.value).sourceAssetId != null &&
-        Asset.get(DB, nullthrows(Dependency.get(DB, n.value).sourceAssetId)).filePath === from &&
+        Asset.get(DB, nullthrows(Dependency.get(DB, n.value).sourceAssetId))
+          .filePath === from &&
         Dependency.get(DB, n.value).specifier === to,
     ),
   );
-  cb(new MutableDependencySymbols(DEFAULT_OPTIONS, depNode.value));
+  cb(new MutableDependencySymbols(DEFAULT_OPTIONS, depNode.value, {}));
   return [[sourceAssetNode.value, Asset.get(DB, sourceAssetNode.value)]];
 }
 
 function changeAsset(
   graph: AssetGraph,
   asset: FilePath,
-  cb: (MutableAssetSymbols) => void,
+  cb: MutableAssetSymbols => void,
 ): Iterable<[AssetAddr, Asset]> {
   let node = nullthrowsAssetNode(
     [...graph.nodes.values()].find(
@@ -416,7 +433,7 @@ function changeAsset(
   );
   node.usedSymbolsUpDirty = true;
   node.usedSymbolsDownDirty = true;
-  cb(new MutableAssetSymbols(DEFAULT_OPTIONS, node.value));
+  cb(new MutableAssetSymbols(DEFAULT_OPTIONS, node.value, {}));
   return [[node.value, Asset.get(DB, node.value)]];
 }
 

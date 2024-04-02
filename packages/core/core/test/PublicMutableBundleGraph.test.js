@@ -6,7 +6,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import InternalBundleGraph from '../src/BundleGraph';
 import MutableBundleGraph from '../src/public/MutableBundleGraph';
-import {DEFAULT_ENV, DEFAULT_TARGETS, DEFAULT_OPTIONS} from './test-utils';
+import {DB, DEFAULT_ENV, DEFAULT_TARGETS, DEFAULT_OPTIONS} from './test-utils';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
 import {createAsset as _createAsset} from '../src/assetUtils';
 import {createDependency as _createDependency} from '../src/Dependency';
@@ -14,11 +14,11 @@ import nullthrows from 'nullthrows';
 import {toProjectPath} from '../src/projectPath';
 
 function createAsset(opts) {
-  return _createAsset('/', opts);
+  return _createAsset(DB, '/', opts);
 }
 
 function createDependency(opts) {
-  return _createDependency('/', opts);
+  return _createDependency(DB, '/', opts);
 }
 
 const id1 = '0123456789abcdef0123456789abcdef';
@@ -27,6 +27,7 @@ const id2 = '9876543210fedcba9876543210fedcba';
 describe('PublicMutableBundleGraph', () => {
   it('creates publicIds for bundles', () => {
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
+      DB,
       createMockAssetGraph(),
       false,
     );
@@ -55,14 +56,21 @@ describe('PublicMutableBundleGraph', () => {
       }
     });
 
-    assert.deepEqual(
-      internalBundleGraph.getBundles().map(b => b.publicId),
-      ['8LVYC', 'd7Pd5'],
-    );
+    let publicIds = internalBundleGraph.getBundles().map(b => b.publicId);
+
+    // Assert ids are unique
+    assert.deepEqual(Array.from(new Set(publicIds)), publicIds);
+
+    for (let publicId of publicIds) {
+      // Assert the publicId is a string that consists of 5 alphanumeric chars
+      // $FlowFixMe Update node types
+      assert.match(publicId, /^[A-Za-z0-9]{5}$/);
+    }
   });
 
   it('is safe to add a bundle to a bundleGroup multiple times', () => {
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
+      DB,
       createMockAssetGraph(),
       false,
     );
@@ -95,7 +103,7 @@ describe('PublicMutableBundleGraph', () => {
 
 const stats = {size: 0, time: 0};
 function createMockAssetGraph() {
-  let graph = new AssetGraph();
+  let graph = new AssetGraph(DB);
   graph.setRootConnections({
     entries: [toProjectPath('/', '/index'), toProjectPath('/', '/index2')],
   });
@@ -158,14 +166,17 @@ function createMockAssetGraph() {
   graph.resolveAssetGroup(
     req1,
     [
-      createAsset({
-        id: id1,
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        env: DEFAULT_ENV,
-      }),
+      {
+        asset: createAsset({
+          id: id1,
+          filePath,
+          type: 'js',
+          isSource: true,
+          stats,
+          env: DEFAULT_ENV,
+        }).addr,
+        dependencies: [],
+      },
     ],
     '6',
   );
@@ -176,14 +187,17 @@ function createMockAssetGraph() {
   graph.resolveAssetGroup(
     req2,
     [
-      createAsset({
-        id: id2,
-        filePath,
-        type: 'js',
-        isSource: true,
-        stats,
-        env: DEFAULT_ENV,
-      }),
+      {
+        asset: createAsset({
+          id: id2,
+          filePath,
+          type: 'js',
+          isSource: true,
+          stats,
+          env: DEFAULT_ENV,
+        }).addr,
+        dependencies: [],
+      },
     ],
     '8',
   );
