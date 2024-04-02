@@ -7,32 +7,35 @@ import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
 import {loadConfig as configCache} from '@parcel/utils';
 import {createEnvironment} from '@parcel/core/src/Environment';
 import Environment from '@parcel/core/src/public/Environment';
-import {DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
+import {DB, DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
 
 const rootDir = path.join(__dirname, 'fixture');
 
 const NODE_ENV = new Environment(
-  createEnvironment({
+  createEnvironment(DB, {
     context: 'node',
     includeNodeModules: false,
   }),
   DEFAULT_OPTIONS,
+  {},
 );
 
 const NODE_INCLUDE_ENV = new Environment(
-  createEnvironment({
+  createEnvironment(DB, {
     context: 'node',
     includeNodeModules: true,
   }),
   DEFAULT_OPTIONS,
+  {},
 );
 
 const BROWSER_ENV = new Environment(
-  createEnvironment({
+  createEnvironment(DB, {
     context: 'browser',
     includeNodeModules: true,
   }),
   DEFAULT_OPTIONS,
+  {},
 );
 
 describe('resolver', function () {
@@ -407,12 +410,13 @@ describe('resolver', function () {
     it('should exclude the electron module in electron environments', async function () {
       let resolved = await resolver.resolve({
         env: new Environment(
-          createEnvironment({
+          createEnvironment(DB, {
             context: 'electron-main',
             isLibrary: true,
             includeNodeModules: true,
           }),
           DEFAULT_OPTIONS,
+          {},
         ),
         filename: 'electron',
         specifierType: 'esm',
@@ -2457,12 +2461,13 @@ describe('resolver', function () {
     it('should error when a library is missing an external dependency', async function () {
       let result = await resolver.resolve({
         env: new Environment(
-          createEnvironment({
+          createEnvironment(DB, {
             context: 'browser',
             isLibrary: true,
             includeNodeModules: false,
           }),
           DEFAULT_OPTIONS,
+          {},
         ),
         filename: 'test',
         specifierType: 'esm',
@@ -2479,12 +2484,13 @@ describe('resolver', function () {
     it('should not error when external dependencies are declared', async function () {
       let result = await resolver.resolve({
         env: new Environment(
-          createEnvironment({
+          createEnvironment(DB, {
             context: 'browser',
             isLibrary: true,
             includeNodeModules: false,
           }),
           DEFAULT_OPTIONS,
+          {},
         ),
         filename: 'foo',
         specifierType: 'esm',
@@ -2502,12 +2508,13 @@ describe('resolver', function () {
     it('should not error when external dependencies are declared in peerDependencies', async function () {
       let result = await resolver.resolve({
         env: new Environment(
-          createEnvironment({
+          createEnvironment(DB, {
             context: 'browser',
             isLibrary: true,
             includeNodeModules: false,
           }),
           DEFAULT_OPTIONS,
+          {},
         ),
         filename: 'bar',
         specifierType: 'esm',
@@ -2525,12 +2532,13 @@ describe('resolver', function () {
     it('should not error on missing dependencies for environment builtins', async function () {
       let result = await resolver.resolve({
         env: new Environment(
-          createEnvironment({
+          createEnvironment(DB, {
             context: 'browser',
             isLibrary: true,
             includeNodeModules: false,
           }),
           DEFAULT_OPTIONS,
+          {},
         ),
         filename: 'atom',
         specifierType: 'esm',
@@ -2548,12 +2556,13 @@ describe('resolver', function () {
     it('should not error on builtin node modules', async function () {
       let result = await resolver.resolve({
         env: new Environment(
-          createEnvironment({
+          createEnvironment(DB, {
             context: 'browser',
             isLibrary: true,
             includeNodeModules: false,
           }),
           DEFAULT_OPTIONS,
+          {},
         ),
         filename: 'buffer',
         specifierType: 'esm',
@@ -2567,12 +2576,13 @@ describe('resolver', function () {
     it('should error when a library has an incorrect external dependency version', async function () {
       let result = await resolver.resolve({
         env: new Environment(
-          createEnvironment({
+          createEnvironment(DB, {
             context: 'browser',
             isLibrary: true,
             includeNodeModules: false,
           }),
           DEFAULT_OPTIONS,
+          {},
         ),
         filename: 'foo',
         specifierType: 'esm',

@@ -7,7 +7,12 @@ import {inputFS as fs} from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import {normalizeSeparators} from '@parcel/utils';
 import {TargetResolver} from '../src/requests/TargetRequest';
-import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS, relative} from './test-utils';
+import type {TargetValue} from '../src/types';
+import {
+  DEFAULT_OPTIONS as _DEFAULT_OPTIONS,
+  getEnv,
+  relative,
+} from './test-utils';
 
 const DEFAULT_OPTIONS = {
   ..._DEFAULT_OPTIONS,
@@ -99,6 +104,13 @@ describe('TargetResolver', () => {
     },
   };
 
+  function withEnv(targetValue: TargetValue) {
+    return {
+      ...targetValue,
+      env: getEnv(targetValue.env),
+    };
+  }
+
   it('resolves exactly specified targets', async () => {
     let targetResolver = new TargetResolver(api, {
       ...DEFAULT_OPTIONS,
@@ -118,25 +130,28 @@ describe('TargetResolver', () => {
     });
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      (await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH)).map(withEnv),
       [
         {
           name: 'customA',
           publicUrl: '/',
           distDir: normalizeSeparators(path.resolve('customA')),
           env: {
-            id: '1d40417b63734b32',
             context: 'browser',
-            includeNodeModules: true,
             engines: {
               browsers: ['> 0.25%'],
             },
-            outputFormat: 'global',
+            includeNodeModules: true,
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
         },
@@ -146,18 +161,21 @@ describe('TargetResolver', () => {
           distEntry: 'b.js',
           distDir: normalizeSeparators(path.resolve('customB')),
           env: {
-            id: '928f0d1c941b2e57',
             context: 'node',
-            includeNodeModules: false,
             engines: {
               node: '>= 8.0.0',
             },
-            outputFormat: 'commonjs',
+            includeNodeModules: false,
             isLibrary: false,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
         },
@@ -169,7 +187,7 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      (await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH)).map(withEnv),
       [
         {
           name: 'main',
@@ -177,18 +195,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'b552bd32da37fa8b',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
             },
             includeNodeModules: false,
-            outputFormat: 'commonjs',
             isLibrary: true,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: true,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -211,20 +232,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '8804e4eb97e2703e',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
             },
             includeNodeModules: false,
-            outputFormat: 'esmodule',
             isLibrary: true,
+            loc: null,
+            outputFormat: 'esmodule',
             shouldOptimize: false,
             shouldScopeHoist: true,
             sourceMap: {
+              inline: false,
               inlineSources: true,
+              sourceRoot: null,
             },
-            loc: undefined,
             sourceType: 'module',
           },
           loc: {
@@ -247,18 +269,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: 'a7ed3e73c53f1923',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
             },
             includeNodeModules: false,
-            outputFormat: 'commonjs',
             isLibrary: true,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: true,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -283,7 +308,9 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_IGNORE_FIXTURE_PATH),
+      (await targetResolver.resolve(COMMON_TARGETS_IGNORE_FIXTURE_PATH)).map(
+        withEnv,
+      ),
       [
         {
           name: 'app',
@@ -293,18 +320,17 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'f7c9644283a8698f',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
             },
             includeNodeModules: false,
-            outputFormat: 'commonjs',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: undefined,
-            loc: undefined,
+            sourceMap: null,
             sourceType: 'module',
           },
           loc: {
@@ -328,7 +354,7 @@ describe('TargetResolver', () => {
   it('resolves custom targets from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     assert.deepEqual(
-      await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH),
+      (await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH)).map(withEnv),
       [
         {
           name: 'main',
@@ -336,18 +362,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'b552bd32da37fa8b',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
             },
             includeNodeModules: false,
-            outputFormat: 'commonjs',
             isLibrary: true,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: true,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -370,7 +399,6 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '1f28e9ceaf633d83',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -378,10 +406,14 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
+            loc: null,
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -404,18 +436,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '767bf6e6b675c4f3',
             context: 'browser',
             engines: {
               browsers: ['ie11'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -447,7 +482,7 @@ describe('TargetResolver', () => {
     });
 
     assert.deepEqual(
-      await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH),
+      (await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH)).map(withEnv),
       [
         {
           name: 'main',
@@ -455,18 +490,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'b552bd32da37fa8b',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
             },
             includeNodeModules: false,
-            outputFormat: 'commonjs',
             isLibrary: true,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: true,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -489,18 +527,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'ed7c0e65adee71c9',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: true,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -523,18 +564,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'f7692543e59e4c0a',
             context: 'browser',
             engines: {
               browsers: ['ie11'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: true,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -558,7 +602,9 @@ describe('TargetResolver', () => {
   it('resolves explicit distDir for custom targets from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     assert.deepEqual(
-      await targetResolver.resolve(CUSTOM_TARGETS_DISTDIR_FIXTURE_PATH),
+      (await targetResolver.resolve(CUSTOM_TARGETS_DISTDIR_FIXTURE_PATH)).map(
+        withEnv,
+      ),
       [
         {
           name: 'app',
@@ -566,18 +612,21 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: 'www',
           env: {
-            id: 'ddb6ac7c9a3a9178',
             context: 'browser',
             engines: {
-              browsers: '> 0.25%',
+              browsers: ['> 0.25%'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -614,25 +663,28 @@ describe('TargetResolver', () => {
     });
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      (await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH)).map(withEnv),
       [
         {
           name: 'customB',
           distDir: normalizeSeparators(path.resolve('customB')),
           publicUrl: '/',
           env: {
-            id: '1d40417b63734b32',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
         },
@@ -656,25 +708,30 @@ describe('TargetResolver', () => {
     });
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, 'customA'),
+      (
+        await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, 'customA')
+      ).map(withEnv),
       [
         {
           name: 'customA',
           distDir: normalizeSeparators(path.resolve('customA')),
           publicUrl: '/',
           env: {
-            id: '1d40417b63734b32',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           source: 'customA/index.js',
@@ -685,45 +742,51 @@ describe('TargetResolver', () => {
 
   it('resolves main target with context from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
-    assert.deepEqual(await targetResolver.resolve(CONTEXT_FIXTURE_PATH), [
-      {
-        name: 'main',
-        distDir: 'fixtures/context/dist/main',
-        distEntry: 'index.js',
-        publicUrl: '/',
-        env: {
-          id: '6aafdb9eaa4a3812',
-          context: 'node',
-          engines: {
-            browsers: [
-              'last 1 Chrome version',
-              'last 1 Safari version',
-              'last 1 Firefox version',
-              'last 1 Edge version',
-            ],
+    assert.deepEqual(
+      (await targetResolver.resolve(CONTEXT_FIXTURE_PATH)).map(withEnv),
+      [
+        {
+          name: 'main',
+          distDir: 'fixtures/context/dist/main',
+          distEntry: 'index.js',
+          publicUrl: '/',
+          env: {
+            context: 'node',
+            engines: {
+              browsers: [
+                'last 1 Chrome version',
+                'last 1 Safari version',
+                'last 1 Firefox version',
+                'last 1 Edge version',
+              ],
+            },
+            includeNodeModules: false,
+            isLibrary: true,
+            loc: null,
+            outputFormat: 'commonjs',
+            shouldOptimize: false,
+            shouldScopeHoist: true,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
+            sourceType: 'module',
           },
-          includeNodeModules: false,
-          isLibrary: true,
-          outputFormat: 'commonjs',
-          shouldOptimize: false,
-          shouldScopeHoist: true,
-          sourceMap: {},
-          loc: undefined,
-          sourceType: 'module',
+          loc: {
+            filePath: relative(path.join(CONTEXT_FIXTURE_PATH, 'package.json')),
+            start: {
+              column: 11,
+              line: 2,
+            },
+            end: {
+              column: 31,
+              line: 2,
+            },
+          },
         },
-        loc: {
-          filePath: relative(path.join(CONTEXT_FIXTURE_PATH, 'package.json')),
-          start: {
-            column: 11,
-            line: 2,
-          },
-          end: {
-            column: 31,
-            line: 2,
-          },
-        },
-      },
-    ]);
+      ],
+    );
   });
 
   it('errors when the main target contains a non-js extension', async () => {
@@ -1063,14 +1126,13 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     let fixture = path.join(__dirname, 'fixtures/custom-format-infer-ext');
 
-    assert.deepEqual(await targetResolver.resolve(fixture), [
+    assert.deepEqual((await targetResolver.resolve(fixture)).map(withEnv), [
       {
         name: 'test',
         distDir: relative(path.join(fixture, 'dist')),
         distEntry: 'index.mjs',
         publicUrl: '/',
         env: {
-          id: '439701173a9199ea',
           context: 'browser',
           engines: {
             browsers: [
@@ -1081,12 +1143,16 @@ describe('TargetResolver', () => {
             ],
           },
           includeNodeModules: true,
-          outputFormat: 'esmodule',
           isLibrary: false,
+          loc: null,
+          outputFormat: 'esmodule',
           shouldOptimize: false,
           shouldScopeHoist: false,
-          sourceMap: {},
-          loc: undefined,
+          sourceMap: {
+            inline: false,
+            inlineSources: false,
+            sourceRoot: null,
+          },
           sourceType: 'module',
         },
         loc: {
@@ -1108,14 +1174,13 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     let fixture = path.join(__dirname, 'fixtures/custom-format-infer-type');
 
-    assert.deepEqual(await targetResolver.resolve(fixture), [
+    assert.deepEqual((await targetResolver.resolve(fixture)).map(withEnv), [
       {
         name: 'test',
         distDir: relative(path.join(fixture, 'dist')),
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: '439701173a9199ea',
           context: 'browser',
           engines: {
             browsers: [
@@ -1126,12 +1191,16 @@ describe('TargetResolver', () => {
             ],
           },
           includeNodeModules: true,
-          outputFormat: 'esmodule',
           isLibrary: false,
+          loc: null,
+          outputFormat: 'esmodule',
           shouldOptimize: false,
           shouldScopeHoist: false,
-          sourceMap: {},
-          loc: undefined,
+          sourceMap: {
+            inline: false,
+            inlineSources: false,
+            sourceRoot: null,
+          },
           sourceType: 'module',
         },
         loc: {
@@ -1156,7 +1225,7 @@ describe('TargetResolver', () => {
     });
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      (await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH)).map(withEnv),
       [
         {
           name: 'main',
@@ -1164,18 +1233,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'b552bd32da37fa8b',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
             },
             includeNodeModules: false,
-            outputFormat: 'commonjs',
             isLibrary: true,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: true,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -1198,18 +1270,21 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: 'a7ed3e73c53f1923',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
             },
             includeNodeModules: false,
-            outputFormat: 'commonjs',
             isLibrary: true,
+            loc: null,
+            outputFormat: 'commonjs',
             shouldOptimize: false,
             shouldScopeHoist: true,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -1239,14 +1314,13 @@ describe('TargetResolver', () => {
     });
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      (await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH)).map(withEnv),
       [
         {
           name: 'default',
           distDir: '.parcel-cache/dist',
           publicUrl: '/',
           env: {
-            id: 'd6ea1d42532a7575',
             context: 'browser',
             engines: {
               browsers: [
@@ -1257,12 +1331,16 @@ describe('TargetResolver', () => {
               ],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
         },
@@ -1274,7 +1352,9 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
     assert.deepEqual(
-      await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.none),
+      (await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.none)).map(
+        withEnv,
+      ),
       [
         {
           name: 'default',
@@ -1283,18 +1363,21 @@ describe('TargetResolver', () => {
           ),
           publicUrl: '/',
           env: {
-            id: 'a9c07d094d038c73',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
         },
@@ -1306,7 +1389,9 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
     assert.deepEqual(
-      await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.one),
+      (await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.one)).map(
+        withEnv,
+      ),
       [
         {
           name: 'browserModern',
@@ -1316,18 +1401,21 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: 'a9c07d094d038c73',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -1352,7 +1440,9 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
     assert.deepEqual(
-      await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.two),
+      (await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.two)).map(
+        withEnv,
+      ),
       [
         {
           name: 'browserModern',
@@ -1366,18 +1456,21 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '1f28e9ceaf633d83',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {
@@ -1406,18 +1499,21 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '824e113c03cab3c8',
             context: 'browser',
             engines: {
               browsers: ['IE 11'],
             },
             includeNodeModules: true,
-            outputFormat: 'global',
             isLibrary: false,
+            loc: null,
+            outputFormat: 'global',
             shouldOptimize: false,
             shouldScopeHoist: false,
-            sourceMap: {},
-            loc: undefined,
+            sourceMap: {
+              inline: false,
+              inlineSources: false,
+              sourceRoot: null,
+            },
             sourceType: 'module',
           },
           loc: {

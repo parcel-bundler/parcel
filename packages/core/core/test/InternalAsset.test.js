@@ -1,14 +1,15 @@
 // @flow strict-local
 
 import assert from 'assert';
+import {Dependency} from '@parcel/rust';
 import UncommittedAsset from '../src/UncommittedAsset';
 import {createAsset as _createAsset} from '../src/assetUtils';
 import {createEnvironment} from '../src/Environment';
-import {DEFAULT_OPTIONS} from './test-utils';
+import {DB, DEFAULT_OPTIONS} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
 
 function createAsset(opts) {
-  return _createAsset('/', opts);
+  return _createAsset(DB, '/', opts);
 }
 
 const stats = {time: 0, size: 0};
@@ -18,7 +19,7 @@ describe('InternalAsset', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
         filePath: toProjectPath('/', '/foo/asset.js'),
-        env: createEnvironment(),
+        env: createEnvironment(DB),
         stats,
         type: 'js',
         isSource: true,
@@ -37,7 +38,7 @@ describe('InternalAsset', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
         filePath: toProjectPath('/', '/foo/asset.js'),
-        env: createEnvironment(),
+        env: createEnvironment(DB),
         stats,
         type: 'js',
         isSource: true,
@@ -49,14 +50,14 @@ describe('InternalAsset', () => {
     asset.addDependency({specifier: './foo', specifierType: 'esm'});
     let dependencies = asset.getDependencies();
     assert(dependencies.length === 1);
-    assert(dependencies[0].specifier === './foo');
+    assert(Dependency.get(DB, dependencies[0]).specifier === './foo');
   });
 
   it('includes different dependencies if their id differs', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
         filePath: toProjectPath('/', '/foo/asset.js'),
-        env: createEnvironment(),
+        env: createEnvironment(DB),
         stats,
         type: 'js',
         isSource: true,

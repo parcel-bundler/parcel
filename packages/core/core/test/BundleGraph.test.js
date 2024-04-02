@@ -2,18 +2,18 @@
 
 import assert from 'assert';
 import BundleGraph from '../src/BundleGraph';
-import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
+import {DB, DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
 import {createAsset as _createAsset} from '../src/assetUtils';
 import {createDependency as _createDependency} from '../src/Dependency';
 import {toProjectPath} from '../src/projectPath';
 
 function createAsset(opts) {
-  return _createAsset('/', opts);
+  return _createAsset(DB, '/', opts);
 }
 
 function createDependency(opts) {
-  return _createDependency('/', opts);
+  return _createDependency(DB, '/', opts);
 }
 
 const id1 = '0123456789abcdef0123456789abcdef';
@@ -22,6 +22,7 @@ const id2 = '9876543210fedcba9876543210fedcba';
 describe('BundleGraph', () => {
   it('assigns publicIds to assets', () => {
     let bundleGraph = BundleGraph.fromAssetGraph(
+      DB,
       createMockAssetGraph([id1, id2]),
       false,
     );
@@ -33,6 +34,7 @@ describe('BundleGraph', () => {
 
   it('uses a longer publicId if there is a collision', () => {
     let bundleGraph = BundleGraph.fromAssetGraph(
+      DB,
       createMockAssetGraph([id1, id1.slice(0, 16) + '7' + id1.slice(17)]),
       false,
     );
@@ -55,7 +57,7 @@ function getAssets(bundleGraph) {
 
 const stats = {size: 0, time: 0};
 function createMockAssetGraph(ids: [string, string]) {
-  let graph = new AssetGraph();
+  let graph = new AssetGraph(DB);
   graph.setRootConnections({entries: [toProjectPath('/', '/index')]});
 
   graph.resolveEntry(
@@ -96,25 +98,30 @@ function createMockAssetGraph(ids: [string, string]) {
   });
 
   let assets = [
-    createAsset({
-      id: ids[0],
-      filePath,
-      type: 'js',
-      isSource: true,
-      stats,
-      dependencies: new Map([['dep1', dep1]]),
-      env: DEFAULT_ENV,
-    }),
-    createAsset({
-      id: ids[1],
-      filePath,
-      type: 'js',
-      isSource: true,
-      stats,
-      dependencies: new Map([['dep1', dep1]]),
-      env: DEFAULT_ENV,
-    }),
+    {
+      asset: createAsset({
+        id: ids[0],
+        filePath,
+        type: 'js',
+        isSource: true,
+        stats,
+        env: DEFAULT_ENV,
+      }).addr,
+      dependencies: [dep1],
+    },
+    {
+      asset: createAsset({
+        id: ids[1],
+        filePath,
+        type: 'js',
+        isSource: true,
+        stats,
+        env: DEFAULT_ENV,
+      }).addr,
+      dependencies: [dep1],
+    },
   ];
+
   graph.resolveAssetGroup(req, assets, '4');
 
   return graph;

@@ -9,6 +9,7 @@ import {inputFS, outputFS} from '@parcel/test-utils';
 import {relativePath} from '@parcel/utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createEnvironment} from '../src/Environment';
+import Environment from '../src/public/Environment';
 import {toProjectPath} from '../src/projectPath';
 import {
   ParcelDb,
@@ -16,6 +17,13 @@ import {
   type TargetAddr,
   Target,
 } from '@parcel/rust';
+import type {
+  Engines,
+  OutputFormat,
+  SourceLocation,
+  SourceType,
+  TargetSourceMapOptions,
+} from '@parcel/types';
 
 let cacheDir = tempy.directory();
 export let cache: FSCache = new FSCache(outputFS, cacheDir);
@@ -91,4 +99,32 @@ export const DEFAULT_TARGETS: Array<TargetAddr> = [target.addr];
 
 export function relative(f: string): string {
   return relativePath(__dirname, f, false);
+}
+
+export function getEnv(addr: EnvironmentAddr): {|
+  context: string,
+  engines: Engines,
+  includeNodeModules: Environment['includeNodeModules'],
+  isLibrary: boolean,
+  loc: ?SourceLocation,
+  outputFormat: OutputFormat,
+  shouldOptimize: boolean,
+  shouldScopeHoist: boolean,
+  sourceMap: ?TargetSourceMapOptions,
+  sourceType: SourceType,
+|} {
+  let env = new Environment(addr, DEFAULT_OPTIONS, {});
+
+  return {
+    context: env.context,
+    engines: env.engines,
+    includeNodeModules: env.includeNodeModules,
+    isLibrary: env.isLibrary,
+    loc: env.loc,
+    outputFormat: env.outputFormat,
+    shouldOptimize: env.shouldOptimize,
+    shouldScopeHoist: env.shouldScopeHoist,
+    sourceMap: env.sourceMap,
+    sourceType: env.sourceType,
+  };
 }
