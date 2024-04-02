@@ -1,6 +1,7 @@
 // @flow
 
 import type {InitialParcelOptions} from '@parcel/types';
+import type WorkerFarm from '@parcel/workers';
 import {BuildError} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -430,7 +431,7 @@ function parseOptionInt(value) {
 async function normalizeOptions(
   command,
   inputFS,
-): Promise<InitialParcelOptions> {
+): Promise<InitialParcelOptions<WorkerFarm>> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = process.env.NODE_ENV || 'production';

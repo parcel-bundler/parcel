@@ -1,5 +1,6 @@
 // @flow
 import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
+import type WorkerFarm from '@parcel/workers';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -59,10 +60,10 @@ function runBundle(entries = 'src/index.js', opts) {
 }
 
 type UpdateFn = BuildSuccessEvent =>
-  | ?InitialParcelOptions
-  | Promise<?InitialParcelOptions>;
+  | ?InitialParcelOptions<WorkerFarm>
+  | Promise<?InitialParcelOptions<WorkerFarm>>;
 type TestConfig = {|
-  ...InitialParcelOptions,
+  ...InitialParcelOptions<WorkerFarm>,
   entries?: Array<string>,
   setup?: () => void | Promise<void>,
   update: UpdateFn,
@@ -76,7 +77,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   );
 
   let entries;
-  let options: ?InitialParcelOptions;
+  let options: ?InitialParcelOptions<WorkerFarm>;
   if (typeof update === 'object') {
     let setup;
     ({entries, setup, update, ...options} = update);

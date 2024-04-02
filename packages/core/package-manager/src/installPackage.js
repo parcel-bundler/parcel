@@ -6,7 +6,7 @@ import type {
   PackageManager,
   PackageInstaller,
   InstallOptions,
-} from './types';
+} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
 import invariant from 'assert';

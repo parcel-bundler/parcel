@@ -128,7 +128,7 @@ describe('ParcelAPI', function () {
   });
 });
 
-function createParcel(opts?: InitialParcelOptions) {
+function createParcel(opts?: InitialParcelOptions<WorkerFarm>) {
   return new Parcel({
     entries: [path.join(__dirname, 'fixtures/parcel/index.js')],
     logLevel: 'info',

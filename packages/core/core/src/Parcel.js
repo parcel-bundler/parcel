@@ -65,7 +65,7 @@ export default class Parcel {
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
   #disposable /*: Disposable */;
-  #initialOptions /*: InitialParcelOptions*/;
+  #initialOptions /*: InitialParcelOptions<WorkerFarm> */;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
   #optionsRef /*: SharedReference */;
@@ -89,7 +89,7 @@ export default class Parcel {
 
   isProfiling /*: boolean */;
 
-  constructor(options: InitialParcelOptions) {
+  constructor(options: InitialParcelOptions<WorkerFarm>) {
     this.#initialOptions = options;
   }
 

@@ -4,6 +4,7 @@ import type {IDisposable, InitialParcelOptions} from '@parcel/types';
 
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
+import type WorkerFarm from '@parcel/workers';
 // flowlint-next-line untyped-import:off
 import defaultConfigContents from '@parcel/config-default';
 // $FlowFixMe Flow can't resolve this
@@ -23,8 +24,8 @@ let defaultConfig = {
     .resolved,
 };
 
-function register(inputOpts?: InitialParcelOptions): IDisposable {
-  let opts: InitialParcelOptions = {
+function register(inputOpts?: InitialParcelOptions<WorkerFarm>): IDisposable {
+  let opts: InitialParcelOptions<WorkerFarm> = {
     ...defaultConfig,
     ...(inputOpts || {}),
   };

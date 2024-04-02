@@ -1,5 +1,11 @@
 // @flow
-export type * from './types';
+export type {
+  PackageManagerResolveResult,
+  PackageManager,
+  Invalidations,
+  PackageInstaller,
+  ModuleRequest,
+} from '@parcel/types';
 export * from './Npm';
 export * from './Pnpm';
 export * from './Yarn';

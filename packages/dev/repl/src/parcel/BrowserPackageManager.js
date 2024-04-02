@@ -4,7 +4,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {
   PackageManager,
   Invalidations,
-  ResolveResult,
+  PackageManagerResolveResult,
 } from '@parcel/package-manager';
 import {registerSerializableClass} from '@parcel/core';
 // $FlowFixMe[untyped-import]
@@ -84,7 +84,7 @@ export class BrowserPackageManager implements PackageManager {
   resolver: ?ResolverBase;
   fs: FileSystem;
   projectRoot: FilePath;
-  cache: Map<DependencySpecifier, ResolveResult> = new Map();
+  cache: Map<DependencySpecifier, PackageManagerResolveResult> = new Map();
 
   constructor(fs: FileSystem, projectRoot: FilePath) {
     this.fs = fs;
@@ -152,7 +152,7 @@ export class BrowserPackageManager implements PackageManager {
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},
-  ): Promise<ResolveResult> {
+  ): Promise<PackageManagerResolveResult> {
     if (name.startsWith('@parcel/') && name !== '@parcel/watcher') {
       return Promise.resolve({
         resolved: name,

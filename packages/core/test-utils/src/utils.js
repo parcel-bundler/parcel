@@ -109,8 +109,8 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 
 export function getParcelOptions(
   entries: FilePath | Array<FilePath>,
-  opts?: $Shape<InitialParcelOptions>,
-): InitialParcelOptions {
+  opts?: $Shape<InitialParcelOptions<WorkerFarm>>,
+): InitialParcelOptions<WorkerFarm> {
   return mergeParcelOptions(
     {
       entries,
@@ -137,7 +137,7 @@ export function getParcelOptions(
 
 export function bundler(
   entries: FilePath | Array<FilePath>,
-  opts?: $Shape<InitialParcelOptions>,
+  opts?: $Shape<InitialParcelOptions<WorkerFarm>>,
 ): Parcel {
   return new Parcel(getParcelOptions(entries, opts));
 }
@@ -187,9 +187,9 @@ export function findDependency(
 }
 
 export function mergeParcelOptions(
-  optsOne: InitialParcelOptions,
-  optsTwo?: InitialParcelOptions | null,
-): InitialParcelOptions {
+  optsOne: InitialParcelOptions<WorkerFarm>,
+  optsTwo?: InitialParcelOptions<WorkerFarm> | null,
+): InitialParcelOptions<WorkerFarm> {
   if (!optsTwo) {
     return optsOne;
   }
@@ -220,7 +220,7 @@ export function assertDependencyWasExcluded(
 
 export async function bundle(
   entries: FilePath | Array<FilePath>,
-  opts?: InitialParcelOptions,
+  opts?: InitialParcelOptions<WorkerFarm>,
 ): Promise<BundleGraph<PackagedBundle>> {
   return (await bundler(entries, opts).run()).bundleGraph;
 }

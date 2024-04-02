@@ -49,7 +49,6 @@
   },
   "dependencies": {
     "@parcel/rust": "2.12.0",
-    "@parcel/types": "2.12.0",
     "@parcel/utils": "2.12.0",
     "@parcel/watcher": "^2.0.7",
     "@parcel/workers": "2.12.0"

@@ -2,20 +2,63 @@
 
 import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
-import type {FileSystem} from '@parcel/fs';
-import type WorkerFarm from '@parcel/workers';
-import type {PackageManager} from '@parcel/package-manager';
 import type {
   Diagnostic,
   Diagnostifiable,
   DiagnosticWithoutOrigin,
 } from '@parcel/diagnostic';
-import type {Cache} from '@parcel/cache';
 
+import type {Cache} from './Cache';
+import type {
+  FileSystem,
+  FileOptions,
+  Stats as FileStats,
+  ReaddirOptions,
+  Encoding,
+  Dirent,
+} from './FileSystem';
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 import type {TraceMeasurement} from '@parcel/profiler';
 import type {FeatureFlags} from '@parcel/feature-flags';
 import type {Event, BackendType} from '@parcel/watcher';
+import type {FilePath} from './FilePath';
+import type {Glob} from './Glob';
+import type {PackageName} from './PackageName';
+import type {
+  PackageManager,
+  PackageManagerResolveResult,
+  Invalidations,
+  PackageInstaller,
+  ModuleRequest,
+  InstallOptions,
+  InstallerOptions,
+} from './PackageManager';
+import type {SemverRange} from './SemverRange';
+import type {DependencySpecifier} from './DependencySpecifier';
+import type {FileCreateInvalidation} from './FileCreateInvalidation';
+
+export type {
+  FilePath,
+  FileSystem,
+  FileOptions,
+  FileStats,
+  ReaddirOptions,
+  Encoding,
+  Dirent,
+  PackageName,
+  Glob,
+  DependencySpecifier,
+  SemverRange,
+  FileCreateInvalidation,
+  PackageManager,
+  PackageManagerResolveResult,
+  Invalidations,
+  PackageInstaller,
+  ModuleRequest,
+  InstallOptions,
+  InstallerOptions,
+  Cache,
+};
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -40,14 +83,7 @@ export type JSONValue =
 /** A JSON object (as in "map") */
 export type JSONObject = {[key: string]: JSONValue, ...};
 
-export type PackageName = string;
-export type FilePath = string;
-export type Glob = string;
 export type Semver = string;
-export type SemverRange = string;
-/** See Dependency */
-export type DependencySpecifier = string;
-
 /** A pipeline as specified in the config mapping to <code>T</code>  */
 export type GlobMap<T> = {[Glob]: T, ...};
 
@@ -288,7 +324,7 @@ export type DetailedReportOptions = {|
 
 declare type GlobPattern = string;
 
-export type InitialParcelOptions = {|
+export type InitialParcelOptions<WorkerFarm> = {|
   +entries?: FilePath | Array<FilePath>,
   +config?: DependencySpecifier,
   +defaultConfig?: DependencySpecifier,
@@ -400,7 +436,7 @@ export type SourceLocation = {|
 |};
 
 /**
- * An object that plugins can write arbitatry data to.
+ * An object that plugins can write arbitrary data to.
  */
 export type Meta = JSONObject;
 
@@ -433,7 +469,7 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
 
 export interface MutableAssetSymbols extends AssetSymbols {
   /**
-   * Initilizes the map, sets isCleared to false.
+   * Initializes the map, sets isCleared to false.
    */
   ensure(): void;
   set(
@@ -456,11 +492,11 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
     ],
   > {
   /**
-   * Initilizes the map, sets isCleared to false.
+   * Initializes the map, sets isCleared to false.
    */
   ensure(): void;
   /**
-   * The symbols taht are imports are unknown, rather than just empty.
+   * The symbols that are imports are unknown, rather than just empty.
    * This is the default state.
    */
   +isCleared: boolean;
@@ -486,7 +522,7 @@ export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
 export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
 
 /**
- * Usen when creating a Dependency, see that.
+ * Used when creating a Dependency, see that.
  * @section transformer
  */
 export type DependencyOptions = {|
@@ -1575,24 +1611,6 @@ export type BundleResult = {|
   +map?: ?SourceMap,
   +type?: string,
 |};
-
-export type GlobInvalidation = {|
-  glob: Glob,
-|};
-
-export type FileInvalidation = {|
-  filePath: FilePath,
-|};
-
-export type FileAboveInvalidation = {|
-  fileName: string,
-  aboveFilePath: FilePath,
-|};
-
-export type FileCreateInvalidation =
-  | FileInvalidation
-  | GlobInvalidation
-  | FileAboveInvalidation;
 
 /**
  * @section resolver

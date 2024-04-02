@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {PackageInstaller, InstallerOptions} from './types';
+import type {PackageInstaller, InstallerOptions} from '@parcel/types';
 
 import path from 'path';
 import spawn from 'cross-spawn';

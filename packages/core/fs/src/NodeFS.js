@@ -1,8 +1,7 @@
 // @flow
 import type {ReadStream, Stats} from 'fs';
 import type {Writable} from 'stream';
-import type {FileOptions, FileSystem, Encoding} from './types';
-import type {FilePath} from '@parcel/types';
+import type {FilePath, Encoding, FileOptions, FileSystem} from '@parcel/types';
 import type {
   Event,
   Options as WatcherOptions,
