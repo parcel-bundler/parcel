@@ -14,6 +14,9 @@
 
 [untyped]
 .*/node_modules/graphql/error/GraphQLError.js.flow
+<PROJECT_ROOT>/packages/dev
+<PROJECT_ROOT>/packages/core/integration-tests/test/parcel-link.js
+<PROJECT_ROOT>/packages/core/core/src/worker.js
 
 [include]
 
