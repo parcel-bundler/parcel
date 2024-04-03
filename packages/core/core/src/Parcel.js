@@ -508,7 +508,7 @@ export default class Parcel {
             : undefined,
       }),
     });
-
+    // $FlowFixMe Flow cannot infer the subsequent usage is an array
     let res = await this.#requestTracker.runRequest(request, {
       force: true,
     });

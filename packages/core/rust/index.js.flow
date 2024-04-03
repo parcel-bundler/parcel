@@ -73,7 +73,7 @@ type Options = {|
   project_root: string
 |};
 declare export class ParcelDb {
-  constructor(): ParcelDb;
+  constructor(options: Options): ParcelDb;
   serialize(): SerializedParcelDb;
   static create(options: Options): ParcelDb;
   static read(filename: string, options: Options): ParcelDb;

@@ -11,9 +11,16 @@ import stripAnsi from 'strip-ansi';
 import * as bundleReport from '../src/bundleReport';
 import * as render from '../src/render';
 import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+import {ParcelDb} from '@parcel/rust';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
+  db: ParcelDb.create({
+    mode: 'development',
+    env: {},
+    log_level: 'info',
+    project_root: __dirname,
+  }),
   entries: [],
   logLevel: 'info',
   targets: [],

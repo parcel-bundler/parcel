@@ -16,6 +16,7 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 import type {TraceMeasurement} from '@parcel/profiler';
 import type {EventType} from '@parcel/watcher';
 import type {FeatureFlags} from '@parcel/feature-flags';
+import type {ParcelDb} from '@parcel/rust';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -348,6 +349,7 @@ export type InitialServerOptions = {|
 |};
 
 export interface PluginOptions {
+  +db: ParcelDb;
   +mode: BuildMode;
   +env: EnvMap;
   +hmrOptions: ?HMROptions;
