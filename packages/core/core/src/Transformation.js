@@ -356,8 +356,16 @@ export default class Transformation {
     let inputAssets = [initialAsset];
     let resultingAssets = [];
     let finalAssets = [];
+    const pipelineTransformers = tracer.createMeasurement(
+      `Transformation::runPipeline - transformers ${pipeline.id} ${initialAsset.idBase}`,
+      'transform',
+    );
     for (let transformer of pipeline.transformers) {
       resultingAssets = [];
+      const transformerMeasurement = tracer.createMeasurement(
+        `${transformer.name} all`,
+        'transform',
+      );
       for (let asset of inputAssets) {
         if (
           asset.value.type !== initialType &&
@@ -373,13 +381,15 @@ export default class Transformation {
           continue;
         }
 
-        try {
-          const measurement = tracer.createMeasurement(
-            transformer.name,
-            'transform',
-            fromProjectPathRelative(initialAsset.value.filePath),
-          );
+        const measurement = tracer.createMeasurement(
+          `${transformer.name} ${fromProjectPathRelative(
+            initialAsset.value.filePath,
+          )}`,
+          'transform',
+          fromProjectPathRelative(initialAsset.value.filePath),
+        );
 
+        try {
           let transformerResults = await this.runTransformer(
             pipeline,
             asset,
@@ -390,11 +400,10 @@ export default class Transformation {
             this.parcelConfig,
           );
 
-          measurement && measurement.end();
-
           for (let result of transformerResults) {
             if (result instanceof UncommittedAsset) {
               resultingAssets.push(result);
+              measurement?.end();
               continue;
             }
             resultingAssets.push(
@@ -434,13 +443,20 @@ export default class Transformation {
             }
           }
 
+          measurement?.end();
+          transformerMeasurement?.end();
+          pipelineTransformers?.end();
           throw new ThrowableDiagnostic({
             diagnostic,
           });
         }
+
+        measurement && measurement.end();
       }
+      transformerMeasurement?.end();
       inputAssets = resultingAssets;
     }
+    pipelineTransformers?.end();
 
     // Make assets with ASTs generate unless they are CSS modules. This parallelizes generation
     // and distributes work more evenly across workers than if one worker needed to

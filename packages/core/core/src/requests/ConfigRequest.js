@@ -26,7 +26,7 @@ import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
 import {hashString, Hash} from '@parcel/rust';
-import {PluginTracer} from '@parcel/profiler';
+import {measureAsyncFunction, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {createBuildCache} from '../buildCache';
@@ -74,37 +74,43 @@ export type ConfigRequest = {
   ...
 };
 
-export async function loadPluginConfig<T: PluginWithLoadConfig>(
+export function loadPluginConfig<T: PluginWithLoadConfig>(
   loadedPlugin: LoadedPlugin<T>,
   config: Config,
   options: ParcelOptions,
 ): Promise<void> {
-  let loadConfig = loadedPlugin.plugin.loadConfig;
-  if (!loadConfig) {
-    return;
-  }
+  return measureAsyncFunction(
+    'ConfigRequest::loadPluginConfig',
+    'building',
+    async () => {
+      let loadConfig = loadedPlugin.plugin.loadConfig;
+      if (!loadConfig) {
+        return;
+      }
 
-  try {
-    config.result = await loadConfig({
-      config: new PublicConfig(config, options),
-      options: new PluginOptions(
-        optionsProxy(options, option => {
-          config.invalidateOnOptionChange.add(option);
-        }),
-      ),
-      logger: new PluginLogger({origin: loadedPlugin.name}),
-      tracer: new PluginTracer({
-        origin: loadedPlugin.name,
-        category: 'loadConfig',
-      }),
-    });
-  } catch (e) {
-    throw new ThrowableDiagnostic({
-      diagnostic: errorToDiagnostic(e, {
-        origin: loadedPlugin.name,
-      }),
-    });
-  }
+      try {
+        config.result = await loadConfig({
+          config: new PublicConfig(config, options),
+          options: new PluginOptions(
+            optionsProxy(options, option => {
+              config.invalidateOnOptionChange.add(option);
+            }),
+          ),
+          logger: new PluginLogger({origin: loadedPlugin.name}),
+          tracer: new PluginTracer({
+            origin: loadedPlugin.name,
+            category: 'loadConfig',
+          }),
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, {
+            origin: loadedPlugin.name,
+          }),
+        });
+      }
+    },
+  );
 }
 
 const configKeyCache = createBuildCache();

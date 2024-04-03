@@ -99,7 +99,7 @@ export default class ReporterRunner {
         try {
           // To avoid an infinite loop we don't measure trace events, as they'll
           // result in another trace!
-          if (event.type !== 'trace') {
+          if (!event.type.startsWith('trace')) {
             measurement = tracer.createMeasurement(reporter.name, 'reporter');
           }
           await reporter.plugin.report({
@@ -113,12 +113,14 @@ export default class ReporterRunner {
           });
         } catch (reportError) {
           INTERNAL_ORIGINAL_CONSOLE.error(reportError);
+          INTERNAL_ORIGINAL_CONSOLE.error(reportError.stack);
         } finally {
           measurement && measurement.end();
         }
       }
     } catch (err) {
       INTERNAL_ORIGINAL_CONSOLE.error(err);
+      INTERNAL_ORIGINAL_CONSOLE.error(err.stack);
     }
   }
 

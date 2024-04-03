@@ -48,6 +48,30 @@ export default (new Reporter({
         writeStream = options.outputFS.createWriteStream(filePath);
         nullthrows(tracer).pipe(nullthrows(writeStream));
         break;
+      case 'trace.start':
+        tracer?.mkEventFunc('B')({
+          id: event.id,
+          name: event.name,
+          cat: event.categories,
+          args: event.args,
+          ts: millisecondsToMicroseconds(event.ts),
+          // dur: millisecondsToMicroseconds(event.duration),
+          tid: event.tid,
+          pid: event.pid,
+        });
+        break;
+      case 'trace.end':
+        tracer?.mkEventFunc('E')({
+          id: event.id,
+          name: event.name,
+          cat: event.categories,
+          args: event.args,
+          ts: millisecondsToMicroseconds(event.ts),
+          dur: millisecondsToMicroseconds(event.duration),
+          tid: event.tid,
+          pid: event.pid,
+        });
+        break;
       case 'trace':
         // Due to potential race conditions at the end of the build, we ignore any trace events that occur
         // after we've closed the write stream.
@@ -66,6 +90,7 @@ export default (new Reporter({
       case 'buildSuccess':
       case 'buildFailure':
         nullthrows(tracer).flush();
+        writeStream.write(']');
         // We explicitly trigger `end` on the writeStream for the trace, then we need to wait for
         // the `close` event before resolving the promise this report function returns to ensure
         // that the file has been properly closed and moved from it's temp location before Parcel

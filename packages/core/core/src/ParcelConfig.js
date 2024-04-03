@@ -38,6 +38,7 @@ import {
   fromProjectPathRelative,
   toProjectPathUnsafe,
 } from './projectPath';
+import {measureAsyncFunction} from '@parcel/profiler';
 
 type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {|
@@ -157,16 +158,22 @@ export default class ParcelConfig {
     return Promise.all(plugins.map(p => this.loadPlugin<T>(p)));
   }
 
-  async getResolvers(): Promise<Array<LoadedPlugin<Resolver<mixed>>>> {
-    if (this.resolvers.length === 0) {
-      throw await this.missingPluginError(
-        this.resolvers,
-        'No resolver plugins specified in .parcelrc config',
-        '/resolvers',
-      );
-    }
+  getResolvers(): Promise<Array<LoadedPlugin<Resolver<mixed>>>> {
+    return measureAsyncFunction(
+      'ParcelConfig::getResolvers',
+      'resolve',
+      async () => {
+        if (this.resolvers.length === 0) {
+          throw await this.missingPluginError(
+            this.resolvers,
+            'No resolver plugins specified in .parcelrc config',
+            '/resolvers',
+          );
+        }
 
-    return this.loadPlugins<Resolver<mixed>>(this.resolvers);
+        return this.loadPlugins<Resolver<mixed>>(this.resolvers);
+      },
+    );
   }
 
   _getValidatorNodes(filePath: ProjectPath): $ReadOnlyArray<ParcelPluginNode> {

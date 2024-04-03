@@ -50,7 +50,7 @@ import {
   invalidateDevDeps,
   runDevDepRequest,
 } from './DevDepRequest';
-import {tracer, PluginTracer} from '@parcel/profiler';
+import {tracer, PluginTracer, measureAsyncFunction} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 
 export type PathRequest = {|
@@ -206,33 +206,39 @@ export class ResolverRunner {
   async loadConfigs(
     resolvers: Array<LoadedPlugin<Resolver<mixed>>>,
   ): Promise<void> {
-    for (let plugin of resolvers) {
-      // Only load config for a plugin once per build.
-      let config = configCache.get(plugin.name);
-      if (!config && plugin.plugin.loadConfig != null) {
-        config = createConfig({
-          plugin: plugin.name,
-          searchPath: toProjectPathUnsafe('index'),
-        });
+    await measureAsyncFunction(
+      'PathRequest::loadConfigs',
+      'resolve',
+      async () => {
+        for (let plugin of resolvers) {
+          // Only load config for a plugin once per build.
+          let config = configCache.get(plugin.name);
+          if (!config && plugin.plugin.loadConfig != null) {
+            config = createConfig({
+              plugin: plugin.name,
+              searchPath: toProjectPathUnsafe('index'),
+            });
 
-        await loadPluginConfig(plugin, config, this.options);
-        configCache.set(plugin.name, config);
-        this.configs.set(plugin.name, config);
-      }
+            await loadPluginConfig(plugin, config, this.options);
+            configCache.set(plugin.name, config);
+            this.configs.set(plugin.name, config);
+          }
 
-      if (config) {
-        for (let devDep of config.devDeps) {
-          let devDepRequest = await createDevDependency(
-            devDep,
-            this.previousDevDeps,
-            this.options,
-          );
-          this.runDevDepRequest(devDepRequest);
+          if (config) {
+            for (let devDep of config.devDeps) {
+              let devDepRequest = await createDevDependency(
+                devDep,
+                this.previousDevDeps,
+                this.options,
+              );
+              this.runDevDepRequest(devDepRequest);
+            }
+
+            this.configs.set(plugin.name, config);
+          }
         }
-
-        this.configs.set(plugin.name, config);
-      }
-    }
+      },
+    );
   }
 
   runDevDepRequest(devDepRequest: DevDepRequest) {
@@ -241,210 +247,212 @@ export class ResolverRunner {
     this.devDepRequests.set(key, devDepRequest);
   }
 
-  async resolve(dependency: Dependency): Promise<ResolverResult> {
-    let dep = getPublicDependency(dependency, this.options);
-    report({
-      type: 'buildProgress',
-      phase: 'resolving',
-      dependency: dep,
-    });
+  resolve(dependency: Dependency): Promise<ResolverResult> {
+    return measureAsyncFunction('PathRequest::resolve', 'resolve', async () => {
+      let dep = getPublicDependency(dependency, this.options);
+      report({
+        type: 'buildProgress',
+        phase: 'resolving',
+        dependency: dep,
+      });
 
-    let resolvers = await this.config.getResolvers();
-    await this.loadConfigs(resolvers);
+      let resolvers = await this.config.getResolvers();
+      await this.loadConfigs(resolvers);
 
-    let pipeline;
-    let specifier;
-    let validPipelines = new Set(this.config.getNamedPipelines());
-    let match = dependency.specifier.match(PIPELINE_REGEX);
-    if (
-      match &&
-      // Don't consider absolute paths. Absolute paths are only supported for entries,
-      // and include e.g. `C:\` on Windows, conflicting with pipelines.
-      !path.isAbsolute(dependency.specifier)
-    ) {
-      [, pipeline, specifier] = match;
-      if (!validPipelines.has(pipeline)) {
-        // This may be a url protocol or scheme rather than a pipeline, such as
-        // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
+      let pipeline;
+      let specifier;
+      let validPipelines = new Set(this.config.getNamedPipelines());
+      let match = dependency.specifier.match(PIPELINE_REGEX);
+      if (
+        match &&
+        // Don't consider absolute paths. Absolute paths are only supported for entries,
+        // and include e.g. `C:\` on Windows, conflicting with pipelines.
+        !path.isAbsolute(dependency.specifier)
+      ) {
+        [, pipeline, specifier] = match;
+        if (!validPipelines.has(pipeline)) {
+          // This may be a url protocol or scheme rather than a pipeline, such as
+          // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
+          specifier = dependency.specifier;
+          pipeline = null;
+        }
+      } else {
         specifier = dependency.specifier;
-        pipeline = null;
       }
-    } else {
-      specifier = dependency.specifier;
-    }
 
-    // Entrypoints, convert ProjectPath in module specifier to absolute path
-    if (dep.resolveFrom == null) {
-      specifier = path.join(this.options.projectRoot, specifier);
-    }
-    let diagnostics: Array<Diagnostic> = [];
-    let invalidateOnFileCreate = [];
-    let invalidateOnFileChange = [];
-    let invalidateOnEnvChange = [];
-    for (let resolver of resolvers) {
-      let measurement;
-      try {
-        measurement = tracer.createMeasurement(
-          resolver.name,
-          'resolve',
-          specifier,
-        );
-        let result = await resolver.plugin.resolve({
-          specifier,
-          pipeline,
-          dependency: dep,
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: resolver.name}),
-          tracer: new PluginTracer({
-            origin: resolver.name,
-            category: 'resolver',
-          }),
-          config: this.configs.get(resolver.name)?.result,
-        });
-        measurement && measurement.end();
+      // Entrypoints, convert ProjectPath in module specifier to absolute path
+      if (dep.resolveFrom == null) {
+        specifier = path.join(this.options.projectRoot, specifier);
+      }
+      let diagnostics: Array<Diagnostic> = [];
+      let invalidateOnFileCreate = [];
+      let invalidateOnFileChange = [];
+      let invalidateOnEnvChange = [];
+      for (let resolver of resolvers) {
+        let measurement;
+        try {
+          measurement = tracer.createMeasurement(
+            `${resolver.name} - ${specifier}`,
+            'resolve',
+            specifier,
+          );
+          let result = await resolver.plugin.resolve({
+            specifier,
+            pipeline,
+            dependency: dep,
+            options: this.pluginOptions,
+            logger: new PluginLogger({origin: resolver.name}),
+            tracer: new PluginTracer({
+              origin: resolver.name,
+              category: 'resolver',
+            }),
+            config: this.configs.get(resolver.name)?.result,
+          });
+          measurement && measurement.end();
 
-        if (result) {
-          if (result.meta) {
-            dependency.resolverMeta = result.meta;
-            dependency.meta = {
-              ...dependency.meta,
-              ...result.meta,
-            };
-          }
-
-          if (result.priority != null) {
-            dependency.priority = Priority[result.priority];
-          }
-
-          if (result.invalidateOnEnvChange) {
-            invalidateOnEnvChange.push(...result.invalidateOnEnvChange);
-          }
-
-          if (result.invalidateOnFileCreate) {
-            invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
-          }
-
-          if (result.invalidateOnFileChange) {
-            invalidateOnFileChange.push(...result.invalidateOnFileChange);
-          }
-
-          if (result.isExcluded) {
-            return {
-              assetGroup: null,
-              invalidateOnFileCreate,
-              invalidateOnFileChange,
-              invalidateOnEnvChange,
-            };
-          }
-
-          if (result.filePath != null) {
-            let resultFilePath = result.filePath;
-            if (!path.isAbsolute(resultFilePath)) {
-              throw new Error(
-                md`Resolvers must return an absolute path, ${resolver.name} returned: ${resultFilePath}`,
-              );
+          if (result) {
+            if (result.meta) {
+              dependency.resolverMeta = result.meta;
+              dependency.meta = {
+                ...dependency.meta,
+                ...result.meta,
+              };
             }
 
-            return {
-              assetGroup: {
-                canDefer: result.canDefer,
-                filePath: toProjectPath(
-                  this.options.projectRoot,
-                  resultFilePath,
-                ),
-                query: result.query?.toString(),
-                sideEffects: result.sideEffects,
-                code: result.code,
-                env: dependency.env,
-                pipeline:
-                  result.pipeline === undefined
-                    ? pipeline ?? dependency.pipeline
-                    : result.pipeline,
-                isURL: dep.specifierType === 'url',
-              },
-              invalidateOnFileCreate,
-              invalidateOnFileChange,
-              invalidateOnEnvChange,
-            };
-          }
+            if (result.priority != null) {
+              dependency.priority = Priority[result.priority];
+            }
 
-          if (
-            result.diagnostics != null &&
-            !(
-              Array.isArray(result.diagnostics) &&
-              result.diagnostics.length === 0
-            )
-          ) {
-            let errorDiagnostic = errorToDiagnostic(
-              new ThrowableDiagnostic({diagnostic: result.diagnostics}),
-              {
-                origin: resolver.name,
-                filePath: specifier,
-              },
-            );
+            if (result.invalidateOnEnvChange) {
+              invalidateOnEnvChange.push(...result.invalidateOnEnvChange);
+            }
+
+            if (result.invalidateOnFileCreate) {
+              invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
+            }
+
+            if (result.invalidateOnFileChange) {
+              invalidateOnFileChange.push(...result.invalidateOnFileChange);
+            }
+
+            if (result.isExcluded) {
+              return {
+                assetGroup: null,
+                invalidateOnFileCreate,
+                invalidateOnFileChange,
+                invalidateOnEnvChange,
+              };
+            }
+
+            if (result.filePath != null) {
+              let resultFilePath = result.filePath;
+              if (!path.isAbsolute(resultFilePath)) {
+                throw new Error(
+                  md`Resolvers must return an absolute path, ${resolver.name} returned: ${resultFilePath}`,
+                );
+              }
+
+              return {
+                assetGroup: {
+                  canDefer: result.canDefer,
+                  filePath: toProjectPath(
+                    this.options.projectRoot,
+                    resultFilePath,
+                  ),
+                  query: result.query?.toString(),
+                  sideEffects: result.sideEffects,
+                  code: result.code,
+                  env: dependency.env,
+                  pipeline:
+                    result.pipeline === undefined
+                      ? pipeline ?? dependency.pipeline
+                      : result.pipeline,
+                  isURL: dep.specifierType === 'url',
+                },
+                invalidateOnFileCreate,
+                invalidateOnFileChange,
+                invalidateOnEnvChange,
+              };
+            }
+
+            if (
+              result.diagnostics != null &&
+              !(
+                Array.isArray(result.diagnostics) &&
+                result.diagnostics.length === 0
+              )
+            ) {
+              let errorDiagnostic = errorToDiagnostic(
+                new ThrowableDiagnostic({diagnostic: result.diagnostics}),
+                {
+                  origin: resolver.name,
+                  filePath: specifier,
+                },
+              );
+              diagnostics.push(...errorDiagnostic);
+            }
+          }
+        } catch (e) {
+          // Add error to error map, we'll append these to the standard error if we can't resolve the asset
+          let errorDiagnostic = errorToDiagnostic(e, {
+            origin: resolver.name,
+            filePath: specifier,
+          });
+          if (Array.isArray(errorDiagnostic)) {
             diagnostics.push(...errorDiagnostic);
+          } else {
+            diagnostics.push(errorDiagnostic);
           }
-        }
-      } catch (e) {
-        // Add error to error map, we'll append these to the standard error if we can't resolve the asset
-        let errorDiagnostic = errorToDiagnostic(e, {
-          origin: resolver.name,
-          filePath: specifier,
-        });
-        if (Array.isArray(errorDiagnostic)) {
-          diagnostics.push(...errorDiagnostic);
-        } else {
-          diagnostics.push(errorDiagnostic);
-        }
 
-        break;
-      } finally {
-        measurement && measurement.end();
+          break;
+        } finally {
+          measurement && measurement.end();
 
-        // Add dev dependency for the resolver. This must be done AFTER running it due to
-        // the potential for lazy require() that aren't executed until the request runs.
-        let devDepRequest = await createDevDependency(
-          {
-            specifier: resolver.name,
-            resolveFrom: resolver.resolveFrom,
-          },
-          this.previousDevDeps,
-          this.options,
-        );
-        this.runDevDepRequest(devDepRequest);
+          // Add dev dependency for the resolver. This must be done AFTER running it due to
+          // the potential for lazy require() that aren't executed until the request runs.
+          let devDepRequest = await createDevDependency(
+            {
+              specifier: resolver.name,
+              resolveFrom: resolver.resolveFrom,
+            },
+            this.previousDevDeps,
+            this.options,
+          );
+          this.runDevDepRequest(devDepRequest);
+        }
       }
-    }
 
-    if (dep.isOptional) {
+      if (dep.isOptional) {
+        return {
+          assetGroup: null,
+          invalidateOnFileCreate,
+          invalidateOnFileChange,
+          invalidateOnEnvChange,
+        };
+      }
+
+      let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
+      let dir =
+        resolveFrom != null
+          ? normalizePath(fromProjectPathRelative(resolveFrom))
+          : '';
+
+      let diagnostic = await this.getDiagnostic(
+        dependency,
+        md`Failed to resolve '${dependency.specifier}' ${
+          dir ? `from '${dir}'` : ''
+        }`,
+      );
+
+      diagnostics.unshift(diagnostic);
+
       return {
         assetGroup: null,
         invalidateOnFileCreate,
         invalidateOnFileChange,
         invalidateOnEnvChange,
+        diagnostics,
       };
-    }
-
-    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
-    let dir =
-      resolveFrom != null
-        ? normalizePath(fromProjectPathRelative(resolveFrom))
-        : '';
-
-    let diagnostic = await this.getDiagnostic(
-      dependency,
-      md`Failed to resolve '${dependency.specifier}' ${
-        dir ? `from '${dir}'` : ''
-      }`,
-    );
-
-    diagnostics.unshift(diagnostic);
-
-    return {
-      assetGroup: null,
-      invalidateOnFileCreate,
-      invalidateOnFileChange,
-      invalidateOnEnvChange,
-      diagnostics,
-    };
+    });
   }
 }

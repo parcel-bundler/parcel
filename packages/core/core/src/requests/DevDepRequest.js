@@ -1,5 +1,6 @@
 // @flow
 import type {DependencySpecifier, SemverRange} from '@parcel/types';
+import {measureAsyncFunction} from '@parcel/profiler';
 import type ParcelConfig from '../ParcelConfig';
 import type {
   DevDepRequest,
@@ -26,75 +27,77 @@ import {requestTypes} from '../RequestTracker';
 // paths and hashes.
 const devDepRequestCache = new WeakMap();
 
-export async function createDevDependency(
+export function createDevDependency(
   opts: InternalDevDepOptions,
   requestDevDeps: Map<string, string>,
   options: ParcelOptions,
 ): Promise<DevDepRequest> {
-  let {specifier, resolveFrom, additionalInvalidations} = opts;
-  let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
+  return measureAsyncFunction('createDevDependency', 'resolve', async () => {
+    let {specifier, resolveFrom, additionalInvalidations} = opts;
+    let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
 
-  // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
-  // Reuse the same hash in the response. No need to send back invalidations as the request won't
-  // be re-run anyway.
-  let hash = requestDevDeps.get(key);
-  if (hash != null) {
-    return {
+    // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
+    // Reuse the same hash in the response. No need to send back invalidations as the request won't
+    // be re-run anyway.
+    let hash = requestDevDeps.get(key);
+    if (hash != null) {
+      return {
+        specifier,
+        resolveFrom,
+        hash,
+      };
+    }
+
+    let resolveFromAbsolute = fromProjectPath(options.projectRoot, resolveFrom);
+
+    // Ensure that the package manager has an entry for this resolution.
+    try {
+      await options.packageManager.resolve(specifier, resolveFromAbsolute);
+    } catch (err) {
+      // ignore
+    }
+
+    let invalidations = options.packageManager.getInvalidations(
+      specifier,
+      resolveFromAbsolute,
+    );
+
+    let cached = devDepRequestCache.get(invalidations);
+    if (cached != null) {
+      return cached;
+    }
+
+    let invalidateOnFileChangeProject = [
+      ...invalidations.invalidateOnFileChange,
+    ].map(f => toProjectPath(options.projectRoot, f));
+
+    // It is possible for a transformer to have multiple different hashes due to
+    // different dependencies (e.g. conditional requires) so we must always
+    // recompute the hash and compare rather than only sending a transformer
+    // dev dependency once.
+    hash = await getInvalidationHash(
+      invalidateOnFileChangeProject.map(f => ({
+        type: 'file',
+        filePath: f,
+      })),
+      options,
+    );
+
+    let devDepRequest: DevDepRequest = {
       specifier,
       resolveFrom,
       hash,
+      invalidateOnFileCreate: invalidations.invalidateOnFileCreate.map(i =>
+        invalidateOnFileCreateToInternal(options.projectRoot, i),
+      ),
+      invalidateOnFileChange: new Set(invalidateOnFileChangeProject),
+      invalidateOnStartup: invalidations.invalidateOnStartup,
+      additionalInvalidations,
     };
-  }
 
-  let resolveFromAbsolute = fromProjectPath(options.projectRoot, resolveFrom);
-
-  // Ensure that the package manager has an entry for this resolution.
-  try {
-    await options.packageManager.resolve(specifier, resolveFromAbsolute);
-  } catch (err) {
-    // ignore
-  }
-
-  let invalidations = options.packageManager.getInvalidations(
-    specifier,
-    resolveFromAbsolute,
-  );
-
-  let cached = devDepRequestCache.get(invalidations);
-  if (cached != null) {
-    return cached;
-  }
-
-  let invalidateOnFileChangeProject = [
-    ...invalidations.invalidateOnFileChange,
-  ].map(f => toProjectPath(options.projectRoot, f));
-
-  // It is possible for a transformer to have multiple different hashes due to
-  // different dependencies (e.g. conditional requires) so we must always
-  // recompute the hash and compare rather than only sending a transformer
-  // dev dependency once.
-  hash = await getInvalidationHash(
-    invalidateOnFileChangeProject.map(f => ({
-      type: 'file',
-      filePath: f,
-    })),
-    options,
-  );
-
-  let devDepRequest: DevDepRequest = {
-    specifier,
-    resolveFrom,
-    hash,
-    invalidateOnFileCreate: invalidations.invalidateOnFileCreate.map(i =>
-      invalidateOnFileCreateToInternal(options.projectRoot, i),
-    ),
-    invalidateOnFileChange: new Set(invalidateOnFileChangeProject),
-    invalidateOnStartup: invalidations.invalidateOnStartup,
-    additionalInvalidations,
-  };
-
-  devDepRequestCache.set(invalidations, devDepRequest);
-  return devDepRequest;
+    devDepRequestCache.set(invalidations, devDepRequest);
+    return devDepRequest;
+  });
 }
 
 export type DevDepSpecifier = {|

@@ -23,6 +23,8 @@ try {
 
 const pid = process.pid;
 
+let traceId = 0;
+
 class TraceMeasurement implements ITraceMeasurement {
   #active: boolean = true;
   #name: string;
@@ -31,26 +33,49 @@ class TraceMeasurement implements ITraceMeasurement {
   #start: number;
   // $FlowFixMe
   #data: any;
+  #id: number;
+
   constructor(tracer: Tracer, name, pid, tid, data) {
+    this.#id = traceId++;
     this.#name = name;
     this.#pid = pid;
     this.#tid = tid;
     this.#start = performance.now();
     this.#data = data;
+
+    tracer.trace({
+      id: `${this.#tid}-${this.#id}`,
+      type: 'trace.start',
+      name: this.#name,
+      pid: this.#pid,
+      tid: this.#tid,
+      ts: this.#start,
+      ...this.#data,
+    });
   }
 
   end() {
     if (!this.#active) return;
     const duration = performance.now() - this.#start;
     tracer.trace({
-      type: 'trace',
+      id: this.#id,
+      type: 'trace.end',
       name: this.#name,
       pid: this.#pid,
       tid: this.#tid,
       duration,
-      ts: this.#start,
+      ts: performance.now(),
       ...this.#data,
     });
+    // tracer.trace({
+    //   type: 'trace',
+    //   name: this.#name,
+    //   pid: this.#pid,
+    //   tid: this.#tid,
+    //   duration,
+    //   ts: this.#start,
+    //   ...this.#data,
+    // });
     this.#active = false;
   }
 }
@@ -160,4 +185,34 @@ export class PluginTracer implements IPluginTracer {
       otherArgs,
     );
   }
+}
+
+export function measureFunction<T>(
+  name: string,
+  cat: string,
+  block: () => T,
+): T {
+  const measurement = tracer.createMeasurement(name, cat);
+  let result: T | void;
+  try {
+    result = block();
+  } finally {
+    measurement?.end();
+  }
+  return result;
+}
+
+export async function measureAsyncFunction<T>(
+  name: string,
+  cat: string,
+  block: () => Promise<T>,
+): Promise<T> {
+  const measurement = tracer.createMeasurement(name, cat);
+  let result: T | void;
+  try {
+    result = await block();
+  } finally {
+    measurement?.end();
+  }
+  return result;
 }
