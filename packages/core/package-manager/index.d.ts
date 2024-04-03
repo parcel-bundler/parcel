@@ -1,8 +1,15 @@
-import type {FilePath} from '@parcel/types';
+import type {FilePath, PackageInstaller, PackageManager} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {PackageInstaller, PackageManager} from './lib/types';
 
-export * from './lib/types';
+export type {
+  PackageManagerResolveResult,
+  PackageManager,
+  InstallOptions,
+  InstallerOptions,
+  PackageInstaller,
+  Invalidations,
+  ModuleRequest,
+} from '@parcel/types';
 
 export const Npm: {
   new (): PackageInstaller;
