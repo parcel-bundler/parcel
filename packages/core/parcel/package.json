@@ -18,7 +18,7 @@
   "main": "lib/bin.js",
   "source": "src/bin.js",
   "scripts": {
-    "prepublishOnly": "./ensure-no-dev-lib.sh",
+    "prepack": "./ensure-no-dev-lib.sh",
     "dev:prepare": "rimraf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
   },
   "engines": {
