@@ -65,7 +65,7 @@ exports.clean = function clean(cb) {
 };
 
 exports.default = exports.build = gulp.series(
-  gulp.series(buildBabel, copyOthers),
+  gulp.parallel(buildBabel, copyOthers),
   // Babel reads from package.json so update these after babel has run
   paths.packageJson.map(
     packageJsonPath =>
