@@ -2,10 +2,6 @@
   "name": "@parcel/bundler-default",
   "version": "2.12.0",
   "license": "MIT",
-  "scripts": {
-    "clean": "rm -rf ./lib",
-    "build": "babel --presets=@parcel/babel-preset src --out-dir lib"
-  },
   "publishConfig": {
     "access": "public"
   },
@@ -30,9 +26,5 @@
     "@parcel/rust": "2.12.0",
     "@parcel/utils": "2.12.0",
     "nullthrows": "^1.1.1"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.22.11",
-    "@babel/cli": "^7.22.11"
   }
 }
