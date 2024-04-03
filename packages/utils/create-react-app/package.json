@@ -13,10 +13,11 @@
   "source": "src/bin.js",
   "files": [
     "templates",
-    "lib"
+    "lib",
+    "bin"
   ],
   "scripts": {
-    "dev:prepare": "rm -rf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
+    "dev:prepare": "rimraf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
   },
   "license": "MIT",
   "publishConfig": {
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0"
+    "@parcel/babel-register": "2.12.0",
+    "rimraf": "^5.0.5"
   }
 }
