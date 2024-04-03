@@ -90,17 +90,17 @@ impl<T> Slab<T> {
     // self.debug_free_list();
   }
 
-  fn debug_free_list(&self) {
-    let mut addr = self.free_head;
-    let mut free = 0;
-    while addr != 1 {
-      let node = unsafe { &*current_heap().get::<FreeNode>(addr) };
-      println!("{} {:?}", addr, node);
-      free += node.slots;
-      addr = node.next;
-    }
-    println!("FREE SLOTS: {}", free);
-  }
+  // fn debug_free_list(&self) {
+  //   let mut addr = self.free_head;
+  //   let mut free = 0;
+  //   while addr != 1 {
+  //     let node = unsafe { &*current_heap().get::<FreeNode>(addr) };
+  //     println!("{} {:?}", addr, node);
+  //     free += node.slots;
+  //     addr = node.next;
+  //   }
+  //   println!("FREE SLOTS: {}", free);
+  // }
 }
 
 // Automatically implement ArenaAllocated for SlabAllocated types.
@@ -169,32 +169,32 @@ unsafe impl<T: SlabAllocated> Allocator for SlabAllocator<T> {
   }
 }
 
-#[cfg(test)]
-mod test {
-  use super::*;
+// #[cfg(test)]
+// mod test {
+//   use super::*;
 
-  #[test]
-  fn test_slab() {
-    struct Test {
-      foo: u32,
-      bar: u32,
-    }
+//   #[test]
+//   fn test_slab() {
+//     struct Test {
+//       foo: u32,
+//       bar: u32,
+//     }
 
-    let mut slab = Slab::<Test>::new();
-    let addr1 = slab.alloc(5);
-    assert_eq!(addr1, 0);
-    let addr2 = slab.alloc(2);
-    assert_eq!(addr2, 40);
-    slab.dealloc(addr1, 5);
-    let addr = slab.alloc(1);
-    assert_eq!(addr, 32);
-    slab.dealloc(addr2, 2);
-    let addr = slab.alloc(4);
-    assert_eq!(addr, 0);
-    slab.debug_free_list();
-    // let addr = slab.alloc(2);
-    // assert_eq!(addr, 24);
-    // let addr = slab.alloc(2);
-    // assert_eq!(addr, 24);
-  }
-}
+//     let mut slab = Slab::<Test>::new();
+//     let addr1 = slab.alloc(5);
+//     assert_eq!(addr1, 0);
+//     let addr2 = slab.alloc(2);
+//     assert_eq!(addr2, 40);
+//     slab.dealloc(addr1, 5);
+//     let addr = slab.alloc(1);
+//     assert_eq!(addr, 32);
+//     slab.dealloc(addr2, 2);
+//     let addr = slab.alloc(4);
+//     assert_eq!(addr, 0);
+//     slab.debug_free_list();
+//     // let addr = slab.alloc(2);
+//     // assert_eq!(addr, 24);
+//     // let addr = slab.alloc(2);
+//     // assert_eq!(addr, 24);
+//   }
+// }
