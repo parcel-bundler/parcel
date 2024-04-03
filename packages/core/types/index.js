@@ -1979,7 +1979,8 @@ export type ValidationEvent = {|
  * @section reporter
  */
 export type TraceEvent = {|
-  +type: 'trace',
+  +type: 'trace.start' | 'trace.end',
+  +id: string,
   +ts: number,
   +duration: number,
   +name: string,

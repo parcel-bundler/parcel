@@ -357,7 +357,9 @@ export default class Transformation {
     let resultingAssets = [];
     let finalAssets = [];
     const pipelineTransformers = tracer.createMeasurement(
-      `Transformation::runPipeline - transformers ${pipeline.id} ${initialAsset.idBase}`,
+      `Transformation::runPipeline - transformers ${pipeline.id} ${
+        initialAsset.idBase ?? 'none'
+      }`,
       'transform',
     );
     for (let transformer of pipeline.transformers) {

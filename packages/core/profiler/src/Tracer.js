@@ -33,16 +33,17 @@ class TraceMeasurement implements ITraceMeasurement {
   #start: number;
   // $FlowFixMe
   #data: any;
-  #id: number;
+  #id: string;
 
   constructor(tracer: Tracer, name, pid, tid, data) {
-    this.#id = traceId++;
+    this.#id = String(traceId++);
     this.#name = name;
     this.#pid = pid;
     this.#tid = tid;
     this.#start = performance.now();
     this.#data = data;
 
+    performance.mark(`${this.#name}__${this.#id}__start`);
     tracer.trace({
       id: `${this.#tid}-${this.#id}`,
       type: 'trace.start',
@@ -56,6 +57,13 @@ class TraceMeasurement implements ITraceMeasurement {
 
   end() {
     if (!this.#active) return;
+
+    performance.mark(`${this.#name}__${this.#id}__end`);
+    performance.measure(
+      `${this.#name}__${this.#id}`,
+      `${this.#name}__${this.#id}__start`,
+      `${this.#name}__${this.#id}__end`,
+    );
     const duration = performance.now() - this.#start;
     tracer.trace({
       id: this.#id,
@@ -67,15 +75,6 @@ class TraceMeasurement implements ITraceMeasurement {
       ts: performance.now(),
       ...this.#data,
     });
-    // tracer.trace({
-    //   type: 'trace',
-    //   name: this.#name,
-    //   pid: this.#pid,
-    //   tid: this.#tid,
-    //   duration,
-    //   ts: this.#start,
-    //   ...this.#data,
-    // });
     this.#active = false;
   }
 }
@@ -153,6 +152,7 @@ type TracerOpts = {|
   origin: string,
   category: string,
 |};
+
 export class PluginTracer implements IPluginTracer {
   /** @private */
   origin: string;

@@ -20,6 +20,7 @@ declare module 'chrome-trace-event' {
     begin(fields: Fields): void;
     completeEvent(fields: Fields): void;
     instantEvent(fields: Fields): void;
+    mkEventFunc(ph: string): (fields: Fields) => void;
     flush(): void;
   }
 }
