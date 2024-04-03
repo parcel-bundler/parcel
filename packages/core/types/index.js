@@ -15,6 +15,7 @@ import type {Cache} from '@parcel/cache';
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 import type {TraceMeasurement} from '@parcel/profiler';
 import type {FeatureFlags} from '@parcel/feature-flags';
+import type {ParcelDb} from '@parcel/rust';
 import type {Event, BackendType} from '@parcel/watcher';
 
 /** Plugin-specific AST, <code>any</code> */
@@ -352,6 +353,7 @@ export type InitialServerOptions = {|
 |};
 
 export interface PluginOptions {
+  +db: ParcelDb;
   +mode: BuildMode;
   +env: EnvMap;
   +hmrOptions: ?HMROptions;

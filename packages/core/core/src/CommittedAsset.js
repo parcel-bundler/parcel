@@ -10,7 +10,7 @@ import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
 import {Asset as DbAsset, AssetFlags} from '@parcel/rust';
 import {deserializeRaw} from './serializer';
-import type BundleGraph from './bundleGraph';
+import type BundleGraph from './BundleGraph';
 import type {Scope} from './scopeCache';
 
 export default class CommittedAsset {

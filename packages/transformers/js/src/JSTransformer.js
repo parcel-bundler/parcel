@@ -550,6 +550,7 @@ export default (new Transformer({
       asset.invalidateOnFileChange(file);
     }
 
+    // $FlowFixMe
     asset.setNativeDependencies(dependencies);
 
     asset.meta.id = asset.id;

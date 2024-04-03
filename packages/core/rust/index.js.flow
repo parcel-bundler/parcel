@@ -2,6 +2,11 @@
 import type {FileCreateInvalidation} from '@parcel/types';
 import type {EnvironmentAddr, TargetAddr} from './src/db';
 
+export type {
+  EnvironmentAddr,
+  TargetAddr,
+};
+
 declare export var init: void | (() => void);
 
 declare export function findAncestorFile(filenames: Array<string>, from: string, root: string): string | null
@@ -73,7 +78,7 @@ type Options = {|
   project_root: string
 |};
 declare export class ParcelDb {
-  constructor(): ParcelDb;
+  constructor(options: Options): ParcelDb;
   serialize(): SerializedParcelDb;
   static create(options: Options): ParcelDb;
   static read(filename: string, options: Options): ParcelDb;
