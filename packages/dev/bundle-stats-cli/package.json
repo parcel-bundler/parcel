@@ -16,7 +16,10 @@
   "main": "lib/cli.js",
   "source": "src/cli.js",
   "bin": {
-    "parcel-bundle-stats": "src/bin.js"
+    "parcel-bundle-stats": "bin/bundle-stats.js"
+  },
+  "scripts": {
+    "dev:prepare": "rm -rf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
   },
   "engines": {
     "node": ">= 12.0.0",

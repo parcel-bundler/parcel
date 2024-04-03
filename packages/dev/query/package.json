@@ -9,12 +9,15 @@
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
   },
+  "scripts": {
+    "dev:prepare": "rm -rf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "bin": {
-    "parcel-query": "src/bin.js"
+    "parcel-query": "bin/parcel-query.js"
   },
   "main": "src/index.js",
   "dependencies": {
