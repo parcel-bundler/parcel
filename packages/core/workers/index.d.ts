@@ -1,4 +1,4 @@
-import {FilePath} from '@parcel/types/FilePath';
+import {FilePath} from '@parcel/types';
 
 type BackendType = 'process' | 'threads';
 

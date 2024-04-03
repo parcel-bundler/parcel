@@ -1,4 +1,4 @@
-import type {FilePath} from '@parcel/types/FilePath';
+import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageInstaller, PackageManager} from './lib/types';
 
