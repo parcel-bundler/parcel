@@ -7,6 +7,8 @@ import type {
   Diagnostifiable,
   DiagnosticWithoutOrigin,
 } from '@parcel/diagnostic';
+import type {FeatureFlags} from '@parcel/feature-flags';
+import type {Event, BackendType} from '@parcel/watcher';
 
 import type {Cache} from './Cache';
 import type {
@@ -18,9 +20,6 @@ import type {
   Dirent,
 } from './FileSystem';
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
-import type {TraceMeasurement} from '@parcel/profiler';
-import type {FeatureFlags} from '@parcel/feature-flags';
-import type {Event, BackendType} from '@parcel/watcher';
 import type {FilePath} from './FilePath';
 import type {Glob} from './Glob';
 import type {PackageName} from './PackageName';
@@ -36,6 +35,10 @@ import type {
 import type {SemverRange} from './SemverRange';
 import type {DependencySpecifier} from './DependencySpecifier';
 import type {FileCreateInvalidation} from './FileCreateInvalidation';
+
+export interface TraceMeasurement {
+  end(): void;
+}
 
 export type {
   FilePath,
