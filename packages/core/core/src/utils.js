@@ -20,8 +20,6 @@ import invariant from 'assert';
 import baseX from 'base-x';
 import {hashObject} from '@parcel/utils';
 import {fromProjectPath, toProjectPath} from './projectPath';
-// flowlint-next-line untyped-import:off
-import packageJson from '../package.json';
 import {PARCEL_VERSION} from './constants';
 import {
   hashString,
