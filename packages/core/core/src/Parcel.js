@@ -21,7 +21,7 @@ import type {ContentKey} from '@parcel/graph';
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {assetFromValue, uncommittedAssetFromValue} from './public/Asset';
+import {assetFromValue} from './public/Asset';
 import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import WorkerFarm from '@parcel/workers';

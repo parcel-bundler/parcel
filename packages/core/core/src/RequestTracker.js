@@ -21,7 +21,6 @@ import {
   isDirectoryInside,
   makeDeferredWithPromise,
 } from '@parcel/utils';
-import {hashString} from '@parcel/rust';
 import {NodeFS} from '@parcel/fs';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
