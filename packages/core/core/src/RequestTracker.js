@@ -1445,10 +1445,7 @@ export function getWatcherOptions({
   const vcsDirs = ['.git', '.hg'];
   const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
   const ignore = uniqueDirs.map(dir => {
-    if (path.isAbsolute(dir)) {
-      return dir;
-    }
-    return path.join(projectRoot, dir);
+    return path.resolve(projectRoot, dir);
   });
 
   return {ignore, backend: watchBackend};
