@@ -26,6 +26,7 @@ jobs:
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - run: yarn --frozen-lockfile
+      - run: yarn workspace @parcel/rust build-db
       - run: yarn lint
 
   flow:
