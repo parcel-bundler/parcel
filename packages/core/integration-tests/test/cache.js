@@ -60,10 +60,10 @@ function runBundle(entries = 'src/index.js', opts) {
 }
 
 type UpdateFn = BuildSuccessEvent =>
-  | ?InitialParcelOptions<WorkerFarm>
-  | Promise<?InitialParcelOptions<WorkerFarm>>;
+  | ?InitialParcelOptions
+  | Promise<?InitialParcelOptions>;
 type TestConfig = {|
-  ...InitialParcelOptions<WorkerFarm>,
+  ...InitialParcelOptions,
   entries?: Array<string>,
   setup?: () => void | Promise<void>,
   update: UpdateFn,
@@ -77,7 +77,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   );
 
   let entries;
-  let options: ?InitialParcelOptions<WorkerFarm>;
+  let options: ?InitialParcelOptions;
   if (typeof update === 'object') {
     let setup;
     ({entries, setup, update, ...options} = update);

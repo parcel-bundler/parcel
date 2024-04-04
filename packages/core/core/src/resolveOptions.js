@@ -45,7 +45,7 @@ function compileGlobs(globs: string[]): RegExp[] {
 }
 
 export default async function resolveOptions(
-  initialOptions: InitialParcelOptions<WorkerFarm>,
+  initialOptions: InitialParcelOptions,
 ): Promise<ParcelOptions> {
   let inputFS = initialOptions.inputFS || new NodeFS();
   let outputFS = initialOptions.outputFS || new NodeFS();

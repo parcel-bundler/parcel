@@ -8,4 +8,4 @@ for file in *.js; do
   npx flow-to-ts $file > lib/$(basename $file .js).d.ts
 done
 
-node build-ts.js
+node ./scripts/build-ts.js

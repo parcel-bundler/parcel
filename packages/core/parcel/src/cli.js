@@ -431,7 +431,7 @@ function parseOptionInt(value) {
 async function normalizeOptions(
   command,
   inputFS,
-): Promise<InitialParcelOptions<WorkerFarm>> {
+): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = process.env.NODE_ENV || 'production';

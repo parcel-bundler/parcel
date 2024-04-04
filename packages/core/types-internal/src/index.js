@@ -327,7 +327,7 @@ export type DetailedReportOptions = {|
 
 declare type GlobPattern = string;
 
-export type InitialParcelOptions<WorkerFarm> = {|
+export type InitialParcelOptionsInternal<WorkerFarm> = {|
   +entries?: FilePath | Array<FilePath>,
   +config?: DependencySpecifier,
   +defaultConfig?: DependencySpecifier,

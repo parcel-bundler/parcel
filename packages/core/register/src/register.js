@@ -24,8 +24,8 @@ let defaultConfig = {
     .resolved,
 };
 
-function register(inputOpts?: InitialParcelOptions<WorkerFarm>): IDisposable {
-  let opts: InitialParcelOptions<WorkerFarm> = {
+function register(inputOpts?: InitialParcelOptions): IDisposable {
+  let opts: InitialParcelOptions = {
     ...defaultConfig,
     ...(inputOpts || {}),
   };
