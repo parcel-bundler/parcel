@@ -55,7 +55,6 @@ export default (new Reporter({
           cat: event.categories,
           args: event.args,
           ts: millisecondsToMicroseconds(event.ts),
-          // dur: millisecondsToMicroseconds(event.duration),
           tid: event.tid,
           pid: event.pid,
         });

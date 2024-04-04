@@ -357,15 +357,14 @@ export default class Transformation {
     let resultingAssets = [];
     let finalAssets = [];
     const pipelineTransformers = tracer.createMeasurement(
-      `Transformation::runPipeline - transformers ${pipeline.id} ${
-        initialAsset.idBase ?? 'none'
-      }`,
+      'Transformation::runPipeline - transformers',
       'transform',
+      pipeline.id,
     );
     for (let transformer of pipeline.transformers) {
       resultingAssets = [];
       const transformerMeasurement = tracer.createMeasurement(
-        `${transformer.name} all`,
+        `${transformer.name} all_assets`,
         'transform',
       );
       for (let asset of inputAssets) {
@@ -384,9 +383,7 @@ export default class Transformation {
         }
 
         const measurement = tracer.createMeasurement(
-          `${transformer.name} ${fromProjectPathRelative(
-            initialAsset.value.filePath,
-          )}`,
+          transformer.name,
           'transform',
           fromProjectPathRelative(initialAsset.value.filePath),
         );

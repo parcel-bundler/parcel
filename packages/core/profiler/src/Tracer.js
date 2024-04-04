@@ -25,6 +25,12 @@ const pid = process.pid;
 
 let traceId = 0;
 
+/**
+ * Stores trace event data. This will be emitted by `TracerReporter` into
+ * Chrome BEGIN and END events.
+ *
+ * See https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/edit#heading=h.yr4qxyxotyw
+ */
 class TraceMeasurement implements ITraceMeasurement {
   #active: boolean = true;
   #name: string;
@@ -43,7 +49,6 @@ class TraceMeasurement implements ITraceMeasurement {
     this.#start = performance.now();
     this.#data = data;
 
-    performance.mark(`${this.#name}__${this.#id}__start`);
     tracer.trace({
       id: `${this.#tid}-${this.#id}`,
       type: 'trace.start',
@@ -58,12 +63,6 @@ class TraceMeasurement implements ITraceMeasurement {
   end() {
     if (!this.#active) return;
 
-    performance.mark(`${this.#name}__${this.#id}__end`);
-    performance.measure(
-      `${this.#name}__${this.#id}`,
-      `${this.#name}__${this.#id}__start`,
-      `${this.#name}__${this.#id}__end`,
-    );
     const duration = performance.now() - this.#start;
     tracer.trace({
       id: this.#id,
@@ -72,6 +71,8 @@ class TraceMeasurement implements ITraceMeasurement {
       pid: this.#pid,
       tid: this.#tid,
       duration,
+      // Note the event ends at a different time to its starting time.
+      // if we use the start time here the event will be set on the wrong time.
       ts: performance.now(),
       ...this.#data,
     });
@@ -187,6 +188,11 @@ export class PluginTracer implements IPluginTracer {
   }
 }
 
+/**
+ * Wrap a SYNC function in a measurement. The measurement will track the duration
+ * of the function call and end when the function RETURNS or when it THROWS an
+ * exception.
+ */
 export function measureFunction<T>(
   name: string,
   cat: string,
@@ -202,6 +208,11 @@ export function measureFunction<T>(
   return result;
 }
 
+/**
+ * Wrap an ASYNC function in a measurement. The measurement will track the duration
+ * of the function call and end when the function RESOLVES or when it REJECTS an
+ * exception.
+ */
 export async function measureAsyncFunction<T>(
   name: string,
   cat: string,
