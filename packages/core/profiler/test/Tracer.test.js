@@ -10,6 +10,7 @@ describe('Tracer', () => {
     traceDisposable = tracer.onTrace(onTrace);
     tracer.enable();
   });
+
   afterEach(() => {
     traceDisposable.dispose();
   });
@@ -20,19 +21,21 @@ describe('Tracer', () => {
     assert(measurement == null);
     assert(onTrace.notCalled);
   });
+
   it('emits a basic trace event', () => {
     const measurement = tracer.createMeasurement('test');
     measurement.end();
     sinon.assert.calledWith(
       onTrace,
       sinon.match({
-        type: 'trace',
+        type: 'trace.end',
         name: 'test',
         args: undefined,
         duration: sinon.match.number,
       }),
     );
   });
+
   it('emits a complex trace event', () => {
     const measurement = tracer.createMeasurement('test', 'myPlugin', 'aaargh', {
       extra: 'data',
@@ -41,7 +44,7 @@ describe('Tracer', () => {
     sinon.assert.calledWith(
       onTrace,
       sinon.match({
-        type: 'trace',
+        type: 'trace.end',
         name: 'test',
         categories: ['myPlugin'],
         args: {extra: 'data', name: 'aaargh'},
@@ -49,11 +52,14 @@ describe('Tracer', () => {
       }),
     );
   });
+
   it('calling end twice on measurment should be a no-op', () => {
     const measurement = tracer.createMeasurement('test');
     measurement.end();
     measurement.end();
-    sinon.assert.calledOnce(onTrace);
+    measurement.end();
+    measurement.end();
+    sinon.assert.calledTwice(onTrace); // called once for start and once for end
   });
 
   describe('PluginTracer', () => {
@@ -67,7 +73,7 @@ describe('Tracer', () => {
       sinon.assert.calledWith(
         onTrace,
         sinon.match({
-          type: 'trace',
+          type: 'trace.end',
           name: 'test',
           categories: ['cat:origin:customCat'],
           duration: sinon.match.number,
