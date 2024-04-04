@@ -163,6 +163,10 @@ export const requestTypes = {
   validation_request: 14,
 };
 
+const requestTypeName = Object.fromEntries(
+  [...Object.entries(requestTypes)].map(([key, value]) => [value, key]),
+);
+
 type RequestType = $Values<typeof requestTypes>;
 
 type RequestGraphNode =
@@ -380,6 +384,10 @@ export class RequestGraph extends ContentGraph<
     invariant(node.type === REQUEST);
     node.invalidateReason |= reason;
     this.invalidNodeIds.add(nodeId);
+
+    if (node.requestType === requestTypes.asset_request) {
+      console.log('Invalidate', node);
+    }
 
     let parentNodes = this.getNodeIdsConnectedTo(
       nodeId,
@@ -1027,6 +1035,7 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
+  stats: {[string]: number} = {};
 
   constructor({
     graph,
@@ -1047,7 +1056,10 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(request: RequestNode): {|
+  startRequest(
+    request: RequestNode,
+    filePath?: string,
+  ): {|
     requestNodeId: NodeId,
     deferred: Deferred<boolean>,
   |} {
@@ -1059,7 +1071,10 @@ export default class RequestTracker {
       // invalidations created during the request replace the existing ones.
       this.graph.clearInvalidations(requestNodeId);
     } else {
-      requestNodeId = this.graph.addNode(nodeFromRequest(request));
+      requestNodeId = this.graph.addNode({
+        ...nodeFromRequest(request),
+        filePath,
+      });
     }
 
     this.graph.incompleteNodeIds.add(requestNodeId);
@@ -1191,12 +1206,15 @@ export default class RequestTracker {
 
     let previousInvalidations =
       requestId != null ? this.graph.getInvalidations(requestId) : [];
-    let {requestNodeId, deferred} = this.startRequest({
-      id: request.id,
-      type: REQUEST,
-      requestType: request.type,
-      invalidateReason: INITIAL_BUILD,
-    });
+    let {requestNodeId, deferred} = this.startRequest(
+      {
+        id: request.id,
+        type: REQUEST,
+        requestType: request.type,
+        invalidateReason: INITIAL_BUILD,
+      },
+      request?.input?.filePath,
+    );
 
     let {api, subRequestContentKeys} = this.createAPI(
       requestNodeId,
@@ -1205,6 +1223,12 @@ export default class RequestTracker {
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
+      this.stats[requestTypeName[request.type]] = this.stats[
+        requestTypeName[request.type]
+      ]
+        ? this.stats[requestTypeName[request.type]] + 1
+        : 1;
+
       let result = await request.run({
         input: request.input,
         api,
@@ -1291,6 +1315,13 @@ export default class RequestTracker {
   }
 
   async writeToCache(signal?: AbortSignal) {
+    this.stats.TOTAL = Object.values(this.stats).reduce(
+      (acc, curr) => acc + curr,
+      0,
+    );
+    console.table(this.stats);
+    this.stats = {};
+
     let cacheKey = getCacheKey(this.options);
     let requestGraphKey = `requestGraph-${cacheKey}`;
     let snapshotKey = `snapshot-${cacheKey}`;
@@ -1444,7 +1475,12 @@ export function getWatcherOptions({
 }: ParcelOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
   const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
-  const ignore = uniqueDirs.map(dir => path.join(projectRoot, dir));
+  const ignore = uniqueDirs.map(dir => {
+    if (path.isAbsolute(dir)) {
+      return dir;
+    }
+    return path.join(projectRoot, dir);
+  });
 
   return {ignore, backend: watchBackend};
 }
@@ -1524,6 +1560,12 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       opts,
     );
     clearTimeout(timeout);
+
+    require('fs').writeFileSync(
+      '/tmp/events.txt',
+      events.map(e => e.path).join('\n'),
+      'utf8',
+    );
 
     logger.verbose({
       origin: '@parcel/core',
