@@ -12,7 +12,7 @@
     "access": "public"
   },
   "scripts": {
-    "build-ts": "./scripts/build-ts.sh",
+    "build-ts": "flow-to-ts src/index.js > lib/index.d.ts",
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {

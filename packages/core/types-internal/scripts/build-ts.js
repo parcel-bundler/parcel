@@ -1,7 +1,9 @@
 const fs = require('fs');
+const path = require('path');
 
-let contents = fs.readFileSync(__dirname + '/lib/index.d.ts', 'utf8');
+const typesPath = path.join(__dirname, '../lib/index.d.ts');
 
+let contents = fs.readFileSync(typesPath, 'utf8');
 // Some fixups of flow-to-ts output
 contents = contents.replace(
   'Record<string, JSONValue>',
@@ -10,4 +12,4 @@ contents = contents.replace(
 contents = contents.replace(/\$ReadOnlyMap/g, 'ReadonlyMap');
 contents = contents.replace(/\$ReadOnlySet/g, 'ReadonlySet');
 
-fs.writeFileSync(__dirname + '/lib/index.d.ts', contents);
+fs.writeFileSync(typesPath, contents);

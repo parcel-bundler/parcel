@@ -8,7 +8,7 @@ export type {
   Stats,
   Encoding,
   Dirent,
-} from '@parcel/types/FileSystem';
+} from '@parcel/types';
 
 export const NodeFS: {
   new (): FileSystem;

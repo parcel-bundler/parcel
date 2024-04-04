@@ -8,7 +8,7 @@ import type {FarmOptions} from '@parcel/workers';
 import type WorkerFarm from '@parcel/workers';
 
 export class Parcel {
-  constructor(options: InitialParcelOptions<WorkerFarm>);
+  constructor(options: InitialParcelOptions);
   run(): Promise<BuildSuccessEvent>;
   watch(
     cb?: (err: Error | null | undefined, buildEvent?: BuildEvent) => unknown,

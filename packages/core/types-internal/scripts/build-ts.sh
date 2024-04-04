@@ -4,7 +4,7 @@ set -e
 
 mkdir -p lib
 
-for file in *.js; do
+for file in src/*.js; do
   npx flow-to-ts $file > lib/$(basename $file .js).d.ts
 done
 
