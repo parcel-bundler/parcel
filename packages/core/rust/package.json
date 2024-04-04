@@ -27,6 +27,7 @@
     "index.d.ts",
     "index.js",
     "index.js.flow",
+    "lib",
     "*.node",
     "*.wasm"
   ],

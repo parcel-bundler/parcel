@@ -29,8 +29,8 @@ jobs:
           - name: macos-latest
             os: macos-latest
 
-          - name: windows-latest
-            os: windows-latest
+          # - name: windows-latest
+          #   os: windows-latest
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -172,7 +172,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
-        run: apk add --no-cache python3 make gcc g++ musl-dev curl
+        run: apk add --no-cache python3 make gcc g++ musl-dev curl openssl
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:

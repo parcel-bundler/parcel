@@ -37,6 +37,7 @@ jobs:
         with:
           cache: yarn
       - run: yarn --frozen-lockfile
+      - run: yarn workspace @parcel/rust build-db
       - run: yarn flow check
 
   ts-types:
@@ -47,7 +48,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           cache: yarn
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ubuntu-latest
       - run: yarn --frozen-lockfile
+      - run: yarn build-native-release
       - run: yarn build-ts
 
   benchmarks:

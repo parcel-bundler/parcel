@@ -4,6 +4,9 @@
 name: dev-release
 
 on:
+  push:
+    branches:
+      - molejniczak/parcel-db
   workflow_dispatch:
 
 jobs:
