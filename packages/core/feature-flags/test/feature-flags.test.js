@@ -15,7 +15,7 @@ describe('feature-flag test', () => {
   });
 
   it('can override', () => {
-    setFeatureFlags({exampleFeature: true, configKeyInvalidation: true});
+    setFeatureFlags({...DEFAULT_FEATURE_FLAGS, exampleFeature: true});
     assert.equal(getFeatureFlag('exampleFeature'), true);
   });
 });
