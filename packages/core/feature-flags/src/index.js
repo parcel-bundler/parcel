@@ -10,12 +10,12 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   configKeyInvalidation: false,
 };
 
-let featureFlags: FeatureFlags = {...DEFAULT_FEATURE_FLAGS};
+let featureFlagValues: FeatureFlags = {...DEFAULT_FEATURE_FLAGS};
 
 export function setFeatureFlags(flags: FeatureFlags) {
-  featureFlags = flags;
+  featureFlagValues = flags;
 }
 
 export function getFeatureFlag(flagName: $Keys<FeatureFlags>): boolean {
-  return featureFlags[flagName];
+  return featureFlagValues[flagName];
 }
