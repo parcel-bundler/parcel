@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
   FilePath,
   FileCreateInvalidation,

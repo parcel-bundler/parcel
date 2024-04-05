@@ -28,13 +28,34 @@ describe('feature flags', () => {
                 '*.js': ['./transformer.js', '...']
             },
         }
-    
+
+    .parcelrc-2:
+      {
+          extends: "@parcel/config-default",
+          transformers: {
+              '*.js': ['./transformer-client.js', '...']
+          },
+      }        
+
     transformer.js:
         const {Transformer} = require('@parcel/plugin');
         module.exports = new Transformer({
             async transform({asset, options}) {
                 const code = await asset.getCode();
                 if (code.includes('MARKER') && options.featureFlags.exampleFeature) {
+                    asset.setCode(code.replace('MARKER', 'REPLACED'));
+                }
+                return [asset];
+            }
+        });
+
+    transformer-client.js:
+        const {Transformer} = require('@parcel/plugin');
+        const {getFeatureFlag} = require('@parcel/feature-flags');
+        module.exports = new Transformer({
+            async transform({asset, options}) {
+                const code = await asset.getCode();
+                if (code.includes('MARKER') && getFeatureFlag('exampleFeature')) {
                     asset.setCode(code.replace('MARKER', 'REPLACED'));
                 }
                 return [asset];
@@ -96,6 +117,22 @@ describe('feature flags', () => {
     assert(
       !output2.includes('REPLACED'),
       `Expected ${output} to NOT contain 'REPLACED'`,
+    );
+  });
+
+  it('flag should be available in plugins via client', async () => {
+    await overlayFS.mkdirp(dir);
+
+    const b = await bundle(path.join(dir, 'index.js'), {
+      inputFS: overlayFS,
+      featureFlags: {exampleFeature: true},
+      config: path.join(dir, '.parcelrc-2'),
+    });
+    const output = await run(b);
+
+    assert(
+      output.includes('REPLACED'),
+      `Expected ${output} to contain 'REPLACED'`,
     );
   });
 });

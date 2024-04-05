@@ -220,6 +220,8 @@ export default async function resolveOptions(
     shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
     watchDir,
+    watchBackend: initialOptions.watchBackend,
+    watchIgnore: initialOptions.watchIgnore,
     entries,
     targets: initialOptions.targets,
     logLevel,

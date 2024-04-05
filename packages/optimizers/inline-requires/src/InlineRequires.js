@@ -94,7 +94,7 @@ module.exports = new Optimizer<empty, BundleConfig>({
         return {contents, map: sourceMap};
       }
     } catch (err) {
-      logger.error({
+      logger.warn({
         origin: 'parcel-optimizer-experimental-inline-requires',
         message: `Unable to optimise requires for ${bundle.name}: ${err.message}`,
         stack: err.stack,

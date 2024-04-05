@@ -5,7 +5,6 @@ import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {Cache} from './types';
 
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import stream from 'stream';
 import path from 'path';
 import {promisify} from 'util';

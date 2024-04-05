@@ -31,6 +31,8 @@ export const DB: ParcelDb = ParcelDb.create({
 export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: path.join(__dirname, '.parcel-cache'),
   watchDir: __dirname,
+  watchIgnore: undefined,
+  watchBackend: undefined,
   entries: [],
   logLevel: 'info',
   targets: undefined,
@@ -65,6 +67,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   db: DB,
   featureFlags: {
     exampleFeature: false,
+    configKeyInvalidation: false,
   },
 };
 

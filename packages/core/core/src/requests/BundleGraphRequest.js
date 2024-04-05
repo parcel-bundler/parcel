@@ -12,7 +12,6 @@ import type {
   ParcelOptions,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {ContentKey} from '@parcel/graph';
 import type {AssetAddr} from '@parcel/rust';
 

@@ -16,7 +16,6 @@ import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 // eslint-disable-next-line no-unused-vars
 import type {ContentKey} from '@parcel/graph';
 
@@ -34,7 +33,6 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import {registerCoreWithSerializer} from './registerCoreWithSerializer';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
@@ -55,9 +53,13 @@ import {
   Asset as DbAsset,
   readCachedString,
 } from '@parcel/rust';
-import {toProjectPath} from './projectPath';
+import {
+  fromProjectPath,
+  toProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
 import {tracer} from '@parcel/profiler';
-import {fromProjectPathRelative, fromProjectPath} from './projectPath';
+import {setFeatureFlags} from '@parcel/feature-flags';
 
 registerCoreWithSerializer();
 
@@ -112,6 +114,8 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
+
+    setFeatureFlags(resolvedOptions.featureFlags);
 
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {
@@ -425,17 +429,15 @@ export default class Parcel {
     let opts = getWatcherOptions(resolvedOptions);
     let sub = await resolvedOptions.inputFS.watch(
       resolvedOptions.watchDir,
-      (err, events) => {
+      async (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
           return;
         }
 
-        let isInvalid = this.#requestTracker.respondToFSEvents(
-          events.map(e => ({
-            type: e.type,
-            path: toProjectPath(resolvedOptions.projectRoot, e.path),
-          })),
+        let isInvalid = await this.#requestTracker.respondToFSEvents(
+          events,
+          Number.POSITIVE_INFINITY,
         );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {

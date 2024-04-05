@@ -16,7 +16,11 @@
   },
   "main": "lib/index.js",
   "source": "src/index.js",
-  "types": "index.d.ts",
+  "types": "lib/types.d.ts",
+  "scripts": {
+    "build-ts": "mkdir -p lib && flow-to-ts src/types.js > lib/types.d.ts",
+    "check-ts": "tsc --noEmit lib/types.d.ts"
+  },
   "engines": {
     "node": ">= 16.0.0"
   }

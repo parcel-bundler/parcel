@@ -32,8 +32,8 @@ import type {
   DependencyAddr,
   TargetAddr,
 } from '@parcel/rust';
+import type {BackendType, Event} from '@parcel/watcher';
 import type {FeatureFlags} from '@parcel/feature-flags';
-import type {EventType} from '@parcel/watcher';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -267,16 +267,19 @@ export type DevDepRequest = {|
   |}>,
 |};
 
+declare type GlobPattern = string;
+
 export type ParcelOptions = {|
   entries: Array<ProjectPath>,
   config?: DependencySpecifier,
   defaultConfig?: DependencySpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
-
   shouldDisableCache: boolean,
   cacheDir: FilePath,
   watchDir: FilePath,
+  watchIgnore?: Array<FilePath | GlobPattern>,
+  watchBackend?: BackendType,
   mode: BuildMode,
   hmrOptions: ?HMROptions,
   shouldContentHash: boolean,
@@ -292,10 +295,7 @@ export type ParcelOptions = {|
   shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
-  unstableFileInvalidations?: Array<{|
-    path: FilePath,
-    type: EventType,
-  |}>,
+  unstableFileInvalidations?: Array<Event>,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -489,6 +489,10 @@ export type Config = {|
   cacheKey: ?string,
   result: ConfigResult,
   invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnConfigKeyChange: Array<{|
+    filePath: ProjectPath,
+    configKey: string,
+  |}>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,

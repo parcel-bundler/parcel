@@ -8,6 +8,7 @@ import type {
   NamedBundle as INamedBundle,
   BundleGraph as IBundleGraph,
 } from '@parcel/types';
+import {readConfig, hashObject} from '@parcel/utils';
 import type {
   Config,
   ParcelOptions,
@@ -25,9 +26,11 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
-import {Hash} from '@parcel/rust';
+import {hashString, Hash} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
+import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
+import {createBuildCache} from '../buildCache';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
@@ -60,6 +63,10 @@ export type PluginWithBundleConfig = {
 export type ConfigRequest = {
   id: string,
   invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnConfigKeyChange: Array<{|
+    filePath: ProjectPath,
+    configKey: string,
+  |}>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
@@ -102,12 +109,47 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   }
 }
 
+const configKeyCache = createBuildCache();
+
+export async function getConfigKeyContentHash(
+  filePath: ProjectPath,
+  configKey: string,
+  options: ParcelOptions,
+): Async<string> {
+  let cacheKey = `${fromProjectPathRelative(filePath)}:${configKey}`;
+  let cachedValue = configKeyCache.get(cacheKey);
+
+  if (cachedValue) {
+    return cachedValue;
+  }
+
+  let conf = await readConfig(
+    options.inputFS,
+    fromProjectPath(options.projectRoot, filePath),
+  );
+
+  if (conf == null || conf.config[configKey] == null) {
+    // This can occur when a config key has been removed entirely during `respondToFSEvents`
+    return '';
+  }
+
+  let contentHash =
+    typeof conf.config[configKey] === 'object'
+      ? hashObject(conf.config[configKey])
+      : hashString(JSON.stringify(conf.config[configKey]));
+
+  configKeyCache.set(cacheKey, contentHash);
+
+  return contentHash;
+}
+
 export async function runConfigRequest<TResult>(
   api: RunAPI<TResult>,
   configRequest: ConfigRequest,
 ) {
   let {
     invalidateOnFileChange,
+    invalidateOnConfigKeyChange,
     invalidateOnFileCreate,
     invalidateOnEnvChange,
     invalidateOnOptionChange,
@@ -118,6 +160,7 @@ export async function runConfigRequest<TResult>(
   // If there are no invalidations, then no need to create a node.
   if (
     invalidateOnFileChange.size === 0 &&
+    invalidateOnConfigKeyChange.length === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
     !invalidateOnStartup &&
@@ -129,10 +172,20 @@ export async function runConfigRequest<TResult>(
   await api.runRequest<null, void>({
     id: 'config_request:' + configRequest.id,
     type: requestTypes.config_request,
-    run: ({api}) => {
+    run: async ({api, options}) => {
       for (let filePath of invalidateOnFileChange) {
         api.invalidateOnFileUpdate(filePath);
         api.invalidateOnFileDelete(filePath);
+      }
+
+      for (let {filePath, configKey} of invalidateOnConfigKeyChange) {
+        let contentHash = await getConfigKeyContentHash(
+          filePath,
+          configKey,
+          options,
+        );
+
+        api.invalidateOnConfigKeyChange(filePath, configKey, contentHash);
       }
 
       for (let invalidation of invalidateOnFileCreate) {
@@ -212,6 +265,7 @@ export function getConfigRequests(
       // No need to send to the graph if there are no invalidations.
       return (
         config.invalidateOnFileChange.size > 0 ||
+        config.invalidateOnConfigKeyChange.length > 0 ||
         config.invalidateOnFileCreate.length > 0 ||
         config.invalidateOnEnvChange.size > 0 ||
         config.invalidateOnOptionChange.size > 0 ||
@@ -222,6 +276,7 @@ export function getConfigRequests(
     .map(config => ({
       id: config.id,
       invalidateOnFileChange: config.invalidateOnFileChange,
+      invalidateOnConfigKeyChange: config.invalidateOnConfigKeyChange,
       invalidateOnFileCreate: config.invalidateOnFileCreate,
       invalidateOnEnvChange: config.invalidateOnEnvChange,
       invalidateOnOptionChange: config.invalidateOnOptionChange,

@@ -858,6 +858,24 @@ export default class BundleGraph {
       DbDependency.get(this.db, dependency).id,
     );
 
+    // Find an attached bundle via a reference edge (e.g. from createAssetReference).
+    let bundleNodes = this._graph
+      .getNodeIdsConnectedFrom(
+        dependencyNodeId,
+        bundleGraphEdgeTypes.references,
+      )
+      .map(id => nullthrows(this._graph.getNode(id)))
+      .filter(node => node.type === 'bundle');
+
+    if (bundleNodes.length) {
+      let bundleNode =
+        bundleNodes.find(
+          b => b.type === 'bundle' && b.value.type === fromBundle.type,
+        ) || bundleNodes[0];
+      invariant(bundleNode.type === 'bundle');
+      return bundleNode.value;
+    }
+
     // If this dependency is async, there will be a bundle group attached to it.
     let node = this._graph
       .getNodeIdsConnectedFrom(dependencyNodeId)
@@ -872,20 +890,6 @@ export default class BundleGraph {
         let mainEntryId = b.entryAssetIds[b.entryAssetIds.length - 1];
         return mainEntryId != null && node.value.entryAssetId === mainEntryId;
       });
-    }
-
-    // Otherwise, find an attached bundle via a reference edge (e.g. from createAssetReference).
-    let bundleNode = this._graph
-      .getNodeIdsConnectedFrom(
-        dependencyNodeId,
-        bundleGraphEdgeTypes.references,
-      )
-      .map(id => nullthrows(this._graph.getNode(id)))
-      .find(node => node.type === 'bundle');
-
-    if (bundleNode) {
-      invariant(bundleNode.type === 'bundle');
-      return bundleNode.value;
     }
   }
 
@@ -1203,12 +1207,12 @@ export default class BundleGraph {
 
     // If a resolution still hasn't been found, return the first referenced asset.
     if (resolved == null) {
+      let potential = [];
       this._graph.traverse(
         (nodeId, _, traversal) => {
           let node = nullthrows(this._graph.getNode(nodeId));
           if (node.type === 'asset') {
-            resolved = node.value;
-            traversal.stop();
+            potential.push(node.value);
           } else if (node.value !== dep) {
             traversal.skipChildren();
           }
@@ -1216,6 +1220,11 @@ export default class BundleGraph {
         this._graph.getNodeIdByContentKey(DbDependency.get(this.db, dep).id),
         bundleGraphEdgeTypes.references,
       );
+
+      if (bundle) {
+        resolved = potential.find(a => a.type === bundle.type);
+      }
+      resolved ||= potential[0];
     }
 
     return resolved;

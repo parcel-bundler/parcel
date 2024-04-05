@@ -14,8 +14,8 @@ import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 import type {TraceMeasurement} from '@parcel/profiler';
-import type {EventType} from '@parcel/watcher';
 import type {FeatureFlags} from '@parcel/feature-flags';
+import type {Event, BackendType} from '@parcel/watcher';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -286,6 +286,8 @@ export type DetailedReportOptions = {|
   assetsPerBundle?: number,
 |};
 
+declare type GlobPattern = string;
+
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
   +config?: DependencySpecifier,
@@ -296,6 +298,8 @@ export type InitialParcelOptions = {|
   +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
   +watchDir?: FilePath,
+  +watchBackend?: BackendType,
+  +watchIgnore?: Array<FilePath | GlobPattern>,
   +mode?: BuildMode,
   +hmrOptions?: ?HMROptions,
   +shouldContentHash?: boolean,
@@ -309,7 +313,7 @@ export type InitialParcelOptions = {|
   +lazyIncludes?: string[],
   +lazyExcludes?: string[],
   +shouldBundleIncrementally?: boolean,
-  +unstableFileInvalidations?: Array<{|path: FilePath, type: EventType|}>,
+  +unstableFileInvalidations?: Array<Event>,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,

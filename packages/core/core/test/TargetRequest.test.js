@@ -73,6 +73,7 @@ describe('TargetResolver', () => {
   let api = {
     invalidateOnFileCreate() {},
     invalidateOnFileUpdate() {},
+    invalidateOnConfigKeyChange() {},
     invalidateOnFileDelete() {},
     invalidateOnEnvChange() {},
     invalidateOnOptionChange() {},
@@ -579,7 +580,19 @@ describe('TargetResolver', () => {
             loc: undefined,
             sourceType: 'module',
           },
-          loc: undefined,
+          loc: {
+            filePath: relative(
+              path.join(CUSTOM_TARGETS_DISTDIR_FIXTURE_PATH, 'package.json'),
+            ),
+            start: {
+              line: 3,
+              column: 5,
+            },
+            end: {
+              line: 3,
+              column: 10,
+            },
+          },
         },
       ],
     );
@@ -1317,7 +1330,19 @@ describe('TargetResolver', () => {
             loc: undefined,
             sourceType: 'module',
           },
-          loc: undefined,
+          loc: {
+            filePath: relative(
+              path.join(DEFAULT_DISTPATH_FIXTURE_PATHS.one, 'package.json'),
+            ),
+            start: {
+              line: 3,
+              column: 5,
+            },
+            end: {
+              line: 3,
+              column: 20,
+            },
+          },
         },
       ],
     );
@@ -1355,7 +1380,19 @@ describe('TargetResolver', () => {
             loc: undefined,
             sourceType: 'module',
           },
-          loc: undefined,
+          loc: {
+            filePath: relative(
+              path.join(DEFAULT_DISTPATH_FIXTURE_PATHS.two, 'package.json'),
+            ),
+            start: {
+              line: 3,
+              column: 5,
+            },
+            end: {
+              line: 3,
+              column: 20,
+            },
+          },
         },
         {
           name: 'browserLegacy',
@@ -1383,7 +1420,19 @@ describe('TargetResolver', () => {
             loc: undefined,
             sourceType: 'module',
           },
-          loc: undefined,
+          loc: {
+            filePath: relative(
+              path.join(DEFAULT_DISTPATH_FIXTURE_PATHS.two, 'package.json'),
+            ),
+            start: {
+              line: 10,
+              column: 5,
+            },
+            end: {
+              line: 10,
+              column: 20,
+            },
+          },
         },
       ],
     );

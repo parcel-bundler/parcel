@@ -9,7 +9,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform, transformAsync} from '@parcel/rust';
-import path from 'path';
+import browserslist from 'browserslist';
 import semver from 'semver';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
@@ -70,14 +70,6 @@ const CONFIG_SCHEMA: SchemaEntity = {
   },
   additionalProperties: false,
 };
-
-type PackageJSONConfig = {|
-  '@parcel/transformer-js'?: {|
-    inlineFS?: boolean,
-    inlineEnvironment?: boolean | Array<string>,
-    unstable_inlineConstants?: boolean,
-  |},
-|};
 
 const SCRIPT_ERRORS = {
   browser: {
@@ -244,23 +236,21 @@ export default (new Transformer({
       typeof pkg.browser === 'object' &&
       pkg.browser.fs === false;
 
-    let result = await config.getConfigFrom<PackageJSONConfig>(
-      path.join(options.projectRoot, 'index'),
-      ['package.json'],
-    );
-    let rootPkg = result?.contents;
+    let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
+      packageKey: '@parcel/transformer-js',
+    });
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
     let inlineConstants = false;
-    if (result && rootPkg?.['@parcel/transformer-js']) {
+    if (conf && conf.contents) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
         {
-          data: rootPkg['@parcel/transformer-js'],
+          data: conf.contents,
           // FIXME
-          source: await options.inputFS.readFile(result.filePath, 'utf8'),
-          filePath: result.filePath,
+          source: await options.inputFS.readFile(conf.filePath, 'utf8'),
+          filePath: conf.filePath,
           prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
         },
         // FIXME
@@ -268,13 +258,10 @@ export default (new Transformer({
         'Invalid config for @parcel/transformer-js',
       );
 
-      inlineEnvironment =
-        rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
-        inlineEnvironment;
-      inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+      inlineEnvironment = conf.contents?.inlineEnvironment ?? inlineEnvironment;
+      inlineFS = conf.contents?.inlineFS ?? inlineFS;
       inlineConstants =
-        rootPkg['@parcel/transformer-js']?.unstable_inlineConstants ??
-        inlineConstants;
+        conf.contents?.unstable_inlineConstants ?? inlineConstants;
     }
 
     return {

@@ -2,7 +2,6 @@
 
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {ContentKey} from '@parcel/graph';
 import type {AssetAddr} from '@parcel/rust';
 
