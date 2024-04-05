@@ -273,12 +273,13 @@ export function getCacheKey(
     entries: ParcelOptions['entries'],
     mode: ParcelOptions['mode'],
     shouldBuildLazily: ParcelOptions['shouldBuildLazily'],
+    watchBackend: ParcelOptions['watchBackend'],
     ...
   }>,
 ): string {
   return hashString(
     `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
       options.shouldBuildLazily ? 'lazy' : 'eager'
-    }`,
+    }:${options.watchBackend ?? ''}`,
   );
 }

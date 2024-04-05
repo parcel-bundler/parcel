@@ -1437,14 +1437,6 @@ export function getWatcherOptions({
   return {ignore, backend: watchBackend};
 }
 
-function getCacheKey(options) {
-  return hashString(
-    `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
-      options.shouldBuildLazily ? 'lazy' : 'eager'
-    }:${options.watchBackend ?? ''}`,
-  );
-}
-
 function getRequestGraphNodeKey(index: number, cacheKey: string) {
   return `requestGraph-nodes-${index}-${cacheKey}`;
 }

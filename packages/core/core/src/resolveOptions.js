@@ -162,6 +162,7 @@ export default async function resolveOptions(
 
   let port = determinePort(initialOptions.serveOptions, env.PORT);
   let logLevel = initialOptions.logLevel ?? 'info';
+  let watchBackend = initialOptions.watchBackend;
 
   let dbOptions = {
     mode,
@@ -171,7 +172,12 @@ export default async function resolveOptions(
   };
 
   let db;
-  let dbKey = `parceldb-${getCacheKey({entries, mode, shouldBuildLazily})}`;
+  let dbKey = `parceldb-${getCacheKey({
+    entries,
+    mode,
+    shouldBuildLazily,
+    watchBackend,
+  })}`;
   if (outputFS instanceof NodeFS) {
     let cachePath = path.join(cacheDir, dbKey);
     if (await outputFS.exists(cachePath)) {
@@ -220,7 +226,7 @@ export default async function resolveOptions(
     shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
     watchDir,
-    watchBackend: initialOptions.watchBackend,
+    watchBackend,
     watchIgnore: initialOptions.watchIgnore,
     entries,
     targets: initialOptions.targets,

@@ -9,7 +9,6 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform, transformAsync} from '@parcel/rust';
-import browserslist from 'browserslist';
 import semver from 'semver';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,

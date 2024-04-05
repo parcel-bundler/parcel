@@ -1222,9 +1222,11 @@ export default class BundleGraph {
       );
 
       if (bundle) {
-        resolved = potential.find(a => a.type === bundle.type);
+        resolved = potential.find(
+          a => DbAsset.get(this.db, a).assetType === bundle.type,
+        );
       }
-      resolved ||= potential[0];
+      resolved = resolved ?? potential[0];
     }
 
     return resolved;
