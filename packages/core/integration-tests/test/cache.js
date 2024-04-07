@@ -1,6 +1,5 @@
 // @flow
 import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
-import type WorkerFarm from '@parcel/workers';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';

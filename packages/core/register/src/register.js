@@ -4,7 +4,6 @@ import type {IDisposable, InitialParcelOptions} from '@parcel/types';
 
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
-import type WorkerFarm from '@parcel/workers';
 // flowlint-next-line untyped-import:off
 import defaultConfigContents from '@parcel/config-default';
 // $FlowFixMe Flow can't resolve this

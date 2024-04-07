@@ -1,7 +1,6 @@
 // @flow
 
 import type {InitialParcelOptions} from '@parcel/types';
-import type WorkerFarm from '@parcel/workers';
 import {BuildError} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';

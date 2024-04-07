@@ -15,7 +15,6 @@ import {
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import type WorkerFarm from '@parcel/workers';
 
 const bundle = (name, opts?: InitialParcelOptions) => {
   return _bundle(
