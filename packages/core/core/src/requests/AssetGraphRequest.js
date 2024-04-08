@@ -108,6 +108,7 @@ export class AssetGraphBuilder {
   queue: PromiseQueue<mixed>;
   changedAssets: Map<string, Asset>;
   changedAssetsPropagation: Set<string>;
+  prevChangedAssetsPropagation: ?Set<string>;
   optionsRef: SharedReference;
   options: ParcelOptions;
   api: RunAPI<AssetGraphRequestResult>;
@@ -146,8 +147,9 @@ export class AssetGraphBuilder {
     this.previousSymbolPropagationErrors =
       prevResult?.previousSymbolPropagationErrors ?? new Map();
     this.changedAssets = prevResult?.changedAssets ?? new Map();
-    this.changedAssetsPropagation =
-      prevResult?.changedAssetsPropagation ?? new Set();
+    this.changedAssetsPropagation = new Set();
+    this.prevChangedAssetsPropagation = prevResult?.changedAssetsPropagation;
+
     this.assetGraph = assetGraph;
     this.optionsRef = optionsRef;
     this.options = options;
@@ -229,6 +231,17 @@ export class AssetGraphBuilder {
 
     visit(rootNodeId);
     await this.queue.run();
+
+    if (this.prevChangedAssetsPropagation) {
+      // Add any previously seen Assets that have not been propagated yet to
+      // 'this.changedAssetsPropagation', but only if they still remain in the graph
+      // as they could have been removed since the last build
+      for (let assetId of this.prevChangedAssetsPropagation) {
+        if (this.assetGraph.hasContentKey(assetId)) {
+          this.changedAssetsPropagation.add(assetId);
+        }
+      }
+    }
 
     if (errors.length) {
       this.api.storeResult(
