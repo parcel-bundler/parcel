@@ -141,5 +141,6 @@ export async function findAlternativeFiles(
     });
   }
 
-  return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
+  // Order is not consistent which can make integration tests flaky so we sort the result.
+  return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2).sort();
 }
