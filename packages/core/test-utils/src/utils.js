@@ -327,7 +327,8 @@ export async function runBundles(
       break;
     }
     case 'web-worker':
-    case 'service-worker': {
+    case 'service-worker':
+    case 'edge': {
       let prepared = prepareWorkerContext(parent.filePath, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;

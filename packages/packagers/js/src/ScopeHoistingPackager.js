@@ -56,6 +56,7 @@ const GLOBALS_BY_CONTEXT = {
     ...Object.keys(globals.node),
     ...Object.keys(globals.browser),
   ]),
+  edge: new Set([...BUILTINS, ...Object.keys(globals.worker)]),
 };
 
 const OUTPUT_FORMATS = {
