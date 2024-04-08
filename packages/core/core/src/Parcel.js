@@ -53,6 +53,7 @@ import {
   fromProjectPathRelative,
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
+import {setFeatureFlags} from '@parcel/feature-flags';
 
 registerCoreWithSerializer();
 
@@ -107,6 +108,8 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
+
+    setFeatureFlags(resolvedOptions.featureFlags);
 
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {

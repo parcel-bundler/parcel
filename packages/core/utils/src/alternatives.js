@@ -141,5 +141,5 @@ export async function findAlternativeFiles(
     });
   }
 
-  return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
+  return fuzzySearch(potentialFiles.sort(), fileSpecifier).slice(0, 2);
 }
