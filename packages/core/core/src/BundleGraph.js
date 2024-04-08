@@ -1202,7 +1202,7 @@ export default class BundleGraph {
         ? firstAsset
         : // Otherwise, find the first asset that belongs to this bundle.
           assets.find(asset => this.bundleHasAsset(bundle, asset)) ||
-          // TODO ParcelDB: assets.find(a => a.type === bundle.type) ||
+          assets.find(a => DbAsset.get(this.db, a).assetType === bundle.type) ||
           firstAsset;
 
     // If a resolution still hasn't been found, return the first referenced asset.
