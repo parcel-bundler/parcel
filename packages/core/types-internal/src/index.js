@@ -34,7 +34,12 @@ import type {
 } from './PackageManager';
 import type {SemverRange} from './SemverRange';
 import type {DependencySpecifier} from './DependencySpecifier';
-import type {FileCreateInvalidation} from './FileCreateInvalidation';
+import type {
+  FileCreateInvalidation,
+  GlobInvalidation,
+  FileInvalidation,
+  FileAboveInvalidation,
+} from './FileCreateInvalidation';
 
 export interface TraceMeasurement {
   end(): void;
@@ -53,6 +58,9 @@ export type {
   DependencySpecifier,
   SemverRange,
   FileCreateInvalidation,
+  GlobInvalidation,
+  FileInvalidation,
+  FileAboveInvalidation,
   PackageManager,
   PackageManagerResolveResult,
   Invalidations,
