@@ -1,6 +1,8 @@
 // @flow
+
+import type {PackageManagerResolveResult} from '@parcel/types';
+
 export type {
-  PackageManagerResolveResult,
   PackageManager,
   Invalidations,
   PackageInstaller,
@@ -12,3 +14,6 @@ export * from './Yarn';
 export * from './MockPackageInstaller';
 export * from './NodePackageManager';
 export {_addToInstallQueue} from './installPackage';
+
+export type {PackageManagerResolveResult};
+export type {PackageManagerResolveResult as ResolveResult};
