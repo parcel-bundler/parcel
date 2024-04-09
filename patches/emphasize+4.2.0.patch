@@ -1,0 +1,40 @@
+diff --git a/node_modules/emphasize/index.js b/node_modules/emphasize/index.js
+index 06bcc59..2f34aa8 100644
+--- a/node_modules/emphasize/index.js
++++ b/node_modules/emphasize/index.js
+@@ -107,7 +107,7 @@ emphasize.registerLanguage('gauss', require('highlight.js/lib/languages/gauss'))
+ emphasize.registerLanguage('gcode', require('highlight.js/lib/languages/gcode'))
+ emphasize.registerLanguage('gherkin', require('highlight.js/lib/languages/gherkin'))
+ emphasize.registerLanguage('glsl', require('highlight.js/lib/languages/glsl'))
+-emphasize.registerLanguage('gml', require('highlight.js/lib/languages/gml'))
++// emphasize.registerLanguage('gml', require('highlight.js/lib/languages/gml'))
+ emphasize.registerLanguage('go', require('highlight.js/lib/languages/go'))
+ emphasize.registerLanguage('golo', require('highlight.js/lib/languages/golo'))
+ emphasize.registerLanguage('gradle', require('highlight.js/lib/languages/gradle'))
+@@ -126,7 +126,7 @@ emphasize.registerLanguage('hy', require('highlight.js/lib/languages/hy'))
+ emphasize.registerLanguage('inform7', require('highlight.js/lib/languages/inform7'))
+ emphasize.registerLanguage('ini', require('highlight.js/lib/languages/ini'))
+ emphasize.registerLanguage('irpf90', require('highlight.js/lib/languages/irpf90'))
+-emphasize.registerLanguage('isbl', require('highlight.js/lib/languages/isbl'))
++// emphasize.registerLanguage('isbl', require('highlight.js/lib/languages/isbl'))
+ emphasize.registerLanguage('java', require('highlight.js/lib/languages/java'))
+ emphasize.registerLanguage(
+   'javascript',
+@@ -166,7 +166,7 @@ emphasize.registerLanguage(
+   require('highlight.js/lib/languages/mathematica')
+ )
+ emphasize.registerLanguage('matlab', require('highlight.js/lib/languages/matlab'))
+-emphasize.registerLanguage('maxima', require('highlight.js/lib/languages/maxima'))
++// emphasize.registerLanguage('maxima', require('highlight.js/lib/languages/maxima'))
+ emphasize.registerLanguage('mel', require('highlight.js/lib/languages/mel'))
+ emphasize.registerLanguage('mercury', require('highlight.js/lib/languages/mercury'))
+ emphasize.registerLanguage('mipsasm', require('highlight.js/lib/languages/mipsasm'))
+@@ -260,7 +260,7 @@ emphasize.registerLanguage(
+   require('highlight.js/lib/languages/smalltalk')
+ )
+ emphasize.registerLanguage('sml', require('highlight.js/lib/languages/sml'))
+-emphasize.registerLanguage('sqf', require('highlight.js/lib/languages/sqf'))
++// emphasize.registerLanguage('sqf', require('highlight.js/lib/languages/sqf'))
+ emphasize.registerLanguage('sql', require('highlight.js/lib/languages/sql'))
+ emphasize.registerLanguage('stan', require('highlight.js/lib/languages/stan'))
+ emphasize.registerLanguage('stata', require('highlight.js/lib/languages/stata'))
