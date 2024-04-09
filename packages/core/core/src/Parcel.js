@@ -385,6 +385,7 @@ export default class Parcel {
         },
       };
 
+      this.#requestTracker.logStats();
       await this.#reporterRunner.report(event);
       await this.#requestTracker.runRequest(
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),

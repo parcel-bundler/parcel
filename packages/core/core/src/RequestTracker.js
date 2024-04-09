@@ -1027,6 +1027,7 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
+  stats: Map<RequestType, number> = new Map();
 
   constructor({
     graph,
@@ -1205,6 +1206,9 @@ export default class RequestTracker {
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
+
+      this.stats.set(request.type, this.stats.get(request.type) ?? 0 + 1);
+
       let result = await request.run({
         input: request.input,
         api,
@@ -1225,6 +1229,34 @@ export default class RequestTracker {
     } finally {
       this.graph.replaceSubrequests(requestNodeId, [...subRequestContentKeys]);
     }
+  }
+
+  logStats() {
+    let requestTypeEntries = {};
+    type RequestTypes = Array<$Keys<typeof requestTypes>>;
+
+    for (let key of (Object.keys(requestTypes): RequestTypes)) {
+      requestTypeEntries[requestTypes[key]] = key;
+    }
+
+    let formattedStats = {};
+    let messageLines = ['Request stats'];
+
+    for (let [requestType, count] of this.stats.entries()) {
+      let requestTypeName = requestTypeEntries[requestType];
+      formattedStats[requestTypeName] = count;
+      messageLines.push(`${requestTypeName}\t\t${count}`);
+    }
+
+    let message = messageLines.join('\n');
+
+    logger.verbose({
+      origin: '@parcel/core',
+      message,
+      meta: {
+        requestStats: formattedStats,
+      },
+    });
   }
 
   createAPI<TResult>(
