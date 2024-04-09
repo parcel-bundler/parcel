@@ -410,12 +410,14 @@ pub fn add_dependency(
   dep: DependencyDescriptor,
 ) {
   let mut hasher = DefaultHasher::new();
-  get_project_relative_filename(filename, project_root).hash(&mut hasher);
-  dep.specifier.hash(&mut hasher);
+  let name = get_project_relative_filename(filename, project_root);
   let kind = match dep.kind {
     DependencyKind::Import | DependencyKind::Export => DependencyKind::Import,
     kind => kind,
   };
+
+  name.hash(&mut hasher);
+  dep.specifier.as_str().hash(&mut hasher);
   kind.hash(&mut hasher);
 
   deps.insert(hasher.finish(), dep);
