@@ -418,13 +418,36 @@ describe('resolver', function () {
     );
   });
 
-  it('should support package exports config option', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/resolve-exports/index.js'),
-    );
+  describe('should support package exports config option', () => {
+    it('by resolving a single export', async () => {
+      let b = await bundle(
+        path.join(__dirname, '/integration/resolve-single-export/index.js'),
+      );
 
-    let output = await run(b);
-    assert.strictEqual(output.default, 'hello bar');
+      let output = await run(b);
+      assert.strictEqual(output.default, 'hello foo');
+    });
+
+    it('by resolving multiple exports', async () => {
+      let b = await bundle(
+        path.join(__dirname, '/integration/resolve-multiple-exports/index.js'),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.default, 'hello foo bar');
+    });
+
+    it('by resolving conditional exports', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/resolve-conditional-exports/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.default, 'hello foo');
+    });
   });
 
   it('should support the development and production import conditions', async () => {
