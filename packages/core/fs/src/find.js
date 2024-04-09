@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, FileSystem} from '@parcel/types';
+import type {FilePath, FileSystem} from '@parcel/types-internal';
 import path from 'path';
 
 export function findNodeModule(

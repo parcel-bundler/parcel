@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {FilePath, FileSystem, FileOptions} from '@parcel/types';
+import type {FilePath, FileSystem, FileOptions} from '@parcel/types-internal';
 import type {Readable, Writable} from 'stream';
 
 import path from 'path';

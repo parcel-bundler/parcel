@@ -6,7 +6,7 @@ import type {
   FileOptions,
   ReaddirOptions,
   Encoding,
-} from '@parcel/types';
+} from '@parcel/types-internal';
 import type {
   Event,
   Options as WatcherOptions,

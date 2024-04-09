@@ -1,4 +1,4 @@
-import type {FileSystem} from '@parcel/types';
+import type {FileSystem} from '@parcel/types-internal';
 import type WorkerFarm from '@parcel/workers';
 
 export type {
@@ -8,7 +8,7 @@ export type {
   Stats,
   Encoding,
   Dirent,
-} from '@parcel/types';
+} from '@parcel/types-internal';
 
 export const NodeFS: {
   new (): FileSystem;
