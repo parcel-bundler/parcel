@@ -1,5 +1,9 @@
-import type {FilePath, PackageInstaller, PackageManager} from '@parcel/types';
-import type {PackageManagerResolveResult} from '@parcel/types';
+import type {
+  FilePath,
+  PackageInstaller,
+  PackageManager,
+  PackageManagerResolveResult,
+} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
 export type {PackageManagerResolveResult};
