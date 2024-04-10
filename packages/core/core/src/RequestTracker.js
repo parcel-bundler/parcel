@@ -1207,7 +1207,7 @@ export default class RequestTracker {
     try {
       let node = this.graph.getRequestNode(requestNodeId);
 
-      this.stats.set(request.type, this.stats.get(request.type) ?? 0 + 1);
+      this.stats.set(request.type, (this.stats.get(request.type) ?? 0) + 1);
 
       let result = await request.run({
         input: request.input,
@@ -1257,6 +1257,8 @@ export default class RequestTracker {
         requestStats: formattedStats,
       },
     });
+
+    this.stats = new Map();
   }
 
   createAPI<TResult>(
