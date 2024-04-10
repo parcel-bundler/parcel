@@ -1,10 +1,10 @@
 use path_slash::PathBufExt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
+use swc_core::common::{Mark, SourceMap, Span, Spanned, DUMMY_SP};
 use swc_core::ecma::ast::{self, Callee, MemberProp};
 use swc_core::ecma::atoms::{js_word, JsWord};
 use swc_core::ecma::visit::{Fold, FoldWith};
@@ -28,6 +28,7 @@ pub enum DependencyKind {
   Import,
   Export,
   DynamicImport,
+  ConditionalImport,
   Require,
   WebWorker,
   ServiceWorker,
@@ -63,6 +64,7 @@ pub fn dependency_collector<'a>(
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
+  conditions: &'a mut HashSet<JsWord>,
 ) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
@@ -75,6 +77,7 @@ pub fn dependency_collector<'a>(
     config,
     diagnostics,
     import_meta: None,
+    conditions,
   }
 }
 
@@ -89,6 +92,7 @@ struct DependencyCollector<'a> {
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
+  conditions: &'a mut HashSet<JsWord>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -454,6 +458,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ))));
                 return call;
               }
+              "importCond" => DependencyKind::ConditionalImport,
               _ => return node.fold_children_with(self),
             }
           }
@@ -644,26 +649,29 @@ impl<'a> Fold for DependencyCollector<'a> {
           return node;
         }
 
-        let placeholder = self.add_dependency(
-          specifier,
-          span,
-          kind.clone(),
-          attributes,
-          kind == DependencyKind::Require && self.in_try,
-          self.config.source_type,
-        );
-
-        if let Some(placeholder) = placeholder {
-          let mut node = node.clone();
-          node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-            value: placeholder,
-            span,
-            raw: None,
-          })));
-          node
+        if kind == DependencyKind::ConditionalImport {
+          println!("Conditional import for feature {}", specifier);
         } else {
-          node
+          let placeholder = self.add_dependency(
+            specifier,
+            span,
+            kind.clone(),
+            attributes,
+            kind == DependencyKind::Require && self.in_try,
+            self.config.source_type,
+          );
+
+          if let Some(placeholder) = placeholder {
+            let mut node = node.clone();
+            node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+              value: placeholder,
+              span,
+              raw: None,
+            })));
+            return node;
+          }
         }
+        node
       } else {
         node
       }
@@ -695,6 +703,52 @@ impl<'a> Fold for DependencyCollector<'a> {
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
       rewrite_require_specifier(node, self.unresolved_mark)
+    } else if kind == DependencyKind::ConditionalImport {
+      let mut call = node;
+      call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+        "__parcel__requireCond__".into(),
+        DUMMY_SP,
+      ))));
+
+      if call.args.len() != 3 {
+        // FIXME make this a diagnostic
+        panic!("importCond requires 3 arguments");
+      }
+      let mut placeholders = Vec::new();
+      for arg in &call.args[1..] {
+        let specifier = match_str(&arg.expr).unwrap().0;
+        println!("Conditional specifier: {}", specifier);
+        let placeholder = self.add_dependency(
+          specifier,
+          arg.span(),
+          DependencyKind::ConditionalImport,
+          None,
+          true,
+          self.config.source_type,
+        );
+        placeholders.push(placeholder.unwrap());
+      }
+
+      let condition: JsWord = format!(
+        "{}:{}:{}",
+        match_str(&call.args[0].expr).unwrap().0,
+        placeholders[0],
+        placeholders[1]
+      )
+      .into();
+      self.conditions.insert(condition.clone());
+
+      call.args[0] = ast::ExprOrSpread {
+        spread: None,
+        expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+          value: condition,
+          span: DUMMY_SP,
+          raw: None,
+        }))),
+      };
+      call.args.truncate(1);
+
+      call
     } else {
       node.fold_children_with(self)
     }

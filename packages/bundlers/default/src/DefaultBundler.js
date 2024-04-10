@@ -95,6 +95,7 @@ const dependencyPriorityEdges = {
   sync: 1,
   parallel: 2,
   lazy: 3,
+  conditional: 4,
 };
 
 type DependencyBundleGraph = ContentGraph<
@@ -495,7 +496,8 @@ function createIdealGraph(
 
         if (
           node.type === 'dependency' &&
-          node.value.priority === 'lazy' &&
+          (node.value.priority === 'lazy' ||
+            node.value.priority === 'conditional') &&
           parentAsset
         ) {
           // Don't walk past the bundle group assets
@@ -584,6 +586,7 @@ function createIdealGraph(
             }
             if (
               dependency.priority === 'lazy' ||
+              dependency.priority === 'conditional' ||
               childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
             ) {
               if (bundleId == null) {

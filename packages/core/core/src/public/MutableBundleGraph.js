@@ -38,6 +38,7 @@ export default class MutableBundleGraph
   #graph /*: InternalBundleGraph */;
   #options /*: ParcelOptions */;
   #bundlePublicIds /*: Set<string> */ = new Set<string>();
+  #bundleConditions /* : Map<string, string> */ = new Map();
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     super(graph, Bundle.get.bind(Bundle), options);
@@ -50,6 +51,20 @@ export default class MutableBundleGraph
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
     );
+
+    if (asset.meta.conditions != null && Array.isArray(asset.meta.conditions)) {
+      for (const _condition of asset.meta.conditions ?? []) {
+        const condition = String(_condition);
+        if (!this.#bundleConditions.has(condition)) {
+          const condHash = hashString(condition);
+          const condPublicId = getPublicId(condHash, v =>
+            this.#bundleConditions.has(v),
+          );
+          // FIXME is this the right way around?? It is for packaging..
+          this.#bundleConditions.set(condition, condPublicId);
+        }
+      }
+    }
   }
 
   addAssetGraphToBundle(
@@ -316,5 +331,9 @@ export default class MutableBundleGraph
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
     );
+  }
+
+  getConditions(): Map<string, string> {
+    return this.#bundleConditions;
   }
 }

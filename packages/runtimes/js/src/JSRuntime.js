@@ -660,8 +660,12 @@ function getRegisterCode(
       ? 'new __parcel__URL__("").toString()' // <-- this isn't ideal. We should use `import.meta.url` directly but it gets replaced currently
       : `require('./helpers/bundle-url').getBundleURL('${entryBundle.publicId}')`;
 
+  const conditions = bundleGraph.getConditionMapping();
+
   return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
     JSON.stringify(mappings),
+  )}));require('./helpers/bundle-manifest').registerConditions(JSON.parse(${JSON.stringify(
+    JSON.stringify(conditions),
   )}));`;
 }
 

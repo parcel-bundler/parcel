@@ -87,6 +87,7 @@ type BundleGraphOpts = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
+  conditions: Map<string, string>,
 |};
 
 type SerializedBundleGraph = {|
@@ -95,6 +96,7 @@ type SerializedBundleGraph = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
+  conditions: Map<string, string>,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -135,22 +137,26 @@ export default class BundleGraph {
   /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
   _bundlePublicIds /*: Set<string> */ = new Set<string>();
+  _conditions /*: Map<string, string> */ = new Map<string, string>();
 
   constructor({
     graph,
     publicIdByAssetId,
     assetPublicIds,
     bundleContentHashes,
+    conditions,
   }: {|
     graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
+    conditions: Map<string, string>,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
     this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
+    this._conditions = conditions;
   }
 
   /**
@@ -167,6 +173,7 @@ export default class BundleGraph {
     let assetGroupIds = new Map();
     let dependencies = new Map();
     let assetGraphNodeIdToBundleGraphNodeId = new Map<NodeId, NodeId>();
+    let conditions = new Map();
 
     let assetGraphRootNode =
       assetGraph.rootNodeId != null
@@ -198,6 +205,20 @@ export default class BundleGraph {
       walkVisited.add(nodeId);
 
       let node = nullthrows(assetGraph.getNode(nodeId));
+
+      if (node.type === 'asset') {
+        const asset = node.value;
+        if (Array.isArray(asset.meta.conditions)) {
+          for (const _condition of asset.meta.conditions ?? []) {
+            const condition = String(_condition);
+            const condHash = hashString(condition);
+            const condPublicId = getPublicId(condHash, v => conditions.has(v));
+            // FIXME is this the right way around?? It is for packaging..
+            conditions.set(condition, condPublicId);
+          }
+        }
+      }
+
       if (
         node.type === 'dependency' &&
         node.value.symbols != null &&
@@ -439,6 +460,7 @@ export default class BundleGraph {
       assetPublicIds,
       bundleContentHashes: new Map(),
       publicIdByAssetId,
+      conditions,
     });
   }
 
@@ -449,6 +471,7 @@ export default class BundleGraph {
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,
+      conditions: this._conditions,
     };
   }
 
@@ -458,6 +481,7 @@ export default class BundleGraph {
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
       publicIdByAssetId: serialized.publicIdByAssetId,
+      conditions: serialized.conditions,
     });
   }
 
@@ -1209,7 +1233,8 @@ export default class BundleGraph {
         .some(
           node =>
             node?.type === 'dependency' &&
-            node.value.priority === Priority.lazy &&
+            (node.value.priority === Priority.lazy ||
+              node.value.priority === Priority.conditional) &&
             node.value.specifierType !== SpecifierType.url,
         )
     ) {

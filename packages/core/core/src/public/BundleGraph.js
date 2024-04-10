@@ -326,4 +326,24 @@ export default class BundleGraph<TBundle: IBundle>
       targetToInternalTarget(target),
     );
   }
+
+  getConditionPublicId(condition: string): string {
+    if (!this.#graph._conditions.has(condition)) {
+      throw new Error(`Condition ${condition} was not in mapping`);
+    }
+    return this.#graph._conditions.get(condition) ?? '';
+  }
+
+  getConditionMapping(): {[string]: {|ff: string, t: string, f: string|}} {
+    const ret = {};
+    for (const [k, v] of this.#graph._conditions.entries()) {
+      const [feature, ifTruePlaceholder, ifFalsePlaceholder] = k.split(':');
+      ret[v] = {
+        ff: feature,
+        t: ifTruePlaceholder,
+        f: ifFalsePlaceholder,
+      };
+    }
+    return ret;
+  }
 }

@@ -110,6 +110,8 @@ export class ScopeHoistingPackager {
     this.parcelRequireName = parcelRequireName;
     this.useAsyncBundleRuntime = useAsyncBundleRuntime;
 
+    // console.log("CONDTIONS", bundleGraph.getConditions());
+
     let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
     this.outputFormat = new OutputFormat(this);
 
@@ -614,6 +616,17 @@ export class ScopeHoistingPackager {
         }
         return replacement;
       });
+
+      // Handle conditional imports
+      if (code.includes('__parcel__requireCond__')) {
+        console.log("Let's handle conditional imports!");
+        const IMPORT_COND_RE = /__parcel__requireCond__\(['"](.*?)['"]\)/g;
+        code = code.replace(IMPORT_COND_RE, (m, s) => {
+          console.log(`_P_R_C_`, m, s);
+          const condId = this.bundleGraph.getConditionPublicId(s);
+          return `parcelRequire("cond:${condId}")`;
+        });
+      }
     }
 
     // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register

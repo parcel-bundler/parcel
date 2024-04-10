@@ -419,6 +419,7 @@ export default (new Transformer({
       used_env,
       has_node_replacements,
       is_constant_module,
+      conditions,
     } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
@@ -575,6 +576,8 @@ export default (new Transformer({
           }
         : null,
     });
+
+    asset.meta.conditions = conditions;
 
     if (is_constant_module) {
       asset.meta.isConstantModule = true;
@@ -850,7 +853,12 @@ export default (new Transformer({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
-          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
+          priority:
+            dep.kind === 'DynamicImport'
+              ? 'lazy'
+              : dep.kind === 'ConditionalImport'
+              ? 'conditional'
+              : 'sync',
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,

@@ -109,6 +109,7 @@ pub struct TransformResult {
   used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
   is_constant_module: bool,
+  conditions: HashSet<swc_core::ecma::atoms::JsWord>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -434,6 +435,7 @@ pub fn transform(
                   unresolved_mark,
                   &config,
                   &mut diagnostics,
+                  &mut result.conditions,
                 ),
               );
 
