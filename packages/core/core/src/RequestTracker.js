@@ -1231,7 +1231,7 @@ export default class RequestTracker {
     }
   }
 
-  logStats() {
+  flushStats() {
     let requestTypeEntries = {};
     type RequestTypes = Array<$Keys<typeof requestTypes>>;
 
