@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath} from '@parcel/types';
+import type {FilePath} from './FilePath';
 import type {Readable, Writable} from 'stream';
 import type {
   Event,

@@ -7,8 +7,8 @@ import type {
   PackageInstaller,
   InstallOptions,
   Invalidations,
-} from './types';
-import type {ResolveResult} from './types';
+  PackageManagerResolveResult,
+} from '@parcel/types';
 
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {
@@ -47,7 +47,7 @@ const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
-const cache = new Map<DependencySpecifier, ResolveResult>();
+const cache = new Map<DependencySpecifier, PackageManagerResolveResult>();
 const children = new Map<FilePath, Set<DependencySpecifier>>();
 const invalidationsCache = new Map<string, Invalidations>();
 
@@ -259,7 +259,7 @@ export class NodePackageManager implements PackageManager {
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},
-  ): Promise<ResolveResult> {
+  ): Promise<PackageManagerResolveResult> {
     let basedir = path.dirname(from);
     let key = basedir + ':' + id;
     let resolved = cache.get(key);
@@ -413,7 +413,10 @@ export class NodePackageManager implements PackageManager {
     return resolved;
   }
 
-  resolveSync(name: DependencySpecifier, from: FilePath): ResolveResult {
+  resolveSync(
+    name: DependencySpecifier,
+    from: FilePath,
+  ): PackageManagerResolveResult {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
     let resolved = cache.get(key);
@@ -568,7 +571,7 @@ export class NodePackageManager implements PackageManager {
     this.resolver = this._createResolver();
   }
 
-  resolveInternal(name: string, from: string): ResolveResult {
+  resolveInternal(name: string, from: string): PackageManagerResolveResult {
     if (this.resolver == null) {
       this.resolver = this._createResolver();
     }

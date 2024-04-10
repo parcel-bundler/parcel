@@ -3,6 +3,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {FSList, CodeMirrorDiagnostic, REPLOptions} from '../utils';
 import type {MemoryFS} from '@parcel/fs';
 import type {BuildSuccessEvent} from '@parcel/types';
+import type WorkerFarm from '@parcel/workers';
 
 import {expose, proxy} from 'comlink';
 import Parcel, {createWorkerFarm} from '@parcel/core';
@@ -42,7 +43,7 @@ export type BundleOutput =
     |}
   | BundleOutputError;
 
-let workerFarm;
+let workerFarm: WorkerFarm;
 let fs: MemoryFS;
 function startWorkerFarm(numWorkers: ?number) {
   // $FlowFixMe

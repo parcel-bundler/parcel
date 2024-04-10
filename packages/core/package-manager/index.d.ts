@@ -1,8 +1,22 @@
-import type {FilePath} from '@parcel/types';
+import type {
+  FilePath,
+  PackageInstaller,
+  PackageManager,
+  PackageManagerResolveResult,
+} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {PackageInstaller, PackageManager} from './lib/types';
 
-export * from './lib/types';
+export type {PackageManagerResolveResult};
+export type {PackageManagerResolveResult as ResolveResult};
+
+export type {
+  PackageManager,
+  InstallOptions,
+  InstallerOptions,
+  PackageInstaller,
+  Invalidations,
+  ModuleRequest,
+} from '@parcel/types';
 
 export const Npm: {
   new (): PackageInstaller;
@@ -18,5 +32,9 @@ export const MockPackageInstaller: {
   new (): PackageInstaller;
 };
 export const NodePackageManager: {
-  new (fs: FileSystem, projectRoot: FilePath, installer?: PackageInstaller): PackageManager;
+  new (
+    fs: FileSystem,
+    projectRoot: FilePath,
+    installer?: PackageInstaller,
+  ): PackageManager;
 };
