@@ -2,7 +2,7 @@ const {Transform} = require('stream');
 const babel = require('gulp-babel');
 const gulp = require('gulp');
 const path = require('path');
-const rimraf = require('rimraf');
+const {rimraf} = require('rimraf');
 const babelConfig = require('./babel.config.json');
 
 const IGNORED_PACKAGES = [
@@ -59,7 +59,7 @@ class TapStream extends Transform {
 
 exports.clean = function clean(cb) {
   rimraf('packages/*/*/lib/**').then(
-    () => cb,
+    () => cb(),
     err => cb(err),
   );
 };
