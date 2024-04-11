@@ -30,6 +30,7 @@ import Dependency, {
 import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -328,20 +329,43 @@ export default class BundleGraph<TBundle: IBundle>
   }
 
   getConditionPublicId(condition: string): string {
+    if (!getFeatureFlag('conditionalBundling')) {
+      throw new Error(
+        'getConditionPublicId called but conditionalBundling is not enabled',
+      );
+    }
     if (!this.#graph._conditions.has(condition)) {
       throw new Error(`Condition ${condition} was not in mapping`);
     }
-    return this.#graph._conditions.get(condition) ?? '';
+    return this.#graph._conditions.get(condition)?.publicId ?? '';
   }
 
   getConditionMapping(): {[string]: {|ff: string, t: string, f: string|}} {
+    if (!getFeatureFlag('conditionalBundling')) {
+      throw new Error(
+        'getCondtionMapping called but conditionalBundling is not enabled',
+      );
+    }
     const ret = {};
-    for (const [k, v] of this.#graph._conditions.entries()) {
-      const [feature, ifTruePlaceholder, ifFalsePlaceholder] = k.split(':');
-      ret[v] = {
+    // console.log(this.#graph._conditions);
+    for (const [k, condition] of this.#graph._conditions.entries()) {
+      const [feature] = k.split(':');
+      const [trueAsset, falseAsset] = [
+        condition.ifTrueDependency,
+        condition.ifFalseDependency,
+      ].map(dep => {
+        const resolved = nullthrows(this.#graph.resolveAsyncDependency(dep));
+        if (resolved.type === 'asset') {
+          return resolved.value;
+        } else {
+          return this.#graph.getAssetById(resolved.value.entryAssetId);
+        }
+      });
+
+      ret[condition.publicId] = {
         ff: feature,
-        t: ifTruePlaceholder,
-        f: ifFalsePlaceholder,
+        t: this.#graph.getAssetPublicId(trueAsset),
+        f: this.#graph.getAssetPublicId(falseAsset),
       };
     }
     return ret;

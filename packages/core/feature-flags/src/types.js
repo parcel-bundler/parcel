@@ -9,4 +9,10 @@ export type FeatureFlags = {|
    * `config.getConfigFrom(..., {packageKey: '...'})` and the value itself hasn't changed.
    */
   +configKeyInvalidation: boolean,
+  /**
+   * Enables experimental "conditional bundling" - this allows the use of `importCond` syntax
+   * in order to have (consumer) feature flag driven bundling. This feature is very experimental,
+   * and requires server-side support.
+   */
+  +conditionalBundling: boolean,
 |};

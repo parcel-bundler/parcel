@@ -19,6 +19,7 @@ import {
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {getFeatureFlag} from '@parcel/feature-flags/src';
 
 // Used for as="" in preload/prefetch
 const TYPE_TO_RESOURCE_PRIORITY = {
@@ -660,13 +661,19 @@ function getRegisterCode(
       ? 'new __parcel__URL__("").toString()' // <-- this isn't ideal. We should use `import.meta.url` directly but it gets replaced currently
       : `require('./helpers/bundle-url').getBundleURL('${entryBundle.publicId}')`;
 
-  const conditions = bundleGraph.getConditionMapping();
+  if (getFeatureFlag('conditionalBundling')) {
+    const conditions = bundleGraph.getConditionMapping();
 
-  return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
-    JSON.stringify(mappings),
-  )}));require('./helpers/bundle-manifest').registerConditions(JSON.parse(${JSON.stringify(
-    JSON.stringify(conditions),
-  )}));`;
+    return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
+      JSON.stringify(mappings),
+    )}));parcelRequire.registerConditions(JSON.parse(${JSON.stringify(
+      JSON.stringify(conditions),
+    )}));`;
+  } else {
+    return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
+      JSON.stringify(mappings),
+    )}));`;
+  }
 }
 
 function getRelativePathExpr(

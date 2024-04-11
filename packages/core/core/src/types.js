@@ -580,3 +580,9 @@ export type ValidationOpts = {|
 |};
 
 export type ReportFn = (event: ReporterEvent) => void | Promise<void>;
+
+export type Condition = {|
+  publicId: string,
+  ifTrueDependency: Dependency,
+  ifFalseDependency: Dependency,
+|};

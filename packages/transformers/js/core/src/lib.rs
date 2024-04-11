@@ -93,6 +93,7 @@ pub struct Config {
   is_swc_helpers: bool,
   standalone: bool,
   inline_constants: bool,
+  conditional_bundling: bool,
 }
 
 #[derive(Serialize, Debug, Default)]

@@ -13,6 +13,7 @@ import type {
   ParcelOptions,
   BundleGroup as InternalBundleGroup,
   BundleNode,
+  Condition,
 } from '../types';
 
 import invariant from 'assert';
@@ -38,7 +39,7 @@ export default class MutableBundleGraph
   #graph /*: InternalBundleGraph */;
   #options /*: ParcelOptions */;
   #bundlePublicIds /*: Set<string> */ = new Set<string>();
-  #bundleConditions /* : Map<string, string> */ = new Map();
+  #bundleConditions /* : Map<string, Condition> */ = new Map();
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     super(graph, Bundle.get.bind(Bundle), options);
@@ -52,19 +53,39 @@ export default class MutableBundleGraph
       bundleToInternalBundle(bundle),
     );
 
-    if (asset.meta.conditions != null && Array.isArray(asset.meta.conditions)) {
-      for (const _condition of asset.meta.conditions ?? []) {
-        const condition = String(_condition);
-        if (!this.#bundleConditions.has(condition)) {
-          const condHash = hashString(condition);
-          const condPublicId = getPublicId(condHash, v =>
-            this.#bundleConditions.has(v),
-          );
-          // FIXME is this the right way around?? It is for packaging..
-          this.#bundleConditions.set(condition, condPublicId);
-        }
-      }
-    }
+    // TEST
+    // if (asset.meta.conditions != null && Array.isArray(asset.meta.conditions)) {
+    //   for (const _condition of asset.meta.conditions ?? []) {
+    //     const condition = String(_condition);
+    //     if (!this.#bundleConditions.has(condition)) {
+    //       const condHash = hashString(condition);
+    //       const condPublicId = getPublicId(condHash, v =>
+    //         this.#bundleConditions.has(v),
+    //       );
+
+    //       const [, ifTrueDepPlaceholder, ifFalseDepPlaceholder] = condition.split(':');
+    //       let ifTrueDep, ifFalseDep;
+    //       for (const dep of asset.getDependencies()) {
+    //         if (dep.meta?.placeholder === ifTrueDepPlaceholder) {
+    //           ifTrueDep = dependencyToInternalDependency(dep);
+    //         }
+    //         if (dep.meta?.placeholder === ifFalseDepPlaceholder) {
+    //           ifFalseDep = dependencyToInternalDependency(dep);
+    //         }
+    //       }
+    //       if (ifTrueDep == null || ifFalseDep == null) {
+    //         throw new Error(`Deps were bad`);
+    //       }
+
+    //       // FIXME is this the right way around?? It is for packaging..
+    //       this.#bundleConditions.set(condition, {
+    //         publicId: condPublicId,
+    //         ifTrueDependency: ifTrueDep,
+    //         ifFalseDependency: ifFalseDep,
+    //       });
+    //     }
+    //   }
+    // }
   }
 
   addAssetGraphToBundle(
@@ -333,7 +354,7 @@ export default class MutableBundleGraph
     );
   }
 
-  getConditions(): Map<string, string> {
+  getConditions(): Map<string, Condition> {
     return this.#bundleConditions;
   }
 }

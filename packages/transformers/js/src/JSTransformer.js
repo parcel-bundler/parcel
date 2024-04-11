@@ -460,6 +460,7 @@ export default (new Transformer({
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
       standalone: asset.query.has('standalone'),
       inline_constants: config.inlineConstants,
+      conditional_bundling: options.featureFlags.conditionalBundling,
       callMacro: asset.isSource
         ? async (err, src, exportName, args, loc) => {
             let mod;
@@ -890,6 +891,7 @@ export default (new Transformer({
           .getDependencies()
           .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
+
       for (let dep of deps.values()) {
         dep.symbols.ensure();
       }

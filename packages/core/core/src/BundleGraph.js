@@ -26,6 +26,7 @@ import type {
   Environment,
   InternalSourceLocation,
   Target,
+  Condition,
 } from './types';
 import type AssetGraph from './AssetGraph';
 import type {ProjectPath} from './projectPath';
@@ -42,6 +43,7 @@ import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
 import {HASH_REF_PREFIX} from './constants';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -87,7 +89,7 @@ type BundleGraphOpts = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  conditions: Map<string, string>,
+  conditions: Map<string, Condition>,
 |};
 
 type SerializedBundleGraph = {|
@@ -96,7 +98,7 @@ type SerializedBundleGraph = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  conditions: Map<string, string>,
+  conditions: Map<string, Condition>,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -137,7 +139,7 @@ export default class BundleGraph {
   /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
   _bundlePublicIds /*: Set<string> */ = new Set<string>();
-  _conditions /*: Map<string, string> */ = new Map<string, string>();
+  _conditions /*: Map<string, Condition> */ = new Map<string, Condition>();
 
   constructor({
     graph,
@@ -150,7 +152,7 @@ export default class BundleGraph {
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
-    conditions: Map<string, string>,
+    conditions: Map<string, Condition>,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
@@ -175,6 +177,8 @@ export default class BundleGraph {
     let assetGraphNodeIdToBundleGraphNodeId = new Map<NodeId, NodeId>();
     let conditions = new Map();
 
+    let placeholderToDependency = new Map();
+
     let assetGraphRootNode =
       assetGraph.rootNodeId != null
         ? assetGraph.getNode(assetGraph.rootNodeId)
@@ -196,6 +200,15 @@ export default class BundleGraph {
         }
       } else if (node != null && node.type === 'asset_group') {
         assetGroupIds.set(nodeId, assetGraph.getNodeIdsConnectedFrom(nodeId));
+      } else if (
+        getFeatureFlag('conditionalBundling') &&
+        node != null &&
+        node.type === 'dependency'
+      ) {
+        const dep = node.value;
+        if (dep.meta?.placeholder != null) {
+          placeholderToDependency.set(dep.meta.placeholder, dep);
+        }
       }
     }
 
@@ -206,15 +219,23 @@ export default class BundleGraph {
 
       let node = nullthrows(assetGraph.getNode(nodeId));
 
-      if (node.type === 'asset') {
+      if (getFeatureFlag('conditionalBundling') && node.type === 'asset') {
         const asset = node.value;
         if (Array.isArray(asset.meta.conditions)) {
           for (const _condition of asset.meta.conditions ?? []) {
             const condition = String(_condition);
+            const [, ifTrueDep, ifFalseDep] = condition.split(':');
             const condHash = hashString(condition);
             const condPublicId = getPublicId(condHash, v => conditions.has(v));
-            // FIXME is this the right way around?? It is for packaging..
-            conditions.set(condition, condPublicId);
+
+            // FIXME - these dependencies exist in the AssetGraph, but don't
+            // seem to exist in the final BundleGraph - how do we map this properly??
+
+            conditions.set(condition, {
+              publicId: condPublicId,
+              ifTrueDependency: placeholderToDependency.get(ifTrueDep),
+              ifFalseDependency: placeholderToDependency.get(ifFalseDep),
+            });
           }
         }
       }
@@ -455,6 +476,7 @@ export default class BundleGraph {
         );
       }
     }
+
     return new BundleGraph({
       graph,
       assetPublicIds,

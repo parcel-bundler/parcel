@@ -458,7 +458,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ))));
                 return call;
               }
-              "importCond" => DependencyKind::ConditionalImport,
+              "importCond" if self.config.conditional_bundling => DependencyKind::ConditionalImport,
               _ => return node.fold_children_with(self),
             }
           }
@@ -703,7 +703,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
       rewrite_require_specifier(node, self.unresolved_mark)
-    } else if kind == DependencyKind::ConditionalImport {
+    } else if self.config.conditional_bundling && kind == DependencyKind::ConditionalImport {
       let mut call = node;
       call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
         "__parcel__requireCond__".into(),
@@ -723,7 +723,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           arg.span(),
           DependencyKind::ConditionalImport,
           None,
-          true,
+          false,
           self.config.source_type,
         );
         placeholders.push(placeholder.unwrap());

@@ -34,6 +34,7 @@ import {
   isValidIdentifier,
   makeValidIdentifier,
 } from './utils';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
@@ -617,8 +618,11 @@ export class ScopeHoistingPackager {
         return replacement;
       });
 
-      // Handle conditional imports
-      if (code.includes('__parcel__requireCond__')) {
+      if (
+        getFeatureFlag('conditionalBundling') &&
+        code.includes('__parcel__requireCond__')
+      ) {
+        // Handle conditional imports
         console.log("Let's handle conditional imports!");
         const IMPORT_COND_RE = /__parcel__requireCond__\(['"](.*?)['"]\)/g;
         code = code.replace(IMPORT_COND_RE, (m, s) => {
@@ -1353,8 +1357,8 @@ ${code}
         lines += countLines(currentHelper) - 1;
       }
     }
-
-    if (this.needsPrelude) {
+    // FIXME let's make all the bundles have the runtime with conditional bundling
+    if (this.needsPrelude || getFeatureFlag('conditionalBundling')) {
       // Add the prelude if this is potentially the first JS bundle to load in a
       // particular context (e.g. entry scripts in HTML, workers, etc.).
       let parentBundles = this.bundleGraph.getParentBundles(this.bundle);
@@ -1365,7 +1369,8 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        this.bundle.bundleBehavior === 'isolated';
+        this.bundle.bundleBehavior === 'isolated' ||
+        getFeatureFlag('conditionalBundling');
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);
