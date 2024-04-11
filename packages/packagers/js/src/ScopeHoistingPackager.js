@@ -27,7 +27,13 @@ import path from 'path';
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
-import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
+import {
+  prelude,
+  conditionalBundlingPrelude,
+  helpers,
+  bundleQueuePrelude,
+  fnExpr,
+} from './helpers';
 import {
   replaceScriptDependencies,
   getSpecifier,
@@ -1373,7 +1379,11 @@ ${code}
         getFeatureFlag('conditionalBundling');
 
       if (mightBeFirstJS) {
-        let preludeCode = prelude(this.parcelRequireName);
+        let preludeCode = (
+          getFeatureFlag('conditionalBundling')
+            ? conditionalBundlingPrelude
+            : prelude
+        )(this.parcelRequireName);
         res += preludeCode;
         if (enableSourceMaps) {
           lines += countLines(preludeCode) - 1;
