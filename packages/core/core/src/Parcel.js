@@ -66,7 +66,7 @@ export default class Parcel {
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
   #disposable /*: Disposable */;
-  #initialOptions /*: InitialParcelOptions*/;
+  #initialOptions /*: InitialParcelOptions */;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
   #optionsRef /*: SharedReference */;

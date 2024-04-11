@@ -146,7 +146,7 @@ const commonOptions = {
               `Feature flag ${name} must be set to true or false`,
             );
           }
-          featureFlagValue = val;
+          featureFlagValue = val === 'true';
         }
         previousValue[name] = featureFlagValue ?? String(val);
       } else {
