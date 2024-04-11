@@ -66,6 +66,7 @@ export default (new Reporter({
       case 'buildSuccess':
       case 'buildFailure':
         nullthrows(tracer).flush();
+        tracer = null;
         // We explicitly trigger `end` on the writeStream for the trace, then we need to wait for
         // the `close` event before resolving the promise this report function returns to ensure
         // that the file has been properly closed and moved from it's temp location before Parcel
@@ -73,7 +74,6 @@ export default (new Reporter({
         return new Promise((resolve, reject) => {
           nullthrows(writeStream).once('close', err => {
             writeStream = null;
-            tracer = null;
             if (err) {
               reject(err);
             } else {
