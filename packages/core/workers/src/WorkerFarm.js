@@ -1,6 +1,6 @@
 // @flow
 
-import type {ErrorWithCode, FilePath} from '@parcel/types';
+import type {ErrorWithCode, FilePath} from '@parcel/types-internal';
 import type {
   CallRequest,
   HandleCallRequest,

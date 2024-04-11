@@ -24,7 +24,7 @@
     "@parcel/diagnostic": "2.12.0",
     "@parcel/logger": "2.12.0",
     "@parcel/profiler": "2.12.0",
-    "@parcel/types": "2.12.0",
+    "@parcel/types-internal": "2.12.0",
     "@parcel/utils": "2.12.0",
     "nullthrows": "^1.1.1"
   },

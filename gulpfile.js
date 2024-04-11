@@ -11,6 +11,7 @@ const IGNORED_PACKAGES = [
   '!packages/core/workers/test/integration/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
+  '!packages/core/types-internal/**',
 
   // These packages are bundled.
   '!packages/core/codeframe/**',

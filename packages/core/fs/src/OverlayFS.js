@@ -2,13 +2,13 @@
 
 import type {Readable, Writable} from 'stream';
 import type {
+  FilePath,
   Encoding,
   FileOptions,
   FileSystem,
   ReaddirOptions,
-  Stats,
-} from './types';
-import type {FilePath} from '@parcel/types';
+  FileStats,
+} from '@parcel/types-internal';
 import type {
   Event,
   Options as WatcherOptions,
@@ -168,7 +168,7 @@ export class OverlayFS implements FileSystem {
   }
 
   // eslint-disable-next-line require-await
-  async stat(filePath: FilePath): Promise<Stats> {
+  async stat(filePath: FilePath): Promise<FileStats> {
     return this.statSync(filePath);
   }
 
@@ -289,7 +289,7 @@ export class OverlayFS implements FileSystem {
     }
   }
 
-  statSync(filePath: FilePath): Stats {
+  statSync(filePath: FilePath): FileStats {
     filePath = this._normalizePath(filePath);
     try {
       return this.writable.statSync(filePath);
