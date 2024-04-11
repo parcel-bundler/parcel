@@ -1,5 +1,5 @@
 // @flow
-import type {TraceEvent, LogEvent} from '@parcel/types';
+import type {TraceEvent, LogEvent} from '@parcel/types-internal';
 import invariant from 'assert';
 import WorkerFarm from './WorkerFarm';
 import Logger from '@parcel/logger';

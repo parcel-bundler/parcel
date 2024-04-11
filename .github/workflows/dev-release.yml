@@ -13,3 +13,4 @@ jobs:
     secrets: inherit
     with:
       release-command: yarn dev:release
+      type: dev

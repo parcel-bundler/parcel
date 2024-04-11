@@ -1,228 +1,25 @@
 name: tag-release
+
 on:
   release:
     types: [published]
   workflow_dispatch:
-permissions:
-  contents: read  #  for actions/checkout
+
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      - uses: bahmutov/npm-install@v1.8.35
-      - name: Build native packages
-        run: yarn build-native-release
-      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        if: ${{ matrix.os == 'macos-latest' }}
-        run: strip -x packages/*/*/*.node # Must use -x on macOS. This produces larger results on linux.
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: bindings-${{ matrix.os }}
-          path: packages/*/*/*.node
-      - name: Smoke test
-        run: node -e "require('@parcel/rust')"
-
-  build-linux-gnu-x64:
-    name: linux-gnu-x64
-    runs-on: ubuntu-20.04
-    container:
-      image: docker.io/mischnic/centos7-node16
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install yarn
-        run: npm install --global yarn@1
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - uses: bahmutov/npm-install@v1.8.35
-      - name: Build native packages
-        run: yarn build-native-release
-      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip packages/*/*/*.node
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: bindings-linux-gnu-x64
-          path: packages/*/*/*.node
-      - name: debug
-        run: ls -l packages/*/*/*.node
-      - name: Smoke test
-        run: node -e 'require("@parcel/rust")'
-
-  build-linux-gnu-arm:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: arm-unknown-linux-gnueabihf
-            arch: armhf
-            strip: arm-linux-gnueabihf-strip
-            cflags: -mfpu=neon
-          - target: aarch64-unknown-linux-gnu
-            arch: arm64
-            strip: aarch64-linux-gnu-strip
-            cflags: ''
-    name: ${{ matrix.target }}
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-      - name: Install cross compile toolchains
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
-      - uses: bahmutov/npm-install@v1.8.35
-      - name: Build native packages
-        run: yarn build-native-release
-        env:
-          RUST_TARGET: ${{ matrix.target }}
-          CFLAGS: ${{ matrix.cflags }}
-      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: ${{ matrix.strip }} packages/*/*/*.node
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: bindings-${{ matrix.target }}
-          path: packages/*/*/*.node
-      - name: debug
-        run: ls -l packages/*/*/*.node
-      - name: Configure binfmt-support
-        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-      - name: Smoke test
-        uses: addnab/docker-run-action@v1
-        with:
-          image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal
-          options: -v ${{github.workspace}}:/work
-          run: cd /work && node -e "require('@parcel/rust')"
-
-  build-linux-musl:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-musl
-            strip: strip
-            cflags: -msse4.2
-            arch: x86_64
-          - target: aarch64-unknown-linux-musl
-            strip: aarch64-linux-musl-strip
-            cflags: ''
-            arch: aarch64
-    name: ${{ matrix.target }}
-    runs-on: ubuntu-20.04
-    container:
-      image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:5a99e45446355d25c20e95d35231d84e9ce472280d8c0b1be53281bade905f09
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GHCR_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install build tools
-        run: apk add --no-cache python3 make gcc g++ musl-dev curl
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-      - uses: bahmutov/npm-install@v1.8.35
-      - name: Build native packages
-        run: yarn build-native-release
-        env:
-          RUST_TARGET: ${{ matrix.target }}
-          CFLAGS: ${{ matrix.cflags }}
-      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: ${{ matrix.strip }} packages/*/*/*.node
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: bindings-linux-musl-${{ matrix.arch }}
-          path: packages/*/*/*.node
-      - name: debug
-        run: ls -l packages/*/*/*.node
-      - name: Smoke test
-        if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
-        run: node -e 'require("@parcel/rust")'
-
-  build-apple-silicon:
-    name: aarch64-apple-darwin
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          target: aarch64-apple-darwin
-      - uses: bahmutov/npm-install@v1.8.35
-      - name: Build native packages
-        run: |
-          sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
-          yarn build-native-release
-        env:
-          RUST_TARGET: aarch64-apple-darwin
-          JEMALLOC_SYS_WITH_LG_PAGE: 14
-      - name: Strip debug symbols
-        run: strip -x packages/*/*/*.node
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: bindings-apple-aarch64
-          path: packages/*/*/*.node
-      - name: debug
-        run: ls -l packages/*/*/*.node
-
   build-and-release:
-    runs-on: ubuntu-20.04
     name: Build and release the tagged version
-    needs:
-      - build
-      - build-linux-musl
-      - build-linux-gnu-x64
-      - build-linux-gnu-arm
-      - build-apple-silicon
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: bahmutov/npm-install@v1.8.35
-      - name: Build native packages
-        run: yarn build-native-release
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          path: artifacts
-      - name: Move artifacts
-        run: for d in artifacts/*/*/*; do cp $d/*.node packages/$(basename $(dirname $d))/$(basename $d); done
-      - name: Debug
-        run: ls -l packages/*/*/*.node
-      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - run: yarn release
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    with:
+      release-command: yarn release
+      type: latest
 
   # Deployment steps taken from https://github.com/colinwilson/static-site-to-vercel/blob/master/.github/workflows/deploy-preview.yml
   repl_build:
     name: Build REPL
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       deployments: write
     steps:
       - uses: actions/checkout@v4

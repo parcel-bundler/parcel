@@ -1,15 +1,12 @@
 // @flow
 
-import type {
-  FilePath,
-  FileCreateInvalidation,
-  SemverRange,
-  DependencySpecifier,
-  PackageJSON,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FileCreateInvalidation, PackageJSON} from './index';
+import type {SemverRange} from './SemverRange';
+import type {DependencySpecifier} from './DependencySpecifier';
+import type {FileSystem} from './FileSystem';
+import type {FilePath} from './FilePath';
 
-export type ResolveResult = {|
+export type PackageManagerResolveResult = {|
   resolved: FilePath | DependencySpecifier,
   pkg?: ?PackageJSON,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
@@ -52,7 +49,7 @@ export interface PackageManager {
     id: DependencySpecifier,
     from: FilePath,
     ?{|range?: ?SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
-  ): Promise<ResolveResult>;
+  ): Promise<PackageManagerResolveResult>;
   getInvalidations(id: DependencySpecifier, from: FilePath): Invalidations;
   invalidate(id: DependencySpecifier, from: FilePath): void;
 }

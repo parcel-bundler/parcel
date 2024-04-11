@@ -1444,7 +1444,7 @@ export function getWatcherOptions({
 }: ParcelOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
   const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
-  const ignore = uniqueDirs.map(dir => path.join(projectRoot, dir));
+  const ignore = uniqueDirs.map(dir => path.resolve(projectRoot, dir));
 
   return {ignore, backend: watchBackend};
 }
