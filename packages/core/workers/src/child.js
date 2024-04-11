@@ -9,7 +9,7 @@ import type {
   WorkerResponse,
   ChildImpl,
 } from './types';
-import type {Async, IDisposable} from '@parcel/types';
+import type {Async, IDisposable} from '@parcel/types-internal';
 import type {SharedReference} from './WorkerFarm';
 
 import * as coreWorker from './core-worker';

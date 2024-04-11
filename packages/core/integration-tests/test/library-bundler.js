@@ -491,4 +491,91 @@ describe('library bundler', function () {
 
     assert.equal(res2.default, 'shared-b');
   });
+
+  it('should not share bundles with circular references in different targets', async function () {
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      .parcelrc:
+        {
+          "extends": "@parcel/config-default",
+          "bundler": "@parcel/bundler-library"
+        }
+
+      packages/a/package.json:
+        {
+          "engines": { "node": "*" },
+          "source": "src/a.js",
+          "module": "dist/a.js",
+          "targets": {
+            "module": {
+              "includeNodeModules": true
+            }
+          }
+        }
+
+      packages/a/src/a.js:
+        import shared from '/shared.module.css';
+        export default shared.foo + '-a';
+
+      packages/b/package.json:
+        {
+          "engines": { "node": "*" },
+          "source": "src/b.js",
+          "module": "dist/b.js",
+          "targets": {
+            "module": {
+              "includeNodeModules": true
+            }
+          }
+        }
+
+      packages/b/src/b.js:
+        import shared from '/shared.module.css';
+        export default shared.foo + '-b';
+
+      shared.module.css:
+        .foo {
+          composes: bar;
+          color: white
+        }
+
+        .bar { background: pink }
+    `;
+
+    let b = await bundle(dir + '/packages/*', {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        type: 'js',
+        assets: ['shared.module.css'],
+      },
+      {
+        type: 'js',
+        assets: ['shared.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['shared.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['shared.module.css'],
+      },
+    ]);
+
+    for (let bundle of b.getBundles()) {
+      let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+      assert(!contents.includes('../'));
+    }
+  });
 });

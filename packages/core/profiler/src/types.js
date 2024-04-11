@@ -1,8 +1,6 @@
 // @flow
 
-export interface TraceMeasurement {
-  end(): void;
-}
+export type {TraceMeasurement} from '@parcel/types-internal';
 
 export type TraceMeasurementData = {|
   +categories: string[],

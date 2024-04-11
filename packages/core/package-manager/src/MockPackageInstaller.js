@@ -1,6 +1,10 @@
 // @flow
 
-import type {ModuleRequest, PackageInstaller, InstallerOptions} from './types';
+import type {
+  ModuleRequest,
+  PackageInstaller,
+  InstallerOptions,
+} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
 

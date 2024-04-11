@@ -7,6 +7,10 @@ on:
         description: 'The command that will release packages as part of the final step'
         required: true
         type: string
+      type:
+        description: 'The type of release, usually corresponds to the dist-tag'
+        required: true
+        type: string
     secrets:
       GHCR_TOKEN:
         required: true
@@ -42,6 +46,7 @@ jobs:
           target: ${{ matrix.target }}
       - uses: bahmutov/npm-install@v1.8.35
       - uses: Swatinem/rust-cache@v2
+        if: ${{ inputs.type != 'latest' }}
         with:
           shared-key: ${{ matrix.name }}
       - name: Remove CommandLineTools SDKs
@@ -124,6 +129,7 @@ jobs:
           sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
       - uses: bahmutov/npm-install@v1.8.35
       - uses: Swatinem/rust-cache@v2
+        if: ${{ inputs.type != 'latest' }}
         with:
           shared-key: ${{ matrix.target }}
       - name: Build native packages
@@ -172,7 +178,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
-        run: apk add --no-cache python3 make gcc g++ musl-dev curl
+        run: apk add --no-cache python3 make gcc g++ musl-dev curl openssl
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -201,9 +207,10 @@ jobs:
     runs-on: ubuntu-20.04
     name: Build and release
     needs:
-      - build-macos-windows
-      - build-linux-musl
       - build-linux-gnu-arm
+      - build-linux-gnu-x64
+      - build-linux-musl
+      - build-macos-windows
     steps:
       - uses: actions/checkout@v4
         with:

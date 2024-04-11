@@ -53,6 +53,7 @@ import {
   fromProjectPathRelative,
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
+import {setFeatureFlags} from '@parcel/feature-flags';
 
 registerCoreWithSerializer();
 
@@ -65,7 +66,7 @@ export default class Parcel {
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
   #disposable /*: Disposable */;
-  #initialOptions /*: InitialParcelOptions*/;
+  #initialOptions /*: InitialParcelOptions */;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
   #optionsRef /*: SharedReference */;
@@ -107,6 +108,8 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
+
+    setFeatureFlags(resolvedOptions.featureFlags);
 
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {
@@ -417,15 +420,14 @@ export default class Parcel {
     let opts = getWatcherOptions(resolvedOptions);
     let sub = await resolvedOptions.inputFS.watch(
       resolvedOptions.watchDir,
-      (err, events) => {
+      async (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
           return;
         }
 
-        let isInvalid = this.#requestTracker.respondToFSEvents(
+        let isInvalid = await this.#requestTracker.respondToFSEvents(
           events,
-          resolvedOptions.projectRoot,
           Number.POSITIVE_INFINITY,
         );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
