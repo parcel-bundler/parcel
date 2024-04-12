@@ -4,7 +4,7 @@ import path from 'path';
 import {distDir, bundle, outputFS} from '@parcel/test-utils';
 
 describe('tracing', function () {
-  it.only('should produce a trace', async function () {
+  it('should produce a trace', async function () {
     await bundle(
       path.join(__dirname, '/integration/typescript-jsx/index.tsx'),
       {
