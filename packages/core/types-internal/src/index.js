@@ -2066,6 +2066,12 @@ export type AsyncSubscription = {|
   unsubscribe(): Promise<mixed>,
 |};
 
+export type MeasurementOptions = {|
+  args?: {[key: string]: mixed},
+  categories: string[],
+  name: string,
+|};
+
 export interface PluginTracer {
   /** Returns whether the tracer is enabled. Use this to avoid possibly expensive calculations
    * of arguments to `createMeasurement` - for example if you need to determine the entry of a bundle to pass it
@@ -2093,4 +2099,6 @@ export interface PluginTracer {
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
   ): TraceMeasurement | null;
+
+  measure<T>(options: MeasurementOptions, fn: () => T): T;
 }

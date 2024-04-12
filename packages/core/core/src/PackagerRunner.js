@@ -396,47 +396,51 @@ export default class PackagerRunner {
 
     let packager = await this.config.getPackager(bundle.name);
     let {name, resolveFrom, plugin} = packager;
-    let measurement;
     try {
-      measurement = tracer.createMeasurement(name, 'packaging', bundle.name, {
-        type: bundle.type,
-      });
-      return await plugin.package({
-        config: configs.get(name)?.result,
-        bundleConfig: bundleConfigs.get(name)?.result,
-        bundle,
-        bundleGraph: new BundleGraph<NamedBundleType>(
-          bundleGraph,
-          NamedBundle.get.bind(NamedBundle),
-          this.options,
-        ),
-        getSourceMapReference: map => {
-          return this.getSourceMapReference(bundle, map);
+      return await tracer.measure(
+        {
+          name,
+          args: {bundle: {name: bundle.name, type: bundle.type}},
+          categories: ['packaging'],
         },
-        options: this.pluginOptions,
-        logger: new PluginLogger({origin: name}),
-        tracer: new PluginTracer({origin: name, category: 'package'}),
-        getInlineBundleContents: async (
-          bundle: BundleType,
-          bundleGraph: BundleGraphType<NamedBundleType>,
-        ) => {
-          if (bundle.bundleBehavior !== 'inline') {
-            throw new Error(
-              'Bundle is not inline and unable to retrieve contents',
-            );
-          }
+        () =>
+          plugin.package({
+            config: configs.get(name)?.result,
+            bundleConfig: bundleConfigs.get(name)?.result,
+            bundle,
+            bundleGraph: new BundleGraph<NamedBundleType>(
+              bundleGraph,
+              NamedBundle.get.bind(NamedBundle),
+              this.options,
+            ),
+            getSourceMapReference: map => {
+              return this.getSourceMapReference(bundle, map);
+            },
+            options: this.pluginOptions,
+            logger: new PluginLogger({origin: name}),
+            tracer: new PluginTracer({origin: name, category: 'package'}),
+            getInlineBundleContents: async (
+              bundle: BundleType,
+              bundleGraph: BundleGraphType<NamedBundleType>,
+            ) => {
+              if (bundle.bundleBehavior !== 'inline') {
+                throw new Error(
+                  'Bundle is not inline and unable to retrieve contents',
+                );
+              }
 
-          let res = await this.getBundleResult(
-            bundleToInternalBundle(bundle),
-            // $FlowFixMe
-            bundleGraphToInternalBundleGraph(bundleGraph),
-            configs,
-            bundleConfigs,
-          );
+              let res = await this.getBundleResult(
+                bundleToInternalBundle(bundle),
+                // $FlowFixMe
+                bundleGraphToInternalBundleGraph(bundleGraph),
+                configs,
+                bundleConfigs,
+              );
 
-          return {contents: res.contents};
-        },
-      });
+              return {contents: res.contents};
+            },
+          }),
+      );
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
@@ -445,7 +449,6 @@ export default class PackagerRunner {
         }),
       });
     } finally {
-      measurement && measurement.end();
       // Add dev dependency for the packager. This must be done AFTER running it due to
       // the potential for lazy require() that aren't executed until the request runs.
       let devDepRequest = await createDevDependency(
@@ -503,34 +506,37 @@ export default class PackagerRunner {
     };
 
     for (let optimizer of optimizers) {
-      let measurement;
       try {
-        measurement = tracer.createMeasurement(
-          optimizer.name,
-          'optimize',
-          bundle.name,
-        );
-        let next = await optimizer.plugin.optimize({
-          config: configs.get(optimizer.name)?.result,
-          bundleConfig: bundleConfigs.get(optimizer.name)?.result,
-          bundle,
-          bundleGraph,
-          contents: optimized.contents,
-          map: optimized.map,
-          getSourceMapReference: map => {
-            return this.getSourceMapReference(bundle, map);
+        await tracer.measure(
+          {
+            name: optimizer.name,
+            args: {bundle: bundle.name},
+            categories: ['optimize'],
           },
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: optimizer.name}),
-          tracer: new PluginTracer({
-            origin: optimizer.name,
-            category: 'optimize',
-          }),
-        });
+          async () => {
+            let next = await optimizer.plugin.optimize({
+              config: configs.get(optimizer.name)?.result,
+              bundleConfig: bundleConfigs.get(optimizer.name)?.result,
+              bundle,
+              bundleGraph,
+              contents: optimized.contents,
+              map: optimized.map,
+              getSourceMapReference: map => {
+                return this.getSourceMapReference(bundle, map);
+              },
+              options: this.pluginOptions,
+              logger: new PluginLogger({origin: optimizer.name}),
+              tracer: new PluginTracer({
+                origin: optimizer.name,
+                category: 'optimize',
+              }),
+            });
 
-        optimized.type = next.type ?? optimized.type;
-        optimized.contents = next.contents;
-        optimized.map = next.map;
+            optimized.type = next.type ?? optimized.type;
+            optimized.contents = next.contents;
+            optimized.map = next.map;
+          },
+        );
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
@@ -539,7 +545,6 @@ export default class PackagerRunner {
           }),
         });
       } finally {
-        measurement && measurement.end();
         // Add dev dependency for the optimizer. This must be done AFTER running it due to
         // the potential for lazy require() that aren't executed until the request runs.
         let devDepRequest = await createDevDependency(

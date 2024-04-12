@@ -51,7 +51,7 @@ export default (new Reporter({
       case 'trace':
         // Due to potential race conditions at the end of the build, we ignore any trace events that occur
         // after we've closed the write stream.
-        if (tracer === null) return;
+        if (tracer == null) return;
 
         tracer.completeEvent({
           name: event.name,
