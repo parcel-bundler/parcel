@@ -360,6 +360,7 @@ export default class Parcel {
               bundleGraph: event.bundleGraph,
               buildTime: 0,
               requestBundle: event.requestBundle,
+              unstable_requestStats: {},
             };
           }
 
@@ -383,6 +384,7 @@ export default class Parcel {
 
           return result;
         },
+        unstable_requestStats: this.#requestTracker.flushStats(),
       };
 
       await this.#reporterRunner.report(event);
@@ -400,6 +402,7 @@ export default class Parcel {
       let event = {
         type: 'buildFailure',
         diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic],
+        unstable_requestStats: this.#requestTracker.flushStats(),
       };
 
       await this.#reporterRunner.report(event);

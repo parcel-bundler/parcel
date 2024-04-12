@@ -16,6 +16,7 @@ import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 import type {Diagnostic} from '@parcel/diagnostic';
+import logger from '@parcel/logger';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -201,7 +202,9 @@ export class AssetGraphBuilder {
       'A root node is required to traverse',
     );
 
+    let visitedAssetGroups = new Set();
     let visited = new Set([rootNodeId]);
+
     const visit = (nodeId: NodeId) => {
       if (errors.length > 0) {
         return;
@@ -224,6 +227,10 @@ export class AssetGraphBuilder {
           (!visited.has(childNodeId) || child.hasDeferred) &&
           this.shouldVisitChild(nodeId, childNodeId)
         ) {
+          if (child.type === 'asset_group') {
+            visitedAssetGroups.add(childNodeId);
+          }
+
           visited.add(childNodeId);
           visit(childNodeId);
         }
@@ -232,6 +239,14 @@ export class AssetGraphBuilder {
 
     visit(rootNodeId);
     await this.queue.run();
+
+    logger.verbose({
+      origin: '@parcel/core',
+      message: 'Asset graph walked',
+      meta: {
+        visitedAssetGroupsCount: visitedAssetGroups.size,
+      },
+    });
 
     if (this.prevChangedAssetsPropagation) {
       // Add any previously seen Assets that have not been propagated yet to
