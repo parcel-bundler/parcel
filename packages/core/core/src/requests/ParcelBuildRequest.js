@@ -46,6 +46,7 @@ export type ParcelBuildRequest = {|
   +type: typeof requestTypes.parcel_build_request,
   run: (RunInput<ParcelBuildRequestResult>) => Async<ParcelBuildRequestResult>,
   input: ParcelBuildRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 export default function createParcelBuildRequest(

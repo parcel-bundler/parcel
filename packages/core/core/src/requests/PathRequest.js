@@ -58,6 +58,7 @@ export type PathRequest = {|
   +type: typeof requestTypes.path_request,
   run: (RunOpts<?AssetGroup>) => Async<?AssetGroup>,
   input: PathRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 export type PathRequestInput = {|

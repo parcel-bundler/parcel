@@ -33,6 +33,7 @@ export type WriteBundlesRequest = {|
     RunInput<Map<string, PackagedBundleInfo>>,
   ) => Async<Map<string, PackagedBundleInfo>>,
   input: WriteBundlesRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 /**

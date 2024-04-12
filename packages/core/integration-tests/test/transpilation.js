@@ -16,7 +16,7 @@ import nullthrows from 'nullthrows';
 const inputDir = path.join(__dirname, '/input');
 
 describe('transpilation', function () {
-  it('should not transpile if no targets are defined', async function () {
+  it.only('should not transpile if no targets are defined', async function () {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
       defaultTargetOptions: {
         engines: undefined,

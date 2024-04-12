@@ -82,6 +82,7 @@ type BundleGraphRequest = {|
   +type: typeof requestTypes.bundle_graph_request,
   run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 export default function createBundleGraphRequest(

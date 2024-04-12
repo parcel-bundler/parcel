@@ -36,6 +36,7 @@ export type EntryRequest = {|
   +type: typeof requestTypes.entry_request,
   run: (RunOpts<EntryResult>) => Async<EntryResult>,
   input: ProjectPath,
+  incompleteRequest?: boolean,
 |};
 
 export type EntryResult = {|
