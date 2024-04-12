@@ -54,6 +54,7 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -132,6 +133,7 @@ type Request<TInput, TResult> = {|
   id: string,
   +type: RequestType,
   input: TInput,
+  ensureCache?: boolean,
   run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 
@@ -1027,6 +1029,10 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
+  incompleteRequests: Map<
+    Request<mixed, mixed>['id'],
+    {|deferred: Deferred<void>, promise: Promise<void>, timerId: TimeoutID|},
+  > = new Map();
 
   constructor({
     graph,
@@ -1160,11 +1166,48 @@ export default class RequestTracker {
     this.graph.replaceSubrequests(requestNodeId, subrequestContextKeys);
   }
 
+  flushCachedRequest(requestId: ContentKey) {
+    let existingPromise = this.incompleteRequests.get(requestId);
+
+    if (existingPromise) {
+      clearTimeout(existingPromise.timerId);
+      existingPromise.deferred.resolve();
+    }
+  }
+
+  waitForFullRequest(requestId: ContentKey): Promise<void> {
+    let existingPromise = this.incompleteRequests.get(requestId);
+
+    if (existingPromise) {
+      return existingPromise.promise;
+    }
+
+    let deferredPromise = makeDeferredWithPromise();
+    let timerId = setTimeout(() => deferredPromise.deferred.resolve(), 5_000);
+    this.incompleteRequests.set(requestId, {...deferredPromise, timerId});
+
+    return deferredPromise.promise;
+  }
+
   async runRequest<TInput, TResult>(
     request: Request<TInput, TResult>,
     opts?: ?RunRequestOpts,
   ): Promise<TResult> {
-    let requestId = this.graph.hasContentKey(request.id)
+    let hasKey = this.graph.hasContentKey(request.id);
+
+    if (
+      request.ensureCache &&
+      !hasKey &&
+      getFeatureFlag('devDepRequestBugFix')
+    ) {
+      // To avoid possible race conditions with the worker farm build cache, we
+      // suspend processing of an incomplete request until the full details are back
+      // from another worker.
+      await this.waitForFullRequest(request.id);
+      hasKey = this.graph.hasContentKey(request.id);
+    }
+
+    let requestId = hasKey
       ? this.graph.getNodeIdByContentKey(request.id)
       : undefined;
     let hasValidResult = requestId != null && this.hasValidResult(requestId);
@@ -1223,6 +1266,9 @@ export default class RequestTracker {
       deferred.resolve(false);
       throw err;
     } finally {
+      if (getFeatureFlag('devDepRequestBugFix')) {
+        this.flushCachedRequest(request.id);
+      }
       this.graph.replaceSubrequests(requestNodeId, [...subRequestContentKeys]);
     }
   }
