@@ -1170,6 +1170,12 @@ export default class RequestTracker {
     let existingPromise = this.incompleteRequests.get(requestId);
 
     if (existingPromise) {
+      logger.verbose({
+        origin: '@parcel/core',
+        message: 'Incomplete request promise resolved',
+        meta: {trackableEvent: 'incomplete_promise_resolved'},
+      });
+
       clearTimeout(existingPromise.timerId);
       existingPromise.deferred.resolve();
     }
@@ -1183,7 +1189,16 @@ export default class RequestTracker {
     }
 
     let deferredPromise = makeDeferredWithPromise();
-    let timerId = setTimeout(() => deferredPromise.deferred.resolve(), 5_000);
+
+    let timerId = setTimeout(() => {
+      logger.verbose({
+        origin: '@parcel/core',
+        message: 'Incomplete request promise timed out',
+        meta: {trackableEvent: 'incomplete_promise_timeout'},
+      });
+      deferredPromise.deferred.resolve();
+    }, 5_000);
+
     this.incompleteRequests.set(requestId, {...deferredPromise, timerId});
 
     return deferredPromise.promise;
@@ -1196,7 +1211,7 @@ export default class RequestTracker {
     let hasKey = this.graph.hasContentKey(request.id);
 
     if (
-      request.ensureCache &&
+      request.incompleteRequest &&
       !hasKey &&
       getFeatureFlag('devDepRequestBugFix')
     ) {
