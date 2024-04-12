@@ -164,6 +164,7 @@ export const requestTypes = {
 };
 
 type RequestType = $Values<typeof requestTypes>;
+type RequestTypeName = $Keys<typeof requestTypes>;
 
 type RequestGraphNode =
   | RequestNode
@@ -1027,6 +1028,7 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
+  stats: Map<RequestType, number> = new Map();
 
   constructor({
     graph,
@@ -1205,6 +1207,9 @@ export default class RequestTracker {
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
+
+      this.stats.set(request.type, (this.stats.get(request.type) ?? 0) + 1);
+
       let result = await request.run({
         input: request.input,
         api,
@@ -1225,6 +1230,25 @@ export default class RequestTracker {
     } finally {
       this.graph.replaceSubrequests(requestNodeId, [...subRequestContentKeys]);
     }
+  }
+
+  flushStats(): {[requestType: string]: number} {
+    let requestTypeEntries = {};
+
+    for (let key of (Object.keys(requestTypes): RequestTypeName[])) {
+      requestTypeEntries[requestTypes[key]] = key;
+    }
+
+    let formattedStats = {};
+
+    for (let [requestType, count] of this.stats.entries()) {
+      let requestTypeName = requestTypeEntries[requestType];
+      formattedStats[requestTypeName] = count;
+    }
+
+    this.stats = new Map();
+
+    return formattedStats;
   }
 
   createAPI<TResult>(
