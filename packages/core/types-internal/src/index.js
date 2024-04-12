@@ -1976,6 +1976,7 @@ export type BuildSuccessEvent = {|
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
   +requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
+  +unstable_stats: {[requestType: string]: number},
 |};
 
 /**

@@ -164,6 +164,7 @@ export const requestTypes = {
 };
 
 type RequestType = $Values<typeof requestTypes>;
+type RequestTypeName = $Keys<typeof requestTypes>;
 
 type RequestGraphNode =
   | RequestNode
@@ -1231,34 +1232,23 @@ export default class RequestTracker {
     }
   }
 
-  flushStats() {
+  flushStats(): {[requestType: string]: number} {
     let requestTypeEntries = {};
-    type RequestTypes = Array<$Keys<typeof requestTypes>>;
 
-    for (let key of (Object.keys(requestTypes): RequestTypes)) {
+    for (let key of (Object.keys(requestTypes): RequestTypeName[])) {
       requestTypeEntries[requestTypes[key]] = key;
     }
 
     let formattedStats = {};
-    let messageLines = ['Request stats'];
 
     for (let [requestType, count] of this.stats.entries()) {
       let requestTypeName = requestTypeEntries[requestType];
       formattedStats[requestTypeName] = count;
-      messageLines.push(`${requestTypeName}\t\t${count}`);
     }
 
-    let message = messageLines.join('\n');
-
-    logger.verbose({
-      origin: '@parcel/core',
-      message,
-      meta: {
-        requestStats: formattedStats,
-      },
-    });
-
     this.stats = new Map();
+
+    return formattedStats;
   }
 
   createAPI<TResult>(
