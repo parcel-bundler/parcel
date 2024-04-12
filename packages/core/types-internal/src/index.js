@@ -1976,7 +1976,7 @@ export type BuildSuccessEvent = {|
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
   +requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
-  +unstable_stats: {[requestType: string]: number},
+  +unstable_requestStats: {[requestType: string]: number},
 |};
 
 /**
@@ -1986,6 +1986,7 @@ export type BuildSuccessEvent = {|
 export type BuildFailureEvent = {|
   +type: 'buildFailure',
   +diagnostics: Array<Diagnostic>,
+  +unstable_requestStats: {[requestType: string]: number},
 |};
 
 /**
