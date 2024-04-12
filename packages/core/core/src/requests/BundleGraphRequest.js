@@ -93,23 +93,29 @@ export default function createBundleGraphRequest(
     run: async input => {
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
-      let measurement = tracer.createMeasurement('building');
-      let request = createAssetGraphRequest({
-        name: 'Main',
-        entries: options.entries,
-        optionsRef,
-        shouldBuildLazily: options.shouldBuildLazily,
-        lazyIncludes: options.lazyIncludes,
-        lazyExcludes: options.lazyExcludes,
-        requestedAssetIds,
-      });
-      let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
-        request,
+
+      let {assetGraph, changedAssets, assetRequests} = await tracer.measure(
         {
-          force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+          name: 'building',
+          categories: ['core'],
+        },
+        () => {
+          let request = createAssetGraphRequest({
+            name: 'Main',
+            entries: options.entries,
+            optionsRef,
+            shouldBuildLazily: options.shouldBuildLazily,
+            lazyIncludes: options.lazyIncludes,
+            lazyExcludes: options.lazyExcludes,
+            requestedAssetIds,
+          });
+
+          return api.runRequest(request, {
+            force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+          });
         },
       );
-      measurement && measurement.end();
+
       assertSignalNotAborted(signal);
 
       // If any subrequests are invalid (e.g. dev dep requests or config requests),
@@ -137,14 +143,22 @@ export default function createBundleGraphRequest(
       let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
-      let bundlingMeasurement = tracer.createMeasurement('bundling');
-      let builder = new BundlerRunner(input, parcelConfig, devDeps);
-      let res: BundleGraphResult = await builder.bundle({
-        graph: assetGraph,
-        changedAssets: changedAssets,
-        assetRequests,
-      });
-      bundlingMeasurement && bundlingMeasurement.end();
+      let res = await tracer.measure<Promise<BundleGraphResult>>(
+        {
+          name: 'bundling',
+          categories: ['core'],
+        },
+        () => {
+          let builder = new BundlerRunner(input, parcelConfig, devDeps);
+
+          return builder.bundle({
+            graph: assetGraph,
+            changedAssets: changedAssets,
+            assetRequests,
+          });
+        },
+      );
+
       for (let [id, asset] of changedAssets) {
         res.changedAssets.set(id, asset);
       }
@@ -255,8 +269,11 @@ class BundlerRunner {
 
     await this.loadConfigs();
 
-    let plugin = await this.config.getBundler();
-    let {plugin: bundler, name, resolveFrom} = plugin;
+    let {
+      plugin: bundler,
+      name: pluginName,
+      resolveFrom,
+    } = await this.config.getBundler();
 
     // if a previous asset graph hash is passed in, check if the bundle graph is also available
     let previousBundleGraphResult: ?BundleGraphRequestResult;
@@ -273,9 +290,9 @@ class BundlerRunner {
 
     let internalBundleGraph;
 
-    let logger = new PluginLogger({origin: name});
+    let logger = new PluginLogger({origin: pluginName});
     let tracer = new PluginTracer({
-      origin: name,
+      origin: pluginName,
       category: 'bundle',
     });
     try {
@@ -307,55 +324,54 @@ class BundlerRunner {
           this.options,
         );
 
-        let measurement;
-        let measurementFilename;
+        let filename;
         if (tracer.enabled) {
-          measurementFilename = graph
+          filename = graph
             .getEntryAssets()
             .map(asset => fromProjectPathRelative(asset.filePath))
             .join(', ');
-          measurement = tracer.createMeasurement(
-            plugin.name,
-            'bundling:bundle',
-            measurementFilename,
-          );
         }
 
         // this the normal bundle workflow (bundle, optimizing, run-times, naming)
-        await bundler.bundle({
-          bundleGraph: mutableBundleGraph,
-          config: this.configs.get(plugin.name)?.result,
-          options: this.pluginOptions,
-          logger,
-          tracer,
-        });
-
-        measurement && measurement.end();
-
-        if (this.pluginOptions.mode === 'production') {
-          let optimizeMeasurement;
-          try {
-            if (tracer.enabled) {
-              optimizeMeasurement = tracer.createMeasurement(
-                plugin.name,
-                'bundling:optimize',
-                nullthrows(measurementFilename),
-              );
-            }
-            await bundler.optimize({
+        await tracer.measure(
+          {
+            name: pluginName,
+            categories: ['bundling:bundle'],
+            args: {filename},
+          },
+          () =>
+            bundler.bundle({
               bundleGraph: mutableBundleGraph,
-              config: this.configs.get(plugin.name)?.result,
+              config: this.configs.get(pluginName)?.result,
               options: this.pluginOptions,
               logger,
-            });
+              tracer,
+            }),
+        );
+
+        if (this.pluginOptions.mode === 'production') {
+          try {
+            await tracer.measure(
+              {
+                name: pluginName,
+                categories: ['bundling:optimize'],
+                args: {filename},
+              },
+              () =>
+                bundler.optimize({
+                  bundleGraph: mutableBundleGraph,
+                  config: this.configs.get(pluginName)?.result,
+                  options: this.pluginOptions,
+                  logger,
+                }),
+            );
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, {
-                origin: plugin.name,
+                origin: pluginName,
               }),
             });
           } finally {
-            optimizeMeasurement && optimizeMeasurement.end();
             await dumpGraphToGraphViz(
               // $FlowFixMe[incompatible-call]
               internalBundleGraph._graph,
@@ -368,7 +384,7 @@ class BundlerRunner {
         // the potential for lazy require() that aren't executed until the request runs.
         let devDepRequest = await createDevDependency(
           {
-            specifier: name,
+            specifier: pluginName,
             resolveFrom,
           },
           this.previousDevDeps,
@@ -390,7 +406,7 @@ class BundlerRunner {
 
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
-          origin: name,
+          origin: pluginName,
         }),
       });
     } finally {
@@ -498,17 +514,23 @@ class BundlerRunner {
     );
 
     for (let namer of namers) {
-      let measurement;
       try {
-        measurement = tracer.createMeasurement(namer.name, 'namer', bundle.id);
-        let name = await namer.plugin.name({
-          bundle,
-          bundleGraph,
-          config: this.configs.get(namer.name)?.result,
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: namer.name}),
-          tracer: new PluginTracer({origin: namer.name, category: 'namer'}),
-        });
+        let name = await tracer.measure(
+          {
+            name: namer.name,
+            args: {bundle: bundle.id},
+            categories: ['namer'],
+          },
+          () =>
+            namer.plugin.name({
+              bundle,
+              bundleGraph,
+              config: this.configs.get(namer.name)?.result,
+              options: this.pluginOptions,
+              logger: new PluginLogger({origin: namer.name}),
+              tracer: new PluginTracer({origin: namer.name, category: 'namer'}),
+            }),
+        );
 
         if (name != null) {
           internalBundle.name = name;
@@ -525,8 +547,6 @@ class BundlerRunner {
             origin: namer.name,
           }),
         });
-      } finally {
-        measurement && measurement.end();
       }
     }
 

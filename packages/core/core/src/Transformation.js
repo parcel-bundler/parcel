@@ -374,23 +374,25 @@ export default class Transformation {
         }
 
         try {
-          const measurement = tracer.createMeasurement(
-            transformer.name,
-            'transform',
-            fromProjectPathRelative(initialAsset.value.filePath),
+          let transformerResults = await tracer.measure(
+            {
+              name: transformer.name,
+              args: {
+                filename: fromProjectPathRelative(initialAsset.value.filePath),
+              },
+              categories: ['transform'],
+            },
+            () =>
+              this.runTransformer(
+                pipeline,
+                asset,
+                transformer.plugin,
+                transformer.name,
+                transformer.config,
+                transformer.configKeyPath,
+                this.parcelConfig,
+              ),
           );
-
-          let transformerResults = await this.runTransformer(
-            pipeline,
-            asset,
-            transformer.plugin,
-            transformer.name,
-            transformer.config,
-            transformer.configKeyPath,
-            this.parcelConfig,
-          );
-
-          measurement && measurement.end();
 
           for (let result of transformerResults) {
             if (result instanceof UncommittedAsset) {

@@ -282,26 +282,27 @@ export class ResolverRunner {
     let invalidateOnFileChange = [];
     let invalidateOnEnvChange = [];
     for (let resolver of resolvers) {
-      let measurement;
       try {
-        measurement = tracer.createMeasurement(
-          resolver.name,
-          'resolve',
-          specifier,
+        let result = await tracer.measure(
+          {
+            name: resolver.name,
+            args: {specifier},
+            categories: ['resolve'],
+          },
+          () =>
+            resolver.plugin.resolve({
+              specifier,
+              pipeline,
+              dependency: dep,
+              options: this.pluginOptions,
+              logger: new PluginLogger({origin: resolver.name}),
+              tracer: new PluginTracer({
+                origin: resolver.name,
+                category: 'resolver',
+              }),
+              config: this.configs.get(resolver.name)?.result,
+            }),
         );
-        let result = await resolver.plugin.resolve({
-          specifier,
-          pipeline,
-          dependency: dep,
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: resolver.name}),
-          tracer: new PluginTracer({
-            origin: resolver.name,
-            category: 'resolver',
-          }),
-          config: this.configs.get(resolver.name)?.result,
-        });
-        measurement && measurement.end();
 
         if (result) {
           if (result.meta) {
@@ -399,8 +400,6 @@ export class ResolverRunner {
 
         break;
       } finally {
-        measurement && measurement.end();
-
         // Add dev dependency for the resolver. This must be done AFTER running it due to
         // the potential for lazy require() that aren't executed until the request runs.
         let devDepRequest = await createDevDependency(

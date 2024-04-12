@@ -95,26 +95,31 @@ export default class ReporterRunner {
       }
 
       for (let reporter of this.reporters) {
-        let measurement;
         try {
+          let fn = () =>
+            reporter.plugin.report({
+              event,
+              options: this.pluginOptions,
+              logger: new PluginLogger({origin: reporter.name}),
+              tracer: new PluginTracer({
+                origin: reporter.name,
+                category: 'reporter',
+              }),
+            });
+
           // To avoid an infinite loop we don't measure trace events, as they'll
           // result in another trace!
-          if (event.type !== 'trace') {
-            measurement = tracer.createMeasurement(reporter.name, 'reporter');
-          }
-          await reporter.plugin.report({
-            event,
-            options: this.pluginOptions,
-            logger: new PluginLogger({origin: reporter.name}),
-            tracer: new PluginTracer({
-              origin: reporter.name,
-              category: 'reporter',
-            }),
-          });
+          await (event.type === 'trace'
+            ? fn()
+            : tracer.measure(
+                {
+                  name: reporter.name,
+                  categories: ['reporter'],
+                },
+                fn,
+              ));
         } catch (reportError) {
           INTERNAL_ORIGINAL_CONSOLE.error(reportError);
-        } finally {
-          measurement && measurement.end();
         }
       }
     } catch (err) {
