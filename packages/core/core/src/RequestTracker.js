@@ -133,7 +133,7 @@ type Request<TInput, TResult> = {|
   id: string,
   +type: RequestType,
   input: TInput,
-  ensureCache?: boolean,
+  incompleteRequest?: boolean,
   run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 

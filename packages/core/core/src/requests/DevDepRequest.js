@@ -190,7 +190,7 @@ export async function runDevDepRequest<TResult>(
   await api.runRequest<null, DevDepRequestResult | void>({
     id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
     type: requestTypes.dev_dep_request,
-    ensureCache: !(
+    incompleteRequest: !(
       devDepRequest.invalidateOnFileChange &&
       devDepRequest.invalidateOnFileCreate
     ),
