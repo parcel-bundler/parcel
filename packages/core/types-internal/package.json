@@ -8,7 +8,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "publishConfig": {},
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build-ts": "./scripts/build-ts.sh",
     "check-ts": "tsc --noEmit lib/index.d.ts"
