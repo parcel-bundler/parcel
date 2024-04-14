@@ -61,6 +61,7 @@ export type WriteBundleRequest = {|
   +type: typeof requestTypes.write_bundle_request,
   run: (RunInput<PackagedBundleInfo>) => Async<PackagedBundleInfo>,
   input: WriteBundleRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 /**

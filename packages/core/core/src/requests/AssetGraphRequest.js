@@ -67,6 +67,7 @@ type AssetGraphRequest = {|
   +type: typeof requestTypes.asset_graph_request,
   run: RunInput => Async<AssetGraphRequestResult>,
   input: AssetGraphRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 export default function createAssetGraphRequest(

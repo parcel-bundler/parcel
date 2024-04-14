@@ -34,6 +34,7 @@ export type PackageRequest = {|
   +type: typeof requestTypes.package_request,
   run: (RunInput<BundleInfo>) => Async<BundleInfo>,
   input: PackageRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 export function createPackageRequest(

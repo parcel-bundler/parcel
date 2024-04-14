@@ -1318,6 +1318,7 @@ describe('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
+            devDepRequestBugFix: false,
             configKeyInvalidation: true,
           },
           async setup() {
@@ -1378,6 +1379,7 @@ describe('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
+            devDepRequestBugFix: false,
             configKeyInvalidation: true,
           },
           async setup() {
@@ -1438,6 +1440,7 @@ describe('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
+            devDepRequestBugFix: false,
             configKeyInvalidation: true,
           },
           async setup() {

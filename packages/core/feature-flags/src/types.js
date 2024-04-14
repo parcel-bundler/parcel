@@ -9,4 +9,8 @@ export type FeatureFlags = {|
    * `config.getConfigFrom(..., {packageKey: '...'})` and the value itself hasn't changed.
    */
   +configKeyInvalidation: boolean,
+  /**
+   * Enable experimental fix for the DevDepRequest build cache bug
+   */
+  +devDepRequestBugFix: boolean,
 |};

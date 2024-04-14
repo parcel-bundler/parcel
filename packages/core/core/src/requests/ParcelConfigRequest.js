@@ -56,6 +56,7 @@ export type ParcelConfigRequest = {|
   type: typeof requestTypes.parcel_config_request,
   input: null,
   run: (RunOpts<ConfigAndCachePath>) => Async<ConfigAndCachePath>,
+  incompleteRequest?: boolean,
 |};
 
 type ParcelConfigChain = {|

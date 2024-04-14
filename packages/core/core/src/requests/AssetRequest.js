@@ -32,6 +32,7 @@ export type AssetRequest = {|
   +type: typeof requestTypes.asset_request,
   run: (RunInput<AssetRequestResult>) => Async<AssetRequestResult>,
   input: AssetRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 export default function createAssetRequest(

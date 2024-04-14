@@ -17,6 +17,7 @@ type ValidationRequest = {|
   +type: typeof requestTypes.validation_request,
   run: (RunOpts<void>) => Async<void>,
   input: ValidationRequestInput,
+  incompleteRequest?: boolean,
 |};
 
 type RunOpts<TResult> = {|

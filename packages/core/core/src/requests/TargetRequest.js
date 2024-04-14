@@ -93,6 +93,7 @@ export type TargetRequest = {|
   +type: typeof requestTypes.target_request,
   run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
   input: Entry,
+  incompleteRequest?: boolean,
 |};
 
 const type = 'target_request';

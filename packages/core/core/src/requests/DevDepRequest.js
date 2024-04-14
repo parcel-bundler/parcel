@@ -190,14 +190,22 @@ export async function runDevDepRequest<TResult>(
   await api.runRequest<null, DevDepRequestResult | void>({
     id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
     type: requestTypes.dev_dep_request,
+    incompleteRequest: !(
+      devDepRequest.invalidateOnFileChange &&
+      devDepRequest.invalidateOnFileCreate
+    ),
     run: ({api}) => {
-      for (let filePath of nullthrows(devDepRequest.invalidateOnFileChange)) {
+      for (let filePath of nullthrows(
+        devDepRequest.invalidateOnFileChange,
+        'DevDepRequest missing invalidateOnFileChange',
+      )) {
         api.invalidateOnFileUpdate(filePath);
         api.invalidateOnFileDelete(filePath);
       }
 
       for (let invalidation of nullthrows(
         devDepRequest.invalidateOnFileCreate,
+        'DevDepRequest missing invalidateOnFileCreate',
       )) {
         api.invalidateOnFileCreate(invalidation);
       }
