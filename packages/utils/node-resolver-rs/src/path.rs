@@ -69,7 +69,7 @@ pub fn canonicalize(
   let mut seen_links = 0;
   let mut queue = VecDeque::new();
 
-  queue.push_back(path);
+  queue.push_back(path.to_path_buf());
 
   while let Some(cur_path) = queue.pop_front() {
     let mut components = cur_path.components();
@@ -87,11 +87,9 @@ pub fn canonicalize(
           ret.push(c);
 
           // First, check the cache for the path up to this point.
-          let link: &Path = if let Some(cached) = cache.get(&ret) {
+          let link = if let Some(cached) = cache.get(&ret) {
             if let Some(link) = &*cached {
-              // SAFETY: Keys are never removed from the cache or mutated
-              // and PathBuf has a stable address for path data even when moved.
-              unsafe { &*(link.as_path() as *const _) }
+              link.clone()
             } else {
               continue;
             }
@@ -103,9 +101,8 @@ pub fn canonicalize(
             }
 
             let link = std::fs::read_link(&ret)?;
-            let ptr = unsafe { &*(link.as_path() as *const _) };
-            cache.insert(ret.clone(), Some(link));
-            ptr
+            cache.insert(ret.clone(), Some(link.clone()));
+            link
           };
 
           seen_links += 1;
@@ -127,7 +124,7 @@ pub fn canonicalize(
 
           let remaining = components.as_path();
           if !remaining.as_os_str().is_empty() {
-            queue.push_front(remaining);
+            queue.push_front(remaining.to_path_buf());
           }
           queue.push_front(link);
           break;
