@@ -19,7 +19,7 @@ import {
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {getFeatureFlag} from '@parcel/feature-flags/src';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 // Used for as="" in preload/prefetch
 const TYPE_TO_RESOURCE_PRIORITY = {
@@ -67,6 +67,7 @@ let bundleDependencies = new WeakMap<
   NamedBundle,
   {|
     asyncDependencies: Array<Dependency>,
+    conditionalDependencies: Array<Dependency>,
     otherDependencies: Array<Dependency>,
   |},
 >();
@@ -128,7 +129,8 @@ export default (new Runtime({
       return;
     }
 
-    let {asyncDependencies, otherDependencies} = getDependencies(bundle);
+    let {asyncDependencies, conditionalDependencies, otherDependencies} =
+      getDependencies(bundle);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
@@ -186,6 +188,29 @@ export default (new Runtime({
         }
       }
     }
+
+    if (getFeatureFlag('conditionalBundling')) {
+      const conditions = bundleGraph.getConditionsForDependencies(
+        conditionalDependencies,
+      );
+      for (const cond of conditions) {
+        const assetCode = `module.exports = window.__conditions['${cond.key}'] ? __parcel__require__('${cond.ifTrue}') : __parcel__require__('${cond.ifFalse}');`;
+        console.log(assetCode);
+        assets.push({
+          filePath: path.join(__dirname, `/conditions/${cond.publicId}.js`),
+          code: assetCode,
+          dependency: conditionalDependencies[0],
+          env: {sourceType: 'module'},
+        });
+      }
+    }
+    // for (let dependency of conditionalDependencies) {
+    //   console.log(dependency.id, dependency.meta);
+    //   // assets.push({
+    //   //   filePath. path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
+    //   //   dependency,
+    //   // })
+    // }
 
     for (let dependency of otherDependencies) {
       // Resolve the dependency to a bundle. If inline, export the dependency id,
@@ -300,6 +325,7 @@ export default (new Runtime({
 
 function getDependencies(bundle: NamedBundle): {|
   asyncDependencies: Array<Dependency>,
+  conditionalDependencies: Array<Dependency>,
   otherDependencies: Array<Dependency>,
 |} {
   let cachedDependencies = bundleDependencies.get(bundle);
@@ -309,6 +335,7 @@ function getDependencies(bundle: NamedBundle): {|
   } else {
     let asyncDependencies = [];
     let otherDependencies = [];
+    let conditionalDependencies = [];
     bundle.traverse(node => {
       if (node.type !== 'dependency') {
         return;
@@ -320,12 +347,14 @@ function getDependencies(bundle: NamedBundle): {|
         dependency.specifierType !== 'url'
       ) {
         asyncDependencies.push(dependency);
+      } else if (dependency.priority === 'conditional') {
+        conditionalDependencies.push(dependency);
       } else {
         otherDependencies.push(dependency);
       }
     });
     bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
-    return {asyncDependencies, otherDependencies};
+    return {asyncDependencies, conditionalDependencies, otherDependencies};
   }
 }
 
@@ -661,19 +690,9 @@ function getRegisterCode(
       ? 'new __parcel__URL__("").toString()' // <-- this isn't ideal. We should use `import.meta.url` directly but it gets replaced currently
       : `require('./helpers/bundle-url').getBundleURL('${entryBundle.publicId}')`;
 
-  if (getFeatureFlag('conditionalBundling')) {
-    const conditions = bundleGraph.getConditionMapping();
-
-    return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
-      JSON.stringify(mappings),
-    )}));parcelRequire.registerConditions(JSON.parse(${JSON.stringify(
-      JSON.stringify(conditions),
-    )}));`;
-  } else {
-    return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
-      JSON.stringify(mappings),
-    )}));`;
-  }
+  return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
+    JSON.stringify(mappings),
+  )}));`;
 }
 
 function getRelativePathExpr(

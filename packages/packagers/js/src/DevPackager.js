@@ -8,6 +8,7 @@ import {
   normalizeSeparators,
 } from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
+import {getFeatureFlag} from '@parcel/feature-flags';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
@@ -114,6 +115,20 @@ export class DevPackager {
 
         let {code, mapBuffer} = results[i];
         let output = code || '';
+        if (
+          getFeatureFlag('conditionalBundling') &&
+          output.includes('__parcel__require__("cond:')
+        ) {
+          // FIXME move to utils - this regex also exists in ScopeHoistingPackager
+          output = output.replace(
+            /__parcel__require__\("cond:([^"]+)"\)/,
+            (s, longCondKey) => {
+              const condPublicId =
+                this.bundleGraph.getConditionPublicId(longCondKey);
+              return `require("./conditions/${condPublicId}.js")`;
+            },
+          );
+        }
         wrapped +=
           JSON.stringify(this.bundleGraph.getAssetPublicId(asset)) +
           ':[function(require,module,exports) {\n' +

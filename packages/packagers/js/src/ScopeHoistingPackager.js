@@ -626,11 +626,11 @@ export class ScopeHoistingPackager {
 
       if (
         getFeatureFlag('conditionalBundling') &&
-        code.includes('__parcel__requireCond__')
+        code.includes('__parcel__require__')
       ) {
         // Handle conditional imports
         console.log("Let's handle conditional imports!");
-        const IMPORT_COND_RE = /__parcel__requireCond__\(['"](.*?)['"]\)/g;
+        const IMPORT_COND_RE = /__parcel__require__\(['"]cond:(.*?)['"]\)/g;
         code = code.replace(IMPORT_COND_RE, (m, s) => {
           console.log(`_P_R_C_`, m, s);
           const condId = this.bundleGraph.getConditionPublicId(s);

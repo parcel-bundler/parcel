@@ -1065,6 +1065,7 @@ export default (new Transformer({
     }
 
     asset.type = 'js';
+    // console.log("Compiled code: " + compiledCode);
     asset.setBuffer(compiledCode);
 
     if (map) {

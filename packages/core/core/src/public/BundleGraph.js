@@ -340,6 +340,37 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph._conditions.get(condition)?.publicId ?? '';
   }
 
+  getConditionsForDependencies(
+    deps: Array<Dependency>,
+  ): Set<{|key: string, ifTrue: string, ifFalse: string|}> {
+    const conditions = new Set();
+    const depIds = deps.map(dep => dep.id);
+    for (const [, condition] of this.#graph._conditions.entries()) {
+      if (
+        depIds.includes(condition.ifTrueDependency.id) ||
+        depIds.includes(condition.ifFalseDependency.id)
+      ) {
+        const [trueAsset, falseAsset] = [
+          condition.ifTrueDependency,
+          condition.ifFalseDependency,
+        ].map(dep => {
+          const resolved = nullthrows(this.#graph.resolveAsyncDependency(dep));
+          if (resolved.type === 'asset') {
+            return resolved.value;
+          } else {
+            return this.#graph.getAssetById(resolved.value.entryAssetId);
+          }
+        });
+        conditions.add({
+          key: condition.key,
+          ifTrue: this.#graph.getAssetPublicId(trueAsset),
+          ifFalse: this.#graph.getAssetPublicId(falseAsset),
+        });
+      }
+    }
+    return conditions;
+  }
+
   getConditionMapping(): {[string]: {|ff: string, t: string, f: string|}} {
     if (!getFeatureFlag('conditionalBundling')) {
       throw new Error(

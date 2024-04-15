@@ -101,7 +101,10 @@ export function propagateSymbols({
         namespaceReexportedSymbols.add('*');
       } else {
         for (let incomingDep of incomingDeps) {
-          if (incomingDep.value.symbols == null) {
+          if (
+            incomingDep.value.symbols == null ||
+            incomingDep.value.priority === 3
+          ) {
             if (incomingDep.value.sourceAssetId == null) {
               // The root dependency on non-library builds
               isEntry = true;

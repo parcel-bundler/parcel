@@ -224,7 +224,7 @@ export default class BundleGraph {
         if (Array.isArray(asset.meta.conditions)) {
           for (const _condition of asset.meta.conditions ?? []) {
             const condition = String(_condition);
-            const [, ifTrueDep, ifFalseDep] = condition.split(':');
+            const [key, ifTrueDep, ifFalseDep] = condition.split(':');
             const condHash = hashString(condition);
             const condPublicId = getPublicId(condHash, v => conditions.has(v));
 
@@ -233,6 +233,7 @@ export default class BundleGraph {
 
             conditions.set(condition, {
               publicId: condPublicId,
+              key,
               ifTrueDependency: placeholderToDependency.get(ifTrueDep),
               ifFalseDependency: placeholderToDependency.get(ifFalseDep),
             });

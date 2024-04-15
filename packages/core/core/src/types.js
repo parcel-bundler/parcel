@@ -583,6 +583,7 @@ export type ReportFn = (event: ReporterEvent) => void | Promise<void>;
 
 export type Condition = {|
   publicId: string,
+  key: string,
   ifTrueDependency: Dependency,
   ifFalseDependency: Dependency,
 |};

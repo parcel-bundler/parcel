@@ -1,7 +1,7 @@
 use crate::collect::{Collect, Export, Import, ImportKind};
 use crate::utils::{
   get_undefined_ident, is_unresolved, match_export_name, match_export_name_ident,
-  match_property_name,
+  match_import_cond, match_property_name,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -696,6 +696,7 @@ impl<'a> Fold for Hoist<'a> {
         if let Some(source) = match_import(&node, self.collect.ignore_mark) {
           self.add_require(&source, ImportKind::DynamicImport);
           let name: JsWord = format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
+          println!("Dynamic import for source {}", name);
           self.dynamic_imports.insert(name.clone(), source.clone());
           if self.collect.non_static_requires.contains(&source) || self.collect.should_wrap {
             self.imported_symbols.push(ImportedSymbol {
@@ -707,6 +708,34 @@ impl<'a> Fold for Hoist<'a> {
             });
           }
           return Expr::Ident(Ident::new(name, call.span));
+        }
+
+        // FIXME add match for importCond here?
+        if let Some((flag, dep_true, dep_false)) = match_import_cond(&node) {
+          println!("Conditional import: {} {}", dep_true, dep_false);
+          return Expr::Ident(Ident::new(
+            format!(
+              "{}$importCond${}",
+              self.module_id,
+              hash!(format!("{}:{}:{}", flag, dep_true, dep_false))
+            )
+            .into(),
+            call.span,
+          ));
+          // self.imported_symbols.push(ImportedSymbol {
+          //   source: dep_true,
+          //   local: "".into(),
+          //   imported: "*".into(),
+          //   loc: SourceLocation::from(&self.collect.source_map, call.span),
+          //   kind: ImportKind::Import,
+          // });
+          // self.imported_symbols.push(ImportedSymbol {
+          //   source: dep_false,
+          //   local: "".into(),
+          //   imported: "*".into(),
+          //   loc: SourceLocation::from(&self.collect.source_map, call.span),
+          //   kind: ImportKind::Import,
+          // });
         }
       }
       Expr::This(this) => {

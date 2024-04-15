@@ -367,6 +367,13 @@ impl<'a> Fold for DependencyCollector<'a> {
       Callee::Import(_) => DependencyKind::DynamicImport,
       Callee::Expr(expr) => {
         match &**expr {
+          // Handle this here becuase we want to treat importCond like it was a native Callee::Import
+          Ident(ident)
+            if self.config.conditional_bundling
+              && ident.sym.to_string().as_str() == "importCond" =>
+          {
+            DependencyKind::ConditionalImport
+          }
           Ident(ident) => {
             // Bail if defined in scope
             if !is_unresolved(&ident, self.unresolved_mark) {
@@ -458,7 +465,6 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ))));
                 return call;
               }
-              "importCond" if self.config.conditional_bundling => DependencyKind::ConditionalImport,
               _ => return node.fold_children_with(self),
             }
           }
@@ -706,7 +712,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     } else if self.config.conditional_bundling && kind == DependencyKind::ConditionalImport {
       let mut call = node;
       call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-        "__parcel__requireCond__".into(),
+        "__parcel__require__".into(),
         DUMMY_SP,
       ))));
 
@@ -741,7 +747,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       call.args[0] = ast::ExprOrSpread {
         spread: None,
         expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-          value: condition,
+          value: format!("cond:{}", condition).into(),
           span: DUMMY_SP,
           raw: None,
         }))),
