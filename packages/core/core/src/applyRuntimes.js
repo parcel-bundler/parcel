@@ -84,16 +84,7 @@ export default async function applyRuntimes<TResult>({
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
-  // As manifest bundles may be added during runtimes we process them in reverse topological
-  // sort order. This allows bundles to be added to their bundle groups before they are referenced
-  // by other bundle groups by loader runtimes
-  let bundles = [];
-  bundleGraph.traverseBundles({
-    exit(bundle) {
-      bundles.push(bundle);
-    },
-  });
-
+  let bundles = bundleGraph.getBundles({includeInline: true});
   for (let bundle of bundles) {
     for (let runtime of runtimes) {
       let measurement;
@@ -172,12 +163,20 @@ export default async function applyRuntimes<TResult>({
               nameRuntimeBundle(connectionBundle, bundle);
             }
 
-            connections.push({
+            let connection = {
               bundle: connectionBundle,
               assetGroup,
               dependency,
               isEntry,
-            });
+            };
+
+            if (connectionBundle === bundle) {
+              connections.push(connection);
+            } else {
+              // If this is a parallel bundle, it needs to be inserted before this one
+              // so that its dependencies are already loaded when this bundle runs.
+              connections.unshift(connection);
+            }
           }
         }
       } catch (e) {
@@ -191,9 +190,6 @@ export default async function applyRuntimes<TResult>({
       }
     }
   }
-
-  // Correct connection order after generating runtimes in reverse order
-  connections.reverse();
 
   // Add dev deps for runtime plugins AFTER running them, to account for lazy require().
   for (let runtime of runtimes) {
