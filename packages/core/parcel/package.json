@@ -18,7 +18,7 @@
   "main": "lib/bin.js",
   "source": "src/bin.js",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "dependencies": {
     "@parcel/config-default": "2.12.0",

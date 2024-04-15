@@ -17,7 +17,7 @@
   "main": "lib/markdown-ansi.js",
   "source": "src/markdown-ansi.js",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "dependencies": {
     "chalk": "^4.1.0"
