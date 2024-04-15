@@ -19,6 +19,31 @@ use std::str::FromStr;
 use collect::Collect;
 use collect::CollectResult;
 use constant_module::ConstantModule;
+use indexmap::IndexMap;
+use parcel_macros::{MacroCallback, MacroError, Macros};
+use path_slash::PathExt;
+use serde::{Deserialize, Serialize};
+use swc_core::common::comments::SingleThreadedComments;
+use swc_core::common::errors::Handler;
+use swc_core::common::pass::Optional;
+use swc_core::common::source_map::SourceMapGenConfig;
+use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
+use swc_core::ecma::ast::{Module, ModuleItem, Program};
+use swc_core::ecma::codegen::text_writer::JsWriter;
+use swc_core::ecma::parser::lexer::Lexer;
+use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets};
+use swc_core::ecma::transforms::base::fixer::paren_remover;
+use swc_core::ecma::transforms::base::helpers;
+use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
+use swc_core::ecma::transforms::proposal::decorators;
+use swc_core::ecma::transforms::{
+  compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
+  optimization::simplify::expr_simplifier, react, typescript,
+};
+use swc_core::ecma::visit::{FoldWith, VisitWith};
+
+use collect::{Collect, CollectResult};
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
@@ -82,94 +107,99 @@ use utils::DiagnosticSeverity;
 use utils::ErrorBuffer;
 pub use utils::SourceLocation;
 use utils::SourceType;
+use utils::{error_buffer_to_diagnostics, ErrorBuffer};
+
+pub use dependency_collector::DependencyKind;
+pub use swc_core::ecma::preset_env::{Version, Versions};
+pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Debug, Deserialize, Default)]
 pub struct Config {
-  filename: String,
+  pub filename: PathBuf,
   #[serde(with = "serde_bytes")]
-  code: Vec<u8>,
-  module_id: String,
-  project_root: String,
-  replace_env: bool,
-  env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
-  inline_fs: bool,
-  insert_node_globals: bool,
-  node_replacer: bool,
-  is_browser: bool,
-  is_worker: bool,
-  is_type_script: bool,
-  is_jsx: bool,
-  jsx_pragma: Option<String>,
-  jsx_pragma_frag: Option<String>,
-  automatic_jsx_runtime: bool,
-  jsx_import_source: Option<String>,
-  decorators: bool,
-  use_define_for_class_fields: bool,
-  is_development: bool,
-  react_refresh: bool,
-  targets: Option<HashMap<String, String>>,
-  source_maps: bool,
-  scope_hoist: bool,
-  source_type: SourceType,
-  supports_module_workers: bool,
-  is_library: bool,
-  is_esm_output: bool,
-  trace_bailouts: bool,
-  is_swc_helpers: bool,
-  standalone: bool,
-  inline_constants: bool,
+  pub code: Vec<u8>,
+  pub module_id: String,
+  pub project_root: String,
+  pub replace_env: bool,
+  pub env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
+  pub inline_fs: bool,
+  pub insert_node_globals: bool,
+  pub node_replacer: bool,
+  pub is_browser: bool,
+  pub is_worker: bool,
+  pub is_type_script: bool,
+  pub is_jsx: bool,
+  pub jsx_pragma: Option<String>,
+  pub jsx_pragma_frag: Option<String>,
+  pub automatic_jsx_runtime: bool,
+  pub jsx_import_source: Option<String>,
+  pub decorators: bool,
+  pub use_define_for_class_fields: bool,
+  pub is_development: bool,
+  pub react_refresh: bool,
+  pub targets: Option<Versions>,
+  pub source_maps: bool,
+  pub scope_hoist: bool,
+  pub source_type: SourceType,
+  pub supports_module_workers: bool,
+  pub is_library: bool,
+  pub is_esm_output: bool,
+  pub trace_bailouts: bool,
+  pub is_swc_helpers: bool,
+  pub standalone: bool,
+  pub inline_constants: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
-  code: Vec<u8>,
-  map: Option<String>,
-  shebang: Option<String>,
-  dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<HoistResult>,
-  symbol_result: Option<CollectResult>,
-  diagnostics: Option<Vec<Diagnostic>>,
-  needs_esm_helpers: bool,
-  used_env: HashSet<swc_core::ecma::atoms::JsWord>,
-  has_node_replacements: bool,
-  is_constant_module: bool,
+  pub code: Vec<u8>,
+  pub map: Option<String>,
+  pub shebang: Option<String>,
+  pub dependencies: Vec<DependencyDescriptor>,
+  pub hoist_result: Option<HoistResult>,
+  pub symbol_result: Option<CollectResult>,
+  pub diagnostics: Option<Vec<Diagnostic>>,
+  pub needs_esm_helpers: bool,
+  pub used_env: HashSet<swc_core::ecma::atoms::JsWord>,
+  pub has_node_replacements: bool,
+  pub is_constant_module: bool,
 }
 
-fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
-  if let Some(targets) = targets {
-    macro_rules! set_target {
-      ($versions: ident, $name: ident) => {
-        let version = targets.get(stringify!($name));
-        if let Some(version) = version {
-          if let Ok(version) = Version::from_str(version.as_str()) {
-            $versions.$name = Some(version);
-          }
-        }
-      };
-    }
+// fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
+//   if let Some(targets) = targets {
+//     macro_rules! set_target {
+//       ($versions: ident, $name: ident) => {
+//         let version = targets.get(stringify!($name));
+//         if let Some(version) = version {
+//           if let Ok(version) = Version::from_str(version.as_str()) {
+//             $versions.$name = Some(version);
+//           }
+//         }
+//       };
+//     }
 
-    let mut versions = Versions::default();
-    set_target!(versions, chrome);
-    set_target!(versions, opera);
-    set_target!(versions, edge);
-    set_target!(versions, firefox);
-    set_target!(versions, safari);
-    set_target!(versions, ie);
-    set_target!(versions, ios);
-    set_target!(versions, android);
-    set_target!(versions, node);
-    set_target!(versions, electron);
-    return Some(versions);
-  }
+//     let mut versions = Versions::default();
+//     set_target!(versions, chrome);
+//     set_target!(versions, opera);
+//     set_target!(versions, edge);
+//     set_target!(versions, firefox);
+//     set_target!(versions, safari);
+//     set_target!(versions, ie);
+//     set_target!(versions, ios);
+//     set_target!(versions, android);
+//     set_target!(versions, node);
+//     set_target!(versions, electron);
+//     return Some(versions);
+//   }
 
-  None
-}
+//   None
+// }
 
 pub fn transform(
-  config: Config,
+  config: &Config,
   call_macro: Option<MacroCallback>,
 ) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
@@ -180,7 +210,7 @@ pub fn transform(
   let module = parse(
     code,
     config.project_root.as_str(),
-    config.filename.as_str(),
+    config.filename.to_slash_lossy().as_ref(),
     &source_map,
     &config,
   );
@@ -203,8 +233,7 @@ pub fn transform(
         Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
       };
 
-      let mut global_deps = vec![];
-      let mut fs_deps = vec![];
+      let mut dependencies = IndexMap::new();
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
@@ -308,7 +337,7 @@ pub fn transform(
                 dynamic_import: true,
                 ..Default::default()
               };
-              let versions = targets_to_versions(&config.targets);
+              let versions = config.targets;
               let mut should_run_preset_env = false;
               if !config.is_swc_helpers {
                 // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
@@ -370,12 +399,12 @@ pub fn transform(
                   // Inline Node fs.readFileSync calls
                   Optional::new(
                     inline_fs(
-                      config.filename.as_str(),
+                      &config.filename,
                       source_map.clone(),
                       unresolved_mark,
                       global_mark,
                       &config.project_root,
-                      &mut fs_deps,
+                      &mut dependencies,
                       is_module
                     ),
                     should_inline_fs
@@ -390,10 +419,10 @@ pub fn transform(
                 &mut Optional::new(
                   NodeReplacer {
                     source_map: &source_map,
-                    items: &mut global_deps,
+                    items: &mut dependencies,
                     global_mark,
                     globals: HashMap::new(),
-                    project_root: Path::new(&config.project_root),
+                    project_root: &config.project_root,
                     filename: Path::new(&config.filename),
                     unresolved_mark,
                     scope_hoist: config.scope_hoist,
@@ -409,10 +438,10 @@ pub fn transform(
                   Optional::new(
                     GlobalReplacer {
                       source_map: &source_map,
-                      items: &mut global_deps,
+                      items: &mut dependencies,
                       global_mark,
                       globals: IndexMap::new(),
-                      project_root: Path::new(&config.project_root),
+                      project_root: &config.project_root,
                       filename: Path::new(&config.filename),
                       unresolved_mark,
                       scope_hoist: config.scope_hoist
@@ -456,7 +485,7 @@ pub fn transform(
                 // Collect dependencies
                 &mut dependency_collector(
                   &source_map,
-                  &mut result.dependencies,
+                  &mut dependencies,
                   ignore_mark,
                   unresolved_mark,
                   &config,
@@ -517,8 +546,7 @@ pub fn transform(
                 fixer(Some(&comments)),
               ));
 
-              result.dependencies.extend(global_deps);
-              result.dependencies.extend(fs_deps);
+              result.dependencies.extend(dependencies.into_values());
 
               if !diagnostics.is_empty() {
                 result.diagnostics = Some(diagnostics);

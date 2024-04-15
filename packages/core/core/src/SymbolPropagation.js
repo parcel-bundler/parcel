@@ -16,7 +16,7 @@ import nullthrows from 'nullthrows';
 import {setEqual} from '@parcel/utils';
 import logger from '@parcel/logger';
 import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
-import {BundleBehavior} from './types';
+import {AssetFlags, BundleBehavior} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
 export function propagateSymbols({
@@ -150,7 +150,7 @@ export function propagateSymbols({
         let depUsedSymbolsDown = new Set();
         dep.usedSymbolsDown = depUsedSymbolsDown;
         if (
-          assetNode.value.sideEffects ||
+          assetNode.value.flags & AssetFlags.SIDE_EFFECTS ||
           // Incoming dependency with cleared symbols
           addAll ||
           // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
@@ -408,7 +408,8 @@ export function propagateSymbols({
             let reexport = reexportedSymbols.get(s);
             let v =
               // Forward a reexport only if the current asset is side-effect free and not external
-              !assetNode.value.sideEffects && reexport != null
+              !(assetNode.value.flags & AssetFlags.SIDE_EFFECTS) &&
+              reexport != null
                 ? reexport
                 : {
                     asset: assetNode.id,

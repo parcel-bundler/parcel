@@ -53,8 +53,11 @@ import {
   toProjectPathUnsafe,
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
+import createAssetGraphRequestRust from './AssetGraphRequestRust';
 import {tracer, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
+import {diff} from 'jest-diff';
+import { AssetFlags, DependencyFlags } from "../types";
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -94,7 +97,7 @@ export default function createBundleGraphRequest(
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
       let measurement = tracer.createMeasurement('building');
-      let request = createAssetGraphRequest({
+      let request = createAssetGraphRequestRust({
         name: 'Main',
         entries: options.entries,
         optionsRef,
@@ -109,6 +112,103 @@ export default function createBundleGraphRequest(
           force: options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
+
+      if (process.env.PARCEL_GRAPH_DIFF === 'true') {
+        let request2 = createAssetGraphRequest({
+          name: 'Main2',
+          entries: options.entries,
+          optionsRef,
+          shouldBuildLazily: options.shouldBuildLazily,
+          lazyIncludes: options.lazyIncludes,
+          lazyExcludes: options.lazyExcludes,
+          requestedAssetIds,
+        });
+
+        let {assetGraph: assetGraph2} = await api.runRequest(
+          request2,
+          {
+            force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+          },
+        );
+
+        // let nodeLookup1 = new Map();
+        let filterOBject = (obj) => Object.fromEntries(Object.entries(obj)
+          .filter(([k, v]) => k !== 'id' && k !== 'contentKey' && k !== 'mapKey' && k !== 'dependencies' && k !== 'outputHash' && k !== 'uniqueKey' && k !== 'time' && k !== 'sourceAssetId' && k !== 'placeholder' && k !== 'loc' && k !== 'sourceAssetType' && k !== 'engines' && k !== 'sourceMap' && k !== 'isURL' && !(k === 'packageConditions' && v === 0) && v != null && !(typeof v === 'object' && Object.keys(v).length === 0))
+          .map(([k, v]) => typeof v === 'object' && v ? [k, filterOBject(v)] : [k, v])
+        );
+
+        let getFlags = (flags, map) => {
+          let res = [];
+          for (let key in map) {
+            if (flags & map[key]) {
+              res.push(key);
+            }
+          }
+          return res.join(' | ');
+        }
+        let mapFlags = node => {
+          if (node.type === 'dependency') {
+            return {...node.value, flags: getFlags(node.value.flags, DependencyFlags)}
+          } else if (node.type === 'asset') {
+            return {...node.value, flags: getFlags(node.value.flags, AssetFlags)};
+          } else {
+            return node.value;
+          }
+        };
+
+        let equalNode = (n, node) => {
+          return n?.type === node.type && (node.type === 'asset' || node.type === 'asset_group' ? n.value.filePath === node.value.filePath : `${n.value.sourcePath ?? null}:${n.value.specifier}` === `${node.value.sourcePath ?? null}:${node.value.specifier}`);
+        };
+
+        console.log(assetGraph.nodes.length, assetGraph2.nodes.filter(node => node.type !== 'entry_specifier' && node.type !== 'entry_file').length)
+        for (let node of assetGraph.nodes) {
+          if (node && (node.type === 'asset' || node.type === 'dependency' || node.type === 'asset_group')) {
+            let first = filterOBject(mapFlags(node));
+            let found = assetGraph2.nodes.find(n => equalNode(n, node));
+            let second = found ? filterOBject(mapFlags(found)) : {};
+
+            try {
+              assert.deepEqual(first, second);
+            } catch (err) {
+              console.log(diff(second, first))
+            }
+          }
+        }
+
+        let edges2 = Array.from(assetGraph2.getAllEdges());
+        for (let edge of assetGraph.getAllEdges()) {
+          let from = assetGraph.getNode(edge.from);
+          let to = assetGraph.getNode(edge.to);
+          if (typeof from?.value !== 'object' || !from.value || typeof to?.value !== 'object' || !to.value) {
+            continue;
+          }
+          let found = edges2.find(e => {
+            let from2 = assetGraph2.getNode(e.from);
+            let to2 = assetGraph2.getNode(e.to);
+            return equalNode(from, from2) && equalNode(to, to2);
+          });
+
+          if (!found) {
+            console.log(edge)
+          }
+        }
+
+        // console.log(
+        //   assetGraph.nodes.filter(n => n.type === 'asset').map(n => n.value),
+        //   assetGraph2.nodes.filter(n => n.type === 'asset').map(n => n.value)
+        // )
+        // assetGraph = assetGraph2;
+        
+        // for (let node of assetGraph2.nodes) {
+        //   if (node && typeof node.value === 'object' && node.value && (node.type === 'asset' || node.type === 'dependency')) {
+        //     // nodeLookup2.set(hashObject(node), node);
+        //     if (!nodeLookup1.has(hashObject({...node.value, id: undefined}))) {
+        //       console.log(node)
+        //     }
+        //   }
+        // }
+      }
+
       measurement && measurement.end();
       assertSignalNotAborted(signal);
 

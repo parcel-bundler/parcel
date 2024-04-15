@@ -5,12 +5,20 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use once_cell::unsync::OnceCell;
 use package_json::AliasValue;
 use package_json::ExportsResolution;
 use package_json::PackageJson;
 use specifier::parse_package_specifier;
 use specifier::parse_scheme;
+use std::{
+  borrow::Cow,
+  path::{Path, PathBuf},
+  sync::Arc,
+};
+
+use package_json::{AliasValue, ExportsResolution, PackageJson};
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -37,10 +45,15 @@ pub use parcel_filesystem::FileSystem;
 pub use specifier::Specifier;
 pub use specifier::SpecifierError;
 pub use specifier::SpecifierType;
+pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
+pub use specifier::{
+  parse_package_specifier, parse_scheme, Specifier, SpecifierError, SpecifierType,
+};
 
 use crate::path::resolve_path;
 
 bitflags! {
+  #[derive(Clone, Copy)]
   pub struct Flags: u16 {
     /// Parcel-style absolute paths resolved relative to project root.
     const ABSOLUTE_SPECIFIERS = 1 << 0;
@@ -67,19 +80,35 @@ bitflags! {
     const EXPORTS_OPTIONAL_EXTENSIONS = 1 << 10;
 
     /// Default Node settings for CommonJS.
-    const NODE_CJS = Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits;
+    const NODE_CJS = Self::EXPORTS.bits() | Self::DIR_INDEX.bits() | Self::OPTIONAL_EXTENSIONS.bits();
     /// Default Node settings for ESM.
-    const NODE_ESM = Self::EXPORTS.bits;
+    const NODE_ESM = Self::EXPORTS.bits();
     /// Default TypeScript settings.
-    const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits;
+    const TYPESCRIPT = Self::TSCONFIG.bits() | Self::EXPORTS.bits() | Self::DIR_INDEX.bits() | Self::OPTIONAL_EXTENSIONS.bits() | Self::TYPESCRIPT_EXTENSIONS.bits() | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits();
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
 pub enum IncludeNodeModules {
   Bool(bool),
   Array(Vec<String>),
-  Map(HashMap<String, bool>),
+  Map(IndexMap<String, bool>),
+}
+
+impl std::hash::Hash for IncludeNodeModules {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    match self {
+      IncludeNodeModules::Bool(b) => b.hash(state),
+      IncludeNodeModules::Array(a) => a.hash(state),
+      IncludeNodeModules::Map(m) => {
+        for (k, v) in m {
+          k.hash(state);
+          v.hash(state);
+        }
+      }
+    }
+  }
 }
 
 impl Default for IncludeNodeModules {
@@ -2786,7 +2815,7 @@ mod tests {
       Resolution::External
     );
 
-    resolver.include_node_modules = Cow::Owned(IncludeNodeModules::Map(HashMap::from([
+    resolver.include_node_modules = Cow::Owned(IncludeNodeModules::Map(IndexMap::from([
       ("foo".into(), false),
       ("@scope/pkg".into(), true),
     ])));

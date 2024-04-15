@@ -62,6 +62,7 @@ import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
 import {invalidateDevDeps} from './requests/DevDepRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {EnvironmentContext} from './types';
 
 type Opts = {|
   config: ParcelConfig,
@@ -584,7 +585,7 @@ export default class PackagerRunner {
         sourceRoot = bundle.env.sourceMap.sourceRoot;
       } else if (
         this.options.serveOptions &&
-        bundle.target.env.context === 'browser'
+        bundle.target.env.context === EnvironmentContext.browser
       ) {
         sourceRoot = '/__parcel_source_root';
       }
@@ -594,7 +595,7 @@ export default class PackagerRunner {
         bundle.env.sourceMap.inlineSources !== undefined
       ) {
         inlineSources = bundle.env.sourceMap.inlineSources;
-      } else if (bundle.target.env.context !== 'node') {
+      } else if (bundle.target.env.context !== EnvironmentContext.node) {
         // inlining should only happen in production for browser targets by default
         inlineSources = this.options.mode === 'production';
       }

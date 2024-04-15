@@ -32,6 +32,7 @@ import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 import {
+  AssetFlags,
   BundleBehavior as BundleBehaviorMap,
   BundleBehaviorNames,
 } from '../types';
@@ -123,7 +124,55 @@ class BaseAsset {
   }
 
   get meta(): Meta {
-    return this.#asset.value.meta;
+    return new Proxy(this.#asset.value.meta, {
+      get: (target, prop) => {
+        let flags = this.#asset.value.flags;
+        switch (prop) {
+          case 'shouldWrap':
+            return Boolean(flags & AssetFlags.SHOULD_WRAP);
+          case 'isConstantModule':
+            return Boolean(flags & AssetFlags.IS_CONSTANT_MODULE);
+          case 'has_node_replacements':
+            return Boolean(flags & AssetFlags.HAS_NODE_REPLACEMENTS);
+          case 'hasCJSExports':
+            return Boolean(flags & AssetFlags.HAS_CJS_EXPORTS);
+          case 'staticExports':
+            return Boolean(flags & AssetFlags.STATIC_EXPORTS);
+          default:
+            return target[prop];
+        }
+      },
+      set: (target, prop, value) => {
+        let flag;
+        switch (prop) {
+          case 'shouldWrap':
+            flag = AssetFlags.SHOULD_WRAP;
+            break;
+          case 'isConstantModule':
+            flag = AssetFlags.IS_CONSTANT_MODULE;
+            break;
+          case 'has_node_replacements':
+            flag = AssetFlags.HAS_NODE_REPLACEMENTS;
+            break;
+          case 'hasCJSExports':
+            flag = AssetFlags.HAS_CJS_EXPORTS;
+            break;
+          case 'staticExports':
+            flag = AssetFlags.STATIC_EXPORTS;
+            break;
+          default:
+            target[prop] = value;
+            return true;
+        }
+
+        if (value) {
+          this.#asset.value.flags |= flag;
+        } else {
+          this.#asset.value.flags &= ~flag;
+        }
+        return true;
+      },
+    });
   }
 
   get bundleBehavior(): ?BundleBehavior {
@@ -132,15 +181,15 @@ class BaseAsset {
   }
 
   get isBundleSplittable(): boolean {
-    return this.#asset.value.isBundleSplittable;
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_BUNDLE_SPLITTABLE);
   }
 
   get isSource(): boolean {
-    return this.#asset.value.isSource;
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_SOURCE);
   }
 
   get sideEffects(): boolean {
-    return this.#asset.value.sideEffects;
+    return Boolean(this.#asset.value.flags & AssetFlags.SIDE_EFFECTS);
   }
 
   get symbols(): IAssetSymbols {
@@ -258,23 +307,31 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   set bundleBehavior(bundleBehavior: ?BundleBehavior): void {
     this.#asset.value.bundleBehavior = bundleBehavior
       ? BundleBehaviorMap[bundleBehavior]
-      : null;
+      : 255;
   }
 
   get isBundleSplittable(): boolean {
-    return this.#asset.value.isBundleSplittable;
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_BUNDLE_SPLITTABLE);
   }
 
   set isBundleSplittable(isBundleSplittable: boolean): void {
-    this.#asset.value.isBundleSplittable = isBundleSplittable;
+    if (isBundleSplittable) {
+      this.#asset.value.flags |= AssetFlags.IS_BUNDLE_SPLITTABLE;
+    } else {
+      this.#asset.value.flags &= ~AssetFlags.IS_BUNDLE_SPLITTABLE;
+    }
   }
 
   get sideEffects(): boolean {
-    return this.#asset.value.sideEffects;
+    return Boolean(this.#asset.value.flags & AssetFlags.SIDE_EFFECTS);
   }
 
   set sideEffects(sideEffects: boolean): void {
-    this.#asset.value.sideEffects = sideEffects;
+    if (sideEffects) {
+      this.#asset.value.flags |= AssetFlags.SIDE_EFFECTS;
+    } else {
+      this.#asset.value.flags &= ~AssetFlags.SIDE_EFFECTS;
+    }
   }
 
   get uniqueKey(): ?string {

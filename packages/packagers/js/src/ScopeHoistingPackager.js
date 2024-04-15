@@ -985,7 +985,7 @@ ${code}
       exportSymbol === 'default' &&
       staticExports &&
       !isWrapped &&
-      (dep?.meta.kind === 'Import' || dep?.meta.kind === 'Export') &&
+      dep?.meta.isESM &&
       resolvedAsset.symbols.hasExportSymbol('*') &&
       resolvedAsset.symbols.hasExportSymbol('default') &&
       !resolvedAsset.symbols.hasExportSymbol('__esModule');
@@ -1026,9 +1026,8 @@ ${code}
       // we need to use a member access off the namespace object rather
       // than a direct reference. If importing default from a CJS module,
       // use a helper to check the __esModule flag at runtime.
-      let kind = dep?.meta.kind;
       if (
-        (!dep || kind === 'Import' || kind === 'Export') &&
+        (!dep || dep.meta.isESM) &&
         exportSymbol === 'default' &&
         resolvedAsset.symbols.hasExportSymbol('*') &&
         this.needsDefaultInterop(resolvedAsset)

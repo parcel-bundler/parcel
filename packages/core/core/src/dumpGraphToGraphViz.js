@@ -9,7 +9,7 @@ import {requestGraphEdgeTypes} from './RequestTracker';
 import path from 'path';
 import {fromNodeId} from '@parcel/graph';
 import {fromProjectPathRelative} from './projectPath';
-import {SpecifierType, Priority} from './types';
+import {SpecifierType, Priority, EnvironmentContextNames} from './types';
 
 const COLORS = {
   root: 'gray',
@@ -231,9 +231,13 @@ function nodeId(id) {
 function getEnvDescription(env: Environment) {
   let description;
   if (typeof env.engines.browsers === 'string') {
-    description = `${env.context}: ${env.engines.browsers}`;
+    description = `${EnvironmentContextNames[env.context]}: ${
+      env.engines.browsers
+    }`;
   } else if (Array.isArray(env.engines.browsers)) {
-    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
+    description = `${
+      EnvironmentContextNames[env.context]
+    }: ${env.engines.browsers.join(', ')}`;
   } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
   } else if (env.engines.electron) {

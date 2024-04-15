@@ -283,7 +283,7 @@ impl Resolver {
       resolver.include_node_modules = Cow::Owned(match include_node_modules {
         Either3::A(b) => IncludeNodeModules::Bool(b),
         Either3::B(v) => IncludeNodeModules::Array(v),
-        Either3::C(v) => IncludeNodeModules::Map(v),
+        Either3::C(v) => IncludeNodeModules::Map(v.into_iter().collect()),
       });
     }
 

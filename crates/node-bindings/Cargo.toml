@@ -30,13 +30,15 @@ serde_json = "1.0.116"
 toml = "0.8.12"
 anyhow = "1.0.82"
 mockall = "0.12.1"
+parcel-core = { path = "../core" }
+indexmap = "1.9.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sentry = { version = "0.32.2", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "debug-images", "anyhow"]}
 whoami = { version = "1.5.1", optional = true }
 once_cell = { version = "1.19.0", optional = true }
 
-napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5"] }
+napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5", "napi6"] }
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 oxipng = "8.0.0"

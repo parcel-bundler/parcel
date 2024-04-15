@@ -29,6 +29,7 @@ import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
+import {DependencyFlags, EnvironmentFlags} from './types';
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
@@ -65,7 +66,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: hashString(
       fromProjectPathRelative(assetGroup.filePath) +
-        assetGroup.env.id +
+        JSON.stringify(assetGroup.env) +
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
         (assetGroup.code ?? '') +
@@ -230,13 +231,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           env: target.env,
           isEntry: true,
           needsStableName: true,
-          symbols: target.env.isLibrary
-            ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
-            : undefined,
+          symbols:
+            target.env.flags & EnvironmentFlags.IS_LIBRARY
+              ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
+              : undefined,
         }),
       );
 
-      if (node.value.env.isLibrary) {
+      if (node.value.env.flags & EnvironmentFlags.IS_LIBRARY) {
         // in library mode, all of the entry's symbols are "used"
         node.usedSymbolsDown.add('*');
         node.usedSymbolsUp.set('*', undefined);
@@ -401,7 +403,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       defer = deps.every(
         d =>
           d.symbols &&
-          !(d.env.isLibrary && d.isEntry) &&
+          !(
+            d.env.flags & EnvironmentFlags.IS_LIBRARY &&
+            d.flags & DependencyFlags.ENTRY
+          ) &&
           !d.symbols.has('*') &&
           ![...d.symbols.keys()].some(symbol => {
             if (!resolvedAsset.symbols) return true;

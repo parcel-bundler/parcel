@@ -757,7 +757,7 @@ export default (new Transformer({
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);
       } else {
-        let meta: JSONObject = {kind: dep.kind};
+        let meta: JSONObject = {isESM: dep.kind === 'Import' || dep.kind === 'Export'};
         if (dep.attributes) {
           meta.importAttributes = dep.attributes;
         }
