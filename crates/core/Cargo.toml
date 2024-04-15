@@ -1,0 +1,17 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = "1.7.0"
+crossbeam-channel = "0.5.6"
+petgraph = "*"
+bitflags = "*"
+parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
+parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+lazy_static = "*"
+mimalloc = { version = "*", default-features = false }
+indexmap = "*"
+glob-match = "0.2.1"
