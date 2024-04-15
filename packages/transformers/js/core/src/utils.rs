@@ -289,6 +289,12 @@ pub enum SourceType {
   Module,
 }
 
+impl Default for SourceType {
+  fn default() -> Self {
+    SourceType::Module
+  }
+}
+
 #[derive(Debug)]
 pub struct Bailout {
   pub loc: SourceLocation,
