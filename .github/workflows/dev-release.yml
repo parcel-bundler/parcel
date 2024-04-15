@@ -4,6 +4,9 @@
 name: dev-release
 
 on:
+  push:
+    branches:
+      - molejniczak/tracing-api-release
   workflow_dispatch:
 
 jobs:
