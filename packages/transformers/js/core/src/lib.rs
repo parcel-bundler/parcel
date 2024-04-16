@@ -26,8 +26,9 @@ use swc_core::common::source_map::SourceMapGenConfig;
 use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_core::ecma::ast::{Module, ModuleItem, Program};
 use swc_core::ecma::codegen::text_writer::JsWriter;
+use swc_core::ecma::parser::error::Error;
 use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+use swc_core::ecma::parser::{EsConfig, Parser, StringInput, Syntax, TsConfig};
 use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_core::ecma::transforms::base::fixer::paren_remover;
 use swc_core::ecma::transforms::base::helpers;
@@ -158,10 +159,12 @@ pub fn transform(
   );
 
   match module {
-    Err(err) => {
+    Err(errs) => {
       let error_buffer = ErrorBuffer::default();
       let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
-      err.into_diagnostic(&handler).emit();
+      for err in errs {
+        err.into_diagnostic(&handler).emit();
+      }
 
       result.diagnostics = Some(error_buffer_to_diagnostics(&error_buffer, &source_map));
       Ok(result)
@@ -514,13 +517,15 @@ pub fn transform(
   }
 }
 
+pub type ParseResult<T> = Result<T, Vec<Error>>;
+
 fn parse(
   code: &str,
   project_root: &str,
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,
-) -> PResult<(Program, SingleThreadedComments)> {
+) -> ParseResult<(Program, SingleThreadedComments)> {
   // Attempt to convert the path to be relative to the project root.
   // If outside the project root, use an absolute path so that if the project root moves the path still works.
   let filename: PathBuf = if let Ok(relative) = Path::new(filename).strip_prefix(project_root) {
@@ -555,10 +560,22 @@ fn parse(
   );
 
   let mut parser = Parser::new_from(lexer);
-  match parser.parse_program() {
-    Err(err) => Err(err),
-    Ok(module) => Ok((module, comments)),
+  let result = parser.parse_program();
+
+  let module = match result {
+    Err(err) => {
+      // A fatal error
+      return Err(vec![err]);
+    }
+    Ok(module) => module,
+  };
+  // Recoverable errors
+  let errors = parser.take_errors();
+  if !errors.is_empty() {
+    return Err(errors);
   }
+
+  Ok((module, comments))
 }
 
 fn emit(
