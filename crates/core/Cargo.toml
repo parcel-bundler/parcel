@@ -15,3 +15,4 @@ lazy_static = "*"
 mimalloc = { version = "*", default-features = false }
 indexmap = "*"
 glob-match = "0.2.1"
+serde = "1.0.123"
