@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use indexmap::IndexMap;
 use swc_core::common::util::take::Take;
@@ -254,7 +255,7 @@ impl<'a> Fold for Macros<'a> {
       return Expr::Call(call);
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 
   fn fold_var_decl(&mut self, mut node: VarDecl) -> VarDecl {

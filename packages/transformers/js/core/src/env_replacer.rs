@@ -7,8 +7,8 @@ use swc_core::common::Mark;
 use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::visit::Fold;
-use swc_core::ecma::visit::FoldWith;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::utils::*;
 
@@ -166,7 +166,7 @@ impl<'a> Fold for EnvReplacer<'a> {
       }
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 
   fn fold_var_decl(&mut self, node: VarDecl) -> VarDecl {

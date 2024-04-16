@@ -4,6 +4,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use path_slash::PathBufExt;
 use serde::Deserialize;
@@ -886,7 +887,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       return ast::Expr::Ident(get_undefined_ident(self.unresolved_mark));
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 }
 

@@ -8,6 +8,7 @@ use swc_core::common::SyntaxContext;
 use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
@@ -53,7 +54,7 @@ impl<'a> Fold for NodeReplacer<'a> {
           })
         }
       }
-      _ => node.fold_children_with(self),
+      _ => maybe_grow_default(|| node.fold_children_with(self)),
     };
 
     if let Ident(id) = &mut node {

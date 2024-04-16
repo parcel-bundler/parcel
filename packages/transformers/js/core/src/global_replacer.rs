@@ -1,4 +1,5 @@
 use std::path::Path;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use indexmap::IndexMap;
 use path_slash::PathBufExt;
@@ -55,7 +56,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
           })
         }
       }
-      _ => node.fold_children_with(self),
+      _ => maybe_grow_default(|| node.fold_children_with(self)),
     };
 
     if let Ident(id) = &mut node {

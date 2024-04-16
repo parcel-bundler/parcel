@@ -13,6 +13,7 @@ use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
@@ -755,7 +756,7 @@ impl<'a> Fold for Hoist<'a> {
       _ => {}
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 
   fn fold_seq_expr(&mut self, node: SeqExpr) -> SeqExpr {

@@ -10,6 +10,7 @@ use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::noop_visit_type;
 use swc_core::ecma::visit::Visit;
 use swc_core::ecma::visit::VisitWith;
@@ -789,7 +790,7 @@ impl Visit for Collect {
         }
       }
       _ => {
-        node.visit_children_with(self);
+        maybe_grow_default(|| node.visit_children_with(self));
       }
     }
   }

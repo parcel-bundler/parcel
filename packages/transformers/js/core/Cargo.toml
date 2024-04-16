@@ -22,6 +22,7 @@ swc_core = { version = "0.91.4", features = [
   "ecma_transforms_proposal",
   "ecma_transforms_react",
   "ecma_transforms_typescript",
+  "ecma_utils",
   "ecma_visit",
   "stacker"
 ] }

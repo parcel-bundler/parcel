@@ -11,6 +11,7 @@ use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::preset_env::Feature;
 use swc_core::ecma::preset_env::Versions;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
@@ -623,7 +624,7 @@ impl Fold for ESMFold {
           node
         }
       }
-      _ => node.fold_children_with(self),
+      _ => maybe_grow_default(|| node.fold_children_with(self)),
     }
   }
 
