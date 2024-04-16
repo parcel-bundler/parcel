@@ -29,7 +29,7 @@ import {
 import {hashString} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
-import {assertSignalNotAborted, hashFromOption} from './utils';
+import {BuildAbortError, assertSignalNotAborted, hashFromOption} from './utils';
 import {
   type ProjectPath,
   fromProjectPathRelative,
@@ -1225,7 +1225,10 @@ export default class RequestTracker {
       deferred.resolve(true);
       return result;
     } catch (err) {
-      if (request.type === requestTypes.dev_dep_request) {
+      if (
+        !(err instanceof BuildAbortError) &&
+        request.type === requestTypes.dev_dep_request
+      ) {
         logger.verbose({
           origin: '@parcel/core',
           message: `Failed DevDepRequest`,
