@@ -1386,6 +1386,10 @@ export default class BundleGraph {
     });
   }
 
+  /**
+   * TODO: Document why this works like this & why visitor order matters
+   * on these use-cases.
+   */
   traverseBundle<TContext>(
     bundle: Bundle,
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,

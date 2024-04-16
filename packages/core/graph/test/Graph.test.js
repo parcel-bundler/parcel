@@ -2,6 +2,7 @@
 
 import assert from 'assert';
 import sinon from 'sinon';
+import type {TraversalActions} from '@parcel/types-internal';
 
 import Graph, {type DFSParams} from '../src/Graph';
 import {toNodeId, type NodeId} from '../src/types';
@@ -344,12 +345,12 @@ describe('Graph', () => {
   describe('dfs(...)', () => {
     function testSuite(
       name: string,
-      dfsImpl: (graph: Graph, DFSParams<void>) => void,
+      dfsImpl: (graph: Graph<string>, DFSParams<mixed>) => mixed | null | void,
     ) {
       it(`${name} throws if the graph is empty`, () => {
         const graph = new Graph();
-        const visit = sinon.mock();
-        const getChildren = sinon.mock();
+        const visit = sinon.stub();
+        const getChildren = sinon.stub();
         assert.throws(() => {
           dfsImpl(graph, {
             visit,
@@ -400,14 +401,169 @@ describe('Graph', () => {
 
         assert.deepEqual(order, [0, 1, 3, 2]);
       });
+
+      describe('actions tests', () => {
+        it(`${name} skips children if skip is called on a node`, () => {
+          const graph = new Graph();
+          graph.addNode('0');
+          graph.addNode('1');
+          graph.addNode('2');
+          graph.addNode('3');
+          graph.addNode('disconnected-1');
+          graph.addNode('disconnected-2');
+          graph.addEdge(0, 1);
+          graph.addEdge(1, 2);
+          graph.addEdge(0, 3);
+
+          const order = [];
+          const visit = (
+            node: NodeId,
+            context: mixed | null,
+            actions: TraversalActions,
+          ) => {
+            if (node === 1) actions.skipChildren();
+            order.push(node);
+          };
+          const getChildren = (node: NodeId) =>
+            graph.getNodeIdsConnectedFrom(node);
+          dfsImpl(graph, {
+            visit,
+            startNodeId: 0,
+            getChildren,
+          });
+
+          assert.deepEqual(order, [0, 1, 3]);
+        });
+
+        it(`${name} stops the traversal if stop is called`, () => {
+          const graph = new Graph();
+          graph.addNode('0');
+          graph.addNode('1');
+          graph.addNode('2');
+          graph.addNode('3');
+          graph.addNode('disconnected-1');
+          graph.addNode('disconnected-2');
+          graph.addEdge(0, 1);
+          graph.addEdge(1, 2);
+          graph.addEdge(1, 3);
+          graph.addEdge(0, 2);
+          graph.addEdge(2, 3);
+
+          const order = [];
+          const visit = (
+            node: NodeId,
+            context: mixed | null,
+            actions: TraversalActions,
+          ) => {
+            order.push(node);
+            if (node === 1) {
+              actions.stop();
+              return 'result';
+            }
+            return 'other';
+          };
+          const getChildren = (node: NodeId) =>
+            graph.getNodeIdsConnectedFrom(node);
+          const result = dfsImpl(graph, {
+            visit,
+            startNodeId: 0,
+            getChildren,
+          });
+
+          assert.deepEqual(order, [0, 1]);
+          assert.equal(result, 'result');
+        });
+      });
+
+      describe('context tests', () => {
+        it(`${name} passes the context between visitors`, () => {
+          const graph = new Graph();
+          graph.addNode('0');
+          graph.addNode('1');
+          graph.addNode('2');
+          graph.addNode('3');
+          graph.addNode('disconnected-1');
+          graph.addNode('disconnected-2');
+          graph.addEdge(0, 1);
+          graph.addEdge(1, 2);
+          graph.addEdge(1, 3);
+          graph.addEdge(0, 2);
+          graph.addEdge(2, 3);
+
+          const contexts = [];
+          const visit = (node: NodeId, context: mixed | null) => {
+            contexts.push([node, context]);
+            return `node-${node}-created-context`;
+          };
+          const getChildren = (node: NodeId) =>
+            graph.getNodeIdsConnectedFrom(node);
+          const result = dfsImpl(graph, {
+            visit,
+            startNodeId: 0,
+            getChildren,
+          });
+
+          assert.deepEqual(contexts, [
+            [0, undefined],
+            [1, 'node-0-created-context'],
+            [2, 'node-1-created-context'],
+            [3, 'node-2-created-context'],
+          ]);
+          assert.equal(result, undefined);
+        });
+      });
+
+      describe('exit visitor tests', () => {
+        it(`${name} calls the exit visitor`, () => {
+          const graph = new Graph();
+          graph.addNode('0');
+          graph.addNode('1');
+          graph.addNode('2');
+          graph.addNode('3');
+          graph.addNode('disconnected-1');
+          graph.addNode('disconnected-2');
+          graph.addEdge(0, 1);
+          graph.addEdge(1, 2);
+          graph.addEdge(1, 3);
+          graph.addEdge(0, 2);
+
+          const contexts = [];
+          const visit = (node: NodeId, context: mixed | null) => {
+            contexts.push([node, context]);
+            return `node-${node}-created-context`;
+          };
+          const visitExit = (node: NodeId, context: mixed | null) => {
+            contexts.push(['exit', node, context]);
+            return `node-exit-${node}-created-context`;
+          };
+          const getChildren = (node: NodeId) =>
+            graph.getNodeIdsConnectedFrom(node);
+          const result = dfsImpl(graph, {
+            visit: {
+              enter: visit,
+              exit: visitExit,
+            },
+            startNodeId: 0,
+            getChildren,
+          });
+
+          assert.deepEqual(contexts, [
+            [0, undefined],
+            [1, 'node-0-created-context'],
+            [2, 'node-1-created-context'],
+            ['exit', 2, 'node-2-created-context'],
+            [3, 'node-1-created-context'],
+            ['exit', 3, 'node-3-created-context'],
+            ['exit', 1, 'node-1-created-context'],
+            ['exit', 0, 'node-0-created-context'],
+          ]);
+          assert.equal(result, undefined);
+        });
+      });
     }
 
-    testSuite('dfs', (graph, params) => {
-      graph.dfs(params);
-    });
+    testSuite('dfs', (graph, params) => graph.dfs(params));
 
-    testSuite('dfsNew', (graph, params) => {
-      graph.dfsNew(params);
-    });
+    testSuite('dfsNew', (graph, params) => graph.dfsNew(params));
   });
 });

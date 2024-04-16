@@ -39,12 +39,36 @@ type DFSCommandExit<TContext> = {|
   context: TContext | null,
 |};
 
+/**
+ * Internal type used for queue iterative DFS implementation.
+ */
 type DFSCommand<TContext> =
   | DFSCommandVisit<TContext>
   | DFSCommandExit<TContext>;
 
+/**
+ * Options for DFS traversal.
+ */
 export type DFSParams<TContext> = {|
   visit: GraphVisitor<NodeId, TContext>,
+  /**
+   * Custom function to get next entries to visit.
+   *
+   * This can be a performance bottle-neck as arrays are created on every node visit.
+   *
+   * @deprecated This will be replaced by a static `traversalType` set of orders in the future
+   *
+   * Currently this is only used in 3 ways:
+   *
+   * - Traversing down the tree (normal DFS)
+   * - Traversing up the tree (ancestors)
+   * - Filtered version of traversal; which does not need to exist at the DFS level as the visitor
+   *   can handle filtering
+   * - Sorted traversal of BundleGraph entries, which does not have a clear use-case, but may
+   *   not be safe to remove
+   *
+   * Only due to the latter we aren't replacing this.
+   */
   getChildren(nodeId: NodeId): Array<NodeId>,
   startNodeId?: ?NodeId,
 |};
@@ -470,6 +494,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return;
   }
 
+  /**
+   * Iterative implementation of DFS that supports all use-cases.
+   */
   dfsNew<TContext>({
     visit,
     startNodeId,
@@ -527,7 +554,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
         }
       } else {
         let {nodeId, context} = command;
-        if (!this.hasNode(nodeId)) continue;
+        if (!this.hasNode(nodeId) || visited.has(nodeId)) continue;
         visited.add(nodeId);
 
         skipped = false;
@@ -570,9 +597,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       }
     }
 
-    // let result = walk(traversalStartNode);
     this._visited = visited;
-    // return result;
   }
 
   dfs<TContext>({
