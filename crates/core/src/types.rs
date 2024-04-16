@@ -1,5 +1,6 @@
 use std::{
   collections::{hash_map::DefaultHasher, HashMap},
+  fmt::Display,
   num::NonZeroU32,
   path::PathBuf,
 };
@@ -165,7 +166,7 @@ pub struct AssetAst {
   pub version: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AssetType {
   Js,
   Jsx,
@@ -174,6 +175,20 @@ pub enum AssetType {
   Css,
   Html,
   Other(String),
+}
+
+impl AssetType {
+  pub fn extension(&self) -> &str {
+    match self {
+      AssetType::Js => ".js",
+      AssetType::Jsx => ".jsx",
+      AssetType::Ts => ".ts",
+      AssetType::Tsx => ".tsx",
+      AssetType::Css => ".css",
+      AssetType::Html => ".html",
+      AssetType::Other(s) => s.as_str(),
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
