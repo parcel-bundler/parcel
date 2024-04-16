@@ -1,0 +1,9 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
+rayon = "1.7.0"
