@@ -334,7 +334,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     ) {
       return this.dfsFast(enter, startNodeId);
     } else {
-      return this.dfs({
+      return this.dfsNew({
         visit,
         startNodeId,
         getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
