@@ -1,14 +1,28 @@
 use std::sync::Arc;
 
-pub type WorkerCallback = Arc<dyn Fn(TaskInput) -> Result<TaskOutput, TaskError> + Send + Sync>;
+use crate::requests::entry_request::{Entry, EntryRequest};
+
+pub type WorkerCallback =
+  Arc<dyn Fn(WorkerRequest) -> Result<WorkerResult, WorkerError> + Send + Sync>;
 
 pub struct WorkerFarm {
   workers: Vec<WorkerCallback>,
 }
 
-struct TaskInput {}
-struct TaskOutput {}
-enum TaskError {}
+#[derive(serde::Serialize, Debug)]
+#[serde(tag = "type")]
+pub enum WorkerRequest {
+  Entry(EntryRequest),
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(tag = "type", content = "value")]
+pub enum WorkerResult {
+  Entry(Vec<Entry>),
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub enum WorkerError {}
 
 impl WorkerFarm {
   pub fn new() -> Self {
@@ -21,9 +35,10 @@ impl WorkerFarm {
     self.workers.push(worker);
   }
 
-  pub fn run(&self, input: TaskInput) -> Result<TaskOutput, TaskError> {
+  pub fn run(&self, request: WorkerRequest) -> Result<WorkerResult, WorkerError> {
+    // TODO: actually use multiple workers
     let worker = &self.workers[0];
-    worker(input)
+    worker(request)
   }
 }
 

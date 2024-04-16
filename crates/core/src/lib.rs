@@ -3,4 +3,4 @@ mod parcel_config;
 pub mod request_tracker;
 mod requests;
 mod types;
-mod worker_farm;
+pub mod worker_farm;

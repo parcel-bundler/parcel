@@ -1,11 +1,15 @@
-use crate::request_tracker::{Request, RequestResult};
+use crate::{
+  request_tracker::{Request, RequestResult},
+  worker_farm::{WorkerRequest, WorkerResult},
+};
 
-#[derive(Hash)]
+#[derive(Hash, serde::Serialize, Clone, Debug)]
 pub struct EntryRequest {
   pub entry: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Entry {
   pub file_path: String,
   pub package_path: String,
@@ -16,14 +20,11 @@ pub struct Entry {
 impl Request for EntryRequest {
   type Output = Vec<Entry>;
 
-  fn run(&self, _farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
-    // todo!()
+  fn run(&self, farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
+    let WorkerResult::Entry(entries) = farm.run(WorkerRequest::Entry(self.clone())).unwrap();
+
     RequestResult {
-      result: Ok(vec![Entry {
-        file_path: self.entry.clone(),
-        package_path: "/".into(),
-        target: None,
-      }]),
+      result: Ok(entries),
       invalidations: Vec::new(),
     }
   }

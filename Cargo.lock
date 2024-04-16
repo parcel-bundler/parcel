@@ -1642,6 +1642,7 @@ dependencies = [
  "parcel-resolver",
  "petgraph",
  "rayon",
+ "serde",
 ]
 
 [[package]]
@@ -1707,6 +1708,7 @@ dependencies = [
  "napi-derive",
  "once_cell",
  "oxipng",
+ "parcel-core",
  "parcel-dev-dep-resolver",
  "parcel-js-swc-core",
  "parcel-macros",

@@ -118,11 +118,11 @@ pub struct RequestTracker {
 }
 
 impl RequestTracker {
-  pub fn new() -> Self {
+  pub fn new(farm: WorkerFarm) -> Self {
     RequestTracker {
       graph: DiGraph::new(),
       requests: HashMap::new(),
-      farm: WorkerFarm::new(),
+      farm,
     }
   }
 
