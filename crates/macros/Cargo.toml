@@ -16,6 +16,7 @@ swc_core = { version = "0.91.4", features = [
   "ecma_ast",
   "ecma_parser",
   "ecma_visit",
+  "stacker"
 ] }
 serde = "1.0.123"
 napi-derive = { version = "2.12.5", optional = true }
