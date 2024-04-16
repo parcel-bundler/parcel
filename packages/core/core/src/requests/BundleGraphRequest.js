@@ -94,27 +94,31 @@ export default function createBundleGraphRequest(
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
 
-      let {assetGraph, changedAssets, assetRequests} = await tracer.measure(
-        {
+      let measurement =
+        tracer.enabled &&
+        tracer.createTraceMeasurement({
           name: 'building',
           categories: ['core'],
-        },
-        () => {
-          let request = createAssetGraphRequest({
-            name: 'Main',
-            entries: options.entries,
-            optionsRef,
-            shouldBuildLazily: options.shouldBuildLazily,
-            lazyIncludes: options.lazyIncludes,
-            lazyExcludes: options.lazyExcludes,
-            requestedAssetIds,
-          });
+        });
 
-          return api.runRequest(request, {
-            force: options.shouldBuildLazily && requestedAssetIds.size > 0,
-          });
+      let request = createAssetGraphRequest({
+        name: 'Main',
+        entries: options.entries,
+        optionsRef,
+        shouldBuildLazily: options.shouldBuildLazily,
+        lazyIncludes: options.lazyIncludes,
+        lazyExcludes: options.lazyExcludes,
+        requestedAssetIds,
+      });
+
+      let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
+        request,
+        {
+          force: options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
+
+      measurement && measurement.end();
 
       assertSignalNotAborted(signal);
 
@@ -143,21 +147,21 @@ export default function createBundleGraphRequest(
       let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
-      let res = await tracer.measure<Promise<BundleGraphResult>>(
-        {
+      measurement =
+        tracer.enabled &&
+        tracer.createTraceMeasurement({
           name: 'bundling',
           categories: ['core'],
-        },
-        () => {
-          let builder = new BundlerRunner(input, parcelConfig, devDeps);
+        });
 
-          return builder.bundle({
-            graph: assetGraph,
-            changedAssets: changedAssets,
-            assetRequests,
-          });
-        },
-      );
+      let builder = new BundlerRunner(input, parcelConfig, devDeps);
+      let res: BundleGraphResult = await builder.bundle({
+        graph: assetGraph,
+        changedAssets: changedAssets,
+        assetRequests,
+      });
+
+      measurement && measurement.end();
 
       for (let [id, asset] of changedAssets) {
         res.changedAssets.set(id, asset);
@@ -332,39 +336,41 @@ class BundlerRunner {
             .join(', ');
         }
 
-        // this the normal bundle workflow (bundle, optimizing, run-times, naming)
-        await tracer.measure(
-          {
+        let measurement =
+          tracer.enabled &&
+          tracer.createTraceMeasurement({
             name: pluginName,
             categories: ['bundling:bundle'],
             args: {filename},
-          },
-          () =>
-            bundler.bundle({
+          });
+
+        // this the normal bundle workflow (bundle, optimizing, run-times, naming)
+        await bundler.bundle({
+          bundleGraph: mutableBundleGraph,
+          config: this.configs.get(pluginName)?.result,
+          options: this.pluginOptions,
+          logger,
+          tracer,
+        });
+
+        measurement && measurement.end();
+
+        if (this.pluginOptions.mode === 'production') {
+          try {
+            measurement =
+              tracer.enabled &&
+              tracer.createTraceMeasurement({
+                name: pluginName,
+                categories: ['bundling:optimize'],
+                args: {filename},
+              });
+
+            await bundler.optimize({
               bundleGraph: mutableBundleGraph,
               config: this.configs.get(pluginName)?.result,
               options: this.pluginOptions,
               logger,
-              tracer,
-            }),
-        );
-
-        if (this.pluginOptions.mode === 'production') {
-          try {
-            await tracer.measure(
-              {
-                name: pluginName,
-                categories: ['bundling:optimize'],
-                args: {filename},
-              },
-              () =>
-                bundler.optimize({
-                  bundleGraph: mutableBundleGraph,
-                  config: this.configs.get(pluginName)?.result,
-                  options: this.pluginOptions,
-                  logger,
-                }),
-            );
+            });
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, {
@@ -372,6 +378,8 @@ class BundlerRunner {
               }),
             });
           } finally {
+            measurement && measurement.end();
+
             await dumpGraphToGraphViz(
               // $FlowFixMe[incompatible-call]
               internalBundleGraph._graph,
@@ -514,23 +522,24 @@ class BundlerRunner {
     );
 
     for (let namer of namers) {
+      let measurement;
       try {
-        let name = await tracer.measure(
-          {
+        measurement =
+          tracer.enabled &&
+          tracer.createTraceMeasurement({
             name: namer.name,
             args: {bundle: bundle.id},
             categories: ['namer'],
-          },
-          () =>
-            namer.plugin.name({
-              bundle,
-              bundleGraph,
-              config: this.configs.get(namer.name)?.result,
-              options: this.pluginOptions,
-              logger: new PluginLogger({origin: namer.name}),
-              tracer: new PluginTracer({origin: namer.name, category: 'namer'}),
-            }),
-        );
+          });
+
+        let name = await namer.plugin.name({
+          bundle,
+          bundleGraph,
+          config: this.configs.get(namer.name)?.result,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: namer.name}),
+          tracer: new PluginTracer({origin: namer.name, category: 'namer'}),
+        });
 
         if (name != null) {
           internalBundle.name = name;
@@ -547,6 +556,8 @@ class BundlerRunner {
             origin: namer.name,
           }),
         });
+      } finally {
+        measurement && measurement.end();
       }
     }
 

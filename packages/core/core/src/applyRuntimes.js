@@ -96,100 +96,102 @@ export default async function applyRuntimes<TResult>({
 
   for (let bundle of bundles) {
     for (let runtime of runtimes) {
+      let measurement;
       try {
         const namedBundle = NamedBundle.get(bundle, bundleGraph, options);
 
-        await tracer.measure(
-          {
+        measurement =
+          tracer.enabled &&
+          tracer.createTraceMeasurement({
             name: runtime.name,
             args: {bundle: namedBundle.displayName},
             categories: ['applyRuntime'],
-          },
-          async () => {
-            let applied = await runtime.plugin.apply({
-              bundle: namedBundle,
-              bundleGraph: new BundleGraph<INamedBundle>(
-                bundleGraph,
-                NamedBundle.get.bind(NamedBundle),
-                options,
-              ),
-              config: configs.get(runtime.name)?.result,
-              options: pluginOptions,
-              logger: new PluginLogger({origin: runtime.name}),
-              tracer: new PluginTracer({
-                origin: runtime.name,
-                category: 'applyRuntime',
-              }),
-            });
+          });
 
-            if (applied) {
-              let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-              for (let {
-                code,
-                dependency,
-                filePath,
-                isEntry,
-                env,
-                priority,
-              } of runtimeAssets) {
-                let sourceName = path.join(
-                  path.dirname(filePath),
-                  `runtime-${hashString(code)}.${bundle.type}`,
+        let applied = await runtime.plugin.apply({
+          bundle: namedBundle,
+          bundleGraph: new BundleGraph<INamedBundle>(
+            bundleGraph,
+            NamedBundle.get.bind(NamedBundle),
+            options,
+          ),
+          config: configs.get(runtime.name)?.result,
+          options: pluginOptions,
+          logger: new PluginLogger({origin: runtime.name}),
+          tracer: new PluginTracer({
+            origin: runtime.name,
+            category: 'applyRuntime',
+          }),
+        });
+
+        if (applied) {
+          let runtimeAssets = Array.isArray(applied) ? applied : [applied];
+          for (let {
+            code,
+            dependency,
+            filePath,
+            isEntry,
+            env,
+            priority,
+          } of runtimeAssets) {
+            let sourceName = path.join(
+              path.dirname(filePath),
+              `runtime-${hashString(code)}.${bundle.type}`,
+            );
+
+            let assetGroup = {
+              code,
+              filePath: toProjectPath(options.projectRoot, sourceName),
+              env: mergeEnvironments(options.projectRoot, bundle.env, env),
+              // Runtime assets should be considered source, as they should be
+              // e.g. compiled to run in the target environment
+              isSource: true,
+            };
+
+            let connectionBundle = bundle;
+
+            if (priority === 'parallel' && !bundle.needsStableName) {
+              let bundleGroups =
+                bundleGraph.getBundleGroupsContainingBundle(bundle);
+
+              connectionBundle = nullthrows(
+                bundleGraph.createBundle({
+                  type: bundle.type,
+                  needsStableName: false,
+                  env: bundle.env,
+                  target: bundle.target,
+                  uniqueKey: 'runtime-manifest:' + bundle.id,
+                  shouldContentHash: options.shouldContentHash,
+                }),
+              );
+
+              for (let bundleGroup of bundleGroups) {
+                bundleGraph.addBundleToBundleGroup(
+                  connectionBundle,
+                  bundleGroup,
                 );
-
-                let assetGroup = {
-                  code,
-                  filePath: toProjectPath(options.projectRoot, sourceName),
-                  env: mergeEnvironments(options.projectRoot, bundle.env, env),
-                  // Runtime assets should be considered source, as they should be
-                  // e.g. compiled to run in the target environment
-                  isSource: true,
-                };
-
-                let connectionBundle = bundle;
-
-                if (priority === 'parallel' && !bundle.needsStableName) {
-                  let bundleGroups =
-                    bundleGraph.getBundleGroupsContainingBundle(bundle);
-
-                  connectionBundle = nullthrows(
-                    bundleGraph.createBundle({
-                      type: bundle.type,
-                      needsStableName: false,
-                      env: bundle.env,
-                      target: bundle.target,
-                      uniqueKey: 'runtime-manifest:' + bundle.id,
-                      shouldContentHash: options.shouldContentHash,
-                    }),
-                  );
-
-                  for (let bundleGroup of bundleGroups) {
-                    bundleGraph.addBundleToBundleGroup(
-                      connectionBundle,
-                      bundleGroup,
-                    );
-                  }
-                  bundleGraph.createBundleReference(bundle, connectionBundle);
-
-                  nameRuntimeBundle(connectionBundle, bundle);
-                }
-
-                connections.push({
-                  bundle: connectionBundle,
-                  assetGroup,
-                  dependency,
-                  isEntry,
-                });
               }
+              bundleGraph.createBundleReference(bundle, connectionBundle);
+
+              nameRuntimeBundle(connectionBundle, bundle);
             }
-          },
-        );
+
+            connections.push({
+              bundle: connectionBundle,
+              assetGroup,
+              dependency,
+              isEntry,
+            });
+          }
+        }
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: runtime.name,
           }),
         });
+      } finally {
+        measurement && measurement.end();
       }
     }
   }

@@ -88,16 +88,19 @@ export default async function babel7(
           pluginKey = path.relative(options.projectRoot, pluginKey);
         }
 
-        tracer.measure(
-          {
+        let measurement =
+          tracer.enabled &&
+          tracer.createTraceMeasurement({
             name: pluginKey,
             args: {
               filename: path.relative(options.projectRoot, asset.filePath),
             },
             categories: [nodeType],
-          },
-          () => fn.apply(this, arguments),
-        );
+          });
+
+        fn.apply(this, arguments);
+
+        measurement && measurement.end();
       };
     };
   }

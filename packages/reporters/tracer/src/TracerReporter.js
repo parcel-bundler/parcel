@@ -9,6 +9,7 @@ import {Tracer} from 'chrome-trace-event';
 // instance of this reporter (this gets asserted below)
 let tracer;
 let writeStream = null;
+let traceEvents: Map<string, string>;
 
 function millisecondsToMicroseconds(milliseconds: number) {
   return Math.floor(milliseconds * 1000);
@@ -36,6 +37,7 @@ export default (new Reporter({
       case 'buildStart':
         invariant(tracer == null, 'Tracer multiple initialisation');
         tracer = new Tracer();
+        traceEvents = new Map();
         filename = `parcel-trace-${getTimeId()}.json`;
         filePath = path.join(options.projectRoot, filename);
         invariant(
@@ -48,12 +50,14 @@ export default (new Reporter({
         writeStream = options.outputFS.createWriteStream(filePath);
         nullthrows(tracer).pipe(nullthrows(writeStream));
         break;
-      case 'trace':
-        // Due to potential race conditions at the end of the build, we ignore any trace events that occur
-        // after we've closed the write stream.
-        if (tracer == null) return;
-
-        tracer.completeEvent({
+      case 'traceStart':
+        if (event.name !== '@parcel/reporter-tracer') {
+          traceEvents?.set(event.args.traceId, event.name);
+        }
+        break;
+      case 'trace': {
+        traceEvents?.delete(event.args.traceId);
+        tracer?.completeEvent({
           name: event.name,
           cat: event.categories,
           args: event.args,
@@ -63,8 +67,15 @@ export default (new Reporter({
           pid: event.pid,
         });
         break;
+      }
       case 'buildSuccess':
       case 'buildFailure':
+        if (traceEvents?.size > 0) {
+          let names = Array.from(traceEvents.values());
+          throw new Error(
+            `Found incomplete tracing events: ${JSON.stringify(names)}`,
+          );
+        }
         nullthrows(tracer).flush();
         tracer = null;
         // We explicitly trigger `end` on the writeStream for the trace, then we need to wait for

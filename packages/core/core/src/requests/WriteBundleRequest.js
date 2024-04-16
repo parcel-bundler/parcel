@@ -246,41 +246,41 @@ async function runCompressor(
   devDeps: Map<string, string>,
   api: RunAPI<PackagedBundleInfo>,
 ) {
+  let measurement;
   try {
-    await tracer.measure(
-      {
+    measurement =
+      tracer.enabled &&
+      tracer.createTraceMeasurement({
         name: compressor.name,
         args: {filename: path.relative(options.projectRoot, filePath)},
         categories: ['compress'],
-      },
-      async () => {
-        let res = await compressor.plugin.compress({
-          stream,
-          options: new PluginOptions(options),
-          logger: new PluginLogger({origin: compressor.name}),
-          tracer: new PluginTracer({
-            origin: compressor.name,
-            category: 'compress',
-          }),
-        });
+      });
 
-        if (res != null) {
-          await new Promise((resolve, reject) =>
-            pipeline(
-              res.stream,
-              outputFS.createWriteStream(
-                filePath + (res.type != null ? '.' + res.type : ''),
-                writeOptions,
-              ),
-              err => {
-                if (err) reject(err);
-                else resolve();
-              },
-            ),
-          );
-        }
-      },
-    );
+    let res = await compressor.plugin.compress({
+      stream,
+      options: new PluginOptions(options),
+      logger: new PluginLogger({origin: compressor.name}),
+      tracer: new PluginTracer({
+        origin: compressor.name,
+        category: 'compress',
+      }),
+    });
+
+    if (res != null) {
+      await new Promise((resolve, reject) =>
+        pipeline(
+          res.stream,
+          outputFS.createWriteStream(
+            filePath + (res.type != null ? '.' + res.type : ''),
+            writeOptions,
+          ),
+          err => {
+            if (err) reject(err);
+            else resolve();
+          },
+        ),
+      );
+    }
   } catch (err) {
     throw new ThrowableDiagnostic({
       diagnostic: errorToDiagnostic(err, {
@@ -288,6 +288,7 @@ async function runCompressor(
       }),
     });
   } finally {
+    measurement && measurement.end();
     // Add dev deps for compressor plugins AFTER running them, to account for lazy require().
     let devDepRequest = await createDevDependency(
       {

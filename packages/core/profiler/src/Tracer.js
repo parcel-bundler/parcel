@@ -24,85 +24,107 @@ try {
 
 const pid = process.pid;
 
+let traceId = 0;
+
 class TraceMeasurement implements ITraceMeasurement {
   #active: boolean = true;
+  // $FlowFixMe[unclear-type]
+  #args: {traceId: string, [key: string]: any};
+  #categories: string[];
   #name: string;
   #pid: number;
-  #tid: number;
   #start: number;
-  // $FlowFixMe
-  #data: any;
-  constructor(tracer: Tracer, name, pid, tid, data) {
+  #tid: number;
+
+  constructor(
+    tracer: Tracer,
+    name: string,
+    pid: number,
+    tid: number,
+    // $FlowFixMe[unclear-type]
+    data: any,
+  ) {
     this.#name = name;
     this.#pid = pid;
     this.#tid = tid;
     this.#start = performance.now();
-    this.#data = data;
+    this.#args = {
+      traceId: String(traceId++),
+      ...(data.args ?? {}),
+    };
+
+    this.#categories = data.categories;
+
+    tracer.trace({
+      type: 'traceStart',
+      args: this.#args,
+      categories: this.#categories,
+      name: this.#name,
+      pid: this.#pid,
+      tid: this.#tid,
+      ts: this.#start,
+    });
+  }
+
+  get traceId(): string {
+    return this.#args.traceId;
   }
 
   end() {
     if (!this.#active) return;
     const duration = performance.now() - this.#start;
+
     tracer.trace({
       type: 'trace',
+      args: this.#args,
+      categories: this.#categories,
+      duration,
       name: this.#name,
       pid: this.#pid,
       tid: this.#tid,
-      duration,
       ts: this.#start,
-      ...this.#data,
     });
+
     this.#active = false;
   }
 }
+
+let id = 1;
 
 export default class Tracer {
   #traceEmitter: ValueEmitter<TraceEvent> = new ValueEmitter();
 
   #enabled: boolean = false;
 
+  id: string;
+  pid: number;
+  tid: number;
+
+  constructor() {
+    this.id = String(id++);
+    this.pid = pid;
+    this.tid = tid;
+  }
+
   onTrace(cb: (event: TraceEvent) => mixed): IDisposable {
     return this.#traceEmitter.addListener(cb);
   }
 
-  measure<T>(
-    {args = {}, categories, name}: MeasurementOptions,
-    fn: () => T,
-  ): T {
-    if (!this.enabled) {
-      return fn();
+  createTraceMeasurement({
+    args = {},
+    categories,
+    name,
+  }: MeasurementOptions): TraceMeasurement {
+    if (!tracer.enabled) {
+      throw new Error(
+        'Unable to create a trace measurement when tracing is disabled',
+      );
     }
 
-    let measurement = new TraceMeasurement(this, name, pid, tid, {
+    return new TraceMeasurement(this, name, pid, tid, {
       categories,
       args,
     });
-
-    let result: T;
-    let hasFinally = false;
-
-    try {
-      result = fn();
-      // @ts-expect-error TypeScript types cannot infer that finally can exist
-      if (
-        result != null &&
-        typeof result === 'object' &&
-        typeof result.finally === 'function'
-      ) {
-        hasFinally = true;
-        // @ts-expect-error
-        // $FlowFixMe[incompatible-use] This will run for a promise type, but it cannot be easily typed in Flow
-        result = result.finally(() => {
-          measurement?.end();
-        });
-      }
-    } finally {
-      if (!hasFinally) {
-        measurement?.end();
-      }
-    }
-
-    return result;
   }
 
   get enabled(): boolean {
@@ -182,22 +204,15 @@ export class PluginTracer implements IPluginTracer {
     return new TraceMeasurement(tracer, name, pid, tid, data);
   }
 
-  measure<T>(options: MeasurementOptions, fn: () => T): T {
-    if (!this.enabled) {
-      return fn();
-    }
-
-    return tracer.measure(
-      {
-        ...options,
-        // $FlowFixMe[cannot-spread-inexact]
-        args: {
-          origin: this.origin,
-          ...(options.args ?? {}),
-        },
-        categories: [this.category, ...options.categories],
+  createTraceMeasurement(options: MeasurementOptions): TraceMeasurement {
+    return tracer.createTraceMeasurement({
+      ...options,
+      // $FlowFixMe[cannot-spread-inexact]
+      args: {
+        origin: this.origin,
+        ...(options.args ?? {}),
       },
-      fn,
-    );
+      categories: [this.category, ...options.categories],
+    });
   }
 }

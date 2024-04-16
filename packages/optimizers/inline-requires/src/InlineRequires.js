@@ -25,25 +25,26 @@ module.exports = new Optimizer<empty, BundleConfig>({
       return {publicIdToAssetSideEffects};
     }
 
-    tracer.measure(
-      {
+    const measurement =
+      tracer.enabled &&
+      tracer.createTraceMeasurement({
         name: '@parcel/optimizer-inline-requires',
         args: {bundleName: bundle.name},
         categories: ['generatePublicIdToAssetSideEffects'],
-      },
-      () => {
-        bundleGraph.traverse(node => {
-          if (node.type === 'asset') {
-            const publicId = bundleGraph.getAssetPublicId(node.value);
-            let sideEffectsMap = nullthrows(publicIdToAssetSideEffects);
-            sideEffectsMap.set(publicId, {
-              sideEffects: node.value.sideEffects,
-              filePath: node.value.filePath,
-            });
-          }
+      });
+
+    bundleGraph.traverse(node => {
+      if (node.type === 'asset') {
+        const publicId = bundleGraph.getAssetPublicId(node.value);
+        let sideEffectsMap = nullthrows(publicIdToAssetSideEffects);
+        sideEffectsMap.set(publicId, {
+          sideEffects: node.value.sideEffects,
+          filePath: node.value.filePath,
         });
-      },
-    );
+      }
+    });
+
+    measurement && measurement.end();
 
     return {publicIdToAssetSideEffects};
   },
@@ -62,14 +63,17 @@ module.exports = new Optimizer<empty, BundleConfig>({
     }
 
     try {
-      const ast = await tracer.measure(
-        {
+      const measurement =
+        tracer.enabled &&
+        tracer.createTraceMeasurement({
           name: '@parcel/optimizer-inline-requires',
           args: {bundle: bundle.name},
           categories: ['parse'],
-        },
-        () => parse(contents.toString()),
-      );
+        });
+
+      const ast = await parse(contents.toString());
+
+      measurement && measurement.end();
 
       const visitor = new RequireInliningVisitor({
         bundle,

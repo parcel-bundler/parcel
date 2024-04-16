@@ -17,70 +17,76 @@ describe('Tracer', () => {
     traceDisposable.dispose();
   });
 
-  describe('measure()', () => {
-    let cases = [
-      ['synchronous', () => () => {}],
-      ['asynchronous', () => async () => {}],
-    ];
+  describe('createTraceMeasurement()', () => {
+    it('throws an error when tracing is disabled', () => {
+      tracer.disable();
 
-    for (let [type, createFn] of cases) {
-      describe(`given a ${type} function`, () => {
-        it('does not trace when disabled', async () => {
-          tracer.disable();
+      assert.throws(
+        () => tracer.createTraceMeasurement(opts),
+        new Error(
+          'Unable to create a trace measurement when tracing is disabled',
+        ),
+      );
+    });
 
-          let result = tracer.measure(opts, sinon.spy());
-          if (type === 'asynchronous') {
-            sinon.assert.notCalled(onTrace);
-            await result;
-          }
+    it('emits basic trace events', () => {
+      let measurement = tracer.createTraceMeasurement(opts);
 
-          assert(onTrace.notCalled);
-        });
+      sinon.assert.calledOnce(onTrace);
+      sinon.assert.calledWith(
+        onTrace,
+        sinon.match({
+          type: 'traceStart',
+          args: {traceId: measurement.traceId},
+          categories: ['tracer'],
+          name: 'test',
+        }),
+      );
 
-        it('emits a basic trace event', async () => {
-          let result = tracer.measure(opts, createFn());
-          if (type === 'asynchronous') {
-            sinon.assert.notCalled(onTrace);
-            await result;
-          }
+      measurement.end();
 
-          sinon.assert.calledOnce(onTrace);
-          sinon.assert.calledWith(
-            onTrace,
-            sinon.match({
-              type: 'trace',
-              name: 'test',
-              args: {},
-              categories: ['tracer'],
-              duration: sinon.match.number,
-            }),
-          );
-        });
+      sinon.assert.calledWith(
+        onTrace,
+        sinon.match({
+          type: 'trace',
+          args: {traceId: measurement.traceId},
+          categories: ['tracer'],
+          duration: sinon.match.number,
+          name: 'test',
+        }),
+      );
+    });
 
-        it('emits a complex trace event', async () => {
-          let result = tracer.measure(
-            {...opts, args: {hello: 'world'}},
-            createFn(),
-          );
-          if (type === 'asynchronous') {
-            sinon.assert.notCalled(onTrace);
-            await result;
-          }
-
-          sinon.assert.calledOnce(onTrace);
-          sinon.assert.calledWith(
-            onTrace,
-            sinon.match({
-              type: 'trace',
-              name: 'test',
-              args: {hello: 'world'},
-              categories: ['tracer'],
-              duration: sinon.match.number,
-            }),
-          );
-        });
+    it('emits complex trace events', () => {
+      let measurement = tracer.createTraceMeasurement({
+        ...opts,
+        args: {hello: 'world'},
       });
-    }
+
+      sinon.assert.calledOnce(onTrace);
+      sinon.assert.calledWith(
+        onTrace,
+        sinon.match({
+          type: 'traceStart',
+          args: {traceId: measurement.traceId, hello: 'world'},
+          categories: ['tracer'],
+          name: 'test',
+        }),
+      );
+
+      measurement.end();
+
+      sinon.assert.calledWith(
+        onTrace,
+        sinon.match({
+          type: 'trace',
+          args: {traceId: measurement.traceId, hello: 'world'},
+          categories: ['tracer'],
+          duration: sinon.match.number,
+          name: 'test',
+        }),
+      );
+    });
   });
 
   describe('PluginTracer', () => {
@@ -89,17 +95,29 @@ describe('Tracer', () => {
       category: 'cat',
     });
 
-    describe(`measure()`, () => {
+    describe('createTraceMeasurement()', () => {
       it('emits events with origin and category', () => {
-        pluginTracer.measure(opts, sinon.spy());
+        let measurement = pluginTracer.createTraceMeasurement(opts);
 
         sinon.assert.calledOnce(onTrace);
         sinon.assert.calledWith(
           onTrace,
           sinon.match({
+            type: 'traceStart',
+            args: {traceId: measurement.traceId, origin: 'origin'},
+            categories: ['cat', 'tracer'],
+            name: 'test',
+          }),
+        );
+
+        measurement.end();
+
+        sinon.assert.calledWith(
+          onTrace,
+          sinon.match({
             type: 'trace',
             name: 'test',
-            args: {origin: 'origin'},
+            args: {traceId: measurement.traceId, origin: 'origin'},
             categories: ['cat', 'tracer'],
             duration: sinon.match.number,
           }),
@@ -109,9 +127,20 @@ describe('Tracer', () => {
 
     describe('createMeasurement()', () => {
       it('emits events with origin and category', () => {
-        pluginTracer.createMeasurement('test', 'customCat').end();
+        let measurement = pluginTracer.createMeasurement('test', 'customCat');
 
         sinon.assert.calledOnce(onTrace);
+        sinon.assert.calledWith(
+          onTrace,
+          sinon.match({
+            type: 'traceStart',
+            name: 'test',
+            categories: ['cat:origin:customCat'],
+          }),
+        );
+
+        measurement.end();
+
         sinon.assert.calledWith(
           onTrace,
           sinon.match({

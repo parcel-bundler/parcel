@@ -93,20 +93,20 @@ async function run({input, api, options}) {
     ),
   });
 
-  let bundleInfo = await tracer.measure(
-    {
+  let measurement =
+    tracer.enabled &&
+    tracer.createTraceMeasurement({
       name: 'packaging',
       categories: ['core'],
-    },
-    () => {
-      let writeBundlesRequest = createWriteBundlesRequest({
-        bundleGraph,
-        optionsRef,
-      });
+    });
 
-      return api.runRequest(writeBundlesRequest);
-    },
-  );
+  let writeBundlesRequest = createWriteBundlesRequest({
+    bundleGraph,
+    optionsRef,
+  });
+
+  let bundleInfo = await api.runRequest(writeBundlesRequest);
+  measurement && measurement.end();
 
   assertSignalNotAborted(signal);
 

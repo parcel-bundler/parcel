@@ -2003,13 +2003,7 @@ export type ValidationEvent = {|
   +filePath: FilePath,
 |};
 
-/**
- * A trace event has occured.
- * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
- *
- * @section reporter
- */
-export type TraceEvent = {|
+export type TraceCompleteEvent = {|
   +type: 'trace',
   +ts: number,
   +duration: number,
@@ -2017,8 +2011,26 @@ export type TraceEvent = {|
   +tid: number,
   +pid: number,
   +categories: string[],
-  +args?: {[key: string]: mixed},
+  +args: {traceId: string, [key: string]: mixed},
 |};
+
+export type TraceStartEvent = {|
+  +type: 'traceStart',
+  +ts: number,
+  +name: string,
+  +tid: number,
+  +pid: number,
+  +categories: string[],
+  +args: {traceId: string, [key: string]: mixed},
+|};
+
+/**
+ * A trace event has occured.
+ * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
+ *
+ * @section reporter
+ */
+export type TraceEvent = TraceCompleteEvent | TraceStartEvent;
 
 export type CacheEvent = {|
   type: 'cache',
@@ -2100,5 +2112,5 @@ export interface PluginTracer {
     otherArgs?: {[key: string]: mixed},
   ): TraceMeasurement | null;
 
-  measure<T>(options: MeasurementOptions, fn: () => T): T;
+  createTraceMeasurement(options: MeasurementOptions): TraceMeasurement;
 }
