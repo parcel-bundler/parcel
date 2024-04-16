@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
+  parcel_config::{ParcelConfig, PluginNode},
   request_tracker::{Request, RequestResult},
   types::{Asset, AssetFlags, AssetStats, Dependency, EnvironmentId},
 };
@@ -22,10 +23,85 @@ impl Request for AssetRequest {
 
   fn run(&self, _farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
     // println!("transform {:?}", self.file_path);
-    let code = std::fs::read(&self.file_path).unwrap();
+    let asset = Asset {
+      id: String::new(),
+      file_path: self.file_path.clone(),
+      env: self.env.clone(),
+      query: None,
+      asset_type: crate::types::AssetType::Js,
+      content_key: String::new(),
+      map_key: None,
+      output_hash: String::new(),
+      pipeline: None,
+      meta: None,
+      stats: AssetStats { size: 0, time: 0 },
+      bundle_behavior: crate::types::BundleBehavior::None,
+      flags: AssetFlags::empty(),
+      symbols: Vec::new(),
+      unique_key: None,
+      ast: None,
+    };
+
+    let config = ParcelConfig::default();
+    let pipeline = config.transformers(&asset.file_path, &asset.pipeline, false);
+    let result = run_pipeline(pipeline, asset, &config);
+
+    RequestResult {
+      result: Ok(result),
+      invalidations: Vec::new(),
+    }
+  }
+}
+
+trait Transformer {
+  fn transform(asset: &Asset) -> AssetRequestResult;
+}
+
+fn run_pipeline(
+  pipeline: Vec<PluginNode>,
+  asset: Asset,
+  config: &ParcelConfig,
+) -> AssetRequestResult {
+  let mut result = AssetRequestResult {
+    asset,
+    dependencies: vec![],
+  };
+
+  for transformer in pipeline {
+    let transformed = run_transformer(transformer, &result.asset);
+    if transformed.asset.asset_type != result.asset.asset_type {
+      let next_path = transformed
+        .asset
+        .file_path
+        .with_extension(result.asset.asset_type.extension());
+      let pipeline = config.transformers(&next_path, &transformed.asset.pipeline, false);
+      return run_pipeline(pipeline, transformed.asset, config);
+    }
+    result.asset = transformed.asset;
+    result.dependencies.extend(transformed.dependencies);
+  }
+
+  result
+}
+
+fn run_transformer(plugin: PluginNode, asset: &Asset) -> AssetRequestResult {
+  match plugin.package_name.as_str() {
+    "@parcel/transformer-js" => JsTransformer::transform(asset),
+    _ => AssetRequestResult {
+      asset: asset.clone(),
+      dependencies: vec![],
+    },
+  }
+}
+
+struct JsTransformer;
+
+impl Transformer for JsTransformer {
+  fn transform(asset: &Asset) -> AssetRequestResult {
+    let code = std::fs::read(&asset.file_path).unwrap();
     let res = parcel_js_swc_core::transform(
       parcel_js_swc_core::Config {
-        filename: self.file_path.to_string_lossy().to_string(),
+        filename: asset.file_path.to_string_lossy().to_string(),
         code,
         ..Default::default()
       },
@@ -37,35 +113,32 @@ impl Request for AssetRequest {
       .dependencies
       .into_iter()
       .map(|dep| {
-        let mut dep = Dependency::new(dep.specifier.to_string(), self.env);
-        dep.source_path = Some(self.file_path.clone());
+        let mut dep = Dependency::new(dep.specifier.to_string(), asset.env);
+        dep.source_path = Some(asset.file_path.clone());
         dep
       })
       .collect();
 
-    RequestResult {
-      result: Ok(AssetRequestResult {
-        asset: Asset {
-          id: String::new(),
-          file_path: self.file_path.clone(),
-          env: self.env.clone(),
-          query: None,
-          asset_type: crate::types::AssetType::Js,
-          content_key: String::new(),
-          map_key: None,
-          output_hash: String::new(),
-          pipeline: None,
-          meta: None,
-          stats: AssetStats { size: 0, time: 0 },
-          bundle_behavior: crate::types::BundleBehavior::None,
-          flags: AssetFlags::empty(),
-          symbols: Vec::new(),
-          unique_key: None,
-          ast: None,
-        },
-        dependencies: deps,
-      }),
-      invalidations: Vec::new(),
+    AssetRequestResult {
+      asset: Asset {
+        id: String::new(),
+        file_path: asset.file_path.clone(),
+        env: asset.env.clone(),
+        query: None,
+        asset_type: crate::types::AssetType::Js,
+        content_key: String::new(),
+        map_key: None,
+        output_hash: String::new(),
+        pipeline: None,
+        meta: None,
+        stats: AssetStats { size: 0, time: 0 },
+        bundle_behavior: crate::types::BundleBehavior::None,
+        flags: AssetFlags::empty(),
+        symbols: Vec::new(),
+        unique_key: None,
+        ast: None,
+      },
+      dependencies: deps,
     }
   }
 }

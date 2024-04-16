@@ -55,7 +55,7 @@ const options = {
 
 // console.log(parcel);
 
-parcel(['/Users/devongovett/dev/parcel/packages/core/integration-tests/test/integration/commonjs/index.js'], async (err, request) => {
+parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js'], async (err, request) => {
   switch (request.type) {
     case 'Entry': {
       let entryResolver = new EntryResolver(options);
