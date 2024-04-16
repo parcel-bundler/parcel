@@ -548,6 +548,7 @@ fn parse(
       export_default_from: true,
       decorators: config.decorators,
       import_attributes: true,
+      allow_return_outside_function: true,
       ..Default::default()
     })
   };
