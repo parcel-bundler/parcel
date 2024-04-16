@@ -28,6 +28,27 @@ export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
 export type AllEdgeTypes = -1;
 export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
 
+type DFSCommandVisit<TContext> = {|
+  nodeId: NodeId,
+  context: TContext | null,
+|};
+
+type DFSCommandExit<TContext> = {|
+  nodeId: NodeId,
+  exit: GraphTraversalCallback<NodeId, TContext>,
+  context: TContext | null,
+|};
+
+type DFSCommand<TContext> =
+  | DFSCommandVisit<TContext>
+  | DFSCommandExit<TContext>;
+
+export type DFSParams<TContext> = {|
+  visit: GraphVisitor<NodeId, TContext>,
+  getChildren(nodeId: NodeId): Array<NodeId>,
+  startNodeId?: ?NodeId,
+|};
+
 export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Array<TNode | null>;
   adjacencyList: AdjacencyList<TEdgeType>;
@@ -449,15 +470,116 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return;
   }
 
+  dfsNew<TContext>({
+    visit,
+    startNodeId,
+    getChildren,
+  }: DFSParams<TContext>): ?TContext {
+    let traversalStartNode = nullthrows(
+      startNodeId ?? this.rootNodeId,
+      'A start node is required to traverse',
+    );
+    this._assertHasNodeId(traversalStartNode);
+
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new BitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    // Take shared instance to avoid re-entrancy issues.
+    this._visited = null;
+
+    let stopped = false;
+    let skipped = false;
+    let actions: TraversalActions = {
+      skipChildren() {
+        skipped = true;
+      },
+      stop() {
+        stopped = true;
+      },
+    };
+
+    const queue: DFSCommand<TContext>[] = [
+      {nodeId: traversalStartNode, context: null},
+    ];
+    while (queue.length !== 0) {
+      const command = queue.pop();
+
+      if (command.exit != null) {
+        let {nodeId, context, exit} = command;
+        let newContext = exit(nodeId, command.context, actions);
+        if (typeof newContext !== 'undefined') {
+          // $FlowFixMe[reassign-const]
+          context = newContext;
+        }
+
+        if (skipped) {
+          continue;
+        }
+
+        if (stopped) {
+          this._visited = visited;
+          return context;
+        }
+      } else {
+        let {nodeId, context} = command;
+        if (!this.hasNode(nodeId)) continue;
+        visited.add(nodeId);
+
+        skipped = false;
+        let enter = typeof visit === 'function' ? visit : visit.enter;
+        if (enter) {
+          let newContext = enter(nodeId, context, actions);
+          if (typeof newContext !== 'undefined') {
+            // $FlowFixMe[reassign-const]
+            context = newContext;
+          }
+        }
+
+        if (skipped) {
+          continue;
+        }
+
+        if (stopped) {
+          this._visited = visited;
+          return context;
+        }
+
+        if (typeof visit !== 'function' && visit.exit) {
+          queue.push({
+            nodeId,
+            exit: visit.exit,
+            context,
+          });
+        }
+
+        // TODO turn into generator function
+        const children = getChildren(nodeId);
+        for (let i = children.length - 1; i > -1; i -= 1) {
+          const child = children[i];
+          if (visited.has(child)) {
+            continue;
+          }
+
+          queue.push({nodeId: child, context});
+        }
+      }
+    }
+
+    // let result = walk(traversalStartNode);
+    this._visited = visited;
+    // return result;
+  }
+
   dfs<TContext>({
     visit,
     startNodeId,
     getChildren,
-  }: {|
-    visit: GraphVisitor<NodeId, TContext>,
-    getChildren(nodeId: NodeId): Array<NodeId>,
-    startNodeId?: ?NodeId,
-  |}): ?TContext {
+  }: DFSParams<TContext>): ?TContext {
     let traversalStartNode = nullthrows(
       startNodeId ?? this.rootNodeId,
       'A start node is required to traverse',
