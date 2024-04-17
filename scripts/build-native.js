@@ -27,10 +27,15 @@ async function build() {
 
     console.log(`Building ${pkg}...`);
     await new Promise((resolve, reject) => {
-      let args = [
-        (wasm ? 'wasm:' : '') +
-          (release ? 'build-release' : canary ? 'build-canary' : 'build'),
-      ];
+      let args = [];
+      const prefix = wasm ? 'wasm:' : '';
+      if (release) {
+        args.push(prefix + 'build-release');
+      } else if (canary) {
+        args.push(prefix + 'build-canary');
+      } else {
+        args.push(prefix + 'build');
+      }
       if (process.env.RUST_TARGET) {
         args.push('--target', process.env.RUST_TARGET);
       }

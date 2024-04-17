@@ -12,5 +12,6 @@ jobs:
     uses: ./.github/workflows/release.yml
     secrets: inherit
     with:
+      profile: canary
       release-command: yarn dev:release
       type: dev

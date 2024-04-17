@@ -106,7 +106,7 @@ export default class Parcel {
     } catch (e) {
       // Fallthrough
       // eslint-disable-next-line no-console
-      console.warn(e);
+      logger.warn(e);
     }
 
     let resolvedOptions: ParcelOptions = await resolveOptions(

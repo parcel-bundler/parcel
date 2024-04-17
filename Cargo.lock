@@ -1211,12 +1211,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.17"
+version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
-dependencies = [
- "cfg-if",
-]
+checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 
 [[package]]
 name = "match_cfg"
@@ -1613,6 +1610,7 @@ dependencies = [
  "indexmap 1.9.3",
  "jemallocator",
  "libc",
+ "log",
  "mimalloc",
  "mozjpeg-sys",
  "napi",

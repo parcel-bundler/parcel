@@ -23,7 +23,7 @@ fn init_sentry() -> Result<(), Status> {
     return Ok(());
   }
 
-  println!("Initialising Sentry in rust...");
+  log::info!("Initialising Sentry in rust...");
 
   if SENTRY_GUARD.lock().unwrap().is_some() {
     return Err(Error::from_reason(
@@ -38,7 +38,6 @@ fn init_sentry() -> Result<(), Status> {
   };
 
   let sentry_tags = if let Ok(sentry_tags_raw) = std::env::var("PARCEL_SENTRY_TAGS") {
-    println!("{}", sentry_tags_raw);
     let Ok(sentry_tags) = serde_json::from_str::<HashMap<String, Value>>(&sentry_tags_raw) else {
       return Err(Error::from_reason("PARCEL_SENTRY_TAGS not in JSON format."));
     };
@@ -75,7 +74,7 @@ fn init_sentry() -> Result<(), Status> {
   for (key, val) in sentry_tags {
     configure_scope(|scope| scope.set_tag(&key, val));
   }
-  println!("Parcel Sentry for rust setup done!");
+  log::info!("Parcel Sentry for rust setup done!");
   return Ok(());
 }
 
