@@ -17,7 +17,7 @@
   "main": "lib/index.js",
   "source": "src/index.js",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "scripts": {
     "build-ts": "flow-to-ts src/*.js --write && rm -f ./src/*.d.ts && tsc --emitDeclarationOnly --declaration --esModuleInterop --target es2015 --moduleResolution node16 --module node16 src/*.ts && mkdir -p lib && mv src/*.d.ts lib/. && rm src/*.ts && node build-ts.js",
