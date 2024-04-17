@@ -1445,7 +1445,7 @@ export default class RequestTracker {
     queue
       .add(() =>
         this.options.inputFS.writeSnapshot(
-          this.options.projectRoot,
+          this.options.watchDir,
           snapshotPath,
           opts,
         ),
