@@ -17,7 +17,7 @@
   "source": "src/JSTransformer.js",
   "engines": {
     "parcel": "^2.12.0",
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "files": [
     "lib",

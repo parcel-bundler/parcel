@@ -15,7 +15,7 @@
   "main": "lib/ServerReporter.js",
   "source": "src/ServerReporter.js",
   "engines": {
-    "node": ">= 12.0.0",
+    "node": ">= 16.0.0",
     "parcel": "^2.11.0"
   },
   "dependencies": {

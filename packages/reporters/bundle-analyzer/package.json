@@ -16,7 +16,7 @@
   "main": "lib/BundleAnalyzerReporter.js",
   "source": "src/BundleAnalyzerReporter.js",
   "engines": {
-    "node": ">= 12.0.0",
+    "node": ">= 16.0.0",
     "parcel": "^2.12.0"
   },
   "dependencies": {
