@@ -196,4 +196,30 @@ describe('proxy', function () {
     data = await get('/api/get', port);
     assert.equal(data, 'Request URL: /get');
   });
+
+  it('should handle proxy table written in .proxyrc.ts', async function () {
+    let dir = path.join(__dirname, 'integration/proxyrc-ts');
+    inputFS.chdir(dir);
+
+    let port = await getPort();
+    let b = bundler(path.join(dir, 'index.js'), {
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    server = apiServer();
+
+    let data = await get('/index.js', port);
+    assert.notEqual(data, 'Request URL: /index.js');
+
+    data = await get('/api/get', port);
+    assert.equal(data, 'Request URL: /get');
+  });
 });
