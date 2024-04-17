@@ -696,7 +696,6 @@ impl<'a> Fold for Hoist<'a> {
         if let Some(source) = match_import(&node, self.collect.ignore_mark) {
           self.add_require(&source, ImportKind::DynamicImport);
           let name: JsWord = format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
-          println!("Dynamic import for source {}", name);
           self.dynamic_imports.insert(name.clone(), source.clone());
           if self.collect.non_static_requires.contains(&source) || self.collect.should_wrap {
             self.imported_symbols.push(ImportedSymbol {
