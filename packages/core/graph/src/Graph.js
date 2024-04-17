@@ -49,7 +49,7 @@ type DFSCommand<TContext> =
 /**
  * Options for DFS traversal.
  */
-type DFSParams<TContext> = {|
+export type DFSParams<TContext> = {|
   visit: GraphVisitor<NodeId, TContext>,
   /**
    * Custom function to get next entries to visit.
