@@ -195,11 +195,10 @@ export default (new Runtime({
       );
       for (const cond of conditions) {
         const assetCode = `module.exports = window.__conditions['${cond.key}'] ? __parcel__require__('${cond.ifTrue}') : __parcel__require__('${cond.ifFalse}');`;
-        console.log(assetCode);
         assets.push({
           filePath: path.join(__dirname, `/conditions/${cond.publicId}.js`),
           code: assetCode,
-          dependency: conditionalDependencies[0],
+          dependency: cond.dependency,
           env: {sourceType: 'module'},
         });
       }
@@ -353,7 +352,11 @@ function getDependencies(bundle: NamedBundle): {|
         otherDependencies.push(dependency);
       }
     });
-    bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
+    bundleDependencies.set(bundle, {
+      asyncDependencies,
+      conditionalDependencies,
+      otherDependencies,
+    });
     return {asyncDependencies, conditionalDependencies, otherDependencies};
   }
 }

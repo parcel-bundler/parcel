@@ -342,7 +342,12 @@ export default class BundleGraph<TBundle: IBundle>
 
   getConditionsForDependencies(
     deps: Array<Dependency>,
-  ): Set<{|key: string, ifTrue: string, ifFalse: string|}> {
+  ): Set<{|
+    key: string,
+    dependency: Dependency,
+    ifTrue: string,
+    ifFalse: string,
+  |}> {
     const conditions = new Set();
     const depIds = deps.map(dep => dep.id);
     for (const [, condition] of this.#graph._conditions.entries()) {
@@ -363,6 +368,9 @@ export default class BundleGraph<TBundle: IBundle>
         });
         conditions.add({
           key: condition.key,
+          dependency: deps.find(
+            dep => dep.id === condition.ifTrueDependency.id,
+          ),
           ifTrue: this.#graph.getAssetPublicId(trueAsset),
           ifFalse: this.#graph.getAssetPublicId(falseAsset),
         });

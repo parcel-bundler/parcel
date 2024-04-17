@@ -1,54 +1,6 @@
 // @flow strict-local
 import type {Environment} from '@parcel/types';
 
-export const conditionalBundlingPrelude = (
-  parcelRequireName: string,
-): string => `
-var $parcel$modules = {};
-var $parcel$inits = {};
-var $parcel$conditions = {};
-
-var parcelRequire = $parcel$global[${JSON.stringify(parcelRequireName)}];
-
-if (parcelRequire == null) {
-  parcelRequire = function(id) {
-    if (id.startsWith('cond:')) {
-      const condKey = id.slice(5);
-      if (!condKey in $parcel$conditions) {
-        throw new Error("Cannot find condition '" + condKey + "'");
-      }
-      id = $parcel$conditions[condKey].t;
-    }
-    if (id in $parcel$modules) {
-      return $parcel$modules[id].exports;
-    }
-    if (id in $parcel$inits) {
-      var init = $parcel$inits[id];
-      delete $parcel$inits[id];
-      var module = {id: id, exports: {}};
-      $parcel$modules[id] = module;
-      init.call(module.exports, module, module.exports);
-      return module.exports;
-    }
-    var err = new Error("Cannot find module '" + id + "'");
-    err.code = 'MODULE_NOT_FOUND';
-    throw err;
-  };
-
-  parcelRequire.register = function register(id, init) {
-    $parcel$inits[id] = init;
-  };
-
-  parcelRequire.registerConditions = function registerConditions(conditions) {
-    $parcel$conditions = conditions;
-  }
-
-  $parcel$global[${JSON.stringify(parcelRequireName)}] = parcelRequire;
-}
-
-var parcelRegister = parcelRequire.register;
-`;
-
 export const prelude = (parcelRequireName: string): string => `
 var $parcel$modules = {};
 var $parcel$inits = {};

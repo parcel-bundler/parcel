@@ -656,7 +656,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         }
 
         if kind == DependencyKind::ConditionalImport {
-          println!("Conditional import for feature {}", specifier);
+          node
         } else {
           let placeholder = self.add_dependency(
             specifier,
@@ -674,10 +674,11 @@ impl<'a> Fold for DependencyCollector<'a> {
               span,
               raw: None,
             })));
-            return node;
+            node
+          } else {
+            node
           }
         }
-        node
       } else {
         node
       }
@@ -712,7 +713,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     } else if self.config.conditional_bundling && kind == DependencyKind::ConditionalImport {
       let mut call = node;
       call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-        "__parcel__require__".into(),
+        "require".into(),
         DUMMY_SP,
       ))));
 
@@ -723,14 +724,18 @@ impl<'a> Fold for DependencyCollector<'a> {
       let mut placeholders = Vec::new();
       for arg in &call.args[1..] {
         let specifier = match_str(&arg.expr).unwrap().0;
-        println!("Conditional specifier: {}", specifier);
         let placeholder = self.add_dependency(
-          specifier,
+          specifier.clone(),
           arg.span(),
           DependencyKind::ConditionalImport,
           None,
           false,
           self.config.source_type,
+        );
+        println!(
+          "Conditional specifier: {} -> {:?}",
+          specifier.clone(),
+          placeholder
         );
         placeholders.push(placeholder.unwrap());
       }
@@ -742,12 +747,13 @@ impl<'a> Fold for DependencyCollector<'a> {
         placeholders[1]
       )
       .into();
-      self.conditions.insert(condition.clone());
+      self.conditions.insert(condition);
 
       call.args[0] = ast::ExprOrSpread {
         spread: None,
         expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-          value: format!("cond:{}", condition).into(),
+          // We pick the "first" dependency here
+          value: format!("{}", placeholders[0]).into(),
           span: DUMMY_SP,
           raw: None,
         }))),

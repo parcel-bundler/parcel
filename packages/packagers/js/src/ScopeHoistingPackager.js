@@ -27,13 +27,7 @@ import path from 'path';
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
-import {
-  prelude,
-  conditionalBundlingPrelude,
-  helpers,
-  bundleQueuePrelude,
-  fnExpr,
-} from './helpers';
+import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
 import {
   replaceScriptDependencies,
   getSpecifier,
@@ -623,20 +617,6 @@ export class ScopeHoistingPackager {
         }
         return replacement;
       });
-
-      if (
-        getFeatureFlag('conditionalBundling') &&
-        code.includes('__parcel__require__')
-      ) {
-        // Handle conditional imports
-        console.log("Let's handle conditional imports!");
-        const IMPORT_COND_RE = /__parcel__require__\(['"]cond:(.*?)['"]\)/g;
-        code = code.replace(IMPORT_COND_RE, (m, s) => {
-          console.log(`_P_R_C_`, m, s);
-          const condId = this.bundleGraph.getConditionPublicId(s);
-          return `parcelRequire("cond:${condId}")`;
-        });
-      }
     }
 
     // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
@@ -1379,11 +1359,7 @@ ${code}
         getFeatureFlag('conditionalBundling');
 
       if (mightBeFirstJS) {
-        let preludeCode = (
-          getFeatureFlag('conditionalBundling')
-            ? conditionalBundlingPrelude
-            : prelude
-        )(this.parcelRequireName);
+        let preludeCode = prelude(this.parcelRequireName);
         res += preludeCode;
         if (enableSourceMaps) {
           lines += countLines(preludeCode) - 1;
