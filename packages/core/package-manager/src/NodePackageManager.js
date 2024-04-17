@@ -215,7 +215,10 @@ export class NodePackageManager implements PackageManager {
     if (!filePath.includes(NODE_MODULES)) {
       let extname = path.extname(filePath);
       if (
-        (extname === '.ts' || extname === '.tsx') &&
+        (extname === '.ts' ||
+          extname === '.tsx' ||
+          extname === '.mts' ||
+          extname === '.cts') &&
         // $FlowFixMe
         !Module._extensions[extname]
       ) {
