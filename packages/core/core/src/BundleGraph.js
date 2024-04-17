@@ -228,11 +228,10 @@ export default class BundleGraph {
             const condHash = hashString(condition);
             const condPublicId = getPublicId(condHash, v => conditions.has(v));
 
-            // FIXME - these dependencies exist in the AssetGraph, but don't
-            // seem to exist in the final BundleGraph - how do we map this properly??
-
             conditions.set(condition, {
               publicId: condPublicId,
+              // FIXME support the same condition used across multiple assets..
+              assets: new Set([asset]),
               key,
               ifTrueDependency: placeholderToDependency.get(ifTrueDep),
               ifFalseDependency: placeholderToDependency.get(ifFalseDep),

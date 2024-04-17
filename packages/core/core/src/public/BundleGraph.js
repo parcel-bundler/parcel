@@ -340,9 +340,7 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph._conditions.get(condition)?.publicId ?? '';
   }
 
-  getConditionsForDependencies(
-    deps: Array<Dependency>,
-  ): Set<{|
+  getConditionsForDependencies(deps: Array<Dependency>): Set<{|
     key: string,
     dependency: Dependency,
     ifTrue: string,
@@ -377,6 +375,50 @@ export default class BundleGraph<TBundle: IBundle>
       }
     }
     return conditions;
+  }
+
+  getConditionsByBundle() {
+    // What do we want:
+    // we need the data so when we're rendering a link to bundle xyz, we know what conditions
+    // that bundle has, and which conditions depend on which other bundles?
+    const bundlesWithConditions = {};
+    for (const condition of this.#graph._conditions.values()) {
+      for (const asset of condition.assets) {
+        const publicAsset = this.getAssetById(asset.id);
+        const bundlesWithAsset = this.getBundlesWithAsset(publicAsset);
+        for (const bundle of bundlesWithAsset) {
+          if (!Object.hasOwn(bundlesWithConditions, condition.key)) {
+            bundlesWithConditions[condition.key] = {
+              bundles: [],
+            };
+          }
+          // FIXME - return more abstract data here - convert it in the reporter..
+          bundlesWithConditions[condition.key].bundles.push(bundle.filePath);
+
+          [
+            {dep: condition.ifTrueDependency, state: 'ifTrue'},
+            {dep: condition.ifFalseDependency, state: 'ifFalse'},
+          ].forEach(({dep, state}) => {
+            const publicDep = this.getDependencies(publicAsset).find(
+              d => d.id === dep.id,
+            );
+            const resolved = nullthrows(this.resolveAsyncDependency(publicDep));
+            invariant(resolved.type === 'bundle_group');
+
+            const conditionBundles = nullthrows(
+              this.getBundlesInBundleGroup(resolved.value),
+            );
+            if (!Object.hasOwn(bundlesWithConditions[condition.key], state)) {
+              bundlesWithConditions[condition.key][state] = {};
+            }
+            bundlesWithConditions[condition.key][state] = conditionBundles
+              .reverse()
+              .map(b => b.filePath);
+          });
+        }
+      }
+    }
+    return bundlesWithConditions;
   }
 
   getConditionMapping(): {[string]: {|ff: string, t: string, f: string|}} {
