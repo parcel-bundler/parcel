@@ -11,5 +11,6 @@ contents = contents.replace(
 );
 contents = contents.replace(/\$ReadOnlyMap/g, 'ReadonlyMap');
 contents = contents.replace(/\$ReadOnlySet/g, 'ReadonlySet');
+contents = contents.replace(/\$Partial/g, 'Partial');
 
 fs.writeFileSync(typesPath, contents);
