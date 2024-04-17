@@ -385,7 +385,7 @@ export type InitialParcelOptionsInternal<WorkerFarm> = {|
     resolveFrom: FilePath,
   |}>,
 
-  +featureFlags?: FeatureFlags,
+  +featureFlags?: $Partial<FeatureFlags>,
 
   // throwErrors
   // global?
