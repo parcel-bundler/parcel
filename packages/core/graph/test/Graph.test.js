@@ -402,7 +402,7 @@ describe('Graph', () => {
         assert.deepEqual(order, [0, 1, 3, 2]);
       });
 
-      describe('actions tests', () => {
+      describe(`${name} actions tests`, () => {
         it(`${name} skips children if skip is called on a node`, () => {
           const graph = new Graph();
           graph.addNode('0');
@@ -475,7 +475,7 @@ describe('Graph', () => {
         });
       });
 
-      describe('context tests', () => {
+      describe(`${name} context tests`, () => {
         it(`${name} passes the context between visitors`, () => {
           const graph = new Graph();
           graph.addNode('0');
@@ -513,7 +513,7 @@ describe('Graph', () => {
         });
       });
 
-      describe('exit visitor tests', () => {
+      describe(`${name} exit visitor tests`, () => {
         it(`${name} calls the exit visitor`, () => {
           const graph = new Graph();
           graph.addNode('0');
