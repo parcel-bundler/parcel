@@ -1885,14 +1885,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel-test"
-version = "0.1.0"
-dependencies = [
- "parcel-js-swc-core",
- "rayon",
-]
-
-[[package]]
 name = "parcel_config"
 version = "0.1.0"
 dependencies = [
