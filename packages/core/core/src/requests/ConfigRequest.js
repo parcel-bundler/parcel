@@ -17,6 +17,7 @@ import type {
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
+import {runConfigRequestJs as rustRunConfigRequest} from '@parcel/rust';
 
 import {serializeRaw} from '../serializer.js';
 import {PluginLogger} from '@parcel/logger';
@@ -30,6 +31,7 @@ import {PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {createBuildCache} from '../buildCache';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
@@ -171,6 +173,10 @@ export async function runConfigRequest<TResult>(
     id: 'config_request:' + configRequest.id,
     type: requestTypes.config_request,
     run: async ({api, options}) => {
+      if (true || getFeatureFlag('parcel-v3')) {
+        return rustRunConfigRequest(configRequest, api, options);
+      }
+
       for (let filePath of invalidateOnFileChange) {
         api.invalidateOnFileUpdate(filePath);
         api.invalidateOnFileDelete(filePath);

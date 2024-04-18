@@ -72,11 +72,11 @@ impl Drop for FunctionRef {
   }
 }
 
-struct JsFileSystem {
-  canonicalize: FunctionRef,
-  read: FunctionRef,
-  is_file: FunctionRef,
-  is_dir: FunctionRef,
+pub struct JsFileSystem {
+  pub canonicalize: FunctionRef,
+  pub read: FunctionRef,
+  pub is_file: FunctionRef,
+  pub is_dir: FunctionRef,
 }
 
 impl FileSystem for JsFileSystem {
