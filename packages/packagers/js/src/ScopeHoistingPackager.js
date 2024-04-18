@@ -39,7 +39,7 @@ import {getFeatureFlag} from '@parcel/feature-flags';
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
 const REPLACEMENT_RE =
-  /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
+  /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|importCond|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
@@ -537,6 +537,8 @@ export class ScopeHoistingPackager {
           lineCount++;
           return '\n';
         }
+        if (m.includes('importCond') || m.includes('importAsync'))
+          console.log(m, d, i);
 
         // If we matched an import, replace with the source code for the dependency.
         if (d != null) {
@@ -701,7 +703,6 @@ ${code}
       if (!resolved) {
         continue;
       }
-
       // Handle imports from other bundles in libraries.
       if (this.bundle.env.isLibrary && !this.bundle.hasAsset(resolved)) {
         let referencedBundle = this.bundleGraph.getReferencedBundle(
@@ -721,11 +722,16 @@ ${code}
       }
 
       for (let [imported, {local}] of dep.symbols) {
+        if (dep.priority === 'conditional') {
+          console.log(dep.id, resolved, imported, local);
+        }
+
         if (local === '*') {
           continue;
         }
 
         let symbol = this.getSymbolResolution(asset, resolved, imported, dep);
+        if (dep.priority === 'conditional') console.log('\t', symbol);
         replacements.set(
           local,
           // If this was an internalized async asset, wrap in a Promise.resolve.
@@ -738,7 +744,10 @@ ${code}
       // Async dependencies need a namespace object even if all used symbols were statically analyzed.
       // This is recorded in the promiseSymbol meta property set by the transformer rather than in
       // symbols so that we don't mark all symbols as used.
-      if (dep.priority === 'lazy' && dep.meta.promiseSymbol) {
+      if (
+        (dep.priority === 'lazy' || dep.priority === 'conditional') &&
+        dep.meta.promiseSymbol
+      ) {
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
         let symbol = this.getSymbolResolution(asset, resolved, '*', dep);
@@ -933,6 +942,9 @@ ${code}
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
 
+    if (dep?.priority === 'conditional' || dep?.priority === 'lazy') {
+      debugger;
+    }
     if (
       resolvedAsset.type !== 'js' ||
       (dep && this.bundleGraph.isDependencySkipped(dep))

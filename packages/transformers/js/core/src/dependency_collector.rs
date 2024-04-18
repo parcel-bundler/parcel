@@ -712,10 +712,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       rewrite_require_specifier(node, self.unresolved_mark)
     } else if self.config.conditional_bundling && kind == DependencyKind::ConditionalImport {
       let mut call = node;
-      call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-        "require".into(),
-        DUMMY_SP,
-      ))));
+      if !self.config.scope_hoist {
+        call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+          "require".into(),
+          DUMMY_SP,
+        ))));
+      }
 
       if call.args.len() != 3 {
         // FIXME make this a diagnostic

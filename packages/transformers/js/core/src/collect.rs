@@ -1,7 +1,7 @@
 use crate::id;
 use crate::utils::{
-  is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
-  match_property_name, match_require, Bailout, BailoutReason, SourceLocation,
+  is_unresolved, match_export_name, match_export_name_ident, match_import, match_import_cond,
+  match_member_expr, match_property_name, match_require, Bailout, BailoutReason, SourceLocation,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -29,6 +29,7 @@ pub enum ImportKind {
   Require,
   Import,
   DynamicImport,
+  ConditionalImport,
 }
 
 #[derive(Debug)]
@@ -746,6 +747,15 @@ impl Visit for Collect {
       self.add_bailout(span, BailoutReason::NonStaticDynamicImport);
     }
 
+    if let Some(source) = match_import_cond(node, self.ignore_mark) {
+      self.wrapped_requires.insert(source.to_string());
+      let span = match node {
+        Expr::Call(c) => c.span,
+        _ => unreachable!(),
+      };
+      self.add_bailout(span, BailoutReason::NonStaticDynamicImport);
+    }
+
     match node {
       Expr::Ident(ident) => {
         // Bail if `module` or `exports` are accessed non-statically.
@@ -959,11 +969,11 @@ impl Collect {
         ImportKind::Import => self
           .wrapped_requires
           .insert(format!("{}{}", src.clone(), "esm")),
-        ImportKind::DynamicImport | ImportKind::Require => {
+        ImportKind::DynamicImport | ImportKind::Require | ImportKind::ConditionalImport => {
           self.wrapped_requires.insert(src.to_string())
         }
       };
-      if kind != ImportKind::DynamicImport {
+      if kind != ImportKind::DynamicImport && kind != ImportKind::ConditionalImport {
         self.non_static_requires.insert(src.clone());
         let span = match node {
           Pat::Ident(id) => id.id.span,

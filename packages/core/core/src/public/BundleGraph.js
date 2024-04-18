@@ -340,6 +340,7 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph._conditions.get(condition)?.publicId ?? '';
   }
 
+  // FIXME improve these lookups
   getConditionsForDependencies(deps: Array<Dependency>): Set<{|
     key: string,
     dependency: Dependency,
@@ -377,48 +378,46 @@ export default class BundleGraph<TBundle: IBundle>
     return conditions;
   }
 
-  getConditionsByBundle() {
-    // What do we want:
-    // we need the data so when we're rendering a link to bundle xyz, we know what conditions
-    // that bundle has, and which conditions depend on which other bundles?
-    const bundlesWithConditions = {};
-    for (const condition of this.#graph._conditions.values()) {
-      for (const asset of condition.assets) {
-        const publicAsset = this.getAssetById(asset.id);
-        const bundlesWithAsset = this.getBundlesWithAsset(publicAsset);
+  getConditionalBundleMapping(): {|
+    [string]: {|
+      bundlesWithCondition: Array<TBundle>,
+      ifTrueBundles: Array<TBundle>,
+      ifFalseBundles: Array<TBundle>,
+    |},
+  |} {
+    let conditions = {};
+    // Convert the internal references in conditions to public API references
+    for (const cond of this.#graph._conditions.values()) {
+      let assets = Array.from(cond.assets).map(asset =>
+        nullthrows(this.getAssetById(asset.id)),
+      );
+      let bundles = new Set();
+      let ifTrueBundles = [];
+      let ifFalseBundles = [];
+      for (const asset of assets) {
+        const bundlesWithAsset = this.getBundlesWithAsset(asset);
         for (const bundle of bundlesWithAsset) {
-          if (!Object.hasOwn(bundlesWithConditions, condition.key)) {
-            bundlesWithConditions[condition.key] = {
-              bundles: [],
-            };
-          }
-          // FIXME - return more abstract data here - convert it in the reporter..
-          bundlesWithConditions[condition.key].bundles.push(bundle.filePath);
-
-          [
-            {dep: condition.ifTrueDependency, state: 'ifTrue'},
-            {dep: condition.ifFalseDependency, state: 'ifFalse'},
-          ].forEach(({dep, state}) => {
-            const publicDep = this.getDependencies(publicAsset).find(
-              d => d.id === dep.id,
-            );
-            const resolved = nullthrows(this.resolveAsyncDependency(publicDep));
-            invariant(resolved.type === 'bundle_group');
-
-            const conditionBundles = nullthrows(
-              this.getBundlesInBundleGroup(resolved.value),
-            );
-            if (!Object.hasOwn(bundlesWithConditions[condition.key], state)) {
-              bundlesWithConditions[condition.key][state] = {};
-            }
-            bundlesWithConditions[condition.key][state] = conditionBundles
-              .reverse()
-              .map(b => b.filePath);
-          });
+          bundles.add(bundle);
         }
+        const assetDeps = this.getDependencies(asset);
+        const depToBundles = dep => {
+          const publicDep = nullthrows(
+            assetDeps.find(assetDep => dep.id === assetDep.id),
+          );
+          const resolved = nullthrows(this.resolveAsyncDependency(publicDep));
+          invariant(resolved.type === 'bundle_group');
+          return this.getBundlesInBundleGroup(resolved.value);
+        };
+        ifTrueBundles.push(...depToBundles(cond.ifTrueDependency));
+        ifFalseBundles.push(...depToBundles(cond.ifFalseDependency));
       }
+      conditions[cond.key] = {
+        bundlesWithCondition: Array.from(bundles),
+        ifTrueBundles,
+        ifFalseBundles,
+      };
     }
-    return bundlesWithConditions;
+    return conditions;
   }
 
   getConditionMapping(): {[string]: {|ff: string, t: string, f: string|}} {

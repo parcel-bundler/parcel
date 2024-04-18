@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use swc_core::common::errors::{DiagnosticBuilder, Emitter};
 use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
 use swc_core::ecma::ast::{self, Ident};
-use swc_core::ecma::atoms::{js_word, Atom, JsWord};
+use swc_core::ecma::atoms::{js_word, JsWord};
 
 pub fn is_unresolved(ident: &Ident, unresolved_mark: Mark) -> bool {
   ident.span.ctxt.outer() == unresolved_mark
@@ -156,22 +156,17 @@ pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark)
   }
 }
 
-pub fn match_import_cond(node: &ast::Expr) -> Option<(Atom, Atom, Atom)> {
+pub fn match_import_cond(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
   use ast::*;
 
   match node {
     Expr::Call(call) => match &call.callee {
       Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
-          if ident.sym == js_word!("__parcel__requireCond__") {
-            if !call.args.len() == 3 {
-              return None;
+          if ident.sym == js_word!("importCond") && !is_marked(ident.span, ignore_mark) {
+            if let Some(arg) = call.args.first() {
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
-            return Some((
-              match_str(&call.args[0].expr).map(|(name, _)| name).unwrap(),
-              match_str(&call.args[1].expr).map(|(name, _)| name).unwrap(),
-              match_str(&call.args[2].expr).map(|(name, _)| name).unwrap(),
-            ));
           }
           None
         }

@@ -194,7 +194,10 @@ export default (new Runtime({
         conditionalDependencies,
       );
       for (const cond of conditions) {
-        const assetCode = `module.exports = window.__conditions['${cond.key}'] ? __parcel__require__('${cond.ifTrue}') : __parcel__require__('${cond.ifFalse}');`;
+        const requireName = bundle.env.shouldScopeHoist
+          ? 'parcelRequire'
+          : '__parcel__require__';
+        const assetCode = `module.exports = globalThis.__conditions['${cond.key}'] ? ${requireName}('${cond.ifTrue}') : ${requireName}('${cond.ifFalse}');`;
         assets.push({
           filePath: path.join(__dirname, `/conditions/${cond.publicId}.js`),
           code: assetCode,
@@ -203,13 +206,6 @@ export default (new Runtime({
         });
       }
     }
-    // for (let dependency of conditionalDependencies) {
-    //   console.log(dependency.id, dependency.meta);
-    //   // assets.push({
-    //   //   filePath. path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
-    //   //   dependency,
-    //   // })
-    // }
 
     for (let dependency of otherDependencies) {
       // Resolve the dependency to a bundle. If inline, export the dependency id,
