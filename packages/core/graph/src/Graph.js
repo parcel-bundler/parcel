@@ -503,6 +503,8 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   /**
    * Iterative implementation of DFS that supports all use-cases.
+   *
+   * This replaces `dfs` and will replace `dfsFast`.
    */
   dfsNew<TContext>({
     visit,
@@ -540,6 +542,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     const queue: DFSCommand<TContext>[] = [
       {nodeId: traversalStartNode, context: null},
     ];
+    const enter = typeof visit === 'function' ? visit : visit.enter;
     while (queue.length !== 0) {
       const command = queue.pop();
 
@@ -565,7 +568,6 @@ export default class Graph<TNode, TEdgeType: number = 1> {
         visited.add(nodeId);
 
         skipped = false;
-        let enter = typeof visit === 'function' ? visit : visit.enter;
         if (enter) {
           let newContext = enter(nodeId, context, actions);
           if (typeof newContext !== 'undefined') {
@@ -607,6 +609,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     this._visited = visited;
   }
 
+  /**
+   * @deprecated Will be replaced by `dfsNew`
+   */
   dfs<TContext>({
     visit,
     startNodeId,
