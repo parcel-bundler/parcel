@@ -747,8 +747,9 @@ impl Visit for Collect {
       self.add_bailout(span, BailoutReason::NonStaticDynamicImport);
     }
 
-    if let Some(source) = match_import_cond(node, self.ignore_mark) {
-      self.wrapped_requires.insert(source.to_string());
+    if let Some((source_true, source_false)) = match_import_cond(node, self.ignore_mark) {
+      self.wrapped_requires.insert(source_true.to_string());
+      self.wrapped_requires.insert(source_false.to_string());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),

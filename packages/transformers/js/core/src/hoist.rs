@@ -710,14 +710,33 @@ impl<'a> Fold for Hoist<'a> {
         }
 
         // FIXME add match for importCond here? Treat it similar to above..
-        if let Some(source) = match_import_cond(&node, self.collect.ignore_mark) {
-          println!("Hoist conditional import -> {}", source);
-          let name: JsWord = format!("${}$importCond${}", self.module_id, hash!(source)).into();
-          self.add_require(&source, ImportKind::ConditionalImport);
+        if let Some((source_true, source_false)) =
+          match_import_cond(&node, self.collect.ignore_mark)
+        {
+          println!(
+            "Hoist conditional import -> {},{}",
+            source_true, source_false
+          );
+          let name: JsWord =
+            format!("${}$importCond${}", self.module_id, hash!(source_true)).into();
+          self.add_require(&source_true, ImportKind::ConditionalImport);
+          self.add_require(&source_false, ImportKind::ConditionalImport);
           // ????
-          self.dynamic_imports.insert(name.clone(), source.clone());
+          self
+            .dynamic_imports
+            .insert(name.clone(), source_true.clone());
+          self
+            .dynamic_imports
+            .insert(name.clone(), source_false.clone());
           self.imported_symbols.push(ImportedSymbol {
-            source,
+            source: source_true,
+            local: name.clone(),
+            imported: "*".into(),
+            loc: SourceLocation::from(&self.collect.source_map, call.span),
+            kind: ImportKind::ConditionalImport,
+          });
+          self.imported_symbols.push(ImportedSymbol {
+            source: source_false,
             local: name.clone(),
             imported: "*".into(),
             loc: SourceLocation::from(&self.collect.source_map, call.span),

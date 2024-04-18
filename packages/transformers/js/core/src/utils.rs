@@ -156,17 +156,23 @@ pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark)
   }
 }
 
-pub fn match_import_cond(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
+pub fn match_import_cond(node: &ast::Expr, ignore_mark: Mark) -> Option<(JsWord, JsWord)> {
   use ast::*;
 
   match node {
     Expr::Call(call) => match &call.callee {
       Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
-          if ident.sym == js_word!("importCond") && !is_marked(ident.span, ignore_mark) {
-            if let Some(arg) = call.args.first() {
-              return match_str(&arg.expr).map(|(name, _)| name);
-            }
+          if ident.sym == js_word!("importCond")
+            && !is_marked(ident.span, ignore_mark)
+            && call.args.len() == 2
+          {
+            let if_true = match_str(&call.args[0].expr).map(|(name, _)| name);
+            let if_false = match_str(&call.args[1].expr).map(|(name, _)| name);
+            return match (if_true, if_false) {
+              (Some(if_true), Some(if_false)) => Some((if_true, if_false)),
+              _ => None,
+            };
           }
           None
         }

@@ -751,16 +751,25 @@ impl<'a> Fold for DependencyCollector<'a> {
       .into();
       self.conditions.insert(condition);
 
+      // write out code like importCond(depIfTrue, depIfFalse) - while we use the first dep as the link to the conditions
+      // we need both deps to ensure scope hoisting can make sure both arms are treated as "used"
       call.args[0] = ast::ExprOrSpread {
         spread: None,
         expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-          // We pick the "first" dependency here
           value: format!("{}", placeholders[0]).into(),
           span: DUMMY_SP,
           raw: None,
         }))),
       };
-      call.args.truncate(1);
+      call.args[1] = ast::ExprOrSpread {
+        spread: None,
+        expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+          value: format!("{}", placeholders[1]).into(),
+          span: DUMMY_SP,
+          raw: None,
+        }))),
+      };
+      call.args.truncate(2);
 
       call
     } else {
