@@ -3,6 +3,7 @@
 import {fromNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
+import {getFeatureFlag} from '@parcel/feature-flags';
 import type {
   TraversalActions,
   GraphVisitor,
@@ -11,7 +12,6 @@ import type {
 import {BitSet} from './BitSet';
 
 import nullthrows from 'nullthrows';
-import {getFeatureFlag} from '@parcel/feature-flags/src';
 
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
