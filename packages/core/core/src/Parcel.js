@@ -108,7 +108,6 @@ export default class Parcel {
       });
     } catch (e) {
       // Fallthrough
-      // eslint-disable-next-line no-console
       logger.warn(e);
     }
 
