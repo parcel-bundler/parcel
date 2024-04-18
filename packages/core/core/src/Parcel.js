@@ -104,7 +104,7 @@ export default class Parcel {
     try {
       initSentry?.();
       process.on('exit', () => {
-        closeSentry();
+        closeSentry?.();
       });
     } catch (e) {
       // Fallthrough
