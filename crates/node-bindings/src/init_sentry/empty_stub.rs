@@ -1,3 +1,5 @@
+use napi_derive::napi;
+
 #[napi]
 fn init_sentry() {}
 

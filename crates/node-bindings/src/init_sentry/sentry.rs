@@ -13,8 +13,7 @@ use std::{
 };
 use whoami::username;
 
-static SENTRY_GUARD: Lazy<Arc<Mutex<Option<ClientInitGuard>>>> =
-  Lazy::new(|| Arc::new(Mutex::new(None)));
+static SENTRY_GUARD: Lazy<Mutex<Option<ClientInitGuard>>> = Lazy::new(|| Mutex::new(None));
 const TIMEOUT: Duration = Duration::from_secs(2);
 
 #[napi]
