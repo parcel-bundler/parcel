@@ -11,6 +11,7 @@ import type {
 import {BitSet} from './BitSet';
 
 import nullthrows from 'nullthrows';
+import {getFeatureFlag} from '@parcel/feature-flags/src';
 
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
@@ -54,11 +55,11 @@ export type DFSParams<TContext> = {|
   /**
    * Custom function to get next entries to visit.
    *
-   * This can be a performance bottle-neck as arrays are created on every node visit.
+   * This can be a performance bottleneck as arrays are created on every node visit.
    *
    * @deprecated This will be replaced by a static `traversalType` set of orders in the future
    *
-   * Currently this is only used in 3 ways:
+   * Currently, this is only used in 3 ways:
    *
    * - Traversing down the tree (normal DFS)
    * - Traversing up the tree (ancestors)
@@ -334,11 +335,17 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     ) {
       return this.dfsFast(enter, startNodeId);
     } else {
-      return this.dfsNew({
-        visit,
-        startNodeId,
-        getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
-      });
+      return getFeatureFlag('dfsFasterRefactor')
+        ? this.dfsNew({
+            visit,
+            startNodeId,
+            getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
+          })
+        : this.dfs({
+            visit,
+            startNodeId,
+            getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
+          });
     }
   }
 

@@ -9,4 +9,8 @@ export type FeatureFlags = {|
    * `config.getConfigFrom(..., {packageKey: '...'})` and the value itself hasn't changed.
    */
   +configKeyInvalidation: boolean,
+  /**
+   * Refactors dfsNew to use an iterative approach.
+   */
+  +dfsFasterRefactor: boolean,
 |};
