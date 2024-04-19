@@ -38,8 +38,11 @@ import {getFeatureFlag} from '@parcel/feature-flags';
 
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
-const REPLACEMENT_RE =
-  /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|importCond|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
+//
+// For conditional bundling the only difference in this regex is adding `importCond` where we have `importAsync` etc..
+const REPLACEMENT_RE = getFeatureFlag('conditionalBundling')
+  ? /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|importCond|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g
+  : /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {

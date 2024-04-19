@@ -205,6 +205,9 @@ export default class BundleGraph {
         node != null &&
         node.type === 'dependency'
       ) {
+        // The dependency placeholders in the `importCond` calls that will be in the transformed
+        // code need to be mapped to the "real" depenencies, so we need access to a map of placeholders
+        // to dependencies
         const dep = node.value;
         if (dep.meta?.placeholder != null) {
           placeholderToDependency.set(dep.meta.placeholder, dep);
@@ -223,6 +226,9 @@ export default class BundleGraph {
         const asset = node.value;
         if (Array.isArray(asset.meta.conditions)) {
           for (const _condition of asset.meta.conditions ?? []) {
+            // Asset meta conditions will be of the form `key:placeholder_if_true:placeholfder_if_false`
+            // Here we extract that information and create `Condition`s which resolve those placeholders
+            // to dependencies, as well as create a public id for the condition.
             const condition = String(_condition);
             const [key, ifTrueDep, ifFalseDep] = condition.split(':');
             const condHash = hashString(condition);

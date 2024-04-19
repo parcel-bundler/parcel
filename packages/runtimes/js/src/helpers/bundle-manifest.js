@@ -1,5 +1,4 @@
 var mapping = new Map();
-var conditions = new Map();
 function register(baseUrl, manifest) {
   for (var i = 0; i < manifest.length - 1; i += 2) {
     mapping.set(manifest[i], {
@@ -17,12 +16,5 @@ function resolve(id) {
   return new URL(resolved.path, resolved.baseUrl).toString();
 }
 
-function registerConditions(conditions) {
-  for (const [k, v] of Object.entries(conditions)) {
-    conditions.set(k, v);
-  }
-}
-
 module.exports.register = register;
 module.exports.resolve = resolve;
-module.exports.registerConditions = registerConditions;

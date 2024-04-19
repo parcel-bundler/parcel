@@ -190,6 +190,9 @@ export default (new Runtime({
     }
 
     if (getFeatureFlag('conditionalBundling')) {
+      // For any conditions that are used in this bundle, we want to produce a runtime asset that is used to
+      // select the correct dependency that condition maps to at runtime - the conditions in the bundle will then be
+      // replaced with a reference to this asset to implement the selection.
       const conditions = bundleGraph.getConditionsForDependencies(
         conditionalDependencies,
       );

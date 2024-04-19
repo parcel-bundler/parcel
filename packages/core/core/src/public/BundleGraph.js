@@ -328,25 +328,25 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  getConditionPublicId(condition: string): string {
+  unstable_getConditionPublicId(condition: string): ?string {
     if (!getFeatureFlag('conditionalBundling')) {
       throw new Error(
-        'getConditionPublicId called but conditionalBundling is not enabled',
+        'unstable_getConditionPublicId called but conditionalBundling is not enabled',
       );
     }
-    if (!this.#graph._conditions.has(condition)) {
-      throw new Error(`Condition ${condition} was not in mapping`);
-    }
-    return this.#graph._conditions.get(condition)?.publicId ?? '';
+    return this.#graph._conditions.get(condition)?.publicId ?? null;
   }
 
-  // FIXME improve these lookups
+  // Given a set of dependencies, return any conditions where those dependencies are either
+  // the true or false dependency for those conditions. This is currently used to work out which
+  // conditions belong to a bundle in packaging.
   getConditionsForDependencies(deps: Array<Dependency>): Set<{|
     key: string,
     dependency: Dependency,
     ifTrue: string,
     ifFalse: string,
   |}> {
+    // FIXME improve these lookups
     const conditions = new Set();
     const depIds = deps.map(dep => dep.id);
     for (const [, condition] of this.#graph._conditions.entries()) {
@@ -375,10 +375,14 @@ export default class BundleGraph<TBundle: IBundle>
         });
       }
     }
+    // FIXME work out what's missing here.. (Flow)
     return conditions;
   }
 
-  getConditionalBundleMapping(): {|
+  // This is used to generate information for building a manifest that can
+  // be used by a webserver to understand which conditions are used by which bundles,
+  // and which bundles those conditions require depending on what they evaluate to.
+  unstable_getConditionalBundleMapping(): {|
     [string]: {|
       bundlesWithCondition: Array<TBundle>,
       ifTrueBundles: Array<TBundle>,
@@ -418,36 +422,5 @@ export default class BundleGraph<TBundle: IBundle>
       };
     }
     return conditions;
-  }
-
-  getConditionMapping(): {[string]: {|ff: string, t: string, f: string|}} {
-    if (!getFeatureFlag('conditionalBundling')) {
-      throw new Error(
-        'getCondtionMapping called but conditionalBundling is not enabled',
-      );
-    }
-    const ret = {};
-    // console.log(this.#graph._conditions);
-    for (const [k, condition] of this.#graph._conditions.entries()) {
-      const [feature] = k.split(':');
-      const [trueAsset, falseAsset] = [
-        condition.ifTrueDependency,
-        condition.ifFalseDependency,
-      ].map(dep => {
-        const resolved = nullthrows(this.#graph.resolveAsyncDependency(dep));
-        if (resolved.type === 'asset') {
-          return resolved.value;
-        } else {
-          return this.#graph.getAssetById(resolved.value.entryAssetId);
-        }
-      });
-
-      ret[condition.publicId] = {
-        ff: feature,
-        t: this.#graph.getAssetPublicId(trueAsset),
-        f: this.#graph.getAssetPublicId(falseAsset),
-      };
-    }
-    return ret;
   }
 }

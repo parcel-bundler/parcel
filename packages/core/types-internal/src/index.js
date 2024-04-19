@@ -1613,8 +1613,14 @@ export interface BundleGraph<TBundle: Bundle> {
   getUsedSymbols(Asset | Dependency): ?$ReadOnlySet<Symbol>;
   /** Returns the common root directory for the entry assets of a target. */
   getEntryRoot(target: Target): FilePath;
-  getConditionPublicId(condition: string): string;
-  getConditionMapping(): {[string]: {|ff: string, t: string, f: string|}};
+  unstable_getConditionPublicId(condition: string): ?string;
+  unstable_getConditionalBundleMapping(): {|
+    [string]: {|
+      bundlesWithCondition: Array<TBundle>,
+      ifTrueBundles: Array<TBundle>,
+      ifFalseBundles: Array<TBundle>,
+    |},
+  |};
 }
 
 /**

@@ -109,14 +109,6 @@
       {},
     ];
   };
-  newRequire.conditions = previousRequire.conditions;
-  newRequire.registerConditions = function (conditions) {
-    for (var key in conditions) {
-      if (conditions.hasOwnProperty(key)) {
-        newRequire.conditions[key] = conditions[key];
-      }
-    }
-  };
 
   Object.defineProperty(newRequire, 'root', {
     get: function () {
