@@ -1369,6 +1369,8 @@ ${code}
       }
     }
     // FIXME let's make all the bundles have the runtime with conditional bundling
+    // - we need to just make sure that _conditional bundles_ only have the runtime
+    // (as they likely get loaded before the entry bundle)
     if (this.needsPrelude || getFeatureFlag('conditionalBundling')) {
       // Add the prelude if this is potentially the first JS bundle to load in a
       // particular context (e.g. entry scripts in HTML, workers, etc.).
