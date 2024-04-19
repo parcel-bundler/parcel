@@ -712,6 +712,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       rewrite_require_specifier(node, self.unresolved_mark)
     } else if self.config.conditional_bundling && kind == DependencyKind::ConditionalImport {
       let mut call = node;
+      // If we're not scope hositing, then change this `importCond` to a `require`
       if !self.config.scope_hoist {
         call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
           "require".into(),
@@ -724,6 +725,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         panic!("importCond requires 3 arguments");
       }
       let mut placeholders = Vec::new();
+      // For the if_true and if_false arms of the conditional import, create a dependency for each arm
       for arg in &call.args[1..] {
         let specifier = match_str(&arg.expr).unwrap().0;
         let placeholder = self.add_dependency(
@@ -742,6 +744,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         placeholders.push(placeholder.unwrap());
       }
 
+      // Create a condition we pass back to JS, which is of the form `key:if_true_placeholder:if_false_placeholder`
       let condition: JsWord = format!(
         "{}:{}:{}",
         match_str(&call.args[0].expr).unwrap().0,

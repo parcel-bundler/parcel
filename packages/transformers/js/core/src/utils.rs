@@ -156,6 +156,8 @@ pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark)
   }
 }
 
+/// This matches an expression like `importCond('if_true_dependency_id`, 'if_false_dependency_id')` and
+/// returns the two dependency ids.
 pub fn match_import_cond(node: &ast::Expr, ignore_mark: Mark) -> Option<(JsWord, JsWord)> {
   use ast::*;
 
