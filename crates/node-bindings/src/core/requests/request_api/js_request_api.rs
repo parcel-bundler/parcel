@@ -1,17 +1,20 @@
 use std::path::Path;
+use std::rc::Rc;
 
 use napi::{Env, JsObject};
+use requests::get_function;
 
 use crate::core::requests;
 use crate::core::requests::request_api::RequestApi;
 
 pub struct JSRequestApi {
-  env: Env,
+  // TODO: Make sure it is safe to hold the environment like this
+  env: Rc<Env>,
   js_object: JsObject,
 }
 
 impl JSRequestApi {
-  pub fn new(env: Env, js_object: JsObject) -> Self {
+  pub fn new(env: Rc<Env>, js_object: JsObject) -> Self {
     Self { env, js_object }
   }
 }
@@ -19,7 +22,7 @@ impl JSRequestApi {
 impl RequestApi for JSRequestApi {
   fn invalidate_on_file_update(&self, path: &Path) -> napi::Result<()> {
     let field_name = "invalidateOnFileUpdate";
-    let method_fn = requests::get_function(self.env, &self.js_object, field_name)?;
+    let method_fn = get_function(&self.env, &self.js_object, field_name)?;
     let path_js_string = self.env.create_string(path.to_str().unwrap())?;
     method_fn.call(Some(&self.js_object), &[&path_js_string])?;
 

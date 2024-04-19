@@ -9,4 +9,8 @@ export type FeatureFlags = {|
    * `config.getConfigFrom(..., {packageKey: '...'})` and the value itself hasn't changed.
    */
   +configKeyInvalidation: boolean,
+  /**
+   * Rust backed requests
+   */
+  +parcelV3: boolean,
 |};

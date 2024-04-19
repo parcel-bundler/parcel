@@ -17,6 +17,8 @@ xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 serde = "1.0.198"
 serde_json = "1.0.116"
 toml = "0.8.12"
+anyhow = "1.0.82"
+mockall = "0.12.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi5"]}
@@ -38,6 +40,8 @@ jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
 [target.'cfg(windows)'.dependencies]
 mimalloc = { version = "0.1.25", default-features = false }
+
+[dev-dependencies]
 
 [build-dependencies]
 napi-build = "2"

@@ -44,7 +44,7 @@ pub struct JsResolverOptions {
   pub typescript: Option<bool>,
 }
 
-struct FunctionRef {
+pub struct FunctionRef {
   env: Env,
   reference: Ref<()>,
 }
