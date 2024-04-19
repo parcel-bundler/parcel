@@ -43,13 +43,50 @@ pub struct ConfigRequest {
   pub invalidate_on_build: bool,
 }
 
+/// Read a TOML or JSON configuration file as a value and return it
+fn read_config(input_fs: &impl FileSystem, config_path: &Path) -> napi::Result<serde_json::Value> {
+  let contents = input_fs.read_to_string(config_path)?;
+  let Some(extension) = config_path.extension().map(|ext| ext.to_str()).flatten() else {
+    // TODO: current JS behaviour might be to read it as JSON
+    return Err(napi::Error::from_reason(
+      "Configuration file has no extension or extension isn't unicode",
+    ));
+  };
+  let contents = match extension {
+    "json" => serde_json::from_str(&contents)
+      .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string())),
+    "toml" => toml::from_str(&contents)
+      .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string())),
+    extension => Err(napi::Error::from_reason(format!(
+      "Invalid configuration format: {}",
+      extension
+    ))),
+  }?;
+
+  Ok(contents)
+}
+
+fn hash_serde_value(value: &serde_json::Value) -> anyhow::Result<String> {
+  // TODO: this doesn't handle sorting keys
+  Ok(crate::hash::hash_string(serde_json::to_string(value)?))
+}
+
 fn get_config_key_content_hash(
-  file_path: &str,
   config_key: &str,
   input_fs: &impl FileSystem,
   project_root: &str,
+  file_path: &str,
 ) -> napi::Result<String> {
-  todo!("")
+  let contents = read_config(input_fs, Path::new(file_path))?;
+
+  let Some(config_value) = contents.get(config_key) else {
+    // TODO: need to try to match behaviour of `ConfigRequest.js`
+    return Ok("".to_string());
+  };
+
+  let content_hash =
+    hash_serde_value(config_value).map_err(|err| napi::Error::from_reason(err.to_string()))?;
+  Ok(content_hash)
 }
 
 pub fn run_config_request(
@@ -66,10 +103,10 @@ pub fn run_config_request(
 
   for config_key_change in &config_request.invalidate_on_config_key_change {
     let content_hash = get_config_key_content_hash(
-      &config_key_change.file_path,
       &config_key_change.config_key,
       input_fs,
       &project_root,
+      &config_key_change.file_path,
     )?;
     api.invalidate_on_config_key_change(
       Path::new(&config_key_change.file_path),
