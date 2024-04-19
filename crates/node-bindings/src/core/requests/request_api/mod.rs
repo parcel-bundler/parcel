@@ -25,9 +25,9 @@ pub trait RequestApi {
     content_hash: &str,
   ) -> RequestApiResult<()>;
   /// Invalidate the current request on start-up
-  fn invalidate_on_startup(&self, env: Env) -> RequestApiResult<()>;
+  fn invalidate_on_startup(&self) -> RequestApiResult<()>;
   /// Invalidate the current request on builds
-  fn invalidate_on_build(&self, env: Env) -> RequestApiResult<()>;
+  fn invalidate_on_build(&self) -> RequestApiResult<()>;
   /// Invalidate the current request on environment variable changes
   fn invalidate_on_env_change(&self, env_change: &str) -> RequestApiResult<()>;
   /// Invalidate the current request on option changes

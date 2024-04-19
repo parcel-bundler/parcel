@@ -174,7 +174,27 @@ export async function runConfigRequest<TResult>(
     type: requestTypes.config_request,
     run: async ({api, options}) => {
       if (getFeatureFlag('parcelV3')) {
-        return napiRunConfigRequest(configRequest, api, options);
+        return napiRunConfigRequest(
+          {
+            id: configRequest.id,
+            invalidateOnBuild: configRequest.invalidateOnBuild,
+            invalidateOnConfigKeyChange:
+              configRequest.invalidateOnConfigKeyChange,
+            invalidateOnFileCreate: configRequest.invalidateOnFileCreate,
+            invalidateOnEnvChange: Array.from(
+              configRequest.invalidateOnEnvChange,
+            ),
+            invalidateOnOptionChange: Array.from(
+              configRequest.invalidateOnOptionChange,
+            ),
+            invalidateOnStartup: configRequest.invalidateOnStartup,
+            invalidateOnFileChange: Array.from(
+              configRequest.invalidateOnFileChange,
+            ),
+          },
+          api,
+          options,
+        );
       }
 
       for (let filePath of invalidateOnFileChange) {
