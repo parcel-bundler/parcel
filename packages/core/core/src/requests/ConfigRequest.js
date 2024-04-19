@@ -163,6 +163,7 @@ export async function runConfigRequest<TResult>(
     invalidateOnConfigKeyChange.length === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
+    invalidateOnEnvChange.size === 0 &&
     !invalidateOnStartup &&
     !invalidateOnBuild
   ) {

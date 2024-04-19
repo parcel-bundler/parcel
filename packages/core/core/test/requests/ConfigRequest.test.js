@@ -7,6 +7,7 @@ import {runConfigRequest} from '../../src/requests/ConfigRequest';
 import type {RunAPI} from '../../src/RequestTracker';
 import sinon from 'sinon';
 import {toProjectPath} from '../../src/projectPath';
+import type {ConfigRequest} from '../../src/requests/ConfigRequest';
 
 // $FlowFixMe unclear-type forgive me
 const mockCast = (f: any): any => f;
@@ -40,7 +41,18 @@ describe('ConfigRequest tests', () => {
     return mockRunApi;
   };
 
-  ['rust', 'js'].forEach(backend => {
+  const baseRequest: ConfigRequest = {
+    id: 'config_request_test',
+    invalidateOnBuild: false,
+    invalidateOnConfigKeyChange: [],
+    invalidateOnFileCreate: [],
+    invalidateOnEnvChange: new Set(),
+    invalidateOnOptionChange: new Set(),
+    invalidateOnStartup: false,
+    invalidateOnFileChange: new Set(),
+  };
+
+  [('rust', 'js')].forEach(backend => {
     describe(`${backend} backed`, () => {
       beforeEach(() => {
         setFeatureFlags({
@@ -52,14 +64,7 @@ describe('ConfigRequest tests', () => {
       it('can execute a config request', async () => {
         const mockRunApi = getMockRunApi();
         await runConfigRequest(mockRunApi, {
-          id: 'config_request_test',
-          invalidateOnBuild: false,
-          invalidateOnConfigKeyChange: [],
-          invalidateOnFileCreate: [],
-          invalidateOnEnvChange: new Set(),
-          invalidateOnOptionChange: new Set(),
-          invalidateOnStartup: false,
-          invalidateOnFileChange: new Set(),
+          ...baseRequest,
         });
       });
 
@@ -71,17 +76,7 @@ describe('ConfigRequest tests', () => {
           let error: Error | null = null;
           try {
             await runConfigRequest(mockRunApi, {
-              id: 'config_request_test',
-              invalidateOnBuild: false,
-              invalidateOnConfigKeyChange: [],
-              invalidateOnFileCreate: [],
-              invalidateOnEnvChange: new Set(),
-              invalidateOnOptionChange: new Set(),
-              invalidateOnStartup: false,
-              invalidateOnFileChange: new Set([
-                toProjectPath(projectRoot, 'path1'),
-                toProjectPath(projectRoot, 'path2'),
-              ]),
+              ...baseRequest,
             });
           } catch (e) {
             error = e;
@@ -97,13 +92,7 @@ describe('ConfigRequest tests', () => {
       it('forwards "invalidateOnFileChange" calls to runAPI', async () => {
         const mockRunApi = getMockRunApi();
         await runConfigRequest(mockRunApi, {
-          id: 'config_request_test',
-          invalidateOnBuild: false,
-          invalidateOnConfigKeyChange: [],
-          invalidateOnFileCreate: [],
-          invalidateOnEnvChange: new Set(),
-          invalidateOnOptionChange: new Set(),
-          invalidateOnStartup: false,
+          ...baseRequest,
           invalidateOnFileChange: new Set([
             toProjectPath(projectRoot, 'path1'),
             toProjectPath(projectRoot, 'path2'),
@@ -135,9 +124,7 @@ describe('ConfigRequest tests', () => {
       it('forwards "invalidateOnFileCreate" calls to runAPI', async () => {
         const mockRunApi = getMockRunApi();
         await runConfigRequest(mockRunApi, {
-          id: 'config_request_test',
-          invalidateOnBuild: false,
-          invalidateOnConfigKeyChange: [],
+          ...baseRequest,
           invalidateOnFileCreate: [
             {filePath: toProjectPath(projectRoot, 'filePath')},
             {glob: toProjectPath(projectRoot, 'glob')},
@@ -146,10 +133,6 @@ describe('ConfigRequest tests', () => {
               aboveFilePath: toProjectPath(projectRoot, 'fileAbove'),
             },
           ],
-          invalidateOnEnvChange: new Set(),
-          invalidateOnOptionChange: new Set(),
-          invalidateOnStartup: false,
-          invalidateOnFileChange: new Set(),
         });
 
         assert(
@@ -174,6 +157,78 @@ describe('ConfigRequest tests', () => {
             aboveFilePath: 'fileAbove',
           }),
           'Invalidate was called for fileAbove',
+        );
+      });
+
+      it('forwards "invalidateOnEnvChange" calls to runAPI', async () => {
+        const mockRunApi = getMockRunApi();
+        await runConfigRequest(mockRunApi, {
+          ...baseRequest,
+          invalidateOnEnvChange: new Set(['env1', 'env2']),
+        });
+
+        assert(
+          mockCast(mockRunApi.invalidateOnEnvChange).called,
+          'Invalidate was called',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnEnvChange).calledWithMatch('env1'),
+          'Invalidate was called for env1',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnEnvChange).calledWithMatch('env2'),
+          'Invalidate was called for env1',
+        );
+      });
+
+      it('forwards "invalidateOnOptionChange" calls to runAPI', async () => {
+        const mockRunApi = getMockRunApi();
+        await runConfigRequest(mockRunApi, {
+          ...baseRequest,
+          invalidateOnOptionChange: new Set(['option1', 'option2']),
+        });
+
+        assert(
+          mockCast(mockRunApi.invalidateOnOptionChange).called,
+          'Invalidate was called',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnOptionChange).calledWithMatch(
+            'option1',
+          ),
+          'Invalidate was called for option1',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnOptionChange).calledWithMatch(
+            'option2',
+          ),
+          'Invalidate was called for option2',
+        );
+      });
+
+      it('forwards "invalidateOnStartup" calls to runAPI', async () => {
+        const mockRunApi = getMockRunApi();
+        await runConfigRequest(mockRunApi, {
+          ...baseRequest,
+          invalidateOnStartup: true,
+        });
+
+        assert(
+          mockCast(mockRunApi.invalidateOnStartup).called,
+          'Invalidate was called',
+        );
+      });
+
+      it('forwards "invalidateOnBuild" calls to runAPI', async () => {
+        const mockRunApi = getMockRunApi();
+        await runConfigRequest(mockRunApi, {
+          ...baseRequest,
+          invalidateOnBuild: true,
+        });
+
+        assert(
+          mockCast(mockRunApi.invalidateOnBuild).called,
+          'Invalidate was called',
         );
       });
     });
