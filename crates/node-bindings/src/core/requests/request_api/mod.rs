@@ -9,6 +9,13 @@ pub mod js_request_api;
 // TODO: Move this into an associated type of the struct
 pub type RequestApiResult<T> = napi::Result<T>;
 
+/// RequestTracker API with the requests.
+///
+/// We will implement these as we need them. While working on integrating
+/// with the existing JavaScript codebase, `JSRequestApi` will be used and will
+/// delegate these calls into the JavaScript implementation.
+///
+/// `mockall::automock` also generates a `MockRequestApi` to be used internally.
 #[automock]
 pub trait RequestApi {
   /// Invalidate the current request when a file at `path` is updated
@@ -37,6 +44,7 @@ pub trait RequestApi {
   /// Invalidate the current request on option changes
   fn invalidate_on_option_change(&self, option: &str) -> RequestApiResult<()>;
 
+  // Missing functions:
   // fn getInvalidations() -> Vec<RequestInvalidation>;
   // fn store_result(result: RequestResult, cacheKey: &str);
   // fn get_request_result<T>(contentKey: &str);

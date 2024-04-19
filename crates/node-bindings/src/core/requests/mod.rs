@@ -64,6 +64,12 @@ pub fn call_method(
   Ok(())
 }
 
+/// JavaScript API for running a config request.
+/// At the moment the request fields themselves will be copied on call.
+///
+/// This is not efficient but can be worked around when it becomes an issue.
+///
+/// This should have exhaustive unit-tests on `packages/core/core/test/requests/ConfigRequest.test.js`.
 #[napi]
 fn napi_run_config_request(
   env: Env,
