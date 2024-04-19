@@ -17,26 +17,15 @@ pub struct ConfigKeyChange {
 }
 
 #[napi(object)]
-pub struct InternalFileInvalidation {
-  pub file_path: ProjectPath,
-}
-
-#[napi(object)]
-pub struct InternalGlobInvalidation {
-  pub glob: InternalGlob,
-}
-
-#[napi(object)]
-pub struct InternalFileAboveInvalidation {
-  pub file_name: String,
-  pub above_file_path: ProjectPath,
-}
-
-#[napi(object)]
+#[derive(Clone)]
 pub struct InternalFileCreateInvalidation {
-  pub file: Option<InternalFileInvalidation>,
-  pub glob: Option<InternalGlobInvalidation>,
-  pub file_above: Option<InternalFileAboveInvalidation>,
+  // file
+  pub file_path: Option<ProjectPath>,
+  // glob
+  pub glob: Option<InternalGlob>,
+  // file above
+  pub file_name: Option<String>,
+  pub above_file_path: Option<ProjectPath>,
 }
 
 #[napi(object)]
@@ -90,15 +79,7 @@ pub fn run_config_request(
   }
 
   for invalidation in &config_request.invalidate_on_file_create {
-    if let Some(file) = &invalidation.file {
-      api.invalidate_on_file_create(Path::new(&file.file_path))?;
-    }
-    if let Some(glob) = &invalidation.glob {
-      api.invalidate_on_file_create(Path::new(&glob.glob))?;
-    }
-    if let Some(file_above) = &invalidation.file_above {
-      api.invalidate_on_file_create(Path::new(&file_above.above_file_path))?;
-    }
+    api.invalidate_on_file_create(invalidation)?;
   }
 
   for env in &config_request.invalidate_on_env_change {

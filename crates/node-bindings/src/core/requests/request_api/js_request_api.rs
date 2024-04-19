@@ -1,9 +1,10 @@
 use std::path::Path;
 use std::rc::Rc;
 
-use napi::{Env, JsObject};
+use napi::{Env, JsObject, JsUnknown};
 
 use crate::core::requests::call_method;
+use crate::core::requests::config_request::InternalFileCreateInvalidation;
 use crate::core::requests::request_api::{RequestApi, RequestApiResult};
 
 pub struct JSRequestApi {
@@ -41,13 +42,24 @@ impl RequestApi for JSRequestApi {
     Ok(())
   }
 
-  fn invalidate_on_file_create(&self, path: &Path) -> RequestApiResult<()> {
-    let path_js_string = self.env.create_string(path.to_str().unwrap())?;
+  fn invalidate_on_file_create(
+    &self,
+    invalidation: &InternalFileCreateInvalidation,
+  ) -> RequestApiResult<()> {
+    use napi::bindgen_prelude::ToNapiValue;
+    use napi::NapiValue;
+
+    let js_invalidation = unsafe {
+      JsUnknown::from_raw(
+        self.env.raw(),
+        ToNapiValue::to_napi_value(self.env.raw(), invalidation.clone())?,
+      )
+    }?;
     call_method(
       &self.env,
       &self.js_object,
       "invalidateOnFileCreate",
-      &[&path_js_string.into_unknown()],
+      &[&js_invalidation],
     )?;
     Ok(())
   }

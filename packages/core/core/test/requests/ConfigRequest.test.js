@@ -118,6 +118,63 @@ describe('ConfigRequest tests', () => {
           mockCast(mockRunApi.invalidateOnFileUpdate).calledWith('path1'),
           'Invalidate was called with path1',
         );
+        assert(
+          mockCast(mockRunApi.invalidateOnFileUpdate).calledWith('path2'),
+          'Invalidate was called with path2',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnFileDelete).calledWith('path1'),
+          'Invalidate was called with path1',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnFileDelete).calledWith('path2'),
+          'Invalidate was called with path2',
+        );
+      });
+
+      it('forwards "invalidateOnFileCreate" calls to runAPI', async () => {
+        const mockRunApi = getMockRunApi();
+        await runConfigRequest(mockRunApi, {
+          id: 'config_request_test',
+          invalidateOnBuild: false,
+          invalidateOnConfigKeyChange: [],
+          invalidateOnFileCreate: [
+            {filePath: toProjectPath(projectRoot, 'filePath')},
+            {glob: toProjectPath(projectRoot, 'glob')},
+            {
+              fileName: 'package.json',
+              aboveFilePath: toProjectPath(projectRoot, 'fileAbove'),
+            },
+          ],
+          invalidateOnEnvChange: new Set(),
+          invalidateOnOptionChange: new Set(),
+          invalidateOnStartup: false,
+          invalidateOnFileChange: new Set(),
+        });
+
+        assert(
+          mockCast(mockRunApi.invalidateOnFileCreate).called,
+          'Invalidate was called',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
+            filePath: 'filePath',
+          }),
+          'Invalidate was called for path',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
+            glob: 'glob',
+          }),
+          'Invalidate was called for glob',
+        );
+        assert(
+          mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
+            fileName: 'package.json',
+            aboveFilePath: 'fileAbove',
+          }),
+          'Invalidate was called for fileAbove',
+        );
       });
     });
   });

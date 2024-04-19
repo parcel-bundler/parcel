@@ -1,6 +1,7 @@
 use mockall::automock;
 use std::path::Path;
 
+use crate::core::requests::config_request::InternalFileCreateInvalidation;
 use napi::Env;
 
 pub mod js_request_api;
@@ -15,7 +16,10 @@ pub trait RequestApi {
   /// Invalidate the current request when a file at `path` is deleted
   fn invalidate_on_file_delete(&self, path: &Path) -> RequestApiResult<()>;
   /// Invalidate the current request when a file at `path` is created
-  fn invalidate_on_file_create(&self, path: &Path) -> RequestApiResult<()>;
+  fn invalidate_on_file_create(
+    &self,
+    path: &InternalFileCreateInvalidation,
+  ) -> RequestApiResult<()>;
   /// Invalidate the current request when a config key from the configuration
   /// file at path is changed
   fn invalidate_on_config_key_change(
