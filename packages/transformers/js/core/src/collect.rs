@@ -70,7 +70,7 @@ pub struct Collect {
   pub non_static_access: HashMap<Id, Vec<Span>>,
   pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
-  pub wrapped_requires: HashSet<String>,
+  pub wrapped_requires: HashSet<JsWord>,
   pub bailouts: Option<Vec<Bailout>>,
   in_module_this: bool,
   in_top_level: bool,
@@ -82,36 +82,36 @@ pub struct Collect {
 }
 
 #[derive(Debug, Serialize)]
-struct CollectImportedSymbol {
-  source: JsWord,
-  local: JsWord,
-  imported: JsWord,
-  loc: SourceLocation,
-  kind: ImportKind,
+pub struct CollectImportedSymbol {
+  pub source: JsWord,
+  pub local: JsWord,
+  pub imported: JsWord,
+  pub loc: SourceLocation,
+  pub kind: ImportKind,
 }
 
 #[derive(Debug, Serialize)]
-struct CollectExportedSymbol {
-  source: Option<JsWord>,
-  local: JsWord,
-  exported: JsWord,
-  loc: SourceLocation,
+pub struct CollectExportedSymbol {
+  pub source: Option<JsWord>,
+  pub local: JsWord,
+  pub exported: JsWord,
+  pub loc: SourceLocation,
 }
 
 #[derive(Debug, Serialize)]
-struct CollectExportedAll {
-  source: JsWord,
-  loc: SourceLocation,
+pub struct CollectExportedAll {
+  pub source: JsWord,
+  pub loc: SourceLocation,
 }
 
 #[derive(Serialize, Debug)]
 pub struct CollectResult {
-  imports: Vec<CollectImportedSymbol>,
-  exports: Vec<CollectExportedSymbol>,
-  exports_all: Vec<CollectExportedAll>,
-  should_wrap: bool,
-  has_cjs_exports: bool,
-  is_esm: bool,
+  pub imports: Vec<CollectImportedSymbol>,
+  pub exports: Vec<CollectExportedSymbol>,
+  pub exports_all: Vec<CollectExportedAll>,
+  pub should_wrap: bool,
+  pub has_cjs_exports: bool,
+  pub is_esm: bool,
 }
 
 impl Collect {
@@ -728,7 +728,7 @@ impl Visit for Collect {
     // If we reached this visitor, this is a non-top-level require that isn't in a variable
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
     if let Some(source) = self.match_require(node) {
-      self.wrapped_requires.insert(source.to_string());
+      self.wrapped_requires.insert(source.clone());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -738,7 +738,7 @@ impl Visit for Collect {
 
     if let Some(source) = match_import(node, self.ignore_mark) {
       self.non_static_requires.insert(source.clone());
-      self.wrapped_requires.insert(source.to_string());
+      self.wrapped_requires.insert(source.clone());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -930,7 +930,7 @@ impl Visit for Collect {
                   self.add_pat_imports(param, &source, ImportKind::DynamicImport);
                 } else {
                   self.non_static_requires.insert(source.clone());
-                  self.wrapped_requires.insert(source.to_string());
+                  self.wrapped_requires.insert(source.clone());
                   self.add_bailout(node.span, BailoutReason::NonStaticDynamicImport);
                 }
 
@@ -958,9 +958,9 @@ impl Collect {
       match kind {
         ImportKind::Import => self
           .wrapped_requires
-          .insert(format!("{}{}", src.clone(), "esm")),
+          .insert(format!("{}{}", src.clone(), "esm").into()),
         ImportKind::DynamicImport | ImportKind::Require => {
-          self.wrapped_requires.insert(src.to_string())
+          self.wrapped_requires.insert(src.clone())
         }
       };
       if kind != ImportKind::DynamicImport {

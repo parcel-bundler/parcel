@@ -28,7 +28,7 @@ use swc_core::ecma::ast::{Module, ModuleItem, Program};
 use swc_core::ecma::codegen::text_writer::JsWriter;
 use swc_core::ecma::parser::lexer::Lexer;
 use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
+use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets};
 use swc_core::ecma::transforms::base::fixer::paren_remover;
 use swc_core::ecma::transforms::base::helpers;
 use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
@@ -48,12 +48,11 @@ use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
-use utils::{
-  error_buffer_to_diagnostics, CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer,
-  SourceType,
-};
+use utils::{error_buffer_to_diagnostics, ErrorBuffer};
 
-pub use utils::SourceLocation;
+pub use dependency_collector::DependencyKind;
+pub use swc_core::ecma::preset_env::{Version, Versions};
+pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -81,7 +80,7 @@ pub struct Config {
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
   pub react_refresh: bool,
-  pub targets: Option<HashMap<String, String>>,
+  pub targets: Option<Versions>,
   pub source_maps: bool,
   pub scope_hoist: bool,
   pub source_type: SourceType,
@@ -97,51 +96,51 @@ pub struct Config {
 #[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
-  code: Vec<u8>,
-  map: Option<String>,
-  shebang: Option<String>,
+  pub code: Vec<u8>,
+  pub map: Option<String>,
+  pub shebang: Option<String>,
   pub dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<HoistResult>,
-  symbol_result: Option<CollectResult>,
-  diagnostics: Option<Vec<Diagnostic>>,
-  needs_esm_helpers: bool,
-  used_env: HashSet<swc_core::ecma::atoms::JsWord>,
-  has_node_replacements: bool,
-  is_constant_module: bool,
+  pub hoist_result: Option<HoistResult>,
+  pub symbol_result: Option<CollectResult>,
+  pub diagnostics: Option<Vec<Diagnostic>>,
+  pub needs_esm_helpers: bool,
+  pub used_env: HashSet<swc_core::ecma::atoms::JsWord>,
+  pub has_node_replacements: bool,
+  pub is_constant_module: bool,
 }
 
-fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
-  if let Some(targets) = targets {
-    macro_rules! set_target {
-      ($versions: ident, $name: ident) => {
-        let version = targets.get(stringify!($name));
-        if let Some(version) = version {
-          if let Ok(version) = Version::from_str(version.as_str()) {
-            $versions.$name = Some(version);
-          }
-        }
-      };
-    }
+// fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
+//   if let Some(targets) = targets {
+//     macro_rules! set_target {
+//       ($versions: ident, $name: ident) => {
+//         let version = targets.get(stringify!($name));
+//         if let Some(version) = version {
+//           if let Ok(version) = Version::from_str(version.as_str()) {
+//             $versions.$name = Some(version);
+//           }
+//         }
+//       };
+//     }
 
-    let mut versions = Versions::default();
-    set_target!(versions, chrome);
-    set_target!(versions, opera);
-    set_target!(versions, edge);
-    set_target!(versions, firefox);
-    set_target!(versions, safari);
-    set_target!(versions, ie);
-    set_target!(versions, ios);
-    set_target!(versions, android);
-    set_target!(versions, node);
-    set_target!(versions, electron);
-    return Some(versions);
-  }
+//     let mut versions = Versions::default();
+//     set_target!(versions, chrome);
+//     set_target!(versions, opera);
+//     set_target!(versions, edge);
+//     set_target!(versions, firefox);
+//     set_target!(versions, safari);
+//     set_target!(versions, ie);
+//     set_target!(versions, ios);
+//     set_target!(versions, android);
+//     set_target!(versions, node);
+//     set_target!(versions, electron);
+//     return Some(versions);
+//   }
 
-  None
-}
+//   None
+// }
 
 pub fn transform(
-  config: Config,
+  config: &Config,
   call_macro: Option<MacroCallback>,
 ) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
@@ -278,7 +277,7 @@ pub fn transform(
                 dynamic_import: true,
                 ..Default::default()
               };
-              let versions = targets_to_versions(&config.targets);
+              let versions = config.targets;
               let mut should_run_preset_env = false;
               if !config.is_swc_helpers {
                 // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.

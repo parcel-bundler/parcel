@@ -6,6 +6,7 @@ use std::{
 };
 
 use bitflags::bitflags;
+use browserslist::Distrib;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Target {
@@ -22,7 +23,7 @@ pub struct Target {
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct EnvironmentId(pub NonZeroU32);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Environment {
   pub context: EnvironmentContext,
   pub output_format: OutputFormat,
@@ -36,10 +37,68 @@ pub struct Environment {
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Engines {
-  pub browsers: Vec<String>,
+  pub browsers: Vec<Distrib>,
   pub electron: Option<String>,
   pub node: Option<String>,
   pub parcel: Option<String>,
+}
+
+// List of browsers to exclude when the esmodule target is specified.
+// Based on https://caniuse.com/#feat=es6-module
+const ESMODULE_BROWSERS: &'static [&'static str] = &[
+  "not ie <= 11",
+  "not edge < 16",
+  "not firefox < 60",
+  "not chrome < 61",
+  "not safari < 11",
+  "not opera < 48",
+  "not ios_saf < 11",
+  "not op_mini all",
+  "not android < 76",
+  "not blackberry > 0",
+  "not op_mob > 0",
+  "not and_chr < 76",
+  "not and_ff < 68",
+  "not ie_mob > 0",
+  "not and_uc > 0",
+  "not samsung < 8.2",
+  "not and_qq > 0",
+  "not baidu > 0",
+  "not kaios > 0",
+];
+
+impl Engines {
+  pub fn from_browserslist(browserslist: &str, output_format: OutputFormat) -> Engines {
+    let browsers = if output_format == OutputFormat::Esmodule {
+      // If the output format is esmodule, exclude browsers
+      // that support them natively so that we transpile less.
+      browserslist::resolve(
+        std::iter::once(browserslist).chain(ESMODULE_BROWSERS.iter().map(|s| *s)),
+        &Default::default(),
+      )
+    } else {
+      browserslist::resolve(std::iter::once(browserslist), &Default::default())
+    };
+
+    Engines {
+      browsers: browsers.unwrap_or(Vec::new()),
+      electron: None,
+      node: None,
+      parcel: None,
+    }
+  }
+}
+
+impl std::hash::Hash for Engines {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    for browser in &self.browsers {
+      browser.name().hash(state);
+      browser.version().hash(state);
+    }
+    self.electron.hash(state);
+    self.node.hash(state);
+    self.parcel.hash(state);
+  }
 }
 
 // #[derive(Clone)]
@@ -55,7 +114,7 @@ pub struct Engines {
 //   }
 // }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, Hash)]
 pub struct TargetSourceMapOptions {
   source_root: Option<String>,
   inline: bool,
@@ -64,7 +123,7 @@ pub struct TargetSourceMapOptions {
 
 #[derive(PartialEq, Debug, Clone, Hash)]
 pub struct SourceLocation {
-  pub file_path: String,
+  pub file_path: PathBuf,
   pub start: Location,
   pub end: Location,
 }
@@ -83,7 +142,7 @@ bitflags! {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash)]
 pub enum EnvironmentContext {
   Browser,
   WebWorker,
@@ -119,13 +178,13 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash)]
 pub enum SourceType {
   Module,
   Script,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash)]
 pub enum OutputFormat {
   Global,
   Commonjs,
@@ -139,7 +198,7 @@ pub struct AssetId(pub NonZeroU32);
 pub struct Asset {
   pub id: String,
   pub file_path: PathBuf,
-  pub env: EnvironmentId,
+  pub env: Environment,
   pub query: Option<String>,
   pub asset_type: AssetType,
   pub content_key: String,
@@ -239,12 +298,12 @@ bitflags! {
 
 #[derive(Debug, Clone, Hash)]
 pub struct Dependency {
-  pub id: String,
+  // pub id: String,
   // pub source_asset_id: Option<AssetId>,
-  pub source_path: Option<PathBuf>,
-  pub env: EnvironmentId,
   pub specifier: String,
   pub specifier_type: SpecifierType,
+  pub source_path: Option<PathBuf>,
+  pub env: Environment,
   pub resolve_from: Option<String>,
   pub range: Option<String>,
   pub priority: Priority,
@@ -265,9 +324,9 @@ pub struct Dependency {
 }
 
 impl Dependency {
-  pub fn new(specifier: String, env: EnvironmentId) -> Dependency {
+  pub fn new(specifier: String, env: Environment) -> Dependency {
     Dependency {
-      id: String::default(),
+      // id: String::default(),
       specifier,
       specifier_type: SpecifierType::Esm,
       source_path: None, //Some(source_asset.id),
@@ -291,21 +350,22 @@ impl Dependency {
     }
   }
 
-  // pub fn get_id_hash(&self) -> u64 {
-  //   // Compute hashed dependency id.
-  //   let mut hasher = DefaultHasher::new();
-  //   self.source_asset_id.hash(&mut hasher);
-  //   self.specifier.hash(&mut hasher);
-  //   self.specifier_type.hash(&mut hasher);
-  //   self.env.hash(&mut hasher);
-  //   self.target.hash(&mut hasher);
-  //   self.pipeline.hash(&mut hasher);
-  //   self.bundle_behavior.hash(&mut hasher);
-  //   self.priority.hash(&mut hasher);
-  //   self.package_conditions.hash(&mut hasher);
-  //   self.custom_package_conditions.hash(&mut hasher);
-  //   hasher.finish()
-  // }
+  pub fn id(&self) -> u64 {
+    // Compute hashed dependency id.
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    self.source_path.hash(&mut hasher);
+    self.specifier.hash(&mut hasher);
+    self.specifier_type.hash(&mut hasher);
+    self.env.hash(&mut hasher);
+    // self.target.hash(&mut hasher);
+    self.pipeline.hash(&mut hasher);
+    self.bundle_behavior.hash(&mut hasher);
+    self.priority.hash(&mut hasher);
+    self.package_conditions.hash(&mut hasher);
+    self.custom_package_conditions.hash(&mut hasher);
+    hasher.finish()
+  }
 
   // pub fn commit(mut self) -> u32 {
   //   self.id = format!("{:016x}", self.get_id_hash()).into();

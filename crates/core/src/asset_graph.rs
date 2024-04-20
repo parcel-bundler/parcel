@@ -9,7 +9,10 @@ use crate::{
     asset_request::AssetRequest, entry_request::EntryRequest,
     parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
   },
-  types::{Asset, Dependency, EnvironmentId},
+  types::{
+    Asset, Dependency, Engines, Environment, EnvironmentContext, EnvironmentFlags, EnvironmentId,
+    OutputFormat, SourceType,
+  },
 };
 
 struct AssetGraph {
@@ -61,12 +64,21 @@ impl AssetGraphRequest {
     // }).collect();
     // let targets = request_tracker.run_requests(target_requests);
 
-    let env = EnvironmentId(NonZeroU32::new(1).unwrap());
+    let env = Environment {
+      context: EnvironmentContext::Browser,
+      output_format: OutputFormat::Esmodule,
+      source_type: SourceType::Module,
+      source_map: None,
+      flags: EnvironmentFlags::empty(),
+      loc: None,
+      include_node_modules: String::new(),
+      engines: Engines::from_browserslist("last 2 versions", OutputFormat::Esmodule),
+    };
     let mut path_requests = Vec::new();
     let mut dep_nodes = Vec::new();
     for entry_result in entries {
       for entry in entry_result.unwrap() {
-        let dep = Dependency::new(entry.file_path, env);
+        let dep = Dependency::new(entry.file_path, env.clone());
         let dep_node = graph
           .graph
           .add_node(AssetGraphNode::Dependency(dep.clone()));
@@ -84,7 +96,7 @@ impl AssetGraphRequest {
       .map(|result| AssetRequest {
         transformers: &config.transformers,
         file_path: result.unwrap(),
-        env,
+        env: env.clone(),
       })
       .collect();
 
@@ -126,7 +138,7 @@ impl AssetGraphRequest {
         .map(|result| AssetRequest {
           transformers: &config.transformers,
           file_path: result.unwrap(),
-          env,
+          env: env.clone(),
         })
         .filter(|req| visited.insert(req.id()))
         .collect();

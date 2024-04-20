@@ -16,3 +16,6 @@ mimalloc = { version = "*", default-features = false }
 indexmap = "*"
 glob-match = "0.2.1"
 serde = "1.0.123"
+serde_json = "1.0.91"
+browserslist-rs = "0.14.0"
+node-semver = { git = "https://github.com/devongovett/node-semver-rs", branch = "min-version" }
