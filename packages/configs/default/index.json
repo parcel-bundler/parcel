@@ -76,5 +76,6 @@
     "*": ["@parcel/compressor-raw"]
   },
   "resolvers": ["@parcel/resolver-default"],
-  "reporters": ["@parcel/reporter-dev-server"]
+  "reporters": ["@parcel/reporter-dev-server"],
+  "validators": {}
 }

@@ -5,18 +5,19 @@ use std::{
 };
 
 use crate::requests::{
-  asset_request::AssetRequest, entry_request::EntryRequest, path_request::PathRequest,
+  asset_request::AssetRequest, entry_request::EntryRequest,
+  parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
 };
 use crate::worker_farm::WorkerFarm;
 use petgraph::graph::{DiGraph, NodeIndex};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-pub trait Request: Hash + Sync + 'static {
+pub trait Request: Hash + Sync {
   type Output: Send + Clone;
 
   fn id(&self) -> u64 {
     let mut hasher = DefaultHasher::new();
-    TypeId::of::<Self>().hash(&mut hasher);
+    std::any::type_name::<Self>().hash(&mut hasher); // ???
     self.hash(&mut hasher);
     hasher.finish()
   }
@@ -47,10 +48,10 @@ enum RequestOutput {
   AssetGraphRequest,
   EntryRequest(<EntryRequest as Request>::Output),
   TargetRequest,
-  ParcelConfigRequest,
+  ParcelConfigRequest(<ParcelConfigRequest as Request>::Output),
   PathRequest(<PathRequest as Request>::Output),
   DevDepRequest,
-  AssetRequest(<AssetRequest as Request>::Output),
+  AssetRequest(<AssetRequest<'static> as Request>::Output),
   ConfigRequest,
   WriteBundlesRequest,
   PackageRequest,
@@ -70,8 +71,8 @@ trait StoreRequestOutput: Request {
 }
 
 macro_rules! impl_store_request {
-  ($t: ident) => {
-    impl StoreRequestOutput for $t {
+  ($t: ident $(<$l: lifetime>)?) => {
+    impl $(<$l>)? StoreRequestOutput for $t $(<$l>)? {
       fn store(output: Self::Output) -> RequestOutput {
         RequestOutput::$t(output)
       }
@@ -86,9 +87,10 @@ macro_rules! impl_store_request {
   };
 }
 
+impl_store_request!(ParcelConfigRequest);
 impl_store_request!(EntryRequest);
 impl_store_request!(PathRequest);
-impl_store_request!(AssetRequest);
+impl_store_request!(AssetRequest<'a>);
 
 #[derive(PartialEq, Debug)]
 enum RequestNodeState {
@@ -164,8 +166,10 @@ impl RequestTracker {
     false
   }
 
-  fn get_request(&self, node_index: NodeIndex) -> &RequestNode {
-    match self.graph.node_weight(node_index) {
+  fn get_request<R: Request>(&mut self, request: &R) -> &RequestNode {
+    let id = request.id();
+    let node_index = self.requests.get(&id).unwrap();
+    match self.graph.node_weight(*node_index) {
       Some(RequestGraphNode::Request(req)) => req,
       _ => unreachable!("expected a request node"),
     }
@@ -246,22 +250,42 @@ impl RequestTracker {
       .collect()
   }
 
-  // /// Runs a single request on the current thread.
-  // pub fn request<R: Request>(&mut self, request: R) -> R::Output {
-  //   if self.has_valid_result(&request) {
-  //     return;
-  //   }
+  /// Runs a single request on the current thread.
+  pub fn run_request<R: Request + StoreRequestOutput>(
+    &mut self,
+    request: R,
+  ) -> Result<R::Output, RequestError> {
+    if !self.start_request(&request) {
+      let request = self.get_request(&request);
+      let res = request
+        .output
+        .as_ref()
+        .unwrap()
+        .as_ref()
+        .map(|output| <R as StoreRequestOutput>::retrieve(output));
+      return match res {
+        Ok(r) => Ok(r.clone()),
+        Err(e) => Err(e.clone()),
+      };
+    }
 
-  //   let node = self.start_request(request);
-  //   let request = self.get_request(node);
-  //   let result = request.run(&self.farm);
+    let result = request.run(&self.farm);
 
-  //   let request = self.get_request_mut(node);
-  //   request.state = match result.error {
-  //     None => RequestNodeState::Valid,
-  //     Some(_) => RequestNodeState::Error,
-  //   };
+    let request = self.get_request_mut(&request);
+    request.state = match result.result {
+      Ok(_) => RequestNodeState::Valid,
+      Err(_) => RequestNodeState::Error,
+    };
 
-  //   // TODO: insert invalidations
-  // }
+    // TODO: insert invalidations
+
+    request.output = Some(
+      result
+        .result
+        .clone()
+        .map(|result| <R as StoreRequestOutput>::store(result)),
+    );
+
+    result.result
+  }
 }

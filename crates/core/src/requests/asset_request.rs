@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 
 use crate::{
-  parcel_config::{ParcelConfig, PluginNode},
+  parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestResult},
   types::{Asset, AssetFlags, AssetStats, Dependency, EnvironmentId},
 };
 
 #[derive(Hash)]
-pub struct AssetRequest {
+pub struct AssetRequest<'a> {
+  pub transformers: &'a PipelineMap,
   pub file_path: PathBuf,
   pub env: EnvironmentId,
 }
@@ -18,7 +19,7 @@ pub struct AssetRequestResult {
   pub dependencies: Vec<Dependency>,
 }
 
-impl Request for AssetRequest {
+impl<'a> Request for AssetRequest<'a> {
   type Output = AssetRequestResult;
 
   fn run(&self, _farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
@@ -42,9 +43,10 @@ impl Request for AssetRequest {
       ast: None,
     };
 
-    let config = ParcelConfig::default();
-    let pipeline = config.transformers(&asset.file_path, &asset.pipeline, false);
-    let result = run_pipeline(pipeline, asset, &config);
+    let pipeline = self
+      .transformers
+      .get(&asset.file_path, &asset.pipeline, false);
+    let result = run_pipeline(pipeline, asset, &self.transformers);
 
     RequestResult {
       result: Ok(result),
@@ -60,7 +62,7 @@ trait Transformer {
 fn run_pipeline(
   pipeline: Vec<PluginNode>,
   asset: Asset,
-  config: &ParcelConfig,
+  transformers: &PipelineMap,
 ) -> AssetRequestResult {
   let mut result = AssetRequestResult {
     asset,
@@ -74,8 +76,8 @@ fn run_pipeline(
         .asset
         .file_path
         .with_extension(result.asset.asset_type.extension());
-      let pipeline = config.transformers(&next_path, &transformed.asset.pipeline, false);
-      return run_pipeline(pipeline, transformed.asset, config);
+      let pipeline = transformers.get(&next_path, &transformed.asset.pipeline, false);
+      return run_pipeline(pipeline, transformed.asset, transformers);
     }
     result.asset = transformed.asset;
     result.dependencies.extend(transformed.dependencies);
