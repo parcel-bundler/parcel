@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::requests::entry_request::{Entry, EntryRequest};
+use crate::{
+  parcel_config::ParcelConfig,
+  requests::entry_request::{Entry, EntryRequest},
+};
 
 pub type WorkerCallback =
   Arc<dyn Fn(WorkerRequest) -> Result<WorkerResult, WorkerError> + Send + Sync>;
@@ -12,12 +15,14 @@ pub struct WorkerFarm {
 #[derive(serde::Serialize, Debug)]
 #[serde(tag = "type")]
 pub enum WorkerRequest {
+  ParcelConfig,
   Entry(EntryRequest),
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(tag = "type", content = "value")]
 pub enum WorkerResult {
+  ParcelConfig(ParcelConfig),
   Entry(Vec<Entry>),
 }
 

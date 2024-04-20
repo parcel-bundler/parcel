@@ -7,6 +7,7 @@ const {NodeFS} = require('@parcel/fs/src');
 const {FSCache} = require('@parcel/cache/src');
 const {NodePackageManager} = require('@parcel/package-manager/src');
 const {fromProjectPath} = require('@parcel/core/src/projectPath');
+const {loadParcelConfig} = require('@parcel/core/src/requests/ParcelConfigRequest');
 
 const fs = new NodeFS();
 const cache = new FSCache();
@@ -51,6 +52,7 @@ const options = {
     exampleFeature: false,
     configKeyInvalidation: false,
   },
+  defaultConfig: require.resolve('@parcel/config-default')
 };
 
 // console.log(parcel);
@@ -71,6 +73,13 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
           loc: e.loc
         }))
       }
+    }
+    case 'ParcelConfig': {
+      let {config} = await loadParcelConfig(options);
+      return {
+        type: 'ParcelConfig',
+        value: config
+      };
     }
   }
 });

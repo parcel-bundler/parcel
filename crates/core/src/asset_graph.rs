@@ -5,7 +5,10 @@ use rayon::iter::IntoParallelRefIterator;
 
 use crate::{
   request_tracker::{Request, RequestTracker},
-  requests::{asset_request::AssetRequest, entry_request::EntryRequest, path_request::PathRequest},
+  requests::{
+    asset_request::AssetRequest, entry_request::EntryRequest,
+    parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
+  },
   types::{Asset, Dependency, EnvironmentId},
 };
 
@@ -37,6 +40,8 @@ pub struct AssetGraphRequest {
 
 impl AssetGraphRequest {
   pub fn build(&mut self, request_tracker: &mut RequestTracker) {
+    let config = request_tracker.run_request(ParcelConfigRequest {}).unwrap();
+
     let mut graph = AssetGraph::new();
     let root = graph.graph.add_node(AssetGraphNode::Root);
 
@@ -77,6 +82,7 @@ impl AssetGraphRequest {
     let mut asset_requests: Vec<_> = resolved
       .into_iter()
       .map(|result| AssetRequest {
+        transformers: &config.transformers,
         file_path: result.unwrap(),
         env,
       })
@@ -118,6 +124,7 @@ impl AssetGraphRequest {
       asset_requests = resolved
         .into_iter()
         .map(|result| AssetRequest {
+          transformers: &config.transformers,
           file_path: result.unwrap(),
           env,
         })
