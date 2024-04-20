@@ -1,0 +1,10 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=827846 to learn about workspace recommendations.
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode",
+    "flowtype.flow-for-vscode",
+    "vadimcn.vscode-lldb"
+  ]
+}
