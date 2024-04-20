@@ -1,6 +1,5 @@
 use std::{
-  any::TypeId,
-  collections::{hash_map::DefaultHasher, HashMap, HashSet},
+  collections::{hash_map::DefaultHasher, HashMap},
   hash::{Hash, Hasher},
 };
 
@@ -42,7 +41,7 @@ enum RequestGraphNode {
 }
 
 #[derive(Debug)]
-enum RequestOutput {
+pub enum RequestOutput {
   ParcelBuildRequest,
   BundleGraphRequest,
   AssetGraphRequest,
@@ -65,7 +64,7 @@ struct RequestNode {
   output: Option<Result<RequestOutput, RequestError>>,
 }
 
-trait StoreRequestOutput: Request {
+pub trait StoreRequestOutput: Request {
   fn store(output: Self::Output) -> RequestOutput;
   fn retrieve(output: &RequestOutput) -> &Self::Output;
 }
@@ -246,6 +245,7 @@ impl RequestTracker {
         }
 
         // TODO: insert invalidations
+        // TODO: remove old sub-requests
       })
       .collect()
   }

@@ -60,20 +60,20 @@ pub fn hoist(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ExportedSymbol {
-  local: JsWord,
-  exported: JsWord,
-  loc: SourceLocation,
-  is_esm: bool,
+pub struct ExportedSymbol {
+  pub local: JsWord,
+  pub exported: JsWord,
+  pub loc: SourceLocation,
+  pub is_esm: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ImportedSymbol {
-  source: JsWord,
-  local: JsWord,
-  imported: JsWord,
-  loc: SourceLocation,
-  kind: ImportKind,
+pub struct ImportedSymbol {
+  pub source: JsWord,
+  pub local: JsWord,
+  pub imported: JsWord,
+  pub loc: SourceLocation,
+  pub kind: ImportKind,
 }
 
 struct Hoist<'a> {
@@ -94,16 +94,16 @@ struct Hoist<'a> {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HoistResult {
-  imported_symbols: Vec<ImportedSymbol>,
-  exported_symbols: Vec<ExportedSymbol>,
-  re_exports: Vec<ImportedSymbol>,
-  self_references: HashSet<JsWord>,
-  wrapped_requires: HashSet<String>,
-  dynamic_imports: HashMap<JsWord, JsWord>,
-  static_cjs_exports: bool,
-  has_cjs_exports: bool,
-  is_esm: bool,
-  should_wrap: bool,
+  pub imported_symbols: Vec<ImportedSymbol>,
+  pub exported_symbols: Vec<ExportedSymbol>,
+  pub re_exports: Vec<ImportedSymbol>,
+  pub self_references: HashSet<JsWord>,
+  pub wrapped_requires: HashSet<JsWord>,
+  pub dynamic_imports: HashMap<JsWord, JsWord>,
+  pub static_cjs_exports: bool,
+  pub has_cjs_exports: bool,
+  pub is_esm: bool,
+  pub should_wrap: bool,
 }
 
 impl<'a> Hoist<'a> {
@@ -1672,7 +1672,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1688,7 +1688,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1702,7 +1702,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1716,7 +1716,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1729,7 +1729,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1742,7 +1742,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1754,7 +1754,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1766,7 +1766,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1779,7 +1779,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1792,7 +1792,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1804,7 +1804,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1816,7 +1816,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1825,7 +1825,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1834,7 +1834,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1845,7 +1845,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+    assert_eq!(collect.wrapped_requires, set! {w!("other")});
   }
 
   #[test]
@@ -2171,7 +2171,7 @@ mod tests {
     );
     assert_eq!(
       hoist.wrapped_requires,
-      HashSet::<String>::from_iter(vec![String::from("other")])
+      HashSet::<JsWord>::from_iter(vec![w!("other")])
     );
 
     let (_collect, code, hoist) = parse(
@@ -2197,7 +2197,7 @@ mod tests {
     );
     assert_eq!(
       hoist.wrapped_requires,
-      HashSet::<String>::from_iter(vec![String::from("other")])
+      HashSet::<JsWord>::from_iter(vec![w!("other")])
     );
 
     let (_collect, code, _hoist) = parse(

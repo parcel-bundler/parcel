@@ -1,6 +1,7 @@
 pub mod asset_graph;
-mod parcel_config;
+pub mod parcel_config;
 pub mod request_tracker;
-mod requests;
+pub mod requests;
+pub mod transformers;
 mod types;
 pub mod worker_farm;

@@ -1,5 +1,5 @@
 use glob_match::glob_match;
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
@@ -126,4 +126,34 @@ impl PipelineMap {
 fn is_match(pattern: &str, path: &str, basename: &str, pipeline: &str) -> bool {
   let (pattern_pipeline, glob) = pattern.split_once(':').unwrap_or(("", pattern));
   pipeline == pattern_pipeline && (glob_match(glob, basename) || glob_match(glob, path))
+}
+
+impl Default for ParcelConfig {
+  fn default() -> Self {
+    ParcelConfig {
+      transformers: PipelineMap(
+        indexmap! {
+          "*.{js,mjs,jsm,jsx,es6,ts,tsx}".into() => vec![PipelineNode::Plugin(PluginNode {
+            package_name: "@parcel/transformer-js".into(),
+            resolve_from: "/".into(),
+            key_path: None
+          })],
+        },
+        0,
+      ),
+      resolvers: vec![],
+      bundler: PluginNode {
+        package_name: "@parcel/bundler-default".into(),
+        resolve_from: "/".into(),
+        key_path: None,
+      },
+      namers: vec![],
+      runtimes: vec![],
+      optimizers: PipelineMap(indexmap! {}, 0),
+      packagers: indexmap! {},
+      validators: PipelineMap(indexmap! {}, 0),
+      compressors: PipelineMap(indexmap! {}, 0),
+      reporters: vec![],
+    }
+  }
 }
