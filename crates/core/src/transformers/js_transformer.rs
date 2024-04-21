@@ -75,7 +75,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
   }
 
   Config {
-    filename: asset.file_path.to_string_lossy().to_string(),
+    filename: asset.file_path.clone(),
     code,
     module_id: asset.id.clone(),
     project_root: "/".into(), // TODO

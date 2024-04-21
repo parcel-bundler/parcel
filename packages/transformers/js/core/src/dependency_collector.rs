@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use path_slash::PathBufExt;
 use std::collections::HashMap;
 use std::fmt;
@@ -23,7 +24,7 @@ macro_rules! hash {
   }};
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub enum DependencyKind {
   Import,
   Export,
@@ -58,7 +59,7 @@ pub struct DependencyDescriptor {
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut IndexMap<u64, DependencyDescriptor>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
@@ -80,7 +81,7 @@ pub fn dependency_collector<'a>(
 
 struct DependencyCollector<'a> {
   source_map: &'a SourceMap,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut IndexMap<u64, DependencyDescriptor>,
   in_try: bool,
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
@@ -134,16 +135,21 @@ impl<'a> DependencyCollector<'a> {
       _ => None,
     };
 
-    self.items.push(DependencyDescriptor {
-      kind,
-      loc: SourceLocation::from(self.source_map, span),
-      specifier,
-      attributes,
-      is_optional,
-      is_helper: span.is_dummy(),
-      source_type: Some(source_type),
-      placeholder: placeholder.clone(),
-    });
+    add_dependency(
+      &self.config.filename,
+      &self.config.project_root,
+      self.items,
+      DependencyDescriptor {
+        kind,
+        loc: SourceLocation::from(self.source_map, span),
+        specifier,
+        attributes,
+        is_optional,
+        is_helper: span.is_dummy(),
+        source_type: Some(source_type),
+        placeholder: placeholder.clone(),
+      },
+    );
 
     placeholder.map(|p| p.into())
   }
@@ -177,20 +183,27 @@ impl<'a> DependencyCollector<'a> {
         "{:x}",
         hash!(format!(
           "parcel_url:{}:{}:{}",
-          self.config.filename, specifier, kind
+          self.get_project_relative_filename(),
+          specifier,
+          kind
         ))
       )
     };
-    self.items.push(DependencyDescriptor {
-      kind,
-      loc: SourceLocation::from(self.source_map, span),
-      specifier,
-      attributes: None,
-      is_optional: false,
-      is_helper: span.is_dummy(),
-      source_type: Some(source_type),
-      placeholder: Some(placeholder.clone()),
-    });
+    add_dependency(
+      &self.config.filename,
+      &self.config.project_root,
+      self.items,
+      DependencyDescriptor {
+        kind,
+        loc: SourceLocation::from(self.source_map, span),
+        specifier,
+        attributes: None,
+        is_optional: false,
+        is_helper: span.is_dummy(),
+        source_type: Some(source_type),
+        placeholder: Some(placeholder.clone()),
+      },
+    );
 
     create_url_constructor(
       ast::Expr::Lit(ast::Lit::Str(placeholder.into())),

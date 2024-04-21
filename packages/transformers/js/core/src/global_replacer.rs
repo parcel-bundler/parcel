@@ -9,15 +9,16 @@ use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::utils::{
-  create_global_decl_stmt, create_require, is_unresolved, SourceLocation, SourceType,
+  add_dependency, create_global_decl_stmt, create_require, is_unresolved, SourceLocation,
+  SourceType,
 };
 
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
-  pub items: &'a mut Vec<DependencyDescriptor>,
+  pub items: &'a mut IndexMap<u64, DependencyDescriptor>,
   pub global_mark: Mark,
   pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
-  pub project_root: &'a Path,
+  pub project_root: &'a str,
   pub filename: &'a Path,
   pub unresolved_mark: Mark,
   pub scope_hoist: bool,
@@ -59,16 +60,21 @@ impl<'a> Fold for GlobalReplacer<'a> {
             Call(create_require(js_word!("process"), unresolved_mark))
           }) {
             let specifier = id.sym.clone();
-            self.items.push(DependencyDescriptor {
-              kind: DependencyKind::Require,
-              loc: SourceLocation::from(self.source_map, id.span),
-              specifier,
-              attributes: None,
-              is_optional: false,
-              is_helper: false,
-              source_type: Some(SourceType::Module),
-              placeholder: None,
-            });
+            add_dependency(
+              self.filename,
+              self.project_root,
+              self.items,
+              DependencyDescriptor {
+                kind: DependencyKind::Require,
+                loc: SourceLocation::from(self.source_map, id.span),
+                specifier,
+                attributes: None,
+                is_optional: false,
+                is_helper: false,
+                source_type: Some(SourceType::Module),
+                placeholder: None,
+              },
+            );
           }
         }
         "Buffer" => {
@@ -80,16 +86,21 @@ impl<'a> Fold for GlobalReplacer<'a> {
               span: DUMMY_SP,
             })
           }) {
-            self.items.push(DependencyDescriptor {
-              kind: DependencyKind::Require,
-              loc: SourceLocation::from(self.source_map, id.span),
-              specifier,
-              attributes: None,
-              is_optional: false,
-              is_helper: false,
-              source_type: Some(SourceType::Module),
-              placeholder: None,
-            });
+            add_dependency(
+              self.filename,
+              self.project_root,
+              self.items,
+              DependencyDescriptor {
+                kind: DependencyKind::Require,
+                loc: SourceLocation::from(self.source_map, id.span),
+                specifier,
+                attributes: None,
+                is_optional: false,
+                is_helper: false,
+                source_type: Some(SourceType::Module),
+                placeholder: None,
+              },
+            );
           }
         }
         "__filename" => {
