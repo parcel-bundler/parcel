@@ -266,38 +266,38 @@ pub struct AssetId(pub NonZeroU32);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
-  pub id: String,
   pub file_path: PathBuf,
   pub env: Environment,
   pub query: Option<String>,
   #[serde(rename = "type")]
   pub asset_type: AssetType,
-  pub content_key: String,
-  pub map_key: Option<String>,
-  pub output_hash: String,
+  pub content_key: u64,
+  pub map_key: Option<u64>,
+  pub output_hash: u64,
   pub pipeline: Option<String>,
   pub meta: Option<String>,
   pub stats: AssetStats,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
   pub symbols: Vec<Symbol>,
-  pub unique_key: Option<String>,
-  // TODO: remove in next major version.
-  pub ast: Option<AssetAst>,
+  pub unique_key: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AssetAst {
-  pub key: String,
-  pub plugin: String,
-  pub config_path: String,
-  pub config_key_path: Option<String>,
-  pub generator: String,
-  pub version: String,
+impl Asset {
+  pub fn id(&self) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    self.file_path.hash(&mut hasher);
+    self.asset_type.hash(&mut hasher);
+    self.env.hash(&mut hasher);
+    self.unique_key.hash(&mut hasher);
+    self.pipeline.hash(&mut hasher);
+    self.query.hash(&mut hasher);
+    hasher.finish()
+  }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum AssetType {
   Js,
   Jsx,
@@ -546,13 +546,44 @@ pub struct Symbol {
 }
 
 bitflags! {
-  #[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash)]
-  #[serde(transparent)]
+  #[derive(Debug, Clone, Copy, Hash)]
   pub struct SymbolFlags: u8 {
     const IS_WEAK = 1 << 0;
     const IS_ESM = 1 << 1;
   }
 }
+
+impl_bitflags_serde!(SymbolFlags);
+
+#[derive(Clone, Debug, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Bundle {
+  pub id: String,
+  pub public_id: Option<String>,
+  pub hash_reference: String,
+  #[serde(rename = "type")]
+  pub bundle_type: AssetType,
+  pub env: Environment,
+  pub entry_asset_ids: Vec<String>,
+  pub main_entry_id: Option<String>,
+  pub flags: BundleFlags,
+  pub bundle_behavior: BundleBehavior,
+  pub target: Target,
+  pub name: Option<String>,
+  pub pipeline: Option<String>,
+  pub manual_shared_bundle: Option<String>,
+}
+
+bitflags! {
+  #[derive(Debug, Clone, Copy, Hash)]
+  pub struct BundleFlags: u8 {
+    const NEEDS_STABLE_NAME = 1 << 0;
+    const IS_SPLITTABLE = 1 << 1;
+    const IS_PLACEHOLDER = 1 << 2;
+  }
+}
+
+impl_bitflags_serde!(BundleFlags);
 
 // #[derive(Clone, Debug)]
 // pub struct ParcelOptions {

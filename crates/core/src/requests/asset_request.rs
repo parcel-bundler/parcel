@@ -7,6 +7,7 @@ use crate::{
   types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, Environment},
   worker_farm::WorkerFarm,
 };
+use xxhash_rust::xxh3::xxh3_64;
 
 #[derive(Hash)]
 pub struct AssetRequest<'a> {
@@ -31,7 +32,6 @@ impl<'a> Request for AssetRequest<'a> {
     let pipeline = self.transformers.get::<&str>(&self.file_path, &None, false);
 
     let asset = Asset {
-      id: String::new(),
       file_path: self.file_path.clone(),
       env: self.env.clone(),
       query: None,
@@ -42,9 +42,9 @@ impl<'a> Request for AssetRequest<'a> {
           .and_then(|s| s.to_str())
           .unwrap_or(""),
       ),
-      content_key: String::new(),
+      content_key: 0,
       map_key: None,
-      output_hash: String::new(),
+      output_hash: 0,
       pipeline: None,
       meta: None,
       stats: AssetStats { size: 0, time: 0 },
@@ -52,11 +52,13 @@ impl<'a> Request for AssetRequest<'a> {
       flags: AssetFlags::empty(),
       symbols: Vec::new(),
       unique_key: None,
-      ast: None,
     };
 
     let code = std::fs::read(&asset.file_path).unwrap();
-    let result = run_pipeline(pipeline, asset, code, &self.transformers, farm);
+    let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm);
+
+    result.asset.output_hash = xxh3_64(&result.code);
+    result.asset.content_key = result.asset.id(); // TODO
 
     RequestResult {
       result: Ok(result),

@@ -4,11 +4,12 @@ use crate::{
   parcel_config::ParcelConfig,
   requests::{
     asset_request::AssetRequestResult,
+    bundle_graph_request::BundleGraphRequest,
     entry_request::{Entry, EntryRequest},
     target_request::TargetRequest,
   },
   transformers::plugin_transformer::PluginTransformRequest,
-  types::Target,
+  types::{Bundle, Target},
 };
 
 pub type WorkerCallback =
@@ -25,6 +26,7 @@ pub enum WorkerRequest {
   Entry(EntryRequest),
   Target(TargetRequest),
   Transform(PluginTransformRequest),
+  BundleGraph(BundleGraphRequest),
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -34,6 +36,7 @@ pub enum WorkerResult {
   Entry(Vec<Entry>),
   Target(Vec<Target>),
   Transform(AssetRequestResult),
+  BundleGraph(Vec<Bundle>),
 }
 
 #[derive(serde::Deserialize, Debug)]

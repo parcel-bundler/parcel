@@ -77,7 +77,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
   Config {
     filename: asset.file_path.clone(),
     code,
-    module_id: asset.id.clone(),
+    module_id: format!("{:x}", asset.id()),
     project_root: "/".into(), // TODO
     replace_env: !asset.env.context.is_node(),
     env: HashMap::new(), // TODO
@@ -133,6 +133,7 @@ fn convert_result(
 ) -> AssetRequestResult {
   let file_path = asset.file_path.clone();
   let env = asset.env.clone();
+  let asset_id = asset.id();
 
   // let mut map = if let Some(buf) = map_buf {
   //   SourceMap::from_buffer(&db.options.project_root, buf).ok()
@@ -528,7 +529,7 @@ fn convert_result(
             .iter()
             .find(|sym| sym.exported == &*s.imported)
             .map(|sym| sym.local.clone())
-            .unwrap_or_else(|| format!("${}$re_export${}", asset.id, s.local).into());
+            .unwrap_or_else(|| format!("${:x}$re_export${}", asset_id, s.local).into());
           dep.symbols.push(Symbol {
             exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
@@ -608,7 +609,7 @@ fn convert_result(
     {
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${}$exports", asset.id).into(),
+        local: format!("${:x}$exports", asset_id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -680,7 +681,7 @@ fn convert_result(
       {
         symbols.push(Symbol {
           exported: "*".into(),
-          local: format!("${}$exports", asset.id).into(),
+          local: format!("${:x}$exports", asset_id).into(),
           loc: None,
           flags: SymbolFlags::empty(),
         });
@@ -689,7 +690,7 @@ fn convert_result(
       // If the asset is wrapped, add * as a fallback
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${}$exports", asset.id).into(),
+        local: format!("${:x}$exports", asset_id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -725,7 +726,7 @@ fn convert_result(
   asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
 
   if asset.unique_key.is_none() {
-    asset.unique_key = Some(asset.id.clone());
+    asset.unique_key = Some(asset_id);
   }
 
   AssetRequestResult {
