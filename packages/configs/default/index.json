@@ -9,9 +9,9 @@
       "..."
     ],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-babel",
+      // "@parcel/transformer-babel",
       "@parcel/transformer-js",
-      "@parcel/transformer-react-refresh-wrap"
+      // "@parcel/transformer-react-refresh-wrap"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],

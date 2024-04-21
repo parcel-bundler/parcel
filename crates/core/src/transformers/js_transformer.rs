@@ -16,8 +16,12 @@ use crate::types::{
 pub struct JsTransformer;
 
 impl Transformer for JsTransformer {
-  fn transform(asset: &Asset) -> AssetRequestResult {
-    let code = std::fs::read(&asset.file_path).unwrap();
+  fn transform(
+    &self,
+    asset: &Asset,
+    code: Vec<u8>,
+    _farm: &crate::worker_farm::WorkerFarm,
+  ) -> AssetRequestResult {
     let config = config(&asset, code);
     let res = parcel_js_swc_core::transform(&config, None).unwrap();
     convert_result(asset.clone(), None, &config, res)
@@ -718,6 +722,7 @@ fn convert_result(
 
   AssetRequestResult {
     asset,
+    code: result.code,
     dependencies: dep_map.into_values().collect(),
     // code: result.code,
     // map: result.map,

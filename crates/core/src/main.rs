@@ -26,6 +26,7 @@ fn main() {
       target: None,
     }])),
     WorkerRequest::ParcelConfig => Ok(WorkerResult::ParcelConfig(ParcelConfig::default())),
+    WorkerRequest::Transform(_) => todo!(),
   }));
 
   let mut request_tracker = RequestTracker::new(farm);

@@ -8,9 +8,16 @@ const {FSCache} = require('@parcel/cache/src');
 const {NodePackageManager} = require('@parcel/package-manager/src');
 const {fromProjectPath} = require('@parcel/core/src/projectPath');
 const {loadParcelConfig} = require('@parcel/core/src/requests/ParcelConfigRequest');
+const loadPlugin = require('@parcel/core/src/loadParcelPlugin').default;
+const {Asset, MutableAsset} = require('@parcel/core/src/public/Asset');
+const UncommittedAsset = require('@parcel/core/src/UncommittedAsset').default;
+const PluginOptions = require('@parcel/core/src/public/PluginOptions').default;
+const {PluginLogger} = require('@parcel/logger/src/Logger');
+const {createConfig} = require('@parcel/core/src/InternalConfig');
+const PublicConfig = require('@parcel/core/src/public/Config').default;
 
 const fs = new NodeFS();
-const cache = new FSCache();
+const cache = new FSCache(fs, __dirname + '/.parcel-cache');
 
 const options = {
   cacheDir: __dirname + '/.parcel-cache',
@@ -57,6 +64,7 @@ const options = {
 
 // console.log(parcel);
 
+console.time('build');
 parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js'], async (err, request) => {
   switch (request.type) {
     case 'Entry': {
@@ -81,5 +89,101 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
         value: config
       };
     }
+    case 'Transform': {
+      try {
+        let {plugin} = await loadPlugin(request.plugin.packageName, fromProjectPath(options.projectRoot, request.plugin.resolveFrom), request.plugin.keyPath, options);
+        let result = await runTransformer(request.plugin.packageName, plugin, request.asset, request.code);
+        return {
+          type: 'Transform',
+          value: result
+        };
+
+      } catch (err) {
+        console.log(err)
+      }
+    }
   }
-});
+}).then(() => console.timeEnd('build'));
+
+async function runTransformer(transformerName, transformer, asset, content) {
+  asset.dependencies = new Map();
+  let uncommittedAsset = new UncommittedAsset({
+    value: asset,
+    options,
+    content
+  });
+
+  // TODO: some fields have a different representation in Rust. Will need new public wrappers.
+  let publicAsset = new Asset(uncommittedAsset);
+  let mutableAsset = new MutableAsset(uncommittedAsset);
+  let pluginOptions = new PluginOptions(options);
+  let logger = new PluginLogger({origin: transformerName});
+  let config = undefined;
+
+  if (transformer.loadConfig) {
+    config = createConfig({
+      plugin: transformerName,
+      isSource: false, // TODO
+      searchPath: asset.filePath,
+      env: asset.env
+    });
+
+    config.result = await transformer.loadConfig({
+      config: new PublicConfig(config, options),
+      options: pluginOptions,
+      logger,
+      tracer: undefined // TODO
+    });
+  }
+
+  if (transformer.parse) {
+    let ast = await transformer.parse({
+      asset: publicAsset,
+      config: config?.result,
+      options: pluginOptions,
+      resolve: undefined,
+      logger,
+      tracer: undefined // TODO
+    });
+    if (ast) {
+      uncommittedAsset.setAST(ast);
+      uncommittedAsset.isASTDirty = false;
+    }
+  }
+
+  let results = await transformer.transform({
+    asset: mutableAsset,
+    config: config?.result,
+    options: pluginOptions,
+    resolve: undefined, // TODO
+    logger,
+    tracer: undefined // TODO
+  });
+
+  let resultAsset = results[0]; // TODO: support multiple
+
+  if (transformer.generate && uncommittedAsset.ast) {
+    let output = transformer.generate({
+      asset: publicAsset,
+      ast: uncommittedAsset.ast,
+      options: pluginOptions,
+      logger,
+      tracer: undefined,
+    });
+    uncommittedAsset.content = output.content;
+    uncommittedAsset.mapBuffer = output.map?.toBuffer();
+    uncommittedAsset.clearAST();
+  }
+
+  // TODO: postProcess??
+
+  if (resultAsset === mutableAsset) {
+    return {
+      asset,
+      dependencies: Array.from(asset.dependencies.values()),
+      code: await uncommittedAsset.getBuffer()
+    };
+  } else {
+    // TODO
+  }
+}
