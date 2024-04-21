@@ -2,16 +2,18 @@ use std::{collections::hash_map::DefaultHasher, num::NonZeroU32, path::PathBuf};
 
 use bitflags::bitflags;
 use browserslist::Distrib;
+use indexmap::IndexMap;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Target {
-  env: EnvironmentId,
-  dist_dir: String,
-  dist_entry: Option<String>,
-  name: String,
-  public_url: String,
-  loc: Option<SourceLocation>,
-  pipeline: Option<String>,
+  pub env: Environment,
+  pub dist_dir: String,
+  pub dist_entry: Option<String>,
+  pub name: String,
+  pub public_url: String,
+  pub loc: Option<SourceLocation>,
+  pub pipeline: Option<String>,
   // source: Option<u32>
 }
 
@@ -27,7 +29,7 @@ pub struct Environment {
   pub flags: EnvironmentFlags,
   pub source_map: Option<TargetSourceMapOptions>,
   pub loc: Option<SourceLocation>,
-  pub include_node_modules: String,
+  pub include_node_modules: IncludeNodeModules,
   pub engines: Engines,
 }
 
@@ -120,18 +122,34 @@ impl std::hash::Hash for Engines {
   }
 }
 
-// #[derive(Clone)]
-// pub enum IncludeNodeModules {
-//   Bool(bool),
-//   Array(Vec<String>),
-//   Map(HashMap<String, bool>),
-// }
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum IncludeNodeModules {
+  Bool(bool),
+  Array(Vec<String>),
+  Map(IndexMap<String, bool>),
+}
 
-// impl Default for IncludeNodeModules {
-//   fn default() -> Self {
-//     IncludeNodeModules::Bool(true)
-//   }
-// }
+impl std::hash::Hash for IncludeNodeModules {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    match self {
+      IncludeNodeModules::Bool(b) => b.hash(state),
+      IncludeNodeModules::Array(a) => a.hash(state),
+      IncludeNodeModules::Map(m) => {
+        for (k, v) in m {
+          k.hash(state);
+          v.hash(state);
+        }
+      }
+    }
+  }
+}
+
+impl Default for IncludeNodeModules {
+  fn default() -> Self {
+    IncludeNodeModules::Bool(true)
+  }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -374,7 +392,7 @@ pub struct Dependency {
   pub flags: DependencyFlags,
   pub loc: Option<SourceLocation>,
   pub placeholder: Option<String>,
-  // pub target: Option<TargetId>,
+  pub target: Option<Box<Target>>,
   pub symbols: Vec<Symbol>,
   pub promise_symbol: Option<String>,
   pub import_attributes: Vec<ImportAttribute>,
@@ -401,7 +419,7 @@ impl Dependency {
       range: None,
       loc: None,
       placeholder: None,
-      // target: None,
+      target: None,
       symbols: Vec::new(),
       promise_symbol: None,
       import_attributes: Vec::new(),

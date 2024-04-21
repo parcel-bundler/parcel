@@ -16,9 +16,11 @@ const {PluginLogger} = require('@parcel/logger/src/Logger');
 const {createConfig} = require('@parcel/core/src/InternalConfig');
 const PublicConfig = require('@parcel/core/src/public/Config').default;
 const BundleGraph = require('@parcel/core/src/BundleGraph').default;
-const {ContentGraph} = require('@parcel/graph');
+const {ContentGraph} = require('@parcel/graph/src');
 const {createAssetIdFromOptions} = require('@parcel/core/src/assetUtils');
 const {getPublicId} = require('@parcel/core/src/utils');
+const MutableBundleGraph = require('@parcel/core/src/public/MutableBundleGraph').default;
+const {TargetResolver} = require('@parcel/core/src/requests/TargetRequest');
 
 const fs = new NodeFS();
 const cache = new FSCache(fs, __dirname + '/.parcel-cache');
@@ -91,6 +93,24 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
       return {
         type: 'ParcelConfig',
         value: config
+      };
+    }
+    case 'Target': {
+      let targetResolver = new TargetResolver({
+        invalidateOnFileCreate() {},
+        invalidateOnFileUpdate() {},
+        invalidateOnFileDelete() {}
+      }, options);
+      let targets = await targetResolver.resolve(request.entry.filePath, request.entry.target);
+      return {
+        type: 'Target',
+        value: targets.map(t => ({
+          ...t,
+          env: {
+            ...t.env,
+            flags: 0
+          }
+        }))
       };
     }
     case 'Transform': {
