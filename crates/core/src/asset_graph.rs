@@ -1,7 +1,6 @@
-use std::{collections::HashSet, num::NonZeroU32};
+use std::collections::HashSet;
 
-use petgraph::{data::Build, graph::DiGraph};
-use rayon::iter::IntoParallelRefIterator;
+use petgraph::graph::DiGraph;
 
 use crate::{
   request_tracker::{Request, RequestTracker},
@@ -10,12 +9,12 @@ use crate::{
     parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
   },
   types::{
-    Asset, Dependency, Engines, Environment, EnvironmentContext, EnvironmentFlags, EnvironmentId,
-    OutputFormat, SourceType,
+    Asset, Dependency, Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat,
+    SourceType,
   },
 };
 
-struct AssetGraph {
+pub struct AssetGraph {
   graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
 }
 
@@ -27,7 +26,33 @@ impl AssetGraph {
   }
 }
 
-#[derive(Debug)]
+impl serde::Serialize for AssetGraph {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let nodes: Vec<_> = self.graph.node_weights().collect();
+    let raw_edges = self.graph.raw_edges();
+    let mut edges = Vec::with_capacity(raw_edges.len() * 2);
+    for edge in raw_edges {
+      edges.push(edge.source().index() as u32);
+      edges.push(edge.target().index() as u32);
+    }
+
+    #[derive(serde::Serialize)]
+    struct SerializedAssetGraph<'a> {
+      nodes: Vec<&'a AssetGraphNode>,
+      // TODO: somehow make this a typed array?
+      edges: Vec<u32>,
+    }
+
+    let serialized = SerializedAssetGraph { nodes, edges };
+    serialized.serialize(serializer)
+  }
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(tag = "type", content = "value", rename_all = "lowercase")]
 enum AssetGraphNode {
   Root,
   Asset(Asset),
@@ -42,7 +67,7 @@ pub struct AssetGraphRequest {
 }
 
 impl AssetGraphRequest {
-  pub fn build(&mut self, request_tracker: &mut RequestTracker) {
+  pub fn build(&mut self, request_tracker: &mut RequestTracker) -> AssetGraph {
     let config = request_tracker.run_request(ParcelConfigRequest {}).unwrap();
 
     let mut graph = AssetGraph::new();
@@ -143,5 +168,7 @@ impl AssetGraphRequest {
         .filter(|req| visited.insert(req.id()))
         .collect();
     }
+
+    graph
   }
 }
