@@ -13,6 +13,19 @@ use swc_core::ecma::ast::Ident;
 use swc_core::ecma::ast::{self};
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
+use indexmap::IndexMap;
+use path_slash::PathBufExt;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::path::Path;
+use swc_core::common::errors::{DiagnosticBuilder, Emitter};
+use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::{self, Ident};
+use swc_core::ecma::atoms::{js_word, JsWord};
+
+use crate::{DependencyDescriptor, DependencyKind};
 
 pub fn is_unresolved(ident: &Ident, unresolved_mark: Mark) -> bool {
   ident.span.ctxt.outer() == unresolved_mark
@@ -470,4 +483,32 @@ pub fn error_buffer_to_diagnostics(
       }
     })
     .collect()
+}
+
+pub fn add_dependency(
+  filename: &Path,
+  project_root: &str,
+  deps: &mut IndexMap<u64, DependencyDescriptor>,
+  dep: DependencyDescriptor,
+) {
+  let mut hasher = DefaultHasher::new();
+  get_project_relative_filename(filename, project_root).hash(&mut hasher);
+  dep.specifier.hash(&mut hasher);
+  let kind = match &dep.kind {
+    DependencyKind::Import | DependencyKind::Export => DependencyKind::Import,
+    kind => kind.clone(),
+  };
+  kind.hash(&mut hasher);
+
+  deps.insert(hasher.finish(), dep);
+}
+
+pub fn get_project_relative_filename(filename: &Path, project_root: &str) -> String {
+  if let Some(relative) = pathdiff::diff_paths(filename, project_root) {
+    relative.to_slash_lossy()
+  } else if let Some(filename) = filename.file_name() {
+    String::from(filename.to_string_lossy())
+  } else {
+    String::from("unknown.js")
+  }
 }

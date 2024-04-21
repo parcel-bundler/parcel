@@ -117,7 +117,7 @@ type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol
 
 #[derive(Serialize, Debug, Deserialize, Default)]
 pub struct Config {
-  pub filename: String,
+  pub filename: PathBuf,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub module_id: String,
@@ -210,7 +210,7 @@ pub fn transform(
   let module = parse(
     code,
     config.project_root.as_str(),
-    config.filename.as_str(),
+    config.filename.to_slash_lossy().as_ref(),
     &source_map,
     &config,
   );
@@ -233,8 +233,7 @@ pub fn transform(
         Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
       };
 
-      let mut global_deps = vec![];
-      let mut fs_deps = vec![];
+      let mut dependencies = IndexMap::new();
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
@@ -400,12 +399,12 @@ pub fn transform(
                   // Inline Node fs.readFileSync calls
                   Optional::new(
                     inline_fs(
-                      config.filename.as_str(),
+                      &config.filename,
                       source_map.clone(),
                       unresolved_mark,
                       global_mark,
                       &config.project_root,
-                      &mut fs_deps,
+                      &mut dependencies,
                       is_module
                     ),
                     should_inline_fs
@@ -420,10 +419,10 @@ pub fn transform(
                 &mut Optional::new(
                   NodeReplacer {
                     source_map: &source_map,
-                    items: &mut global_deps,
+                    items: &mut dependencies,
                     global_mark,
                     globals: HashMap::new(),
-                    project_root: Path::new(&config.project_root),
+                    project_root: &config.project_root,
                     filename: Path::new(&config.filename),
                     unresolved_mark,
                     scope_hoist: config.scope_hoist,
@@ -439,10 +438,10 @@ pub fn transform(
                   Optional::new(
                     GlobalReplacer {
                       source_map: &source_map,
-                      items: &mut global_deps,
+                      items: &mut dependencies,
                       global_mark,
                       globals: IndexMap::new(),
-                      project_root: Path::new(&config.project_root),
+                      project_root: &config.project_root,
                       filename: Path::new(&config.filename),
                       unresolved_mark,
                       scope_hoist: config.scope_hoist
@@ -486,7 +485,7 @@ pub fn transform(
                 // Collect dependencies
                 &mut dependency_collector(
                   &source_map,
-                  &mut result.dependencies,
+                  &mut dependencies,
                   ignore_mark,
                   unresolved_mark,
                   &config,
@@ -547,8 +546,7 @@ pub fn transform(
                 fixer(Some(&comments)),
               ));
 
-              result.dependencies.extend(global_deps);
-              result.dependencies.extend(fs_deps);
+              result.dependencies.extend(dependencies.into_values());
 
               if !diagnostics.is_empty() {
                 result.diagnostics = Some(diagnostics);
