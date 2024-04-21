@@ -4,9 +4,9 @@ use std::{
 };
 
 use crate::requests::{
-  asset_request::AssetRequest, entry_request::EntryRequest,
-  parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
-  target_request::TargetRequest,
+  asset_request::AssetRequest, bundle_graph_request::BundleGraphRequest,
+  entry_request::EntryRequest, parcel_config_request::ParcelConfigRequest,
+  path_request::PathRequest, target_request::TargetRequest,
 };
 use crate::worker_farm::WorkerFarm;
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -44,7 +44,7 @@ enum RequestGraphNode {
 #[derive(Debug)]
 pub enum RequestOutput {
   ParcelBuildRequest,
-  BundleGraphRequest,
+  BundleGraphRequest(<BundleGraphRequest as Request>::Output),
   AssetGraphRequest,
   EntryRequest(<EntryRequest as Request>::Output),
   TargetRequest(<TargetRequest as Request>::Output),
@@ -92,6 +92,7 @@ impl_store_request!(EntryRequest);
 impl_store_request!(TargetRequest);
 impl_store_request!(PathRequest);
 impl_store_request!(AssetRequest<'a>);
+impl_store_request!(BundleGraphRequest);
 
 #[derive(PartialEq, Debug)]
 enum RequestNodeState {

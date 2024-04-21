@@ -71,7 +71,7 @@ const options = {
 // console.log(parcel);
 
 console.time('build');
-parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js'], async (err, request) => {
+parcel(['/Users/devongovett/dev/parcel/packages/core/integration-tests/test/integration/commonjs/index.js'], async (err, request) => {
   switch (request.type) {
     case 'Entry': {
       let entryResolver = new EntryResolver(options);
@@ -125,88 +125,23 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
       } catch (err) {
         console.log(err)
       }
+    };
+    case 'BundleGraph': {
+      let bundleGraph = getBundleGraph(request.assetGraph);
+      let {plugin} = await loadPlugin(request.bundler.packageName, fromProjectPath(options.projectRoot, request.bundler.resolveFrom), request.bundler.keyPath, options);
+      let bundles = await runBundler(bundleGraph, plugin);
+      return {
+        type: 'BundleGraph',
+        value: bundles.map(b => ({
+          ...b,
+          flags: (b.needsStableName ? 1 : 0) | (b.isSplittable ? 2 : 0) | (b.isPlaceholder ? 4 : 0),
+          bundleBehavior: b.bundleBehavior == null ? 0 : b.bundleBehavior
+        }))
+      };
     }
   }
-}).then(async (serializedGraph) => {
+}).then(() => {
   console.timeEnd('build');
-  // console.log(serializedGraph)
-
-  let graph = new ContentGraph();
-  let publicIdByAssetId = new Map();
-  let assetPublicIds = new Set();
-  for (let node of serializedGraph.nodes) {
-    // TODO
-    let id = node.type === 'asset' ? createAssetIdFromOptions(node.value) : node.type === 'dependency' ? dependencyId(node.value) : '@@root';
-    let index = graph.addNodeByContentKey(id, {
-      id,
-      type: node.type,
-      value: {
-        ...node.value,
-        id,
-      }
-    });
-
-    if (node.type === 'root') {
-      graph.setRootNodeId(index);
-    }
-    // console.log(node)
-
-    if (node.type === 'asset') {
-      let publicId = publicIdByAssetId.get(id);
-      if (publicId == null) {
-        publicId = getPublicId(id, existing =>
-          assetPublicIds.has(existing),
-        );
-        publicIdByAssetId.set(id, publicId);
-        assetPublicIds.add(publicId);
-      }
-    }
-  }
-
-  for (let i = 0; i < serializedGraph.edges.length; i += 2) {
-    let from = serializedGraph.edges[i];
-    let to = serializedGraph.edges[i + 1];
-    graph.addEdge(from, to);
-  }
-
-  let bundleGraph = new BundleGraph({
-    graph,
-    assetPublicIds,
-    bundleContentHashes: new Map(),
-    publicIdByAssetId,
-  });
-  let mutableBundleGraph = new MutableBundleGraph(
-    bundleGraph,
-    options,
-  );
-
-  const {plugin: bundler} = await loadPlugin('@parcel/bundler-default', __dirname, null, options);
-  let config = undefined;
-
-  if (bundler.loadConfig) {
-    config = createConfig({
-      plugin: '@parcel/bundler-default',
-      searchPath: 'index',
-    });
-
-    config.result = await bundler.loadConfig({
-      config: new PublicConfig(config, options),
-      options: new PluginOptions(options),
-      logger: new PluginLogger({origin: '@parcel/bundler-default'}),
-      tracer: undefined // TODO
-    });
-  }
-
-  await bundler.bundle({
-    bundleGraph: mutableBundleGraph,
-    // config: this.configs.get(plugin.name)?.result,
-    config: config?.result,
-    options: new PluginOptions(options),
-    logger: new PluginLogger({origin: '@parcel/bundler-default'}),
-    // tracer,
-  });
-
-  console.log(bundleGraph.getBundles())
 });
 
 async function runTransformer(transformerName, transformer, asset, content) {
@@ -292,6 +227,55 @@ async function runTransformer(transformerName, transformer, asset, content) {
   }
 }
 
+function getBundleGraph(serializedGraph) {
+  let graph = new ContentGraph();
+  let publicIdByAssetId = new Map();
+  let assetPublicIds = new Set();
+  for (let node of serializedGraph.nodes) {
+    // TODO
+    let id = node.type === 'asset' ? createAssetIdFromOptions(node.value) : node.type === 'dependency' ? dependencyId(node.value) : '@@root';
+    let index = graph.addNodeByContentKey(id, {
+      id,
+      type: node.type,
+      value: {
+        ...node.value,
+        id,
+      }
+    });
+
+    if (node.type === 'root') {
+      graph.setRootNodeId(index);
+    }
+    // console.log(node)
+
+    if (node.type === 'asset') {
+      let publicId = publicIdByAssetId.get(id);
+      if (publicId == null) {
+        publicId = getPublicId(id, existing =>
+          assetPublicIds.has(existing),
+        );
+        publicIdByAssetId.set(id, publicId);
+        assetPublicIds.add(publicId);
+      }
+    }
+  }
+
+  for (let i = 0; i < serializedGraph.edges.length; i += 2) {
+    let from = serializedGraph.edges[i];
+    let to = serializedGraph.edges[i + 1];
+    graph.addEdge(from, to);
+  }
+
+  let bundleGraph = new BundleGraph({
+    graph,
+    assetPublicIds,
+    bundleContentHashes: new Map(),
+    publicIdByAssetId,
+  });
+
+  return bundleGraph;
+}
+
 function dependencyId(opts) {
   return hashString(
     (opts.sourcePath ?? '') +
@@ -304,4 +288,37 @@ function dependencyId(opts) {
       (opts.priority ?? 'sync') +
       (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
   )
+}
+
+async function runBundler(bundleGraph, bundler) {
+  let mutableBundleGraph = new MutableBundleGraph(
+    bundleGraph,
+    options,
+  );
+
+  let config = undefined;
+
+  if (bundler.loadConfig) {
+    config = createConfig({
+      plugin: '@parcel/bundler-default',
+      searchPath: 'index',
+    });
+
+    config.result = await bundler.loadConfig({
+      config: new PublicConfig(config, options),
+      options: new PluginOptions(options),
+      logger: new PluginLogger({origin: '@parcel/bundler-default'}),
+      tracer: undefined // TODO
+    });
+  }
+
+  await bundler.bundle({
+    bundleGraph: mutableBundleGraph,
+    config: config?.result,
+    options: new PluginOptions(options),
+    logger: new PluginLogger({origin: '@parcel/bundler-default'}),
+    // tracer,
+  });
+
+  return bundleGraph.getBundles();
 }

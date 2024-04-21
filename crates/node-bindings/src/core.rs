@@ -6,12 +6,12 @@ use napi::{
   Env, JsFunction, JsObject, JsUnknown,
 };
 use napi_derive::napi;
-use parcel_core::worker_farm::WorkerCallback;
 use parcel_core::{
   asset_graph::AssetGraphRequest,
   request_tracker::RequestTracker,
   worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
 };
+use parcel_core::{build, worker_farm::WorkerCallback};
 
 // Allocate a single channel per thread to communicate with the JS thread.
 thread_local! {
@@ -88,12 +88,9 @@ pub fn parcel(entries: Vec<String>, callback: JsFunction, env: Env) -> napi::Res
   let (deferred, promise) = env.create_deferred()?;
 
   rayon::spawn(move || {
-    let mut req = AssetGraphRequest { entries };
+    build(entries, farm);
 
-    let mut request_tracker = RequestTracker::new(farm);
-    let graph = req.build(&mut request_tracker);
-
-    deferred.resolve(move |env| env.to_js_value(&graph));
+    deferred.resolve(move |env| env.get_undefined());
   });
 
   Ok(promise)

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, mem::discriminant};
 
 use petgraph::graph::DiGraph;
 
@@ -15,6 +15,7 @@ use crate::{
   },
 };
 
+#[derive(Debug, Clone)]
 pub struct AssetGraph {
   graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
 }
@@ -52,7 +53,15 @@ impl serde::Serialize for AssetGraph {
   }
 }
 
-#[derive(Debug, serde::Serialize)]
+impl std::hash::Hash for AssetGraph {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    for node in self.graph.node_weights() {
+      node.hash(state)
+    }
+  }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", content = "value", rename_all = "lowercase")]
 enum AssetGraphNode {
   Root,
@@ -60,7 +69,18 @@ enum AssetGraphNode {
   Dependency(Dependency),
 }
 
-#[derive(Debug)]
+impl std::hash::Hash for AssetGraphNode {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    std::mem::discriminant(self).hash(state);
+    match self {
+      AssetGraphNode::Root => {}
+      AssetGraphNode::Asset(asset) => asset.id().hash(state),
+      AssetGraphNode::Dependency(dep) => dep.id().hash(state),
+    }
+  }
+}
+
+#[derive(Debug, Clone)]
 struct AssetGraphEdge {}
 
 pub struct AssetGraphRequest {
