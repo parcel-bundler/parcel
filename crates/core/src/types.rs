@@ -1,9 +1,4 @@
-use std::{
-  collections::{hash_map::DefaultHasher, HashMap},
-  fmt::Display,
-  num::NonZeroU32,
-  path::PathBuf,
-};
+use std::{collections::hash_map::DefaultHasher, num::NonZeroU32, path::PathBuf};
 
 use bitflags::bitflags;
 use browserslist::Distrib;
@@ -23,7 +18,8 @@ pub struct Target {
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct EnvironmentId(pub NonZeroU32);
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Environment {
   pub context: EnvironmentContext,
   pub output_format: OutputFormat,
@@ -35,12 +31,35 @@ pub struct Environment {
   pub engines: Engines,
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Engines {
+  #[serde(
+    serialize_with = "serialize_browsers",
+    deserialize_with = "deserialize_browsers"
+  )]
   pub browsers: Vec<Distrib>,
   pub electron: Option<String>,
   pub node: Option<String>,
   pub parcel: Option<String>,
+}
+
+fn serialize_browsers<S>(browsers: &Vec<Distrib>, serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  let browsers: Vec<String> = browsers.iter().map(|b| b.to_string()).collect();
+  browsers.serialize(serializer)
+}
+
+fn deserialize_browsers<'de, D>(deserializer: D) -> Result<Vec<Distrib>, D::Error>
+where
+  D: serde::Deserializer<'de>,
+{
+  use serde::Deserialize;
+  let browsers: Vec<String> = Deserialize::deserialize(deserializer)?;
+  let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
+  Ok(distribs)
 }
 
 // List of browsers to exclude when the esmodule target is specified.
@@ -114,27 +133,30 @@ impl std::hash::Hash for Engines {
 //   }
 // }
 
-#[derive(PartialEq, Clone, Debug, Hash)]
+#[derive(PartialEq, Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TargetSourceMapOptions {
   source_root: Option<String>,
   inline: bool,
   inline_sources: bool,
 }
 
-#[derive(PartialEq, Debug, Clone, Hash)]
+#[derive(PartialEq, Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
   pub file_path: PathBuf,
   pub start: Location,
   pub end: Location,
 }
 
-#[derive(PartialEq, Debug, Clone, Hash)]
+#[derive(PartialEq, Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Location {
   pub line: u32,
   pub column: u32,
 }
 
 bitflags! {
+  #[derive(serde::Serialize, serde::Deserialize)]
   pub struct EnvironmentFlags: u8 {
     const IS_LIBRARY = 0b00000001;
     const SHOULD_OPTIMIZE = 0b00000010;
@@ -142,7 +164,8 @@ bitflags! {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum EnvironmentContext {
   Browser,
   WebWorker,
@@ -178,13 +201,15 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SourceType {
   Module,
   Script,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
   Global,
   Commonjs,
@@ -194,12 +219,14 @@ pub enum OutputFormat {
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
 pub struct AssetId(pub NonZeroU32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Asset {
   pub id: String,
   pub file_path: PathBuf,
   pub env: Environment,
   pub query: Option<String>,
+  #[serde(rename = "type")]
   pub asset_type: AssetType,
   pub content_key: String,
   pub map_key: Option<String>,
@@ -215,7 +242,8 @@ pub struct Asset {
   pub ast: Option<AssetAst>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetAst {
   pub key: String,
   pub plugin: String,
@@ -236,21 +264,53 @@ pub enum AssetType {
   Other(String),
 }
 
+impl serde::Serialize for AssetType {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.extension().serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for AssetType {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let ext: String = serde::Deserialize::deserialize(deserializer)?;
+    Ok(Self::from_extension(&ext))
+  }
+}
+
 impl AssetType {
   pub fn extension(&self) -> &str {
     match self {
-      AssetType::Js => ".js",
-      AssetType::Jsx => ".jsx",
-      AssetType::Ts => ".ts",
-      AssetType::Tsx => ".tsx",
-      AssetType::Css => ".css",
-      AssetType::Html => ".html",
+      AssetType::Js => "js",
+      AssetType::Jsx => "jsx",
+      AssetType::Ts => "ts",
+      AssetType::Tsx => "tsx",
+      AssetType::Css => "css",
+      AssetType::Html => "html",
       AssetType::Other(s) => s.as_str(),
+    }
+  }
+
+  pub fn from_extension(ext: &str) -> AssetType {
+    match ext {
+      "js" => AssetType::Js,
+      "jsx" => AssetType::Jsx,
+      "ts" => AssetType::Ts,
+      "tsx" => AssetType::Tsx,
+      "css" => AssetType::Css,
+      "html" => AssetType::Html,
+      ext => AssetType::Other(ext.to_string()),
     }
   }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum BundleBehavior {
   None,
   Inline,
@@ -263,13 +323,14 @@ impl Default for BundleBehavior {
   }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct AssetStats {
   pub size: u32,
   pub time: u32,
 }
 
 bitflags! {
+  #[derive(serde::Serialize, serde::Deserialize)]
   pub struct AssetFlags: u32 {
     const IS_SOURCE = 1 << 0;
     const SIDE_EFFECTS = 1 << 1;
@@ -285,6 +346,7 @@ bitflags! {
 }
 
 bitflags! {
+  #[derive(serde::Serialize, serde::Deserialize)]
   pub struct ExportsCondition: u32 {
     const IMPORT = 1 << 0;
     const REQUIRE = 1 << 1;
@@ -296,7 +358,8 @@ bitflags! {
   }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Dependency {
   // pub id: String,
   // pub source_asset_id: Option<AssetId>,
@@ -373,13 +436,14 @@ impl Dependency {
   // }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ImportAttribute {
   pub key: String,
   pub value: bool,
 }
 
 bitflags! {
+  #[derive(serde::Serialize, serde::Deserialize)]
   pub struct DependencyFlags: u8 {
     const ENTRY    = 1 << 0;
     const OPTIONAL = 1 << 1;
@@ -391,7 +455,8 @@ bitflags! {
   }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SpecifierType {
   Esm,
   Commonjs,
@@ -405,7 +470,8 @@ impl Default for SpecifierType {
   }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Priority {
   Sync,
   Parallel,
@@ -418,7 +484,7 @@ impl Default for Priority {
   }
 }
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Symbol {
   pub exported: String,
   pub local: String,
@@ -427,6 +493,7 @@ pub struct Symbol {
 }
 
 bitflags! {
+  #[derive(serde::Serialize, serde::Deserialize)]
   pub struct SymbolFlags: u8 {
     const IS_WEAK = 1 << 0;
     const IS_ESM = 1 << 1;

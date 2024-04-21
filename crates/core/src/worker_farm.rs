@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use crate::{
   parcel_config::ParcelConfig,
-  requests::entry_request::{Entry, EntryRequest},
+  requests::{
+    asset_request::AssetRequestResult,
+    entry_request::{Entry, EntryRequest},
+  },
+  transformers::plugin_transformer::PluginTransformRequest,
 };
 
 pub type WorkerCallback =
@@ -17,6 +21,7 @@ pub struct WorkerFarm {
 pub enum WorkerRequest {
   ParcelConfig,
   Entry(EntryRequest),
+  Transform(PluginTransformRequest),
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -24,6 +29,7 @@ pub enum WorkerRequest {
 pub enum WorkerResult {
   ParcelConfig(ParcelConfig),
   Entry(Vec<Entry>),
+  Transform(AssetRequestResult),
 }
 
 #[derive(serde::Deserialize, Debug)]

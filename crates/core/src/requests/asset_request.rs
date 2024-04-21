@@ -4,7 +4,8 @@ use crate::{
   parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestResult},
   transformers::run_transformer,
-  types::{Asset, AssetFlags, AssetStats, Dependency, Environment},
+  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, Environment},
+  worker_farm::WorkerFarm,
 };
 
 #[derive(Hash)]
@@ -14,16 +15,18 @@ pub struct AssetRequest<'a> {
   pub env: Environment,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Deserialize)]
 pub struct AssetRequestResult {
   pub asset: Asset,
+  #[serde(with = "serde_bytes")]
+  pub code: Vec<u8>,
   pub dependencies: Vec<Dependency>,
 }
 
 impl<'a> Request for AssetRequest<'a> {
   type Output = AssetRequestResult;
 
-  fn run(&self, _farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
+  fn run(&self, farm: &WorkerFarm) -> RequestResult<Self::Output> {
     // println!("transform {:?}", self.file_path);
     let pipeline = self.transformers.get::<&str>(&self.file_path, &None, false);
 
@@ -32,7 +35,13 @@ impl<'a> Request for AssetRequest<'a> {
       file_path: self.file_path.clone(),
       env: self.env.clone(),
       query: None,
-      asset_type: crate::types::AssetType::Js,
+      asset_type: AssetType::from_extension(
+        self
+          .file_path
+          .extension()
+          .and_then(|s| s.to_str())
+          .unwrap_or(""),
+      ),
       content_key: String::new(),
       map_key: None,
       output_hash: String::new(),
@@ -46,7 +55,8 @@ impl<'a> Request for AssetRequest<'a> {
       ast: None,
     };
 
-    let result = run_pipeline(pipeline, asset, &self.transformers);
+    let code = std::fs::read(&asset.file_path).unwrap();
+    let result = run_pipeline(pipeline, asset, code, &self.transformers, farm);
 
     RequestResult {
       result: Ok(result),
@@ -56,30 +66,40 @@ impl<'a> Request for AssetRequest<'a> {
 }
 
 pub trait Transformer {
-  fn transform(asset: &Asset) -> AssetRequestResult;
+  fn transform(&self, asset: &Asset, code: Vec<u8>, farm: &WorkerFarm) -> AssetRequestResult;
 }
 
 fn run_pipeline(
   pipeline: Vec<PluginNode>,
   asset: Asset,
+  code: Vec<u8>,
   transformers: &PipelineMap,
+  farm: &WorkerFarm,
 ) -> AssetRequestResult {
   let mut result = AssetRequestResult {
     asset,
+    code,
     dependencies: vec![],
   };
 
   for transformer in pipeline {
-    let transformed = run_transformer(transformer, &result.asset);
+    let transformed = run_transformer(transformer, &result.asset, result.code, farm);
     if transformed.asset.asset_type != result.asset.asset_type {
       let next_path = transformed
         .asset
         .file_path
-        .with_extension(result.asset.asset_type.extension());
+        .with_extension(transformed.asset.asset_type.extension());
       let pipeline = transformers.get(&next_path, &transformed.asset.pipeline, false);
-      return run_pipeline(pipeline, transformed.asset, transformers);
+      return run_pipeline(
+        pipeline,
+        transformed.asset,
+        transformed.code,
+        transformers,
+        farm,
+      );
     }
     result.asset = transformed.asset;
+    result.code = transformed.code;
     result.dependencies.extend(transformed.dependencies);
   }
 

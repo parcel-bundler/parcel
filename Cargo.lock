@@ -1686,6 +1686,7 @@ dependencies = [
  "petgraph",
  "rayon",
  "serde",
+ "serde_bytes",
  "serde_json",
 ]
 

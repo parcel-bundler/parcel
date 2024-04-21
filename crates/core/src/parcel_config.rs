@@ -44,7 +44,7 @@ impl Hash for PipelineMap {
   }
 }
 
-#[derive(Clone, Debug, Hash, serde::Deserialize)]
+#[derive(Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginNode {
   pub package_name: String,
