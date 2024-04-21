@@ -10,8 +10,8 @@ use crate::{
     target_request::TargetRequest,
   },
   types::{
-    Asset, Dependency, Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat,
-    SourceType,
+    Asset, Dependency, DependencyFlags, Engines, Environment, EnvironmentContext, EnvironmentFlags,
+    OutputFormat, SourceType,
   },
 };
 
@@ -83,7 +83,6 @@ impl AssetGraphRequest {
       .collect();
 
     let entries = request_tracker.run_requests(entry_requests);
-    println!("entries {:?}", entries);
 
     let target_requests = entries
       .iter()
@@ -95,16 +94,6 @@ impl AssetGraphRequest {
       .collect();
     let targets = request_tracker.run_requests(target_requests);
 
-    // let env = Environment {
-    //   context: EnvironmentContext::Browser,
-    //   output_format: OutputFormat::Esmodule,
-    //   source_type: SourceType::Module,
-    //   source_map: None,
-    //   flags: EnvironmentFlags::empty(),
-    //   loc: None,
-    //   include_node_modules: IncludeNode,
-    //   engines: Engines::from_browserslist("last 2 versions", OutputFormat::Esmodule),
-    // };
     let mut path_requests = Vec::new();
     let mut dep_nodes = Vec::new();
     let mut target_iter = targets.into_iter();
@@ -114,6 +103,7 @@ impl AssetGraphRequest {
         for target in targets {
           let mut dep = Dependency::new(entry.file_path.clone(), target.env.clone());
           dep.target = Some(Box::new(target));
+          dep.flags |= DependencyFlags::ENTRY;
           let dep_node = graph
             .graph
             .add_node(AssetGraphNode::Dependency(dep.clone()));
@@ -125,7 +115,6 @@ impl AssetGraphRequest {
     }
 
     let resolved = request_tracker.run_requests(path_requests);
-    println!("resolved {:?}", resolved);
 
     let mut asset_requests: Vec<_> = resolved
       .into_iter()

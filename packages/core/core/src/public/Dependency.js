@@ -97,7 +97,8 @@ export default class Dependency implements IDependency {
   }
 
   get isEntry(): boolean {
-    return this.#dep.isEntry;
+    // return this.#dep.isEntry;
+    return Boolean(this.#dep.flags & 1)
   }
 
   get isOptional(): boolean {

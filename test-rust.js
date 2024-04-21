@@ -127,7 +127,7 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
       }
     }
   }
-}).then((serializedGraph) => {
+}).then(async (serializedGraph) => {
   console.timeEnd('build');
   // console.log(serializedGraph)
 
@@ -137,11 +137,18 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
   for (let node of serializedGraph.nodes) {
     // TODO
     let id = node.type === 'asset' ? createAssetIdFromOptions(node.value) : node.type === 'dependency' ? dependencyId(node.value) : '@@root';
-    graph.addNodeByContentKey(id, {
+    let index = graph.addNodeByContentKey(id, {
       id,
       type: node.type,
-      ...node
+      value: {
+        ...node.value,
+        id,
+      }
     });
+
+    if (node.type === 'root') {
+      graph.setRootNodeId(index);
+    }
     // console.log(node)
 
     if (node.type === 'asset') {
@@ -168,6 +175,38 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
     bundleContentHashes: new Map(),
     publicIdByAssetId,
   });
+  let mutableBundleGraph = new MutableBundleGraph(
+    bundleGraph,
+    options,
+  );
+
+  const {plugin: bundler} = await loadPlugin('@parcel/bundler-default', __dirname, null, options);
+  let config = undefined;
+
+  if (bundler.loadConfig) {
+    config = createConfig({
+      plugin: '@parcel/bundler-default',
+      searchPath: 'index',
+    });
+
+    config.result = await bundler.loadConfig({
+      config: new PublicConfig(config, options),
+      options: new PluginOptions(options),
+      logger: new PluginLogger({origin: '@parcel/bundler-default'}),
+      tracer: undefined // TODO
+    });
+  }
+
+  await bundler.bundle({
+    bundleGraph: mutableBundleGraph,
+    // config: this.configs.get(plugin.name)?.result,
+    config: config?.result,
+    options: new PluginOptions(options),
+    logger: new PluginLogger({origin: '@parcel/bundler-default'}),
+    // tracer,
+  });
+
+  console.log(bundleGraph.getBundles())
 });
 
 async function runTransformer(transformerName, transformer, asset, content) {

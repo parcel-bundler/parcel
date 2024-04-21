@@ -8,15 +8,16 @@ edition = "2021"
 rayon = "1.7.0"
 crossbeam-channel = "0.5.6"
 petgraph = "*"
-bitflags = "*"
+bitflags = { version = "2.2.1", features = ["serde"] }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 lazy_static = "*"
 mimalloc = { version = "*", default-features = false }
-indexmap = "*"
+indexmap = { version = "*", features = ["serde"] }
 glob-match = "0.2.1"
 serde = "1.0.123"
 serde_json = "1.0.91"
 serde_bytes = "0.11.5"
+serde_repr = "0.1.19"
 browserslist-rs = "0.14.0"
 node-semver = { git = "https://github.com/devongovett/node-semver-rs", branch = "min-version" }
