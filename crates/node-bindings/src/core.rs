@@ -91,9 +91,9 @@ pub fn parcel(entries: Vec<String>, callback: JsFunction, env: Env) -> napi::Res
     let mut req = AssetGraphRequest { entries };
 
     let mut request_tracker = RequestTracker::new(farm);
-    req.build(&mut request_tracker);
+    let graph = req.build(&mut request_tracker);
 
-    deferred.resolve(move |env| env.get_undefined());
+    deferred.resolve(move |env| env.to_js_value(&graph));
   });
 
   Ok(promise)

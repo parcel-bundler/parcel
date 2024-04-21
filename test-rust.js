@@ -103,7 +103,10 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
       }
     }
   }
-}).then(() => console.timeEnd('build'));
+}).then((graph) => {
+  console.timeEnd('build');
+  console.log(graph)
+});
 
 async function runTransformer(transformerName, transformer, asset, content) {
   asset.dependencies = new Map();
