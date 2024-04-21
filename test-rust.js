@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 require('@parcel/babel-register');
-const {parcel} = require('@parcel/rust');
+const {parcel, hashString} = require('@parcel/rust');
 const {EntryResolver} = require('@parcel/core/src/requests/EntryRequest');
 const {NodeFS} = require('@parcel/fs/src');
 const {FSCache} = require('@parcel/cache/src');
@@ -15,6 +15,10 @@ const PluginOptions = require('@parcel/core/src/public/PluginOptions').default;
 const {PluginLogger} = require('@parcel/logger/src/Logger');
 const {createConfig} = require('@parcel/core/src/InternalConfig');
 const PublicConfig = require('@parcel/core/src/public/Config').default;
+const BundleGraph = require('@parcel/core/src/BundleGraph').default;
+const {ContentGraph} = require('@parcel/graph');
+const {createAssetIdFromOptions} = require('@parcel/core/src/assetUtils');
+const {getPublicId} = require('@parcel/core/src/utils');
 
 const fs = new NodeFS();
 const cache = new FSCache(fs, __dirname + '/.parcel-cache');
@@ -103,9 +107,47 @@ parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js']
       }
     }
   }
-}).then((graph) => {
+}).then((serializedGraph) => {
   console.timeEnd('build');
-  console.log(graph)
+  // console.log(serializedGraph)
+
+  let graph = new ContentGraph();
+  let publicIdByAssetId = new Map();
+  let assetPublicIds = new Set();
+  for (let node of serializedGraph.nodes) {
+    // TODO
+    let id = node.type === 'asset' ? createAssetIdFromOptions(node.value) : node.type === 'dependency' ? dependencyId(node.value) : '@@root';
+    graph.addNodeByContentKey(id, {
+      id,
+      type: node.type,
+      ...node
+    });
+    // console.log(node)
+
+    if (node.type === 'asset') {
+      let publicId = publicIdByAssetId.get(id);
+      if (publicId == null) {
+        publicId = getPublicId(id, existing =>
+          assetPublicIds.has(existing),
+        );
+        publicIdByAssetId.set(id, publicId);
+        assetPublicIds.add(publicId);
+      }
+    }
+  }
+
+  for (let i = 0; i < serializedGraph.edges.length; i += 2) {
+    let from = serializedGraph.edges[i];
+    let to = serializedGraph.edges[i + 1];
+    graph.addEdge(from, to);
+  }
+
+  let bundleGraph = new BundleGraph({
+    graph,
+    assetPublicIds,
+    bundleContentHashes: new Map(),
+    publicIdByAssetId,
+  });
 });
 
 async function runTransformer(transformerName, transformer, asset, content) {
@@ -189,4 +231,18 @@ async function runTransformer(transformerName, transformer, asset, content) {
   } else {
     // TODO
   }
+}
+
+function dependencyId(opts) {
+  return hashString(
+    (opts.sourcePath ?? '') +
+      opts.specifier +
+      JSON.stringify(opts.env) +
+      (opts.target ? JSON.stringify(opts.target) : '') +
+      (opts.pipeline ?? '') +
+      opts.specifierType +
+      (opts.bundleBehavior ?? '') +
+      (opts.priority ?? 'sync') +
+      (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
+  )
 }
