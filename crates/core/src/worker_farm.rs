@@ -5,8 +5,10 @@ use crate::{
   requests::{
     asset_request::AssetRequestResult,
     entry_request::{Entry, EntryRequest},
+    target_request::TargetRequest,
   },
   transformers::plugin_transformer::PluginTransformRequest,
+  types::Target,
 };
 
 pub type WorkerCallback =
@@ -21,6 +23,7 @@ pub struct WorkerFarm {
 pub enum WorkerRequest {
   ParcelConfig,
   Entry(EntryRequest),
+  Target(TargetRequest),
   Transform(PluginTransformRequest),
 }
 
@@ -29,6 +32,7 @@ pub enum WorkerRequest {
 pub enum WorkerResult {
   ParcelConfig(ParcelConfig),
   Entry(Vec<Entry>),
+  Target(Vec<Target>),
   Transform(AssetRequestResult),
 }
 

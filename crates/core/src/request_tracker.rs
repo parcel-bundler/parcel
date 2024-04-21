@@ -6,6 +6,7 @@ use std::{
 use crate::requests::{
   asset_request::AssetRequest, entry_request::EntryRequest,
   parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
+  target_request::TargetRequest,
 };
 use crate::worker_farm::WorkerFarm;
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -46,7 +47,7 @@ pub enum RequestOutput {
   BundleGraphRequest,
   AssetGraphRequest,
   EntryRequest(<EntryRequest as Request>::Output),
-  TargetRequest,
+  TargetRequest(<TargetRequest as Request>::Output),
   ParcelConfigRequest(<ParcelConfigRequest as Request>::Output),
   PathRequest(<PathRequest as Request>::Output),
   DevDepRequest,
@@ -88,6 +89,7 @@ macro_rules! impl_store_request {
 
 impl_store_request!(ParcelConfigRequest);
 impl_store_request!(EntryRequest);
+impl_store_request!(TargetRequest);
 impl_store_request!(PathRequest);
 impl_store_request!(AssetRequest<'a>);
 

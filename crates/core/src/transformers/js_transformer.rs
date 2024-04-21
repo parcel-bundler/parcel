@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use parcel_js_swc_core::{
   CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult, Version, Versions,
 };
@@ -9,8 +9,8 @@ use parcel_js_swc_core::{
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
 use crate::types::{
   Asset, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags, Environment,
-  EnvironmentContext, EnvironmentFlags, ExportsCondition, ImportAttribute, Location, OutputFormat,
-  Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  EnvironmentContext, EnvironmentFlags, ExportsCondition, ImportAttribute, IncludeNodeModules,
+  Location, OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
 };
 
 pub struct JsTransformer;
@@ -201,6 +201,7 @@ fn convert_result(
           flags: dep_flags | DependencyFlags::IS_WEBWORKER,
           loc: Some(loc.clone()),
           placeholder: dep.placeholder.map(|s| s.into()),
+          target: None,
           symbols: Vec::new(),
           promise_symbol: None,
           import_attributes: Vec::new(),
@@ -239,6 +240,7 @@ fn convert_result(
           flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
           loc: Some(loc.clone()),
           placeholder: dep.placeholder.map(|s| s.into()),
+          target: None,
           symbols: Vec::new(),
           promise_symbol: None,
           import_attributes: Vec::new(),
@@ -270,6 +272,7 @@ fn convert_result(
           flags: dep_flags,
           loc: Some(loc.clone()),
           placeholder: dep.placeholder.map(|s| s.into()),
+          target: None,
           symbols: Vec::new(),
           promise_symbol: None,
           import_attributes: Vec::new(),
@@ -295,6 +298,7 @@ fn convert_result(
           flags: dep_flags,
           loc: Some(loc.clone()),
           placeholder: dep.placeholder.map(|s| s.into()),
+          target: None,
           symbols: Vec::new(),
           promise_symbol: None,
           import_attributes: Vec::new(),
@@ -374,7 +378,7 @@ fn convert_result(
             || dep.specifier.ends_with("/jsx-dev-runtime"));
         if is_helper && !env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           env = Environment {
-            include_node_modules: String::from("true"),
+            include_node_modules: IncludeNodeModules::Bool(true),
             ..env.clone()
           };
         }
@@ -424,6 +428,7 @@ fn convert_result(
           flags,
           loc: Some(loc.clone()),
           placeholder: dep.placeholder.map(|s| s.into()),
+          target: None,
           symbols: Vec::new(),
           promise_symbol: None,
           import_attributes,
@@ -445,7 +450,9 @@ fn convert_result(
       specifier_type: SpecifierType::Esm,
       source_path: Some(file_path.clone()),
       env: Environment {
-        include_node_modules: String::from("{\"@parcel/transformer-js\":true}"),
+        include_node_modules: IncludeNodeModules::Map(indexmap! {
+          "@parcel/transformer-js".into() => true
+        }),
         ..env.clone()
       },
       // resolve_from: Some(to_project_path(
@@ -459,6 +466,7 @@ fn convert_result(
       flags: dep_flags,
       loc: None,
       placeholder: None,
+      target: None,
       promise_symbol: None,
       symbols: Vec::new(),
       import_attributes: Vec::new(),

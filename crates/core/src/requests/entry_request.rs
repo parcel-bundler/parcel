@@ -8,7 +8,7 @@ pub struct EntryRequest {
   pub entry: String,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
   pub file_path: String,

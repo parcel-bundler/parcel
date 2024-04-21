@@ -7,6 +7,7 @@ use crate::{
   requests::{
     asset_request::AssetRequest, entry_request::EntryRequest,
     parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
+    target_request::TargetRequest,
   },
   types::{
     Asset, Dependency, Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat,
@@ -84,32 +85,42 @@ impl AssetGraphRequest {
     let entries = request_tracker.run_requests(entry_requests);
     println!("entries {:?}", entries);
 
-    // let target_requests = entries.iter().map(|entry| TargetRequest {
-    //   entry
-    // }).collect();
-    // let targets = request_tracker.run_requests(target_requests);
+    let target_requests = entries
+      .iter()
+      .flat_map(|entries| {
+        entries.as_ref().unwrap().iter().map(|entry| TargetRequest {
+          entry: entry.clone(),
+        })
+      })
+      .collect();
+    let targets = request_tracker.run_requests(target_requests);
 
-    let env = Environment {
-      context: EnvironmentContext::Browser,
-      output_format: OutputFormat::Esmodule,
-      source_type: SourceType::Module,
-      source_map: None,
-      flags: EnvironmentFlags::empty(),
-      loc: None,
-      include_node_modules: String::new(),
-      engines: Engines::from_browserslist("last 2 versions", OutputFormat::Esmodule),
-    };
+    // let env = Environment {
+    //   context: EnvironmentContext::Browser,
+    //   output_format: OutputFormat::Esmodule,
+    //   source_type: SourceType::Module,
+    //   source_map: None,
+    //   flags: EnvironmentFlags::empty(),
+    //   loc: None,
+    //   include_node_modules: IncludeNode,
+    //   engines: Engines::from_browserslist("last 2 versions", OutputFormat::Esmodule),
+    // };
     let mut path_requests = Vec::new();
     let mut dep_nodes = Vec::new();
+    let mut target_iter = targets.into_iter();
     for entry_result in entries {
       for entry in entry_result.unwrap() {
-        let dep = Dependency::new(entry.file_path, env.clone());
-        let dep_node = graph
-          .graph
-          .add_node(AssetGraphNode::Dependency(dep.clone()));
-        dep_nodes.push(dep_node);
-        graph.graph.add_edge(root, dep_node, AssetGraphEdge {});
-        path_requests.push(PathRequest { dep });
+        let targets = target_iter.next().unwrap().unwrap();
+        for target in targets {
+          let mut dep = Dependency::new(entry.file_path.clone(), target.env.clone());
+          dep.target = Some(Box::new(target));
+          let dep_node = graph
+            .graph
+            .add_node(AssetGraphNode::Dependency(dep.clone()));
+          dep_nodes.push(dep_node);
+          graph.graph.add_edge(root, dep_node, AssetGraphEdge {});
+          path_requests.push(PathRequest { dep });
+        }
       }
     }
 
@@ -118,10 +129,14 @@ impl AssetGraphRequest {
 
     let mut asset_requests: Vec<_> = resolved
       .into_iter()
-      .map(|result| AssetRequest {
+      .zip(dep_nodes.iter())
+      .map(|(result, node)| AssetRequest {
         transformers: &config.transformers,
         file_path: result.unwrap(),
-        env: env.clone(),
+        env: match graph.graph.node_weight(*node).unwrap() {
+          AssetGraphNode::Dependency(dep) => dep.env.clone(),
+          _ => unreachable!(),
+        },
       })
       .collect();
 
@@ -160,10 +175,14 @@ impl AssetGraphRequest {
 
       asset_requests = resolved
         .into_iter()
-        .map(|result| AssetRequest {
+        .zip(dep_nodes.iter())
+        .map(|(result, node)| AssetRequest {
           transformers: &config.transformers,
           file_path: result.unwrap(),
-          env: env.clone(),
+          env: match graph.graph.node_weight(*node).unwrap() {
+            AssetGraphNode::Dependency(dep) => dep.env.clone(),
+            _ => unreachable!(),
+          },
         })
         .filter(|req| visited.insert(req.id()))
         .collect();
