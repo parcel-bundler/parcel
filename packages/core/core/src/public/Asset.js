@@ -123,7 +123,7 @@ class BaseAsset {
   }
 
   get meta(): Meta {
-    return this.#asset.value.meta;
+    return this.#asset.value.meta ?? {};
   }
 
   get bundleBehavior(): ?BundleBehavior {

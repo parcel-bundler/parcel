@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::{collections::hash_map::DefaultHasher, num::NonZeroU32, path::PathBuf};
 
 use bitflags::bitflags;
 use browserslist::Distrib;
 use indexmap::IndexMap;
 
-#[derive(Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
   pub env: Environment,
@@ -20,7 +22,7 @@ pub struct Target {
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct EnvironmentId(pub NonZeroU32);
 
-#[derive(Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
   pub context: EnvironmentContext,
@@ -33,7 +35,7 @@ pub struct Environment {
   pub engines: Engines,
 }
 
-#[derive(PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Engines {
   #[serde(
     serialize_with = "serialize_browsers",
@@ -49,7 +51,6 @@ fn serialize_browsers<S>(browsers: &Vec<Distrib>, serializer: S) -> Result<S::Ok
 where
   S: serde::Serializer,
 {
-  use serde::Serialize;
   let browsers: Vec<String> = browsers.iter().map(|b| b.to_string()).collect();
   browsers.serialize(serializer)
 }
@@ -58,7 +59,6 @@ fn deserialize_browsers<'de, D>(deserializer: D) -> Result<Vec<Distrib>, D::Erro
 where
   D: serde::Deserializer<'de>,
 {
-  use serde::Deserialize;
   let browsers: Vec<String> = Deserialize::deserialize(deserializer)?;
   let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
   Ok(distribs)
@@ -122,7 +122,7 @@ impl std::hash::Hash for Engines {
   }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum IncludeNodeModules {
   Bool(bool),
@@ -151,7 +151,7 @@ impl Default for IncludeNodeModules {
   }
 }
 
-#[derive(PartialEq, Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Clone, Debug, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TargetSourceMapOptions {
   source_root: Option<String>,
@@ -159,7 +159,7 @@ pub struct TargetSourceMapOptions {
   inline_sources: bool,
 }
 
-#[derive(PartialEq, Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
   pub file_path: PathBuf,
@@ -167,14 +167,14 @@ pub struct SourceLocation {
   pub end: Location,
 }
 
-#[derive(PartialEq, Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct Location {
   pub line: u32,
   pub column: u32,
 }
 
 bitflags! {
-  #[derive(serde::Serialize, serde::Deserialize)]
+  #[derive(Clone, Copy, Hash, Debug)]
   pub struct EnvironmentFlags: u8 {
     const IS_LIBRARY = 0b00000001;
     const SHOULD_OPTIMIZE = 0b00000010;
@@ -182,7 +182,33 @@ bitflags! {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, serde::Serialize, serde::Deserialize)]
+// By default, bitflags serializes as a string, but we want the raw number instead.
+macro_rules! impl_bitflags_serde {
+  ($t: ty) => {
+    impl Serialize for $t {
+      fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+      where
+        S: serde::Serializer,
+      {
+        self.bits().serialize(serializer)
+      }
+    }
+
+    impl<'de> Deserialize<'de> for $t {
+      fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+      where
+        D: serde::Deserializer<'de>,
+      {
+        let bits = Deserialize::deserialize(deserializer)?;
+        Ok(<$t>::from_bits_truncate(bits))
+      }
+    }
+  };
+}
+
+impl_bitflags_serde!(EnvironmentFlags);
+
+#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum EnvironmentContext {
   Browser,
@@ -219,14 +245,14 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceType {
   Module,
   Script,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
   Global,
@@ -237,7 +263,7 @@ pub enum OutputFormat {
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
 pub struct AssetId(pub NonZeroU32);
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
   pub id: String,
@@ -260,7 +286,7 @@ pub struct Asset {
   pub ast: Option<AssetAst>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetAst {
   pub key: String,
@@ -282,7 +308,7 @@ pub enum AssetType {
   Other(String),
 }
 
-impl serde::Serialize for AssetType {
+impl Serialize for AssetType {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
@@ -291,12 +317,12 @@ impl serde::Serialize for AssetType {
   }
 }
 
-impl<'de> serde::Deserialize<'de> for AssetType {
+impl<'de> Deserialize<'de> for AssetType {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
   {
-    let ext: String = serde::Deserialize::deserialize(deserializer)?;
+    let ext: String = Deserialize::deserialize(deserializer)?;
     Ok(Self::from_extension(&ext))
   }
 }
@@ -327,12 +353,13 @@ impl AssetType {
   }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize_repr, Deserialize_repr)]
 #[serde(rename_all = "lowercase")]
+#[repr(u8)]
 pub enum BundleBehavior {
-  None,
-  Inline,
-  Isolated,
+  None = 255,
+  Inline = 0,
+  Isolated = 1,
 }
 
 impl Default for BundleBehavior {
@@ -341,14 +368,14 @@ impl Default for BundleBehavior {
   }
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AssetStats {
   pub size: u32,
   pub time: u32,
 }
 
 bitflags! {
-  #[derive(serde::Serialize, serde::Deserialize)]
+  #[derive(Debug, Clone, Copy)]
   pub struct AssetFlags: u32 {
     const IS_SOURCE = 1 << 0;
     const SIDE_EFFECTS = 1 << 1;
@@ -363,8 +390,10 @@ bitflags! {
   }
 }
 
+impl_bitflags_serde!(AssetFlags);
+
 bitflags! {
-  #[derive(serde::Serialize, serde::Deserialize)]
+  #[derive(Debug, Clone, Copy, Hash)]
   pub struct ExportsCondition: u32 {
     const IMPORT = 1 << 0;
     const REQUIRE = 1 << 1;
@@ -376,7 +405,9 @@ bitflags! {
   }
 }
 
-#[derive(Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+impl_bitflags_serde!(ExportsCondition);
+
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   // pub id: String,
@@ -454,14 +485,14 @@ impl Dependency {
   // }
 }
 
-#[derive(Debug, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct ImportAttribute {
   pub key: String,
   pub value: bool,
 }
 
 bitflags! {
-  #[derive(serde::Serialize, serde::Deserialize)]
+  #[derive(Debug, Clone, Copy, Hash)]
   pub struct DependencyFlags: u8 {
     const ENTRY    = 1 << 0;
     const OPTIONAL = 1 << 1;
@@ -473,13 +504,16 @@ bitflags! {
   }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+impl_bitflags_serde!(DependencyFlags);
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize_repr, Deserialize_repr)]
 #[serde(rename_all = "lowercase")]
+#[repr(u8)]
 pub enum SpecifierType {
-  Esm,
-  Commonjs,
-  Url,
-  Custom,
+  Esm = 0,
+  Commonjs = 1,
+  Url = 2,
+  Custom = 3,
 }
 
 impl Default for SpecifierType {
@@ -488,12 +522,13 @@ impl Default for SpecifierType {
   }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize_repr, Deserialize_repr)]
 #[serde(rename_all = "lowercase")]
+#[repr(u8)]
 pub enum Priority {
-  Sync,
-  Parallel,
-  Lazy,
+  Sync = 0,
+  Parallel = 1,
+  Lazy = 2,
 }
 
 impl Default for Priority {
@@ -502,7 +537,7 @@ impl Default for Priority {
   }
 }
 
-#[derive(Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Hash, Serialize, Deserialize)]
 pub struct Symbol {
   pub exported: String,
   pub local: String,
@@ -511,7 +546,8 @@ pub struct Symbol {
 }
 
 bitflags! {
-  #[derive(serde::Serialize, serde::Deserialize)]
+  #[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash)]
+  #[serde(transparent)]
   pub struct SymbolFlags: u8 {
     const IS_WEAK = 1 << 0;
     const IS_ESM = 1 << 1;
@@ -533,10 +569,10 @@ bitflags! {
 //   Other(String),
 // }
 
-// impl<'de> serde::Deserialize<'de> for BuildMode {
+// impl<'de> Deserialize<'de> for BuildMode {
 //   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 //   where
-//     D: serde::Deserializer<'de>,
+//     D: Deserializer<'de>,
 //   {
 //     let s = String::deserialize(deserializer)?;
 //     Ok(match s.as_str() {
