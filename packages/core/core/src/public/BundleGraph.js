@@ -328,15 +328,6 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  unstable_getConditionPublicId(condition: string): ?string {
-    if (!getFeatureFlag('conditionalBundling')) {
-      throw new Error(
-        'unstable_getConditionPublicId called but conditionalBundling is not enabled',
-      );
-    }
-    return this.#graph._conditions.get(condition)?.publicId ?? null;
-  }
-
   // Given a set of dependencies, return any conditions where those dependencies are either
   // the true or false dependency for those conditions. This is currently used to work out which
   // conditions belong to a bundle in packaging.
@@ -349,7 +340,7 @@ export default class BundleGraph<TBundle: IBundle>
     // FIXME improve these lookups
     const conditions = new Set();
     const depIds = deps.map(dep => dep.id);
-    for (const [, condition] of this.#graph._conditions.entries()) {
+    for (const condition of this.#graph._conditions.values()) {
       if (
         depIds.includes(condition.ifTrueDependency.id) ||
         depIds.includes(condition.ifFalseDependency.id)

@@ -110,7 +110,7 @@ pub struct TransformResult {
   used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
   is_constant_module: bool,
-  conditions: HashSet<swc_core::ecma::atoms::JsWord>,
+  conditions: HashSet<Condition>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {

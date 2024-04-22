@@ -578,7 +578,11 @@ export default (new Transformer({
         : null,
     });
 
-    asset.meta.conditions = conditions;
+    asset.meta.conditions = conditions.map(c => ({
+      key: c.key,
+      ifTruePlaceholder: c.if_true_placeholder,
+      ifFalsePlaceholder: c.if_false_placeholder,
+    }));
 
     if (is_constant_module) {
       asset.meta.isConstantModule = true;

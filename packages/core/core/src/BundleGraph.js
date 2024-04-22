@@ -139,7 +139,7 @@ export default class BundleGraph {
   /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
   _bundlePublicIds /*: Set<string> */ = new Set<string>();
-  _conditions /*: Map<string, Condition> */ = new Map<string, Condition>();
+  _conditions /*: Set<Condition> */ = new Set<Condition>();
 
   constructor({
     graph,
@@ -152,7 +152,7 @@ export default class BundleGraph {
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
-    conditions: Map<string, Condition>,
+    conditions: Set<Condition>,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
@@ -225,13 +225,25 @@ export default class BundleGraph {
       if (getFeatureFlag('conditionalBundling') && node.type === 'asset') {
         const asset = node.value;
         if (Array.isArray(asset.meta.conditions)) {
-          for (const _condition of asset.meta.conditions ?? []) {
-            // Asset meta conditions will be of the form `key:placeholder_if_true:placeholfder_if_false`
-            // Here we extract that information and create `Condition`s which resolve those placeholders
-            // to dependencies, as well as create a public id for the condition.
-            const condition = String(_condition);
-            const [key, ifTrueDep, ifFalseDep] = condition.split(':');
-            const condHash = hashString(condition);
+          for (const condition of asset.meta.conditions ?? []) {
+            // Resolve the placeholders that were attached to the asset in JSTransformer to dependencies,
+            // as well as create a public id for the condition.
+
+            // $FlowFixMe[incompatible-type]
+            const {
+              key,
+              ifTruePlaceholder,
+              ifFalsePlaceholder,
+            }: {
+              key: string,
+              ifTruePlaceholder: string,
+              ifFalsePlaceholder: string,
+              ...
+            } = condition;
+
+            const condHash = hashString(
+              `${key}:${ifTruePlaceholder}:${ifFalsePlaceholder}`,
+            );
             const condPublicId = getPublicId(condHash, v => conditions.has(v));
 
             conditions.set(condition, {
@@ -239,8 +251,9 @@ export default class BundleGraph {
               // FIXME support the same condition used across multiple assets..
               assets: new Set([asset]),
               key,
-              ifTrueDependency: placeholderToDependency.get(ifTrueDep),
-              ifFalseDependency: placeholderToDependency.get(ifFalseDep),
+              ifTrueDependency: placeholderToDependency.get(ifTruePlaceholder),
+              ifFalseDependency:
+                placeholderToDependency.get(ifFalsePlaceholder),
             });
           }
         }

@@ -56,6 +56,13 @@ pub struct DependencyDescriptor {
   pub placeholder: Option<String>,
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct Condition {
+  pub key: JsWord,
+  pub if_true_placeholder: Option<JsWord>,
+  pub if_false_placeholder: Option<JsWord>,
+}
+
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
@@ -64,7 +71,7 @@ pub fn dependency_collector<'a>(
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
-  conditions: &'a mut HashSet<JsWord>,
+  conditions: &'a mut HashSet<Condition>,
 ) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
@@ -92,7 +99,7 @@ struct DependencyCollector<'a> {
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
-  conditions: &'a mut HashSet<JsWord>,
+  conditions: &'a mut HashSet<Condition>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -744,14 +751,12 @@ impl<'a> Fold for DependencyCollector<'a> {
         placeholders.push(placeholder.unwrap());
       }
 
-      // Create a condition we pass back to JS, which is of the form `key:if_true_placeholder:if_false_placeholder`
-      let condition: JsWord = format!(
-        "{}:{}:{}",
-        match_str(&call.args[0].expr).unwrap().0,
-        placeholders[0],
-        placeholders[1]
-      )
-      .into();
+      // Create a condition we pass back to JS
+      let condition = Condition {
+        key: match_str(&call.args[0].expr).unwrap().0,
+        if_true_placeholder: Some(placeholders[0].clone()),
+        if_false_placeholder: Some(placeholders[1].clone()),
+      };
       self.conditions.insert(condition);
 
       // write out code like importCond(depIfTrue, depIfFalse) - while we use the first dep as the link to the conditions
