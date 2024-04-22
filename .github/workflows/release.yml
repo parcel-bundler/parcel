@@ -86,7 +86,7 @@ jobs:
       - name: Install native dependencies
         run: |
           yum update -y
-          yum install -y openssl
+          yum install -y openssl openssl-devel
       - name: Install yarn
         run: npm install --global yarn@1
       - name: Install Rust
@@ -194,7 +194,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
-        run: apk add --no-cache python3 make gcc g++ musl-dev curl openssl
+        run: apk add --no-cache python3 make gcc g++ musl-dev curl openssl openssl-dev
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
