@@ -8,13 +8,22 @@ import type {RunAPI} from '../../src/RequestTracker';
 import sinon from 'sinon';
 import {toProjectPath} from '../../src/projectPath';
 import type {ConfigRequest} from '../../src/requests/ConfigRequest';
+import {MemoryFS} from '@parcel/fs';
+import {hashString} from '@parcel/rust';
 
 // $FlowFixMe unclear-type forgive me
 const mockCast = (f: any): any => f;
 
 describe('ConfigRequest tests', () => {
-  const projectRoot = '';
-  const getMockRunApi = (options: mixed = {projectRoot}): RunAPI<mixed> => {
+  const projectRoot = '/project_root/';
+  let fs = new MemoryFS();
+  beforeEach(() => {
+    fs = new MemoryFS();
+  });
+
+  const getMockRunApi = (
+    options: mixed = {projectRoot, inputFS: fs},
+  ): RunAPI<mixed> => {
     const mockRunApi = {
       storeResult: sinon.spy(),
       canSkipSubrequest: sinon.spy(),
@@ -52,7 +61,7 @@ describe('ConfigRequest tests', () => {
     invalidateOnFileChange: new Set(),
   };
 
-  [('rust', 'js')].forEach(backend => {
+  ['rust', 'js'].forEach(backend => {
     describe(`${backend} backed`, () => {
       beforeEach(() => {
         setFeatureFlags({
@@ -71,20 +80,46 @@ describe('ConfigRequest tests', () => {
       if (backend === 'rust') {
         // Adding this here mostly to prove that the rust backend is actually running on
         // this suite
-        it('errors out if the options are missing projectRoot', async () => {
-          const mockRunApi = getMockRunApi({});
+        async function assertThrows(block: () => Promise<void>) {
           let error: Error | null = null;
           try {
-            await runConfigRequest(mockRunApi, {
-              ...baseRequest,
-            });
+            await block();
           } catch (e) {
             error = e;
           }
+          assert(error != null, 'Function finished without errors');
+          return error;
+        }
 
+        it('errors out if the options are missing projectRoot', async () => {
+          const mockRunApi = getMockRunApi({
+            inputFS: fs,
+          });
+          const error = await assertThrows(async () => {
+            await runConfigRequest(mockRunApi, {
+              ...baseRequest,
+              invalidateOnStartup: true,
+            });
+          });
           assert.equal(
             error?.message,
             '[napi] Missing required projectRoot options field',
+          );
+        });
+
+        it('errors out if the options are missing inputFS', async () => {
+          const mockRunApi = getMockRunApi({
+            projectRoot,
+          });
+          const error = await assertThrows(async () => {
+            await runConfigRequest(mockRunApi, {
+              ...baseRequest,
+              invalidateOnStartup: true,
+            });
+          });
+          assert.equal(
+            error?.message,
+            '[napi] Missing required inputFS options field',
           );
         });
       }
@@ -229,6 +264,51 @@ describe('ConfigRequest tests', () => {
         assert(
           mockCast(mockRunApi.invalidateOnBuild).called,
           'Invalidate was called',
+        );
+      });
+
+      it('forwards "invalidateOnConfigKeyChange" calls to runAPI', async () => {
+        await fs.mkdirp('/project_root');
+        await fs.writeFile(
+          '/project_root/config.json',
+          JSON.stringify({key1: 'value1'}),
+        );
+        sinon.spy(fs, 'readFile');
+        sinon.spy(fs, 'readFileSync');
+        const mockRunApi = getMockRunApi();
+        await runConfigRequest(mockRunApi, {
+          ...baseRequest,
+          invalidateOnConfigKeyChange: [
+            {
+              configKey: 'key1',
+              filePath: toProjectPath(projectRoot, '/project_root/config.json'),
+            },
+          ],
+        });
+
+        if (backend === 'rust') {
+          const fsCall = mockCast(fs.readFileSync).getCall(0);
+          assert.deepEqual(
+            fsCall?.args,
+            ['/project_root/config.json'],
+            'readFile was called',
+          );
+        } else {
+          const fsCall = mockCast(fs.readFile).getCall(0);
+          assert.deepEqual(
+            fsCall?.args,
+            ['/project_root/config.json', 'utf8'],
+            'readFile was called',
+          );
+        }
+
+        const call = mockCast(mockRunApi.invalidateOnConfigKeyChange).getCall(
+          0,
+        );
+        assert.deepEqual(
+          call.args,
+          ['config.json', 'key1', hashString('"value1"')],
+          'Invalidate was called for key1',
         );
       });
     });

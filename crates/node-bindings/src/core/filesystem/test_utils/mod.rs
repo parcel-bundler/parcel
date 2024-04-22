@@ -1,4 +1,4 @@
-//! Utilities for testing parcel core
+//! Utilities for testing parcel core filesystem
 
 use parcel_resolver::FileSystem;
 use std::collections::HashMap;

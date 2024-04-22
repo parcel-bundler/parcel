@@ -4,8 +4,7 @@ use napi::bindgen_prelude::FromNapiValue;
 use napi::{Env, JsFunction, JsObject, JsString, JsUnknown, NapiRaw};
 use napi_derive::napi;
 
-use parcel_resolver::OsFileSystem;
-
+use crate::core::filesystem::JSDelegateFileSystem;
 use crate::core::requests::config_request::ConfigRequest;
 use crate::core::requests::request_api::js_request_api::JSRequestApi;
 
@@ -19,12 +18,18 @@ mod request_api;
 /// Uses raw NAPI casts, but checks that object field is a function
 pub fn get_function(env: &Env, js_object: &JsObject, field_name: &str) -> napi::Result<JsFunction> {
   let Some(method): Option<JsUnknown> = js_object.get(field_name)? else {
-    return Err(napi::Error::from_reason("[napi] Method not found"));
+    return Err(napi::Error::from_reason(format!(
+      "[napi] Method not found: {}",
+      field_name
+    )));
   };
   let function_class: JsUnknown = env.get_global()?.get_named_property("Function")?;
   let is_function = method.instanceof(function_class)?;
   if !is_function {
-    return Err(napi::Error::from_reason("[napi] Method is not a function"));
+    return Err(napi::Error::from_reason(format!(
+      "[napi] Method is not a function: {}",
+      field_name
+    )));
   }
 
   let method_fn = unsafe { JsFunction::from_napi_value(env.raw(), method.raw()) }?;
@@ -57,10 +62,10 @@ pub fn call_method(
   js_object: &JsObject,
   field_name: &str,
   args: &[&JsUnknown],
-) -> napi::Result<()> {
+) -> napi::Result<JsUnknown> {
   let method_fn = get_function(env, js_object, field_name)?;
-  method_fn.call(Some(&js_object), &args)?;
-  Ok(())
+  let result = method_fn.call(Some(&js_object), &args)?;
+  Ok(result)
 }
 
 /// JavaScript API for running a config request.
@@ -79,8 +84,15 @@ fn napi_run_config_request(
   // Technically we could move `env` to JSRequestAPI but in order to
   // be able to use env on more places we rc it.
   let env = Rc::new(env);
-  let api = JSRequestApi::new(env, api);
-  let input_fs = OsFileSystem::default();
+  let api = JSRequestApi::new(env.clone(), api);
+  let input_fs = options.get("inputFS")?;
+  let Some(input_fs) = input_fs.map(|input_fs| JSDelegateFileSystem::new(env, input_fs)) else {
+    // We need to make the `FileSystem` trait object-safe so we can use dynamic
+    // dispatch.
+    return Err(napi::Error::from_reason(
+      "[napi] Missing required inputFS options field",
+    ));
+  };
   let Some(project_root): Option<JsString> = options.get("projectRoot")? else {
     return Err(napi::Error::from_reason(
       "[napi] Missing required projectRoot options field",

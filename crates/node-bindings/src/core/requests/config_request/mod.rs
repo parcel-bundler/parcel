@@ -81,11 +81,13 @@ fn hash_serde_value(value: &serde_json::Value) -> anyhow::Result<String> {
 fn get_config_key_content_hash(
   config_key: &str,
   input_fs: &impl FileSystem,
-  // TODO: This be used to convert the file_path to a project_root relative path
-  _project_root: &str,
+  project_root: &str,
   file_path: &str,
 ) -> napi::Result<String> {
-  let contents = read_config(input_fs, Path::new(file_path))?;
+  let mut path = Path::new(project_root).to_path_buf();
+  path.push(file_path);
+
+  let contents = read_config(input_fs, &path)?;
 
   let Some(config_value) = contents.get(config_key) else {
     // TODO: need to try to match behaviour of `ConfigRequest.js`
@@ -156,9 +158,9 @@ struct RequestOptions {}
 mod test {
   use parcel_resolver::OsFileSystem;
 
+  use crate::core::filesystem::test_utils::InMemoryFileSystem;
   use crate::core::requests::config_request::run_config_request;
   use crate::core::requests::request_api::MockRequestApi;
-  use crate::core::test_utils::InMemoryFileSystem;
 
   use super::*;
 

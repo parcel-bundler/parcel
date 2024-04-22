@@ -7,7 +7,7 @@ use std::{
 use crate::path::canonicalize;
 use dashmap::DashMap;
 
-pub trait FileSystem: Send + Sync {
+pub trait FileSystem {
   fn canonicalize<P: AsRef<Path>>(
     &self,
     path: P,
