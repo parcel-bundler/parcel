@@ -98,6 +98,12 @@ jobs:
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-${{ inputs.profile }}
+        env:
+          # Even though RUST is cross-compiling each runner job sholud already
+          # be running on its target platform, so we can point pkg-config at
+          # the root to prevent it thinking that's not the case and that it
+          # needs a cross-compilation root.
+          PKG_CONFIG_SYSROOT_DIR: /
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip packages/*/*/*.node
       - name: Upload artifacts
@@ -145,6 +151,7 @@ jobs:
         run: yarn build-native-${{ inputs.profile }}
         env:
           RUST_TARGET: ${{ matrix.target }}
+          PKG_CONFIG_SYSROOT_DIR: /
           CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
@@ -198,6 +205,7 @@ jobs:
         run: yarn build-native-${{ inputs.profile }}
         env:
           RUST_TARGET: ${{ matrix.target }}
+          PKG_CONFIG_SYSROOT_DIR: /
           CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
@@ -227,6 +235,8 @@ jobs:
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-${{ inputs.profile }}
+        env:
+          PKG_CONFIG_SYSROOT_DIR: /
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
