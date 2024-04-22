@@ -30,7 +30,7 @@ export type AdjacencyListOptions<TEdgeType> = {|
   minGrowFactor?: number,
   /** The size after which to grow the capacity by the minimum factor. */
   peakCapacity?: number,
-  /** The percentage of deleted edges above which the capcity should shink. */
+  /** The percentage of deleted edges above which the capacity should shrink. */
   unloadFactor?: number,
   /** The amount by which to shrink the capacity. */
   shrinkFactor?: number,
@@ -328,7 +328,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    *
    * Note that this method does not increment the node count
    * (that only happens in `addEdge`), it _may_ preemptively resize
-   * the nodes array if it is at capacity, under the asumption that
+   * the nodes array if it is at capacity, under the assumption that
    * at least 1 edge to or from this new node will be added.
    *
    * Returns the id of the added node.

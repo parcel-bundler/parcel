@@ -1320,6 +1320,7 @@ describe('cache', function () {
             exampleFeature: false,
             configKeyInvalidation: true,
             parcelV3: false,
+            dfsFasterRefactor: false,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');
@@ -1381,6 +1382,7 @@ describe('cache', function () {
             exampleFeature: false,
             configKeyInvalidation: true,
             parcelV3: false,
+            dfsFasterRefactor: false,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');
@@ -1442,6 +1444,7 @@ describe('cache', function () {
             exampleFeature: false,
             configKeyInvalidation: true,
             parcelV3: false,
+            dfsFasterRefactor: false,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');

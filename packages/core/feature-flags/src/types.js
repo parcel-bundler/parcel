@@ -10,6 +10,10 @@ export type FeatureFlags = {|
    */
   +configKeyInvalidation: boolean,
   /**
+   * Refactors dfsNew to use an iterative approach.
+   */
+  +dfsFasterRefactor: boolean,
+  /**
    * Rust backed requests
    */
   +parcelV3: boolean,
