@@ -11,11 +11,11 @@ on:
         description: 'The type of release, usually corresponds to the dist-tag'
         required: true
         type: string
-    profile:
-      description: 'The profile to use when building the native binaries'
-      required: false
-      default: 'release'
-      type: string
+      profile:
+        description: 'The profile to use when building the native binaries'
+        required: false
+        default: 'release'
+        type: string
     secrets:
       GHCR_TOKEN:
         required: true
