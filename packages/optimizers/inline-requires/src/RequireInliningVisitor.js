@@ -16,7 +16,7 @@ import nullthrows from 'nullthrows';
 type VisitorOpts = {|
   bundle: NamedBundle,
   logger: PluginLogger,
-  publicIdToAssetSideEffects: Map<string, SideEffectsMap>,
+  assetPublicIdsWithSideEffects: Set<string>,
 |};
 
 export class RequireInliningVisitor extends Visitor {
@@ -26,9 +26,9 @@ export class RequireInliningVisitor extends Visitor {
   dirty: boolean;
   logger: PluginLogger;
   bundle: NamedBundle;
-  publicIdToAssetSideEffects: Map<string, SideEffectsMap>;
+  assetPublicIdsWithSideEffects: Set<string>;
 
-  constructor({bundle, logger, publicIdToAssetSideEffects}: VisitorOpts) {
+  constructor({bundle, logger, assetPublicIdsWithSideEffects}: VisitorOpts) {
     super();
     this.currentModuleNode = null;
     this.moduleVariables = new Set();
@@ -36,7 +36,7 @@ export class RequireInliningVisitor extends Visitor {
     this.dirty = false;
     this.logger = logger;
     this.bundle = bundle;
-    this.publicIdToAssetSideEffects = publicIdToAssetSideEffects;
+    this.assetPublicIdsWithSideEffects = assetPublicIdsWithSideEffects;
   }
 
   visitFunctionExpression(n: FunctionExpression): FunctionExpression {
@@ -106,20 +106,10 @@ export class RequireInliningVisitor extends Visitor {
         //
         // This won't work in dev mode, because the id used to require the asset isn't the public id
         if (
-          !this.publicIdToAssetSideEffects ||
-          !this.publicIdToAssetSideEffects.has(assetPublicId)
+          this.assetPublicIdsWithSideEffects &&
+          this.assetPublicIdsWithSideEffects.has(assetPublicId)
         ) {
-          this.logger.warn({
-            message: `${this.bundle.name}: Unable to resolve ${assetPublicId} to an asset! Assuming sideEffects are present.`,
-          });
-        } else {
-          const asset = nullthrows(
-            this.publicIdToAssetSideEffects.get(assetPublicId),
-          );
-          if (asset.sideEffects) {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
+          continue;
         }
 
         // The moduleVariableMap contains a mapping from (e.g. $acw62 -> the AST node `require("acw62")`)
