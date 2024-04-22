@@ -28,9 +28,17 @@ async function assertThrows(block: () => Promise<void>) {
 
 describe('ConfigRequest tests', () => {
   const projectRoot = '/project_root/';
-  let fs = new MemoryFS(new WorkerFarm());
+  let fs = new MemoryFS(
+    new WorkerFarm({
+      workerPath: require.resolve('../../src/worker.js'),
+    }),
+  );
   beforeEach(() => {
-    fs = new MemoryFS(new WorkerFarm());
+    fs = new MemoryFS(
+      new WorkerFarm({
+        workerPath: require.resolve('../../src/worker.js'),
+      }),
+    );
   });
 
   const getMockRunApi = (
