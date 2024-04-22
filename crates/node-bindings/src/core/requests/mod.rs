@@ -1,11 +1,10 @@
 use std::rc::Rc;
 
-use napi::bindgen_prelude::{FromNapiValue, ToNapiValue};
+use napi::bindgen_prelude::FromNapiValue;
 use napi::{Env, JsFunction, JsObject, JsString, JsUnknown, NapiRaw};
 use napi_derive::napi;
 
-use parcel_resolver::{FileSystem, OsFileSystem};
-use request_api::RequestApi;
+use parcel_resolver::OsFileSystem;
 
 use crate::core::requests::config_request::ConfigRequest;
 use crate::core::requests::request_api::js_request_api::JSRequestApi;

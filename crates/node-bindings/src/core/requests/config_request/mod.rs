@@ -1,3 +1,7 @@
+//! Implements the `ConfigRequest` execution in rust.
+//!
+//! This is a rewrite of the `packages/core/core/src/requests/ConfigRequest.js`
+//! file.
 use std::path::Path;
 
 use napi_derive::napi;
@@ -17,7 +21,7 @@ pub struct ConfigKeyChange {
 }
 
 #[napi(object)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct InternalFileCreateInvalidation {
   // file
   pub file_path: Option<ProjectPath>,
@@ -66,15 +70,19 @@ fn read_config(input_fs: &impl FileSystem, config_path: &Path) -> napi::Result<s
   Ok(contents)
 }
 
+/// Hash a `serde_json::Value`. This does not do special handling yet, but
+/// it should match the parcel utils implementation. That implementation
 fn hash_serde_value(value: &serde_json::Value) -> anyhow::Result<String> {
   // TODO: this doesn't handle sorting keys
   Ok(crate::hash::hash_string(serde_json::to_string(value)?))
 }
 
+/// Hash a certain key in a configuration file.
 fn get_config_key_content_hash(
   config_key: &str,
   input_fs: &impl FileSystem,
-  project_root: &str,
+  // TODO: This be used to convert the file_path to a project_root relative path
+  _project_root: &str,
   file_path: &str,
 ) -> napi::Result<String> {
   let contents = read_config(input_fs, Path::new(file_path))?;
@@ -89,6 +97,9 @@ fn get_config_key_content_hash(
   Ok(content_hash)
 }
 
+/// A config request triggers several invalidations to be tracked.
+///
+/// This is ported to rust to serve as an example of Parcel requests being ported.
 pub fn run_config_request(
   config_request: &ConfigRequest,
   api: &impl RequestApi,
@@ -147,11 +158,12 @@ mod test {
 
   use crate::core::requests::config_request::run_config_request;
   use crate::core::requests::request_api::MockRequestApi;
+  use crate::core::test_utils::InMemoryFileSystem;
 
   use super::*;
 
   #[test]
-  fn test_run_config_request() {
+  fn test_run_empty_config_request_does_nothing() {
     let config_request = ConfigRequest {
       id: "".to_string(),
       invalidate_on_file_change: vec![],
@@ -162,10 +174,209 @@ mod test {
       invalidate_on_startup: false,
       invalidate_on_build: false,
     };
+    // The mock will panic if it's called with no mock set
     let request_api = MockRequestApi::new();
     let file_system = OsFileSystem::default();
     let project_root = "";
 
-    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap()
+    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap();
+  }
+
+  #[test]
+  fn test_run_config_request_with_invalidate_on_file_change() {
+    let config_request = ConfigRequest {
+      id: "".to_string(),
+      invalidate_on_file_change: vec!["path1".to_string(), "path2".to_string()],
+      invalidate_on_config_key_change: vec![],
+      invalidate_on_file_create: vec![],
+      invalidate_on_env_change: vec![],
+      invalidate_on_option_change: vec![],
+      invalidate_on_startup: false,
+      invalidate_on_build: false,
+    };
+    // The mock will panic if it's called with no mock set
+    let mut request_api = MockRequestApi::new();
+    let file_system = OsFileSystem::default();
+    let project_root = "";
+
+    request_api
+      .expect_invalidate_on_file_update()
+      .times(2)
+      .withf(|p| p.to_str().unwrap() == "path1" || p.to_str().unwrap() == "path2")
+      .returning(|_| Ok(()));
+    request_api
+      .expect_invalidate_on_file_delete()
+      .times(2)
+      .withf(|p| p.to_str().unwrap() == "path1" || p.to_str().unwrap() == "path2")
+      .returning(|_| Ok(()));
+
+    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap();
+  }
+
+  #[test]
+  fn test_run_config_request_with_invalidate_on_file_create() {
+    let config_request = ConfigRequest {
+      id: "".to_string(),
+      invalidate_on_file_change: vec![],
+      invalidate_on_config_key_change: vec![],
+      invalidate_on_file_create: vec![InternalFileCreateInvalidation {
+        file_path: Some("path1".to_string()),
+        glob: None,
+        file_name: None,
+        above_file_path: None,
+      }],
+      invalidate_on_env_change: vec![],
+      invalidate_on_option_change: vec![],
+      invalidate_on_startup: false,
+      invalidate_on_build: false,
+    };
+    // The mock will panic if it's called with no mock set
+    let mut request_api = MockRequestApi::new();
+    let file_system = OsFileSystem::default();
+    let project_root = "";
+
+    request_api
+      .expect_invalidate_on_file_create()
+      .times(1)
+      .withf(|p| {
+        *p == InternalFileCreateInvalidation {
+          file_path: Some("path1".to_string()),
+          glob: None,
+          file_name: None,
+          above_file_path: None,
+        }
+      })
+      .returning(|_| Ok(()));
+
+    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap();
+  }
+
+  #[test]
+  fn test_run_config_request_with_invalidate_on_env_change() {
+    let config_request = ConfigRequest {
+      id: "".to_string(),
+      invalidate_on_file_change: vec![],
+      invalidate_on_config_key_change: vec![],
+      invalidate_on_file_create: vec![],
+      invalidate_on_env_change: vec!["env1".to_string()],
+      invalidate_on_option_change: vec![],
+      invalidate_on_startup: false,
+      invalidate_on_build: false,
+    };
+    // The mock will panic if it's called with no mock set
+    let mut request_api = MockRequestApi::new();
+    let file_system = OsFileSystem::default();
+    let project_root = "";
+
+    request_api
+      .expect_invalidate_on_env_change()
+      .times(1)
+      .withf(|p| p == "env1")
+      .returning(|_| Ok(()));
+
+    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap();
+  }
+
+  #[test]
+  fn test_run_config_request_with_invalidate_on_option_change() {
+    let config_request = ConfigRequest {
+      id: "".to_string(),
+      invalidate_on_file_change: vec![],
+      invalidate_on_config_key_change: vec![],
+      invalidate_on_file_create: vec![],
+      invalidate_on_env_change: vec![],
+      invalidate_on_option_change: vec!["option1".to_string()],
+      invalidate_on_startup: false,
+      invalidate_on_build: false,
+    };
+    // The mock will panic if it's called with no mock set
+    let mut request_api = MockRequestApi::new();
+    let file_system = OsFileSystem::default();
+    let project_root = "";
+
+    request_api
+      .expect_invalidate_on_option_change()
+      .times(1)
+      .withf(|p| p == "option1")
+      .returning(|_| Ok(()));
+
+    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap();
+  }
+
+  #[test]
+  fn test_run_config_request_with_invalidate_on_startup() {
+    let config_request = ConfigRequest {
+      id: "".to_string(),
+      invalidate_on_file_change: vec![],
+      invalidate_on_config_key_change: vec![],
+      invalidate_on_file_create: vec![],
+      invalidate_on_env_change: vec![],
+      invalidate_on_option_change: vec![],
+      invalidate_on_startup: true,
+      invalidate_on_build: false,
+    };
+    // The mock will panic if it's called with no mock set
+    let mut request_api = MockRequestApi::new();
+    let file_system = OsFileSystem::default();
+    let project_root = "";
+
+    request_api
+      .expect_invalidate_on_startup()
+      .times(1)
+      .returning(|| Ok(()));
+
+    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap();
+  }
+
+  #[test]
+  fn test_run_config_request_with_invalidate_on_build() {
+    let config_request = ConfigRequest {
+      id: "".to_string(),
+      invalidate_on_file_change: vec![],
+      invalidate_on_config_key_change: vec![],
+      invalidate_on_file_create: vec![],
+      invalidate_on_env_change: vec![],
+      invalidate_on_option_change: vec![],
+      invalidate_on_startup: false,
+      invalidate_on_build: true,
+    };
+    // The mock will panic if it's called with no mock set
+    let mut request_api = MockRequestApi::new();
+    let file_system = OsFileSystem::default();
+    let project_root = "";
+
+    request_api
+      .expect_invalidate_on_build()
+      .times(1)
+      .returning(|| Ok(()));
+
+    run_config_request(&config_request, &request_api, &file_system, project_root).unwrap();
+  }
+
+  #[test]
+  fn test_read_json_config() {
+    let mut file_system = InMemoryFileSystem::default();
+    let config_path = Path::new("/config.json");
+    file_system.write_file(config_path, String::from(r#"{"key": "value"}"#));
+
+    let contents = read_config(&file_system, config_path).unwrap();
+    assert_eq!(contents, serde_json::json!({"key": "value"}));
+  }
+
+  #[test]
+  fn test_read_toml_config() {
+    let mut file_system = InMemoryFileSystem::default();
+    let config_path = Path::new("/config.toml");
+    file_system.write_file(config_path, String::from(r#"key = "value""#));
+
+    let contents = read_config(&file_system, config_path).unwrap();
+    assert_eq!(contents, serde_json::json!({"key": "value"}));
+  }
+
+  #[test]
+  fn test_hash_serde_value() {
+    let value = serde_json::json!({"key": "value", "key2": "value2"});
+    let hash = hash_serde_value(&value).unwrap();
+    assert_eq!(hash, "17666ca1af93de5d".to_string());
   }
 }

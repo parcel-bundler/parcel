@@ -2,7 +2,6 @@ use mockall::automock;
 use std::path::Path;
 
 use crate::core::requests::config_request::InternalFileCreateInvalidation;
-use napi::Env;
 
 pub mod js_request_api;
 
