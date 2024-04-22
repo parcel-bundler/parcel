@@ -8,6 +8,7 @@ import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
 import {deserializeRaw} from './serializer';
+import {AssetFlags} from './types';
 
 export default class CommittedAsset {
   value: Asset;
@@ -27,7 +28,7 @@ export default class CommittedAsset {
   getContent(): Blob | Promise<Buffer | string> {
     if (this.content == null) {
       if (this.value.contentKey != null) {
-        if (this.value.isLargeBlob) {
+        if (this.value.flags & AssetFlags.LARGE_BLOB) {
           return this.options.cache.getStream(this.value.contentKey);
         } else {
           return this.options.cache.getBlob(this.value.contentKey);

@@ -9,6 +9,15 @@ import {hashString} from '@parcel/rust';
 import {toInternalSourceLocation} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
+import {
+  EnvironmentContext,
+  EnvironmentContextNames,
+  EnvironmentFlags,
+  OutputFormat,
+  OutputFormatNames,
+  SourceType,
+  SourceTypeNames,
+} from './types';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -94,16 +103,19 @@ export function createEnvironment({
     }
   }
 
+  let flags =
+    (isLibrary ? EnvironmentFlags.IS_LIBRARY : 0) |
+    (shouldOptimize ? EnvironmentFlags.SHOULD_OPTIMIZE : 0) |
+    (shouldScopeHoist ? EnvironmentFlags.SHOULD_SCOPE_HOIST : 0);
+
   let res: Environment = {
     id: '',
-    context,
+    context: EnvironmentContext[context],
     engines,
     includeNodeModules,
-    outputFormat,
-    sourceType,
-    isLibrary,
-    shouldOptimize,
-    shouldScopeHoist,
+    outputFormat: OutputFormat[outputFormat],
+    sourceType: SourceType[sourceType],
+    flags,
     sourceMap,
     loc,
   };
@@ -129,6 +141,12 @@ export function mergeEnvironments(
   // $FlowFixMe - ignore the `id` that is already on a
   return createEnvironment({
     ...a,
+    context: EnvironmentContextNames[a.context],
+    outputFormat: OutputFormatNames[a.outputFormat],
+    sourceType: SourceTypeNames[a.sourceType],
+    isLibrary: Boolean(a.flags & EnvironmentFlags.IS_LIBRARY),
+    shouldOptimize: Boolean(a.flags & EnvironmentFlags.SHOULD_OPTIMIZE),
+    shouldScopeHoist: Boolean(a.flags & EnvironmentFlags.SHOULD_SCOPE_HOIST),
     ...b,
     loc: b.loc ? toInternalSourceLocation(projectRoot, b.loc) : a.loc,
   });
@@ -142,9 +160,7 @@ function getEnvironmentHash(env: Environment): string {
       env.includeNodeModules,
       env.outputFormat,
       env.sourceType,
-      env.isLibrary,
-      env.shouldOptimize,
-      env.shouldScopeHoist,
+      env.flags,
       env.sourceMap,
     ]),
   );
