@@ -20,7 +20,7 @@
     "watch": "tsc -watch -p ./"
   },
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "devDependencies": {
     "typescript": ">=3.0.0"

@@ -21,7 +21,7 @@
     "lint": "eslint src --ext ts"
   },
   "engines": {
-    "node": ">= 12.0.0",
+    "node": ">= 16.0.0",
     "parcel": "^2.12.0"
   },
   "dependencies": {

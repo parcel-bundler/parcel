@@ -6438,6 +6438,53 @@ describe('javascript', function () {
     }
   });
 
+  it(`should also fail on recoverable parse errors`, async () => {
+    await fsFixture(overlayFS, __dirname)`
+      js-recoverable-parse-errors
+        index.js:
+          1 / {2}`;
+
+    const fixture = path.join(
+      __dirname,
+      '/js-recoverable-parse-errors/index.js',
+    );
+
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          inputFS: overlayFS,
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-js',
+            message: 'Unexpected token `}`. Expected identifier',
+            hints: null,
+            codeFrames: [
+              {
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      column: 7,
+                      line: 1,
+                    },
+                    end: {
+                      column: 7,
+                      line: 1,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+  });
+
   for (let shouldScopeHoist of [false, true]) {
     let options = {
       defaultTargetOptions: {

@@ -1,5 +1,6 @@
 {
   "name": "@parcel/cache",
+  "description": "Interface for defining caches and file-system, IDB and LMDB implementations.",
   "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
@@ -17,7 +18,7 @@
   "source": "src/index.js",
   "types": "index.d.ts",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "scripts": {
     "build-ts": "mkdir -p lib && flow-to-ts src/types.js > lib/types.d.ts",

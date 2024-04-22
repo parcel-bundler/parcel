@@ -22,7 +22,7 @@
     "dev:prepare": "rimraf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
   },
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "dependencies": {
     "@parcel/config-default": "2.12.0",

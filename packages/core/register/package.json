@@ -17,7 +17,7 @@
   "main": "lib/register.js",
   "source": "src/register.js",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "scripts": {
     "run-example": "node ./example/index.js",
