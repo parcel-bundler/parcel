@@ -33,8 +33,8 @@ module.exports = new Optimizer<empty, BundleConfig>({
     bundleGraph.traverse(node => {
       if (node.type === 'asset' && node.value.sideEffects) {
         const publicId = bundleGraph.getAssetPublicId(node.value);
-        let sideEffectsMap = nullthrows(assetPublicIdsWithSideEffects);
-        sideEffectsMap.add(publicId);
+        let sideEffectsSet = nullthrows(assetPublicIdsWithSideEffects);
+        sideEffectsSet.add(publicId);
       }
     });
 
