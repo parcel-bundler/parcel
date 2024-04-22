@@ -78,6 +78,10 @@ jobs:
       image: docker.io/mischnic/centos7-node16
     steps:
       - uses: actions/checkout@v3
+      - name: Install native dependencies
+        run: |
+          sudo apt update
+          sudo apt install libssl-dev -y
       - name: Install yarn
         run: npm install --global yarn@1
       - name: Install Rust
@@ -126,7 +130,7 @@ jobs:
       - name: Install cross compile toolchains
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev -y
       - uses: bahmutov/npm-install@v1.8.35
       - uses: Swatinem/rust-cache@v2
         if: ${{ inputs.type != 'latest' }}
