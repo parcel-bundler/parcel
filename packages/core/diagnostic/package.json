@@ -1,6 +1,7 @@
 {
   "name": "@parcel/diagnostic",
   "version": "2.12.0",
+  "description": "Types and utilities for printing source-code located errors, warning and information messages.",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
