@@ -158,7 +158,7 @@ struct RequestOptions {}
 mod test {
   use parcel_resolver::OsFileSystem;
 
-  use crate::core::filesystem::test_utils::InMemoryFileSystem;
+  use crate::core::filesystem::in_memory_file_system::InMemoryFileSystem;
   use crate::core::requests::config_request::run_config_request;
   use crate::core::requests::request_api::MockRequestApi;
 

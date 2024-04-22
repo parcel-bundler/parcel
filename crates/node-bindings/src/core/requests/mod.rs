@@ -4,7 +4,7 @@ use napi::bindgen_prelude::FromNapiValue;
 use napi::{Env, JsFunction, JsObject, JsString, JsUnknown, NapiRaw};
 use napi_derive::napi;
 
-use crate::core::filesystem::JSDelegateFileSystem;
+use crate::core::filesystem::js_delegate_file_system::JSDelegateFileSystem;
 use crate::core::requests::config_request::ConfigRequest;
 use crate::core::requests::request_api::js_request_api::JSRequestApi;
 
