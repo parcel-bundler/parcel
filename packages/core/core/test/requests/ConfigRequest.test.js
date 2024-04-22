@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import WorkerFarm from '@parcel/workers';
+import path from 'path';
 import assert from 'assert';
 import sinon from 'sinon';
 import {DEFAULT_FEATURE_FLAGS, setFeatureFlags} from '@parcel/feature-flags';
@@ -27,7 +28,7 @@ async function assertThrows(block: () => Promise<void>) {
 }
 
 describe('ConfigRequest tests', () => {
-  const projectRoot = '/project_root/';
+  const projectRoot = 'project_root';
   let fs = new MemoryFS(
     new WorkerFarm({
       workerPath: require.resolve('../../src/worker.js'),
@@ -291,7 +292,10 @@ describe('ConfigRequest tests', () => {
           invalidateOnConfigKeyChange: [
             {
               configKey: 'key1',
-              filePath: toProjectPath(projectRoot, '/project_root/config.json'),
+              filePath: toProjectPath(
+                projectRoot,
+                path.join('project_root', 'config.json'),
+              ),
             },
           ],
         });
@@ -300,14 +304,14 @@ describe('ConfigRequest tests', () => {
           const fsCall = mockCast(fs).readFileSync.getCall(0);
           assert.deepEqual(
             fsCall?.args,
-            ['/project_root/config.json'],
+            [path.join('project_root', 'config.json')],
             'readFile was called',
           );
         } else {
           const fsCall = mockCast(fs).readFile.getCall(0);
           assert.deepEqual(
             fsCall?.args,
-            ['/project_root/config.json', 'utf8'],
+            [path.join('project_root', 'config.json'), 'utf8'],
             'readFile was called',
           );
         }
