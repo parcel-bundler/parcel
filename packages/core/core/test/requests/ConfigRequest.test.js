@@ -1,24 +1,25 @@
 // @flow strict-local
 
-import {setFeatureFlags, DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+import WorkerFarm from '@parcel/workers';
 import assert from 'assert';
-
-import {runConfigRequest} from '../../src/requests/ConfigRequest';
-import type {RunAPI} from '../../src/RequestTracker';
 import sinon from 'sinon';
-import {toProjectPath} from '../../src/projectPath';
-import type {ConfigRequest} from '../../src/requests/ConfigRequest';
+import {DEFAULT_FEATURE_FLAGS, setFeatureFlags} from '@parcel/feature-flags';
 import {MemoryFS} from '@parcel/fs';
 import {hashString} from '@parcel/rust';
+
+import type {ConfigRequest} from '../../src/requests/ConfigRequest';
+import type {RunAPI} from '../../src/RequestTracker';
+import {runConfigRequest} from '../../src/requests/ConfigRequest';
+import {toProjectPath} from '../../src/projectPath';
 
 // $FlowFixMe unclear-type forgive me
 const mockCast = (f: any): any => f;
 
 describe('ConfigRequest tests', () => {
   const projectRoot = '/project_root/';
-  let fs = new MemoryFS();
+  let fs = new MemoryFS(new WorkerFarm());
   beforeEach(() => {
-    fs = new MemoryFS();
+    fs = new MemoryFS(new WorkerFarm());
   });
 
   const getMockRunApi = (
@@ -287,14 +288,14 @@ describe('ConfigRequest tests', () => {
         });
 
         if (backend === 'rust') {
-          const fsCall = mockCast(fs.readFileSync).getCall(0);
+          const fsCall = mockCast(fs).readFileSync.getCall(0);
           assert.deepEqual(
             fsCall?.args,
             ['/project_root/config.json'],
             'readFile was called',
           );
         } else {
-          const fsCall = mockCast(fs.readFile).getCall(0);
+          const fsCall = mockCast(fs).readFile.getCall(0);
           assert.deepEqual(
             fsCall?.args,
             ['/project_root/config.json', 'utf8'],
