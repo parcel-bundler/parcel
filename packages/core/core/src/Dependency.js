@@ -15,6 +15,7 @@ import {
   Priority,
   BundleBehavior,
   ExportsCondition,
+  DependencyFlags,
 } from './types';
 
 import {toInternalSourceLocation} from './utils';
@@ -63,20 +64,34 @@ export function createDependency(
         (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
     );
 
+  let {
+    placeholder,
+    promiseSymbol,
+    importAttributes,
+    isESM,
+    shouldWrap,
+    webworker,
+    ...meta
+  } = opts.meta ?? {};
+
   let dep: Dependency = {
     id,
     specifier: opts.specifier,
     specifierType: SpecifierType[opts.specifierType],
     priority: Priority[opts.priority ?? 'sync'],
-    needsStableName: opts.needsStableName ?? false,
     bundleBehavior: opts.bundleBehavior
       ? BundleBehavior[opts.bundleBehavior]
-      : null,
-    isEntry: opts.isEntry ?? false,
-    isOptional: opts.isOptional ?? false,
+      : 255,
+    flags:
+      (opts.needsStableName ? DependencyFlags.NEEDS_STABLE_NAME : 0) |
+      (opts.isEntry ? DependencyFlags.ENTRY : 0) |
+      (opts.isOptional ? DependencyFlags.OPTIONAL : 0) |
+      (isESM ? DependencyFlags.IS_ESM : 0) |
+      (shouldWrap ? DependencyFlags.SHOULD_WRAP : 0) |
+      (webworker ? DependencyFlags.IS_WEBWORKER : 0),
     loc: toInternalSourceLocation(projectRoot, opts.loc),
     env: opts.env,
-    meta: opts.meta || {},
+    meta,
     target: opts.target,
     sourceAssetId: opts.sourceAssetId,
     sourcePath: toProjectPath(projectRoot, opts.sourcePath),
@@ -98,6 +113,21 @@ export function createDependency(
     pipeline: opts.pipeline,
   };
 
+  if (typeof placeholder === 'string') {
+    dep.placeholder = placeholder;
+  }
+
+  if (typeof promiseSymbol === 'string') {
+    dep.promiseSymbol = promiseSymbol;
+  }
+
+  if (importAttributes && typeof importAttributes === 'object') {
+    dep.importAttributes = Object.entries(importAttributes).map(([k, v]) => ({
+      key: k,
+      value: (v: any),
+    }));
+  }
+
   if (opts.packageConditions) {
     convertConditions(opts.packageConditions, dep);
   }
@@ -106,7 +136,7 @@ export function createDependency(
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {meta, symbols, needsStableName, isEntry, isOptional, ...other} = b;
+  let {meta, symbols, flags, ...other} = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
   if (a.symbols && symbols) {
@@ -114,9 +144,15 @@ export function mergeDependencies(a: Dependency, b: Dependency): void {
       a.symbols.set(k, v);
     }
   }
-  if (needsStableName) a.needsStableName = true;
-  if (isEntry) a.isEntry = true;
-  if (!isOptional) a.isOptional = false;
+  if (flags & DependencyFlags.NEEDS_STABLE_NAME) {
+    a.flags |= DependencyFlags.NEEDS_STABLE_NAME;
+  }
+  if (flags & DependencyFlags.ENTRY) {
+    a.flags |= DependencyFlags.ENTRY;
+  }
+  if (!(flags & DependencyFlags.OPTIONAL)) {
+    a.flags &= ~DependencyFlags.OPTIONAL;
+  }
 }
 
 function convertConditions(conditions: Array<string>, dep: Dependency) {

@@ -11,7 +11,7 @@ import type {
   BundleBehavior,
 } from '@parcel/types';
 import type {Dependency as InternalDependency, ParcelOptions} from '../types';
-import {BundleBehaviorNames} from '../types';
+import {BundleBehaviorNames, DependencyFlags} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -88,21 +88,20 @@ export default class Dependency implements IDependency {
   }
 
   get needsStableName(): boolean {
-    return this.#dep.needsStableName;
+    return Boolean(this.#dep.flags & DependencyFlags.NEEDS_STABLE_NAME);
   }
 
   get bundleBehavior(): ?BundleBehavior {
     let bundleBehavior = this.#dep.bundleBehavior;
-    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
+    return bundleBehavior == 255 ? null : BundleBehaviorNames[bundleBehavior];
   }
 
   get isEntry(): boolean {
-    // return this.#dep.isEntry;
-    return Boolean(this.#dep.flags & 1)
+    return Boolean(this.#dep.flags & DependencyFlags.ENTRY);
   }
 
   get isOptional(): boolean {
-    return this.#dep.isOptional;
+    return Boolean(this.#dep.flags & DependencyFlags.OPTIONAL);
   }
 
   get loc(): ?SourceLocation {
@@ -131,7 +130,67 @@ export default class Dependency implements IDependency {
   }
 
   get meta(): Meta {
-    return this.#dep.meta;
+    return new Proxy(this.#dep.meta, {
+      get: (target, prop) => {
+        let flags = this.#dep.flags;
+        switch (prop) {
+          case 'isESM':
+            return Boolean(flags & DependencyFlags.IS_ESM);
+          case 'shouldWrap':
+            return Boolean(flags & DependencyFlags.SHOULD_WRAP);
+          case 'webworker':
+            return Boolean(flags & DependencyFlags.IS_WEBWORKER);
+          case 'placeholder':
+            return this.#dep.placeholder;
+          case 'promiseSymbol':
+            return this.#dep.promiseSymbol;
+          case 'importAttributes':
+            if (!this.#dep.importAttributes) {
+              return {};
+            }
+            return Object.fromEntries(
+              [...this.#dep.importAttributes].map(v => [v.key, v.value]),
+            );
+          default:
+            return target[prop];
+        }
+      },
+      set: (target, prop, value) => {
+        let flag;
+        switch (prop) {
+          case 'isESM':
+            flag = DependencyFlags.IS_ESM;
+            break;
+          case 'shouldWrap':
+            flag = DependencyFlags.SHOULD_WRAP;
+            break;
+          case 'webworker':
+            flag = DependencyFlags.IS_WEBWORKER;
+            break;
+          case 'placeholder':
+            this.#dep.placeholder = value;
+            return true;
+          case 'promiseSymbol':
+            this.#dep.promiseSymbol = value;
+            return true;
+          case 'importAttributes':
+            this.#dep.importAttributes = Object.entries(value).map(
+              ([k, v]) => ({key: k, value: (v: any)}),
+            );
+            return true;
+          default:
+            target[prop] = value;
+            return true;
+        }
+
+        if (value) {
+          this.#dep.flags |= flag;
+        } else {
+          this.#dep.flags &= ~flag;
+        }
+        return true;
+      },
+    });
   }
 
   get symbols(): IMutableDependencySymbols {

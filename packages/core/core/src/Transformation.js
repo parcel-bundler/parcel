@@ -70,6 +70,7 @@ import {
 import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import invariant from 'assert';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {AssetFlags} from './types';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -176,7 +177,7 @@ export default class Transformation {
 
     let pipeline = await this.loadPipeline(
       this.request.filePath,
-      asset.value.isSource,
+      Boolean(asset.value.flags & AssetFlags.IS_SOURCE),
       asset.value.pipeline,
     );
     let assets, error;
@@ -290,7 +291,7 @@ export default class Transformation {
       if (asset.value.type !== initialType) {
         nextPipeline = await this.loadNextPipeline({
           filePath: initialAsset.value.filePath,
-          isSource: asset.value.isSource,
+          isSource: Boolean(asset.value.flags & AssetFlags.IS_SOURCE),
           newType: asset.value.type,
           newPipeline: asset.value.pipeline,
           currentPipeline: pipeline,
@@ -363,7 +364,7 @@ export default class Transformation {
           asset.value.type !== initialType &&
           (await this.loadNextPipeline({
             filePath: initialAsset.value.filePath,
-            isSource: asset.value.isSource,
+            isSource: Boolean(asset.value.flags & AssetFlags.IS_SOURCE),
             newType: asset.value.type,
             newPipeline: asset.value.pipeline,
             currentPipeline: pipeline,
