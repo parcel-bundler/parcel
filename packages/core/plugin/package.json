@@ -17,7 +17,7 @@
   "source": "src/PluginAPI.js",
   "types": "src/PluginAPI.d.ts",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "scripts": {
     "check-ts": "tsc --noEmit src/PluginAPI.d.ts"

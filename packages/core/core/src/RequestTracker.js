@@ -29,7 +29,7 @@ import {
 import {hashString} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
-import {assertSignalNotAborted, hashFromOption} from './utils';
+import {BuildAbortError, assertSignalNotAborted, hashFromOption} from './utils';
 import {
   type ProjectPath,
   fromProjectPathRelative,
@@ -164,6 +164,7 @@ export const requestTypes = {
 };
 
 type RequestType = $Values<typeof requestTypes>;
+type RequestTypeName = $Keys<typeof requestTypes>;
 
 type RequestGraphNode =
   | RequestNode
@@ -1027,6 +1028,7 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
+  stats: Map<RequestType, number> = new Map();
 
   constructor({
     graph,
@@ -1164,7 +1166,8 @@ export default class RequestTracker {
     request: Request<TInput, TResult>,
     opts?: ?RunRequestOpts,
   ): Promise<TResult> {
-    let requestId = this.graph.hasContentKey(request.id)
+    let hasKey = this.graph.hasContentKey(request.id);
+    let requestId = hasKey
       ? this.graph.getNodeIdByContentKey(request.id)
       : undefined;
     let hasValidResult = requestId != null && this.hasValidResult(requestId);
@@ -1205,6 +1208,9 @@ export default class RequestTracker {
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
+
+      this.stats.set(request.type, (this.stats.get(request.type) ?? 0) + 1);
+
       let result = await request.run({
         input: request.input,
         api,
@@ -1219,12 +1225,46 @@ export default class RequestTracker {
       deferred.resolve(true);
       return result;
     } catch (err) {
+      if (
+        !(err instanceof BuildAbortError) &&
+        request.type === requestTypes.dev_dep_request
+      ) {
+        logger.verbose({
+          origin: '@parcel/core',
+          message: `Failed DevDepRequest`,
+          meta: {
+            trackableEvent: 'failed_dev_dep_request',
+            hasKey,
+            hasValidResult,
+          },
+        });
+      }
+
       this.rejectRequest(requestNodeId);
       deferred.resolve(false);
       throw err;
     } finally {
       this.graph.replaceSubrequests(requestNodeId, [...subRequestContentKeys]);
     }
+  }
+
+  flushStats(): {[requestType: string]: number} {
+    let requestTypeEntries = {};
+
+    for (let key of (Object.keys(requestTypes): RequestTypeName[])) {
+      requestTypeEntries[requestTypes[key]] = key;
+    }
+
+    let formattedStats = {};
+
+    for (let [requestType, count] of this.stats.entries()) {
+      let requestTypeName = requestTypeEntries[requestType];
+      formattedStats[requestTypeName] = count;
+    }
+
+    this.stats = new Map();
+
+    return formattedStats;
   }
 
   createAPI<TResult>(
@@ -1405,7 +1445,7 @@ export default class RequestTracker {
     queue
       .add(() =>
         this.options.inputFS.writeSnapshot(
-          this.options.projectRoot,
+          this.options.watchDir,
           snapshotPath,
           opts,
         ),

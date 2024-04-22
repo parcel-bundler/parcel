@@ -46,7 +46,7 @@ import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initRust} from '@parcel/rust';
+import {init as initRust, initSentry, closeSentry} from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
@@ -66,7 +66,7 @@ export default class Parcel {
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
   #disposable /*: Disposable */;
-  #initialOptions /*: InitialParcelOptions*/;
+  #initialOptions /*: InitialParcelOptions */;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
   #optionsRef /*: SharedReference */;
@@ -101,6 +101,15 @@ export default class Parcel {
 
     await initSourcemaps;
     await initRust?.();
+    try {
+      initSentry?.();
+      process.on('exit', () => {
+        closeSentry?.();
+      });
+    } catch (e) {
+      // Fallthrough
+      logger.warn(e);
+    }
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
@@ -360,6 +369,7 @@ export default class Parcel {
               bundleGraph: event.bundleGraph,
               buildTime: 0,
               requestBundle: event.requestBundle,
+              unstable_requestStats: {},
             };
           }
 
@@ -383,6 +393,7 @@ export default class Parcel {
 
           return result;
         },
+        unstable_requestStats: this.#requestTracker.flushStats(),
       };
 
       await this.#reporterRunner.report(event);
@@ -400,6 +411,7 @@ export default class Parcel {
       let event = {
         type: 'buildFailure',
         diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic],
+        unstable_requestStats: this.#requestTracker.flushStats(),
       };
 
       await this.#reporterRunner.report(event);

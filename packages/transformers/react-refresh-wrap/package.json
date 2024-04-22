@@ -16,12 +16,12 @@
   "main": "lib/ReactRefreshWrapTransformer.js",
   "source": "src/ReactRefreshWrapTransformer.js",
   "engines": {
-    "node": ">= 12.0.0",
+    "node": ">= 16.0.0",
     "parcel": "^2.12.0"
   },
   "dependencies": {
     "@parcel/plugin": "2.12.0",
     "@parcel/utils": "2.12.0",
-    "react-refresh": "^0.9.0"
+    "react-refresh": ">=0.9 <=0.14"
   }
 }

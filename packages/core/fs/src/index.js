@@ -1,16 +1,16 @@
 // @flow strict-local
-import type {FileSystem} from './types';
-import type {FilePath} from '@parcel/types';
+import type {FilePath, FileSystem, FileOptions} from '@parcel/types-internal';
 import type {Readable, Writable} from 'stream';
 
 import path from 'path';
 import stream from 'stream';
 import {promisify} from 'util';
 
-export type * from './types';
 export * from './NodeFS';
 export * from './MemoryFS';
 export * from './OverlayFS';
+
+export type {FileSystem, FileOptions};
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,

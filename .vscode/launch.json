@@ -5,6 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Run Integration Tests (lldb)",
+      "args": ["${workspaceFolder}/node_modules/.bin/_mocha"],
+      "cwd": "${workspaceFolder}/packages/core/integration-tests",
+      "program": "node",
+      "request": "launch",
+      "sourceLanguages": ["rust"],
+      "type": "lldb"
+    },
+    {
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}/packages/utils/parcelforvscode"
       ],
