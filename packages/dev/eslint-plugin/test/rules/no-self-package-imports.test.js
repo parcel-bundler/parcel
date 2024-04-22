@@ -9,7 +9,7 @@ const message =
 const filename = __filename;
 
 new RuleTester({
-  parser: '@babel/eslint-parser',
+  parser: require.resolve('@babel/eslint-parser'),
   parserOptions: {ecmaVersion: 2018, sourceType: 'module'},
 }).run('no-self-package-imports', rule, {
   valid: [
