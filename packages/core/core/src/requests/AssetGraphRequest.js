@@ -23,7 +23,7 @@ import nullthrows from 'nullthrows';
 import {PromiseQueue, setEqual} from '@parcel/utils';
 import {hashString} from '@parcel/rust';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {Priority} from '../types';
+import {DependencyFlags, Priority} from '../types';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
@@ -380,7 +380,11 @@ export class AssetGraphBuilder {
         } else if (!node.requested) {
           let isAsyncChild = this.assetGraph
             .getIncomingDependencies(node.value)
-            .every(dep => dep.isEntry || dep.priority !== Priority.sync);
+            .every(
+              dep =>
+                dep.flags & DependencyFlags.ENTRY ||
+                dep.priority !== Priority.sync,
+            );
           if (isAsyncChild) {
             node.requested = !isNodeLazy;
           } else {

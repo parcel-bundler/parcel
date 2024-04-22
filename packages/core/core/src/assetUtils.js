@@ -37,7 +37,7 @@ import {
   fromProjectPathRelative,
 } from './projectPath';
 import {hashString} from '@parcel/rust';
-import {BundleBehavior as BundleBehaviorMap} from './types';
+import {AssetFlags, BundleBehavior as BundleBehaviorMap} from './types';
 import {PluginTracer} from '@parcel/profiler';
 
 type AssetOptions = {|
@@ -91,6 +91,15 @@ export function createAsset(
   projectRoot: FilePath,
   options: AssetOptions,
 ): Asset {
+  let {
+    shouldWrap,
+    hasCJSExports,
+    staticExports,
+    isConstantModule,
+    has_node_replacements,
+    ...meta
+  } = options.meta ?? {};
+
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
@@ -98,19 +107,28 @@ export function createAsset(
     query: options.query,
     bundleBehavior: options.bundleBehavior
       ? BundleBehaviorMap[options.bundleBehavior]
-      : null,
-    isBundleSplittable: options.isBundleSplittable ?? true,
+      : 255,
+    flags:
+      (options.isBundleSplittable ?? true
+        ? AssetFlags.IS_BUNDLE_SPLITTABLE
+        : 0) |
+      (options.isSource ? AssetFlags.IS_SOURCE : 0) |
+      (options.sideEffects ?? true ? AssetFlags.SIDE_EFFECTS : 0) |
+      (shouldWrap === true ? AssetFlags.SHOULD_WRAP : 0) |
+      (hasCJSExports === true ? AssetFlags.HAS_CJS_EXPORTS : 0) |
+      (staticExports === true ? AssetFlags.STATIC_EXPORTS : 0) |
+      (isConstantModule === true ? AssetFlags.IS_CONSTANT_MODULE : 0) |
+      (has_node_replacements === true ? AssetFlags.HAS_NODE_REPLACEMENTS : 0),
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
     astKey: options.astKey,
     astGenerator: options.astGenerator,
     dependencies: options.dependencies || new Map(),
-    isSource: options.isSource,
     outputHash: options.outputHash,
     pipeline: options.pipeline,
     env: options.env,
-    meta: options.meta || {},
+    meta,
     stats: options.stats,
     symbols:
       options.symbols &&
@@ -124,7 +142,6 @@ export function createAsset(
           },
         ]),
       ),
-    sideEffects: options.sideEffects ?? true,
     uniqueKey: options.uniqueKey,
     plugin: options.plugin,
     configPath: options.configPath,

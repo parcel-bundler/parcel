@@ -49,6 +49,7 @@ import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 import {requestTypes} from '../RequestTracker';
+import {EnvironmentContextNames, EnvironmentFlags} from '../types';
 
 type RunOpts<TResult> = {|
   input: Entry,
@@ -338,7 +339,9 @@ export class TargetResolver {
             },
           });
         }
-        if (!BROWSER_ENVS.has(targets[0].env.context)) {
+        if (
+          !BROWSER_ENVS.has(EnvironmentContextNames[targets[0].env.context])
+        ) {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
@@ -1606,15 +1609,15 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
       )}
              **Context**: ${target.env.context} ${format(info.context)}
              **Engines**: ${engines || ''} ${format(info.engines)}
-        **Library Mode**: ${String(target.env.isLibrary)} ${format(
-        info.isLibrary,
-      )}
+        **Library Mode**: ${String(
+          Boolean(target.env.flags & EnvironmentFlags.IS_LIBRARY),
+        )} ${format(info.isLibrary)}
 **Include Node Modules**: ${includeNodeModules} ${format(
         info.includeNodeModules,
       )}
-            **Optimize**: ${String(target.env.shouldOptimize)} ${format(
-        info.shouldOptimize,
-      )}`,
+            **Optimize**: ${String(
+              Boolean(target.env.flags & EnvironmentFlags.SHOULD_OPTIMIZE),
+            )} ${format(info.shouldOptimize)}`,
       codeFrames: target.loc
         ? [
             {
