@@ -30,6 +30,7 @@ import Dependency, {
 import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -325,5 +326,92 @@ export default class BundleGraph<TBundle: IBundle>
       this.#options.projectRoot,
       targetToInternalTarget(target),
     );
+  }
+
+  // Given a set of dependencies, return any conditions where those dependencies are either
+  // the true or false dependency for those conditions. This is currently used to work out which
+  // conditions belong to a bundle in packaging.
+  getConditionsForDependencies(deps: Array<Dependency>): Set<{|
+    key: string,
+    dependency: Dependency,
+    ifTrue: string,
+    ifFalse: string,
+  |}> {
+    // FIXME improve these lookups
+    const conditions = new Set();
+    const depIds = deps.map(dep => dep.id);
+    for (const condition of this.#graph._conditions.values()) {
+      if (
+        depIds.includes(condition.ifTrueDependency.id) ||
+        depIds.includes(condition.ifFalseDependency.id)
+      ) {
+        const [trueAsset, falseAsset] = [
+          condition.ifTrueDependency,
+          condition.ifFalseDependency,
+        ].map(dep => {
+          const resolved = nullthrows(this.#graph.resolveAsyncDependency(dep));
+          if (resolved.type === 'asset') {
+            return resolved.value;
+          } else {
+            return this.#graph.getAssetById(resolved.value.entryAssetId);
+          }
+        });
+        conditions.add({
+          key: condition.key,
+          dependency: deps.find(
+            dep => dep.id === condition.ifTrueDependency.id,
+          ),
+          ifTrue: this.#graph.getAssetPublicId(trueAsset),
+          ifFalse: this.#graph.getAssetPublicId(falseAsset),
+        });
+      }
+    }
+    // FIXME work out what's missing here.. (Flow)
+    return conditions;
+  }
+
+  // This is used to generate information for building a manifest that can
+  // be used by a webserver to understand which conditions are used by which bundles,
+  // and which bundles those conditions require depending on what they evaluate to.
+  unstable_getConditionalBundleMapping(): {|
+    [string]: {|
+      bundlesWithCondition: Array<TBundle>,
+      ifTrueBundles: Array<TBundle>,
+      ifFalseBundles: Array<TBundle>,
+    |},
+  |} {
+    let conditions = {};
+    // Convert the internal references in conditions to public API references
+    for (const cond of this.#graph._conditions.values()) {
+      let assets = Array.from(cond.assets).map(asset =>
+        nullthrows(this.getAssetById(asset.id)),
+      );
+      let bundles = new Set();
+      let ifTrueBundles = [];
+      let ifFalseBundles = [];
+      for (const asset of assets) {
+        const bundlesWithAsset = this.getBundlesWithAsset(asset);
+        for (const bundle of bundlesWithAsset) {
+          bundles.add(bundle);
+        }
+        const assetDeps = this.getDependencies(asset);
+        const depToBundles = dep => {
+          const publicDep = nullthrows(
+            assetDeps.find(assetDep => dep.id === assetDep.id),
+          );
+          const resolved = nullthrows(this.resolveAsyncDependency(publicDep));
+          invariant(resolved.type === 'bundle_group');
+          return this.getBundlesInBundleGroup(resolved.value);
+        };
+        ifTrueBundles.push(...depToBundles(cond.ifTrueDependency));
+        ifFalseBundles.push(...depToBundles(cond.ifFalseDependency));
+      }
+      conditions[cond.key] = {
+        bundlesWithCondition: Array.from(bundles),
+        ifTrueBundles,
+        ifFalseBundles,
+      };
+    }
+    return conditions;
   }
 }

@@ -34,11 +34,15 @@ import {
   isValidIdentifier,
   makeValidIdentifier,
 } from './utils';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
-const REPLACEMENT_RE =
-  /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
+//
+// For conditional bundling the only difference in this regex is adding `importCond` where we have `importAsync` etc..
+const REPLACEMENT_RE = getFeatureFlag('conditionalBundling')
+  ? /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|importCond|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g
+  : /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
@@ -535,8 +539,10 @@ export class ScopeHoistingPackager {
           return '\n';
         }
 
-        // If we matched an import, replace with the source code for the dependency.
         if (d != null) {
+          // console.log(`mdi`, m, d, i);
+
+          // If we matched an import, replace with the source code for the dependency.
           let deps = depMap.get(d);
           if (!deps) {
             return m;
@@ -698,7 +704,6 @@ ${code}
       if (!resolved) {
         continue;
       }
-
       // Handle imports from other bundles in libraries.
       if (this.bundle.env.isLibrary && !this.bundle.hasAsset(resolved)) {
         let referencedBundle = this.bundleGraph.getReferencedBundle(
@@ -718,11 +723,21 @@ ${code}
       }
 
       for (let [imported, {local}] of dep.symbols) {
+        if (dep.priority === 'conditional') {
+          // console.log(`dep.symbols:`, dep.id, resolved, imported, local);
+        }
+
         if (local === '*') {
           continue;
         }
 
         let symbol = this.getSymbolResolution(asset, resolved, imported, dep);
+        // FIXME lol
+        if (dep.priority === 'conditional' && replacements.has(local)) {
+          // console.log('\t', symbol);
+          continue;
+        }
+        // console.log(`replacement dep.symbols ${local} -> ${symbol}`);
         replacements.set(
           local,
           // If this was an internalized async asset, wrap in a Promise.resolve.
@@ -735,10 +750,18 @@ ${code}
       // Async dependencies need a namespace object even if all used symbols were statically analyzed.
       // This is recorded in the promiseSymbol meta property set by the transformer rather than in
       // symbols so that we don't mark all symbols as used.
-      if (dep.priority === 'lazy' && dep.meta.promiseSymbol) {
+      if (
+        (dep.priority === 'lazy' || dep.priority === 'conditional') &&
+        dep.meta.promiseSymbol
+      ) {
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
         let symbol = this.getSymbolResolution(asset, resolved, '*', dep);
+        // console.log(`replacement promiseSymbol ${promiseSymbol} -> ${symbol}`);
+        // FIXME lol
+        if (dep.priority === 'conditional' && replacements.has(promiseSymbol)) {
+          continue;
+        }
         replacements.set(
           promiseSymbol,
           asyncResolution?.type === 'asset'
@@ -800,6 +823,7 @@ ${code}
       // If already imported, just add the already renamed variable to the mapping.
       let renamed = external.get(imported);
       if (renamed && local !== '*' && replacements) {
+        // console.log(`replacement renamed ${local} -> ${renamed}`);
         replacements.set(local, renamed);
         continue;
       }
@@ -897,6 +921,7 @@ ${code}
           } else if (property) {
             replacement = this.getPropertyAccess(renamed, property);
           }
+          // console.log(`replacement at the bottom ${local} -> ${replacement}`);
           replacements.set(local, replacement);
         }
       }
@@ -930,6 +955,9 @@ ${code}
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
 
+    if (dep?.priority === 'conditional' || dep?.priority === 'lazy') {
+      debugger;
+    }
     if (
       resolvedAsset.type !== 'js' ||
       (dep && this.bundleGraph.isDependencySkipped(dep))
@@ -1340,8 +1368,10 @@ ${code}
         lines += countLines(currentHelper) - 1;
       }
     }
-
-    if (this.needsPrelude) {
+    // FIXME let's make all the bundles have the runtime with conditional bundling
+    // - we need to just make sure that _conditional bundles_ only have the runtime
+    // (as they likely get loaded before the entry bundle)
+    if (this.needsPrelude || getFeatureFlag('conditionalBundling')) {
       // Add the prelude if this is potentially the first JS bundle to load in a
       // particular context (e.g. entry scripts in HTML, workers, etc.).
       let parentBundles = this.bundleGraph.getParentBundles(this.bundle);
@@ -1352,7 +1382,8 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        this.bundle.bundleBehavior === 'isolated';
+        this.bundle.bundleBehavior === 'isolated' ||
+        getFeatureFlag('conditionalBundling');
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);

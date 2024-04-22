@@ -419,6 +419,7 @@ export default (new Transformer({
       used_env,
       has_node_replacements,
       is_constant_module,
+      conditions,
     } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
@@ -459,6 +460,7 @@ export default (new Transformer({
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
       standalone: asset.query.has('standalone'),
       inline_constants: config.inlineConstants,
+      conditional_bundling: options.featureFlags.conditionalBundling,
       callMacro: asset.isSource
         ? async (err, src, exportName, args, loc) => {
             let mod;
@@ -575,6 +577,12 @@ export default (new Transformer({
           }
         : null,
     });
+
+    asset.meta.conditions = conditions.map(c => ({
+      key: c.key,
+      ifTruePlaceholder: c.if_true_placeholder,
+      ifFalsePlaceholder: c.if_false_placeholder,
+    }));
 
     if (is_constant_module) {
       asset.meta.isConstantModule = true;
@@ -850,7 +858,12 @@ export default (new Transformer({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
-          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
+          priority:
+            dep.kind === 'DynamicImport'
+              ? 'lazy'
+              : dep.kind === 'ConditionalImport'
+              ? 'conditional'
+              : 'sync',
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,
@@ -882,6 +895,7 @@ export default (new Transformer({
           .getDependencies()
           .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
+
       for (let dep of deps.values()) {
         dep.symbols.ensure();
       }
@@ -1055,6 +1069,7 @@ export default (new Transformer({
     }
 
     asset.type = 'js';
+    // console.log("Compiled code: " + compiledCode);
     asset.setBuffer(compiledCode);
 
     if (map) {

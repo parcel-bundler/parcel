@@ -19,6 +19,7 @@ import {
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {getFeatureFlag} from '@parcel/feature-flags';
 
 // Used for as="" in preload/prefetch
 const TYPE_TO_RESOURCE_PRIORITY = {
@@ -66,6 +67,7 @@ let bundleDependencies = new WeakMap<
   NamedBundle,
   {|
     asyncDependencies: Array<Dependency>,
+    conditionalDependencies: Array<Dependency>,
     otherDependencies: Array<Dependency>,
   |},
 >();
@@ -127,7 +129,8 @@ export default (new Runtime({
       return;
     }
 
-    let {asyncDependencies, otherDependencies} = getDependencies(bundle);
+    let {asyncDependencies, conditionalDependencies, otherDependencies} =
+      getDependencies(bundle);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
@@ -183,6 +186,27 @@ export default (new Runtime({
         if (loaderRuntime != null) {
           assets.push(loaderRuntime);
         }
+      }
+    }
+
+    if (getFeatureFlag('conditionalBundling')) {
+      // For any conditions that are used in this bundle, we want to produce a runtime asset that is used to
+      // select the correct dependency that condition maps to at runtime - the conditions in the bundle will then be
+      // replaced with a reference to this asset to implement the selection.
+      const conditions = bundleGraph.getConditionsForDependencies(
+        conditionalDependencies,
+      );
+      for (const cond of conditions) {
+        const requireName = bundle.env.shouldScopeHoist
+          ? 'parcelRequire'
+          : '__parcel__require__';
+        const assetCode = `module.exports = globalThis.__conditions['${cond.key}'] ? ${requireName}('${cond.ifTrue}') : ${requireName}('${cond.ifFalse}');`;
+        assets.push({
+          filePath: path.join(__dirname, `/conditions/${cond.publicId}.js`),
+          code: assetCode,
+          dependency: cond.dependency,
+          env: {sourceType: 'module'},
+        });
       }
     }
 
@@ -299,6 +323,7 @@ export default (new Runtime({
 
 function getDependencies(bundle: NamedBundle): {|
   asyncDependencies: Array<Dependency>,
+  conditionalDependencies: Array<Dependency>,
   otherDependencies: Array<Dependency>,
 |} {
   let cachedDependencies = bundleDependencies.get(bundle);
@@ -308,6 +333,7 @@ function getDependencies(bundle: NamedBundle): {|
   } else {
     let asyncDependencies = [];
     let otherDependencies = [];
+    let conditionalDependencies = [];
     bundle.traverse(node => {
       if (node.type !== 'dependency') {
         return;
@@ -319,12 +345,18 @@ function getDependencies(bundle: NamedBundle): {|
         dependency.specifierType !== 'url'
       ) {
         asyncDependencies.push(dependency);
+      } else if (dependency.priority === 'conditional') {
+        conditionalDependencies.push(dependency);
       } else {
         otherDependencies.push(dependency);
       }
     });
-    bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
-    return {asyncDependencies, otherDependencies};
+    bundleDependencies.set(bundle, {
+      asyncDependencies,
+      conditionalDependencies,
+      otherDependencies,
+    });
+    return {asyncDependencies, conditionalDependencies, otherDependencies};
   }
 }
 

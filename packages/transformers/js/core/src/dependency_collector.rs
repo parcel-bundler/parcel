@@ -1,10 +1,10 @@
 use path_slash::PathBufExt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
+use swc_core::common::{Mark, SourceMap, Span, Spanned, DUMMY_SP};
 use swc_core::ecma::ast::{self, Callee, MemberProp};
 use swc_core::ecma::atoms::{js_word, JsWord};
 use swc_core::ecma::visit::{Fold, FoldWith};
@@ -28,6 +28,7 @@ pub enum DependencyKind {
   Import,
   Export,
   DynamicImport,
+  ConditionalImport,
   Require,
   WebWorker,
   ServiceWorker,
@@ -55,6 +56,13 @@ pub struct DependencyDescriptor {
   pub placeholder: Option<String>,
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct Condition {
+  pub key: JsWord,
+  pub if_true_placeholder: Option<JsWord>,
+  pub if_false_placeholder: Option<JsWord>,
+}
+
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
@@ -63,6 +71,7 @@ pub fn dependency_collector<'a>(
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
+  conditions: &'a mut HashSet<Condition>,
 ) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
@@ -75,6 +84,7 @@ pub fn dependency_collector<'a>(
     config,
     diagnostics,
     import_meta: None,
+    conditions,
   }
 }
 
@@ -89,6 +99,7 @@ struct DependencyCollector<'a> {
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
+  conditions: &'a mut HashSet<Condition>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -363,6 +374,13 @@ impl<'a> Fold for DependencyCollector<'a> {
       Callee::Import(_) => DependencyKind::DynamicImport,
       Callee::Expr(expr) => {
         match &**expr {
+          // Handle this here becuase we want to treat importCond like it was a native Callee::Import
+          Ident(ident)
+            if self.config.conditional_bundling
+              && ident.sym.to_string().as_str() == "importCond" =>
+          {
+            DependencyKind::ConditionalImport
+          }
           Ident(ident) => {
             // Bail if defined in scope
             if !is_unresolved(&ident, self.unresolved_mark) {
@@ -644,25 +662,29 @@ impl<'a> Fold for DependencyCollector<'a> {
           return node;
         }
 
-        let placeholder = self.add_dependency(
-          specifier,
-          span,
-          kind.clone(),
-          attributes,
-          kind == DependencyKind::Require && self.in_try,
-          self.config.source_type,
-        );
-
-        if let Some(placeholder) = placeholder {
-          let mut node = node.clone();
-          node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-            value: placeholder,
-            span,
-            raw: None,
-          })));
+        if kind == DependencyKind::ConditionalImport {
           node
         } else {
-          node
+          let placeholder = self.add_dependency(
+            specifier,
+            span,
+            kind.clone(),
+            attributes,
+            kind == DependencyKind::Require && self.in_try,
+            self.config.source_type,
+          );
+
+          if let Some(placeholder) = placeholder {
+            let mut node = node.clone();
+            node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+              value: placeholder,
+              span,
+              raw: None,
+            })));
+            node
+          } else {
+            node
+          }
         }
       } else {
         node
@@ -695,6 +717,69 @@ impl<'a> Fold for DependencyCollector<'a> {
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
       rewrite_require_specifier(node, self.unresolved_mark)
+    } else if self.config.conditional_bundling && kind == DependencyKind::ConditionalImport {
+      let mut call = node;
+      // If we're not scope hositing, then change this `importCond` to a `require`
+      if !self.config.scope_hoist {
+        call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+          "require".into(),
+          DUMMY_SP,
+        ))));
+      }
+
+      if call.args.len() != 3 {
+        // FIXME make this a diagnostic
+        panic!("importCond requires 3 arguments");
+      }
+      let mut placeholders = Vec::new();
+      // For the if_true and if_false arms of the conditional import, create a dependency for each arm
+      for arg in &call.args[1..] {
+        let specifier = match_str(&arg.expr).unwrap().0;
+        let placeholder = self.add_dependency(
+          specifier.clone(),
+          arg.span(),
+          DependencyKind::ConditionalImport,
+          None,
+          false,
+          self.config.source_type,
+        );
+        println!(
+          "Conditional specifier: {} -> {:?}",
+          specifier.clone(),
+          placeholder
+        );
+        placeholders.push(placeholder.unwrap());
+      }
+
+      // Create a condition we pass back to JS
+      let condition = Condition {
+        key: match_str(&call.args[0].expr).unwrap().0,
+        if_true_placeholder: Some(placeholders[0].clone()),
+        if_false_placeholder: Some(placeholders[1].clone()),
+      };
+      self.conditions.insert(condition);
+
+      // write out code like importCond(depIfTrue, depIfFalse) - while we use the first dep as the link to the conditions
+      // we need both deps to ensure scope hoisting can make sure both arms are treated as "used"
+      call.args[0] = ast::ExprOrSpread {
+        spread: None,
+        expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+          value: format!("{}", placeholders[0]).into(),
+          span: DUMMY_SP,
+          raw: None,
+        }))),
+      };
+      call.args[1] = ast::ExprOrSpread {
+        spread: None,
+        expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+          value: format!("{}", placeholders[1]).into(),
+          span: DUMMY_SP,
+          raw: None,
+        }))),
+      };
+      call.args.truncate(2);
+
+      call
     } else {
       node.fold_children_with(self)
     }

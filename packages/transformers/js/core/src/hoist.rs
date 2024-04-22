@@ -1,7 +1,7 @@
 use crate::collect::{Collect, Export, Import, ImportKind};
 use crate::utils::{
   get_undefined_ident, is_unresolved, match_export_name, match_export_name_ident,
-  match_property_name,
+  match_import_cond, match_property_name,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -708,6 +708,42 @@ impl<'a> Fold for Hoist<'a> {
           }
           return Expr::Ident(Ident::new(name, call.span));
         }
+
+        // FIXME add match for importCond here? Treat it similar to above..
+        if let Some((source_true, source_false)) =
+          match_import_cond(&node, self.collect.ignore_mark)
+        {
+          println!(
+            "Hoist conditional import -> {},{}",
+            source_true, source_false
+          );
+          let name: JsWord =
+            format!("${}$importCond${}", self.module_id, hash!(source_true)).into();
+          self.add_require(&source_true, ImportKind::ConditionalImport);
+          self.add_require(&source_false, ImportKind::ConditionalImport);
+          // ????
+          self
+            .dynamic_imports
+            .insert(name.clone(), source_true.clone());
+          self
+            .dynamic_imports
+            .insert(name.clone(), source_false.clone());
+          self.imported_symbols.push(ImportedSymbol {
+            source: source_true,
+            local: name.clone(),
+            imported: "*".into(),
+            loc: SourceLocation::from(&self.collect.source_map, call.span),
+            kind: ImportKind::ConditionalImport,
+          });
+          self.imported_symbols.push(ImportedSymbol {
+            source: source_false,
+            local: name.clone(),
+            imported: "*".into(),
+            loc: SourceLocation::from(&self.collect.source_map, call.span),
+            kind: ImportKind::ConditionalImport,
+          });
+          return Expr::Ident(Ident::new(name, call.span));
+        }
       }
       Expr::This(this) => {
         if !self.in_function_scope {
@@ -1000,7 +1036,9 @@ impl<'a> Hoist<'a> {
   fn add_require(&mut self, source: &JsWord, import_kind: ImportKind) {
     let src = match import_kind {
       ImportKind::Import => format!("{}:{}:{}", self.module_id, source, "esm"),
-      ImportKind::DynamicImport | ImportKind::Require => format!("{}:{}", self.module_id, source),
+      ImportKind::DynamicImport | ImportKind::Require | ImportKind::ConditionalImport => {
+        format!("{}:{}", self.module_id, source)
+      }
     };
     self
       .module_items

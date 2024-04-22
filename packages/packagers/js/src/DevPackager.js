@@ -8,6 +8,7 @@ import {
   normalizeSeparators,
 } from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
+import {getFeatureFlag} from '@parcel/feature-flags';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';

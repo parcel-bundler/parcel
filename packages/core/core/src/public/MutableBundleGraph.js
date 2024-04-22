@@ -13,6 +13,7 @@ import type {
   ParcelOptions,
   BundleGroup as InternalBundleGroup,
   BundleNode,
+  Condition,
 } from '../types';
 
 import invariant from 'assert';

@@ -1,5 +1,4 @@
 var mapping = new Map();
-
 function register(baseUrl, manifest) {
   for (var i = 0; i < manifest.length - 1; i += 2) {
     mapping.set(manifest[i], {

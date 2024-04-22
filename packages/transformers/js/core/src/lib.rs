@@ -93,6 +93,7 @@ pub struct Config {
   is_swc_helpers: bool,
   standalone: bool,
   inline_constants: bool,
+  conditional_bundling: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -109,6 +110,7 @@ pub struct TransformResult {
   used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
   is_constant_module: bool,
+  conditions: HashSet<Condition>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -434,6 +436,7 @@ pub fn transform(
                   unresolved_mark,
                   &config,
                   &mut diagnostics,
+                  &mut result.conditions,
                 ),
               );
 
