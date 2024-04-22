@@ -10,57 +10,80 @@ Have a question or feature request? Rather than opening an issue, use the [Discu
 
 Please be polite and take the time to write a well-worded question so our community members can easily assist you.
 
-## Getting started with bug fixing
+## Prerequisites
 
-In order to make it easier to get familiar with the codebase we labeled simpler issues using [Good First Issue](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Ababy%3A+Good+First+Issue%22) and [Help Wanted](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Apray%3A+Help+Wanted%22).
+Before starting make sure you have the following installed:
 
-Before starting make sure you have the following requirements installed: [git](https://git-scm.com), [Node](https://nodejs.org), [Yarn](https://yarnpkg.com) and [Rust](https://www.rust-lang.org/tools/install).
+- [git](https://git-scm.com)
+- [Node](https://nodejs.org) at LTS
+- [Yarn](https://yarnpkg.com) at v1
+- [Rust](https://www.rust-lang.org/tools/install) stable
+- [Flow](https://flow.org/en/docs/editors) IDE autocompletion and type-checking
 
-Parcel uses [Flow](https://flow.org) for type checking. If you're using an IDE, make sure to install the [Flow extension](https://flow.org/en/docs/editors/) to ensure your editor's autocomplete and type-checking works as expected.
+## Getting started
 
-The process starts by [forking](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo) the project and setup a new branch to work in. It's important that the changes are made in separated branches in order to ensure a pull request only includes the commits related to a bug or feature.
-
-Clone the forked repository locally and install the dependencies:
-
-```sh
-git clone https://github.com/USERNAME/parcel.git
-cd parcel
-yarn install
-yarn build-native
-```
-
-If you want, you can create a temporary example for debugging in the folder `packages/examples`. You can start by copying the `simple` example and try to reproduce the bug. It has everything set up for working on local changes and you can run `yarn build` to build the project. If you're re-using another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected. _Please don't commit this example._
-
-After you've figured out where the issue originated from and found a fix, try to add a test case or ask for help on how to proceed if the use case is more complex.
-
-Use `yarn test` to run all unit and integration tests. Make sure all tests pass before submitting a pull request.
-
-Use `yarn format` to make sure we keep the code format consistent.
-
-Use `yarn lint` to check for stylistic or unwanted errors.
-
-If you want to test out your change outside the monorepo, you can run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.html` (provided that you don't have any `@parcel/*` plugins installed in this project).
-
-## Notes and things to be aware of
-
-If you're just getting started to understand how the internals work, start from `/packages/core/core/src/Parcel.js`
-
-⚠️ You can set `PARCEL_WORKERS` to the number of worker processes to spawn. `PARCEL_WORKERS=0` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
-
-⚠️ When developing plugins, run with `--no-cache` (or pass `shouldDisableCache: true` to `Parcel` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
-
-You can set `PARCEL_MAX_CONCURRENT_CALLS` to change the limit of concurrent calls per worker.
+In order to make it easier to get familiar with the codebase we labeled simpler issues using [Good First Issue](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Ababy%3A+Good+First+Issue%22) and [Help Wanted](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Apray%3A+Help+Wanted%22). You can learn the internals by reading the [documentation](https://parceljs.org/docs) or by starting from `packages/core/core/src/Parcel.js`
 
 ## Pull requests
 
 For significant changes, it is recommended that you first [propose your solution](https://github.com/parcel-bundler/parcel/discussions) and gather feedback.
 
-A few things to keep in mind before submitting a pull request:
+**Before submitting a pull request,** you can follow this step by step guide:
 
-- do your best to provide relevant test cases
-- if you added an external dependency commit the updated `yarn.lock`
-- don't modify the `package.json` versioning
-- all submissions require review, please be patient
+1. [Fork](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo) the repository and setup a new branch to work in.
+
+> It's important that the changes are made in separate branches to ensure a pull request only includes the commits related to a bug or feature.
+
+2. Run `yarn` and `yarn build-native` in the repository root to install dependencies.
+3. If you fix a bug or introduce a new feature, add tests or ask for help if the use-case is more complex.
+4. Commit the `yarn.lock` file if it has changed.
+5. Check the steps used in [ci](https://github.com/parcel-bundler/parcel/blob/v2/.github/workflows/ci.yml) pass locally.
+
+```sh
+$ yarn build-ts
+$ yarn flow check
+$ yarn lint
+$ yarn test
+```
+
+⚠️ Don't modify the `package.json` versioning
+
+Once you are ready to create a pull request, provide relevant details about the change; examples; and test cases. All submissions require review, so please be patient!
+
+## Development workflow
+
+The following commands are available:
+
+- `yarn build-ts` generates the TypeScript type definitions.
+- `yarn flow check` runs the [Flow](https://flow.org) type checking.
+- `yarn format` keeps the code formatting consistent.
+- `yarn lint` checks for stylistic or unwanted errors.
+- `yarn test` runs all the unit and integration tests.
+- `yarn test:integration` runs the integration tests.
+- `yarn test:unit` runs the unit tests.
+
+### Debugging
+
+Both VSCode and CLion can be used to debug commands such as the integration test suite.
+
+- **CLion** is well supported, using default configurations for the relevant language.
+- **VSCode** users can use the JavaScript Debug Terminal or Node.js launch configuration to debug JavaScript. Rust debugging requires a [LLDB](https://lldb.llvm.org/) powered launch configuration, which is available by installing the [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb) extension.
+
+**Breakpoints not triggering?** Try passing in `PARCEL_WORKERS=0` to make all code run on the main thread, instead of in worker processes. Similarly, you can set `PARCEL_MAX_CONCURRENT_CALLS` to change the limit of concurrent calls per worker.
+
+### Plugins
+
+When developing plugins, you should disable caching with the `--no-cache` CLI or `shouldDisableCache: true` Parcel option. This will ensure you do not see stale or incomplete results.
+
+### Working from an example
+
+_Please don't commit these examples._
+
+You can create a temporary example for debugging in the folder `packages/examples`. Start by copying the `simple` example and try to reproduce the bug. It has everything setup for working on local changes and you can run `yarn build` to build the project. If you're re-using another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected.
+
+### Testing outside of the monorepo
+
+You can run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.html` provided that you don't have any `@parcel/*` plugins installed in this project.
 
 ## Releasing a new version
 
