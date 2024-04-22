@@ -15,6 +15,17 @@ import {toProjectPath} from '../../src/projectPath';
 // $FlowFixMe unclear-type forgive me
 const mockCast = (f: any): any => f;
 
+async function assertThrows(block: () => Promise<void>) {
+  let error: Error | null = null;
+  try {
+    await block();
+  } catch (e) {
+    error = e;
+  }
+  assert(error != null, 'Function finished without errors');
+  return error;
+}
+
 describe('ConfigRequest tests', () => {
   const projectRoot = '/project_root/';
   let fs = new MemoryFS(new WorkerFarm());
@@ -81,16 +92,6 @@ describe('ConfigRequest tests', () => {
       if (backend === 'rust') {
         // Adding this here mostly to prove that the rust backend is actually running on
         // this suite
-        async function assertThrows(block: () => Promise<void>) {
-          let error: Error | null = null;
-          try {
-            await block();
-          } catch (e) {
-            error = e;
-          }
-          assert(error != null, 'Function finished without errors');
-          return error;
-        }
 
         it('errors out if the options are missing projectRoot', async () => {
           const mockRunApi = getMockRunApi({
