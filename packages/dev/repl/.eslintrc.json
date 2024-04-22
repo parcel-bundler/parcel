@@ -10,7 +10,8 @@
   },
   "rules": {
     "react/jsx-no-bind": "off",
-    "no-console": "off"
+    "no-console": "off",
+    "no-use-before-define": "off"
   },
   "globals": {
     "globalThis": "readonly"

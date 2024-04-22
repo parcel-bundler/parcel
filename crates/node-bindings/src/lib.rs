@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+mod init_sentry;
+
 #[cfg(target_arch = "wasm32")]
 use std::alloc::{alloc, Layout};
 

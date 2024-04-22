@@ -15,6 +15,7 @@ jobs:
     uses: ./.github/workflows/release.yml
     secrets: inherit
     with:
+      profile: canary
       release-command: |
         yarn canary:release --summary-file
         node scripts/tag-release.mjs --tag nightly

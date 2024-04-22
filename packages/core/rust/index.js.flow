@@ -17,6 +17,8 @@ export interface ConfigRequest {
 export interface RequestOptions {
 }
 
+declare export function initSentry(): void;
+declare export function closeSentry(): void;
 declare export function napiRunConfigRequest(configRequest: ConfigRequest, api: any, options: any): void
 declare export function findAncestorFile(filenames: Array<string>, from: string, root: string): string | null
 declare export function findFirstFile(names: Array<string>): string | null
@@ -32,14 +34,14 @@ export interface JsFileSystemOptions {
   includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
 }
 export interface FileSystem {
-  fs?: JsFileSystemOptions,
+  fs?: JsFileSystemOptions;
   includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
-  conditions?: number,
-  moduleDirResolver?: (...args: any[]) => any,
-  mode: number,
-  entries?: number,
-  extensions?: Array<string>,
-  packageExports: boolean
+  conditions?: number;
+  moduleDirResolver?: (...args: any[]) => any;
+  mode: number;
+  entries?: number;
+  extensions?: Array<string>;
+  packageExports: boolean;
 }
 export interface ResolveOptions {
   filename: string;
