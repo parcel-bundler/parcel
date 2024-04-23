@@ -125,12 +125,12 @@ jobs:
             arch: armhf
             strip: arm-linux-gnueabihf-strip
             cflags: -mfpu=neon
-            openssl_arch: arm64
+            openssl_arch: aarch64
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             strip: aarch64-linux-gnu-strip
             cflags: ''
-            openssl_arch: arm64
+            openssl_arch: aarch64
     name: ${{ matrix.target }}
     runs-on: ubuntu-20.04
     container:
@@ -168,7 +168,7 @@ jobs:
           RUST_TARGET: ${{ matrix.target }}
           PKG_CONFIG_SYSROOT_DIR: /
           OPENSSL_INCLUDE_DIR: "/usr/include"
-          OPENSSL_LIB_DIR: "/usr/lib/${{ matrix.openssl_arch }}-linux-gnu/"
+          OPENSSL_LIB_DIR: "/usr/lib/${{ matrix.openssl_arch }}-linux-gnu"
           CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
