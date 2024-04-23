@@ -133,6 +133,8 @@ jobs:
             openssl_arch: arm64
     name: ${{ matrix.target }}
     runs-on: ubuntu-20.04
+    container:
+      image: docker.io/_/debian:bookworm
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
