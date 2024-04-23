@@ -78,7 +78,7 @@ jobs:
 
   build-linux-gnu-x64:
     name: linux-gnu-x64
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     container:
       image: docker.io/mischnic/centos7-node16
     steps:
@@ -132,7 +132,7 @@ jobs:
             cflags: ''
             openssl_arch: arm64
     name: ${{ matrix.target }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -190,7 +190,7 @@ jobs:
             cflags: ''
             arch: aarch64
     name: ${{ matrix.target }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust@sha256:5a99e45446355d25c20e95d35231d84e9ce472280d8c0b1be53281bade905f09
       credentials:
@@ -226,7 +226,7 @@ jobs:
         run: node -e 'require("@parcel/rust")'
 
   build-and-release:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     name: Build and release
     needs:
       - build-linux-gnu-arm
