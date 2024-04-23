@@ -10,7 +10,6 @@ import type {
   Identifier,
 } from '@swc/core';
 import {Visitor} from '@swc/core/Visitor';
-import type {SideEffectsMap} from './types';
 import nullthrows from 'nullthrows';
 
 type VisitorOpts = {|
