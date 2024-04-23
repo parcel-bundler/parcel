@@ -140,7 +140,7 @@ jobs:
       - name: Install cross compile toolchains and curl
         run: |
           dpkg --add-architecture ${{ matrix.openssl_arch }}
-          dpkg --foreign-architectures
+          dpkg --print-foreign-architectures
 
           apt-get update
           apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y
