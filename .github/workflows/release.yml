@@ -148,6 +148,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 18
+      - name: Install yarn
+        run: |
+          npm i -g yarn
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
