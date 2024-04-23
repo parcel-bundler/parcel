@@ -140,8 +140,15 @@ jobs:
       - name: Install cross compile toolchains and curl
         run: |
           dpkg --add-architecture ${{ matrix.openssl_arch }}
+          dpkg --foreign-architectures
+
           apt-get update
-          apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y 
+          apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
