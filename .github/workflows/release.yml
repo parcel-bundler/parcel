@@ -143,7 +143,7 @@ jobs:
           dpkg --print-foreign-architectures
 
           apt-get update
-          apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y
+          apt-get install build-essential gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y
 
       - uses: actions/setup-node@v4
         with:
