@@ -140,8 +140,9 @@ jobs:
           target: ${{ matrix.target }}
       - name: Install cross compile toolchains
         run: |
+          sudo dpkg --add-architecture aarch64
           sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev -y
+          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev libssl-dev:aarch64 -y
       - uses: bahmutov/npm-install@v1.8.35
       - uses: Swatinem/rust-cache@v2
         if: ${{ inputs.type != 'latest' }}
@@ -152,6 +153,8 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
           PKG_CONFIG_SYSROOT_DIR: /
+          OPENSSL_INCLUDE_DIR: "/usr/include"
+          OPENSSL_LIB_DIR: "/usr/lib/aarch64-linux-gnu/"
           CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
