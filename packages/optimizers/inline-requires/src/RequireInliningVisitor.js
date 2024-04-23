@@ -10,13 +10,12 @@ import type {
   Identifier,
 } from '@swc/core';
 import {Visitor} from '@swc/core/Visitor';
-import type {SideEffectsMap} from './types';
 import nullthrows from 'nullthrows';
 
 type VisitorOpts = {|
   bundle: NamedBundle,
   logger: PluginLogger,
-  publicIdToAssetSideEffects: Map<string, SideEffectsMap>,
+  assetPublicIdsWithSideEffects: Set<string>,
 |};
 
 export class RequireInliningVisitor extends Visitor {
@@ -26,9 +25,9 @@ export class RequireInliningVisitor extends Visitor {
   dirty: boolean;
   logger: PluginLogger;
   bundle: NamedBundle;
-  publicIdToAssetSideEffects: Map<string, SideEffectsMap>;
+  assetPublicIdsWithSideEffects: Set<string>;
 
-  constructor({bundle, logger, publicIdToAssetSideEffects}: VisitorOpts) {
+  constructor({bundle, logger, assetPublicIdsWithSideEffects}: VisitorOpts) {
     super();
     this.currentModuleNode = null;
     this.moduleVariables = new Set();
@@ -36,7 +35,7 @@ export class RequireInliningVisitor extends Visitor {
     this.dirty = false;
     this.logger = logger;
     this.bundle = bundle;
-    this.publicIdToAssetSideEffects = publicIdToAssetSideEffects;
+    this.assetPublicIdsWithSideEffects = assetPublicIdsWithSideEffects;
   }
 
   visitFunctionExpression(n: FunctionExpression): FunctionExpression {
@@ -48,19 +47,14 @@ export class RequireInliningVisitor extends Visitor {
     // and also reset the module variable tracking data structures.
     //
     // (TODO: Support arrow functions if we modify the runtime to output arrow functions)
-    // For ease of comparison, map the arg identifiers to an array of strings.. this will skip any
-    // functions with non-identifier args (e.g. spreads etc..)
-    const args = n.params.map(param => {
-      if (param.pat.type === 'Identifier') {
-        return param.pat.value;
-      }
-      return null;
-    });
-
     if (
-      args[0] === 'require' &&
-      args[1] === 'module' &&
-      args[2] === 'exports'
+      n.params.length === 3 &&
+      n.params[0].pat.type === 'Identifier' &&
+      n.params[0].pat.value === 'require' &&
+      n.params[1].pat.type === 'Identifier' &&
+      n.params[1].pat.value === 'module' &&
+      n.params[2].pat.type === 'Identifier' &&
+      n.params[2].pat.value === 'exports'
     ) {
       // `inModuleDefinition` is either null, or the module definition node
       this.currentModuleNode = n;
@@ -82,7 +76,7 @@ export class RequireInliningVisitor extends Visitor {
     // We're looking for variable declarations that look like this:
     //
     // `var $acw62 = require("acw62");`
-    let unusedDeclIndexes = [];
+    let needsReplacement = false;
     for (let i = 0; i < n.declarations.length; i++) {
       let decl = n.declarations[i];
       const init = decl.init;
@@ -111,23 +105,10 @@ export class RequireInliningVisitor extends Visitor {
         //
         // This won't work in dev mode, because the id used to require the asset isn't the public id
         if (
-          !this.publicIdToAssetSideEffects ||
-          !this.publicIdToAssetSideEffects.has(assetPublicId)
+          this.assetPublicIdsWithSideEffects &&
+          this.assetPublicIdsWithSideEffects.has(assetPublicId)
         ) {
-          this.logger.warn({
-            message: `${this.bundle.name}: Unable to resolve ${assetPublicId} to an asset! Assuming sideEffects are present.`,
-          });
-        } else {
-          const asset = nullthrows(
-            this.publicIdToAssetSideEffects.get(assetPublicId),
-          );
-          if (asset.sideEffects) {
-            this.logger.verbose({
-              message: `Skipping optimisation of ${assetPublicId} (${asset.filePath}) as it declares sideEffects`,
-            });
-            // eslint-disable-next-line no-continue
-            continue;
-          }
+          continue;
         }
 
         // The moduleVariableMap contains a mapping from (e.g. $acw62 -> the AST node `require("acw62")`)
@@ -135,17 +116,13 @@ export class RequireInliningVisitor extends Visitor {
         // The moduleVariables set is just the used set of modules (e.g. `$acw62`)
         this.moduleVariables.add(variable);
 
-        this.logger.verbose({
-          message: `${this.bundle.name}: Found require of ${variable} for replacement`,
-        });
-
         // Replace this with a null declarator, we'll use the `init` where it's declared.
         //
         // This mutates `var $acw62 = require("acw62")` -> `var $acw62 = null`
         //
         // The variable will be unused and removed by optimisation
         decl.init = undefined;
-        unusedDeclIndexes.push(i);
+        needsReplacement = true;
       } else if (
         decl.id.type === 'Identifier' &&
         typeof decl.id.value === 'string' &&
@@ -183,10 +160,10 @@ export class RequireInliningVisitor extends Visitor {
         this.moduleVariables.add(variable);
 
         decl.init = undefined;
-        unusedDeclIndexes.push(i);
+        needsReplacement = true;
       }
     }
-    if (unusedDeclIndexes.length === 0) {
+    if (!needsReplacement) {
       return super.visitVariableDeclaration(n);
     } else {
       this.dirty = true;
