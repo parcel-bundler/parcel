@@ -8,10 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-canary = ["sentry", "once_cell", "whoami", "serde", "serde_json", "rustls"]
-
-rustls = ["sentry/rustls"]
-openssl = ["sentry/native-tls"]
+canary = ["sentry", "once_cell", "whoami", "serde", "serde_json"]
 
 [dependencies]
 napi-derive = "2.12.5"
@@ -20,8 +17,7 @@ parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 log = "0.4.21"
-
-sentry = { version = "0.32.2", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "debug-images", "anyhow"]}
+sentry = { version = "0.32.2", optional = true }
 once_cell = { version = "1.19.0", optional = true }
 whoami = { version = "1.5.1", optional = true }
 serde = { version = "1.0.197", optional = true }
