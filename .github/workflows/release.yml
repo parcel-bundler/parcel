@@ -137,16 +137,16 @@ jobs:
       image: debian:bookworm
     steps:
       - uses: actions/checkout@v4
+      - name: Install cross compile toolchains and curl
+        run: |
+          sudo dpkg --add-architecture ${{ matrix.openssl_arch }}
+          sudo apt-get update
+          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-      - name: Install cross compile toolchains
-        run: |
-          sudo dpkg --add-architecture ${{ matrix.openssl_arch }}
-          sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} -y
       - uses: bahmutov/npm-install@v1.8.35
       - uses: Swatinem/rust-cache@v2
         if: ${{ inputs.type != 'latest' }}
