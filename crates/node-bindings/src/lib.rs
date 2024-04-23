@@ -21,6 +21,8 @@ mod image;
 mod resolver;
 mod transformer;
 
+mod inline_requires;
+
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {

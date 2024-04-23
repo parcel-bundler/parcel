@@ -1571,6 +1571,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel-inline-requires-core"
+version = "0.1.0"
+dependencies = [
+ "swc_core",
+]
+
+[[package]]
 name = "parcel-js-swc-core"
 version = "0.1.0"
 dependencies = [
@@ -1619,6 +1626,7 @@ dependencies = [
  "once_cell",
  "oxipng",
  "parcel-dev-dep-resolver",
+ "parcel-inline-requires-core",
  "parcel-js-swc-core",
  "parcel-macros",
  "parcel-resolver",
@@ -2573,6 +2581,7 @@ checksum = "3792c10fa5d3e93a705b31f13fdea4a6e68c3c20d4351e84ed1741b7864399cd"
 dependencies = [
  "ahash",
  "ast_node",
+ "atty",
  "better_scoped_tls",
  "cfg-if",
  "either",
@@ -2587,6 +2596,7 @@ dependencies = [
  "swc_atoms",
  "swc_eq_ignore_macros",
  "swc_visit",
+ "termcolor",
  "tracing",
  "unicode-width",
  "url",

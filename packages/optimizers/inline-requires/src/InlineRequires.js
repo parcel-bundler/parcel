@@ -62,6 +62,9 @@ module.exports = new Optimizer<empty, BundleConfig>({
         'parse',
         bundle.name,
       );
+
+      // inlineRequires(contents.toString(),bundleConfig.assetPublicIdsWithSideEffects);
+
       const ast = await parse(contents.toString());
       measurement && measurement.end();
 

@@ -14,6 +14,7 @@ canary = ["sentry", "once_cell", "whoami", "serde", "serde_json"]
 napi-derive = "2.12.5"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+parcel-inline-requires-core = { path = "../../packages/optimizers/inline-requires/core" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 log = "0.4.21"

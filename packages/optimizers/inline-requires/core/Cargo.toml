@@ -1,0 +1,16 @@
+[package]
+authors = ["Marcin Szczepanski <mszczepanski@atlassian.com>"]
+name = "parcel-inline-requires-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+swc_core = { version = "0.89.6", features = [
+  "common",
+  "common_tty",
+  "ecma_parser",
+  "ecma_visit",
+] }
