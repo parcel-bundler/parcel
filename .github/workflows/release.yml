@@ -139,9 +139,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install cross compile toolchains and curl
         run: |
-          sudo dpkg --add-architecture ${{ matrix.openssl_arch }}
-          sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y 
+          dpkg --add-architecture ${{ matrix.openssl_arch }}
+          apt-get update
+          apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libssl-dev:${{ matrix.openssl_arch }} curl -y 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
