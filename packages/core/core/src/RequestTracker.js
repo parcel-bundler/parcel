@@ -19,6 +19,7 @@ import logger from '@parcel/logger';
 import {type Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
+import {AssertionError} from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {
@@ -353,8 +354,14 @@ export class RequestGraph extends ContentGraph<
 
   getRequestNode(nodeId: NodeId): RequestNode {
     let node = nullthrows(this.getNode(nodeId));
-    invariant(node.type === REQUEST);
-    return node;
+
+    if (node.type === REQUEST) {
+      return node;
+    }
+
+    throw new AssertionError(
+      `Expected a request node: ${node.type} does not equal ${REQUEST}.`,
+    );
   }
 
   replaceSubrequests(
