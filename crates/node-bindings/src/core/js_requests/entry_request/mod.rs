@@ -3,6 +3,7 @@ use std::rc::Rc;
 use napi::{Env, JsObject};
 use napi_derive::napi;
 
+use crate::core::js_helpers::anyhow_napi;
 use crate::core::js_requests::request_options::input_fs_from_options;
 use crate::core::requests::entry_request::{
   run_entry_request, EntryRequestInput, EntryResult, RunEntryRequestParams,
@@ -24,7 +25,7 @@ fn napi_run_entry_request(
     fs: &input_fs,
     input: &entry_request,
   })
-  .map_err(|err| napi::Error::from_reason(format!("[napi] {}", err.to_string())))?;
+  .map_err(anyhow_napi)?;
 
   Ok(result)
 }

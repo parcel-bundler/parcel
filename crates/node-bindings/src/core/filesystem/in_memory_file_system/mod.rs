@@ -46,6 +46,10 @@ impl Default for InMemoryFileSystem {
 }
 
 impl FileSystem for InMemoryFileSystem {
+  fn cwd(&self) -> std::io::Result<PathBuf> {
+    Ok(self.current_working_directory.clone())
+  }
+
   fn canonicalize_base<P: AsRef<Path>>(&self, path: P) -> std::io::Result<PathBuf> {
     let path = path.as_ref();
 

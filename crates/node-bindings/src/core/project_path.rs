@@ -6,9 +6,17 @@ use std::path::{Path, PathBuf};
 ///
 /// The main purpose of this newtype is to allow us to return PathBuf from rust and have
 /// napi auto convert it to string - for now.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProjectPath {
   path: PathBuf,
+}
+
+impl From<&str> for ProjectPath {
+  fn from(path: &str) -> Self {
+    Self {
+      path: PathBuf::from(path),
+    }
+  }
 }
 
 impl From<PathBuf> for ProjectPath {

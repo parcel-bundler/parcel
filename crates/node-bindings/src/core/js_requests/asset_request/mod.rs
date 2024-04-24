@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::core::js_helpers::anyhow_napi;
 use napi::{Env, JsObject};
 use napi_derive::napi;
 
@@ -34,7 +35,7 @@ fn napi_run_asset_request(
     project_root: &project_root,
     transformer: &transformer,
   })
-  .map_err(|err| napi::Error::from_reason(format!("[napi] {}", err.to_string())))?;
+  .map_err(anyhow_napi)?;
 
   Ok(result)
 }

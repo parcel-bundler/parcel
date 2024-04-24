@@ -1,6 +1,11 @@
 use napi::bindgen_prelude::FromNapiValue;
 use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
 
+/// Convert anyhow error to napi error
+pub fn anyhow_napi(value: anyhow::Error) -> napi::Error {
+  napi::Error::from_reason(format!("[napi] {}", value.to_string()))
+}
+
 /// Get an object field as a JSFunction. Will error out if the field is not present or isn't an
 /// instance of the global `"Function"`.
 ///

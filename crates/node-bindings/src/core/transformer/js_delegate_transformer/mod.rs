@@ -7,6 +7,8 @@ use crate::core::js_helpers::call_method;
 use crate::core::transformer::{TransformationInput, TransformationResult, Transformer};
 
 /// Transformer implementation that delegates to a JavaScript object.
+///
+/// This should be delegating into `WorkerFarm::runTransform`.
 pub struct JSDelegateTransformer {
   env: Rc<Env>,
   js_delegate: JsObject,
