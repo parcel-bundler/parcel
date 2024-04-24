@@ -4,14 +4,13 @@ import assert from 'assert';
 import sinon from 'sinon';
 import {PassThrough} from 'stream';
 import {_report} from '../src/CLIReporter';
+import * as render from '../src/render';
 import {_setStdio} from '../src/render';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import stripAnsi from 'strip-ansi';
 import * as bundleReport from '../src/bundleReport';
-import * as render from '../src/render';
 import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
-import type {NamedBundle} from '@parcel/types-internal';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
