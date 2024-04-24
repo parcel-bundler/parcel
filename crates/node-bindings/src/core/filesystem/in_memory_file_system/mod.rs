@@ -46,11 +46,7 @@ impl Default for InMemoryFileSystem {
 }
 
 impl FileSystem for InMemoryFileSystem {
-  fn canonicalize<P: AsRef<Path>>(
-    &self,
-    path: P,
-    _cache: &dashmap::DashMap<PathBuf, Option<PathBuf>>,
-  ) -> std::io::Result<PathBuf> {
+  fn canonicalize_base<P: AsRef<Path>>(&self, path: P) -> std::io::Result<PathBuf> {
     let path = path.as_ref();
 
     let mut result = if path.is_absolute() {

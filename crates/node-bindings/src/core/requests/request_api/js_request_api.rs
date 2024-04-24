@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use napi::{Env, JsObject, JsUnknown};
 
-use crate::core::requests::call_method;
+use crate::core::js_helpers::call_method;
 use crate::core::requests::config_request::InternalFileCreateInvalidation;
 use crate::core::requests::request_api::{RequestApi, RequestApiResult};
 

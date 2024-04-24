@@ -21,7 +21,7 @@ pub struct ConfigKeyChange {
 }
 
 #[napi(object)]
-#[derive(Clone, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 pub struct InternalFileCreateInvalidation {
   // file
   pub file_path: Option<ProjectPath>,

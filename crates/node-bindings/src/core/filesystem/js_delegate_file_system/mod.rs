@@ -1,13 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use dashmap::DashMap;
 use napi::bindgen_prelude::FromNapiValue;
-use napi::{Env, JsObject};
+use napi::{Env, JsObject, JsUnknown};
 
 use parcel_resolver::FileSystem;
 
-use crate::core::requests::call_method;
+use crate::core::js_helpers::call_method;
 
 /// An implementation of `FileSystem` that delegates calls to a `JsObject`.
 ///
@@ -24,6 +23,12 @@ impl JSDelegateFileSystem {
   }
 }
 
+fn path_from_js(result: JsUnknown) -> napi::Result<PathBuf> {
+  let result_string = result.coerce_to_string()?;
+  let result_string = result_string.into_utf8()?.as_str()?.to_string();
+  Ok(PathBuf::from(result_string))
+}
+
 // Convert arbitrary errors to io errors. This is wrong; the `FileSystem` trait should use
 // `anyhow::Result`
 fn run_with_errors<T>(block: impl FnOnce() -> anyhow::Result<T>) -> Result<T, std::io::Error> {
@@ -32,11 +37,14 @@ fn run_with_errors<T>(block: impl FnOnce() -> anyhow::Result<T>) -> Result<T, st
 }
 
 impl FileSystem for JSDelegateFileSystem {
-  fn canonicalize<P: AsRef<Path>>(
-    &self,
-    path: P,
-    _cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> std::io::Result<PathBuf> {
+  fn cwd(&self) -> std::io::Result<PathBuf> {
+    run_with_errors(|| {
+      let result = call_method(&self.env, &self.js_delegate, "cwd", &[])?;
+      Ok(path_from_js(result)?)
+    })
+  }
+
+  fn canonicalize_base<P: AsRef<Path>>(&self, path: P) -> std::io::Result<PathBuf> {
     run_with_errors(|| {
       let path = path.as_ref().to_str().unwrap();
       let js_path = self.env.create_string(path)?;
@@ -46,9 +54,7 @@ impl FileSystem for JSDelegateFileSystem {
         "canonicalize",
         &[&js_path.into_unknown()],
       )?;
-      let result_string = result.coerce_to_string()?;
-      let result_string = result_string.into_utf8()?.as_str()?.to_string();
-      Ok(PathBuf::from(result_string))
+      Ok(path_from_js(result)?)
     })
   }
 
