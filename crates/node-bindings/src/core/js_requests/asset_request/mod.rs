@@ -1,6 +1,14 @@
-use crate::core::requests::asset_request::AssetRequest;
+use std::rc::Rc;
+
 use napi::{Env, JsObject};
 use napi_derive::napi;
+
+use crate::core::js_requests::request_options::project_root_from_options;
+use crate::core::requests::asset_request::{
+  run_asset_request, AssetRequest, RunAssetRequestParams,
+};
+use crate::core::requests::request_api::js_request_api::JSRequestApi;
+use crate::core::transformer::js_delegate_transformer::JSDelegateTransformer;
 
 #[napi]
 fn napi_run_asset_request(
@@ -9,5 +17,24 @@ fn napi_run_asset_request(
   api: JsObject,
   options: JsObject,
 ) -> napi::Result<()> {
-  todo!("RUN ASSET REQUEST")
+  let env = Rc::new(env);
+  let run_api = JSRequestApi::new(env.clone(), api);
+  let project_root = project_root_from_options(&options)?;
+
+  let transformer = JSDelegateTransformer::new(
+    env,
+    options.get("transformer")?.ok_or(napi::Error::from_reason(
+      "[napi] Missing required option 'transformer'",
+    ))?,
+  );
+
+  let result = run_asset_request(RunAssetRequestParams {
+    asset_request,
+    run_api: &run_api,
+    project_root: &project_root,
+    transformer: &transformer,
+  })
+  .map_err(|err| napi::Error::from_reason(format!("[napi] {}", err.to_string())))?;
+
+  Ok(result)
 }

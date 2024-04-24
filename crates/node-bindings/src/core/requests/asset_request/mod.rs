@@ -1,56 +1,24 @@
-use mockall::automock;
-use napi_derive::napi;
 use std::path::Path;
 
-use crate::core::project_path::ProjectPath;
-use crate::core::requests::config_request::InternalFileCreateInvalidation;
+use napi_derive::napi;
 
+use crate::core::project_path::ProjectPath;
 use crate::core::requests::request_api::RequestApi;
+use crate::core::transformer::{TransformationInput, Transformer};
 
 #[napi(object)]
 pub struct AssetRequest {
   pub file_path: ProjectPath,
 }
 
-pub struct TransformationInput {
-  file_path: ProjectPath,
+pub struct RunAssetRequestParams<'a, RA: RequestApi, T: Transformer> {
+  pub asset_request: AssetRequest,
+  pub run_api: &'a RA,
+  pub project_root: &'a str,
+  pub transformer: &'a T,
 }
 
-#[napi(object)]
-pub struct AssetValue {
-  pub id: String,
-}
-
-/// TODO consolidate with config request
-#[napi(object)]
-pub struct TransformationInvalidations {
-  pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create: Vec<InternalFileCreateInvalidation>,
-  pub invalidate_on_env_change: Vec<String>,
-  pub invalidate_on_option_change: Vec<String>,
-  pub invalidate_on_startup: bool,
-  pub invalidate_on_build: bool,
-}
-
-#[napi(object)]
-pub struct TransformationResult {
-  pub assets: Vec<AssetValue>,
-  pub invalidations: TransformationInvalidations,
-}
-
-#[automock]
-pub trait Transformer {
-  fn transform(&self, input: TransformationInput) -> anyhow::Result<TransformationResult>;
-}
-
-struct RunAssetRequestParams<'a, RA, T> {
-  asset_request: AssetRequest,
-  run_api: &'a RA,
-  project_root: &'a str,
-  transformer: &'a T,
-}
-
-fn run_asset_request(
+pub fn run_asset_request(
   RunAssetRequestParams {
     asset_request,
     run_api,
@@ -92,6 +60,3 @@ fn run_asset_request(
 
   Ok(())
 }
-
-#[cfg(test)]
-mod test {}

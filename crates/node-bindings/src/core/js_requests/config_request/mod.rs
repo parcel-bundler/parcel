@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
-use napi::{Env, JsObject, JsString};
+use napi::{Env, JsObject};
 use napi_derive::napi;
 
-use crate::core::filesystem::js_delegate_file_system::JSDelegateFileSystem;
+use crate::core::js_requests::request_options::{input_fs_from_options, project_root_from_options};
 use crate::core::requests::config_request::{run_config_request, ConfigRequest};
 use crate::core::requests::request_api::js_request_api::JSRequestApi;
 
@@ -24,22 +24,8 @@ fn napi_run_config_request(
   // be able to use env on more places we rc it.
   let env = Rc::new(env);
   let api = JSRequestApi::new(env.clone(), api);
-  let input_fs = options.get("inputFS")?;
-  let Some(input_fs) = input_fs.map(|input_fs| JSDelegateFileSystem::new(env, input_fs)) else {
-    // We need to make the `FileSystem` trait object-safe so we can use dynamic
-    // dispatch.
-    return Err(napi::Error::from_reason(
-      "[napi] Missing required inputFS options field",
-    ));
-  };
-  let Some(project_root): Option<JsString> = options.get("projectRoot")? else {
-    return Err(napi::Error::from_reason(
-      "[napi] Missing required projectRoot options field",
-    ));
-  };
-  // TODO: what if the string is UTF16 or latin?
-  let project_root = project_root.into_utf8()?;
-  let project_root = project_root.as_str()?;
+  let input_fs = input_fs_from_options(env, &options)?;
+  let project_root = project_root_from_options(&options)?;
 
-  run_config_request(&config_request, &api, &input_fs, project_root)
+  run_config_request(&config_request, &api, &input_fs, &project_root)
 }

@@ -88,14 +88,14 @@ fn resolve_entry_file(
 }
 
 #[napi(object)]
-struct EntryRequestInput {
+pub struct EntryRequestInput {
   pub project_path: String,
 }
 
 pub struct RunEntryRequestParams<'a, RA: RequestApi, FS: FileSystem> {
-  run_api: &'a RA,
-  fs: &'a FS,
-  input: &'a EntryRequestInput,
+  pub run_api: &'a RA,
+  pub fs: &'a FS,
+  pub input: &'a EntryRequestInput,
 }
 
 /// Run entry-request. Corresponds to `EntryRequest.js`.

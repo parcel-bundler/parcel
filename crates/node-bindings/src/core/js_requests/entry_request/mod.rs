@@ -1,0 +1,30 @@
+use std::rc::Rc;
+
+use napi::{Env, JsObject};
+use napi_derive::napi;
+
+use crate::core::js_requests::request_options::input_fs_from_options;
+use crate::core::requests::entry_request::{
+  run_entry_request, EntryRequestInput, EntryResult, RunEntryRequestParams,
+};
+use crate::core::requests::request_api::js_request_api::JSRequestApi;
+
+#[napi]
+fn napi_run_entry_request(
+  env: Env,
+  entry_request: EntryRequestInput,
+  api: JsObject,
+  options: JsObject,
+) -> napi::Result<EntryResult> {
+  let env = Rc::new(env);
+  let api = JSRequestApi::new(env.clone(), api);
+  let input_fs = input_fs_from_options(env, &options)?;
+  let result = run_entry_request(RunEntryRequestParams {
+    run_api: &api,
+    fs: &input_fs,
+    input: &entry_request,
+  })
+  .map_err(|err| napi::Error::from_reason(format!("[napi] {}", err.to_string())))?;
+
+  Ok(result)
+}
