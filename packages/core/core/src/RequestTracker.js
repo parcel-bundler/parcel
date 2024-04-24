@@ -359,9 +359,13 @@ export class RequestGraph extends ContentGraph<
       return node;
     }
 
-    throw new AssertionError(
-      `Expected a request node: ${node.type} does not equal ${REQUEST}.`,
-    );
+    throw new AssertionError({
+      message: `Expected a request node: ${
+        node.type
+      } (${typeof node.type}) does not equal ${REQUEST} (${typeof REQUEST}).`,
+      expected: REQUEST,
+      actual: node.type,
+    });
   }
 
   replaceSubrequests(
