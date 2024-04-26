@@ -62,7 +62,6 @@ describe('JS API', function () {
   describe('Reporter API', () => {
     it('should pass the parcel version to plugins', async () => {
       const dir = path.join(__dirname, 'plugin-parcel-version');
-      const versionFileLocation = path.join(dir, 'parcel-version.txt');
 
       overlayFS.mkdirp(dir);
 
@@ -85,11 +84,12 @@ describe('JS API', function () {
       
       reporter-plugin.js:
         import {Reporter} from '@parcel/plugin';
+        import path from 'node:path';
 
         export default new Reporter({
           async report({event, options}) {
             if (event.type === 'buildSuccess') {
-              await options.outputFS.writeFile("${versionFileLocation}", options.parcelVersion);
+              await options.outputFS.writeFile(path.join(options.projectRoot, 'parcel-version.txt'), options.parcelVersion);
             }
           }
         })
@@ -101,7 +101,7 @@ describe('JS API', function () {
       });
 
       assert.equal(
-        await overlayFS.readFile(versionFileLocation),
+        await overlayFS.readFile(path.join(dir, 'parcel-version.txt')),
         PARCEL_VERSION,
       );
     });
