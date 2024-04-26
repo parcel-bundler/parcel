@@ -400,6 +400,7 @@ export type InitialServerOptions = {|
 
 export interface PluginOptions {
   +mode: BuildMode;
+  +parcelVersion: string;
   +env: EnvMap;
   +hmrOptions: ?HMROptions;
   +serveOptions: ServerOptions | false;

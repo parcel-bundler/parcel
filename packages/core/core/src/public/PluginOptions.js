@@ -13,6 +13,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
 import {type FeatureFlags} from '@parcel/feature-flags';
+import {PARCEL_VERSION} from '../constants';
 
 let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
   new WeakMap();
@@ -41,6 +42,10 @@ export default class PluginOptions implements IPluginOptions {
 
   get env(): EnvMap {
     return this.#options.env;
+  }
+
+  get parcelVersion(): string {
+    return PARCEL_VERSION;
   }
 
   get hmrOptions(): ?HMROptions {
