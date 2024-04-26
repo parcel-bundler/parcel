@@ -16,7 +16,6 @@ import {
   resolveConfig,
 } from '@parcel/utils';
 import {type ProjectPath, toProjectPath} from './projectPath';
-import {version as PARCEL_VERSION} from '../package.json';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const CONFIG = Symbol.for('parcel-plugin-config');
@@ -179,7 +178,7 @@ export default async function loadPlugin<T>(
 
       if (
         parcelVersionRange &&
-        !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
+        !semver.satisfies(options.parcelVersion, parcelVersionRange)
       ) {
         let pkgFile = nullthrows(
           await resolveConfig(
@@ -192,7 +191,7 @@ export default async function loadPlugin<T>(
         let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
+            message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${options.parcelVersion}".`,
             origin: '@parcel/core',
             codeFrames: [
               {

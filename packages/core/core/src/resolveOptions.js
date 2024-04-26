@@ -7,6 +7,7 @@ import type {
   InitialServerOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import nullthrows from 'nullthrows';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
@@ -24,6 +25,9 @@ import {
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
+
+// $FlowFixMe
+import {version as PARCEL_VERSION} from '../package.json';
 
 import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
@@ -223,6 +227,7 @@ export default async function resolveOptions(
       isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
     featureFlags: {...DEFAULT_FEATURE_FLAGS, ...initialOptions?.featureFlags},
+    parcelVersion: nullthrows(PARCEL_VERSION, 'Missing Parcel version'),
   };
 }
 

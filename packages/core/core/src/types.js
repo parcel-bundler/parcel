@@ -320,6 +320,7 @@ export type ParcelOptions = {|
   |},
 
   +featureFlags: FeatureFlags,
+  +parcelVersion: string,
 |};
 
 export type AssetNode = {|
