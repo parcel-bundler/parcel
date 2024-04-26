@@ -43,6 +43,10 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.env;
   }
 
+  get parcelVersion(): string {
+    return this.#options.parcelVersion;
+  }
+
   get hmrOptions(): ?HMROptions {
     return this.#options.hmrOptions;
   }
