@@ -479,7 +479,7 @@ fn convert_result(
       custom_package_conditions: Vec::new(),
     };
 
-    // dep_map.insert(d.specifier.as_str().into(), d);
+    dep_map.insert(d.specifier.as_str().into(), d);
   }
 
   let mut has_cjs_exports = false;

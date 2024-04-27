@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 require('@parcel/babel-register');
-const {parcel, hashString} = require('@parcel/rust');
+const {parcel, RustCache, hashString} = require('@parcel/rust');
 const {EntryResolver} = require('@parcel/core/src/requests/EntryRequest');
 const {NodeFS} = require('@parcel/fs/src');
 const {FSCache} = require('@parcel/cache/src');
@@ -71,7 +71,7 @@ const options = {
 // console.log(parcel);
 
 console.time('build');
-parcel(['/Users/devongovett/dev/parcel/packages/core/integration-tests/test/integration/commonjs/index.js'], async (err, request) => {
+parcel(['/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js'], new RustCache(), async (err, request) => {
   switch (request.type) {
     case 'Entry': {
       let entryResolver = new EntryResolver(options);

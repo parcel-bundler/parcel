@@ -4,7 +4,7 @@ pub mod parcel_config;
 pub mod request_tracker;
 pub mod requests;
 pub mod transformers;
-mod types;
+pub mod types;
 pub mod worker_farm;
 
 use asset_graph::{AssetGraph, AssetGraphRequest};
@@ -22,6 +22,7 @@ pub fn build(entries: Vec<String>, farm: WorkerFarm, cache: &Cache) -> AssetGrap
   let mut req = AssetGraphRequest {
     entries,
     transformers: &config.transformers,
+    resolvers: &config.resolvers,
   };
   let asset_graph = req.build(&mut request_tracker, cache);
 

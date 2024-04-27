@@ -26,6 +26,7 @@ import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
 import {RustCache} from '@parcel/rust';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
+import { bufferStream, readableFromStringOrBuffer } from "@parcel/utils";
 
 class CacheWrapper extends RustCache {
   get<T>(key: string): Promise<?T> {
@@ -40,6 +41,18 @@ class CacheWrapper extends RustCache {
     let val = typeof value === 'string' ? Buffer.from(value) : value;
     super.setBlob(key, val);
   }
+
+  async setStream(key, stream: stream$Readable): Promise<void> {
+    let buffer = await bufferStream(stream);
+    this.setBlob(key, buffer);
+  }
+
+  getStream(key): stream$Readable {
+    let value = this.getBlob(key);
+    return readableFromStringOrBuffer(value);
+  }
+
+  refresh() {}
 }
 
 import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';

@@ -1,6 +1,5 @@
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
-use specifier::{parse_package_specifier, parse_scheme};
 use std::{
   borrow::Cow,
   collections::HashMap,
@@ -29,7 +28,9 @@ pub use fs::FileSystem;
 pub use fs::OsFileSystem;
 pub use invalidations::*;
 pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
-pub use specifier::{Specifier, SpecifierError, SpecifierType};
+pub use specifier::{
+  parse_package_specifier, parse_scheme, Specifier, SpecifierError, SpecifierType,
+};
 
 use crate::path::resolve_path;
 
