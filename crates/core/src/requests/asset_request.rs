@@ -4,7 +4,7 @@ use crate::{
   parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestResult},
   transformers::run_transformer,
-  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, Environment},
+  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, Environment, JSONObject},
   worker_farm::WorkerFarm,
 };
 use xxhash_rust::xxh3::xxh3_64;
@@ -42,11 +42,11 @@ impl<'a> Request for AssetRequest<'a> {
           .and_then(|s| s.to_str())
           .unwrap_or(""),
       ),
-      content_key: 0,
+      content_key: String::new(),
       map_key: None,
-      output_hash: 0,
+      output_hash: String::new(),
       pipeline: None,
-      meta: None,
+      meta: JSONObject::new(),
       stats: AssetStats { size: 0, time: 0 },
       bundle_behavior: crate::types::BundleBehavior::None,
       flags: AssetFlags::empty(),
@@ -57,8 +57,8 @@ impl<'a> Request for AssetRequest<'a> {
     let code = std::fs::read(&asset.file_path).unwrap();
     let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm);
 
-    result.asset.output_hash = xxh3_64(&result.code);
-    result.asset.content_key = result.asset.id(); // TODO
+    result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
+    result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
 
     RequestResult {
       result: Ok(result),

@@ -1684,6 +1684,8 @@ dependencies = [
  "bitflags 2.3.3",
  "browserslist-rs",
  "crossbeam-channel",
+ "dashmap",
+ "fixedbitset",
  "glob-match",
  "indexmap 2.1.0",
  "lazy_static",
@@ -2611,6 +2613,7 @@ version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e17db7126d17feb94eb3fad46bf1a96b034e8aacbc2e775fe81505f8b0b2813"
 dependencies = [
+ "indexmap 1.9.3",
  "itoa",
  "ryu",
  "serde",

@@ -10,7 +10,8 @@ use crate::requests::asset_request::{AssetRequestResult, Transformer};
 use crate::types::{
   Asset, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags, Environment,
   EnvironmentContext, EnvironmentFlags, ExportsCondition, ImportAttribute, IncludeNodeModules,
-  Location, OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  JSONObject, Location, OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol,
+  SymbolFlags,
 };
 
 pub struct JsTransformer;
@@ -207,8 +208,8 @@ fn convert_result(
           promise_symbol: None,
           import_attributes: Vec::new(),
           pipeline: None,
-          meta: None,
-          resolver_meta: None,
+          meta: JSONObject::new(),
+          resolver_meta: JSONObject::new(),
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: Vec::new(),
         };
@@ -246,8 +247,8 @@ fn convert_result(
           promise_symbol: None,
           import_attributes: Vec::new(),
           pipeline: None,
-          meta: None,
-          resolver_meta: None,
+          meta: JSONObject::new(),
+          resolver_meta: JSONObject::new(),
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: Vec::new(),
         };
@@ -278,8 +279,8 @@ fn convert_result(
           promise_symbol: None,
           import_attributes: Vec::new(),
           pipeline: None,
-          meta: None,
-          resolver_meta: None,
+          meta: JSONObject::new(),
+          resolver_meta: JSONObject::new(),
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: Vec::new(),
         };
@@ -304,8 +305,8 @@ fn convert_result(
           promise_symbol: None,
           import_attributes: Vec::new(),
           pipeline: None,
-          meta: None,
-          resolver_meta: None,
+          meta: JSONObject::new(),
+          resolver_meta: JSONObject::new(),
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: Vec::new(),
         };
@@ -434,8 +435,8 @@ fn convert_result(
           promise_symbol: None,
           import_attributes,
           pipeline: None,
-          meta: None,
-          resolver_meta: None,
+          meta: JSONObject::new(),
+          resolver_meta: JSONObject::new(),
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: Vec::new(),
         };
@@ -472,8 +473,8 @@ fn convert_result(
       symbols: Vec::new(),
       import_attributes: Vec::new(),
       pipeline: None,
-      meta: None,
-      resolver_meta: None,
+      meta: JSONObject::new(),
+      resolver_meta: JSONObject::new(),
       package_conditions: ExportsCondition::empty(),
       custom_package_conditions: Vec::new(),
     };
@@ -726,7 +727,7 @@ fn convert_result(
   asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
 
   if asset.unique_key.is_none() {
-    asset.unique_key = Some(asset_id);
+    asset.unique_key = Some(format!("{:x}", asset_id));
   }
 
   AssetRequestResult {

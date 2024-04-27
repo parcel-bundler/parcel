@@ -3,6 +3,8 @@ use std::sync::Arc;
 use mimalloc::MiMalloc;
 use parcel_core::{
   asset_graph::AssetGraphRequest,
+  build,
+  cache::Cache,
   parcel_config::ParcelConfig,
   request_tracker::RequestTracker,
   requests::entry_request::Entry,
@@ -13,11 +15,6 @@ use parcel_core::{
 static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
-  let mut req = AssetGraphRequest {
-    entries: vec!["/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js".into()],
-    // entries: vec!["/Users/devongovett/dev/parcel/packages/core/integration-tests/test/integration/commonjs/index.js".into()],
-  };
-
   let mut farm = WorkerFarm::new();
   farm.register_worker(Arc::new(|req| match req {
     WorkerRequest::Entry(entry) => Ok(WorkerResult::Entry(vec![Entry {
@@ -29,8 +26,11 @@ fn main() {
     _ => todo!(),
   }));
 
-  let mut request_tracker = RequestTracker::new(farm);
-  req.build(&mut request_tracker);
+  build(
+    vec!["/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js".into()],
+    farm,
+    &mut Cache::new(),
+  );
 
   // println!("tracker {:?}", request_tracker);
 }

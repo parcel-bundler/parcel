@@ -52,7 +52,7 @@ import {
   fromProjectPathRelative,
   toProjectPathUnsafe,
 } from '../projectPath';
-import createAssetGraphRequest from './AssetGraphRequest';
+import createAssetGraphRequestRust from './AssetGraphRequestRust';
 import {tracer, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 
@@ -94,7 +94,7 @@ export default function createBundleGraphRequest(
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
       let measurement = tracer.createMeasurement('building');
-      let request = createAssetGraphRequest({
+      let request = createAssetGraphRequestRust({
         name: 'Main',
         entries: options.entries,
         optionsRef,

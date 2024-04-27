@@ -155,8 +155,8 @@ impl Default for IncludeNodeModules {
 #[serde(rename_all = "camelCase")]
 pub struct TargetSourceMapOptions {
   source_root: Option<String>,
-  inline: bool,
-  inline_sources: bool,
+  inline: Option<bool>,
+  inline_sources: Option<bool>,
 }
 
 #[derive(PartialEq, Debug, Clone, Hash, Serialize, Deserialize)]
@@ -176,9 +176,9 @@ pub struct Location {
 bitflags! {
   #[derive(Clone, Copy, Hash, Debug)]
   pub struct EnvironmentFlags: u8 {
-    const IS_LIBRARY = 0b00000001;
-    const SHOULD_OPTIMIZE = 0b00000010;
-    const SHOULD_SCOPE_HOIST = 0b00000100;
+    const IS_LIBRARY = 1 << 0;
+    const SHOULD_OPTIMIZE = 1 << 1;
+    const SHOULD_SCOPE_HOIST = 1 << 2;
   }
 }
 
@@ -208,16 +208,16 @@ macro_rules! impl_bitflags_serde {
 
 impl_bitflags_serde!(EnvironmentFlags);
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum EnvironmentContext {
-  Browser,
-  WebWorker,
-  ServiceWorker,
-  Worklet,
-  Node,
-  ElectronMain,
-  ElectronRenderer,
+  Browser = 0,
+  WebWorker = 1,
+  ServiceWorker = 2,
+  Worklet = 3,
+  Node = 4,
+  ElectronMain = 5,
+  ElectronRenderer = 6,
 }
 
 impl EnvironmentContext {
@@ -245,19 +245,19 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum SourceType {
-  Module,
-  Script,
+  Module = 0,
+  Script = 1,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum OutputFormat {
-  Global,
-  Commonjs,
-  Esmodule,
+  Global = 0,
+  Commonjs = 1,
+  Esmodule = 2,
 }
 
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
@@ -271,16 +271,16 @@ pub struct Asset {
   pub query: Option<String>,
   #[serde(rename = "type")]
   pub asset_type: AssetType,
-  pub content_key: u64,
-  pub map_key: Option<u64>,
-  pub output_hash: u64,
+  pub content_key: String,
+  pub map_key: Option<String>,
+  pub output_hash: String,
   pub pipeline: Option<String>,
-  pub meta: Option<String>,
+  pub meta: JSONObject,
   pub stats: AssetStats,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
   pub symbols: Vec<Symbol>,
-  pub unique_key: Option<u64>,
+  pub unique_key: Option<String>,
 }
 
 impl Asset {
@@ -296,6 +296,8 @@ impl Asset {
     hasher.finish()
   }
 }
+
+pub type JSONObject = serde_json::value::Map<String, serde_json::value::Value>;
 
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub enum AssetType {
@@ -354,7 +356,6 @@ impl AssetType {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize_repr, Deserialize_repr)]
-#[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum BundleBehavior {
   None = 255,
@@ -407,7 +408,7 @@ bitflags! {
 
 impl_bitflags_serde!(ExportsCondition);
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   // pub id: String,
@@ -428,9 +429,8 @@ pub struct Dependency {
   pub promise_symbol: Option<String>,
   pub import_attributes: Vec<ImportAttribute>,
   pub pipeline: Option<String>,
-  // These are stringified JSON
-  pub meta: Option<String>,
-  pub resolver_meta: Option<String>,
+  pub meta: JSONObject,
+  pub resolver_meta: JSONObject,
   pub package_conditions: ExportsCondition,
   pub custom_package_conditions: Vec<String>,
 }
@@ -455,8 +455,8 @@ impl Dependency {
       promise_symbol: None,
       import_attributes: Vec::new(),
       pipeline: None,
-      meta: None,
-      resolver_meta: None,
+      meta: JSONObject::new(),
+      resolver_meta: JSONObject::new(),
       package_conditions: ExportsCondition::empty(),
       custom_package_conditions: Vec::new(),
     }

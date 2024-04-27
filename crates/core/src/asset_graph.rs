@@ -1,23 +1,21 @@
-use std::{collections::HashSet, mem::discriminant};
+use std::collections::HashSet;
 
 use petgraph::graph::DiGraph;
 
 use crate::{
+  cache::Cache,
+  parcel_config::PipelineMap,
   request_tracker::{Request, RequestTracker},
   requests::{
-    asset_request::AssetRequest, entry_request::EntryRequest,
-    parcel_config_request::ParcelConfigRequest, path_request::PathRequest,
+    asset_request::AssetRequest, entry_request::EntryRequest, path_request::PathRequest,
     target_request::TargetRequest,
   },
-  types::{
-    Asset, Dependency, DependencyFlags, Engines, Environment, EnvironmentContext, EnvironmentFlags,
-    OutputFormat, SourceType,
-  },
+  types::{Asset, Dependency, DependencyFlags},
 };
 
 #[derive(Debug, Clone)]
 pub struct AssetGraph {
-  graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
+  pub graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
 }
 
 impl AssetGraph {
@@ -63,7 +61,7 @@ impl std::hash::Hash for AssetGraph {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", content = "value", rename_all = "lowercase")]
-enum AssetGraphNode {
+pub enum AssetGraphNode {
   Root,
   Asset(Asset),
   Dependency(Dependency),
@@ -81,16 +79,15 @@ impl std::hash::Hash for AssetGraphNode {
 }
 
 #[derive(Debug, Clone)]
-struct AssetGraphEdge {}
+pub struct AssetGraphEdge {}
 
-pub struct AssetGraphRequest {
+pub struct AssetGraphRequest<'a> {
   pub entries: Vec<String>,
+  pub transformers: &'a PipelineMap,
 }
 
-impl AssetGraphRequest {
-  pub fn build(&mut self, request_tracker: &mut RequestTracker) -> AssetGraph {
-    let config = request_tracker.run_request(ParcelConfigRequest {}).unwrap();
-
+impl<'a> AssetGraphRequest<'a> {
+  pub fn build(&mut self, request_tracker: &mut RequestTracker, cache: &Cache) -> AssetGraph {
     let mut graph = AssetGraph::new();
     let root = graph.graph.add_node(AssetGraphNode::Root);
 
@@ -140,7 +137,7 @@ impl AssetGraphRequest {
       .into_iter()
       .zip(dep_nodes.iter())
       .map(|(result, node)| AssetRequest {
-        transformers: &config.transformers,
+        transformers: &self.transformers,
         file_path: result.unwrap(),
         env: match graph.graph.node_weight(*node).unwrap() {
           AssetGraphNode::Dependency(dep) => dep.env.clone(),
@@ -162,6 +159,7 @@ impl AssetGraphRequest {
       let mut new_dep_nodes = Vec::new();
       for (result, dep_node) in results.into_iter().zip(dep_nodes) {
         let res = result.unwrap();
+        cache.set(res.asset.content_key.clone(), res.code);
         let asset_node = graph.graph.add_node(AssetGraphNode::Asset(res.asset));
         graph
           .graph
@@ -186,7 +184,7 @@ impl AssetGraphRequest {
         .into_iter()
         .zip(dep_nodes.iter())
         .map(|(result, node)| AssetRequest {
-          transformers: &config.transformers,
+          transformers: &self.transformers,
           file_path: result.unwrap(),
           env: match graph.graph.node_weight(*node).unwrap() {
             AssetGraphNode::Dependency(dep) => dep.env.clone(),
