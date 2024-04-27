@@ -1,13 +1,17 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use itertools::{Either, Itertools};
+use parcel_resolver::Resolver;
 use petgraph::graph::DiGraph;
 
 use crate::{
   cache::Cache,
-  parcel_config::PipelineMap,
+  parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestTracker},
   requests::{
-    asset_request::AssetRequest, entry_request::EntryRequest, path_request::PathRequest,
+    asset_request::AssetRequest,
+    entry_request::EntryRequest,
+    path_request::{PathRequest, ResolverResult},
     target_request::TargetRequest,
   },
   types::{Asset, Dependency, DependencyFlags},
@@ -84,6 +88,7 @@ pub struct AssetGraphEdge {}
 pub struct AssetGraphRequest<'a> {
   pub entries: Vec<String>,
   pub transformers: &'a PipelineMap,
+  pub resolvers: &'a Vec<PluginNode>,
 }
 
 impl<'a> AssetGraphRequest<'a> {
@@ -111,6 +116,8 @@ impl<'a> AssetGraphRequest<'a> {
       .collect();
     let targets = request_tracker.run_requests(target_requests);
 
+    let named_pipelines = self.transformers.named_pipelines();
+
     let mut path_requests = Vec::new();
     let mut dep_nodes = Vec::new();
     let mut target_iter = targets.into_iter();
@@ -126,41 +133,61 @@ impl<'a> AssetGraphRequest<'a> {
             .add_node(AssetGraphNode::Dependency(dep.clone()));
           dep_nodes.push(dep_node);
           graph.graph.add_edge(root, dep_node, AssetGraphEdge {});
-          path_requests.push(PathRequest { dep });
+          path_requests.push(PathRequest {
+            dep,
+            resolvers: &self.resolvers,
+            named_pipelines: &named_pipelines,
+          });
         }
       }
     }
 
-    let resolved = request_tracker.run_requests(path_requests);
-
-    let mut asset_requests: Vec<_> = resolved
-      .into_iter()
-      .zip(dep_nodes.iter())
-      .map(|(result, node)| AssetRequest {
-        transformers: &self.transformers,
-        file_path: result.unwrap(),
-        env: match graph.graph.node_weight(*node).unwrap() {
-          AssetGraphNode::Dependency(dep) => dep.env.clone(),
-          _ => unreachable!(),
-        },
-      })
-      .collect();
-
     let mut visited = HashSet::new();
-    for req in &asset_requests {
-      visited.insert(req.id());
-    }
+    let mut asset_request_to_asset = HashMap::new();
 
-    while !asset_requests.is_empty() {
-      let results = request_tracker.run_requests(asset_requests);
+    while !path_requests.is_empty() {
+      let resolved = request_tracker.run_requests(path_requests);
+
+      let mut asset_requests_to_run = Vec::new();
+      let mut dep_nodes_to_run = Vec::new();
+      let mut already_visited_requests = Vec::new();
+      for (result, node) in resolved.into_iter().zip(dep_nodes.iter()) {
+        let asset_request = match result.unwrap() {
+          ResolverResult::Resolved {
+            path,
+            code,
+            pipeline,
+          } => AssetRequest {
+            transformers: &self.transformers,
+            file_path: path,
+            pipeline,
+            env: match graph.graph.node_weight(*node).unwrap() {
+              AssetGraphNode::Dependency(dep) => dep.env.clone(),
+              _ => unreachable!(),
+            },
+          },
+          _ => todo!(),
+        };
+
+        let id = asset_request.id();
+        if visited.insert(id) {
+          asset_requests_to_run.push(asset_request);
+          dep_nodes_to_run.push((id, *node));
+        } else {
+          already_visited_requests.push((id, *node));
+        }
+      }
+
+      let results = request_tracker.run_requests(asset_requests_to_run);
       // println!("deps {:?}", deps);
 
-      let mut path_requests = Vec::new();
-      let mut new_dep_nodes = Vec::new();
-      for (result, dep_node) in results.into_iter().zip(dep_nodes) {
+      path_requests = Vec::new();
+      dep_nodes = Vec::new();
+      for (result, (asset_request_id, dep_node)) in results.into_iter().zip(dep_nodes_to_run) {
         let res = result.unwrap();
         cache.set(res.asset.content_key.clone(), res.code);
         let asset_node = graph.graph.add_node(AssetGraphNode::Asset(res.asset));
+        asset_request_to_asset.insert(asset_request_id, asset_node);
         graph
           .graph
           .add_edge(dep_node, asset_node, AssetGraphEdge {});
@@ -169,30 +196,23 @@ impl<'a> AssetGraphRequest<'a> {
           let dep_node = graph
             .graph
             .add_node(AssetGraphNode::Dependency(dep.clone()));
-          new_dep_nodes.push(dep_node);
+          dep_nodes.push(dep_node);
           graph
             .graph
             .add_edge(asset_node, dep_node, AssetGraphEdge {});
-          path_requests.push(PathRequest { dep });
+          path_requests.push(PathRequest {
+            dep,
+            resolvers: &self.resolvers,
+            named_pipelines: &named_pipelines,
+          });
         }
       }
 
-      dep_nodes = new_dep_nodes;
-      let resolved = request_tracker.run_requests(path_requests);
-
-      asset_requests = resolved
-        .into_iter()
-        .zip(dep_nodes.iter())
-        .map(|(result, node)| AssetRequest {
-          transformers: &self.transformers,
-          file_path: result.unwrap(),
-          env: match graph.graph.node_weight(*node).unwrap() {
-            AssetGraphNode::Dependency(dep) => dep.env.clone(),
-            _ => unreachable!(),
-          },
-        })
-        .filter(|req| visited.insert(req.id()))
-        .collect();
+      for (req_id, dep_node) in already_visited_requests {
+        graph
+          .graph
+          .add_edge(dep_node, asset_request_to_asset[&req_id], AssetGraphEdge {});
+      }
     }
 
     graph

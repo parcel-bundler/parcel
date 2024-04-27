@@ -106,13 +106,7 @@ export default function createAssetGraphRequestRust(
             let targets = await targetResolver.resolve(request.entry.filePath, request.entry.target);
             return {
               type: 'Target',
-              value: targets.map(t => ({
-                ...t,
-                env: {
-                  ...t.env,
-                  flags: 0
-                }
-              }))
+              value: targets
             };
           }
           case 'Transform': {
@@ -294,6 +288,7 @@ function getAssetGraph(serializedGraph) {
       let assetGroupNode = nodeFromAssetGroup({
         filePath: toNode.value.filePath,
         env: fromNode.value.env,
+        pipeline: toNode.value.pipeline,
       });
       let index = graph.addNodeByContentKeyIfNeeded(assetGroupNode.id, assetGroupNode);
       graph.addEdge(from, index);

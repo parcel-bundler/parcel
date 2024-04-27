@@ -38,6 +38,7 @@ pub struct Environment {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Engines {
   #[serde(
+    default,
     serialize_with = "serialize_browsers",
     deserialize_with = "deserialize_browsers"
   )]

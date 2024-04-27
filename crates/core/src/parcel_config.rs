@@ -1,7 +1,7 @@
 use glob_match::glob_match;
 use indexmap::{indexmap, IndexMap};
 use std::{
-  collections::hash_map::DefaultHasher,
+  collections::{hash_map::DefaultHasher, HashSet},
   hash::{Hash, Hasher},
   path::{Path, PathBuf},
 };
@@ -104,6 +104,10 @@ impl PipelineMap {
     }
 
     fn flatten(matches: &mut Vec<&Vec<PipelineNode>>) -> Vec<PluginNode> {
+      if matches.is_empty() {
+        return Vec::new();
+      }
+
       matches
         .remove(0)
         .into_iter()
@@ -120,6 +124,14 @@ impl PipelineMap {
     }
 
     flatten(&mut matches)
+  }
+
+  pub fn named_pipelines(&self) -> Vec<&str> {
+    self
+      .0
+      .keys()
+      .filter_map(|glob| glob.split_once(':').map(|g| g.0))
+      .collect()
   }
 }
 

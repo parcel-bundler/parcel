@@ -13,6 +13,7 @@ use xxhash_rust::xxh3::xxh3_64;
 pub struct AssetRequest<'a> {
   pub transformers: &'a PipelineMap,
   pub file_path: PathBuf,
+  pub pipeline: Option<String>,
   pub env: Environment,
 }
 
@@ -29,7 +30,11 @@ impl<'a> Request for AssetRequest<'a> {
 
   fn run(&self, farm: &WorkerFarm) -> RequestResult<Self::Output> {
     // println!("transform {:?}", self.file_path);
-    let pipeline = self.transformers.get::<&str>(&self.file_path, &None, false);
+    let pipeline = self.transformers.get::<&str>(
+      &self.file_path,
+      &self.pipeline.as_ref().map(|p| p.as_str()),
+      false,
+    );
 
     let asset = Asset {
       file_path: self.file_path.clone(),
@@ -45,7 +50,7 @@ impl<'a> Request for AssetRequest<'a> {
       content_key: String::new(),
       map_key: None,
       output_hash: String::new(),
-      pipeline: None,
+      pipeline: self.pipeline.clone(),
       meta: JSONObject::new(),
       stats: AssetStats { size: 0, time: 0 },
       bundle_behavior: crate::types::BundleBehavior::None,

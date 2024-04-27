@@ -11,6 +11,14 @@ use package_json::ExportsResolution;
 use package_json::PackageJson;
 use specifier::parse_package_specifier;
 use specifier::parse_scheme;
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  path::{Path, PathBuf},
+  sync::Arc,
+};
+
+use package_json::{AliasValue, ExportsResolution, PackageJson};
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -37,6 +45,10 @@ pub use parcel_filesystem::FileSystem;
 pub use specifier::Specifier;
 pub use specifier::SpecifierError;
 pub use specifier::SpecifierType;
+pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
+pub use specifier::{
+  parse_package_specifier, parse_scheme, Specifier, SpecifierError, SpecifierType,
+};
 
 use crate::path::resolve_path;
 

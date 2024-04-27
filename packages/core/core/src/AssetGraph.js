@@ -66,7 +66,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: hashString(
       fromProjectPathRelative(assetGroup.filePath) +
-        assetGroup.env.id +
+        JSON.stringify(assetGroup.env) +
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
         (assetGroup.code ?? '') +
