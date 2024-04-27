@@ -24,6 +24,23 @@ import {
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
+import {RustCache} from '@parcel/rust';
+import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
+
+class CacheWrapper extends RustCache {
+  get<T>(key: string): Promise<?T> {
+    return deserialize(super.getBlob(key))
+  }
+
+  set(key: string, value: mixed): Promise<void> {
+    super.setBlob(key, serialize(value));
+  }
+
+  setBlob(key, value: Buffer | string): Promise<void> {
+    let val = typeof value === 'string' ? Buffer.from(value) : value;
+    super.setBlob(key, val);
+  }
+}
 
 import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
@@ -107,11 +124,12 @@ export default async function resolveOptions(
       ? path.resolve(initialOptions.watchDir)
       : projectRoot;
 
-  let cache =
-    initialOptions.cache ??
-    (outputFS instanceof NodeFS
-      ? new LMDBCache(cacheDir)
-      : new FSCache(outputFS, cacheDir));
+  // let cache =
+  //   initialOptions.cache ??
+  //   (outputFS instanceof NodeFS
+  //     ? new LMDBCache(cacheDir)
+  //     : new FSCache(outputFS, cacheDir));
+  let cache = new CacheWrapper();
 
   let mode = initialOptions.mode ?? 'development';
   let shouldOptimize =

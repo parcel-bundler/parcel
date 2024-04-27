@@ -2,12 +2,14 @@ use std::sync::Arc;
 
 use crossbeam_channel::{Receiver, Sender};
 use napi::{
+  bindgen_prelude::{BigInt, Buffer},
   threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
   Env, JsFunction, JsObject, JsUnknown,
 };
 use napi_derive::napi;
 use parcel_core::{
   asset_graph::AssetGraphRequest,
+  cache::Cache,
   request_tracker::RequestTracker,
   worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
 };
@@ -81,17 +83,61 @@ fn await_promise(
 }
 
 #[napi]
-pub fn parcel(entries: Vec<String>, callback: JsFunction, env: Env) -> napi::Result<JsObject> {
+pub fn parcel(
+  entries: Vec<String>,
+  cache: &mut RustCache,
+  callback: JsFunction,
+  env: Env,
+) -> napi::Result<JsObject> {
   let mut farm = WorkerFarm::new();
   farm.register_worker(create_worker_callback(callback, env)?);
 
   let (deferred, promise) = env.create_deferred()?;
 
+  let cache = Arc::clone(&cache.cache);
   rayon::spawn(move || {
-    build(entries, farm);
-
-    deferred.resolve(move |env| env.get_undefined());
+    let asset_graph = build(entries, farm, &cache);
+    deferred.resolve(move |env| env.to_js_value(&asset_graph));
   });
 
   Ok(promise)
+}
+
+#[napi]
+pub struct RustCache {
+  cache: Arc<Cache>,
+}
+
+#[napi]
+impl RustCache {
+  #[napi(constructor)]
+  pub fn new() -> Self {
+    RustCache {
+      cache: Arc::new(Cache::new()),
+    }
+  }
+
+  #[napi]
+  pub fn has(&self, key: String) -> bool {
+    self.cache.has(key)
+  }
+
+  #[napi]
+  pub fn get_blob(&self, key: String) -> Option<Buffer> {
+    self.cache.get(key).map(|b| b.clone().into())
+  }
+
+  #[napi]
+  pub fn set_blob(&mut self, key: String, value: Buffer) {
+    self.cache.set(key, value.into());
+  }
+
+  #[napi]
+  pub fn set(&mut self) {}
+
+  #[napi]
+  pub fn get(&self) {}
+
+  #[napi]
+  pub fn ensure(&mut self) {}
 }

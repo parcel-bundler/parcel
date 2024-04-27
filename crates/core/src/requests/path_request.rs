@@ -19,9 +19,14 @@ lazy_static::lazy_static! {
   };
 }
 
-#[derive(Hash)]
 pub struct PathRequest {
   pub dep: Dependency,
+}
+
+impl std::hash::Hash for PathRequest {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.dep.id().hash(state)
+  }
 }
 
 impl Request for PathRequest {
