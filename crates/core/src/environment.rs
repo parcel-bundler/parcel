@@ -1,3 +1,5 @@
+use std::{num::NonZeroU16, str::FromStr};
+
 use crate::types::{impl_bitflags_serde, SourceLocation};
 use bitflags::bitflags;
 use browserslist::Distrib;
@@ -26,38 +28,200 @@ pub struct TargetSourceMapOptions {
   inline_sources: Option<bool>,
 }
 
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Hash, Default, Serialize, Deserialize)]
 pub struct Engines {
-  #[serde(
-    default,
-    serialize_with = "serialize_browsers",
-    deserialize_with = "deserialize_browsers"
-  )]
-  pub browsers: Vec<Distrib>,
-  pub electron: Option<String>,
-  pub node: Option<String>,
-  pub parcel: Option<String>,
+  #[serde(default)]
+  pub browsers: Browsers,
+  pub electron: Option<Version>,
+  pub node: Option<Version>,
+  pub parcel: Option<Version>,
 }
 
-fn serialize_browsers<S>(browsers: &Vec<Distrib>, serializer: S) -> Result<S::Ok, S::Error>
-where
-  S: serde::Serializer,
-{
-  let browsers: Vec<String> = browsers.iter().map(|b| b.to_string()).collect();
-  browsers.serialize(serializer)
+#[derive(PartialEq, Clone, Copy, PartialOrd, Ord, Eq, Hash)]
+pub struct Version(NonZeroU16);
+
+impl Version {
+  pub fn new(major: NonZeroU16, minor: u16) -> Self {
+    Version(NonZeroU16::new((major.get() & 0xff) << 8 | (minor & 0xff)).unwrap())
+  }
+
+  pub fn major(&self) -> u16 {
+    self.0.get() >> 8
+  }
+
+  pub fn minor(&self) -> u16 {
+    self.0.get() & 0xff
+  }
 }
 
-fn deserialize_browsers<'de, D>(deserializer: D) -> Result<Vec<Distrib>, D::Error>
-where
-  D: serde::Deserializer<'de>,
-{
-  let value = serde_value::Value::deserialize(deserializer)?;
-  let browsers = match value {
-    serde_value::Value::String(s) => vec![s],
-    value => Vec::<String>::deserialize(serde_value::ValueDeserializer::new(value))?,
-  };
-  let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
-  Ok(distribs)
+impl FromStr for Version {
+  type Err = ();
+
+  fn from_str(version: &str) -> Result<Self, Self::Err> {
+    let version = version.split('-').next();
+    if version.is_none() {
+      return Err(());
+    }
+
+    let mut version = version.unwrap().split('.');
+    let major = version.next().and_then(|v| v.parse::<NonZeroU16>().ok());
+    if let Some(major) = major {
+      let minor = version
+        .next()
+        .and_then(|v| v.parse::<u16>().ok())
+        .unwrap_or(0);
+      // let patch = version.next().and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
+      return Ok(Version::new(major, minor));
+    }
+
+    Err(())
+  }
+}
+
+impl std::fmt::Display for Version {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, ">= {}", self.major())?;
+    if self.minor() > 0 {
+      write!(f, "{}", self.minor())?;
+    }
+    Ok(())
+  }
+}
+
+impl std::fmt::Debug for Version {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.major())?;
+    if self.minor() > 0 {
+      write!(f, "{}", self.minor())?;
+    }
+    Ok(())
+  }
+}
+
+impl serde::Serialize for Version {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    format!("{}", self).serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for Version {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let v: String = serde::Deserialize::deserialize(deserializer)?;
+    if let Some(version) = node_semver::Range::parse(v.as_str())
+      .ok()
+      .and_then(|r| r.min_version())
+    {
+      Ok(Version(
+        NonZeroU16::new((version.major as u16) << 8 | (version.minor as u16))
+          .ok_or(serde::de::Error::custom("version must be > 0"))?,
+      ))
+    } else {
+      Err(serde::de::Error::custom("invalid semver range"))
+    }
+  }
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Hash)]
+pub struct Browsers {
+  pub android: Option<Version>,
+  pub chrome: Option<Version>,
+  pub edge: Option<Version>,
+  pub firefox: Option<Version>,
+  pub ie: Option<Version>,
+  pub ios_saf: Option<Version>,
+  pub opera: Option<Version>,
+  pub safari: Option<Version>,
+  pub samsung: Option<Version>,
+}
+
+impl std::fmt::Display for Browsers {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let mut first = true;
+    macro_rules! browser {
+      ($b: ident) => {
+        if let Some(v) = self.$b {
+          if !first {
+            write!(f, ", ")?;
+          }
+          first = false;
+          write!(f, "{} {}", stringify!($b), v)?;
+        }
+      };
+    }
+
+    browser!(android);
+    browser!(chrome);
+    browser!(edge);
+    browser!(firefox);
+    browser!(ie);
+    browser!(ios_saf);
+    browser!(opera);
+    browser!(safari);
+    browser!(samsung);
+    Ok(())
+  }
+}
+
+impl From<Vec<Distrib>> for Browsers {
+  fn from(distribs: Vec<Distrib>) -> Self {
+    let mut browsers = Browsers::default();
+    for distrib in distribs {
+      macro_rules! browser {
+        ($browser: ident) => {{
+          if let Ok(v) = distrib.version().parse() {
+            if browsers.$browser.is_none() || v < browsers.$browser.unwrap() {
+              browsers.$browser = Some(v);
+            }
+          }
+        }};
+      }
+
+      match distrib.name() {
+        "android" => browser!(android),
+        "chrome" | "and_chr" => browser!(chrome),
+        "edge" => browser!(edge),
+        "firefox" | "and_ff" => browser!(firefox),
+        "ie" => browser!(ie),
+        "ios_saf" => browser!(ios_saf),
+        "opera" | "op_mob" => browser!(opera),
+        "safari" => browser!(safari),
+        "samsung" => browser!(samsung),
+        _ => {}
+      }
+    }
+
+    browsers
+  }
+}
+
+impl serde::Serialize for Browsers {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    format!("{}", self).serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for Browsers {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let value = serde_value::Value::deserialize(deserializer)?;
+    let browsers = match value {
+      serde_value::Value::String(s) => vec![s],
+      value => Vec::<String>::deserialize(serde_value::ValueDeserializer::new(value))?,
+    };
+    let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
+    Ok(distribs.into())
+  }
 }
 
 // List of browsers to exclude when the esmodule target is specified.
@@ -84,6 +248,34 @@ const ESMODULE_BROWSERS: &'static [&'static str] = &[
   "not kaios > 0",
 ];
 
+pub enum EnvironmentFeature {
+  Esmodules,
+  DynamicImport,
+  WorkerModule,
+  ServiceWorkerModule,
+  ImportMetaUrl,
+  ArrowFunctions,
+  GlobalThis,
+}
+
+impl EnvironmentFeature {
+  pub fn engines(&self) -> Engines {
+    match self {
+      EnvironmentFeature::WorkerModule => Engines {
+        browsers: Browsers {
+          edge: Some(Version::new(NonZeroU16::new(80).unwrap(), 0)),
+          chrome: Some(Version::new(NonZeroU16::new(80).unwrap(), 0)),
+          opera: Some(Version::new(NonZeroU16::new(67).unwrap(), 0)),
+          android: Some(Version::new(NonZeroU16::new(81).unwrap(), 0)),
+          ..Default::default()
+        },
+        ..Default::default()
+      },
+      _ => todo!(),
+    }
+  }
+}
+
 impl Engines {
   pub fn from_browserslist(browserslist: &str, output_format: OutputFormat) -> Engines {
     let browsers = if output_format == OutputFormat::Esmodule {
@@ -98,23 +290,37 @@ impl Engines {
     };
 
     Engines {
-      browsers: browsers.unwrap_or(Vec::new()),
+      browsers: browsers.map(|b| b.into()).unwrap_or_default(),
       electron: None,
       node: None,
       parcel: None,
     }
   }
-}
 
-impl std::hash::Hash for Engines {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    for browser in &self.browsers {
-      browser.name().hash(state);
-      browser.version().hash(state);
+  pub fn supports(&self, feature: EnvironmentFeature) -> bool {
+    let min = feature.engines();
+    macro_rules! check {
+      ($p: ident$(. $x: ident)*) => {{
+        if let Some(v) = self.$p$(.$x)* {
+          match min.$p$(.$x)* {
+            None => return false,
+            Some(v2) if v < v2 => return false,
+            _ => {}
+          }
+        }
+      }};
     }
-    self.electron.hash(state);
-    self.node.hash(state);
-    self.parcel.hash(state);
+
+    check!(browsers.android);
+    check!(browsers.chrome);
+    check!(browsers.edge);
+    check!(browsers.firefox);
+    check!(browsers.ie);
+    check!(browsers.ios_saf);
+    check!(browsers.opera);
+    check!(browsers.safari);
+    check!(browsers.samsung);
+    true
   }
 }
 

@@ -6,6 +6,7 @@ use petgraph::graph::DiGraph;
 
 use crate::{
   cache::Cache,
+  environment::EnvironmentFlags,
   parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestTracker},
   requests::{
@@ -14,7 +15,7 @@ use crate::{
     path_request::{PathRequest, ResolverResult},
     target_request::TargetRequest,
   },
-  types::{Asset, Dependency, DependencyFlags},
+  types::{Asset, Dependency, DependencyFlags, Symbol, SymbolFlags},
 };
 
 #[derive(Debug, Clone)]
@@ -127,7 +128,17 @@ impl<'a> AssetGraphRequest<'a> {
         for target in targets {
           let mut dep = Dependency::new(entry.file_path.clone(), target.env.clone());
           dep.target = Some(Box::new(target));
-          dep.flags |= DependencyFlags::ENTRY;
+          dep.flags |= DependencyFlags::ENTRY | DependencyFlags::NEEDS_STABLE_NAME;
+          if dep.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+            dep.flags |= DependencyFlags::HAS_SYMBOLS;
+            dep.symbols.push(Symbol {
+              exported: "*".into(),
+              local: "*".into(),
+              flags: SymbolFlags::IS_WEAK,
+              loc: None,
+            });
+          }
+
           let dep_node = graph
             .graph
             .add_node(AssetGraphNode::Dependency(dep.clone()));
@@ -157,10 +168,12 @@ impl<'a> AssetGraphRequest<'a> {
             path,
             code,
             pipeline,
+            side_effects,
           } => AssetRequest {
             transformers: &self.transformers,
             file_path: path,
             pipeline,
+            side_effects,
             env: match graph.graph.node_weight(*node).unwrap() {
               AssetGraphNode::Dependency(dep) => dep.env.clone(),
               _ => unreachable!(),

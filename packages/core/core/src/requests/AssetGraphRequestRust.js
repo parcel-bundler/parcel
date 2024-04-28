@@ -3,10 +3,13 @@
 import type {NodeId} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
-import type {
-  Asset,
-  AssetGroup,
-} from '../types';
+import {
+  DependencyFlags,
+  type Asset,
+  type AssetGroup,
+  AssetFlags,
+  EnvironmentFlags,
+} from "../types";
 import type {StaticRunOpts} from '../RequestTracker';
 
 import {EntryResolver} from './EntryRequest';
@@ -243,7 +246,9 @@ function getAssetGraph(serializedGraph) {
         committed: true,
         id,
         // backward compatibility
-        symbols: new Map(node.value.symbols.map(s => [s.exported, s]))
+        symbols: (node.value.flags & AssetFlags.HAS_SYMBOLS)
+          ? new Map(node.value.symbols.map(s => [s.exported, s]))
+          : null
       };
       changedAssets.set(id, value);
       graph.addNodeByContentKey(id, {
@@ -259,16 +264,24 @@ function getAssetGraph(serializedGraph) {
       let value = {
         ...node.value,
         id,
-        symbols: new Map(node.value.symbols.map(s => [s.exported, s]))
+        symbols: (node.value.flags & DependencyFlags.HAS_SYMBOLS)
+          ? new Map(node.value.symbols.map(s => [s.exported, s]))
+          : null
       };
+      let usedSymbolsDown = new Set();
+      let usedSymbolsUp = new Map();
+      if (value.flags & DependencyFlags.ENTRY && value.env.flags & EnvironmentFlags.IS_LIBRARY) {
+        usedSymbolsDown.add('*');
+        usedSymbolsUp.set('*', undefined);
+      }
       graph.addNodeByContentKey(id, {
         id,
         type: 'dependency',
         value,
         deferred: false,
         excluded: false,
-        usedSymbolsDown: new Set(),
-        usedSymbolsUp: new Map(),
+        usedSymbolsDown,
+        usedSymbolsUp,
         usedSymbolsDownDirty: true,
         usedSymbolsUpDirtyDown: true,
         usedSymbolsUpDirtyUp: true,
@@ -289,6 +302,7 @@ function getAssetGraph(serializedGraph) {
         filePath: toNode.value.filePath,
         env: fromNode.value.env,
         pipeline: toNode.value.pipeline,
+        sideEffects: Boolean(toNode.value.flags & AssetFlags.SIDE_EFFECTS)
       });
       let index = graph.addNodeByContentKeyIfNeeded(assetGroupNode.id, assetGroupNode);
       graph.addEdge(from, index);

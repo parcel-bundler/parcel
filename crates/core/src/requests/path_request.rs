@@ -57,11 +57,13 @@ impl<'a> Request for PathRequest<'a> {
         path,
         code,
         pipeline,
+        side_effects,
       }) => RequestResult {
         result: Ok(ResolverResult::Resolved {
           path,
           code,
           pipeline: pipeline.or(parsed_pipeline),
+          side_effects,
         }),
         invalidations: result.invalidations,
       },
@@ -85,6 +87,7 @@ pub enum ResolverResult {
     path: PathBuf,
     code: Option<String>,
     pipeline: Option<String>,
+    side_effects: bool,
   },
 }
 
@@ -125,31 +128,41 @@ impl Resolver for DefaultResolver {
       custom_conditions: dep.custom_package_conditions.clone(),
     };
 
-    let (res, _) = resolver
-      .resolve_with_options(
-        specifier,
-        dep
-          .source_path
-          .as_ref()
-          .map(|p| p.as_path())
-          .unwrap_or(Path::new("/")),
-        match dep.specifier_type {
-          SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
-          SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
-          SpecifierType::Url => parcel_resolver::SpecifierType::Url,
-          SpecifierType::Custom => parcel_resolver::SpecifierType::Esm, // ???
-        },
-        options,
-      )
-      .result
-      .unwrap();
+    let mut res = resolver.resolve_with_options(
+      specifier,
+      dep
+        .source_path
+        .as_ref()
+        .map(|p| p.as_path())
+        .unwrap_or(Path::new("/")),
+      match dep.specifier_type {
+        SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
+        SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
+        SpecifierType::Url => parcel_resolver::SpecifierType::Url,
+        SpecifierType::Custom => parcel_resolver::SpecifierType::Esm, // ???
+      },
+      options,
+    );
 
-    match res {
+    let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
+      match resolver.resolve_side_effects(p, &res.invalidations) {
+        Ok(side_effects) => side_effects,
+        Err(err) => {
+          res.result = Err(err);
+          true
+        }
+      }
+    } else {
+      true
+    };
+
+    match res.result.unwrap().0 {
       Resolution::Path(path) => RequestResult {
         result: Ok(ResolverResult::Resolved {
           path,
           code: None,
           pipeline: None,
+          side_effects,
         }),
         invalidations: Vec::new(),
       },
@@ -162,6 +175,7 @@ impl Resolver for DefaultResolver {
           .into(),
           code: None,
           pipeline: None,
+          side_effects,
         }),
         invalidations: Vec::new(),
       },
@@ -174,6 +188,7 @@ impl Resolver for DefaultResolver {
           path: format!("{}.js", global).into(),
           code: Some(format!("module.exports={};", global)),
           pipeline: None,
+          side_effects,
         }),
         invalidations: Vec::new(),
       },
@@ -232,6 +247,7 @@ impl DefaultResolver {
             .into(),
             code: None,
             pipeline: None,
+            side_effects: true,
           }),
           invalidations: Vec::new(),
         }
