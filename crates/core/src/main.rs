@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use mimalloc::MiMalloc;
 use parcel_core::{
-  asset_graph::AssetGraphRequest,
   build,
   cache::Cache,
+  environment::{
+    Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
+  },
   parcel_config::ParcelConfig,
-  request_tracker::RequestTracker,
   requests::entry_request::Entry,
-  types::{Engines, Environment, EnvironmentFlags, SourceType, Target},
+  types::Target,
   worker_farm::{WorkerFarm, WorkerRequest, WorkerResult},
 };
 
@@ -26,13 +27,13 @@ fn main() {
     WorkerRequest::ParcelConfig => Ok(WorkerResult::ParcelConfig(ParcelConfig::default())),
     WorkerRequest::Target(target) => Ok(WorkerResult::Target(vec![Target {
       env: Environment {
-        context: parcel_core::types::EnvironmentContext::Browser,
-        output_format: parcel_core::types::OutputFormat::Esmodule,
+        context: EnvironmentContext::Browser,
+        output_format: OutputFormat::Esmodule,
         source_type: SourceType::Module,
         source_map: None,
         flags: EnvironmentFlags::empty(),
         loc: None,
-        include_node_modules: parcel_core::types::IncludeNodeModules::Bool(true),
+        include_node_modules: parcel_resolver::IncludeNodeModules::Bool(true),
         engines: Engines {
           browsers: Vec::new(),
           node: None,

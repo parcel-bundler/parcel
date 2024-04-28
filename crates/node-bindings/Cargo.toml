@@ -14,6 +14,7 @@ parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel-core = { path = "../core" }
+indexmap = "1.9.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi5", "napi6"]}

@@ -1,15 +1,18 @@
 use std::{
   borrow::Cow,
-  collections::HashSet,
   path::{Path, PathBuf},
 };
 
 use crate::{
+  environment::{EnvironmentContext, EnvironmentFlags},
   parcel_config::PluginNode,
   request_tracker::{Request, RequestResult},
-  types::{Dependency, Environment, EnvironmentFlags, IncludeNodeModules, SpecifierType},
+  types::{Dependency, SpecifierType},
 };
-use parcel_resolver::{parse_scheme, Cache, CacheCow, OsFileSystem, Resolution};
+use parcel_resolver::{
+  parse_scheme, Cache, CacheCow, ExportsCondition, Fields, IncludeNodeModules, OsFileSystem,
+  Resolution, ResolveOptions,
+};
 
 // TODO: find a way to have a cached resolver per project.
 lazy_static::lazy_static! {
@@ -88,11 +91,42 @@ pub enum ResolverResult {
 struct DefaultResolver;
 impl Resolver for DefaultResolver {
   fn resolve(&self, specifier: &str, dep: &Dependency) -> RequestResult<ResolverResult> {
-    let resolver =
+    let mut resolver =
       parcel_resolver::Resolver::parcel(Cow::Borrowed(Path::new("/")), CacheCow::Borrowed(&CACHE));
 
+    resolver
+      .conditions
+      .set(ExportsCondition::BROWSER, dep.env.context.is_browser());
+    resolver
+      .conditions
+      .set(ExportsCondition::WORKER, dep.env.context.is_worker());
+    resolver.conditions.set(
+      ExportsCondition::WORKLET,
+      dep.env.context == EnvironmentContext::Worklet,
+    );
+    resolver
+      .conditions
+      .set(ExportsCondition::ELECTRON, dep.env.context.is_electron());
+    resolver
+      .conditions
+      .set(ExportsCondition::NODE, dep.env.context.is_node());
+    // resolver.conditions.set(ExportsCondition::PRODUCTION, dep)
+    // resolver.conditions.set(ExportsCondition::DEVELOPMENT, dep)
+
+    resolver.entries = Fields::MAIN | Fields::MODULE | Fields::SOURCE;
+    if dep.env.context.is_browser() {
+      resolver.entries |= Fields::BROWSER;
+    }
+
+    resolver.include_node_modules = Cow::Borrowed(&dep.env.include_node_modules);
+
+    let options = ResolveOptions {
+      conditions: dep.package_conditions,
+      custom_conditions: dep.custom_package_conditions.clone(),
+    };
+
     let (res, _) = resolver
-      .resolve(
+      .resolve_with_options(
         specifier,
         dep
           .source_path
@@ -105,6 +139,7 @@ impl Resolver for DefaultResolver {
           SpecifierType::Url => parcel_resolver::SpecifierType::Url,
           SpecifierType::Custom => parcel_resolver::SpecifierType::Esm, // ???
         },
+        options,
       )
       .result
       .unwrap();

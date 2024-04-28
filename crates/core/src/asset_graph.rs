@@ -166,6 +166,7 @@ impl<'a> AssetGraphRequest<'a> {
               _ => unreachable!(),
             },
           },
+          ResolverResult::Excluded => continue,
           _ => todo!(),
         };
 
