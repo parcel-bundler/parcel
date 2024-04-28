@@ -1070,7 +1070,6 @@ checksum = "d530e1a18b1cb4c484e6e34556a0d948706958449fca0cab753d649f2bce3d1f"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.3",
- "serde",
 ]
 
 [[package]]
@@ -1587,6 +1586,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
+<<<<<<< HEAD
 name = "openssl"
 version = "0.10.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1639,6 +1639,14 @@ dependencies = [
  "log",
  "serde",
  "windows-sys 0.52.0",
+=======
+name = "ordered-float"
+version = "2.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
+dependencies = [
+ "num-traits",
+>>>>>>> 696c48dcd (move environment)
 ]
 
 [[package]]
@@ -1687,7 +1695,7 @@ dependencies = [
  "dashmap",
  "fixedbitset",
  "glob-match",
- "indexmap 2.1.0",
+ "indexmap 1.9.3",
  "itertools 0.10.5",
  "lazy_static",
  "mimalloc",
@@ -1697,6 +1705,7 @@ dependencies = [
  "petgraph",
  "rayon",
  "serde",
+ "serde-value",
  "serde_bytes",
  "serde_json",
  "serde_repr",
@@ -1787,7 +1796,7 @@ name = "parcel-resolver"
 version = "0.1.0"
 dependencies = [
  "assert_fs",
- "bitflags 1.3.2",
+ "bitflags 2.3.3",
  "dashmap",
  "elsa",
  "glob-match",
@@ -2586,6 +2595,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9846a40c979031340571da2545a4e5b7c4163bdae79b301d5f86d03979451fcc"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float",
+ "serde",
 ]
 
 [[package]]

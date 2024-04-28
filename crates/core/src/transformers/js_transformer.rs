@@ -5,13 +5,15 @@ use indexmap::{indexmap, IndexMap};
 use parcel_js_swc_core::{
   CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult, Version, Versions,
 };
+use parcel_resolver::{ExportsCondition, IncludeNodeModules};
 
+use crate::environment::{
+  Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
+};
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
 use crate::types::{
-  Asset, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags, Environment,
-  EnvironmentContext, EnvironmentFlags, ExportsCondition, ImportAttribute, IncludeNodeModules,
-  JSONObject, Location, OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol,
-  SymbolFlags,
+  Asset, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags, ImportAttribute,
+  JSONObject, Location, Priority, SourceLocation, SpecifierType, Symbol, SymbolFlags,
 };
 
 pub struct JsTransformer;
@@ -136,6 +138,11 @@ fn convert_result(
   let env = asset.env.clone();
   let asset_id = asset.id();
 
+  asset.meta.insert(
+    "id".into(),
+    serde_json::Value::String(format!("{:x}", asset_id)),
+  );
+
   // let mut map = if let Some(buf) = map_buf {
   //   SourceMap::from_buffer(&db.options.project_root, buf).ok()
   // } else {
@@ -179,6 +186,7 @@ fn convert_result(
         }
 
         let d = Dependency {
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -218,6 +226,7 @@ fn convert_result(
       }
       DependencyKind::ServiceWorker => {
         let d = Dependency {
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -257,6 +266,7 @@ fn convert_result(
       }
       DependencyKind::Worklet => {
         let d = Dependency {
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -289,6 +299,7 @@ fn convert_result(
       }
       DependencyKind::Url => {
         let d = Dependency {
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -413,6 +424,7 @@ fn convert_result(
         }
 
         let d = Dependency {
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: match dep.kind {
             DependencyKind::Require => SpecifierType::Commonjs,
@@ -448,6 +460,7 @@ fn convert_result(
 
   if result.needs_esm_helpers {
     let d = Dependency {
+      source_asset_id: Some(asset_id),
       specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
       specifier_type: SpecifierType::Esm,
       source_path: Some(file_path.clone()),

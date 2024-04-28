@@ -13,12 +13,13 @@ parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 lazy_static = "*"
 mimalloc = { version = "*", default-features = false }
-indexmap = { version = "*", features = ["serde"] }
+indexmap = { version = "1.9.2", features = ["serde"] }
 glob-match = "0.2.1"
 serde = "1.0.123"
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
 serde_bytes = "0.11.5"
 serde_repr = "0.1.19"
+serde-value = "*"
 browserslist-rs = "0.14.0"
 node-semver = { git = "https://github.com/devongovett/node-semver-rs", branch = "min-version" }
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }

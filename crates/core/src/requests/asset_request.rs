@@ -1,15 +1,16 @@
 use std::path::PathBuf;
 
 use crate::{
+  environment::Environment,
   parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestResult},
   transformers::run_transformer,
-  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, Environment, JSONObject},
+  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, JSONObject},
   worker_farm::WorkerFarm,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
-#[derive(Hash)]
+#[derive(Hash, Debug)]
 pub struct AssetRequest<'a> {
   pub transformers: &'a PipelineMap,
   pub file_path: PathBuf,

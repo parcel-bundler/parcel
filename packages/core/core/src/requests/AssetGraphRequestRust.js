@@ -303,7 +303,7 @@ function getAssetGraph(serializedGraph) {
 
 function dependencyId(opts) {
   return hashString(
-    (opts.sourcePath ?? '') +
+    (opts.sourceAssetId ?? '') +
       opts.specifier +
       JSON.stringify(opts.env) +
       (opts.target ? JSON.stringify(opts.target) : '') +

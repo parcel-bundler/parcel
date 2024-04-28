@@ -17,7 +17,7 @@ use crate::specifier::Specifier;
 use crate::specifier::SpecifierType;
 
 bitflags! {
-  #[derive(serde::Serialize)]
+  #[derive(Clone, Copy)]
   pub struct Fields: u8 {
     const MAIN = 1 << 0;
     const MODULE = 1 << 1;
@@ -100,6 +100,7 @@ pub enum ExportsField<'a> {
 }
 
 bitflags! {
+  #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
   pub struct ExportsCondition: u16 {
     const IMPORT = 1 << 0;
     const REQUIRE = 1 << 1;
@@ -148,6 +149,25 @@ impl TryFrom<&str> for ExportsCondition {
       "stylus" => ExportsCondition::STYLUS,
       _ => return Err(()),
     })
+  }
+}
+
+impl serde::Serialize for ExportsCondition {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.bits().serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for ExportsCondition {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let bits = Deserialize::deserialize(deserializer)?;
+    Ok(ExportsCondition::from_bits_truncate(bits))
   }
 }
 
