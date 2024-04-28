@@ -8,7 +8,7 @@ use parcel_js_swc_core::{
 use parcel_resolver::{ExportsCondition, IncludeNodeModules};
 
 use crate::environment::{
-  Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
+  Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, OutputFormat, SourceType,
 };
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
 use crate::types::{
@@ -31,47 +31,41 @@ impl Transformer for JsTransformer {
   }
 }
 
+fn convert_version(version: &crate::environment::Version) -> Version {
+  Version {
+    major: version.major() as u32,
+    minor: version.minor() as u32,
+    patch: 0,
+  }
+}
+
 #[inline]
 fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
   let mut targets = None;
   if asset.env.context.is_electron() {
-    if let Some(electron) = asset
-      .env
-      .engines
-      .electron
-      .as_ref()
-      .and_then(|v| node_semver::Range::parse(v.as_str()).ok())
-      .and_then(|r| r.min_version())
-    {
+    if let Some(electron) = &asset.env.engines.electron {
       targets = Some(Versions {
-        electron: Some(Version {
-          major: electron.major as u32,
-          minor: electron.minor as u32,
-          patch: electron.patch as u32,
-        }),
+        electron: Some(convert_version(electron)),
         ..Default::default()
       });
     }
-  } else if asset.env.context.is_browser() && !asset.env.engines.browsers.is_empty() {
-    // TODO: parse_versions should ideally take a reference to a slice not a Vec
-    if let Some(browsers) = Versions::parse_versions(asset.env.engines.browsers.clone()).ok() {
-      targets = Some(browsers);
-    }
+  } else if asset.env.context.is_browser() {
+    let browsers = &asset.env.engines.browsers;
+    let mut versions = Versions::default();
+    versions.android = browsers.android.as_ref().map(convert_version);
+    versions.chrome = browsers.chrome.as_ref().map(convert_version);
+    versions.edge = browsers.edge.as_ref().map(convert_version);
+    versions.firefox = browsers.firefox.as_ref().map(convert_version);
+    versions.ie = browsers.ie.as_ref().map(convert_version);
+    versions.ios = browsers.ios_saf.as_ref().map(convert_version);
+    versions.opera = browsers.opera.as_ref().map(convert_version);
+    versions.safari = browsers.safari.as_ref().map(convert_version);
+    versions.samsung = browsers.samsung.as_ref().map(convert_version);
+    targets = Some(versions);
   } else if asset.env.context.is_node() {
-    if let Some(node) = asset
-      .env
-      .engines
-      .node
-      .as_ref()
-      .and_then(|v| node_semver::Range::parse(v.as_str()).ok())
-      .and_then(|r| r.min_version())
-    {
+    if let Some(node) = &asset.env.engines.node {
       targets = Some(Versions {
-        node: Some(Version {
-          major: node.major as u32,
-          minor: node.minor as u32,
-          patch: node.patch as u32,
-        }),
+        node: Some(convert_version(node)),
         ..Default::default()
       });
     }
@@ -80,7 +74,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
   Config {
     filename: asset.file_path.clone(),
     code,
-    module_id: format!("{:x}", asset.id()),
+    module_id: format!("{:016x}", asset.id()),
     project_root: "/".into(), // TODO
     replace_env: !asset.env.context.is_node(),
     env: HashMap::new(), // TODO
@@ -111,7 +105,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
       SourceType::Script => parcel_js_swc_core::SourceType::Script,
       _ => parcel_js_swc_core::SourceType::Module,
     },
-    supports_module_workers: true, // TODO
+    supports_module_workers: asset.env.engines.supports(EnvironmentFeature::WorkerModule),
     is_library: asset.env.flags.contains(EnvironmentFlags::IS_LIBRARY),
     is_esm_output: asset.env.output_format == OutputFormat::Esmodule,
     trace_bailouts: false, // TODO db.options.log_level == LogLevel::Verbose,
@@ -140,7 +134,7 @@ fn convert_result(
 
   asset.meta.insert(
     "id".into(),
-    serde_json::Value::String(format!("{:x}", asset_id)),
+    serde_json::Value::String(format!("{:016x}", asset_id)),
   );
 
   // let mut map = if let Some(buf) = map_buf {
@@ -543,7 +537,7 @@ fn convert_result(
             .iter()
             .find(|sym| sym.exported == &*s.imported)
             .map(|sym| sym.local.clone())
-            .unwrap_or_else(|| format!("${:x}$re_export${}", asset_id, s.local).into());
+            .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, s.local).into());
           dep.symbols.push(Symbol {
             exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
@@ -623,7 +617,7 @@ fn convert_result(
     {
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${:x}$exports", asset_id).into(),
+        local: format!("${:016x}$exports", asset_id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -695,7 +689,7 @@ fn convert_result(
       {
         symbols.push(Symbol {
           exported: "*".into(),
-          local: format!("${:x}$exports", asset_id).into(),
+          local: format!("${:016x}$exports", asset_id).into(),
           loc: None,
           flags: SymbolFlags::empty(),
         });
@@ -704,7 +698,7 @@ fn convert_result(
       // If the asset is wrapped, add * as a fallback
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${:x}$exports", asset_id).into(),
+        local: format!("${:016x}$exports", asset_id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -740,7 +734,7 @@ fn convert_result(
   asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
 
   if asset.unique_key.is_none() {
-    asset.unique_key = Some(format!("{:x}", asset_id));
+    asset.unique_key = Some(format!("{:016x}", asset_id));
   }
 
   AssetRequestResult {

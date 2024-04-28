@@ -16,6 +16,7 @@ pub struct AssetRequest<'a> {
   pub file_path: PathBuf,
   pub pipeline: Option<String>,
   pub env: Environment,
+  pub side_effects: bool,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -37,6 +38,9 @@ impl<'a> Request for AssetRequest<'a> {
       false,
     );
 
+    let mut flags = AssetFlags::empty();
+    flags.set(AssetFlags::SIDE_EFFECTS, self.side_effects);
+
     let asset = Asset {
       file_path: self.file_path.clone(),
       env: self.env.clone(),
@@ -55,7 +59,7 @@ impl<'a> Request for AssetRequest<'a> {
       meta: JSONObject::new(),
       stats: AssetStats { size: 0, time: 0 },
       bundle_behavior: crate::types::BundleBehavior::None,
-      flags: AssetFlags::empty(),
+      flags,
       symbols: Vec::new(),
       unique_key: None,
     };

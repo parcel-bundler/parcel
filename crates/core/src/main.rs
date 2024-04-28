@@ -5,7 +5,7 @@ use parcel_core::{
   build,
   cache::Cache,
   environment::{
-    Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
+    Browsers, Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
   },
   parcel_config::ParcelConfig,
   requests::entry_request::Entry,
@@ -35,7 +35,7 @@ fn main() {
         loc: None,
         include_node_modules: parcel_resolver::IncludeNodeModules::Bool(true),
         engines: Engines {
-          browsers: Vec::new(),
+          browsers: Browsers::default(),
           node: None,
           electron: None,
           parcel: None,
