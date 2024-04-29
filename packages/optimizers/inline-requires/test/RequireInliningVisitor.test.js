@@ -3,18 +3,15 @@ import {RequireInliningVisitor} from '../src/RequireInliningVisitor';
 import assert from 'assert';
 import logger from '@parcel/logger';
 
-async function testRequireInliningVisitor(src, sideEffectsMap) {
+async function testRequireInliningVisitor(src, sideEffects) {
   const ast = await parse(src, {});
-  const publicIdToAssetSideEffects = new Map();
-  for (const [id, hasSideEffects] of Object.entries(sideEffectsMap)) {
-    publicIdToAssetSideEffects.set(id, {sideEffects: hasSideEffects});
-  }
+  const assetPublicIdsWithSideEffects = new Set(sideEffects);
 
   const visitor = new RequireInliningVisitor({
     bundle: {
       name: 'test-bundle',
     },
-    publicIdToAssetSideEffects,
+    assetPublicIdsWithSideEffects,
     logger,
   });
   visitor.visitProgram(ast);
@@ -46,9 +43,7 @@ describe('InliningVisitor', () => {
     const src = getModule(`
         var $abc123 = require('abc123');
         console.log($abc123);`);
-    const result = await testRequireInliningVisitor(src, {
-      abc123: false,
-    });
+    const result = await testRequireInliningVisitor(src, []);
     assertEqualCode(
       result,
       getModule(`var $abc123;
@@ -67,9 +62,7 @@ describe('InliningVisitor', () => {
         var $abc123Default;
         console.log((0, parcelHelpers.interopDefault(require('abc123'))).foo());`,
     );
-    const result = await testRequireInliningVisitor(src, {
-      abc123: false,
-    });
+    const result = await testRequireInliningVisitor(src, []);
     assertEqualCode(result, expected);
   });
 
@@ -82,10 +75,7 @@ describe('InliningVisitor', () => {
         var $abc456;
         console.log($abc123);
         console.log((0, require('abc456')));`);
-    const result = await testRequireInliningVisitor(src, {
-      abc123: true,
-      abc456: false,
-    });
+    const result = await testRequireInliningVisitor(src, ['abc123']);
     assertEqualCode(result, expected);
   });
 });
