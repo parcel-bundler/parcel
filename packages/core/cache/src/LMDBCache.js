@@ -117,6 +117,10 @@ export class LMDBCache implements Cache {
     return this.fsCache.setLargeBlob(key, contents, options);
   }
 
+  deleteLargeBlob(key: string): Promise<void> {
+    return this.fsCache.deleteLargeBlob(key);
+  }
+
   refresh(): void {
     // Reset the read transaction for the store. This guarantees that
     // the next read will see the latest changes to the store.
