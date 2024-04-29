@@ -1,7 +1,6 @@
-use std::{
-  io::Result,
-  path::{Path, PathBuf},
-};
+use std::io::Result;
+use std::path::Path;
+use std::path::PathBuf;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::path::canonicalize;

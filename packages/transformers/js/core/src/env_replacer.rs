@@ -1,10 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::vec;
 
-use swc_core::common::{Mark, DUMMY_SP};
+use swc_core::common::Mark;
+use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::visit::{Fold, FoldWith};
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
 use crate::utils::*;
 use ast::*;

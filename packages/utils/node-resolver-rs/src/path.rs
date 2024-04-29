@@ -2,7 +2,9 @@
 use dashmap::DashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::VecDeque;
-use std::path::{Component, Path, PathBuf};
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
 
 pub fn normalize_path(path: &Path) -> PathBuf {
   // Normalize path components to resolve ".." and "." segments.

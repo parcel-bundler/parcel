@@ -1,14 +1,21 @@
 use indexmap::IndexMap;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use swc_core::common::util::take::Take;
-use swc_core::common::{SourceMap, Span, DUMMY_SP};
+use swc_core::common::SourceMap;
+use swc_core::common::Span;
+use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::parser::error::Error;
 use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::{error::Error, Parser, StringInput};
-use swc_core::ecma::visit::{Fold, FoldWith};
+use swc_core::ecma::parser::Parser;
+use swc_core::ecma::parser::StringInput;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
 #[cfg(feature = "napi")]
 pub mod napi;

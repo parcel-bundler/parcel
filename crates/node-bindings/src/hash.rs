@@ -3,7 +3,8 @@
 use napi::bindgen_prelude::Buffer;
 use napi_derive::napi;
 use std::hash::Hasher;
-use xxhash_rust::xxh3::{xxh3_64, Xxh3};
+use xxhash_rust::xxh3::xxh3_64;
+use xxhash_rust::xxh3::Xxh3;
 
 #[napi]
 pub fn hash_string(s: String) -> String {

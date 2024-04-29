@@ -1,14 +1,16 @@
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
-use specifier::{parse_package_specifier, parse_scheme};
-use std::{
-  borrow::Cow,
-  collections::HashMap,
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use specifier::parse_package_specifier;
+use specifier::parse_scheme;
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use package_json::{AliasValue, ExportsResolution, PackageJson};
+use package_json::AliasValue;
+use package_json::ExportsResolution;
+use package_json::PackageJson;
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -22,14 +24,20 @@ mod specifier;
 mod tsconfig;
 mod url_to_path;
 
-pub use cache::{Cache, CacheCow};
+pub use cache::Cache;
+pub use cache::CacheCow;
 pub use error::ResolverError;
 pub use fs::FileSystem;
 #[cfg(not(target_arch = "wasm32"))]
 pub use fs::OsFileSystem;
 pub use invalidations::*;
-pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
-pub use specifier::{Specifier, SpecifierError, SpecifierType};
+pub use package_json::ExportsCondition;
+pub use package_json::Fields;
+pub use package_json::ModuleType;
+pub use package_json::PackageJsonError;
+pub use specifier::Specifier;
+pub use specifier::SpecifierError;
+pub use specifier::SpecifierType;
 
 use crate::path::resolve_path;
 

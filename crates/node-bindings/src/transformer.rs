@@ -1,4 +1,6 @@
-use napi::{Env, JsObject, JsUnknown};
+use napi::Env;
+use napi::JsObject;
+use napi::JsUnknown;
 use napi_derive::napi;
 
 #[napi]

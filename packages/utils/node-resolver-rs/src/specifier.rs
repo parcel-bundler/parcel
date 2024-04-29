@@ -1,9 +1,11 @@
-use crate::{builtins::BUILTINS, url_to_path::url_to_path, Flags};
+use crate::builtins::BUILTINS;
+use crate::url_to_path::url_to_path;
+use crate::Flags;
 use percent_encoding::percent_decode_str;
-use std::{
-  borrow::Cow,
-  path::{is_separator, Path, PathBuf},
-};
+use std::borrow::Cow;
+use std::path::is_separator;
+use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum SpecifierType {

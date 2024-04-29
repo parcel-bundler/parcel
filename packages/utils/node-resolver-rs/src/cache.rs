@@ -1,16 +1,15 @@
-use std::{
-  borrow::Cow,
-  ops::Deref,
-  path::{Path, PathBuf},
-  sync::Mutex,
-};
+use std::borrow::Cow;
+use std::ops::Deref;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Mutex;
 
-use crate::{
-  fs::FileSystem,
-  package_json::{PackageJson, SourceField},
-  tsconfig::{TsConfig, TsConfigWrapper},
-  ResolverError,
-};
+use crate::fs::FileSystem;
+use crate::package_json::PackageJson;
+use crate::package_json::SourceField;
+use crate::tsconfig::TsConfig;
+use crate::tsconfig::TsConfigWrapper;
+use crate::ResolverError;
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
 use typed_arena::Arena;
