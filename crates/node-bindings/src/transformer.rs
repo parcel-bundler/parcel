@@ -1,4 +1,6 @@
-use napi::{Env, JsObject, JsUnknown};
+use napi::Env;
+use napi::JsObject;
+use napi::JsUnknown;
 use napi_derive::napi;
 
 #[napi]
@@ -11,8 +13,9 @@ pub fn transform(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native_only {
-  use super::*;
   use parcel_macros::napi::create_macro_callback;
+
+  use super::*;
 
   #[napi]
   pub fn transform_async(opts: JsObject, env: Env) -> napi::Result<JsObject> {
