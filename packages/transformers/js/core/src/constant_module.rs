@@ -1,8 +1,14 @@
 use std::collections::HashSet;
 
-use swc_core::ecma::ast::{
-  Decl, Expr, Lit, Module, ModuleDecl, ModuleItem, Stmt, VarDeclKind, VarDeclarator,
-};
+use swc_core::ecma::ast::Decl;
+use swc_core::ecma::ast::Expr;
+use swc_core::ecma::ast::Lit;
+use swc_core::ecma::ast::Module;
+use swc_core::ecma::ast::ModuleDecl;
+use swc_core::ecma::ast::ModuleItem;
+use swc_core::ecma::ast::Stmt;
+use swc_core::ecma::ast::VarDeclKind;
+use swc_core::ecma::ast::VarDeclarator;
 use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::Visit;
 
@@ -128,12 +134,17 @@ impl Visit for ConstantModule {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use swc_core::common::comments::SingleThreadedComments;
-  use swc_core::common::{sync::Lrc, FileName, Globals, SourceMap};
+  use swc_core::common::sync::Lrc;
+  use swc_core::common::FileName;
+  use swc_core::common::Globals;
+  use swc_core::common::SourceMap;
   use swc_core::ecma::parser::lexer::Lexer;
-  use swc_core::ecma::parser::{Parser, StringInput};
+  use swc_core::ecma::parser::Parser;
+  use swc_core::ecma::parser::StringInput;
   use swc_core::ecma::visit::VisitWith;
+
+  use super::*;
   extern crate indoc;
 
   fn is_constant_module(code: &str) -> bool {

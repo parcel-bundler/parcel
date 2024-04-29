@@ -1,14 +1,24 @@
-use crate::id;
-use crate::utils::{get_undefined_ident, match_export_name, match_export_name_ident};
+use std::collections::HashMap;
+use std::collections::HashSet;
+
 use inflector::Inflector;
-use std::collections::{HashMap, HashSet};
-use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::common::Mark;
+use swc_core::common::Span;
+use swc_core::common::SyntaxContext;
+use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::preset_env::{Feature, Versions};
-use swc_core::ecma::visit::{Fold, FoldWith};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::preset_env::Feature;
+use swc_core::ecma::preset_env::Versions;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
 use crate::fold_member_expr_skip_prop;
+use crate::id;
+use crate::utils::get_undefined_ident;
+use crate::utils::match_export_name;
+use crate::utils::match_export_name_ident;
 
 pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) -> (Module, bool) {
   let mut fold = ESMFold {

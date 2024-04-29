@@ -41,10 +41,10 @@
 //! # }
 //! ```
 //!
-use std::{
-  io::{ErrorKind, Read, Result},
-  slice::IterMut,
-};
+use std::io::ErrorKind;
+use std::io::Read;
+use std::io::Result;
+use std::slice::IterMut;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 enum State {
@@ -389,8 +389,10 @@ fn in_line_comment(c: &mut u8) -> State {
 
 #[cfg(test)]
 mod tests {
+  use std::io::ErrorKind;
+  use std::io::Read;
+
   use super::*;
-  use std::io::{ErrorKind, Read};
 
   fn strip_string(input: &str) -> String {
     let mut out = String::new();

@@ -1,8 +1,11 @@
 #[cfg(not(target_arch = "wasm32"))]
-use dashmap::DashMap;
-#[cfg(not(target_arch = "wasm32"))]
 use std::collections::VecDeque;
-use std::path::{Component, Path, PathBuf};
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
+
+#[cfg(not(target_arch = "wasm32"))]
+use dashmap::DashMap;
 
 pub fn normalize_path(path: &Path) -> PathBuf {
   // Normalize path components to resolve ".." and "." segments.
@@ -138,8 +141,9 @@ pub fn canonicalize(
 
 #[cfg(test)]
 mod test {
-  use super::*;
   use assert_fs::prelude::*;
+
+  use super::*;
 
   #[test]
   fn test_canonicalize() -> Result<(), Box<dyn std::error::Error>> {
