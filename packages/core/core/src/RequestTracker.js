@@ -1352,6 +1352,9 @@ export default class RequestTracker {
 
     let serialisedGraph = this.graph.serialize();
 
+    // Delete an existing request graph cache, to prevent invalid states
+    await this.options.cache.deleteLargeBlob(requestGraphKey);
+
     let total = 0;
     const serialiseAndSet = async (
       key: string,
