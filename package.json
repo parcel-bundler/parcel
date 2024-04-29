@@ -54,6 +54,7 @@
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "husky": "^6.0.0",
+    "jest-diff": "^29.7.0",
     "lerna": "^6.6.2",
     "lint-staged": "^10.2.11",
     "mocha": "^8.3.0",
