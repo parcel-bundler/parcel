@@ -1,12 +1,12 @@
 use glob_match::glob_match;
 use indexmap::{indexmap, IndexMap};
 use std::{
-  collections::{hash_map::DefaultHasher, HashSet},
+  collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
   path::{Path, PathBuf},
 };
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 pub struct ParcelConfig {
   pub resolvers: Vec<PluginNode>,
   pub transformers: PipelineMap,
@@ -20,7 +20,7 @@ pub struct ParcelConfig {
   pub reporters: Vec<PluginNode>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PipelineMap(IndexMap<String, Vec<PipelineNode>>, u64);
 
 impl<'de> serde::Deserialize<'de> for PipelineMap {
@@ -44,7 +44,7 @@ impl Hash for PipelineMap {
   }
 }
 
-#[derive(Clone, Debug, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginNode {
   pub package_name: String,
@@ -52,7 +52,7 @@ pub struct PluginNode {
   pub key_path: Option<String>,
 }
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub enum PipelineNode {
   Plugin(PluginNode),
   Spread,

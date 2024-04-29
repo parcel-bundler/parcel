@@ -14,6 +14,7 @@ use xxhash_rust::xxh3::xxh3_64;
 pub struct AssetRequest<'a> {
   pub transformers: &'a PipelineMap,
   pub file_path: PathBuf,
+  pub code: Option<Vec<u8>>,
   pub pipeline: Option<String>,
   pub env: Environment,
   pub side_effects: bool,
@@ -38,7 +39,14 @@ impl<'a> Request for AssetRequest<'a> {
       false,
     );
 
-    let mut flags = AssetFlags::empty();
+    let mut flags = AssetFlags::IS_BUNDLE_SPLITTABLE;
+    flags.set(
+      AssetFlags::IS_SOURCE,
+      !self
+        .file_path
+        .components()
+        .any(|c| c.as_os_str() == "node_modules"),
+    );
     flags.set(AssetFlags::SIDE_EFFECTS, self.side_effects);
 
     let asset = Asset {
@@ -64,11 +72,15 @@ impl<'a> Request for AssetRequest<'a> {
       unique_key: None,
     };
 
-    let code = std::fs::read(&asset.file_path).unwrap();
+    let code = self
+      .code
+      .clone()
+      .unwrap_or_else(|| std::fs::read(&asset.file_path).unwrap());
     let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm);
 
     result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
     result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
+    result.asset.stats.size = result.code.len() as u32;
 
     RequestResult {
       result: Ok(result),
@@ -94,21 +106,23 @@ fn run_pipeline(
     dependencies: vec![],
   };
 
-  for transformer in pipeline {
+  for transformer in &pipeline {
     let transformed = run_transformer(transformer, &result.asset, result.code, farm);
     if transformed.asset.asset_type != result.asset.asset_type {
       let next_path = transformed
         .asset
         .file_path
         .with_extension(transformed.asset.asset_type.extension());
-      let pipeline = transformers.get(&next_path, &transformed.asset.pipeline, false);
-      return run_pipeline(
-        pipeline,
-        transformed.asset,
-        transformed.code,
-        transformers,
-        farm,
-      );
+      let next_pipeline = transformers.get(&next_path, &transformed.asset.pipeline, false);
+      if next_pipeline != pipeline {
+        return run_pipeline(
+          next_pipeline,
+          transformed.asset,
+          transformed.code,
+          transformers,
+          farm,
+        );
+      };
     }
     result.asset = transformed.asset;
     result.code = transformed.code;

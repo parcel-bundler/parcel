@@ -198,26 +198,37 @@ impl_bitflags_serde!(AssetFlags);
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   // pub id: String,
-  pub source_asset_id: Option<u64>,
+  pub source_asset_id: Option<String>,
   pub specifier: String,
   pub specifier_type: SpecifierType,
   pub source_path: Option<PathBuf>,
   pub env: Environment,
-  pub resolve_from: Option<String>,
+  pub resolve_from: Option<PathBuf>,
   pub range: Option<String>,
   pub priority: Priority,
   pub bundle_behavior: BundleBehavior,
   pub flags: DependencyFlags,
+  #[serde(default)]
   pub loc: Option<SourceLocation>,
+  #[serde(default)]
   pub placeholder: Option<String>,
+  #[serde(default)]
   pub target: Option<Box<Target>>,
+  #[serde(default)]
   pub symbols: Vec<Symbol>,
+  #[serde(default)]
   pub promise_symbol: Option<String>,
+  #[serde(default)]
   pub import_attributes: Vec<ImportAttribute>,
+  #[serde(default)]
   pub pipeline: Option<String>,
+  #[serde(default)]
   pub meta: JSONObject,
+  #[serde(default)]
   pub resolver_meta: JSONObject,
+  #[serde(default)]
   pub package_conditions: ExportsCondition,
+  #[serde(default)]
   pub custom_package_conditions: Vec<String>,
 }
 
