@@ -172,6 +172,7 @@ impl<'a> AssetGraphRequest<'a> {
           } => AssetRequest {
             transformers: &self.transformers,
             file_path: path,
+            code,
             pipeline,
             side_effects,
             env: match graph.graph.node_weight(*node).unwrap() {

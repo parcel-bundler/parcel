@@ -85,7 +85,7 @@ pub enum ResolverResult {
   Excluded,
   Resolved {
     path: PathBuf,
-    code: Option<String>,
+    code: Option<Vec<u8>>,
     pipeline: Option<String>,
     side_effects: bool,
   },
@@ -131,7 +131,9 @@ impl Resolver for DefaultResolver {
     let mut res = resolver.resolve_with_options(
       specifier,
       dep
-        .source_path
+        .resolve_from
+        .as_ref()
+        .or(dep.source_path.as_ref())
         .as_ref()
         .map(|p| p.as_path())
         .unwrap_or(Path::new("/")),
@@ -186,7 +188,7 @@ impl Resolver for DefaultResolver {
       Resolution::Global(global) => RequestResult {
         result: Ok(ResolverResult::Resolved {
           path: format!("{}.js", global).into(),
-          code: Some(format!("module.exports={};", global)),
+          code: Some(format!("module.exports={};", global).into_bytes()),
           pipeline: None,
           side_effects,
         }),

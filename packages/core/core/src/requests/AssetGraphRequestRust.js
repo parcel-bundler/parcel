@@ -18,7 +18,11 @@ import {hashString} from '@parcel/rust';
 import {requestTypes} from '../RequestTracker';
 import {parcel} from '@parcel/rust';
 import {loadParcelConfig} from './ParcelConfigRequest';
-import {type ProjectPath, fromProjectPath} from '../projectPath';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  toProjectPath,
+} from "../projectPath";
 import loadPlugin from '../loadParcelPlugin';
 import UncommittedAsset from '../UncommittedAsset';
 import {Asset as PublicAsset, MutableAsset} from '../public/Asset';
@@ -123,7 +127,7 @@ export default function createAssetGraphRequestRust(
         }
       });
 
-      let [assetGraph, changedAssets] = getAssetGraph(serializedAssetGraph);
+      let [assetGraph, changedAssets] = getAssetGraph(serializedAssetGraph, options);
       let changedAssetsPropagation = new Set(changedAssets.keys());
       let errors = propagateSymbols({
         options,
@@ -147,6 +151,8 @@ export default function createAssetGraphRequestRust(
 
 async function runTransformer(transformerName, transformer, asset, content, options) {
   asset.dependencies = new Map();
+  asset.filePath = toProjectPath(options.projectRoot, asset.filePath);
+  asset.symbols = asset.flags & AssetFlags.HAS_SYMBOLS ? new Map(asset.symbols.map(s => [s.exported, s])) : null;
   let uncommittedAsset = new UncommittedAsset({
     value: asset,
     options,
@@ -218,9 +224,30 @@ async function runTransformer(transformerName, transformer, asset, content, opti
   // TODO: postProcess??
 
   if (resultAsset === mutableAsset) {
+    if (asset.symbols) {
+      asset.flags |= AssetFlags.HAS_SYMBOLS;
+      asset.symbols = Array.from(asset.symbols).map(([k, v]) => ({exported: k, ...v}));
+    } else {
+      asset.flags &= ~AssetFlags.HAS_SYMBOLS;
+      asset.symbols = [];
+    }
+    asset.filePath = fromProjectPath(options.projectRoot, asset.filePath);
+    let dependencies = Array.from(asset.dependencies.values());
+    for (let dep of dependencies) {
+      if (dep.symbols) {
+        dep.flags |= DependencyFlags.HAS_SYMBOLS;
+        dep.symbols = Array.from(asset.symbols).map(([k, v]) => ({exported: k, ...v}));
+      } else {
+        dep.flags &= ~DependencyFlags.HAS_SYMBOLS;
+        dep.symbols = [];
+      }
+      dep.sourcePath = fromProjectPath(options.projectRoot, dep.sourcePath);
+      dep.resolveFrom = dep.resolveFrom ? fromProjectPath(options.projectRoot, dep.resolveFrom) : null;
+      dep.placeholder ??= dep.id;
+    }
     return {
       asset,
-      dependencies: Array.from(asset.dependencies.values()),
+      dependencies,
       code: await uncommittedAsset.getBuffer()
     };
   } else {
@@ -228,7 +255,7 @@ async function runTransformer(transformerName, transformer, asset, content, opti
   }
 }
 
-function getAssetGraph(serializedGraph) {
+function getAssetGraph(serializedGraph, options) {
   let graph = new AssetGraph({
     _contentKeyToNodeId: new Map(),
     _nodeIdToContentKey: new Map(),
@@ -244,6 +271,8 @@ function getAssetGraph(serializedGraph) {
       let value = {
         ...node.value,
         committed: true,
+        filePath:  toProjectPath(options.projectRoot, node.value.filePath),
+        flags: node.value.flags & ~(AssetFlags.HAS_SYMBOLS),
         id,
         // backward compatibility
         symbols: (node.value.flags & AssetFlags.HAS_SYMBOLS)
@@ -263,6 +292,9 @@ function getAssetGraph(serializedGraph) {
       let id = dependencyId(node.value);
       let value = {
         ...node.value,
+        specifier: node.value.flags & DependencyFlags.ENTRY ? toProjectPath(options.projectRoot, node.value.specifier) : node.value.specifier,
+        sourcePath: node.value.sourcePath ? toProjectPath(options.projectRoot, node.value.sourcePath) : null,
+        flags: node.value.flags & ~(DependencyFlags.HAS_SYMBOLS),
         id,
         symbols: (node.value.flags & DependencyFlags.HAS_SYMBOLS)
           ? new Map(node.value.symbols.map(s => [s.exported, s]))

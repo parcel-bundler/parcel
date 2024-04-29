@@ -132,10 +132,13 @@ fn convert_result(
   let env = asset.env.clone();
   let asset_id = asset.id();
 
-  asset.meta.insert(
-    "id".into(),
-    serde_json::Value::String(format!("{:016x}", asset_id)),
-  );
+  asset
+    .meta
+    .insert("id".into(), format!("{:016x}", asset_id).into());
+
+  if let Some(shebang) = result.shebang {
+    asset.meta.insert("interpreter".into(), shebang.into());
+  }
 
   // let mut map = if let Some(buf) = map_buf {
   //   SourceMap::from_buffer(&db.options.project_root, buf).ok()
@@ -180,7 +183,7 @@ fn convert_result(
         }
 
         let d = Dependency {
-          source_asset_id: Some(asset_id),
+          source_asset_id: Some(format!("{:016x}", asset_id)),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -220,7 +223,7 @@ fn convert_result(
       }
       DependencyKind::ServiceWorker => {
         let d = Dependency {
-          source_asset_id: Some(asset_id),
+          source_asset_id: Some(format!("{:016x}", asset_id)),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -260,7 +263,7 @@ fn convert_result(
       }
       DependencyKind::Worklet => {
         let d = Dependency {
-          source_asset_id: Some(asset_id),
+          source_asset_id: Some(format!("{:016x}", asset_id)),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -293,7 +296,7 @@ fn convert_result(
       }
       DependencyKind::Url => {
         let d = Dependency {
-          source_asset_id: Some(asset_id),
+          source_asset_id: Some(format!("{:016x}", asset_id)),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -401,10 +404,9 @@ fn convert_result(
             range = Some("^0.13.7".into());
           }
 
-          // resolve_from = Some(to_project_path(
-          //   &config.resolve_helpers_from,
-          //   &db.options.project_root,
-          // ));
+          resolve_from = Some(PathBuf::from(
+            "/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js",
+          ));
         }
 
         let mut import_attributes = Vec::new();
@@ -418,7 +420,7 @@ fn convert_result(
         }
 
         let d = Dependency {
-          source_asset_id: Some(asset_id),
+          source_asset_id: Some(format!("{:016x}", asset_id)),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: match dep.kind {
             DependencyKind::Require => SpecifierType::Commonjs,
@@ -454,7 +456,7 @@ fn convert_result(
 
   if result.needs_esm_helpers {
     let d = Dependency {
-      source_asset_id: Some(asset_id),
+      source_asset_id: Some(format!("{:016x}", asset_id)),
       specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
       specifier_type: SpecifierType::Esm,
       source_path: Some(file_path.clone()),
@@ -464,11 +466,9 @@ fn convert_result(
         }),
         ..env.clone()
       },
-      // resolve_from: Some(to_project_path(
-      //   &config.resolve_helpers_from,
-      //   &db.options.project_root,
-      // )),
-      resolve_from: None,
+      resolve_from: Some(PathBuf::from(
+        "/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js",
+      )),
       range: None,
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
@@ -737,6 +737,7 @@ fn convert_result(
     asset.unique_key = Some(format!("{:016x}", asset_id));
   }
 
+  asset.asset_type = AssetType::Js;
   AssetRequestResult {
     asset,
     code: result.code,
