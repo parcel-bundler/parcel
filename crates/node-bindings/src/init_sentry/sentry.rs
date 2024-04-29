@@ -1,3 +1,8 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
+
 use napi::Error;
 use napi::Result;
 use napi::Status;
@@ -7,10 +12,6 @@ use sentry::configure_scope;
 use sentry::init;
 use sentry::ClientInitGuard;
 use serde_json::Value;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::time::Duration;
 use whoami::username;
 
 static SENTRY_GUARD: Lazy<Arc<Mutex<Option<ClientInitGuard>>>> =

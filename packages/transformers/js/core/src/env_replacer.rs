@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::vec;
 
+use ast::*;
 use swc_core::common::Mark;
 use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
@@ -10,7 +11,6 @@ use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
 use crate::utils::*;
-use ast::*;
 
 pub struct EnvReplacer<'a> {
   pub replace_env: bool,

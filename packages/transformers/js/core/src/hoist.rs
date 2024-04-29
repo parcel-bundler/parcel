@@ -1,19 +1,11 @@
-use crate::collect::Collect;
-use crate::collect::Export;
-use crate::collect::Import;
-use crate::collect::ImportKind;
-use crate::utils::get_undefined_ident;
-use crate::utils::is_unresolved;
-use crate::utils::match_export_name;
-use crate::utils::match_export_name_ident;
-use crate::utils::match_property_name;
-use indexmap::IndexMap;
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::Hasher;
+
+use indexmap::IndexMap;
+use serde::Deserialize;
+use serde::Serialize;
 use swc_core::common::Mark;
 use swc_core::common::Span;
 use swc_core::common::SyntaxContext;
@@ -24,9 +16,18 @@ use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
+use crate::collect::Collect;
+use crate::collect::Export;
+use crate::collect::Import;
+use crate::collect::ImportKind;
 use crate::id;
+use crate::utils::get_undefined_ident;
+use crate::utils::is_unresolved;
+use crate::utils::match_export_name;
+use crate::utils::match_export_name_ident;
 use crate::utils::match_import;
 use crate::utils::match_member_expr;
+use crate::utils::match_property_name;
 use crate::utils::match_require;
 use crate::utils::CodeHighlight;
 use crate::utils::Diagnostic;
@@ -1135,9 +1136,8 @@ impl<'a> Hoist<'a> {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use crate::utils::BailoutReason;
   use std::iter::FromIterator;
+
   use swc_core::common::chain;
   use swc_core::common::comments::SingleThreadedComments;
   use swc_core::common::sync::Lrc;
@@ -1153,6 +1153,9 @@ mod tests {
   use swc_core::ecma::transforms::base::hygiene::hygiene;
   use swc_core::ecma::transforms::base::resolver;
   use swc_core::ecma::visit::VisitWith;
+
+  use super::*;
+  use crate::utils::BailoutReason;
   extern crate indoc;
   use self::indoc::indoc;
 

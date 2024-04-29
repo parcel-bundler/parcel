@@ -1,8 +1,8 @@
-use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use indexmap::IndexMap;
 use swc_core::common::util::take::Take;
 use swc_core::common::SourceMap;
 use swc_core::common::Span;

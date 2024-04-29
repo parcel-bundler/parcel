@@ -1,8 +1,11 @@
-use path_slash::PathBufExt;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fmt;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::path::Path;
 
+use path_slash::PathBufExt;
 use serde::Deserialize;
 use serde::Serialize;
 use swc_core::common::Mark;
@@ -20,10 +23,6 @@ use swc_core::ecma::visit::FoldWith;
 use crate::fold_member_expr_skip_prop;
 use crate::utils::*;
 use crate::Config;
-
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
-use std::hash::Hasher;
 macro_rules! hash {
   ($str:expr) => {{
     let mut hasher = DefaultHasher::new();

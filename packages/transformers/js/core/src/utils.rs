@@ -1,6 +1,7 @@
+use std::cmp::Ordering;
+
 use serde::Deserialize;
 use serde::Serialize;
-use std::cmp::Ordering;
 use swc_core::common::errors::DiagnosticBuilder;
 use swc_core::common::errors::Emitter;
 use swc_core::common::Mark;

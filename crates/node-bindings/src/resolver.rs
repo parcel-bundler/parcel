@@ -1,3 +1,11 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+
 use dashmap::DashMap;
 use napi::bindgen_prelude::Either3;
 use napi::Env;
@@ -10,14 +18,6 @@ use napi::JsUnknown;
 use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-
 use parcel_resolver::ExportsCondition;
 use parcel_resolver::Extensions;
 use parcel_resolver::Fields;

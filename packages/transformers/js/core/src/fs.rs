@@ -1,13 +1,8 @@
-use crate::collect::Collect;
-use crate::collect::Import;
-use crate::dependency_collector::DependencyDescriptor;
-use crate::dependency_collector::DependencyKind;
-use crate::id;
-use crate::utils::SourceLocation;
-use data_encoding::BASE64;
-use data_encoding::HEXLOWER;
 use std::path::Path;
 use std::path::PathBuf;
+
+use data_encoding::BASE64;
+use data_encoding::HEXLOWER;
 use swc_core::common::Mark;
 use swc_core::common::Span;
 use swc_core::common::DUMMY_SP;
@@ -16,6 +11,13 @@ use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 use swc_core::ecma::visit::VisitWith;
+
+use crate::collect::Collect;
+use crate::collect::Import;
+use crate::dependency_collector::DependencyDescriptor;
+use crate::dependency_collector::DependencyKind;
+use crate::id;
+use crate::utils::SourceLocation;
 
 pub fn inline_fs<'a>(
   filename: &str,

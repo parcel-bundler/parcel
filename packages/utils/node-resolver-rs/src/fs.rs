@@ -2,9 +2,10 @@ use std::io::Result;
 use std::path::Path;
 use std::path::PathBuf;
 
+use dashmap::DashMap;
+
 #[cfg(not(target_arch = "wasm32"))]
 use crate::path::canonicalize;
-use dashmap::DashMap;
 
 pub trait FileSystem: Send + Sync {
   fn canonicalize<P: AsRef<Path>>(

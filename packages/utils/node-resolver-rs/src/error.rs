@@ -1,8 +1,9 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use crate::cache::JsonError;
 use crate::specifier::SpecifierError;
 use crate::PackageJsonError;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "type")]

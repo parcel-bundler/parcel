@@ -1,7 +1,7 @@
-use indexmap::IndexMap;
-use path_slash::PathBufExt;
 use std::path::Path;
 
+use indexmap::IndexMap;
+use path_slash::PathBufExt;
 use swc_core::common::Mark;
 use swc_core::common::SourceMap;
 use swc_core::common::SyntaxContext;

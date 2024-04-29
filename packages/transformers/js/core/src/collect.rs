@@ -1,3 +1,18 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::sync::Lrc;
+use swc_core::common::Mark;
+use swc_core::common::Span;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::Visit;
+use swc_core::ecma::visit::VisitWith;
+
 use crate::id;
 use crate::utils::is_unresolved;
 use crate::utils::match_export_name;
@@ -9,19 +24,6 @@ use crate::utils::match_require;
 use crate::utils::Bailout;
 use crate::utils::BailoutReason;
 use crate::utils::SourceLocation;
-use serde::Deserialize;
-use serde::Serialize;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use swc_core::common::sync::Lrc;
-use swc_core::common::Mark;
-use swc_core::common::Span;
-use swc_core::common::DUMMY_SP;
-use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::js_word;
-use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::visit::Visit;
-use swc_core::ecma::visit::VisitWith;
 
 macro_rules! collect_visit_fn {
   ($name:ident, $type:ident) => {

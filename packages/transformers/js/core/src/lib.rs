@@ -16,8 +16,18 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use collect::Collect;
+use collect::CollectResult;
 use constant_module::ConstantModule;
+use dependency_collector::*;
+use env_replacer::*;
+use fs::inline_fs;
+use global_replacer::GlobalReplacer;
+use hoist::hoist;
+use hoist::HoistResult;
 use indexmap::IndexMap;
+use modules::esm2cjs;
+use node_replacer::NodeReplacer;
 use parcel_macros::MacroCallback;
 use parcel_macros::MacroError;
 use parcel_macros::Macros;
@@ -64,26 +74,14 @@ use swc_core::ecma::transforms::react;
 use swc_core::ecma::transforms::typescript;
 use swc_core::ecma::visit::FoldWith;
 use swc_core::ecma::visit::VisitWith;
-
-use collect::Collect;
-use collect::CollectResult;
-use dependency_collector::*;
-use env_replacer::*;
-use fs::inline_fs;
-use global_replacer::GlobalReplacer;
-use hoist::hoist;
-use hoist::HoistResult;
-use modules::esm2cjs;
-use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::error_buffer_to_diagnostics;
 use utils::CodeHighlight;
 use utils::Diagnostic;
 use utils::DiagnosticSeverity;
 use utils::ErrorBuffer;
-use utils::SourceType;
-
 pub use utils::SourceLocation;
+use utils::SourceType;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 

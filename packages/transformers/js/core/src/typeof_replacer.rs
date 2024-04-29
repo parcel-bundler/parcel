@@ -1,4 +1,3 @@
-use crate::utils::is_unresolved;
 use swc_core::common::Mark;
 use swc_core::ecma::ast::Expr;
 use swc_core::ecma::ast::Lit;
@@ -7,6 +6,8 @@ use swc_core::ecma::ast::UnaryOp;
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
+
+use crate::utils::is_unresolved;
 
 pub struct TypeofReplacer {
   pub unresolved_mark: Mark,

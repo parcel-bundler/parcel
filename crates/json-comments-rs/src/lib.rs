@@ -389,9 +389,10 @@ fn in_line_comment(c: &mut u8) -> State {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use std::io::ErrorKind;
   use std::io::Read;
+
+  use super::*;
 
   fn strip_string(input: &str) -> String {
     let mut out = String::new();

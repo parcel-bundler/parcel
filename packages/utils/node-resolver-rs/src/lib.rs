@@ -1,16 +1,16 @@
-use bitflags::bitflags;
-use once_cell::unsync::OnceCell;
-use specifier::parse_package_specifier;
-use specifier::parse_scheme;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use bitflags::bitflags;
+use once_cell::unsync::OnceCell;
 use package_json::AliasValue;
 use package_json::ExportsResolution;
 use package_json::PackageJson;
+use specifier::parse_package_specifier;
+use specifier::parse_scheme;
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -1214,9 +1214,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::HashSet;
+
   use super::cache::Cache;
   use super::*;
-  use std::collections::HashSet;
 
   fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

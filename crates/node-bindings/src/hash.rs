@@ -1,8 +1,9 @@
 #![allow(clippy::new_without_default)]
 
+use std::hash::Hasher;
+
 use napi::bindgen_prelude::Buffer;
 use napi_derive::napi;
-use std::hash::Hasher;
 use xxhash_rust::xxh3::xxh3_64;
 use xxhash_rust::xxh3::Xxh3;
 

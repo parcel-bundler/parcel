@@ -4,15 +4,16 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use dashmap::DashMap;
+use elsa::sync::FrozenMap;
+use typed_arena::Arena;
+
 use crate::fs::FileSystem;
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;
 use crate::tsconfig::TsConfig;
 use crate::tsconfig::TsConfigWrapper;
 use crate::ResolverError;
-use dashmap::DashMap;
-use elsa::sync::FrozenMap;
-use typed_arena::Arena;
 
 pub struct Cache<Fs> {
   pub fs: Fs,
