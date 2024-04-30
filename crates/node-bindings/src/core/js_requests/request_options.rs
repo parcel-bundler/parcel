@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
-use napi::{Env, JsObject, JsString};
+use napi::Env;
+use napi::JsObject;
+use napi::JsString;
 
 use crate::core::filesystem::js_delegate_file_system::JSDelegateFileSystem;
 

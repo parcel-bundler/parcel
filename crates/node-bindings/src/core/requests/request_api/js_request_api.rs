@@ -1,11 +1,14 @@
 use std::path::Path;
 use std::rc::Rc;
 
-use napi::{Env, JsObject, JsUnknown};
+use napi::Env;
+use napi::JsObject;
+use napi::JsUnknown;
 
 use crate::core::js_helpers::call_method;
 use crate::core::requests::config_request::InternalFileCreateInvalidation;
-use crate::core::requests::request_api::{RequestApi, RequestApiResult};
+use crate::core::requests::request_api::RequestApi;
+use crate::core::requests::request_api::RequestApiResult;
 
 pub struct JSRequestApi {
   // TODO: Make sure it is safe to hold the environment like this

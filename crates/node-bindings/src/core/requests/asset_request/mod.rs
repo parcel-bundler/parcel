@@ -4,7 +4,8 @@ use napi_derive::napi;
 
 use crate::core::project_path::ProjectPath;
 use crate::core::requests::request_api::RequestApi;
-use crate::core::transformer::{TransformationInput, Transformer};
+use crate::core::transformer::TransformationInput;
+use crate::core::transformer::Transformer;
 
 #[napi(object)]
 pub struct AssetRequest {

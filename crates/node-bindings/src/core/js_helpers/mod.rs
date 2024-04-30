@@ -1,5 +1,9 @@
 use napi::bindgen_prelude::FromNapiValue;
-use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
+use napi::Env;
+use napi::JsFunction;
+use napi::JsObject;
+use napi::JsUnknown;
+use napi::NapiRaw;
 
 /// Convert anyhow error to napi error
 pub fn anyhow_napi(value: anyhow::Error) -> napi::Error {

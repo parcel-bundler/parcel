@@ -1,6 +1,10 @@
-use napi::bindgen_prelude::{FromNapiValue, ToNapiValue};
-use napi::sys::{napi_env, napi_value};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
+
+use napi::bindgen_prelude::FromNapiValue;
+use napi::bindgen_prelude::ToNapiValue;
+use napi::sys::napi_env;
+use napi::sys::napi_value;
 
 /// Similar to opaque type ProjectPath in Rust.
 ///

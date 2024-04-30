@@ -1,8 +1,7 @@
-use anyhow::anyhow;
 use std::path::Path;
 
+use anyhow::anyhow;
 use napi_derive::napi;
-
 use parcel_resolver::FileSystem;
 
 use crate::core::project_path::ProjectPath;

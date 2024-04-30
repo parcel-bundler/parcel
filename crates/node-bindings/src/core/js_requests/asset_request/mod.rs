@@ -1,13 +1,14 @@
 use std::rc::Rc;
 
-use crate::core::js_helpers::anyhow_napi;
-use napi::{Env, JsObject};
+use napi::Env;
+use napi::JsObject;
 use napi_derive::napi;
 
+use crate::core::js_helpers::anyhow_napi;
 use crate::core::js_requests::request_options::project_root_from_options;
-use crate::core::requests::asset_request::{
-  run_asset_request, AssetRequest, RunAssetRequestParams,
-};
+use crate::core::requests::asset_request::run_asset_request;
+use crate::core::requests::asset_request::AssetRequest;
+use crate::core::requests::asset_request::RunAssetRequestParams;
 use crate::core::requests::request_api::js_request_api::JSRequestApi;
 use crate::core::transformer::js_delegate_transformer::JSDelegateTransformer;
 

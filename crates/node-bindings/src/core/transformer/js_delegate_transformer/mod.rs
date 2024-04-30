@@ -1,10 +1,17 @@
 use std::rc::Rc;
 
-use napi::bindgen_prelude::{FromNapiValue, ToNapiValue};
-use napi::{Env, JsObject, JsUnknown, NapiRaw, NapiValue};
+use napi::bindgen_prelude::FromNapiValue;
+use napi::bindgen_prelude::ToNapiValue;
+use napi::Env;
+use napi::JsObject;
+use napi::JsUnknown;
+use napi::NapiRaw;
+use napi::NapiValue;
 
 use crate::core::js_helpers::call_method;
-use crate::core::transformer::{TransformationInput, TransformationResult, Transformer};
+use crate::core::transformer::TransformationInput;
+use crate::core::transformer::TransformationResult;
+use crate::core::transformer::Transformer;
 
 /// Transformer implementation that delegates to a JavaScript object.
 ///

@@ -1,6 +1,9 @@
-use parcel_resolver::FileSystem;
 use std::collections::HashMap;
-use std::path::{Component, Path, PathBuf};
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
+
+use parcel_resolver::FileSystem;
 
 /// In memory implementation of a file-system entry
 enum InMemoryFileSystemEntry {

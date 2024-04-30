@@ -1,10 +1,13 @@
 use std::rc::Rc;
 
-use napi::{Env, JsObject};
+use napi::Env;
+use napi::JsObject;
 use napi_derive::napi;
 
-use crate::core::js_requests::request_options::{input_fs_from_options, project_root_from_options};
-use crate::core::requests::config_request::{run_config_request, ConfigRequest};
+use crate::core::js_requests::request_options::input_fs_from_options;
+use crate::core::js_requests::request_options::project_root_from_options;
+use crate::core::requests::config_request::run_config_request;
+use crate::core::requests::config_request::ConfigRequest;
 use crate::core::requests::request_api::js_request_api::JSRequestApi;
 
 /// JavaScript API for running a config request.

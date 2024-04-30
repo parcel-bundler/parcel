@@ -1,9 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use napi::bindgen_prelude::FromNapiValue;
-use napi::{Env, JsObject, JsUnknown};
-
+use napi::Env;
+use napi::JsObject;
+use napi::JsUnknown;
 use parcel_resolver::FileSystem;
 
 use crate::core::js_helpers::call_method;
