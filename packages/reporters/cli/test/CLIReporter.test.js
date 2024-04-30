@@ -14,6 +14,7 @@ import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
+  parcelVersion: '',
   entries: [],
   logLevel: 'info',
   targets: [],

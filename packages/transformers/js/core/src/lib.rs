@@ -10,51 +10,78 @@ mod node_replacer;
 mod typeof_replacer;
 mod utils;
 
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::path::Path;
+use std::path::PathBuf;
 use std::str::FromStr;
 
+use collect::Collect;
+use collect::CollectResult;
 use constant_module::ConstantModule;
-use indexmap::IndexMap;
-use parcel_macros::{MacroCallback, MacroError, Macros};
-use path_slash::PathExt;
-use serde::{Deserialize, Serialize};
-use swc_core::common::comments::SingleThreadedComments;
-use swc_core::common::errors::Handler;
-use swc_core::common::pass::Optional;
-use swc_core::common::source_map::SourceMapGenConfig;
-use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_core::ecma::ast::{Module, ModuleItem, Program};
-use swc_core::ecma::codegen::text_writer::JsWriter;
-use swc_core::ecma::parser::error::Error;
-use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::{EsConfig, Parser, StringInput, Syntax, TsConfig};
-use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
-use swc_core::ecma::transforms::base::fixer::paren_remover;
-use swc_core::ecma::transforms::base::helpers;
-use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
-use swc_core::ecma::transforms::proposal::decorators;
-use swc_core::ecma::transforms::{
-  compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
-  optimization::simplify::expr_simplifier, react, typescript,
-};
-use swc_core::ecma::visit::{FoldWith, VisitWith};
-
-use collect::{Collect, CollectResult};
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::{hoist, HoistResult};
+use hoist::hoist;
+use hoist::HoistResult;
+use indexmap::IndexMap;
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
+use parcel_macros::MacroCallback;
+use parcel_macros::MacroError;
+use parcel_macros::Macros;
+use path_slash::PathExt;
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::chain;
+use swc_core::common::comments::SingleThreadedComments;
+use swc_core::common::errors::Handler;
+use swc_core::common::pass::Optional;
+use swc_core::common::source_map::SourceMapGenConfig;
+use swc_core::common::sync::Lrc;
+use swc_core::common::FileName;
+use swc_core::common::Globals;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::ecma::ast::Module;
+use swc_core::ecma::ast::ModuleItem;
+use swc_core::ecma::ast::Program;
+use swc_core::ecma::codegen::text_writer::JsWriter;
+use swc_core::ecma::parser::error::Error;
+use swc_core::ecma::parser::lexer::Lexer;
+use swc_core::ecma::parser::EsConfig;
+use swc_core::ecma::parser::Parser;
+use swc_core::ecma::parser::StringInput;
+use swc_core::ecma::parser::Syntax;
+use swc_core::ecma::parser::TsConfig;
+use swc_core::ecma::preset_env::preset_env;
+use swc_core::ecma::preset_env::Mode::Entry;
+use swc_core::ecma::preset_env::Targets;
+use swc_core::ecma::preset_env::Version;
+use swc_core::ecma::preset_env::Versions;
+use swc_core::ecma::transforms::base::fixer::fixer;
+use swc_core::ecma::transforms::base::fixer::paren_remover;
+use swc_core::ecma::transforms::base::helpers;
+use swc_core::ecma::transforms::base::hygiene::hygiene;
+use swc_core::ecma::transforms::base::resolver;
+use swc_core::ecma::transforms::base::Assumptions;
+use swc_core::ecma::transforms::compat::reserved_words::reserved_words;
+use swc_core::ecma::transforms::optimization::simplify::dead_branch_remover;
+use swc_core::ecma::transforms::optimization::simplify::expr_simplifier;
+use swc_core::ecma::transforms::proposal::decorators;
+use swc_core::ecma::transforms::react;
+use swc_core::ecma::transforms::typescript;
+use swc_core::ecma::visit::FoldWith;
+use swc_core::ecma::visit::VisitWith;
 use typeof_replacer::*;
-use utils::{
-  error_buffer_to_diagnostics, CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer,
-  SourceType,
-};
-
+use utils::error_buffer_to_diagnostics;
+use utils::CodeHighlight;
+use utils::Diagnostic;
+use utils::DiagnosticSeverity;
+use utils::ErrorBuffer;
 pub use utils::SourceLocation;
+use utils::SourceType;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 

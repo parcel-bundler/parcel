@@ -274,6 +274,7 @@ export type ParcelOptions = {|
   config?: DependencySpecifier,
   defaultConfig?: DependencySpecifier,
   env: EnvMap,
+  parcelVersion: string,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   shouldDisableCache: boolean,
   cacheDir: FilePath,
