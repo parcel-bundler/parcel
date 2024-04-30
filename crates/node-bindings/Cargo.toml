@@ -31,6 +31,11 @@ serde_json = "1.0.116"
 toml = "0.8.12"
 anyhow = "1.0.82"
 mockall = "0.12.1"
+petgraph = "0.6.3"
+swc_ecma_visit = "0.99.1"
+swc_common = "0.33.26"
+swc_ecma_parser = "0.144.1"
+swc_ecma_ast = "0.113.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = { version = "2.12.6", features = ["serde-json", "napi4", "napi5"] }

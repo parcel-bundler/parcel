@@ -35,7 +35,7 @@ pub struct TransformationResult {
 /// A `Transformer` is responsible for parsing a file and its dependencies, and producing the
 /// output version of the file as well as other metadata related to the file.
 ///
-/// This is a trait so we can initially delegate to JavaScript transformers. But this should soon
+/// This is a trait, so we can initially delegate to JavaScript transformers. But this should soon
 /// be implemented into Rust. This may be better represented as an async call.
 #[automock]
 pub trait Transformer {
