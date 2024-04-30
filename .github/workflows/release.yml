@@ -273,11 +273,24 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: artifacts
-      - name: Move artifacts
-        run: for d in artifacts/*/*/*; do cp $d/*.node packages/$(basename $(dirname $d))/$(basename $d); done
+      - name: Move bindings
+        run: for d in artifacts/bindings-*/*/*; do cp $d/*.node packages/$(basename $(dirname $d))/$(basename $d); done
+      - name: Move debug symbols
+        run: |
+          mkdir debug-symbols
+          find artifacts -name "*.debug" -exec cp {} debug-symbols/ \;
+          find artifacts -name "*.node" -path "**/DWARF" -exec cp {} debug-symbols/ \;
+      - name: Upload combined debug symbols artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.profile == 'canary' }}
+        with:
+          name: debug-symbols
+          path: debug-symbols/**
       - name: Debug
-        run: ls -l packages/*/*/*.node
+        run: |
+          ls -l packages/*/*/*.node
+          ls -l debug-symbols
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - run: ${{ inputs.release-command }}
+      #- run: ${{ inputs.release-command }}
