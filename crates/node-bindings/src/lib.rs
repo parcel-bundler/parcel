@@ -3,7 +3,9 @@
 mod init_sentry;
 
 #[cfg(target_arch = "wasm32")]
-use std::alloc::{alloc, Layout};
+use std::alloc::alloc;
+#[cfg(target_arch = "wasm32")]
+use std::alloc::Layout;
 
 #[cfg(target_os = "macos")]
 #[global_allocator]

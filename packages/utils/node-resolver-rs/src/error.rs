@@ -1,7 +1,9 @@
-use crate::PackageJsonError;
-use crate::{cache::JsonError, specifier::SpecifierError};
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use crate::cache::JsonError;
+use crate::specifier::SpecifierError;
+use crate::PackageJsonError;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "type")]

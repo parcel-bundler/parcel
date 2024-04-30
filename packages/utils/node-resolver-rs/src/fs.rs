@@ -1,11 +1,11 @@
-use std::{
-  io::Result,
-  path::{Path, PathBuf},
-};
+use std::io::Result;
+use std::path::Path;
+use std::path::PathBuf;
+
+use dashmap::DashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::path::canonicalize;
-use dashmap::DashMap;
 
 pub trait FileSystem {
   fn cwd(&self) -> Result<PathBuf> {

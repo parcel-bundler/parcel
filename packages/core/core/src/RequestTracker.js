@@ -19,6 +19,7 @@ import logger from '@parcel/logger';
 import {type Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
+import {AssertionError} from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {
@@ -353,8 +354,18 @@ export class RequestGraph extends ContentGraph<
 
   getRequestNode(nodeId: NodeId): RequestNode {
     let node = nullthrows(this.getNode(nodeId));
-    invariant(node.type === REQUEST);
-    return node;
+
+    if (node.type === REQUEST) {
+      return node;
+    }
+
+    throw new AssertionError({
+      message: `Expected a request node: ${
+        node.type
+      } (${typeof node.type}) does not equal ${REQUEST} (${typeof REQUEST}).`,
+      expected: REQUEST,
+      actual: node.type,
+    });
   }
 
   replaceSubrequests(
@@ -1341,6 +1352,9 @@ export default class RequestTracker {
 
     let serialisedGraph = this.graph.serialize();
 
+    // Delete an existing request graph cache, to prevent invalid states
+    await this.options.cache.deleteLargeBlob(requestGraphKey);
+
     let total = 0;
     const serialiseAndSet = async (
       key: string,
@@ -1429,33 +1443,23 @@ export default class RequestTracker {
       }
     }
 
-    queue
-      .add(() =>
-        serialiseAndSet(requestGraphKey, {
-          ...serialisedGraph,
-          nodes: undefined,
-        }),
-      )
-      .catch(() => {
-        // Handle promise rejection
-      });
-
-    let opts = getWatcherOptions(this.options);
-    let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
-    queue
-      .add(() =>
-        this.options.inputFS.writeSnapshot(
-          this.options.watchDir,
-          snapshotPath,
-          opts,
-        ),
-      )
-      .catch(() => {
-        // Handle promise rejection
-      });
-
     try {
       await queue.run();
+
+      // Set the request graph after the queue is flushed to avoid writing an invalid state
+      await serialiseAndSet(requestGraphKey, {
+        ...serialisedGraph,
+        nodes: undefined,
+      });
+
+      let opts = getWatcherOptions(this.options);
+      let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
+
+      await this.options.inputFS.writeSnapshot(
+        this.options.watchDir,
+        snapshotPath,
+        opts,
+      );
     } catch (err) {
       // If we have aborted, ignore the error and continue
       if (!signal?.aborted) throw err;

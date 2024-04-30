@@ -1,14 +1,29 @@
-use crate::id;
-use crate::utils::{
-  is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
-  match_property_name, match_require, Bailout, BailoutReason, SourceLocation,
-};
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use swc_core::common::{sync::Lrc, Mark, Span, DUMMY_SP};
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::sync::Lrc;
+use swc_core::common::Mark;
+use swc_core::common::Span;
+use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::visit::{Visit, VisitWith};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::Visit;
+use swc_core::ecma::visit::VisitWith;
+
+use crate::id;
+use crate::utils::is_unresolved;
+use crate::utils::match_export_name;
+use crate::utils::match_export_name_ident;
+use crate::utils::match_import;
+use crate::utils::match_member_expr;
+use crate::utils::match_property_name;
+use crate::utils::match_require;
+use crate::utils::Bailout;
+use crate::utils::BailoutReason;
+use crate::utils::SourceLocation;
 
 macro_rules! collect_visit_fn {
   ($name:ident, $type:ident) => {
