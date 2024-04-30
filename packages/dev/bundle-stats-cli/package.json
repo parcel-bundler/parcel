@@ -20,7 +20,7 @@
   },
   "scripts": {
     "prepack": "./ensure-no-dev-lib.sh",
-    "dev:prepare": "rimraf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
+    "dev:prepare": "shx rm -rf ./lib/ && shx mkdir -p lib && shx cp ./bin/dev-bin.js ./lib/bin.js"
   },
   "engines": {
     "node": ">= 16.0.0",
@@ -36,6 +36,7 @@
   "devDependencies": {
     "@parcel/babel-register": "2.12.0",
     "@parcel/types": "2.12.0",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "shx": "0.3.4"
   }
 }
