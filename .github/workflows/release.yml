@@ -136,10 +136,12 @@ jobs:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
             strip: arm-linux-gnueabihf-strip
+            objcopy: arm-linux-gnueabihf-objcopy
             cflags: -mfpu=neon
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             strip: aarch64-linux-gnu-strip
+            objcopy: aarch64-linux-gnu-objcopy
             cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-20.04
@@ -167,9 +169,9 @@ jobs:
       - name: Extract debug symbols
         if: ${{ inputs.profile == 'canary' }}
         run: |
-          find packages -name "*.node" -type f -exec objcopy --only-keep-debug {} {}.debug \;
-          find packages -name "*.node" -type f -exec objcopy --strip-debug --strip-unneeded {} \;
-          find packages -name "*.node" -type f -exec objcopy --add-gnu-debuglink={}.debug {} \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug {} {}.debug \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --strip-debug --strip-unneeded {} \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --add-gnu-debuglink={}.debug {} \;
       - name: Upload debug symbols
         uses: actions/upload-artifact@v3
         if: ${{ inputs.profile == 'canary' }}
@@ -201,10 +203,12 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             strip: strip
+            objcopy: objcopy
             cflags: -msse4.2
             arch: x86_64
           - target: aarch64-unknown-linux-musl
             strip: aarch64-linux-musl-strip
+            objcopy: aarch64-linux-musl-objcopy
             cflags: ''
             arch: aarch64
     name: ${{ matrix.target }}
@@ -232,9 +236,9 @@ jobs:
       - name: Extract debug symbols
         if: ${{ inputs.profile == 'canary' }}
         run: |
-          find packages -name "*.node" -type f -exec objcopy --only-keep-debug {} {}.debug \;
-          find packages -name "*.node" -type f -exec objcopy --strip-debug --strip-unneeded {} \;
-          find packages -name "*.node" -type f -exec objcopy --add-gnu-debuglink={}.debug {} \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug {} {}.debug \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --strip-debug --strip-unneeded {} \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --add-gnu-debuglink={}.debug {} \;
       - name: Upload debug symbols
         uses: actions/upload-artifact@v3
         if: ${{ inputs.profile == 'canary' }}
