@@ -114,7 +114,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ inputs.profile == 'canary' }}
         with:
-          name: debug-symbols-${{ matrix.name }}
+          name: debug-symbols-linux-gnu-x64
           path: packages/*/*/*.node.debug
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip packages/*/*/*.node
@@ -174,7 +174,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ inputs.profile == 'canary' }}
         with:
-          name: debug-symbols-${{ matrix.name }}
+          name: debug-symbols-${{ matrix.target }}
           path: packages/*/*/*.node.debug
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
@@ -239,7 +239,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ inputs.profile == 'canary' }}
         with:
-          name: debug-symbols-${{ matrix.name }}
+          name: debug-symbols-linux-musl-${{ matrix.arch }}
           path: packages/*/*/*.node.debug
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
