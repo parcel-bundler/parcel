@@ -1,10 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use dashmap::DashMap;
 use napi::bindgen_prelude::FromNapiValue;
-use napi::{Env, JsObject};
-
+use napi::Env;
+use napi::JsObject;
 use parcel_resolver::FileSystem;
 
 use crate::core::requests::call_method;

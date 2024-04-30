@@ -5,7 +5,6 @@
 use std::path::Path;
 
 use napi_derive::napi;
-
 use parcel_resolver::FileSystem;
 
 use crate::core::requests::request_api::RequestApi;
@@ -158,11 +157,10 @@ struct RequestOptions {}
 mod test {
   use parcel_resolver::OsFileSystem;
 
+  use super::*;
   use crate::core::filesystem::in_memory_file_system::InMemoryFileSystem;
   use crate::core::requests::config_request::run_config_request;
   use crate::core::requests::request_api::MockRequestApi;
-
-  use super::*;
 
   #[test]
   fn test_run_empty_config_request_does_nothing() {

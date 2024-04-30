@@ -1,5 +1,6 @@
-use mockall::automock;
 use std::path::Path;
+
+use mockall::automock;
 
 use crate::core::requests::config_request::InternalFileCreateInvalidation;
 
