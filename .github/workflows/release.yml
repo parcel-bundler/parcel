@@ -107,7 +107,7 @@ jobs:
       - name: Extract debug symbols
         if: ${{ inputs.profile == 'canary' }}
         run: |
-          find packages -name "*.node" -type f -exec objcopy --only-keep-debug {} {}.debug \;
+          find packages -name "*.node" -type f -exec objcopy --only-keep-debug --compress-debug-sections=zlib {} {}.debug \;
           find packages -name "*.node" -type f -exec objcopy --strip-debug --strip-unneeded {} \;
           find packages -name "*.node" -type f -exec objcopy --add-gnu-debuglink={}.debug {} \;
       - name: Upload debug symbols
@@ -169,7 +169,7 @@ jobs:
       - name: Extract debug symbols
         if: ${{ inputs.profile == 'canary' }}
         run: |
-          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug {} {}.debug \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug --compress-debug-sections=zlib {} {}.debug \;
           find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --strip-debug --strip-unneeded {} \;
           find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --add-gnu-debuglink={}.debug {} \;
       - name: Upload debug symbols
@@ -236,7 +236,7 @@ jobs:
       - name: Extract debug symbols
         if: ${{ inputs.profile == 'canary' }}
         run: |
-          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug {} {}.debug \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug --compress-debug-sections=zlib {} {}.debug \;
           find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --strip-debug --strip-unneeded {} \;
           find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --add-gnu-debuglink={}.debug {} \;
       - name: Upload debug symbols
