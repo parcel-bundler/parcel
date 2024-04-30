@@ -1,6 +1,14 @@
+use std::borrow::Cow;
+use std::path::Path;
 use std::path::PathBuf;
 
 use napi_derive::napi;
+use parcel_resolver::Cache;
+use parcel_resolver::CacheCow;
+use parcel_resolver::OsFileSystem;
+use parcel_resolver::Resolution;
+use parcel_resolver::ResolveResult;
+use parcel_resolver::SpecifierType;
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
 use swc_common::FileName;
@@ -10,8 +18,6 @@ use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::Parser;
 use swc_ecma_parser::Syntax;
 use swc_ecma_visit::Visit;
-
-use parcel_resolver::SpecifierType;
 
 use crate::core::project_path::ProjectPath;
 
@@ -55,18 +61,40 @@ pub fn run_asset_graph_request(
 
   let mut target_queue = vec![];
   for entry in &asset_graph_request.entries {
-    target_queue.push(entry.clone());
+    target_queue.push((project_root.to_string(), entry.clone()));
   }
 
-  while let Some(target) = target_queue.pop() {
-    let asset = read_asset(&target)?;
-    for dependency in &asset.dependencies {
-      target_queue.push(ProjectPath::from(PathBuf::from(
-        dependency.specifier.clone(),
-      )));
-    }
+  let fs = OsFileSystem::default();
+  let resolver = parcel_resolver::Resolver::parcel(
+    Cow::Owned(project_root.to_string().into()),
+    CacheCow::Owned(Cache::new(fs)),
+  );
+  while let Some((source, target)) = target_queue.pop() {
+    let ResolveResult { result, .. } = resolver.resolve(
+      target.as_ref().to_str().unwrap(),
+      &Path::new(&source),
+      SpecifierType::Esm,
+    );
 
-    graph.add_node(asset);
+    match result {
+      Ok((Resolution::Path(result), _)) => {
+        let asset = read_asset(&result.into())?;
+        for dependency in &asset.dependencies {
+          target_queue.push((
+            target.as_ref().to_str().unwrap().to_string(),
+            ProjectPath::from(PathBuf::from(dependency.specifier.clone())),
+          ));
+        }
+
+        graph.add_node(asset);
+      }
+      Err(err) => {
+        eprintln!("Resolution error: {:?}", err);
+      }
+      _ => {
+        eprintln!("Resolution error: unknown");
+      }
+    }
   }
 
   Ok(RunAssetGraphRequestResult {
@@ -75,6 +103,7 @@ pub fn run_asset_graph_request(
 }
 
 fn read_asset(target: &ProjectPath) -> anyhow::Result<Asset> {
+  println!("Reading asset: {:?}", target);
   let contents = std::fs::read_to_string(&target)?;
 
   let cm: Lrc<SourceMap> = Default::default();
@@ -91,14 +120,23 @@ fn read_asset(target: &ProjectPath) -> anyhow::Result<Asset> {
   let mut parser = Parser::new_from(lexer);
   let program = parser
     .parse_module()
-    .map_err(|e| anyhow::anyhow!("Failed to parse file"))?;
+    .map_err(|_err| anyhow::anyhow!("Failed to parse file"))?;
+
+  println!("Parsed module: {:?}", program);
 
   let mut import_visitor = ImportVisitor::default();
   import_visitor.visit_module(&program);
 
   Ok(Asset {
     path: target.as_ref().to_path_buf(),
-    dependencies: vec![],
+    dependencies: import_visitor
+      .imports
+      .iter()
+      .map(|specifier| Dependency {
+        specifier: specifier.clone(),
+        specifier_type: SpecifierType::Esm,
+      })
+      .collect(),
   })
 }
 
@@ -123,6 +161,31 @@ mod test {
   use swc_ecma_parser::Syntax;
 
   use super::*;
+
+  #[test]
+  fn test_run_asset_graph_request() {
+    let dir = env!("CARGO_MANIFEST_DIR");
+    let relative_path = PathBuf::from(
+      "../../packages/core/integration-tests/test/integration/babel-node-modules/index.js",
+    );
+    let dir = PathBuf::from(dir);
+    let path = dir.join(relative_path);
+
+    let asset_graph_request = AssetGraphRequest {
+      entries: vec![ProjectPath::from(path)],
+      name: "test".to_string(),
+    };
+
+    let project_root = "/";
+
+    let result = run_asset_graph_request(RunAssetGraphRequestParams {
+      asset_graph_request: &asset_graph_request,
+      project_root,
+    })
+    .expect("Failed to run asset graph request");
+
+    assert_eq!(result.asset_graph.graph.node_count(), 2);
+  }
 
   #[test]
   fn test_import_visitor() {
