@@ -18,6 +18,7 @@ export interface Cache {
     contents: Buffer | string,
     options?: {|signal?: AbortSignal|},
   ): Promise<void>;
+  deleteLargeBlob(key: string): Promise<void>;
   getBuffer(key: string): Promise<?Buffer>;
   /**
    * In a multi-threaded environment, where there are potentially multiple Cache

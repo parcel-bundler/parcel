@@ -1,20 +1,28 @@
-use path_slash::PathBufExt;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fmt;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
-use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
-use swc_core::ecma::ast::{self, Callee, MemberProp};
-use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::visit::{Fold, FoldWith};
+use path_slash::PathBufExt;
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::common::Span;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::Callee;
+use swc_core::ecma::ast::MemberProp;
+use swc_core::ecma::ast::{self};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
 use crate::fold_member_expr_skip_prop;
 use crate::utils::*;
 use crate::Config;
-
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 macro_rules! hash {
   ($str:expr) => {{
     let mut hasher = DefaultHasher::new();
@@ -357,7 +365,8 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_call_expr(&mut self, node: ast::CallExpr) -> ast::CallExpr {
-    use ast::{Expr::*, Ident};
+    use ast::Expr::*;
+    use ast::Ident;
 
     let kind = match &node.callee {
       Callee::Import(_) => DependencyKind::DynamicImport,

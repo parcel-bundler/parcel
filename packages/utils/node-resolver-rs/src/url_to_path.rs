@@ -1,11 +1,13 @@
 //! An implementation url.to_file_path that behaves like Unix on Wasm
 #![allow(clippy::items_after_test_module)]
 
-use crate::specifier::SpecifierError;
 #[cfg(any(target_arch = "wasm32", test))]
 use std::ffi::OsStr;
 use std::path::PathBuf;
+
 use url::Url;
+
+use crate::specifier::SpecifierError;
 
 pub fn url_to_path(input: &str) -> Result<PathBuf, SpecifierError> {
   let url = Url::parse(input)?;
@@ -32,9 +34,11 @@ fn os_str_from_bytes(slice: &[u8]) -> &OsStr {
 
 #[cfg(test)]
 mod test {
-  use crate::url_to_path::to_file_path;
   use std::path::PathBuf;
+
   use url::Url;
+
+  use crate::url_to_path::to_file_path;
 
   #[test]
   fn test() {

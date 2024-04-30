@@ -151,6 +151,21 @@ export class FSCache implements Cache {
     await Promise.all(writePromises);
   }
 
+  async deleteLargeBlob(key: string): Promise<void> {
+    const deletePromises: Promise<void>[] = [];
+
+    let i = 0;
+    let filePath = this.#getFilePath(key, i);
+
+    while (await this.fs.exists(filePath)) {
+      deletePromises.push(this.fs.rimraf(filePath));
+      i += 1;
+      filePath = this.#getFilePath(key, i);
+    }
+
+    await Promise.all(deletePromises);
+  }
+
   async get<T>(key: string): Promise<?T> {
     try {
       let data = await this.fs.readFile(this._getCachePath(key));
