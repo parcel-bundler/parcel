@@ -3,21 +3,22 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use napi_derive::napi;
+use swc_common::FileName;
+use swc_common::input::StringInput;
+use swc_common::SourceMap;
+use swc_common::sync::Lrc;
+use swc_ecma_ast::ImportDecl;
+use swc_ecma_parser::lexer::Lexer;
+use swc_ecma_parser::Parser;
+use swc_ecma_parser::Syntax;
+use swc_ecma_visit::Visit;
+
 use parcel_resolver::Cache;
 use parcel_resolver::CacheCow;
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::Resolution;
 use parcel_resolver::ResolveResult;
 use parcel_resolver::SpecifierType;
-use swc_common::input::StringInput;
-use swc_common::sync::Lrc;
-use swc_common::FileName;
-use swc_common::SourceMap;
-use swc_ecma_ast::ImportDecl;
-use swc_ecma_parser::lexer::Lexer;
-use swc_ecma_parser::Parser;
-use swc_ecma_parser::Syntax;
-use swc_ecma_visit::Visit;
 
 use crate::core::project_path::ProjectPath;
 
@@ -154,8 +155,8 @@ impl Visit for ImportVisitor {
 #[cfg(test)]
 mod test {
   use swc_common::input::StringInput;
-  use swc_common::sync::Lrc;
   use swc_common::SourceMap;
+  use swc_common::sync::Lrc;
   use swc_ecma_parser::lexer::Lexer;
   use swc_ecma_parser::Parser;
   use swc_ecma_parser::Syntax;
