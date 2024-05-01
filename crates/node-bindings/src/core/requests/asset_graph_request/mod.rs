@@ -3,10 +3,10 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use napi_derive::napi;
-use swc_common::FileName;
 use swc_common::input::StringInput;
-use swc_common::SourceMap;
 use swc_common::sync::Lrc;
+use swc_common::FileName;
+use swc_common::SourceMap;
 use swc_ecma_ast::ImportDecl;
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::Parser;
@@ -155,8 +155,8 @@ impl Visit for ImportVisitor {
 #[cfg(test)]
 mod test {
   use swc_common::input::StringInput;
-  use swc_common::SourceMap;
   use swc_common::sync::Lrc;
+  use swc_common::SourceMap;
   use swc_ecma_parser::lexer::Lexer;
   use swc_ecma_parser::Parser;
   use swc_ecma_parser::Syntax;
