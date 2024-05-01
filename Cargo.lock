@@ -1720,6 +1720,7 @@ dependencies = [
  "anyhow",
  "assert_fs",
  "dashmap",
+ "is_elevated",
  "napi",
  "parcel_napi_helpers",
 ]
