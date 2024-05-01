@@ -7,7 +7,7 @@ use dashmap::DashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::path::canonicalize;
 
-pub trait FileSystem: Send + Sync {
+pub trait FileSystem {
   fn canonicalize<P: AsRef<Path>>(
     &self,
     path: P,

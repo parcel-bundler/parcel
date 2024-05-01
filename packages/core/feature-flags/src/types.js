@@ -13,4 +13,8 @@ export type FeatureFlags = {|
    * Refactors dfsNew to use an iterative approach.
    */
   +dfsFasterRefactor: boolean,
+  /**
+   * Rust backed requests
+   */
+  +parcelV3: boolean,
 |};

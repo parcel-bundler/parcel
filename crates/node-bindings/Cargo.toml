@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-canary = ["sentry", "once_cell", "whoami", "serde", "serde_json", "rustls"]
+canary = ["sentry", "once_cell", "whoami", "rustls"]
 
 rustls = ["sentry/rustls"]
 openssl = ["sentry/native-tls"]
@@ -24,8 +24,12 @@ log = "0.4.21"
 sentry = { version = "0.32.2", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "debug-images", "anyhow"]}
 once_cell = { version = "1.19.0", optional = true }
 whoami = { version = "1.5.1", optional = true }
-serde = { version = "1.0.197", optional = true }
-serde_json = { version = "1.0.114", optional = true }
+
+serde = "1.0.198"
+serde_json = "1.0.116"
+toml = "0.8.12"
+anyhow = "1.0.82"
+mockall = "0.12.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = { version = "2.12.6", features = ["serde-json", "napi4", "napi5"] }
@@ -47,6 +51,8 @@ jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
 [target.'cfg(windows)'.dependencies]
 mimalloc = { version = "0.1.25", default-features = false }
+
+[dev-dependencies]
 
 [build-dependencies]
 napi-build = "2"
