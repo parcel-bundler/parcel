@@ -80,7 +80,7 @@ fn get_config_key_content_hash(
   config_key: &str,
   input_fs: &impl FileSystem,
   project_root: &str,
-  file_path: &str,
+  file_path: &Path,
 ) -> napi::Result<String> {
   let mut path = Path::new(project_root).to_path_buf();
   path.push(file_path);
@@ -107,7 +107,7 @@ pub fn run_config_request(
   project_root: &str,
 ) -> napi::Result<()> {
   for file_path in &config_request.invalidate_on_file_change {
-    let file_path = Path::new(file_path);
+    let file_path = file_path.as_ref();
     api.invalidate_on_file_update(file_path)?;
     api.invalidate_on_file_delete(file_path)?;
   }
@@ -117,10 +117,10 @@ pub fn run_config_request(
       &config_key_change.config_key,
       input_fs,
       &project_root,
-      &config_key_change.file_path,
+      config_key_change.file_path.as_ref(),
     )?;
     api.invalidate_on_config_key_change(
-      Path::new(&config_key_change.file_path),
+      config_key_change.file_path.as_ref(),
       &config_key_change.config_key,
       &content_hash,
     )?;
@@ -184,7 +184,7 @@ mod test {
   fn test_run_config_request_with_invalidate_on_file_change() {
     let config_request = ConfigRequest {
       id: "".to_string(),
-      invalidate_on_file_change: vec!["path1".to_string(), "path2".to_string()],
+      invalidate_on_file_change: vec!["path1".into(), "path2".into()],
       invalidate_on_config_key_change: vec![],
       invalidate_on_file_create: vec![],
       invalidate_on_env_change: vec![],
@@ -218,7 +218,7 @@ mod test {
       invalidate_on_file_change: vec![],
       invalidate_on_config_key_change: vec![],
       invalidate_on_file_create: vec![InternalFileCreateInvalidation {
-        file_path: Some("path1".to_string()),
+        file_path: Some("path1".into()),
         glob: None,
         file_name: None,
         above_file_path: None,
@@ -238,7 +238,7 @@ mod test {
       .times(1)
       .withf(|p| {
         *p == InternalFileCreateInvalidation {
-          file_path: Some("path1".to_string()),
+          file_path: Some("path1".into()),
           glob: None,
           file_name: None,
           above_file_path: None,
