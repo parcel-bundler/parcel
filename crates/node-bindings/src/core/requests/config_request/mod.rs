@@ -4,12 +4,11 @@
 //! file.
 use std::path::Path;
 
+use crate::core::project_path::ProjectPath;
 use napi_derive::napi;
 use parcel_resolver::FileSystem;
 
 use crate::core::requests::request_api::RequestApi;
-
-pub type ProjectPath = String;
 
 pub type InternalGlob = String;
 
@@ -20,7 +19,7 @@ pub struct ConfigKeyChange {
 }
 
 #[napi(object)]
-#[derive(Clone, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 pub struct InternalFileCreateInvalidation {
   // file
   pub file_path: Option<ProjectPath>,
@@ -155,12 +154,11 @@ struct RequestOptions {}
 
 #[cfg(test)]
 mod test {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-  use parcel_filesystem::os_file_system::OsFileSystem;
-
   use super::*;
   use crate::core::requests::config_request::run_config_request;
   use crate::core::requests::request_api::MockRequestApi;
+  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use parcel_filesystem::os_file_system::OsFileSystem;
 
   #[test]
   fn test_run_empty_config_request_does_nothing() {
