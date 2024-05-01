@@ -20,7 +20,7 @@ on:
       - Cargo.toml
       - Cargo.lock
       - babel.config.json
-      - sciprts/**
+      - scripts/**
       - patches/**
       - packages/**
       - flow-typed/**
