@@ -35,7 +35,7 @@ jobs:
             os: macos-latest
             target: aarch64-apple-darwin
 
-          - name: macos-latest
+          - name: x86_64-apple-darwin
             os: macos-latest
             target: x86_64-apple-darwin
 
@@ -62,6 +62,15 @@ jobs:
         run: yarn build-native-${{ inputs.profile }}
         env:
           RUST_TARGET: ${{ matrix.target }}
+      - name: Extract debug symbols
+        if: ${{ runner.os == 'macOS' && inputs.profile == 'canary' }}
+        run: dsymutil packages/*/*/*.node
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.profile == 'canary' }}
+        with:
+          name: debug-symbols-${{ matrix.name }}
+          path: packages/*/*/*.node.dSYM/Contents/Resources/DWARF/*.node
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ runner.os == 'macOS' }}
         run: strip -x packages/*/*/*.node # Must use -x on macOS. This produces larger results on linux.
@@ -95,6 +104,18 @@ jobs:
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-${{ inputs.profile }}
+      - name: Extract debug symbols
+        if: ${{ inputs.profile == 'canary' }}
+        run: |
+          find packages -name "*.node" -type f -exec objcopy --only-keep-debug --compress-debug-sections=zlib {} {}.debug \;
+          find packages -name "*.node" -type f -exec objcopy --strip-debug --strip-unneeded {} \;
+          find packages -name "*.node" -type f -exec objcopy --add-gnu-debuglink={}.debug {} \;
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.profile == 'canary' }}
+        with:
+          name: debug-symbols-linux-gnu-x64
+          path: packages/*/*/*.node.debug
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip packages/*/*/*.node
       - name: Upload artifacts
@@ -115,10 +136,12 @@ jobs:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
             strip: arm-linux-gnueabihf-strip
+            objcopy: arm-linux-gnueabihf-objcopy
             cflags: -mfpu=neon
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             strip: aarch64-linux-gnu-strip
+            objcopy: aarch64-linux-gnu-objcopy
             cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-20.04
@@ -143,6 +166,18 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
           CFLAGS: ${{ matrix.cflags }}
+      - name: Extract debug symbols
+        if: ${{ inputs.profile == 'canary' }}
+        run: |
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug --compress-debug-sections=zlib {} {}.debug \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --strip-debug --strip-unneeded {} \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --add-gnu-debuglink={}.debug {} \;
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.profile == 'canary' }}
+        with:
+          name: debug-symbols-${{ matrix.target }}
+          path: packages/*/*/*.node.debug
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
@@ -168,10 +203,12 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             strip: strip
+            objcopy: objcopy
             cflags: -msse4.2
             arch: x86_64
           - target: aarch64-unknown-linux-musl
             strip: aarch64-linux-musl-strip
+            objcopy: aarch64-linux-musl-objcopy
             cflags: ''
             arch: aarch64
     name: ${{ matrix.target }}
@@ -196,6 +233,18 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
           CFLAGS: ${{ matrix.cflags }}
+      - name: Extract debug symbols
+        if: ${{ inputs.profile == 'canary' }}
+        run: |
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --only-keep-debug --compress-debug-sections=zlib {} {}.debug \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --strip-debug --strip-unneeded {} \;
+          find packages -name "*.node" -type f -exec ${{ matrix.objcopy }} --add-gnu-debuglink={}.debug {} \;
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.profile == 'canary' }}
+        with:
+          name: debug-symbols-linux-musl-${{ matrix.arch }}
+          path: packages/*/*/*.node.debug
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
@@ -228,10 +277,24 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: artifacts
-      - name: Move artifacts
-        run: for d in artifacts/*/*/*; do cp $d/*.node packages/$(basename $(dirname $d))/$(basename $d); done
+      - name: Move bindings
+        run: for d in artifacts/bindings-*/*/*; do cp $d/*.node packages/$(basename $(dirname $d))/$(basename $d); done
+      - name: Move debug symbols
+        if: ${{ inputs.profile == 'canary' }}
+        run: |
+          mkdir debug-symbols
+          find artifacts -name "*.debug" -exec cp {} debug-symbols/ \;
+          find artifacts -name "*.node" -path "**/DWARF/**" -exec cp {} debug-symbols/ \;
+          ls -l debug-symbols
+      - name: Upload combined debug symbols artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.profile == 'canary' }}
+        with:
+          name: debug-symbols
+          path: debug-symbols/**
       - name: Debug
-        run: ls -l packages/*/*/*.node
+        run: |
+          ls -l packages/*/*/*.node
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
