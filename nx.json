@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nrwl/nx/master/packages/nx/schemas/nx-schema.json",
+  "parallel": 4,
+  "targetDefaults": {
+    "dev:prepare": {
+      "outputs": ["{projectRoot}/lib/**/*"],
+      "dependsOn": ["^dev:prepare"]
+    },
+    "build-ts": {
+      "dependsOn": ["^build-ts", "^dev:prepare"]
+    },
+    "test:mocha": {
+      "inputs": ["{projectRoot}/src/**/*"],
+      "dependsOn": ["^dev:prepare", "dev:prepare"]
+    }
+  },
+  "extends": "nx/presets/npm.json"
+}

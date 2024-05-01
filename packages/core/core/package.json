@@ -20,6 +20,7 @@
   },
   "scripts": {
     "test": "mocha",
+    "test:mocha": "mocha",
     "test-ci": "mocha",
     "check-ts": "tsc --noEmit index.d.ts"
   },
