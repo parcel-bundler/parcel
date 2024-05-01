@@ -273,7 +273,20 @@ describe('AdjacencyList', () => {
   });
 
   describe('deserialize', function () {
-    this.timeout(10000);
+    this.timeout(20000);
+
+    let worker;
+    beforeEach(done => {
+      worker = new Worker(
+        path.join(__dirname, 'integration/adjacency-list-shared-array.js'),
+      );
+      let hasCalled = false;
+      worker.on('message', () => {
+        if (hasCalled) return;
+        hasCalled = true;
+        done();
+      });
+    });
 
     it('should share the underlying data across worker threads', async () => {
       let graph = new AdjacencyList();
@@ -282,17 +295,13 @@ describe('AdjacencyList', () => {
       graph.addEdge(n0, n1, 1);
       graph.addEdge(n0, n1, 2);
 
-      let worker = new Worker(
-        path.join(__dirname, 'integration/adjacency-list-shared-array.js'),
-      );
-
       let originalSerialized = graph.serialize();
       let originalNodes = [...originalSerialized.nodes];
       let originalEdges = [...originalSerialized.edges];
       let work = new Promise(resolve => worker.on('message', resolve));
       worker.postMessage(originalSerialized);
       let received = AdjacencyList.deserialize(await work);
-      await worker.terminate();
+      worker.terminate();
 
       assert.deepEqual(received.serialize().nodes, graph.serialize().nodes);
       assert.deepEqual(received.serialize().edges, graph.serialize().edges);

@@ -6,7 +6,7 @@ const {
   EdgeTypeMap,
 } = require('../../src/AdjacencyList');
 
-parentPort.once('message', (serialized) => {
+parentPort.once('message', serialized => {
   let graph = AdjacencyList.deserialize(serialized);
   serialized.nodes.forEach((v, i) => {
     if (i < NodeTypeMap.HEADER_SIZE) return;
@@ -18,3 +18,5 @@ parentPort.once('message', (serialized) => {
   });
   parentPort.postMessage(graph.serialize());
 });
+
+parentPort.postMessage('ready');
