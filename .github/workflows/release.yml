@@ -37,6 +37,7 @@ jobs:
 
           - name: macos-latest
             os: macos-latest
+            target: x86_64-apple-darwin
 
           - name: windows-latest
             os: windows-latest
