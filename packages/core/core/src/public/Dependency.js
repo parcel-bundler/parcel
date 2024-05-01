@@ -10,6 +10,7 @@ import type {
   DependencyPriority,
   BundleBehavior,
 } from '@parcel/types';
+import * as napi from '@parcel/rust';
 import type {Dependency as InternalDependency, ParcelOptions} from '../types';
 import {BundleBehaviorNames} from '../types';
 
