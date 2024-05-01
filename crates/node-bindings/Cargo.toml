@@ -23,7 +23,7 @@ dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 log = "0.4.21"
 
-sentry = { version = "0.32.2", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "debug-images", "anyhow"] }
+sentry = { version = "0.32.2", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "debug-images", "anyhow"]}
 once_cell = { version = "1.19.0", optional = true }
 whoami = { version = "1.5.1", optional = true }
 
@@ -33,15 +33,6 @@ serde_json = "1.0.116"
 toml = "0.8.12"
 anyhow = "1.0.82"
 mockall = "0.12.1"
-petgraph = "0.6.3"
-swc_ecma_visit = "0.99.1"
-swc_common = "0.33.26"
-swc_ecma_parser = "0.144.1"
-swc_ecma_ast = "0.113.1"
-tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
-tokio = { version = "1.37.0", features = ["full"] }
-futures = "0.3.30"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5"] }
