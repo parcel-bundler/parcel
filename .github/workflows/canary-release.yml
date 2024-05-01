@@ -4,7 +4,6 @@
 name: canary-release
 
 on:
-  merge_group:
   push:
     branches:
       - v2
