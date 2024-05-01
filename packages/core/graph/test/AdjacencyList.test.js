@@ -273,7 +273,7 @@ describe('AdjacencyList', () => {
   });
 
   describe('deserialize', function () {
-    this.timeout(30000);
+    this.timeout(10000);
 
     it('should share the underlying data across worker threads', async () => {
       let graph = new AdjacencyList();
