@@ -18,5 +18,3 @@ parentPort.once('message', serialized => {
   });
   parentPort.postMessage(graph.serialize());
 });
-
-parentPort.postMessage('ready');
