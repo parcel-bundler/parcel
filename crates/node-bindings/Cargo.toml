@@ -14,9 +14,10 @@ rustls = ["sentry/rustls"]
 openssl = ["sentry/native-tls"]
 
 [dependencies]
-napi-derive = "2.12.5"
+napi-derive = "2.16.3"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+parcel_filesystem = { path = "../parcel_filesystem" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 log = "0.4.21"
@@ -32,7 +33,7 @@ anyhow = "1.0.82"
 mockall = "0.12.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-napi = { version = "2.12.6", features = ["serde-json", "napi4", "napi5"] }
+napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5"] }
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 oxipng = "8.0.0"
@@ -43,7 +44,7 @@ crossbeam-channel = "0.5.6"
 indexmap = "1.9.2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-napi = { version = "2.12.6", features = ["serde-json"] }
+napi = { version = "2.16.4", features = ["serde-json"] }
 getrandom = { version = "0.2", features = ["custom"], default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -55,4 +56,4 @@ mimalloc = { version = "0.1.25", default-features = false }
 [dev-dependencies]
 
 [build-dependencies]
-napi-build = "2"
+napi-build = "2.1.3"

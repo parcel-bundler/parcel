@@ -32,7 +32,12 @@ pub fn optimize_image(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
       match optimize_jpeg(slice) {
         Ok(res) => Ok(
           env
-            .create_buffer_with_borrowed_data(res.as_ptr(), res.len(), res.as_mut_ptr(), finalize)?
+            .create_buffer_with_borrowed_data(
+              res.as_mut_ptr(),
+              res.len(),
+              res.as_mut_ptr(),
+              finalize,
+            )?
             .into_raw(),
         ),
         Err(err) => {
