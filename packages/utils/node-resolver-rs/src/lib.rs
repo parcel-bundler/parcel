@@ -16,7 +16,6 @@ use tsconfig::TsConfig;
 mod builtins;
 mod cache;
 mod error;
-mod fs;
 mod invalidations;
 mod package_json;
 mod path;
@@ -27,14 +26,14 @@ mod url_to_path;
 pub use cache::Cache;
 pub use cache::CacheCow;
 pub use error::ResolverError;
-pub use fs::FileSystem;
-#[cfg(not(target_arch = "wasm32"))]
-pub use fs::OsFileSystem;
 pub use invalidations::*;
 pub use package_json::ExportsCondition;
 pub use package_json::Fields;
 pub use package_json::ModuleType;
 pub use package_json::PackageJsonError;
+#[cfg(not(target_arch = "wasm32"))]
+pub use parcel_filesystem::os_file_system::OsFileSystem;
+pub use parcel_filesystem::FileSystem;
 pub use specifier::Specifier;
 pub use specifier::SpecifierError;
 pub use specifier::SpecifierType;

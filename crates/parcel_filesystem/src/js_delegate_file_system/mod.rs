@@ -6,9 +6,9 @@ use napi::bindgen_prelude::FromNapiValue;
 use napi::Env;
 use napi::JsObject;
 use napi::JsUnknown;
-use parcel_resolver::FileSystem;
+use parcel_napi_helpers::call_method;
 
-use crate::core::js_helpers::call_method;
+use crate::FileSystem;
 
 /// An implementation of `FileSystem` that delegates calls to a `JsObject`.
 ///

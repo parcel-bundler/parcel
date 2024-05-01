@@ -3,7 +3,7 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
-use parcel_resolver::FileSystem;
+use crate::FileSystem;
 
 /// In memory implementation of a file-system entry
 enum InMemoryFileSystemEntry {

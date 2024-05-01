@@ -1,0 +1,9 @@
+[package]
+name = "parcel_napi_helpers"
+version = "0.1.0"
+edition = "2021"
+description = "napi helpers for JS interop"
+
+[dependencies]
+anyhow = "1"
+napi = "2.16.4"

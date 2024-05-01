@@ -6,9 +6,9 @@ use std::sync::Mutex;
 
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
+use parcel_filesystem::FileSystem;
 use typed_arena::Arena;
 
-use crate::fs::FileSystem;
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;
 use crate::tsconfig::TsConfig;

@@ -3,8 +3,7 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi::JsString;
-
-use crate::core::filesystem::js_delegate_file_system::JSDelegateFileSystem;
+use parcel_filesystem::js_delegate_file_system::JSDelegateFileSystem;
 
 pub fn project_root_from_options(options: &JsObject) -> napi::Result<String> {
   let Some(project_root): Option<JsString> = options.get("projectRoot")? else {

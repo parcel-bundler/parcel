@@ -3,8 +3,8 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
+use parcel_napi_helpers::anyhow_napi;
 
-use crate::core::js_helpers::anyhow_napi;
 use crate::core::js_requests::request_options::project_root_from_options;
 use crate::core::requests::asset_graph_request::run_asset_graph_request;
 use crate::core::requests::asset_graph_request::AssetGraphRequest;

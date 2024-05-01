@@ -4,8 +4,8 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi::JsUnknown;
+use parcel_napi_helpers::call_method;
 
-use crate::core::js_helpers::call_method;
 use crate::core::requests::config_request::InternalFileCreateInvalidation;
 use crate::core::requests::request_api::RequestApi;
 use crate::core::requests::request_api::RequestApiResult;

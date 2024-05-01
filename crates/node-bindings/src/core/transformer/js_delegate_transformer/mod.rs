@@ -8,7 +8,7 @@ use napi::JsUnknown;
 use napi::NapiRaw;
 use napi::NapiValue;
 
-use crate::core::js_helpers::call_method;
+use parcel_napi_helpers::call_method;
 use crate::core::transformer::TransformationInput;
 use crate::core::transformer::TransformationResult;
 use crate::core::transformer::Transformer;
