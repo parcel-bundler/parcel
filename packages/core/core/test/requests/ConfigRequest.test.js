@@ -29,17 +29,13 @@ async function assertThrows(block: () => Promise<void>) {
 
 describe('ConfigRequest tests', () => {
   const projectRoot = 'project_root';
-  let fs = new MemoryFS(
-    new WorkerFarm({
-      workerPath: require.resolve('../../src/worker.js'),
-    }),
-  );
+  const farm = new WorkerFarm({
+    workerPath: require.resolve('../../src/worker.js'),
+    maxConcurrentWorkers: 1,
+  });
+  let fs = new MemoryFS(farm);
   beforeEach(() => {
-    fs = new MemoryFS(
-      new WorkerFarm({
-        workerPath: require.resolve('../../src/worker.js'),
-      }),
-    );
+    fs = new MemoryFS(farm);
   });
 
   const getMockRunApi = (
