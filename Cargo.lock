@@ -1798,10 +1798,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel_core"
-version = "0.1.0"
-
-[[package]]
 name = "parcel_filesystem"
 version = "0.1.0"
 dependencies = [

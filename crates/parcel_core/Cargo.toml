@@ -1,7 +1,0 @@
-[package]
-name = "parcel_core"
-version = "0.1.0"
-edition = "2021"
-description = "Parcel bundler core logic"
-
-[dependencies]
