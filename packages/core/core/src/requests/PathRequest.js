@@ -52,6 +52,8 @@ import {
 } from './DevDepRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
+import {getFeatureFlag} from '@parcel/feature-flags';
+import {napiRunPathRequest} from '@parcel/rust';
 
 export type PathRequest = {|
   id: string,
@@ -242,14 +244,27 @@ export class ResolverRunner {
   }
 
   async resolve(dependency: Dependency): Promise<ResolverResult> {
-    let dep = getPublicDependency(dependency, this.options);
     report({
       type: 'buildProgress',
       phase: 'resolving',
       dependency: dep,
     });
 
+    let dep = getPublicDependency(dependency, this.options);
     let resolvers = await this.config.getResolvers();
+
+    if (getFeatureFlag('parcelV3')) {
+      return napiRunPathRequest({
+        publicDependency: dep,
+        dependency,
+        resolvers: resolvers.map(resolver => {
+          return () => {
+            resolver.plugin.resolve();
+          };
+        }),
+      });
+    }
+
     await this.loadConfigs(resolvers);
 
     let pipeline;
