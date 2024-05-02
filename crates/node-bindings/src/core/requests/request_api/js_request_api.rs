@@ -4,12 +4,16 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi::JsUnknown;
+use parcel_napi_helpers::call_method;
 
-use crate::core::requests::call_method;
 use crate::core::requests::config_request::InternalFileCreateInvalidation;
 use crate::core::requests::request_api::RequestApi;
 use crate::core::requests::request_api::RequestApiResult;
 
+/// This is a "delegate" implementation of `RequestApi` that delegates calls to a
+/// JavaScript object.
+///
+/// It has exhaustive tests on `core/test/requests/ConfigRequest.test.js`.
 pub struct JSRequestApi {
   // TODO: Make sure it is safe to hold the environment like this
   env: Rc<Env>,
