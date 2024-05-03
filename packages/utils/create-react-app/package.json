@@ -38,7 +38,6 @@
   "devDependencies": {
     "@babel/core": "^7.22.11",
     "@parcel/babel-register": "2.12.0",
-    "rimraf": "^5.0.5",
     "shx": "0.3.4"
   }
 }
