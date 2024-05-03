@@ -122,8 +122,6 @@ jobs:
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
       - run: yarn build
-        env:
-          TERM: dumb
       - run: yarn test:integration-ci
 
   # Deployment steps taken from https://github.com/colinwilson/static-site-to-vercel/blob/master/.github/workflows/deploy-preview.yml
