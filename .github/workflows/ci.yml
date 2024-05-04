@@ -1,6 +1,7 @@
 name: Continuous Integration
 
 on:
+  merge_group:
   pull_request:
   push:
     branches:

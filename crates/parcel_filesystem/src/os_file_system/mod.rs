@@ -1,22 +1,12 @@
-use std::io::Result;
 use std::path::Path;
 use std::path::PathBuf;
 
+use canonicalize::canonicalize;
 use dashmap::DashMap;
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::path::canonicalize;
+use crate::FileSystem;
 
-pub trait FileSystem: Send + Sync {
-  fn canonicalize<P: AsRef<Path>>(
-    &self,
-    path: P,
-    cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> Result<PathBuf>;
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> Result<String>;
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool;
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool;
-}
+mod canonicalize;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
@@ -24,15 +14,19 @@ pub struct OsFileSystem;
 
 #[cfg(not(target_arch = "wasm32"))]
 impl FileSystem for OsFileSystem {
+  fn cwd(&self) -> std::io::Result<PathBuf> {
+    std::env::current_dir()
+  }
+
   fn canonicalize<P: AsRef<Path>>(
     &self,
     path: P,
     cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> Result<PathBuf> {
+  ) -> std::io::Result<PathBuf> {
     canonicalize(path.as_ref(), cache)
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> Result<String> {
+  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
     std::fs::read_to_string(path)
   }
 

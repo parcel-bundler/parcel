@@ -1319,6 +1319,7 @@ describe('cache', function () {
           featureFlags: {
             exampleFeature: false,
             configKeyInvalidation: true,
+            parcelV3: false,
             dfsFasterRefactor: false,
           },
           async setup() {
@@ -1380,6 +1381,7 @@ describe('cache', function () {
           featureFlags: {
             exampleFeature: false,
             configKeyInvalidation: true,
+            parcelV3: false,
             dfsFasterRefactor: false,
           },
           async setup() {
@@ -1441,6 +1443,7 @@ describe('cache', function () {
           featureFlags: {
             exampleFeature: false,
             configKeyInvalidation: true,
+            parcelV3: false,
             dfsFasterRefactor: false,
           },
           async setup() {
