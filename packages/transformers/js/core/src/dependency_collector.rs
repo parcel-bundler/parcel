@@ -87,7 +87,7 @@ struct DependencyCollector<'a> {
   require_node: Option<ast::CallExpr>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
-  config: &'a Config,
+  config: &'a Config<'a>,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
 }

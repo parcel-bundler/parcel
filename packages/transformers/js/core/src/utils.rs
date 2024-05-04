@@ -469,7 +469,7 @@ pub fn error_buffer_to_diagnostics(
 
 pub fn add_dependency(
   filename: &Path,
-  project_root: &str,
+  project_root: &Path,
   deps: &mut IndexMap<u64, DependencyDescriptor>,
   dep: DependencyDescriptor,
 ) {
@@ -485,7 +485,7 @@ pub fn add_dependency(
   deps.insert(hasher.finish(), dep);
 }
 
-pub fn get_project_relative_filename(filename: &Path, project_root: &str) -> String {
+pub fn get_project_relative_filename(filename: &Path, project_root: &Path) -> String {
   if let Some(relative) = pathdiff::diff_paths(filename, project_root) {
     relative.to_slash_lossy()
   } else if let Some(filename) = filename.file_name() {

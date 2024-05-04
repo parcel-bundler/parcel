@@ -1291,6 +1291,7 @@ dependencies = [
  "indexmap 1.9.3",
  "indoc",
  "parcel-macros",
+ "parcel-resolver",
  "path-slash",
  "pathdiff",
  "serde",

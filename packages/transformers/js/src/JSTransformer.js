@@ -432,6 +432,7 @@ export default (new Transformer({
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
       env,
+      inline_env: config.inlineEnvironment,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: isJSX,
       jsx_pragma: config?.pragma,

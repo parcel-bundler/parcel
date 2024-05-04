@@ -11,13 +11,19 @@ pub mod worker_farm;
 use asset_graph::{AssetGraph, AssetGraphRequest};
 use cache::Cache;
 use request_tracker::RequestTracker;
+use types::ParcelOptions;
 // use requests::bundle_graph_request::BundleGraphRequest;
 use worker_farm::WorkerFarm;
 
 use crate::requests::parcel_config_request::ParcelConfigRequest;
 
-pub fn build(entries: Vec<String>, farm: WorkerFarm, cache: &Cache) -> AssetGraph {
-  let mut request_tracker = RequestTracker::new(farm);
+pub fn build(
+  entries: Vec<String>,
+  farm: WorkerFarm,
+  cache: &Cache,
+  options: ParcelOptions,
+) -> AssetGraph {
+  let mut request_tracker = RequestTracker::new(farm, options);
   let config = request_tracker.run_request(ParcelConfigRequest {}).unwrap();
 
   let mut req = AssetGraphRequest {

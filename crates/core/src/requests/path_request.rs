@@ -7,7 +7,7 @@ use crate::{
   environment::{EnvironmentContext, EnvironmentFlags},
   parcel_config::PluginNode,
   request_tracker::{Request, RequestResult},
-  types::{Dependency, SpecifierType},
+  types::{Dependency, ParcelOptions, SpecifierType},
 };
 use parcel_resolver::{
   parse_scheme, Cache, CacheCow, ExportsCondition, Fields, IncludeNodeModules, OsFileSystem,
@@ -16,7 +16,7 @@ use parcel_resolver::{
 
 // TODO: find a way to have a cached resolver per project.
 lazy_static::lazy_static! {
-  static ref CACHE: parcel_resolver::Cache<OsFileSystem> = {
+  pub static ref CACHE: parcel_resolver::Cache<OsFileSystem> = {
     Cache::new(OsFileSystem::default())
   };
 }
@@ -38,7 +38,11 @@ impl<'a> std::hash::Hash for PathRequest<'a> {
 impl<'a> Request for PathRequest<'a> {
   type Output = ResolverResult;
 
-  fn run(&self, _farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
+  fn run(
+    &self,
+    _farm: &crate::worker_farm::WorkerFarm,
+    options: &ParcelOptions,
+  ) -> RequestResult<Self::Output> {
     // TODO: windows
     let (parsed_pipeline, specifier) = parse_scheme(&self.dep.specifier)
       .and_then(|s| {
@@ -51,7 +55,7 @@ impl<'a> Request for PathRequest<'a> {
       .unwrap_or((None, self.dep.specifier.as_str()));
 
     let resolver = DefaultResolver {};
-    let result = resolver.resolve(specifier, &self.dep);
+    let result = resolver.resolve(specifier, &self.dep, options);
     match result.result {
       Ok(ResolverResult::Resolved {
         path,
@@ -76,7 +80,12 @@ impl<'a> Request for PathRequest<'a> {
 }
 
 pub trait Resolver {
-  fn resolve(&self, specifier: &str, dep: &Dependency) -> RequestResult<ResolverResult>;
+  fn resolve(
+    &self,
+    specifier: &str,
+    dep: &Dependency,
+    options: &ParcelOptions,
+  ) -> RequestResult<ResolverResult>;
 }
 
 #[derive(Clone, Debug)]
@@ -93,7 +102,12 @@ pub enum ResolverResult {
 
 struct DefaultResolver;
 impl Resolver for DefaultResolver {
-  fn resolve(&self, specifier: &str, dep: &Dependency) -> RequestResult<ResolverResult> {
+  fn resolve(
+    &self,
+    specifier: &str,
+    dep: &Dependency,
+    options: &ParcelOptions,
+  ) -> RequestResult<ResolverResult> {
     let mut resolver =
       parcel_resolver::Resolver::parcel(Cow::Borrowed(Path::new("/")), CacheCow::Borrowed(&CACHE));
 
@@ -123,7 +137,7 @@ impl Resolver for DefaultResolver {
 
     resolver.include_node_modules = Cow::Borrowed(&dep.env.include_node_modules);
 
-    let options = ResolveOptions {
+    let resolver_options = ResolveOptions {
       conditions: dep.package_conditions,
       custom_conditions: dep.custom_package_conditions.clone(),
     };
@@ -143,7 +157,7 @@ impl Resolver for DefaultResolver {
         SpecifierType::Url => parcel_resolver::SpecifierType::Url,
         SpecifierType::Custom => parcel_resolver::SpecifierType::Esm, // ???
       },
-      options,
+      resolver_options,
     );
 
     let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
@@ -168,7 +182,7 @@ impl Resolver for DefaultResolver {
         }),
         invalidations: Vec::new(),
       },
-      Resolution::Builtin(builtin) => self.resolve_builtin(dep, builtin),
+      Resolution::Builtin(builtin) => self.resolve_builtin(dep, builtin, options),
       Resolution::Empty => RequestResult {
         result: Ok(ResolverResult::Resolved {
           path: Path::new(
@@ -199,7 +213,12 @@ impl Resolver for DefaultResolver {
 }
 
 impl DefaultResolver {
-  fn resolve_builtin(&self, dep: &Dependency, builtin: String) -> RequestResult<ResolverResult> {
+  fn resolve_builtin(
+    &self,
+    dep: &Dependency,
+    builtin: String,
+    options: &ParcelOptions,
+  ) -> RequestResult<ResolverResult> {
     if dep.env.context.is_node() {
       return RequestResult {
         result: Ok(ResolverResult::Excluded),
@@ -256,7 +275,7 @@ impl DefaultResolver {
       }
     };
 
-    self.resolve(browser_module, dep)
+    self.resolve(browser_module, dep, options)
   }
 }
 

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::vec;
 
+use parcel_resolver::InlineEnvironment;
 use swc_core::common::{Mark, DUMMY_SP};
 use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
@@ -12,7 +13,8 @@ use ast::*;
 pub struct EnvReplacer<'a> {
   pub replace_env: bool,
   pub is_browser: bool,
-  pub env: &'a HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
+  pub env: &'a HashMap<String, String>,
+  pub inline_env: &'a InlineEnvironment,
   pub used_env: &'a mut HashSet<JsWord>,
   pub source_map: &'a swc_core::common::SourceMap,
   pub diagnostics: &'a mut Vec<Diagnostic>,
@@ -47,8 +49,9 @@ impl<'a> Fold for EnvReplacer<'a> {
       Expr::Bin(binary) if binary.op == BinaryOp::In => {
         if let (Expr::Lit(Lit::Str(left)), Expr::Member(member)) = (&*binary.left, &*binary.right) {
           if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
+            let name = left.value.as_ref();
             return Expr::Lit(Lit::Bool(Bool {
-              value: self.env.contains_key(&left.value),
+              value: self.inline_env.matches(name) && self.env.contains_key(name),
               span: DUMMY_SP,
             }));
           }
@@ -198,14 +201,19 @@ impl<'a> Fold for EnvReplacer<'a> {
 
 impl<'a> EnvReplacer<'a> {
   fn replace(&mut self, sym: &JsWord, fallback_undefined: bool) -> Option<Expr> {
-    if let Some(val) = self.env.get(sym) {
-      self.used_env.insert(sym.clone());
-      return Some(Expr::Lit(Lit::Str(Str {
-        span: DUMMY_SP,
-        value: val.clone(),
-        raw: None,
-      })));
-    } else if fallback_undefined {
+    let name = sym.as_ref();
+    if self.inline_env.matches(name) {
+      if let Some(val) = self.env.get(name) {
+        self.used_env.insert(sym.clone());
+        return Some(Expr::Lit(Lit::Str(Str {
+          span: DUMMY_SP,
+          value: val.clone().into(),
+          raw: None,
+        })));
+      }
+    }
+
+    if fallback_undefined {
       match sym as &str {
         // don't replace process.env.hasOwnProperty with undefined
         "hasOwnProperty"

@@ -1,8 +1,8 @@
 use crate::{
-  asset_graph::AssetGraph,
+  asset_graph::{AssetGraph, AssetGraphNode},
   parcel_config::PluginNode,
   request_tracker::{Request, RequestResult},
-  types::Bundle,
+  types::{Bundle, BundleBehavior, ParcelOptions, Priority},
   worker_farm::{WorkerRequest, WorkerResult},
 };
 
@@ -16,7 +16,11 @@ pub struct BundleGraphRequest {
 impl Request for BundleGraphRequest {
   type Output = Vec<Bundle>;
 
-  fn run(&self, farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
+  fn run(
+    &self,
+    farm: &crate::worker_farm::WorkerFarm,
+    options: &ParcelOptions,
+  ) -> RequestResult<Self::Output> {
     let WorkerResult::BundleGraph(bundles) =
       farm.run(WorkerRequest::BundleGraph(self.clone())).unwrap()
     else {

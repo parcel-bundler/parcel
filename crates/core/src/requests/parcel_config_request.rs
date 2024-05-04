@@ -1,6 +1,7 @@
 use crate::{
   parcel_config::ParcelConfig,
   request_tracker::{Request, RequestResult},
+  types::ParcelOptions,
   worker_farm::{WorkerRequest, WorkerResult},
 };
 
@@ -13,6 +14,7 @@ impl Request for ParcelConfigRequest {
   fn run(
     &self,
     farm: &crate::worker_farm::WorkerFarm,
+    options: &ParcelOptions,
   ) -> crate::request_tracker::RequestResult<Self::Output> {
     let WorkerResult::ParcelConfig(config) = farm.run(WorkerRequest::ParcelConfig).unwrap() else {
       unreachable!()

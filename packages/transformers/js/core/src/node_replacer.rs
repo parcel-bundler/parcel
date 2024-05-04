@@ -19,7 +19,7 @@ pub struct NodeReplacer<'a> {
   pub items: &'a mut IndexMap<u64, DependencyDescriptor>,
   pub global_mark: Mark,
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
-  pub project_root: &'a str,
+  pub project_root: &'a Path,
   pub filename: &'a Path,
   pub unresolved_mark: Mark,
   pub scope_hoist: bool,

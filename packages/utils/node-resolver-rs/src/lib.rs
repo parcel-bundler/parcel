@@ -15,10 +15,10 @@ mod cache;
 mod error;
 mod fs;
 mod invalidations;
-mod package_json;
+pub mod package_json;
 mod path;
 mod specifier;
-mod tsconfig;
+pub mod tsconfig;
 mod url_to_path;
 
 pub use cache::{Cache, CacheCow};
@@ -27,7 +27,7 @@ pub use fs::FileSystem;
 #[cfg(not(target_arch = "wasm32"))]
 pub use fs::OsFileSystem;
 pub use invalidations::*;
-pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
+pub use package_json::{ExportsCondition, Fields, InlineEnvironment, ModuleType, PackageJsonError};
 pub use specifier::{
   parse_package_specifier, parse_scheme, Specifier, SpecifierError, SpecifierType,
 };
@@ -287,11 +287,11 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     Ok(ModuleType::CommonJs)
   }
 
-  fn find_package(
+  pub fn find_package(
     &self,
     from: &Path,
     invalidations: &Invalidations,
-  ) -> Result<Option<&PackageJson>, ResolverError> {
+  ) -> Result<Option<&'a PackageJson>, ResolverError> {
     if let Some(path) = self.find_ancestor_file(from, "package.json", invalidations) {
       let package = self.cache.read_package(Cow::Owned(path))?;
       return Ok(Some(package));
@@ -332,6 +332,117 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
 
     None
+  }
+
+  pub fn find_tsconfig(
+    &self,
+    from: &Path,
+    invalidations: &Invalidations,
+  ) -> Result<Option<&TsConfig>, ResolverError> {
+    if let Some(path) = self.find_ancestor_file(from, "tsconfig.json", invalidations) {
+      let tsconfig = self.read_tsconfig(path, invalidations)?;
+      return Ok(Some(tsconfig));
+    }
+
+    Ok(None)
+  }
+
+  fn read_tsconfig(
+    &'a self,
+    path: PathBuf,
+    invalidations: &Invalidations,
+  ) -> Result<&'a TsConfig<'a>, ResolverError> {
+    let tsconfig = invalidations.read(&path, || {
+      self.cache.read_tsconfig(&path, |tsconfig| {
+        for i in 0..tsconfig.extends.len() {
+          let path = match &tsconfig.extends[i] {
+            Specifier::Absolute(path) => path.as_ref().to_owned(),
+            Specifier::Relative(path) => {
+              let mut absolute_path = resolve_path(&tsconfig.compiler_options.path, path);
+
+              // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
+              if path == Path::new(".") || path == Path::new("..") {
+                absolute_path.push("tsconfig.json");
+              }
+
+              let mut exists = self.cache.fs.is_file(&absolute_path);
+
+              // If the file doesn't exist, and doesn't end with `.json`, try appending the extension.
+              if !exists {
+                let try_extension = match absolute_path.extension() {
+                  None => true,
+                  Some(ext) => ext != "json",
+                };
+
+                if try_extension {
+                  let mut os_str = absolute_path.into_os_string();
+                  os_str.push(".json");
+                  absolute_path = PathBuf::from(os_str);
+                  exists = self.cache.fs.is_file(&absolute_path)
+                }
+              }
+
+              if !exists {
+                return Err(ResolverError::TsConfigExtendsNotFound {
+                  tsconfig: tsconfig.compiler_options.path.clone(),
+                  error: Box::new(ResolverError::FileNotFound {
+                    relative: path.to_path_buf(),
+                    from: tsconfig.compiler_options.path.clone(),
+                  }),
+                });
+              }
+
+              absolute_path
+            }
+            specifier @ Specifier::Package(..) => {
+              let resolver = Resolver {
+                project_root: Cow::Borrowed(&self.project_root),
+                extensions: Extensions::Borrowed(&["json"]),
+                index_file: "tsconfig.json",
+                entries: Fields::TSCONFIG,
+                flags: Flags::NODE_CJS,
+                cache: CacheCow::Borrowed(&self.cache),
+                include_node_modules: Cow::Owned(IncludeNodeModules::default()),
+                conditions: ExportsCondition::TYPES,
+                module_dir_resolver: self.module_dir_resolver.clone(),
+              };
+
+              let req = ResolveRequest::new(
+                &resolver,
+                specifier,
+                SpecifierType::Cjs,
+                &tsconfig.compiler_options.path,
+                invalidations,
+              );
+
+              let res = req
+                .resolve()
+                .map_err(|err| ResolverError::TsConfigExtendsNotFound {
+                  tsconfig: tsconfig.compiler_options.path.clone(),
+                  error: Box::new(err),
+                })?;
+
+              if let Resolution::Path(res) = res {
+                res
+              } else {
+                return Err(ResolverError::TsConfigExtendsNotFound {
+                  tsconfig: tsconfig.compiler_options.path.clone(),
+                  error: Box::new(ResolverError::UnknownError),
+                });
+              }
+            }
+            _ => return Ok(()),
+          };
+
+          let extended = self.read_tsconfig(path, invalidations)?;
+          tsconfig.compiler_options.extend(extended);
+        }
+
+        Ok(())
+      })
+    })?;
+
+    Ok(&tsconfig.compiler_options)
   }
 }
 
@@ -1114,111 +1225,12 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         .intersects(RequestFlags::IN_TS_FILE | RequestFlags::IN_JS_FILE)
       && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
     {
-      self.tsconfig.get_or_try_init(|| {
-        if let Some(path) = self.find_ancestor_file(self.from, "tsconfig.json") {
-          let tsconfig = self.read_tsconfig(path)?;
-          return Ok(Some(tsconfig));
-        }
-
-        Ok(None)
-      })
+      self
+        .tsconfig
+        .get_or_try_init(|| self.resolver.find_tsconfig(self.from, &self.invalidations))
     } else {
       Ok(&None)
     }
-  }
-
-  fn read_tsconfig(&self, path: PathBuf) -> Result<&'a TsConfig<'a>, ResolverError> {
-    let tsconfig = self.invalidations.read(&path, || {
-      self.resolver.cache.read_tsconfig(&path, |tsconfig| {
-        for i in 0..tsconfig.extends.len() {
-          let path = match &tsconfig.extends[i] {
-            Specifier::Absolute(path) => path.as_ref().to_owned(),
-            Specifier::Relative(path) => {
-              let mut absolute_path = resolve_path(&tsconfig.compiler_options.path, path);
-
-              // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
-              if path == Path::new(".") || path == Path::new("..") {
-                absolute_path.push("tsconfig.json");
-              }
-
-              let mut exists = self.resolver.cache.fs.is_file(&absolute_path);
-
-              // If the file doesn't exist, and doesn't end with `.json`, try appending the extension.
-              if !exists {
-                let try_extension = match absolute_path.extension() {
-                  None => true,
-                  Some(ext) => ext != "json",
-                };
-
-                if try_extension {
-                  let mut os_str = absolute_path.into_os_string();
-                  os_str.push(".json");
-                  absolute_path = PathBuf::from(os_str);
-                  exists = self.resolver.cache.fs.is_file(&absolute_path)
-                }
-              }
-
-              if !exists {
-                return Err(ResolverError::TsConfigExtendsNotFound {
-                  tsconfig: tsconfig.compiler_options.path.clone(),
-                  error: Box::new(ResolverError::FileNotFound {
-                    relative: path.to_path_buf(),
-                    from: tsconfig.compiler_options.path.clone(),
-                  }),
-                });
-              }
-
-              absolute_path
-            }
-            specifier @ Specifier::Package(..) => {
-              let resolver = Resolver {
-                project_root: Cow::Borrowed(&self.resolver.project_root),
-                extensions: Extensions::Borrowed(&["json"]),
-                index_file: "tsconfig.json",
-                entries: Fields::TSCONFIG,
-                flags: Flags::NODE_CJS,
-                cache: CacheCow::Borrowed(&self.resolver.cache),
-                include_node_modules: Cow::Owned(IncludeNodeModules::default()),
-                conditions: ExportsCondition::TYPES,
-                module_dir_resolver: self.resolver.module_dir_resolver.clone(),
-              };
-
-              let req = ResolveRequest::new(
-                &resolver,
-                specifier,
-                SpecifierType::Cjs,
-                &tsconfig.compiler_options.path,
-                self.invalidations,
-              );
-
-              let res = req
-                .resolve()
-                .map_err(|err| ResolverError::TsConfigExtendsNotFound {
-                  tsconfig: tsconfig.compiler_options.path.clone(),
-                  error: Box::new(err),
-                })?;
-
-              if let Resolution::Path(res) = res {
-                res
-              } else {
-                return Err(ResolverError::TsConfigExtendsNotFound {
-                  tsconfig: tsconfig.compiler_options.path.clone(),
-                  error: Box::new(ResolverError::UnknownError),
-                });
-              }
-            }
-            _ => return Ok(()),
-          };
-
-          let extended = self.read_tsconfig(path)?;
-          tsconfig.compiler_options.extend(extended);
-        }
-
-        Ok(())
-      })
-    })?;
-
-    Ok(&tsconfig.compiler_options)
   }
 }
 

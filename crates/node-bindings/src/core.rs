@@ -11,6 +11,7 @@ use parcel_core::{
   asset_graph::AssetGraphRequest,
   cache::Cache,
   request_tracker::RequestTracker,
+  types::ParcelOptions,
   worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
 };
 use parcel_core::{build, worker_farm::WorkerCallback};
@@ -86,6 +87,7 @@ fn await_promise(
 pub fn parcel(
   entries: Vec<String>,
   cache: &mut RustCache,
+  options: JsObject,
   callback: JsFunction,
   env: Env,
 ) -> napi::Result<JsObject> {
@@ -93,10 +95,11 @@ pub fn parcel(
   farm.register_worker(create_worker_callback(callback, env)?);
 
   let (deferred, promise) = env.create_deferred()?;
+  let options: ParcelOptions = env.from_js_value(options)?;
 
   let cache = Arc::clone(&cache.cache);
   rayon::spawn(move || {
-    let asset_graph = build(entries, farm, &cache);
+    let asset_graph = build(entries, farm, &cache, options);
     deferred.resolve(move |env| env.to_js_value(&asset_graph));
   });
 

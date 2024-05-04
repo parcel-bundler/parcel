@@ -5,7 +5,7 @@ use crate::{
   parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestResult},
   transformers::run_transformer,
-  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, JSONObject},
+  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, JSONObject, ParcelOptions},
   worker_farm::WorkerFarm,
 };
 use xxhash_rust::xxh3::xxh3_64;
@@ -31,7 +31,7 @@ pub struct AssetRequestResult {
 impl<'a> Request for AssetRequest<'a> {
   type Output = AssetRequestResult;
 
-  fn run(&self, farm: &WorkerFarm) -> RequestResult<Self::Output> {
+  fn run(&self, farm: &WorkerFarm, options: &ParcelOptions) -> RequestResult<Self::Output> {
     // println!("transform {:?}", self.file_path);
     let pipeline = self.transformers.get::<&str>(
       &self.file_path,
@@ -76,7 +76,7 @@ impl<'a> Request for AssetRequest<'a> {
       .code
       .clone()
       .unwrap_or_else(|| std::fs::read(&asset.file_path).unwrap());
-    let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm);
+    let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
 
     result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
     result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
@@ -90,7 +90,13 @@ impl<'a> Request for AssetRequest<'a> {
 }
 
 pub trait Transformer {
-  fn transform(&self, asset: &Asset, code: Vec<u8>, farm: &WorkerFarm) -> AssetRequestResult;
+  fn transform(
+    &self,
+    asset: &Asset,
+    code: Vec<u8>,
+    farm: &WorkerFarm,
+    options: &ParcelOptions,
+  ) -> AssetRequestResult;
 }
 
 fn run_pipeline(
@@ -99,6 +105,7 @@ fn run_pipeline(
   code: Vec<u8>,
   transformers: &PipelineMap,
   farm: &WorkerFarm,
+  options: &ParcelOptions,
 ) -> AssetRequestResult {
   let mut result = AssetRequestResult {
     asset,
@@ -107,7 +114,7 @@ fn run_pipeline(
   };
 
   for transformer in &pipeline {
-    let transformed = run_transformer(transformer, &result.asset, result.code, farm);
+    let transformed = run_transformer(transformer, &result.asset, result.code, farm, options);
     if transformed.asset.asset_type != result.asset.asset_type {
       let next_path = transformed
         .asset
@@ -121,6 +128,7 @@ fn run_pipeline(
           transformed.code,
           transformers,
           farm,
+          options,
         );
       };
     }

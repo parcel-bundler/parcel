@@ -1,5 +1,6 @@
 use crate::{
   request_tracker::{Request, RequestResult},
+  types::ParcelOptions,
   worker_farm::{WorkerRequest, WorkerResult},
 };
 
@@ -20,7 +21,11 @@ pub struct Entry {
 impl Request for EntryRequest {
   type Output = Vec<Entry>;
 
-  fn run(&self, farm: &crate::worker_farm::WorkerFarm) -> RequestResult<Self::Output> {
+  fn run(
+    &self,
+    farm: &crate::worker_farm::WorkerFarm,
+    options: &ParcelOptions,
+  ) -> RequestResult<Self::Output> {
     let WorkerResult::Entry(entries) = farm.run(WorkerRequest::Entry(self.clone())).unwrap() else {
       unreachable!()
     };

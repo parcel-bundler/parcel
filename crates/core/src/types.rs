@@ -1,9 +1,13 @@
 use crate::environment::Environment;
 use bitflags::bitflags;
 use parcel_resolver::ExportsCondition;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{collections::hash_map::DefaultHasher, num::NonZeroU32, path::PathBuf};
+use std::{
+  collections::{hash_map::DefaultHasher, HashMap},
+  num::NonZeroU32,
+  path::PathBuf,
+};
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -383,41 +387,42 @@ bitflags! {
 
 impl_bitflags_serde!(BundleFlags);
 
-// #[derive(Clone, Debug)]
-// pub struct ParcelOptions {
-//   pub mode: BuildMode,
-//   pub env: HashMap<String, String>,
-//   pub log_level: LogLevel,
-//   pub project_root: String,
-// }
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParcelOptions {
+  pub mode: BuildMode,
+  pub env: HashMap<String, String>,
+  pub log_level: LogLevel,
+  pub project_root: PathBuf,
+}
 
-// #[derive(Clone, PartialEq, Debug)]
-// pub enum BuildMode {
-//   Development,
-//   Production,
-//   Other(String),
-// }
+#[derive(Clone, PartialEq, Debug)]
+pub enum BuildMode {
+  Development,
+  Production,
+  Other(String),
+}
 
-// impl<'de> Deserialize<'de> for BuildMode {
-//   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//   where
-//     D: Deserializer<'de>,
-//   {
-//     let s = String::deserialize(deserializer)?;
-//     Ok(match s.as_str() {
-//       "development" => BuildMode::Development,
-//       "production" => BuildMode::Production,
-//       _ => BuildMode::Other(s),
-//     })
-//   }
-// }
+impl<'de> Deserialize<'de> for BuildMode {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.as_str() {
+      "development" => BuildMode::Development,
+      "production" => BuildMode::Production,
+      _ => BuildMode::Other(s),
+    })
+  }
+}
 
-// #[derive(Clone, PartialEq, Debug, Deserialize)]
-// #[serde(rename_all = "lowercase")]
-// pub enum LogLevel {
-//   None,
-//   Error,
-//   Warn,
-//   Info,
-//   Verbose,
-// }
+#[derive(Clone, PartialEq, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+  None,
+  Error,
+  Warn,
+  Info,
+  Verbose,
+}

@@ -59,7 +59,7 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
     // possible version instead.
     if (engineName === 'browsers') {
       targets[engineName] = engineValue;
-    } else {
+    } else if (engineValue != null) {
       invariant(typeof engineValue === 'string');
       if (!TargetNames.hasOwnProperty(engineName)) continue;
       let minVersion = semver.minVersion(engineValue)?.toString();

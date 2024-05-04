@@ -10,6 +10,7 @@ mod node_replacer;
 mod typeof_replacer;
 mod utils;
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -17,6 +18,7 @@ use std::str::FromStr;
 use constant_module::ConstantModule;
 use indexmap::IndexMap;
 use parcel_macros::{MacroCallback, MacroError, Macros};
+use parcel_resolver::InlineEnvironment;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
@@ -56,15 +58,16 @@ pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, S
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
-#[derive(Serialize, Debug, Deserialize, Default)]
-pub struct Config {
+#[derive(Debug, Deserialize)]
+pub struct Config<'a> {
   pub filename: PathBuf,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub module_id: String,
-  pub project_root: String,
+  pub project_root: Cow<'a, Path>,
   pub replace_env: bool,
-  pub env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
+  pub env: Cow<'a, HashMap<String, String>>,
+  pub inline_env: Cow<'a, InlineEnvironment>,
   pub inline_fs: bool,
   pub insert_node_globals: bool,
   pub node_replacer: bool,
@@ -150,7 +153,7 @@ pub fn transform(
   let source_map = Lrc::new(SourceMap::default());
   let module = parse(
     code,
-    config.project_root.as_str(),
+    &config.project_root,
     config.filename.to_slash_lossy().as_ref(),
     &source_map,
     &config,
@@ -322,6 +325,7 @@ pub fn transform(
                     EnvReplacer {
                       replace_env: config.replace_env,
                       env: &config.env,
+                      inline_env: &config.inline_env,
                       is_browser: config.is_browser,
                       used_env: &mut result.used_env,
                       source_map: &source_map,
@@ -513,7 +517,7 @@ pub fn transform(
 
 fn parse(
   code: &str,
-  project_root: &str,
+  project_root: &Path,
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,

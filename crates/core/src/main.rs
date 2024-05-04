@@ -9,7 +9,7 @@ use parcel_core::{
   },
   parcel_config::ParcelConfig,
   requests::entry_request::Entry,
-  types::Target,
+  types::{ParcelOptions, Target},
   worker_farm::{WorkerFarm, WorkerRequest, WorkerResult},
 };
 
@@ -55,6 +55,12 @@ fn main() {
     vec!["/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js".into()],
     farm,
     &mut Cache::new(),
+    ParcelOptions {
+      mode: parcel_core::types::BuildMode::Development,
+      env: Default::default(),
+      log_level: parcel_core::types::LogLevel::Info,
+      project_root: "/".into(),
+    },
   );
 
   // println!("tracker {:?}", request_tracker);

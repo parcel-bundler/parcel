@@ -15,7 +15,7 @@ pub fn inline_fs<'a>(
   source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   unresolved_mark: Mark,
   global_mark: Mark,
-  project_root: &'a str,
+  project_root: &'a Path,
   deps: &'a mut IndexMap<u64, DependencyDescriptor>,
   is_module: bool,
 ) -> impl Fold + 'a {
@@ -37,7 +37,7 @@ pub fn inline_fs<'a>(
 struct InlineFS<'a> {
   filename: &'a Path,
   collect: Collect,
-  project_root: &'a str,
+  project_root: &'a Path,
   deps: &'a mut IndexMap<u64, DependencyDescriptor>,
 }
 

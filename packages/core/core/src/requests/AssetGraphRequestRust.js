@@ -35,6 +35,7 @@ import AssetGraph from "../AssetGraph";
 import { nodeFromAssetGroup } from "../AssetGraph";
 import invariant from 'assert';
 import { propagateSymbols } from "../SymbolPropagation";
+import {PluginTracer} from '@parcel/profiler';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -78,7 +79,7 @@ export default function createAssetGraphRequestRust(
     id: input.name,
     run: async input => {
       let options = input.options;
-      let serializedAssetGraph = await parcel(input.input.entries, options.cache, async (err, request) => {
+      let serializedAssetGraph = await parcel(input.input.entries, options.cache, options, async (err, request) => {
         // console.log(request)
         switch (request.type) {
           case 'Entry': {
@@ -118,11 +119,15 @@ export default function createAssetGraphRequestRust(
           }
           case 'Transform': {
             let {plugin} = await loadPlugin(request.plugin.packageName, fromProjectPath(options.projectRoot, request.plugin.resolveFrom), request.plugin.keyPath, options);
-            let result = await runTransformer(request.plugin.packageName, plugin, request.asset, request.code, options);
-            return {
-              type: 'Transform',
-              value: result
-            };
+            try {
+              let result = await runTransformer(request.plugin.packageName, plugin, request.asset, request.code, options);
+              return {
+                type: 'Transform',
+                value: result
+              };
+            } catch (err) {
+              console.log(err);
+            }
           };
         }
       });
@@ -164,12 +169,13 @@ async function runTransformer(transformerName, transformer, asset, content, opti
   let mutableAsset = new MutableAsset(uncommittedAsset);
   let pluginOptions = new PluginOptions(options);
   let logger = new PluginLogger({origin: transformerName});
+  let tracer = new PluginTracer({origin: transformerName, category: 'transform'});
   let config = undefined;
 
   if (transformer.loadConfig) {
     config = createConfig({
       plugin: transformerName,
-      isSource: false, // TODO
+      isSource: Boolean(asset.flags & AssetFlags.IS_SOURCE),
       searchPath: asset.filePath,
       env: asset.env
     });
@@ -178,7 +184,7 @@ async function runTransformer(transformerName, transformer, asset, content, opti
       config: new PublicConfig(config, options),
       options: pluginOptions,
       logger,
-      tracer: undefined // TODO
+      tracer
     });
   }
 
@@ -189,7 +195,7 @@ async function runTransformer(transformerName, transformer, asset, content, opti
       options: pluginOptions,
       resolve: undefined,
       logger,
-      tracer: undefined // TODO
+      tracer
     });
     if (ast) {
       uncommittedAsset.setAST(ast);
@@ -203,18 +209,18 @@ async function runTransformer(transformerName, transformer, asset, content, opti
     options: pluginOptions,
     resolve: undefined, // TODO
     logger,
-    tracer: undefined // TODO
+    tracer
   });
 
   let resultAsset = results[0]; // TODO: support multiple
 
   if (transformer.generate && uncommittedAsset.ast) {
-    let output = transformer.generate({
+    let output = await transformer.generate({
       asset: publicAsset,
       ast: uncommittedAsset.ast,
       options: pluginOptions,
       logger,
-      tracer: undefined,
+      tracer
     });
     uncommittedAsset.content = output.content;
     uncommittedAsset.mapBuffer = output.map?.toBuffer();

@@ -15,7 +15,7 @@ use crate::{
     path_request::{PathRequest, ResolverResult},
     target_request::TargetRequest,
   },
-  types::{Asset, Dependency, DependencyFlags, Symbol, SymbolFlags},
+  types::{Asset, Dependency, DependencyFlags, ParcelOptions, Symbol, SymbolFlags},
 };
 
 #[derive(Debug, Clone)]

@@ -1,19 +1,24 @@
-use std::collections::HashMap;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 use indexmap::{indexmap, IndexMap};
 use parcel_js_swc_core::{
   CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult, Version, Versions,
 };
-use parcel_resolver::{ExportsCondition, IncludeNodeModules};
+use parcel_resolver::package_json::{AliasValue, BrowserField};
+use parcel_resolver::{
+  CacheCow, ExportsCondition, IncludeNodeModules, InlineEnvironment, Invalidations, Specifier,
+};
 
 use crate::environment::{
   Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, OutputFormat, SourceType,
 };
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
+use crate::requests::path_request::CACHE;
 use crate::types::{
-  Asset, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags, ImportAttribute,
-  JSONObject, Location, Priority, SourceLocation, SpecifierType, Symbol, SymbolFlags,
+  Asset, AssetFlags, AssetType, BuildMode, BundleBehavior, Dependency, DependencyFlags,
+  ImportAttribute, JSONObject, Location, LogLevel, ParcelOptions, Priority, SourceLocation,
+  SpecifierType, Symbol, SymbolFlags,
 };
 
 pub struct JsTransformer;
@@ -24,8 +29,9 @@ impl Transformer for JsTransformer {
     asset: &Asset,
     code: Vec<u8>,
     _farm: &crate::worker_farm::WorkerFarm,
+    options: &ParcelOptions,
   ) -> AssetRequestResult {
-    let config = config(&asset, code);
+    let config = config(&asset, code, options);
     let res = parcel_js_swc_core::transform(&config, None).unwrap();
     convert_result(asset.clone(), None, &config, res)
   }
@@ -40,7 +46,7 @@ fn convert_version(version: &crate::environment::Version) -> Version {
 }
 
 #[inline]
-fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
+fn config<'a>(asset: &Asset, code: Vec<u8>, options: &'a ParcelOptions) -> Config<'a> {
   let mut targets = None;
   if asset.env.context.is_electron() {
     if let Some(electron) = &asset.env.engines.electron {
@@ -71,29 +77,172 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
     }
   }
 
+  let resolver = parcel_resolver::Resolver::parcel(
+    Cow::Borrowed(&options.project_root),
+    CacheCow::Borrowed(&CACHE),
+  );
+
+  let invalidations = Invalidations::default();
+  let pkg = resolver.find_package(&asset.file_path, &invalidations);
+  let mut react_refresh = false;
+  let mut jsx_pragma = None;
+  let mut jsx_pragma_frag = None;
+  let mut jsx_import_source = None;
+  let mut automatic_jsx_runtime = false;
+  let mut is_jsx = false;
+  let mut decorators = false;
+  let mut use_define_for_class_fields = false;
+  if asset.flags.contains(AssetFlags::IS_SOURCE) {
+    let mut react_lib = None;
+    if let Ok(Some(pkg)) = pkg {
+      if pkg
+        .alias
+        .contains_key(&Specifier::Package("react".into(), "".into()))
+      {
+        // e.g.: `{ alias: { "react": "preact/compat" } }`
+        react_lib = Some("react");
+      } else {
+        for lib in &["react", "preact", "nervejs", "hyperapp"] {
+          if pkg.has_dependency(lib) {
+            react_lib = Some(lib);
+          }
+        }
+      }
+
+      // TODO: hmrOptions
+      react_refresh = options.mode == BuildMode::Development && pkg.has_dependency("react");
+    }
+
+    if let Ok(Some(tsconfig)) = resolver.find_tsconfig(&options.project_root, &invalidations) {
+      jsx_pragma = tsconfig.jsx_factory.or_else(|| match react_lib {
+        Some("react") => Some("React.createElement"),
+        Some("preact") => Some("h"),
+        Some("nervjs") => Some("Nerv.createElement"),
+        Some("hyperapp") => Some("h"),
+        _ => None,
+      });
+
+      jsx_pragma_frag = tsconfig.jsx_fragment_factory.or_else(|| match react_lib {
+        Some("react") => Some("React.Fragment"),
+        Some("preact") => Some("Fragment"),
+        _ => None,
+      });
+
+      if matches!(
+        tsconfig.jsx,
+        Some(
+          parcel_resolver::tsconfig::Jsx::ReactJsx | parcel_resolver::tsconfig::Jsx::ReactJsxdev
+        )
+      ) || tsconfig.jsx_import_source.is_some()
+      {
+        jsx_import_source = tsconfig.jsx_import_source.clone();
+        automatic_jsx_runtime = true;
+      } else if let Some(react_lib) = react_lib {
+        if let Ok(Some(pkg)) = pkg {
+          let effective_react_lib = if pkg
+            .alias
+            .get(&Specifier::Package("react".into(), "".into()))
+            == Some(&AliasValue::Specifier(Specifier::Package(
+              "preact".into(),
+              "".into(),
+            ))) {
+            "preact"
+          } else {
+            react_lib
+          };
+
+          let automatic_range = match effective_react_lib {
+            "react" => Some(
+              node_semver::Range::parse(">= 17.0.0 || ^16.14.0 || >= 0.0.0-0 < 0.0.0").unwrap(),
+            ),
+            "preact" => Some(node_semver::Range::parse(">= 10.5.0").unwrap()),
+            _ => None,
+          };
+
+          if let Some(min_version) = pkg
+            .get_dependency_version(effective_react_lib)
+            .and_then(|v| node_semver::Range::parse(v).ok())
+            .and_then(|r| r.min_version())
+          {
+            automatic_jsx_runtime = tsconfig.jsx_factory.is_none()
+              && matches!(automatic_range, Some(automatic_range) if min_version.satisfies(&automatic_range));
+          }
+
+          if automatic_jsx_runtime {
+            jsx_import_source = Some(react_lib);
+          }
+        }
+      }
+
+      is_jsx = tsconfig.jsx.is_some() || jsx_pragma.is_some();
+      decorators = tsconfig.experimental_decorators;
+      use_define_for_class_fields = tsconfig.use_define_for_class_fields == Some(true);
+
+      if tsconfig.use_define_for_class_fields.is_none() {
+        if let Some(target) = tsconfig.target {
+          if target == "esnext" {
+            use_define_for_class_fields = true;
+          } else if let Ok(target) = &target[2..].parse::<u32>() {
+            use_define_for_class_fields = *target >= 2022;
+          }
+        }
+      }
+    }
+  }
+
+  let mut inline_fs = true;
+
+  // Check if we should ignore fs calls
+  // See https://github.com/defunctzombie/node-browser-resolve#skip
+  if let Ok(Some(pkg)) = pkg {
+    if let BrowserField::Map(browser) = &pkg.browser {
+      if browser.get(&Specifier::Package("fs".into(), "".into())) == Some(&AliasValue::Bool(false))
+      {
+        inline_fs = false;
+      }
+    }
+  }
+
+  let mut inline_env = InlineEnvironment::Bool(asset.flags.contains(AssetFlags::IS_SOURCE));
+  let mut inline_constants = false;
+  if let Ok(Some(root_pkg)) = resolver.find_package(&options.project_root, &invalidations) {
+    if let Some(config) = &root_pkg.js_transformer_config {
+      if let Some(inline_environment) = &config.inline_environment {
+        inline_env = inline_environment.clone(); // TODO: we could borrow here
+      }
+
+      if let Some(fs) = config.inline_fs {
+        inline_fs = fs;
+      }
+
+      inline_constants = config.inline_constants;
+    }
+  }
+
   Config {
     filename: asset.file_path.clone(),
     code,
     module_id: format!("{:016x}", asset.id()),
-    project_root: "/".into(), // TODO
+    project_root: Cow::Borrowed(&options.project_root),
     replace_env: !asset.env.context.is_node(),
-    env: HashMap::new(), // TODO
-    inline_fs: true,     // TODO
+    env: Cow::Borrowed(&options.env),
+    inline_env: Cow::Owned(inline_env),
+    inline_fs,
     insert_node_globals: !asset.env.context.is_node()
       && asset.env.source_type != SourceType::Script,
     node_replacer: asset.env.context.is_node(),
     is_browser: asset.env.context.is_browser(),
     is_worker: asset.env.context.is_worker(),
     is_type_script: matches!(asset.asset_type, AssetType::Ts | AssetType::Tsx),
-    is_jsx: false,                      // TODO
-    jsx_pragma: None,                   // TODO
-    jsx_pragma_frag: None,              // TODO
-    automatic_jsx_runtime: false,       // TODO
-    jsx_import_source: None,            // TODO
-    decorators: false,                  // TODO
-    use_define_for_class_fields: false, // TODO
-    is_development: true,               // TODO db.options.mode == BuildMode::Development,
-    react_refresh: false,               // TODO
+    is_jsx,
+    jsx_pragma: jsx_pragma.map(|s| s.to_string()),
+    jsx_pragma_frag: jsx_pragma_frag.map(|s| s.to_string()),
+    automatic_jsx_runtime,
+    jsx_import_source: jsx_import_source.map(|s| s.to_string()),
+    decorators,
+    use_define_for_class_fields,
+    is_development: options.mode == BuildMode::Development,
+    react_refresh,
     targets,
     source_maps: asset.env.source_map.is_some(),
     scope_hoist: asset
@@ -108,7 +257,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
     supports_module_workers: asset.env.engines.supports(EnvironmentFeature::WorkerModule),
     is_library: asset.env.flags.contains(EnvironmentFlags::IS_LIBRARY),
     is_esm_output: asset.env.output_format == OutputFormat::Esmodule,
-    trace_bailouts: false, // TODO db.options.log_level == LogLevel::Verbose,
+    trace_bailouts: options.log_level == LogLevel::Verbose,
     is_swc_helpers: asset
       .file_path
       .to_str()
@@ -118,7 +267,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
       .query
       .as_ref()
       .map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
-    inline_constants: false,
+    inline_constants,
   }
 }
 

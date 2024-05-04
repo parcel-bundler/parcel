@@ -1,6 +1,6 @@
 use crate::parcel_config::PluginNode;
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
-use crate::types::Asset;
+use crate::types::{Asset, ParcelOptions};
 use crate::worker_farm::{WorkerFarm, WorkerRequest, WorkerResult};
 
 pub struct PluginTransformer {
@@ -16,7 +16,13 @@ pub struct PluginTransformRequest {
 }
 
 impl Transformer for PluginTransformer {
-  fn transform(&self, asset: &Asset, code: Vec<u8>, farm: &WorkerFarm) -> AssetRequestResult {
+  fn transform(
+    &self,
+    asset: &Asset,
+    code: Vec<u8>,
+    farm: &WorkerFarm,
+    options: &ParcelOptions,
+  ) -> AssetRequestResult {
     let req = PluginTransformRequest {
       plugin: self.plugin.clone(),
       asset: asset.clone(),

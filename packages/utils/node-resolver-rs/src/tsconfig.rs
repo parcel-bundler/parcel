@@ -20,7 +20,25 @@ pub struct TsConfig<'a> {
   #[serde(skip)]
   paths_base: PathBuf,
   pub module_suffixes: Option<Vec<&'a str>>,
-  // rootDirs??
+  pub jsx_factory: Option<&'a str>,
+  pub jsx_fragment_factory: Option<&'a str>,
+  pub jsx_import_source: Option<&'a str>,
+  pub jsx: Option<Jsx>,
+  #[serde(default)]
+  pub experimental_decorators: bool,
+  pub use_define_for_class_fields: Option<bool>,
+  #[serde(default)]
+  pub target: Option<&'a str>,
+}
+
+#[derive(serde::Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum Jsx {
+  React,
+  ReactJsx,
+  ReactJsxdev,
+  Preserve,
+  ReactNative,
 }
 
 fn deserialize_extends<'a, 'de: 'a, D>(deserializer: D) -> Result<Vec<Specifier<'a>>, D::Error>

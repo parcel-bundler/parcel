@@ -3,12 +3,15 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::requests::{
-  asset_request::AssetRequest, bundle_graph_request::BundleGraphRequest,
-  entry_request::EntryRequest, parcel_config_request::ParcelConfigRequest,
-  path_request::PathRequest, target_request::TargetRequest,
-};
 use crate::worker_farm::WorkerFarm;
+use crate::{
+  requests::{
+    asset_request::AssetRequest, bundle_graph_request::BundleGraphRequest,
+    entry_request::EntryRequest, parcel_config_request::ParcelConfigRequest,
+    path_request::PathRequest, target_request::TargetRequest,
+  },
+  types::ParcelOptions,
+};
 use petgraph::graph::{DiGraph, NodeIndex};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -22,7 +25,7 @@ pub trait Request: Hash + Sync {
     hasher.finish()
   }
 
-  fn run(&self, farm: &WorkerFarm) -> RequestResult<Self::Output>;
+  fn run(&self, farm: &WorkerFarm, options: &ParcelOptions) -> RequestResult<Self::Output>;
 }
 
 pub struct RequestResult<Output> {
@@ -119,14 +122,16 @@ pub struct RequestTracker {
   graph: DiGraph<RequestGraphNode, RequestEdgeType>,
   requests: HashMap<u64, NodeIndex>,
   farm: WorkerFarm,
+  options: ParcelOptions,
 }
 
 impl RequestTracker {
-  pub fn new(farm: WorkerFarm) -> Self {
+  pub fn new(farm: WorkerFarm, options: ParcelOptions) -> Self {
     RequestTracker {
       graph: DiGraph::new(),
       requests: HashMap::new(),
       farm,
+      options,
     }
   }
 
@@ -208,7 +213,7 @@ impl RequestTracker {
       .par_iter()
       .map(|request| {
         if let Some(request) = request {
-          Some(request.run(&self.farm))
+          Some(request.run(&self.farm, &self.options))
         } else {
           None
         }
@@ -272,7 +277,7 @@ impl RequestTracker {
       };
     }
 
-    let result = request.run(&self.farm);
+    let result = request.run(&self.farm, &self.options);
 
     let request = self.get_request_mut(&request);
     request.state = match result.result {
