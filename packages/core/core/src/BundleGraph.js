@@ -44,6 +44,7 @@ import {
   AssetFlags,
   EnvironmentFlags,
   EnvironmentContextNames,
+  SymbolFlags,
 } from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
@@ -306,14 +307,14 @@ export default class BundleGraph {
                     // Keep the export-all for non-renamed reexports, this still correctly models
                     // ambiguous resolution with multiple export-alls.
                     symbols.set('*', {
-                      isWeak: true,
+                      flags: SymbolFlags.IS_WEAK,
                       local: '*',
                       loc: reexportAllLoc,
                     });
                   } else {
                     let local = `${node.value.id}$rewrite$${asset}$${from}`;
                     symbols.set(from, {
-                      isWeak: true,
+                      flags: SymbolFlags.IS_WEAK,
                       local,
                       loc: reexportAllLoc,
                     });
@@ -338,6 +339,7 @@ export default class BundleGraph {
                         sourceAssetSymbols.set(as, {
                           loc: reexportAllLoc,
                           local: local,
+                          flags: 0,
                         });
                       }
                     }

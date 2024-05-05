@@ -16,6 +16,7 @@ import {
   BundleBehavior,
   ExportsCondition,
   DependencyFlags,
+  SymbolFlags,
 } from './types';
 
 import {toInternalSourceLocation} from './utils';
@@ -105,7 +106,7 @@ export function createDependency(
           {
             local: v.local,
             meta: v.meta,
-            isWeak: v.isWeak,
+            flags: v.isWeak ? SymbolFlags.IS_WEAK : 0,
             loc: toInternalSourceLocation(projectRoot, v.loc),
           },
         ]),

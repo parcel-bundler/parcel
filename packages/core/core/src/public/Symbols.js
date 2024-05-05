@@ -11,6 +11,7 @@ import type {Asset, Dependency, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import {fromInternalSourceLocation, toInternalSourceLocation} from '../utils';
+import {SymbolFlags} from '../types';
 
 const EMPTY_ITERABLE = {
   [Symbol.iterator]() {
@@ -182,7 +183,7 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     nullthrows(this.#value.symbols).set(exportSymbol, {
       local,
       loc: toInternalSourceLocation(this.#options.projectRoot, loc),
-      meta,
+      flags: meta?.isEsm === true ? SymbolFlags.IS_ESM : 0,
     });
   }
 
@@ -281,10 +282,12 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     isWeak: ?boolean,
   ) {
     let symbols = nullthrows(this.#value.symbols);
+    let existingFlags = symbols.get(exportSymbol)?.flags ?? SymbolFlags.IS_WEAK;
+    let flags = isWeak ? SymbolFlags.IS_WEAK : 0;
     symbols.set(exportSymbol, {
       local,
       loc: toInternalSourceLocation(this.#options.projectRoot, loc),
-      isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
+      flags: existingFlags & flags,
     });
   }
 
@@ -297,7 +300,9 @@ function fromInternalAssetSymbol(projectRoot: string, value) {
   return (
     value && {
       local: value.local,
-      meta: value.meta,
+      meta: {
+        isEsm: !!(value.flags & SymbolFlags.IS_ESM),
+      },
       loc: fromInternalSourceLocation(projectRoot, value.loc),
     }
   );
@@ -308,7 +313,7 @@ function fromInternalDependencySymbol(projectRoot: string, value) {
     value && {
       local: value.local,
       meta: value.meta,
-      isWeak: value.isWeak,
+      isWeak: Boolean(value.flags & SymbolFlags.IS_WEAK),
       loc: fromInternalSourceLocation(projectRoot, value.loc),
     }
   );

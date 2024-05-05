@@ -37,7 +37,11 @@ import {
   fromProjectPathRelative,
 } from './projectPath';
 import {hashString} from '@parcel/rust';
-import {AssetFlags, BundleBehavior as BundleBehaviorMap} from './types';
+import {
+  AssetFlags,
+  BundleBehavior as BundleBehaviorMap,
+  SymbolFlags,
+} from './types';
 import {PluginTracer} from '@parcel/profiler';
 
 type AssetOptions = {|
@@ -137,7 +141,7 @@ export function createAsset(
           k,
           {
             local: v.local,
-            meta: v.meta,
+            flags: meta?.isEsm === true ? SymbolFlags.IS_ESM : 0,
             loc: toInternalSourceLocation(projectRoot, v.loc),
           },
         ]),

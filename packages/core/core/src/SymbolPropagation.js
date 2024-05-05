@@ -1,7 +1,7 @@
 // @flow
 
 import type {ContentKey, NodeId} from '@parcel/graph';
-import type {Meta, Symbol} from '@parcel/types';
+import type {Symbol} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
   AssetNode,
@@ -16,7 +16,7 @@ import nullthrows from 'nullthrows';
 import {setEqual} from '@parcel/utils';
 import logger from '@parcel/logger';
 import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
-import {AssetFlags, BundleBehavior} from './types';
+import {AssetFlags, BundleBehavior, SymbolFlags} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
 export function propagateSymbols({
@@ -63,13 +63,17 @@ export function propagateSymbols({
       // exportSymbol -> identifier
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
+        {|local: Symbol, loc: ?InternalSourceLocation, flags: number|},
       > = assetNode.value.symbols;
+
+      // Used symbols that are exported or reexported (symbol will be removed again later) by asset.
+      assetNode.usedSymbols = new Set();
+
       // identifier -> exportSymbol
       let assetSymbolsInverse;
       if (assetSymbols) {
         assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
+        for (let [s, {local, flags}] of assetSymbols) {
           let set = assetSymbolsInverse.get(local);
 
           if (!set) {
@@ -77,6 +81,10 @@ export function propagateSymbols({
             assetSymbolsInverse.set(local, set);
           }
           set.add(s);
+
+          if (flags & SymbolFlags.SELF_REFERENCED) {
+            assetNode.usedSymbols.add(s);
+          }
         }
       }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
@@ -88,9 +96,6 @@ export function propagateSymbols({
 
       let isEntry = false;
       let addAll = false;
-
-      // Used symbols that are exported or reexported (symbol will be removed again later) by asset.
-      assetNode.usedSymbols = new Set();
 
       // Symbols that have to be namespace reexported by outgoingDeps.
       let namespaceReexportedSymbols = new Set<Symbol>();
@@ -181,7 +186,10 @@ export function propagateSymbols({
             // Was already handled above
             if (local === '*') continue;
 
-            if (!assetSymbolsInverse || !depSymbols.get(symbol)?.isWeak) {
+            if (
+              !assetSymbolsInverse ||
+              !((depSymbols.get(symbol)?.flags ?? 0) & SymbolFlags.IS_WEAK)
+            ) {
               // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
               depUsedSymbolsDown.add(symbol);
             } else {
@@ -257,7 +265,7 @@ export function propagateSymbols({
     (assetNode, incomingDeps, outgoingDeps) => {
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
+        {|local: Symbol, loc: ?InternalSourceLocation, flags: number|},
       > = assetNode.value.symbols;
 
       let assetSymbolsInverse = null;

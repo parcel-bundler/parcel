@@ -185,13 +185,19 @@ export type Dependency = {|
     {|
       local: Symbol,
       loc: ?InternalSourceLocation,
-      isWeak: boolean,
+      flags: number,
       meta?: ?Meta,
     |},
   >,
   pipeline?: ?string,
   importAttributes?: Array<ImportAttribute>,
 |};
+
+export const SymbolFlags = {
+  IS_WEAK: 1 << 0,
+  IS_ESM: 1 << 1,
+  SELF_REFERENCED: 1 << 2,
+};
 
 export const DependencyFlags = {
   ENTRY: 1 << 0,
@@ -236,7 +242,7 @@ export type Asset = {|
   astGenerator: ?ASTGenerator,
   symbols: ?Map<
     Symbol,
-    {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
+    {|local: Symbol, loc: ?InternalSourceLocation, flags: number|},
   >,
   uniqueKey: ?string,
   configPath?: ProjectPath,

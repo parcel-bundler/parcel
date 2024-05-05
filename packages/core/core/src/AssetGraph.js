@@ -29,7 +29,7 @@ import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
-import {DependencyFlags, EnvironmentFlags} from './types';
+import {DependencyFlags, EnvironmentFlags, SymbolFlags} from './types';
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
@@ -382,7 +382,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let dependencySymbols = dependency.symbols;
     if (
       dependencySymbols &&
-      [...dependencySymbols].every(([, {isWeak}]) => isWeak) &&
+      [...dependencySymbols].every(
+        ([, {flags}]) => flags & SymbolFlags.IS_WEAK,
+      ) &&
       sideEffects === false &&
       canDefer &&
       !dependencySymbols.has('*')

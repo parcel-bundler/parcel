@@ -29,6 +29,7 @@ import type {
   Dependency,
   DependencyNode,
 } from '../src/types';
+import {SymbolFlags} from '../src/types';
 
 const stats = {size: 0, time: 0};
 
@@ -106,7 +107,7 @@ function createAssetGraph(
     let entryDependencyNode = nullthrows(graph.getNode(entryDependencyId));
     invariant(entryDependencyNode.type === 'dependency');
     entryDependencyNode.value.symbols = new Map([
-      ['*', {local: '*', isWeak: true, loc: null}],
+      ['*', {local: '*', flags: SymbolFlags.IS_WEAK, loc: null}],
     ]);
     entryDependencyNode.usedSymbolsDown.add('*');
     entryDependencyNode.usedSymbolsUp.set('*', undefined);
@@ -442,7 +443,7 @@ describe('SymbolPropagation', () => {
       ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
         symbols.set('b', {
           local: 'b',
-          isWeak: false,
+          flags: 0,
           loc: undefined,
         });
       }),
@@ -483,7 +484,7 @@ describe('SymbolPropagation', () => {
         symbols.delete('f');
         symbols.set('f2', {
           local: 'f2',
-          isWeak: false,
+          flags: 0,
           loc: undefined,
         });
       }),
@@ -527,6 +528,7 @@ describe('SymbolPropagation', () => {
         symbols.set('f2', {
           local: 'f2',
           loc: undefined,
+          flags: 0,
         });
       }),
     ];
@@ -572,7 +574,7 @@ describe('SymbolPropagation', () => {
       ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
         symbols.set('b', {
           local: 'b',
-          isWeak: false,
+          flags: 0,
           loc: undefined,
         });
       }),
