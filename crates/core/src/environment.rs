@@ -283,6 +283,20 @@ impl EnvironmentFeature {
         },
         ..Default::default()
       },
+      EnvironmentFeature::DynamicImport => Engines {
+        browsers: Browsers {
+          edge: Some(Version::new(NonZeroU16::new(76).unwrap(), 0)),
+          firefox: Some(Version::new(NonZeroU16::new(67).unwrap(), 0)),
+          chrome: Some(Version::new(NonZeroU16::new(63).unwrap(), 0)),
+          safari: Some(Version::new(NonZeroU16::new(11).unwrap(), 1)),
+          opera: Some(Version::new(NonZeroU16::new(50).unwrap(), 0)),
+          ios_saf: Some(Version::new(NonZeroU16::new(11).unwrap(), 3)),
+          android: Some(Version::new(NonZeroU16::new(63).unwrap(), 0)),
+          samsung: Some(Version::new(NonZeroU16::new(8).unwrap(), 0)),
+          ..Default::default()
+        },
+        ..Default::default()
+      },
       _ => todo!(),
     }
   }

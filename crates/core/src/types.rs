@@ -352,6 +352,7 @@ bitflags! {
   pub struct SymbolFlags: u8 {
     const IS_WEAK = 1 << 0;
     const IS_ESM = 1 << 1;
+    const SELF_REFERENCED = 1 << 2;
   }
 }
 

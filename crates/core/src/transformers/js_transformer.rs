@@ -516,7 +516,7 @@ fn convert_result(
           let mut output_format = env.output_format;
           if env.source_type == SourceType::Script
             && env.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
-          // && config.supports_dynamic_import TODO
+            && env.engines.supports(EnvironmentFeature::DynamicImport)
           {
             output_format = OutputFormat::Esmodule;
           }
@@ -680,24 +680,26 @@ fn convert_result(
             flags: SymbolFlags::IS_WEAK,
           });
         } else {
-          let re_export_name = dep
+          let existing = dep
             .symbols
             .as_slice()
             .iter()
-            .find(|sym| sym.exported == &*s.imported)
+            .find(|sym| sym.exported == &*s.imported);
+          let existing_flags = existing.map(|e| e.flags).unwrap_or(SymbolFlags::IS_WEAK);
+          let re_export_name = existing
             .map(|sym| sym.local.clone())
             .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, s.local).into());
           dep.symbols.push(Symbol {
             exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
             loc: Some(convert_loc(file_path.clone(), &s.loc)),
-            flags: SymbolFlags::IS_WEAK,
+            flags: existing_flags & SymbolFlags::IS_WEAK,
           });
           symbols.push(Symbol {
             exported: s.local.as_ref().into(),
             local: re_export_name,
             loc: Some(convert_loc(file_path.clone(), &s.loc)),
-            flags: SymbolFlags::empty(),
+            flags: existing_flags & SymbolFlags::IS_WEAK,
           });
         }
       }
@@ -716,7 +718,6 @@ fn convert_result(
     }
 
     if !hoist_result.self_references.is_empty() {
-      let mut dep_symbols = Vec::new();
       for name in hoist_result.self_references {
         // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
         if &*name == "default"
@@ -728,29 +729,13 @@ fn convert_result(
           continue;
         }
 
-        let local = symbols
-          .iter()
+        let symbol = symbols
+          .iter_mut()
           .find(|s| s.exported.as_str() == name.as_str())
-          .unwrap()
-          .local
-          .clone();
-        dep_symbols.push(Symbol {
-          exported: name.as_str().into(),
-          local,
-          flags: SymbolFlags::empty(),
-          loc: None,
-        });
-      }
+          .unwrap();
 
-      // Create a dependency on the asset itself by using the unique key as a specifier.
-      // Using the unique key ensures that the dependency always resolves to the correct asset,
-      // even if it came from a transformer that produced multiple assets (e.g. css modules).
-      // Also avoids needing a resolution request.
-      // let mut d = Dependency::new(asset.id, asset_id);
-      // d.flags = dep_flags;
-      // d.symbols = dep_symbols;
-      // dep_map.insert(d.specifier, d);
-      // TODO
+        symbol.flags |= SymbolFlags::SELF_REFERENCED;
+      }
     }
 
     // Add * symbol if there are CJS exports, no imports/exports at all
@@ -780,7 +765,7 @@ fn convert_result(
       asset.flags |= AssetFlags::HAS_SYMBOLS;
       symbols.reserve(symbol_result.exports.len() + 1);
       for sym in &symbol_result.exports {
-        let local = if let Some(dep) = sym
+        let (local, flags) = if let Some(dep) = sym
           .source
           .as_ref()
           .and_then(|source| dep_map.get_mut(source))
@@ -792,16 +777,16 @@ fn convert_result(
             loc: Some(convert_loc(file_path.clone(), &sym.loc)),
             flags: SymbolFlags::IS_WEAK,
           });
-          local
+          (local, SymbolFlags::IS_WEAK)
         } else {
-          format!("${}", sym.local).into()
+          (format!("${}", sym.local).into(), SymbolFlags::empty())
         };
 
         symbols.push(Symbol {
           exported: sym.exported.as_ref().into(),
           local,
           loc: Some(convert_loc(file_path.clone(), &sym.loc)),
-          flags: SymbolFlags::empty(),
+          flags,
         });
       }
 
