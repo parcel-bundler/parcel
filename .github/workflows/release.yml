@@ -98,7 +98,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.77
           profile: minimal
           override: true
       - uses: bahmutov/npm-install@v1.8.35
@@ -150,7 +150,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.77
           target: ${{ matrix.target }}
       - name: Install cross compile toolchains
         run: |
@@ -225,7 +225,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.77
           target: ${{ matrix.target }}
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
