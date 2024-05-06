@@ -170,7 +170,7 @@ pub fn run_entry_request(
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::core::filesystem::in_memory_file_system::InMemoryFileSystem;
+  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
   #[test]
   fn test_merge_results() {

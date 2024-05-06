@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::rc::Rc;
 
 use napi::Env;
@@ -24,7 +25,7 @@ fn napi_run_asset_graph_request(
 
   run_asset_graph_request(RunAssetGraphRequestParams {
     asset_graph_request: &asset_graph_request,
-    project_root: &project_root,
+    project_root: &Path::new(&project_root),
   })
   .map_err(anyhow_napi)?;
 
