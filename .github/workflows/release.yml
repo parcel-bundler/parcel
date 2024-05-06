@@ -48,7 +48,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.77
           target: ${{ matrix.target }}
       - uses: bahmutov/npm-install@v1.8.35
       - uses: Swatinem/rust-cache@v2
