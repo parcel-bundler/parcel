@@ -21,7 +21,7 @@ jobs:
           cache: yarn
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.77
           components: rustfmt
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
@@ -74,7 +74,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.77
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.os }}
@@ -112,7 +112,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.77
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.os }}
@@ -139,7 +139,7 @@ jobs:
           node-version: 20
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.77
           targets: wasm32-unknown-unknown
       - name: Install wasm-opt
         run: |
