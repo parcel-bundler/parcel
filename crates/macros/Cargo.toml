@@ -19,6 +19,6 @@ swc_core = { version = "0.92.4", features = [
   "stacker"
 ] }
 serde = "1.0.123"
-napi-derive = { version = "2.12.5", optional = true }
-napi = { version =  "2.16.4", features = ["serde-json", "napi4", "napi5"], optional = true }
+napi-derive = { version = "2.16.4", optional = true }
+napi = { version =  "2.16.6", features = ["serde-json", "napi4", "napi5"], optional = true }
 crossbeam-channel = { version = "0.5.6", optional = true }

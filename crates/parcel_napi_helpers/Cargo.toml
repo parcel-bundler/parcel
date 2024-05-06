@@ -6,4 +6,4 @@ description = "napi helpers for JS interop"
 
 [dependencies]
 anyhow = "1"
-napi = "2.16.4"
+napi = "2.16.6"

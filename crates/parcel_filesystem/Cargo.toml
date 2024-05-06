@@ -6,7 +6,7 @@ description = "FileSystem wrapper trait for use in Parcel codebase."
 
 [dependencies]
 parcel_napi_helpers = { path = "../parcel_napi_helpers" }
-napi = "2.16.4"
+napi = "2.16.6"
 dashmap = "5.5.3"
 anyhow = "1.0.82"
 
