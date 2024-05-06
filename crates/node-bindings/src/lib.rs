@@ -15,12 +15,13 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-mod core;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
-mod hash;
 #[cfg(not(target_arch = "wasm32"))]
 mod image;
+/// napi versions of `crate::core::requests`
+#[cfg(not(feature = "napi_noop"))]
+pub mod js_requests;
 mod resolver;
 mod transformer;
 

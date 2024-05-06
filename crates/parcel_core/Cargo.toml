@@ -1,0 +1,24 @@
+[package]
+name = "parcel_core"
+version = "0.1.0"
+edition = "2021"
+description = "Core logic for the parcel bundler"
+
+[features]
+default = []
+napi_noop = ["napi-derive/noop"]
+
+[dependencies]
+parcel_filesystem = { path = "../parcel_filesystem" }
+parcel_napi_helpers = { path = "../parcel_napi_helpers" }
+parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+
+anyhow = "1.0.82"
+glob = "0.3.1"
+mockall = "0.12.1"
+napi = "2.16.4"
+napi-derive = { version = "2.16.3" }
+serde = "1.0.200"
+serde_json = "1.0.116"
+toml = "0.8.12"
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }

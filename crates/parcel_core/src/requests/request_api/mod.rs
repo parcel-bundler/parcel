@@ -2,8 +2,9 @@ use std::path::Path;
 
 use mockall::automock;
 
-use crate::core::requests::config_request::InternalFileCreateInvalidation;
+use crate::requests::config_request::InternalFileCreateInvalidation;
 
+#[cfg(not(feature = "napi_noop"))]
 pub mod js_request_api;
 
 // TODO: Move this into an associated type of the struct

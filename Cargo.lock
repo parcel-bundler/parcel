@@ -1695,6 +1695,7 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel-macros",
  "parcel-resolver",
+ "parcel_core",
  "parcel_filesystem",
  "parcel_napi_helpers",
  "rayon",
@@ -1726,6 +1727,24 @@ dependencies = [
  "serde_json",
  "typed-arena",
  "url",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "parcel_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "glob",
+ "mockall",
+ "napi",
+ "napi-derive",
+ "parcel-resolver",
+ "parcel_filesystem",
+ "parcel_napi_helpers",
+ "serde",
+ "serde_json",
+ "toml",
  "xxhash-rust",
 ]
 
@@ -2493,9 +2512,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.198"
+version = "1.0.200"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9846a40c979031340571da2545a4e5b7c4163bdae79b301d5f86d03979451fcc"
+checksum = "ddc6f9cc94d67c0e21aaf7eda3a010fd3af78ebf6e096aa6e2e13c79749cce4f"
 dependencies = [
  "serde_derive",
 ]
@@ -2511,9 +2530,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.198"
+version = "1.0.200"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e88edab869b01783ba905e7d0153f9fc1a6505a96e4ad3018011eedb838566d9"
+checksum = "856f046b9400cee3c8c94ed572ecdb752444c24528c035cd35882aad6f492bcb"
 dependencies = [
  "proc-macro2",
  "quote",

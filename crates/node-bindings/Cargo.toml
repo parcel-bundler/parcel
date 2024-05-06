@@ -18,6 +18,7 @@ napi-derive = "2.16.3"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 parcel_filesystem = { path = "../parcel_filesystem" }
+parcel_core = { path = "../parcel_core" }
 parcel_napi_helpers = { path = "../parcel_napi_helpers" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
