@@ -37,7 +37,15 @@ struct AssetNode {
 struct DependencyNode {
   dependency: Dependency,
   requested_symbols: HashSet<String>,
-  deferred: bool,
+  state: DependencyState,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum DependencyState {
+  New,
+  Deferred,
+  Excluded,
+  Resolved,
 }
 
 impl AssetGraph {
@@ -55,11 +63,10 @@ impl AssetGraph {
     requested_symbols: HashSet<String>,
   ) -> NodeIndex {
     let idx = self.dependencies.len();
-    let deferred = !dep.flags.contains(DependencyFlags::ENTRY);
     self.dependencies.push(DependencyNode {
       dependency: dep,
       requested_symbols,
-      deferred,
+      state: DependencyState::New,
     });
     self.graph.add_node(AssetGraphNode::Dependency(idx))
   }
@@ -103,7 +110,7 @@ impl serde::Serialize for AssetGraph {
         },
         AssetGraphNode::Dependency(idx) => SerializedAssetGraphNode::Dependency {
           value: &self.dependencies[*idx].dependency,
-          has_deferred: self.dependencies[*idx].deferred,
+          has_deferred: self.dependencies[*idx].state == DependencyState::Deferred,
         },
       })
       .collect();
@@ -163,11 +170,12 @@ pub enum AssetGraphNode {
 pub struct AssetGraphEdge {}
 
 impl AssetGraph {
-  pub fn propagate_requested_symbols(
+  pub fn propagate_requested_symbols<F: FnMut(NodeIndex, &Dependency)>(
     &mut self,
     asset_node: NodeIndex,
     requested_symbols: HashSet<String>,
-  ) -> Vec<NodeIndex> {
+    on_undeferred: &mut F,
+  ) {
     let asset_index = self.asset_index(asset_node).unwrap();
     let AssetNode {
       asset,
@@ -178,32 +186,38 @@ impl AssetGraph {
     let mut wildcards = HashSet::new();
 
     if requested_symbols.contains("*") {
+      // If the requested symbols includes the "*" namespace,
+      // we need to include all of the asset's exported symbols.
       for sym in &asset.symbols {
         if asset_requested_symbols.insert(sym.exported.clone()) {
           if sym.flags.contains(SymbolFlags::IS_WEAK) {
+            // Propagate re-exported symbol to dependency.
             re_exports.insert(sym.local.clone());
           }
         }
       }
 
+      // Propagate to all export * wildcard dependencies.
       wildcards.insert("*");
     } else {
+      // Otherwise, add each of the requested symbols to the asset.
       for sym in requested_symbols.iter() {
         if asset_requested_symbols.insert(sym.clone()) {
           if let Some(asset_symbol) = asset.symbols.iter().find(|s| s.exported == *sym) {
             if asset_symbol.flags.contains(SymbolFlags::IS_WEAK) {
+              // Propagate re-exported symbol to dependency.
               re_exports.insert(asset_symbol.local.clone());
             }
           } else {
+            // If symbol wasn't found in the asset or a named re-export.
+            // This means the symbol is in one of the export * wildcards, but we don't know
+            // which one yet, so we propagate it to _all_ wildcard dependencies.
             wildcards.insert(sym.as_str());
           }
         }
       }
     }
 
-    let side_effects = asset.flags.contains(AssetFlags::SIDE_EFFECTS);
-
-    let mut undeferred_deps = Vec::new();
     let deps: Vec<_> = self
       .graph
       .neighbors_directed(asset_node, Direction::Outgoing)
@@ -213,47 +227,47 @@ impl AssetGraph {
       let DependencyNode {
         dependency,
         requested_symbols,
-        deferred,
+        state,
       } = &mut self.dependencies[dep_index];
 
       let mut updated = false;
       for sym in &dependency.symbols {
-        if sym.flags.contains(SymbolFlags::IS_WEAK) && re_exports.contains(&sym.local) {
-          if requested_symbols.insert(sym.exported.clone()) {
-            updated = true;
-          }
-        } else if sym.flags.contains(SymbolFlags::IS_WEAK) && sym.local == "*" {
-          for wildcard in &wildcards {
-            if requested_symbols.insert(wildcard.to_string()) {
-              updated = true;
+        if sym.flags.contains(SymbolFlags::IS_WEAK) {
+          // This is a re-export. If it is a wildcard, add all unmatched symbols
+          // to this dependency, otherwise attempt to match a named re-export.
+          if sym.local == "*" {
+            for wildcard in &wildcards {
+              if requested_symbols.insert(wildcard.to_string()) {
+                updated = true;
+              }
             }
-          }
-        } else if !sym.flags.contains(SymbolFlags::IS_WEAK) {
-          if requested_symbols.insert(sym.exported.clone()) {
+          } else if re_exports.contains(&sym.local)
+            && requested_symbols.insert(sym.exported.clone())
+          {
             updated = true;
           }
+        } else if requested_symbols.insert(sym.exported.clone()) {
+          // This is a normal import. Add the requested symbol.
+          updated = true;
         }
       }
 
-      if updated || side_effects || !dependency.flags.contains(DependencyFlags::HAS_SYMBOLS) {
+      // If the dependency was updated, propagate to the target asset if there is one,
+      // or un-defer this dependency so we transform the requested asset.
+      // We must always resolve new dependencies to determine whether they have side effects.
+      if updated || *state == DependencyState::New {
         if let Some(resolved) = self
           .graph
           .edges_directed(dep_node, Direction::Outgoing)
           .next()
         {
-          if updated {
-            let requested_symbols = requested_symbols.clone();
-            let d = self.propagate_requested_symbols(resolved.target(), requested_symbols);
-            undeferred_deps.extend(d);
-          }
+          let requested_symbols = requested_symbols.clone();
+          self.propagate_requested_symbols(resolved.target(), requested_symbols, on_undeferred);
         } else {
-          *deferred = false;
-          undeferred_deps.push(dep_node);
+          on_undeferred(dep_node, dependency);
         }
       }
     }
-
-    undeferred_deps
   }
 }
 
@@ -334,11 +348,12 @@ impl<'a> AssetGraphRequest<'a> {
       let mut dep_nodes_to_run = Vec::new();
       let mut already_visited_requests = Vec::new();
       for (result, node) in resolved.into_iter().zip(dep_nodes.iter()) {
+        let dep_index = graph.dependency_index(*node).unwrap();
         let DependencyNode {
           dependency,
           requested_symbols,
-          ..
-        } = &graph.dependencies[graph.dependency_index(*node).unwrap()];
+          state,
+        } = &mut graph.dependencies[dep_index];
         let asset_request = match result.unwrap() {
           ResolverResult::Resolved {
             path,
@@ -350,9 +365,11 @@ impl<'a> AssetGraphRequest<'a> {
               && requested_symbols.is_empty()
               && dependency.flags.contains(DependencyFlags::HAS_SYMBOLS)
             {
+              *state = DependencyState::Deferred;
               continue;
             }
 
+            *state = DependencyState::Resolved;
             AssetRequest {
               transformers: &self.transformers,
               file_path: path,
@@ -362,7 +379,10 @@ impl<'a> AssetGraphRequest<'a> {
               env: dependency.env.clone(),
             }
           }
-          ResolverResult::Excluded => continue,
+          ResolverResult::Excluded => {
+            *state = DependencyState::Excluded;
+            continue;
+          }
           _ => todo!(),
         };
 
@@ -403,17 +423,18 @@ impl<'a> AssetGraphRequest<'a> {
             .add_edge(asset_node, dep_node, AssetGraphEdge {});
         }
 
-        let undefered_deps = graph.propagate_requested_symbols(asset_node, requested_symbols);
-        for dep_node in undefered_deps {
-          dep_nodes.push(dep_node);
-          path_requests.push(PathRequest {
-            dep: graph.dependencies[graph.dependency_index(dep_node).unwrap()]
-              .dependency
-              .clone(),
-            resolvers: &self.resolvers,
-            named_pipelines: &named_pipelines,
-          });
-        }
+        graph.propagate_requested_symbols(
+          asset_node,
+          requested_symbols,
+          &mut |dep_node, dependency| {
+            dep_nodes.push(dep_node);
+            path_requests.push(PathRequest {
+              dep: dependency.clone(),
+              resolvers: &self.resolvers,
+              named_pipelines: &named_pipelines,
+            });
+          },
+        );
       }
 
       for (req_id, dep_node) in already_visited_requests {
@@ -425,18 +446,18 @@ impl<'a> AssetGraphRequest<'a> {
         let DependencyNode {
           requested_symbols, ..
         } = &graph.dependencies[graph.dependency_index(dep_node).unwrap()];
-        let undefered_deps =
-          graph.propagate_requested_symbols(asset_node, requested_symbols.clone());
-        for dep_node in undefered_deps {
-          dep_nodes.push(dep_node);
-          path_requests.push(PathRequest {
-            dep: graph.dependencies[graph.dependency_index(dep_node).unwrap()]
-              .dependency
-              .clone(),
-            resolvers: &self.resolvers,
-            named_pipelines: &named_pipelines,
-          });
-        }
+        graph.propagate_requested_symbols(
+          asset_node,
+          requested_symbols.clone(),
+          &mut |dep_node, dependency| {
+            dep_nodes.push(dep_node);
+            path_requests.push(PathRequest {
+              dep: dependency.clone(),
+              resolvers: &self.resolvers,
+              named_pipelines: &named_pipelines,
+            });
+          },
+        );
       }
     }
 
