@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
-mod init_sentry;
-
 #[cfg(target_arch = "wasm32")]
 use std::alloc::alloc;
 #[cfg(target_arch = "wasm32")]
 use std::alloc::Layout;
+
+mod init_sentry;
 
 #[cfg(target_os = "macos")]
 #[global_allocator]
@@ -15,13 +15,12 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+/// napi versions of `crate::core::requests`
+pub mod core;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
 #[cfg(not(target_arch = "wasm32"))]
 mod image;
-/// napi versions of `crate::core::requests`
-#[cfg(not(feature = "napi_noop"))]
-pub mod js_requests;
 mod resolver;
 mod transformer;
 
