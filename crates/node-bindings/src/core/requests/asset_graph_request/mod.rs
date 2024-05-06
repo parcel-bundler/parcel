@@ -3,25 +3,27 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use napi_derive::napi;
+use petgraph::Graph;
+use petgraph::graph::NodeIndex;
+use swc_common::FileName;
+use swc_ecma_ast::ImportDecl;
+use swc_ecma_ast::NamedExport;
+use swc_ecma_visit::Visit;
+
+use parcel_filesystem::FileSystem;
 use parcel_resolver::Cache;
 use parcel_resolver::CacheCow;
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::Resolution;
+use parcel_resolver::Resolver;
 use parcel_resolver::ResolveResult;
 use parcel_resolver::SpecifierType;
-use petgraph::graph::NodeIndex;
-use petgraph::Graph;
-use swc_common::input::StringInput;
-use swc_common::sync::Lrc;
-use swc_common::FileName;
-use swc_common::SourceMap;
-use swc_ecma_ast::{ExportDecl, ExportNamedSpecifier, ExportSpecifier, ImportDecl, ModuleExportName, NamedExport};
-use swc_ecma_parser::lexer::Lexer;
-use swc_ecma_parser::Parser;
-use swc_ecma_parser::Syntax;
-use swc_ecma_visit::Visit;
 
 use crate::core::project_path::ProjectPath;
+use crate::core::requests::asset_graph_request::transformer_actor::transform_asset;
+
+pub mod resolver_actor;
+pub mod transformer_actor;
 
 #[napi(object)]
 pub struct AssetGraphRequest {
@@ -62,8 +64,8 @@ enum AssetGraphNode {
 
 /// // 'root.js'
 /// import './something.js'
-enum WorkItem {
-  VisitAsset {
+enum Request {
+  Resolve {
     /// Where you're resolving from either the root or another asset
     source: PathBuf,
     /// This is the path
@@ -81,9 +83,9 @@ pub fn run_asset_graph_request(
     project_root,
   }: RunAssetGraphRequestParams,
 ) -> anyhow::Result<RunAssetGraphRequestResult> {
-  let mut target_queue: Vec<WorkItem> = vec![];
+  let mut target_queue: Vec<Request> = vec![];
   for entry in &asset_graph_request.entries {
-    target_queue.push(WorkItem::VisitAsset {
+    target_queue.push(Request::Resolve {
       source: project_root.into(),
       specifier: entry.clone(),
       dependency_index: None,
@@ -91,48 +93,26 @@ pub fn run_asset_graph_request(
   }
 
   let fs = OsFileSystem::default();
-  let resolver =
-    parcel_resolver::Resolver::parcel(Cow::Borrowed(project_root), CacheCow::Owned(Cache::new(fs)));
+  let resolver = Resolver::parcel(Cow::Borrowed(project_root), CacheCow::Owned(Cache::new(fs)));
+
+  rayon::spawn(|| {});
 
   let mut graph = Graph::new();
-  while let Some(WorkItem::VisitAsset {
-    source,
-    specifier: target,
-    dependency_index,
-  }) = target_queue.pop()
-  {
-    println!("Visiting asset: {:?}", target);
-    let ResolveResult { result, .. } =
-      resolver.resolve(&target, &Path::new(&source), SpecifierType::Esm);
-
-    match result {
-      Ok((Resolution::Path(target), _)) => {
-        // production quality version of `read_asset`
-        // https://product-fabric.atlassian.net/browse/AFB-367
-        let asset = transform_asset(project_root, &target)?;
-
-        let asset_index = graph.add_node(AssetGraphNode::Asset(asset.clone()));
-        if let Some(parent_index) = dependency_index {
-          graph.add_edge(parent_index, asset_index, ());
-        }
-
-        for dependency in &asset.dependencies {
-          let dependency_index = graph.add_node(AssetGraphNode::Dependency(dependency.clone()));
-          graph.add_edge(asset_index, dependency_index, ());
-
-          target_queue.push(WorkItem::VisitAsset {
-            source: target.clone(),
-            specifier: dependency.specifier.clone(),
-            dependency_index: Some(dependency_index),
-          });
-        }
-      }
-      Err(err) => {
-        eprintln!("Resolution error: {:?}", err);
-      }
-      _ => {
-        eprintln!("Resolution error: unknown");
-      }
+  while let Some(work_item) = target_queue.pop() {
+    match work_item {
+      Request::Resolve {
+        source,
+        specifier: target,
+        dependency_index,
+      } => run_visit_asset(
+        &mut graph,
+        &resolver,
+        &mut target_queue,
+        project_root,
+        target,
+        source,
+        dependency_index,
+      )?,
     }
   }
 
@@ -141,44 +121,50 @@ pub fn run_asset_graph_request(
   })
 }
 
-fn transform_asset(project_root: &Path, target: &Path) -> anyhow::Result<Asset> {
-  println!("Reading asset: {:?}", target);
-  let contents = std::fs::read_to_string(&target)?;
+fn run_visit_asset(
+  graph: &mut Graph<AssetGraphNode, ()>,
+  resolver: &Resolver<impl FileSystem>,
+  target_queue: &mut Vec<Request>,
+  project_root: &Path,
+  target: String,
+  source: PathBuf,
+  dependency_index: Option<NodeIndex>,
+) -> anyhow::Result<()> {
+  println!("Visiting asset: {:?}", target);
+  let ResolveResult { result, .. } =
+    resolver.resolve(&target, &Path::new(&source), SpecifierType::Esm);
 
-  let cm: Lrc<SourceMap> = Default::default();
-  let file_name = FileName::Real(target.to_path_buf());
-  let source_file = cm.new_source_file(file_name, contents.into());
-  let syntax = Syntax::Es(Default::default());
-  let lexer = Lexer::new(
-    // We want to parse ecmascript
-    syntax,
-    // EsVersion defaults to es5
-    Default::default(),
-    StringInput::from(&*source_file),
-    None,
-  );
-  let mut parser = Parser::new_from(lexer);
-  let program = parser
-    .parse_module()
-    .map_err(|_err| anyhow::anyhow!("Failed to parse file"))?;
+  match result {
+    Ok((Resolution::Path(target), _)) => {
+      // production quality version of `read_asset`
+      // https://product-fabric.atlassian.net/browse/AFB-367
+      let asset = transform_asset(project_root, &target)?;
 
-  println!("Parsed module: {:#?}", program);
+      let asset_index = graph.add_node(AssetGraphNode::Asset(asset.clone()));
+      if let Some(parent_index) = dependency_index {
+        graph.add_edge(parent_index, asset_index, ());
+      }
 
-  let mut import_visitor = ImportVisitor::default();
-  import_visitor.visit_module(&program);
+      for dependency in &asset.dependencies {
+        let dependency_index = graph.add_node(AssetGraphNode::Dependency(dependency.clone()));
+        graph.add_edge(asset_index, dependency_index, ());
 
-  println!("project_root={:?} target={:?}", project_root, &target);
-  Ok(Asset {
-    path: ProjectPath::new(project_root, &target)?,
-    dependencies: import_visitor
-      .imports
-      .iter()
-      .map(|specifier| Dependency {
-        specifier: specifier.clone(),
-        specifier_type: SpecifierType::Esm,
-      })
-      .collect(),
-  })
+        let _ = target_queue.push(Request::Resolve {
+          source: target.clone(),
+          specifier: dependency.specifier.clone(),
+          dependency_index: Some(dependency_index),
+        });
+      }
+    }
+    Err(err) => {
+      eprintln!("Resolution error: {:?}", err);
+    }
+    _ => {
+      eprintln!("Resolution error: unknown");
+    }
+  }
+
+  Ok(())
 }
 
 #[derive(Default)]
@@ -201,8 +187,8 @@ impl Visit for ImportVisitor {
 #[cfg(test)]
 mod test {
   use swc_common::input::StringInput;
-  use swc_common::sync::Lrc;
   use swc_common::SourceMap;
+  use swc_common::sync::Lrc;
   use swc_ecma_parser::lexer::Lexer;
   use swc_ecma_parser::Parser;
   use swc_ecma_parser::Syntax;

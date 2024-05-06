@@ -158,9 +158,9 @@ mod test {
   use parcel_resolver::OsFileSystem;
 
   use super::*;
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use crate::core::requests::config_request::run_config_request;
   use crate::core::requests::request_api::MockRequestApi;
+  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
   #[test]
   fn test_run_empty_config_request_does_nothing() {

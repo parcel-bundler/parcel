@@ -3,5 +3,5 @@
 mod js_requests;
 mod project_path;
 /// Request types and run functions
-mod requests;
+pub mod requests;
 mod transformer;
