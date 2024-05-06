@@ -8,11 +8,9 @@ use crate::FileSystem;
 
 mod canonicalize;
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 pub struct OsFileSystem;
 
-#[cfg(not(target_arch = "wasm32"))]
 impl FileSystem for OsFileSystem {
   fn cwd(&self) -> std::io::Result<PathBuf> {
     std::env::current_dir()
