@@ -11,7 +11,7 @@ use parcel_core::requests::entry_request::RunEntryRequestParams;
 use parcel_core::requests::request_api::js_request_api::JSRequestApi;
 use parcel_napi_helpers::anyhow_napi;
 
-use crate::js_requests::request_options::input_fs_from_options;
+use crate::core::js_requests::request_options::input_fs_from_options;
 
 /// napi entry-point for `run_entry_request`.
 #[napi]
