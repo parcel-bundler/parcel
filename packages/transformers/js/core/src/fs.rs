@@ -3,17 +3,10 @@ use std::path::PathBuf;
 
 use data_encoding::BASE64;
 use data_encoding::HEXLOWER;
+use indexmap::IndexMap;
 use swc_core::common::Mark;
 use swc_core::common::Span;
 use swc_core::common::DUMMY_SP;
-use crate::collect::{Collect, Import};
-use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::id;
-use crate::utils::{add_dependency, SourceLocation};
-use data_encoding::{BASE64, HEXLOWER};
-use indexmap::IndexMap;
-use std::path::{Path, PathBuf};
-use swc_core::common::{Mark, Span, DUMMY_SP};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::Fold;
@@ -25,6 +18,7 @@ use crate::collect::Import;
 use crate::dependency_collector::DependencyDescriptor;
 use crate::dependency_collector::DependencyKind;
 use crate::id;
+use crate::utils::add_dependency;
 use crate::utils::SourceLocation;
 
 pub fn inline_fs<'a>(

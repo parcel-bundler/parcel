@@ -1,0 +1,28 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel_core_next"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = "1.7.0"
+crossbeam-channel = "0.5.6"
+petgraph = "*"
+bitflags = { version = "2.2.1", features = ["serde"] }
+parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
+parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+lazy_static = "*"
+mimalloc = { version = "*", default-features = false }
+indexmap = { version = "1.9.2", features = ["serde"] }
+glob-match = "0.2.1"
+serde = "1.0.123"
+serde_json = { version = "1.0.91", features = ["preserve_order"] }
+serde_bytes = "0.11.5"
+serde_repr = "0.1.19"
+serde-value = "*"
+browserslist-rs = "0.14.0"
+node-semver = { git = "https://github.com/devongovett/node-semver-rs", branch = "min-version" }
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+fixedbitset = "0.4.2"
+dashmap = "5.4.0"
+itertools = "0.10.5"

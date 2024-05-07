@@ -26,11 +26,11 @@ import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
 import {RustCache} from '@parcel/rust';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
-import { bufferStream, readableFromStringOrBuffer } from "@parcel/utils";
+import {bufferStream, readableFromStringOrBuffer} from '@parcel/utils';
 
 class CacheWrapper extends RustCache {
   get<T>(key: string): Promise<?T> {
-    return deserialize(super.getBlob(key))
+    return deserialize(super.getBlob(key));
   }
 
   set(key: string, value: mixed): Promise<void> {

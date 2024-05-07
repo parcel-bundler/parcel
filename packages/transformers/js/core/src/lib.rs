@@ -14,45 +14,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 
-use collect::Collect;
-use collect::CollectResult;
-use constant_module::ConstantModule;
 use indexmap::IndexMap;
-use parcel_macros::{MacroCallback, MacroError, Macros};
-use path_slash::PathExt;
-use serde::{Deserialize, Serialize};
-use swc_core::common::comments::SingleThreadedComments;
-use swc_core::common::errors::Handler;
-use swc_core::common::pass::Optional;
-use swc_core::common::source_map::SourceMapGenConfig;
-use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_core::ecma::ast::{Module, ModuleItem, Program};
-use swc_core::ecma::codegen::text_writer::JsWriter;
-use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets};
-use swc_core::ecma::transforms::base::fixer::paren_remover;
-use swc_core::ecma::transforms::base::helpers;
-use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
-use swc_core::ecma::transforms::proposal::decorators;
-use swc_core::ecma::transforms::{
-  compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
-  optimization::simplify::expr_simplifier, react, typescript,
-};
-use swc_core::ecma::visit::{FoldWith, VisitWith};
-
-use collect::{Collect, CollectResult};
-use dependency_collector::*;
-use env_replacer::*;
-use fs::inline_fs;
-use global_replacer::GlobalReplacer;
-use hoist::hoist;
-use hoist::HoistResult;
-use indexmap::IndexMap;
-use modules::esm2cjs;
-use node_replacer::NodeReplacer;
 use parcel_macros::MacroCallback;
 use parcel_macros::MacroError;
 use parcel_macros::Macros;
@@ -83,8 +46,8 @@ use swc_core::ecma::parser::TsConfig;
 use swc_core::ecma::preset_env::preset_env;
 use swc_core::ecma::preset_env::Mode::Entry;
 use swc_core::ecma::preset_env::Targets;
-use swc_core::ecma::preset_env::Version;
-use swc_core::ecma::preset_env::Versions;
+pub use swc_core::ecma::preset_env::Version;
+pub use swc_core::ecma::preset_env::Versions;
 use swc_core::ecma::transforms::base::fixer::fixer;
 use swc_core::ecma::transforms::base::fixer::paren_remover;
 use swc_core::ecma::transforms::base::helpers;
@@ -99,19 +62,18 @@ use swc_core::ecma::transforms::react;
 use swc_core::ecma::transforms::typescript;
 use swc_core::ecma::visit::FoldWith;
 use swc_core::ecma::visit::VisitWith;
-use typeof_replacer::*;
-use utils::error_buffer_to_diagnostics;
-use utils::CodeHighlight;
-use utils::Diagnostic;
-use utils::DiagnosticSeverity;
-use utils::ErrorBuffer;
-pub use utils::SourceLocation;
-use utils::SourceType;
-use utils::{error_buffer_to_diagnostics, ErrorBuffer};
 
-pub use dependency_collector::DependencyKind;
-pub use swc_core::ecma::preset_env::{Version, Versions};
-pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+pub use self::collect::*;
+pub use self::constant_module::*;
+pub use self::dependency_collector::*;
+pub use self::env_replacer::*;
+pub use self::fs::*;
+pub use self::global_replacer::*;
+pub use self::hoist::*;
+pub use self::modules::*;
+pub use self::node_replacer::*;
+pub use self::typeof_replacer::*;
+pub use self::utils::*;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 

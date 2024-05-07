@@ -31,7 +31,7 @@ describe.only('javascript', function () {
     await removeDistDirectory();
   });
 
-  it('should produce a basic JS bundle with CommonJS requires', async function () {
+  it.only('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js'),
     );
@@ -44,7 +44,7 @@ describe.only('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it('should support url: imports with CommonJS output', async function () {
+  it.only('should support url: imports with CommonJS output', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),
     );
@@ -66,7 +66,7 @@ describe.only('javascript', function () {
     assert.strictEqual(path.basename(output), path.basename(txtBundle));
   });
 
-  it('should support url: imports of another javascript file', async function () {
+  it.only('should support url: imports of another javascript file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/pipeline.js'),
       {
@@ -112,7 +112,7 @@ describe.only('javascript', function () {
     assert.equal(name, 'checkerboard');
   });
 
-  it('should support new URL() of another javascript file', async function () {
+  it.only('should support new URL() of another javascript file', async function () {
     let b = await bundle(path.join(__dirname, '/integration/worklet/url.js'));
 
     assertBundles(b, [
@@ -4685,9 +4685,7 @@ describe.only('javascript', function () {
       'utf8',
     );
 
-    assert(
-      /const add = require\(`lodash\/\${\$.*?\$var\$fn}`\);/.test(dist)
-    );
+    assert(/const add = require\(`lodash\/\${\$.*?\$var\$fn}`\);/.test(dist));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);
