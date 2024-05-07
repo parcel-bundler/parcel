@@ -6,12 +6,14 @@ use std::path::PathBuf;
 use crate::FileSystem;
 
 /// In memory implementation of a file-system entry
+#[derive(Debug)]
 enum InMemoryFileSystemEntry {
   File { contents: String },
   Directory,
 }
 
 /// In memory implementation of the `FileSystem` trait, for testing purpouses.
+#[derive(Debug)]
 pub struct InMemoryFileSystem {
   files: HashMap<PathBuf, InMemoryFileSystemEntry>,
   current_working_directory: PathBuf,
@@ -89,14 +91,14 @@ impl FileSystem for InMemoryFileSystem {
       || {
         Err(std::io::Error::new(
           std::io::ErrorKind::NotFound,
-          "file not found",
+          "File not found",
         ))
       },
       |entry| match entry {
         InMemoryFileSystemEntry::File { contents } => Ok(contents.clone()),
         InMemoryFileSystemEntry::Directory => Err(std::io::Error::new(
           std::io::ErrorKind::InvalidInput,
-          "path is a directory",
+          "Path is a directory",
         )),
       },
     )

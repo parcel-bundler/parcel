@@ -8,9 +8,9 @@ use anyhow::anyhow;
 use napi_derive::napi;
 use parcel_resolver::FileSystem;
 
-use crate::core::project_path::ProjectPath;
-use crate::core::requests::config_request::InternalFileCreateInvalidation;
-use crate::core::requests::request_api::RequestApi;
+use crate::project_path::ProjectPath;
+use crate::requests::config_request::InternalFileCreateInvalidation;
+use crate::requests::request_api::RequestApi;
 
 #[napi(object)]
 #[derive(Debug, Clone, PartialEq)]
