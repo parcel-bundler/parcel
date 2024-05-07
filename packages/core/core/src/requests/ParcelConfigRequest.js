@@ -27,6 +27,7 @@ import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   escapeMarkdown,
   md,
+  errorToDiagnostic,
 } from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
@@ -467,7 +468,7 @@ export async function processConfigChain(
 
     if (errors.length > 0) {
       throw new ThrowableDiagnostic({
-        diagnostic: errors.flatMap(e => e.diagnostics),
+        diagnostic: errors.flatMap(e => e.diagnostics ?? errorToDiagnostic(e)),
       });
     }
   }
@@ -574,7 +575,16 @@ export function validateConfigFile(
   config: RawParcelConfig | ResolvedParcelConfigFile,
   relativePath: FilePath,
 ) {
-  validateNotEmpty(config, relativePath);
+  try {
+    validateNotEmpty(config, relativePath);
+  } catch (e) {
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: e.message,
+        origin: '@parcel/core',
+      },
+    });
+  }
 
   validateSchema.diagnostic(
     ParcelConfigSchema,
