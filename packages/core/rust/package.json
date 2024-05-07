@@ -30,7 +30,7 @@
     "*.wasm"
   ],
   "devDependencies": {
-    "@napi-rs/cli": "^2.15.2",
+    "@napi-rs/cli": "^2.18.3",
     "napi-wasm": "^1.0.1"
   },
   "scripts": {
