@@ -7,7 +7,7 @@ use swc_core::common::Mark;
 use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::utils::stack_size::maybe_grow_default;
+use swc_core::ecma::utils::stack_size::maybe_grow;
 use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::utils::*;
@@ -166,7 +166,9 @@ impl<'a> Fold for EnvReplacer<'a> {
       }
     }
 
-    maybe_grow_default(|| node.fold_children_with(self))
+    // We need a larger red_zone here than swc's default because of possible
+    // stack overflows on windows with files like https://github.com/highlightjs/highlight.js/blob/105a11a13eedbf830c0e80cc052028ceb593837f/src/languages/isbl.js.
+    maybe_grow(32 * 1024, 16 * 1024, || node.fold_children_with(self))
   }
 
   fn fold_var_decl(&mut self, node: VarDecl) -> VarDecl {
