@@ -16,7 +16,6 @@ import {
 import {validatePackageName} from '../src/ParcelConfig.schema';
 import {DEFAULT_OPTIONS, relative} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
-import ThrowableDiagnostic from '@parcel/diagnostic';
 
 describe('ParcelConfigRequest', () => {
   describe('validatePackageName', () => {
