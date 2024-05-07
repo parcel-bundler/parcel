@@ -15,16 +15,12 @@ use swc_core::ecma::visit::FoldWith;
 
 use crate::dependency_collector::DependencyDescriptor;
 use crate::dependency_collector::DependencyKind;
+use crate::utils::add_dependency;
 use crate::utils::create_global_decl_stmt;
 use crate::utils::create_require;
 use crate::utils::is_unresolved;
 use crate::utils::SourceLocation;
 use crate::utils::SourceType;
-use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::utils::{
-  add_dependency, create_global_decl_stmt, create_require, is_unresolved, SourceLocation,
-  SourceType,
-};
 
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,

@@ -1,7 +1,12 @@
 use std::cmp::Ordering;
 
+use indexmap::IndexMap;
+use path_slash::PathBufExt;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::path::Path;
 use swc_core::common::errors::DiagnosticBuilder;
 use swc_core::common::errors::Emitter;
 use swc_core::common::Mark;
@@ -13,17 +18,6 @@ use swc_core::ecma::ast::Ident;
 use swc_core::ecma::ast::{self};
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
-use indexmap::IndexMap;
-use path_slash::PathBufExt;
-use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::path::Path;
-use swc_core::common::errors::{DiagnosticBuilder, Emitter};
-use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
-use swc_core::ecma::ast::{self, Ident};
-use swc_core::ecma::atoms::{js_word, JsWord};
 
 use crate::{DependencyDescriptor, DependencyKind};
 
