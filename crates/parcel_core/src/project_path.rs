@@ -17,10 +17,12 @@ use napi::sys::napi_value;
 ///
 /// Use `ProjectPath` on your input type:
 ///
-/// ```
+/// ```skip
+/// use napi_derive::napi;
+///
 /// #[napi(object)]
 /// struct MyRequestInput {
-///   path: ProjectPath,
+///   pub path: parcel_core::project_path::ProjectPath,
 /// }
 ///
 /// #[napi]
