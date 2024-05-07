@@ -1,0 +1,9 @@
+[package]
+authors = ["Monica Olejniczak <monica.j.olejniczak@gmail.com>"]
+name = "parcel_package_manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mockall = "0.12.1"
+thiserror = "1.0.59"
