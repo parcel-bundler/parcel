@@ -4685,9 +4685,7 @@ describe.only('javascript', function () {
       'utf8',
     );
 
-    assert(
-      /const add = require\(`lodash\/\${\$.*?\$var\$fn}`\);/.test(dist)
-    );
+    assert(/const add = require\(`lodash\/\${\$.*?\$var\$fn}`\);/.test(dist));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);

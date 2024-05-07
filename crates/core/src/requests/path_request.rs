@@ -1,18 +1,24 @@
-use std::{
-  borrow::Cow,
-  path::{Path, PathBuf},
-};
+use std::borrow::Cow;
+use std::path::Path;
+use std::path::PathBuf;
 
-use crate::{
-  environment::{EnvironmentContext, EnvironmentFlags},
-  parcel_config::PluginNode,
-  request_tracker::{Request, RequestResult},
-  types::{Dependency, SpecifierType},
-};
-use parcel_resolver::{
-  parse_scheme, Cache, CacheCow, ExportsCondition, Fields, IncludeNodeModules, OsFileSystem,
-  Resolution, ResolveOptions,
-};
+use parcel_resolver::parse_scheme;
+use parcel_resolver::Cache;
+use parcel_resolver::CacheCow;
+use parcel_resolver::ExportsCondition;
+use parcel_resolver::Fields;
+use parcel_resolver::IncludeNodeModules;
+use parcel_resolver::OsFileSystem;
+use parcel_resolver::Resolution;
+use parcel_resolver::ResolveOptions;
+
+use crate::environment::EnvironmentContext;
+use crate::environment::EnvironmentFlags;
+use crate::parcel_config::PluginNode;
+use crate::request_tracker::Request;
+use crate::request_tracker::RequestResult;
+use crate::types::Dependency;
+use crate::types::SpecifierType;
 
 // TODO: find a way to have a cached resolver per project.
 lazy_static::lazy_static! {

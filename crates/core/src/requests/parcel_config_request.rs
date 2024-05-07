@@ -1,8 +1,8 @@
-use crate::{
-  parcel_config::ParcelConfig,
-  request_tracker::{Request, RequestResult},
-  worker_farm::{WorkerRequest, WorkerResult},
-};
+use crate::parcel_config::ParcelConfig;
+use crate::request_tracker::Request;
+use crate::request_tracker::RequestResult;
+use crate::worker_farm::WorkerRequest;
+use crate::worker_farm::WorkerResult;
 
 #[derive(Hash)]
 pub struct ParcelConfigRequest {}

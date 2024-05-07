@@ -1,5 +1,6 @@
-use dashmap::DashMap;
 use std::ops::Deref;
+
+use dashmap::DashMap;
 
 pub struct Cache {
   entries: DashMap<String, Vec<u8>>,

@@ -1,10 +1,10 @@
-use crate::{
-  asset_graph::AssetGraph,
-  parcel_config::PluginNode,
-  request_tracker::{Request, RequestResult},
-  types::Bundle,
-  worker_farm::{WorkerRequest, WorkerResult},
-};
+use crate::asset_graph::AssetGraph;
+use crate::parcel_config::PluginNode;
+use crate::request_tracker::Request;
+use crate::request_tracker::RequestResult;
+use crate::types::Bundle;
+use crate::worker_farm::WorkerRequest;
+use crate::worker_farm::WorkerResult;
 
 #[derive(Hash, serde::Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

@@ -1,17 +1,21 @@
 use std::sync::Arc;
 
 use mimalloc::MiMalloc;
-use parcel_core::{
-  build,
-  cache::Cache,
-  environment::{
-    Browsers, Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
-  },
-  parcel_config::ParcelConfig,
-  requests::entry_request::Entry,
-  types::Target,
-  worker_farm::{WorkerFarm, WorkerRequest, WorkerResult},
-};
+use parcel_core::build;
+use parcel_core::cache::Cache;
+use parcel_core::environment::Browsers;
+use parcel_core::environment::Engines;
+use parcel_core::environment::Environment;
+use parcel_core::environment::EnvironmentContext;
+use parcel_core::environment::EnvironmentFlags;
+use parcel_core::environment::OutputFormat;
+use parcel_core::environment::SourceType;
+use parcel_core::parcel_config::ParcelConfig;
+use parcel_core::requests::entry_request::Entry;
+use parcel_core::types::Target;
+use parcel_core::worker_farm::WorkerFarm;
+use parcel_core::worker_farm::WorkerRequest;
+use parcel_core::worker_farm::WorkerResult;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;

@@ -1,10 +1,12 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::path::Path;
+use std::path::PathBuf;
+
 use glob_match::glob_match;
-use indexmap::{indexmap, IndexMap};
-use std::{
-  collections::hash_map::DefaultHasher,
-  hash::{Hash, Hasher},
-  path::{Path, PathBuf},
-};
+use indexmap::indexmap;
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 pub struct ParcelConfig {

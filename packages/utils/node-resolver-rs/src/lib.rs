@@ -11,7 +11,6 @@ use package_json::ExportsResolution;
 use package_json::PackageJson;
 pub use specifier::parse_package_specifier;
 pub use specifier::parse_scheme;
-
 use tsconfig::TsConfig;
 
 mod builtins;

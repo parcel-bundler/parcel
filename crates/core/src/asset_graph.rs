@@ -1,22 +1,27 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 
-use itertools::{Either, Itertools};
+use itertools::Either;
+use itertools::Itertools;
 use parcel_resolver::Resolver;
 use petgraph::graph::DiGraph;
 
-use crate::{
-  cache::Cache,
-  environment::EnvironmentFlags,
-  parcel_config::{PipelineMap, PluginNode},
-  request_tracker::{Request, RequestTracker},
-  requests::{
-    asset_request::AssetRequest,
-    entry_request::EntryRequest,
-    path_request::{PathRequest, ResolverResult},
-    target_request::TargetRequest,
-  },
-  types::{Asset, Dependency, DependencyFlags, Symbol, SymbolFlags},
-};
+use crate::cache::Cache;
+use crate::environment::EnvironmentFlags;
+use crate::parcel_config::PipelineMap;
+use crate::parcel_config::PluginNode;
+use crate::request_tracker::Request;
+use crate::request_tracker::RequestTracker;
+use crate::requests::asset_request::AssetRequest;
+use crate::requests::entry_request::EntryRequest;
+use crate::requests::path_request::PathRequest;
+use crate::requests::path_request::ResolverResult;
+use crate::requests::target_request::TargetRequest;
+use crate::types::Asset;
+use crate::types::Dependency;
+use crate::types::DependencyFlags;
+use crate::types::Symbol;
+use crate::types::SymbolFlags;
 
 #[derive(Debug, Clone)]
 pub struct AssetGraph {

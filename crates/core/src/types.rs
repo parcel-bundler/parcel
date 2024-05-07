@@ -1,9 +1,15 @@
-use crate::environment::Environment;
+use std::collections::hash_map::DefaultHasher;
+use std::num::NonZeroU32;
+use std::path::PathBuf;
+
 use bitflags::bitflags;
 use parcel_resolver::ExportsCondition;
-use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{collections::hash_map::DefaultHasher, num::NonZeroU32, path::PathBuf};
+use serde::Deserialize;
+use serde::Serialize;
+use serde_repr::Deserialize_repr;
+use serde_repr::Serialize_repr;
+
+use crate::environment::Environment;
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,7 +66,8 @@ pub struct Asset {
 
 impl Asset {
   pub fn id(&self) -> u64 {
-    use std::hash::{Hash, Hasher};
+    use std::hash::Hash;
+    use std::hash::Hasher;
     let mut hasher = DefaultHasher::new();
     self.file_path.hash(&mut hasher);
     self.asset_type.hash(&mut hasher);
@@ -262,7 +269,8 @@ impl Dependency {
 
   pub fn id(&self) -> u64 {
     // Compute hashed dependency id.
-    use std::hash::{Hash, Hasher};
+    use std::hash::Hash;
+    use std::hash::Hasher;
     let mut hasher = DefaultHasher::new();
     self.source_path.hash(&mut hasher);
     self.specifier.hash(&mut hasher);

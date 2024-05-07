@@ -8,7 +8,8 @@ pub mod transformers;
 pub mod types;
 pub mod worker_farm;
 
-use asset_graph::{AssetGraph, AssetGraphRequest};
+use asset_graph::AssetGraph;
+use asset_graph::AssetGraphRequest;
 use cache::Cache;
 use request_tracker::RequestTracker;
 // use requests::bundle_graph_request::BundleGraphRequest;

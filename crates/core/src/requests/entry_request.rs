@@ -1,7 +1,7 @@
-use crate::{
-  request_tracker::{Request, RequestResult},
-  worker_farm::{WorkerRequest, WorkerResult},
-};
+use crate::request_tracker::Request;
+use crate::request_tracker::RequestResult;
+use crate::worker_farm::WorkerRequest;
+use crate::worker_farm::WorkerResult;
 
 #[derive(Hash, serde::Serialize, Clone, Debug)]
 pub struct EntryRequest {

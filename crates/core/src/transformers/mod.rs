@@ -1,10 +1,9 @@
-use crate::{
-  parcel_config::PluginNode,
-  requests::asset_request::{AssetRequestResult, Transformer},
-  transformers::plugin_transformer::PluginTransformer,
-  types::Asset,
-  worker_farm::WorkerFarm,
-};
+use crate::parcel_config::PluginNode;
+use crate::requests::asset_request::AssetRequestResult;
+use crate::requests::asset_request::Transformer;
+use crate::transformers::plugin_transformer::PluginTransformer;
+use crate::types::Asset;
+use crate::worker_farm::WorkerFarm;
 
 mod js_transformer;
 pub mod plugin_transformer;

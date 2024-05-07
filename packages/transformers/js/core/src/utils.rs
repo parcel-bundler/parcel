@@ -1,12 +1,13 @@
 use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::path::Path;
 
 use indexmap::IndexMap;
 use path_slash::PathBufExt;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::path::Path;
 use swc_core::common::errors::DiagnosticBuilder;
 use swc_core::common::errors::Emitter;
 use swc_core::common::Mark;
@@ -19,7 +20,8 @@ use swc_core::ecma::ast::{self};
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
 
-use crate::{DependencyDescriptor, DependencyKind};
+use crate::DependencyDescriptor;
+use crate::DependencyKind;
 
 pub fn is_unresolved(ident: &Ident, unresolved_mark: Mark) -> bool {
   ident.span.ctxt.outer() == unresolved_mark

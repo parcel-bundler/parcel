@@ -1,10 +1,9 @@
-use crate::{
-  request_tracker::{Request, RequestResult},
-  types::Target,
-  worker_farm::{WorkerRequest, WorkerResult},
-};
-
 use super::entry_request::Entry;
+use crate::request_tracker::Request;
+use crate::request_tracker::RequestResult;
+use crate::types::Target;
+use crate::worker_farm::WorkerRequest;
+use crate::worker_farm::WorkerResult;
 
 #[derive(Hash, serde::Serialize, Clone, Debug)]
 pub struct TargetRequest {

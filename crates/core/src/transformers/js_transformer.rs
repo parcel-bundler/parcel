@@ -1,20 +1,40 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use indexmap::{indexmap, IndexMap};
-use parcel_js_swc_core::{
-  CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult, Version, Versions,
-};
-use parcel_resolver::{ExportsCondition, IncludeNodeModules};
+use indexmap::indexmap;
+use indexmap::IndexMap;
+use parcel_js_swc_core::CodeHighlight;
+use parcel_js_swc_core::Config;
+use parcel_js_swc_core::DependencyKind;
+use parcel_js_swc_core::Diagnostic;
+use parcel_js_swc_core::TransformResult;
+use parcel_js_swc_core::Version;
+use parcel_js_swc_core::Versions;
+use parcel_resolver::ExportsCondition;
+use parcel_resolver::IncludeNodeModules;
 
-use crate::environment::{
-  Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, OutputFormat, SourceType,
-};
-use crate::requests::asset_request::{AssetRequestResult, Transformer};
-use crate::types::{
-  Asset, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags, ImportAttribute,
-  JSONObject, Location, Priority, SourceLocation, SpecifierType, Symbol, SymbolFlags,
-};
+use crate::environment::Environment;
+use crate::environment::EnvironmentContext;
+use crate::environment::EnvironmentFeature;
+use crate::environment::EnvironmentFlags;
+use crate::environment::OutputFormat;
+use crate::environment::SourceType;
+use crate::requests::asset_request::AssetRequestResult;
+use crate::requests::asset_request::Transformer;
+use crate::types::Asset;
+use crate::types::AssetFlags;
+use crate::types::AssetType;
+use crate::types::BundleBehavior;
+use crate::types::Dependency;
+use crate::types::DependencyFlags;
+use crate::types::ImportAttribute;
+use crate::types::JSONObject;
+use crate::types::Location;
+use crate::types::Priority;
+use crate::types::SourceLocation;
+use crate::types::SpecifierType;
+use crate::types::Symbol;
+use crate::types::SymbolFlags;
 
 pub struct JsTransformer;
 

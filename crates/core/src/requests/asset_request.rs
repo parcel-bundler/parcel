@@ -1,14 +1,20 @@
 use std::path::PathBuf;
 
-use crate::{
-  environment::Environment,
-  parcel_config::{PipelineMap, PluginNode},
-  request_tracker::{Request, RequestResult},
-  transformers::run_transformer,
-  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, JSONObject},
-  worker_farm::WorkerFarm,
-};
 use xxhash_rust::xxh3::xxh3_64;
+
+use crate::environment::Environment;
+use crate::parcel_config::PipelineMap;
+use crate::parcel_config::PluginNode;
+use crate::request_tracker::Request;
+use crate::request_tracker::RequestResult;
+use crate::transformers::run_transformer;
+use crate::types::Asset;
+use crate::types::AssetFlags;
+use crate::types::AssetStats;
+use crate::types::AssetType;
+use crate::types::Dependency;
+use crate::types::JSONObject;
+use crate::worker_farm::WorkerFarm;
 
 #[derive(Hash, Debug)]
 pub struct AssetRequest<'a> {

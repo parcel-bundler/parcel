@@ -1,19 +1,25 @@
 use std::sync::Arc;
 
-use crossbeam_channel::{Receiver, Sender};
-use napi::{
-  bindgen_prelude::{BigInt, Buffer},
-  threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
-  Env, JsFunction, JsObject, JsUnknown,
-};
+use crossbeam_channel::Receiver;
+use crossbeam_channel::Sender;
+use napi::bindgen_prelude::BigInt;
+use napi::bindgen_prelude::Buffer;
+use napi::threadsafe_function::ThreadSafeCallContext;
+use napi::threadsafe_function::ThreadsafeFunctionCallMode;
+use napi::Env;
+use napi::JsFunction;
+use napi::JsObject;
+use napi::JsUnknown;
 use napi_derive::napi;
-use parcel_core::{
-  asset_graph::AssetGraphRequest,
-  cache::Cache,
-  request_tracker::RequestTracker,
-  worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
-};
-use parcel_core::{build, worker_farm::WorkerCallback};
+use parcel_core::asset_graph::AssetGraphRequest;
+use parcel_core::build;
+use parcel_core::cache::Cache;
+use parcel_core::request_tracker::RequestTracker;
+use parcel_core::worker_farm::WorkerCallback;
+use parcel_core::worker_farm::WorkerError;
+use parcel_core::worker_farm::WorkerFarm;
+use parcel_core::worker_farm::WorkerRequest;
+use parcel_core::worker_farm::WorkerResult;
 
 // Allocate a single channel per thread to communicate with the JS thread.
 thread_local! {

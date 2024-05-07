@@ -1,11 +1,16 @@
-use std::{num::NonZeroU16, str::FromStr};
+use std::num::NonZeroU16;
+use std::str::FromStr;
 
-use crate::types::{impl_bitflags_serde, SourceLocation};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use parcel_resolver::IncludeNodeModules;
-use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
+use serde::Deserialize;
+use serde::Serialize;
+use serde_repr::Deserialize_repr;
+use serde_repr::Serialize_repr;
+
+use crate::types::impl_bitflags_serde;
+use crate::types::SourceLocation;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

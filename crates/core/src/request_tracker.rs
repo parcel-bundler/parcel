@@ -1,16 +1,20 @@
-use std::{
-  collections::{hash_map::DefaultHasher, HashMap},
-  hash::{Hash, Hasher},
-};
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::hash::Hasher;
 
-use crate::requests::{
-  asset_request::AssetRequest, bundle_graph_request::BundleGraphRequest,
-  entry_request::EntryRequest, parcel_config_request::ParcelConfigRequest,
-  path_request::PathRequest, target_request::TargetRequest,
-};
+use petgraph::graph::DiGraph;
+use petgraph::graph::NodeIndex;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
+
+use crate::requests::asset_request::AssetRequest;
+use crate::requests::bundle_graph_request::BundleGraphRequest;
+use crate::requests::entry_request::EntryRequest;
+use crate::requests::parcel_config_request::ParcelConfigRequest;
+use crate::requests::path_request::PathRequest;
+use crate::requests::target_request::TargetRequest;
 use crate::worker_farm::WorkerFarm;
-use petgraph::graph::{DiGraph, NodeIndex};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 pub trait Request: Hash + Sync {
   type Output: Send + Clone;

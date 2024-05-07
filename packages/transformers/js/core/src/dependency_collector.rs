@@ -1,5 +1,3 @@
-use indexmap::IndexMap;
-use path_slash::PathBufExt;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fmt;
@@ -7,6 +5,8 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
 
+use indexmap::IndexMap;
+use path_slash::PathBufExt;
 use serde::Deserialize;
 use serde::Serialize;
 use swc_core::common::Mark;

@@ -1,7 +1,10 @@
 use crate::parcel_config::PluginNode;
-use crate::requests::asset_request::{AssetRequestResult, Transformer};
+use crate::requests::asset_request::AssetRequestResult;
+use crate::requests::asset_request::Transformer;
 use crate::types::Asset;
-use crate::worker_farm::{WorkerFarm, WorkerRequest, WorkerResult};
+use crate::worker_farm::WorkerFarm;
+use crate::worker_farm::WorkerRequest;
+use crate::worker_farm::WorkerResult;
 
 pub struct PluginTransformer {
   pub plugin: PluginNode,

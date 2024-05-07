@@ -16,29 +16,53 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use indexmap::IndexMap;
-use parcel_macros::{MacroCallback, MacroError, Macros};
+use parcel_macros::MacroCallback;
+use parcel_macros::MacroError;
+use parcel_macros::Macros;
 use path_slash::PathExt;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::chain;
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::common::errors::Handler;
 use swc_core::common::pass::Optional;
 use swc_core::common::source_map::SourceMapGenConfig;
-use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_core::ecma::ast::{Module, ModuleItem, Program};
+use swc_core::common::sync::Lrc;
+use swc_core::common::FileName;
+use swc_core::common::Globals;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::ecma::ast::Module;
+use swc_core::ecma::ast::ModuleItem;
+use swc_core::ecma::ast::Program;
 use swc_core::ecma::codegen::text_writer::JsWriter;
 use swc_core::ecma::parser::error::Error;
 use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets};
+use swc_core::ecma::parser::EsConfig;
+use swc_core::ecma::parser::PResult;
+use swc_core::ecma::parser::Parser;
+use swc_core::ecma::parser::StringInput;
+use swc_core::ecma::parser::Syntax;
+use swc_core::ecma::parser::TsConfig;
+use swc_core::ecma::preset_env::preset_env;
+use swc_core::ecma::preset_env::Mode::Entry;
+use swc_core::ecma::preset_env::Targets;
+pub use swc_core::ecma::preset_env::Version;
+pub use swc_core::ecma::preset_env::Versions;
+use swc_core::ecma::transforms::base::fixer::fixer;
 use swc_core::ecma::transforms::base::fixer::paren_remover;
 use swc_core::ecma::transforms::base::helpers;
-use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
+use swc_core::ecma::transforms::base::hygiene::hygiene;
+use swc_core::ecma::transforms::base::resolver;
+use swc_core::ecma::transforms::base::Assumptions;
+use swc_core::ecma::transforms::compat::reserved_words::reserved_words;
+use swc_core::ecma::transforms::optimization::simplify::dead_branch_remover;
+use swc_core::ecma::transforms::optimization::simplify::expr_simplifier;
 use swc_core::ecma::transforms::proposal::decorators;
-use swc_core::ecma::transforms::{
-  compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
-  optimization::simplify::expr_simplifier, react, typescript,
-};
-use swc_core::ecma::visit::{FoldWith, VisitWith};
+use swc_core::ecma::transforms::react;
+use swc_core::ecma::transforms::typescript;
+use swc_core::ecma::visit::FoldWith;
+use swc_core::ecma::visit::VisitWith;
 
 pub use self::collect::*;
 pub use self::constant_module::*;
@@ -51,7 +75,6 @@ pub use self::modules::*;
 pub use self::node_replacer::*;
 pub use self::typeof_replacer::*;
 pub use self::utils::*;
-pub use swc_core::ecma::preset_env::{Version, Versions};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 

@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
-use crate::{
-  parcel_config::ParcelConfig,
-  requests::{
-    asset_request::AssetRequestResult,
-    bundle_graph_request::BundleGraphRequest,
-    entry_request::{Entry, EntryRequest},
-    target_request::TargetRequest,
-  },
-  transformers::plugin_transformer::PluginTransformRequest,
-  types::{Bundle, Target},
-};
+use crate::parcel_config::ParcelConfig;
+use crate::requests::asset_request::AssetRequestResult;
+use crate::requests::bundle_graph_request::BundleGraphRequest;
+use crate::requests::entry_request::Entry;
+use crate::requests::entry_request::EntryRequest;
+use crate::requests::target_request::TargetRequest;
+use crate::transformers::plugin_transformer::PluginTransformRequest;
+use crate::types::Bundle;
+use crate::types::Target;
 
 pub type WorkerCallback =
   Arc<dyn Fn(WorkerRequest) -> Result<WorkerResult, WorkerError> + Send + Sync>;
