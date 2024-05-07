@@ -77,7 +77,7 @@ impl PipelineMap {
     &self,
     path: &Path,
     pipeline: &Option<P>,
-    allow_empty: bool,
+    _allow_empty: bool,
   ) -> Vec<PluginNode> {
     let basename = path.file_name().unwrap().to_str().unwrap();
     let path = path.as_os_str().to_str().unwrap();

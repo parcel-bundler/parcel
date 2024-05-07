@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use itertools::Either;
-use itertools::Itertools;
-use parcel_resolver::Resolver;
 use petgraph::graph::DiGraph;
 
 use crate::cache::Cache;

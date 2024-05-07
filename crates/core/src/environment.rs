@@ -160,6 +160,7 @@ pub struct Browsers {
 impl std::fmt::Display for Browsers {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let mut first = true;
+
     macro_rules! browser {
       ($b: ident) => {
         if let Some(v) = self.$b {

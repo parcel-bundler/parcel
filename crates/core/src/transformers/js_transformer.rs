@@ -144,7 +144,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>) -> Config {
 
 fn convert_result(
   mut asset: Asset,
-  map_buf: Option<&[u8]>,
+  _map_buf: Option<&[u8]>,
   config: &Config,
   mut result: TransformResult,
 ) -> AssetRequestResult {
@@ -777,7 +777,7 @@ fn convert_loc(
   loc: &parcel_js_swc_core::SourceLocation,
   // map: &mut Option<SourceMap>,
 ) -> SourceLocation {
-  let mut loc = SourceLocation {
+  let loc = SourceLocation {
     file_path,
     start: Location {
       line: loc.start_line as u32, // + (asset.meta.startLine ?? 1) - 1

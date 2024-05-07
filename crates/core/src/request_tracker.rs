@@ -37,6 +37,7 @@ pub struct RequestResult<Output> {
 #[derive(Clone, Debug)]
 pub enum RequestError {}
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum RequestGraphNode {
   FileName,
@@ -98,6 +99,7 @@ impl_store_request!(PathRequest<'a>);
 impl_store_request!(AssetRequest<'a>);
 impl_store_request!(BundleGraphRequest);
 
+#[allow(dead_code)]
 #[derive(PartialEq, Debug)]
 enum RequestNodeState {
   Incomplete,
@@ -108,6 +110,7 @@ enum RequestNodeState {
 
 pub enum Invalidation {}
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum RequestEdgeType {
   SubRequest,
@@ -160,6 +163,7 @@ impl RequestTracker {
     true
   }
 
+  #[allow(dead_code)]
   fn has_valid_result<R: Request>(&self, request: &R) -> bool {
     let id = request.id();
     if let Some(index) = self.requests.get(&id) {

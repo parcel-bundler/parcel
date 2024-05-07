@@ -39,7 +39,6 @@ use swc_core::ecma::codegen::text_writer::JsWriter;
 use swc_core::ecma::parser::error::Error;
 use swc_core::ecma::parser::lexer::Lexer;
 use swc_core::ecma::parser::EsConfig;
-use swc_core::ecma::parser::PResult;
 use swc_core::ecma::parser::Parser;
 use swc_core::ecma::parser::StringInput;
 use swc_core::ecma::parser::Syntax;

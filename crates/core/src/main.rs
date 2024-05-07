@@ -29,7 +29,7 @@ fn main() {
       target: None,
     }])),
     WorkerRequest::ParcelConfig => Ok(WorkerResult::ParcelConfig(ParcelConfig::default())),
-    WorkerRequest::Target(target) => Ok(WorkerResult::Target(vec![Target {
+    WorkerRequest::Target(_target) => Ok(WorkerResult::Target(vec![Target {
       env: Environment {
         context: EnvironmentContext::Browser,
         output_format: OutputFormat::Esmodule,

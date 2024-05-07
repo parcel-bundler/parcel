@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
-use napi::bindgen_prelude::BigInt;
 use napi::bindgen_prelude::Buffer;
 use napi::threadsafe_function::ThreadSafeCallContext;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
@@ -11,10 +10,8 @@ use napi::JsFunction;
 use napi::JsObject;
 use napi::JsUnknown;
 use napi_derive::napi;
-use parcel_core::asset_graph::AssetGraphRequest;
 use parcel_core::build;
 use parcel_core::cache::Cache;
-use parcel_core::request_tracker::RequestTracker;
 use parcel_core::worker_farm::WorkerCallback;
 use parcel_core::worker_farm::WorkerError;
 use parcel_core::worker_farm::WorkerFarm;
