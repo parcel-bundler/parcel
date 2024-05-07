@@ -16,6 +16,7 @@ import {
 import {validatePackageName} from '../src/ParcelConfig.schema';
 import {DEFAULT_OPTIONS, relative} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 describe('ParcelConfigRequest', () => {
   describe('validatePackageName', () => {
@@ -309,9 +310,12 @@ describe('ParcelConfigRequest', () => {
     });
 
     it('should throw error on empty config file', () => {
-      assert.throws(() => {
-        validateConfigFile({}, '.parcelrc');
-      }, /.parcelrc can't be empty/);
+      assert.throws(
+        () => {
+          validateConfigFile({}, '.parcelrc');
+        },
+        {name: 'Error', message: ".parcelrc can't be empty"},
+      );
     });
   });
 
