@@ -1483,12 +1483,12 @@ export default class RequestTracker {
 export function getWatcherOptions({
   watchIgnore = [],
   cacheDir,
-  projectRoot,
+  watchDir,
   watchBackend,
 }: ParcelOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
   const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
-  const ignore = uniqueDirs.map(dir => path.resolve(projectRoot, dir));
+  const ignore = uniqueDirs.map(dir => path.resolve(watchDir, dir));
 
   return {ignore, backend: watchBackend};
 }
