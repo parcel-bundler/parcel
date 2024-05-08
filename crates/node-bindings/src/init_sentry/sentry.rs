@@ -18,6 +18,18 @@ static SENTRY_GUARD: Lazy<Arc<Mutex<Option<ClientInitGuard>>>> =
   Lazy::new(|| Arc::new(Mutex::new(None)));
 const TIMEOUT: Duration = Duration::from_secs(2);
 
+fn get_tag(sentry_tags: HashMap<String, Value>, tag: String) -> Option<&Value> {
+  let tag_ref = &tag;
+  return sentry_tags.get(tag_ref);
+}
+
+fn value_to_string(value: &serde_json::Value) -> String {
+  match value {
+    serde_json::Value::String(inner) => inner.clone(),
+    other => other.to_string(),
+  }
+}
+
 #[napi]
 fn init_sentry() -> Result<(), Status> {
   if std::env::var("PARCEL_ENABLE_SENTRY").is_err() {
@@ -51,11 +63,11 @@ fn init_sentry() -> Result<(), Status> {
     ..Default::default()
   };
 
-  if let Some(release) = sentry_tags.get("release") {
-    sentry_client_options.release = Some(release.to_string().into());
+  if let Some(release) = value_to_string(sentry_tags.get("release")) {
+    sentry_client_options.release = Some(release.as_str().unwrap().into());
   }
-  if let Some(environment) = sentry_tags.get("environment") {
-    sentry_client_options.environment = Some(environment.to_string().into());
+  if let Some(environment) = value_to_string(sentry_tags.get("environment")) {
+    sentry_client_options.environment = Some(environment.as_str().unwrap().into());
   }
   if let Some(debug) = sentry_tags.get("debug") {
     sentry_client_options.debug = debug.to_string() == "true";
@@ -73,9 +85,10 @@ fn init_sentry() -> Result<(), Status> {
   });
 
   for (key, val) in sentry_tags {
-    configure_scope(|scope| scope.set_tag(&key, val));
+    configure_scope(|scope| scope.set_tag(&key, value_to_string(&val)));
   }
   log::info!("Parcel Sentry for rust setup done!");
+  panic!("test, please ignore");
   return Ok(());
 }
 
