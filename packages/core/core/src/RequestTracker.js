@@ -55,6 +55,7 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
+import {readFileSync, readdirSync} from 'fs';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -64,6 +65,10 @@ export const requestGraphEdgeTypes = {
   invalidated_by_create_above: 6,
   dirname: 7,
 };
+
+class FSBailoutError extends Error {
+  name: string = 'FSBailoutError';
+}
 
 export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
 
@@ -855,7 +860,7 @@ export class RequestGraph extends ContentGraph<
               predictedTime,
             },
           });
-          throw new Error(
+          throw new FSBailoutError(
             'Responding to file system events exceeded threshold, start with empty cache.',
           );
         }
@@ -1545,46 +1550,46 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   let requestGraphKey = `requestGraph-${cacheKey}`;
 
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
-    let {requestGraph} = await readAndDeserializeRequestGraph(
-      options.cache,
-      requestGraphKey,
-      cacheKey,
-    );
-
-    let opts = getWatcherOptions(options);
-    let snapshotKey = `snapshot-${cacheKey}`;
-    let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
-
-    let timeout = setTimeout(() => {
-      logger.warn({
-        origin: '@parcel/core',
-        message: `Retrieving file system events since last build...\nThis can take upto a minute after branch changes or npm/yarn installs.`,
-      });
-    }, 5000);
-    let startTime = Date.now();
-    let events = await options.inputFS.getEventsSince(
-      options.watchDir,
-      snapshotPath,
-      opts,
-    );
-    clearTimeout(timeout);
-
-    logger.verbose({
-      origin: '@parcel/core',
-      message: `File system event count: ${events.length}`,
-      meta: {
-        trackableEvent: 'watcher_events_count',
-        watcherEventCount: events.length,
-        duration: Date.now() - startTime,
-      },
-    });
-
-    requestGraph.invalidateUnpredictableNodes();
-    requestGraph.invalidateOnBuildNodes();
-    requestGraph.invalidateEnvNodes(options.env);
-    requestGraph.invalidateOptionNodes(options);
-
     try {
+      let {requestGraph} = await readAndDeserializeRequestGraph(
+        options.cache,
+        requestGraphKey,
+        cacheKey,
+      );
+
+      let opts = getWatcherOptions(options);
+      let snapshotKey = `snapshot-${cacheKey}`;
+      let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
+
+      let timeout = setTimeout(() => {
+        logger.warn({
+          origin: '@parcel/core',
+          message: `Retrieving file system events since last build...\nThis can take upto a minute after branch changes or npm/yarn installs.`,
+        });
+      }, 5000);
+      let startTime = Date.now();
+      let events = await options.inputFS.getEventsSince(
+        options.watchDir,
+        snapshotPath,
+        opts,
+      );
+      clearTimeout(timeout);
+
+      logger.verbose({
+        origin: '@parcel/core',
+        message: `File system event count: ${events.length}`,
+        meta: {
+          trackableEvent: 'watcher_events_count',
+          watcherEventCount: events.length,
+          duration: Date.now() - startTime,
+        },
+      });
+
+      requestGraph.invalidateUnpredictableNodes();
+      requestGraph.invalidateOnBuildNodes();
+      requestGraph.invalidateEnvNodes(options.env);
+      requestGraph.invalidateOptionNodes(options);
+
       await requestGraph.respondToFSEvents(
         options.unstableFileInvalidations || events,
         options,
@@ -1592,6 +1597,29 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       );
       return requestGraph;
     } catch (e) {
+      let additionalMessage;
+      if (e.message && e.message.includes('invalid clockspec')) {
+        const snapshotFile = readdirSync(options.cacheDir).find(file =>
+          file.endsWith('.txt'),
+        );
+        if (snapshotFile != null) {
+          additionalMessage = readFileSync(snapshotFile).toString('utf-8');
+        }
+      }
+      if (!(e instanceof FSBailoutError)) {
+        let logEvent = {
+          origin: '@parcel/core',
+          message: `Error loading cache from disk, building with clean cache.`,
+          meta: {
+            additionalMessage: ``,
+            trackableEvent: 'fs_bailout_error',
+          },
+        };
+        if (additionalMessage != null) {
+          logEvent.meta.additionalMessage = `Watchman failed reading clockspec, snapshot: ${additionalMessage}`;
+        }
+        logger.verbose(logEvent);
+      }
       // This error means respondToFSEvents timed out handling the invalidation events
       // In this case we'll return a fresh RequestGraph
       return new RequestGraph();
