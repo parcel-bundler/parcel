@@ -1621,8 +1621,6 @@ async function loadRequestGraph(options): Async<RequestGraph> {
           additionalMessage = readFileSync(
             path.join(options.cacheDir, snapshotFile),
           ).toString('utf-8');
-        }
-        if (additionalMessage != null) {
           logEvent.meta.additionalMessage = `Watchman failed reading clockspec, snapshot: ${additionalMessage}`;
         }
       }
