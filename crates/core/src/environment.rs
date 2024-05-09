@@ -1,13 +1,16 @@
-use std::{num::NonZeroU16, str::FromStr};
+use std::{num::NonZeroU16, str::FromStr, sync::OnceLock};
 
-use crate::types::{impl_bitflags_serde, SourceLocation};
+use crate::{
+  intern::{Interned, Interner},
+  types::{impl_bitflags_serde, SourceLocation},
+};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use parcel_resolver::IncludeNodeModules;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
   pub context: EnvironmentContext,
@@ -22,6 +25,7 @@ pub struct Environment {
 
 impl std::hash::Hash for Environment {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    // Doesn't include loc.
     self.context.hash(state);
     self.output_format.hash(state);
     self.source_type.hash(state);
@@ -32,7 +36,20 @@ impl std::hash::Hash for Environment {
   }
 }
 
-#[derive(PartialEq, Clone, Debug, Hash, Serialize, Deserialize)]
+impl PartialEq for Environment {
+  fn eq(&self, other: &Self) -> bool {
+    // Doesn't include loc.
+    self.context == other.context
+      && self.output_format == other.output_format
+      && self.source_type == other.source_type
+      && self.flags == other.flags
+      && self.source_map == other.source_map
+      && self.include_node_modules == other.include_node_modules
+      && self.engines == other.engines
+  }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TargetSourceMapOptions {
   source_root: Option<String>,
@@ -40,7 +57,7 @@ pub struct TargetSourceMapOptions {
   inline_sources: Option<bool>,
 }
 
-#[derive(PartialEq, Clone, Debug, Hash, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Default, Serialize, Deserialize)]
 pub struct Engines {
   #[serde(default)]
   pub browsers: Browsers,
@@ -139,7 +156,7 @@ impl<'de> serde::Deserialize<'de> for Version {
   }
 }
 
-#[derive(Default, PartialEq, Clone, Debug, Hash)]
+#[derive(Default, PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Browsers {
   pub android: Option<Version>,
   pub chrome: Option<Version>,
@@ -351,7 +368,7 @@ impl Engines {
 }
 
 bitflags! {
-  #[derive(Clone, Copy, Hash, Debug)]
+  #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
   pub struct EnvironmentFlags: u8 {
     const IS_LIBRARY = 1 << 0;
     const SHOULD_OPTIMIZE = 1 << 1;
@@ -361,7 +378,7 @@ bitflags! {
 
 impl_bitflags_serde!(EnvironmentFlags);
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum EnvironmentContext {
   Browser = 0,
@@ -398,17 +415,28 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum SourceType {
   Module = 0,
   Script = 1,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum OutputFormat {
   Global = 0,
   Commonjs = 1,
   Esmodule = 2,
+}
+
+fn env_interner() -> &'static Interner<Environment> {
+  static INTERNER: OnceLock<Interner<Environment>> = OnceLock::new();
+  INTERNER.get_or_init(|| Interner::new())
+}
+
+impl From<Environment> for Interned<Environment> {
+  fn from(value: Environment) -> Self {
+    env_interner().intern(value)
+  }
 }

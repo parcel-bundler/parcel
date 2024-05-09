@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
   environment::Environment,
+  intern::Interned,
   parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Request, RequestResult},
   transformers::run_transformer,
@@ -13,10 +14,10 @@ use xxhash_rust::xxh3::xxh3_64;
 #[derive(Hash, Debug)]
 pub struct AssetRequest<'a> {
   pub transformers: &'a PipelineMap,
-  pub file_path: PathBuf,
+  pub file_path: Interned<PathBuf>,
   pub code: Option<Vec<u8>>,
   pub pipeline: Option<String>,
-  pub env: Environment,
+  pub env: Interned<Environment>,
   pub side_effects: bool,
 }
 
@@ -75,7 +76,7 @@ impl<'a> Request for AssetRequest<'a> {
     let code = self
       .code
       .clone()
-      .unwrap_or_else(|| std::fs::read(&asset.file_path).unwrap());
+      .unwrap_or_else(|| std::fs::read(&asset.file_path.as_ref()).unwrap());
     let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
 
     result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));

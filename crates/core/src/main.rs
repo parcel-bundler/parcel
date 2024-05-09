@@ -21,7 +21,7 @@ fn main() {
   farm.register_worker(Arc::new(|req| match req {
     WorkerRequest::Entry(entry) => Ok(WorkerResult::Entry(vec![Entry {
       file_path: entry.entry.clone(),
-      package_path: "/".into(),
+      package_path: "/Users/devongovett/Downloads/bundler-benchmark/cases/all/package.json".into(),
       target: None,
     }])),
     WorkerRequest::ParcelConfig => Ok(WorkerResult::ParcelConfig(ParcelConfig::default())),
@@ -31,7 +31,7 @@ fn main() {
         output_format: OutputFormat::Esmodule,
         source_type: SourceType::Module,
         source_map: None,
-        flags: EnvironmentFlags::empty(),
+        flags: EnvironmentFlags::SHOULD_SCOPE_HOIST,
         loc: None,
         include_node_modules: parcel_resolver::IncludeNodeModules::Bool(true),
         engines: Engines {
@@ -40,7 +40,8 @@ fn main() {
           electron: None,
           parcel: None,
         },
-      },
+      }
+      .into(),
       dist_dir: String::new(),
       name: String::new(),
       dist_entry: None,
@@ -51,17 +52,20 @@ fn main() {
     _ => todo!(),
   }));
 
-  build(
-    vec!["/Users/devongovett/Downloads/bundler-benchmark/cases/all/src/index.js".into()],
+  let graph = build(
+    vec!["./src/index.js".into()],
+    // vec!["/Users/devongovett/Downloads/esm-test/index.mjs".into()],
     farm,
     &mut Cache::new(),
     ParcelOptions {
       mode: parcel_core::types::BuildMode::Development,
       env: Default::default(),
       log_level: parcel_core::types::LogLevel::Info,
-      project_root: "/".into(),
+      project_root: "/Users/devongovett/Downloads/bundler-benchmark/cases/all".into(),
     },
   );
+
+  // println!("{:#?}", graph);
 
   // println!("tracker {:?}", request_tracker);
 }

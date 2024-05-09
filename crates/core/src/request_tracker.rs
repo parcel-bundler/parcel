@@ -1,5 +1,5 @@
 use std::{
-  collections::{hash_map::DefaultHasher, HashMap},
+  collections::HashMap,
   hash::{Hash, Hasher},
 };
 
@@ -12,6 +12,7 @@ use crate::{
   },
   types::ParcelOptions,
 };
+use gxhash::GxHasher;
 use petgraph::graph::{DiGraph, NodeIndex};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -19,7 +20,7 @@ pub trait Request: Hash + Sync {
   type Output: Send + Clone;
 
   fn id(&self) -> u64 {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = GxHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher); // ???
     self.hash(&mut hasher);
     hasher.finish()

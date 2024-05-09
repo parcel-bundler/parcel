@@ -658,6 +658,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gxhash"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "370b2ac6cb58eb38e600bf6a783f8cca3f164d5fe5e501ad274d5dc8e94c7212"
+dependencies = [
+ "rand",
+ "rustc_version 0.4.0",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1252,6 +1262,7 @@ dependencies = [
  "dashmap",
  "fixedbitset",
  "glob-match",
+ "gxhash",
  "indexmap 1.9.3",
  "itertools 0.10.5",
  "lazy_static",

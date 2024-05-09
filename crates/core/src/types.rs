@@ -1,18 +1,15 @@
-use crate::environment::Environment;
+use crate::{environment::Environment, intern::Interned};
 use bitflags::bitflags;
+use gxhash::GxHasher;
 use parcel_resolver::ExportsCondition;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{
-  collections::{hash_map::DefaultHasher, HashMap},
-  num::NonZeroU32,
-  path::PathBuf,
-};
+use std::{collections::HashMap, num::NonZeroU32, path::PathBuf};
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
-  pub env: Environment,
+  pub env: Interned<Environment>,
   pub dist_dir: String,
   pub dist_entry: Option<String>,
   pub name: String,
@@ -25,15 +22,15 @@ pub struct Target {
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct EnvironmentId(pub NonZeroU32);
 
-#[derive(PartialEq, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
-  pub file_path: PathBuf,
+  pub file_path: Interned<PathBuf>,
   pub start: Location,
   pub end: Location,
 }
 
-#[derive(PartialEq, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct Location {
   pub line: u32,
   pub column: u32,
@@ -45,8 +42,8 @@ pub struct AssetId(pub NonZeroU32);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
-  pub file_path: PathBuf,
-  pub env: Environment,
+  pub file_path: Interned<PathBuf>,
+  pub env: Interned<Environment>,
   pub query: Option<String>,
   #[serde(rename = "type")]
   pub asset_type: AssetType,
@@ -65,7 +62,7 @@ pub struct Asset {
 impl Asset {
   pub fn id(&self) -> u64 {
     use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = GxHasher::default();
     self.file_path.hash(&mut hasher);
     self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);
@@ -205,9 +202,9 @@ pub struct Dependency {
   pub source_asset_id: Option<String>,
   pub specifier: String,
   pub specifier_type: SpecifierType,
-  pub source_path: Option<PathBuf>,
-  pub env: Environment,
-  pub resolve_from: Option<PathBuf>,
+  pub source_path: Option<Interned<PathBuf>>,
+  pub env: Interned<Environment>,
+  pub resolve_from: Option<Interned<PathBuf>>,
   pub range: Option<String>,
   pub priority: Priority,
   pub bundle_behavior: BundleBehavior,
@@ -237,7 +234,7 @@ pub struct Dependency {
 }
 
 impl Dependency {
-  pub fn new(specifier: String, env: Environment) -> Dependency {
+  pub fn new(specifier: String, env: Interned<Environment>) -> Dependency {
     Dependency {
       // id: String::default(),
       source_asset_id: None,
@@ -267,7 +264,7 @@ impl Dependency {
   pub fn id(&self) -> u64 {
     // Compute hashed dependency id.
     use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = GxHasher::default();
     self.source_path.hash(&mut hasher);
     self.specifier.hash(&mut hasher);
     self.specifier_type.hash(&mut hasher);
@@ -341,8 +338,8 @@ impl Default for Priority {
 
 #[derive(Clone, Debug, Hash, Serialize, Deserialize)]
 pub struct Symbol {
-  pub exported: String,
-  pub local: String,
+  pub exported: Interned<String>,
+  pub local: Interned<String>,
   pub loc: Option<SourceLocation>,
   pub flags: SymbolFlags,
 }
@@ -366,7 +363,7 @@ pub struct Bundle {
   pub hash_reference: String,
   #[serde(rename = "type")]
   pub bundle_type: AssetType,
-  pub env: Environment,
+  pub env: Interned<Environment>,
   pub entry_asset_ids: Vec<String>,
   pub main_entry_id: Option<String>,
   pub flags: BundleFlags,
@@ -394,7 +391,7 @@ pub struct ParcelOptions {
   pub mode: BuildMode,
   pub env: HashMap<String, String>,
   pub log_level: LogLevel,
-  pub project_root: PathBuf,
+  pub project_root: Interned<PathBuf>,
 }
 
 #[derive(Clone, PartialEq, Debug)]

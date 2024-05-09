@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use indexmap::{indexmap, IndexMap};
 use parcel_js_swc_core::{
@@ -13,6 +13,7 @@ use parcel_resolver::{
 use crate::environment::{
   Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, OutputFormat, SourceType,
 };
+use crate::intern::Interned;
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
 use crate::requests::path_request::CACHE;
 use crate::types::{
@@ -220,7 +221,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>, options: &'a ParcelOptions) -> Confi
   }
 
   Config {
-    filename: asset.file_path.clone(),
+    filename: (*asset.file_path).clone(),
     code,
     module_id: format!("{:016x}", asset.id()),
     project_root: Cow::Borrowed(&options.project_root),
@@ -277,8 +278,8 @@ fn convert_result(
   config: &Config,
   mut result: TransformResult,
 ) -> AssetRequestResult {
-  let file_path = asset.file_path.clone();
-  let env = asset.env.clone();
+  let file_path = asset.file_path;
+  let env = asset.env;
   let asset_id = asset.id();
 
   asset
@@ -306,7 +307,7 @@ fn convert_result(
   let mut invalidate_on_file_change = Vec::new();
 
   for dep in result.dependencies {
-    let loc = convert_loc(file_path.clone(), &dep.loc);
+    let loc = convert_loc(file_path, &dep.loc);
     let placeholder = dep
       .placeholder
       .as_ref()
@@ -348,8 +349,9 @@ fn convert_result(
             },
             output_format,
             loc: Some(loc.clone()),
-            ..env.clone()
-          },
+            ..(*env).clone()
+          }
+          .into(),
           resolve_from: None,
           range: None,
           priority: Priority::Lazy,
@@ -388,8 +390,9 @@ fn convert_result(
             },
             output_format: OutputFormat::Global,
             loc: Some(loc.clone()),
-            ..env.clone()
-          },
+            ..(*env).clone()
+          }
+          .into(),
           resolve_from: None,
           range: None,
           priority: Priority::Lazy,
@@ -421,8 +424,9 @@ fn convert_result(
             source_type: SourceType::Module,
             output_format: OutputFormat::Esmodule,
             loc: Some(loc.clone()),
-            ..env.clone()
-          },
+            ..(*env).clone()
+          }
+          .into(),
           resolve_from: None,
           range: None,
           priority: Priority::Lazy,
@@ -449,7 +453,7 @@ fn convert_result(
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
-          env: env.clone(),
+          env,
           resolve_from: None,
           range: None,
           priority: Priority::Lazy,
@@ -481,7 +485,7 @@ fn convert_result(
           matches!(dep.kind, DependencyKind::Import | DependencyKind::Export),
         );
 
-        let mut env = env.clone();
+        let mut env = env;
         if dep.kind == DependencyKind::DynamicImport {
           // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
           if matches!(
@@ -526,8 +530,9 @@ fn convert_result(
               source_type: SourceType::Module,
               output_format,
               loc: Some(loc.clone()),
-              ..env.clone()
-            };
+              ..(*env).clone()
+            }
+            .into();
           }
         }
 
@@ -538,8 +543,9 @@ fn convert_result(
         if is_helper && !env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           env = Environment {
             include_node_modules: IncludeNodeModules::Bool(true),
-            ..env.clone()
-          };
+            ..(*env).clone()
+          }
+          .into();
         }
 
         // Add required version range for helpers.
@@ -553,9 +559,12 @@ fn convert_result(
             range = Some("^0.13.7".into());
           }
 
-          resolve_from = Some(PathBuf::from(
-            "/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js",
-          ));
+          resolve_from = Some(
+            Path::new(
+              "/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js",
+            )
+            .into(),
+          );
         }
 
         let mut import_attributes = Vec::new();
@@ -613,11 +622,13 @@ fn convert_result(
         include_node_modules: IncludeNodeModules::Map(indexmap! {
           "@parcel/transformer-js".into() => true
         }),
-        ..env.clone()
-      },
-      resolve_from: Some(PathBuf::from(
-        "/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js",
-      )),
+        ..(*env).clone()
+      }
+      .into(),
+      resolve_from: Some(
+        Path::new("/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js")
+          .into(),
+      ),
       range: None,
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
@@ -770,11 +781,11 @@ fn convert_result(
           .as_ref()
           .and_then(|source| dep_map.get_mut(source))
         {
-          let local = format!("${:016x}${}", dep.id(), sym.local);
+          let local = format!("${:016x}${}", dep.id(), sym.local).into();
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
-            local: local.clone(),
-            loc: Some(convert_loc(file_path.clone(), &sym.loc)),
+            local: local,
+            loc: Some(convert_loc(file_path, &sym.loc)),
             flags: SymbolFlags::IS_WEAK,
           });
           (local, SymbolFlags::IS_WEAK)
@@ -785,7 +796,7 @@ fn convert_result(
         symbols.push(Symbol {
           exported: sym.exported.as_ref().into(),
           local,
-          loc: Some(convert_loc(file_path.clone(), &sym.loc)),
+          loc: Some(convert_loc(file_path, &sym.loc)),
           flags,
         });
       }
@@ -795,7 +806,7 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: sym.imported.as_ref().into(),
             local: sym.local.as_ref().into(),
-            loc: Some(convert_loc(file_path.clone(), &sym.loc)),
+            loc: Some(convert_loc(file_path, &sym.loc)),
             flags: SymbolFlags::empty(),
           });
         }
@@ -806,7 +817,7 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: "*".into(),
             local: "*".into(),
-            loc: Some(convert_loc(file_path.clone(), &sym.loc)),
+            loc: Some(convert_loc(file_path, &sym.loc)),
             flags: SymbolFlags::IS_WEAK,
           });
         }
@@ -844,7 +855,7 @@ fn convert_result(
       if dep.symbols.is_empty() {
         dep.symbols.push(Symbol {
           exported: "*".into(),
-          local: format!("${}$", dep.placeholder.as_ref().unwrap_or(&dep.specifier)).clone(),
+          local: format!("${}$", dep.placeholder.as_ref().unwrap_or(&dep.specifier)).into(),
           flags: SymbolFlags::empty(),
           loc: None,
         });
@@ -887,7 +898,7 @@ fn convert_result(
 }
 
 fn convert_loc(
-  file_path: PathBuf,
+  file_path: Interned<PathBuf>,
   loc: &parcel_js_swc_core::SourceLocation,
   // map: &mut Option<SourceMap>,
 ) -> SourceLocation {

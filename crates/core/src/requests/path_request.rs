@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
   environment::{EnvironmentContext, EnvironmentFlags},
+  intern::Interned,
   parcel_config::PluginNode,
   request_tracker::{Request, RequestResult},
   types::{Dependency, ParcelOptions, SpecifierType},
@@ -93,7 +94,7 @@ pub enum ResolverResult {
   NotResolved,
   Excluded,
   Resolved {
-    path: PathBuf,
+    path: Interned<PathBuf>,
     code: Option<Vec<u8>>,
     pipeline: Option<String>,
     side_effects: bool,
@@ -108,8 +109,10 @@ impl Resolver for DefaultResolver {
     dep: &Dependency,
     options: &ParcelOptions,
   ) -> RequestResult<ResolverResult> {
-    let mut resolver =
-      parcel_resolver::Resolver::parcel(Cow::Borrowed(Path::new("/")), CacheCow::Borrowed(&CACHE));
+    let mut resolver = parcel_resolver::Resolver::parcel(
+      Cow::Borrowed(&options.project_root),
+      CacheCow::Borrowed(&CACHE),
+    );
 
     resolver
       .conditions
@@ -146,11 +149,11 @@ impl Resolver for DefaultResolver {
       specifier,
       dep
         .resolve_from
+        .or(dep.source_path)
         .as_ref()
-        .or(dep.source_path.as_ref())
-        .as_ref()
-        .map(|p| p.as_path())
-        .unwrap_or(Path::new("/")),
+        .map(|p| Cow::Borrowed(p.as_path()))
+        .unwrap_or_else(|| Cow::Owned(options.project_root.join("index")))
+        .as_ref(),
       match dep.specifier_type {
         SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
         SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
@@ -175,7 +178,7 @@ impl Resolver for DefaultResolver {
     match res.result.unwrap().0 {
       Resolution::Path(path) => RequestResult {
         result: Ok(ResolverResult::Resolved {
-          path,
+          path: path.into(),
           code: None,
           pipeline: None,
           side_effects,
