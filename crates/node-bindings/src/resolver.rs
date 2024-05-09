@@ -343,6 +343,12 @@ impl Resolver {
         "esm" => SpecifierType::Esm,
         "commonjs" => SpecifierType::Cjs,
         "url" => SpecifierType::Url,
+        "custom" => {
+          return Err(napi::Error::new(
+            napi::Status::InvalidArg,
+            "Unsupported specifier type: custom",
+          ))
+        }
         _ => {
           return Err(napi::Error::new(
             napi::Status::InvalidArg,
