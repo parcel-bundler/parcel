@@ -1548,6 +1548,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
 
   let cacheKey = getCacheKey(options);
   let requestGraphKey = `requestGraph-${cacheKey}`;
+  let timeout;
 
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     try {
@@ -1561,7 +1562,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       let snapshotKey = `snapshot-${cacheKey}`;
       let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
 
-      let timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         logger.warn({
           origin: '@parcel/core',
           message: `Retrieving file system events since last build...\nThis can take upto a minute after branch changes or npm/yarn installs.`,
@@ -1597,27 +1598,44 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       );
       return requestGraph;
     } catch (e) {
+      if (timeout != null) {
+        clearTimeout(timeout);
+      }
       let additionalMessage;
+      let logEvent;
       if (e.message && e.message.includes('invalid clockspec')) {
+        // Note this assumes only one snapshot file per cache and will potentially break
+        // if multiple snapshot files exist in the cache directory
         const snapshotFile = readdirSync(options.cacheDir).find(file =>
           file.endsWith('.txt'),
         );
-        if (snapshotFile != null) {
-          additionalMessage = readFileSync(snapshotFile).toString('utf-8');
-        }
-      }
-      if (!(e instanceof FSBailoutError)) {
-        let logEvent = {
+        logEvent = {
           origin: '@parcel/core',
-          message: `Error loading cache from disk, building with clean cache.`,
+          message: `Error reading clockspec from snapshot, building with clean cache.`,
           meta: {
             additionalMessage: ``,
-            trackableEvent: 'fs_bailout_error',
+            trackableEvent: 'invalid_clockspec_error',
           },
         };
+        if (snapshotFile != null) {
+          additionalMessage = readFileSync(
+            path.join(options.cacheDir, snapshotFile),
+          ).toString('utf-8');
+        }
         if (additionalMessage != null) {
           logEvent.meta.additionalMessage = `Watchman failed reading clockspec, snapshot: ${additionalMessage}`;
         }
+      }
+      if (!(e instanceof FSBailoutError)) {
+        logEvent = {
+          origin: '@parcel/core',
+          message: `Unexpected error loading cache from disk, building with clean cache.`,
+          meta: {
+            trackableEvent: 'cache_load_error',
+          },
+        };
+      }
+      if (logEvent != null) {
         logger.verbose(logEvent);
       }
       // This error means respondToFSEvents timed out handling the invalidation events
