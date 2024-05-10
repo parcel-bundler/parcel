@@ -3,13 +3,12 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-
 use parcel_core::requests::config_request::run_config_request;
 use parcel_core::requests::config_request::ConfigRequest;
 use parcel_core::requests::request_api::js_request_api::JSRequestApi;
 
-use crate::core::js_requests::request_options::input_fs_from_options;
-use crate::core::js_requests::request_options::project_root_from_options;
+use crate::core::parcel_options::input_fs_from_options;
+use crate::core::parcel_options::project_root_from_options;
 
 /// JavaScript API for running a config request.
 /// At the moment the request fields themselves will be copied on call.

@@ -1,3 +1,4 @@
+pub mod js_package_manager;
 pub mod package_manager;
 
 pub use package_manager::MockPackageManager;

@@ -15,6 +15,7 @@ import type {
   ProcessedParcelConfig,
 } from '../types';
 
+import { napiParcelConfig } from '@parcel/rust';
 import {
   isDirectoryInside,
   hashObject,
@@ -130,13 +131,31 @@ export function getCachedParcelConfig(
 export async function loadParcelConfig(
   options: ParcelOptions,
 ): Promise<{|...ParcelConfigChain, usedDefault: boolean|}> {
-  let parcelConfig = await resolveParcelConfig(options);
+  if (true) {
+let parcelConfig = napiParcelConfig({
+  config: options.config,
+  defaultConfig: options.defaultConfig,
+  inputFS: options.inputFS,
+  packageManager: {
+    resolve: async () => {
+      console.log("resolving...");
+      return { resolved: "/foobar", somethingElse: "kljdkjd" }
+    },
+  },
+  projectRoot: options.projectRoot,
+});
 
-  if (!parcelConfig) {
-    throw new Error('Could not find a .parcelrc');
+    console.log('parcel config...', parcelConfig);
+
+  } else {
+    let parcelConfig = await resolveParcelConfig(options);
+
+    if (!parcelConfig) {
+      throw new Error('Could not find a .parcelrc');
+    }
+
+    return parcelConfig;
   }
-
-  return parcelConfig;
 }
 
 export async function resolveParcelConfig(

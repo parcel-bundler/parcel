@@ -10,11 +10,13 @@ pub struct Resolution {
 
 #[derive(Debug, Error)]
 pub enum ResolveError {
+  #[error("{0}")]
+  JsError(String),
   #[error("Cannot find module '{0}' from {1}")]
   NotFound(String, String),
 }
 
 #[automock]
 pub trait PackageManager {
-  fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError>;
+  async fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError>;
 }

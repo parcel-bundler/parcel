@@ -17,9 +17,11 @@ openssl = ["sentry/native-tls"]
 napi-derive = "2.16.3"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parcel_filesystem = { path = "../parcel_filesystem" }
+parcel_config = { path = "../parcel_config" }
 parcel_core = { path = "../parcel_core" }
+parcel_filesystem = { path = "../parcel_filesystem" }
 parcel_napi_helpers = { path = "../parcel_napi_helpers" }
+parcel_package_manager = { path = "../parcel_package_manager" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 log = "0.4.21"
@@ -36,7 +38,7 @@ sentry = { version = "0.32.2", optional = true, default-features = false, featur
 whoami = { version = "1.5.1", optional = true }
 once_cell = { version = "1.19.0", optional = true }
 
-napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5"] }
+napi = { version = "2.16.4", features = ["async", "serde-json", "napi4", "napi5"] }
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 oxipng = "8.0.0"

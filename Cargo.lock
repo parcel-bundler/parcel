@@ -1448,6 +1448,7 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1768,9 +1769,11 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel-macros",
  "parcel-resolver",
+ "parcel_config",
  "parcel_core",
  "parcel_filesystem",
  "parcel_napi_helpers",
+ "parcel_package_manager",
  "rayon",
  "sentry",
  "serde",
@@ -1861,7 +1864,12 @@ dependencies = [
 name = "parcel_package_manager"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "mockall",
+ "napi",
+ "parcel_napi_helpers",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -3792,6 +3800,7 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
+ "num_cpus",
  "pin-project-lite",
  "socket2",
  "windows-sys 0.48.0",

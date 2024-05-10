@@ -3,6 +3,7 @@
 //! This is a rewrite of the `packages/core/core/src/requests/ConfigRequest.js`
 //! file.
 use std::path::Path;
+use std::path::PathBuf;
 
 use napi_derive::napi;
 use parcel_resolver::FileSystem;
@@ -79,7 +80,7 @@ fn hash_serde_value(value: &serde_json::Value) -> anyhow::Result<String> {
 fn get_config_key_content_hash(
   config_key: &str,
   input_fs: &impl FileSystem,
-  project_root: &str,
+  project_root: &PathBuf,
   file_path: &Path,
 ) -> napi::Result<String> {
   let mut path = Path::new(project_root).to_path_buf();
@@ -104,7 +105,7 @@ pub fn run_config_request(
   config_request: &ConfigRequest,
   api: &impl RequestApi,
   input_fs: &impl FileSystem,
-  project_root: &str,
+  project_root: &PathBuf,
 ) -> napi::Result<()> {
   for file_path in &config_request.invalidate_on_file_change {
     let file_path = file_path.as_ref();

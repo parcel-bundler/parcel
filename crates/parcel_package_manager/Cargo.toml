@@ -5,5 +5,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.82"
 mockall = "0.12.1"
+napi = "2.16.4"
+parcel_napi_helpers = { path = "../parcel_napi_helpers" }
+serde = { version = "1.0.123", features = ["derive"] }
+serde_json = "1.0.116"
 thiserror = "1.0.59"

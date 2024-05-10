@@ -114,6 +114,7 @@ export default class Parcel {
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
     );
+
     this.#resolvedOptions = resolvedOptions;
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
