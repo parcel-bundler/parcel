@@ -53,7 +53,7 @@ impl FileSystem for JSDelegateFileSystem {
       let result = call_method(
         &self.env,
         &self.js_delegate,
-        "canonicalize",
+        "realpathSync",
         &[&js_path.into_unknown()],
       )?;
       Ok(path_from_js(result)?)
