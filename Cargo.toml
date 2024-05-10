@@ -9,3 +9,4 @@ members = [
 
 [profile.canary]
 inherits = "release"
+debug = true

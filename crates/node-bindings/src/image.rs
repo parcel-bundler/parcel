@@ -1,11 +1,17 @@
-use mozjpeg_sys::*;
-use napi::bindgen_prelude::*;
-use napi::{Env, Error, JsBuffer, Result};
-use napi_derive::napi;
-use oxipng::{optimize_from_memory, Headers, Options};
 use std::mem;
 use std::ptr;
 use std::slice;
+
+use mozjpeg_sys::*;
+use napi::bindgen_prelude::*;
+use napi::Env;
+use napi::Error;
+use napi::JsBuffer;
+use napi::Result;
+use napi_derive::napi;
+use oxipng::optimize_from_memory;
+use oxipng::Headers;
+use oxipng::Options;
 
 #[napi]
 pub fn optimize_image(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
@@ -26,7 +32,12 @@ pub fn optimize_image(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
       match optimize_jpeg(slice) {
         Ok(res) => Ok(
           env
-            .create_buffer_with_borrowed_data(res.as_ptr(), res.len(), res.as_mut_ptr(), finalize)?
+            .create_buffer_with_borrowed_data(
+              res.as_mut_ptr(),
+              res.len(),
+              res.as_mut_ptr(),
+              finalize,
+            )?
             .into_raw(),
         ),
         Err(err) => {

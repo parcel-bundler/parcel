@@ -1,13 +1,13 @@
-use std::{
-  borrow::Cow,
-  path::{Path, PathBuf},
-};
+use std::borrow::Cow;
+use std::path::Path;
+use std::path::PathBuf;
 
 use indexmap::IndexMap;
 use itertools::Either;
 use json_comments::strip_comments_in_place;
 
-use crate::{path::resolve_path, specifier::Specifier};
+use crate::path::resolve_path;
+use crate::specifier::Specifier;
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -186,8 +186,9 @@ fn base_url_iter<'a>(
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use indexmap::indexmap;
+
+  use super::*;
 
   #[test]
   fn test_paths() {

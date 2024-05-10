@@ -133,6 +133,10 @@ export class IDBCache implements Cache {
     return this.setBlob(key, contents);
   }
 
+  async deleteLargeBlob(key: string): Promise<void> {
+    await (await this.store).delete(STORE_NAME, key);
+  }
+
   refresh(): void {
     // NOOP
   }

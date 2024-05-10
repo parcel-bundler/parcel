@@ -16,7 +16,11 @@
   "main": "lib/cli.js",
   "source": "src/cli.js",
   "bin": {
-    "parcel-bundle-stats": "src/bin.js"
+    "parcel-bundle-stats": "bin/bundle-stats.js"
+  },
+  "scripts": {
+    "prepack": "./ensure-no-dev-lib.sh",
+    "dev:prepare": "rimraf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
   },
   "engines": {
     "node": ">= 16.0.0",
@@ -31,6 +35,7 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "2.12.0",
-    "@parcel/types": "2.12.0"
+    "@parcel/types": "2.12.0",
+    "rimraf": "^5.0.5"
   }
 }

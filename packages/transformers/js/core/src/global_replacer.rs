@@ -1,16 +1,25 @@
-use indexmap::IndexMap;
-use path_slash::PathBufExt;
 use std::path::Path;
 
-use swc_core::common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
-use swc_core::ecma::ast::{self, ComputedPropName};
-use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::visit::{Fold, FoldWith};
+use indexmap::IndexMap;
+use path_slash::PathBufExt;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::common::SyntaxContext;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::ComputedPropName;
+use swc_core::ecma::ast::{self};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
-use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::utils::{
-  create_global_decl_stmt, create_require, is_unresolved, SourceLocation, SourceType,
-};
+use crate::dependency_collector::DependencyDescriptor;
+use crate::dependency_collector::DependencyKind;
+use crate::utils::create_global_decl_stmt;
+use crate::utils::create_require;
+use crate::utils::is_unresolved;
+use crate::utils::SourceLocation;
+use crate::utils::SourceType;
 
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
@@ -25,7 +34,10 @@ pub struct GlobalReplacer<'a> {
 
 impl<'a> Fold for GlobalReplacer<'a> {
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    use ast::{Expr::*, Ident, MemberExpr, MemberProp};
+    use ast::Expr::*;
+    use ast::Ident;
+    use ast::MemberExpr;
+    use ast::MemberProp;
 
     // Do not traverse into the `prop` side of member expressions unless computed.
     let mut node = match node {

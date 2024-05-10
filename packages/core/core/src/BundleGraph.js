@@ -174,7 +174,9 @@ export default class BundleGraph {
         : null;
     invariant(assetGraphRootNode != null && assetGraphRootNode.type === 'root');
 
-    for (let [nodeId, node] of assetGraph.nodes.entries()) {
+    assetGraph.dfsFast(nodeId => {
+      let node = assetGraph.getNode(nodeId);
+
       if (node != null && node.type === 'asset') {
         let {id: assetId} = node.value;
         // Generate a new, short public id for this asset to use.
@@ -190,7 +192,7 @@ export default class BundleGraph {
       } else if (node != null && node.type === 'asset_group') {
         assetGroupIds.set(nodeId, assetGraph.getNodeIdsConnectedFrom(nodeId));
       }
-    }
+    });
 
     let walkVisited = new Set();
     function walk(nodeId) {

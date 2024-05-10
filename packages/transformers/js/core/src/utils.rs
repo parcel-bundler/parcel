@@ -1,16 +1,28 @@
-use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use swc_core::common::errors::{DiagnosticBuilder, Emitter};
-use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
-use swc_core::ecma::ast::{self, Ident};
-use swc_core::ecma::atoms::{js_word, JsWord};
+
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::errors::DiagnosticBuilder;
+use swc_core::common::errors::Emitter;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::common::Span;
+use swc_core::common::SyntaxContext;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::Ident;
+use swc_core::ecma::ast::{self};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
 
 pub fn is_unresolved(ident: &Ident, unresolved_mark: Mark) -> bool {
   ident.span.ctxt.outer() == unresolved_mark
 }
 
 pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, unresolved_mark: Mark) -> bool {
-  use ast::{Expr, Lit, MemberProp, Str};
+  use ast::Expr;
+  use ast::Lit;
+  use ast::MemberProp;
+  use ast::Str;
 
   let mut member = expr;
   let mut idents = idents;

@@ -1,1 +1,3 @@
 tab_spaces = 2
+imports_granularity = "Item"
+group_imports = "StdExternalCrate"
