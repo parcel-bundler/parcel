@@ -44,16 +44,17 @@ import createAssetRequest from './requests/AssetRequest';
 import createPathRequest from './requests/PathRequest';
 import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
+import {mainWorkerHandler} from './nativeWorker/handler';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initRust, initSentry, closeSentry} from '@parcel/rust';
+import {init as initRust, initSentry, closeSentry, mainWorker} from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
   fromProjectPathRelative,
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
-import {setFeatureFlags} from '@parcel/feature-flags';
+import {setFeatureFlags, getFeatureFlag} from '@parcel/feature-flags';
 
 registerCoreWithSerializer();
 
@@ -166,6 +167,10 @@ export default class Parcel {
       farm: this.#farm,
       options: resolvedOptions,
     });
+
+    if (getFeatureFlag('parcelV3')) {
+      mainWorker(mainWorkerHandler())
+    }
 
     this.#initialized = true;
   }
