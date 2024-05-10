@@ -3,7 +3,6 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-
 use parcel_core::requests::config_request::run_config_request;
 use parcel_core::requests::config_request::ConfigRequest;
 use parcel_core::requests::request_api::js_request_api::JSRequestApi;

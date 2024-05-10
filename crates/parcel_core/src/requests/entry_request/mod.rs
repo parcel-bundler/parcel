@@ -173,8 +173,9 @@ pub fn run_entry_request(
 
 #[cfg(test)]
 mod test {
-  use super::*;
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+
+  use super::*;
 
   #[test]
   fn test_merge_results() {
