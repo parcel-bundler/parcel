@@ -111,6 +111,7 @@ describe('webextension', function () {
         assets: ['manifest.json'],
       },
       {assets: ['background.js']},
+      {assets: ['background.js']},
       {assets: ['popup.html']},
       {assets: ['popup.css']},
       {assets: ['popup.js', 'esmodule-helpers.js', 'bundle-url.js']},
