@@ -273,7 +273,8 @@ async function collectDependencies(
         ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
       },
     });
-  } else if (program.background?.service_worker) {
+  }
+  if (program.background?.service_worker) {
     program.background.service_worker = asset.addURLDependency(
       program.background.service_worker,
       {
