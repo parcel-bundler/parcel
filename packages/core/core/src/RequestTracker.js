@@ -55,7 +55,7 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
-import {readFileSync, readdirSync} from 'fs';
+import {readFileSync} from 'fs';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -1549,7 +1549,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   let cacheKey = getCacheKey(options);
   let requestGraphKey = `requestGraph-${cacheKey}`;
   let timeout;
-
+  let snapshotKey = `snapshot-${cacheKey}`;
+  let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     try {
       let {requestGraph} = await readAndDeserializeRequestGraph(
@@ -1559,8 +1560,6 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       );
 
       let opts = getWatcherOptions(options);
-      let snapshotKey = `snapshot-${cacheKey}`;
-      let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
 
       timeout = setTimeout(() => {
         logger.warn({
@@ -1604,11 +1603,6 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       let additionalMessage;
       let logEvent;
       if (e.message && e.message.includes('invalid clockspec')) {
-        // Note this assumes only one snapshot file per cache and will potentially break
-        // if multiple snapshot files exist in the cache directory
-        const snapshotFile = readdirSync(options.cacheDir).find(file =>
-          file.endsWith('.txt'),
-        );
         logEvent = {
           origin: '@parcel/core',
           message: `Error reading clockspec from snapshot, building with clean cache.`,
@@ -1617,12 +1611,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
             trackableEvent: 'invalid_clockspec_error',
           },
         };
-        if (snapshotFile != null) {
-          additionalMessage = readFileSync(
-            path.join(options.cacheDir, snapshotFile),
-          ).toString('utf-8');
-          logEvent.meta.additionalMessage = `Watchman failed reading clockspec, snapshot: ${additionalMessage}`;
-        }
+        additionalMessage = readFileSync(snapshotPath).toString('utf-8');
+        logEvent.meta.additionalMessage = `Watchman failed reading clockspec, snapshot: ${additionalMessage}`;
       }
       if (!(e instanceof FSBailoutError)) {
         logEvent = {
