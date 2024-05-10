@@ -1468,6 +1468,7 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1816,6 +1817,7 @@ dependencies = [
  "sentry",
  "serde",
  "serde_json",
+ "tokio",
  "toml",
  "whoami",
  "xxhash-rust",
@@ -2834,6 +2836,15 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -3859,9 +3870,28 @@ dependencies = [
  "libc",
  "mio",
  "num_cpus",
+<<<<<<< HEAD
  "pin-project-lite",
  "socket2 0.4.10",
+=======
+ "parking_lot",
+ "pin-project-lite",
+ "signal-hook-registry",
+ "socket2",
+ "tokio-macros",
+>>>>>>> 392de4400 (Outgoing message platform)
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
