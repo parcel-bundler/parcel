@@ -60,10 +60,7 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
     dir.join("index")
   }
 
-  async fn load_config(
-    &self,
-    path: PathBuf,
-  ) -> Result<(PartialParcelConfig, Vec<PathBuf>), ConfigError> {
+  fn load_config(&self, path: PathBuf) -> Result<(PartialParcelConfig, Vec<PathBuf>), ConfigError> {
     let parcel_rc =
       self
         .fs
@@ -79,10 +76,10 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
         source,
       })?;
 
-    self.process_config(&ParcelRcFile { path, contents }).await
+    self.process_config(&ParcelRcFile { path, contents })
   }
 
-  async fn resolve_extends(
+  fn resolve_extends(
     &self,
     config_path: &PathBuf,
     extend: &String,
@@ -93,7 +90,6 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
       self
         .package_manager
         .resolve(extend, config_path)
-        .await
         .map_err(|source| ConfigError::UnresolvedConfig {
           config_type: String::from("extended config"),
           from: PathBuf::from(config_path),
@@ -121,7 +117,7 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
   /// into the base config for a more natural merging order. It will replace any "..." seen in
   /// plugin pipelines with the corresponding plugins from "extends" if present.
   ///
-  async fn process_config(
+  fn process_config(
     &self,
     parcel_rc: &ParcelRcFile,
   ) -> Result<(PartialParcelConfig, Vec<PathBuf>), ConfigError> {
@@ -141,8 +137,8 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
 
     let mut merged_config: Option<PartialParcelConfig> = None;
     for extend in extends {
-      let extended_file_path = self.resolve_extends(&parcel_rc.path, &extend).await?;
-      let (extended_config, mut extended_file_paths) = self.load_config(extended_file_path).await?;
+      let extended_file_path = self.resolve_extends(&parcel_rc.path, &extend)?;
+      let (extended_config, mut extended_file_paths) = self.load_config(extended_file_path)?;
 
       merged_config = match merged_config {
         None => Some(extended_config),
@@ -167,7 +163,7 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
   /// current working directory does not live within the project root, the default config will be
   /// loaded from the project root.
   ///
-  pub async fn load(
+  pub fn load(
     &self,
     project_root: &PathBuf,
     options: LoadConfigOptions<'a>,
@@ -177,7 +173,6 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
       Some(config) => self
         .package_manager
         .resolve(&config, &resolve_from)
-        .await
         .map(|r| r.resolved)
         .map_err(|source| ConfigError::UnresolvedConfig {
           config_type: String::from("config"),
@@ -193,7 +188,6 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
         config_path = self
           .package_manager
           .resolve(&fallback_config, &resolve_from)
-          .await
           .map(|r| r.resolved)
           .map_err(|source| ConfigError::UnresolvedConfig {
             config_type: String::from("fallback"),
@@ -205,7 +199,7 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
     }
 
     let config_path = config_path?;
-    let (mut parcel_config, files) = self.load_config(config_path).await?;
+    let (mut parcel_config, files) = self.load_config(config_path)?;
 
     if options.additional_reporters.len() > 0 {
       parcel_config.reporters.extend(options.additional_reporters);
@@ -312,7 +306,6 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
 
 //       let err = ParcelRcConfigLoader::new(&fs, &MockPackageManager::new())
 //         .load(&project_root, LoadConfigOptions::default())
-//         .await
 //         .map_err(|e| e.to_string());
 
 //       assert_eq!(

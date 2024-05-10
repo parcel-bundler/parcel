@@ -18,5 +18,5 @@ pub enum ResolveError {
 
 #[automock]
 pub trait PackageManager {
-  async fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError>;
+  fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError>;
 }

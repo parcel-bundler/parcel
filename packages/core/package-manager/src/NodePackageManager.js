@@ -263,7 +263,6 @@ export class NodePackageManager implements PackageManager {
       saveDev?: boolean,
     |},
   ): Promise<PackageManagerResolveResult> {
-    console.log('resolving...', id, from);
     let basedir = path.dirname(from);
     let key = basedir + ':' + id;
     let resolved = cache.get(key);
@@ -414,7 +413,6 @@ export class NodePackageManager implements PackageManager {
       }
     }
 
-    console.log('returning resolved', resolved);
     return resolved;
   }
 

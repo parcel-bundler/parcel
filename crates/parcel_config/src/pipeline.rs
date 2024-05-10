@@ -25,7 +25,7 @@ use super::parcel_config::PluginNode;
 /// });
 /// ```
 ///
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 pub struct PipelineMap {
   /// Maps patterns to a series of plugins, called pipelines
   map: IndexMap<String, Vec<PluginNode>>,

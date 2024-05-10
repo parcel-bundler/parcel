@@ -7,14 +7,14 @@ use super::config_error::ConfigError;
 use super::partial_parcel_config::PartialParcelConfig;
 use super::pipeline::PipelineMap;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PluginNode {
   pub package_name: String,
   pub resolve_from: Arc<PathBuf>,
 }
 
 /// Represents a fully merged and validated .parcel_rc config
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ParcelConfig {
   pub bundler: PluginNode,
   pub compressors: PipelineMap,

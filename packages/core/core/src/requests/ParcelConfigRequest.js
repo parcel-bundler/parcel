@@ -15,7 +15,7 @@ import type {
   ProcessedParcelConfig,
 } from '../types';
 
-import { napiParcelConfig } from '@parcel/rust';
+import {napiParcelConfig} from '@parcel/rust';
 import {
   isDirectoryInside,
   hashObject,
@@ -132,21 +132,9 @@ export async function loadParcelConfig(
   options: ParcelOptions,
 ): Promise<{|...ParcelConfigChain, usedDefault: boolean|}> {
   if (true) {
-let parcelConfig = napiParcelConfig({
-  config: options.config,
-  defaultConfig: options.defaultConfig,
-  inputFS: options.inputFS,
-  packageManager: {
-    resolve: async () => {
-      console.log("resolving...");
-      return { resolved: "/foobar", somethingElse: "kljdkjd" }
-    },
-  },
-  projectRoot: options.projectRoot,
-});
+    let parcelConfig = napiParcelConfig(options);
 
-    console.log('parcel config...', parcelConfig);
-
+    return parcelConfig;
   } else {
     let parcelConfig = await resolveParcelConfig(options);
 

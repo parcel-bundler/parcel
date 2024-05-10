@@ -5,7 +5,6 @@ use std::ptr;
 use std::rc::Rc;
 
 use napi::bindgen_prelude::FromNapiValue;
-use napi::bindgen_prelude::Promise;
 use napi::bindgen_prelude::ToNapiValue;
 use napi::Env;
 use napi::JsObject;
@@ -71,39 +70,26 @@ fn run_with_errors<T>(block: impl FnOnce() -> Result<T, napi::Error>) -> Result<
   result.map_err(|err| ResolveError::JsError(err.reason))
 }
 
-// fn run_future(env: Env, function: Function<String, Promise<String>>) -> napi::Result<JsObject> {
-//   let future = function.call("Hello".to_string())?;
-//   let result = env.spawn_future(async {
-//     let result = future.await?;
-//     Ok(format!("{}! I am Rust!", result))
-//   })?;
-//   Ok(result)
-// }
-
 impl PackageManager for JsPackageManager {
-  async fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError> {
+  fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError> {
     let resolution = run_with_errors(|| {
       let js_from = self.env.create_string(from.as_os_str().to_str().unwrap())?;
       let js_specifier = self.env.create_string(specifier)?;
 
-      // let resolve: JsFunction = self.js_delegate.get("resolve")?.unwrap();
-      // let resolve = JsFunction::from_napi_value(self.env.raw(), resolve.call())?;
-      let future: Promise<ResolutionFuture> = Promise::from_unknown(call_method(
+      let resolution = call_method(
         &self.env,
         &self.js_delegate,
-        "resolve",
+        "resolveSync",
         &[&js_specifier.into_unknown(), &js_from.into_unknown()],
-      )?)?;
+      )?;
 
-      let resolution = self.env.spawn_future(future)?;
+      let resolution = JsObject::from_unknown(resolution)?;
       let resolved: String = resolution.get("resolved")?.unwrap();
 
       Ok(Resolution {
         resolved: PathBuf::from(resolved),
       })
     })?;
-
-    // println!("got resolution {:?}", resolution);
 
     Ok(resolution)
   }
