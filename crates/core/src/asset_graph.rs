@@ -18,7 +18,7 @@ use crate::{
     path_request::{PathRequest, ResolverResult},
     target_request::TargetRequest,
   },
-  types::{Asset, Dependency, DependencyFlags, Symbol, SymbolFlags},
+  types::{Asset, Dependency, DependencyFlags, SpecifierType, Symbol, SymbolFlags},
 };
 
 #[derive(Debug, Clone)]
@@ -319,6 +319,7 @@ impl<'a> AssetGraphRequest<'a> {
         let targets = target_iter.next().unwrap().unwrap();
         for target in targets {
           let mut dep = Dependency::new(entry.file_path.clone(), target.env);
+          dep.specifier_type = SpecifierType::Url;
           dep.target = Some(Box::new(target));
           dep.flags |= DependencyFlags::ENTRY | DependencyFlags::NEEDS_STABLE_NAME;
           let mut requested_symbols = InternedSet::default();

@@ -8,7 +8,7 @@ use crate::{
   intern::Interned,
   parcel_config::PluginNode,
   request_tracker::{Request, RequestResult},
-  types::{Dependency, ParcelOptions, SpecifierType},
+  types::{BuildMode, Dependency, ParcelOptions, SpecifierType},
 };
 use parcel_resolver::{
   parse_scheme, Cache, CacheCow, ExportsCondition, Fields, IncludeNodeModules, OsFileSystem,
@@ -130,8 +130,14 @@ impl Resolver for DefaultResolver {
     resolver
       .conditions
       .set(ExportsCondition::NODE, dep.env.context.is_node());
-    // resolver.conditions.set(ExportsCondition::PRODUCTION, dep)
-    // resolver.conditions.set(ExportsCondition::DEVELOPMENT, dep)
+    resolver.conditions.set(
+      ExportsCondition::PRODUCTION,
+      options.mode == BuildMode::Production,
+    );
+    resolver.conditions.set(
+      ExportsCondition::DEVELOPMENT,
+      options.mode == BuildMode::Development,
+    );
 
     resolver.entries = Fields::MAIN | Fields::MODULE | Fields::SOURCE;
     if dep.env.context.is_browser() {

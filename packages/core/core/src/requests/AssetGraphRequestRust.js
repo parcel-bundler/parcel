@@ -18,7 +18,12 @@ import {hashString} from '@parcel/rust';
 import {requestTypes} from '../RequestTracker';
 import {parcel} from '@parcel/rust';
 import {loadParcelConfig} from './ParcelConfigRequest';
-import {type ProjectPath, fromProjectPath, toProjectPath} from '../projectPath';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+} from '../projectPath';
 import loadPlugin from '../loadParcelPlugin';
 import UncommittedAsset from '../UncommittedAsset';
 import {Asset as PublicAsset, MutableAsset} from '../public/Asset';
@@ -92,9 +97,8 @@ export default function createAssetGraphRequestRust(
               return {
                 type: 'Entry',
                 value: result.entries.map(e => ({
-                  // For now convert project paths to absolute.
                   // TODO: use project paths in rust
-                  filePath: fromProjectPath(options.projectRoot, e.filePath),
+                  filePath: fromProjectPathRelative(e.filePath),
                   packagePath: fromProjectPath(
                     options.projectRoot,
                     e.packagePath,
@@ -121,7 +125,7 @@ export default function createAssetGraphRequestRust(
                 options,
               );
               let targets = await targetResolver.resolve(
-                request.entry.filePath,
+                fromProjectPath(options.projectRoot, request.entry.filePath),
                 request.entry.target,
               );
               return {
