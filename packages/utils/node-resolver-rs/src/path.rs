@@ -1,5 +1,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use dashmap::DashMap;
+use gxhash::GxBuildHasher;
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::VecDeque;
 use std::path::{Component, Path, PathBuf};
@@ -63,7 +64,7 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
 /// A reimplementation of std::fs::canonicalize with intermediary caching.
 pub fn canonicalize(
   path: &Path,
-  cache: &DashMap<PathBuf, Option<PathBuf>>,
+  cache: &DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
 ) -> std::io::Result<PathBuf> {
   let mut ret = PathBuf::new();
   let mut seen_links = 0;
@@ -175,7 +176,7 @@ mod test {
       .child("a/link")
       .symlink_to_file(dir.child("a/b").path())?;
 
-    let cache = DashMap::new();
+    let cache = DashMap::default();
 
     assert_eq!(
       canonicalize(dir.child("symlink").path(), &cache)?,

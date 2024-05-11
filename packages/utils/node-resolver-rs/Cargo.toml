@@ -19,6 +19,8 @@ elsa = "1.7.0"
 once_cell = "1.17.0"
 glob-match = "0.2.1"
 dashmap = "5.4.0"
+stable_deref_trait = "1.2.0"
+gxhash = "*"
 
 [dev-dependencies]
 assert_fs = "1.0"

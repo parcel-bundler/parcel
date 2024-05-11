@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use gxhash::GxBuildHasher;
 use napi::{
   bindgen_prelude::Either3, Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown,
   Ref, Result,
@@ -9,6 +10,7 @@ use std::sync::atomic::Ordering;
 use std::{
   borrow::Cow,
   collections::HashMap,
+  ffi::OsString,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -83,7 +85,7 @@ impl FileSystem for JsFileSystem {
   fn canonicalize<P: AsRef<Path>>(
     &self,
     path: P,
-    _cache: &DashMap<PathBuf, Option<PathBuf>>,
+    _cache: &DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
   ) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
       let path = path.as_ref().to_string_lossy();
@@ -143,7 +145,7 @@ impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
   fn canonicalize<P: AsRef<Path>>(
     &self,
     path: P,
-    cache: &DashMap<PathBuf, Option<PathBuf>>,
+    cache: &DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
   ) -> std::io::Result<std::path::PathBuf> {
     match self {
       EitherFs::A(a) => a.canonicalize(path, cache),

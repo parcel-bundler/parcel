@@ -6,12 +6,13 @@ use std::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::path::canonicalize;
 use dashmap::DashMap;
+use gxhash::GxBuildHasher;
 
 pub trait FileSystem: Send + Sync {
   fn canonicalize<P: AsRef<Path>>(
     &self,
     path: P,
-    cache: &DashMap<PathBuf, Option<PathBuf>>,
+    cache: &DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
   ) -> Result<PathBuf>;
   fn read_to_string<P: AsRef<Path>>(&self, path: P) -> Result<String>;
   fn is_file<P: AsRef<Path>>(&self, path: P) -> bool;
@@ -27,7 +28,7 @@ impl FileSystem for OsFileSystem {
   fn canonicalize<P: AsRef<Path>>(
     &self,
     path: P,
-    cache: &DashMap<PathBuf, Option<PathBuf>>,
+    cache: &DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
   ) -> Result<PathBuf> {
     canonicalize(path.as_ref(), cache)
   }

@@ -12,7 +12,7 @@ use crate::{
   ResolverError,
 };
 use dashmap::DashMap;
-use elsa::sync::FrozenMap;
+use gxhash::GxBuildHasher;
 use typed_arena::Arena;
 
 pub struct Cache<Fs> {
@@ -21,13 +21,42 @@ pub struct Cache<Fs> {
   arena: Mutex<Arena<Box<str>>>,
   /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
   /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
-  /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
+  /// from our public methods so this is ok for now. FrozenDashMap is an append only map, which doesn't require &mut
   /// to insert into. Since each value is in a Box, it won't move and therefore references are stable.
-  packages: FrozenMap<PathBuf, Box<Result<PackageJson<'static>, ResolverError>>>,
-  tsconfigs: FrozenMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
-  is_file_cache: DashMap<PathBuf, bool>,
-  is_dir_cache: DashMap<PathBuf, bool>,
-  realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
+  packages: FrozenDashMap<PathBuf, Box<Result<PackageJson<'static>, ResolverError>>>,
+  tsconfigs: FrozenDashMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
+  is_file_cache: DashMap<PathBuf, bool, GxBuildHasher>,
+  is_dir_cache: DashMap<PathBuf, bool, GxBuildHasher>,
+  realpath_cache: DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
+}
+
+// This is based on FrozenMap in the elsa crate, but modified to use DashMap instead of RwLock<HashMap>
+struct FrozenDashMap<K, V> {
+  map: DashMap<K, V, GxBuildHasher>,
+}
+
+impl<K: Eq + std::hash::Hash, V: stable_deref_trait::StableDeref> FrozenDashMap<K, V> {
+  pub fn new() -> Self {
+    Self {
+      map: DashMap::default(),
+    }
+  }
+
+  pub fn insert(&self, k: K, v: V) -> &V::Target {
+    unsafe {
+      let inserted = &**self.map.entry(k).or_insert(v);
+      &*(inserted as *const _)
+    }
+  }
+
+  pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V::Target>
+  where
+    K: std::borrow::Borrow<Q>,
+    Q: std::hash::Hash + Eq,
+  {
+    let ret = unsafe { self.map.get(k).map(|x| &*(&**x as *const V::Target)) };
+    ret
+  }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -72,11 +101,11 @@ impl<Fs: FileSystem> Cache<Fs> {
     Self {
       fs,
       arena: Mutex::new(Arena::new()),
-      packages: FrozenMap::new(),
-      tsconfigs: FrozenMap::new(),
-      is_file_cache: DashMap::new(),
-      is_dir_cache: DashMap::new(),
-      realpath_cache: DashMap::new(),
+      packages: FrozenDashMap::new(),
+      tsconfigs: FrozenDashMap::new(),
+      is_file_cache: DashMap::default(),
+      is_dir_cache: DashMap::default(),
+      realpath_cache: DashMap::default(),
     }
   }
 
@@ -111,7 +140,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
     fn read_package<Fs: FileSystem>(
       fs: &Fs,
-      realpath_cache: &DashMap<PathBuf, Option<PathBuf>>,
+      realpath_cache: &DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
       arena: &Mutex<Arena<Box<str>>>,
       path: PathBuf,
     ) -> Result<PackageJson<'static>, ResolverError> {
