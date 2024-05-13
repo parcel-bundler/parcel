@@ -322,14 +322,22 @@ function getAssetGraph(serializedGraph, options) {
   });
 
   let changedAssets = new Map();
+  let entry = 0;
   for (let node of serializedGraph.nodes) {
     if (node.type === 'root') {
-      let index = graph.addNodeByContentKey(node.id, {
-        id: node.id,
+      let index = graph.addNodeByContentKey('@@root', {
+        id: '@@root',
         type: 'root',
         value: null,
       });
       graph.setRootNodeId(index);
+    } else if (node.type === 'entry') {
+      let id = 'entry:' + ++entry;
+      graph.addNodeByContentKey(id, {
+        id: id,
+        type: 'root',
+        value: null,
+      });
     } else if (node.type === 'asset') {
       let id = createAssetIdFromOptions(node.value);
       let value = {

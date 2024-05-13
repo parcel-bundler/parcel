@@ -11,7 +11,7 @@ pub mod worker_farm;
 
 use asset_graph::{AssetGraph, AssetGraphRequest};
 use cache::Cache;
-use request_tracker::RequestTracker;
+use request_tracker::{Request, RequestTracker};
 use types::ParcelOptions;
 // use requests::bundle_graph_request::BundleGraphRequest;
 use worker_farm::WorkerFarm;
@@ -24,15 +24,17 @@ pub fn build(
   cache: &Cache,
   options: ParcelOptions,
 ) -> AssetGraph {
-  let mut request_tracker = RequestTracker::new(farm, options);
-  let config = request_tracker.run_request(ParcelConfigRequest {}).unwrap();
+  let mut request_tracker = RequestTracker::new();
+  // let config = request_tracker.run_request(ParcelConfigRequest {}).unwrap();
+  let config = ParcelConfigRequest {}.run(&farm, &options).result.unwrap();
 
   let mut req = AssetGraphRequest {
     entries,
     transformers: &config.transformers,
     resolvers: &config.resolvers,
   };
-  let asset_graph = req.build(&mut request_tracker, cache);
+  let asset_graph = req.build(&mut request_tracker, cache, &farm, &options);
+  // println!("{:#?}", asset_graph);
 
   // let bundles = request_tracker
   //   .run_request(BundleGraphRequest {

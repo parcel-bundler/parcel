@@ -22,11 +22,11 @@ impl Request for EntryRequest {
   type Output = Vec<Entry>;
 
   fn run(
-    &self,
+    self,
     farm: &crate::worker_farm::WorkerFarm,
     options: &ParcelOptions,
   ) -> RequestResult<Self::Output> {
-    let WorkerResult::Entry(entries) = farm.run(WorkerRequest::Entry(self.clone())).unwrap() else {
+    let WorkerResult::Entry(entries) = farm.run(WorkerRequest::Entry(self)).unwrap() else {
       unreachable!()
     };
 

@@ -32,7 +32,7 @@ pub struct AssetRequestResult {
 impl<'a> Request for AssetRequest<'a> {
   type Output = AssetRequestResult;
 
-  fn run(&self, farm: &WorkerFarm, options: &ParcelOptions) -> RequestResult<Self::Output> {
+  fn run(self, farm: &WorkerFarm, options: &ParcelOptions) -> RequestResult<Self::Output> {
     // println!("transform {:?}", self.file_path);
     let pipeline = self.transformers.get::<&str>(
       &self.file_path,
@@ -51,8 +51,8 @@ impl<'a> Request for AssetRequest<'a> {
     flags.set(AssetFlags::SIDE_EFFECTS, self.side_effects);
 
     let asset = Asset {
-      file_path: self.file_path.clone(),
-      env: self.env.clone(),
+      file_path: self.file_path,
+      env: self.env,
       query: None,
       asset_type: AssetType::from_extension(
         self
@@ -64,7 +64,7 @@ impl<'a> Request for AssetRequest<'a> {
       content_key: String::new(),
       map_key: None,
       output_hash: String::new(),
-      pipeline: self.pipeline.clone(),
+      pipeline: self.pipeline,
       meta: JSONObject::new(),
       stats: AssetStats { size: 0, time: 0 },
       bundle_behavior: crate::types::BundleBehavior::None,
@@ -75,7 +75,6 @@ impl<'a> Request for AssetRequest<'a> {
 
     let code = self
       .code
-      .clone()
       .unwrap_or_else(|| std::fs::read(&asset.file_path.as_ref()).unwrap());
     let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
 

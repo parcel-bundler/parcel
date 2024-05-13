@@ -11,14 +11,17 @@ use crate::{
   environment::EnvironmentFlags,
   intern::{Interned, InternedSet},
   parcel_config::{PipelineMap, PluginNode},
-  request_tracker::{Request, RequestTracker},
+  request_tracker::{
+    self, Request, RequestError, RequestOutput, RequestTracker, StoreRequestOutput,
+  },
   requests::{
-    asset_request::AssetRequest,
+    asset_request::{AssetRequest, AssetRequestResult},
     entry_request::EntryRequest,
     path_request::{PathRequest, ResolverResult},
     target_request::TargetRequest,
   },
-  types::{Asset, Dependency, DependencyFlags, SpecifierType, Symbol, SymbolFlags},
+  types::{Asset, Dependency, DependencyFlags, ParcelOptions, SpecifierType, Symbol, SymbolFlags},
+  worker_farm::WorkerFarm,
 };
 
 #[derive(Debug, Clone)]
@@ -106,6 +109,7 @@ impl serde::Serialize for AssetGraph {
       .node_weights()
       .map(|node| match node {
         AssetGraphNode::Root => SerializedAssetGraphNode::Root,
+        AssetGraphNode::Entry => SerializedAssetGraphNode::Entry,
         AssetGraphNode::Asset(idx) => SerializedAssetGraphNode::Asset {
           value: &self.assets[*idx].asset,
         },
@@ -126,6 +130,7 @@ impl serde::Serialize for AssetGraph {
     #[serde(tag = "type", rename_all = "lowercase")]
     enum SerializedAssetGraphNode<'a> {
       Root,
+      Entry,
       Asset {
         value: &'a Asset,
       },
@@ -152,9 +157,9 @@ impl std::hash::Hash for AssetGraph {
     for node in self.graph.node_weights() {
       std::mem::discriminant(node).hash(state);
       match node {
-        AssetGraphNode::Root => {}
         AssetGraphNode::Asset(idx) => self.assets[*idx].asset.id().hash(state),
         AssetGraphNode::Dependency(idx) => self.dependencies[*idx].dependency.id().hash(state),
+        _ => {}
       }
     }
   }
@@ -163,6 +168,7 @@ impl std::hash::Hash for AssetGraph {
 #[derive(Debug, Clone)]
 pub enum AssetGraphNode {
   Root,
+  Entry,
   Asset(usize),
   Dependency(usize),
 }
@@ -285,174 +291,283 @@ pub struct AssetGraphRequest<'a> {
 }
 
 impl<'a> AssetGraphRequest<'a> {
-  pub fn build(&mut self, request_tracker: &mut RequestTracker, cache: &Cache) -> AssetGraph {
+  pub fn build(
+    &mut self,
+    request_tracker: &mut RequestTracker,
+    cache: &Cache,
+    farm: &WorkerFarm,
+    options: &ParcelOptions,
+  ) -> AssetGraph {
     let mut graph = AssetGraph::new();
     let root = graph.graph.add_node(AssetGraphNode::Root);
-
-    let entry_requests = self
-      .entries
-      .iter()
-      .map(|entry| EntryRequest {
-        entry: entry.clone(),
-      })
-      .collect();
-
-    let entries = request_tracker.run_requests(entry_requests);
-
-    let target_requests = entries
-      .iter()
-      .flat_map(|entries| {
-        entries.as_ref().unwrap().iter().map(|entry| TargetRequest {
-          entry: entry.clone(),
-        })
-      })
-      .collect();
-    let targets = request_tracker.run_requests(target_requests);
-
     let named_pipelines = self.transformers.named_pipelines();
 
-    let mut path_requests = Vec::new();
-    let mut dep_nodes = Vec::new();
-    let mut target_iter = targets.into_iter();
-    for entry_result in entries {
-      for entry in entry_result.unwrap() {
-        let targets = target_iter.next().unwrap().unwrap();
-        for target in targets {
-          let mut dep = Dependency::new(entry.file_path.clone(), target.env);
-          dep.specifier_type = SpecifierType::Url;
-          dep.target = Some(Box::new(target));
-          dep.flags |= DependencyFlags::ENTRY | DependencyFlags::NEEDS_STABLE_NAME;
-          let mut requested_symbols = InternedSet::default();
-          if dep.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-            dep.flags |= DependencyFlags::HAS_SYMBOLS;
-            dep.symbols.push(Symbol {
-              exported: "*".into(),
-              local: "*".into(),
-              flags: SymbolFlags::IS_WEAK,
-              loc: None,
-            });
-            requested_symbols.insert("*".into());
-          }
-
-          let dep_node = graph.add_dependency(dep.clone(), requested_symbols);
-          dep_nodes.push(dep_node);
-          graph.graph.add_edge(root, dep_node, AssetGraphEdge {});
-          path_requests.push(PathRequest {
-            dep,
-            resolvers: &self.resolvers,
-            named_pipelines: &named_pipelines,
-          });
-        }
+    scope(request_tracker, farm, options, |scope| {
+      for entry in &self.entries {
+        // Currently some tests depend on the order of the entry dependencies
+        // in the graph. Insert a placeholder node here so that the dependency
+        // order is consistent no matter which order the requests resolve in.
+        let node = graph.graph.add_node(AssetGraphNode::Entry);
+        graph.graph.add_edge(root, node, AssetGraphEdge {});
+        scope.queue_request(
+          EntryRequest {
+            entry: entry.clone(),
+          },
+          node,
+        );
       }
-    }
 
-    let mut visited = HashSet::new();
-    let mut asset_request_to_asset = HashMap::new();
+      let mut visited = HashSet::new();
+      let mut asset_request_to_asset = HashMap::new();
+      let mut waiting_asset_requests = HashMap::<u64, HashSet<NodeIndex>>::new();
 
-    while !path_requests.is_empty() {
-      let resolved = request_tracker.run_requests(path_requests);
-
-      let mut asset_requests_to_run = Vec::new();
-      let mut dep_nodes_to_run = Vec::new();
-      let mut already_visited_requests = Vec::new();
-      for (result, node) in resolved.into_iter().zip(dep_nodes.iter()) {
-        let dep_index = graph.dependency_index(*node).unwrap();
-        let DependencyNode {
-          dependency,
-          requested_symbols,
-          state,
-        } = &mut graph.dependencies[dep_index];
-        let asset_request = match result.unwrap() {
-          ResolverResult::Resolved {
-            path,
-            code,
-            pipeline,
-            side_effects,
-          } => {
-            if !side_effects
-              && requested_symbols.is_empty()
-              && dependency.flags.contains(DependencyFlags::HAS_SYMBOLS)
-            {
-              *state = DependencyState::Deferred;
-              continue;
+      while let Some((request, node, result)) = scope.receive_result() {
+        if let Ok(result) = result {
+          match result {
+            RequestOutput::EntryRequest(entries) => {
+              for entry in entries {
+                scope.queue_request(TargetRequest { entry }, node);
+              }
             }
+            RequestOutput::TargetRequest(result) => {
+              for target in result.targets {
+                let mut dep = Dependency::new(result.entry.to_string(), target.env);
+                dep.specifier_type = SpecifierType::Url;
+                dep.target = Some(Box::new(target));
+                dep.flags |= DependencyFlags::ENTRY | DependencyFlags::NEEDS_STABLE_NAME;
+                let mut requested_symbols = InternedSet::default();
+                if dep.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+                  dep.flags |= DependencyFlags::HAS_SYMBOLS;
+                  dep.symbols.push(Symbol {
+                    exported: "*".into(),
+                    local: "*".into(),
+                    flags: SymbolFlags::IS_WEAK,
+                    loc: None,
+                  });
+                  requested_symbols.insert("*".into());
+                }
 
-            *state = DependencyState::Resolved;
-            AssetRequest {
-              transformers: &self.transformers,
-              file_path: path,
-              code,
-              pipeline,
-              side_effects,
-              env: dependency.env,
+                let dep_node = graph.add_dependency(dep.clone(), requested_symbols);
+                graph.graph.add_edge(node, dep_node, AssetGraphEdge {});
+                scope.queue_request(
+                  PathRequest {
+                    dep,
+                    resolvers: &self.resolvers,
+                    named_pipelines: &named_pipelines,
+                  },
+                  dep_node,
+                );
+              }
             }
-          }
-          ResolverResult::Excluded => {
-            *state = DependencyState::Excluded;
-            continue;
-          }
-          _ => todo!(),
-        };
+            RequestOutput::PathRequest(res) => {
+              let dep_index = graph.dependency_index(node).unwrap();
+              let DependencyNode {
+                dependency,
+                requested_symbols,
+                state,
+              } = &mut graph.dependencies[dep_index];
+              let asset_request = match res {
+                ResolverResult::Resolved {
+                  path,
+                  code,
+                  pipeline,
+                  side_effects,
+                } => {
+                  if !side_effects
+                    && requested_symbols.is_empty()
+                    && dependency.flags.contains(DependencyFlags::HAS_SYMBOLS)
+                  {
+                    *state = DependencyState::Deferred;
+                    continue;
+                  }
 
-        let id = asset_request.id();
-        if visited.insert(id) {
-          asset_requests_to_run.push(asset_request);
-          dep_nodes_to_run.push((id, *node));
-        } else {
-          already_visited_requests.push((id, *node));
+                  *state = DependencyState::Resolved;
+                  AssetRequest {
+                    transformers: &self.transformers,
+                    file_path: path,
+                    code: code.clone(),
+                    pipeline: pipeline.clone(),
+                    side_effects: side_effects.clone(),
+                    env: dependency.env,
+                  }
+                }
+                ResolverResult::Excluded => {
+                  *state = DependencyState::Excluded;
+                  continue;
+                }
+                _ => todo!(),
+              };
+
+              let id = asset_request.id();
+              if visited.insert(id) {
+                scope.queue_request(asset_request, node);
+              } else {
+                if let Some(asset_node) = asset_request_to_asset.get(&id) {
+                  graph.graph.add_edge(node, *asset_node, AssetGraphEdge {});
+
+                  graph.propagate_requested_symbols(
+                    *asset_node,
+                    node,
+                    &mut |dep_node, dependency| {
+                      scope.queue_request(
+                        PathRequest {
+                          dep: dependency.clone(),
+                          resolvers: &self.resolvers,
+                          named_pipelines: &named_pipelines,
+                        },
+                        dep_node,
+                      );
+                    },
+                  );
+                } else {
+                  waiting_asset_requests
+                    .entry(id)
+                    .and_modify(|nodes| {
+                      nodes.insert(node);
+                    })
+                    .or_insert_with(|| HashSet::from([node]));
+                }
+              }
+            }
+            RequestOutput::AssetRequest(res) => {
+              cache.set(res.asset.content_key.clone(), res.code.clone());
+
+              let asset_node = graph.add_asset(res.asset.clone());
+              asset_request_to_asset.insert(request, asset_node);
+              graph.graph.add_edge(node, asset_node, AssetGraphEdge {});
+
+              for dep in &res.dependencies {
+                let dep_node = graph.add_dependency(dep.clone(), InternedSet::default());
+                graph
+                  .graph
+                  .add_edge(asset_node, dep_node, AssetGraphEdge {});
+              }
+
+              graph.propagate_requested_symbols(asset_node, node, &mut |dep_node, dependency| {
+                scope.queue_request(
+                  PathRequest {
+                    dep: dependency.clone(),
+                    resolvers: &self.resolvers,
+                    named_pipelines: &named_pipelines,
+                  },
+                  dep_node,
+                );
+              });
+
+              if let Some(waiting) = waiting_asset_requests.remove(&request) {
+                for dep in waiting {
+                  graph.graph.add_edge(dep, asset_node, AssetGraphEdge {});
+                  graph.propagate_requested_symbols(
+                    asset_node,
+                    dep,
+                    &mut |dep_node, dependency| {
+                      scope.queue_request(
+                        PathRequest {
+                          dep: dependency.clone(),
+                          resolvers: &self.resolvers,
+                          named_pipelines: &named_pipelines,
+                        },
+                        dep_node,
+                      );
+                    },
+                  );
+                }
+              }
+            }
+            _ => todo!(),
+          }
         }
       }
-
-      let results = request_tracker.run_requests(asset_requests_to_run);
-      // println!("deps {:?}", deps);
-
-      path_requests = Vec::new();
-      dep_nodes = Vec::new();
-      for (result, (asset_request_id, dep_node)) in results.into_iter().zip(dep_nodes_to_run) {
-        let res = result.unwrap();
-        cache.set(res.asset.content_key.clone(), res.code);
-
-        let asset_node = graph.add_asset(res.asset);
-
-        asset_request_to_asset.insert(asset_request_id, asset_node);
-        graph
-          .graph
-          .add_edge(dep_node, asset_node, AssetGraphEdge {});
-
-        for dep in res.dependencies {
-          let dep_node = graph.add_dependency(dep, InternedSet::default());
-          graph
-            .graph
-            .add_edge(asset_node, dep_node, AssetGraphEdge {});
-        }
-
-        graph.propagate_requested_symbols(asset_node, dep_node, &mut |dep_node, dependency| {
-          dep_nodes.push(dep_node);
-          path_requests.push(PathRequest {
-            dep: dependency.clone(),
-            resolvers: &self.resolvers,
-            named_pipelines: &named_pipelines,
-          });
-        });
-      }
-
-      for (req_id, dep_node) in already_visited_requests {
-        let asset_node = asset_request_to_asset[&req_id];
-        graph
-          .graph
-          .add_edge(dep_node, asset_node, AssetGraphEdge {});
-
-        graph.propagate_requested_symbols(asset_node, dep_node, &mut |dep_node, dependency| {
-          dep_nodes.push(dep_node);
-          path_requests.push(PathRequest {
-            dep: dependency.clone(),
-            resolvers: &self.resolvers,
-            named_pipelines: &named_pipelines,
-          });
-        });
-      }
-    }
+    });
 
     graph
+  }
+}
+
+/// Runs a callback inside a rayon scope, and provides an interface to queue requests.
+fn scope<'scope, F: FnOnce(&mut Queue<'_, 'scope>)>(
+  request_tracker: &'scope mut RequestTracker,
+  farm: &'scope WorkerFarm,
+  options: &'scope ParcelOptions,
+  f: F,
+) {
+  rayon::in_place_scope(|scope| {
+    let (sender, receiver) = crossbeam_channel::unbounded();
+    let mut queue = Queue {
+      scope,
+      in_flight: 0,
+      farm,
+      options,
+      request_tracker,
+      sender,
+      receiver,
+    };
+
+    f(&mut queue);
+  })
+}
+
+struct Queue<'a, 'scope> {
+  scope: &'a rayon::Scope<'scope>,
+  in_flight: usize,
+  farm: &'scope WorkerFarm,
+  options: &'scope ParcelOptions,
+  request_tracker: &'scope mut RequestTracker,
+  sender: crossbeam_channel::Sender<(u64, NodeIndex, Result<RequestOutput, RequestError>)>,
+  receiver: crossbeam_channel::Receiver<(u64, NodeIndex, Result<RequestOutput, RequestError>)>,
+}
+
+impl<'a, 'scope> Queue<'a, 'scope> {
+  pub fn queue_request<'s: 'scope, R: Request + StoreRequestOutput + Send + 'scope>(
+    &mut self,
+    req: R,
+    node: NodeIndex,
+  ) {
+    self.in_flight += 1;
+    if self.request_tracker.start_request(&req) {
+      // This request hasn't run before, so spawn a task in the thread pool.
+      let sender = self.sender.clone();
+      let farm = self.farm;
+      let options = self.options;
+      self.scope.spawn(move |_| {
+        let id = req.id();
+        let result = req.run(farm, options);
+        // Send the result back to the main thread via a channel.
+        sender
+          .send((
+            id,
+            node,
+            result
+              .result
+              .map(|result| <R as StoreRequestOutput>::store(result)),
+          ))
+          .expect("send error");
+      });
+    } else {
+      // We already have a result for this require, so just clone it and send it on the channel.
+      let result = self.request_tracker.get_request_result(&req);
+      self
+        .sender
+        .send((req.id(), node, result.clone()))
+        .expect("send error");
+    }
+  }
+
+  pub fn receive_result(
+    &mut self,
+  ) -> Option<(u64, NodeIndex, Result<RequestOutput, RequestError>)> {
+    // If there are no requests in flight, the build is complete.
+    if self.in_flight == 0 {
+      return None;
+    }
+
+    // Receive a result from the channel, and store the result in the RequestTracker.
+    if let Ok((request, node, result)) = self.receiver.recv() {
+      self.request_tracker.finish_request(request, result.clone());
+      self.in_flight -= 1;
+      Some((request, node, result))
+    } else {
+      None
+    }
   }
 }

@@ -14,7 +14,6 @@ use crate::{
 };
 use gxhash::GxHasher;
 use petgraph::graph::{DiGraph, NodeIndex};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 pub trait Request: Hash + Sync {
   type Output: Send + Clone;
@@ -26,7 +25,7 @@ pub trait Request: Hash + Sync {
     hasher.finish()
   }
 
-  fn run(&self, farm: &WorkerFarm, options: &ParcelOptions) -> RequestResult<Self::Output>;
+  fn run(self, farm: &WorkerFarm, options: &ParcelOptions) -> RequestResult<Self::Output>;
 }
 
 pub struct RequestResult<Output> {
@@ -45,7 +44,7 @@ enum RequestGraphNode {
   Request(RequestNode),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RequestOutput {
   ParcelBuildRequest,
   BundleGraphRequest(<BundleGraphRequest as Request>::Output),
@@ -122,21 +121,17 @@ enum RequestEdgeType {
 pub struct RequestTracker {
   graph: DiGraph<RequestGraphNode, RequestEdgeType>,
   requests: HashMap<u64, NodeIndex>,
-  farm: WorkerFarm,
-  options: ParcelOptions,
 }
 
 impl RequestTracker {
-  pub fn new(farm: WorkerFarm, options: ParcelOptions) -> Self {
+  pub fn new() -> Self {
     RequestTracker {
       graph: DiGraph::new(),
       requests: HashMap::new(),
-      farm,
-      options,
     }
   }
 
-  fn start_request<R: Request>(&mut self, request: &R) -> bool {
+  pub fn start_request<R: Request>(&mut self, request: &R) -> bool {
     let id = request.id();
     let index = self.requests.entry(id).or_insert_with(|| {
       self.graph.add_node(RequestGraphNode::Request(RequestNode {
@@ -162,6 +157,31 @@ impl RequestTracker {
     true
   }
 
+  pub fn finish_request(&mut self, id: u64, result: Result<RequestOutput, RequestError>) {
+    let node_index = self.requests.get(&id).unwrap();
+    let request = match self.graph.node_weight_mut(*node_index) {
+      Some(RequestGraphNode::Request(req)) => req,
+      _ => unreachable!("expected a request node"),
+    };
+    if request.state == RequestNodeState::Valid {
+      return;
+    }
+    request.state = match result {
+      Ok(_) => RequestNodeState::Valid,
+      Err(_) => RequestNodeState::Error,
+    };
+
+    request.output = Some(result);
+  }
+
+  pub fn get_request_result<R: Request + StoreRequestOutput>(
+    &self,
+    request: &R,
+  ) -> &Result<RequestOutput, RequestError> {
+    let request = self.get_request(request);
+    request.output.as_ref().unwrap()
+  }
+
   fn has_valid_result<R: Request>(&self, request: &R) -> bool {
     let id = request.id();
     if let Some(index) = self.requests.get(&id) {
@@ -174,7 +194,7 @@ impl RequestTracker {
     false
   }
 
-  fn get_request<R: Request>(&mut self, request: &R) -> &RequestNode {
+  fn get_request<R: Request>(&self, request: &R) -> &RequestNode {
     let id = request.id();
     let node_index = self.requests.get(&id).unwrap();
     match self.graph.node_weight(*node_index) {
@@ -190,111 +210,5 @@ impl RequestTracker {
       Some(RequestGraphNode::Request(req)) => req,
       _ => unreachable!("expected a request node"),
     }
-  }
-
-  /// Runs multiple requests in parallel.
-  pub fn run_requests<R: Request + StoreRequestOutput>(
-    &mut self,
-    requests: Vec<R>,
-  ) -> Vec<Result<R::Output, RequestError>> {
-    // First, find the requests we actually need to run, and add them to the graph if needed.
-    let nodes_to_run: Vec<_> = requests
-      .iter()
-      .map(|request| {
-        if self.start_request(request) {
-          Some(request)
-        } else {
-          None
-        }
-      })
-      .collect();
-
-    // Now, run the requests in parallel.
-    let results: Vec<_> = nodes_to_run
-      .par_iter()
-      .map(|request| {
-        if let Some(request) = request {
-          Some(request.run(&self.farm, &self.options))
-        } else {
-          None
-        }
-      })
-      .collect();
-
-    // Finally, update the graph and collect the results for all requests, even ones we didn't re-run.
-    requests
-      .iter()
-      .zip(results)
-      .map(|(request, result)| {
-        let request = self.get_request_mut(request);
-        if let Some(result) = result {
-          request.state = match result.result {
-            Ok(_) => RequestNodeState::Valid,
-            Err(_) => RequestNodeState::Error,
-          };
-
-          request.output = Some(
-            result
-              .result
-              .clone()
-              .map(|result| <R as StoreRequestOutput>::store(result)),
-          );
-
-          result.result
-        } else if let Some(output) = &request.output {
-          let res = output
-            .as_ref()
-            .map(|output| <R as StoreRequestOutput>::retrieve(output));
-          match res {
-            Ok(r) => Ok(r.clone()),
-            Err(e) => Err(e.clone()),
-          }
-        } else {
-          unreachable!()
-        }
-
-        // TODO: insert invalidations
-        // TODO: remove old sub-requests
-      })
-      .collect()
-  }
-
-  /// Runs a single request on the current thread.
-  pub fn run_request<R: Request + StoreRequestOutput>(
-    &mut self,
-    request: R,
-  ) -> Result<R::Output, RequestError> {
-    if !self.start_request(&request) {
-      let request = self.get_request(&request);
-      let res = request
-        .output
-        .as_ref()
-        .unwrap()
-        .as_ref()
-        .map(|output| <R as StoreRequestOutput>::retrieve(output));
-      return match res {
-        Ok(r) => Ok(r.clone()),
-        Err(e) => Err(e.clone()),
-      };
-    }
-
-    let result = request.run(&self.farm, &self.options);
-
-    let request = self.get_request_mut(&request);
-    request.state = match result.result {
-      Ok(_) => RequestNodeState::Valid,
-      Err(_) => RequestNodeState::Error,
-    };
-
-    // TODO: insert invalidations
-
-    request.output = Some(
-      result
-        .result
-        .clone()
-        .map(|result| <R as StoreRequestOutput>::store(result)),
-    );
-
-    result.result
   }
 }

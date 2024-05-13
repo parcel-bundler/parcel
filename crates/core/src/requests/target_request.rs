@@ -11,21 +11,27 @@ pub struct TargetRequest {
   pub entry: Entry,
 }
 
+#[derive(Clone, Debug)]
+pub struct TargetRequestResult {
+  pub entry: String,
+  pub targets: Vec<Target>,
+}
+
 impl Request for TargetRequest {
-  type Output = Vec<Target>;
+  type Output = TargetRequestResult;
 
   fn run(
-    &self,
+    self,
     farm: &crate::worker_farm::WorkerFarm,
-    options: &ParcelOptions,
+    _options: &ParcelOptions,
   ) -> RequestResult<Self::Output> {
-    let WorkerResult::Target(targets) = farm.run(WorkerRequest::Target(self.clone())).unwrap()
-    else {
+    let entry = self.entry.file_path.clone();
+    let WorkerResult::Target(targets) = farm.run(WorkerRequest::Target(self)).unwrap() else {
       unreachable!()
     };
 
     RequestResult {
-      result: Ok(targets),
+      result: Ok(TargetRequestResult { entry, targets }),
       invalidations: Vec::new(),
     }
   }

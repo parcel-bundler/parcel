@@ -68,7 +68,9 @@ fn config<'a>(asset: &Asset, code: Vec<u8>, options: &'a ParcelOptions) -> Confi
     versions.opera = browsers.opera.as_ref().map(convert_version);
     versions.safari = browsers.safari.as_ref().map(convert_version);
     versions.samsung = browsers.samsung.as_ref().map(convert_version);
-    targets = Some(versions);
+    if !versions.is_any_target() {
+      targets = Some(versions);
+    }
   } else if asset.env.context.is_node() {
     if let Some(node) = &asset.env.engines.node {
       targets = Some(Versions {

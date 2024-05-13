@@ -12,7 +12,7 @@ impl Request for ParcelConfigRequest {
   type Output = ParcelConfig;
 
   fn run(
-    &self,
+    self,
     farm: &crate::worker_farm::WorkerFarm,
     options: &ParcelOptions,
   ) -> crate::request_tracker::RequestResult<Self::Output> {

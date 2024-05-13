@@ -40,7 +40,7 @@ impl<'a> Request for PathRequest<'a> {
   type Output = ResolverResult;
 
   fn run(
-    &self,
+    self,
     _farm: &crate::worker_farm::WorkerFarm,
     options: &ParcelOptions,
   ) -> RequestResult<Self::Output> {

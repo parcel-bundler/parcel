@@ -17,12 +17,11 @@ impl Request for BundleGraphRequest {
   type Output = Vec<Bundle>;
 
   fn run(
-    &self,
+    self,
     farm: &crate::worker_farm::WorkerFarm,
     options: &ParcelOptions,
   ) -> RequestResult<Self::Output> {
-    let WorkerResult::BundleGraph(bundles) =
-      farm.run(WorkerRequest::BundleGraph(self.clone())).unwrap()
+    let WorkerResult::BundleGraph(bundles) = farm.run(WorkerRequest::BundleGraph(self)).unwrap()
     else {
       unreachable!()
     };
