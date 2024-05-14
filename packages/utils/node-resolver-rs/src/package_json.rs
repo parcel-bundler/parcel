@@ -126,6 +126,25 @@ impl Default for ExportsCondition {
   }
 }
 
+impl serde::Serialize for ExportsCondition {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.bits().serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for ExportsCondition {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let bits = Deserialize::deserialize(deserializer)?;
+    Ok(ExportsCondition::from_bits_truncate(bits))
+  }
+}
+
 impl TryFrom<&str> for ExportsCondition {
   type Error = ();
   fn try_from(value: &str) -> Result<Self, Self::Error> {

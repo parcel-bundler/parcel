@@ -9,6 +9,8 @@ use once_cell::unsync::OnceCell;
 use package_json::AliasValue;
 use package_json::ExportsResolution;
 use package_json::PackageJson;
+use serde::Deserialize;
+use serde::Serialize;
 use specifier::parse_package_specifier;
 use specifier::parse_scheme;
 use tsconfig::TsConfig;
@@ -75,7 +77,7 @@ bitflags! {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum IncludeNodeModules {
   Bool(bool),
   Array(Vec<String>),
@@ -85,6 +87,21 @@ pub enum IncludeNodeModules {
 impl Default for IncludeNodeModules {
   fn default() -> Self {
     IncludeNodeModules::Bool(true)
+  }
+}
+
+impl std::hash::Hash for IncludeNodeModules {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    match self {
+      IncludeNodeModules::Bool(b) => b.hash(state),
+      IncludeNodeModules::Array(a) => a.hash(state),
+      IncludeNodeModules::Map(m) => {
+        for (k, v) in m {
+          k.hash(state);
+          v.hash(state);
+        }
+      }
+    }
   }
 }
 
