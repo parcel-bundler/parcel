@@ -585,19 +585,8 @@ impl Fold for ESMFold {
 
   fn fold_binding_ident(&mut self, node: BindingIdent) -> BindingIdent {
     if self.in_export_decl {
+      // export const {foo} = ...;
       self.create_export(node.id.sym.clone(), Expr::Ident(node.id.clone()), DUMMY_SP);
-    }
-
-    node.fold_children_with(self)
-  }
-
-  fn fold_assign_pat_prop(&mut self, node: AssignPatProp) -> AssignPatProp {
-    if self.in_export_decl {
-      self.create_export(
-        node.key.sym.clone(),
-        Expr::Ident(node.key.id.clone()),
-        DUMMY_SP,
-      );
     }
 
     node.fold_children_with(self)

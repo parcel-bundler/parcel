@@ -5238,6 +5238,14 @@ describe('javascript', function () {
     assert.deepEqual(res, {ns: {a: 4, default: 1}});
   });
 
+  it('should support export declarations with destructuring', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-destructuring/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {foo: 1, bar: 2});
+  });
+
   it('should support export default declarations', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-default/index.js'),
