@@ -906,16 +906,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gxhash"
-version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "370b2ac6cb58eb38e600bf6a783f8cca3f164d5fe5e501ad274d5dc8e94c7212"
-dependencies = [
- "rand",
- "rustc_version 0.4.0",
-]
-
-[[package]]
 name = "h2"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1905,10 +1895,10 @@ dependencies = [
 name = "parcel_core"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "anyhow",
  "browserslist-rs 0.15.0",
  "glob",
- "gxhash",
  "mockall",
  "napi",
  "napi-derive",

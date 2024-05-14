@@ -3,7 +3,7 @@ use std::hash::Hasher;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 
-use gxhash::GxHasher;
+use ahash::AHasher;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -81,7 +81,7 @@ pub struct Asset {
 
 impl Asset {
   pub fn id(&self) -> u64 {
-    let mut hasher = GxHasher::default();
+    let mut hasher = AHasher::default();
 
     self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);

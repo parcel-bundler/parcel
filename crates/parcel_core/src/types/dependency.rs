@@ -2,7 +2,7 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 
-use gxhash::GxHasher;
+use ahash::AHasher;
 use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
@@ -125,7 +125,7 @@ impl Dependency {
 
   pub fn id(&self) -> u64 {
     // Compute hashed dependency id
-    let mut hasher = GxHasher::default();
+    let mut hasher = AHasher::default();
 
     self.bundle_behavior.hash(&mut hasher);
     self.env.hash(&mut hasher);
