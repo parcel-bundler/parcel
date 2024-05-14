@@ -55,7 +55,6 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
-import {readFileSync} from 'fs';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -1549,8 +1548,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   let cacheKey = getCacheKey(options);
   let requestGraphKey = `requestGraph-${cacheKey}`;
   let timeout;
-  let snapshotKey = `snapshot-${cacheKey}`;
-  let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
+  const snapshotKey = `snapshot-${cacheKey}`;
+  const snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     try {
       let {requestGraph} = await readAndDeserializeRequestGraph(
@@ -1597,34 +1596,30 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       );
       return requestGraph;
     } catch (e) {
-      if (timeout != null) {
-        clearTimeout(timeout);
-      }
-      let additionalMessage;
-      let logEvent;
+      // Prevent logging fs events took too long warning
+      clearTimeout(timeout);
+
       if (e.message && e.message.includes('invalid clockspec')) {
-        logEvent = {
+        const snapshotContents = options.inputFS.readFileSync(
+          snapshotPath,
+          'utf-8',
+        );
+        logger.warn({
           origin: '@parcel/core',
           message: `Error reading clockspec from snapshot, building with clean cache.`,
           meta: {
-            additionalMessage: ``,
+            snapshotContents: snapshotContents,
             trackableEvent: 'invalid_clockspec_error',
           },
-        };
-        additionalMessage = readFileSync(snapshotPath).toString('utf-8');
-        logEvent.meta.additionalMessage = `Watchman failed reading clockspec, snapshot: ${additionalMessage}`;
-      }
-      if (!(e instanceof FSBailoutError)) {
-        logEvent = {
+        });
+      } else if (!(e instanceof FSBailoutError)) {
+        logger.warn({
           origin: '@parcel/core',
           message: `Unexpected error loading cache from disk, building with clean cache.`,
           meta: {
             trackableEvent: 'cache_load_error',
           },
-        };
-      }
-      if (logEvent != null) {
-        logger.verbose(logEvent);
+        });
       }
       // This error means respondToFSEvents timed out handling the invalidation events
       // In this case we'll return a fresh RequestGraph
