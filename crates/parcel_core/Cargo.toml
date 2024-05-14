@@ -14,7 +14,6 @@ parcel_napi_helpers = { path = "../parcel_napi_helpers" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 
 anyhow = "1.0.82"
-bitflags = { version = "2.5.0", features = ["serde"] }
 browserslist-rs = "0.15.0"
 glob = "0.3.1"
 gxhash = "3.1.0"

@@ -1,6 +1,5 @@
 use std::num::NonZeroU32;
 
-use bitflags::bitflags;
 use parcel_resolver::IncludeNodeModules;
 use serde::Deserialize;
 use serde::Serialize;
@@ -9,7 +8,6 @@ use serde_repr::Serialize_repr;
 
 use self::engines::Engines;
 use super::source::SourceLocation;
-use crate::bitflags_serde;
 
 pub mod browsers;
 pub mod engines;
@@ -34,16 +32,35 @@ pub struct Environment {
   /// The engines supported by the environment
   pub engines: Engines,
 
-  /// Togglable options that change the build output
-  pub flags: EnvironmentFlags,
-
   /// Describes which node_modules should be included in the output
   pub include_node_modules: IncludeNodeModules,
+
+  /// Whether this is a library build
+  ///
+  /// Treats the target as a library that would be published to npm and consumed by another tool,
+  /// rather than used directly in a browser or other target environment.
+  ///
+  /// Library targets must enable scope hoisting, and use a non-global output format.
+  ///
+  pub is_library: bool,
 
   pub loc: Option<SourceLocation>,
 
   /// Determines what type of module to output
   pub output_format: OutputFormat,
+
+  /// Determines whether scope hoisting should be enabled
+  ///
+  /// By default, scope hoisting is enabled for production builds.
+  ///
+  pub should_scope_hoist: bool,
+
+  /// Determines whether the output should be optimised
+  ///
+  /// The exact behavior of this flag is determined by plugins. By default, optimization is
+  /// enabled during production builds for application targets.
+  ///
+  pub should_optimize: bool,
 
   /// Configures source maps, which are enabled by default
   pub source_map: Option<TargetSourceMapOptions>,
@@ -56,9 +73,11 @@ impl std::hash::Hash for Environment {
     // Hashing intentionally does not include loc
     self.context.hash(state);
     self.engines.hash(state);
-    self.flags.hash(state);
     self.include_node_modules.hash(state);
+    self.is_library.hash(state);
     self.output_format.hash(state);
+    self.should_scope_hoist.hash(state);
+    self.should_optimize.hash(state);
     self.source_map.hash(state);
     self.source_type.hash(state);
   }
@@ -69,9 +88,11 @@ impl PartialEq for Environment {
     // Equality intentionally does not include loc
     self.context == other.context
       && self.engines == other.engines
-      && self.flags == other.flags
       && self.include_node_modules == other.include_node_modules
+      && self.is_library == other.is_library
       && self.output_format == other.output_format
+      && self.should_scope_hoist == other.should_scope_hoist
+      && self.should_optimize == other.should_optimize
       && self.source_map == other.source_map
       && self.source_type == other.source_type
   }
@@ -117,34 +138,6 @@ impl EnvironmentContext {
     matches!(self, ElectronMain | ElectronRenderer)
   }
 }
-
-bitflags! {
-  /// Togglable options that change the build output
-  #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-  pub struct EnvironmentFlags: u8 {
-    /// Treats the target as a library that would be published to npm and consumed by another tool,
-    /// rather than used directly in a browser or other target environment.
-    ///
-    /// Library targets must enable scope hoisting, and use a non-global output format.
-    ///
-    const IS_LIBRARY = 1 << 0;
-
-    /// Determines whether the output should be optimised
-    ///
-    /// The exact behavior of this flag is determined by plugins. By default, optimization is
-    /// enabled during production builds for application targets.
-    ///
-    const SHOULD_OPTIMIZE = 1 << 1;
-
-    /// Determines whether scope hoisting should be enabled
-    ///
-    /// By default, scope hoisting is enabled for production builds.
-    ///
-    const SHOULD_SCOPE_HOIST = 1 << 2;
-  }
-}
-
-bitflags_serde!(EnvironmentFlags);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Deserialize_repr, Hash, Serialize_repr)]
 #[repr(u8)]

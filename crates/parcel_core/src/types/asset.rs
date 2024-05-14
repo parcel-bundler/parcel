@@ -3,7 +3,6 @@ use std::hash::Hasher;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 
-use bitflags::bitflags;
 use gxhash::GxHasher;
 use serde::Deserialize;
 use serde::Serialize;
@@ -13,7 +12,6 @@ use super::environment::Environment;
 use super::file_type::FileType;
 use super::json::JSONObject;
 use super::symbol::Symbol;
-use crate::bitflags_serde;
 
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
 pub struct AssetId(pub NonZeroU32);
@@ -35,11 +33,21 @@ pub struct Asset {
   /// The environment of the asset
   pub env: Environment,
 
-  /// Togglable options that represent the state of the asset
-  pub flags: AssetFlags,
-
   /// The file path to the asset
   pub file_path: PathBuf,
+
+  /// Indicates if the asset is used as a bundle entry
+  ///
+  /// This controls whether a bundle can be split into multiple, or whether all of the
+  /// dependencies must be placed in a single bundle.
+  ///
+  pub is_bundle_splittable: bool,
+
+  /// Whether this asset is part of the project, and not an external dependency
+  ///
+  /// This indicates that transformation using the project configuration should be applied.
+  ///
+  pub is_source: bool,
 
   /// Plugin specific metadata for the asset
   pub meta: JSONObject,
@@ -49,6 +57,12 @@ pub struct Asset {
 
   /// The transformer options for the asset from the dependency query string
   pub query: Option<String>,
+
+  /// Whether this asset can be omitted if none of its exports are being used
+  ///
+  /// This is initially set by the resolver, but can be overridden by transformers.
+  ///
+  pub side_effects: bool,
 
   /// Statistics about the asset
   pub stats: AssetStats,
@@ -79,24 +93,6 @@ impl Asset {
     hasher.finish()
   }
 }
-
-bitflags! {
-  #[derive(Debug, Clone, Copy, PartialEq)]
-  pub struct AssetFlags: u32 {
-    const IS_SOURCE = 1 << 0;
-    const SIDE_EFFECTS = 1 << 1;
-    const IS_BUNDLE_SPLITTABLE = 1 << 2;
-    const LARGE_BLOB = 1 << 3;
-    const HAS_CJS_EXPORTS = 1 << 4;
-    const STATIC_EXPORTS = 1 << 5;
-    const SHOULD_WRAP = 1 << 6;
-    const IS_CONSTANT_MODULE = 1 << 7;
-    const HAS_NODE_REPLACEMENTS = 1 << 8;
-    const HAS_SYMBOLS = 1 << 9;
-  }
-}
-
-bitflags_serde!(AssetFlags);
 
 /// Statistics that pertain to an asset
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

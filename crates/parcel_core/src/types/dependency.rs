@@ -2,7 +2,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 
-use bitflags::bitflags;
 use gxhash::GxHasher;
 use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
@@ -16,7 +15,6 @@ use super::json::JSONObject;
 use super::source::SourceLocation;
 use super::symbol::Symbol;
 use super::target::Target;
-use crate::bitflags_serde;
 
 /// A dependency denotes a connection between two assets
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -31,8 +29,14 @@ pub struct Dependency {
   /// The environment of the dependency
   pub env: Environment,
 
-  /// Information that represents the state of the dependency
-  pub flags: DependencyFlags,
+  /// Whether the dependency is an entry
+  pub is_entry: bool,
+
+  /// Whether the dependency is optional
+  ///
+  /// If an optional dependency cannot be resolved, it will not fail the build.
+  ///
+  pub is_optional: bool,
 
   /// The location within the source file where the dependency was found
   #[serde(default)]
@@ -41,6 +45,16 @@ pub struct Dependency {
   /// Plugin-specific metadata for the dependency
   #[serde(default)]
   pub meta: JSONObject,
+
+  /// Indicates that the name should be stable over time, even when the content of the bundle changes
+  ///
+  /// When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the
+  /// naming of that bundle.
+  ///
+  /// This is useful for entries that a user would manually enter the URL for, as well as for
+  /// things like service workers or RSS feeds, where the URL must remain consistent over time.
+  ///
+  pub needs_stable_name: bool,
 
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
   ///
@@ -90,9 +104,11 @@ impl Dependency {
     Dependency {
       bundle_behavior: BundleBehavior::None,
       env,
-      flags: DependencyFlags::empty(),
+      is_entry: false,
+      is_optional: false,
       loc: None,
       meta: JSONObject::new(),
+      needs_stable_name: false,
       package_conditions: ExportsCondition::empty(),
       pipeline: None,
       priority: Priority::default(),
@@ -123,21 +139,6 @@ impl Dependency {
     hasher.finish()
   }
 }
-
-bitflags! {
-  #[derive(Clone, Copy, Debug, Hash)]
-  pub struct DependencyFlags: u8 {
-    const ENTRY    = 1 << 0;
-    const OPTIONAL = 1 << 1;
-    const NEEDS_STABLE_NAME = 1 << 2;
-    const SHOULD_WRAP = 1 << 3;
-    const IS_ESM = 1 << 4;
-    const IS_WEBWORKER = 1 << 5;
-    const HAS_SYMBOLS = 1 << 6;
-  }
-}
-
-bitflags_serde!(DependencyFlags);
 
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct ImportAttribute {

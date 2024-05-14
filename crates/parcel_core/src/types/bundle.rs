@@ -1,4 +1,3 @@
-use bitflags::bitflags;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
@@ -7,7 +6,6 @@ use serde_repr::Serialize_repr;
 use super::environment::Environment;
 use super::file_type::FileType;
 use super::target::Target;
-use crate::bitflags_serde;
 
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,9 +26,6 @@ pub struct Bundle {
   /// The environment of the bundle
   pub env: Environment,
 
-  /// Togglable options that represent the state of the bundle
-  pub flags: BundleFlags,
-
   /// A placeholder for the bundle content hash
   ///
   /// It can be used in the bundle's name or the contents of another bundle. Hash references are replaced
@@ -40,6 +35,14 @@ pub struct Bundle {
 
   /// The bundle id
   pub id: String,
+
+  /// Whether the bundle can be split
+  ///
+  /// If false, then all dependencies of the bundle will be kept internal to the bundle, rather
+  /// than referring to other bundles. This may result in assets being duplicated between
+  /// multiple bundles, but can be useful for things like server side rendering.
+  ///
+  pub is_splittable: bool,
 
   /// The main entry of the bundle, which will provide the bundle exports
   ///
@@ -54,6 +57,9 @@ pub struct Bundle {
   /// The bundle name may include a hash reference, but not the final content hash.
   ///
   pub name: Option<String>,
+
+  /// Indicates that the name should be stable over time, even when the content of the bundle changes
+  pub needs_stable_name: bool,
 
   /// The pipeline associated with the bundle
   pub pipeline: Option<String>,
@@ -84,14 +90,3 @@ impl Default for BundleBehavior {
     BundleBehavior::None
   }
 }
-
-bitflags! {
-  #[derive(Debug, Clone, Copy, Hash)]
-  pub struct BundleFlags: u8 {
-    const NEEDS_STABLE_NAME = 1 << 0;
-    const IS_SPLITTABLE = 1 << 1;
-    const IS_PLACEHOLDER = 1 << 2;
-  }
-}
-
-bitflags_serde!(BundleFlags);
