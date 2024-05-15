@@ -8,6 +8,7 @@ use swc_core::common::Span;
 use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 use swc_core::ecma::visit::VisitWith;
@@ -71,7 +72,7 @@ impl<'a> Fold for InlineFS<'a> {
       }
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 }
 
@@ -228,7 +229,7 @@ struct Evaluator<'a> {
 
 impl<'a> Fold for Evaluator<'a> {
   fn fold_expr(&mut self, node: Expr) -> Expr {
-    let node = node.fold_children_with(self);
+    let node = maybe_grow_default(|| node.fold_children_with(self));
 
     match &node {
       Expr::Ident(ident) => match ident.sym.to_string().as_str() {

@@ -90,7 +90,7 @@ console.log('adding a new console');`,
             result.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(contents.includes(`console.log("adding a new console")`));
+          assert(contents.includes(`console.log('adding a new console')`));
         } finally {
           if (subscription) {
             await subscription.unsubscribe();
@@ -132,7 +132,7 @@ console.log('adding a new console');`,
             result.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(contents.includes(`console.log("adding a new console")`));
+          assert(contents.includes(`console.log('adding a new console')`));
         } finally {
           if (subscription) {
             await subscription.unsubscribe();
@@ -174,7 +174,7 @@ console.log('adding a new console');`,
             result.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(contents.includes(`console.log("adding a new console")`));
+          assert(contents.includes(`console.log('adding a new console')`));
         } finally {
           if (subscription) {
             await subscription.unsubscribe();
@@ -217,7 +217,7 @@ console.log(a);
             'utf8',
           );
           assert(
-            contents.includes(`console.log("index.js - updated string");`),
+            contents.includes(`console.log('index.js - updated string');`),
           );
         } finally {
           if (subscription) {
@@ -308,7 +308,7 @@ module.exports = a;`,
             'utf8',
           );
 
-          assert(contents.includes(`console.log("adding a new console")`));
+          assert(contents.includes(`console.log('adding a new console')`));
 
           let bundleOutput = await run(result.bundleGraph);
           assert.equal(bundleOutput, 'a updated');
@@ -404,7 +404,7 @@ console.log(a, 'updated');`,
           'utf8',
         );
 
-        assert(contents.includes(`console.log((0, _a.a), "updated");`));
+        assert(contents.includes(`console.log((0, _a.a), 'updated');`));
 
         let bundleCSS = result.bundleGraph.getBundles()[1];
         assert.equal(bundleCSS.type, 'css');
@@ -504,7 +504,7 @@ console.log(a);
           'utf8',
         );
 
-        assert(contents.includes(`console.log("index.js", (0, _b.b));`));
+        assert(contents.includes(`console.log('index.js', (0, _b.b));`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
@@ -612,7 +612,7 @@ console.log(a, b);
         );
         assert(
           dynamicContent.includes(`parcelHelpers.export(exports, "b", ()=>b);
-const b = "b";`),
+const b = 'b';`),
         );
       } finally {
         if (subscription) {
