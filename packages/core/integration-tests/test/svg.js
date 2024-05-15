@@ -195,7 +195,7 @@ describe('svg', function () {
       ),
     );
     assert(svg.includes('<script>'));
-    assert(svg.includes(`console.log("script")`));
+    assert(svg.includes(`console.log('script')`));
     assert(!svg.includes('import '));
   });
 

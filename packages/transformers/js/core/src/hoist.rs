@@ -13,6 +13,7 @@ use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
@@ -755,7 +756,7 @@ impl<'a> Fold for Hoist<'a> {
       _ => {}
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 
   fn fold_seq_expr(&mut self, node: SeqExpr) -> SeqExpr {
@@ -889,21 +890,13 @@ impl<'a> Fold for Hoist<'a> {
       return node.fold_children_with(self);
     }
 
-    let expr = match &node.left {
-      PatOrExpr::Expr(expr) => expr,
-      PatOrExpr::Pat(pat) => match &**pat {
-        Pat::Expr(expr) => expr,
-        _ => return node.fold_children_with(self),
-      },
-    };
-
-    if let Expr::Member(member) = &**expr {
+    if let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &node.left {
       if match_member_expr(member, vec!["module", "exports"], self.unresolved_mark) {
         let ident = BindingIdent::from(self.get_export_ident(member.span, &"*".into()));
         return AssignExpr {
           span: node.span,
           op: node.op,
-          left: PatOrExpr::Pat(Box::new(Pat::Ident(ident))),
+          left: AssignTarget::Simple(SimpleAssignTarget::Ident(ident.into())),
           right: node.right.fold_with(self),
         };
       }
@@ -955,13 +948,13 @@ impl<'a> Fold for Hoist<'a> {
           span: node.span,
           op: node.op,
           left: if self.collect.static_cjs_exports {
-            PatOrExpr::Pat(Box::new(Pat::Ident(ident)))
+            AssignTarget::Simple(SimpleAssignTarget::Ident(ident.into()))
           } else {
-            PatOrExpr::Pat(Box::new(Pat::Expr(Box::new(Expr::Member(MemberExpr {
+            AssignTarget::Simple(SimpleAssignTarget::Member(MemberExpr {
               span: member.span,
               obj: Box::new(Expr::Ident(ident.id)),
               prop: member.prop.clone().fold_with(self),
-            })))))
+            }))
           },
           right: node.right.fold_with(self),
         };

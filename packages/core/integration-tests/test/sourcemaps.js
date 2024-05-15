@@ -1258,7 +1258,7 @@ describe('sourcemaps', function () {
       source: input,
       generated: raw,
       str: "console.log('foo')",
-      generatedStr: `console.log("foo")`,
+      generatedStr: `console.log('foo')`,
       sourcePath,
     });
 
@@ -1267,7 +1267,7 @@ describe('sourcemaps', function () {
       source: input,
       generated: raw,
       str: "console.log('bar')",
-      generatedStr: `console.log("bar")`,
+      generatedStr: `console.log('bar')`,
       sourcePath,
     });
 
@@ -1276,7 +1276,7 @@ describe('sourcemaps', function () {
       source: input,
       generated: raw,
       str: "console.log('baz')",
-      generatedStr: `console.log("baz")`,
+      generatedStr: `console.log('baz')`,
       sourcePath,
     });
 
@@ -1285,7 +1285,7 @@ describe('sourcemaps', function () {
       source: input,
       generated: raw,
       str: "console.log('idhf')",
-      generatedStr: `console.log("idhf")`,
+      generatedStr: `console.log('idhf')`,
       sourcePath,
     });
   });
@@ -1425,7 +1425,7 @@ describe('sourcemaps', function () {
       source: sourceContent,
       generated: raw,
       str: `foo = 'Lorem ipsum`,
-      generatedStr: `foo = "Lorem ipsum`,
+      generatedStr: `foo = 'Lorem ipsum`,
       sourcePath,
     });
   });

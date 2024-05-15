@@ -5875,17 +5875,17 @@ describe('cache', function () {
         },
         async update(b) {
           let res = await run(b.bundleGraph);
-          assert(res.includes(`let a = "a"`));
+          assert(res.includes(`let a = 'a'`));
 
           await overlayFS.writeFile(
             path.join(inputDir, 'src/entries/a.js'),
-            `export let a = "b";`,
+            `export let a = 'b';`,
           );
         },
       });
 
       let res = await run(b.bundleGraph);
-      assert(res.includes(`let a = "b"`));
+      assert(res.includes(`let a = 'b'`));
     });
 
     it('should invalidate when switching to a different packager for an inline bundle', async function () {

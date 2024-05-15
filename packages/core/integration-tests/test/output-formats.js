@@ -1060,7 +1060,7 @@ describe('output formats', function () {
         .find(bundle => bundle.name.startsWith('async'));
       assert(
         new RegExp(
-          `getBundleURL\\("[a-zA-Z0-9]+"\\) \\+ "` +
+          `getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ "` +
             path.basename(asyncBundle.filePath) +
             '"',
         ).test(entry),

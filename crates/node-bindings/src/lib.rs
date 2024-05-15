@@ -7,11 +7,11 @@ use std::alloc::Layout;
 
 mod init_sentry;
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(miri)))]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-#[cfg(windows)]
+#[cfg(all(windows, not(miri)))]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

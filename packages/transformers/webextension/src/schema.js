@@ -473,6 +473,10 @@ export const MV3Schema = ({
               type: 'string',
               enum: ['classic', 'module'],
             },
+            // to support both Chrome and Firefox
+            scripts: arrStr,
+            page: string,
+            persistent: boolean,
           },
           additionalProperties: false,
           required: ['service_worker'],

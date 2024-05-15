@@ -3,7 +3,6 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-
 use parcel_core::requests::entry_request::run_entry_request;
 use parcel_core::requests::entry_request::EntryRequestInput;
 use parcel_core::requests::entry_request::EntryResult;

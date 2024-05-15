@@ -4,6 +4,7 @@ use swc_core::ecma::ast::Lit;
 use swc_core::ecma::ast::Str;
 use swc_core::ecma::ast::UnaryOp;
 use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
@@ -45,6 +46,7 @@ impl Fold for TypeofReplacer {
         }
       }
     }
-    node.fold_children_with(self)
+
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 }
