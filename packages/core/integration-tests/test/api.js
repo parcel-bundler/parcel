@@ -68,11 +68,11 @@ describe('JS API', function () {
       await fsFixture(overlayFS, dir)`
       index.js:
         export default 'Hi';
-      
+
       .parcelrc:
         {
-          extends: "@parcel/config-default",
-          reporters: ["./reporter-plugin.js", "..."],
+          "extends": "@parcel/config-default",
+          "reporters": ["./reporter-plugin.js", "..."],
         }
 
       package.json:
@@ -81,7 +81,7 @@ describe('JS API', function () {
         }
 
       yarn.lock:
-      
+
       reporter-plugin.js:
         import {Reporter} from '@parcel/plugin';
         import path from 'node:path';

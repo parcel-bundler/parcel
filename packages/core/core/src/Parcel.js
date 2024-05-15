@@ -46,7 +46,12 @@ import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initRust, initSentry, closeSentry} from '@parcel/rust';
+import {
+  init as initRust,
+  initSentry,
+  closeSentry,
+  napiParcelConfig,
+} from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
@@ -116,8 +121,13 @@ export default class Parcel {
     );
 
     this.#resolvedOptions = resolvedOptions;
-    let {config} = await loadParcelConfig(resolvedOptions);
-    this.#config = new ParcelConfig(config, resolvedOptions);
+    if (true) {
+      let {parcelConfig} = napiParcelConfig(resolvedOptions);
+      this.#config = new ParcelConfig(parcelConfig, resolvedOptions);
+    } else {
+      let {config} = await loadParcelConfig(resolvedOptions);
+      this.#config = new ParcelConfig(config, resolvedOptions);
+    }
 
     setFeatureFlags(resolvedOptions.featureFlags);
 

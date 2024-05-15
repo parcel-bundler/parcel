@@ -13,6 +13,7 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi::JsString;
+use napi_derive::napi;
 use parcel_filesystem::js_delegate_file_system::JSDelegateFileSystem;
 use parcel_package_manager::js_package_manager::JsPackageManager;
 
@@ -25,6 +26,20 @@ pub fn project_root_from_options(options: &JsObject) -> napi::Result<PathBuf> {
   let project_root = project_root.into_utf8()?;
   let project_root = project_root.as_str()?;
   Ok(PathBuf::from(project_root))
+}
+
+#[napi(object)]
+pub struct AdditionalReporter {
+  pub package_name: String,
+  pub resolve_from: String,
+}
+
+pub fn additional_reporters_from_options(
+  options: &JsObject,
+) -> napi::Result<Vec<AdditionalReporter>> {
+  let additional_reporters = options.get("additionalReporters")?.unwrap_or(Vec::new());
+
+  Ok(additional_reporters)
 }
 
 pub fn input_fs_from_options(

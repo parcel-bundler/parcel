@@ -5,6 +5,8 @@ use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystem;
 use parcel_package_manager::PackageManager;
 use pathdiff::diff_paths;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::config_error::ConfigError;
 use super::parcel_config::ParcelConfig;
@@ -28,6 +30,22 @@ pub struct LoadConfigOptions<'a> {
 pub struct ParcelRcConfigLoader<'a, T, U> {
   fs: &'a T,
   package_manager: &'a U,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ConfigType {
+  Default,
+  Config,
+  Fallback,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadConfigResult {
+  config_type: ConfigType,
+  files: Vec<PathBuf>,
+  parcel_config: ParcelConfig,
 }
 
 impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
@@ -167,24 +185,31 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
     &self,
     project_root: &PathBuf,
     options: LoadConfigOptions<'a>,
-  ) -> Result<(ParcelConfig, Vec<PathBuf>), ConfigError> {
+  ) -> Result<LoadConfigResult, ConfigError> {
     let resolve_from = self.resolve_from(project_root);
-    let mut config_path = match options.config {
-      Some(config) => self
-        .package_manager
-        .resolve(&config, &resolve_from)
-        .map(|r| r.resolved)
-        .map_err(|source| ConfigError::UnresolvedConfig {
-          config_type: String::from("config"),
-          from: resolve_from.clone(),
-          source: Box::new(source),
-          specifier: String::from(config),
-        }),
-      None => self.find_config(project_root, &resolve_from),
+    let (mut config_type, mut config_path) = match options.config {
+      Some(config) => (
+        ConfigType::Config,
+        self
+          .package_manager
+          .resolve(&config, &resolve_from)
+          .map(|r| r.resolved)
+          .map_err(|source| ConfigError::UnresolvedConfig {
+            config_type: String::from("config"),
+            from: resolve_from.clone(),
+            source: Box::new(source),
+            specifier: String::from(config),
+          }),
+      ),
+      None => (
+        ConfigType::Default,
+        self.find_config(project_root, &resolve_from),
+      ),
     };
 
     if !config_path.is_ok() {
       if let Some(fallback_config) = options.fallback_config {
+        config_type = ConfigType::Fallback;
         config_path = self
           .package_manager
           .resolve(&fallback_config, &resolve_from)
@@ -207,7 +232,11 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
 
     let parcel_config = ParcelConfig::try_from(parcel_config)?;
 
-    Ok((parcel_config, files))
+    Ok(LoadConfigResult {
+      config_type,
+      files,
+      parcel_config,
+    })
   }
 }
 

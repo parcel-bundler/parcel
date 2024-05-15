@@ -72,7 +72,6 @@ export default class ParcelConfig {
   regexCache: Map<string, RegExp>;
 
   constructor(config: ProcessedParcelConfig, options: ParcelOptions) {
-    console.log('config..', config.resolvers);
     this.options = options;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
@@ -449,7 +448,6 @@ export default class ParcelConfig {
     }
 
     let seenKey = false;
-    console.log('configs', Array.from(configsWithPlugin)[0]);
     let codeFrames = await Promise.all(
       [...configsWithPlugin].map(async filePath => {
         let configContents = await this.options.inputFS.readFile(

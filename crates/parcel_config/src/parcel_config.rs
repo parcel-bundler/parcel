@@ -1,20 +1,23 @@
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use indexmap::IndexMap;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::config_error::ConfigError;
 use super::partial_parcel_config::PartialParcelConfig;
 use super::pipeline::PipelineMap;
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PluginNode {
   pub package_name: String,
-  pub resolve_from: Arc<PathBuf>,
+  pub resolve_from: Rc<PathBuf>,
 }
 
 /// Represents a fully merged and validated .parcel_rc config
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ParcelConfig {
   pub bundler: PluginNode,
   pub compressors: PipelineMap,
@@ -113,14 +116,14 @@ mod tests {
       fn plugin() -> PluginNode {
         PluginNode {
           package_name: String::from("package"),
-          resolve_from: Arc::new(PathBuf::from("/")),
+          resolve_from: Rc::new(PathBuf::from("/")),
         }
       }
 
       fn extension() -> PluginNode {
         PluginNode {
           package_name: String::from("..."),
-          resolve_from: Arc::new(PathBuf::from("/")),
+          resolve_from: Rc::new(PathBuf::from("/")),
         }
       }
 

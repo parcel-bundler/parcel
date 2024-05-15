@@ -72,32 +72,60 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     id: type,
     type: requestTypes[type],
     async run({api, options}) {
-      let {
-        config,
-        extendedFiles,
-        usedDefault,
-      }: {|
-        ...ParcelConfigChain,
-        usedDefault: boolean,
-      |} = await loadParcelConfig(
-        optionsProxy(options, api.invalidateOnOptionChange),
-      );
+      let loadOptions = optionsProxy(options, api.invalidateOnOptionChange);
+      let config;
 
-      api.invalidateOnFileUpdate(config.filePath);
-      api.invalidateOnFileDelete(config.filePath);
+      if (true) {
+        let {configType, files, parcelConfig} = await napiParcelConfig(options);
 
-      for (let filePath of extendedFiles) {
-        let pp = toProjectPath(options.projectRoot, filePath);
-        api.invalidateOnFileUpdate(pp);
-        api.invalidateOnFileDelete(pp);
-      }
+        for (let file of files) {
+          api.invalidateOnFileUpdate(file);
+          api.invalidateOnFileDelete(file);
+        }
 
-      if (usedDefault) {
-        let resolveFrom = getResolveFrom(options.inputFS, options.projectRoot);
-        api.invalidateOnFileCreate({
-          fileName: '.parcelrc',
-          aboveFilePath: toProjectPath(options.projectRoot, resolveFrom),
-        });
+        if (configType === 'default') {
+          let resolveFrom = getResolveFrom(
+            options.inputFS,
+            options.projectRoot,
+          );
+          api.invalidateOnFileCreate({
+            fileName: '.parcelrc',
+            aboveFilePath: toProjectPath(options.projectRoot, resolveFrom),
+          });
+        }
+
+        config = parcelConfig;
+      } else {
+        let {
+          config: parcelConfig,
+          extendedFiles,
+          usedDefault,
+        }: {|
+          ...ParcelConfigChain,
+          usedDefault: boolean,
+        |} = await loadParcelConfig(loadOptions);
+
+        config = parcelConfig;
+
+        api.invalidateOnFileUpdate(config.filePath);
+        api.invalidateOnFileDelete(config.filePath);
+
+        for (let filePath of extendedFiles) {
+          let pp = toProjectPath(options.projectRoot, filePath);
+          api.invalidateOnFileUpdate(pp);
+          api.invalidateOnFileDelete(pp);
+        }
+
+        if (usedDefault) {
+          let resolveFrom = getResolveFrom(
+            options.inputFS,
+            options.projectRoot,
+          );
+          api.invalidateOnFileCreate({
+            fileName: '.parcelrc',
+            aboveFilePath: toProjectPath(options.projectRoot, resolveFrom),
+          });
+        }
       }
 
       let cachePath = hashObject(config);
@@ -131,19 +159,13 @@ export function getCachedParcelConfig(
 export async function loadParcelConfig(
   options: ParcelOptions,
 ): Promise<{|...ParcelConfigChain, usedDefault: boolean|}> {
-  if (true) {
-    let parcelConfig = napiParcelConfig(options);
+  let parcelConfig = await resolveParcelConfig(options);
 
-    return parcelConfig;
-  } else {
-    let parcelConfig = await resolveParcelConfig(options);
-
-    if (!parcelConfig) {
-      throw new Error('Could not find a .parcelrc');
-    }
-
-    return parcelConfig;
+  if (!parcelConfig) {
+    throw new Error('Could not find a .parcelrc');
   }
+
+  return parcelConfig;
 }
 
 export async function resolveParcelConfig(
