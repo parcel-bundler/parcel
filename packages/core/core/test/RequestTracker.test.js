@@ -339,6 +339,42 @@ describe('RequestTracker', () => {
     await tracker.runRequest({
       id: contentKey,
       type: 7,
+      run: async ({api}: {api: RunAPI<string | void>, ...}) => {
+        api.storeResult('a');
+      },
+      input: null,
+    });
+    let nodeId = tracker.graph.getNodeIdByContentKey(contentKey);
+    assert.equal(await tracker.getRequestResult(contentKey), 'a');
+    await tracker.writeToCache();
+
+    await tracker.runRequest(
+      {
+        id: contentKey,
+        type: 7,
+        run: async ({api}: {api: RunAPI<string | void>, ...}) => {
+          api.storeResult('b');
+        },
+        input: null,
+      },
+      {force: true},
+    );
+    assert.equal(await tracker.getRequestResult(contentKey), 'b');
+    await tracker.writeToCache();
+
+    // Create a new tracker from cache
+    tracker = await RequestTracker.init({farm, options});
+
+    assert.equal(await tracker.getRequestResult(contentKey), 'b');
+  });
+
+  it.only('should write invalidated nodes to cache', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    let contentKey = 'abc';
+    await tracker.runRequest({
+      id: contentKey,
+      type: 7,
       run: () => {},
       input: null,
     });
