@@ -15,6 +15,7 @@ bitflags = "1.3.2"
 browserslist-rs = "0.15.0"
 dyn-hash = "0.x"
 nodejs-semver = "4.0.0"
+petgraph = "0.6.5"
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = { version = "1.0.116", features = ["preserve_order"] }
 serde_repr = "0.1.19"

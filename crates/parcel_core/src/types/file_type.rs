@@ -4,10 +4,11 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// Represents a file type by its extension
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Hash)]
 pub enum FileType {
   Css,
   Html,
+  #[default]
   Js,
   Jsx,
   Ts,

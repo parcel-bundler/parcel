@@ -6,7 +6,7 @@ import {bundle, fsFixture, overlayFS} from '@parcel/test-utils';
 import type {BundleGraph, BundleGroup, PackagedBundle} from '@parcel/types';
 
 describe('BundleGraph', () => {
-  it('can traverse assets across bundles and contexts', async () => {
+  it.only('can traverse assets across bundles and contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
     );

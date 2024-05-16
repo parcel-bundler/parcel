@@ -1733,6 +1733,7 @@ dependencies = [
  "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
  "petgraph",
+ "serde",
  "xxhash-rust",
 ]
 
@@ -1870,6 +1871,7 @@ dependencies = [
  "dyn-hash",
  "nodejs-semver",
  "parcel_filesystem",
+ "petgraph",
  "serde",
  "serde-value",
  "serde_json",
