@@ -307,4 +307,52 @@ describe('RequestTracker', () => {
     assert.strictEqual(cachedResult, 'b');
     assert.strictEqual(called, false);
   });
+
+  it.only('should write new nodes to cache', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    tracker.graph.addNode({
+      type: 0,
+      id: 'test-file',
+    });
+    await tracker.writeToCache();
+    assert.equal(tracker.graph.nodes.length, 1);
+
+    tracker.graph.addNode({
+      type: 0,
+      id: 'test-file-2',
+    });
+    await tracker.writeToCache();
+    assert.equal(tracker.graph.nodes.length, 2);
+
+    // Create a new tracker from cache
+    tracker = await RequestTracker.init({farm, options});
+
+    await tracker.writeToCache();
+    assert.equal(tracker.graph.nodes.length, 2);
+  });
+
+  it.only('should write updated nodes to cache', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    let contentKey = 'abc';
+    await tracker.runRequest({
+      id: contentKey,
+      type: 7,
+      run: () => {},
+      input: null,
+    });
+    let nodeId = tracker.graph.getNodeIdByContentKey(contentKey);
+    assert.equal(tracker.graph.getNode(nodeId)?.invalidateReason, 0);
+    await tracker.writeToCache();
+
+    tracker.graph.invalidateNode(nodeId, 1);
+    assert.equal(tracker.graph.getNode(nodeId)?.invalidateReason, 1);
+    await tracker.writeToCache();
+
+    // Create a new tracker from cache
+    tracker = await RequestTracker.init({farm, options});
+
+    assert.equal(tracker.graph.getNode(nodeId)?.invalidateReason, 1);
+  });
 });

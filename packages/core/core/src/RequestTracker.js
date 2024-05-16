@@ -328,6 +328,8 @@ export class RequestGraph extends ContentGraph<
       this.optionNodeIds.add(nodeId);
     }
 
+    this.removeCachedRequestChunkForNode(nodeId);
+
     return nodeId;
   }
 
