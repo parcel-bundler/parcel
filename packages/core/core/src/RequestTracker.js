@@ -263,6 +263,10 @@ const keyFromEnvContentKey = (contentKey: ContentKey): string =>
 const keyFromOptionContentKey = (contentKey: ContentKey): string =>
   contentKey.slice('option:'.length);
 
+// This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
+// The goal is to free up the event loop periodically to allow interruption by the user.
+const NODES_PER_BLOB = 2 ** 14;
+
 export class RequestGraph extends ContentGraph<
   RequestGraphNode,
   RequestGraphEdgeType,
@@ -279,6 +283,7 @@ export class RequestGraph extends ContentGraph<
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
   cachedRequestChunks: Set<number> = new Set();
   configKeyNodes: Map<ProjectPath, Set<NodeId>> = new Map();
+  nodesPerBlob: number = NODES_PER_BLOB;
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -1026,13 +1031,9 @@ export class RequestGraph extends ContentGraph<
   }
 
   removeCachedRequestChunkForNode(nodeId: number): void {
-    this.cachedRequestChunks.delete(Math.floor(nodeId / NODES_PER_BLOB));
+    this.cachedRequestChunks.delete(Math.floor(nodeId / this.nodesPerBlob));
   }
 }
-
-// This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
-// The goal is to free up the event loop periodically to allow interruption by the user.
-const NODES_PER_BLOB = 2 ** 14;
 
 export default class RequestTracker {
   graph: RequestGraph;
@@ -1421,7 +1422,11 @@ export default class RequestTracker {
       }
     }
 
-    for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
+    for (
+      let i = 0;
+      i * this.graph.nodesPerBlob < cacheableNodes.length;
+      i += 1
+    ) {
       if (!this.graph.hasCachedRequestChunk(i)) {
         // We assume the request graph nodes are immutable and won't change
         queue
@@ -1429,8 +1434,8 @@ export default class RequestTracker {
             serialiseAndSet(
               getRequestGraphNodeKey(i, cacheKey),
               cacheableNodes.slice(
-                i * NODES_PER_BLOB,
-                (i + 1) * NODES_PER_BLOB,
+                i * this.graph.nodesPerBlob,
+                (i + 1) * this.graph.nodesPerBlob,
               ),
             ).then(() => {
               // Succeeded in writing to disk, save that we have completed this chunk
