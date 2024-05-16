@@ -1,3 +1,13 @@
+use parcel_resolver::FileSystem;
+
+use super::PluginConfig;
+use crate::types::Asset;
+
+pub struct Validation {
+  pub errors: Vec<anyhow::Error>,
+  pub warnings: Vec<anyhow::Error>,
+}
+
 /// Analyzes assets to ensure they are in a valid state
 ///
 /// Validators may throw errors or log warnings to indicate an asset is invalid. They can be used
@@ -10,4 +20,76 @@
 /// remain productive, and do not have to worry about every small typing or linting issue while
 /// trying to solve a problem.
 ///
-pub trait ValidatorPlugin {}
+pub trait ValidatorPlugin<Fs: FileSystem> {
+  /// A hook designed to setup config needed to validate assets
+  ///
+  /// This function will run once, shortly after the plugin is initialised.
+  ///
+  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+
+  /// Validates a single asset at a time
+  ///
+  /// This is usually designed for stateless validators
+  ///
+  fn validate_asset(
+    &mut self,
+    config: &PluginConfig<Fs>,
+    asset: &Asset,
+  ) -> Result<Validation, anyhow::Error>;
+
+  /// Validates all assets
+  ///
+  /// Some validators may wish to maintain a project-wide state or cache for efficiency. For these
+  /// cases, it is appropriate to use a different interface where Parcel passses all the changed
+  /// files to the validator at the same time.
+  ///
+  /// This type of validator is slower than a stateless validator, as it runs everything on a
+  /// single thread. Only use this if you have no other choice, as is typically the case for
+  /// validators that need to have access to the entire project, like TypeScript.
+  ///
+  fn validate_assets(
+    &mut self,
+    config: &PluginConfig<Fs>,
+    assets: Vec<&Asset>,
+  ) -> Result<Validation, anyhow::Error>;
+}
+
+#[cfg(test)]
+mod tests {
+  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+
+  use super::*;
+
+  struct TestValidatorPlugin {}
+
+  impl<Fs: FileSystem> ValidatorPlugin<Fs> for TestValidatorPlugin {
+    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+      todo!()
+    }
+
+    fn validate_asset(
+      &mut self,
+      _config: &PluginConfig<Fs>,
+      _asset: &Asset,
+    ) -> Result<Validation, anyhow::Error> {
+      todo!()
+    }
+
+    fn validate_assets(
+      &mut self,
+      _config: &PluginConfig<Fs>,
+      _assets: Vec<&Asset>,
+    ) -> Result<Validation, anyhow::Error> {
+      todo!()
+    }
+  }
+
+  #[test]
+  fn can_be_defined_in_dyn_vec() {
+    let mut validators = Vec::<Box<dyn ValidatorPlugin<InMemoryFileSystem>>>::new();
+
+    validators.push(Box::new(TestValidatorPlugin {}));
+
+    assert_eq!(validators.len(), 1);
+  }
+}

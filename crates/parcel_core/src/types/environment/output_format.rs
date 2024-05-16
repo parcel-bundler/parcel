@@ -2,7 +2,7 @@ use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
 
 /// The JavaScript bundle output format
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Deserialize_repr, Hash, Serialize_repr)]
+#[derive(Clone, Copy, Debug, Default, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
 #[repr(u8)]
 pub enum OutputFormat {
   /// A classic script that can be loaded in a <script> tag in the browser
@@ -21,5 +21,6 @@ pub enum OutputFormat {
   ///
   /// ES Modules are often loaded using a <script type="module"> tag in the browser.
   ///
+  #[default]
   EsModule = 2,
 }
