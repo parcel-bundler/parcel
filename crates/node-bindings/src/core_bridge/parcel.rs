@@ -3,11 +3,11 @@ use std::thread;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-use parcel_config::ParcelConfig;
 use parcel_core_next::build;
 use parcel_core_next::RequestTracker;
 
 use super::request_tracker::RequestTrackerNapi;
+use super::ParcelConfig;
 
 #[napi]
 pub fn parcel(env: Env, parcel_config: JsObject) -> napi::Result<RequestTrackerNapi> {
