@@ -308,7 +308,7 @@ describe('RequestTracker', () => {
     assert.strictEqual(called, false);
   });
 
-  it.only('should write new nodes to cache', async () => {
+  it('should write new nodes to cache', async () => {
     let tracker = new RequestTracker({farm, options});
 
     tracker.graph.addNode({
@@ -332,7 +332,7 @@ describe('RequestTracker', () => {
     assert.equal(tracker.graph.nodes.length, 2);
   });
 
-  it.only('should write updated nodes to cache', async () => {
+  it('should write updated nodes to cache', async () => {
     let tracker = new RequestTracker({farm, options});
 
     let contentKey = 'abc';
@@ -368,7 +368,7 @@ describe('RequestTracker', () => {
     assert.equal(await tracker.getRequestResult(contentKey), 'b');
   });
 
-  it.only('should write invalidated nodes to cache', async () => {
+  it('should write invalidated nodes to cache', async () => {
     let tracker = new RequestTracker({farm, options});
 
     let contentKey = 'abc';
