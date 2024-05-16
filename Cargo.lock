@@ -1754,6 +1754,7 @@ dependencies = [
  "getrandom",
  "glob",
  "indexmap 1.9.3",
+ "indexmap 2.2.6",
  "jemallocator",
  "libc",
  "log",

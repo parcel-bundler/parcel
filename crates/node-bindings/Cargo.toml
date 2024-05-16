@@ -33,6 +33,7 @@ toml = "0.8.12"
 anyhow = "1.0.82"
 mockall = "0.12.1"
 tokio = { version = "1.37.0", features = ["full"] }
+indexmap = { version = "2.2.6", features = ["serde", "std"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sentry = { version = "0.32.2", optional = true, default-features = false, features = [

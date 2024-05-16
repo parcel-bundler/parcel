@@ -12,6 +12,7 @@ use super::pipeline::is_match;
 use super::pipeline::PipelineMap;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PluginNode {
   pub package_name: String,
   pub resolve_from: Rc<PathBuf>,
