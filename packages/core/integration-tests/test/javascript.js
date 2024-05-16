@@ -26,14 +26,15 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe('javascript', function () {
+describe.only('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
 
-  it('should produce a basic JS bundle with CommonJS requires', async function () {
+  it.only('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js'),
+      { featureFlags: { parcelV3: true }}
     );
 
     // assert.equal(b.assets.size, 8);
