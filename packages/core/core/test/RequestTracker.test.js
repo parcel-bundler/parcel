@@ -307,4 +307,26 @@ describe('RequestTracker', () => {
     assert.strictEqual(cachedResult, 'b');
     assert.strictEqual(called, false);
   });
+
+  it.only('should use the request graph ID when writing nodes to cache', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    // Set the nodes per blob low so we can ensure multiple files without
+    // creating 17,000 nodes
+    tracker.graph.nodesPerBlob = 2;
+
+    tracker.graph.addNode({type: 0, id: 'some-file-node-1'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-2'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-3'});
+
+    await tracker.writeToCache();
+
+    tracker = new RequestTracker({farm, options});
+    assert.equal(tracker.graph.nodes.length, 0);
+
+    await tracker.writeToCache();
+
+    tracker = await RequestTracker.init({farm, options});
+    assert.equal(tracker.graph.nodes.length, 0);
+  });
 });
