@@ -340,11 +340,11 @@ describe('RequestTracker', () => {
       id: contentKey,
       type: 7,
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
-        api.storeResult('a');
+        let result = await Promise.resolve('a');
+        api.storeResult(result);
       },
       input: null,
     });
-    let nodeId = tracker.graph.getNodeIdByContentKey(contentKey);
     assert.equal(await tracker.getRequestResult(contentKey), 'a');
     await tracker.writeToCache();
 
@@ -353,7 +353,8 @@ describe('RequestTracker', () => {
         id: contentKey,
         type: 7,
         run: async ({api}: {api: RunAPI<string | void>, ...}) => {
-          api.storeResult('b');
+          let result = await Promise.resolve('b');
+          api.storeResult(result);
         },
         input: null,
       },
