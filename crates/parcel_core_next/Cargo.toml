@@ -1,0 +1,12 @@
+[package]
+name = "parcel_core_next"
+version = "0.1.0"
+edition = "2021"
+description = "Core logic for the parcel bundler"
+
+[dependencies]
+parcel_config = { path = "../parcel_config" }
+anyhow = "1.0.82"
+serde = "1.0.200"
+serde_json = "1.0.116"
+petgraph = "*"

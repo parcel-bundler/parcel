@@ -17,6 +17,8 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 /// napi versions of `crate::core::requests`
 pub mod core;
+
+pub mod core_bridge;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
 mod hash;

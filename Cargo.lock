@@ -1769,7 +1769,9 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel-macros",
  "parcel-resolver",
+ "parcel_config",
  "parcel_core",
+ "parcel_core_next",
  "parcel_filesystem",
  "parcel_napi_helpers",
  "rayon",
@@ -1837,6 +1839,17 @@ dependencies = [
  "serde_json",
  "toml",
  "xxhash-rust",
+]
+
+[[package]]
+name = "parcel_core_next"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "parcel_config",
+ "petgraph",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

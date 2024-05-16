@@ -44,10 +44,10 @@ import createAssetRequest from './requests/AssetRequest';
 import createPathRequest from './requests/PathRequest';
 import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
-import {mainWorkerHandler} from './nativeWorker/handler';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initRust, initSentry, closeSentry, mainWorker} from '@parcel/rust';
+import {init as initRust, initSentry, closeSentry} from '@parcel/rust';
+import * as napi from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
@@ -169,7 +169,10 @@ export default class Parcel {
     });
 
     if (getFeatureFlag('parcelV3')) {
-      mainWorker(mainWorkerHandler())
+      const request_tracker_rust = napi.parcel(this.#config.getConfig());
+
+      console.log(request_tracker_rust);
+      request_tracker_rust.startRequest('from JS');
     }
 
     this.#initialized = true;
