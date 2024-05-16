@@ -6,17 +6,13 @@ use parcel_core_next::RequestTracker;
 #[napi]
 #[derive(Clone)]
 pub struct RequestTrackerNapi {
-  request_tracker: RequestTracker
+  request_tracker: RequestTracker,
 }
 
 #[napi]
 impl RequestTrackerNapi {
-  pub fn new(
-    request_tracker: RequestTracker,
-  ) -> Self {
-    Self {
-      request_tracker
-    }
+  pub fn new(request_tracker: RequestTracker) -> Self {
+    Self { request_tracker }
   }
 
   #[napi]

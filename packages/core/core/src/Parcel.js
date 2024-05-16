@@ -169,8 +169,6 @@ export default class Parcel {
     });
 
     if (getFeatureFlag('parcelV3')) {
-      console.log(this.#config.getConfig());
-
       const request_tracker_rust = napi.parcel(this.#config.getConfig());
 
       console.log(request_tracker_rust);
