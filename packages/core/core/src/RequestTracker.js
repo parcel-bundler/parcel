@@ -1598,29 +1598,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     } catch (e) {
       // Prevent logging fs events took too long warning
       clearTimeout(timeout);
-
-      if (e.message && e.message.includes('invalid clockspec')) {
-        const snapshotContents = options.inputFS.readFileSync(
-          snapshotPath,
-          'utf-8',
-        );
-        logger.warn({
-          origin: '@parcel/core',
-          message: `Error reading clockspec from snapshot, building with clean cache.`,
-          meta: {
-            snapshotContents: snapshotContents,
-            trackableEvent: 'invalid_clockspec_error',
-          },
-        });
-      } else if (!(e instanceof FSBailoutError)) {
-        logger.warn({
-          origin: '@parcel/core',
-          message: `Unexpected error loading cache from disk, building with clean cache.`,
-          meta: {
-            trackableEvent: 'cache_load_error',
-          },
-        });
-      }
+      logErrorOnBailout(options, snapshotPath, e);
       // This error means respondToFSEvents timed out handling the invalidation events
       // In this case we'll return a fresh RequestGraph
       return new RequestGraph();
@@ -1628,4 +1606,32 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   }
 
   return new RequestGraph();
+}
+function logErrorOnBailout(
+  options: ParcelOptions,
+  snapshotPath: string,
+  e: Error,
+): void {
+  if (e.message && e.message.includes('invalid clockspec')) {
+    const snapshotContents = options.inputFS.readFileSync(
+      snapshotPath,
+      'utf-8',
+    );
+    logger.warn({
+      origin: '@parcel/core',
+      message: `Error reading clockspec from snapshot, building with clean cache.`,
+      meta: {
+        snapshotContents: snapshotContents,
+        trackableEvent: 'invalid_clockspec_error',
+      },
+    });
+  } else if (!(e instanceof FSBailoutError)) {
+    logger.warn({
+      origin: '@parcel/core',
+      message: `Unexpected error loading cache from disk, building with clean cache.`,
+      meta: {
+        trackableEvent: 'cache_load_error',
+      },
+    });
+  }
 }
