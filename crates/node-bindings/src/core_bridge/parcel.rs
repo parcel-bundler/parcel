@@ -13,7 +13,6 @@ use super::ParcelConfig;
 pub fn parcel(env: Env, parcel_config: JsObject) -> napi::Result<RequestTrackerNapi> {
   let parcel_config = env.from_js_value::<ParcelConfig, JsObject>(parcel_config)?;
 
-  dbg!(&parcel_config);
   let request_tracker = RequestTracker::new();
   let request_tracker_napi = RequestTrackerNapi::new(request_tracker.clone());
 
