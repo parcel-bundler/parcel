@@ -267,6 +267,10 @@ const keyFromEnvContentKey = (contentKey: ContentKey): string =>
 const keyFromOptionContentKey = (contentKey: ContentKey): string =>
   contentKey.slice('option:'.length);
 
+// This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
+// The goal is to free up the event loop periodically to allow interruption by the user.
+const NODES_PER_BLOB = 2 ** 14;
+
 export class RequestGraph extends ContentGraph<
   RequestGraphNode,
   RequestGraphEdgeType,
@@ -283,6 +287,7 @@ export class RequestGraph extends ContentGraph<
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
   cachedRequestChunks: Set<number> = new Set();
   configKeyNodes: Map<ProjectPath, Set<NodeId>> = new Map();
+  nodesPerBlob: number = NODES_PER_BLOB;
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -1032,13 +1037,9 @@ export class RequestGraph extends ContentGraph<
   }
 
   removeCachedRequestChunkForNode(nodeId: number): void {
-    this.cachedRequestChunks.delete(Math.floor(nodeId / NODES_PER_BLOB));
+    this.cachedRequestChunks.delete(Math.floor(nodeId / this.nodesPerBlob));
   }
 }
-
-// This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
-// The goal is to free up the event loop periodically to allow interruption by the user.
-const NODES_PER_BLOB = 2 ** 14;
 
 export default class RequestTracker {
   graph: RequestGraph;
@@ -1427,17 +1428,30 @@ export default class RequestTracker {
       }
     }
 
-    for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
+    let nodeCountsPerBlob = [];
+
+    for (
+      let i = 0;
+      i * this.graph.nodesPerBlob < cacheableNodes.length;
+      i += 1
+    ) {
+      let nodesStartIndex = i * this.graph.nodesPerBlob;
+      let nodesEndIndex = Math.min(
+        (i + 1) * this.graph.nodesPerBlob,
+        cacheableNodes.length,
+      );
+
+      nodeCountsPerBlob.push(nodesEndIndex - nodesStartIndex);
+
       if (!this.graph.hasCachedRequestChunk(i)) {
         // We assume the request graph nodes are immutable and won't change
+        let nodesToCache = cacheableNodes.slice(nodesStartIndex, nodesEndIndex);
+
         queue
           .add(() =>
             serialiseAndSet(
               getRequestGraphNodeKey(i, cacheKey),
-              cacheableNodes.slice(
-                i * NODES_PER_BLOB,
-                (i + 1) * NODES_PER_BLOB,
-              ),
+              nodesToCache,
             ).then(() => {
               // Succeeded in writing to disk, save that we have completed this chunk
               this.graph.setCachedRequestChunk(i);
@@ -1455,6 +1469,7 @@ export default class RequestTracker {
       // Set the request graph after the queue is flushed to avoid writing an invalid state
       await serialiseAndSet(requestGraphKey, {
         ...serialisedGraph,
+        nodeCountsPerBlob,
         nodes: undefined,
       });
 
@@ -1523,19 +1538,24 @@ export async function readAndDeserializeRequestGraph(
     return deserialize(buffer);
   };
 
-  let i = 0;
-  let nodePromises = [];
-  while (await cache.hasLargeBlob(getRequestGraphNodeKey(i, cacheKey))) {
-    nodePromises.push(getAndDeserialize(getRequestGraphNodeKey(i, cacheKey)));
-    i += 1;
-  }
-
   let serializedRequestGraph = await getAndDeserialize(requestGraphKey);
+
+  let nodePromises = serializedRequestGraph.nodeCountsPerBlob.map(
+    async (nodesCount, i) => {
+      let nodes = await getAndDeserialize(getRequestGraphNodeKey(i, cacheKey));
+      invariant.equal(
+        nodes.length,
+        nodesCount,
+        'RequestTracker node chunk: invalid node count',
+      );
+      return nodes;
+    },
+  );
 
   return {
     requestGraph: RequestGraph.deserialize({
       ...serializedRequestGraph,
-      nodes: (await Promise.all(nodePromises)).flatMap(nodeChunk => nodeChunk),
+      nodes: (await Promise.all(nodePromises)).flat(),
     }),
     // This is used inside parcel query for `.inspectCache`
     bufferLength,

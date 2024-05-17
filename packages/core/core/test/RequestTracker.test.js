@@ -308,6 +308,52 @@ describe('RequestTracker', () => {
     assert.strictEqual(called, false);
   });
 
+  it('should ignore stale node chunks from cache', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    // Set the nodes per blob low so we can ensure multiple files without
+    // creating 17,000 nodes
+    tracker.graph.nodesPerBlob = 2;
+
+    tracker.graph.addNode({type: 0, id: 'some-file-node-1'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-2'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-3'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-4'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-5'});
+
+    await tracker.writeToCache();
+
+    // Create a new request tracker that shouldn't look at the old cache files
+    tracker = new RequestTracker({farm, options});
+    assert.equal(tracker.graph.nodes.length, 0);
+
+    tracker.graph.addNode({type: 0, id: 'some-file-node-1'});
+    await tracker.writeToCache();
+
+    // Init a request tracker that should only read the relevant cache files
+    tracker = await RequestTracker.init({farm, options});
+    assert.equal(tracker.graph.nodes.length, 1);
+  });
+
+  it('should init with multiple node chunks', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    // Set the nodes per blob low so we can ensure multiple files without
+    // creating 17,000 nodes
+    tracker.graph.nodesPerBlob = 2;
+
+    tracker.graph.addNode({type: 0, id: 'some-file-node-1'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-2'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-3'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-4'});
+    tracker.graph.addNode({type: 0, id: 'some-file-node-5'});
+
+    await tracker.writeToCache();
+
+    tracker = await RequestTracker.init({farm, options});
+    assert.equal(tracker.graph.nodes.length, 5);
+  });
+
   it('should write new nodes to cache', async () => {
     let tracker = new RequestTracker({farm, options});
 
