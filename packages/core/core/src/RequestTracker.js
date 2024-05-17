@@ -1422,21 +1422,31 @@ export default class RequestTracker {
       }
     }
 
+    let nodeCountsPerBlob = [];
+
     for (
       let i = 0;
       i * this.graph.nodesPerBlob < cacheableNodes.length;
       i += 1
     ) {
+      let nodesStartIndex = i * this.graph.nodesPerBlob;
+      let nodesEndIndex = (i + 1) * this.graph.nodesPerBlob;
+
+      if (nodesEndIndex > cacheableNodes.length) {
+        nodesEndIndex = cacheableNodes.length;
+      }
+
+      nodeCountsPerBlob.push(nodesEndIndex - nodesStartIndex);
+
       if (!this.graph.hasCachedRequestChunk(i)) {
         // We assume the request graph nodes are immutable and won't change
+        let nodesToCache = cacheableNodes.slice(nodesStartIndex, nodesEndIndex);
+
         queue
           .add(() =>
             serialiseAndSet(
               getRequestGraphNodeKey(i, cacheKey),
-              cacheableNodes.slice(
-                i * this.graph.nodesPerBlob,
-                (i + 1) * this.graph.nodesPerBlob,
-              ),
+              nodesToCache,
             ).then(() => {
               // Succeeded in writing to disk, save that we have completed this chunk
               this.graph.setCachedRequestChunk(i);
@@ -1454,6 +1464,7 @@ export default class RequestTracker {
       // Set the request graph after the queue is flushed to avoid writing an invalid state
       await serialiseAndSet(requestGraphKey, {
         ...serialisedGraph,
+        nodeCountsPerBlob,
         nodes: undefined,
       });
 
@@ -1492,7 +1503,7 @@ export function getWatcherOptions({
   watchBackend,
 }: ParcelOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
-  const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
+  const uniqueDirs = [...new Set([...watchIgnore, cacheDir, ...vcsDirs])];
   const ignore = uniqueDirs.map(dir => path.resolve(watchDir, dir));
 
   return {ignore, backend: watchBackend};
@@ -1522,19 +1533,24 @@ export async function readAndDeserializeRequestGraph(
     return deserialize(buffer);
   };
 
-  let i = 0;
-  let nodePromises = [];
-  while (await cache.hasLargeBlob(getRequestGraphNodeKey(i, cacheKey))) {
-    nodePromises.push(getAndDeserialize(getRequestGraphNodeKey(i, cacheKey)));
-    i += 1;
-  }
-
   let serializedRequestGraph = await getAndDeserialize(requestGraphKey);
+
+  let nodePromises = serializedRequestGraph.nodeCountsPerBlob.map(
+    async (nodesCount, i) => {
+      let nodes = await getAndDeserialize(getRequestGraphNodeKey(i, cacheKey));
+      invariant.equal(
+        nodes.length,
+        nodesCount,
+        'RequestTracker node chunk: invalid node count',
+      );
+      return nodes;
+    },
+  );
 
   return {
     requestGraph: RequestGraph.deserialize({
       ...serializedRequestGraph,
-      nodes: (await Promise.all(nodePromises)).flatMap(nodeChunk => nodeChunk),
+      nodes: (await Promise.all(nodePromises)).flat(),
     }),
     // This is used inside parcel query for `.inspectCache`
     bufferLength,
