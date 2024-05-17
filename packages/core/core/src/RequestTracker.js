@@ -1430,11 +1430,10 @@ export default class RequestTracker {
       i += 1
     ) {
       let nodesStartIndex = i * this.graph.nodesPerBlob;
-      let nodesEndIndex = (i + 1) * this.graph.nodesPerBlob;
-
-      if (nodesEndIndex > cacheableNodes.length) {
-        nodesEndIndex = cacheableNodes.length;
-      }
+      let nodesEndIndex = Math.min(
+        (i + 1) * this.graph.nodesPerBlob,
+        cacheableNodes.length,
+      );
 
       nodeCountsPerBlob.push(nodesEndIndex - nodesStartIndex);
 
