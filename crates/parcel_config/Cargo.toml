@@ -11,7 +11,7 @@ indexmap = { version = "2.2.6", features = ["serde", "std"] }
 parcel_filesystem = { path = "../parcel_filesystem" }
 parcel_package_manager = { path = "../parcel_package_manager" }
 pathdiff = "0.2.1"
-serde = { version = "1.0.123", features = ["derive"] }
+serde = { version = "1.0.123", features = ["derive", "rc"] }
 serde_json5 = "0.1.0"
 thiserror = "1.0.59"
 

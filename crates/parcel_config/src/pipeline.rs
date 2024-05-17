@@ -2,6 +2,8 @@ use std::path::Path;
 
 use glob_match::glob_match;
 use indexmap::IndexMap;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::parcel_config::PluginNode;
 
@@ -25,15 +27,15 @@ use super::parcel_config::PluginNode;
 /// });
 /// ```
 ///
-#[derive(Debug, Default, PartialEq)]
-pub struct PipelineMap {
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct PipelineMap(
   /// Maps patterns to a series of plugins, called pipelines
-  map: IndexMap<String, Vec<PluginNode>>,
-}
+  IndexMap<String, Vec<PluginNode>>,
+);
 
 impl PipelineMap {
   pub fn new(map: IndexMap<String, Vec<PluginNode>>) -> Self {
-    Self { map }
+    Self(map)
   }
 
   /// Finds pipelines contained by a pattern that match the given file path and named pipeline
@@ -74,7 +76,7 @@ impl PipelineMap {
     // If a pipeline is requested, a the glob needs to match exactly
     if let Some(pipeline) = named_pipeline {
       let exact_match = self
-        .map
+        .0
         .iter()
         .find(|(pattern, _)| is_match(pattern, path, basename, pipeline.as_ref()));
 
@@ -85,7 +87,7 @@ impl PipelineMap {
       }
     }
 
-    for (pattern, pipelines) in self.map.iter() {
+    for (pattern, pipelines) in self.0.iter() {
       if is_match(&pattern, path, basename, "") {
         matches.extend(pipelines.iter().cloned());
       }
@@ -97,15 +99,12 @@ impl PipelineMap {
   pub fn contains_named_pipeline(&self, pipeline: impl AsRef<str>) -> bool {
     let named_pipeline = format!("{}:", pipeline.as_ref());
 
-    self
-      .map
-      .keys()
-      .any(|glob| glob.starts_with(&named_pipeline))
+    self.0.keys().any(|glob| glob.starts_with(&named_pipeline))
   }
 
   pub fn named_pipelines(&self) -> Vec<&str> {
     self
-      .map
+      .0
       .keys()
       .filter_map(|glob| glob.split_once(':').map(|g| g.0))
       .collect()

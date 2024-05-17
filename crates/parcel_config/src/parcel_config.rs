@@ -3,20 +3,23 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::config_error::ConfigError;
 use super::partial_parcel_config::PartialParcelConfig;
 use super::pipeline::is_match;
 use super::pipeline::PipelineMap;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PluginNode {
   pub package_name: String,
   pub resolve_from: Rc<PathBuf>,
 }
 
 /// Represents a fully merged and validated .parcel_rc config
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct ParcelConfig {
   pub(crate) bundler: PluginNode,
   pub(crate) compressors: PipelineMap,
