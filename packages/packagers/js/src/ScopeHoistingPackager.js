@@ -828,8 +828,17 @@ ${code}
           if (imported === '*') {
             replacement = renamed;
           } else if (imported === 'default') {
-            replacement = `($parcel$interopDefault(${renamed}))`;
-            this.usedHelpers.add('$parcel$interopDefault');
+            let needsDefaultInterop = true;
+            if (referencedBundle) {
+              let entry = nullthrows(referencedBundle.getMainEntry());
+              needsDefaultInterop = this.needsDefaultInterop(entry);
+            }
+            if (needsDefaultInterop) {
+              replacement = `($parcel$interopDefault(${renamed}))`;
+              this.usedHelpers.add('$parcel$interopDefault');
+            } else {
+              replacement = `${renamed}.default`;
+            }
           } else {
             replacement = this.getPropertyAccess(renamed, imported);
           }

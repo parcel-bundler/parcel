@@ -578,4 +578,51 @@ describe('library bundler', function () {
       assert(!contents.includes('../'));
     }
   });
+
+  it('should support export default in CJS', async () => {
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      .parcelrc:
+        {
+          "extends": "@parcel/config-default",
+          "bundler": "@parcel/bundler-library"
+        }
+
+      package.json:
+        {
+          "module": "dist/module.js",
+          "main": "dist/main.js",
+          "engines": { "node": "*" }
+        }
+
+      index.js:
+        import foo from './foo';
+        export function test() {
+          return 'test:' + foo();
+        }
+
+      foo.js:
+        export default function foo() {
+          return 'foo';
+        }
+    `;
+
+    let b = await bundle(dir + '/index.js', {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let esm: any = await runBundle(
+      b,
+      nullthrows(b.getBundles().find(b => b.name === 'module.js')),
+    );
+    assert.equal(esm.test(), 'test:foo');
+
+    let cjs: any = await runBundle(
+      b,
+      nullthrows(b.getBundles().find(b => b.name === 'main.js')),
+    );
+    assert.equal(cjs.test(), 'test:foo');
+  });
 });
