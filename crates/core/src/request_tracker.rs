@@ -3,7 +3,7 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::worker_farm::WorkerFarm;
+use crate::{diagnostic::Diagnostic, worker_farm::WorkerFarm};
 use crate::{
   requests::{
     asset_request::AssetRequest, bundle_graph_request::BundleGraphRequest,
@@ -29,12 +29,9 @@ pub trait Request: Hash + Sync {
 }
 
 pub struct RequestResult<Output> {
-  pub result: Result<Output, RequestError>,
+  pub result: Result<Output, Vec<Diagnostic>>,
   pub invalidations: Vec<Invalidation>,
 }
-
-#[derive(Clone, Debug)]
-pub enum RequestError {}
 
 #[derive(Debug)]
 enum RequestGraphNode {
@@ -65,7 +62,7 @@ pub enum RequestOutput {
 #[derive(Debug)]
 struct RequestNode {
   state: RequestNodeState,
-  output: Option<Result<RequestOutput, RequestError>>,
+  output: Option<Result<RequestOutput, Vec<Diagnostic>>>,
 }
 
 pub trait StoreRequestOutput: Request {
@@ -157,7 +154,7 @@ impl RequestTracker {
     true
   }
 
-  pub fn finish_request(&mut self, id: u64, result: Result<RequestOutput, RequestError>) {
+  pub fn finish_request(&mut self, id: u64, result: Result<RequestOutput, Vec<Diagnostic>>) {
     let node_index = self.requests.get(&id).unwrap();
     let request = match self.graph.node_weight_mut(*node_index) {
       Some(RequestGraphNode::Request(req)) => req,
@@ -177,7 +174,7 @@ impl RequestTracker {
   pub fn get_request_result<R: Request + StoreRequestOutput>(
     &self,
     request: &R,
-  ) -> &Result<RequestOutput, RequestError> {
+  ) -> &Result<RequestOutput, Vec<Diagnostic>> {
     let request = self.get_request(request);
     request.output.as_ref().unwrap()
   }

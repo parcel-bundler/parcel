@@ -37,6 +37,7 @@ import {nodeFromAssetGroup} from '../AssetGraph';
 import invariant from 'assert';
 import {propagateSymbols} from '../SymbolPropagation';
 import {PluginTracer} from '@parcel/profiler';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -80,7 +81,7 @@ export default function createAssetGraphRequestRust(
     id: input.name,
     run: async input => {
       let options = input.options;
-      let serializedAssetGraph = await parcel(
+      let result = await parcel(
         input.input.entries,
         options.cache,
         options,
@@ -163,6 +164,13 @@ export default function createAssetGraphRequestRust(
         },
       );
 
+      if (result.Err) {
+        throw new ThrowableDiagnostic({
+          diagnostic: result.Err
+        });
+      }
+
+      let serializedAssetGraph = result.Ok;
       let [assetGraph, changedAssets] = getAssetGraph(
         serializedAssetGraph,
         options,

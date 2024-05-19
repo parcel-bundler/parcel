@@ -55,6 +55,10 @@ impl<T: Hash + Eq> Interner<T> {
     map.insert(&entry.data, SharedValue::new(entry));
     Interned(entry)
   }
+
+  pub fn clear(&self) {
+    self.map.clear();
+  }
 }
 
 fn hash_value<T: Hash>(value: &T) -> u64 {

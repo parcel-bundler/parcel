@@ -440,3 +440,7 @@ impl From<Environment> for Interned<Environment> {
     env_interner().intern(value)
   }
 }
+
+pub fn reset_env_interner() {
+  env_interner().clear();
+}

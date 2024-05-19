@@ -1,4 +1,5 @@
 use crate::{
+  diagnostic::Diagnostic,
   parcel_config::PluginNode,
   requests::asset_request::{AssetRequestResult, Transformer},
   transformers::plugin_transformer::PluginTransformer,
@@ -15,7 +16,7 @@ pub fn run_transformer(
   code: Vec<u8>,
   farm: &WorkerFarm,
   options: &ParcelOptions,
-) -> AssetRequestResult {
+) -> Result<AssetRequestResult, Vec<Diagnostic>> {
   match plugin.package_name.as_str() {
     "@parcel/transformer-js" => {
       js_transformer::JsTransformer {}.transform(asset, code, farm, options)

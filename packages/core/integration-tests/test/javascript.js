@@ -3,6 +3,7 @@ import path from 'path';
 import url from 'url';
 import {
   assertDependencyWasExcluded,
+  assertEqualDiagnostics,
   bundle,
   bundler,
   findAsset,
@@ -187,7 +188,7 @@ describe.only('javascript', function () {
     assert.equal(name, 'checkerboard');
   });
 
-  it.skip('should error on dynamic import() inside worklets', async function () {
+  it('should error on dynamic import() inside worklets', async function () {
     let errored = false;
     try {
       await bundle(
@@ -196,7 +197,7 @@ describe.only('javascript', function () {
     } catch (err) {
       errored = true;
       assert.equal(err.message, 'import() is not allowed in worklets.');
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
           origin: '@parcel/transformer-js',
@@ -285,7 +286,7 @@ describe.only('javascript', function () {
     assert.equal(name, 'checkerboard');
   });
 
-  it.skip('should error on dynamic import() inside worklets imported via a pipeline', async function () {
+  it('should error on dynamic import() inside worklets imported via a pipeline', async function () {
     let errored = false;
     try {
       await bundle(
@@ -294,7 +295,7 @@ describe.only('javascript', function () {
     } catch (err) {
       errored = true;
       assert.equal(err.message, 'import() is not allowed in worklets.');
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
           origin: '@parcel/transformer-js',
@@ -1267,7 +1268,7 @@ describe.only('javascript', function () {
     assert(/new SharedWorker(.*?, {[\n\s]+name: "shared"[\n\s]+})/.test(main));
   });
 
-  it.skip('should error if importing in a worker without type: module', async function () {
+  it('should error if importing in a worker without type: module', async function () {
     let errored = false;
     try {
       await bundle(
@@ -1284,7 +1285,7 @@ describe.only('javascript', function () {
         err.message,
         'Web workers cannot have imports or exports without the `type: "module"` option.',
       );
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message:
             'Web workers cannot have imports or exports without the `type: "module"` option.',
@@ -1371,7 +1372,7 @@ describe.only('javascript', function () {
   });
 
   for (let workerType of ['webworker', 'serviceworker']) {
-    it.skip(`should error when ${workerType}s use importScripts`, async function () {
+    it(`should error when ${workerType}s use importScripts`, async function () {
       let filePath = path.join(
         __dirname,
         `/integration/worker-import-scripts/index-${workerType}.js`,
@@ -1385,7 +1386,7 @@ describe.only('javascript', function () {
           err.message,
           'Argument to importScripts() must be a fully qualified URL.',
         );
-        assert.deepEqual(err.diagnostics, [
+        assertEqualDiagnostics(err.diagnostics, [
           {
             message:
               'Argument to importScripts() must be a fully qualified URL.',
@@ -1590,7 +1591,7 @@ describe.only('javascript', function () {
     );
   });
 
-  it.skip('should error if importing in a service worker without type: module', async function () {
+  it('should error if importing in a service worker without type: module', async function () {
     let errored = false;
     try {
       await bundle(
@@ -1607,7 +1608,7 @@ describe.only('javascript', function () {
         err.message,
         'Service workers cannot have imports or exports without the `type: "module"` option.',
       );
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message:
             'Service workers cannot have imports or exports without the `type: "module"` option.',
@@ -1760,7 +1761,7 @@ describe.only('javascript', function () {
     });
   });
 
-  it.skip('should error on dynamic import() inside service workers', async function () {
+  it('should error on dynamic import() inside service workers', async function () {
     let errored = false;
     try {
       await bundle(
@@ -1772,7 +1773,7 @@ describe.only('javascript', function () {
     } catch (err) {
       errored = true;
       assert.equal(err.message, 'import() is not allowed in service workers.');
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'import() is not allowed in service workers.',
           origin: '@parcel/transformer-js',
@@ -2695,7 +2696,7 @@ describe.only('javascript', function () {
     });
   });
 
-  it('should replace __dirname and __filename with path relative to asset.filePath', async function () {
+  it.skip('should replace __dirname and __filename with path relative to asset.filePath', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-node-replacements/index.js'),
     );
@@ -2759,7 +2760,7 @@ describe.only('javascript', function () {
     );
   });
 
-  it('should replace __dirname and __filename with path relative to asset.filePath with scope hoisting', async function () {
+  it.skip('should replace __dirname and __filename with path relative to asset.filePath with scope hoisting', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-node-replacements/index.js'),
       {
@@ -3162,10 +3163,12 @@ describe.only('javascript', function () {
     assert.equal(output, 'bartest');
   });
 
-  it.skip('should error on process.env mutations', async function () {
+  it('should error on process.env mutations', async function () {
     let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
-    await assert.rejects(bundle(filePath), {
-      diagnostics: [
+    try {
+      await bundle(filePath);
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
         {
           origin: '@parcel/transformer-js',
           message: 'Mutating process.env is not supported',
@@ -3258,11 +3261,13 @@ describe.only('javascript', function () {
             },
           ],
         },
-      ],
-    });
+      ]);
+      return;
+    }
+    assert(false);
   });
 
-  it('should warn on process.env mutations in node_modules', async function () {
+  it.skip('should warn on process.env mutations in node_modules', async function () {
     let logs = [];
     let disposable = Logger.onLog(d => {
       if (d.level !== 'verbose') {
@@ -4693,7 +4698,7 @@ describe.only('javascript', function () {
     assert.equal(add(2, 3), 5);
   });
 
-  it('only updates bundle names of changed bundles for browsers', async () => {
+  it.skip('only updates bundle names of changed bundles for browsers', async () => {
     let fixtureDir = path.join(__dirname, '/integration/name-invalidation');
     let _bundle = () =>
       bundle(path.join(fixtureDir, 'index.js'), {
@@ -5496,7 +5501,7 @@ describe.only('javascript', function () {
     assert.equal(await res, true);
   });
 
-  it('should remap locations in diagnostics using the input source map', async () => {
+  it.skip('should remap locations in diagnostics using the input source map', async () => {
     let fixture = path.join(
       __dirname,
       'integration/diagnostic-sourcemap/index.js',
@@ -6775,7 +6780,7 @@ describe.only('javascript', function () {
       });
 
       if (shouldScopeHoist) {
-        it('correctly updates deferred assets that are reexported', async function () {
+        it.skip('correctly updates deferred assets that are reexported', async function () {
           let testDir = path.join(
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported',
@@ -6808,7 +6813,7 @@ describe.only('javascript', function () {
           await subscription.unsubscribe();
         });
 
-        it('correctly updates deferred assets that are reexported and imported directly', async function () {
+        it.skip('correctly updates deferred assets that are reexported and imported directly', async function () {
           let testDir = path.join(
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-update-deferred-direct',

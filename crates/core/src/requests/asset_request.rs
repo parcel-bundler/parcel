@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
+  diagnostic::Diagnostic,
   environment::Environment,
   intern::Interned,
   parcel_config::{PipelineMap, PluginNode},
@@ -78,12 +79,14 @@ impl<'a> Request for AssetRequest<'a> {
       .unwrap_or_else(|| std::fs::read(&asset.file_path.as_ref()).unwrap());
     let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
 
-    result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
-    result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
-    result.asset.stats.size = result.code.len() as u32;
+    if let Ok(result) = &mut result {
+      result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
+      result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
+      result.asset.stats.size = result.code.len() as u32;
+    }
 
     RequestResult {
-      result: Ok(result),
+      result,
       invalidations: Vec::new(),
     }
   }
@@ -96,7 +99,7 @@ pub trait Transformer {
     code: Vec<u8>,
     farm: &WorkerFarm,
     options: &ParcelOptions,
-  ) -> AssetRequestResult;
+  ) -> Result<AssetRequestResult, Vec<Diagnostic>>;
 }
 
 fn run_pipeline(
@@ -106,7 +109,7 @@ fn run_pipeline(
   transformers: &PipelineMap,
   farm: &WorkerFarm,
   options: &ParcelOptions,
-) -> AssetRequestResult {
+) -> Result<AssetRequestResult, Vec<Diagnostic>> {
   let mut result = AssetRequestResult {
     asset,
     code,
@@ -114,7 +117,7 @@ fn run_pipeline(
   };
 
   for transformer in &pipeline {
-    let transformed = run_transformer(transformer, &result.asset, result.code, farm, options);
+    let transformed = run_transformer(transformer, &result.asset, result.code, farm, options)?;
     if transformed.asset.asset_type != result.asset.asset_type {
       let next_path = transformed
         .asset
@@ -137,5 +140,5 @@ fn run_pipeline(
     result.dependencies.extend(transformed.dependencies);
   }
 
-  result
+  Ok(result)
 }

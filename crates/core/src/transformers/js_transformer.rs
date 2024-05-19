@@ -2,14 +2,13 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use indexmap::{indexmap, IndexMap};
-use parcel_js_swc_core::{
-  CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult, Version, Versions,
-};
+use parcel_js_swc_core::{Config, DependencyKind, TransformResult, Version, Versions};
 use parcel_resolver::package_json::{AliasValue, BrowserField};
 use parcel_resolver::{
   CacheCow, ExportsCondition, IncludeNodeModules, InlineEnvironment, Invalidations, Specifier,
 };
 
+use crate::diagnostic::{CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity};
 use crate::environment::{
   Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, OutputFormat, SourceType,
 };
@@ -31,10 +30,18 @@ impl Transformer for JsTransformer {
     code: Vec<u8>,
     _farm: &crate::worker_farm::WorkerFarm,
     options: &ParcelOptions,
-  ) -> AssetRequestResult {
+  ) -> Result<AssetRequestResult, Vec<Diagnostic>> {
     let config = config(&asset, code, options);
-    let res = parcel_js_swc_core::transform(&config, None).unwrap();
-    convert_result(asset.clone(), None, &config, res)
+    match parcel_js_swc_core::transform(&config, None) {
+      Ok(res) => {
+        if let Some(diagnostics) = res.diagnostics {
+          Err(convert_diagnostics(asset, diagnostics))
+        } else {
+          convert_result(asset.clone(), None, &config, res)
+        }
+      }
+      Err(err) => todo!(),
+    }
   }
 }
 
@@ -278,8 +285,8 @@ fn convert_result(
   mut asset: Asset,
   map_buf: Option<&[u8]>,
   config: &Config,
-  mut result: TransformResult,
-) -> AssetRequestResult {
+  result: TransformResult,
+) -> Result<AssetRequestResult, Vec<Diagnostic>> {
   let file_path = asset.file_path;
   let env = asset.env;
   let asset_id = asset.id();
@@ -494,7 +501,8 @@ fn convert_result(
             env.context,
             EnvironmentContext::Worklet | EnvironmentContext::ServiceWorker
           ) {
-            let diagnostic = Diagnostic {
+            let mut diagnostic = Diagnostic {
+              origin: Some("@parcel/transformer-js".into()),
               message: format!(
                 "import() is not allowed in {}.",
                 match env.context {
@@ -503,16 +511,21 @@ fn convert_result(
                   _ => unreachable!(),
                 }
               ),
-              code_highlights: Some(vec![CodeHighlight {
-                loc: dep.loc.clone(),
-                message: None,
-              }]),
-              hints: Some(vec!["Try using a static `import`.".into()]),
-              show_environment: true,
-              severity: parcel_js_swc_core::DiagnosticSeverity::Error,
+              code_frames: vec![CodeFrame {
+                file_path: Some(asset.file_path),
+                code: None,
+                language: None,
+                code_highlights: vec![CodeHighlight::from_loc(
+                  &convert_loc(asset.file_path, &dep.loc),
+                  None,
+                )],
+              }],
+              hints: vec!["Try using a static `import`.".into()],
+              severity: DiagnosticSeverity::Error,
               documentation_url: None,
             };
-            result.diagnostics.get_or_insert(vec![]).push(diagnostic);
+            environment_diagnostic(&mut diagnostic, &asset, false);
+            return Err(vec![diagnostic]);
           }
 
           // If all of the target engines support dynamic import natively,
@@ -885,7 +898,7 @@ fn convert_result(
   }
 
   asset.asset_type = AssetType::Js;
-  AssetRequestResult {
+  Ok(AssetRequestResult {
     asset,
     code: result.code,
     dependencies: dep_map.into_values().collect(),
@@ -896,7 +909,7 @@ fn convert_result(
     // diagnostics: result.diagnostics,
     // used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
     // invalidate_on_file_change,
-  }
+  })
 }
 
 fn convert_loc(
@@ -921,6 +934,91 @@ fn convert_loc(
   // }
 
   loc
+}
+
+fn convert_diagnostics(
+  asset: &Asset,
+  diagnostics: Vec<parcel_js_swc_core::Diagnostic>,
+) -> Vec<Diagnostic> {
+  diagnostics
+    .into_iter()
+    .map(|d| {
+      let mut diagnostic = Diagnostic {
+        origin: Some("@parcel/transformer-js".into()),
+        message: match d.message.as_str() {
+          "SCRIPT_ERROR" => {
+            match asset.env.context {
+              EnvironmentContext::WebWorker => "Web workers cannot have imports or exports without the `type: \"module\"` option.".into(),
+              EnvironmentContext::ServiceWorker => "Service workers cannot have imports or exports without the `type: \"module\"` option.".into(),
+              EnvironmentContext::Browser | _ => "Browser scripts cannot have imports or exports.".into(),
+            }
+          }
+          _ => d.message
+        },
+        code_frames: vec![CodeFrame {
+          file_path: Some(asset.file_path),
+          code: None,
+          language: None,
+          code_highlights: d
+            .code_highlights
+            .unwrap_or_default()
+            .iter()
+            .map(|h| CodeHighlight::from_loc(&convert_loc(asset.file_path, &h.loc), h.message.clone()))
+            .collect(),
+        }],
+        hints: d.hints.unwrap_or_default(),
+        documentation_url: d.documentation_url.clone(),
+        severity: match d.severity {
+          parcel_js_swc_core::DiagnosticSeverity::Error => DiagnosticSeverity::Error,
+          parcel_js_swc_core::DiagnosticSeverity::SourceError => DiagnosticSeverity::SourceError,
+          parcel_js_swc_core::DiagnosticSeverity::Warning => DiagnosticSeverity::Warning,
+        },
+      };
+
+      if d.show_environment {
+        environment_diagnostic(&mut diagnostic, asset, true);
+      }
+      diagnostic
+    })
+    .collect()
+}
+
+fn environment_diagnostic(diagnostic: &mut Diagnostic, asset: &Asset, show_hint: bool) {
+  if let Some(loc) = &asset.env.loc {
+    if loc.file_path != asset.file_path {
+      diagnostic.code_frames.push(CodeFrame {
+        code: None,
+        file_path: Some(loc.file_path),
+        language: None,
+        code_highlights: vec![CodeHighlight::from_loc(
+          loc,
+          Some("The environment was originally created here".into()),
+        )],
+      });
+    }
+  }
+
+  if show_hint {
+    match asset.env.context {
+      EnvironmentContext::Browser => {
+        diagnostic
+          .hints
+          .push("Add the type=\"module\" attribute to the <script> tag.".into());
+      }
+      EnvironmentContext::WebWorker => {
+        diagnostic
+          .hints
+          .push("Add {type: 'module'} as a second argument to the Worker constructor.".into());
+      }
+      EnvironmentContext::ServiceWorker => {
+        diagnostic.hints.push(
+          "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call."
+            .into(),
+        );
+      }
+      _ => {}
+    }
+  }
 }
 
 // fn remap_source_location(loc: &mut SourceLocation, map: &mut SourceMap) {

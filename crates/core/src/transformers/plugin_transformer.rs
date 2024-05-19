@@ -1,3 +1,4 @@
+use crate::diagnostic::Diagnostic;
 use crate::parcel_config::PluginNode;
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
 use crate::types::{Asset, ParcelOptions};
@@ -22,7 +23,7 @@ impl Transformer for PluginTransformer {
     code: Vec<u8>,
     farm: &WorkerFarm,
     options: &ParcelOptions,
-  ) -> AssetRequestResult {
+  ) -> Result<AssetRequestResult, Vec<Diagnostic>> {
     let req = PluginTransformRequest {
       plugin: self.plugin.clone(),
       asset: asset.clone(),
@@ -33,6 +34,6 @@ impl Transformer for PluginTransformer {
       unreachable!()
     };
 
-    result
+    Ok(result)
   }
 }
