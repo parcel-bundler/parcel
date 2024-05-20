@@ -2,7 +2,7 @@ use std::path::Path;
 
 use mockall::automock;
 
-use crate::requests::config_request::InternalFileCreateInvalidation;
+use crate::core::requests::config_request::InternalFileCreateInvalidation;
 
 #[cfg(not(feature = "napi_noop"))]
 pub mod js_request_api;

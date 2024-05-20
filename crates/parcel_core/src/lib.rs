@@ -1,10 +1,8 @@
+#![deny(unused_crate_dependencies)]
 //! Core re-implementation in Rust
 
 pub mod hash;
-pub mod types;
+mod parcel;
+mod types;
 
-/// New-type for paths relative to a project-root
-pub mod project_path;
-
-/// Request types and run functions
-pub mod requests;
+pub use parcel::*;

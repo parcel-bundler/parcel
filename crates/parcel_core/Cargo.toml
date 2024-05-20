@@ -6,24 +6,15 @@ description = "Core logic for the parcel bundler"
 
 [features]
 default = []
-napi_noop = ["napi-derive/noop"]
 
 [dependencies]
-parcel_filesystem = { path = "../parcel_filesystem" }
-parcel_napi_helpers = { path = "../parcel_napi_helpers" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 
 ahash = "0.8.11"
-anyhow = "1.0.82"
 browserslist-rs = "0.15.0"
-glob = "0.3.1"
-mockall = "0.12.1"
-napi = "2.16.4"
-napi-derive = { version = "2.16.3" }
 nodejs-semver = "4.0.0"
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = { version = "1.0.116", features = ["preserve_order"] }
 serde_repr = "0.1.19"
 serde-value = "0.7.0"
-toml = "0.8.12"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
