@@ -14,6 +14,7 @@ import packageJson from '../package.json';
 import lmdb from 'lmdb';
 
 import {FSCache} from './FSCache';
+import {randomUUID} from 'node:crypto';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
@@ -99,26 +100,59 @@ export class LMDBCache implements Cache {
     return path.join(this.dir, `${key}-${index}`);
   }
 
-  hasLargeBlob(key: string): Promise<boolean> {
-    return this.fs.exists(this.#getFilePath(key, 0));
+  async hasLargeBlob(key: string): Promise<boolean> {
+    if (!(await this.has(key))) {
+      return false;
+    }
+    const {type, largeBlobKey} = await this.get(key);
+    if (type !== 'LARGE_BLOB') {
+      return false;
+    }
+    return this.fsCache.hasLargeBlob(largeBlobKey);
   }
 
-  // eslint-disable-next-line require-await
   async getLargeBlob(key: string): Promise<Buffer> {
-    return this.fsCache.getLargeBlob(key);
+    if (!(await this.has(key))) {
+      throw new Error(`No large blob entry found for key=${key}`);
+    }
+    const {type, largeBlobKey} = await this.get(key);
+    if (type !== 'LARGE_BLOB') {
+      throw new Error(`Invalid entry at large blob key=${key}`);
+    }
+    return this.fsCache.getLargeBlob(largeBlobKey);
   }
 
-  // eslint-disable-next-line require-await
+  /**
+   * Set large blob into LMDB.
+   * This stores large blobs as files on a delegate FSCache,
+   * but uses an LMDB entry to provide transactional behaviour.
+   *
+   * On its own the FSCache implementation is not transactional and
+   * may result in corrupted caches. Furthermore, it may result in
+   * partially written or read caches, where we are concatenating bytes
+   * from different cache writes.
+   */
   async setLargeBlob(
     key: string,
     contents: Buffer | string,
     options?: {|signal?: AbortSignal|},
   ): Promise<void> {
-    return this.fsCache.setLargeBlob(key, contents, options);
+    // There's indirection
+    const largeBlobKey = `${key}_${randomUUID()}`;
+    await this.fsCache.setLargeBlob(largeBlobKey, contents, options);
+    await this.set(key, {type: 'LARGE_BLOB', largeBlobKey});
   }
 
-  deleteLargeBlob(key: string): Promise<void> {
-    return this.fsCache.deleteLargeBlob(key);
+  async deleteLargeBlob(key: string): Promise<void> {
+    if (!(await this.has(key))) {
+      return;
+    }
+    const {type, largeBlobKey} = await this.get(key);
+    if (type !== 'LARGE_BLOB') {
+      return;
+    }
+    await this.store.remove(key);
+    return this.fsCache.deleteLargeBlob(largeBlobKey);
   }
 
   refresh(): void {
