@@ -1720,15 +1720,16 @@ describe.only('javascript', function () {
     assert(!contents.includes('import.meta.url'));
   });
 
-  it.skip('should throw a codeframe for a missing file in serviceWorker.register with URL and import.meta.url', async function () {
+  it('should throw a codeframe for a missing file in serviceWorker.register with URL and import.meta.url', async function () {
     let fixture = path.join(
       __dirname,
       'integration/service-worker-import-meta-url/missing.js',
     );
     let code = await inputFS.readFileSync(fixture, 'utf8');
-    await assert.rejects(() => bundle(fixture), {
-      name: 'BuildError',
-      diagnostics: [
+    try {
+      await bundle(fixture);
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
         {
           codeFrames: [
             {
@@ -1757,8 +1758,10 @@ describe.only('javascript', function () {
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',
         },
-      ],
-    });
+      ]);
+      return
+    }
+    assert(false);
   });
 
   it('should error on dynamic import() inside service workers', async function () {
@@ -1892,15 +1895,16 @@ describe.only('javascript', function () {
     assert(contents.includes('import.meta.url'));
   });
 
-  it.skip('should throw a codeframe for a missing file in worker constructor with URL and import.meta.url', async function () {
+  it('should throw a codeframe for a missing file in worker constructor with URL and import.meta.url', async function () {
     let fixture = path.join(
       __dirname,
       'integration/worker-import-meta-url/missing.js',
     );
     let code = await inputFS.readFileSync(fixture, 'utf8');
-    await assert.rejects(() => bundle(fixture), {
-      name: 'BuildError',
-      diagnostics: [
+    try {
+      await bundle(fixture);
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
         {
           codeFrames: [
             {
@@ -1932,8 +1936,10 @@ describe.only('javascript', function () {
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',
         },
-      ],
-    });
+      ]);
+      return;
+    }
+    assert(false);
   });
 
   it.skip('should support bundling in workers with other loaders', async function () {
@@ -2573,15 +2579,16 @@ describe.only('javascript', function () {
     assert(contents.includes('"file:///local-url.js"'));
   });
 
-  it.skip('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function () {
+  it('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function () {
     let fixture = path.join(
       __dirname,
       'integration/import-raw-import-meta-url/missing.js',
     );
     let code = await inputFS.readFileSync(fixture, 'utf8');
-    await assert.rejects(() => bundle(fixture), {
-      name: 'BuildError',
-      diagnostics: [
+    try {
+      await bundle(fixture);
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
         {
           codeFrames: [
             {
@@ -2610,8 +2617,10 @@ describe.only('javascript', function () {
           message: "Cannot load file './invalid.txt' in './'.",
           origin: '@parcel/resolver-default',
         },
-      ],
-    });
+      ]);
+      return;
+    }
+    assert(false)
   });
 
   it.skip('should support importing a URL to a large raw asset', async function () {
@@ -3790,7 +3799,7 @@ describe.only('javascript', function () {
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
-  it.skip('should support optional dependencies in try...catch blocks', async function () {
+  it('should support optional dependencies in try...catch blocks', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/optional-dep/index.js'),
     );
@@ -3812,7 +3821,7 @@ describe.only('javascript', function () {
     assert.equal(output.code, 'MODULE_NOT_FOUND');
   });
 
-  it.skip('should support excluding dependencies in falsy branches', async function () {
+  it('should support excluding dependencies in falsy branches', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/falsy-dep/index.js'),
     );
@@ -5088,12 +5097,13 @@ describe.only('javascript', function () {
     }
   });
 
-  it.skip('should throw a diagnostic for unknown pipelines', async function () {
+  it('should throw a diagnostic for unknown pipelines', async function () {
     let fixture = path.join(__dirname, 'integration/pipeline-unknown/a.js');
     let code = await inputFS.readFileSync(fixture, 'utf8');
-    await assert.rejects(() => bundle(fixture), {
-      name: 'BuildError',
-      diagnostics: [
+    try {
+      await bundle(fixture);
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: "Failed to resolve 'strange-pipeline:./b.js' from './a.js'",
           origin: '@parcel/core',
@@ -5121,8 +5131,10 @@ describe.only('javascript', function () {
           message: "Unknown url scheme or pipeline 'strange-pipeline:'",
           origin: '@parcel/resolver-default',
         },
-      ],
-    });
+      ]);
+      return;
+    }
+    assert(false);
   });
 
   it('can create a bundle starting with a dot', async function () {
@@ -5588,7 +5600,7 @@ describe.only('javascript', function () {
     ]);
   });
 
-  it.skip('should error on undeclared external dependencies for libraries', async function () {
+  it('should error on undeclared external dependencies for libraries', async function () {
     let fixture = path.join(
       __dirname,
       'integration/undeclared-external/index.js',
@@ -5597,69 +5609,68 @@ describe.only('javascript', function () {
       __dirname,
       'integration/undeclared-external/package.json',
     );
-    await assert.rejects(
-      () =>
-        bundle(fixture, {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldOptimize: false,
-          },
-        }),
-      {
-        name: 'BuildError',
-        diagnostics: [
-          {
-            message: "Failed to resolve 'lodash' from './index.js'",
-            origin: '@parcel/core',
-            codeFrames: [
-              {
-                code: await inputFS.readFile(fixture, 'utf8'),
-                filePath: fixture,
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 1,
-                      column: 19,
-                    },
-                    end: {
-                      line: 1,
-                      column: 26,
-                    },
+    try {
+      await bundle(fixture, {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      });
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
+        {
+          message: "Failed to resolve 'lodash' from './index.js'",
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              code: await inputFS.readFile(fixture, 'utf8'),
+              filePath: fixture,
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 1,
+                    column: 19,
                   },
-                ],
-              },
-            ],
-          },
-          {
-            message:
-              'External dependency "lodash" is not declared in package.json.',
-            origin: '@parcel/resolver-default',
-            codeFrames: [
-              {
-                code: await inputFS.readFile(pkg, 'utf8'),
-                filePath: pkg,
-                language: 'json',
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 5,
-                      column: 3,
-                    },
-                    end: {
-                      line: 5,
-                      column: 16,
-                    },
+                  end: {
+                    line: 1,
+                    column: 26,
                   },
-                ],
-              },
-            ],
-            hints: ['Add "lodash" as a dependency.'],
-          },
-        ],
-      },
-    );
+                },
+              ],
+            },
+          ],
+        },
+        {
+          message:
+            'External dependency "lodash" is not declared in package.json.',
+          origin: '@parcel/resolver-default',
+          codeFrames: [
+            {
+              code: await inputFS.readFile(pkg, 'utf8'),
+              filePath: pkg,
+              language: 'json',
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 5,
+                    column: 3,
+                  },
+                  end: {
+                    line: 5,
+                    column: 16,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: ['Add "lodash" as a dependency.'],
+        },
+      ]);
+      return;
+    }
+    assert(false);
   });
 
   it.skip('should error on undeclared helpers dependency for libraries', async function () {
@@ -5671,71 +5682,70 @@ describe.only('javascript', function () {
       __dirname,
       'integration/undeclared-external/package.json',
     );
-    await assert.rejects(
-      () =>
-        bundle(fixture, {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldOptimize: false,
-          },
-        }),
-      {
-        name: 'BuildError',
-        diagnostics: [
-          {
-            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
-              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
-            )}'`,
-            origin: '@parcel/core',
-            codeFrames: [
-              {
-                code: await inputFS.readFile(fixture, 'utf8'),
-                filePath: fixture,
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 1,
-                      column: 1,
-                    },
-                    end: {
-                      line: 1,
-                      column: 1,
-                    },
+    try {
+      await bundle(fixture, {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      });
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
+        {
+          message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
+            require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+          )}'`,
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              code: await inputFS.readFile(fixture, 'utf8'),
+              filePath: fixture,
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 1,
+                    column: 1,
                   },
-                ],
-              },
-            ],
-          },
-          {
-            message:
-              'External dependency "@swc/helpers" is not declared in package.json.',
-            origin: '@parcel/resolver-default',
-            codeFrames: [
-              {
-                code: await inputFS.readFile(pkg, 'utf8'),
-                filePath: pkg,
-                language: 'json',
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 5,
-                      column: 3,
-                    },
-                    end: {
-                      line: 5,
-                      column: 16,
-                    },
+                  end: {
+                    line: 1,
+                    column: 1,
                   },
-                ],
-              },
-            ],
-            hints: ['Add "@swc/helpers" as a dependency.'],
-          },
-        ],
-      },
-    );
+                },
+              ],
+            },
+          ],
+        },
+        {
+          message:
+            'External dependency "@swc/helpers" is not declared in package.json.',
+          origin: '@parcel/resolver-default',
+          codeFrames: [
+            {
+              code: await inputFS.readFile(pkg, 'utf8'),
+              filePath: pkg,
+              language: 'json',
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 5,
+                    column: 3,
+                  },
+                  end: {
+                    line: 5,
+                    column: 16,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: ['Add "@swc/helpers" as a dependency.'],
+        },
+      ]);
+      return;
+    }
+    assert(false);
   });
 
   it.skip('should error on mismatched helpers version for libraries', async function () {
@@ -5759,74 +5769,73 @@ describe.only('javascript', function () {
     );
     await overlayFS.mkdirp(path.dirname(pkg));
     await overlayFS.writeFile(pkg, pkgContents);
-    await assert.rejects(
-      () =>
-        bundle(fixture, {
-          mode: 'production',
-          inputFS: overlayFS,
-          defaultTargetOptions: {
-            shouldOptimize: false,
-          },
-        }),
-      {
-        name: 'BuildError',
-        diagnostics: [
-          {
-            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
-              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
-            )}'`,
-            origin: '@parcel/core',
-            codeFrames: [
-              {
-                code: await inputFS.readFile(fixture, 'utf8'),
-                filePath: fixture,
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 1,
-                      column: 1,
-                    },
-                    end: {
-                      line: 1,
-                      column: 1,
-                    },
+    try {
+      await bundle(fixture, {
+        mode: 'production',
+        inputFS: overlayFS,
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      });
+    } catch (err) {
+      assertEqualDiagnostics(err.diagnostics, [
+        {
+          message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
+            require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+          )}'`,
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              code: await inputFS.readFile(fixture, 'utf8'),
+              filePath: fixture,
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 1,
+                    column: 1,
                   },
-                ],
-              },
-            ],
-          },
-          {
-            message:
-              'External dependency "@swc/helpers" does not satisfy required semver range "^0.5.0".',
-            origin: '@parcel/resolver-default',
-            codeFrames: [
-              {
-                code: pkgContents,
-                filePath: pkg,
-                language: 'json',
-                codeHighlights: [
-                  {
-                    message: 'Found this conflicting requirement.',
-                    start: {
-                      line: 6,
-                      column: 21,
-                    },
-                    end: {
-                      line: 6,
-                      column: 28,
-                    },
+                  end: {
+                    line: 1,
+                    column: 1,
                   },
-                ],
-              },
-            ],
-            hints: [
-              'Update the dependency on "@swc/helpers" to satisfy "^0.5.0".',
-            ],
-          },
-        ],
-      },
-    );
+                },
+              ],
+            },
+          ],
+        },
+        {
+          message:
+            'External dependency "@swc/helpers" does not satisfy required semver range "^0.5.0".',
+          origin: '@parcel/resolver-default',
+          codeFrames: [
+            {
+              code: pkgContents,
+              filePath: pkg,
+              language: 'json',
+              codeHighlights: [
+                {
+                  message: 'Found this conflicting requirement.',
+                  start: {
+                    line: 6,
+                    column: 21,
+                  },
+                  end: {
+                    line: 6,
+                    column: 28,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: [
+            'Update the dependency on "@swc/helpers" to satisfy "^0.5.0".',
+          ],
+        },
+      ]);
+      return;
+    }
+    assert(false);
   });
 
   describe('multiple import types', function () {

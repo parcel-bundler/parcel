@@ -27,3 +27,7 @@ fixedbitset = "0.4.2"
 dashmap = { version = "5.4.0", features = ["raw-api"] }
 itertools = "0.10.5"
 gxhash = "*"
+pathdiff = "0.2.0"
+path-slash = "0.1.4"
+levenshtein = "1.0.5"
+json-sourcemap = "0.1"

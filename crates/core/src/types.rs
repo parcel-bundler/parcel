@@ -83,6 +83,7 @@ pub enum AssetType {
   Tsx,
   Css,
   Html,
+  Json,
   Other(String),
 }
 
@@ -114,6 +115,7 @@ impl AssetType {
       AssetType::Tsx => "tsx",
       AssetType::Css => "css",
       AssetType::Html => "html",
+      AssetType::Json => "json",
       AssetType::Other(s) => s.as_str(),
     }
   }
@@ -126,6 +128,7 @@ impl AssetType {
       "tsx" => AssetType::Tsx,
       "css" => AssetType::Css,
       "html" => AssetType::Html,
+      "json" => AssetType::Json,
       ext => AssetType::Other(ext.to_string()),
     }
   }

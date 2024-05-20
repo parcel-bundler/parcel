@@ -60,4 +60,52 @@ impl CodeHighlight {
       },
     }
   }
+
+  pub fn from_json(start: json_sourcemap::Location, end: json_sourcemap::Location) -> Self {
+    CodeHighlight {
+      message: None,
+      start: Location {
+        line: start.line as u32 + 1,
+        column: start.column as u32 + 1,
+      },
+      end: Location {
+        line: end.line as u32 + 1,
+        column: end.column as u32,
+      },
+    }
+  }
+}
+
+impl std::fmt::Display for Diagnostic {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.write_str(&self.message)
+  }
+}
+
+impl std::error::Error for Diagnostic {}
+
+impl From<std::io::Error> for Diagnostic {
+  fn from(value: std::io::Error) -> Self {
+    Diagnostic {
+      origin: Some("@parcel/core".into()),
+      message: value.to_string(),
+      code_frames: Vec::new(),
+      hints: Vec::new(),
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
+}
+
+impl From<json_sourcemap::Error> for Diagnostic {
+  fn from(value: json_sourcemap::Error) -> Self {
+    Diagnostic {
+      origin: Some("@parcel/core".into()),
+      message: value.to_string(),
+      code_frames: Vec::new(),
+      hints: Vec::new(),
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
 }
