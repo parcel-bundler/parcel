@@ -21,6 +21,9 @@ const pipeline: (Readable, Writable) => Promise<void> = promisify(
 export class FSCache implements Cache {
   fs: FileSystem;
   dir: FilePath;
+  /**
+   * Maximum number of bytes per large blob file
+   */
   #writeLimitChunk: number;
 
   constructor(
