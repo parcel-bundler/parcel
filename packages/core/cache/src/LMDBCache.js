@@ -11,7 +11,6 @@ import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
-// $FlowFixMe
 import lmdb from 'lmdb';
 
 import {FSCache} from './FSCache';
