@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 description = "Core logic for the parcel bundler"
 
+[[bench]]
+name = "parcel_core_benchmarks"
+harness = false
+path = "bench.rs"
+
 [features]
 default = []
 
@@ -19,3 +24,6 @@ serde_repr = "0.1.19"
 serde-value = "0.7.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 petgraph = "0.6.5"
+
+[dev-dependencies]
+divan = "0.*"

@@ -16,7 +16,7 @@ pub trait Request<T: Send>: Hash + Sync {
 }
 
 pub struct RequestResult<Output> {
-  pub result: Result<Output, RequestError>,
+  pub result: Result<Output, Vec<RequestError>>,
   pub invalidations: Vec<Invalidation>,
 }
 

@@ -14,7 +14,7 @@ pub enum RequestGraphNode<T> {
 #[derive(Debug)]
 pub struct RequestNode<T> {
   pub state: RequestNodeState,
-  pub output: Option<Result<T, RequestError>>,
+  pub output: Option<Result<T, Vec<RequestError>>>,
 }
 
 #[allow(dead_code)]
