@@ -1600,7 +1600,7 @@ export default class BundleGraph {
       }
 
       for (let referencedBundle of this.getReferencedBundles(bundle, {
-        includeInline: true,
+        includeInline: opts?.includeInline,
       })) {
         bundles.add(referencedBundle);
       }
