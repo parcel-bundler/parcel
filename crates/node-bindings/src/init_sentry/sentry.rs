@@ -88,8 +88,7 @@ fn init_sentry() -> Result<(), Status> {
     configure_scope(|scope| scope.set_tag(&key, val));
   }
   log::info!("Parcel Sentry for rust setup done!");
-  panic!("test, please ignore");
-  // return Ok(());
+  return Ok(());
 }
 
 #[napi]
