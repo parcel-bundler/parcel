@@ -1,6 +1,6 @@
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use napi::Error;
@@ -26,7 +26,7 @@ fn init_sentry() -> Result<(), Status> {
 
   log::info!("Initialising Sentry in rust...");
 
-  if SENTRY_GUARD.lock().unwrap().is_some() {
+  if SENTRY_GUARD.lock().is_some() {
     return Err(Error::from_reason(
       "Sentry guard already set, should only initialise Sentry once.",
     ));
@@ -63,7 +63,7 @@ fn init_sentry() -> Result<(), Status> {
 
   let guard = init((sentry_dsn, sentry_client_options));
 
-  SENTRY_GUARD.lock().unwrap().replace(guard);
+  SENTRY_GUARD.lock().replace(guard);
 
   sentry::configure_scope(|scope| {
     scope.set_user(Some(sentry::User {
@@ -81,7 +81,7 @@ fn init_sentry() -> Result<(), Status> {
 
 #[napi]
 fn close_sentry() {
-  if let Some(guard) = SENTRY_GUARD.lock().unwrap().take() {
+  if let Some(guard) = SENTRY_GUARD.lock().take() {
     guard.close(Some(TIMEOUT));
   }
 }
