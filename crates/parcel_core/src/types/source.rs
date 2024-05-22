@@ -25,3 +25,5 @@ pub struct SourceLocation {
   /// The final location in the source code
   pub end: Location,
 }
+
+pub struct SourceMap {}
