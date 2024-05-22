@@ -24,6 +24,7 @@ import ThrowableDiagnostic, {
 import globals from 'globals';
 import path from 'path';
 
+import logger from '@parcel/logger';
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
@@ -263,7 +264,20 @@ export class ScopeHoistingPackager {
     };
   }
 
-  shouldBundleQueue(bundle: NamedBundle): boolean {
+  shouldBundleQueue(bundle: NamedBundle, debug?: boolean): boolean {
+    let referencingBundles = this.bundleGraph.getReferencingBundles(bundle);
+    let hasHtmlReferernce = referencingBundles.some(b =>
+      bundle.name.endsWith('.html'),
+    );
+
+    if (bundle.name.includes('shared')) {
+      logger.verbose({
+        message: 'shouldBundleQueue',
+        bundle: bundle.name,
+        hasHtmlReferernce,
+        referencingBundles: referencingBundles.map(b => b.name),
+      });
+    }
     return (
       this.useAsyncBundleRuntime &&
       bundle.type === 'js' &&
@@ -271,7 +285,12 @@ export class ScopeHoistingPackager {
       bundle.env.outputFormat === 'esmodule' &&
       !bundle.env.isIsolated() &&
       bundle.bundleBehavior !== 'isolated' &&
-      !this.bundleGraph.hasParentBundleOfType(bundle, 'js')
+      hasHtmlReferernce
+      // !this.bundleGraph.hasParentBundleOfType(
+      //   bundle,
+      //   'js',
+      //   bundle.name.includes('shared'),
+      // )
     );
   }
 
