@@ -6,6 +6,8 @@ import typeof BundleGraph, {
 } from '@parcel/core/src/BundleGraph.js';
 import typeof RequestTracker, {
   RequestGraph,
+  requestTypes,
+  getRequestTrackerCacheInfo,
   readAndDeserializeRequestGraph,
 } from '@parcel/core/src/RequestTracker.js';
 import typeof {requestGraphEdgeTypes} from '@parcel/core/src/RequestTracker.js';
@@ -52,6 +54,8 @@ module.exports = (v: {|
     default: RequestTracker,
     readAndDeserializeRequestGraph: readAndDeserializeRequestGraph,
     RequestGraph: RequestGraph,
+    requestTypes: requestTypes,
+    getRequestTrackerCacheInfo: getRequestTrackerCacheInfo,
     requestGraphEdgeTypes: requestGraphEdgeTypes,
     ...
   },

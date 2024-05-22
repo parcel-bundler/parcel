@@ -271,6 +271,41 @@ const keyFromOptionContentKey = (contentKey: ContentKey): string =>
 // The goal is to free up the event loop periodically to allow interruption by the user.
 const NODES_PER_BLOB = 2 ** 14;
 
+/**
+ * We keep track of the latest request tracker cache entry cache key.
+ */
+export type RequestTrackerCacheInfo = {|
+  requestGraphKey: string,
+  snapshotKey: string,
+  timestamp: number,
+|};
+
+/**
+ * Retrieve the latest `RequestTrackerCacheInfo`. This should help debugging
+ * tools like `parcel-query` find the latest cache entries for the request
+ * graph.
+ */
+export function getRequestTrackerCacheInfo(
+  cache: Cache,
+): Promise<RequestTrackerCacheInfo | void | null> {
+  return cache.get('RequestTrackerCacheInfo');
+}
+
+async function storeRequestTrackerCacheInfo(
+  cache: Cache,
+  requestTrackerCacheInfo: RequestTrackerCacheInfo,
+) {
+  logger.verbose({
+    origin: '@parcel/core',
+    message: `Storing RequestTrackerCache info`,
+    meta: {
+      requestGraphKey: requestTrackerCacheInfo.requestGraphKey,
+      snapshotKey: requestTrackerCacheInfo.snapshotKey,
+    },
+  });
+  await cache.set('RequestTrackerCacheInfo', requestTrackerCacheInfo);
+}
+
 export class RequestGraph extends ContentGraph<
   RequestGraphNode,
   RequestGraphEdgeType,
@@ -1486,6 +1521,11 @@ export default class RequestTracker {
       if (!signal?.aborted) throw err;
     }
 
+    await storeRequestTrackerCacheInfo(this.options.cache, {
+      requestGraphKey,
+      snapshotKey,
+      timestamp: Date.now(),
+    });
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
 
