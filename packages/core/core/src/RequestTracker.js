@@ -55,6 +55,7 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
+import {storeRequestTrackerCacheInfo} from './RequestTrackerCacheInfo';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -270,41 +271,6 @@ const keyFromOptionContentKey = (contentKey: ContentKey): string =>
 // This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
 // The goal is to free up the event loop periodically to allow interruption by the user.
 const NODES_PER_BLOB = 2 ** 14;
-
-/**
- * We keep track of the latest request tracker cache entry cache key.
- */
-export type RequestTrackerCacheInfo = {|
-  requestGraphKey: string,
-  snapshotKey: string,
-  timestamp: number,
-|};
-
-/**
- * Retrieve the latest `RequestTrackerCacheInfo`. This should help debugging
- * tools like `parcel-query` find the latest cache entries for the request
- * graph.
- */
-export function getRequestTrackerCacheInfo(
-  cache: Cache,
-): Promise<RequestTrackerCacheInfo | void | null> {
-  return cache.get('RequestTrackerCacheInfo');
-}
-
-async function storeRequestTrackerCacheInfo(
-  cache: Cache,
-  requestTrackerCacheInfo: RequestTrackerCacheInfo,
-) {
-  logger.verbose({
-    origin: '@parcel/core',
-    message: `Storing RequestTrackerCache info`,
-    meta: {
-      requestGraphKey: requestTrackerCacheInfo.requestGraphKey,
-      snapshotKey: requestTrackerCacheInfo.snapshotKey,
-    },
-  });
-  await cache.set('RequestTrackerCacheInfo', requestTrackerCacheInfo);
-}
 
 export class RequestGraph extends ContentGraph<
   RequestGraphNode,

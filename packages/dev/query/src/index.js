@@ -1,6 +1,7 @@
 // @flow strict-local
 /* eslint-disable no-console, monorepo/no-internal-import */
 import type {ContentKey, NodeId} from '@parcel/graph';
+import type {Cache} from '@parcel/types-internal/src/Cache';
 import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
 import v8 from 'v8';
@@ -11,11 +12,11 @@ import {findLast} from './util';
 const {
   AssetGraph,
   BundleGraph: {default: BundleGraph},
+  RequestTrackerCacheInfo: {getRequestTrackerCacheInfo},
   RequestTracker: {
     default: RequestTracker,
     readAndDeserializeRequestGraph,
     requestTypes,
-    getRequestTrackerCacheInfo,
     requestGraphEdgeTypes,
   },
   LMDBCache,
@@ -24,7 +25,7 @@ const {
 type CacheInfo = Map<string, Array<string | number>>;
 
 async function loadRequestTracker(
-  cache: LMDBCache,
+  cache: Cache,
   cacheInfo: CacheInfo,
   requestGraphKey: string | null,
 ): Promise<null | RequestTracker> {
@@ -69,7 +70,7 @@ async function loadRequestTracker(
 async function loadBundleGraph(
   cacheInfo: CacheInfo,
   requestTracker: RequestTracker,
-  cache: LMDBCache,
+  cache: Cache,
 ): Promise<BundleGraph | null> {
   try {
     const bundleGraphNode = findLast(
@@ -104,7 +105,7 @@ async function loadBundleGraph(
 async function loadAssetGraph(
   cacheInfo: CacheInfo,
   requestTracker: RequestTracker,
-  cache: LMDBCache,
+  cache: Cache,
 ): Promise<AssetGraph | null> {
   try {
     const assetGraphNode = findLast(
@@ -135,7 +136,10 @@ async function loadAssetGraph(
   }
 }
 
-export async function loadGraphs(cacheDir: string): Promise<{|
+export async function loadGraphs(
+  cacheDir: string,
+  cache: Cache = new LMDBCache(cacheDir),
+): Promise<{|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
@@ -144,8 +148,12 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 |}> {
   let cacheInfo: CacheInfo = new Map();
 
-  const cache = new LMDBCache(cacheDir);
   const requestTrackerCacheInfo = await getRequestTrackerCacheInfo(cache);
+  console.log(
+    'loading requesttrackercache info',
+    requestTrackerCacheInfo,
+    cache.constructor.name,
+  );
   console.log('Loaded RequestTrackerCacheInfo', requestTrackerCacheInfo);
   const requestGraphKey = requestTrackerCacheInfo?.requestGraphKey ?? null;
 

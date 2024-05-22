@@ -1,8 +1,15 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import {overlayFS, bundle, fsFixture} from '@parcel/test-utils';
+import {
+  overlayFS,
+  bundle,
+  fsFixture,
+  getParcelOptions,
+} from '@parcel/test-utils';
 import {loadGraphs} from '../../../dev/query/src';
+import resolveOptions from '@parcel/core/src/resolveOptions';
+import Parcel from '@parcel/core';
 
 describe('parcel-query', () => {
   it('loadGraphs', async function () {
@@ -21,10 +28,13 @@ describe('parcel-query', () => {
         index.js:
             export default 1;`;
 
-    await bundle(entries, options);
+    const initialOptions = getParcelOptions(entries, options);
+    const {cache} = await resolveOptions(initialOptions);
+    const parcel = new Parcel(initialOptions);
+    await parcel.run();
 
     const {assetGraph, bundleGraph, requestTracker, bundleInfo} =
-      await loadGraphs(options.cacheDir);
+      await loadGraphs(options.cacheDir, cache);
 
     assert(bundleInfo, 'Could not load bundleInfo');
     assert(bundleGraph, 'Could not load bundleGraph');
