@@ -1,12 +1,7 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import {
-  overlayFS,
-  bundle,
-  fsFixture,
-  getParcelOptions,
-} from '@parcel/test-utils';
+import {overlayFS, fsFixture, getParcelOptions} from '@parcel/test-utils';
 import {loadGraphs} from '../../../dev/query/src';
 import resolveOptions from '@parcel/core/src/resolveOptions';
 import Parcel from '@parcel/core';
