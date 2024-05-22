@@ -6,6 +6,7 @@ import type {PackagedBundleInfo} from '@parcel/core/src/types';
 import v8 from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {findLast} from './util';
 
 const {
   AssetGraph,
@@ -25,8 +26,8 @@ type CacheInfo = Map<string, Array<string | number>>;
 async function loadRequestTracker(
   cache: LMDBCache,
   cacheInfo: CacheInfo,
-  requestGraphKey: string,
-): null | RequestTracker {
+  requestGraphKey: string | null,
+): Promise<null | RequestTracker> {
   if (requestGraphKey == null) {
     return null;
   }
@@ -69,10 +70,11 @@ async function loadBundleGraph(
   cacheInfo: CacheInfo,
   requestTracker: RequestTracker,
   cache: LMDBCache,
-): BundleGraph {
+): Promise<BundleGraph | null> {
   try {
-    const bundleGraphNode = requestTracker.graph.nodes.findLast(
-      node => node.requestType === requestTypes.bundle_graph_request,
+    const bundleGraphNode = findLast(
+      requestTracker.graph.nodes,
+      node => node?.requestType === requestTypes.bundle_graph_request,
     );
 
     const bundleGraphKey = bundleGraphNode?.resultCacheKey;
@@ -103,16 +105,17 @@ async function loadAssetGraph(
   cacheInfo: CacheInfo,
   requestTracker: RequestTracker,
   cache: LMDBCache,
-): AssetGraph | null {
+): Promise<AssetGraph | null> {
   try {
-    const assetGraphNode = requestTracker.graph.nodes.findLast(
-      node => node.requestType === requestTypes.asset_graph_request,
+    const assetGraphNode = findLast(
+      requestTracker.graph.nodes,
+      node => node?.requestType === requestTypes.asset_graph_request,
     );
 
     const assetGraphKey = assetGraphNode?.resultCacheKey;
     console.log('Loading asset graph from request tracker', {assetGraphKey});
     if (assetGraphKey == null) {
-      return;
+      return null;
     }
 
     let file = await cache.getLargeBlob(assetGraphKey);
@@ -144,14 +147,24 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   const cache = new LMDBCache(cacheDir);
   const requestTrackerCacheInfo = await getRequestTrackerCacheInfo(cache);
   console.log('Loaded RequestTrackerCacheInfo', requestTrackerCacheInfo);
-  const requestGraphKey = requestTrackerCacheInfo?.requestGraphKey;
+  const requestGraphKey = requestTrackerCacheInfo?.requestGraphKey ?? null;
 
-  // Get requestTracker
   const requestTracker = await loadRequestTracker(
     cache,
     cacheInfo,
     requestGraphKey,
   );
+  if (requestTracker == null) {
+    console.error('Expected request tracker to be loaded');
+    return {
+      assetGraph: null,
+      bundleGraph: null,
+      bundleInfo: null,
+      requestTracker,
+      cacheInfo,
+    };
+  }
+
   const bundleGraph = await loadBundleGraph(cacheInfo, requestTracker, cache);
   const assetGraph = await loadAssetGraph(cacheInfo, requestTracker, cache);
 
@@ -164,7 +177,6 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   // Load graphs by finding the main subrequests and loading their results
   let bundleInfo;
   try {
-    invariant(requestTracker != null, 'Expected request tracker to be loaded');
     let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
       'parcel_build_request',
     );
