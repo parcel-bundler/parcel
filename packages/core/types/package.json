@@ -12,7 +12,6 @@
     "access": "public"
   },
   "scripts": {
-    "dev:prepare": "npm run build-ts",
     "build-ts": "mkdir -p lib ; flow-to-ts src/index.js > lib/index.d.ts",
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
