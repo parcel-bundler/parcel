@@ -113,6 +113,7 @@ export default class ReporterRunner {
           });
         } catch (reportError) {
           INTERNAL_ORIGINAL_CONSOLE.error(reportError);
+          process.exitCode = 1;
         } finally {
           measurement && measurement.end();
         }
