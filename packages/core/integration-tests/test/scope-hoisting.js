@@ -1,3 +1,4 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -6049,13 +6050,13 @@ describe('scope hoisting', function () {
           <script type="module" src="./a.js"></script>
         a.js:
           export default 'a';
-          
+
         b.js:
           export default 'b';
-          
+
         c.js:
           export default 'c';
-          
+
         empty.js:
           // Just a comment
         index.html:
@@ -6064,9 +6065,9 @@ describe('scope hoisting', function () {
           import a from './a';
           import b from './b';
           import c from './c';
-          
+
           result([a, b, c]);
-          
+
         package.json:
           {
               "@parcel/bundler-default": {
@@ -6085,13 +6086,11 @@ describe('scope hoisting', function () {
       ],
       {
         mode: 'production',
-
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
           outputFormat: 'esmodule',
         },
-
         inputFS: overlayFS,
       },
     );
@@ -6112,6 +6111,91 @@ describe('scope hoisting', function () {
     assert.deepEqual(await result, ['a', 'b', 'c']);
   });
 
+  it('should add experimental bundle queue runtime to manual shared bundles', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      bundle-queue-runtime
+        index.html:
+          <script type="module" src="./index.js"></script>
+        shared.js:
+          export default 'shared';
+        index.js:
+          import shared from './shared';
+          result(['index', shared]);
+
+        package.json:
+          {
+              "@parcel/bundler-default": {
+                  "minBundleSize": 0,
+                  "manualSharedBundles": [{
+                    "name": "shared",
+                    "types": ["js"],
+                    "assets": ["shared.js"]
+                  }]
+              },
+              "@parcel/packager-js": {
+                  "unstable_asyncBundleRuntime": true
+              }
+          }
+        yarn.lock:`;
+
+    let b = await bundle(
+      [path.join(__dirname, 'bundle-queue-runtime/index.html')],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+          outputFormat: 'esmodule',
+        },
+        inputFS: overlayFS,
+      },
+    );
+    function hasAsset(bundle, assetName) {
+      let result = false;
+
+      bundle.traverseAssets(asset => {
+        if (asset.filePath.includes(assetName)) {
+          result = true;
+        }
+      });
+
+      return result;
+    }
+    let sharedBundleContents = await outputFS.readFile(
+      nullthrows(
+        b.getBundles().find(b => hasAsset(b, 'shared.js')),
+        'No shared bundle',
+      ).filePath,
+      'utf8',
+    );
+    let entryContents = await outputFS.readFile(
+      nullthrows(
+        b.getBundles().find(b => hasAsset(b, 'index.js')),
+        'No entry bundle',
+      ).filePath,
+      'utf8',
+    );
+
+    assert(
+      sharedBundleContents.includes('$parcel$global.rlb('),
+      'Shared bundle should include register loaded bundle runtime',
+    );
+
+    assert(
+      entryContents.includes('$parcel$global.rwr('),
+      'Entry should include run when ready runtime',
+    );
+
+    let result;
+    await run(b, {
+      result: r => {
+        result = r;
+      },
+    });
+
+    assert.deepEqual(await result, ['index', 'shared']);
+  });
+
   it('should not add experimental bundle queue runtime to empty bundles', async function () {
     await fsFixture(overlayFS, __dirname)`
       bundle-queue-runtime
@@ -6119,13 +6203,13 @@ describe('scope hoisting', function () {
           <script type="module" src="./a.js"></script>
         a.js:
           export default 'a';
-          
+
         b.js:
           export default 'b';
-          
+
         c.js:
           export default 'c';
-          
+
         empty.js:
           // Just a comment
         index.html:
@@ -6134,9 +6218,9 @@ describe('scope hoisting', function () {
           import a from './a';
           import b from './b';
           import c from './c';
-          
+
           result([a, b, c]);
-          
+
         package.json:
           {
               "@parcel/bundler-default": {
@@ -6152,19 +6236,18 @@ describe('scope hoisting', function () {
       [path.join(__dirname, 'bundle-queue-runtime/empty.js')],
       {
         mode: 'production',
-
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
           outputFormat: 'esmodule',
         },
-
         inputFS: overlayFS,
       },
     );
 
     let contents = await outputFS.readFile(
-      b.getBundles().find(b => /empty.*\.js/.test(b.filePath)).filePath,
+      nullthrows(b.getBundles().find(b => /empty.*\.js/.test(b.filePath)))
+        .filePath,
       'utf8',
     );
 

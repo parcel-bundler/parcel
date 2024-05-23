@@ -35,7 +35,6 @@ import {
   isValidIdentifier,
   makeValidIdentifier,
 } from './utils';
-
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
 const REPLACEMENT_RE =
@@ -264,20 +263,10 @@ export class ScopeHoistingPackager {
     };
   }
 
-  shouldBundleQueue(bundle: NamedBundle, debug?: boolean): boolean {
+  shouldBundleQueue(bundle: NamedBundle): boolean {
     let referencingBundles = this.bundleGraph.getReferencingBundles(bundle);
-    let hasHtmlReferernce = referencingBundles.some(b =>
-      bundle.name.endsWith('.html'),
-    );
+    let hasHtmlReference = referencingBundles.some(b => b.type === 'html');
 
-    if (bundle.name.includes('shared')) {
-      logger.verbose({
-        message: 'shouldBundleQueue',
-        bundle: bundle.name,
-        hasHtmlReferernce,
-        referencingBundles: referencingBundles.map(b => b.name),
-      });
-    }
     return (
       this.useAsyncBundleRuntime &&
       bundle.type === 'js' &&
@@ -285,12 +274,7 @@ export class ScopeHoistingPackager {
       bundle.env.outputFormat === 'esmodule' &&
       !bundle.env.isIsolated() &&
       bundle.bundleBehavior !== 'isolated' &&
-      hasHtmlReferernce
-      // !this.bundleGraph.hasParentBundleOfType(
-      //   bundle,
-      //   'js',
-      //   bundle.name.includes('shared'),
-      // )
+      hasHtmlReference
     );
   }
 
