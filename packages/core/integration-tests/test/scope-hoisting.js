@@ -6056,8 +6056,6 @@ describe('scope hoisting', function () {
         c.js:
           export default 'c';
 
-        empty.js:
-          // Just a comment
         index.html:
           <script type="module" src="./index.js"></script>
         index.js:
@@ -6198,34 +6196,11 @@ describe('scope hoisting', function () {
   it('should not add experimental bundle queue runtime to empty bundles', async function () {
     await fsFixture(overlayFS, __dirname)`
       bundle-queue-runtime
-        a.html:
-          <script type="module" src="./a.js"></script>
-        a.js:
-          export default 'a';
-
-        b.js:
-          export default 'b';
-
-        c.js:
-          export default 'c';
-
         empty.js:
           // Just a comment
-        index.html:
-          <script type="module" src="./index.js"></script>
-        index.js:
-          import a from './a';
-          import b from './b';
-          import c from './c';
-
-          result([a, b, c]);
-
         package.json:
           {
-              "@parcel/bundler-default": {
-                  "minBundleSize": 0
-              },
-              "@parcel/packager-js": {
+             "@parcel/packager-js": {
                   "unstable_asyncBundleRuntime": true
               }
           }
