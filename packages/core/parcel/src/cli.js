@@ -404,7 +404,7 @@ async function run(
       await exit(1);
     }
 
-    await exit(process.exitCode);
+    await exit();
   }
 }
 

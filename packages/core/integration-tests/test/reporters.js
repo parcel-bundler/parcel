@@ -4,9 +4,7 @@ import assert from 'assert';
 import {execSync} from 'child_process';
 import path from 'path';
 
-import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
-import {bundle} from '@parcel/test-utils';
-import sinon from 'sinon';
+import {bundler} from '@parcel/test-utils';
 
 describe('reporters', () => {
   let successfulEntry = path.join(
@@ -16,7 +14,14 @@ describe('reporters', () => {
     'index.js',
   );
 
-  let failingEntry = path.join(
+  let loadReporterFailureEntry = path.join(
+    __dirname,
+    'integration',
+    'reporters-load-failure',
+    'index.js',
+  );
+
+  let failingReporterEntry = path.join(
     __dirname,
     'integration',
     'reporters-failure',
@@ -32,42 +37,56 @@ describe('reporters', () => {
       );
     });
 
-    it('exit with an error code when an error is emitted', () => {
+    it('exit with an error code when a reporter fails to load', () => {
       assert.throws(() =>
-        execSync(`parcel build --no-cache ${failingEntry}`, {stdio: 'ignore'}),
+        execSync(`parcel build --no-cache ${loadReporterFailureEntry}`, {
+          stdio: 'ignore',
+        }),
+      );
+    });
+
+    it('exit with an error code when a reporter emits an error', () => {
+      assert.throws(() =>
+        execSync(`parcel build --no-cache ${failingReporterEntry}`, {
+          stdio: 'ignore',
+        }),
       );
     });
   });
 
   describe('running on the programmatic api', () => {
-    let consoleError;
-    let processExitCode;
+    it('resolves when no errors are emitted', async () => {
+      let buildEvent = await bundler(successfulEntry).run();
 
-    beforeEach(() => {
-      processExitCode = process.exitCode;
-      consoleError = sinon.stub(INTERNAL_ORIGINAL_CONSOLE, 'error');
+      assert.equal(buildEvent.type, 'buildSuccess');
     });
 
-    afterEach(() => {
-      process.exitCode = processExitCode;
-      sinon.restore();
+    it('rejects when a reporter fails to load', async () => {
+      try {
+        let buildEvent = await bundler(loadReporterFailureEntry).run();
+
+        throw new Error(buildEvent);
+      } catch (err) {
+        assert.equal(err.name, 'Error');
+        assert.deepEqual(
+          err.diagnostics.map(d => d.message),
+          ['Cannot find Parcel plugin "./test-reporter"'],
+        );
+      }
     });
 
-    it('exit successfully when no errors are emitted', async () => {
-      await bundle(successfulEntry);
+    it('rejects when a reporter emits an error', async () => {
+      try {
+        let buildEvent = await bundler(failingReporterEntry).run();
 
-      assert(!process.exitCode);
-    });
-
-    it('exit with an error code when an error is emitted', async () => {
-      await bundle(failingEntry);
-
-      assert.equal(process.exitCode, 1);
-      assert(
-        consoleError.calledWithMatch({
-          message: 'Failed to report buildSuccess',
-        }),
-      );
+        throw new Error(buildEvent);
+      } catch (err) {
+        assert.equal(err.name, 'BuildError');
+        assert.deepEqual(
+          err.diagnostics.map(d => d.message),
+          ['Failed to report buildSuccess'],
+        );
+      }
     });
   });
 });
