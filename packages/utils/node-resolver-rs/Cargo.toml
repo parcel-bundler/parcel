@@ -20,6 +20,7 @@ elsa = "1.7.0"
 once_cell = "1.17.0"
 glob-match = "0.2.1"
 dashmap = "5.4.0"
+parking_lot = "0.12"
 
 [dev-dependencies]
 assert_fs = "1.0"

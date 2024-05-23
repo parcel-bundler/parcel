@@ -476,9 +476,9 @@ function createIdealGraph(
           node.type === 'asset' &&
           (!Array.isArray(c.types) || c.types.includes(node.value.type))
         ) {
-          // +1 accounts for leading slash
-          let projectRelativePath = node.value.filePath.slice(
-            config.projectRoot.length + 1,
+          let projectRelativePath = path.relative(
+            config.projectRoot,
+            node.value.filePath,
           );
           if (!assetRegexes.some(regex => regex.test(projectRelativePath))) {
             return;

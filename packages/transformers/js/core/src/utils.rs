@@ -409,11 +409,13 @@ macro_rules! id {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
+pub struct ErrorBuffer(
+  std::sync::Arc<parking_lot::Mutex<Vec<swc_core::common::errors::Diagnostic>>>,
+);
 
 impl Emitter for ErrorBuffer {
   fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.lock().unwrap().push((**db).clone());
+    self.0.lock().push((**db).clone());
   }
 }
 
@@ -421,7 +423,7 @@ pub fn error_buffer_to_diagnostics(
   error_buffer: &ErrorBuffer,
   source_map: &SourceMap,
 ) -> Vec<Diagnostic> {
-  let s = error_buffer.0.lock().unwrap().clone();
+  let s = error_buffer.0.lock().clone();
   s.iter()
     .map(|diagnostic| {
       let message = diagnostic.message();
