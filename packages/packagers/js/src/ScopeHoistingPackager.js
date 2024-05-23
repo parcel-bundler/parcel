@@ -24,7 +24,6 @@ import ThrowableDiagnostic, {
 import globals from 'globals';
 import path from 'path';
 
-import logger from '@parcel/logger';
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
