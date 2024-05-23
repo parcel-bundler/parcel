@@ -1769,6 +1769,64 @@ describe('bundler', function () {
         },
       ]);
     });
+
+    it('should support globs matching outside of the project root', async function () {
+      const rootDir = path.join(dir, 'root');
+      overlayFS.mkdirp(rootDir);
+      await fsFixture(overlayFS, rootDir)`
+      yarn.lock:
+        // Required for config loading
+
+      package.json:
+        {
+          "@parcel/bundler-default": {
+            "minBundleSize": 0,
+            "manualSharedBundles": [{
+              "name": "vendor",
+              "root": "vendor.js",
+              "assets": [
+                "in-project.js",
+                "../outside-project.js"
+              ]
+            }]
+          }
+        }
+
+      index.html:
+        <script type="module" src="./index.js"></script>
+
+      in-project.js:
+        export default 'in-project';
+
+      vendor.js:
+        export * from './in-project';
+        export * from '../outside-project';
+
+      index.js:
+        import * as vendor from './vendor';
+
+        console.log(vendor.inProj);
+        console.log(vendor.outProj);`;
+
+      await fsFixture(overlayFS, dir)`
+      outside-project.js:
+        export default 'outside-project';`;
+
+      let b = await bundle(path.join(rootDir, 'index.html'), {
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      assertBundles(b, [
+        {assets: ['index.html']},
+        {assets: ['in-project.js', 'outside-project.js']},
+        {assets: ['esmodule-helpers.js', 'index.js', 'vendor.js']},
+      ]);
+    });
   });
 
   it('should reuse type change bundles from parent bundle groups', async function () {
