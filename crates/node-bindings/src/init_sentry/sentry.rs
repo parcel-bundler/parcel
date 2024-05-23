@@ -18,6 +18,13 @@ static SENTRY_GUARD: Lazy<Arc<Mutex<Option<ClientInitGuard>>>> =
   Lazy::new(|| Arc::new(Mutex::new(None)));
 const TIMEOUT: Duration = Duration::from_secs(2);
 
+fn value_to_string(value: &serde_json::Value) -> String {
+  match value {
+    serde_json::Value::String(inner) => inner.clone(),
+    other => other.to_string(),
+  }
+}
+
 #[napi]
 fn init_sentry() -> Result<(), Status> {
   if std::env::var("PARCEL_ENABLE_SENTRY").is_err() {
@@ -50,6 +57,11 @@ fn init_sentry() -> Result<(), Status> {
   let mut sentry_client_options = sentry::ClientOptions {
     ..Default::default()
   };
+
+  let sentry_tags: HashMap<String, String> = sentry_tags
+    .iter()
+    .map(|(k, v)| (k.clone(), value_to_string(v)))
+    .collect::<HashMap<String, String>>();
 
   if let Some(release) = sentry_tags.get("release") {
     sentry_client_options.release = Some(release.to_string().into());
