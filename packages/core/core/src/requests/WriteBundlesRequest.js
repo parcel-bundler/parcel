@@ -67,7 +67,10 @@ async function run({input, api, farm, options}) {
     if (bundle.isPlaceholder) {
       let hash = bundle.id.slice(-8);
       hashRefToNameHash.set(bundle.hashReference, hash);
-      let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
+      let name = nullthrows(
+        bundle.name,
+        `Expected ${bundle.type} bundle to have a name`,
+      ).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
         filePath: joinProjectPath(bundle.target.distDir, name),
         type: bundle.type, // FIXME: this is wrong if the packager changes the type...
