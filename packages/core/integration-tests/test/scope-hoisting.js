@@ -6043,18 +6043,56 @@ describe('scope hoisting', function () {
   });
 
   it('should add experimental bundle queue runtime for out of order bundle execution', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      bundle-queue-runtime
+        a.html:
+          <script type="module" src="./a.js"></script>
+        a.js:
+          export default 'a';
+          
+        b.js:
+          export default 'b';
+          
+        c.js:
+          export default 'c';
+          
+        empty.js:
+          // Just a comment
+        index.html:
+          <script type="module" src="./index.js"></script>
+        index.js:
+          import a from './a';
+          import b from './b';
+          import c from './c';
+          
+          result([a, b, c]);
+          
+        package.json:
+          {
+              "@parcel/bundler-default": {
+                  "minBundleSize": 0
+              },
+              "@parcel/packager-js": {
+                  "unstable_asyncBundleRuntime": true
+              }
+          }
+        yarn.lock:`;
+
     let b = await bundle(
       [
-        path.join(__dirname, 'integration/bundle-queue-runtime/index.html'),
-        path.join(__dirname, 'integration/bundle-queue-runtime/a.html'),
+        path.join(__dirname, 'bundle-queue-runtime/index.html'),
+        path.join(__dirname, 'bundle-queue-runtime/a.html'),
       ],
       {
         mode: 'production',
+
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
           outputFormat: 'esmodule',
         },
+
+        inputFS: overlayFS,
       },
     );
 
@@ -6075,15 +6113,53 @@ describe('scope hoisting', function () {
   });
 
   it('should not add experimental bundle queue runtime to empty bundles', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      bundle-queue-runtime
+        a.html:
+          <script type="module" src="./a.js"></script>
+        a.js:
+          export default 'a';
+          
+        b.js:
+          export default 'b';
+          
+        c.js:
+          export default 'c';
+          
+        empty.js:
+          // Just a comment
+        index.html:
+          <script type="module" src="./index.js"></script>
+        index.js:
+          import a from './a';
+          import b from './b';
+          import c from './c';
+          
+          result([a, b, c]);
+          
+        package.json:
+          {
+              "@parcel/bundler-default": {
+                  "minBundleSize": 0
+              },
+              "@parcel/packager-js": {
+                  "unstable_asyncBundleRuntime": true
+              }
+          }
+        yarn.lock:`;
+
     let b = await bundle(
-      [path.join(__dirname, 'integration/bundle-queue-runtime/empty.js')],
+      [path.join(__dirname, 'bundle-queue-runtime/empty.js')],
       {
         mode: 'production',
+
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
           outputFormat: 'esmodule',
         },
+
+        inputFS: overlayFS,
       },
     );
 
