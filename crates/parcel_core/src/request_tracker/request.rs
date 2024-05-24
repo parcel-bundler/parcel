@@ -23,11 +23,11 @@ pub trait Request<Res: Send + Debug>: DynHash + Sync {
 
 dyn_hash::hash_trait_object!(<R> Request<R> where R: Send + Debug);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RequestResult<Req> {
   pub result: Req,
   pub invalidations: Vec<Invalidation>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Invalidation {}

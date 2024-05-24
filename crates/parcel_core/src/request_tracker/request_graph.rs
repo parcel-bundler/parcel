@@ -1,6 +1,6 @@
 use petgraph::graph::DiGraph;
 
-pub type RequestGraph<T: Clone> = DiGraph<RequestNode<T>, RequestEdgeType>;
+pub type RequestGraph<T> = DiGraph<RequestNode<T>, RequestEdgeType>;
 
 // #[allow(dead_code)]
 // #[derive(Debug)]

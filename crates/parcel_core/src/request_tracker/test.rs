@@ -2,21 +2,23 @@
 // use std::sync::atomic::Ordering;
 // use std::sync::Arc;
 
+use super::request_graph::RequestError;
 use super::Request;
 use super::RequestResult;
+use super::RequestTracker;
 use super::RequestTrackerSingleThreaded;
 
 #[test]
 fn should_run_request() {
-  let mut request_tracker = TestRequestTracker::new();
+  let request_tracker = TestRequestTracker::new();
 
-  let request = FooRequest::default();
+  let request = RequestA::default();
 
-  let should_run = request_tracker.start_request(&request);
-  if should_run {
-    let result = request.run();
-    request_tracker.finish_request(request.id(), result.result);
-  }
+  let result = request_tracker
+    .run_request(Box::new(request.clone()))
+    .unwrap();
+
+  dbg!(&result);
 }
 
 // #[test]
@@ -53,24 +55,64 @@ fn should_run_request() {
 
 // use std::sync::Arc;
 
-use super::{request_graph::RequestError, Request, RequestResult, RequestTracker};
+type TestRequestTracker = RequestTrackerSingleThreaded<TestRequests>;
 
 #[derive(Debug, Clone)]
-enum TestRequest {
-  Foo,
-  Bar,
+enum TestRequests {
+  A,
+  B,
+  C,
 }
 
-#[derive(Default, Hash)]
-struct FooRequest {}
+#[derive(Clone, Debug, Default, Hash)]
+struct RequestA {}
 
-impl Request<TestRequest> for FooRequest {
+impl Request<TestRequests> for RequestA {
   fn run(
     &self,
-    request_tracker: Box<dyn RequestTracker<TestRequest>>,
-  ) -> Result<RequestResult<TestRequest>, Vec<RequestError>> {
-    request_tracker.run_request(Box::new(FooRequest::default()))
+    request_tracker: Box<dyn RequestTracker<TestRequests>>,
+  ) -> Result<RequestResult<TestRequests>, Vec<RequestError>> {
+    println!("RequestA.run()");
+    request_tracker.run_request(Box::new(RequestB::default()))?;
+
+    return Ok(RequestResult {
+      result: TestRequests::A,
+      invalidations: vec![],
+    });
   }
 }
 
-// type TestRequestTracker = RequestTrackerSingleThreaded<TestRequest>;
+#[derive(Clone, Debug, Default, Hash)]
+struct RequestB {}
+
+impl Request<TestRequests> for RequestB {
+  fn run(
+    &self,
+    request_tracker: Box<dyn RequestTracker<TestRequests>>,
+  ) -> Result<RequestResult<TestRequests>, Vec<RequestError>> {
+    println!("RequestB.run()");
+    request_tracker.run_request(Box::new(RequestC::default()))?;
+
+    return Ok(RequestResult {
+      result: TestRequests::B,
+      invalidations: vec![],
+    });
+  }
+}
+
+#[derive(Clone, Debug, Default, Hash)]
+struct RequestC {}
+
+impl Request<TestRequests> for RequestC {
+  fn run(
+    &self,
+    _request_tracker: Box<dyn RequestTracker<TestRequests>>,
+  ) -> Result<RequestResult<TestRequests>, Vec<RequestError>> {
+    println!("RequestC.run()");
+
+    return Ok(RequestResult {
+      result: TestRequests::C,
+      invalidations: vec![],
+    });
+  }
+}

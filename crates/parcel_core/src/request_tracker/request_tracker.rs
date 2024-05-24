@@ -2,10 +2,15 @@ use std::fmt::Debug;
 
 use dyn_clone::DynClone;
 
-use super::{request_graph::RequestError, Request, RequestResult};
+use super::request_graph::RequestError;
+use super::Request;
+use super::RequestResult;
 
-pub trait RequestTracker<Res: Send + Debug + Clone>: DynClone {
-  fn run_request(&self, request: Box<dyn Request<Res>>) -> Result<RequestResult<Res>, Vec<RequestError>>;
+pub trait RequestTracker<Res: Send + Debug + Clone + 'static>: DynClone {
+  fn run_request(
+    &self,
+    request: Box<dyn Request<Res>>,
+  ) -> Result<RequestResult<Res>, Vec<RequestError>>;
   // fn run_requests(&self, requests: &[Box<dyn Request<Req>>]) -> Vec<Result<RequestResult<Req>, Vec<RequestError>>>;
 }
 

@@ -22,8 +22,7 @@ pub struct RequestTrackerSingleThreaded<Res: Send + Debug + Clone> {
 
 impl<Res: Send + Debug + Clone> Debug for RequestTrackerSingleThreaded<Res> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("RequestTrackerSingleThreaded {}")
-      .finish()
+    f.debug_struct("RequestTrackerSingleThreaded {}").finish()
   }
 }
 
@@ -41,13 +40,10 @@ impl<Res: Send + Debug + Clone> RequestTrackerSingleThreaded<Res> {
 
     let id = request.id();
     let index = requests.entry(id).or_insert_with(|| {
-      self
-        .graph
-        .borrow_mut()
-        .add_node(RequestNode {
-          state: RequestNodeState::Incomplete,
-          output: None,
-        })
+      graph.add_node(RequestNode {
+        state: RequestNodeState::Incomplete,
+        output: None,
+      })
     });
 
     // todo
@@ -84,21 +80,24 @@ impl<Res: Send + Debug + Clone> RequestTrackerSingleThreaded<Res> {
   }
 }
 
-impl<Res: Send + Debug + Clone + 'static> RequestTracker<Res> for RequestTrackerSingleThreaded<Res> {
+impl<Res: Send + Debug + Clone + 'static> RequestTracker<Res>
+  for RequestTrackerSingleThreaded<Res>
+{
   fn run_request(
     &self,
     request: Box<dyn Request<Res>>,
   ) -> Result<RequestResult<Res>, Vec<RequestError>> {
-    let graph = self.graph.borrow();
-    
     let request_id = request.id();
 
     let should_run = self.start_request(&request);
     if should_run {
       let result = request.run(Box::new(self.clone()));
       self.finish_request(&request_id, result);
-    } 
-    let node_index = self.requests.borrow().get(&request_id).unwrap().clone();
+    }
+    let graph = self.graph.borrow();
+    let requests = self.requests.borrow();
+
+    let node_index = requests.get(&request_id).unwrap().clone();
     let r = graph.node_weight(node_index).unwrap();
     r.output.as_ref().unwrap().clone()
   }
