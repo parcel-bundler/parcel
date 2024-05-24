@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use petgraph::graph::DiGraph;
+use petgraph::stable_graph::StableDiGraph;
 
-pub type RequestGraph<T> = DiGraph<RequestNode<T>, RequestEdgeType>;
+pub type RequestGraph<T> = StableDiGraph<RequestNode<T>, RequestEdgeType>;
 
 pub struct RequestNode<T: Clone> {
   pub state: RequestNodeState,
