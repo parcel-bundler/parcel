@@ -1,44 +1,57 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 use petgraph::graph::NodeIndex;
 
 use super::request_graph::RequestError;
 use super::request_graph::RequestGraph;
-use super::request_graph::RequestGraphNode;
+// use super::request_graph::RequestGraphNode;
 use super::request_graph::RequestNode;
 use super::request_graph::RequestNodeState;
 use super::Request;
 use super::RequestResult;
 use super::RequestTracker;
 
-#[derive(Debug)]
-pub struct RequestTrackerSingleThreaded<T: Send + Debug> {
-  graph: RequestGraph<T>,
-  requests: HashMap<u64, NodeIndex>,
+#[derive(Clone)]
+pub struct RequestTrackerSingleThreaded<Res: Send + Debug + Clone> {
+  graph: Rc<RefCell<RequestGraph<RequestResult<Res>>>>,
+  requests: Rc<RefCell<HashMap<u64, NodeIndex>>>,
 }
 
-impl<T: Send + Debug> RequestTrackerSingleThreaded<T> {
+impl<Res: Send + Debug + Clone> Debug for RequestTrackerSingleThreaded<Res> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("RequestTrackerSingleThreaded {}")
+      .finish()
+  }
+}
+
+impl<Res: Send + Debug + Clone> RequestTrackerSingleThreaded<Res> {
   pub fn new() -> Self {
     Self {
-      graph: RequestGraph::new(),
-      requests: HashMap::new(),
+      graph: Rc::new(RefCell::new(RequestGraph::new())),
+      requests: Rc::new(RefCell::new(HashMap::new())),
     }
   }
 
-  pub fn start_request(&mut self, request: Box<dyn Request<T>>) -> bool {
+  pub fn start_request(&self, request: &Box<dyn Request<Res>>) -> bool {
+    let mut requests = self.requests.borrow_mut();
+    let mut graph = self.graph.borrow_mut();
+
     let id = request.id();
-    let index = self.requests.entry(id).or_insert_with(|| {
-      self.graph.add_node(RequestGraphNode::Request(RequestNode {
-        state: RequestNodeState::Incomplete,
-        output: None,
-      }))
+    let index = requests.entry(id).or_insert_with(|| {
+      self
+        .graph
+        .borrow_mut()
+        .add_node(RequestNode {
+          state: RequestNodeState::Incomplete,
+          output: None,
+        })
     });
 
-    let request = match self.graph.node_weight_mut(*index) {
-      Some(RequestGraphNode::Request(req)) => req,
-      _ => unreachable!("expected a request node"),
-    };
+    // todo
+    let request = graph.node_weight_mut(*index).unwrap();
 
     if request.state == RequestNodeState::Valid {
       return false;
@@ -52,12 +65,13 @@ impl<T: Send + Debug> RequestTrackerSingleThreaded<T> {
     true
   }
 
-  pub fn finish_request(&mut self, id: u64, result: Result<T, Vec<RequestError>>) {
-    let node_index = self.requests.get(&id).unwrap();
-    let request = match self.graph.node_weight_mut(*node_index) {
-      Some(RequestGraphNode::Request(req)) => req,
-      _ => unreachable!("expected a request node"),
-    };
+  pub fn finish_request(&self, id: &u64, result: Result<RequestResult<Res>, Vec<RequestError>>) {
+    let requests = self.requests.borrow();
+    let mut graph = self.graph.borrow_mut();
+
+    let node_index = requests.get(&id).unwrap();
+    // todo
+    let request = graph.node_weight_mut(*node_index).unwrap();
     if request.state == RequestNodeState::Valid {
       return;
     }
@@ -68,36 +82,28 @@ impl<T: Send + Debug> RequestTrackerSingleThreaded<T> {
 
     request.output = Some(result);
   }
-
-  pub fn get_request_result<R: Request<T>>(&self, request: &R) -> &Result<T, Vec<RequestError>> {
-    let request = self.get_request(request);
-    request.output.as_ref().unwrap()
-  }
-
-  fn get_request<R: Request<T>>(&self, request: &R) -> &RequestNode<T> {
-    let id = request.id();
-    let node_index = self.requests.get(&id).unwrap();
-    match self.graph.node_weight(*node_index) {
-      Some(RequestGraphNode::Request(req)) => req,
-      _ => unreachable!("expected a request node"),
-    }
-  }
 }
 
+impl<Res: Send + Debug + Clone + 'static> RequestTracker<Res> for RequestTrackerSingleThreaded<Res> {
+  fn run_request(
+    &self,
+    request: Box<dyn Request<Res>>,
+  ) -> Result<RequestResult<Res>, Vec<RequestError>> {
+    let graph = self.graph.borrow();
+    
+    let request_id = request.id();
 
+    let should_run = self.start_request(&request);
+    if should_run {
+      let result = request.run(Box::new(self.clone()));
+      self.finish_request(&request_id, result);
+    } 
+    let node_index = self.requests.borrow().get(&request_id).unwrap().clone();
+    let r = graph.node_weight(node_index).unwrap();
+    r.output.as_ref().unwrap().clone()
+  }
 
-impl<T: Send + Debug> RequestTracker<T> for RequestTrackerSingleThreaded<T> {
-    fn run_request(&mut self, request: Box<dyn Request<T>>) -> Result<RequestResult<T>, Vec<RequestError>> {
-        let should_run = self.start_request(request);
-        if should_run {
-            let result = request.run(self.clone());
-            self.finish_request(request.id(), result)
-        }
-        todo!()
-    }
-
-    // fn run_requests(&self, requests: &[Box<dyn Request<T>>]) -> Vec<Result<RequestResult<T>, Vec<RequestError>>> {
-    //     todo!()
-    // }
+  // fn run_requests(&self, requests: &[Box<dyn Request<T>>]) -> Vec<Result<RequestResult<T>, Vec<RequestError>>> {
+  //     todo!()
+  // }
 }
-  

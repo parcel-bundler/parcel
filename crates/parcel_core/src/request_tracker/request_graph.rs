@@ -1,18 +1,18 @@
 use petgraph::graph::DiGraph;
 
-pub type RequestGraph<T> = DiGraph<RequestGraphNode<T>, RequestEdgeType>;
+pub type RequestGraph<T: Clone> = DiGraph<RequestNode<T>, RequestEdgeType>;
 
-#[allow(dead_code)]
-#[derive(Debug)]
-pub enum RequestGraphNode<T> {
-  FileName,
-  Option,
-  ConfigKey,
-  Request(RequestNode<T>),
-}
+// #[allow(dead_code)]
+// #[derive(Debug)]
+// pub enum RequestGraphNode<T> {
+//   FileName,
+//   Option,
+//   ConfigKey,
+//   Request(RequestNode<T>),
+// }
 
 #[derive(Debug)]
-pub struct RequestNode<T> {
+pub struct RequestNode<T: Clone> {
   pub state: RequestNodeState,
   pub output: Option<Result<T, Vec<RequestError>>>,
 }

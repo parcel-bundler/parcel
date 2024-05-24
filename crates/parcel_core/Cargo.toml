@@ -19,4 +19,5 @@ serde_repr = "0.1.19"
 serde-value = "0.7.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 petgraph = "0.6.5"
-dyn-hash = "0.2.0"
+dyn-hash = "0.2.*"
+dyn-clone = "1.*"

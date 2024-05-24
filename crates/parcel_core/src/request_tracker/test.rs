@@ -2,22 +2,22 @@
 // use std::sync::atomic::Ordering;
 // use std::sync::Arc;
 
-// use super::Request;
-// use super::RequestResult;
-// use super::RequestTrackerSingleThreaded;
+use super::Request;
+use super::RequestResult;
+use super::RequestTrackerSingleThreaded;
 
-// #[test]
-// fn should_run_request() {
-//   let mut request_tracker = TestRequestTracker::new();
+#[test]
+fn should_run_request() {
+  let mut request_tracker = TestRequestTracker::new();
 
-//   let request = FooRequest::default();
+  let request = FooRequest::default();
 
-//   let should_run = request_tracker.start_request(&request);
-//   if should_run {
-//     let result = request.run();
-//     request_tracker.finish_request(request.id(), result.result);
-//   }
-// }
+  let should_run = request_tracker.start_request(&request);
+  if should_run {
+    let result = request.run();
+    request_tracker.finish_request(request.id(), result.result);
+  }
+}
 
 // #[test]
 // fn should_replay_request() {
@@ -51,7 +51,7 @@
 //   );
 // }
 
-use std::sync::Arc;
+// use std::sync::Arc;
 
 use super::{request_graph::RequestError, Request, RequestResult, RequestTracker};
 
@@ -61,19 +61,13 @@ enum TestRequest {
   Bar,
 }
 
-#[derive(Default)]
+#[derive(Default, Hash)]
 struct FooRequest {}
-
-impl std::hash::Hash for FooRequest {
-  fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
-    // exclude runs from hash
-  }
-}
 
 impl Request<TestRequest> for FooRequest {
   fn run(
     &self,
-    request_tracker: Arc<dyn RequestTracker<TestRequest>>,
+    request_tracker: Box<dyn RequestTracker<TestRequest>>,
   ) -> Result<RequestResult<TestRequest>, Vec<RequestError>> {
     request_tracker.run_request(Box::new(FooRequest::default()))
   }
