@@ -2,6 +2,8 @@ use std::fmt::Debug;
 
 use petgraph::stable_graph::StableDiGraph;
 
+use super::RequestError;
+
 pub type RequestGraph<T> = StableDiGraph<RequestNode<T>, RequestEdgeType>;
 
 pub struct RequestNode<T: Clone> {
@@ -45,6 +47,3 @@ pub enum RequestNodeState {
   Error,
   Valid,
 }
-
-#[derive(Clone, Debug)]
-pub enum RequestError {}

@@ -1,22 +1,28 @@
 use std::fmt::Debug;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use dyn_clone::DynClone;
 
-use super::request_graph::RequestError;
 use super::Request;
+use super::RequestError;
 use super::RequestResult;
 use super::RunRequestContext;
 
-pub trait RequestTracker<Res: Send + Debug + Clone + 'static, Provide: Clone + 'static>:
-  DynClone
+pub trait RequestTracker<Res, Provide>: DynClone
+where
+  Res: Send + Debug + Clone,
+  Provide: Send + Clone,
 {
   fn run_request(
     &self,
-    parent_ctx: Option<Rc<RunRequestContext<Res, Provide>>>,
-    request: Box<dyn Request<Res, Provide>>,
+    parent_ctx: Option<Arc<RunRequestContext<Res, Provide>>>,
+    request: Arc<dyn Request<Res, Provide>>,
   ) -> Result<RequestResult<Res>, Vec<RequestError>>;
-  // fn run_requests(&self, requests: &[Box<dyn Request<Req>>]) -> Vec<Result<RequestResult<Req>, Vec<RequestError>>>;
 }
 
-dyn_clone::clone_trait_object!(<R, P> RequestTracker<R, P> where R: Send + Debug + Clone);
+dyn_clone::clone_trait_object!(
+  <Res, Provide> RequestTracker<Res, Provide>
+  where
+    Res: Send + Debug + Clone,
+    Provide: Send + Clone
+);
