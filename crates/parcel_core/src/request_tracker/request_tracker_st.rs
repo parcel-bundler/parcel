@@ -15,26 +15,30 @@ use super::RequestResult;
 use super::RequestTracker;
 
 #[derive(Clone)]
-pub struct RequestTrackerSingleThreaded<Res: Send + Debug + Clone> {
+pub struct RequestTrackerSingleThreaded<Res: Send + Debug + Clone, Provide: Clone> {
   graph: Rc<RefCell<RequestGraph<RequestResult<Res>>>>,
   requests: Rc<RefCell<HashMap<u64, NodeIndex>>>,
+  provide: Provide,
 }
 
-impl<Res: Send + Debug + Clone> Debug for RequestTrackerSingleThreaded<Res> {
+impl<Res: Send + Debug + Clone, Provide: Clone> Debug
+  for RequestTrackerSingleThreaded<Res, Provide>
+{
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("RequestTrackerSingleThreaded {}").finish()
   }
 }
 
-impl<Res: Send + Debug + Clone> RequestTrackerSingleThreaded<Res> {
-  pub fn new() -> Self {
+impl<Res: Send + Debug + Clone, Provide: Clone> RequestTrackerSingleThreaded<Res, Provide> {
+  pub fn new(provide: Provide) -> Self {
     Self {
       graph: Rc::new(RefCell::new(RequestGraph::new())),
       requests: Rc::new(RefCell::new(HashMap::new())),
+      provide,
     }
   }
 
-  pub fn start_request(&self, request: &Box<dyn Request<Res>>) -> bool {
+  pub fn start_request(&self, request: &Box<dyn Request<Res, Provide>>) -> bool {
     let mut requests = self.requests.borrow_mut();
     let mut graph = self.graph.borrow_mut();
 
@@ -80,18 +84,18 @@ impl<Res: Send + Debug + Clone> RequestTrackerSingleThreaded<Res> {
   }
 }
 
-impl<Res: Send + Debug + Clone + 'static> RequestTracker<Res>
-  for RequestTrackerSingleThreaded<Res>
+impl<Res: Send + Debug + Clone + 'static, Provide: Clone + 'static> RequestTracker<Res, Provide>
+  for RequestTrackerSingleThreaded<Res, Provide>
 {
   fn run_request(
     &self,
-    request: Box<dyn Request<Res>>,
+    request: Box<dyn Request<Res, Provide>>,
   ) -> Result<RequestResult<Res>, Vec<RequestError>> {
     let request_id = request.id();
 
     let should_run = self.start_request(&request);
     if should_run {
-      let result = request.run(Box::new(self.clone()));
+      let result = request.run(Box::new(self.clone()), self.provide.clone());
       self.finish_request(&request_id, result);
     }
     let graph = self.graph.borrow();

@@ -10,7 +10,7 @@ use super::RequestTrackerSingleThreaded;
 
 #[test]
 fn should_run_request() {
-  let request_tracker = TestRequestTracker::new();
+  let request_tracker = TestRequestTracker::new(42);
 
   let request = RequestA::default();
 
@@ -55,7 +55,8 @@ fn should_run_request() {
 
 // use std::sync::Arc;
 
-type TestRequestTracker = RequestTrackerSingleThreaded<TestRequests>;
+type TestProvide = usize;
+type TestRequestTracker = RequestTrackerSingleThreaded<TestRequests, TestProvide>;
 
 #[derive(Debug, Clone)]
 enum TestRequests {
@@ -67,12 +68,13 @@ enum TestRequests {
 #[derive(Clone, Debug, Default, Hash)]
 struct RequestA {}
 
-impl Request<TestRequests> for RequestA {
+impl Request<TestRequests, TestProvide> for RequestA {
   fn run(
     &self,
-    request_tracker: Box<dyn RequestTracker<TestRequests>>,
+    request_tracker: Box<dyn RequestTracker<TestRequests, TestProvide>>,
+    provide: TestProvide,
   ) -> Result<RequestResult<TestRequests>, Vec<RequestError>> {
-    println!("RequestA.run()");
+    println!("RequestA.run({})", provide);
     request_tracker.run_request(Box::new(RequestB::default()))?;
 
     return Ok(RequestResult {
@@ -85,12 +87,13 @@ impl Request<TestRequests> for RequestA {
 #[derive(Clone, Debug, Default, Hash)]
 struct RequestB {}
 
-impl Request<TestRequests> for RequestB {
+impl Request<TestRequests, TestProvide> for RequestB {
   fn run(
     &self,
-    request_tracker: Box<dyn RequestTracker<TestRequests>>,
+    request_tracker: Box<dyn RequestTracker<TestRequests, TestProvide>>,
+    provide: TestProvide,
   ) -> Result<RequestResult<TestRequests>, Vec<RequestError>> {
-    println!("RequestB.run()");
+    println!("RequestB.run({})", provide);
     request_tracker.run_request(Box::new(RequestC::default()))?;
 
     return Ok(RequestResult {
@@ -103,12 +106,13 @@ impl Request<TestRequests> for RequestB {
 #[derive(Clone, Debug, Default, Hash)]
 struct RequestC {}
 
-impl Request<TestRequests> for RequestC {
+impl Request<TestRequests, TestProvide> for RequestC {
   fn run(
     &self,
-    _request_tracker: Box<dyn RequestTracker<TestRequests>>,
+    _request_tracker: Box<dyn RequestTracker<TestRequests, TestProvide>>,
+    provide: TestProvide,
   ) -> Result<RequestResult<TestRequests>, Vec<RequestError>> {
-    println!("RequestC.run()");
+    println!("RequestC.run({})", provide);
 
     return Ok(RequestResult {
       result: TestRequests::C,

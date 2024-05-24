@@ -1,13 +1,14 @@
-use dyn_hash::DynHash;
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::fmt::Debug;
+
+use dyn_hash::DynHash;
 
 use super::request_graph::RequestError;
 use super::RequestTracker;
 
-pub trait Request<Res: Send + Debug>: DynHash + Sync {
+pub trait Request<Res: Send + Debug, Provide>: DynHash + Sync {
   fn id(&self) -> u64 {
     let mut hasher = DefaultHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher);
@@ -17,11 +18,12 @@ pub trait Request<Res: Send + Debug>: DynHash + Sync {
 
   fn run(
     &self,
-    request_tracker: Box<dyn RequestTracker<Res>>,
+    request_tracker: Box<dyn RequestTracker<Res, Provide>>,
+    provided: Provide,
   ) -> Result<RequestResult<Res>, Vec<RequestError>>;
 }
 
-dyn_hash::hash_trait_object!(<R> Request<R> where R: Send + Debug);
+dyn_hash::hash_trait_object!(<R, P> Request<R, P> where R: Send + Debug);
 
 #[derive(Clone, Debug)]
 pub struct RequestResult<Req> {
