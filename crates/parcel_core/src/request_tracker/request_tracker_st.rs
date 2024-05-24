@@ -16,6 +16,7 @@ use super::request_graph::RequestNodeState;
 use super::Request;
 use super::RequestResult;
 use super::RequestTracker;
+use super::RunRequestContext;
 
 #[derive(Clone)]
 pub struct RequestTrackerSingleThreaded<Res: Send + Debug + Clone, Provide: Clone> {
@@ -36,8 +37,13 @@ impl<Res: Send + Debug + Clone, Provide: Clone> Debug
 
 impl<Res: Send + Debug + Clone, Provide: Clone> RequestTrackerSingleThreaded<Res, Provide> {
   pub fn new(provide: Provide) -> Self {
+    let mut graph = RequestGraph::new();
+    graph.add_node(RequestNode {
+      state: RequestNodeState::Valid,
+      output: None,
+    });
     Self {
-      graph: Rc::new(RefCell::new(RequestGraph::new())),
+      graph: Rc::new(RefCell::new(graph)),
       requests: Rc::new(RefCell::new(HashMap::new())),
       provide,
     }
@@ -94,21 +100,38 @@ impl<Res: Send + Debug + Clone + 'static, Provide: Clone + 'static> RequestTrack
 {
   fn run_request(
     &self,
+    parent_ctx: Option<Rc<RunRequestContext<Res, Provide>>>,
     request: Box<dyn Request<Res, Provide>>,
   ) -> Result<RequestResult<Res>, Vec<RequestError>> {
     let request_id = request.id();
 
     let should_run = self.start_request(&request);
     if should_run {
-      let result = request.run(Box::new(self.clone()), self.provide.clone());
+      let request_context = RunRequestContext {
+        request_tracker: Box::new(self.clone()),
+        parent_node: Some(request_id.clone()),
+        provide: self.provide.clone(),
+      };
+      let result = request.run(Rc::new(request_context));
       self.finish_request(&request_id, result);
     }
-    let graph = self.graph.borrow_mut();
+    let mut graph = self.graph.borrow_mut();
     let requests = self.requests.borrow();
 
     let node_index = requests.get(&request_id).unwrap().clone();
 
-    // graph.add_edge(parent_node_index, node_index, RequestEdgeType::SubRequest);
+    if let Some(parent_ctx) = parent_ctx {
+      if let Some(parent_request_id) = parent_ctx.parent_node {
+        let parent_node_index = requests.get(&parent_request_id).unwrap();
+        graph.add_edge(
+          parent_node_index.clone(),
+          node_index,
+          RequestEdgeType::SubRequest,
+        );
+      }
+    } else {
+      graph.add_edge(NodeIndex::new(0), node_index, RequestEdgeType::SubRequest);
+    }
 
     let r = graph.node_weight(node_index).unwrap();
     r.output.as_ref().unwrap().clone()

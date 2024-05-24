@@ -16,9 +16,11 @@ impl<T: Clone + std::fmt::Debug> std::fmt::Debug for RequestNode<T> {
       RequestNodeState::Invalid => write!(f, "Invalid()"),
       RequestNodeState::Error => write!(f, "Error()"),
       RequestNodeState::Valid => {
-        let output = self.output.as_ref().unwrap();
-        let result = output.as_ref().unwrap();
-        write!(f, "Valid({:?})", result)
+        if let Some(output) = &self.output {
+          let result = output.as_ref().unwrap();
+          return write!(f, "Valid({:?})", result);
+        }
+        write!(f, "Valid(Root)")
       }
     }
   }
