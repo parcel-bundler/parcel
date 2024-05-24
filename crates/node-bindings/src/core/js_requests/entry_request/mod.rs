@@ -3,13 +3,13 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-use parcel_core::requests::entry_request::run_entry_request;
-use parcel_core::requests::entry_request::EntryRequestInput;
-use parcel_core::requests::entry_request::EntryResult;
-use parcel_core::requests::entry_request::RunEntryRequestParams;
-use parcel_core::requests::request_api::js_request_api::JSRequestApi;
 use parcel_napi_helpers::anyhow_napi;
 
+use super::super::requests::entry_request::run_entry_request;
+use super::super::requests::entry_request::EntryRequestInput;
+use super::super::requests::entry_request::EntryResult;
+use super::super::requests::entry_request::RunEntryRequestParams;
+use super::super::requests::request_api::js_request_api::JSRequestApi;
 use crate::core::js_requests::request_options::input_fs_from_options;
 
 /// napi entry-point for `run_entry_request`.
