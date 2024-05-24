@@ -55,6 +55,7 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
+import {storeRequestTrackerCacheInfo} from './RequestTrackerCacheInfo';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -1486,6 +1487,11 @@ export default class RequestTracker {
       if (!signal?.aborted) throw err;
     }
 
+    await storeRequestTrackerCacheInfo(this.options.cache, {
+      requestGraphKey,
+      snapshotKey,
+      timestamp: Date.now(),
+    });
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
 
