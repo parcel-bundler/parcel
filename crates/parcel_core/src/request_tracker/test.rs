@@ -2,9 +2,6 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use divan::bench;
-use divan::Bencher;
-
 use super::Request;
 use super::RequestResult;
 use super::RequestTracker;
@@ -52,11 +49,6 @@ fn should_replay_request() {
     request_2.runs.load(Ordering::Relaxed) == 0,
     "Should never run"
   );
-}
-
-#[bench]
-fn benchmark(_b: Bencher) {
-  return;
 }
 
 #[derive(Debug, Clone)]

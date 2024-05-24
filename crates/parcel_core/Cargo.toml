@@ -4,11 +4,6 @@ version = "0.1.0"
 edition = "2021"
 description = "Core logic for the parcel bundler"
 
-[[bench]]
-name = "parcel_core_benchmarks"
-harness = false
-path = "bench.rs"
-
 [features]
 default = []
 
