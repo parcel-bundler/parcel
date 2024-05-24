@@ -51,29 +51,32 @@
 //   );
 // }
 
-// #[derive(Debug, Clone)]
-// enum TestRequest {
-//   Foo,
-//   Bar,
-// }
+use std::sync::Arc;
 
-// #[derive(Default)]
-// struct FooRequest {
-// }
+use super::{request_graph::RequestError, Request, RequestResult, RequestTracker};
 
-// impl std::hash::Hash for FooRequest {
-//   fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
-//     // exclude runs from hash
-//   }
-// }
+#[derive(Debug, Clone)]
+enum TestRequest {
+  Foo,
+  Bar,
+}
 
-// impl Request<TestRequest> for FooRequest {
-//   fn run(&self) -> RequestResult<TestRequest> {
-//     RequestResult {
-//       result: Ok(TestRequest::Foo),
-//       invalidations: vec![],
-//     }
-//   }
-// }
+#[derive(Default)]
+struct FooRequest {}
+
+impl std::hash::Hash for FooRequest {
+  fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
+    // exclude runs from hash
+  }
+}
+
+impl Request<TestRequest> for FooRequest {
+  fn run(
+    &self,
+    request_tracker: Arc<dyn RequestTracker<TestRequest>>,
+  ) -> Result<RequestResult<TestRequest>, Vec<RequestError>> {
+    request_tracker.run_request(Box::new(FooRequest::default()))
+  }
+}
 
 // type TestRequestTracker = RequestTrackerSingleThreaded<TestRequest>;

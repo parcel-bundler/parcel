@@ -1,8 +1,8 @@
+use dyn_hash::DynHash;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::sync::Arc;
-use dyn_hash::DynHash;
 
 use super::request_graph::RequestError;
 use super::RequestTracker;
@@ -15,13 +15,16 @@ pub trait Request<Req: Send>: DynHash + Sync {
     hasher.finish()
   }
 
-  fn run(&self, request_tracker: Arc<dyn RequestTracker<Req>>) -> RequestResult<Req>;
+  fn run(
+    &self,
+    request_tracker: Arc<dyn RequestTracker<Req>>,
+  ) -> Result<RequestResult<Req>, Vec<RequestError>>;
 }
 
 dyn_hash::hash_trait_object!(<R> Request<R> where R: Send);
 
 pub struct RequestResult<Req> {
-  pub result: Result<Req, Vec<RequestError>>,
+  pub result: Req,
   pub invalidations: Vec<Invalidation>,
 }
 
