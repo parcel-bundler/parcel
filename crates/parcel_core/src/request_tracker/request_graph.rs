@@ -1,20 +1,27 @@
+use std::fmt::Debug;
+
 use petgraph::graph::DiGraph;
 
 pub type RequestGraph<T> = DiGraph<RequestNode<T>, RequestEdgeType>;
 
-// #[allow(dead_code)]
-// #[derive(Debug)]
-// pub enum RequestGraphNode<T> {
-//   FileName,
-//   Option,
-//   ConfigKey,
-//   Request(RequestNode<T>),
-// }
-
-#[derive(Debug)]
 pub struct RequestNode<T: Clone> {
   pub state: RequestNodeState,
   pub output: Option<Result<T, Vec<RequestError>>>,
+}
+
+impl<T: Clone + std::fmt::Debug> std::fmt::Debug for RequestNode<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self.state {
+      RequestNodeState::Incomplete => write!(f, "Incomplete()"),
+      RequestNodeState::Invalid => write!(f, "Invalid()"),
+      RequestNodeState::Error => write!(f, "Error()"),
+      RequestNodeState::Valid => {
+        let output = self.output.as_ref().unwrap();
+        let result = output.as_ref().unwrap();
+        write!(f, "Valid({:?})", result)
+      }
+    }
+  }
 }
 
 #[allow(dead_code)]

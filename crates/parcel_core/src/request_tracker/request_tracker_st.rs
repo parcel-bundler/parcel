@@ -3,8 +3,11 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 
+use petgraph::dot::Config;
+use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 
+use super::request_graph::RequestEdgeType;
 use super::request_graph::RequestError;
 use super::request_graph::RequestGraph;
 // use super::request_graph::RequestGraphNode;
@@ -25,7 +28,9 @@ impl<Res: Send + Debug + Clone, Provide: Clone> Debug
   for RequestTrackerSingleThreaded<Res, Provide>
 {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("RequestTrackerSingleThreaded {}").finish()
+    let graph = self.graph.borrow();
+    let dot = Dot::with_config(&*graph, &[Config::EdgeNoLabel]);
+    write!(f, "{:?}", dot)
   }
 }
 
@@ -38,7 +43,7 @@ impl<Res: Send + Debug + Clone, Provide: Clone> RequestTrackerSingleThreaded<Res
     }
   }
 
-  pub fn start_request(&self, request: &Box<dyn Request<Res, Provide>>) -> bool {
+  fn start_request(&self, request: &Box<dyn Request<Res, Provide>>) -> bool {
     let mut requests = self.requests.borrow_mut();
     let mut graph = self.graph.borrow_mut();
 
@@ -65,7 +70,7 @@ impl<Res: Send + Debug + Clone, Provide: Clone> RequestTrackerSingleThreaded<Res
     true
   }
 
-  pub fn finish_request(&self, id: &u64, result: Result<RequestResult<Res>, Vec<RequestError>>) {
+  fn finish_request(&self, id: &u64, result: Result<RequestResult<Res>, Vec<RequestError>>) {
     let requests = self.requests.borrow();
     let mut graph = self.graph.borrow_mut();
 
@@ -98,15 +103,14 @@ impl<Res: Send + Debug + Clone + 'static, Provide: Clone + 'static> RequestTrack
       let result = request.run(Box::new(self.clone()), self.provide.clone());
       self.finish_request(&request_id, result);
     }
-    let graph = self.graph.borrow();
+    let graph = self.graph.borrow_mut();
     let requests = self.requests.borrow();
 
     let node_index = requests.get(&request_id).unwrap().clone();
+
+    // graph.add_edge(parent_node_index, node_index, RequestEdgeType::SubRequest);
+
     let r = graph.node_weight(node_index).unwrap();
     r.output.as_ref().unwrap().clone()
   }
-
-  // fn run_requests(&self, requests: &[Box<dyn Request<T>>]) -> Vec<Result<RequestResult<T>, Vec<RequestError>>> {
-  //     todo!()
-  // }
 }

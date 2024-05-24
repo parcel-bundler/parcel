@@ -18,9 +18,18 @@ fn should_run_request() {
     .run_request(Box::new(request.clone()))
     .unwrap();
 
-  dbg!(&result);
+  // dbg!(&result);
+  println!("{:?}", request_tracker);
 }
 
+/*
+digraph {
+    0 [ label = "RequestNode { state: Valid, output: Some(Ok(RequestResult { result: A, invalidations: [] })) }" ]
+    1 [ label = "RequestNode { state: Valid, output: Some(Ok(RequestResult { result: B, invalidations: [] })) }" ]
+    2 [ label = "RequestNode { state: Valid, output: Some(Ok(RequestResult { result: C, invalidations: [] })) }" ]
+}
+
+*/
 // #[test]
 // fn should_replay_request() {
 //   let mut request_tracker = TestRequestTracker::new();
