@@ -3,10 +3,10 @@ use std::rc::Rc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-use parcel_core::requests::config_request::run_config_request;
-use parcel_core::requests::config_request::ConfigRequest;
-use parcel_core::requests::request_api::js_request_api::JSRequestApi;
 
+use super::super::requests::config_request::run_config_request;
+use super::super::requests::config_request::ConfigRequest;
+use super::super::requests::request_api::js_request_api::JSRequestApi;
 use crate::core::js_requests::request_options::input_fs_from_options;
 use crate::core::js_requests::request_options::project_root_from_options;
 

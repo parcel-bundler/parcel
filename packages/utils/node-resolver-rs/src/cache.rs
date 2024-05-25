@@ -2,11 +2,11 @@ use std::borrow::Cow;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
 use parcel_filesystem::FileSystem;
+use parking_lot::Mutex;
 use typed_arena::Arena;
 
 use crate::package_json::PackageJson;
@@ -193,7 +193,7 @@ fn read<F: FileSystem>(
   arena: &Mutex<Arena<Box<str>>>,
   path: &Path,
 ) -> std::io::Result<&'static mut str> {
-  let arena = arena.lock().unwrap();
+  let arena = arena.lock();
   let data = arena.alloc(fs.read_to_string(path)?.into_boxed_str());
   // The data lives as long as the arena. In public methods, we only vend temporary references.
   Ok(unsafe { &mut *(&mut **data as *mut str) })
