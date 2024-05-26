@@ -5673,7 +5673,7 @@ describe.only('javascript', function () {
     assert(false);
   });
 
-  it.skip('should error on undeclared helpers dependency for libraries', async function () {
+  it('should error on undeclared helpers dependency for libraries', async function () {
     let fixture = path.join(
       __dirname,
       'integration/undeclared-external/helpers.js',

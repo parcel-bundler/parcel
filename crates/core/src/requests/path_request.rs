@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-  diagnostic::{CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity},
+  diagnostic::{format_markdown, CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity},
   environment::{EnvironmentContext, EnvironmentFlags},
   intern::Interned,
   parcel_config::PluginNode,
@@ -95,7 +95,7 @@ impl<'a> Request for PathRequest<'a> {
           0,
           Diagnostic {
             origin: Some("@parcel/core".into()),
-            message: format!("Failed to resolve '{}' from '{}'", self.dep.specifier, dir),
+            message: format_markdown!("Failed to resolve '{}' from '{}'", self.dep.specifier, dir),
             code_frames: if let (Some(loc), Some(source_path)) =
               (&self.dep.loc, &self.dep.source_path)
             {
@@ -397,7 +397,7 @@ fn error_to_diagnostic(
       let dir = from.parent().unwrap();
       Diagnostic {
         origin: Some("@parcel/resolver-default".into()),
-        message: format!(
+        message: format_markdown!(
           "Cannot load file '{}' in '{}'.",
           relative,
           relative_path(dir, &project_root)
@@ -413,7 +413,7 @@ fn error_to_diagnostic(
     }
     ResolverError::ModuleNotFound { module } => Diagnostic {
       origin: Some("@parcel/resolver-default".into()),
-      message: format!("Cannot find module '{}'", module),
+      message: format_markdown!("Cannot find module '{}'", module),
       severity: crate::diagnostic::DiagnosticSeverity::Error,
       code_frames: vec![],
       hints: find_alternative_node_modules(&module, from.parent().unwrap())
@@ -424,7 +424,7 @@ fn error_to_diagnostic(
     },
     ResolverError::UnknownScheme { scheme } => Diagnostic {
       origin: Some("@parcel/resolver-default".into()),
-      message: format!("Unknown url scheme or pipeline '{}:'", scheme),
+      message: format_markdown!("Unknown url scheme or pipeline '{}:'", scheme),
       severity: crate::diagnostic::DiagnosticSeverity::Error,
       code_frames: vec![],
       hints: vec![],
@@ -441,7 +441,7 @@ fn relative_path(path: &Path, project_root: &Path) -> String {
       if !res.starts_with(".") {
         return format!("./{}", res);
       }
-      return res;
+      return path.to_slash_lossy();
     })
     .unwrap_or_else(|| path.to_slash_lossy())
 }

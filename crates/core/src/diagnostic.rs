@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{borrow::Cow, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -109,3 +109,41 @@ impl From<json_sourcemap::Error> for Diagnostic {
     }
   }
 }
+
+pub(crate) struct EscapeMarkdown<'a, T>(pub &'a T);
+
+fn escape(s: &str) -> Cow<'_, str> {
+  let mut result = Cow::Borrowed("");
+  let mut start = 0;
+  for (index, matched) in s.match_indices(&['*', '_', '~', '\\']) {
+    result += &s[start..index];
+    result += "\\";
+    result += matched;
+    start = index + 1;
+  }
+
+  result += &s[start..];
+  result
+}
+
+impl<'a, T: std::fmt::Debug> std::fmt::Debug for EscapeMarkdown<'a, T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let res = format!("{:?}", self.0);
+    escape(&res).fmt(f)
+  }
+}
+
+impl<'a, T: std::fmt::Display> std::fmt::Display for EscapeMarkdown<'a, T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let res = format!("{}", self.0);
+    escape(&res).fmt(f)
+  }
+}
+
+macro_rules! format_markdown {
+  ($s: literal, $($arg: expr),+) => {
+    format!($s, $(crate::diagnostic::EscapeMarkdown(&$arg)),+)
+  };
+}
+
+pub(crate) use format_markdown;
