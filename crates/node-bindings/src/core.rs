@@ -143,4 +143,26 @@ impl RustCache {
 
   #[napi]
   pub fn ensure(&mut self) {}
+
+  #[napi]
+  pub fn serialize(&self) -> SerializedCache {
+    SerializedCache {
+      id: BigInt::from(Arc::as_ptr(&self.cache) as u64),
+    }
+  }
+
+  #[napi(factory)]
+  pub fn deserialize(value: SerializedCache) -> Self {
+    let ptr = value.id.words[0] as *const Cache;
+    let cache = unsafe {
+      Arc::increment_strong_count(ptr);
+      Arc::from_raw(ptr)
+    };
+    Self { cache }
+  }
+}
+
+#[napi(object)]
+pub struct SerializedCache {
+  pub id: BigInt,
 }
