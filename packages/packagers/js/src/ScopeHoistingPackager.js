@@ -34,7 +34,6 @@ import {
   isValidIdentifier,
   makeValidIdentifier,
 } from './utils';
-
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
 const REPLACEMENT_RE =
@@ -264,6 +263,9 @@ export class ScopeHoistingPackager {
   }
 
   shouldBundleQueue(bundle: NamedBundle): boolean {
+    let referencingBundles = this.bundleGraph.getReferencingBundles(bundle);
+    let hasHtmlReference = referencingBundles.some(b => b.type === 'html');
+
     return (
       this.useAsyncBundleRuntime &&
       bundle.type === 'js' &&
@@ -271,7 +273,7 @@ export class ScopeHoistingPackager {
       bundle.env.outputFormat === 'esmodule' &&
       !bundle.env.isIsolated() &&
       bundle.bundleBehavior !== 'isolated' &&
-      !this.bundleGraph.hasParentBundleOfType(bundle, 'js')
+      hasHtmlReference
     );
   }
 
