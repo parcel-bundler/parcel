@@ -3,6 +3,7 @@
 
 pub mod hash;
 pub mod plugin;
+pub mod request_tracker;
 pub mod types;
 
 // pub use parcel::*;

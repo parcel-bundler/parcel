@@ -617,6 +617,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bd4b30a6560bbd9b4620f4de34c3f14f60848e58a9b7216801afcb4c7b31c3c"
 
 [[package]]
+name = "dyn-hash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a650a461c6a8ff1ef205ed9a2ad56579309853fecefc2423f73dced342f92258"
+
+[[package]]
 name = "either"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1870,8 +1876,10 @@ dependencies = [
  "ahash",
  "anyhow",
  "browserslist-rs",
+ "dyn-hash",
  "nodejs-semver",
  "parcel-resolver",
+ "petgraph",
  "serde",
  "serde-value",
  "serde_json",
