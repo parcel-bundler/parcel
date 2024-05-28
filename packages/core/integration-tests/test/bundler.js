@@ -1247,6 +1247,14 @@ describe('bundler', function () {
 
     // This will fail when the async bundle does not export it's constant
     await run(b);
+
+    // Asset should not be inlined
+    const index = b.getBundles().find(b => b.name.startsWith('index'));
+    const contents = overlayFS.readFileSync(index.filePath, 'utf8');
+    assert(
+      !contents.includes('async value'),
+      'async value should not be inlined',
+    );
   });
   describe('manual shared bundles', () => {
     const dir = path.join(__dirname, 'manual-bundle');
