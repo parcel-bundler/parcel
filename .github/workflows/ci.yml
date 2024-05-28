@@ -162,15 +162,15 @@ jobs:
       #   with:
       #     name: REPL
       #     path: 'packages/dev/repl/dist'
-      - name: Start Deployment
-        uses: bobheadxi/deployments@v1
-        id: deployment
-        with:
-          step: start
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.head_ref }}
-          env: Preview
-          override: false
+#      - name: Start Deployment
+#        uses: bobheadxi/deployments@v1
+#        id: deployment
+#        with:
+#          step: start
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#          ref: ${{ github.head_ref }}
+#          env: Preview
+#          override: false
 #      - name: Deploy to Vercel
 #        uses: amondnet/vercel-action@v25
 #        id: vercel-action
