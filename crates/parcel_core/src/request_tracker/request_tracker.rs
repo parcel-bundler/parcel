@@ -30,7 +30,19 @@ impl<T: Clone> RequestTracker<T> {
     }
   }
 
-  fn start_request(&self, request_id: u64) -> bool {
+  pub fn run_request(&self, request: Box<&dyn Request<T>>) -> Result<T, Vec<RequestError>> {
+    let request_id = request.id();
+
+    if self.prepare_request(request_id.clone()) {
+      let mut rt = self.clone();
+      rt.parent_request_hash.replace(request_id.clone());
+      self.store_request(&request_id, request.run(rt));
+    }
+
+    self.get_request(&request_id)
+  }
+
+  fn prepare_request(&self, request_id: u64) -> bool {
     let mut graph = self.graph.borrow_mut();
     let mut request_index = self.request_index.borrow_mut();
 
@@ -49,11 +61,11 @@ impl<T: Clone> RequestTracker<T> {
     true
   }
 
-  fn finish_request(&self, id: &u64, result: Result<RequestResult<T>, Vec<RequestError>>) {
+  fn store_request(&self, request_id: &u64, result: Result<RequestResult<T>, Vec<RequestError>>) {
     let request_index = self.request_index.borrow();
     let mut graph = self.graph.borrow_mut();
 
-    let node_index = request_index.get(&id).unwrap();
+    let node_index = request_index.get(&request_id).unwrap();
 
     let request_node = graph.node_weight_mut(*node_index).unwrap();
     if let RequestNode::<T>::Valid(_) = request_node {
@@ -65,35 +77,32 @@ impl<T: Clone> RequestTracker<T> {
     };
   }
 
-  pub fn run_request(&self, request: Box<&dyn Request<T>>) -> Result<T, Vec<RequestError>> {
-    let request_id = request.id();
-    let should_run = self.start_request(request_id.clone());
-
-    if should_run {
-      let mut rt = self.clone();
-
-      rt.parent_request_hash.replace(request_id.clone());
-      let result = request.run(rt);
-      self.finish_request(&request_id, result);
-    }
-
+  fn get_request(&self, request_id: &u64) -> Result<T, Vec<RequestError>> {
     let mut graph = self.graph.borrow_mut();
     let request_index = self.request_index.borrow();
 
-    let node_index = request_index.get(&request_id).unwrap().clone();
+    let Some(node_index) = request_index.get(&request_id) else {
+      return Err(vec![RequestError::Impossible]);
+    };
 
     if let Some(parent_request_id) = self.parent_request_hash {
       let parent_node_index = request_index.get(&parent_request_id).unwrap();
       graph.add_edge(
         parent_node_index.clone(),
-        node_index,
+        node_index.clone(),
         RequestEdgeType::SubRequest,
       );
     } else {
-      graph.add_edge(NodeIndex::new(0), node_index, RequestEdgeType::SubRequest);
+      graph.add_edge(
+        NodeIndex::new(0),
+        node_index.clone(),
+        RequestEdgeType::SubRequest,
+      );
     }
 
-    let request_node = graph.node_weight(node_index).unwrap();
+    let Some(request_node) = graph.node_weight(node_index.clone()) else {
+      return Err(vec![RequestError::Impossible]);
+    };
 
     match request_node {
       RequestNode::Root => Err(vec![RequestError::Impossible]),
