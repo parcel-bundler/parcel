@@ -162,35 +162,35 @@ jobs:
       #   with:
       #     name: REPL
       #     path: 'packages/dev/repl/dist'
-#      - name: Start Deployment
-#        uses: bobheadxi/deployments@v1
-#        id: deployment
-#        with:
-#          step: start
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#          ref: ${{ github.head_ref }}
-#          env: Preview
-#          override: false
-#      - name: Deploy to Vercel
-#        uses: amondnet/vercel-action@v25
-#        id: vercel-action
-#        with:
-#          vercel-token: ${{ secrets.REPL_VERCEL_TOKEN }}
-#          vercel-org-id: ${{ secrets.REPL_VERCEL_ORG_ID }}
-#          vercel-project-id: ${{ secrets.REPL_VERCEL_PROJECT_ID }}
-#          github-comment: false
-#          working-directory: packages/dev/repl
-#          # vercel-args: '--prod'
-#          alias-domains: |
-#            pr-{{PR_NUMBER}}.repl.parceljs.org
-#      - name: Update Deployment Status
-#        uses: bobheadxi/deployments@v1
-#        if: always()
-#        with:
-#          step: finish
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#          env: Preview
-#          override: false
-#          status: ${{ job.status }}
-#          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
-#          env_url: ${{ steps.vercel-action.outputs.preview-url }}
+      - name: Start Deployment
+        uses: bobheadxi/deployments@v1
+        id: deployment
+        with:
+          step: start
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+          env: Preview
+          override: false
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        id: vercel-action
+        with:
+          vercel-token: ${{ secrets.REPL_VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.REPL_VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.REPL_VERCEL_PROJECT_ID }}
+          github-comment: false
+          working-directory: packages/dev/repl
+          # vercel-args: '--prod'
+          alias-domains: |
+            pr-{{PR_NUMBER}}.repl.parceljs.org
+      - name: Update Deployment Status
+        uses: bobheadxi/deployments@v1
+        if: always()
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: Preview
+          override: false
+          status: ${{ job.status }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          env_url: ${{ steps.vercel-action.outputs.preview-url }}
