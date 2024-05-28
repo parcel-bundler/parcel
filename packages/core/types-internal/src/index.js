@@ -1542,6 +1542,8 @@ export interface BundleGraph<TBundle: Bundle> {
     bundle: Bundle,
     opts?: {|recursive?: boolean, includeInline?: boolean|},
   ): Array<TBundle>;
+  /** Returns a list of bundles that reference this bundle. */
+  getReferencingBundles(bundle: Bundle): Array<TBundle>;
   /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
