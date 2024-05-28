@@ -58,3 +58,12 @@ export async function storeRequestTrackerCacheInfo(
     requestTrackerCacheInfo,
   );
 }
+
+/**
+ * When starting a build the request tracker cache keys are cleared.
+ * This prevents dangling references from being present if the process exits
+ * while writing the cache.
+ */
+export async function clearRequestTrackerCacheInfo(cache: Cache) {
+  await cache.set(toFsCacheKey('RequestTrackerCacheInfo'), null);
+}
