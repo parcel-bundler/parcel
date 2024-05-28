@@ -1214,6 +1214,48 @@ describe('bundler', function () {
     ]);
   });
 
+  it('should support inline constants in async bundles', async () => {
+    await fsFixture(overlayFS, __dirname)`
+    inline-constants-async
+      index.js:
+        import('./async').then(m => console.log(m.value));
+
+      async.js:
+        export const value = 'async value';
+
+      package.json:
+        {
+          "@parcel/transformer-js": {
+            "unstable_inlineConstants": true
+          }
+        }
+
+      yarn.lock:`;
+
+    let b = await bundle(
+      path.join(__dirname, 'inline-constants-async/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      },
+    );
+
+    // This will fail when the async bundle does not export it's constant
+    await run(b);
+
+    // Asset should not be inlined
+    const index = b.getBundles().find(b => b.name.startsWith('index'));
+    const contents = overlayFS.readFileSync(index.filePath, 'utf8');
+    assert(
+      !contents.includes('async value'),
+      'async value should not be inlined',
+    );
+  });
   describe('manual shared bundles', () => {
     const dir = path.join(__dirname, 'manual-bundle');
 

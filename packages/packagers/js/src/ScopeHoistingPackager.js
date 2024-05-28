@@ -317,7 +317,13 @@ export class ScopeHoistingPackager {
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        if (!asset.meta.isConstantModule) {
+        // Don't wrap constant "entry" modules _except_ if they are referenced by any lazy dependency
+        if (
+          !asset.meta.isConstantModule ||
+          this.bundleGraph
+            .getIncomingDependencies(asset)
+            .some(dep => dep.priority === 'lazy')
+        ) {
           this.wrappedAssets.add(asset.id);
           wrapped.push(asset);
         }
