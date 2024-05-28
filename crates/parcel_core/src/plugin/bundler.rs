@@ -1,5 +1,3 @@
-use parcel_resolver::FileSystem;
-
 use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 
@@ -10,12 +8,12 @@ use crate::bundle_graph::BundleGraph;
 ///
 /// Bundle and optimize run in series and are functionally identitical.
 ///
-pub trait BundlerPlugin<Fs: FileSystem> {
+pub trait BundlerPlugin {
   /// A hook designed to load config necessary for the bundler to operate
   ///
   /// This function will run once, shortly after the plugin is initialised.
   ///
-  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
 
   // TODO: Should BundleGraph be AssetGraph or something that contains AssetGraph in the name?
   fn bundle(&self, bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error>;
@@ -25,15 +23,13 @@ pub trait BundlerPlugin<Fs: FileSystem> {
 
 #[cfg(test)]
 mod tests {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-
   use super::*;
 
   #[derive(Debug)]
   struct TestBundlerPlugin {}
 
-  impl<Fs: FileSystem> BundlerPlugin<Fs> for TestBundlerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+  impl BundlerPlugin for TestBundlerPlugin {
+    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
       todo!()
     }
 
@@ -48,6 +44,6 @@ mod tests {
 
   #[test]
   fn can_be_dyn() {
-    let _bundler: Box<dyn BundlerPlugin<InMemoryFileSystem>> = Box::new(TestBundlerPlugin {});
+    let _bundler: Box<dyn BundlerPlugin> = Box::new(TestBundlerPlugin {});
   }
 }

@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use parcel_resolver::FileSystem;
-
 use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 use crate::types::Bundle;
@@ -10,12 +8,12 @@ use crate::types::Bundle;
 ///
 /// Namers run in a pipeline until one returns a result.
 ///
-pub trait NamerPlugin<Fs: FileSystem> {
+pub trait NamerPlugin {
   /// A hook designed to setup config needed for naming bundles
   ///
   /// This function will run once, shortly after the plugin is initialised.
   ///
-  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
 
   /// Names the given bundle
   ///
@@ -24,7 +22,7 @@ pub trait NamerPlugin<Fs: FileSystem> {
   ///
   fn name(
     &mut self,
-    config: &PluginConfig<Fs>,
+    config: &PluginConfig,
     bundle: &Bundle,
     bundle_graph: &BundleGraph,
   ) -> Result<Option<PathBuf>, anyhow::Error>;
@@ -32,20 +30,18 @@ pub trait NamerPlugin<Fs: FileSystem> {
 
 #[cfg(test)]
 mod tests {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-
   use super::*;
 
   struct TestNamerPlugin {}
 
-  impl<Fs: FileSystem> NamerPlugin<Fs> for TestNamerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+  impl NamerPlugin for TestNamerPlugin {
+    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
       todo!()
     }
 
     fn name(
       &mut self,
-      _config: &PluginConfig<Fs>,
+      _config: &PluginConfig,
       _bundle: &Bundle,
       _bundle_graph: &BundleGraph,
     ) -> Result<Option<PathBuf>, anyhow::Error> {
@@ -55,7 +51,7 @@ mod tests {
 
   #[test]
   fn can_be_defined_in_dyn_vec() {
-    let mut namers = Vec::<Box<dyn NamerPlugin<InMemoryFileSystem>>>::new();
+    let mut namers = Vec::<Box<dyn NamerPlugin>>::new();
 
     namers.push(Box::new(TestNamerPlugin {}));
 

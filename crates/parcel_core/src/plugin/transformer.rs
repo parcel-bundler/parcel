@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use parcel_resolver::FileSystem;
 use parcel_resolver::SpecifierType;
 
 use super::PluginConfig;
@@ -31,11 +30,11 @@ pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, an
 /// Many transformers are wrappers around other tools such as compilers and preprocessors, and are
 /// designed to integrate with Parcel.
 ///
-pub trait TransformerPlugin<Fs: FileSystem>: Send + Sync {
+pub trait TransformerPlugin: Send + Sync {
   /// A hook designed to setup config needed to transform assets
   ///
   /// This function will run once, shortly after the plugin is initialised.
-  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
 
   /// Whether an AST from a previous transformer can be reused to prevent double-parsing
   ///
@@ -51,7 +50,7 @@ pub trait TransformerPlugin<Fs: FileSystem>: Send + Sync {
   ///
   fn parse(
     &mut self,
-    config: &PluginConfig<Fs>,
+    config: &PluginConfig,
     asset: &Asset,
     resolve: &Resolve,
   ) -> Result<AST, anyhow::Error>;
@@ -59,7 +58,7 @@ pub trait TransformerPlugin<Fs: FileSystem>: Send + Sync {
   /// Transform the asset and/or add new assets
   fn transform(
     &mut self,
-    config: &PluginConfig<Fs>,
+    config: &PluginConfig,
     asset: &mut Asset,
     resolve: &Resolve,
   ) -> Result<Vec<Asset>, anyhow::Error>;
@@ -67,7 +66,7 @@ pub trait TransformerPlugin<Fs: FileSystem>: Send + Sync {
   // Perform processing after the transformation
   fn post_process(
     &mut self,
-    config: &PluginConfig<Fs>,
+    config: &PluginConfig,
     assets: Vec<&Asset>,
   ) -> Result<Vec<Asset>, anyhow::Error>;
 
@@ -81,14 +80,12 @@ pub trait TransformerPlugin<Fs: FileSystem>: Send + Sync {
 
 #[cfg(test)]
 mod tests {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-
   use super::*;
 
   struct TestTransformerPlugin {}
 
-  impl<Fs: FileSystem> TransformerPlugin<Fs> for TestTransformerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+  impl TransformerPlugin for TestTransformerPlugin {
+    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
       todo!()
     }
 
@@ -98,7 +95,7 @@ mod tests {
 
     fn parse(
       &mut self,
-      _config: &PluginConfig<Fs>,
+      _config: &PluginConfig,
       _asset: &Asset,
       _resolve: &Resolve,
     ) -> Result<AST, anyhow::Error> {
@@ -107,7 +104,7 @@ mod tests {
 
     fn transform(
       &mut self,
-      _config: &PluginConfig<Fs>,
+      _config: &PluginConfig,
       _asset: &mut Asset,
       _resolve: &Resolve,
     ) -> Result<Vec<Asset>, anyhow::Error> {
@@ -116,7 +113,7 @@ mod tests {
 
     fn post_process(
       &mut self,
-      _config: &PluginConfig<Fs>,
+      _config: &PluginConfig,
       _assets: Vec<&Asset>,
     ) -> Result<Vec<Asset>, anyhow::Error> {
       todo!()
@@ -129,7 +126,7 @@ mod tests {
 
   #[test]
   fn can_be_defined_in_dyn_vec() {
-    let mut transformers = Vec::<Box<dyn TransformerPlugin<InMemoryFileSystem>>>::new();
+    let mut transformers = Vec::<Box<dyn TransformerPlugin>>::new();
 
     transformers.push(Box::new(TestTransformerPlugin {}));
 

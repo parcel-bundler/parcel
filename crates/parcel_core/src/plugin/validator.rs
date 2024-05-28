@@ -1,5 +1,3 @@
-use parcel_resolver::FileSystem;
-
 use super::PluginConfig;
 use crate::types::Asset;
 
@@ -20,12 +18,12 @@ pub struct Validation {
 /// remain productive, and do not have to worry about every small typing or linting issue while
 /// trying to solve a problem.
 ///
-pub trait ValidatorPlugin<Fs: FileSystem> {
+pub trait ValidatorPlugin {
   /// A hook designed to setup config needed to validate assets
   ///
   /// This function will run once, shortly after the plugin is initialised.
   ///
-  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
 
   /// Validates a single asset at a time
   ///
@@ -33,7 +31,7 @@ pub trait ValidatorPlugin<Fs: FileSystem> {
   ///
   fn validate_asset(
     &mut self,
-    config: &PluginConfig<Fs>,
+    config: &PluginConfig,
     asset: &Asset,
   ) -> Result<Validation, anyhow::Error>;
 
@@ -49,27 +47,25 @@ pub trait ValidatorPlugin<Fs: FileSystem> {
   ///
   fn validate_assets(
     &mut self,
-    config: &PluginConfig<Fs>,
+    config: &PluginConfig,
     assets: Vec<&Asset>,
   ) -> Result<Validation, anyhow::Error>;
 }
 
 #[cfg(test)]
 mod tests {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-
   use super::*;
 
   struct TestValidatorPlugin {}
 
-  impl<Fs: FileSystem> ValidatorPlugin<Fs> for TestValidatorPlugin {
-    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+  impl ValidatorPlugin for TestValidatorPlugin {
+    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
       todo!()
     }
 
     fn validate_asset(
       &mut self,
-      _config: &PluginConfig<Fs>,
+      _config: &PluginConfig,
       _asset: &Asset,
     ) -> Result<Validation, anyhow::Error> {
       todo!()
@@ -77,7 +73,7 @@ mod tests {
 
     fn validate_assets(
       &mut self,
-      _config: &PluginConfig<Fs>,
+      _config: &PluginConfig,
       _assets: Vec<&Asset>,
     ) -> Result<Validation, anyhow::Error> {
       todo!()
@@ -86,7 +82,7 @@ mod tests {
 
   #[test]
   fn can_be_defined_in_dyn_vec() {
-    let mut validators = Vec::<Box<dyn ValidatorPlugin<InMemoryFileSystem>>>::new();
+    let mut validators = Vec::<Box<dyn ValidatorPlugin>>::new();
 
     validators.push(Box::new(TestValidatorPlugin {}));
 

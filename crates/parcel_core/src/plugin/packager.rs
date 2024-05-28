@@ -1,7 +1,5 @@
 use std::fs::File;
 
-use parcel_resolver::FileSystem;
-
 use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 use crate::types::Bundle;
@@ -25,38 +23,36 @@ pub struct PackagedBundle {
 /// Packagers are also responsible for resolving URL references, bundle inlining, and generating
 /// source maps.
 ///
-pub trait PackagerPlugin<Fs: FileSystem>: Send + Sync {
+pub trait PackagerPlugin: Send + Sync {
   /// A hook designed to setup config needed for packaging
   ///
   /// This function will run once, shortly after the plugin is initialised.
   ///
-  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
 
   /// Combines assets in a bundle
   fn package(
     &mut self,
-    config: &PluginConfig<Fs>,
-    package_context: PackageContext,
+    config: &PluginConfig,
+    ctx: PackageContext,
   ) -> Result<PackagedBundle, anyhow::Error>;
 }
 
 #[cfg(test)]
 mod tests {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-
   use super::*;
 
   struct TestPackagerPlugin {}
 
-  impl<Fs: FileSystem> PackagerPlugin<Fs> for TestPackagerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+  impl PackagerPlugin for TestPackagerPlugin {
+    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
       todo!()
     }
 
     fn package(
       &mut self,
-      _config: &PluginConfig<Fs>,
-      _package_context: PackageContext,
+      _config: &PluginConfig,
+      _ctx: PackageContext,
     ) -> Result<PackagedBundle, anyhow::Error> {
       todo!()
     }
@@ -64,6 +60,6 @@ mod tests {
 
   #[test]
   fn can_be_dyn() {
-    let _packager: Box<dyn PackagerPlugin<InMemoryFileSystem>> = Box::new(TestPackagerPlugin {});
+    let _packager: Box<dyn PackagerPlugin> = Box::new(TestPackagerPlugin {});
   }
 }

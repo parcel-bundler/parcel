@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use parcel_resolver::FileSystem;
-
 use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 use crate::types::Bundle;
@@ -23,17 +21,17 @@ pub struct RuntimeAsset {
 }
 
 /// Programmatically insert assets into bundles
-pub trait RuntimePlugin<Fs: FileSystem> {
+pub trait RuntimePlugin {
   /// A hook designed to setup config needed to create runtime assets
   ///
   /// This function will run once, shortly after the plugin is initialised.
   ///
-  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
 
   /// Generates runtime assets to insert into bundles
   fn apply(
     &mut self,
-    config: &PluginConfig<Fs>,
+    config: &PluginConfig,
     bundle: Bundle,
     bundle_graph: BundleGraph,
   ) -> Result<Option<Vec<RuntimeAsset>>, anyhow::Error>;
@@ -41,20 +39,18 @@ pub trait RuntimePlugin<Fs: FileSystem> {
 
 #[cfg(test)]
 mod tests {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-
   use super::*;
 
   struct TestRuntimePlugin {}
 
-  impl<Fs: FileSystem> RuntimePlugin<Fs> for TestRuntimePlugin {
-    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+  impl RuntimePlugin for TestRuntimePlugin {
+    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
       todo!()
     }
 
     fn apply(
       &mut self,
-      _config: &PluginConfig<Fs>,
+      _config: &PluginConfig,
       _bundle: Bundle,
       _bundle_graph: BundleGraph,
     ) -> Result<Option<Vec<RuntimeAsset>>, anyhow::Error> {
@@ -64,7 +60,7 @@ mod tests {
 
   #[test]
   fn can_be_defined_in_dyn_vec() {
-    let mut runtimes = Vec::<Box<dyn RuntimePlugin<InMemoryFileSystem>>>::new();
+    let mut runtimes = Vec::<Box<dyn RuntimePlugin>>::new();
 
     runtimes.push(Box::new(TestRuntimePlugin {}));
 

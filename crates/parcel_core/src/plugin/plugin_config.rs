@@ -7,15 +7,15 @@ use serde::de::DeserializeOwned;
 use crate::types::JSONObject;
 
 /// Enables plugins to load config in various formats
-pub struct PluginConfig<'a, Fs: FileSystem> {
-  fs: &'a Fs,
+pub struct PluginConfig<'a> {
+  fs: &'a dyn FileSystem,
   project_root: PathBuf,
   search_path: PathBuf,
 }
 
 // TODO JavaScript configs, invalidations, dev deps, etc
-impl<'a, Fs: FileSystem> PluginConfig<'a, Fs> {
-  pub fn new(fs: &'a Fs, project_root: PathBuf, search_path: PathBuf) -> Self {
+impl<'a> PluginConfig<'a> {
+  pub fn new(fs: &'a dyn FileSystem, project_root: PathBuf, search_path: PathBuf) -> Self {
     Self {
       fs,
       project_root,
@@ -39,7 +39,7 @@ impl<'a, Fs: FileSystem> PluginConfig<'a, Fs> {
       self.search_path.display()
     )))?;
 
-    let config = self.fs.read_to_string(config_path.clone())?;
+    let config = self.fs.read_to_string(&config_path)?;
     let config = serde_json::from_str::<Config>(&config)?;
 
     Ok((config_path, config))
@@ -82,15 +82,16 @@ mod tests {
       let config = PluginConfig {
         fs: &InMemoryFileSystem::default(),
         project_root,
-        search_path,
+        search_path: search_path.clone(),
       };
 
       assert_eq!(
         config
           .load_json_config::<JsonConfig>("config.json")
           .map_err(|err| err.to_string()),
-        Err(String::from(
-          "Unable to locate config.json config file from /project-root/index"
+        Err(format!(
+          "Unable to locate config.json config file from {}",
+          search_path.display()
         ))
       )
     }
@@ -102,22 +103,23 @@ mod tests {
       let search_path = project_root.join("index");
 
       fs.write_file(
-        search_path.join("packages").join("config.json"),
+        &search_path.join("packages").join("config.json"),
         String::from("{}"),
       );
 
       let config = PluginConfig {
         fs: &fs,
         project_root: PathBuf::default(),
-        search_path,
+        search_path: search_path.clone(),
       };
 
       assert_eq!(
         config
           .load_json_config::<JsonConfig>("config.json")
           .map_err(|err| err.to_string()),
-        Err(String::from(
-          "Unable to locate config.json config file from /project-root/index"
+        Err(format!(
+          "Unable to locate config.json config file from {}",
+          search_path.display()
         ))
       )
     }
@@ -128,20 +130,21 @@ mod tests {
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
 
-      fs.write_file("config.json", String::from("{}"));
+      fs.write_file(&PathBuf::from("config.json"), String::from("{}"));
 
       let config = PluginConfig {
         fs: &fs,
         project_root,
-        search_path,
+        search_path: search_path.clone(),
       };
 
       assert_eq!(
         config
           .load_json_config::<JsonConfig>("config.json")
           .map_err(|err| err.to_string()),
-        Err(String::from(
-          "Unable to locate config.json config file from /project-root/index"
+        Err(format!(
+          "Unable to locate config.json config file from {}",
+          search_path.display()
         ))
       )
     }
@@ -151,8 +154,9 @@ mod tests {
       let mut fs = InMemoryFileSystem::default();
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
+      let config_path = search_path.join("config.json");
 
-      fs.write_file(search_path.join("config.json"), String::from("{}"));
+      fs.write_file(&config_path, String::from("{}"));
 
       let config = PluginConfig {
         fs: &fs,
@@ -164,10 +168,7 @@ mod tests {
         config
           .load_json_config::<JsonConfig>("config.json")
           .map_err(|err| err.to_string()),
-        Ok((
-          PathBuf::from("/project-root/index/config.json"),
-          JsonConfig {}
-        ))
+        Ok((config_path, JsonConfig {}))
       )
     }
 
@@ -176,8 +177,9 @@ mod tests {
       let mut fs = InMemoryFileSystem::default();
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
+      let config_path = project_root.join("config.json");
 
-      fs.write_file(project_root.join("config.json"), String::from("{}"));
+      fs.write_file(&config_path, String::from("{}"));
 
       let config = PluginConfig {
         fs: &fs,
@@ -189,7 +191,7 @@ mod tests {
         config
           .load_json_config::<JsonConfig>("config.json")
           .map_err(|err| err.to_string()),
-        Ok((PathBuf::from("/project-root/config.json"), JsonConfig {}))
+        Ok((config_path, JsonConfig {}))
       )
     }
   }
@@ -212,7 +214,7 @@ mod tests {
       )
     }
 
-    fn plugin_config() -> Value {
+    fn package_config() -> Value {
       let mut map = Map::new();
 
       map.insert(String::from("enabled"), Value::Bool(true));
@@ -228,15 +230,16 @@ mod tests {
       let config = PluginConfig {
         fs: &InMemoryFileSystem::default(),
         project_root,
-        search_path,
+        search_path: search_path.clone(),
       };
 
       assert_eq!(
         config
           .load_package_json_config("plugin")
           .map_err(|err| err.to_string()),
-        Err(String::from(
-          "Unable to locate package.json config file from /project-root/index"
+        Err(format!(
+          "Unable to locate package.json config file from {}",
+          search_path.display()
         ))
       )
     }
@@ -246,9 +249,10 @@ mod tests {
       let mut fs = InMemoryFileSystem::default();
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
+      let package_path = search_path.join("package.json");
 
-      fs.write_file(search_path.join("package.json"), String::from("{}"));
-      fs.write_file(project_root.join("package.json"), package_json());
+      fs.write_file(&package_path, String::from("{}"));
+      fs.write_file(&project_root.join("package.json"), package_json());
 
       let config = PluginConfig {
         fs: &fs,
@@ -260,8 +264,9 @@ mod tests {
         config
           .load_package_json_config("plugin")
           .map_err(|err| err.to_string()),
-        Err(String::from(
-          "Unable to locate plugin config key in /project-root/index/package.json"
+        Err(format!(
+          "Unable to locate plugin config key in {}",
+          package_path.display()
         ))
       )
     }
@@ -271,8 +276,9 @@ mod tests {
       let mut fs = InMemoryFileSystem::default();
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
+      let package_path = project_root.join("package.json");
 
-      fs.write_file(project_root.join("package.json"), String::from("{}"));
+      fs.write_file(&package_path, String::from("{}"));
 
       let config = PluginConfig {
         fs: &fs,
@@ -284,8 +290,9 @@ mod tests {
         config
           .load_package_json_config("plugin")
           .map_err(|err| err.to_string()),
-        Err(String::from(
-          "Unable to locate plugin config key in /project-root/package.json"
+        Err(format!(
+          "Unable to locate plugin config key in {}",
+          package_path.display()
         ))
       )
     }
@@ -295,8 +302,9 @@ mod tests {
       let mut fs = InMemoryFileSystem::default();
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
+      let package_path = search_path.join("package.json");
 
-      fs.write_file(search_path.join("package.json"), package_json());
+      fs.write_file(&package_path, package_json());
 
       let config = PluginConfig {
         fs: &fs,
@@ -308,10 +316,7 @@ mod tests {
         config
           .load_package_json_config("plugin")
           .map_err(|err| err.to_string()),
-        Ok((
-          PathBuf::from("/project-root/index/package.json"),
-          plugin_config()
-        ))
+        Ok((package_path, package_config()))
       )
     }
 
@@ -320,8 +325,9 @@ mod tests {
       let mut fs = InMemoryFileSystem::default();
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
+      let package_path = project_root.join("package.json");
 
-      fs.write_file(project_root.join("package.json"), package_json());
+      fs.write_file(&package_path, package_json());
 
       let config = PluginConfig {
         fs: &fs,
@@ -333,7 +339,7 @@ mod tests {
         config
           .load_package_json_config("plugin")
           .map_err(|err| err.to_string()),
-        Ok((PathBuf::from("/project-root/package.json"), plugin_config()))
+        Ok((package_path, package_config()))
       )
     }
   }

@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use parcel_filesystem::FileSystem;
-
 use super::PluginConfig;
 use crate::types::Dependency;
 use crate::types::JSONObject;
@@ -52,38 +50,36 @@ pub struct Resolution {
 ///
 /// Resolvers run in a pipeline until one of them return a result.
 ///
-pub trait ResolverPlugin<Fs: FileSystem>: Send + Sync {
+pub trait ResolverPlugin: Send + Sync {
   /// A hook designed to setup any config needed to resolve dependencies
   ///
   /// This function will run once, shortly after the plugin is initialised.
   ///
-  fn load_config(&mut self, config: &PluginConfig<Fs>) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
 
   /// Determines what the dependency specifier resolves to
   fn resolve(
     &mut self,
-    config: &mut PluginConfig<Fs>,
-    resolve_context: &ResolveContext,
+    config: &PluginConfig,
+    ctx: &ResolveContext,
   ) -> Result<Resolution, anyhow::Error>;
 }
 
 #[cfg(test)]
 mod tests {
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-
   use super::*;
 
   struct TestResolverPlugin {}
 
-  impl<Fs: FileSystem> ResolverPlugin<Fs> for TestResolverPlugin {
-    fn load_config(&mut self, _config: &PluginConfig<Fs>) -> Result<(), anyhow::Error> {
+  impl ResolverPlugin for TestResolverPlugin {
+    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
       todo!()
     }
 
     fn resolve(
       &mut self,
-      _config: &mut PluginConfig<Fs>,
-      _resolve_context: &ResolveContext,
+      _config: &PluginConfig,
+      _ctx: &ResolveContext,
     ) -> Result<Resolution, anyhow::Error> {
       todo!()
     }
@@ -91,7 +87,7 @@ mod tests {
 
   #[test]
   fn can_be_defined_in_dyn_vec() {
-    let mut resolvers = Vec::<Box<dyn ResolverPlugin<InMemoryFileSystem>>>::new();
+    let mut resolvers = Vec::<Box<dyn ResolverPlugin>>::new();
 
     resolvers.push(Box::new(TestResolverPlugin {}));
 
