@@ -22,6 +22,7 @@ mod fs_search;
 mod hash;
 #[cfg(not(target_arch = "wasm32"))]
 mod image;
+mod parcel;
 mod resolver;
 mod transformer;
 
