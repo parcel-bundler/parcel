@@ -1,4 +1,3 @@
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,6 +7,7 @@ use napi::Result;
 use napi::Status;
 use napi_derive::napi;
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 use sentry::configure_scope;
 use sentry::init;
 use sentry::ClientInitGuard;

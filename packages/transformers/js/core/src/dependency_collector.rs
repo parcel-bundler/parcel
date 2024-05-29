@@ -4,7 +4,6 @@ use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
-use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use path_slash::PathBufExt;
 use serde::Deserialize;
@@ -18,6 +17,7 @@ use swc_core::ecma::ast::MemberProp;
 use swc_core::ecma::ast::{self};
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 

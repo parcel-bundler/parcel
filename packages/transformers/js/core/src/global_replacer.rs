@@ -1,5 +1,4 @@
 use std::path::Path;
-use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use indexmap::IndexMap;
 use path_slash::PathBufExt;
@@ -11,6 +10,7 @@ use swc_core::ecma::ast::ComputedPropName;
 use swc_core::ecma::ast::{self};
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
