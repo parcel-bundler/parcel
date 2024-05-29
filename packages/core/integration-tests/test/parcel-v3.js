@@ -1,31 +1,9 @@
+// @flow
+
 import assert from 'assert';
 import path from 'path';
-import url from 'url';
-import {
-  assertDependencyWasExcluded,
-  bundle,
-  bundler,
-  findAsset,
-  findDependency,
-  getNextBuild,
-  run,
-  runBundle,
-  runBundles,
-  assertBundles,
-  ncp,
-  overlayFS,
-  removeDistDirectory,
-  distDir,
-  outputFS,
-  inputFS,
-  fsFixture,
-} from '@parcel/test-utils';
-import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
-import vm from 'vm';
+import {bundle, run} from '@parcel/test-utils';
 import * as napi from '@parcel/rust';
-import Logger from '@parcel/logger';
-import nullthrows from 'nullthrows';
-import {md} from '@parcel/diagnostic';
 
 describe('parcel-v3', function () {
   // Duplicated temporarily for convenience, will remove once the Rust stuff works
@@ -45,7 +23,10 @@ describe('parcel-v3', function () {
     assert.equal(output(), 3);
   });
 
-  it('should run the main-thread bootstrap function', async function () {
-    napi.mainBootstrap(console.log);
+  it('should run the main-thread bootstrap function', function () {
+    // eslint-disable-next-line no-unused-vars
+    napi.mainBootstrap(async (_error, _event) => {
+      /* Todo */
+    });
   });
 });

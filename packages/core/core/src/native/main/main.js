@@ -6,7 +6,8 @@ export class ParcelNative {
     napi.mainBootstrap((_, e) => this.#onEvent(e));
   }
 
-  async #onEvent(event: any) {
+  // eslint-disable-next-line no-unused-vars
+  async #onEvent(_event: any) {
     // handle events, e.g.
     // If event === "spawn worker"
   }
