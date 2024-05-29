@@ -55,7 +55,10 @@ import {
 import {tracer} from '@parcel/profiler';
 import {setFeatureFlags} from '@parcel/feature-flags';
 import {parcelPluginController} from './parcelPluginController';
-import {MainController} from './controllers/main/mainController';
+import {
+  MainController,
+  initMainController,
+} from './controllers/main/mainController';
 
 registerCoreWithSerializer();
 
@@ -169,6 +172,11 @@ export default class Parcel {
       farm: this.#farm,
       options: resolvedOptions,
     });
+
+    if (this.#initialOptions.featureFlags?.parcelV3) {
+      // Using a singleton for now because prop drilling may be messy
+      initMainController();
+    }
 
     this.#initialized = true;
   }

@@ -1,2 +1,2 @@
-pub mod main_controller;
-pub mod worker_controller;
+pub mod main;
+pub mod worker;

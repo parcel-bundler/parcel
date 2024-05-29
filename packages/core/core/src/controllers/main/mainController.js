@@ -3,20 +3,12 @@ import * as napi from '@parcel/rust';
 
 export class MainController {
   constructor() {
-    napi.controllerMainSubscribe((_, e) => this.#on_event(e));
+    napi.controllerMainSubscribe((_, e) => this.#onEvent(e));
   }
 
-  async #on_event(event) {
-    console.log('hello', event);
-
-    return {Ping: {}};
+  async #onEvent(_event) {
+    // coming soon
   }
-
-  #emit(v) {
-    return napi.controllerMainEmit(v);
-  }
-
-  assetGraphRequest() {}
 }
 
 export let mainController: MainController | null = null;

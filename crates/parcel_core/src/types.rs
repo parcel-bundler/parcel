@@ -27,3 +27,6 @@ pub use self::symbol::*;
 
 mod target;
 pub use self::target::*;
+
+mod plugin_container;
+pub use plugin_container::*;

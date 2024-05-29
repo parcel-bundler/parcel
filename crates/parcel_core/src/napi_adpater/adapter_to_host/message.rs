@@ -2,9 +2,9 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum WorkerControllerMessageResponse {
-  Ping(ControllerMessagePingResponse),
+pub enum AdapterMessage {
+  Ping(PingMessage),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ControllerMessagePingResponse {}
+pub struct PingMessage {}

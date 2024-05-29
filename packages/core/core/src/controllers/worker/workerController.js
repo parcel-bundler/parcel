@@ -3,13 +3,11 @@ import * as napi from '@parcel/rust';
 
 export class WorkerController {
   constructor() {
-    napi.controllerWorkerSubscribe((_, e) => this.#on_event(e));
+    napi.controllerWorkerSubscribe((_, e) => this.#onEvent(e));
   }
 
-  async #on_event(event) {
-    console.log('hello', event);
-
-    return {Ping: {}};
+  async #onEvent(_event) {
+    // coming soon
   }
 }
 

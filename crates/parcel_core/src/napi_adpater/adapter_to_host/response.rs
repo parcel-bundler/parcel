@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum CtrlResponse {
+pub enum AdapterResponse {
   Ping(PingResponse),
 }
 
