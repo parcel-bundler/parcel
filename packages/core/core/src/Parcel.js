@@ -54,6 +54,8 @@ import {
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
 import {setFeatureFlags} from '@parcel/feature-flags';
+import {parcelPluginController} from './parcelPluginController';
+import {MainController} from './controllers/main/mainController';
 
 registerCoreWithSerializer();
 
@@ -114,6 +116,7 @@ export default class Parcel {
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
     );
+
     this.#resolvedOptions = resolvedOptions;
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
