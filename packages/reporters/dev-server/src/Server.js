@@ -497,7 +497,7 @@ export default class Server {
     });
 
     app.use((req, res, next) => {
-      if (req.url === '/healthcheck') {
+      if (req.url === '/__parcel_healthcheck') {
         res.statusCode = 200;
         res.write(`${Date.now()}`);
         res.end();
