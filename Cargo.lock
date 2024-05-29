@@ -1879,6 +1879,7 @@ dependencies = [
  "dyn-hash",
  "nodejs-semver",
  "parcel-resolver",
+ "parcel_filesystem",
  "petgraph",
  "serde",
  "serde-value",
