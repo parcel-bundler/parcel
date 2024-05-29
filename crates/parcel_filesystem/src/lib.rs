@@ -32,20 +32,20 @@ pub trait FileSystem {
       "Not implemented",
     ))
   }
-  fn canonicalize_base<P: AsRef<Path>>(&self, _path: P) -> Result<PathBuf> {
+  fn canonicalize_base(&self, _path: &Path) -> Result<PathBuf> {
     Err(std::io::Error::new(
       std::io::ErrorKind::Other,
       "Not implemented",
     ))
   }
-  fn canonicalize<P: AsRef<Path>>(
+  fn canonicalize(
     &self,
-    path: P,
+    path: &Path,
     _cache: &DashMap<PathBuf, Option<PathBuf>>,
   ) -> Result<PathBuf> {
     self.canonicalize_base(path)
   }
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> Result<String>;
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool;
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool;
+  fn read_to_string(&self, path: &Path) -> Result<String>;
+  fn is_file(&self, path: &Path) -> bool;
+  fn is_dir(&self, path: &Path) -> bool;
 }

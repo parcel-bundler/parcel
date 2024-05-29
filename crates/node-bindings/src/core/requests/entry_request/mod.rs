@@ -215,7 +215,7 @@ mod test {
 
   #[test]
   fn test_resolve_entry_file() {
-    let mut fs = InMemoryFileSystem::default();
+    let fs = InMemoryFileSystem::default();
     fs.set_current_working_directory("/project".into());
     let project_root = Path::new("/project");
     let path = Path::new("/project/file");

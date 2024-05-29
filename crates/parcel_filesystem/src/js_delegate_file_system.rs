@@ -46,9 +46,9 @@ impl FileSystem for JSDelegateFileSystem {
     })
   }
 
-  fn canonicalize_base<P: AsRef<Path>>(&self, path: P) -> std::io::Result<PathBuf> {
+  fn canonicalize_base(&self, path: &Path) -> std::io::Result<PathBuf> {
     run_with_errors(|| {
-      let path = path.as_ref().to_str().unwrap();
+      let path = path.to_str().unwrap();
       let js_path = self.env.create_string(path)?;
       let result = call_method(
         &self.env,
@@ -60,9 +60,9 @@ impl FileSystem for JSDelegateFileSystem {
     })
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     run_with_errors(|| {
-      let path = path.as_ref().to_str().unwrap();
+      let path = path.to_str().unwrap();
       let js_path = self.env.create_string(path)?;
       let result = call_method(
         &self.env,
@@ -79,9 +79,9 @@ impl FileSystem for JSDelegateFileSystem {
     })
   }
 
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_file(&self, path: &Path) -> bool {
     run_with_errors(|| {
-      let path = path.as_ref().to_str().unwrap();
+      let path = path.to_str().unwrap();
       let js_path = self.env.create_string(path)?;
       let result = call_method(
         &self.env,
@@ -96,9 +96,9 @@ impl FileSystem for JSDelegateFileSystem {
     .unwrap_or(false)
   }
 
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_dir(&self, path: &Path) -> bool {
     run_with_errors(|| {
-      let path = path.as_ref().to_str().unwrap();
+      let path = path.to_str().unwrap();
       let js_path = self.env.create_string(path)?;
       let result = call_method(
         &self.env,
