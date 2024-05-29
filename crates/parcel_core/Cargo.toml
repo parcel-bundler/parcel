@@ -8,6 +8,7 @@ description = "Core logic for the parcel bundler"
 default = []
 
 [dependencies]
+parcel_filesystem = { path = "../parcel_filesystem" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 
 ahash = "0.8.11"
