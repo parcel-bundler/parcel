@@ -51,6 +51,8 @@ type WriteBundleRequestInput = {|
   hashRefToNameHash: Map<string, string>,
 |};
 
+export type WriteBundleRequestResult = PackagedBundleInfo;
+
 type RunInput<TResult> = {|
   input: WriteBundleRequestInput,
   ...StaticRunOpts<TResult>,

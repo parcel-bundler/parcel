@@ -71,6 +71,7 @@ type RunInput = {|
   ...StaticRunOpts<BundleGraphResult>,
 |};
 
+// TODO: Rename to BundleGraphRequestResult
 export type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
   changedAssets: Map<string, Asset>,

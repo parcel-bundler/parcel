@@ -1,12 +1,16 @@
 // @flow
-import type {DependencySpecifier, SemverRange} from '@parcel/types';
+import type {
+  DependencySpecifier,
+  SemverRange,
+  Invalidations,
+} from '@parcel/types';
 import type ParcelConfig from '../ParcelConfig';
 import type {
   DevDepRequest,
   ParcelOptions,
   InternalDevDepOptions,
 } from '../types';
-import type {RunAPI} from '../RequestTracker';
+import type {RequestResult, RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
 
 import nullthrows from 'nullthrows';
@@ -24,7 +28,7 @@ import {requestTypes} from '../RequestTracker';
 // If the package manager returns the same invalidation object, then
 // we can reuse the dev dep request rather than recomputing the project
 // paths and hashes.
-const devDepRequestCache = new WeakMap();
+const devDepRequestCache: WeakMap<Invalidations, DevDepRequest> = new WeakMap();
 
 export async function createDevDependency(
   opts: InternalDevDepOptions,
@@ -107,17 +111,17 @@ type DevDepRequests = {|
   invalidDevDeps: Array<DevDepSpecifier>,
 |};
 
-export async function getDevDepRequests<TResult>(
+export async function getDevDepRequests<TResult: RequestResult>(
   api: RunAPI<TResult>,
 ): Promise<DevDepRequests> {
-  let previousDevDepRequests = new Map(
+  let previousDevDepRequests: Map<string, DevDepRequestResult> = new Map(
     await Promise.all(
       api
         .getSubRequests()
         .filter(req => req.requestType === requestTypes.dev_dep_request)
         .map(async req => [
           req.id,
-          nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),
+          nullthrows(await api.getRequestResult<DevDepRequestResult>(req.id)),
         ]),
     ),
   );
@@ -126,7 +130,7 @@ export async function getDevDepRequests<TResult>(
     devDeps: new Map(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
-        .map(([, req]) => [
+        .map(([, req]: [string, DevDepRequestResult]) => [
           `${req.specifier}:${fromProjectPathRelative(req.resolveFrom)}`,
           req.hash,
         ]),
@@ -134,7 +138,7 @@ export async function getDevDepRequests<TResult>(
     invalidDevDeps: await Promise.all(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => !api.canSkipSubrequest(id))
-        .flatMap(([, req]) => {
+        .flatMap(([, req]: [string, DevDepRequestResult]) => {
           return [
             {
               specifier: req.specifier,
@@ -172,7 +176,7 @@ export function invalidateDevDeps(
   }
 }
 
-type DevDepRequestResult = {|
+export type DevDepRequestResult = {|
   specifier: DependencySpecifier,
   resolveFrom: ProjectPath,
   hash: string,
@@ -183,7 +187,7 @@ type DevDepRequestResult = {|
   |}>,
 |};
 
-export async function runDevDepRequest<TResult>(
+export async function runDevDepRequest<TResult: RequestResult>(
   api: RunAPI<TResult>,
   devDepRequest: DevDepRequest,
 ) {

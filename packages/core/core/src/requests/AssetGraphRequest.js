@@ -13,7 +13,7 @@ import type {
   Target,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
-import type {EntryResult} from './EntryRequest';
+import type {EntryRequestResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 import type {Diagnostic} from '@parcel/diagnostic';
 import logger from '@parcel/logger';
@@ -46,7 +46,7 @@ type AssetGraphRequestInput = {|
   requestedAssetIds?: Set<string>,
 |};
 
-type AssetGraphRequestResult = {|
+export type AssetGraphRequestResult = {|
   assetGraph: AssetGraph,
   /** Assets added/modified since the last successful build. */
   changedAssets: Map<string, Asset>,
@@ -468,9 +468,12 @@ export class AssetGraphBuilder {
       : [];
 
     let request = createEntryRequest(input);
-    let result = await this.api.runRequest<ProjectPath, EntryResult>(request, {
-      force: true,
-    });
+    let result = await this.api.runRequest<ProjectPath, EntryRequestResult>(
+      request,
+      {
+        force: true,
+      },
+    );
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
 
     if (this.assetGraph.safeToIncrementallyBundle) {

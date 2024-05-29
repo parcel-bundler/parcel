@@ -21,6 +21,7 @@ import {runConfigRequest} from './ConfigRequest';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
 import {requestTypes} from '../RequestTracker';
+import type {DevDepRequestResult} from './DevDepRequest';
 
 type RunInput<TResult> = {|
   input: AssetRequestInput,
@@ -78,14 +79,14 @@ async function run({input, api, farm, invalidateReason, options}) {
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
 
-  let previousDevDepRequests = new Map(
+  let previousDevDepRequests: Map<string, DevDepRequestResult> = new Map(
     await Promise.all(
       api
         .getSubRequests()
         .filter(req => req.requestType === requestTypes.dev_dep_request)
         .map(async req => [
           req.id,
-          nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),
+          nullthrows(await api.getRequestResult<DevDepRequestResult>(req.id)),
         ]),
     ),
   );
@@ -96,7 +97,7 @@ async function run({input, api, farm, invalidateReason, options}) {
     devDeps: new Map(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
-        .map(([, req]) => [
+        .map(([, req]: [string, DevDepRequestResult]) => [
           `${req.specifier}:${fromProjectPathRelative(req.resolveFrom)}`,
           req.hash,
         ]),
@@ -104,7 +105,7 @@ async function run({input, api, farm, invalidateReason, options}) {
     invalidDevDeps: await Promise.all(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => !api.canSkipSubrequest(id))
-        .flatMap(([, req]) => {
+        .flatMap(([, req]: [string, DevDepRequestResult]) => {
           return [
             {
               specifier: req.specifier,

@@ -8,7 +8,10 @@ import {DEFAULT_FEATURE_FLAGS, setFeatureFlags} from '@parcel/feature-flags';
 import {MemoryFS} from '@parcel/fs';
 import {hashString} from '@parcel/rust';
 
-import type {ConfigRequest} from '../../src/requests/ConfigRequest';
+import type {
+  ConfigRequest,
+  ConfigRequestResult,
+} from '../../src/requests/ConfigRequest';
 import type {RunAPI} from '../../src/RequestTracker';
 import {runConfigRequest} from '../../src/requests/ConfigRequest';
 import {toProjectPath} from '../../src/projectPath';
@@ -40,7 +43,7 @@ describe('ConfigRequest tests', () => {
 
   const getMockRunApi = (
     options: mixed = {projectRoot, inputFS: fs},
-  ): RunAPI<mixed> => {
+  ): RunAPI<ConfigRequestResult> => {
     const mockRunApi = {
       storeResult: sinon.spy(),
       canSkipSubrequest: sinon.spy(),
