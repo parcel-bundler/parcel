@@ -354,7 +354,7 @@ mod test {
 
   #[test]
   fn test_read_json_config() {
-    let mut file_system = InMemoryFileSystem::default();
+    let file_system = InMemoryFileSystem::default();
     let config_path = Path::new("/config.json");
     file_system.write_file(config_path, String::from(r#"{"key": "value"}"#));
 
@@ -364,7 +364,7 @@ mod test {
 
   #[test]
   fn test_read_toml_config() {
-    let mut file_system = InMemoryFileSystem::default();
+    let file_system = InMemoryFileSystem::default();
     let config_path = Path::new("/config.toml");
     file_system.write_file(config_path, String::from(r#"key = "value""#));
 

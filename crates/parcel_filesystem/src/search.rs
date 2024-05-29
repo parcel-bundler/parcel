@@ -1,10 +1,11 @@
 use std::path::Path;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::FileSystem;
 
 pub fn find_ancestor_file<P: AsRef<Path>>(
-  fs: &impl FileSystem,
+  fs: Rc<dyn FileSystem>,
   filenames: Vec<String>,
   from: P,
   root: P,
