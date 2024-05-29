@@ -23,7 +23,7 @@ pub struct EnvironmentId(pub NonZeroU32);
 ///
 /// This influences how Parcel compiles your code, including what syntax to transpile.
 ///
-#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
   /// The environment the output should run in
@@ -102,9 +102,10 @@ impl PartialEq for Environment {
 ///
 /// This informs Parcel what environment-specific APIs are available.
 ///
-#[derive(Clone, Copy, Debug, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
+#[derive(Clone, Copy, Debug, Default, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
 #[repr(u8)]
 pub enum EnvironmentContext {
+  #[default]
   Browser = 0,
   ElectronMain = 1,
   ElectronRenderer = 2,
@@ -139,9 +140,10 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Deserialize_repr, Hash, Serialize_repr)]
+#[derive(Clone, Copy, Debug, Default, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
 #[repr(u8)]
 pub enum SourceType {
+  #[default]
   Module = 0,
   Script = 1,
 }
