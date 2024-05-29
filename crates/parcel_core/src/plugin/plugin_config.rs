@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystem;
@@ -7,15 +8,15 @@ use serde::de::DeserializeOwned;
 use crate::types::JSONObject;
 
 /// Enables plugins to load config in various formats
-pub struct PluginConfig<'a> {
-  fs: &'a dyn FileSystem,
+pub struct PluginConfig {
+  fs: Rc<dyn FileSystem>,
   project_root: PathBuf,
   search_path: PathBuf,
 }
 
 // TODO JavaScript configs, invalidations, dev deps, etc
-impl<'a> PluginConfig<'a> {
-  pub fn new(fs: &'a dyn FileSystem, project_root: PathBuf, search_path: PathBuf) -> Self {
+impl PluginConfig {
+  pub fn new(fs: Rc<dyn FileSystem>, project_root: PathBuf, search_path: PathBuf) -> Self {
     Self {
       fs,
       project_root,
@@ -28,7 +29,7 @@ impl<'a> PluginConfig<'a> {
     filename: &str,
   ) -> Result<(PathBuf, Config), anyhow::Error> {
     let config_path = find_ancestor_file(
-      self.fs,
+      Rc::clone(&self.fs),
       vec![String::from(filename)],
       &self.search_path,
       &self.project_root,
@@ -80,7 +81,7 @@ mod tests {
       let search_path = project_root.join("index");
 
       let config = PluginConfig {
-        fs: &InMemoryFileSystem::default(),
+        fs: Rc::new(InMemoryFileSystem::default()),
         project_root,
         search_path: search_path.clone(),
       };
@@ -98,7 +99,7 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_the_config_is_outside_the_search_path() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
 
@@ -108,7 +109,7 @@ mod tests {
       );
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root: PathBuf::default(),
         search_path: search_path.clone(),
       };
@@ -126,14 +127,14 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_the_config_is_outside_the_project_root() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
 
       fs.write_file(&PathBuf::from("config.json"), String::from("{}"));
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root,
         search_path: search_path.clone(),
       };
@@ -151,7 +152,7 @@ mod tests {
 
     #[test]
     fn returns_json_config_at_search_path() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let config_path = search_path.join("config.json");
@@ -159,7 +160,7 @@ mod tests {
       fs.write_file(&config_path, String::from("{}"));
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root,
         search_path,
       };
@@ -174,7 +175,7 @@ mod tests {
 
     #[test]
     fn returns_json_config_at_project_root() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let config_path = project_root.join("config.json");
@@ -182,7 +183,7 @@ mod tests {
       fs.write_file(&config_path, String::from("{}"));
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root,
         search_path,
       };
@@ -228,7 +229,7 @@ mod tests {
       let search_path = project_root.join("index");
 
       let config = PluginConfig {
-        fs: &InMemoryFileSystem::default(),
+        fs: Rc::new(InMemoryFileSystem::default()),
         project_root,
         search_path: search_path.clone(),
       };
@@ -246,7 +247,7 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_config_key_does_not_exist_at_search_path() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = search_path.join("package.json");
@@ -255,7 +256,7 @@ mod tests {
       fs.write_file(&project_root.join("package.json"), package_json());
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root,
         search_path,
       };
@@ -273,7 +274,7 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_config_key_does_not_exist_at_project_root() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = project_root.join("package.json");
@@ -281,7 +282,7 @@ mod tests {
       fs.write_file(&package_path, String::from("{}"));
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root,
         search_path,
       };
@@ -299,7 +300,7 @@ mod tests {
 
     #[test]
     fn returns_package_config_at_search_path() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = search_path.join("package.json");
@@ -307,7 +308,7 @@ mod tests {
       fs.write_file(&package_path, package_json());
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root,
         search_path,
       };
@@ -322,7 +323,7 @@ mod tests {
 
     #[test]
     fn returns_package_config_at_project_root() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = project_root.join("package.json");
@@ -330,7 +331,7 @@ mod tests {
       fs.write_file(&package_path, package_json());
 
       let config = PluginConfig {
-        fs: &fs,
+        fs,
         project_root,
         search_path,
       };
