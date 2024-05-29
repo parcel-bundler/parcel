@@ -54,7 +54,7 @@ import {
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
 import {setFeatureFlags} from '@parcel/feature-flags';
-import {nativeMain} from './native';
+import {initParcelNative} from './native';
 
 registerCoreWithSerializer();
 
@@ -169,7 +169,7 @@ export default class Parcel {
     });
 
     if (this.#initialOptions.featureFlags?.parcelV3) {
-      nativeMain.initParcelNative();
+      initParcelNative();
     }
 
     this.#initialized = true;

@@ -1,3 +1,3 @@
 // @flow
-export * as nativeMain from './main';
-export * as nativeWorker from './worker';
+export * from './main';
+export * from './worker';
