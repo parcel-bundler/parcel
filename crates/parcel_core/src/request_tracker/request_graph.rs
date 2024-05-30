@@ -1,12 +1,12 @@
 use petgraph::stable_graph::StableDiGraph;
 
-use super::RequestError;
+use super::RunRequestError;
 
 pub type RequestGraph<T> = StableDiGraph<RequestNode<T>, RequestEdgeType>;
 
 #[derive(Debug)]
 pub enum RequestNode<T> {
-  Error(Vec<RequestError>),
+  Error(RunRequestError),
   Root,
   Incomplete,
   Valid(T),
