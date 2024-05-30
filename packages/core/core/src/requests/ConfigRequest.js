@@ -15,7 +15,7 @@ import type {
   InternalFileCreateInvalidation,
 } from '../types';
 import type {LoadedPlugin} from '../ParcelConfig';
-import type {RunAPI} from '../RequestTracker';
+import type {RequestResult, RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
 import {napiRunConfigRequest} from '@parcel/rust';
 
@@ -75,6 +75,8 @@ export type ConfigRequest = {
   invalidateOnBuild: boolean,
   ...
 };
+
+export type ConfigRequestResult = void;
 
 export async function loadPluginConfig<T: PluginWithLoadConfig>(
   loadedPlugin: LoadedPlugin<T>,
@@ -143,7 +145,7 @@ export async function getConfigKeyContentHash(
   return contentHash;
 }
 
-export async function runConfigRequest<TResult>(
+export async function runConfigRequest<TResult: RequestResult>(
   api: RunAPI<TResult>,
   configRequest: ConfigRequest,
 ) {

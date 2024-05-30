@@ -13,7 +13,7 @@ import type {
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
-import type {RunAPI} from './RequestTracker';
+import type {RequestResult, RunAPI} from './RequestTracker';
 
 import path from 'path';
 import assert from 'assert';
@@ -60,7 +60,7 @@ function nameRuntimeBundle(
   bundle.displayName = name.replace(hashReference, '[hash]');
 }
 
-export default async function applyRuntimes<TResult>({
+export default async function applyRuntimes<TResult: RequestResult>({
   bundleGraph,
   config,
   options,
@@ -324,7 +324,7 @@ export default async function applyRuntimes<TResult>({
   return changedAssets;
 }
 
-function reconcileNewRuntimes<TResult>(
+function reconcileNewRuntimes<TResult: RequestResult>(
   api: RunAPI<TResult>,
   connections: Array<RuntimeConnection>,
   optionsRef: SharedReference,
