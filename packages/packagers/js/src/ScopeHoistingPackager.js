@@ -34,7 +34,6 @@ import {
   isValidIdentifier,
   makeValidIdentifier,
 } from './utils';
-
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
 const REPLACEMENT_RE =
@@ -264,6 +263,9 @@ export class ScopeHoistingPackager {
   }
 
   shouldBundleQueue(bundle: NamedBundle): boolean {
+    let referencingBundles = this.bundleGraph.getReferencingBundles(bundle);
+    let hasHtmlReference = referencingBundles.some(b => b.type === 'html');
+
     return (
       this.useAsyncBundleRuntime &&
       bundle.type === 'js' &&
@@ -271,7 +273,7 @@ export class ScopeHoistingPackager {
       bundle.env.outputFormat === 'esmodule' &&
       !bundle.env.isIsolated() &&
       bundle.bundleBehavior !== 'isolated' &&
-      !this.bundleGraph.hasParentBundleOfType(bundle, 'js')
+      hasHtmlReference
     );
   }
 
@@ -315,7 +317,13 @@ export class ScopeHoistingPackager {
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        if (!asset.meta.isConstantModule) {
+        // Don't wrap constant "entry" modules _except_ if they are referenced by any lazy dependency
+        if (
+          !asset.meta.isConstantModule ||
+          this.bundleGraph
+            .getIncomingDependencies(asset)
+            .some(dep => dep.priority === 'lazy')
+        ) {
           this.wrappedAssets.add(asset.id);
           wrapped.push(asset);
         }
@@ -828,8 +836,17 @@ ${code}
           if (imported === '*') {
             replacement = renamed;
           } else if (imported === 'default') {
-            replacement = `($parcel$interopDefault(${renamed}))`;
-            this.usedHelpers.add('$parcel$interopDefault');
+            let needsDefaultInterop = true;
+            if (referencedBundle) {
+              let entry = nullthrows(referencedBundle.getMainEntry());
+              needsDefaultInterop = this.needsDefaultInterop(entry);
+            }
+            if (needsDefaultInterop) {
+              replacement = `($parcel$interopDefault(${renamed}))`;
+              this.usedHelpers.add('$parcel$interopDefault');
+            } else {
+              replacement = `${renamed}.default`;
+            }
           } else {
             replacement = this.getPropertyAccess(renamed, imported);
           }

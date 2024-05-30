@@ -21,6 +21,8 @@ type WriteBundlesRequestInput = {|
   optionsRef: SharedReference,
 |};
 
+export type WriteBundlesRequestResult = Map<string, PackagedBundleInfo>;
+
 type RunInput<TResult> = {|
   input: WriteBundlesRequestInput,
   ...StaticRunOpts<TResult>,
@@ -30,8 +32,8 @@ export type WriteBundlesRequest = {|
   id: ContentKey,
   +type: typeof requestTypes.write_bundles_request,
   run: (
-    RunInput<Map<string, PackagedBundleInfo>>,
-  ) => Async<Map<string, PackagedBundleInfo>>,
+    RunInput<WriteBundlesRequestResult>,
+  ) => Async<WriteBundlesRequestResult>,
   input: WriteBundlesRequestInput,
 |};
 

@@ -29,7 +29,7 @@ type ParcelBuildRequestInput = {|
   signal?: AbortSignal,
 |};
 
-type ParcelBuildRequestResult = {|
+export type ParcelBuildRequestResult = {|
   bundleGraph: BundleGraph,
   bundleInfo: Map<string, PackagedBundleInfo>,
   changedAssets: Map<string, Asset>,

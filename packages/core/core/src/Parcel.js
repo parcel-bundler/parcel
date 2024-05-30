@@ -61,7 +61,7 @@ export const INTERNAL_TRANSFORM: symbol = Symbol('internal_transform');
 export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
-  #requestTracker /*: RequestTracker*/;
+  #requestTracker: RequestTracker;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
@@ -152,8 +152,8 @@ export default class Parcel {
     this.#disposable.add(() => this.#watchEvents.dispose());
 
     this.#reporterRunner = new ReporterRunner({
-      config: this.#config,
       options: resolvedOptions,
+      reporters: await this.#config.getReporters(),
       workerFarm: this.#farm,
     });
     this.#disposable.add(this.#reporterRunner);
@@ -313,7 +313,7 @@ export default class Parcel {
       if (options.shouldTrace) {
         tracer.enable();
       }
-      this.#reporterRunner.report({
+      await this.#reporterRunner.report({
         type: 'buildStart',
       });
 
@@ -401,6 +401,11 @@ export default class Parcel {
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
         {force: assetRequests.length > 0},
       );
+
+      if (this.#reporterRunner.errors.length) {
+        throw this.#reporterRunner.errors;
+      }
+
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {

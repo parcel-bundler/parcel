@@ -16,24 +16,24 @@ impl FileSystem for OsFileSystem {
     std::env::current_dir()
   }
 
-  fn canonicalize<P: AsRef<Path>>(
+  fn canonicalize(
     &self,
-    path: P,
+    path: &Path,
     cache: &DashMap<PathBuf, Option<PathBuf>>,
   ) -> std::io::Result<PathBuf> {
-    canonicalize(path.as_ref(), cache)
+    canonicalize(path, cache)
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     std::fs::read_to_string(path)
   }
 
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_file(&self, path: &Path) -> bool {
     let path: &Path = path.as_ref();
     path.is_file()
   }
 
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_dir(&self, path: &Path) -> bool {
     let path: &Path = path.as_ref();
     path.is_dir()
   }

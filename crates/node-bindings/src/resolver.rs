@@ -93,13 +93,13 @@ pub struct JsFileSystem {
 }
 
 impl FileSystem for JsFileSystem {
-  fn canonicalize<P: AsRef<Path>>(
+  fn canonicalize(
     &self,
-    path: P,
+    path: &Path,
     _cache: &DashMap<PathBuf, Option<PathBuf>>,
   ) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let path = self.canonicalize.env.create_string(path.as_ref())?;
       let res: JsString = self.canonicalize.get()?.call(None, &[path])?.try_into()?;
       let utf8 = res.into_utf8()?;
@@ -109,9 +109,9 @@ impl FileSystem for JsFileSystem {
     canonicalize().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     let read = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let path = self.read.env.create_string(path.as_ref())?;
       let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
       let value = res.into_value()?;
@@ -121,9 +121,9 @@ impl FileSystem for JsFileSystem {
     read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_file(&self, path: &Path) -> bool {
     let is_file = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let p = self.is_file.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_file.get()?.call(None, &[p])?.try_into()?;
       res.get_value()
@@ -132,9 +132,9 @@ impl FileSystem for JsFileSystem {
     is_file().unwrap_or(false)
   }
 
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_dir(&self, path: &Path) -> bool {
     let is_dir = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let path = self.is_dir.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_dir.get()?.call(None, &[path])?.try_into()?;
       res.get_value()
@@ -153,9 +153,9 @@ enum EitherFs<A, B> {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
-  fn canonicalize<P: AsRef<Path>>(
+  fn canonicalize(
     &self,
-    path: P,
+    path: &Path,
     cache: &DashMap<PathBuf, Option<PathBuf>>,
   ) -> std::io::Result<std::path::PathBuf> {
     match self {
@@ -164,21 +164,21 @@ impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
     }
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     match self {
       EitherFs::A(a) => a.read_to_string(path),
       EitherFs::B(b) => b.read_to_string(path),
     }
   }
 
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_file(&self, path: &Path) -> bool {
     match self {
       EitherFs::A(a) => a.is_file(path),
       EitherFs::B(b) => b.is_file(path),
     }
   }
 
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_dir(&self, path: &Path) -> bool {
     match self {
       EitherFs::A(a) => a.is_dir(path),
       EitherFs::B(b) => b.is_dir(path),

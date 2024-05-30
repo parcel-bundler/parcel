@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystem;
@@ -25,13 +26,13 @@ pub struct LoadConfigOptions<'a> {
 }
 
 /// Loads and validates .parcel_rc config
-pub struct ParcelRcConfigLoader<'a, T, U> {
-  fs: &'a T,
-  package_manager: &'a U,
+pub struct ParcelRcConfigLoader {
+  fs: Rc<dyn FileSystem>,
+  package_manager: Rc<dyn PackageManager>,
 }
 
-impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
-  pub fn new(fs: &'a T, package_manager: &'a U) -> Self {
+impl ParcelRcConfigLoader {
+  pub fn new(fs: Rc<dyn FileSystem>, package_manager: Rc<dyn PackageManager>) -> Self {
     ParcelRcConfigLoader {
       fs,
       package_manager,
@@ -41,7 +42,7 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
   fn find_config(&self, project_root: &Path, path: &PathBuf) -> Result<PathBuf, ConfigError> {
     let from = path.parent().unwrap_or(path);
 
-    find_ancestor_file(self.fs, vec![String::from(".parcelrc")], from, project_root)
+    find_ancestor_file(&*self.fs, &[".parcelrc"], from, project_root)
       .ok_or(ConfigError::MissingParcelRc(PathBuf::from(from)))
   }
 
@@ -101,7 +102,7 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
 
     self
       .fs
-      .canonicalize_base(path.clone())
+      .canonicalize_base(&path)
       .map_err(|source| ConfigError::UnresolvedConfig {
         config_type: String::from("extended config"),
         from: path,
@@ -166,7 +167,7 @@ impl<'a, T: FileSystem, U: PackageManager> ParcelRcConfigLoader<'a, T, U> {
   pub fn load(
     &self,
     project_root: &PathBuf,
-    options: LoadConfigOptions<'a>,
+    options: LoadConfigOptions,
   ) -> Result<(ParcelConfig, Vec<PathBuf>), ConfigError> {
     let resolve_from = self.resolve_from(project_root);
     let mut config_path = match options.config {
@@ -232,17 +233,17 @@ mod tests {
       });
   }
 
-  struct InMemoryPackageManager<'a> {
-    fs: &'a InMemoryFileSystem,
+  struct TestPackageManager {
+    fs: Rc<dyn FileSystem>,
   }
 
-  impl<'a> InMemoryPackageManager<'a> {
-    pub fn new(fs: &'a InMemoryFileSystem) -> Self {
+  impl TestPackageManager {
+    pub fn new(fs: Rc<dyn FileSystem>) -> Self {
       Self { fs }
     }
   }
 
-  impl<'a> PackageManager for InMemoryPackageManager<'a> {
+  impl PackageManager for TestPackageManager {
     fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError> {
       let path = match "true" {
         _s if specifier.starts_with(".") => from.join(specifier),
@@ -301,10 +302,10 @@ mod tests {
 
     #[test]
     fn errors_on_missing_parcelrc_file() {
-      let fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
-      let err = ParcelRcConfigLoader::new(&fs, &MockPackageManager::new())
+      let err = ParcelRcConfigLoader::new(fs, Rc::new(MockPackageManager::new()))
         .load(&project_root, LoadConfigOptions::default())
         .map_err(|e| e.to_string());
 
@@ -316,17 +317,17 @@ mod tests {
 
     #[test]
     fn errors_on_failed_extended_parcelrc_resolution() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let config = default_extended_config(&project_root);
 
-      fs.write_file(
-        config.base_config.path.clone(),
-        config.base_config.parcel_rc,
-      );
+      fs.write_file(&config.base_config.path, config.base_config.parcel_rc);
 
-      let err = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let err = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(&project_root, LoadConfigOptions::default())
         .map_err(|e| e.to_string());
 
@@ -346,15 +347,15 @@ mod tests {
 
     #[test]
     fn returns_default_parcel_config() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
-      fs.write_file(default_config.path, default_config.parcel_rc);
+      fs.write_file(&default_config.path, default_config.parcel_rc);
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &MockPackageManager::default())
+      let parcel_config = ParcelRcConfigLoader::new(fs, Rc::new(MockPackageManager::default()))
         .load(&project_root, LoadConfigOptions::default())
         .map_err(|e| e.to_string());
 
@@ -363,15 +364,15 @@ mod tests {
 
     #[test]
     fn returns_default_parcel_config_from_project_root() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap().join("src").join("packages").join("root");
 
       let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
-      fs.write_file(default_config.path, default_config.parcel_rc);
+      fs.write_file(&default_config.path, default_config.parcel_rc);
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &MockPackageManager::default())
+      let parcel_config = ParcelRcConfigLoader::new(fs, Rc::new(MockPackageManager::default()))
         .load(&project_root, LoadConfigOptions::default())
         .map_err(|e| e.to_string());
 
@@ -380,15 +381,16 @@ mod tests {
 
     #[test]
     fn returns_default_parcel_config_from_project_root_when_outside_cwd() {
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/root");
+
       let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
-      let mut fs = InMemoryFileSystem::default();
 
       fs.set_current_working_directory(PathBuf::from("/cwd"));
-      fs.write_file(default_config.path, default_config.parcel_rc);
+      fs.write_file(&default_config.path, default_config.parcel_rc);
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &MockPackageManager::default())
+      let parcel_config = ParcelRcConfigLoader::new(fs, Rc::new(MockPackageManager::default()))
         .load(&project_root, LoadConfigOptions::default())
         .map_err(|e| e.to_string());
 
@@ -397,7 +399,7 @@ mod tests {
 
     #[test]
     fn returns_merged_default_parcel_config() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let default_config = default_extended_config(&project_root);
@@ -407,16 +409,19 @@ mod tests {
       ];
 
       fs.write_file(
-        default_config.base_config.path,
+        &default_config.base_config.path,
         default_config.base_config.parcel_rc,
       );
 
       fs.write_file(
-        default_config.extended_config.path,
+        &default_config.extended_config.path,
         default_config.extended_config.parcel_rc,
       );
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let parcel_config = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(&project_root, LoadConfigOptions::default())
         .map_err(|e| e.to_string());
 
@@ -431,13 +436,15 @@ mod tests {
 
     #[test]
     fn errors_on_failed_config_resolution() {
-      let fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let mut package_manager = MockPackageManager::new();
       let project_root = fs.cwd().unwrap();
 
       fail_package_manager_resolution(&mut package_manager);
 
-      let err = ParcelRcConfigLoader::new(&fs, &package_manager)
+      let package_manager = Rc::new(package_manager);
+
+      let err = ParcelRcConfigLoader::new(fs, package_manager)
         .load(
           &&project_root,
           LoadConfigOptions {
@@ -464,17 +471,17 @@ mod tests {
 
     #[test]
     fn errors_on_failed_extended_config_resolution() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let (specifier, config) = extended_config(&project_root);
 
-      fs.write_file(
-        config.base_config.path.clone(),
-        config.base_config.parcel_rc,
-      );
+      fs.write_file(&config.base_config.path, config.base_config.parcel_rc);
 
-      let err = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let err = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -501,11 +508,11 @@ mod tests {
 
     #[test]
     fn errors_on_missing_config_file() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let mut package_manager = MockPackageManager::new();
       let project_root = fs.cwd().unwrap();
 
-      fs.write_file(project_root.join(".parcelrc"), String::from("{}"));
+      fs.write_file(&project_root.join(".parcelrc"), String::from("{}"));
 
       let config_path = package_manager_resolution(
         &mut package_manager,
@@ -513,7 +520,10 @@ mod tests {
         project_root.join("index"),
       );
 
-      let err = ParcelRcConfigLoader::new(&fs, &package_manager)
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(package_manager);
+
+      let err = ParcelRcConfigLoader::new(fs, package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -538,16 +548,19 @@ mod tests {
 
     #[test]
     fn returns_specified_config() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let (specifier, specified_config) = config(&project_root);
       let files = vec![specified_config.path.clone()];
 
-      fs.write_file(project_root.join(".parcelrc"), String::from("{}"));
-      fs.write_file(specified_config.path, specified_config.parcel_rc);
+      fs.write_file(&project_root.join(".parcelrc"), String::from("{}"));
+      fs.write_file(&specified_config.path, specified_config.parcel_rc);
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let parcel_config = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -572,13 +585,15 @@ mod tests {
 
     #[test]
     fn errors_on_failed_fallback_resolution() {
-      let fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let mut package_manager = MockPackageManager::new();
       let project_root = fs.cwd().unwrap();
 
       fail_package_manager_resolution(&mut package_manager);
 
-      let err = ParcelRcConfigLoader::new(&fs, &package_manager)
+      let package_manager = Rc::new(package_manager);
+
+      let err = ParcelRcConfigLoader::new(fs, package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -605,17 +620,17 @@ mod tests {
 
     #[test]
     fn errors_on_failed_extended_fallback_config_resolution() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let (fallback_specifier, fallback) = extended_config(&project_root);
 
-      fs.write_file(
-        fallback.base_config.path.clone(),
-        fallback.base_config.parcel_rc,
-      );
+      fs.write_file(&fallback.base_config.path, fallback.base_config.parcel_rc);
 
-      let err = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let err = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -642,7 +657,7 @@ mod tests {
 
     #[test]
     fn errors_on_missing_fallback_config_file() {
-      let fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let mut package_manager = MockPackageManager::new();
       let project_root = fs.cwd().unwrap();
 
@@ -652,7 +667,9 @@ mod tests {
         project_root.join("index"),
       );
 
-      let err = ParcelRcConfigLoader::new(&InMemoryFileSystem::default(), &package_manager)
+      let package_manager = Rc::new(package_manager);
+
+      let err = ParcelRcConfigLoader::new(fs, package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -677,20 +694,19 @@ mod tests {
 
     #[test]
     fn returns_project_root_parcel_rc() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let (fallback_specifier, fallback) = fallback_config(&project_root);
       let project_root_config = default_config(&Rc::new(project_root.join(".parcelrc")));
 
-      fs.write_file(
-        project_root_config.path.clone(),
-        project_root_config.parcel_rc,
-      );
+      fs.write_file(&project_root_config.path, project_root_config.parcel_rc);
+      fs.write_file(&fallback.path, String::from("{}"));
 
-      fs.write_file(fallback.path, String::from("{}"));
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let parcel_config = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -712,15 +728,18 @@ mod tests {
 
     #[test]
     fn returns_fallback_config_when_parcel_rc_is_missing() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let (fallback_specifier, fallback) = fallback_config(&project_root);
       let files = vec![fallback.path.clone()];
 
-      fs.write_file(fallback.path, fallback.parcel_rc);
+      fs.write_file(&fallback.path, fallback.parcel_rc);
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let parcel_config = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -742,7 +761,7 @@ mod tests {
 
     #[test]
     fn returns_specified_config() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let (config_specifier, config) = config(&project_root);
@@ -750,10 +769,13 @@ mod tests {
 
       let files = vec![config.path.clone()];
 
-      fs.write_file(config.path, config.parcel_rc);
-      fs.write_file(fallback_config.path, fallback_config.parcel_rc);
+      fs.write_file(&config.path, config.parcel_rc);
+      fs.write_file(&fallback_config.path, fallback_config.parcel_rc);
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let parcel_config = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(
           &project_root,
           LoadConfigOptions {
@@ -769,7 +791,7 @@ mod tests {
 
     #[test]
     fn returns_fallback_config_when_config_file_missing() {
-      let mut fs = InMemoryFileSystem::default();
+      let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
       let (config_specifier, _config) = config(&project_root);
@@ -777,9 +799,12 @@ mod tests {
 
       let files = vec![fallback.path.clone()];
 
-      fs.write_file(fallback.path, fallback.parcel_rc);
+      fs.write_file(&fallback.path, fallback.parcel_rc);
 
-      let parcel_config = ParcelRcConfigLoader::new(&fs, &InMemoryPackageManager::new(&fs))
+      let fs: Rc<dyn FileSystem> = fs;
+      let package_manager = Rc::new(TestPackageManager::new(Rc::clone(&fs)));
+
+      let parcel_config = ParcelRcConfigLoader::new(Rc::clone(&fs), package_manager)
         .load(
           &project_root,
           LoadConfigOptions {

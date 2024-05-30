@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use crate::FileSystem;
 
 pub fn find_ancestor_file<P: AsRef<Path>>(
-  fs: &impl FileSystem,
-  filenames: Vec<String>,
+  fs: &dyn FileSystem,
+  filenames: &[&str],
   from: P,
   root: P,
 ) -> Option<PathBuf> {
@@ -17,7 +17,7 @@ pub fn find_ancestor_file<P: AsRef<Path>>(
       }
     }
 
-    for name in &filenames {
+    for name in filenames {
       let fullpath = dir.join(name);
       if fs.is_file(&fullpath) {
         return Some(fullpath);

@@ -55,6 +55,23 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
+import {
+  storeRequestTrackerCacheInfo,
+  clearRequestTrackerCacheInfo,
+} from './RequestTrackerCacheInfo';
+import type {AssetGraphRequestResult} from './requests/AssetGraphRequest';
+import type {PackageRequestResult} from './requests/PackageRequest';
+import type {ConfigRequestResult} from './requests/ConfigRequest';
+import type {DevDepRequestResult} from './requests/DevDepRequest';
+import type {WriteBundlesRequestResult} from './requests/WriteBundlesRequest';
+import type {WriteBundleRequestResult} from './requests/WriteBundleRequest';
+import type {TargetRequestResult} from './requests/TargetRequest';
+import type {PathRequestResult} from './requests/PathRequest';
+import type {ParcelConfigRequestResult} from './requests/ParcelConfigRequest';
+import type {ParcelBuildRequestResult} from './requests/ParcelBuildRequest';
+import type {EntryRequestResult} from './requests/EntryRequest';
+import type {BundleGraphResult} from './requests/BundleGraphRequest';
+import type {AssetRequestResult} from './types';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -140,13 +157,28 @@ type Request<TInput, TResult> = {|
   run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 
+export type RequestResult =
+  | AssetGraphRequestResult
+  | PackageRequestResult
+  | ConfigRequestResult
+  | DevDepRequestResult
+  | WriteBundlesRequestResult
+  | WriteBundleRequestResult
+  | TargetRequestResult
+  | PathRequestResult
+  | ParcelConfigRequestResult
+  | ParcelBuildRequestResult
+  | EntryRequestResult
+  | BundleGraphResult
+  | AssetRequestResult;
+
 type InvalidateReason = number;
 type RequestNode = {|
   id: ContentKey,
   +type: typeof REQUEST,
   +requestType: RequestType,
   invalidateReason: InvalidateReason,
-  result?: mixed,
+  result?: RequestResult,
   resultCacheKey?: ?string,
   hash?: string,
 |};
@@ -180,7 +212,7 @@ type RequestGraphNode =
   | OptionNode
   | ConfigKeyNode;
 
-export type RunAPI<TResult> = {|
+export type RunAPI<TResult: RequestResult> = {|
   invalidateOnFileCreate: InternalFileCreateInvalidation => void,
   invalidateOnFileDelete: ProjectPath => void,
   invalidateOnFileUpdate: ProjectPath => void,
@@ -195,12 +227,12 @@ export type RunAPI<TResult> = {|
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult(result: TResult, cacheKey?: string): void,
-  getRequestResult<T>(contentKey: ContentKey): Async<?T>,
-  getPreviousResult<T>(ifMatch?: string): Async<?T>,
+  getRequestResult<T: RequestResult>(contentKey: ContentKey): Async<?T>,
+  getPreviousResult<T: RequestResult>(ifMatch?: string): Async<?T>,
   getSubRequests(): Array<RequestNode>,
   getInvalidSubRequests(): Array<RequestNode>,
   canSkipSubrequest(ContentKey): boolean,
-  runRequest: <TInput, TResult>(
+  runRequest: <TInput, TResult: RequestResult>(
     subRequest: Request<TInput, TResult>,
     opts?: RunRequestOpts,
   ) => Promise<TResult>,
@@ -1092,7 +1124,7 @@ export default class RequestTracker {
   }
 
   // If a cache key is provided, the result will be removed from the node and stored in a separate cache entry
-  storeResult(nodeId: NodeId, result: mixed, cacheKey: ?string) {
+  storeResult(nodeId: NodeId, result: RequestResult, cacheKey: ?string) {
     let node = this.graph.getNode(nodeId);
     if (node && node.type === REQUEST) {
       node.result = result;
@@ -1108,7 +1140,7 @@ export default class RequestTracker {
     );
   }
 
-  async getRequestResult<T>(
+  async getRequestResult<T: RequestResult>(
     contentKey: ContentKey,
     ifMatch?: string,
   ): Promise<?T> {
@@ -1180,7 +1212,7 @@ export default class RequestTracker {
     this.graph.replaceSubrequests(requestNodeId, subrequestContextKeys);
   }
 
-  async runRequest<TInput, TResult>(
+  async runRequest<TInput, TResult: RequestResult>(
     request: Request<TInput, TResult>,
     opts?: ?RunRequestOpts,
   ): Promise<TResult> {
@@ -1285,7 +1317,7 @@ export default class RequestTracker {
     return formattedStats;
   }
 
-  createAPI<TResult>(
+  createAPI<TResult: RequestResult>(
     requestId: NodeId,
     previousInvalidations: Array<RequestInvalidation>,
   ): {|api: RunAPI<TResult>, subRequestContentKeys: Set<ContentKey>|} {
@@ -1320,11 +1352,12 @@ export default class RequestTracker {
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
       getInvalidSubRequests: () => this.graph.getInvalidSubRequests(requestId),
-      getPreviousResult: <T>(ifMatch?: string): Async<?T> => {
+      getPreviousResult: <T: RequestResult>(ifMatch?: string): Async<?T> => {
         let contentKey = nullthrows(this.graph.getNode(requestId)?.id);
         return this.getRequestResult<T>(contentKey, ifMatch);
       },
-      getRequestResult: <T>(id): Async<?T> => this.getRequestResult<T>(id),
+      getRequestResult: <T: RequestResult>(id): Async<?T> =>
+        this.getRequestResult<T>(id),
       canSkipSubrequest: contentKey => {
         if (
           this.graph.hasContentKey(contentKey) &&
@@ -1336,7 +1369,7 @@ export default class RequestTracker {
 
         return false;
       },
-      runRequest: <TInput, TResult>(
+      runRequest: <TInput, TResult: RequestResult>(
         subRequest: Request<TInput, TResult>,
         opts?: RunRequestOpts,
       ): Promise<TResult> => {
@@ -1360,6 +1393,7 @@ export default class RequestTracker {
     let serialisedGraph = this.graph.serialize();
 
     // Delete an existing request graph cache, to prevent invalid states
+    await clearRequestTrackerCacheInfo(this.options.cache);
     await this.options.cache.deleteLargeBlob(requestGraphKey);
 
     let total = 0;
@@ -1486,6 +1520,11 @@ export default class RequestTracker {
       if (!signal?.aborted) throw err;
     }
 
+    await storeRequestTrackerCacheInfo(this.options.cache, {
+      requestGraphKey,
+      snapshotKey,
+      timestamp: Date.now(),
+    });
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
 

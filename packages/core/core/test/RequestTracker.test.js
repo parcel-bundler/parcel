@@ -144,6 +144,7 @@ describe('RequestTracker', () => {
     await tracker.runRequest({
       id: 'abc',
       type: 7,
+      // $FlowFixMe string isn't a valid result
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve('hello');
         api.storeResult(result);
@@ -190,6 +191,7 @@ describe('RequestTracker', () => {
     await tracker.runRequest({
       id: 'abc',
       type: 7,
+      // $FlowFixMe string isn't a valid result
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve();
         api.storeResult(result);
@@ -222,6 +224,7 @@ describe('RequestTracker', () => {
     let requestA = tracker.runRequest({
       id: 'abc',
       type: 7,
+      // $FlowFixMe string isn't a valid result
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         await lockA.promise;
         api.storeResult('a');
@@ -234,6 +237,7 @@ describe('RequestTracker', () => {
     let requestB = tracker.runRequest({
       id: 'abc',
       type: 7,
+      // $FlowFixMe string isn't a valid result
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         calledB = true;
         await lockB.promise;
@@ -283,6 +287,7 @@ describe('RequestTracker', () => {
     let requestB = tracker.runRequest({
       id: 'abc',
       type: 7,
+      // $FlowFixMe string isn't a valid result
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         await lockB.promise;
         api.storeResult('b');
@@ -385,6 +390,7 @@ describe('RequestTracker', () => {
     await tracker.runRequest({
       id: contentKey,
       type: 7,
+      // $FlowFixMe string isn't a valid result
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve('a');
         api.storeResult(result);
@@ -398,6 +404,7 @@ describe('RequestTracker', () => {
       {
         id: contentKey,
         type: 7,
+        // $FlowFixMe string isn't a valid result
         run: async ({api}: {api: RunAPI<string | void>, ...}) => {
           let result = await Promise.resolve('b');
           api.storeResult(result);

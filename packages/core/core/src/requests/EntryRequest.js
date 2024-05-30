@@ -34,11 +34,11 @@ type RunOpts<TResult> = {|
 export type EntryRequest = {|
   id: string,
   +type: typeof requestTypes.entry_request,
-  run: (RunOpts<EntryResult>) => Async<EntryResult>,
+  run: (RunOpts<EntryRequestResult>) => Async<EntryRequestResult>,
   input: ProjectPath,
 |};
 
-export type EntryResult = {|
+export type EntryRequestResult = {|
   entries: Array<Entry>,
   files: Array<InternalFile>,
   globs: Array<Glob>,
@@ -55,7 +55,7 @@ export default function createEntryRequest(input: ProjectPath): EntryRequest {
   };
 }
 
-async function run({input, api, options}): Promise<EntryResult> {
+async function run({input, api, options}): Promise<EntryRequestResult> {
   let entryResolver = new EntryResolver(options);
   let filePath = fromProjectPath(options.projectRoot, input);
   let result = await entryResolver.resolveEntry(filePath);
@@ -157,7 +157,7 @@ export class EntryResolver {
     this.options = options;
   }
 
-  async resolveEntry(entry: FilePath): Promise<EntryResult> {
+  async resolveEntry(entry: FilePath): Promise<EntryRequestResult> {
     let stat;
     try {
       stat = await this.options.inputFS.stat(entry);

@@ -8,9 +8,9 @@ use anyhow::anyhow;
 use napi_derive::napi;
 use parcel_resolver::FileSystem;
 
-use crate::project_path::ProjectPath;
-use crate::requests::config_request::InternalFileCreateInvalidation;
-use crate::requests::request_api::RequestApi;
+use crate::core::project_path::ProjectPath;
+use crate::core::requests::config_request::InternalFileCreateInvalidation;
+use crate::core::requests::request_api::RequestApi;
 
 #[napi(object)]
 #[derive(Debug, Clone, PartialEq)]
@@ -215,7 +215,7 @@ mod test {
 
   #[test]
   fn test_resolve_entry_file() {
-    let mut fs = InMemoryFileSystem::default();
+    let fs = InMemoryFileSystem::default();
     fs.set_current_working_directory("/project".into());
     let project_root = Path::new("/project");
     let path = Path::new("/project/file");

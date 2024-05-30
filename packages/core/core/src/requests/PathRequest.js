@@ -56,9 +56,11 @@ import {requestTypes} from '../RequestTracker';
 export type PathRequest = {|
   id: string,
   +type: typeof requestTypes.path_request,
-  run: (RunOpts<?AssetGroup>) => Async<?AssetGroup>,
+  run: (RunOpts<PathRequestResult>) => Async<PathRequestResult>,
   input: PathRequestInput,
 |};
+
+export type PathRequestResult = null | void | AssetGroup;
 
 export type PathRequestInput = {|
   dependency: Dependency,
@@ -83,7 +85,7 @@ export default function createPathRequest(
   };
 }
 
-async function run({input, api, options}) {
+async function run({input, api, options}): Promise<PathRequestResult> {
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );

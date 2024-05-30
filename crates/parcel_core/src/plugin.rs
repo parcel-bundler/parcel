@@ -1,4 +1,5 @@
 mod bundler;
+
 pub use bundler::*;
 
 mod compressor;
@@ -12,6 +13,9 @@ pub use optimizer::*;
 
 mod packager;
 pub use packager::*;
+
+mod plugin_config;
+pub use plugin_config::*;
 
 mod reporter;
 pub use reporter::*;
@@ -28,11 +32,14 @@ pub use transformer::*;
 mod validator;
 pub use validator::*;
 
+#[derive(Default)]
 pub struct PluginContext {
   pub options: PluginOptions,
   pub logger: PluginLogger,
 }
 
+#[derive(Default)]
 pub struct PluginLogger {}
 
+#[derive(Default)]
 pub struct PluginOptions {}

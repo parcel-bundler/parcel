@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Component;
 use std::path::Path;
@@ -15,29 +16,30 @@ enum InMemoryFileSystemEntry {
 /// In memory implementation of the `FileSystem` trait, for testing purpouses.
 #[derive(Debug)]
 pub struct InMemoryFileSystem {
-  files: HashMap<PathBuf, InMemoryFileSystemEntry>,
-  current_working_directory: PathBuf,
+  files: RefCell<HashMap<PathBuf, InMemoryFileSystemEntry>>,
+  current_working_directory: RefCell<PathBuf>,
 }
 
 impl InMemoryFileSystem {
   /// Change the current working directory. Used for resolving relative paths.
-  pub fn set_current_working_directory(&mut self, cwd: PathBuf) {
-    self.current_working_directory = cwd;
+  pub fn set_current_working_directory(&self, cwd: PathBuf) {
+    self.current_working_directory.replace(cwd);
   }
 
   /// Create a directory at path.
-  pub fn create_directory(&mut self, path: impl AsRef<Path>) {
+  pub fn create_directory(&self, path: &Path) {
     self
       .files
-      .insert(path.as_ref().into(), InMemoryFileSystemEntry::Directory);
+      .borrow_mut()
+      .insert(path.into(), InMemoryFileSystemEntry::Directory);
   }
 
   /// Write a file at path.
-  pub fn write_file(&mut self, path: impl AsRef<Path>, contents: String) {
-    self.files.insert(
-      path.as_ref().into(),
-      InMemoryFileSystemEntry::File { contents },
-    );
+  pub fn write_file(&self, path: &Path, contents: String) {
+    self
+      .files
+      .borrow_mut()
+      .insert(path.into(), InMemoryFileSystemEntry::File { contents });
   }
 }
 
@@ -45,23 +47,22 @@ impl Default for InMemoryFileSystem {
   fn default() -> Self {
     Self {
       files: Default::default(),
-      current_working_directory: PathBuf::from("/"),
+      current_working_directory: RefCell::new(PathBuf::from("/")),
     }
   }
 }
 
 impl FileSystem for InMemoryFileSystem {
   fn cwd(&self) -> std::io::Result<PathBuf> {
-    Ok(self.current_working_directory.clone())
+    Ok(self.current_working_directory.borrow().clone())
   }
 
-  fn canonicalize_base<P: AsRef<Path>>(&self, path: P) -> std::io::Result<PathBuf> {
-    let path = path.as_ref();
-
+  fn canonicalize_base(&self, path: &Path) -> std::io::Result<PathBuf> {
+    let cwd = self.current_working_directory.borrow();
     let mut result = if path.is_absolute() {
       vec![]
     } else {
-      self.current_working_directory.components().collect()
+      cwd.components().collect()
     };
 
     let components = path.components();
@@ -86,8 +87,8 @@ impl FileSystem for InMemoryFileSystem {
     Ok(PathBuf::from_iter(result))
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
-    self.files.get(path.as_ref()).map_or_else(
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+    self.files.borrow().get(path).map_or_else(
       || {
         Err(std::io::Error::new(
           std::io::ErrorKind::NotFound,
@@ -104,13 +105,15 @@ impl FileSystem for InMemoryFileSystem {
     )
   }
 
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
-    let file = self.files.get(path.as_ref());
+  fn is_file(&self, path: &Path) -> bool {
+    let files = self.files.borrow();
+    let file = files.get(path);
     matches!(file, Some(InMemoryFileSystemEntry::File { .. }))
   }
 
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
-    let file = self.files.get(path.as_ref());
+  fn is_dir(&self, path: &Path) -> bool {
+    let files = self.files.borrow();
+    let file = files.get(path);
     matches!(file, Some(InMemoryFileSystemEntry::Directory { .. }))
   }
 }
@@ -147,7 +150,7 @@ mod test {
 
   #[test]
   fn test_with_cwd() {
-    let mut fs = InMemoryFileSystem::default();
+    let fs = InMemoryFileSystem::default();
     fs.set_current_working_directory(PathBuf::from("/other"));
     let result = fs
       .canonicalize(Path::new("./foo/./bar/../baz/"), &Default::default())
@@ -157,8 +160,8 @@ mod test {
 
   #[test]
   fn test_read_file() {
-    let mut fs = InMemoryFileSystem::default();
-    fs.write_file(PathBuf::from("/foo/bar"), "contents".to_string());
+    let fs = InMemoryFileSystem::default();
+    fs.write_file(&PathBuf::from("/foo/bar"), "contents".to_string());
     let result = fs.read_to_string(Path::new("/foo/bar")).unwrap();
     assert_eq!(result, "contents");
   }
@@ -172,16 +175,16 @@ mod test {
 
   #[test]
   fn test_is_file() {
-    let mut fs = InMemoryFileSystem::default();
-    fs.write_file(PathBuf::from("/foo/bar"), "contents".to_string());
+    let fs = InMemoryFileSystem::default();
+    fs.write_file(&PathBuf::from("/foo/bar"), "contents".to_string());
     assert!(fs.is_file(Path::new("/foo/bar")));
     assert!(!fs.is_file(Path::new("/foo")));
   }
 
   #[test]
   fn test_is_dir() {
-    let mut fs = InMemoryFileSystem::default();
-    fs.create_directory(PathBuf::from("/foo"));
+    let fs = InMemoryFileSystem::default();
+    fs.create_directory(&PathBuf::from("/foo"));
     assert!(fs.is_dir(Path::new("/foo")));
     assert!(!fs.is_dir(Path::new("/foo/bar")));
   }

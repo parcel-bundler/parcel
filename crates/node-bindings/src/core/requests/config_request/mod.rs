@@ -7,8 +7,8 @@ use std::path::Path;
 use napi_derive::napi;
 use parcel_resolver::FileSystem;
 
-use crate::project_path::ProjectPath;
-use crate::requests::request_api::RequestApi;
+use crate::core::project_path::ProjectPath;
+use crate::core::requests::request_api::RequestApi;
 
 pub type InternalGlob = String;
 
@@ -158,8 +158,8 @@ mod test {
   use parcel_filesystem::os_file_system::OsFileSystem;
 
   use super::*;
-  use crate::requests::config_request::run_config_request;
-  use crate::requests::request_api::MockRequestApi;
+  use crate::core::requests::config_request::run_config_request;
+  use crate::core::requests::request_api::MockRequestApi;
 
   #[test]
   fn test_run_empty_config_request_does_nothing() {
@@ -354,7 +354,7 @@ mod test {
 
   #[test]
   fn test_read_json_config() {
-    let mut file_system = InMemoryFileSystem::default();
+    let file_system = InMemoryFileSystem::default();
     let config_path = Path::new("/config.json");
     file_system.write_file(config_path, String::from(r#"{"key": "value"}"#));
 
@@ -364,7 +364,7 @@ mod test {
 
   #[test]
   fn test_read_toml_config() {
-    let mut file_system = InMemoryFileSystem::default();
+    let file_system = InMemoryFileSystem::default();
     let config_path = Path::new("/config.toml");
     file_system.write_file(config_path, String::from(r#"key = "value""#));
 
