@@ -6,7 +6,7 @@ import {bundle, run} from '@parcel/test-utils';
 import * as napi from '@parcel/rust';
 import {inputFS} from '@parcel/test-utils';
 
-describe.only('parcel-v3', function () {
+describe('parcel-v3', function () {
   // Duplicated temporarily for convenience, will remove once the Rust stuff works
   it.skip('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
@@ -25,8 +25,6 @@ describe.only('parcel-v3', function () {
   });
 
   it('should run the main-thread bootstrap function', async function () {
-    // eslint-disable-next-line no-unused-vars
-
     let p = new napi.ParcelNapi({
       fs: {
         readFileSync: (_, path) => inputFS.readFileSync(path),
