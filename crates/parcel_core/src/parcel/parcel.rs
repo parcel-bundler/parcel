@@ -19,22 +19,4 @@ impl Parcel {
 
     Self { fs }
   }
-
-  pub fn build(_options: BuildOptions) -> Result<BuildResult, anyhow::Error> {
-    todo!();
-  }
-
-  pub fn run() {
-    todo!();
-  }
-
-  pub fn watch() {
-    todo!();
-  }
-}
-
-pub struct BuildOptions {}
-
-pub struct BuildResult {
-  pub asset_graph: (),
 }
