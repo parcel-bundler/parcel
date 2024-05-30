@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -6,6 +7,7 @@ use std::thread;
 use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
+use napi::JsString;
 use napi::JsUnknown;
 use napi_derive::napi;
 use parcel_core::Parcel;
@@ -28,7 +30,9 @@ pub struct BuildResultNapi {
 }
 
 #[napi]
-pub struct ParcelNapi {}
+pub struct ParcelNapi {
+  fs_napi: FileSystemNapi,
+}
 
 #[napi]
 impl ParcelNapi {
@@ -36,23 +40,23 @@ impl ParcelNapi {
   pub fn new(env: Env, options: JsObject) -> napi::Result<Self> {
     if !options.has_named_property("fs")? {}
     let fs_raw: JsObject = options.get_named_property("fs")?;
-    let js_delegate_fs = FileSystemNapi::new(&env, fs_raw)?;
+    let fs_napi = FileSystemNapi::new(&env, fs_raw)?;
 
-    thread::spawn(move || {
-      let p = js_delegate_fs
-        .read_to_string(&PathBuf::from(
-          "/home/dalsh/Development/parcel/parcel/crates/node-bindings/src/parcel/parcel.rs",
-        ))
-        .unwrap();
-
-      println!("{}", p);
-    });
-
-    Ok(Self {})
+    Ok(Self { fs_napi })
   }
 
-  //   #[napi]
-  //   pub fn create_asset_graph() -> Result<BuildResultNapi, anyhow::Error> {
-  //     todo!();
-  //   }
+  #[napi]
+  pub fn _testing_temp_fs_read_to_string(&self, path: String) -> napi::Result<String> {
+    Ok(self.fs_napi.read_to_string(&PathBuf::from(path))?)
+  }
+
+  #[napi]
+  pub fn _testing_temp_fs_is_file(&self, path: String) -> napi::Result<bool> {
+    Ok(self.fs_napi.is_file(&PathBuf::from(path)))
+  }
+
+  #[napi]
+  pub fn _testing_temp_fs_is_dir(&self, path: String) -> napi::Result<bool> {
+    Ok(self.fs_napi.is_dir(&PathBuf::from(path)))
+  }
 }

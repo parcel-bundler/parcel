@@ -29,8 +29,14 @@ describe.only('parcel-v3', function () {
 
     let p = new napi.ParcelNapi({
       fs: {
-        readFileSync: (_, ...args) => inputFS.readFileSync(...args),
+        readFileSync: (_, path) => inputFS.readFileSync(path),
+        isFile: (_, path) => inputFS.statSync(path).isFile(),
+        isDir: (_, path) => inputFS.statSync(path).isDirectory(),
       },
     });
+
+    console.log(p.testingTempFsReadToString(__filename));
+    console.log(p.testingTempFsIsDir(__filename));
+    console.log(p.testingTempFsIsFile(__filename));
   });
 });
