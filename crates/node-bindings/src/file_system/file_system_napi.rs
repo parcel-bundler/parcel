@@ -13,6 +13,9 @@ use parcel_filesystem::FileSystem;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+// TODO error handling
+
+#[derive(Clone)]
 pub struct FileSystemNapi {
   tx_read_file_sync: Sender<(PathBuf, Sender<String>)>,
   tx_is_file_sync: Sender<(PathBuf, Sender<bool>)>,
@@ -29,6 +32,8 @@ impl FileSystemNapi {
   }
 }
 
+// These methods must be run off the nodejs main/worker
+// thread or they will cause JavaScript to deadlock
 impl FileSystem for FileSystemNapi {
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     let (tx, rx) = channel();

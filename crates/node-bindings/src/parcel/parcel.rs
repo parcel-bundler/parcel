@@ -1,23 +1,15 @@
-use std::path::Path;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::Arc;
-use std::thread;
 
 use napi::Env;
-use napi::JsFunction;
 use napi::JsObject;
-use napi::JsString;
-use napi::JsUnknown;
 use napi_derive::napi;
+use parcel_core::types::FileSystem;
 use parcel_core::Parcel;
 use parcel_core::ParcelOptions;
-use parcel_filesystem::js_delegate_file_system::JSDelegateFileSystem;
-use parcel_filesystem::FileSystem;
-use serde::Deserialize;
-use serde::Serialize;
+use parking_lot::RwLock;
 
-use crate::file_system::file_system_napi::FileSystemNapi;
+use crate::file_system::FileSystemNapi;
 
 pub struct ParcelNapiOptions {
   fs: Option<Box<dyn FileSystem>>,
@@ -31,33 +23,52 @@ pub struct BuildResultNapi {
 
 #[napi]
 pub struct ParcelNapi {
-  fs_napi: FileSystemNapi,
+  internal: Arc<RwLock<Parcel>>,
+  // Temporary, for testing
+  fs_napi: Option<Arc<dyn FileSystem>>,
 }
 
 #[napi]
 impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(env: Env, options: JsObject) -> napi::Result<Self> {
-    if !options.has_named_property("fs")? {}
-    let fs_raw: JsObject = options.get_named_property("fs")?;
-    let fs_napi = FileSystemNapi::new(&env, fs_raw)?;
+    let fs_napi: Option<Arc<dyn FileSystem>> = 'block: {
+      if !options.has_named_property("fs")? {
+        break 'block None;
+      }
+      let fs_raw: JsObject = options.get_named_property("fs")?;
+      Some(Arc::new(FileSystemNapi::new(&env, fs_raw)?))
+    };
 
-    Ok(Self { fs_napi })
+    let parcel = Parcel::new(ParcelOptions {
+      fs: fs_napi.clone(),
+    });
+
+    Ok(Self {
+      fs_napi,
+      internal: Arc::new(RwLock::new(parcel)),
+    })
   }
 
-  // For testing
+  // Temporary, for testing
   #[napi]
   pub async fn _testing_temp_fs_read_to_string(&self, path: String) -> napi::Result<String> {
-    Ok(self.fs_napi.read_to_string(&PathBuf::from(path))?)
+    Ok(
+      self
+        .fs_napi
+        .as_ref()
+        .unwrap()
+        .read_to_string(&PathBuf::from(path))?,
+    )
   }
 
   #[napi]
   pub async fn _testing_temp_fs_is_file(&self, path: String) -> napi::Result<bool> {
-    Ok(self.fs_napi.is_file(&PathBuf::from(path)))
+    Ok(self.fs_napi.as_ref().unwrap().is_file(&PathBuf::from(path)))
   }
 
   #[napi]
   pub async fn _testing_temp_fs_is_dir(&self, path: String) -> napi::Result<bool> {
-    Ok(self.fs_napi.is_dir(&PathBuf::from(path)))
+    Ok(self.fs_napi.as_ref().unwrap().is_dir(&PathBuf::from(path)))
   }
 }

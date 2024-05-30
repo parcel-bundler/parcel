@@ -3,13 +3,12 @@ use std::sync::Arc;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystem;
 
-// TODO eventual public API for Parcel
 pub struct Parcel {
   _fs: Arc<dyn FileSystem>,
 }
 
 pub struct ParcelOptions {
-  fs: Option<Arc<dyn FileSystem>>,
+  pub fs: Option<Arc<dyn FileSystem>>,
 }
 
 impl Parcel {
@@ -20,21 +19,11 @@ impl Parcel {
 
     Self { _fs: fs }
   }
-}
 
-pub struct BuildOptions {}
-
-pub struct BuildResult {
-  pub asset_graph: (),
-}
-
-impl Parcel {
   pub fn build(_options: BuildOptions) -> Result<BuildResult, anyhow::Error> {
     todo!();
   }
-}
 
-impl Parcel {
   pub fn run() {
     todo!();
   }
@@ -42,4 +31,10 @@ impl Parcel {
   pub fn watch() {
     todo!();
   }
+}
+
+pub struct BuildOptions {}
+
+pub struct BuildResult {
+  pub asset_graph: (),
 }

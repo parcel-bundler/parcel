@@ -47,7 +47,6 @@ import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initRust, initSentry, closeSentry} from '@parcel/rust';
-import * as napi from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,

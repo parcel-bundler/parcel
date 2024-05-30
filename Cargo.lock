@@ -1896,6 +1896,11 @@ dependencies = [
  "assert_fs",
  "dashmap",
  "is_elevated",
+<<<<<<< HEAD
+=======
+ "parcel_napi_helpers",
+ "parking_lot",
+>>>>>>> 22bfa2d2f (tidy up)
 ]
 
 [[package]]

@@ -23,7 +23,7 @@ pub mod os_file_system;
 ///       it should not be in the trait
 /// * [ ] Do not use io results, instead use anyhow or this error
 ///
-pub trait FileSystem {
+pub trait FileSystem: Send + Sync {
   fn cwd(&self) -> Result<PathBuf> {
     Err(std::io::Error::new(
       std::io::ErrorKind::Other,

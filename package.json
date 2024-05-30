@@ -70,7 +70,7 @@
   },
   "lint-staged": {
     "*.{js,json,md,ts}": "prettier --write",
-    "*.rs": "cargo fmt"
+    "*.rs": "rustfmt +nightly"
   },
   "collective": {
     "type": "opencollective",
