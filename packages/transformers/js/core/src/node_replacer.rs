@@ -123,6 +123,7 @@ impl<'a> Fold for NodeReplacer<'a> {
               is_helper: false,
               source_type: Some(SourceType::Module),
               placeholder: None,
+              phase: None,
             });
 
             *self.has_node_replacements = true;
@@ -170,6 +171,7 @@ impl<'a> Fold for NodeReplacer<'a> {
               is_helper: false,
               source_type: Some(SourceType::Module),
               placeholder: None,
+              phase: None,
             });
 
             *self.has_node_replacements = true;

@@ -81,6 +81,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               is_helper: false,
               source_type: Some(SourceType::Module),
               placeholder: None,
+              phase: None,
             });
           }
         }
@@ -102,6 +103,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               is_helper: false,
               source_type: Some(SourceType::Module),
               placeholder: None,
+              phase: None,
             });
           }
         }

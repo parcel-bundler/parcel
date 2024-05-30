@@ -1,11 +1,15 @@
+use crate::collect::{Collect, Export, Import, ImportKind};
+use crate::utils::{
+  get_undefined_ident, is_unresolved, match_export_name, match_export_name_ident,
+  match_import_tier, match_property_name,
+};
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::Hasher;
 
-use indexmap::IndexMap;
-use serde::Deserialize;
-use serde::Serialize;
 use swc_core::common::Mark;
 use swc_core::common::Span;
 use swc_core::common::SyntaxContext;
@@ -17,18 +21,11 @@ use swc_core::ecma::utils::stack_size::maybe_grow_default;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
-use crate::collect::Collect;
-use crate::collect::Export;
-use crate::collect::Import;
-use crate::collect::ImportKind;
 use crate::id;
-use crate::utils::get_undefined_ident;
-use crate::utils::is_unresolved;
-use crate::utils::match_export_name;
-use crate::utils::match_export_name_ident;
+
 use crate::utils::match_import;
 use crate::utils::match_member_expr;
-use crate::utils::match_property_name;
+
 use crate::utils::match_require;
 use crate::utils::CodeHighlight;
 use crate::utils::Diagnostic;
@@ -724,6 +721,17 @@ impl<'a> Fold for Hoist<'a> {
           }
           return Expr::Ident(Ident::new(name, call.span));
         }
+
+        if let Some(source) = match_import_tier(&node, self.collect.ignore_mark) {
+          self.add_require(&source, ImportKind::PhasedImport);
+          return Expr::Ident(self.get_import_ident(
+            call.span,
+            &source,
+            &("*".into()),
+            SourceLocation::from(&self.collect.source_map, call.span),
+            ImportKind::PhasedImport,
+          ));
+        }
       }
       Expr::This(this) => {
         if !self.in_function_scope {
@@ -1008,7 +1016,9 @@ impl<'a> Hoist<'a> {
   fn add_require(&mut self, source: &JsWord, import_kind: ImportKind) {
     let src = match import_kind {
       ImportKind::Import => format!("{}:{}:{}", self.module_id, source, "esm"),
-      ImportKind::DynamicImport | ImportKind::Require => format!("{}:{}", self.module_id, source),
+      ImportKind::DynamicImport | ImportKind::Require | ImportKind::PhasedImport => {
+        format!("{}:{}", self.module_id, source)
+      }
     };
     self
       .module_items

@@ -38,7 +38,7 @@ import {
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
 const REPLACEMENT_RE =
-  /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
+  /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|importCond|require|importForDisplay|importAfterDisplay)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
@@ -718,6 +718,10 @@ ${code}
       }
 
       for (let [imported, {local}] of dep.symbols) {
+        if (dep.priority === 'phased') {
+          console.log(`dep.symbols:`, dep.id, resolved, imported, local);
+        }
+
         if (local === '*') {
           continue;
         }

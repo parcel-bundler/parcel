@@ -168,6 +168,32 @@ pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark)
   }
 }
 
+/// This matches an expression like `importForDisplay('id')` or `importAfterDisplay('id')` and returns the dependency id.
+pub fn match_import_tier(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
+  use ast::*;
+
+  match node {
+    Expr::Call(call) => match &call.callee {
+      Callee::Expr(expr) => match &**expr {
+        Expr::Ident(ident) => {
+          if ident.sym == js_word!("importForDisplay")
+            && !is_marked(ident.span, ignore_mark)
+            && call.args.len() == 1
+          {
+            if let Some(arg) = call.args.first() {
+              return match_str(&arg.expr).map(|(name, _)| name);
+            }
+          }
+          None
+        }
+        _ => None,
+      },
+      _ => None,
+    },
+    _ => None,
+  }
+}
+
 pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
   use ast::*;
 

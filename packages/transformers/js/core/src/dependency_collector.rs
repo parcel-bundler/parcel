@@ -37,6 +37,8 @@ pub enum DependencyKind {
   Import,
   Export,
   DynamicImport,
+  ForDisplayPhaseImport,
+  AfterDisplayPhaseImport,
   Require,
   WebWorker,
   ServiceWorker,
@@ -45,7 +47,21 @@ pub enum DependencyKind {
   File,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Phase {
+  ZERO = 0,
+  ONE = 1,
+  TWO = 2,
+  THREE = 3,
+}
+
 impl fmt::Display for DependencyKind {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{:?}", self)
+  }
+}
+
+impl fmt::Display for Phase {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "{:?}", self)
   }
@@ -54,6 +70,7 @@ impl fmt::Display for DependencyKind {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
+  pub phase: Option<Phase>,
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
   pub specifier: swc_core::ecma::atoms::JsWord,
@@ -152,6 +169,7 @@ impl<'a> DependencyCollector<'a> {
       is_helper: span.is_dummy(),
       source_type: Some(source_type),
       placeholder: placeholder.clone(),
+      phase: None,
     });
 
     placeholder.map(|p| p.into())
@@ -199,6 +217,7 @@ impl<'a> DependencyCollector<'a> {
       is_helper: span.is_dummy(),
       source_type: Some(source_type),
       placeholder: Some(placeholder.clone()),
+      phase: None,
     });
 
     create_url_constructor(
@@ -373,6 +392,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       Callee::Import(_) => DependencyKind::DynamicImport,
       Callee::Expr(expr) => {
         match &**expr {
+          Ident(ident) if ident.sym.to_string().as_str() == "importForDisplay" => {
+            DependencyKind::ForDisplayPhaseImport
+          }
+          Ident(ident) if ident.sym.to_string().as_str() == "importAfterDisplay" => {
+            DependencyKind::AfterDisplayPhaseImport
+          }
           Ident(ident) => {
             // Bail if defined in scope
             if !is_unresolved(&ident, self.unresolved_mark) {
@@ -705,6 +730,32 @@ impl<'a> Fold for DependencyCollector<'a> {
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
       rewrite_require_specifier(node, self.unresolved_mark)
+    } else if kind == DependencyKind::ForDisplayPhaseImport
+      || kind == DependencyKind::AfterDisplayPhaseImport
+    {
+      let mut call = node;
+      if call.args.len() != 1 {
+        // FIXME make this a diagnostic
+        panic!("importForDisplay requires 1 argument");
+      }
+
+      // Convert to require without scope hoisting
+      if !self.config.scope_hoist && !self.config.standalone {
+        let name = match &self.config.source_type {
+          SourceType::Module => "require",
+          SourceType::Script => "__parcel__require__",
+        };
+        call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+          name.into(),
+          DUMMY_SP,
+        ))));
+      }
+
+      // Track the returned require call to be replaced with a promise chain.
+      let rewritten_call = rewrite_require_specifier(call, self.unresolved_mark);
+      self.require_node = Some(rewritten_call.clone());
+
+      rewritten_call
     } else {
       node.fold_children_with(self)
     }

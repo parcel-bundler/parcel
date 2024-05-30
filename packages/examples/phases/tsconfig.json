@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "typeRoots": ["phases.d.ts"],
+    "jsx": "react",
+    "lib": ["ESNext", "DOM"],
+    "esModuleInterop": true
+  }
+}

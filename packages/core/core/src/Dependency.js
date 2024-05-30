@@ -7,6 +7,7 @@ import type {
   Symbol,
   BundleBehavior as IBundleBehavior,
   SemverRange,
+  PhaseEdge,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
 import {hashString} from '@parcel/rust';
@@ -43,6 +44,7 @@ type DependencyOpts = {|
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
   pipeline?: ?string,
+  +phaseEdge?: PhaseEdge,
 |};
 
 export function createDependency(

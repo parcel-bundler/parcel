@@ -20,6 +20,7 @@ use crate::utils::is_unresolved;
 use crate::utils::match_export_name;
 use crate::utils::match_export_name_ident;
 use crate::utils::match_import;
+use crate::utils::match_import_tier;
 use crate::utils::match_member_expr;
 use crate::utils::match_property_name;
 use crate::utils::match_require;
@@ -46,6 +47,7 @@ pub enum ImportKind {
   Require,
   Import,
   DynamicImport,
+  PhasedImport,
 }
 
 #[derive(Debug)]
@@ -763,6 +765,15 @@ impl Visit for Collect {
       self.add_bailout(span, BailoutReason::NonStaticDynamicImport);
     }
 
+    if let Some(source) = match_import_tier(node, self.ignore_mark) {
+      self.wrapped_requires.insert(source.to_string());
+      let span = match node {
+        Expr::Call(c) => c.span,
+        _ => unreachable!(),
+      };
+      self.add_bailout(span, BailoutReason::NonTopLevelRequire);
+    }
+
     match node {
       Expr::Ident(ident) => {
         // Bail if `module` or `exports` are accessed non-statically.
@@ -974,7 +985,7 @@ impl Collect {
         ImportKind::Import => self
           .wrapped_requires
           .insert(format!("{}{}", src.clone(), "esm")),
-        ImportKind::DynamicImport | ImportKind::Require => {
+        ImportKind::DynamicImport | ImportKind::Require | ImportKind::PhasedImport => {
           self.wrapped_requires.insert(src.to_string())
         }
       };

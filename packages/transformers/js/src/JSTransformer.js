@@ -846,16 +846,30 @@ export default (new Transformer({
           range = pkg.dependencies[module];
         }
 
+        let priority;
+        switch (dep.kind) {
+          case 'DynamicImport':
+            priority = 'lazy';
+            break;
+          case 'ForDisplayPhaseImport':
+          case 'AfterDisplayPhaseImport':
+            priority = 'phased';
+            break;
+          default:
+            priority = 'sync';
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
-          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
+          priority,
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,
           range,
           env,
+          phaseEdge: dep.kind.endsWith('PhaseImport') ? dep.kind : undefined,
         });
       }
     }
@@ -882,6 +896,7 @@ export default (new Transformer({
           .getDependencies()
           .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
+
       for (let dep of deps.values()) {
         dep.symbols.ensure();
       }

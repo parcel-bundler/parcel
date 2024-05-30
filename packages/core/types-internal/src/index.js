@@ -530,7 +530,12 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   delete(exportSymbol: Symbol): void;
 }
 
-export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
+/**
+ * Phase the asset should be loaded in
+ */
+export type Phase = 0 | 1 | 2 | 3 | null;
+export type PhaseEdge = 'ForDisplayPhaseImport' | 'AfterDisplayPhaseImport';
+export type DependencyPriority = 'sync' | 'parallel' | 'lazy' | 'phased';
 export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
 
 /**
@@ -604,6 +609,7 @@ export type DependencyOptions = {|
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: Meta|},
   >,
+  +phaseEdge?: PhaseEdge,
 |};
 
 /**
@@ -690,6 +696,8 @@ export interface Dependency {
   // TODO make immutable
   /** The symbols within the resolved module that the source file depends on. */
   +symbols: MutableDependencySymbols;
+
+  +phaseEdge?: PhaseEdge;
 }
 
 export type File = {|

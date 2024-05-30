@@ -95,6 +95,7 @@ const dependencyPriorityEdges = {
   sync: 1,
   parallel: 2,
   lazy: 3,
+  phased: 4,
 };
 
 type DependencyBundleGraph = ContentGraph<
