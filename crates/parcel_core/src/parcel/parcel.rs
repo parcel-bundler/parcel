@@ -4,7 +4,7 @@ use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystem;
 
 pub struct Parcel {
-  _fs: Arc<dyn FileSystem>,
+  pub fs: Arc<dyn FileSystem>,
 }
 
 pub struct ParcelOptions {
@@ -17,7 +17,7 @@ impl Parcel {
       .fs
       .unwrap_or_else(|| Arc::new(OsFileSystem::default()));
 
-    Self { _fs: fs }
+    Self { fs }
   }
 
   pub fn build(_options: BuildOptions) -> Result<BuildResult, anyhow::Error> {
