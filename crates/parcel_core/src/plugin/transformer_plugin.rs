@@ -32,11 +32,6 @@ pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, an
 /// designed to integrate with Parcel.
 ///
 pub trait TransformerPlugin: Debug + Send + Sync {
-  /// A hook designed to setup config needed to transform assets
-  ///
-  /// This function will run once, shortly after the plugin is initialised.
-  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
-
   /// Whether an AST from a previous transformer can be reused to prevent double-parsing
   ///
   /// This function should inspect the type and version of the AST to determine if it can be
@@ -87,10 +82,6 @@ mod tests {
   struct TestTransformerPlugin {}
 
   impl TransformerPlugin for TestTransformerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-      todo!()
-    }
-
     fn can_reuse_ast(&self, _ast: AST) -> bool {
       todo!()
     }

@@ -1,5 +1,6 @@
 use parcel_core::plugin::GenerateOutput;
 use parcel_core::plugin::PluginConfig;
+use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::Resolve;
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::AST;
@@ -8,11 +9,13 @@ use parcel_core::types::Asset;
 #[derive(Debug)]
 pub struct ParcelTransformerJs {}
 
-impl TransformerPlugin for ParcelTransformerJs {
-  fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-    todo!()
+impl ParcelTransformerJs {
+  pub fn new(_ctx: &PluginContext) -> Self {
+    Self {}
   }
+}
 
+impl TransformerPlugin for ParcelTransformerJs {
   fn can_reuse_ast(&self, _ast: AST) -> bool {
     todo!()
   }

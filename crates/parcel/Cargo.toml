@@ -8,5 +8,11 @@ description = "Parcel Bundler"
 path = "./src/lib.rs"
 
 [dependencies]
+parcel_config = { path = "../parcel_config" }
+parcel_core = { path = "../parcel_core" }
 parcel_filesystem = { path = "../parcel_filesystem" }
 parcel_package_manager = { path = "../parcel_package_manager" }
+parcel_plugin_resolver = { path = "../parcel_plugin_resolver" }
+parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
+
+anyhow = "1.0.82"

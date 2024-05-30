@@ -33,6 +33,7 @@ mod validator_plugin;
 pub use validator_plugin::*;
 
 pub struct PluginContext {
+  pub config: PluginConfig,
   pub options: PluginOptions,
   pub logger: PluginLogger,
 }

@@ -1721,8 +1721,13 @@ dependencies = [
 name = "parcel"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "parcel_config",
+ "parcel_core",
  "parcel_filesystem",
  "parcel_package_manager",
+ "parcel_plugin_resolver",
+ "parcel_plugin_transformer_js",
 ]
 
 [[package]]
