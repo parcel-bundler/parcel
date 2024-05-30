@@ -168,13 +168,6 @@ export default class Parcel {
       options: resolvedOptions,
     });
 
-    if (this.#resolvedOptions?.featureFlags.parcelV3) {
-      const p = new napi.Parcel({
-        fs: this.#resolvedOptions.inputFS,
-      });
-      const ag = await p.build_asset_graph();
-    }
-
     this.#initialized = true;
   }
 

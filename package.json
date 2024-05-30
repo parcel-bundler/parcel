@@ -25,7 +25,7 @@
     "link-all": "node scripts/link-all.js packages",
     "unlink-all": "node scripts/unlink-all.js packages",
     "check": "flow check",
-    "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different && cargo fmt --all -- --check",
+    "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different && cargo +nightly fmt --all -- --check",
     "prepublishOnly": "yarn adjust-versions && yarn build && yarn build-ts",
     "test:unit": "cross-env NODE_ENV=test mocha --timeout 5000 && cargo test",
     "test:integration": "yarn workspace @parcel/integration-tests test",
@@ -70,7 +70,7 @@
   },
   "lint-staged": {
     "*.{js,json,md,ts}": "prettier --write",
-    "*.rs": "rustfmt"
+    "*.rs": "cargo fmt"
   },
   "collective": {
     "type": "opencollective",

@@ -24,7 +24,7 @@ describe.only('parcel-v3', function () {
     assert.equal(output(), 3);
   });
 
-  it('should run the main-thread bootstrap function', function () {
+  it('should run the main-thread bootstrap function', async function () {
     // eslint-disable-next-line no-unused-vars
 
     let p = new napi.ParcelNapi({
@@ -35,8 +35,8 @@ describe.only('parcel-v3', function () {
       },
     });
 
-    console.log(p.testingTempFsReadToString(__filename));
-    console.log(p.testingTempFsIsDir(__filename));
-    console.log(p.testingTempFsIsFile(__filename));
+    assert(typeof (await p.testingTempFsReadToString(__filename)) === 'string');
+    assert(!(await p.testingTempFsIsDir(__filename)));
+    assert(await p.testingTempFsIsFile(__filename));
   });
 });

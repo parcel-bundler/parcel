@@ -45,18 +45,19 @@ impl ParcelNapi {
     Ok(Self { fs_napi })
   }
 
+  // For testing
   #[napi]
-  pub fn _testing_temp_fs_read_to_string(&self, path: String) -> napi::Result<String> {
+  pub async fn _testing_temp_fs_read_to_string(&self, path: String) -> napi::Result<String> {
     Ok(self.fs_napi.read_to_string(&PathBuf::from(path))?)
   }
 
   #[napi]
-  pub fn _testing_temp_fs_is_file(&self, path: String) -> napi::Result<bool> {
+  pub async fn _testing_temp_fs_is_file(&self, path: String) -> napi::Result<bool> {
     Ok(self.fs_napi.is_file(&PathBuf::from(path)))
   }
 
   #[napi]
-  pub fn _testing_temp_fs_is_dir(&self, path: String) -> napi::Result<bool> {
+  pub async fn _testing_temp_fs_is_dir(&self, path: String) -> napi::Result<bool> {
     Ok(self.fs_napi.is_dir(&PathBuf::from(path)))
   }
 }
