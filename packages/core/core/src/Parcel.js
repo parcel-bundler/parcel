@@ -47,6 +47,7 @@ import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initRust, initSentry, closeSentry} from '@parcel/rust';
+import * as napi from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
@@ -166,6 +167,13 @@ export default class Parcel {
       farm: this.#farm,
       options: resolvedOptions,
     });
+
+    if (this.#resolvedOptions?.featureFlags.parcelV3) {
+      const p = new napi.Parcel({
+        fs: this.#resolvedOptions.inputFS,
+      });
+      const ag = await p.build_asset_graph();
+    }
 
     this.#initialized = true;
   }
