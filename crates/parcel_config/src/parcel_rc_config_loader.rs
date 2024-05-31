@@ -42,13 +42,8 @@ impl ParcelRcConfigLoader {
   fn find_config(&self, project_root: &Path, path: &PathBuf) -> Result<PathBuf, ConfigError> {
     let from = path.parent().unwrap_or(path);
 
-    find_ancestor_file(
-      Rc::clone(&self.fs),
-      vec![String::from(".parcelrc")],
-      from,
-      project_root,
-    )
-    .ok_or(ConfigError::MissingParcelRc(PathBuf::from(from)))
+    find_ancestor_file(&*self.fs, &[".parcelrc"], from, project_root)
+      .ok_or(ConfigError::MissingParcelRc(PathBuf::from(from)))
   }
 
   fn resolve_from(&self, project_root: &PathBuf) -> PathBuf {
