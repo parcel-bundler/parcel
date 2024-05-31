@@ -19,13 +19,12 @@ pub struct ParcelNapi {
 impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(env: Env, options: JsObject) -> napi::Result<Self> {
-    let fs: Option<FileSystemRef> = 'block: {
-      if !options.has_named_property("fs")? {
-        break 'block None;
-      }
+    let mut fs = None::<FileSystemRef>;
+
+    if options.has_named_property("fs")? {
       let fs_raw: JsObject = options.get_named_property("fs")?;
-      Some(Arc::new(FileSystemNapi::new(&env, fs_raw)?))
-    };
+      fs.replace(Arc::new(FileSystemNapi::new(&env, fs_raw)?));
+    }
 
     let parcel = Parcel::new(ParcelOptions { fs });
 
