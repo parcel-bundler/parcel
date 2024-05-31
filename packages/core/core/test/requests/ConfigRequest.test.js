@@ -4,7 +4,6 @@ import WorkerFarm from '@parcel/workers';
 import path from 'path';
 import assert from 'assert';
 import sinon from 'sinon';
-import {DEFAULT_FEATURE_FLAGS, setFeatureFlags} from '@parcel/feature-flags';
 import {MemoryFS} from '@parcel/fs';
 import {hashString} from '@parcel/rust';
 
@@ -18,17 +17,6 @@ import {toProjectPath} from '../../src/projectPath';
 
 // $FlowFixMe unclear-type forgive me
 const mockCast = (f: any): any => f;
-
-async function assertThrows(block: () => Promise<void>) {
-  let error: Error | null = null;
-  try {
-    await block();
-  } catch (e) {
-    error = e;
-  }
-  assert(error != null, 'Function finished without errors');
-  return error;
-}
 
 describe('ConfigRequest tests', () => {
   const projectRoot = 'project_root';
