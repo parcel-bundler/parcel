@@ -10,7 +10,6 @@ default = []
 [dependencies]
 parcel_filesystem = { path = "../parcel_filesystem" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parking_lot = "0.12"
 
 ahash = "0.8.11"
 browserslist-rs = "0.15.0"

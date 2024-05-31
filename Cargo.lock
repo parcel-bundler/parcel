@@ -1881,7 +1881,6 @@ dependencies = [
  "nodejs-semver",
  "parcel-resolver",
  "parcel_filesystem",
- "parking_lot",
  "petgraph",
  "serde",
  "serde-value",
