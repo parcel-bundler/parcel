@@ -4,7 +4,7 @@ use std::sync::Arc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-use parcel_core::types::FileSystem;
+use parcel_core::FileSystemRef;
 use parcel_core::Parcel;
 use parcel_core::ParcelOptions;
 
@@ -19,7 +19,7 @@ pub struct ParcelNapi {
 impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(env: Env, options: JsObject) -> napi::Result<Self> {
-    let fs: Option<Arc<dyn FileSystem>> = 'block: {
+    let fs: Option<FileSystemRef> = 'block: {
       if !options.has_named_property("fs")? {
         break 'block None;
       }

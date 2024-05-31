@@ -3,12 +3,14 @@ use std::sync::Arc;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystem;
 
+pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
+
 pub struct Parcel {
-  pub fs: Arc<dyn FileSystem>,
+  pub fs: FileSystemRef,
 }
 
 pub struct ParcelOptions {
-  pub fs: Option<Arc<dyn FileSystem>>,
+  pub fs: Option<FileSystemRef>,
 }
 
 impl Parcel {

@@ -1881,6 +1881,7 @@ dependencies = [
  "nodejs-semver",
  "parcel-resolver",
  "parcel_filesystem",
+ "parking_lot",
  "petgraph",
  "serde",
  "serde-value",
@@ -1897,10 +1898,15 @@ dependencies = [
  "dashmap",
  "is_elevated",
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
  "parcel_napi_helpers",
  "parking_lot",
 >>>>>>> 22bfa2d2f (tidy up)
+=======
+ "napi",
+ "parcel_napi_helpers",
+>>>>>>> 292cba5d7 (reverting send/sync)
 ]
 
 [[package]]

@@ -1,10 +1,8 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
-
-use parking_lot::RwLock;
 
 use crate::FileSystem;
 
@@ -18,21 +16,21 @@ enum InMemoryFileSystemEntry {
 /// In memory implementation of the `FileSystem` trait, for testing purpouses.
 #[derive(Debug)]
 pub struct InMemoryFileSystem {
-  files: Arc<RwLock<HashMap<PathBuf, InMemoryFileSystemEntry>>>,
-  current_working_directory: Arc<RwLock<PathBuf>>,
+  files: RefCell<HashMap<PathBuf, InMemoryFileSystemEntry>>,
+  current_working_directory: RefCell<PathBuf>,
 }
 
 impl InMemoryFileSystem {
   /// Change the current working directory. Used for resolving relative paths.
   pub fn set_current_working_directory(&self, cwd: PathBuf) {
-    *self.current_working_directory.write() = cwd;
+    self.current_working_directory.replace(cwd);
   }
 
   /// Create a directory at path.
   pub fn create_directory(&self, path: &Path) {
     self
       .files
-      .write()
+      .borrow_mut()
       .insert(path.into(), InMemoryFileSystemEntry::Directory);
   }
 
@@ -40,7 +38,7 @@ impl InMemoryFileSystem {
   pub fn write_file(&self, path: &Path, contents: String) {
     self
       .files
-      .write()
+      .borrow_mut()
       .insert(path.into(), InMemoryFileSystemEntry::File { contents });
   }
 }
@@ -49,18 +47,18 @@ impl Default for InMemoryFileSystem {
   fn default() -> Self {
     Self {
       files: Default::default(),
-      current_working_directory: Arc::new(RwLock::new(PathBuf::from("/"))),
+      current_working_directory: RefCell::new(PathBuf::from("/")),
     }
   }
 }
 
 impl FileSystem for InMemoryFileSystem {
   fn cwd(&self) -> std::io::Result<PathBuf> {
-    Ok(self.current_working_directory.read().clone())
+    Ok(self.current_working_directory.borrow().clone())
   }
 
   fn canonicalize_base(&self, path: &Path) -> std::io::Result<PathBuf> {
-    let cwd = self.current_working_directory.read();
+    let cwd = self.current_working_directory.borrow();
     let mut result = if path.is_absolute() {
       vec![]
     } else {
@@ -90,7 +88,7 @@ impl FileSystem for InMemoryFileSystem {
   }
 
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    self.files.read().get(path).map_or_else(
+    self.files.borrow().get(path).map_or_else(
       || {
         Err(std::io::Error::new(
           std::io::ErrorKind::NotFound,
@@ -108,13 +106,13 @@ impl FileSystem for InMemoryFileSystem {
   }
 
   fn is_file(&self, path: &Path) -> bool {
-    let files = self.files.read();
+    let files = self.files.borrow();
     let file = files.get(path);
     matches!(file, Some(InMemoryFileSystemEntry::File { .. }))
   }
 
   fn is_dir(&self, path: &Path) -> bool {
-    let files = self.files.read();
+    let files = self.files.borrow();
     let file = files.get(path);
     matches!(file, Some(InMemoryFileSystemEntry::Directory { .. }))
   }
