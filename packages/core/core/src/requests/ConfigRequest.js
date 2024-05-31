@@ -30,7 +30,6 @@ import {PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {createBuildCache} from '../buildCache';
-import {getFeatureFlag} from '@parcel/feature-flags';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
