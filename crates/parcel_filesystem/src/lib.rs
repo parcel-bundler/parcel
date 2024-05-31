@@ -1,11 +1,9 @@
+#![deny(unused_crate_dependencies)]
 use std::io::Result;
 use std::path::Path;
 use std::path::PathBuf;
 
 use dashmap::DashMap;
-
-/// FileSystem implementation that delegates calls to a JS object
-pub mod js_delegate_file_system;
 
 /// In-memory file-system for testing
 pub mod in_memory_file_system;
