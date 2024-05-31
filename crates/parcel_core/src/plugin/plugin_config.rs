@@ -29,8 +29,8 @@ impl PluginConfig {
     filename: &str,
   ) -> Result<(PathBuf, Config), anyhow::Error> {
     let config_path = find_ancestor_file(
-      Rc::clone(&self.fs),
-      vec![String::from(filename)],
+      &*self.fs,
+      &[filename],
       &self.search_path,
       &self.project_root,
     )

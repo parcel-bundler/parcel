@@ -7,7 +7,7 @@ use super::*;
 
 #[test]
 fn should_run_request() {
-  let rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::new();
 
   let request_c = TestRequest::new("C", &[]);
   let request_b = TestRequest::new("B", &[&request_c]);
@@ -22,7 +22,7 @@ fn should_run_request() {
 
 #[test]
 fn should_reuse_previously_run_request() {
-  let rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::new();
 
   let request_c = TestRequest::new("C", &[]);
   let request_b = TestRequest::new("B", &[&request_c]);
@@ -42,7 +42,7 @@ fn should_reuse_previously_run_request() {
 
 #[test]
 fn should_run_request_once() {
-  let rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::new();
 
   let request_a = TestRequest::new("A", &[]);
 
@@ -58,7 +58,7 @@ fn should_run_request_once() {
 
 #[test]
 fn should_run_request_once_2() {
-  let rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::new();
 
   let request_b = TestRequest::new("B", &[]);
   let request_a = TestRequest::new("A", &[&request_b]);
@@ -116,8 +116,8 @@ impl<'a> std::hash::Hash for TestRequest<'a> {
 impl<'a> Request<Vec<String>> for TestRequest<'a> {
   fn run(
     &self,
-    rt: RequestTracker<Vec<String>>,
-  ) -> Result<RequestResult<Vec<String>>, Vec<RequestError>> {
+    mut context: RunRequestContext<Vec<String>>,
+  ) -> Result<RequestResult<Vec<String>>, RunRequestError> {
     self.runs.fetch_add(1, Ordering::Relaxed);
 
     let name = self.name.clone();
@@ -127,7 +127,7 @@ impl<'a> Request<Vec<String>> for TestRequest<'a> {
 
     while let Some(subrequest) = subrequets.pop() {
       let req = subrequest.clone();
-      let subrequest_result = rt.run_request(Box::new(&req))?;
+      let subrequest_result = context.run_request(Box::new(&req))?;
       result.extend(subrequest_result);
     }
 
