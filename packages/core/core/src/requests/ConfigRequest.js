@@ -17,7 +17,6 @@ import type {
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RequestResult, RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
-import {napiRunConfigRequest} from '@parcel/rust';
 
 import {serializeRaw} from '../serializer.js';
 import {PluginLogger} from '@parcel/logger';
@@ -176,30 +175,6 @@ export async function runConfigRequest<TResult: RequestResult>(
     id: 'config_request:' + configRequest.id,
     type: requestTypes.config_request,
     run: async ({api, options}) => {
-      if (getFeatureFlag('parcelV3')) {
-        return napiRunConfigRequest(
-          {
-            id: configRequest.id,
-            invalidateOnBuild: configRequest.invalidateOnBuild,
-            invalidateOnConfigKeyChange:
-              configRequest.invalidateOnConfigKeyChange,
-            invalidateOnFileCreate: configRequest.invalidateOnFileCreate,
-            invalidateOnEnvChange: Array.from(
-              configRequest.invalidateOnEnvChange,
-            ),
-            invalidateOnOptionChange: Array.from(
-              configRequest.invalidateOnOptionChange,
-            ),
-            invalidateOnStartup: configRequest.invalidateOnStartup,
-            invalidateOnFileChange: Array.from(
-              configRequest.invalidateOnFileChange,
-            ),
-          },
-          api,
-          options,
-        );
-      }
-
       for (let filePath of invalidateOnFileChange) {
         api.invalidateOnFileUpdate(filePath);
         api.invalidateOnFileDelete(filePath);

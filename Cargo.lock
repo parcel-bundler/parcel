@@ -1892,12 +1892,9 @@ dependencies = [
 name = "parcel_filesystem"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "assert_fs",
  "dashmap",
  "is_elevated",
- "napi",
- "parcel_napi_helpers",
 ]
 
 [[package]]

@@ -81,249 +81,186 @@ describe('ConfigRequest tests', () => {
     invalidateOnFileChange: new Set(),
   };
 
-  ['rust', 'js'].forEach(backend => {
-    describe(`${backend} backed`, () => {
-      beforeEach(() => {
-        setFeatureFlags({
-          ...DEFAULT_FEATURE_FLAGS,
-          parcelV3: backend === 'rust',
-        });
-      });
-
-      it('can execute a config request', async () => {
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-        });
-      });
-
-      if (backend === 'rust') {
-        // Adding this here mostly to prove that the rust backend is actually running on
-        // this suite
-
-        it('errors out if the options are missing projectRoot', async () => {
-          const mockRunApi = getMockRunApi({
-            inputFS: fs,
-          });
-          const error = await assertThrows(async () => {
-            await runConfigRequest(mockRunApi, {
-              ...baseRequest,
-              invalidateOnStartup: true,
-            });
-          });
-          assert.equal(
-            error?.message,
-            '[napi] Missing required projectRoot options field',
-          );
-        });
-
-        it('errors out if the options are missing inputFS', async () => {
-          const mockRunApi = getMockRunApi({
-            projectRoot,
-          });
-          const error = await assertThrows(async () => {
-            await runConfigRequest(mockRunApi, {
-              ...baseRequest,
-              invalidateOnStartup: true,
-            });
-          });
-          assert.equal(
-            error?.message,
-            '[napi] Missing required inputFS options field',
-          );
-        });
-      }
-
-      it('forwards "invalidateOnFileChange" calls to runAPI', async () => {
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-          invalidateOnFileChange: new Set([
-            toProjectPath(projectRoot, 'path1'),
-            toProjectPath(projectRoot, 'path2'),
-          ]),
-        });
-
-        assert(
-          mockCast(mockRunApi.invalidateOnFileUpdate).called,
-          'Invalidate was called',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnFileUpdate).calledWith('path1'),
-          'Invalidate was called with path1',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnFileUpdate).calledWith('path2'),
-          'Invalidate was called with path2',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnFileDelete).calledWith('path1'),
-          'Invalidate was called with path1',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnFileDelete).calledWith('path2'),
-          'Invalidate was called with path2',
-        );
-      });
-
-      it('forwards "invalidateOnFileCreate" calls to runAPI', async () => {
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-          invalidateOnFileCreate: [
-            {filePath: toProjectPath(projectRoot, 'filePath')},
-            {glob: toProjectPath(projectRoot, 'glob')},
-            {
-              fileName: 'package.json',
-              aboveFilePath: toProjectPath(projectRoot, 'fileAbove'),
-            },
-          ],
-        });
-
-        assert(
-          mockCast(mockRunApi.invalidateOnFileCreate).called,
-          'Invalidate was called',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
-            filePath: 'filePath',
-          }),
-          'Invalidate was called for path',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
-            glob: 'glob',
-          }),
-          'Invalidate was called for glob',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
-            fileName: 'package.json',
-            aboveFilePath: 'fileAbove',
-          }),
-          'Invalidate was called for fileAbove',
-        );
-      });
-
-      it('forwards "invalidateOnEnvChange" calls to runAPI', async () => {
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-          invalidateOnEnvChange: new Set(['env1', 'env2']),
-        });
-
-        assert(
-          mockCast(mockRunApi.invalidateOnEnvChange).called,
-          'Invalidate was called',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnEnvChange).calledWithMatch('env1'),
-          'Invalidate was called for env1',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnEnvChange).calledWithMatch('env2'),
-          'Invalidate was called for env1',
-        );
-      });
-
-      it('forwards "invalidateOnOptionChange" calls to runAPI', async () => {
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-          invalidateOnOptionChange: new Set(['option1', 'option2']),
-        });
-
-        assert(
-          mockCast(mockRunApi.invalidateOnOptionChange).called,
-          'Invalidate was called',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnOptionChange).calledWithMatch(
-            'option1',
-          ),
-          'Invalidate was called for option1',
-        );
-        assert(
-          mockCast(mockRunApi.invalidateOnOptionChange).calledWithMatch(
-            'option2',
-          ),
-          'Invalidate was called for option2',
-        );
-      });
-
-      it('forwards "invalidateOnStartup" calls to runAPI', async () => {
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-          invalidateOnStartup: true,
-        });
-
-        assert(
-          mockCast(mockRunApi.invalidateOnStartup).called,
-          'Invalidate was called',
-        );
-      });
-
-      it('forwards "invalidateOnBuild" calls to runAPI', async () => {
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-          invalidateOnBuild: true,
-        });
-
-        assert(
-          mockCast(mockRunApi.invalidateOnBuild).called,
-          'Invalidate was called',
-        );
-      });
-
-      it('forwards "invalidateOnConfigKeyChange" calls to runAPI', async () => {
-        await fs.mkdirp('/project_root');
-        await fs.writeFile(
-          '/project_root/config.json',
-          JSON.stringify({key1: 'value1'}),
-        );
-        sinon.spy(fs, 'readFile');
-        sinon.spy(fs, 'readFileSync');
-        const mockRunApi = getMockRunApi();
-        await runConfigRequest(mockRunApi, {
-          ...baseRequest,
-          invalidateOnConfigKeyChange: [
-            {
-              configKey: 'key1',
-              filePath: toProjectPath(
-                projectRoot,
-                path.join('project_root', 'config.json'),
-              ),
-            },
-          ],
-        });
-
-        if (backend === 'rust') {
-          const fsCall = mockCast(fs).readFileSync.getCall(0);
-          assert.deepEqual(
-            fsCall?.args,
-            [path.join('project_root', 'config.json')],
-            'readFile was called',
-          );
-        } else {
-          const fsCall = mockCast(fs).readFile.getCall(0);
-          assert.deepEqual(
-            fsCall?.args,
-            [path.join('project_root', 'config.json'), 'utf8'],
-            'readFile was called',
-          );
-        }
-
-        const call = mockCast(mockRunApi.invalidateOnConfigKeyChange).getCall(
-          0,
-        );
-        assert.deepEqual(
-          call.args,
-          ['config.json', 'key1', hashString('"value1"')],
-          'Invalidate was called for key1',
-        );
-      });
+  it('can execute a config request', async () => {
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
     });
+  });
+
+  it('forwards "invalidateOnFileChange" calls to runAPI', async () => {
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
+      invalidateOnFileChange: new Set([
+        toProjectPath(projectRoot, 'path1'),
+        toProjectPath(projectRoot, 'path2'),
+      ]),
+    });
+
+    assert(
+      mockCast(mockRunApi.invalidateOnFileUpdate).called,
+      'Invalidate was called',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnFileUpdate).calledWith('path1'),
+      'Invalidate was called with path1',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnFileUpdate).calledWith('path2'),
+      'Invalidate was called with path2',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnFileDelete).calledWith('path1'),
+      'Invalidate was called with path1',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnFileDelete).calledWith('path2'),
+      'Invalidate was called with path2',
+    );
+  });
+
+  it('forwards "invalidateOnFileCreate" calls to runAPI', async () => {
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
+      invalidateOnFileCreate: [
+        {filePath: toProjectPath(projectRoot, 'filePath')},
+        {glob: toProjectPath(projectRoot, 'glob')},
+        {
+          fileName: 'package.json',
+          aboveFilePath: toProjectPath(projectRoot, 'fileAbove'),
+        },
+      ],
+    });
+
+    assert(
+      mockCast(mockRunApi.invalidateOnFileCreate).called,
+      'Invalidate was called',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
+        filePath: 'filePath',
+      }),
+      'Invalidate was called for path',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
+        glob: 'glob',
+      }),
+      'Invalidate was called for glob',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnFileCreate).calledWithMatch({
+        fileName: 'package.json',
+        aboveFilePath: 'fileAbove',
+      }),
+      'Invalidate was called for fileAbove',
+    );
+  });
+
+  it('forwards "invalidateOnEnvChange" calls to runAPI', async () => {
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
+      invalidateOnEnvChange: new Set(['env1', 'env2']),
+    });
+
+    assert(
+      mockCast(mockRunApi.invalidateOnEnvChange).called,
+      'Invalidate was called',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnEnvChange).calledWithMatch('env1'),
+      'Invalidate was called for env1',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnEnvChange).calledWithMatch('env2'),
+      'Invalidate was called for env1',
+    );
+  });
+
+  it('forwards "invalidateOnOptionChange" calls to runAPI', async () => {
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
+      invalidateOnOptionChange: new Set(['option1', 'option2']),
+    });
+
+    assert(
+      mockCast(mockRunApi.invalidateOnOptionChange).called,
+      'Invalidate was called',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnOptionChange).calledWithMatch('option1'),
+      'Invalidate was called for option1',
+    );
+    assert(
+      mockCast(mockRunApi.invalidateOnOptionChange).calledWithMatch('option2'),
+      'Invalidate was called for option2',
+    );
+  });
+
+  it('forwards "invalidateOnStartup" calls to runAPI', async () => {
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
+      invalidateOnStartup: true,
+    });
+
+    assert(
+      mockCast(mockRunApi.invalidateOnStartup).called,
+      'Invalidate was called',
+    );
+  });
+
+  it('forwards "invalidateOnBuild" calls to runAPI', async () => {
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
+      invalidateOnBuild: true,
+    });
+
+    assert(
+      mockCast(mockRunApi.invalidateOnBuild).called,
+      'Invalidate was called',
+    );
+  });
+
+  it('forwards "invalidateOnConfigKeyChange" calls to runAPI', async () => {
+    await fs.mkdirp('/project_root');
+    await fs.writeFile(
+      '/project_root/config.json',
+      JSON.stringify({key1: 'value1'}),
+    );
+    sinon.spy(fs, 'readFile');
+    sinon.spy(fs, 'readFileSync');
+    const mockRunApi = getMockRunApi();
+    await runConfigRequest(mockRunApi, {
+      ...baseRequest,
+      invalidateOnConfigKeyChange: [
+        {
+          configKey: 'key1',
+          filePath: toProjectPath(
+            projectRoot,
+            path.join('project_root', 'config.json'),
+          ),
+        },
+      ],
+    });
+
+    const fsCall = mockCast(fs).readFile.getCall(0);
+    assert.deepEqual(
+      fsCall?.args,
+      [path.join('project_root', 'config.json'), 'utf8'],
+      'readFile was called',
+    );
+
+    const call = mockCast(mockRunApi.invalidateOnConfigKeyChange).getCall(0);
+    assert.deepEqual(
+      call.args,
+      ['config.json', 'key1', hashString('"value1"')],
+      'Invalidate was called for key1',
+    );
   });
 });
