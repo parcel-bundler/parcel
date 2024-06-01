@@ -90,11 +90,11 @@ impl Engines {
       // If the output format is esmodule, exclude browsers
       // that support them natively so that we transpile less.
       browserslist::resolve(
-        std::iter::once(browserslist).chain(ESMODULE_BROWSERS.iter().map(|s| *s)),
+        &[&[browserslist], ESMODULE_BROWSERS].concat(),
         &Default::default(),
       )
     } else {
-      browserslist::resolve(std::iter::once(browserslist), &Default::default())
+      browserslist::resolve(&[browserslist], &Default::default())
     };
 
     Engines {

@@ -8,7 +8,8 @@ use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::utils::stack_size::maybe_grow;
-use swc_core::ecma::visit::{Fold, FoldWith};
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
 use crate::utils::*;
 

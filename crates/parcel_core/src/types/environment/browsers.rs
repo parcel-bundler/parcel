@@ -92,7 +92,7 @@ impl<'de> Deserialize<'de> for Browsers {
       serde_value::Value::String(s) => vec![s],
       value => Vec::<String>::deserialize(serde_value::ValueDeserializer::new(value))?,
     };
-    let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
+    let distribs = browserslist::resolve(&browsers, &Default::default()).unwrap_or(Vec::new());
     Ok(distribs.into())
   }
 }
