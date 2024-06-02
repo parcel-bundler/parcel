@@ -185,6 +185,10 @@ const commonProps = {
           enum: ['document_idle', 'document_start', 'document_end'],
         },
         all_frames: boolean,
+        world: {
+          type: 'string',
+          enum: ['ISOLATED', 'MAIN'],
+        },
       },
       additionalProperties: false,
       required: ['matches'],
@@ -469,6 +473,10 @@ export const MV3Schema = ({
               type: 'string',
               enum: ['classic', 'module'],
             },
+            // to support both Chrome and Firefox
+            scripts: arrStr,
+            page: string,
+            persistent: boolean,
           },
           additionalProperties: false,
           required: ['service_worker'],

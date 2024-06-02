@@ -91,9 +91,11 @@ const DEFAULT_ENGINES = {
 export type TargetRequest = {|
   id: string,
   +type: typeof requestTypes.target_request,
-  run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
+  run: (RunOpts<TargetRequestResult>) => Async<TargetRequestResult>,
   input: Entry,
 |};
+
+export type TargetRequestResult = Target[];
 
 const type = 'target_request';
 
@@ -125,7 +127,7 @@ async function run({input, api, options}) {
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets: Array<Target> = await targetResolver.resolve(
+  let targets: TargetRequestResult = await targetResolver.resolve(
     fromProjectPath(options.projectRoot, input.packagePath),
     input.target,
   );
@@ -935,6 +937,15 @@ export class TargetResolver {
         if (customTargets.length >= 2) {
           distDir = path.join(distDir, targetName);
         }
+        invariant(pkgMap != null);
+        invariant(typeof pkgFilePath === 'string');
+        loc = {
+          filePath: pkgFilePath,
+          ...getJSONSourceLocation(
+            pkgMap.pointers[`/targets/${targetName}`],
+            'key',
+          ),
+        };
       } else {
         if (typeof distPath !== 'string') {
           let contents: string =

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-build-metrics",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,11 +16,11 @@
   "main": "lib/BuildMetricsReporter.js",
   "source": "src/BuildMetricsReporter.js",
   "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.11.0"
+    "node": ">= 16.0.0",
+    "parcel": "^2.12.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.11.0",
-    "@parcel/utils": "2.11.0"
+    "@parcel/plugin": "2.12.0",
+    "@parcel/utils": "2.12.0"
   }
 }

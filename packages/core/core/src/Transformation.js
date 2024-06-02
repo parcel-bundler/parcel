@@ -264,24 +264,24 @@ export default class Transformation {
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
     let initialType = initialAsset.value.type;
-    let assets: Array<UncommittedAsset> = await this.runPipeline(
-      pipeline,
-      initialAsset,
-    );
+    let assets: Array<UncommittedAsset>;
+    try {
+      assets = await this.runPipeline(pipeline, initialAsset);
+    } finally {
+      // Add dev dep requests for each transformer
+      for (let transformer of pipeline.transformers) {
+        await this.addDevDependency({
+          specifier: transformer.name,
+          resolveFrom: transformer.resolveFrom,
+          range: transformer.range,
+        });
+      }
 
-    // Add dev dep requests for each transformer
-    for (let transformer of pipeline.transformers) {
-      await this.addDevDependency({
-        specifier: transformer.name,
-        resolveFrom: transformer.resolveFrom,
-        range: transformer.range,
-      });
-    }
-
-    // Add dev dep requests for dependencies of transformer plugins
-    // (via proxied packageManager.require calls).
-    for (let devDep of this.pluginDevDeps) {
-      await this.addDevDependency(devDep);
+      // Add dev dep requests for dependencies of transformer plugins
+      // (via proxied packageManager.require calls).
+      for (let devDep of this.pluginDevDeps) {
+        await this.addDevDependency(devDep);
+      }
     }
 
     let finalAssets: Array<UncommittedAsset> = [];
@@ -324,13 +324,17 @@ export default class Transformation {
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(
-      specifier,
-      fromProjectPath(this.options.projectRoot, opts.resolveFrom),
-      {
-        range,
-      },
-    );
+    try {
+      await this.options.packageManager.resolve(
+        specifier,
+        fromProjectPath(this.options.projectRoot, opts.resolveFrom),
+        {
+          range,
+        },
+      );
+    } catch (err) {
+      // ignore
+    }
 
     let devDepRequest = await createDevDependency(
       opts,

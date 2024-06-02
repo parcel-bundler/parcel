@@ -1,6 +1,6 @@
 {
   "name": "@parcel/bundle-stats",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,21 +16,26 @@
   "main": "lib/cli.js",
   "source": "src/cli.js",
   "bin": {
-    "parcel-bundle-stats": "src/bin.js"
+    "parcel-bundle-stats": "bin/bundle-stats.js"
+  },
+  "scripts": {
+    "prepack": "./ensure-no-dev-lib.sh",
+    "dev:prepare": "rimraf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
   },
   "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.11.0"
+    "node": ">= 16.0.0",
+    "parcel": "^2.12.0"
   },
   "dependencies": {
-    "@parcel/core": "2.11.0",
-    "@parcel/query": "2.11.0",
-    "@parcel/reporter-bundle-stats": "2.11.0",
-    "@parcel/utils": "2.11.0",
+    "@parcel/core": "2.12.0",
+    "@parcel/query": "2.12.0",
+    "@parcel/reporter-bundle-stats": "2.12.0",
+    "@parcel/utils": "2.12.0",
     "commander": "^7.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.11.0",
-    "@parcel/types": "2.11.0"
+    "@parcel/babel-register": "2.12.0",
+    "@parcel/types": "2.12.0",
+    "rimraf": "^5.0.5"
   }
 }

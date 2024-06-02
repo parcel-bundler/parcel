@@ -28,13 +28,12 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
-import {replaceScriptDependencies, getSpecifier} from './utils';
-
-// https://262.ecma-international.org/6.0/#sec-names-and-keywords
-const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
-const ID_START_RE = /^[$_\p{ID_Start}]/u;
-const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
-
+import {
+  replaceScriptDependencies,
+  getSpecifier,
+  isValidIdentifier,
+  makeValidIdentifier,
+} from './utils';
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
 const REPLACEMENT_RE =
@@ -134,25 +133,10 @@ export class ScopeHoistingPackager {
       this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat === 'commonjs'
     ) {
-      for (let b of this.bundleGraph.getReferencedBundles(this.bundle)) {
-        let entry = b.getMainEntry();
-        let symbols = new Map();
-        if (entry && !this.isAsyncBundle && entry.type === 'js') {
-          this.externalAssets.add(entry);
-
-          let usedSymbols = this.bundleGraph.getUsedSymbols(entry) || new Set();
-          for (let s of usedSymbols) {
-            // If the referenced bundle is ESM, and we are importing '*', use 'default' instead.
-            // This matches the logic below in buildExportedSymbols.
-            let imported = s;
-            if (imported === '*' && b.env.outputFormat === 'esmodule') {
-              imported = 'default';
-            }
-            symbols.set(imported, this.getSymbolResolution(entry, entry, s));
-          }
-        }
-
-        this.externals.set(relativeBundlePath(this.bundle, b), symbols);
+      for (let b of this.bundleGraph.getReferencedBundles(this.bundle, {
+        recursive: false,
+      })) {
+        this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
     }
 
@@ -279,6 +263,9 @@ export class ScopeHoistingPackager {
   }
 
   shouldBundleQueue(bundle: NamedBundle): boolean {
+    let referencingBundles = this.bundleGraph.getReferencingBundles(bundle);
+    let hasHtmlReference = referencingBundles.some(b => b.type === 'html');
+
     return (
       this.useAsyncBundleRuntime &&
       bundle.type === 'js' &&
@@ -286,7 +273,7 @@ export class ScopeHoistingPackager {
       bundle.env.outputFormat === 'esmodule' &&
       !bundle.env.isIsolated() &&
       bundle.bundleBehavior !== 'isolated' &&
-      !this.bundleGraph.hasParentBundleOfType(bundle, 'js')
+      hasHtmlReference
     );
   }
 
@@ -324,14 +311,19 @@ export class ScopeHoistingPackager {
 
       if (
         asset.meta.shouldWrap ||
-        this.isAsyncBundle ||
         this.bundle.env.sourceType === 'script' ||
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        if (!asset.meta.isConstantModule) {
+        // Don't wrap constant "entry" modules _except_ if they are referenced by any lazy dependency
+        if (
+          !asset.meta.isConstantModule ||
+          this.bundleGraph
+            .getIncomingDependencies(asset)
+            .some(dep => dep.priority === 'lazy')
+        ) {
           this.wrappedAssets.add(asset.id);
           wrapped.push(asset);
         }
@@ -361,7 +353,6 @@ export class ScopeHoistingPackager {
 
   buildExportedSymbols() {
     if (
-      this.isAsyncBundle ||
       !this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat !== 'esmodule'
     ) {
@@ -371,6 +362,8 @@ export class ScopeHoistingPackager {
     // TODO: handle ESM exports of wrapped entry assets...
     let entry = this.bundle.getMainEntry();
     if (entry && !this.wrappedAssets.has(entry.id)) {
+      let hasNamespace = entry.symbols.hasExportSymbol('*');
+
       for (let {
         asset,
         exportAs,
@@ -378,6 +371,13 @@ export class ScopeHoistingPackager {
         exportSymbol,
       } of this.bundleGraph.getExportedSymbols(entry)) {
         if (typeof symbol === 'string') {
+          // If the module has a namespace (e.g. commonjs), and this is not an entry, only export the namespace
+          // as default, without individual exports. This mirrors the importing logic in addExternal, avoiding
+          // extra unused exports and potential for non-identifier export names.
+          if (hasNamespace && this.isAsyncBundle && exportAs !== '*') {
+            continue;
+          }
+
           let symbols = this.exportedSymbols.get(
             symbol === '*' ? nullthrows(entry.symbols.get('*')?.local) : symbol,
           )?.exportAs;
@@ -418,8 +418,8 @@ export class ScopeHoistingPackager {
   }
 
   getTopLevelName(name: string): string {
-    name = name.replace(NON_ID_CONTINUE_RE, '');
-    if (!ID_START_RE.test(name) || this.globalNames.has(name)) {
+    name = makeValidIdentifier(name);
+    if (this.globalNames.has(name)) {
       name = '_' + name;
     }
 
@@ -434,7 +434,7 @@ export class ScopeHoistingPackager {
   }
 
   getPropertyAccess(obj: string, property: string): string {
-    if (IDENTIFIER_RE.test(property)) {
+    if (isValidIdentifier(property)) {
       return `${obj}.${property}`;
     }
 
@@ -511,7 +511,11 @@ export class ScopeHoistingPackager {
     }
 
     let [depMap, replacements] = this.buildReplacements(asset, deps);
-    let [prepend, prependLines, append] = this.buildAssetPrelude(asset, deps);
+    let [prepend, prependLines, append] = this.buildAssetPrelude(
+      asset,
+      deps,
+      replacements,
+    );
     if (prependLines > 0) {
       sourceMap?.offsetLines(1, prependLines);
       code = prepend + code;
@@ -703,6 +707,24 @@ ${code}
         continue;
       }
 
+      // Handle imports from other bundles in libraries.
+      if (this.bundle.env.isLibrary && !this.bundle.hasAsset(resolved)) {
+        let referencedBundle = this.bundleGraph.getReferencedBundle(
+          dep,
+          this.bundle,
+        );
+        if (
+          referencedBundle &&
+          referencedBundle.getMainEntry() === resolved &&
+          referencedBundle.type === 'js' &&
+          !this.bundleGraph.isAssetReferenced(referencedBundle, resolved)
+        ) {
+          this.addExternal(dep, replacements, referencedBundle);
+          this.externalAssets.add(resolved);
+          continue;
+        }
+      }
+
       for (let [imported, {local}] of dep.symbols) {
         if (local === '*') {
           continue;
@@ -748,7 +770,11 @@ ${code}
     return [depMap, replacements];
   }
 
-  addExternal(dep: Dependency, replacements?: Map<string, string>) {
+  addExternal(
+    dep: Dependency,
+    replacements?: Map<string, string>,
+    referencedBundle?: NamedBundle,
+  ) {
     if (this.bundle.env.outputFormat === 'global') {
       throw new ThrowableDiagnostic({
         diagnostic: {
@@ -766,11 +792,16 @@ ${code}
       });
     }
 
+    let specifier = dep.specifier;
+    if (referencedBundle) {
+      specifier = relativeBundlePath(this.bundle, referencedBundle);
+    }
+
     // Map of DependencySpecifier -> Map<ExportedSymbol, Identifier>>
-    let external = this.externals.get(dep.specifier);
+    let external = this.externals.get(specifier);
     if (!external) {
       external = new Map();
-      this.externals.set(dep.specifier, external);
+      this.externals.set(specifier, external);
     }
 
     for (let [imported, {local}] of dep.symbols) {
@@ -786,9 +817,16 @@ ${code}
       if (this.bundle.env.outputFormat === 'commonjs') {
         renamed = external.get('*');
         if (!renamed) {
-          renamed = this.getTopLevelName(
-            `$${this.bundle.publicId}$${dep.specifier}`,
-          );
+          if (referencedBundle) {
+            let entry = nullthrows(referencedBundle.getMainEntry());
+            renamed =
+              entry.symbols.get('*')?.local ??
+              `$${String(entry.meta.id)}$exports`;
+          } else {
+            renamed = this.getTopLevelName(
+              `$${this.bundle.publicId}$${specifier}`,
+            );
+          }
 
           external.set('*', renamed);
         }
@@ -798,8 +836,17 @@ ${code}
           if (imported === '*') {
             replacement = renamed;
           } else if (imported === 'default') {
-            replacement = `($parcel$interopDefault(${renamed}))`;
-            this.usedHelpers.add('$parcel$interopDefault');
+            let needsDefaultInterop = true;
+            if (referencedBundle) {
+              let entry = nullthrows(referencedBundle.getMainEntry());
+              needsDefaultInterop = this.needsDefaultInterop(entry);
+            }
+            if (needsDefaultInterop) {
+              replacement = `($parcel$interopDefault(${renamed}))`;
+              this.usedHelpers.add('$parcel$interopDefault');
+            } else {
+              replacement = `${renamed}.default`;
+            }
           } else {
             replacement = this.getPropertyAccess(renamed, imported);
           }
@@ -807,24 +854,67 @@ ${code}
           replacements.set(local, replacement);
         }
       } else {
+        let property;
+        if (referencedBundle) {
+          let entry = nullthrows(referencedBundle.getMainEntry());
+          if (entry.symbols.hasExportSymbol('*')) {
+            // If importing * and the referenced module has a * export (e.g. CJS), use default instead.
+            // This mirrors the logic in buildExportedSymbols.
+            property = imported;
+            imported =
+              referencedBundle?.env.outputFormat === 'esmodule'
+                ? 'default'
+                : '*';
+          } else {
+            if (imported === '*') {
+              let exportedSymbols = this.bundleGraph.getExportedSymbols(entry);
+              if (local === '*') {
+                // Re-export all symbols.
+                for (let exported of exportedSymbols) {
+                  if (exported.symbol) {
+                    external.set(exported.exportSymbol, exported.symbol);
+                  }
+                }
+                continue;
+              }
+            }
+            renamed = this.bundleGraph.getSymbolResolution(
+              entry,
+              imported,
+              this.bundle,
+            ).symbol;
+          }
+        }
+
         // Rename the specifier so that multiple local imports of the same imported specifier
         // are deduplicated. We have to prefix the imported name with the bundle id so that
         // local variables do not shadow it.
-        if (this.exportedSymbols.has(local)) {
-          renamed = local;
-        } else if (imported === 'default' || imported === '*') {
-          renamed = this.getTopLevelName(
-            `$${this.bundle.publicId}$${dep.specifier}`,
-          );
-        } else {
-          renamed = this.getTopLevelName(
-            `$${this.bundle.publicId}$${imported}`,
-          );
+        if (!renamed) {
+          if (this.exportedSymbols.has(local)) {
+            renamed = local;
+          } else if (imported === 'default' || imported === '*') {
+            renamed = this.getTopLevelName(
+              `$${this.bundle.publicId}$${specifier}`,
+            );
+          } else {
+            renamed = this.getTopLevelName(
+              `$${this.bundle.publicId}$${imported}`,
+            );
+          }
         }
 
         external.set(imported, renamed);
         if (local !== '*' && replacements) {
-          replacements.set(local, renamed);
+          let replacement = renamed;
+          if (property === '*') {
+            replacement = renamed;
+          } else if (property === 'default') {
+            replacement = `($parcel$interopDefault(${renamed}))`;
+            this.usedHelpers.add('$parcel$interopDefault');
+          } else if (property) {
+            replacement = this.getPropertyAccess(renamed, property);
+          }
+          replacements.set(local, replacement);
         }
       }
     }
@@ -849,6 +939,7 @@ ${code}
     resolved: Asset,
     imported: string,
     dep?: Dependency,
+    replacements?: Map<string, string>,
   ): string {
     let {
       asset: resolvedAsset,
@@ -922,13 +1013,16 @@ ${code}
     // namespace export symbol.
     let assetId = resolvedAsset.meta.id;
     invariant(typeof assetId === 'string');
-    let obj =
-      isWrapped && (!dep || dep?.meta.shouldWrap)
-        ? // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
-          `(parcelRequire(${JSON.stringify(publicId)}))`
-        : isWrapped && dep
-        ? `$${publicId}`
-        : resolvedAsset.symbols.get('*')?.local || `$${assetId}$exports`;
+    let obj;
+    if (isWrapped && (!dep || dep?.meta.shouldWrap)) {
+      // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
+      obj = `(parcelRequire(${JSON.stringify(publicId)}))`;
+    } else if (isWrapped && dep) {
+      obj = `$${publicId}`;
+    } else {
+      obj = resolvedAsset.symbols.get('*')?.local || `$${assetId}$exports`;
+      obj = replacements?.get(obj) || obj;
+    }
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
@@ -964,7 +1058,7 @@ ${code}
     } else if (!symbol) {
       invariant(false, 'Asset was skipped or not found.');
     } else {
-      return symbol;
+      return replacements?.get(symbol) || symbol;
     }
   }
 
@@ -1011,6 +1105,7 @@ ${code}
   buildAssetPrelude(
     asset: Asset,
     deps: Array<Dependency>,
+    replacements: Map<string, string>,
   ): [string, number, string] {
     let prepend = '';
     let prependLineCount = 0;
@@ -1043,6 +1138,7 @@ ${code}
             .some(
               dep =>
                 !dep.isEntry &&
+                this.bundle.hasDependency(dep) &&
                 nullthrows(this.bundleGraph.getUsedSymbols(dep)).has('*'),
             ))) ||
       // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
@@ -1051,7 +1147,11 @@ ${code}
         [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s))) ||
       // If the exports has this asset's namespace (e.g. ESM output from CJS input),
       // include the namespace object for the default export.
-      this.exportedSymbols.has(`$${assetId}$exports`);
+      this.exportedSymbols.has(`$${assetId}$exports`) ||
+      // CommonJS library bundle entries always need a namespace.
+      (this.bundle.env.isLibrary &&
+        this.bundle.env.outputFormat === 'commonjs' &&
+        asset === this.bundle.getMainEntry());
 
     // If the asset doesn't have static exports, should wrap, the namespace is used,
     // or we need default interop, then we need to synthesize a namespace object for
@@ -1118,7 +1218,13 @@ ${code}
               (!resolved.meta.hasCJSExports &&
                 resolved.symbols.hasExportSymbol('*'))
             ) {
-              let obj = this.getSymbolResolution(asset, resolved, '*', dep);
+              let obj = this.getSymbolResolution(
+                asset,
+                resolved,
+                '*',
+                dep,
+                replacements,
+              );
               append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
             } else {
@@ -1136,6 +1242,8 @@ ${code}
                   asset,
                   resolved,
                   symbol,
+                  undefined,
+                  replacements,
                 );
                 let get = this.buildFunctionExpression([], resolvedSymbol);
                 let set = asset.meta.hasCJSExports
@@ -1182,7 +1290,13 @@ ${code}
         // additional assignments after each mutation of the original binding.
         prepend += `\n${usedExports
           .map(exp => {
-            let resolved = this.getSymbolResolution(asset, asset, exp);
+            let resolved = this.getSymbolResolution(
+              asset,
+              asset,
+              exp,
+              undefined,
+              replacements,
+            );
             let get = this.buildFunctionExpression([], resolved);
             let isEsmExport = !!asset.symbols.get(exp)?.meta?.isEsm;
             let set =

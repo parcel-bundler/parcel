@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-mdx",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,12 +16,12 @@
   "main": "lib/MDXTransformer.js",
   "source": "src/MDXTransformer.js",
   "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.11.0"
+    "node": ">= 16.0.0",
+    "parcel": "^2.12.0"
   },
   "dependencies": {
     "@mdx-js/mdx": "^1.6.22",
-    "@parcel/plugin": "2.11.0"
+    "@parcel/plugin": "2.12.0"
   },
   "peerDependencies": {
     "@mdx-js/react": "^1.6.22"

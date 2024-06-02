@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -18,7 +18,7 @@
   "source": "src/index.js",
   "types": "index.d.ts",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "targets": {
     "types": false,
@@ -26,7 +26,7 @@
       "includeNodeModules": {
         "@parcel/core": false,
         "@parcel/rust": false,
-        "@parcel/types": false,
+        "@parcel/types-internal": false,
         "@parcel/utils": false,
         "@parcel/watcher": false,
         "@parcel/workers": false
@@ -36,7 +36,7 @@
       "includeNodeModules": {
         "@parcel/core": false,
         "@parcel/rust": false,
-        "@parcel/types": false,
+        "@parcel/types-internal": false,
         "@parcel/utils": false,
         "@parcel/watcher": false,
         "@parcel/workers": false
@@ -48,11 +48,11 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/rust": "2.11.0",
-    "@parcel/types": "2.11.0",
-    "@parcel/utils": "2.11.0",
+    "@parcel/rust": "2.12.0",
+    "@parcel/types-internal": "2.12.0",
+    "@parcel/utils": "2.12.0",
     "@parcel/watcher": "^2.0.7",
-    "@parcel/workers": "2.11.0"
+    "@parcel/workers": "2.12.0"
   },
   "devDependencies": {
     "graceful-fs": "^4.2.4",
@@ -61,7 +61,7 @@
     "utility-types": "^3.10.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.11.0"
+    "@parcel/core": "^2.12.0"
   },
   "browser": {
     "@parcel/fs": "./lib/browser.js",

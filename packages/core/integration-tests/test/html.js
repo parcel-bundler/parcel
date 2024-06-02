@@ -2242,6 +2242,18 @@ describe('html', function () {
 
     assertBundles(b, [
       {
+        type: 'js',
+        assets: ['a.html'],
+      },
+      {
+        type: 'js',
+        assets: ['b.html'],
+      },
+      {
+        type: 'js',
+        assets: ['c.html'],
+      },
+      {
         name: 'a.html',
         type: 'html',
         assets: ['a.html'],
@@ -2257,24 +2269,12 @@ describe('html', function () {
         assets: ['c.html'],
       },
       {
-        type: 'js',
-        assets: ['a.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['b.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['c.html', 'shared.js'],
-      },
-      {
         type: 'css',
-        assets: ['other.css'],
+        assets: ['other.css', 'shared.css'],
       },
       {
-        type: 'css',
-        assets: ['shared.css'],
+        type: 'js',
+        assets: ['shared.js'],
       },
     ]);
 
@@ -2494,6 +2494,14 @@ describe('html', function () {
         assets: ['a.module.css'],
       },
       {
+        type: 'css',
+        assets: ['a.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css'],
+      },
+      {
         type: 'html',
         assets: ['searchfield.html'],
       },
@@ -2681,7 +2689,7 @@ describe('html', function () {
     await getNextBuild(b);
 
     let html = await outputFS.readFile('/dist/index.html', 'utf8');
-    assert(html.includes(`console.log("test")`));
+    assert(html.includes(`console.log('test')`));
 
     await overlayFS.writeFile(
       path.join(__dirname, '/html-inline-js-require/test.js'),
@@ -2690,7 +2698,7 @@ describe('html', function () {
     await getNextBuild(b);
 
     html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
-    assert(html.includes(`console.log("foo")`));
+    assert(html.includes(`console.log('foo')`));
   });
 
   it('should invalidate parent bundle when nested inline bundles change', async function () {

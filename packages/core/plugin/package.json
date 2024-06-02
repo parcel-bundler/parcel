@@ -1,6 +1,6 @@
 {
   "name": "@parcel/plugin",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/PluginAPI.js",
   "types": "src/PluginAPI.d.ts",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "scripts": {
     "check-ts": "tsc --noEmit src/PluginAPI.d.ts"
   },
   "dependencies": {
-    "@parcel/types": "2.11.0"
+    "@parcel/types": "2.12.0"
   }
 }

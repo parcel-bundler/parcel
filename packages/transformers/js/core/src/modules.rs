@@ -1,14 +1,25 @@
-use crate::id;
-use crate::utils::{get_undefined_ident, match_export_name, match_export_name_ident};
+use std::collections::HashMap;
+use std::collections::HashSet;
+
 use inflector::Inflector;
-use std::collections::{HashMap, HashSet};
-use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::common::Mark;
+use swc_core::common::Span;
+use swc_core::common::SyntaxContext;
+use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::preset_env::{Feature, Versions};
-use swc_core::ecma::visit::{Fold, FoldWith};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::preset_env::Feature;
+use swc_core::ecma::preset_env::Versions;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
 use crate::fold_member_expr_skip_prop;
+use crate::id;
+use crate::utils::get_undefined_ident;
+use crate::utils::match_export_name;
+use crate::utils::match_export_name_ident;
 
 pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) -> (Module, bool) {
   let mut fold = ESMFold {
@@ -95,7 +106,10 @@ impl ESMFold {
       decls: vec![VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(ident.into()),
-        init: Some(Box::new(Expr::Call(crate::utils::create_require(src)))),
+        init: Some(Box::new(Expr::Call(crate::utils::create_require(
+          src,
+          self.unresolved_mark,
+        )))),
         definite: false,
       }],
       declare: false,
@@ -208,11 +222,11 @@ impl ESMFold {
     ModuleItem::Stmt(Stmt::Expr(ExprStmt {
       expr: Box::new(Expr::Assign(AssignExpr {
         op: AssignOp::Assign,
-        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+        left: AssignTarget::Simple(SimpleAssignTarget::Member(MemberExpr {
           obj: Box::new(Expr::Ident(Ident::new("exports".into(), DUMMY_SP))),
           prop: MemberProp::Ident(Ident::new(name, DUMMY_SP)),
           span: DUMMY_SP,
-        }))),
+        })),
         right: Box::new(right),
         span: DUMMY_SP,
       })),
@@ -556,6 +570,7 @@ impl Fold for ESMFold {
             ),
             init: Some(Box::new(Expr::Call(crate::utils::create_require(
               "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+              self.unresolved_mark,
             )))),
             definite: false,
           }],
@@ -570,19 +585,8 @@ impl Fold for ESMFold {
 
   fn fold_binding_ident(&mut self, node: BindingIdent) -> BindingIdent {
     if self.in_export_decl {
+      // export const {foo} = ...;
       self.create_export(node.id.sym.clone(), Expr::Ident(node.id.clone()), DUMMY_SP);
-    }
-
-    node.fold_children_with(self)
-  }
-
-  fn fold_assign_pat_prop(&mut self, node: AssignPatProp) -> AssignPatProp {
-    if self.in_export_decl {
-      self.create_export(
-        node.key.sym.clone(),
-        Expr::Ident(node.key.clone()),
-        DUMMY_SP,
-      );
     }
 
     node.fold_children_with(self)
@@ -609,7 +613,7 @@ impl Fold for ESMFold {
           node
         }
       }
-      _ => node.fold_children_with(self),
+      _ => maybe_grow_default(|| node.fold_children_with(self)),
     }
   }
 

@@ -1,22 +1,39 @@
-use crate::collect::{Collect, Export, Import, ImportKind};
-use crate::utils::{
-  get_undefined_ident, match_export_name, match_export_name_ident, match_property_name,
-};
-use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::hash::Hasher;
-use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::visit::{Fold, FoldWith};
 
+use indexmap::IndexMap;
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::Mark;
+use swc_core::common::Span;
+use swc_core::common::SyntaxContext;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
+
+use crate::collect::Collect;
+use crate::collect::Export;
+use crate::collect::Import;
+use crate::collect::ImportKind;
 use crate::id;
-use crate::utils::{
-  match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, DiagnosticSeverity,
-  SourceLocation,
-};
+use crate::utils::get_undefined_ident;
+use crate::utils::is_unresolved;
+use crate::utils::match_export_name;
+use crate::utils::match_export_name_ident;
+use crate::utils::match_import;
+use crate::utils::match_member_expr;
+use crate::utils::match_property_name;
+use crate::utils::match_require;
+use crate::utils::CodeHighlight;
+use crate::utils::Diagnostic;
+use crate::utils::DiagnosticSeverity;
+use crate::utils::SourceLocation;
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -155,6 +172,7 @@ impl<'a> Fold for Hoist<'a> {
                     format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
                   ),
                   type_only: false,
+                  phase: Default::default(),
                 })),
               );
               // Ensure that all import specifiers are constant.
@@ -204,6 +222,7 @@ impl<'a> Fold for Hoist<'a> {
                       raw: None,
                     }),
                     type_only: false,
+                    phase: Default::default(),
                   })),
                 );
 
@@ -297,6 +316,7 @@ impl<'a> Fold for Hoist<'a> {
                     format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
                   ),
                   type_only: false,
+                  phase: Default::default(),
                 })),
               );
               self.re_exports.push(ImportedSymbol {
@@ -371,7 +391,7 @@ impl<'a> Fold for Hoist<'a> {
                     if let Some(init) = &v.init {
                       // Match var x = require('foo');
                       if let Some(source) =
-                        match_require(init, &self.collect.decls, self.collect.ignore_mark)
+                        match_require(init, self.unresolved_mark, self.collect.ignore_mark)
                       {
                         // If the require is accessed in a way we cannot analyze, do not replace.
                         // e.g. const {x: {y: z}} = require('x');
@@ -405,6 +425,7 @@ impl<'a> Fold for Hoist<'a> {
                                 raw: None,
                               }),
                               type_only: false,
+                              phase: Default::default(),
                             })));
 
                           // Create variable assignments for any declarations that are not constant.
@@ -416,7 +437,7 @@ impl<'a> Fold for Hoist<'a> {
                       if let Expr::Member(member) = &**init {
                         // Match var x = require('foo').bar;
                         if let Some(source) =
-                          match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
+                          match_require(&member.obj, self.unresolved_mark, self.collect.ignore_mark)
                         {
                           if !self.collect.non_static_requires.contains(&source) {
                             // If this is not the first declarator in the variable declaration, we need to
@@ -446,6 +467,7 @@ impl<'a> Fold for Hoist<'a> {
                                   raw: None,
                                 }),
                                 type_only: false,
+                                phase: Default::default(),
                               })));
 
                             self.handle_non_const_require(v, &source);
@@ -499,7 +521,7 @@ impl<'a> Fold for Hoist<'a> {
             }
             Stmt::Expr(ExprStmt { expr, span }) => {
               if let Some(source) =
-                match_require(&expr, &self.collect.decls, self.collect.ignore_mark)
+                match_require(&expr, self.unresolved_mark, self.collect.ignore_mark)
               {
                 // Require in statement position (`require('other');`) should behave just
                 // like `import 'other';` in that it doesn't add any symbols (not even '*').
@@ -558,12 +580,12 @@ impl<'a> Fold for Hoist<'a> {
       }
       Expr::Member(member) => {
         if !self.collect.should_wrap {
-          if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
+          if match_member_expr(&member, vec!["module", "exports"], self.unresolved_mark) {
             self.self_references.insert("*".into());
             return Expr::Ident(self.get_export_ident(member.span, &"*".into()));
           }
 
-          if match_member_expr(&member, vec!["module", "hot"], &self.collect.decls) {
+          if match_member_expr(&member, vec!["module", "hot"], self.unresolved_mark) {
             return Expr::Lit(Lit::Null(Null { span: member.span }));
           }
         }
@@ -620,7 +642,7 @@ impl<'a> Fold for Hoist<'a> {
 
             // exports.foo -> $id$export$foo
             if &*ident.sym == "exports"
-              && !self.collect.decls.contains(&id!(ident))
+              && is_unresolved(&ident, self.unresolved_mark)
               && self.collect.static_cjs_exports
               && !self.collect.should_wrap
             {
@@ -631,7 +653,7 @@ impl<'a> Fold for Hoist<'a> {
           Expr::Call(_) => {
             // require('foo').bar -> $id$import$foo$bar
             if let Some(source) =
-              match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
+              match_require(&member.obj, self.unresolved_mark, self.collect.ignore_mark)
             {
               self.add_require(&source, ImportKind::Require);
               return Expr::Ident(self.get_import_ident(
@@ -647,7 +669,7 @@ impl<'a> Fold for Hoist<'a> {
             // module.exports.foo -> $id$export$foo
             if self.collect.static_cjs_exports
               && !self.collect.should_wrap
-              && match_member_expr(mem, vec!["module", "exports"], &self.collect.decls)
+              && match_member_expr(mem, vec!["module", "exports"], self.unresolved_mark)
             {
               self.self_references.insert(key.clone());
               return Expr::Ident(self.get_export_ident(member.span, &key));
@@ -676,7 +698,7 @@ impl<'a> Fold for Hoist<'a> {
       }
       Expr::Call(ref call) => {
         // require('foo') -> $id$import$foo
-        if let Some(source) = match_require(&node, &self.collect.decls, self.collect.ignore_mark) {
+        if let Some(source) = match_require(&node, self.unresolved_mark, self.collect.ignore_mark) {
           self.add_require(&source, ImportKind::Require);
           return Expr::Ident(self.get_import_ident(
             call.span,
@@ -734,7 +756,7 @@ impl<'a> Fold for Hoist<'a> {
       _ => {}
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 
   fn fold_seq_expr(&mut self, node: SeqExpr) -> SeqExpr {
@@ -749,7 +771,7 @@ impl<'a> Fold for Hoist<'a> {
       .enumerate()
       .map(|(i, expr)| {
         if i != len - 1
-          && match_require(&expr, &self.collect.decls, self.collect.ignore_mark).is_some()
+          && match_require(&expr, self.unresolved_mark, self.collect.ignore_mark).is_some()
         {
           return Box::new(Expr::Unary(UnaryExpr {
             op: UnaryOp::Bang,
@@ -841,19 +863,19 @@ impl<'a> Fold for Hoist<'a> {
     }
 
     if &*node.sym == "exports"
-      && !self.collect.decls.contains(&id!(node))
+      && is_unresolved(&node, self.unresolved_mark)
       && !self.collect.should_wrap
     {
       self.self_references.insert("*".into());
       return self.get_export_ident(node.span, &"*".into());
     }
 
-    if node.sym == js_word!("global") && !self.collect.decls.contains(&id!(node)) {
+    if node.sym == js_word!("global") && is_unresolved(&node, self.unresolved_mark) {
       return Ident::new("$parcel$global".into(), node.span);
     }
 
     if node.span.has_mark(self.collect.global_mark)
-      && self.collect.decls.contains(&id!(node))
+      && !is_unresolved(&node, self.unresolved_mark)
       && !self.collect.should_wrap
     {
       let new_name: JsWord = format!("${}$var${}", self.module_id, node.sym).into();
@@ -868,30 +890,24 @@ impl<'a> Fold for Hoist<'a> {
       return node.fold_children_with(self);
     }
 
-    let expr = match &node.left {
-      PatOrExpr::Expr(expr) => expr,
-      PatOrExpr::Pat(pat) => match &**pat {
-        Pat::Expr(expr) => expr,
-        _ => return node.fold_children_with(self),
-      },
-    };
-
-    if let Expr::Member(member) = &**expr {
-      if match_member_expr(member, vec!["module", "exports"], &self.collect.decls) {
+    if let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &node.left {
+      if match_member_expr(member, vec!["module", "exports"], self.unresolved_mark) {
         let ident = BindingIdent::from(self.get_export_ident(member.span, &"*".into()));
         return AssignExpr {
           span: node.span,
           op: node.op,
-          left: PatOrExpr::Pat(Box::new(Pat::Ident(ident))),
+          left: AssignTarget::Simple(SimpleAssignTarget::Ident(ident.into())),
           right: node.right.fold_with(self),
         };
       }
 
       let is_cjs_exports = match &*member.obj {
         Expr::Member(member) => {
-          match_member_expr(member, vec!["module", "exports"], &self.collect.decls)
+          match_member_expr(member, vec!["module", "exports"], self.unresolved_mark)
         }
-        Expr::Ident(ident) => &*ident.sym == "exports" && !self.collect.decls.contains(&id!(ident)),
+        Expr::Ident(ident) => {
+          &*ident.sym == "exports" && is_unresolved(&ident, self.unresolved_mark)
+        }
         Expr::This(_) if !self.in_function_scope => true,
         _ => false,
       };
@@ -932,13 +948,13 @@ impl<'a> Fold for Hoist<'a> {
           span: node.span,
           op: node.op,
           left: if self.collect.static_cjs_exports {
-            PatOrExpr::Pat(Box::new(Pat::Ident(ident)))
+            AssignTarget::Simple(SimpleAssignTarget::Ident(ident.into()))
           } else {
-            PatOrExpr::Pat(Box::new(Pat::Expr(Box::new(Expr::Member(MemberExpr {
+            AssignTarget::Simple(SimpleAssignTarget::Member(MemberExpr {
               span: member.span,
               obj: Box::new(Expr::Ident(ident.id)),
               prop: member.prop.clone().fold_with(self),
-            })))))
+            }))
           },
           right: node.right.fold_with(self),
         };
@@ -1002,6 +1018,7 @@ impl<'a> Hoist<'a> {
         span: DUMMY_SP,
         src: Box::new(src.into()),
         type_only: false,
+        phase: Default::default(),
       })));
   }
 
@@ -1112,18 +1129,26 @@ impl<'a> Hoist<'a> {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use crate::collect_decls;
-  use crate::utils::BailoutReason;
   use std::iter::FromIterator;
+
   use swc_core::common::chain;
   use swc_core::common::comments::SingleThreadedComments;
-  use swc_core::common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
+  use swc_core::common::sync::Lrc;
+  use swc_core::common::FileName;
+  use swc_core::common::Globals;
+  use swc_core::common::Mark;
+  use swc_core::common::SourceMap;
   use swc_core::ecma::codegen::text_writer::JsWriter;
   use swc_core::ecma::parser::lexer::Lexer;
-  use swc_core::ecma::parser::{Parser, StringInput};
-  use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver};
+  use swc_core::ecma::parser::Parser;
+  use swc_core::ecma::parser::StringInput;
+  use swc_core::ecma::transforms::base::fixer::fixer;
+  use swc_core::ecma::transforms::base::hygiene::hygiene;
+  use swc_core::ecma::transforms::base::resolver;
   use swc_core::ecma::visit::VisitWith;
+
+  use super::*;
+  use crate::utils::BailoutReason;
   extern crate indoc;
   use self::indoc::indoc;
 
@@ -1161,7 +1186,7 @@ mod tests {
 
             let mut collect = Collect::new(
               source_map.clone(),
-              collect_decls(&module),
+              unresolved_mark,
               Mark::fresh(Mark::root()),
               global_mark,
               true,

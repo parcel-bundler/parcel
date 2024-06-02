@@ -1,61 +1,87 @@
 mod collect;
 mod constant_module;
-mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
 mod global_replacer;
 mod hoist;
-mod macros;
 mod modules;
 mod node_replacer;
 mod typeof_replacer;
 mod utils;
 
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::path::Path;
+use std::path::PathBuf;
 use std::str::FromStr;
 
+use collect::Collect;
+use collect::CollectResult;
 use constant_module::ConstantModule;
-use indexmap::IndexMap;
-use macros::MacroCallback;
-use path_slash::PathExt;
-use serde::{Deserialize, Serialize};
-use swc_core::common::comments::SingleThreadedComments;
-use swc_core::common::errors::Handler;
-use swc_core::common::pass::Optional;
-use swc_core::common::source_map::SourceMapGenConfig;
-use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_core::ecma::ast::{Module, ModuleItem, Program};
-use swc_core::ecma::codegen::text_writer::JsWriter;
-use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
-use swc_core::ecma::transforms::base::fixer::paren_remover;
-use swc_core::ecma::transforms::base::helpers;
-use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
-use swc_core::ecma::transforms::proposal::decorators;
-use swc_core::ecma::transforms::{
-  compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
-  optimization::simplify::expr_simplifier, react, typescript,
-};
-use swc_core::ecma::visit::{FoldWith, VisitWith};
-
-use collect::{Collect, CollectResult};
-use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::{hoist, HoistResult};
+use hoist::hoist;
+use hoist::HoistResult;
+use indexmap::IndexMap;
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
+use parcel_macros::MacroCallback;
+use parcel_macros::MacroError;
+use parcel_macros::Macros;
+use path_slash::PathExt;
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::chain;
+use swc_core::common::comments::SingleThreadedComments;
+use swc_core::common::errors::Handler;
+use swc_core::common::pass::Optional;
+use swc_core::common::source_map::SourceMapGenConfig;
+use swc_core::common::sync::Lrc;
+use swc_core::common::FileName;
+use swc_core::common::Globals;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::ecma::ast::Module;
+use swc_core::ecma::ast::ModuleItem;
+use swc_core::ecma::ast::Program;
+use swc_core::ecma::codegen::text_writer::JsWriter;
+use swc_core::ecma::parser::error::Error;
+use swc_core::ecma::parser::lexer::Lexer;
+use swc_core::ecma::parser::EsConfig;
+use swc_core::ecma::parser::Parser;
+use swc_core::ecma::parser::StringInput;
+use swc_core::ecma::parser::Syntax;
+use swc_core::ecma::parser::TsConfig;
+use swc_core::ecma::preset_env::preset_env;
+use swc_core::ecma::preset_env::Mode::Entry;
+use swc_core::ecma::preset_env::Targets;
+use swc_core::ecma::preset_env::Version;
+use swc_core::ecma::preset_env::Versions;
+use swc_core::ecma::transforms::base::fixer::fixer;
+use swc_core::ecma::transforms::base::fixer::paren_remover;
+use swc_core::ecma::transforms::base::helpers;
+use swc_core::ecma::transforms::base::hygiene::hygiene;
+use swc_core::ecma::transforms::base::resolver;
+use swc_core::ecma::transforms::base::Assumptions;
+use swc_core::ecma::transforms::compat::reserved_words::reserved_words;
+use swc_core::ecma::transforms::optimization::simplify::dead_branch_remover;
+use swc_core::ecma::transforms::optimization::simplify::expr_simplifier;
+use swc_core::ecma::transforms::proposal::decorators;
+use swc_core::ecma::transforms::react;
+use swc_core::ecma::transforms::typescript;
+use swc_core::ecma::visit::FoldWith;
+use swc_core::ecma::visit::VisitWith;
 use typeof_replacer::*;
-use utils::{error_buffer_to_diagnostics, Diagnostic, DiagnosticSeverity, ErrorBuffer, SourceType};
-
-pub use crate::macros::JsValue;
-use crate::macros::Macros;
+use utils::error_buffer_to_diagnostics;
+use utils::CodeHighlight;
+use utils::Diagnostic;
+use utils::DiagnosticSeverity;
+use utils::ErrorBuffer;
 pub use utils::SourceLocation;
+use utils::SourceType;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -160,10 +186,12 @@ pub fn transform(
   );
 
   match module {
-    Err(err) => {
+    Err(errs) => {
       let error_buffer = ErrorBuffer::default();
       let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
-      err.into_diagnostic(&handler).emit();
+      for err in errs {
+        err.into_diagnostic(&handler).emit();
+      }
 
       result.diagnostics = Some(error_buffer_to_diagnostics(&error_buffer, &source_map));
       Ok(result)
@@ -276,8 +304,6 @@ pub fn transform(
                 config.is_jsx,
               ));
 
-              let mut decls = collect_decls(&module);
-
               let mut preset_env_config = swc_core::ecma::preset_env::Config {
                 dynamic_import: true,
                 ..Default::default()
@@ -304,8 +330,11 @@ pub fn transform(
 
               let mut diagnostics = vec![];
               if let Some(call_macro) = call_macro {
-                module =
-                  module.fold_with(&mut Macros::new(call_macro, &source_map, &mut diagnostics));
+                let mut errors = Vec::new();
+                module = module.fold_with(&mut Macros::new(call_macro, &source_map, &mut errors));
+                for error in errors {
+                  diagnostics.push(macro_error_to_diagnostic(error, &source_map));
+                }
               }
 
               if config.scope_hoist && config.inline_constants {
@@ -317,7 +346,7 @@ pub fn transform(
               let module = {
                 let mut passes = chain!(
                   Optional::new(
-                    TypeofReplacer { decls: &decls },
+                    TypeofReplacer { unresolved_mark },
                     config.source_type != SourceType::Script
                   ),
                   // Inline process.env and process.browser
@@ -326,7 +355,6 @@ pub fn transform(
                       replace_env: config.replace_env,
                       env: &config.env,
                       is_browser: config.is_browser,
-                      decls: &decls,
                       used_env: &mut result.used_env,
                       source_map: &source_map,
                       diagnostics: &mut diagnostics,
@@ -344,8 +372,7 @@ pub fn transform(
                     inline_fs(
                       config.filename.as_str(),
                       source_map.clone(),
-                      // TODO this clone is unnecessary if we get the lifetimes right
-                      decls.clone(),
+                      unresolved_mark,
                       global_mark,
                       &config.project_root,
                       &mut fs_deps,
@@ -368,7 +395,7 @@ pub fn transform(
                     globals: HashMap::new(),
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
-                    decls: &mut decls,
+                    unresolved_mark,
                     scope_hoist: config.scope_hoist,
                     has_node_replacements: &mut result.has_node_replacements,
                   },
@@ -387,7 +414,7 @@ pub fn transform(
                       globals: IndexMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
-                      decls: &mut decls,
+                      unresolved_mark,
                       scope_hoist: config.scope_hoist
                     },
                     config.insert_node_globals
@@ -412,18 +439,16 @@ pub fn transform(
 
               // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
               // set global_mark for all nodes, even generated ones.
-              // - This changes the syntax context ids and therefore invalidates decls
               // - This will also remove any other other marks (like ignore_mark)
               // This only needs to be done if preset_env ran because all other transforms
               // insert declarations with global_mark (even though they are generated).
-              let (decls, module) = if config.scope_hoist && should_run_preset_env {
-                let module = module.fold_with(&mut chain!(
+              let module = if config.scope_hoist && should_run_preset_env {
+                module.fold_with(&mut chain!(
                   hygiene(),
                   resolver(unresolved_mark, global_mark, false)
-                ));
-                (collect_decls(&module), module)
+                ))
               } else {
-                (decls, module)
+                module
               };
 
               let ignore_mark = Mark::fresh(Mark::root());
@@ -432,7 +457,6 @@ pub fn transform(
                 &mut dependency_collector(
                   &source_map,
                   &mut result.dependencies,
-                  &decls,
                   ignore_mark,
                   unresolved_mark,
                   &config,
@@ -452,7 +476,7 @@ pub fn transform(
 
               let mut collect = Collect::new(
                 source_map.clone(),
-                decls,
+                unresolved_mark,
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
@@ -520,13 +544,15 @@ pub fn transform(
   }
 }
 
+pub type ParseResult<T> = Result<T, Vec<Error>>;
+
 fn parse(
   code: &str,
   project_root: &str,
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,
-) -> PResult<(Program, SingleThreadedComments)> {
+) -> ParseResult<(Program, SingleThreadedComments)> {
   // Attempt to convert the path to be relative to the project root.
   // If outside the project root, use an absolute path so that if the project root moves the path still works.
   let filename: PathBuf = if let Ok(relative) = Path::new(filename).strip_prefix(project_root) {
@@ -549,6 +575,7 @@ fn parse(
       export_default_from: true,
       decorators: config.decorators,
       import_attributes: true,
+      allow_return_outside_function: true,
       ..Default::default()
     })
   };
@@ -561,10 +588,22 @@ fn parse(
   );
 
   let mut parser = Parser::new_from(lexer);
-  match parser.parse_program() {
-    Err(err) => Err(err),
-    Ok(module) => Ok((module, comments)),
+  let result = parser.parse_program();
+
+  let module = match result {
+    Err(err) => {
+      // A fatal error
+      return Err(vec![err]);
+    }
+    Ok(module) => module,
+  };
+  // Recoverable errors
+  let errors = parser.take_errors();
+  if !errors.is_empty() {
+    return Err(errors);
   }
+
+  Ok((module, comments))
 }
 
 fn emit(
@@ -612,5 +651,50 @@ impl SourceMapGenConfig for SourceMapConfig {
 
   fn skip(&self, f: &FileName) -> bool {
     matches!(f, FileName::MacroExpansion | FileName::Internal(..))
+  }
+}
+
+fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagnostic {
+  match error {
+    MacroError::EvaluationError(span) => Diagnostic {
+      message: "Could not statically evaluate macro argument".into(),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::LoadError(err, span) => Diagnostic {
+      message: format!("Error loading macro: {}", err),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::ExecutionError(err, span) => Diagnostic {
+      message: format!("Error evaluating macro: {}", err),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(source_map, span),
+      }]),
+      hints: None,
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      documentation_url: None,
+    },
+    MacroError::ParseError(err) => {
+      let error_buffer = ErrorBuffer::default();
+      let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
+      err.into_diagnostic(&handler).emit();
+      let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, source_map);
+      return diagnostics.pop().unwrap();
+    }
   }
 }

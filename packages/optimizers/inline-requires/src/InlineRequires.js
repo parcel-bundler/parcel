@@ -2,26 +2,26 @@
 import {Optimizer} from '@parcel/plugin';
 import {parse, print} from '@swc/core';
 import {RequireInliningVisitor} from './RequireInliningVisitor';
-import type {SideEffectsMap} from './types';
 import nullthrows from 'nullthrows';
+import SourceMap from '@parcel/source-map';
 
-let publicIdToAssetSideEffects = null;
+let assetPublicIdsWithSideEffects = null;
 
 type BundleConfig = {|
-  publicIdToAssetSideEffects: Map<string, SideEffectsMap>,
+  assetPublicIdsWithSideEffects: Set<string>,
 |};
 
 // $FlowFixMe not sure how to anotate the export here to make it work...
 module.exports = new Optimizer<empty, BundleConfig>({
   loadBundleConfig({bundle, bundleGraph, tracer}): BundleConfig {
-    if (publicIdToAssetSideEffects !== null) {
-      return {publicIdToAssetSideEffects};
+    if (assetPublicIdsWithSideEffects !== null) {
+      return {assetPublicIdsWithSideEffects};
     }
 
-    publicIdToAssetSideEffects = new Map<string, SideEffectsMap>();
+    assetPublicIdsWithSideEffects = new Set<string>();
 
     if (!bundle.env.shouldOptimize) {
-      return {publicIdToAssetSideEffects};
+      return {assetPublicIdsWithSideEffects};
     }
 
     const measurement = tracer.createMeasurement(
@@ -31,28 +31,33 @@ module.exports = new Optimizer<empty, BundleConfig>({
     );
 
     bundleGraph.traverse(node => {
-      if (node.type === 'asset') {
+      if (node.type === 'asset' && node.value.sideEffects) {
         const publicId = bundleGraph.getAssetPublicId(node.value);
-        let sideEffectsMap = nullthrows(publicIdToAssetSideEffects);
-        sideEffectsMap.set(publicId, {
-          sideEffects: node.value.sideEffects,
-          filePath: node.value.filePath,
-        });
+        let sideEffectsMap = nullthrows(assetPublicIdsWithSideEffects);
+        sideEffectsMap.add(publicId);
       }
     });
 
     measurement && measurement.end();
 
-    return {publicIdToAssetSideEffects};
+    return {assetPublicIdsWithSideEffects};
   },
 
-  async optimize({bundle, contents, map, tracer, logger, bundleConfig}) {
+  async optimize({
+    bundle,
+    contents,
+    map: originalMap,
+    tracer,
+    logger,
+    bundleConfig,
+    options,
+  }) {
     if (!bundle.env.shouldOptimize) {
-      return {contents, map};
+      return {contents, map: originalMap};
     }
 
     try {
-      const measurement = tracer.createMeasurement(
+      let measurement = tracer.createMeasurement(
         '@parcel/optimizer-inline-requires',
         'parse',
         bundle.name,
@@ -63,20 +68,48 @@ module.exports = new Optimizer<empty, BundleConfig>({
       const visitor = new RequireInliningVisitor({
         bundle,
         logger,
-        publicIdToAssetSideEffects: bundleConfig.publicIdToAssetSideEffects,
+        assetPublicIdsWithSideEffects:
+          bundleConfig.assetPublicIdsWithSideEffects,
       });
+
+      measurement = tracer.createMeasurement(
+        '@parcel/optimizer-inline-requires',
+        'visit',
+        bundle.name,
+      );
       visitor.visitProgram(ast);
+      measurement && measurement.end();
+
       if (visitor.dirty) {
-        const newContents = await print(ast, {});
-        return {contents: newContents.code, map};
+        const measurement = tracer.createMeasurement(
+          '@parcel/optimizer-inline-requires',
+          'print',
+          bundle.name,
+        );
+        const result = await print(ast, {sourceMaps: !!bundle.env.sourceMap});
+        measurement && measurement.end();
+
+        let sourceMap = null;
+        let resultMap = result.map;
+        let contents: string = nullthrows(result.code);
+
+        if (resultMap != null) {
+          sourceMap = new SourceMap(options.projectRoot);
+          sourceMap.addVLQMap(JSON.parse(resultMap));
+          if (originalMap) {
+            sourceMap.extends(originalMap);
+          }
+        }
+
+        return {contents, map: sourceMap};
       }
     } catch (err) {
-      logger.error({
+      logger.warn({
         origin: 'parcel-optimizer-experimental-inline-requires',
         message: `Unable to optimise requires for ${bundle.name}: ${err.message}`,
         stack: err.stack,
       });
     }
-    return {contents, map};
+    return {contents, map: originalMap};
   },
 });

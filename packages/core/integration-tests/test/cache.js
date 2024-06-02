@@ -1312,6 +1312,192 @@ describe('cache', function () {
 
       assert.equal(await run(b.bundleGraph), 'updated');
     });
+
+    describe('config keys', () => {
+      it(`should not invalidate when package.json config keys don't change`, async function () {
+        let b = await testCache({
+          featureFlags: {
+            exampleFeature: false,
+            configKeyInvalidation: true,
+            parcelV3: false,
+            dfsFasterRefactor: false,
+          },
+          async setup() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/transformer-js': {
+                  inlineEnvironment: false,
+                  inlineFS: false,
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(
+              path.join(inputDir, '.parcelrc'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  // Remove react-refresh transformer and babel so we don't get extra config deps
+                  '*.js': ['@parcel/transformer-js'],
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'module.exports = process.env.TEST || "default"',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/package.json'),
+              '{}',
+            );
+          },
+          async update() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                inlineFS: false,
+                inlineEnvironment: false,
+              }),
+            );
+          },
+        });
+
+        assert.equal(await run(b.bundleGraph), 'default');
+        assert.equal(b.changedAssets.size, 0);
+      });
+
+      it('should invalidate when package.json config keys change', async function () {
+        let b = await testCache({
+          featureFlags: {
+            exampleFeature: false,
+            configKeyInvalidation: true,
+            parcelV3: false,
+            dfsFasterRefactor: false,
+          },
+          async setup() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/transformer-js': {
+                  inlineEnvironment: false,
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(
+              path.join(inputDir, '.parcelrc'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  // Remove react-refresh transformer and babel so we don't get extra config deps
+                  '*.js': ['@parcel/transformer-js'],
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'module.exports = process.env.TEST || "default"',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/package.json'),
+              '{}',
+            );
+          },
+          async update() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/transformer-js': {
+                  inlineEnvironment: ['TEST'],
+                },
+              }),
+            );
+          },
+        });
+
+        assert.equal(await run(b.bundleGraph), 'hi');
+        assert.equal(b.changedAssets.size, 1);
+      });
+
+      it('should invalidate when package.json config keys are removed', async function () {
+        let b = await testCache({
+          featureFlags: {
+            exampleFeature: false,
+            configKeyInvalidation: true,
+            parcelV3: false,
+            dfsFasterRefactor: false,
+          },
+          async setup() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/transformer-js': {
+                  inlineEnvironment: false,
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(
+              path.join(inputDir, '.parcelrc'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  // Remove react-refresh transformer and babel so we don't get extra config deps
+                  '*.js': ['@parcel/transformer-js'],
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'module.exports = process.env.TEST || "default"',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/package.json'),
+              '{}',
+            );
+          },
+          async update() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            delete pkg['@parcel/transformer-js'];
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                pkg,
+              }),
+            );
+          },
+        });
+
+        assert.equal(await run(b.bundleGraph), 'hi');
+        assert.equal(b.changedAssets.size, 1);
+      });
+    });
   });
 
   describe('entries', function () {
@@ -5689,17 +5875,17 @@ describe('cache', function () {
         },
         async update(b) {
           let res = await run(b.bundleGraph);
-          assert(res.includes(`let a = "a"`));
+          assert(res.includes(`let a = 'a'`));
 
           await overlayFS.writeFile(
             path.join(inputDir, 'src/entries/a.js'),
-            `export let a = "b";`,
+            `export let a = 'b';`,
           );
         },
       });
 
       let res = await run(b.bundleGraph);
-      assert(res.includes(`let a = "b"`));
+      assert(res.includes(`let a = 'b'`));
     });
 
     it('should invalidate when switching to a different packager for an inline bundle', async function () {
@@ -6200,7 +6386,7 @@ describe('cache', function () {
             loadConfig({config, options}) {
               return DefaultBundler[CONFIG].loadConfig({config, options});
             },
-          
+
             bundle({bundleGraph, config}) {
               DefaultBundler[CONFIG].bundle({bundleGraph, config});
             },
@@ -6218,7 +6404,9 @@ describe('cache', function () {
         hashString(
           `${version}:BundleGraph:${
             JSON.stringify(resolvedOptions.entries) ?? ''
-          }${resolvedOptions.mode}`,
+          }${resolvedOptions.mode}${
+            resolvedOptions.shouldBuildLazily ? 'lazy' : 'eager'
+          }`,
         ) + '-BundleGraph';
 
       assert(
@@ -6787,5 +6975,44 @@ describe('cache', function () {
 
     let res = await run(build.bundleGraph);
     assert.deepEqual(res, {default: 'foo'});
+  });
+
+  it('invalidates correctly when switching from lazy to eager modes', async function () {
+    let overlayFSPackageManager = new NodePackageManager(overlayFS, __dirname);
+    let entry = 'source/index.js';
+    let options = {
+      mode: 'production',
+      defaultTargetOptions: {
+        shouldScopeHoist: false,
+      },
+      packageManager: overlayFSPackageManager,
+      shouldContentHash: false,
+      shouldDisableCache: false,
+      inputFS: overlayFS,
+      cacheDir: path.join(__dirname, '.parcel-cache'),
+    };
+
+    await fsFixture(overlayFS)`
+    source
+      lazy.js:
+
+        export default 'lazy-file';
+      index.js:
+        import('./lazy');
+
+        export default 'index-file';
+    `;
+
+    let lazyBundleGraph = await bundle(entry, {
+      ...options,
+      shouldBuildLazily: true,
+    });
+    assert.equal(lazyBundleGraph.getBundles().length, 1);
+
+    let eagerBundleGraph = await bundle(entry, {
+      ...options,
+      shouldBuildLazily: false,
+    });
+    assert.equal(eagerBundleGraph.getBundles().length, 2);
   });
 });

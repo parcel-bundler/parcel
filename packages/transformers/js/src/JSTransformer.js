@@ -11,7 +11,6 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform, transformAsync} from '@parcel/rust';
-import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
@@ -114,14 +113,6 @@ const CONFIG_SCHEMA: SchemaEntity = {
   additionalProperties: false,
 };
 
-type PackageJSONConfig = {|
-  '@parcel/transformer-js'?: {|
-    inlineFS?: boolean,
-    inlineEnvironment?: boolean | Array<string>,
-    unstable_inlineConstants?: boolean,
-  |},
-|};
-
 const SCRIPT_ERRORS = {
   browser: {
     message: 'Browser scripts cannot have imports or exports.',
@@ -165,6 +156,7 @@ type MacroAsset = {|
   content: string,
 |};
 
+// NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
 type MacroContext = {|
   addAsset(asset: MacroAsset): void,
   invalidateOnFileChange(FilePath): void,
@@ -286,23 +278,21 @@ export default (new Transformer({
       typeof pkg.browser === 'object' &&
       pkg.browser.fs === false;
 
-    let result = await config.getConfigFrom<PackageJSONConfig>(
-      path.join(options.projectRoot, 'index'),
-      ['package.json'],
-    );
-    let rootPkg = result?.contents;
+    let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
+      packageKey: '@parcel/transformer-js',
+    });
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
     let inlineConstants = false;
-    if (result && rootPkg?.['@parcel/transformer-js']) {
+    if (conf && conf.contents) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
         {
-          data: rootPkg['@parcel/transformer-js'],
+          data: conf.contents,
           // FIXME
-          source: await options.inputFS.readFile(result.filePath, 'utf8'),
-          filePath: result.filePath,
+          source: await options.inputFS.readFile(conf.filePath, 'utf8'),
+          filePath: conf.filePath,
           prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
         },
         // FIXME
@@ -310,13 +300,10 @@ export default (new Transformer({
         'Invalid config for @parcel/transformer-js',
       );
 
-      inlineEnvironment =
-        rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
-        inlineEnvironment;
-      inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+      inlineEnvironment = conf.contents?.inlineEnvironment ?? inlineEnvironment;
+      inlineFS = conf.contents?.inlineFS ?? inlineFS;
       inlineConstants =
-        rootPkg['@parcel/transformer-js']?.unstable_inlineConstants ??
-        inlineConstants;
+        conf.contents?.unstable_inlineConstants ?? inlineConstants;
     }
 
     return {
@@ -474,15 +461,31 @@ export default (new Transformer({
       inline_constants: config.inlineConstants,
       callMacro: asset.isSource
         ? async (err, src, exportName, args, loc) => {
+            let mod;
             try {
-              let mod = await options.packageManager.require(
-                src,
-                asset.filePath,
-              );
+              mod = await options.packageManager.require(src, asset.filePath);
+
+              // Default interop for CommonJS modules.
+              if (
+                exportName === 'default' &&
+                !mod.__esModule &&
+                // $FlowFixMe
+                Object.prototype.toString.call(config) !== '[object Module]'
+              ) {
+                mod = {default: mod};
+              }
+
               if (!Object.hasOwnProperty.call(mod, exportName)) {
                 throw new Error(`"${src}" does not export "${exportName}".`);
               }
+            } catch (err) {
+              throw {
+                kind: 1,
+                message: err.message,
+              };
+            }
 
+            try {
               if (typeof mod[exportName] === 'function') {
                 let ctx: MacroContext = {
                   // Allows macros to emit additional assets to add as dependencies (e.g. css).
@@ -503,8 +506,8 @@ export default (new Transformer({
                             },
                             source: asset.filePath,
                             original: {
-                              line: loc.start_line,
-                              column: loc.start_col - 1,
+                              line: loc.line,
+                              column: loc.col,
                             },
                           });
                           line++;
@@ -564,7 +567,10 @@ export default (new Transformer({
                 }
                 message += '\n' + line;
               }
-              throw message;
+              throw {
+                kind: 2,
+                message,
+              };
             }
           }
         : null,

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-glsl",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,11 +16,11 @@
   "main": "lib/GLSLTransformer.js",
   "source": "src/GLSLTransformer.js",
   "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.11.0"
+    "node": ">= 16.0.0",
+    "parcel": "^2.12.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.11.0",
+    "@parcel/plugin": "2.12.0",
     "glslify-bundle": "^5.1.1",
     "glslify-deps": "^1.3.2"
   }

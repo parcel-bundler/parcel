@@ -1,15 +1,28 @@
 use std::cmp::Ordering;
-use std::collections::HashSet;
 
-use crate::id;
-use serde::{Deserialize, Serialize};
-use swc_core::common::errors::{DiagnosticBuilder, Emitter};
-use swc_core::common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
-use swc_core::ecma::ast::{self, Id};
-use swc_core::ecma::atoms::{js_word, JsWord};
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::errors::DiagnosticBuilder;
+use swc_core::common::errors::Emitter;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::common::Span;
+use swc_core::common::SyntaxContext;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::Ident;
+use swc_core::ecma::ast::{self};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
 
-pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &HashSet<Id>) -> bool {
-  use ast::{Expr, Ident, Lit, MemberProp, Str};
+pub fn is_unresolved(ident: &Ident, unresolved_mark: Mark) -> bool {
+  ident.span.ctxt.outer() == unresolved_mark
+}
+
+pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, unresolved_mark: Mark) -> bool {
+  use ast::Expr;
+  use ast::Lit;
+  use ast::MemberProp;
+  use ast::Str;
 
   let mut member = expr;
   let mut idents = idents;
@@ -34,7 +47,9 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &Hash
     match &*member.obj {
       Expr::Member(m) => member = m,
       Expr::Ident(id) => {
-        return idents.len() == 1 && id.sym == idents.pop().unwrap() && !decls.contains(&id!(id));
+        return idents.len() == 1
+          && id.sym == idents.pop().unwrap()
+          && is_unresolved(&id, unresolved_mark);
       }
       _ => return false,
     }
@@ -43,7 +58,10 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &Hash
   false
 }
 
-pub fn create_require(specifier: swc_core::ecma::atoms::JsWord) -> ast::CallExpr {
+pub fn create_require(
+  specifier: swc_core::ecma::atoms::JsWord,
+  unresolved_mark: Mark,
+) -> ast::CallExpr {
   let mut normalized_specifier = specifier;
   if normalized_specifier.starts_with("node:") {
     normalized_specifier = normalized_specifier.replace("node:", "").into();
@@ -52,7 +70,7 @@ pub fn create_require(specifier: swc_core::ecma::atoms::JsWord) -> ast::CallExpr
   ast::CallExpr {
     callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
-      DUMMY_SP,
+      DUMMY_SP.apply_mark(unresolved_mark),
     )))),
     args: vec![ast::ExprOrSpread {
       expr: Box::new(ast::Expr::Lit(ast::Lit::Str(normalized_specifier.into()))),
@@ -115,7 +133,7 @@ pub fn match_export_name_ident(name: &ast::ModuleExportName) -> &ast::Ident {
   }
 }
 
-pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -> Option<JsWord> {
+pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark) -> Option<JsWord> {
   use ast::*;
 
   match node {
@@ -123,7 +141,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
       Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("require")
-            && !decls.contains(&(ident.sym.clone(), ident.span.ctxt))
+            && is_unresolved(&ident, unresolved_mark)
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.first() {
@@ -134,7 +152,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
           None
         }
         Expr::Member(member) => {
-          if match_member_expr(member, vec!["module", "require"], decls) {
+          if match_member_expr(member, vec!["module", "require"], unresolved_mark) {
             if let Some(arg) = call.args.first() {
               return match_str(&arg.expr).map(|(name, _)| name);
             }
@@ -239,13 +257,13 @@ impl PartialOrd for SourceLocation {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct CodeHighlight {
   pub message: Option<String>,
   pub loc: SourceLocation,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Diagnostic {
   pub message: String,
   pub code_highlights: Option<Vec<CodeHighlight>>,
@@ -391,11 +409,13 @@ macro_rules! id {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
+pub struct ErrorBuffer(
+  std::sync::Arc<parking_lot::Mutex<Vec<swc_core::common::errors::Diagnostic>>>,
+);
 
 impl Emitter for ErrorBuffer {
   fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.lock().unwrap().push((**db).clone());
+    self.0.lock().push((**db).clone());
   }
 }
 
@@ -403,7 +423,7 @@ pub fn error_buffer_to_diagnostics(
   error_buffer: &ErrorBuffer,
   source_map: &SourceMap,
 ) -> Vec<Diagnostic> {
-  let s = error_buffer.0.lock().unwrap().clone();
+  let s = error_buffer.0.lock().clone();
   s.iter()
     .map(|diagnostic| {
       let message = diagnostic.message();

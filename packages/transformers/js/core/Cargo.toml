@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["rlib"]
 
 [dependencies]
-swc_core = { version = "0.86.93", features = [
+swc_core = { version = "0.92.4", features = [
   "common",
   "common_ahash",
   "common_sourcemap",
@@ -22,7 +22,9 @@ swc_core = { version = "0.86.93", features = [
   "ecma_transforms_proposal",
   "ecma_transforms_react",
   "ecma_transforms_typescript",
+  "ecma_utils",
   "ecma_visit",
+  "stacker"
 ] }
 indoc = "1.0.3"
 serde = "1.0.123"
@@ -34,3 +36,5 @@ dunce = "1.0.1"
 pathdiff = "0.2.0"
 path-slash = "0.1.4"
 indexmap = "1.9.2"
+parcel-macros = { path = "../../../../crates/macros" }
+parking_lot = "0.12"

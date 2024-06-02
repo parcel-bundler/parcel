@@ -1,30 +1,34 @@
-use std::collections::HashSet;
-
-use swc_core::ecma::ast::{Expr, Id, Lit, Str, UnaryOp};
+use swc_core::common::Mark;
+use swc_core::ecma::ast::Expr;
+use swc_core::ecma::ast::Lit;
+use swc_core::ecma::ast::Str;
+use swc_core::ecma::ast::UnaryOp;
 use swc_core::ecma::atoms::js_word;
-use swc_core::ecma::visit::{Fold, FoldWith};
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
-use crate::id;
+use crate::utils::is_unresolved;
 
-pub struct TypeofReplacer<'a> {
-  pub decls: &'a HashSet<Id>,
+pub struct TypeofReplacer {
+  pub unresolved_mark: Mark,
 }
 
-impl<'a> Fold for TypeofReplacer<'a> {
+impl Fold for TypeofReplacer {
   fn fold_expr(&mut self, node: Expr) -> Expr {
     if let Expr::Unary(ref unary) = node {
       // typeof require -> "function"
       // typeof module -> "object"
       if unary.op == UnaryOp::TypeOf {
         if let Expr::Ident(ident) = &*unary.arg {
-          if ident.sym == js_word!("require") && !self.decls.contains(&id!(ident)) {
+          if ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark) {
             return Expr::Lit(Lit::Str(Str {
               span: unary.span,
               value: js_word!("function"),
               raw: None,
             }));
           }
-          if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
+          if &*ident.sym == "exports" && is_unresolved(&ident, self.unresolved_mark) {
             return Expr::Lit(Lit::Str(Str {
               span: unary.span,
               value: js_word!("object"),
@@ -32,7 +36,7 @@ impl<'a> Fold for TypeofReplacer<'a> {
             }));
           }
 
-          if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
+          if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) {
             return Expr::Lit(Lit::Str(Str {
               span: unary.span,
               value: js_word!("object"),
@@ -42,6 +46,7 @@ impl<'a> Fold for TypeofReplacer<'a> {
         }
       }
     }
-    node.fold_children_with(self)
+
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 }

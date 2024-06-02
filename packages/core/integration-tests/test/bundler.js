@@ -117,7 +117,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(__dirname, 'disable-shared-bundles-true-parallel/index.js'),
@@ -200,7 +202,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(
@@ -286,7 +290,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(__dirname, 'disable-shared-bundles-true-min-bundles/index.js'),
@@ -371,7 +377,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(
@@ -481,7 +489,9 @@ describe('bundler', function () {
 
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
     });
     let b = await bundle(
       path.join(__dirname, 'disable-shared-bundles-false/index.js'),
@@ -1204,6 +1214,48 @@ describe('bundler', function () {
     ]);
   });
 
+  it('should support inline constants in async bundles', async () => {
+    await fsFixture(overlayFS, __dirname)`
+    inline-constants-async
+      index.js:
+        import('./async').then(m => console.log(m.value));
+
+      async.js:
+        export const value = 'async value';
+
+      package.json:
+        {
+          "@parcel/transformer-js": {
+            "unstable_inlineConstants": true
+          }
+        }
+
+      yarn.lock:`;
+
+    let b = await bundle(
+      path.join(__dirname, 'inline-constants-async/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      },
+    );
+
+    // This will fail when the async bundle does not export it's constant
+    await run(b);
+
+    // Asset should not be inlined
+    const index = b.getBundles().find(b => b.name.startsWith('index'));
+    const contents = overlayFS.readFileSync(index.filePath, 'utf8');
+    assert(
+      !contents.includes('async value'),
+      'async value should not be inlined',
+    );
+  });
   describe('manual shared bundles', () => {
     const dir = path.join(__dirname, 'manual-bundle');
 
@@ -1223,7 +1275,7 @@ describe('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"]
             }]
@@ -1305,7 +1357,7 @@ describe('bundler', function () {
       package.json:
         {
           "@parcel/bundler-default": {
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "manual-inline",
               "assets": ["shared.js"]
             }]
@@ -1386,7 +1438,7 @@ describe('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"],
               "types": ["js"]
@@ -1471,9 +1523,9 @@ describe('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
-              "parent": "math/math.js",
+              "root": "math/math.js",
               "assets": ["math/!(divide).js"]
             }]
           }
@@ -1524,7 +1576,7 @@ describe('bundler', function () {
       ]);
 
       let targetDistDir = normalizePath(path.join(__dirname, '../dist'));
-      let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
+      let hashedIdWithMSB = hashString('bundle:' + 'vendor,js' + targetDistDir);
       assert(
         b.getBundles().find(b => b.id == hashedIdWithMSB),
         'MSB id does not match expected',
@@ -1542,7 +1594,7 @@ describe('bundler', function () {
           },
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"],
               "types": ["js"]
@@ -1614,9 +1666,9 @@ describe('bundler', function () {
           },
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "unstable_manualSharedBundles": [{
+            "manualSharedBundles": [{
               "name": "vendor",
-              "parent": "manual.js",
+              "root": "manual.js",
               "assets": ["**/*"],
               "types": ["js"]
             }]
@@ -1682,9 +1734,9 @@ describe('bundler', function () {
           {
             "@parcel/bundler-default": {
               "minBundleSize": 0,
-              "unstable_manualSharedBundles": [{
+              "manualSharedBundles": [{
                 "name": "vendor",
-                "parent": "vendor.js",
+                "root": "vendor.js",
                 "assets": ["**/*"],
                 "split": 3
               }]
@@ -1759,5 +1811,108 @@ describe('bundler', function () {
         },
       ]);
     });
+
+    it('should support globs matching outside of the project root', async function () {
+      const rootDir = path.join(dir, 'root');
+      overlayFS.mkdirp(rootDir);
+      await fsFixture(overlayFS, rootDir)`
+      yarn.lock:
+        // Required for config loading
+
+      package.json:
+        {
+          "@parcel/bundler-default": {
+            "minBundleSize": 0,
+            "manualSharedBundles": [{
+              "name": "vendor",
+              "root": "vendor.js",
+              "assets": [
+                "in-project.js",
+                "../outside-project.js"
+              ]
+            }]
+          }
+        }
+
+      index.html:
+        <script type="module" src="./index.js"></script>
+
+      in-project.js:
+        export default 'in-project';
+
+      vendor.js:
+        export * from './in-project';
+        export * from '../outside-project';
+
+      index.js:
+        import * as vendor from './vendor';
+
+        console.log(vendor.inProj);
+        console.log(vendor.outProj);`;
+
+      await fsFixture(overlayFS, dir)`
+      outside-project.js:
+        export default 'outside-project';`;
+
+      let b = await bundle(path.join(rootDir, 'index.html'), {
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      assertBundles(b, [
+        {assets: ['index.html']},
+        {assets: ['in-project.js', 'outside-project.js']},
+        {assets: ['esmodule-helpers.js', 'index.js', 'vendor.js']},
+      ]);
+    });
+  });
+
+  it('should reuse type change bundles from parent bundle groups', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      reuse-type-change-bundles
+        index.html:
+          <link rel="stylesheet" type="text/css" href="./style.css">
+          <script src="./index.js" type="module"></script>
+      
+        style.css:
+          @import "common.css";
+          body { color: red }
+        
+        common.css:
+          .common { color: green }
+
+        index.js:
+          import('./async');
+
+        async.js:
+          import './common.css';
+    `;
+
+    let b = await bundle(
+      path.join(__dirname, 'reuse-type-change-bundles', 'index.html'),
+      {
+        mode: 'production',
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.html'],
+      },
+      {
+        assets: ['style.css', 'common.css'],
+      },
+      {
+        assets: ['index.js', 'bundle-manifest.js', 'esm-js-loader.js'],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
   });
 });

@@ -1,24 +1,37 @@
-use dashmap::DashMap;
-use napi::{
-  bindgen_prelude::Either3, Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown,
-  Ref, Result,
-};
-use napi_derive::napi;
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
-use std::{
-  borrow::Cow,
-  collections::HashMap,
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use std::sync::Arc;
 
+use dashmap::DashMap;
+use napi::bindgen_prelude::Either3;
+use napi::Env;
+use napi::JsBoolean;
+use napi::JsBuffer;
+use napi::JsFunction;
+use napi::JsObject;
+use napi::JsString;
+use napi::JsUnknown;
+use napi::Ref;
+use napi::Result;
+use napi_derive::napi;
+use parcel_resolver::ExportsCondition;
+use parcel_resolver::Extensions;
+use parcel_resolver::Fields;
+use parcel_resolver::FileCreateInvalidation;
+use parcel_resolver::FileSystem;
+use parcel_resolver::Flags;
+use parcel_resolver::IncludeNodeModules;
+use parcel_resolver::Invalidations;
+use parcel_resolver::ModuleType;
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
-use parcel_resolver::{
-  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, Flags,
-  IncludeNodeModules, Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
-};
+use parcel_resolver::Resolution;
+use parcel_resolver::ResolverError;
+use parcel_resolver::SpecifierType;
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
@@ -44,7 +57,7 @@ pub struct JsResolverOptions {
   pub typescript: Option<bool>,
 }
 
-struct FunctionRef {
+pub struct FunctionRef {
   env: Env,
   reference: Ref<()>,
 }
@@ -72,21 +85,21 @@ impl Drop for FunctionRef {
   }
 }
 
-struct JsFileSystem {
-  canonicalize: FunctionRef,
-  read: FunctionRef,
-  is_file: FunctionRef,
-  is_dir: FunctionRef,
+pub struct JsFileSystem {
+  pub canonicalize: FunctionRef,
+  pub read: FunctionRef,
+  pub is_file: FunctionRef,
+  pub is_dir: FunctionRef,
 }
 
 impl FileSystem for JsFileSystem {
-  fn canonicalize<P: AsRef<Path>>(
+  fn canonicalize(
     &self,
-    path: P,
+    path: &Path,
     _cache: &DashMap<PathBuf, Option<PathBuf>>,
   ) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let path = self.canonicalize.env.create_string(path.as_ref())?;
       let res: JsString = self.canonicalize.get()?.call(None, &[path])?.try_into()?;
       let utf8 = res.into_utf8()?;
@@ -96,9 +109,9 @@ impl FileSystem for JsFileSystem {
     canonicalize().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     let read = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let path = self.read.env.create_string(path.as_ref())?;
       let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
       let value = res.into_value()?;
@@ -108,9 +121,9 @@ impl FileSystem for JsFileSystem {
     read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_file(&self, path: &Path) -> bool {
     let is_file = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let p = self.is_file.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_file.get()?.call(None, &[p])?.try_into()?;
       res.get_value()
@@ -119,9 +132,9 @@ impl FileSystem for JsFileSystem {
     is_file().unwrap_or(false)
   }
 
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_dir(&self, path: &Path) -> bool {
     let is_dir = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = path.to_string_lossy();
       let path = self.is_dir.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_dir.get()?.call(None, &[path])?.try_into()?;
       res.get_value()
@@ -140,9 +153,9 @@ enum EitherFs<A, B> {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
-  fn canonicalize<P: AsRef<Path>>(
+  fn canonicalize(
     &self,
-    path: P,
+    path: &Path,
     cache: &DashMap<PathBuf, Option<PathBuf>>,
   ) -> std::io::Result<std::path::PathBuf> {
     match self {
@@ -151,21 +164,21 @@ impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
     }
   }
 
-  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     match self {
       EitherFs::A(a) => a.read_to_string(path),
       EitherFs::B(b) => b.read_to_string(path),
     }
   }
 
-  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_file(&self, path: &Path) -> bool {
     match self {
       EitherFs::A(a) => a.is_file(path),
       EitherFs::B(b) => b.is_file(path),
     }
   }
 
-  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
+  fn is_dir(&self, path: &Path) -> bool {
     match self {
       EitherFs::A(a) => a.is_dir(path),
       EitherFs::B(b) => b.is_dir(path),
@@ -330,6 +343,12 @@ impl Resolver {
         "esm" => SpecifierType::Esm,
         "commonjs" => SpecifierType::Cjs,
         "url" => SpecifierType::Url,
+        "custom" => {
+          return Err(napi::Error::new(
+            napi::Status::InvalidArg,
+            "Unsupported specifier type: custom",
+          ))
+        }
         _ => {
           return Err(napi::Error::new(
             napi::Status::InvalidArg,

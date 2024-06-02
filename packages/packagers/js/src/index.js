@@ -10,7 +10,6 @@ import {
 } from '@parcel/utils';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import {hashString} from '@parcel/rust';
-import path from 'path';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
 import {ScopeHoistingPackager} from './ScopeHoistingPackager';
@@ -32,22 +31,18 @@ const CONFIG_SCHEMA: SchemaEntity = {
 
 export default (new Packager({
   async loadConfig({config, options}): Promise<JSPackagerConfig> {
-    // Generate a name for the global parcelRequire function that is unique to this project.
-    // This allows multiple parcel builds to coexist on the same page.
-    let pkg = await config.getConfigFrom(
-      path.join(options.projectRoot, 'index'),
-      ['package.json'],
-    );
-
     let packageKey = '@parcel/packager-js';
+    let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
+      packageKey,
+    });
 
-    if (pkg?.contents[packageKey]) {
+    if (conf?.contents) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
         {
-          data: pkg?.contents[packageKey],
-          source: await options.inputFS.readFile(pkg.filePath, 'utf8'),
-          filePath: pkg.filePath,
+          data: conf?.contents,
+          source: await options.inputFS.readFile(conf.filePath, 'utf8'),
+          filePath: conf.filePath,
           prependKey: `/${encodeJSONKeyComponent(packageKey)}`,
         },
         packageKey,
@@ -55,11 +50,21 @@ export default (new Packager({
       );
     }
 
-    let name = pkg?.contents?.name ?? '';
+    // Generate a name for the global parcelRequire function that is unique to this project.
+    // This allows multiple parcel builds to coexist on the same page.
+    let packageName = await config.getConfigFrom(
+      options.projectRoot + '/index',
+      [],
+      {
+        packageKey: 'name',
+      },
+    );
+
+    let name = packageName?.contents?.name ?? '';
     return {
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
       unstable_asyncBundleRuntime: Boolean(
-        pkg?.contents[packageKey]?.unstable_asyncBundleRuntime,
+        conf?.contents?.unstable_asyncBundleRuntime,
       ),
     };
   },

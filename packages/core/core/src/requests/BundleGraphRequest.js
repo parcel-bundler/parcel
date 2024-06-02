@@ -13,7 +13,6 @@ import type {
   ParcelOptions,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
 import assert from 'assert';
@@ -72,6 +71,7 @@ type RunInput = {|
   ...StaticRunOpts<BundleGraphResult>,
 |};
 
+// TODO: Rename to BundleGraphRequestResult
 export type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
   changedAssets: Map<string, Asset>,
@@ -193,7 +193,7 @@ class BundlerRunner {
       hashString(
         `${PARCEL_VERSION}:BundleGraph:${
           JSON.stringify(options.entries) ?? ''
-        }${options.mode}`,
+        }${options.mode}${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
       ) + '-BundleGraph';
   }
 

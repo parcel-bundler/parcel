@@ -2,16 +2,16 @@ const {Transform} = require('stream');
 const babel = require('gulp-babel');
 const gulp = require('gulp');
 const path = require('path');
-const rimraf = require('rimraf');
+const {rimraf} = require('rimraf');
 const babelConfig = require('./babel.config.json');
 
 const IGNORED_PACKAGES = [
   '!packages/examples/**',
   '!packages/core/integration-tests/**',
   '!packages/core/workers/test/integration/**',
-  '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
+  '!packages/core/types-internal/**',
 
   // These packages are bundled.
   '!packages/core/codeframe/**',
@@ -29,12 +29,6 @@ const paths = {
     ...IGNORED_PACKAGES,
   ],
   packageOther: ['packages/*/*/src/**/dev-prelude.js'],
-  packageJson: [
-    'packages/core/parcel/package.json',
-    'packages/utils/create-react-app/package.json',
-    'packages/dev/query/package.json',
-    'packages/dev/bundle-stats-cli/package.json',
-  ],
   packages: 'packages/',
 };
 
@@ -60,21 +54,12 @@ class TapStream extends Transform {
 
 exports.clean = function clean(cb) {
   rimraf('packages/*/*/lib/**').then(
-    () => cb,
+    () => cb(),
     err => cb(err),
   );
 };
 
-exports.default = exports.build = gulp.series(
-  gulp.parallel(buildBabel, copyOthers),
-  // Babel reads from package.json so update these after babel has run
-  paths.packageJson.map(
-    packageJsonPath =>
-      function updatePackageJson() {
-        return _updatePackageJson(packageJsonPath);
-      },
-  ),
-);
+exports.default = exports.build = gulp.parallel(buildBabel, copyOthers);
 
 function buildBabel() {
   return gulp
@@ -89,28 +74,6 @@ function copyOthers() {
     .src(paths.packageOther)
     .pipe(renameStream(relative => relative.replace('src', 'lib')))
     .pipe(gulp.dest(paths.packages));
-}
-
-function _updatePackageJson(file) {
-  return gulp
-    .src(file)
-    .pipe(
-      new TapStream(vinyl => {
-        let json = JSON.parse(vinyl.contents);
-        // Replace all references to `src` in package.json bin entries
-        // `lib` equivalents.
-        if (typeof json.bin === 'object' && json.bin != null) {
-          for (let [binName, binPath] of Object.entries(json.bin)) {
-            json.bin[binName] = binPath.replace('src', 'lib');
-          }
-        } else if (typeof json.bin === 'string') {
-          json.bin = json.bin.replace('src', 'lib');
-        }
-
-        vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
-      }),
-    )
-    .pipe(gulp.dest(path.dirname(file)));
 }
 
 function renameStream(fn) {

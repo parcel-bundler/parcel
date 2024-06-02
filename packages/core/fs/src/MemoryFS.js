@@ -1,7 +1,12 @@
 // @flow
 
-import type {FileSystem, FileOptions, ReaddirOptions, Encoding} from './types';
-import type {FilePath} from '@parcel/types';
+import type {
+  FilePath,
+  FileSystem,
+  FileOptions,
+  ReaddirOptions,
+  Encoding,
+} from '@parcel/types-internal';
 import type {
   Event,
   Options as WatcherOptions,

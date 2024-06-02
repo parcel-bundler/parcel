@@ -1,4 +1,5 @@
 // @flow strict-local
+import crypto from 'crypto';
 import type {FilePath} from '@parcel/types';
 import type {Cache} from './types';
 import type {Readable, Writable} from 'stream';
@@ -10,23 +11,30 @@ import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
-// $FlowFixMe
 import lmdb from 'lmdb';
-import {WRITE_LIMIT_CHUNK} from './constants';
+
+import {FSCache} from './FSCache';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
 );
+
+/**
+ * See `LMDBCache::setLargeBlob`
+ */
+type LargeBlobEntry = {|type: 'LARGE_BLOB', largeBlobKey: string|};
 
 export class LMDBCache implements Cache {
   fs: NodeFS;
   dir: FilePath;
   // $FlowFixMe
   store: any;
+  fsCache: FSCache;
 
   constructor(cacheDir: FilePath) {
     this.fs = new NodeFS();
     this.dir = cacheDir;
+    this.fsCache = new FSCache(this.fs, cacheDir);
 
     this.store = lmdb.open(cacheDir, {
       name: 'parcel-cache',
@@ -96,46 +104,60 @@ export class LMDBCache implements Cache {
     return path.join(this.dir, `${key}-${index}`);
   }
 
-  hasLargeBlob(key: string): Promise<boolean> {
-    return this.fs.exists(this.#getFilePath(key, 0));
+  async hasLargeBlob(key: string): Promise<boolean> {
+    if (!(await this.has(key))) {
+      return false;
+    }
+    const entry = await this.get<LargeBlobEntry>(key);
+    if (entry?.type !== 'LARGE_BLOB') {
+      return false;
+    }
+    return this.fsCache.hasLargeBlob(entry.largeBlobKey);
   }
 
   async getLargeBlob(key: string): Promise<Buffer> {
-    const buffers: Promise<Buffer>[] = [];
-    for (let i = 0; await this.fs.exists(this.#getFilePath(key, i)); i += 1) {
-      const file: Promise<Buffer> = this.fs.readFile(this.#getFilePath(key, i));
-
-      buffers.push(file);
+    if (!(await this.has(key))) {
+      throw new Error(`No large blob entry found for key=${key}`);
     }
-
-    return Buffer.concat(await Promise.all(buffers));
+    const entry = await this.get<LargeBlobEntry>(key);
+    if (entry?.type !== 'LARGE_BLOB') {
+      throw new Error(`Invalid entry at large blob key=${key}`);
+    }
+    return this.fsCache.getLargeBlob(entry.largeBlobKey);
   }
 
-  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
-    const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
+  /**
+   * Set large blob into LMDB.
+   * This stores large blobs as files on a delegate FSCache,
+   * but uses an LMDB entry to provide transactional behaviour.
+   *
+   * On its own the FSCache implementation is not transactional and
+   * may result in corrupted caches. Furthermore, it may result in
+   * partially written or read caches, where we are concatenating bytes
+   * from different cache writes.
+   */
+  async setLargeBlob(
+    key: string,
+    contents: Buffer | string,
+    options?: {|signal?: AbortSignal|},
+  ): Promise<void> {
+    // $FlowFixMe flow libs are outdated but we only support node>16 so randomUUID is present
+    const largeBlobKey = `${key}_${crypto.randomUUID()}`;
+    await this.fsCache.setLargeBlob(largeBlobKey, contents, options);
+    const entry: LargeBlobEntry = {type: 'LARGE_BLOB', largeBlobKey};
+    await this.set(key, entry);
+  }
 
-    if (chunks === 1) {
-      // If there's one chunk, don't slice the content
-      await this.fs.writeFile(this.#getFilePath(key, 0), contents);
+  async deleteLargeBlob(key: string): Promise<void> {
+    if (!(await this.has(key))) {
       return;
     }
-
-    const writePromises: Promise<void>[] = [];
-    for (let i = 0; i < chunks; i += 1) {
-      writePromises.push(
-        this.fs.writeFile(
-          this.#getFilePath(key, i),
-          typeof contents === 'string'
-            ? contents.slice(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK)
-            : contents.subarray(
-                i * WRITE_LIMIT_CHUNK,
-                (i + 1) * WRITE_LIMIT_CHUNK,
-              ),
-        ),
-      );
+    const entry = await this.get<LargeBlobEntry>(key);
+    if (entry?.type !== 'LARGE_BLOB') {
+      return;
     }
-
-    await Promise.all(writePromises);
+    await this.store.remove(key);
+    return this.fsCache.deleteLargeBlob(entry.largeBlobKey);
   }
 
   refresh(): void {

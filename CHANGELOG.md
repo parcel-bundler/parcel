@@ -5,6 +5,59 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2024-02-28
+
+### Added
+
+- Core
+
+  - Add REPL playground for Parcel to the website – [Details](https://github.com/parcel-bundler/parcel/pull/9365)
+  - Improve package manager detection for auto install – [Details](https://github.com/parcel-bundler/parcel/pull/9505)
+
+- JavaScript
+
+  - Add support for JS macros – [Details](https://github.com/parcel-bundler/parcel/pull/9299)
+  - Statically evaluate constants referenced by macros – [Details](https://github.com/parcel-bundler/parcel/pull/9487)
+  - Upgrade to ESLint 8 – [Details](https://github.com/parcel-bundler/parcel/pull/8580)
+  - Bump swc – [Details](https://github.com/parcel-bundler/parcel/pull/9498)
+
+- CSS
+
+  - Use lightningcss to implement CSS packager – [Details](https://github.com/parcel-bundler/parcel/pull/8492)
+
+- Bundler
+
+  - Rename "parentAsset" to "root" for Manual Shared Bundle config and remove unstable prefix – [Details](https://github.com/parcel-bundler/parcel/pull/9486)
+
+- Web Extensions
+
+  - Add content script world property to manifest schema validation – [Details](https://github.com/parcel-bundler/parcel/pull/9510)
+
+- Performance
+  - Adjacency list optimizations – [Details](https://github.com/parcel-bundler/parcel/pull/9444)
+  - Break up request graph cache serialisation and run after build completion – [Details](https://github.com/parcel-bundler/parcel/pull/9384)
+
+### Fixed
+
+- Core
+
+  - Drop per-pipeline transformation cache – [Details](https://github.com/parcel-bundler/parcel/pull/9459)
+  - Clippy and use napi's Either3 – [Details](https://github.com/parcel-bundler/parcel/pull/9047)
+  - Add lazy/eager cache key to avoid invalid change when switching modes – [Details](https://github.com/parcel-bundler/parcel/pull/9518)
+
+- JavaScript
+
+  - Remove decl_collector pass and use SWC's unresolved_mark instead – [Details](https://github.com/parcel-bundler/parcel/pull/9520)
+
+- Bundler
+  - Fix multiple css bundles in entry bundle groups issue – [Details](https://github.com/parcel-bundler/parcel/pull/9023)
+  - Allow parallel type change bundles to be reused by async siblings – [Details](https://github.com/parcel-bundler/parcel/pull/9504)
+  - Skip on missing parent asset for manual shared bundles – [Details](https://github.com/parcel-bundler/parcel/pull/9538)
+
+### Unstable
+
+- Add source map support to the inline-require optimizer – [Details](https://github.com/parcel-bundler/parcel/pull/9511)
+
 ## [2.11.0] - 2023-12-19
 
 ### Added

@@ -1,19 +1,20 @@
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::ops::Range;
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
+
 use bitflags::bitflags;
-use glob_match::{glob_match, glob_match_with_captures};
+use glob_match::glob_match;
+use glob_match::glob_match_with_captures;
 use indexmap::IndexMap;
 use serde::Deserialize;
-use std::{
-  borrow::Cow,
-  cmp::Ordering,
-  ops::Range,
-  path::{Component, Path, PathBuf},
-};
 
-use crate::{
-  path::resolve_path,
-  specifier::decode_path,
-  specifier::{Specifier, SpecifierType},
-};
+use crate::path::resolve_path;
+use crate::specifier::decode_path;
+use crate::specifier::Specifier;
+use crate::specifier::SpecifierType;
 
 bitflags! {
   #[derive(serde::Serialize)]
@@ -122,6 +123,25 @@ bitflags! {
 impl Default for ExportsCondition {
   fn default() -> Self {
     ExportsCondition::empty()
+  }
+}
+
+impl serde::Serialize for ExportsCondition {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.bits().serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for ExportsCondition {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let bits = Deserialize::deserialize(deserializer)?;
+    Ok(ExportsCondition::from_bits_truncate(bits))
   }
 }
 
@@ -800,8 +820,9 @@ impl<'a> Iterator for EntryIter<'a> {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use indexmap::indexmap;
+
+  use super::*;
 
   // Based on https://github.com/lukeed/resolve.exports/blob/master/test/resolve.js,
   // https://github.com/privatenumber/resolve-pkg-maps/tree/develop/tests, and

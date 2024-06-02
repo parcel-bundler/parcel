@@ -1,0 +1,24 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-macros"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+napi = ["dep:napi", "dep:napi-derive", "dep:crossbeam-channel"]
+
+[dependencies]
+indexmap = "1.9.2"
+swc_core = { version = "0.92.4", features = [
+  "common",
+  "common_ahash",
+  "common_sourcemap",
+  "ecma_ast",
+  "ecma_parser",
+  "ecma_visit",
+  "stacker"
+] }
+serde = "1.0.123"
+napi-derive = { version = "2.12.5", optional = true }
+napi = { version =  "2.16.4", features = ["serde-json", "napi4", "napi5"], optional = true }
+crossbeam-channel = { version = "0.5.6", optional = true }

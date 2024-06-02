@@ -1,19 +1,29 @@
-use crate::collect::{Collect, Import};
-use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::id;
-use crate::utils::SourceLocation;
-use data_encoding::{BASE64, HEXLOWER};
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use swc_core::common::{Mark, Span, DUMMY_SP};
+use std::path::Path;
+use std::path::PathBuf;
+
+use data_encoding::BASE64;
+use data_encoding::HEXLOWER;
+use swc_core::common::Mark;
+use swc_core::common::Span;
+use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::visit::{Fold, FoldWith, VisitWith};
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
+use swc_core::ecma::visit::VisitWith;
+
+use crate::collect::Collect;
+use crate::collect::Import;
+use crate::dependency_collector::DependencyDescriptor;
+use crate::dependency_collector::DependencyKind;
+use crate::id;
+use crate::utils::SourceLocation;
 
 pub fn inline_fs<'a>(
   filename: &str,
   source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
-  decls: HashSet<Id>,
+  unresolved_mark: Mark,
   global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut Vec<DependencyDescriptor>,
@@ -23,13 +33,12 @@ pub fn inline_fs<'a>(
     filename: Path::new(filename).to_path_buf(),
     collect: Collect::new(
       source_map,
-      decls,
+      unresolved_mark,
       Mark::fresh(Mark::root()),
       global_mark,
       false,
       is_module,
     ),
-    global_mark,
     project_root,
     deps,
   }
@@ -38,7 +47,6 @@ pub fn inline_fs<'a>(
 struct InlineFS<'a> {
   filename: PathBuf,
   collect: Collect,
-  global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut Vec<DependencyDescriptor>,
 }
@@ -64,7 +72,7 @@ impl<'a> Fold for InlineFS<'a> {
       }
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 }
 
@@ -188,7 +196,7 @@ impl<'a> InlineFS<'a> {
             callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
               obj: Box::new(Expr::Ident(Ident::new(
                 "Buffer".into(),
-                DUMMY_SP.apply_mark(self.global_mark),
+                DUMMY_SP.apply_mark(self.collect.unresolved_mark),
               ))),
               prop: MemberProp::Ident(Ident::new("from".into(), DUMMY_SP)),
               span: DUMMY_SP,
@@ -221,7 +229,7 @@ struct Evaluator<'a> {
 
 impl<'a> Fold for Evaluator<'a> {
   fn fold_expr(&mut self, node: Expr) -> Expr {
-    let node = node.fold_children_with(self);
+    let node = maybe_grow_default(|| node.fold_children_with(self));
 
     match &node {
       Expr::Ident(ident) => match ident.sym.to_string().as_str() {

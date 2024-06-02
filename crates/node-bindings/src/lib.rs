@@ -1,16 +1,21 @@
 #![allow(dead_code)]
 
 #[cfg(target_arch = "wasm32")]
-use std::alloc::{alloc, Layout};
+use std::alloc::alloc;
+#[cfg(target_arch = "wasm32")]
+use std::alloc::Layout;
 
-#[cfg(target_os = "macos")]
+mod init_sentry;
+
+#[cfg(all(target_os = "macos", not(miri)))]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-#[cfg(windows)]
+#[cfg(all(windows, not(miri)))]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+/// napi versions of `crate::core::requests`
 #[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
 mod hash;

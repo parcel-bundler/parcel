@@ -86,13 +86,13 @@ describe('ParcelAPI', function () {
   afterEach(() => workerFarm.end());
 
   describe('parcel.unstable_transform()', () => {
-    it('should transforms simple file', async () => {
+    it('should transform simple file', async () => {
       let parcel = createParcel({workerFarm});
       let res = await parcel.unstable_transform({
         filePath: path.join(__dirname, 'fixtures/parcel/index.js'),
       });
       let code = await res[0].getCode();
-      assert(code.includes('exports.default = "test"'));
+      assert(code.includes(`exports.default = 'test'`));
     });
 
     it('should transform with standalone mode', async () => {
@@ -103,9 +103,9 @@ describe('ParcelAPI', function () {
       });
       let code = await res[0].getCode();
 
-      assert(code.includes('require("./index.js")'));
-      assert(code.includes('new URL("index.js", "file:" + __filename);'));
-      assert(code.includes('import("index.js")'));
+      assert(code.includes(`require("./index.js")`));
+      assert(code.includes(`new URL("index.js", "file:" + __filename);`));
+      assert(code.includes(`import('index.js')`));
     });
   });
 

@@ -1,8 +1,12 @@
 // @flow
 import type {ReadStream, Stats} from 'fs';
 import type {Writable} from 'stream';
-import type {FileOptions, FileSystem, Encoding} from './types';
-import type {FilePath} from '@parcel/types';
+import type {
+  FilePath,
+  Encoding,
+  FileOptions,
+  FileSystem,
+} from '@parcel/types-internal';
 import type {
   Event,
   Options as WatcherOptions,
@@ -12,6 +16,8 @@ import type {
 import fs from 'graceful-fs';
 import nativeFS from 'fs';
 import ncp from 'ncp';
+import path from 'path';
+import {tmpdir} from 'os';
 import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
 import {hashFile} from '@parcel/utils';
@@ -222,11 +228,43 @@ try {
   //
 }
 
+let useOsTmpDir;
+function shouldUseOsTmpDir(filePath) {
+  if (useOsTmpDir != null) {
+    return useOsTmpDir;
+  }
+  try {
+    const tmpDir = tmpdir();
+    nativeFS.accessSync(
+      tmpDir,
+      nativeFS.constants.R_OK | nativeFS.constants.W_OK,
+    );
+    const tmpDirStats = nativeFS.statSync(tmpDir);
+    const filePathStats = nativeFS.statSync(filePath);
+    // Check the tmpdir is on the same partition as the target directory.
+    // This is required to ensure renaming is an atomic operation.
+    useOsTmpDir = tmpDirStats.dev === filePathStats.dev;
+  } catch (e) {
+    // We don't have read/write access to the OS tmp directory
+    useOsTmpDir = false;
+  }
+  return useOsTmpDir;
+}
+
 // Generate a temporary file path used for atomic writing of files.
 function getTempFilePath(filePath: FilePath) {
   writeStreamCalls = writeStreamCalls % Number.MAX_SAFE_INTEGER;
+
+  let tmpFilePath = filePath;
+
+  // If possible, write the tmp file to the OS tmp directory
+  // This reduces the amount of FS events the watcher needs to process during the build
+  if (shouldUseOsTmpDir(filePath)) {
+    tmpFilePath = path.join(tmpdir(), path.basename(filePath));
+  }
+
   return (
-    filePath +
+    tmpFilePath +
     '.' +
     process.pid +
     (threadId != null ? '.' + threadId : '') +

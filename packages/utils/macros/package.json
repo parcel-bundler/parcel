@@ -1,0 +1,22 @@
+{
+  "name": "@parcel/macros",
+  "version": "2.12.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "types": "macros.d.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">= 16.0.0",
+    "parcel": "^2.12.0"
+  }
+}

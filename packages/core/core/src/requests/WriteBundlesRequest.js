@@ -21,6 +21,8 @@ type WriteBundlesRequestInput = {|
   optionsRef: SharedReference,
 |};
 
+export type WriteBundlesRequestResult = Map<string, PackagedBundleInfo>;
+
 type RunInput<TResult> = {|
   input: WriteBundlesRequestInput,
   ...StaticRunOpts<TResult>,
@@ -30,8 +32,8 @@ export type WriteBundlesRequest = {|
   id: ContentKey,
   +type: typeof requestTypes.write_bundles_request,
   run: (
-    RunInput<Map<string, PackagedBundleInfo>>,
-  ) => Async<Map<string, PackagedBundleInfo>>,
+    RunInput<WriteBundlesRequestResult>,
+  ) => Async<WriteBundlesRequestResult>,
   input: WriteBundlesRequestInput,
 |};
 
@@ -67,7 +69,10 @@ async function run({input, api, farm, options}) {
     if (bundle.isPlaceholder) {
       let hash = bundle.id.slice(-8);
       hashRefToNameHash.set(bundle.hashReference, hash);
-      let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
+      let name = nullthrows(
+        bundle.name,
+        `Expected ${bundle.type} bundle to have a name`,
+      ).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
         filePath: joinProjectPath(bundle.target.distDir, name),
         type: bundle.type, // FIXME: this is wrong if the packager changes the type...

@@ -1,6 +1,7 @@
 {
   "name": "@parcel/cache",
-  "version": "2.11.0",
+  "description": "Interface for defining caches and file-system, IDB and LMDB implementations.",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,20 +18,20 @@
   "source": "src/index.js",
   "types": "index.d.ts",
   "engines": {
-    "node": ">= 12.0.0"
+    "node": ">= 16.0.0"
   },
   "scripts": {
     "build-ts": "mkdir -p lib && flow-to-ts src/types.js > lib/types.d.ts",
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/fs": "2.11.0",
-    "@parcel/logger": "2.11.0",
-    "@parcel/utils": "2.11.0",
+    "@parcel/fs": "2.12.0",
+    "@parcel/logger": "2.12.0",
+    "@parcel/utils": "2.12.0",
     "lmdb": "2.8.5"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.11.0"
+    "@parcel/core": "^2.12.0"
   },
   "devDependencies": {
     "idb": "^5.0.8"

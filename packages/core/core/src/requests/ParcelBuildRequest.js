@@ -3,7 +3,6 @@
 import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
@@ -30,7 +29,7 @@ type ParcelBuildRequestInput = {|
   signal?: AbortSignal,
 |};
 
-type ParcelBuildRequestResult = {|
+export type ParcelBuildRequestResult = {|
   bundleGraph: BundleGraph,
   bundleInfo: Map<string, PackagedBundleInfo>,
   changedAssets: Map<string, Asset>,

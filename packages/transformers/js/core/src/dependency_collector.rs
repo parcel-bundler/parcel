@@ -1,20 +1,29 @@
-use path_slash::PathBufExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::fmt;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::path::Path;
+use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
-use serde::{Deserialize, Serialize};
-use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
-use swc_core::ecma::ast::{self, Callee, Id, MemberProp};
-use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::visit::{Fold, FoldWith};
+use path_slash::PathBufExt;
+use serde::Deserialize;
+use serde::Serialize;
+use swc_core::common::Mark;
+use swc_core::common::SourceMap;
+use swc_core::common::Span;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::Callee;
+use swc_core::ecma::ast::MemberProp;
+use swc_core::ecma::ast::{self};
+use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::FoldWith;
 
 use crate::fold_member_expr_skip_prop;
 use crate::utils::*;
 use crate::Config;
-
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 macro_rules! hash {
   ($str:expr) => {{
     let mut hasher = DefaultHasher::new();
@@ -59,7 +68,6 @@ pub struct DependencyDescriptor {
 pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
-  decls: &'a HashSet<Id>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
@@ -71,7 +79,6 @@ pub fn dependency_collector<'a>(
     in_try: false,
     in_promise: false,
     require_node: None,
-    decls,
     ignore_mark,
     unresolved_mark,
     config,
@@ -86,7 +93,6 @@ struct DependencyCollector<'a> {
   in_try: bool,
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
-  decls: &'a HashSet<Id>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
@@ -202,7 +208,7 @@ impl<'a> DependencyCollector<'a> {
   }
 
   fn create_require(&mut self, specifier: JsWord) -> ast::CallExpr {
-    let mut res = create_require(specifier);
+    let mut res = create_require(specifier, self.unresolved_mark);
 
     // For scripts, we replace with __parcel__require__, which is later replaced
     // by a real parcelRequire of the resolved asset in the packager.
@@ -237,12 +243,12 @@ impl<'a> DependencyCollector<'a> {
   }
 }
 
-fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
+fn rewrite_require_specifier(node: ast::CallExpr, unresolved_mark: Mark) -> ast::CallExpr {
   if let Some(arg) = node.args.first() {
     if let Some((value, _)) = match_str(&arg.expr) {
       if value.starts_with("node:") {
         // create_require will take care of replacing the node: prefix...
-        return create_require(value);
+        return create_require(value, unresolved_mark);
       }
     }
   }
@@ -360,7 +366,8 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_call_expr(&mut self, node: ast::CallExpr) -> ast::CallExpr {
-    use ast::{Expr::*, Ident};
+    use ast::Expr::*;
+    use ast::Ident;
 
     let kind = match &node.callee {
       Callee::Import(_) => DependencyKind::DynamicImport,
@@ -368,7 +375,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         match &**expr {
           Ident(ident) => {
             // Bail if defined in scope
-            if self.decls.contains(&ident.to_id()) {
+            if !is_unresolved(&ident, self.unresolved_mark) {
               return node.fold_children_with(self);
             }
 
@@ -461,18 +468,22 @@ impl<'a> Fold for DependencyCollector<'a> {
             }
           }
           Member(member) => {
-            if match_member_expr(member, vec!["module", "require"], self.decls) {
+            if match_member_expr(member, vec!["module", "require"], self.unresolved_mark) {
               DependencyKind::Require
             } else if self.config.is_browser
               && match_member_expr(
                 member,
                 vec!["navigator", "serviceWorker", "register"],
-                self.decls,
+                self.unresolved_mark,
               )
             {
               DependencyKind::ServiceWorker
             } else if self.config.is_browser
-              && match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls)
+              && match_member_expr(
+                member,
+                vec!["CSS", "paintWorklet", "addModule"],
+                self.unresolved_mark,
+              )
             {
               DependencyKind::Worklet
             } else {
@@ -480,9 +491,11 @@ impl<'a> Fold for DependencyCollector<'a> {
 
               // Match compiled dynamic imports (Parcel)
               // Promise.resolve(require('foo'))
-              if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
+              if match_member_expr(member, vec!["Promise", "resolve"], self.unresolved_mark) {
                 if let Some(expr) = node.args.first() {
-                  if match_require(&expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                  if match_require(&expr.expr, self.unresolved_mark, Mark::fresh(Mark::root()))
+                    .is_some()
+                  {
                     self.in_promise = true;
                     let node = node.fold_children_with(self);
                     self.in_promise = was_in_promise;
@@ -500,7 +513,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               if let Call(call) = &*member.obj {
                 if let Callee::Expr(e) = &call.callee {
                   if let Member(m) = &**e {
-                    if match_member_expr(m, vec!["Promise", "resolve"], self.decls) &&
+                    if match_member_expr(m, vec!["Promise", "resolve"], self.unresolved_mark) &&
                       // Make sure the arglist is empty.
                       // I.e. do not proceed with the below unless Promise.resolve has an empty arglist
                       // because build_promise_chain() will not work in this case.
@@ -588,7 +601,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
         let mut node = node.clone();
 
-        let (specifier, span) = if let Some(s) = self.match_new_url(&arg.expr, self.decls) {
+        let (specifier, span) = if let Some(s) = self.match_new_url(&arg.expr) {
           s
         } else if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
           let (msg, docs) = if kind == DependencyKind::ServiceWorker {
@@ -686,12 +699,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       call.args.truncate(1);
 
       // Track the returned require call to be replaced with a promise chain.
-      let rewritten_call = rewrite_require_specifier(call);
+      let rewritten_call = rewrite_require_specifier(call, self.unresolved_mark);
       self.require_node = Some(rewritten_call.clone());
       rewritten_call
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
-      rewrite_require_specifier(node)
+      rewrite_require_specifier(node, self.unresolved_mark)
     } else {
       node.fold_children_with(self)
     }
@@ -705,8 +718,8 @@ impl<'a> Fold for DependencyCollector<'a> {
       ..
     } = &node
     {
-      if let ast::Expr::Ident(ast::Ident { sym, .. }) = &**arg {
-        if sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), node.span.ctxt())) {
+      if let ast::Expr::Ident(ident) = &**arg {
+        if ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark) {
           return node;
         }
       }
@@ -722,7 +735,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       Ident(id) => {
         if id.sym == "Worker" || id.sym == "SharedWorker" {
           // Bail if defined in scope
-          self.config.is_browser && !self.decls.contains(&id.to_id())
+          self.config.is_browser && is_unresolved(&id, self.unresolved_mark)
         } else if id.sym == "Promise" {
           // Match requires inside promises (e.g. Rollup compiled dynamic imports)
           // new Promise(resolve => resolve(require('foo')))
@@ -754,7 +767,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     if let Some(args) = &node.args {
       if !args.is_empty() {
-        let (specifier, span) = if let Some(s) = self.match_new_url(&args[0].expr, self.decls) {
+        let (specifier, span) = if let Some(s) = self.match_new_url(&args[0].expr) {
           s
         } else if let Lit(ast::Lit::Str(str_)) = &*args[0].expr {
           let constructor = match &*node.callee {
@@ -829,7 +842,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       return self.get_import_meta_url();
     }
 
-    if let Some((specifier, span)) = self.match_new_url(&node, self.decls) {
+    if let Some((specifier, span)) = self.match_new_url(&node) {
       let url = self.add_url_dependency(
         specifier,
         span,
@@ -855,14 +868,14 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     let is_require = match &node {
-      Expr::Ident(Ident { sym, span, .. }) => {
+      Expr::Ident(ident) => {
         // Free `require` -> undefined
-        sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt()))
+        ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark)
       }
       Expr::Member(MemberExpr { obj: expr, .. }) => {
         // e.g. `require.extensions` -> undefined
-        if let Expr::Ident(Ident { sym, span, .. }) = &**expr {
-          sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt()))
+        if let Expr::Ident(ident) = &**expr {
+          ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark)
         } else {
           false
         }
@@ -874,7 +887,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       return ast::Expr::Ident(get_undefined_ident(self.unresolved_mark));
     }
 
-    node.fold_children_with(self)
+    maybe_grow_default(|| node.fold_children_with(self))
   }
 }
 
@@ -920,7 +933,9 @@ impl<'a> DependencyCollector<'a> {
             if let ast::Expr::Ident(id) = &**callee {
               if id.to_id() == resolve_id {
                 if let Some(arg) = call.args.first() {
-                  if match_require(&arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                  if match_require(&arg.expr, self.unresolved_mark, Mark::fresh(Mark::root()))
+                    .is_some()
+                  {
                     let was_in_promise = self.in_promise;
                     self.in_promise = true;
                     let node = node.fold_children_with(self);
@@ -1136,16 +1151,12 @@ impl Fold for PromiseTransformer {
 }
 
 impl<'a> DependencyCollector<'a> {
-  fn match_new_url(
-    &mut self,
-    expr: &ast::Expr,
-    decls: &HashSet<Id>,
-  ) -> Option<(JsWord, swc_core::common::Span)> {
+  fn match_new_url(&mut self, expr: &ast::Expr) -> Option<(JsWord, swc_core::common::Span)> {
     use ast::*;
 
     if let Expr::New(new) = expr {
       let is_url = match &*new.callee {
-        Expr::Ident(id) => id.sym == js_word!("URL") && !decls.contains(&id.to_id()),
+        Expr::Ident(id) => id.sym == js_word!("URL") && is_unresolved(&id, self.unresolved_mark),
         _ => false,
       };
 

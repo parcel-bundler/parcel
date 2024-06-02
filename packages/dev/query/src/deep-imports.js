@@ -6,7 +6,10 @@ import typeof BundleGraph, {
 } from '@parcel/core/src/BundleGraph.js';
 import typeof RequestTracker, {
   RequestGraph,
+  requestTypes,
+  readAndDeserializeRequestGraph,
 } from '@parcel/core/src/RequestTracker.js';
+import typeof {getRequestTrackerCacheInfo} from '@parcel/core/src/RequestTrackerCacheInfo.js';
 import typeof {requestGraphEdgeTypes} from '@parcel/core/src/RequestTracker.js';
 import typeof {LMDBCache} from '@parcel/cache/src/LMDBCache.js';
 import typeof {Priority} from '@parcel/core/src/types.js';
@@ -23,6 +26,9 @@ const v =
         // $FlowFixMe(unsupported-syntax)
         RequestTracker: require('@parcel/core' + '/lib/RequestTracker.js'),
         // $FlowFixMe(unsupported-syntax)
+        RequestTrackerCacheInfo: require('@parcel/core' +
+          '/lib/RequestTrackerCacheInfo.js'),
+        // $FlowFixMe(unsupported-syntax)
         LMDBCache: require('@parcel/cache' + '/lib/LMDBCache.js').LMDBCache,
         // $FlowFixMe(unsupported-syntax)
         Priority: require('@parcel/core' + '/lib/types.js').Priority,
@@ -34,6 +40,7 @@ const v =
         AssetGraph: require('@parcel/core/src/AssetGraph.js').default,
         BundleGraph: require('@parcel/core/src/BundleGraph.js'),
         RequestTracker: require('@parcel/core/src/RequestTracker.js'),
+        RequestTrackerCacheInfo: require('@parcel/core/src/RequestTrackerCacheInfo.js'),
         LMDBCache: require('@parcel/cache/src/LMDBCache.js').LMDBCache,
         Priority: require('@parcel/core/src/types.js').Priority,
         fromProjectPathRelative: require('@parcel/core/src/projectPath.js')
@@ -49,8 +56,14 @@ module.exports = (v: {|
   },
   RequestTracker: {
     default: RequestTracker,
+    readAndDeserializeRequestGraph: readAndDeserializeRequestGraph,
     RequestGraph: RequestGraph,
+    requestTypes: requestTypes,
     requestGraphEdgeTypes: requestGraphEdgeTypes,
+    ...
+  },
+  RequestTrackerCacheInfo: {
+    getRequestTrackerCacheInfo: getRequestTrackerCacheInfo,
     ...
   },
   LMDBCache: LMDBCache,

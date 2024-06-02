@@ -25,6 +25,9 @@ import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
 
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+import {PARCEL_VERSION} from './constants';
+
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
 const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
@@ -189,6 +192,8 @@ export default async function resolveOptions(
     shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
     watchDir,
+    watchBackend: initialOptions.watchBackend,
+    watchIgnore: initialOptions.watchIgnore,
     entries: entries.map(e => toProjectPath(projectRoot, e)),
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',
@@ -218,6 +223,8 @@ export default async function resolveOptions(
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
       isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
+    featureFlags: {...DEFAULT_FEATURE_FLAGS, ...initialOptions?.featureFlags},
+    parcelVersion: PARCEL_VERSION,
   };
 }
 

@@ -1,20 +1,23 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
-use specifier::{parse_package_specifier, parse_scheme};
-use std::{
-  borrow::Cow,
-  collections::HashMap,
-  path::{Path, PathBuf},
-  sync::Arc,
-};
-
-use package_json::{AliasValue, ExportsResolution, PackageJson};
+use package_json::AliasValue;
+use package_json::ExportsResolution;
+use package_json::PackageJson;
+use serde::Deserialize;
+use serde::Serialize;
+use specifier::parse_package_specifier;
+use specifier::parse_scheme;
 use tsconfig::TsConfig;
 
 mod builtins;
 mod cache;
 mod error;
-mod fs;
 mod invalidations;
 mod package_json;
 mod path;
@@ -22,14 +25,20 @@ mod specifier;
 mod tsconfig;
 mod url_to_path;
 
-pub use cache::{Cache, CacheCow};
+pub use cache::Cache;
+pub use cache::CacheCow;
 pub use error::ResolverError;
-pub use fs::FileSystem;
-#[cfg(not(target_arch = "wasm32"))]
-pub use fs::OsFileSystem;
 pub use invalidations::*;
-pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
-pub use specifier::{Specifier, SpecifierError, SpecifierType};
+pub use package_json::ExportsCondition;
+pub use package_json::Fields;
+pub use package_json::ModuleType;
+pub use package_json::PackageJsonError;
+#[cfg(not(target_arch = "wasm32"))]
+pub use parcel_filesystem::os_file_system::OsFileSystem;
+pub use parcel_filesystem::FileSystem;
+pub use specifier::Specifier;
+pub use specifier::SpecifierError;
+pub use specifier::SpecifierType;
 
 use crate::path::resolve_path;
 
@@ -68,7 +77,7 @@ bitflags! {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum IncludeNodeModules {
   Bool(bool),
   Array(Vec<String>),
@@ -78,6 +87,21 @@ pub enum IncludeNodeModules {
 impl Default for IncludeNodeModules {
   fn default() -> Self {
     IncludeNodeModules::Bool(true)
+  }
+}
+
+impl std::hash::Hash for IncludeNodeModules {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    match self {
+      IncludeNodeModules::Bool(b) => b.hash(state),
+      IncludeNodeModules::Array(a) => a.hash(state),
+      IncludeNodeModules::Map(m) => {
+        for (k, v) in m {
+          k.hash(state);
+          v.hash(state);
+        }
+      }
+    }
   }
 }
 
@@ -1206,9 +1230,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::HashSet;
+
   use super::cache::Cache;
   use super::*;
-  use std::collections::HashSet;
 
   fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

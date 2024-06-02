@@ -1,19 +1,19 @@
-use std::{
-  borrow::Cow,
-  ops::Deref,
-  path::{Path, PathBuf},
-  sync::Mutex,
-};
+use std::borrow::Cow;
+use std::ops::Deref;
+use std::path::Path;
+use std::path::PathBuf;
 
-use crate::{
-  fs::FileSystem,
-  package_json::{PackageJson, SourceField},
-  tsconfig::{TsConfig, TsConfigWrapper},
-  ResolverError,
-};
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
+use parcel_filesystem::FileSystem;
+use parking_lot::Mutex;
 use typed_arena::Arena;
+
+use crate::package_json::PackageJson;
+use crate::package_json::SourceField;
+use crate::tsconfig::TsConfig;
+use crate::tsconfig::TsConfigWrapper;
+use crate::ResolverError;
 
 pub struct Cache<Fs> {
   pub fs: Fs,
@@ -193,7 +193,7 @@ fn read<F: FileSystem>(
   arena: &Mutex<Arena<Box<str>>>,
   path: &Path,
 ) -> std::io::Result<&'static mut str> {
-  let arena = arena.lock().unwrap();
+  let arena = arena.lock();
   let data = arena.alloc(fs.read_to_string(path)?.into_boxed_str());
   // The data lives as long as the arena. In public methods, we only vend temporary references.
   Ok(unsafe { &mut *(&mut **data as *mut str) })

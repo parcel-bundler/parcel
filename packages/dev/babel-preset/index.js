@@ -22,7 +22,7 @@ module.exports = api => {
         {
           modules: false,
           targets: {
-            node: 12,
+            node: 16,
           },
         },
       ],
@@ -47,6 +47,7 @@ module.exports = api => {
             {
               include: [
                 'PARCEL_BUILD_ENV',
+                'SKIP_PLUGIN_COMPATIBILITY_CHECK',
                 // Eliminate the PARCEL_SELF_BUILD environment variable to get
                 //  rid of @babel/register in bin.js, when compiling with gulp.
                 ...(!process.env.PARCEL_SELF_BUILD

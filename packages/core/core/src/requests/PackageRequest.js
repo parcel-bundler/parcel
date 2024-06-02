@@ -8,7 +8,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import {requestTypes} from '../RequestTracker';
 import type {Bundle} from '../types';
 import type BundleGraph from '../BundleGraph';
-import type {BundleInfo, PackageRequestResult} from '../PackagerRunner';
+import type {BundleInfo, RunPackagerRunnerResult} from '../PackagerRunner';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import nullthrows from 'nullthrows';
@@ -23,6 +23,8 @@ type PackageRequestInput = {|
   optionsRef: SharedReference,
   useMainThread?: boolean,
 |};
+
+export type PackageRequestResult = BundleInfo;
 
 type RunInput<TResult> = {|
   input: PackageRequestInput,
@@ -66,7 +68,7 @@ async function run({input, api, farm}) {
       previousDevDeps: devDeps,
       invalidDevDeps,
       previousInvalidations: api.getInvalidations(),
-    }): PackageRequestResult);
+    }): RunPackagerRunnerResult);
 
   for (let devDepRequest of devDepRequests) {
     await runDevDepRequest(api, devDepRequest);

@@ -13,9 +13,10 @@ import type {
   Target,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
-import type {EntryResult} from './EntryRequest';
+import type {EntryRequestResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 import type {Diagnostic} from '@parcel/diagnostic';
+import logger from '@parcel/logger';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -45,7 +46,7 @@ type AssetGraphRequestInput = {|
   requestedAssetIds?: Set<string>,
 |};
 
-type AssetGraphRequestResult = {|
+export type AssetGraphRequestResult = {|
   assetGraph: AssetGraph,
   /** Assets added/modified since the last successful build. */
   changedAssets: Map<string, Asset>,
@@ -108,6 +109,7 @@ export class AssetGraphBuilder {
   queue: PromiseQueue<mixed>;
   changedAssets: Map<string, Asset>;
   changedAssetsPropagation: Set<string>;
+  prevChangedAssetsPropagation: ?Set<string>;
   optionsRef: SharedReference;
   options: ParcelOptions;
   api: RunAPI<AssetGraphRequestResult>;
@@ -146,8 +148,9 @@ export class AssetGraphBuilder {
     this.previousSymbolPropagationErrors =
       prevResult?.previousSymbolPropagationErrors ?? new Map();
     this.changedAssets = prevResult?.changedAssets ?? new Map();
-    this.changedAssetsPropagation =
-      prevResult?.changedAssetsPropagation ?? new Set();
+    this.changedAssetsPropagation = new Set();
+    this.prevChangedAssetsPropagation = prevResult?.changedAssetsPropagation;
+
     this.assetGraph = assetGraph;
     this.optionsRef = optionsRef;
     this.options = options;
@@ -161,7 +164,7 @@ export class AssetGraphBuilder {
       hashString(
         `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${
           options.mode
-        }`,
+        }${options.shouldBuildLazily ? 'lazy' : 'eager'}`,
       ) + '-AssetGraph';
 
     this.isSingleChangeRebuild =
@@ -198,7 +201,9 @@ export class AssetGraphBuilder {
       'A root node is required to traverse',
     );
 
+    let visitedAssetGroups = new Set();
     let visited = new Set([rootNodeId]);
+
     const visit = (nodeId: NodeId) => {
       if (errors.length > 0) {
         return;
@@ -221,6 +226,10 @@ export class AssetGraphBuilder {
           (!visited.has(childNodeId) || child.hasDeferred) &&
           this.shouldVisitChild(nodeId, childNodeId)
         ) {
+          if (child.type === 'asset_group') {
+            visitedAssetGroups.add(childNodeId);
+          }
+
           visited.add(childNodeId);
           visit(childNodeId);
         }
@@ -229,6 +238,25 @@ export class AssetGraphBuilder {
 
     visit(rootNodeId);
     await this.queue.run();
+
+    logger.verbose({
+      origin: '@parcel/core',
+      message: 'Asset graph walked',
+      meta: {
+        visitedAssetGroupsCount: visitedAssetGroups.size,
+      },
+    });
+
+    if (this.prevChangedAssetsPropagation) {
+      // Add any previously seen Assets that have not been propagated yet to
+      // 'this.changedAssetsPropagation', but only if they still remain in the graph
+      // as they could have been removed since the last build
+      for (let assetId of this.prevChangedAssetsPropagation) {
+        if (this.assetGraph.hasContentKey(assetId)) {
+          this.changedAssetsPropagation.add(assetId);
+        }
+      }
+    }
 
     if (errors.length) {
       this.api.storeResult(
@@ -440,9 +468,12 @@ export class AssetGraphBuilder {
       : [];
 
     let request = createEntryRequest(input);
-    let result = await this.api.runRequest<ProjectPath, EntryResult>(request, {
-      force: true,
-    });
+    let result = await this.api.runRequest<ProjectPath, EntryRequestResult>(
+      request,
+      {
+        force: true,
+      },
+    );
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
 
     if (this.assetGraph.safeToIncrementallyBundle) {

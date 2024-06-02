@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-glob",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,14 +16,14 @@
   "main": "lib/GlobResolver.js",
   "source": "src/GlobResolver.js",
   "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.11.0"
+    "node": ">= 16.0.0",
+    "parcel": "^2.12.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.11.0",
-    "@parcel/node-resolver-core": "3.2.0",
-    "@parcel/plugin": "2.11.0",
-    "@parcel/utils": "2.11.0",
+    "@parcel/diagnostic": "2.12.0",
+    "@parcel/node-resolver-core": "3.3.0",
+    "@parcel/plugin": "2.12.0",
+    "@parcel/utils": "2.12.0",
     "nullthrows": "^1.1.1"
   }
 }

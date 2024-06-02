@@ -1,6 +1,6 @@
 // @flow
 
-import type {FilePath} from '@parcel/types';
+import type {FilePath} from '@parcel/types-internal';
 import type {BackendType, WorkerImpl, WorkerMessage} from './types';
 import type {SharedReference} from './WorkerFarm';
 

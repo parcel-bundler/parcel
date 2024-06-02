@@ -11,6 +11,7 @@ import {
   run,
   overlayFS,
   getNextBuild,
+  runBundle,
 } from '@parcel/test-utils';
 
 const distDir = path.join(__dirname, '/integration/monorepo/dist/default');
@@ -255,6 +256,10 @@ describe('monorepos', function () {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
+      {
+        name: 'pkg-b.module.css',
+        assets: ['index.module.css'],
+      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -300,7 +305,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.cjs.css"'));
+    assert(contents.includes('import "./pkg-b.module.css"'));
   });
 
   it('should build using root targets with a glob pointing at files inside packages and cwd at project root', async function () {
@@ -531,6 +536,10 @@ describe('monorepos', function () {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
+      {
+        name: 'pkg-b.module.css',
+        assets: ['index.module.css'],
+      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -576,7 +585,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.cjs.css"'));
+    assert(contents.includes('import "./pkg-b.module.css"'));
   });
 
   it('should watch glob entries and build new packages that are added', async function () {
@@ -632,6 +641,10 @@ describe('monorepos', function () {
       },
       {
         name: 'pkg-b.cjs.css',
+        assets: ['index.module.css'],
+      },
+      {
+        name: 'pkg-b.module.css',
         assets: ['index.module.css'],
       },
     ]);
@@ -789,6 +802,10 @@ describe('monorepos', function () {
         assets: ['index.module.css'],
       },
       {
+        name: 'pkg-a.module.css',
+        assets: ['index.module.css'],
+      },
+      {
         name: 'pkg-b.cjs.js',
         assets: ['index.js', 'index.module.css'],
       },
@@ -798,6 +815,10 @@ describe('monorepos', function () {
       },
       {
         name: 'pkg-b.cjs.css',
+        assets: ['index.module.css'],
+      },
+      {
+        name: 'pkg-b.module.css',
         assets: ['index.module.css'],
       },
     ]);
@@ -820,7 +841,7 @@ describe('monorepos', function () {
       'utf8',
     );
     assert(contents.includes('export {'));
-    assert(contents.includes('import "./pkg-a.cjs.css"'));
+    assert(contents.includes('import "./pkg-a.module.css"'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -856,7 +877,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.cjs.css"'));
+    assert(contents.includes('import "./pkg-b.module.css"'));
   });
 
   it('should search for .parcelrc at cwd in monorepos', async () => {
@@ -942,5 +963,158 @@ describe('monorepos', function () {
         subscription = sub;
       });
     });
+  });
+
+  it('should support globs in the source field', async function () {
+    const dir = path.join(__dirname, 'source-glob');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      package.json:
+        {
+          "source": "foo/*.js",
+          "targets": {
+            "default": {
+              "outputFormat": "esmodule",
+              "isLibrary": true
+            }
+          }
+        }
+
+      foo/a.js:
+        export default 'a';
+
+      foo/b.js:
+        export default 'b';
+    `;
+
+    let b = await bundle(dir, {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+    ]);
+
+    for (let bundle of b.getBundles()) {
+      let res = await runBundle(b, bundle);
+      assert.equal(res.default, bundle.name[0]);
+    }
+  });
+
+  it('should support globs in target-specific source field', async function () {
+    const dir = path.join(__dirname, 'source-target-glob');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      package.json:
+        {
+          "targets": {
+            "foo-esm": {
+              "source": "foo/*.js",
+              "outputFormat": "esmodule",
+              "isLibrary": true
+            },
+            "foo-cjs": {
+              "source": "foo/*.js",
+              "outputFormat": "commonjs",
+              "isLibrary": true
+            }
+          }
+        }
+
+      foo/a.js:
+        export default 'a';
+
+      foo/b.js:
+        export default 'b';
+    `;
+
+    let b = await bundle(dir, {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+    ]);
+
+    for (let bundle of b.getBundles()) {
+      let res = await runBundle(b, bundle);
+      assert.equal(res.default, bundle.name[0]);
+    }
+  });
+
+  it('should watch globs in source field', async function () {
+    const dir = path.join(__dirname, 'input', 'source-glob-watch');
+    await overlayFS.mkdirp(dir);
+    await inputFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      yarn.lock:
+
+      package.json:
+        {
+          "source": "foo/*.js",
+          "targets": {
+            "default": {
+              "outputFormat": "esmodule",
+              "isLibrary": true
+            }
+          }
+        }
+
+      foo/a.js:
+        export default 'a';
+    `;
+
+    let b = await bundler(dir, {
+      inputFS: overlayFS,
+    });
+
+    subscription = await b.watch();
+    let evt = await getNextBuild(b);
+
+    assertBundles(evt.bundleGraph, [
+      {
+        assets: ['a.js'],
+      },
+    ]);
+
+    await fsFixture(overlayFS, dir)`
+      foo/b.js:
+        export default 'b';
+    `;
+
+    evt = await getNextBuild(b);
+    assertBundles(evt.bundleGraph, [
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+    ]);
   });
 });

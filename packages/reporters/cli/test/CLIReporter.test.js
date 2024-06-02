@@ -4,15 +4,17 @@ import assert from 'assert';
 import sinon from 'sinon';
 import {PassThrough} from 'stream';
 import {_report} from '../src/CLIReporter';
+import * as render from '../src/render';
 import {_setStdio} from '../src/render';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import stripAnsi from 'strip-ansi';
 import * as bundleReport from '../src/bundleReport';
-import * as render from '../src/render';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
+  parcelVersion: '',
   entries: [],
   logLevel: 'info',
   targets: [],
@@ -36,6 +38,7 @@ const EMPTY_OPTIONS = {
   detailedReport: {
     assetsPerBundle: 10,
   },
+  featureFlags: DEFAULT_FEATURE_FLAGS,
 };
 
 describe('CLIReporter', () => {
@@ -197,7 +200,7 @@ describe('CLIReporter', () => {
     // emit a buildSuccess event to reset the timings and seen phases
     // from the previous test
     process.env['PARCEL_SHOW_PHASE_TIMES'] = undefined;
-    // $FlowFixMe[incompatible-call]
+    // $FlowFixMe
     await _report({type: 'buildSuccess'}, EMPTY_OPTIONS);
 
     process.env['PARCEL_SHOW_PHASE_TIMES'] = 'true';
@@ -206,9 +209,18 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
     await _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
-    // $FlowFixMe[incompatible-call]
-    await _report({type: 'buildProgress', phase: 'packaging'}, EMPTY_OPTIONS);
-    // $FlowFixMe[incompatible-call]
+    await _report(
+      // $FlowFixMe
+      {
+        type: 'buildProgress',
+        phase: 'packaging',
+        bundle: {
+          displayName: 'test',
+        },
+      },
+      EMPTY_OPTIONS,
+    );
+    // $FlowFixMe
     await _report({type: 'buildSuccess'}, EMPTY_OPTIONS);
     const expected =
       /Building...\nBundling...\nPackaging & Optimizing...\nTransforming finished in [0-9]ms\nBundling finished in [0-9]ms\nPackaging & Optimizing finished in [0-9]ms/;
@@ -222,10 +234,24 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
     await _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
-    // $FlowFixMe[incompatible-call]
-    await _report({type: 'buildProgress', phase: 'packaging'}, EMPTY_OPTIONS);
-    // $FlowFixMe[incompatible-call]
+    await _report(
+      // $FlowFixMe
+      {
+        type: 'buildProgress',
+        phase: 'packaging',
+        bundle: {
+          displayName: 'test',
+        },
+      },
+      EMPTY_OPTIONS,
+    );
+    // $FlowFixMe
     await _report({type: 'buildSuccess'}, EMPTY_OPTIONS);
-    assert.equal(expected.test(stdoutOutput), true);
+
+    assert.equal(
+      expected.test(stdoutOutput),
+      true,
+      'STDOUT output did not match',
+    );
   });
 });

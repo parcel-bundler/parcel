@@ -18,7 +18,7 @@ import Transformation, {
   type TransformationResult,
 } from './Transformation';
 import {reportWorker, report} from './ReporterRunner';
-import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
+import PackagerRunner, {type RunPackagerRunnerResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './registerCoreWithSerializer';
@@ -26,6 +26,7 @@ import {clearBuildCaches} from './buildCache';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initRust} from '@parcel/rust';
 import WorkerFarm from '@parcel/workers';
+import {setFeatureFlags} from '@parcel/feature-flags';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -78,6 +79,9 @@ async function loadConfig(cachePath, options) {
   );
   config = new ParcelConfig(processedConfig, options);
   parcelConfigCache.set(cachePath, config);
+
+  setFeatureFlags(options.featureFlags);
+
   return config;
 }
 
@@ -138,7 +142,7 @@ export async function runPackage(
     invalidDevDeps: Array<DevDepSpecifier>,
     previousInvalidations: Array<RequestInvalidation>,
   |},
-): Promise<PackageRequestResult> {
+): Promise<RunPackagerRunnerResult> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
