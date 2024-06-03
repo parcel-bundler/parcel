@@ -13,7 +13,7 @@ use serde::Serialize;
 // TODO error handling
 
 pub struct FileSystemNapi {
-  read_file_fn: Box<dyn Fn(PathBuf) -> String + Send + Sync>,
+  read_file_fn: Box<dyn Fn((PathBuf, String)) -> String + Send + Sync>,
   is_file_fn: Box<dyn Fn(PathBuf) -> bool + Send + Sync>,
   is_dir_fn: Box<dyn Fn(PathBuf) -> bool + Send + Sync>,
 }
@@ -44,7 +44,10 @@ impl FileSystemNapi {
 // thread or they will cause JavaScript to deadlock
 impl FileSystem for FileSystemNapi {
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    Ok((*self.read_file_fn)(path.to_path_buf()))
+    Ok((*self.read_file_fn)((
+      path.to_path_buf(),
+      "utf8".to_string(),
+    )))
   }
 
   fn is_file(&self, path: &Path) -> bool {
