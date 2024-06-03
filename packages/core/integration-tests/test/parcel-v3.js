@@ -24,7 +24,7 @@ describe('parcel-v3', function () {
     assert.equal(output(), 3);
   });
 
-  it.only('should run the main-thread bootstrap function', async function () {
+  it('should run the main-thread bootstrap function', async function () {
     let p = new napi.ParcelNapi({
       fs: {
         readFileSync: (_, [...args]) => inputFS.readFileSync(...args),
