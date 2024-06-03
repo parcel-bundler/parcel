@@ -19,6 +19,11 @@ pub struct ParcelNapi {
 impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(env: Env, options: JsObject) -> napi::Result<Self> {
+    let _ = tracing_subscriber::fmt::try_init();
+
+    let thread_id = std::thread::current().id();
+    tracing::info!(?thread_id, "ParcelNapi initialize");
+
     let mut fs = None::<FileSystemRef>;
 
     if options.has_named_property("fs")? {
@@ -36,6 +41,8 @@ impl ParcelNapi {
   // Temporary, for testing
   #[napi]
   pub async fn _testing_temp_fs_read_to_string(&self, path: String) -> napi::Result<String> {
+    let thread_id = std::thread::current().id();
+    tracing::info!(?path, ?thread_id, "read_to_string");
     Ok(self.internal.fs.read_to_string(&PathBuf::from(path))?)
   }
 
