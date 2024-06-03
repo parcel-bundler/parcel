@@ -1857,6 +1857,7 @@ dependencies = [
 name = "parcel_config"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "derive_builder",
  "glob-match",
  "indexmap 2.2.6",
@@ -1912,7 +1913,10 @@ dependencies = [
 name = "parcel_package_manager"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "mockall",
+ "parcel-resolver",
+ "parcel_filesystem",
  "thiserror",
 ]
 

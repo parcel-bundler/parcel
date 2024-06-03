@@ -106,7 +106,7 @@ impl ParcelRcConfigLoader {
       .map_err(|source| ConfigError::UnresolvedConfig {
         config_type: String::from("extended config"),
         from: path,
-        source: Box::new(source),
+        source: Box::new(anyhow::Error::new(source)),
         specifier: String::from(extend),
       })
   }
@@ -214,23 +214,18 @@ impl ParcelRcConfigLoader {
 
 #[cfg(test)]
 mod tests {
+  use anyhow::anyhow;
   use mockall::predicate::eq;
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_package_manager::MockPackageManager;
   use parcel_package_manager::Resolution;
-  use parcel_package_manager::ResolveError;
 
   use super::*;
 
   fn fail_package_manager_resolution(package_manager: &mut MockPackageManager) {
     package_manager
       .expect_resolve()
-      .return_once(|specifier, from| {
-        Err(ResolveError::NotFound(
-          String::from(specifier),
-          from.display().to_string(),
-        ))
-      });
+      .return_once(|specifier, from| Err(anyhow!("Something bad happened")));
   }
 
   struct TestPackageManager {
@@ -244,7 +239,7 @@ mod tests {
   }
 
   impl PackageManager for TestPackageManager {
-    fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError> {
+    fn resolve(&self, specifier: &str, from: &Path) -> anyhow::Result<Resolution> {
       let path = match "true" {
         _s if specifier.starts_with(".") => from.join(specifier),
         _s if specifier.starts_with("@") => self
@@ -258,10 +253,7 @@ mod tests {
       };
 
       if !self.fs.is_file(&path) {
-        return Err(ResolveError::NotFound(
-          String::from(specifier),
-          from.display().to_string(),
-        ));
+        return Err(anyhow!("File was missing"));
       }
 
       Ok(Resolution { resolved: path })
@@ -338,7 +330,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: config.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: Box::new(anyhow!("It broke")),
           }
           .to_string()
         )
@@ -462,7 +454,7 @@ mod tests {
             config_type: String::from("config"),
             from: project_root.join("index"),
             specifier: String::from("@scope/config"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: Box::new(anyhow!("It broke")),
           }
           .to_string()
         )
@@ -499,7 +491,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: config.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: Box::new(anyhow!("It broke")),
           }
           .to_string()
         )
@@ -611,7 +603,7 @@ mod tests {
             config_type: String::from("fallback"),
             from: project_root.join("index"),
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: Box::new(anyhow!("It broke")),
           }
           .to_string()
         )
@@ -648,7 +640,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: fallback.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: Box::new(anyhow!("It broke")),
           }
           .to_string()
         ),

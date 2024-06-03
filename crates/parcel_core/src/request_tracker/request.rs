@@ -1,5 +1,5 @@
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
-use std::hash::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 

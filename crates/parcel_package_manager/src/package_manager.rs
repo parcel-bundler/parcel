@@ -2,19 +2,12 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use mockall::automock;
-use thiserror::Error;
 
 pub struct Resolution {
   pub resolved: PathBuf,
 }
 
-#[derive(Debug, Error)]
-pub enum ResolveError {
-  #[error("Cannot find module '{0}' from {1}")]
-  NotFound(String, String),
-}
-
 #[automock]
 pub trait PackageManager {
-  fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError>;
+  fn resolve(&self, specifier: &str, from: &Path) -> anyhow::Result<Resolution>;
 }

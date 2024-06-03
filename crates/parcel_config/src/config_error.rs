@@ -32,6 +32,6 @@ pub enum ConfigError {
     from: PathBuf,
     specifier: String,
     #[source]
-    source: Box<dyn std::error::Error>,
+    source: Box<anyhow::Error>,
   },
 }
