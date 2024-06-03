@@ -1,16 +1,11 @@
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::mpsc::channel;
-use std::sync::mpsc::Sender;
-use std::thread;
 
 use napi::bindgen_prelude::FromNapiValue;
-use napi::threadsafe_function::ThreadsafeFunction;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
-use napi::JsUnknown;
 use parcel_filesystem::FileSystem;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -18,7 +13,7 @@ use serde::Serialize;
 // TODO error handling
 
 pub struct FileSystemNapi {
-  read_file_fn: Box<dyn Fn(PathBuf) -> String + Send + Sync>,
+  read_file_fn: Box<dyn Fn((PathBuf, String)) -> String + Send + Sync>,
   is_file_fn: Box<dyn Fn(PathBuf) -> bool + Send + Sync>,
   is_dir_fn: Box<dyn Fn(PathBuf) -> bool + Send + Sync>,
 }
@@ -49,7 +44,10 @@ impl FileSystemNapi {
 // thread or they will cause JavaScript to deadlock
 impl FileSystem for FileSystemNapi {
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    Ok((*self.read_file_fn)(path.to_path_buf()))
+    Ok((*self.read_file_fn)((
+      path.to_path_buf(),
+      "utf8".to_string(),
+    )))
   }
 
   fn is_file(&self, path: &Path) -> bool {
@@ -69,8 +67,6 @@ fn create_js_thread_safe_method<
   js_file_system: &JsObject,
   method_name: &str,
 ) -> Result<impl Fn(Params) -> Response, napi::Error> {
-  let (tx, rx) = channel::<(Params, Sender<Response>)>();
-
   let jsfn: JsFunction = js_file_system.get_property(env.create_string(method_name)?)?;
 
   let threadsafe_function = env.create_threadsafe_function(
@@ -81,7 +77,7 @@ fn create_js_thread_safe_method<
     },
   )?;
   let result = move |params| {
-    let (tx, mut rx) = std::sync::mpsc::sync_channel(1);
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
     threadsafe_function.call_with_return_value(
       Ok(params),
       ThreadsafeFunctionCallMode::Blocking,
