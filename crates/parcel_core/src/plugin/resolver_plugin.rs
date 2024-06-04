@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::path::PathBuf;
 
 use super::PluginConfig;
@@ -50,7 +51,7 @@ pub struct Resolution {
 ///
 /// Resolvers run in a pipeline until one of them return a result.
 ///
-pub trait ResolverPlugin: Send + Sync {
+pub trait ResolverPlugin: Debug + Send + Sync {
   /// A hook designed to setup any config needed to resolve dependencies
   ///
   /// This function will run once, shortly after the plugin is initialised.
@@ -69,6 +70,7 @@ pub trait ResolverPlugin: Send + Sync {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestResolverPlugin {}
 
   impl ResolverPlugin for TestResolverPlugin {

@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::path::PathBuf;
 
 use super::PluginConfig;
@@ -21,7 +22,7 @@ pub struct RuntimeAsset {
 }
 
 /// Programmatically insert assets into bundles
-pub trait RuntimePlugin {
+pub trait RuntimePlugin: Debug {
   /// A hook designed to setup config needed to create runtime assets
   ///
   /// This function will run once, shortly after the plugin is initialised.
@@ -41,6 +42,7 @@ pub trait RuntimePlugin {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestRuntimePlugin {}
 
   impl RuntimePlugin for TestRuntimePlugin {

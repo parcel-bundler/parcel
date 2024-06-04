@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 
 use super::PluginConfig;
@@ -28,7 +29,7 @@ pub struct OptimizedBundle {
 /// Multiple optimizer plugins may run in series, and the result of each optimizer is passed to
 /// the next.
 ///
-pub trait OptimizerPlugin: Send + Sync {
+pub trait OptimizerPlugin: Debug + Send + Sync {
   /// A hook designed to setup config needed for optimizing bundles
   ///
   /// This function will run once, shortly after the plugin is initialised.
@@ -47,6 +48,7 @@ pub trait OptimizerPlugin: Send + Sync {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestOptimizerPlugin {}
 
   impl OptimizerPlugin for TestOptimizerPlugin {
