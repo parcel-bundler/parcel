@@ -72,16 +72,16 @@ pub struct Cache {
   entries: DashMap<PathBuf, Invalidations>,
 }
 
-struct EsmGraphBuilder<'a, Fs> {
+struct EsmGraphBuilder<'a> {
   visited: DashSet<PathBuf>,
   visited_globs: DashSet<PathBuf>,
   invalidations: Invalidations,
-  cjs_resolver: Resolver<'a, Fs>,
-  esm_resolver: Resolver<'a, Fs>,
+  cjs_resolver: Resolver<'a>,
+  esm_resolver: Resolver<'a>,
   cache: &'a Cache,
 }
 
-impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
+impl<'a> EsmGraphBuilder<'a> {
   pub fn build(&self, file: &Path) -> Result<(), EsmGraphBuilderError> {
     if self.visited.contains(file) {
       return Ok(());
@@ -172,7 +172,7 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
     &self,
     pattern: &str,
     from: &Path,
-    resolver: &Resolver<'a, Fs>,
+    resolver: &Resolver<'a>,
     invalidations: &Invalidations,
   ) -> Result<(), EsmGraphBuilderError> {
     // Parse the specifier. If it is a bare specifier, resolve the package first
@@ -489,10 +489,10 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
   ret
 }
 
-pub fn build_esm_graph<Fs: FileSystem>(
+pub fn build_esm_graph(
   file: &Path,
   project_root: &Path,
-  resolver_cache: &parcel_resolver::Cache<Fs>,
+  resolver_cache: &parcel_resolver::Cache,
   cache: &Cache,
 ) -> Result<Invalidations, EsmGraphBuilderError> {
   let visitor = EsmGraphBuilder {

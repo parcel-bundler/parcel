@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use parcel_filesystem::os_file_system::OsFileSystem;
-use parcel_filesystem::FileSystem;
-
-pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
+use parcel_filesystem::FileSystemRef;
+use parcel_package_manager::NodePackageManager;
 
 pub struct Parcel {
   pub fs: FileSystemRef,
@@ -18,6 +17,7 @@ impl Parcel {
     let fs = options
       .fs
       .unwrap_or_else(|| Arc::new(OsFileSystem::default()));
+    let node_package_manager = NodePackageManager::new("project_root", fs.clone());
 
     Self { fs }
   }

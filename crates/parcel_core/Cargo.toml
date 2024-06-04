@@ -9,6 +9,7 @@ default = []
 
 [dependencies]
 parcel_filesystem = { path = "../parcel_filesystem" }
+parcel_package_manager = { path = "../parcel_package_manager" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 
 ahash = "0.8.11"

@@ -1,17 +1,17 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use anyhow::anyhow;
-use parcel_filesystem::FileSystem;
+use parcel_filesystem::{FileSystem, FileSystemRef};
 use parcel_resolver::{Resolution, SpecifierType};
 
 use crate::PackageManager;
 
-pub struct NodePackageManager<Fs: FileSystem + 'static> {
-  resolver: parcel_resolver::Resolver<'static, Fs>,
+pub struct NodePackageManager<'a> {
+  resolver: parcel_resolver::Resolver<'a>,
 }
 
-impl<Fs: FileSystem> NodePackageManager<Fs> {
-  fn new(project_root: String, fs: Fs) -> Self {
+impl<'a> NodePackageManager<'a> {
+  pub fn new(project_root: &str, fs: FileSystemRef) -> Self {
     Self {
       resolver: parcel_resolver::Resolver::node(
         Cow::Owned(project_root.into()),
@@ -21,7 +21,7 @@ impl<Fs: FileSystem> NodePackageManager<Fs> {
   }
 }
 
-impl<Fs: FileSystem> PackageManager for NodePackageManager<Fs> {
+impl<'a> PackageManager for NodePackageManager<'a> {
   fn resolve(&self, specifier: &str, from: &std::path::Path) -> anyhow::Result<crate::Resolution> {
     let res = self.resolver.resolve(specifier, from, SpecifierType::Cjs);
 

@@ -18,6 +18,7 @@ use napi::JsUnknown;
 use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
+use parcel_filesystem::FileSystemRef;
 use parcel_resolver::ExportsCondition;
 use parcel_resolver::Extensions;
 use parcel_resolver::Fields;
@@ -144,48 +145,6 @@ impl FileSystem for JsFileSystem {
   }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-
-enum EitherFs<A, B> {
-  A(A),
-  B(B),
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
-  fn canonicalize(
-    &self,
-    path: &Path,
-    cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> std::io::Result<std::path::PathBuf> {
-    match self {
-      EitherFs::A(a) => a.canonicalize(path, cache),
-      EitherFs::B(b) => b.canonicalize(path, cache),
-    }
-  }
-
-  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    match self {
-      EitherFs::A(a) => a.read_to_string(path),
-      EitherFs::B(b) => b.read_to_string(path),
-    }
-  }
-
-  fn is_file(&self, path: &Path) -> bool {
-    match self {
-      EitherFs::A(a) => a.is_file(path),
-      EitherFs::B(b) => b.is_file(path),
-    }
-  }
-
-  fn is_dir(&self, path: &Path) -> bool {
-    match self {
-      EitherFs::A(a) => a.is_dir(path),
-      EitherFs::B(b) => b.is_dir(path),
-    }
-  }
-}
-
 #[napi(object)]
 pub struct ResolveOptions {
   pub filename: String,
@@ -234,37 +193,40 @@ pub struct JsInvalidations {
 pub struct Resolver {
   mode: u8,
   #[cfg(not(target_arch = "wasm32"))]
-  resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
+  resolver: parcel_resolver::Resolver<'static>,
   #[cfg(target_arch = "wasm32")]
   resolver: parcel_resolver::Resolver<'static, JsFileSystem>,
   #[cfg(not(target_arch = "wasm32"))]
   invalidations_cache: parcel_dev_dep_resolver::Cache,
+  supports_async: bool,
 }
 
 #[napi]
 impl Resolver {
   #[napi(constructor)]
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
+    let mut supports_async = false;
     #[cfg(not(target_arch = "wasm32"))]
-    let fs = if let Some(fs) = options.fs {
-      EitherFs::A(JsFileSystem {
+    let fs: FileSystemRef = if let Some(fs) = options.fs {
+      Arc::new(JsFileSystem {
         canonicalize: FunctionRef::new(env, fs.canonicalize)?,
         read: FunctionRef::new(env, fs.read)?,
         is_file: FunctionRef::new(env, fs.is_file)?,
         is_dir: FunctionRef::new(env, fs.is_dir)?,
       })
     } else {
-      EitherFs::B(OsFileSystem)
+      supports_async = true;
+      Arc::new(OsFileSystem)
     };
     #[cfg(target_arch = "wasm32")]
     let fs = {
       let fsjs = options.fs.unwrap();
-      JsFileSystem {
+      Arc::new(JsFileSystem {
         canonicalize: FunctionRef::new(env, fsjs.canonicalize)?,
         read: FunctionRef::new(env, fsjs.read)?,
         is_file: FunctionRef::new(env, fsjs.is_file)?,
         is_dir: FunctionRef::new(env, fsjs.is_dir)?,
-      }
+      })
     };
 
     let mut resolver = match options.mode {
@@ -327,6 +289,7 @@ impl Resolver {
     Ok(Self {
       mode: options.mode,
       resolver,
+      supports_async,
       #[cfg(not(target_arch = "wasm32"))]
       invalidations_cache: Default::default(),
     })
@@ -445,7 +408,7 @@ impl Resolver {
     let (deferred, promise) = env.create_deferred()?;
     let resolver = &self.resolver;
 
-    if matches!(resolver.cache.fs, EitherFs::A(..)) || resolver.module_dir_resolver.is_some() {
+    if !self.supports_async || resolver.module_dir_resolver.is_some() {
       return Err(napi::Error::new(
         napi::Status::GenericFailure,
         "resolveAsync does not support custom fs or module_dir_resolver",
