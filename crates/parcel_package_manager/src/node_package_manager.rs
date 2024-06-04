@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use anyhow::anyhow;
-use parcel_filesystem::{FileSystem, FileSystemRef};
+use parcel_filesystem::FileSystemRef;
 use parcel_resolver::{Resolution, SpecifierType};
 
 use crate::PackageManager;
@@ -30,7 +30,7 @@ impl<'a> PackageManager for NodePackageManager<'a> {
         Resolution::Path(pathbuf) => Ok(crate::Resolution { resolved: pathbuf }),
         other_case => Err(anyhow!(format!("Err: {:?}", other_case))),
       },
-      // TOOO This is definitely not right
+      // TODO: This is definitely not right
       Result::Err(err) => Err(anyhow!(format!("Err: {:?}", err))),
     }
   }
