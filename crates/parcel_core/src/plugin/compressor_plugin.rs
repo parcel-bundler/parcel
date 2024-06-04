@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 
 pub struct CompressedFile {
@@ -12,7 +13,7 @@ pub struct CompressedFile {
 }
 
 /// Compresses the input file stream
-pub trait CompressorPlugin {
+pub trait CompressorPlugin: Debug {
   /// Compress the given file
   ///
   /// The file contains the final contents of bundles and sourcemaps as they are being written.
@@ -25,6 +26,7 @@ pub trait CompressorPlugin {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestCompressorPlugin {}
 
   impl CompressorPlugin for TestCompressorPlugin {

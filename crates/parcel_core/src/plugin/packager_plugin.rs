@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 
 use super::PluginConfig;
@@ -23,7 +24,7 @@ pub struct PackagedBundle {
 /// Packagers are also responsible for resolving URL references, bundle inlining, and generating
 /// source maps.
 ///
-pub trait PackagerPlugin: Send + Sync {
+pub trait PackagerPlugin: Debug + Send + Sync {
   /// A hook designed to setup config needed for packaging
   ///
   /// This function will run once, shortly after the plugin is initialised.
@@ -42,6 +43,7 @@ pub trait PackagerPlugin: Send + Sync {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestPackagerPlugin {}
 
   impl PackagerPlugin for TestPackagerPlugin {
