@@ -216,8 +216,6 @@ async function writeDiagnostic(
   let columns = getTerminalWidth().columns;
   let indent = 2;
   let spaceAfter = isError;
-  diagnostics =
-    typeof diagnostics === 'string' ? [{message: diagnostics}] : diagnostics;
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints, documentation} =
       await prettyDiagnostic(diagnostic, options, columns - indent);
