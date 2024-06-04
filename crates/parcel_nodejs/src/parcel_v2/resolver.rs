@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
-#[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
@@ -27,7 +26,6 @@ use parcel_resolver::Flags;
 use parcel_resolver::IncludeNodeModules;
 use parcel_resolver::Invalidations;
 use parcel_resolver::ModuleType;
-#[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::Resolution;
 use parcel_resolver::ResolverError;
@@ -144,14 +142,11 @@ impl FileSystem for JsFileSystem {
   }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-
 enum EitherFs<A, B> {
   A(A),
   B(B),
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
   fn canonicalize(
     &self,
@@ -233,11 +228,7 @@ pub struct JsInvalidations {
 #[napi]
 pub struct Resolver {
   mode: u8,
-  #[cfg(not(target_arch = "wasm32"))]
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
-  #[cfg(target_arch = "wasm32")]
-  resolver: parcel_resolver::Resolver<'static, JsFileSystem>,
-  #[cfg(not(target_arch = "wasm32"))]
   invalidations_cache: parcel_dev_dep_resolver::Cache,
 }
 
@@ -245,7 +236,6 @@ pub struct Resolver {
 impl Resolver {
   #[napi(constructor)]
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
-    #[cfg(not(target_arch = "wasm32"))]
     let fs = if let Some(fs) = options.fs {
       EitherFs::A(JsFileSystem {
         canonicalize: FunctionRef::new(env, fs.canonicalize)?,
@@ -255,16 +245,6 @@ impl Resolver {
       })
     } else {
       EitherFs::B(OsFileSystem)
-    };
-    #[cfg(target_arch = "wasm32")]
-    let fs = {
-      let fsjs = options.fs.unwrap();
-      JsFileSystem {
-        canonicalize: FunctionRef::new(env, fsjs.canonicalize)?,
-        read: FunctionRef::new(env, fsjs.read)?,
-        is_file: FunctionRef::new(env, fsjs.is_file)?,
-        is_dir: FunctionRef::new(env, fsjs.is_dir)?,
-      }
     };
 
     let mut resolver = match options.mode {
@@ -327,7 +307,6 @@ impl Resolver {
     Ok(Self {
       mode: options.mode,
       resolver,
-      #[cfg(not(target_arch = "wasm32"))]
       invalidations_cache: Default::default(),
     })
   }
@@ -433,13 +412,6 @@ impl Resolver {
     self.resolve_result_to_js(env, res, side_effects, module_type)
   }
 
-  #[cfg(target_arch = "wasm32")]
-  #[napi]
-  pub fn resolve_async(&'static self) -> Result<JsObject> {
-    panic!("resolveAsync() is not supported in Wasm builds")
-  }
-
-  #[cfg(not(target_arch = "wasm32"))]
   #[napi]
   pub fn resolve_async(&'static self, options: ResolveOptions, env: Env) -> Result<JsObject> {
     let (deferred, promise) = env.create_deferred()?;
@@ -464,13 +436,6 @@ impl Resolver {
     Ok(promise)
   }
 
-  #[cfg(target_arch = "wasm32")]
-  #[napi]
-  pub fn get_invalidations(&self, _path: String) -> napi::Result<JsInvalidations> {
-    panic!("getInvalidations() is not supported in Wasm builds")
-  }
-
-  #[cfg(not(target_arch = "wasm32"))]
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
     let path = Path::new(&path);

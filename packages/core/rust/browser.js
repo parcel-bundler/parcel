@@ -6,7 +6,7 @@ let env;
 module.exports.init = async function init(input) {
   if (env) return;
 
-  input = input ?? new URL('parcel_node_bindings.wasm', import.meta.url);
+  input = input ?? new URL('parcel_wasm.wasm', import.meta.url);
   const {instance} = await WebAssembly.instantiateStreaming(fetch(input), {
     env: {
       ...napi,

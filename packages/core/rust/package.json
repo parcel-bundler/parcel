@@ -16,7 +16,7 @@
   "main": "index.js",
   "browser": "browser.js",
   "napi": {
-    "name": "parcel-node-bindings"
+    "name": "parcel-nodejs"
   },
   "engines": {
     "node": ">= 16.0.0"
@@ -34,10 +34,10 @@
     "napi-wasm": "^1.0.1"
   },
   "scripts": {
-    "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",
-    "build-canary": "napi build --platform --profile canary --features canary --cargo-cwd ../../../crates/node-bindings",
-    "build-release": "napi build --platform --release --cargo-cwd ../../../crates/node-bindings",
-    "wasm:build": "cargo build -p parcel-node-bindings --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_node_bindings.wasm .",
-    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build -p parcel-node-bindings --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../../target/wasm32-unknown-unknown/release/parcel_node_bindings.wasm -o parcel_node_bindings.wasm"
+    "build": "napi build --platform --cargo-cwd ../../../crates/parcel_nodejs",
+    "build-canary": "napi build --platform --profile canary --features canary --cargo-cwd ../../../crates/parcel_nodejs",
+    "build-release": "napi build --platform --release --cargo-cwd ../../../crates/parcel_nodejs",
+    "wasm:build": "cargo build -p parcel-wasm --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_wasm.wasm .",
+    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build -p parcel-wasm --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../../target/wasm32-unknown-unknown/release/parcel_wasm.wasm -o parcel_wasm.wasm"
   }
 }

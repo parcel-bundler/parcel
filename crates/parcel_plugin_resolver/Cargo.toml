@@ -9,4 +9,5 @@ path = "./src/lib.rs"
 
 [dependencies]
 parcel_core = { path = "../parcel_core" }
+
 anyhow = "1"

@@ -8,7 +8,11 @@ edition = "2021"
 napi = ["dep:napi", "dep:napi-derive", "dep:crossbeam-channel"]
 
 [dependencies]
+crossbeam-channel = { version = "0.5.6", optional = true }
 indexmap = "1.9.2"
+napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5"], optional = true }
+napi-derive = { version = "2.12.5", optional = true }
+serde = "1.0.123"
 swc_core = { version = "0.92.4", features = [
   "common",
   "common_ahash",
@@ -18,7 +22,3 @@ swc_core = { version = "0.92.4", features = [
   "ecma_visit",
   "stacker"
 ] }
-serde = "1.0.123"
-napi-derive = { version = "2.12.5", optional = true }
-napi = { version =  "2.16.4", features = ["serde-json", "napi4", "napi5"], optional = true }
-crossbeam-channel = { version = "0.5.6", optional = true }
