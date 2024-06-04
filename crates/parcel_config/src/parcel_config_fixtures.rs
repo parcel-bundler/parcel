@@ -1,11 +1,14 @@
+use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
 use indexmap::indexmap;
 use indexmap::IndexMap;
 
+use super::map::NamedPipelinesMap;
 use super::parcel_config::ParcelConfig;
-use super::pipeline::PipelineMap;
+use crate::map::PipelineMap;
+use crate::map::PipelinesMap;
 use crate::parcel_config::PluginNode;
 
 pub struct ConfigFixture {
@@ -25,10 +28,10 @@ pub struct ExtendedConfigFixture {
   pub parcel_config: ParcelConfig,
 }
 
-pub fn config(project_root: &PathBuf) -> (String, ConfigFixture) {
+pub fn config(project_root: &Path) -> (String, ConfigFixture) {
   (
     String::from("@config/default"),
-    default_config(&Rc::from(
+    default_config(Rc::new(
       project_root
         .join("node_modules")
         .join("@config/default")
@@ -37,10 +40,10 @@ pub fn config(project_root: &PathBuf) -> (String, ConfigFixture) {
   )
 }
 
-pub fn fallback_config(project_root: &PathBuf) -> (String, ConfigFixture) {
+pub fn fallback_config(project_root: &Path) -> (String, ConfigFixture) {
   (
     String::from("@parcel/config-default"),
-    default_config(&Rc::from(
+    default_config(Rc::new(
       project_root
         .join("node_modules")
         .join("@parcel/config-default")
@@ -49,14 +52,14 @@ pub fn fallback_config(project_root: &PathBuf) -> (String, ConfigFixture) {
   )
 }
 
-pub fn default_config(resolve_from: &Rc<PathBuf>) -> ConfigFixture {
+pub fn default_config(resolve_from: Rc<PathBuf>) -> ConfigFixture {
   ConfigFixture {
     parcel_config: ParcelConfig {
       bundler: PluginNode {
         package_name: String::from("@parcel/bundler-default"),
         resolve_from: Rc::clone(&resolve_from),
       },
-      compressors: PipelineMap::new(indexmap! {
+      compressors: PipelinesMap::new(indexmap! {
         String::from("*") => vec!(PluginNode {
           package_name: String::from("@parcel/compressor-raw"),
           resolve_from: Rc::clone(&resolve_from),
@@ -66,18 +69,18 @@ pub fn default_config(resolve_from: &Rc<PathBuf>) -> ConfigFixture {
         package_name: String::from("@parcel/namer-default"),
         resolve_from: Rc::clone(&resolve_from),
       }],
-      optimizers: PipelineMap::new(indexmap! {
+      optimizers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => vec!(PluginNode {
           package_name: String::from("@parcel/optimizer-swc"),
           resolve_from: Rc::clone(&resolve_from),
         })
       }),
-      packagers: indexmap! {
+      packagers: PipelineMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => PluginNode {
           package_name: String::from("@parcel/packager-js"),
           resolve_from: Rc::clone(&resolve_from),
         }
-      },
+      }),
       reporters: vec![PluginNode {
         package_name: String::from("@parcel/reporter-dev-server"),
         resolve_from: Rc::clone(&resolve_from),
@@ -90,13 +93,13 @@ pub fn default_config(resolve_from: &Rc<PathBuf>) -> ConfigFixture {
         package_name: String::from("@parcel/runtime-js"),
         resolve_from: Rc::clone(&resolve_from),
       }],
-      transformers: PipelineMap::new(indexmap! {
+      transformers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec!(PluginNode {
           package_name: String::from("@parcel/transformer-js"),
           resolve_from: Rc::clone(&resolve_from),
         })
       }),
-      validators: PipelineMap::new(IndexMap::new()),
+      validators: PipelinesMap::new(IndexMap::new()),
     },
     parcel_rc: String::from(
       r#"
@@ -128,17 +131,17 @@ pub fn default_config(resolve_from: &Rc<PathBuf>) -> ConfigFixture {
 }
 
 fn extended_config_from(
-  project_root: &PathBuf,
+  project_root: &Path,
   base_resolve_from: Rc<PathBuf>,
 ) -> ExtendedConfigFixture {
-  let extended_resolve_from = Rc::from(
+  let extended_resolve_from = Rc::new(
     project_root
       .join("node_modules")
       .join("@parcel/config-default")
       .join("index.json"),
   );
 
-  let extended_config = default_config(&extended_resolve_from);
+  let extended_config = default_config(Rc::clone(&extended_resolve_from));
 
   ExtendedConfigFixture {
     parcel_config: ParcelConfig {
@@ -146,7 +149,7 @@ fn extended_config_from(
         package_name: String::from("@parcel/bundler-default"),
         resolve_from: Rc::clone(&extended_resolve_from),
       },
-      compressors: PipelineMap::new(indexmap! {
+      compressors: PipelinesMap::new(indexmap! {
         String::from("*") => vec!(PluginNode {
           package_name: String::from("@parcel/compressor-raw"),
           resolve_from: Rc::clone(&extended_resolve_from),
@@ -156,18 +159,18 @@ fn extended_config_from(
         package_name: String::from("@parcel/namer-default"),
         resolve_from: Rc::clone(&extended_resolve_from),
       }],
-      optimizers: PipelineMap::new(indexmap! {
+      optimizers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => vec!(PluginNode {
           package_name: String::from("@parcel/optimizer-swc"),
           resolve_from: Rc::clone(&extended_resolve_from),
         })
       }),
-      packagers: indexmap! {
+      packagers: PipelineMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => PluginNode {
           package_name: String::from("@parcel/packager-js"),
           resolve_from: Rc::clone(&extended_resolve_from),
         }
-      },
+      }),
       reporters: vec![
         PluginNode {
           package_name: String::from("@parcel/reporter-dev-server"),
@@ -186,7 +189,7 @@ fn extended_config_from(
         package_name: String::from("@parcel/runtime-js"),
         resolve_from: Rc::clone(&extended_resolve_from),
       }],
-      transformers: PipelineMap::new(indexmap! {
+      transformers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec!(PluginNode {
           package_name: String::from("@parcel/transformer-js"),
           resolve_from: Rc::clone(&extended_resolve_from),
@@ -196,7 +199,7 @@ fn extended_config_from(
           resolve_from: Rc::clone(&base_resolve_from),
         }),
       }),
-      validators: PipelineMap::new(IndexMap::new()),
+      validators: PipelinesMap::new(IndexMap::new()),
     },
     base_config: PartialConfigFixture {
       path: PathBuf::from(base_resolve_from.as_os_str()),
@@ -222,13 +225,13 @@ fn extended_config_from(
   }
 }
 
-pub fn default_extended_config(project_root: &PathBuf) -> ExtendedConfigFixture {
+pub fn default_extended_config(project_root: &Path) -> ExtendedConfigFixture {
   let base_resolve_from = Rc::from(project_root.join(".parcelrc"));
 
   extended_config_from(project_root, base_resolve_from)
 }
 
-pub fn extended_config(project_root: &PathBuf) -> (String, ExtendedConfigFixture) {
+pub fn extended_config(project_root: &Path) -> (String, ExtendedConfigFixture) {
   let base_resolve_from = Rc::from(
     project_root
       .join("node_modules")
