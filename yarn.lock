@@ -1799,10 +1799,10 @@
   resolved "https://registry.yarnpkg.com/@msgpackr-extract/msgpackr-extract-win32-x64/-/msgpackr-extract-win32-x64-3.0.2.tgz#0f164b726869f71da3c594171df5ebc1c4b0a407"
   integrity sha512-O+6Gs8UeDbyFpbSh2CPEz/UOrrdWPTBYNblZK5CxxLisYt4kGX3Sc+czffFonyjiGSq3jWLwJS/CCJc7tBr4sQ==
 
-"@napi-rs/cli@^2.15.2":
-  version "2.18.0"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.18.0.tgz#3064f142e65c87d14e6ddc38e5425aa29a8871eb"
-  integrity sha512-lfSRT7cs3iC4L+kv9suGYQEezn5Nii7Kpu+THsYVI0tA1Vh59LH45p4QADaD7hvIkmOz79eEGtoKQ9nAkAPkzA==
+"@napi-rs/cli@^2.15.2", "@napi-rs/cli@^2.18.3":
+  version "2.18.3"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.18.3.tgz#0f1c3cd7b757aa49cfbf52fc864d40881ee534c2"
+  integrity sha512-L0f4kP0dyG8W5Qtc7MtP73VvLLrOLyRcUEBzknIfu8Jk4Jfhrsx1ItMHgyalYqMSslWdY3ojEfAaU5sx1VyeQQ==
 
 "@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1":
   version "5.1.1-v1"

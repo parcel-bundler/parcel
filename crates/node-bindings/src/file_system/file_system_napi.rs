@@ -6,7 +6,7 @@ use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
-use parcel_filesystem::FileSystem;
+use parcel::file_system::FileSystem;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
