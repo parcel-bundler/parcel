@@ -6,12 +6,6 @@ use thiserror::Error;
 pub enum ConfigError {
   #[error("{0}")]
   InvalidConfig(String),
-  #[error("No {phase} found for {path} with pipeline {pipeline:?}")]
-  MissingPlugin {
-    path: PathBuf,
-    phase: String,
-    pipeline: Option<String>,
-  },
   #[error("Unable to locate .parcelrc from {0}")]
   MissingParcelRc(PathBuf),
   #[error("Failed to parse {path}")]

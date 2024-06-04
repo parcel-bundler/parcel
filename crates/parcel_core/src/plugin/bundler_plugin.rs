@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 
@@ -8,7 +10,7 @@ use crate::bundle_graph::BundleGraph;
 ///
 /// Bundle and optimize run in series and are functionally identitical.
 ///
-pub trait BundlerPlugin {
+pub trait BundlerPlugin: Debug {
   /// A hook designed to load config necessary for the bundler to operate
   ///
   /// This function will run once, shortly after the plugin is initialised.

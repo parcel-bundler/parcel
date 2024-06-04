@@ -39,14 +39,14 @@ impl ParcelRcConfigLoader {
     }
   }
 
-  fn find_config(&self, project_root: &Path, path: &PathBuf) -> Result<PathBuf, ConfigError> {
+  fn find_config(&self, project_root: &Path, path: &Path) -> Result<PathBuf, ConfigError> {
     let from = path.parent().unwrap_or(path);
 
     find_ancestor_file(&*self.fs, &[".parcelrc"], from, project_root)
       .ok_or(ConfigError::MissingParcelRc(PathBuf::from(from)))
   }
 
-  fn resolve_from(&self, project_root: &PathBuf) -> PathBuf {
+  fn resolve_from(&self, project_root: &Path) -> PathBuf {
     let cwd = self.fs.cwd().unwrap();
     let relative = diff_paths(cwd.clone(), project_root);
     let is_cwd_inside_project_root =
@@ -80,11 +80,7 @@ impl ParcelRcConfigLoader {
     self.process_config(&ParcelRcFile { path, contents })
   }
 
-  fn resolve_extends(
-    &self,
-    config_path: &PathBuf,
-    extend: &String,
-  ) -> Result<PathBuf, ConfigError> {
+  fn resolve_extends(&self, config_path: &Path, extend: &str) -> Result<PathBuf, ConfigError> {
     let path = if extend.starts_with(".") {
       config_path.parent().unwrap_or(config_path).join(extend)
     } else {
@@ -166,7 +162,7 @@ impl ParcelRcConfigLoader {
   ///
   pub fn load(
     &self,
-    project_root: &PathBuf,
+    project_root: &Path,
     options: LoadConfigOptions,
   ) -> Result<(ParcelConfig, Vec<PathBuf>), ConfigError> {
     let resolve_from = self.resolve_from(project_root);
@@ -342,7 +338,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
-      let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.write_file(&default_config.path, default_config.parcel_rc);
@@ -359,7 +355,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap().join("src").join("packages").join("root");
 
-      let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.write_file(&default_config.path, default_config.parcel_rc);
@@ -376,7 +372,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/root");
 
-      let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.set_current_working_directory(PathBuf::from("/cwd"));
@@ -690,7 +686,7 @@ mod tests {
       let project_root = fs.cwd().unwrap();
 
       let (fallback_specifier, fallback) = fallback_config(&project_root);
-      let project_root_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let project_root_config = default_config(Rc::new(project_root.join(".parcelrc")));
 
       fs.write_file(&project_root_config.path, project_root_config.parcel_rc);
       fs.write_file(&fallback.path, String::from("{}"));
