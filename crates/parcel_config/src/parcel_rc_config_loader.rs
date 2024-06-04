@@ -2,6 +2,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use anyhow::anyhow;
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystem;
 use parcel_package_manager::PackageManager;
@@ -90,7 +91,7 @@ impl ParcelRcConfigLoader {
         .map_err(|source| ConfigError::UnresolvedConfig {
           config_type: String::from("extended config"),
           from: PathBuf::from(config_path),
-          source: Box::new(source),
+          source,
           specifier: String::from(extend),
         })?
         .resolved
@@ -102,7 +103,7 @@ impl ParcelRcConfigLoader {
       .map_err(|source| ConfigError::UnresolvedConfig {
         config_type: String::from("extended config"),
         from: path,
-        source: Box::new(anyhow::Error::new(source)),
+        source: anyhow!(source),
         specifier: String::from(extend),
       })
   }
@@ -174,7 +175,7 @@ impl ParcelRcConfigLoader {
         .map_err(|source| ConfigError::UnresolvedConfig {
           config_type: String::from("config"),
           from: resolve_from.clone(),
-          source: Box::new(source),
+          source,
           specifier: String::from(config),
         }),
       None => self.find_config(project_root, &resolve_from),
@@ -189,7 +190,7 @@ impl ParcelRcConfigLoader {
           .map_err(|source| ConfigError::UnresolvedConfig {
             config_type: String::from("fallback"),
             from: resolve_from,
-            source: Box::new(source),
+            source,
             specifier: String::from(fallback_config),
           });
       }
@@ -326,7 +327,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: config.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(anyhow!("It broke")),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -450,7 +451,7 @@ mod tests {
             config_type: String::from("config"),
             from: project_root.join("index"),
             specifier: String::from("@scope/config"),
-            source: Box::new(anyhow!("It broke")),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -487,7 +488,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: config.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(anyhow!("It broke")),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -599,7 +600,7 @@ mod tests {
             config_type: String::from("fallback"),
             from: project_root.join("index"),
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(anyhow!("It broke")),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -636,7 +637,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: fallback.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(anyhow!("It broke")),
+            source: anyhow!("It broke"),
           }
           .to_string()
         ),
