@@ -1,46 +1,51 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use thiserror::Error;
+
 use crate::cache::JsonError;
 use crate::specifier::SpecifierError;
 use crate::PackageJsonError;
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, Error)]
 #[serde(tag = "type")]
 pub enum ResolverError {
-  UnknownScheme {
-    scheme: String,
-  },
+  #[error("Unknown scheme {scheme}")]
+  UnknownScheme { scheme: String },
+  #[error("Unknown error")]
   UnknownError,
-  FileNotFound {
-    relative: PathBuf,
-    from: PathBuf,
-  },
-  ModuleNotFound {
-    module: String,
-  },
+  #[error("File {relative} not found from {from}")]
+  FileNotFound { relative: PathBuf, from: PathBuf },
+  #[error("Module {module} not found")]
+  ModuleNotFound { module: String },
+  #[error("Module {module} entry not found in path {entry_path} with package {package_path} and field {field}")]
   ModuleEntryNotFound {
     module: String,
     entry_path: PathBuf,
     package_path: PathBuf,
     field: &'static str,
   },
+  #[error("Module {module} subpath {path} with package {package_path}")]
   ModuleSubpathNotFound {
     module: String,
     path: PathBuf,
     package_path: PathBuf,
   },
+  #[error("JSON error")]
   JsonError(JsonError),
+  #[error("IO error")]
   IOError(IOError),
+  #[error("Package JSON error. Module {module} at path {path}")]
   PackageJsonError {
     module: String,
     path: PathBuf,
     error: PackageJsonError,
   },
-  PackageJsonNotFound {
-    from: PathBuf,
-  },
+  #[error("Package JSON not found from {from}")]
+  PackageJsonNotFound { from: PathBuf },
+  #[error("Invalid specifier")]
   InvalidSpecifier(SpecifierError),
+  #[error("TS config extends not found for {tsconfig}. Error {error}")]
   TsConfigExtendsNotFound {
     tsconfig: PathBuf,
     error: Box<ResolverError>,

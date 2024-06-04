@@ -1819,6 +1819,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "serde_json",
+ "thiserror",
  "typed-arena",
  "url",
  "xxhash-rust",

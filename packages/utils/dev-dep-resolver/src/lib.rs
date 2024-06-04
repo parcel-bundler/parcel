@@ -8,7 +8,6 @@ use dashmap::DashSet;
 use es_module_lexer::lex;
 use es_module_lexer::ImportKind;
 use parcel_resolver::CacheCow;
-use parcel_resolver::FileSystem;
 use parcel_resolver::Invalidations;
 use parcel_resolver::ModuleType;
 use parcel_resolver::Resolution;

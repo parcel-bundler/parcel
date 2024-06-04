@@ -25,13 +25,9 @@ impl<'a> PackageManager for NodePackageManager<'a> {
   fn resolve(&self, specifier: &str, from: &std::path::Path) -> anyhow::Result<crate::Resolution> {
     let res = self.resolver.resolve(specifier, from, SpecifierType::Cjs);
 
-    match res.result {
-      Result::Ok((resolution, _invalidations)) => match resolution {
-        Resolution::Path(pathbuf) => Ok(crate::Resolution { resolved: pathbuf }),
-        other_case => Err(anyhow!(format!("Err: {:?}", other_case))),
-      },
-      // TODO: This is definitely not right
-      Result::Err(err) => Err(anyhow!(format!("Err: {:?}", err))),
+    match res.result? {
+      (Resolution::Path(pathbuf), _invalidations) => Ok(crate::Resolution { resolved: pathbuf }),
+      other_case => Err(anyhow!("Unexpected resolution result: {:?}", other_case)),
     }
   }
 }
