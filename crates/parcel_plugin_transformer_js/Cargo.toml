@@ -1,0 +1,12 @@
+[package]
+name = "parcel_plugin_transformer_js"
+version = "0.1.0"
+edition = "2021"
+description = "JavaScript Transformer Plugin for the Parcel Bundler"
+
+[lib]
+path = "./src/lib.rs"
+
+[dependencies]
+parcel_core = { path = "../parcel_core" }
+anyhow = "1"

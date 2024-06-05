@@ -12,7 +12,6 @@ pub mod in_memory_file_system;
 pub mod search;
 
 /// File-system implementation using std::fs and a canonicalize cache
-#[cfg(not(target_arch = "wasm32"))]
 pub mod os_file_system;
 
 pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;

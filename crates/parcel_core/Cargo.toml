@@ -2,7 +2,7 @@
 name = "parcel_core"
 version = "0.1.0"
 edition = "2021"
-description = "Core logic for the parcel bundler"
+description = "Core logic and types for the parcel bundler"
 
 [features]
 default = []

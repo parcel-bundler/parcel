@@ -1,3 +1,5 @@
+#![deny(unused_crate_dependencies)]
+
 pub mod config_error;
 pub mod map;
 pub mod parcel_config;

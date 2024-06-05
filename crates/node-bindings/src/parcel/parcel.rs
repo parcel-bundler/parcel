@@ -4,9 +4,9 @@ use std::sync::Arc;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
-use parcel_core::Parcel;
-use parcel_core::ParcelOptions;
-use parcel_filesystem::FileSystemRef;
+use parcel::FileSystemRef;
+use parcel::Parcel;
+use parcel::ParcelOptions;
 
 use crate::file_system::FileSystemNapi;
 

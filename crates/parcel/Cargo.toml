@@ -1,0 +1,11 @@
+[package]
+name = "parcel"
+version = "0.1.0"
+edition = "2021"
+description = "Parcel Bundler"
+
+[lib]
+path = "./src/lib.rs"
+
+[dependencies]
+parcel_filesystem = { path = "../parcel_filesystem" }
