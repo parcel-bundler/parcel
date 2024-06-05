@@ -5,8 +5,8 @@ use std::sync::atomic::Ordering;
 
 use dashmap::DashSet;
 
-use crate::path::normalize_path;
-use crate::ResolverError;
+use super::path::normalize_path;
+use super::ResolverError;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum FileCreateInvalidation {

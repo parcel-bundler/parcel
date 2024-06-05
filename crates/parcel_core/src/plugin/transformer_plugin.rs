@@ -2,8 +2,6 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::path::PathBuf;
 
-use parcel_resolver::SpecifierType;
-
 use super::PluginConfig;
 use crate::types::Asset;
 use crate::types::SourceMap;
@@ -13,6 +11,13 @@ pub struct AST {}
 pub struct GenerateOutput {
   pub content: File,
   pub map: Option<SourceMap>,
+}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum SpecifierType {
+  Esm,
+  Cjs,
+  Url,
 }
 
 pub struct ResolveOptions {

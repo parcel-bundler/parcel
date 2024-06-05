@@ -1,21 +1,22 @@
 use std::borrow::Cow;
 
 use anyhow::anyhow;
+use parcel_core::plugin::SpecifierType;
 use parcel_filesystem::FileSystemRef;
-use parcel_resolver::{Resolution, SpecifierType};
+use parcel_plugin_resolver::core::Resolution;
 
 use crate::PackageManager;
 
 pub struct NodePackageManager<'a> {
-  resolver: parcel_resolver::Resolver<'a>,
+  resolver: parcel_plugin_resolver::core::Resolver<'a>,
 }
 
 impl<'a> NodePackageManager<'a> {
   pub fn new(project_root: &str, fs: FileSystemRef) -> Self {
     Self {
-      resolver: parcel_resolver::Resolver::node(
+      resolver: parcel_plugin_resolver::core::Resolver::node(
         Cow::Owned(project_root.into()),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+        parcel_plugin_resolver::core::CacheCow::Owned(parcel_plugin_resolver::core::Cache::new(fs)),
       ),
     }
   }

@@ -30,3 +30,6 @@ pub use self::symbol::*;
 
 mod target;
 pub use self::target::*;
+
+mod exports_condition;
+pub use self::exports_condition::*;

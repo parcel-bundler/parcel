@@ -3,7 +3,6 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 
 use ahash::AHasher;
-use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
@@ -15,6 +14,7 @@ use super::json::JSONObject;
 use super::source::SourceLocation;
 use super::symbol::Symbol;
 use super::target::Target;
+use crate::types::ExportsCondition;
 
 /// A dependency denotes a connection between two assets
 #[derive(Clone, Debug, Deserialize, Serialize)]

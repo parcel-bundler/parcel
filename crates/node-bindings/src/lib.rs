@@ -5,6 +5,7 @@ use std::alloc::alloc;
 #[cfg(target_arch = "wasm32")]
 use std::alloc::Layout;
 
+mod dev_dep_resolver;
 mod helpers;
 mod init_sentry;
 

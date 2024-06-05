@@ -8,5 +8,6 @@ description = "Parcel Bundler"
 path = "./src/lib.rs"
 
 [dependencies]
+parcel_core = { path = "../parcel_core" }
 parcel_filesystem = { path = "../parcel_filesystem" }
 parcel_package_manager = { path = "../parcel_package_manager" }

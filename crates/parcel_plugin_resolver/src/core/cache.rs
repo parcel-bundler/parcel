@@ -9,11 +9,11 @@ use parcel_filesystem::FileSystemRef;
 use parking_lot::Mutex;
 use typed_arena::Arena;
 
-use crate::package_json::PackageJson;
-use crate::package_json::SourceField;
-use crate::tsconfig::TsConfig;
-use crate::tsconfig::TsConfigWrapper;
-use crate::ResolverError;
+use super::package_json::PackageJson;
+use super::package_json::SourceField;
+use super::tsconfig::TsConfig;
+use super::tsconfig::TsConfigWrapper;
+use super::ResolverError;
 
 pub struct Cache {
   pub fs: FileSystemRef,

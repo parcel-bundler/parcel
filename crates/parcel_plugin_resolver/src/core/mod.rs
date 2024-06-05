@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,8 +8,9 @@ use once_cell::unsync::OnceCell;
 use package_json::AliasValue;
 use package_json::ExportsResolution;
 use package_json::PackageJson;
-use serde::Deserialize;
-use serde::Serialize;
+use parcel_core::plugin::SpecifierType;
+use parcel_core::types::ExportsCondition;
+use parcel_core::types::IncludeNodeModules;
 use specifier::parse_package_specifier;
 use specifier::parse_scheme;
 use tsconfig::TsConfig;
@@ -29,7 +29,6 @@ pub use cache::Cache;
 pub use cache::CacheCow;
 pub use error::ResolverError;
 pub use invalidations::*;
-pub use package_json::ExportsCondition;
 pub use package_json::Fields;
 pub use package_json::ModuleType;
 pub use package_json::PackageJsonError;
@@ -38,9 +37,8 @@ pub use parcel_filesystem::os_file_system::OsFileSystem;
 pub use parcel_filesystem::FileSystem;
 pub use specifier::Specifier;
 pub use specifier::SpecifierError;
-pub use specifier::SpecifierType;
 
-use crate::path::resolve_path;
+use self::path::resolve_path;
 
 bitflags! {
   pub struct Flags: u16 {
@@ -74,34 +72,6 @@ bitflags! {
     const NODE_ESM = Self::EXPORTS.bits;
     /// Default TypeScript settings.
     const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits;
-  }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum IncludeNodeModules {
-  Bool(bool),
-  Array(Vec<String>),
-  Map(HashMap<String, bool>),
-}
-
-impl Default for IncludeNodeModules {
-  fn default() -> Self {
-    IncludeNodeModules::Bool(true)
-  }
-}
-
-impl std::hash::Hash for IncludeNodeModules {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    match self {
-      IncludeNodeModules::Bool(b) => b.hash(state),
-      IncludeNodeModules::Array(a) => a.hash(state),
-      IncludeNodeModules::Map(m) => {
-        for (k, v) in m {
-          k.hash(state);
-          v.hash(state);
-        }
-      }
-    }
   }
 }
 
@@ -1230,6 +1200,7 @@ impl<'a> ResolveRequest<'a> {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::HashMap;
   use std::collections::HashSet;
 
   use super::cache::Cache;

@@ -19,21 +19,28 @@ use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
 use parcel::file_system::FileSystemRef;
-use parcel_resolver::ExportsCondition;
-use parcel_resolver::Extensions;
-use parcel_resolver::Fields;
-use parcel_resolver::FileCreateInvalidation;
-use parcel_resolver::FileSystem;
-use parcel_resolver::Flags;
-use parcel_resolver::IncludeNodeModules;
-use parcel_resolver::Invalidations;
-use parcel_resolver::ModuleType;
+use parcel::plugin::SpecifierType;
+use parcel::types::ExportsCondition;
+use parcel::types::IncludeNodeModules;
+use parcel_plugin_resolver::core::Cache as ResolverCache;
+use parcel_plugin_resolver::core::CacheCow as ResolverCacheCow;
+use parcel_plugin_resolver::core::Extensions;
+use parcel_plugin_resolver::core::Fields;
+use parcel_plugin_resolver::core::FileCreateInvalidation;
+use parcel_plugin_resolver::core::FileSystem;
+use parcel_plugin_resolver::core::Flags;
+use parcel_plugin_resolver::core::Invalidations;
+use parcel_plugin_resolver::core::ModuleType;
 #[cfg(not(target_arch = "wasm32"))]
-use parcel_resolver::OsFileSystem;
-use parcel_resolver::Resolution;
-use parcel_resolver::ResolverError;
-use parcel_resolver::SpecifierType;
+use parcel_plugin_resolver::core::OsFileSystem;
+use parcel_plugin_resolver::core::Resolution;
+use parcel_plugin_resolver::core::ResolveOptions as CoreResolverOptions;
+use parcel_plugin_resolver::core::ResolveResult as CoreResolveResult;
+use parcel_plugin_resolver::core::Resolver as CoreResolver;
+use parcel_plugin_resolver::core::ResolverError;
 
+use crate::dev_dep_resolver::build_esm_graph;
+use crate::dev_dep_resolver::Cache as DevDepCache;
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
 #[napi(object)]
@@ -192,9 +199,9 @@ pub struct JsInvalidations {
 #[napi]
 pub struct Resolver {
   mode: u8,
-  resolver: parcel_resolver::Resolver<'static>,
+  resolver: CoreResolver<'static>,
   #[cfg(not(target_arch = "wasm32"))]
-  invalidations_cache: parcel_dev_dep_resolver::Cache,
+  invalidations_cache: DevDepCache,
   supports_async: bool,
 }
 
@@ -227,13 +234,13 @@ impl Resolver {
     };
 
     let mut resolver = match options.mode {
-      1 => parcel_resolver::Resolver::parcel(
+      1 => CoreResolver::parcel(
         Cow::Owned(project_root.into()),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+        ResolverCacheCow::Owned(ResolverCache::new(fs)),
       ),
-      2 => parcel_resolver::Resolver::node(
+      2 => CoreResolver::node(
         Cow::Owned(project_root.into()),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+        ResolverCacheCow::Owned(ResolverCache::new(fs)),
       ),
       _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
     };
@@ -295,7 +302,7 @@ impl Resolver {
   fn resolve_internal(
     &self,
     options: ResolveOptions,
-  ) -> napi::Result<(parcel_resolver::ResolveResult, bool, u8)> {
+  ) -> napi::Result<(CoreResolveResult, bool, u8)> {
     let mut res = self.resolver.resolve_with_options(
       &options.filename,
       Path::new(&options.parent),
@@ -358,7 +365,7 @@ impl Resolver {
   fn resolve_result_to_js(
     &self,
     env: Env,
-    res: parcel_resolver::ResolveResult,
+    res: CoreResolveResult,
     side_effects: bool,
     module_type: u8,
   ) -> napi::Result<ResolveResult> {
@@ -434,7 +441,7 @@ impl Resolver {
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
     let path = Path::new(&path);
-    match parcel_dev_dep_resolver::build_esm_graph(
+    match build_esm_graph(
       path,
       &self.resolver.project_root,
       &self.resolver.cache,
@@ -488,7 +495,7 @@ fn convert_invalidations(
   (invalidate_on_file_change, invalidate_on_file_create)
 }
 
-fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::ResolveOptions {
+fn get_resolve_options(mut custom_conditions: Vec<String>) -> CoreResolverOptions {
   let mut conditions = ExportsCondition::empty();
   custom_conditions.retain(|condition| {
     if let Ok(cond) = ExportsCondition::try_from(condition.as_ref()) {
@@ -499,7 +506,7 @@ fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::R
     }
   });
 
-  parcel_resolver::ResolveOptions {
+  CoreResolverOptions {
     conditions,
     custom_conditions,
   }

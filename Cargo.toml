@@ -3,8 +3,6 @@ resolver = "2"
 members = [
   "crates/*",
   "packages/transformers/js/core",
-  "packages/utils/node-resolver-rs",
-  "packages/utils/dev-dep-resolver"
 ]
 
 [profile.canary]

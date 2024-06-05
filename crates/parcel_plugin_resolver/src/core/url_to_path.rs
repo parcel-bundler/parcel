@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use url::Url;
 
-use crate::specifier::SpecifierError;
+use super::specifier::SpecifierError;
 
 pub fn url_to_path(input: &str) -> Result<PathBuf, SpecifierError> {
   let url = Url::parse(input)?;
@@ -38,7 +38,7 @@ mod test {
 
   use url::Url;
 
-  use crate::url_to_path::to_file_path;
+  use super::super::url_to_path::to_file_path;
 
   #[test]
   fn test() {

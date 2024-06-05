@@ -6,8 +6,8 @@ use indexmap::IndexMap;
 use itertools::Either;
 use json_comments::strip_comments_in_place;
 
-use crate::path::resolve_path;
-use crate::specifier::Specifier;
+use super::path::resolve_path;
+use super::specifier::Specifier;
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]

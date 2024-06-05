@@ -16,13 +16,16 @@ openssl = ["sentry/native-tls"]
 [dependencies]
 napi-derive = "2.16.3"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+parcel_plugin_resolver = { path = "../parcel_plugin_resolver" }
 parcel = { path = "../parcel" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 log = "0.4.21"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
+
+es-module-lexer = { git = "https://github.com/devongovett/es-module-lexer" }
+rayon = "1.7.0"
 
 glob = "0.3.1"
 serde = "1.0.198"
@@ -50,7 +53,6 @@ napi = { version = "2.16.4", features = [
     "napi5",
     "async",
 ] }
-parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 oxipng = "8.0.0"
 mozjpeg-sys = "1.0.0"

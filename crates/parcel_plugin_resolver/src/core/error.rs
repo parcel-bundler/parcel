@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::cache::JsonError;
-use crate::specifier::SpecifierError;
-use crate::PackageJsonError;
+use super::cache::JsonError;
+use super::specifier::SpecifierError;
+use super::PackageJsonError;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, Error)]
 #[serde(tag = "type")]

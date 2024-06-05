@@ -3,18 +3,12 @@ use std::path::is_separator;
 use std::path::Path;
 use std::path::PathBuf;
 
+use parcel_core::plugin::SpecifierType;
 use percent_encoding::percent_decode_str;
 
-use crate::builtins::BUILTINS;
-use crate::url_to_path::url_to_path;
-use crate::Flags;
-
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub enum SpecifierType {
-  Esm,
-  Cjs,
-  Url,
-}
+use super::builtins::BUILTINS;
+use super::url_to_path::url_to_path;
+use super::Flags;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", content = "value")]
