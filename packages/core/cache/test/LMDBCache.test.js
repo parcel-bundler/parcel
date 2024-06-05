@@ -2,14 +2,16 @@
 
 import * as mkdirp from 'mkdirp';
 import * as tempy from 'tempy';
+import fs from 'fs';
 import assert from 'assert';
 import path from 'path';
 import {LMDBCache, type Cache} from '../src';
 
 describe('LMDBCache', () => {
+  let tmpDir: string;
   let lmdbCache: Cache;
   beforeEach(async () => {
-    const tmpDir = path.join(tempy.directory(), 'LMDBCache');
+    tmpDir = path.join(tempy.directory(), 'LMDBCache');
     mkdirp.sync(tmpDir);
     lmdbCache = new LMDBCache(tmpDir);
     await lmdbCache.ensure();
@@ -57,5 +59,23 @@ describe('LMDBCache', () => {
       value.equals(Buffer.from([1, 2, 3, 4])),
       'LMDB did not store a buffer',
     );
+  });
+
+  it('setting multiple large blobs and then removing them will leave the disk empty', async () => {
+    assert(!(await lmdbCache.has('test-key')), 'LMDB did not start empty');
+
+    const filesAtStart = fs.readdirSync(tmpDir);
+
+    const buffer = Buffer.from([1, 2, 3, 4]);
+    await lmdbCache.setLargeBlob('test-key', buffer);
+    await lmdbCache.setLargeBlob('test-key', buffer);
+    await lmdbCache.setLargeBlob('test-key', buffer);
+    await lmdbCache.setLargeBlob('test-key', buffer);
+    await lmdbCache.setLargeBlob('test-key', buffer);
+    await lmdbCache.setLargeBlob('test-key', buffer);
+    await lmdbCache.deleteLargeBlob('test-key');
+
+    const filesAtEnd = fs.readdirSync(tmpDir);
+    assert.deepEqual(filesAtStart, filesAtEnd);
   });
 });
