@@ -4,6 +4,7 @@ import path from 'path';
 import {bundler, getNextBuild, inputFS} from '@parcel/test-utils';
 import http from 'http';
 import getPort from 'get-port';
+import nullthrows from 'nullthrows';
 import WebSocket from 'ws';
 
 const config = path.join(
@@ -23,7 +24,9 @@ function apiServer() {
       // Note: A real server should avoid handling the upgrade if we receive
       // a connection to `/__parcel_hmr`
       wss.handleUpgrade(req, ws, head, ws => {
-        ws.send('Request URL: ' + req.url, () => ws.close());
+        nullthrows(ws).send('Request URL: ' + req.url, () =>
+          nullthrows(ws).close(),
+        );
       });
     })
     .listen(9753);
