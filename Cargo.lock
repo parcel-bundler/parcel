@@ -1724,6 +1724,7 @@ dependencies = [
  "parcel_core",
  "parcel_filesystem",
  "parcel_package_manager",
+ "parcel_plugin_resolver",
 ]
 
 [[package]]
@@ -1782,7 +1783,6 @@ dependencies = [
  "parcel",
  "parcel-js-swc-core",
  "parcel-macros",
- "parcel_plugin_resolver",
  "parking_lot",
  "rayon",
  "sentry",

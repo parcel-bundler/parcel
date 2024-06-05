@@ -21,24 +21,24 @@ use napi_derive::napi;
 #[cfg(not(target_arch = "wasm32"))]
 use parcel::file_system::FileSystemRef;
 use parcel::plugin::SpecifierType;
+use parcel::plugins::resolver::core::Cache as ResolverCache;
+use parcel::plugins::resolver::core::CacheCow as ResolverCacheCow;
+use parcel::plugins::resolver::core::Extensions;
+use parcel::plugins::resolver::core::Fields;
+use parcel::plugins::resolver::core::FileCreateInvalidation;
+use parcel::plugins::resolver::core::FileSystem;
+use parcel::plugins::resolver::core::Flags;
+use parcel::plugins::resolver::core::Invalidations;
+use parcel::plugins::resolver::core::ModuleType;
+#[cfg(not(target_arch = "wasm32"))]
+use parcel::plugins::resolver::core::OsFileSystem;
+use parcel::plugins::resolver::core::Resolution;
+use parcel::plugins::resolver::core::ResolveOptions as CoreResolverOptions;
+use parcel::plugins::resolver::core::ResolveResult as CoreResolveResult;
+use parcel::plugins::resolver::core::Resolver as CoreResolver;
+use parcel::plugins::resolver::core::ResolverError;
 use parcel::types::ExportsCondition;
 use parcel::types::IncludeNodeModules;
-use parcel_plugin_resolver::core::Cache as ResolverCache;
-use parcel_plugin_resolver::core::CacheCow as ResolverCacheCow;
-use parcel_plugin_resolver::core::Extensions;
-use parcel_plugin_resolver::core::Fields;
-use parcel_plugin_resolver::core::FileCreateInvalidation;
-use parcel_plugin_resolver::core::FileSystem;
-use parcel_plugin_resolver::core::Flags;
-use parcel_plugin_resolver::core::Invalidations;
-use parcel_plugin_resolver::core::ModuleType;
-#[cfg(not(target_arch = "wasm32"))]
-use parcel_plugin_resolver::core::OsFileSystem;
-use parcel_plugin_resolver::core::Resolution;
-use parcel_plugin_resolver::core::ResolveOptions as CoreResolverOptions;
-use parcel_plugin_resolver::core::ResolveResult as CoreResolveResult;
-use parcel_plugin_resolver::core::Resolver as CoreResolver;
-use parcel_plugin_resolver::core::ResolverError;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::dev_dep_resolver::build_esm_graph;

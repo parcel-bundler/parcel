@@ -8,16 +8,16 @@ use dashmap::DashSet;
 use es_module_lexer::lex;
 use es_module_lexer::ImportKind;
 use parcel::plugin::SpecifierType;
-use parcel_plugin_resolver::core::CacheCow;
-use parcel_plugin_resolver::core::Invalidations;
-use parcel_plugin_resolver::core::ModuleType;
-use parcel_plugin_resolver::core::Resolution;
-use parcel_plugin_resolver::core::ResolveOptions;
-use parcel_plugin_resolver::core::Resolver;
-use parcel_plugin_resolver::core::ResolverError;
-use parcel_plugin_resolver::core::Specifier;
-use parcel_plugin_resolver::core::SpecifierError;
-// use rayon::prelude::{ParallelBridge, ParallelIterator};
+use parcel::plugins::resolver::core::Cache as ResolverCache;
+use parcel::plugins::resolver::core::CacheCow;
+use parcel::plugins::resolver::core::Invalidations;
+use parcel::plugins::resolver::core::ModuleType;
+use parcel::plugins::resolver::core::Resolution;
+use parcel::plugins::resolver::core::ResolveOptions;
+use parcel::plugins::resolver::core::Resolver;
+use parcel::plugins::resolver::core::ResolverError;
+use parcel::plugins::resolver::core::Specifier;
+use parcel::plugins::resolver::core::SpecifierError;
 
 #[derive(Debug)]
 pub enum EsmGraphBuilderError {
@@ -491,7 +491,7 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
 pub fn build_esm_graph(
   file: &Path,
   project_root: &Path,
-  resolver_cache: &parcel_plugin_resolver::core::Cache,
+  resolver_cache: &ResolverCache,
   cache: &Cache,
 ) -> Result<Invalidations, EsmGraphBuilderError> {
   let visitor = EsmGraphBuilder {

@@ -16,7 +16,6 @@ openssl = ["sentry/native-tls"]
 [dependencies]
 napi-derive = "2.16.3"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-parcel_plugin_resolver = { path = "../parcel_plugin_resolver" }
 parcel = { path = "../parcel" }
 dashmap = "5.4.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }

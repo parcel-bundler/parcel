@@ -11,3 +11,4 @@ path = "./src/lib.rs"
 parcel_core = { path = "../parcel_core" }
 parcel_filesystem = { path = "../parcel_filesystem" }
 parcel_package_manager = { path = "../parcel_package_manager" }
+parcel_plugin_resolver = { path = "../parcel_plugin_resolver" }
