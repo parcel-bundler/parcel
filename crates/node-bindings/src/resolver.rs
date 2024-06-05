@@ -18,7 +18,7 @@ use napi::JsUnknown;
 use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
-use parcel_filesystem::FileSystemRef;
+use parcel::file_system::FileSystemRef;
 use parcel_resolver::ExportsCondition;
 use parcel_resolver::Extensions;
 use parcel_resolver::Fields;

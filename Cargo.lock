@@ -1722,6 +1722,7 @@ name = "parcel"
 version = "0.1.0"
 dependencies = [
  "parcel_filesystem",
+ "parcel_package_manager",
 ]
 
 [[package]]
@@ -1858,7 +1859,6 @@ dependencies = [
  "nodejs-semver",
  "parcel-resolver",
  "parcel_filesystem",
- "parcel_package_manager",
  "petgraph",
  "serde",
  "serde-value",
