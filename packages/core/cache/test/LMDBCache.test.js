@@ -70,10 +70,11 @@ describe('LMDBCache', () => {
     await lmdbCache.setLargeBlob('test-key', buffer);
     await lmdbCache.setLargeBlob('test-key', buffer);
     await lmdbCache.setLargeBlob('test-key', buffer);
-    await lmdbCache.setLargeBlob('test-key', buffer);
-    await lmdbCache.setLargeBlob('test-key', buffer);
-    await lmdbCache.setLargeBlob('test-key', buffer);
+    await lmdbCache.setLargeBlob('other-key', buffer);
+    await lmdbCache.setLargeBlob('other-key', buffer);
+    await lmdbCache.setLargeBlob('other-key', buffer);
     await lmdbCache.deleteLargeBlob('test-key');
+    await lmdbCache.deleteLargeBlob('other-key');
 
     const filesAtEnd = fs.readdirSync(tmpDir);
     assert.deepEqual(filesAtStart, filesAtEnd);
