@@ -10,9 +10,9 @@ crate-type = ["cdylib"]
 [dependencies]
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+parcel-crypto = { path = "../parcel_crypto", features = ["napi"] }
 
 dashmap = "5.4.0"
 getrandom = { version = "0.2", features = ["custom"], default-features = false }
-napi = { version = "2.16.4", features = ["serde-json"] }
-napi-derive = "2.16.3"
-xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+napi = { version = "2", features = ["serde-json"] }
+napi-derive = "2"

@@ -1721,7 +1721,18 @@ dependencies = [
 name = "parcel"
 version = "0.1.0"
 dependencies = [
+ "parcel-crypto",
  "parcel_filesystem",
+]
+
+[[package]]
+name = "parcel-crypto"
+version = "0.1.0"
+dependencies = [
+ "napi",
+ "napi-derive",
+ "parcel-crypto",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -1783,6 +1794,7 @@ dependencies = [
  "once_cell",
  "oxipng",
  "parcel",
+ "parcel-crypto",
  "parcel-dev-dep-resolver",
  "parcel-js-swc-core",
  "parcel-macros",
@@ -1793,7 +1805,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "whoami",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -1828,9 +1839,9 @@ dependencies = [
  "getrandom",
  "napi",
  "napi-derive",
+ "parcel-crypto",
  "parcel-js-swc-core",
  "parcel-resolver",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -1865,7 +1876,6 @@ dependencies = [
  "serde-value",
  "serde_json",
  "serde_repr",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -2343,7 +2353,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "webpki-roots 0.26.1",
+ "webpki-roots 0.26.2",
  "winreg",
 ]
 
@@ -3097,9 +3107,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.92.9"
+version = "0.92.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dc177a38a11913076a8dc415a0dd2c7a5ca13c10c0a7633f1f81655aa8836fe"
+checksum = "86da1fa18605829228820c41795eb7289eb26542cc62ced2f420bb964d4303ac"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -3362,9 +3372,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.144.1"
+version = "0.144.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0499e69683ae5d67a20ff0279b94bc90f29df7922a46331b54d5dd367bf89570"
+checksum = "31adf4599e8de70f3b754dfc34ec2ab09fa6841d79a9f4a888250a404eae7030"
 dependencies = [
  "either",
  "new_debug_unreachable",
@@ -4032,9 +4042,9 @@ checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
 
 [[package]]
 name = "unicode-width"
-version = "0.1.12"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f5e5f3158ecfd4b8ff6fe086db7c8467a2dfdac97fe420f2b7c4aa97af66d6"
+checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
 
 [[package]]
 name = "untrusted"
@@ -4056,7 +4066,7 @@ dependencies = [
  "rustls-pki-types",
  "rustls-webpki 0.102.4",
  "url",
- "webpki-roots 0.26.1",
+ "webpki-roots 0.26.2",
 ]
 
 [[package]]
@@ -4225,9 +4235,9 @@ checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
 
 [[package]]
 name = "webpki-roots"
-version = "0.26.1"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3de34ae270483955a94f4b21bdaaeb83d508bb84a01435f393818edb0012009"
+checksum = "3c452ad30530b54a4d8e71952716a212b08efd0f3562baa66c29a618b07da7c3"
 dependencies = [
  "rustls-pki-types",
 ]

@@ -48,3 +48,11 @@ impl Hash {
     format!("{:016x}", res)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn testing() {
+    println!("SDFJHDFKJSDFHSDKJFHSDFKJSDFH")
+  }
+}

@@ -1,0 +1,20 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-crypto"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "./src/lib.rs"
+
+[features]
+napi = ["dep:napi", "dep:napi-derive"]
+
+[dependencies]
+napi = { version = "2", features = ["serde-json"], optional = true  }
+napi-derive = { version = "2", optional = true }
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+
+[dev-dependencies]
+napi = { version = "2", features = ["serde-json", "napi5", "dyn-symbols", "noop"] }
+parcel-crypto = { path = ".", features = ["napi"] }

@@ -5,8 +5,7 @@ use napi_derive::napi;
 use std::alloc::alloc;
 use std::alloc::Layout;
 
-pub mod hash;
-
+pub use parcel_crypto::hash_napi::*;
 pub mod file_system;
 pub mod function_ref;
 pub mod resolver;

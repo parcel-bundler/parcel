@@ -9,3 +9,4 @@ path = "./src/lib.rs"
 
 [dependencies]
 parcel_filesystem = { path = "../parcel_filesystem" }
+parcel-crypto = { path = "../parcel_crypto" }
