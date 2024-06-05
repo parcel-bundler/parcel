@@ -1,3 +1,5 @@
+#![deny(unused_crate_dependencies)]
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
