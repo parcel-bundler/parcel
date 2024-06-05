@@ -17,7 +17,7 @@ impl Parcel {
     let fs = options
       .fs
       .unwrap_or_else(|| Arc::new(OsFileSystem::default()));
-    let node_package_manager = NodePackageManager::new("project_root", fs.clone());
+    let _node_package_manager = NodePackageManager::new("project_root", fs.clone());
 
     Self { fs }
   }

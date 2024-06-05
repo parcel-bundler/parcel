@@ -192,10 +192,7 @@ pub struct JsInvalidations {
 #[napi]
 pub struct Resolver {
   mode: u8,
-  #[cfg(not(target_arch = "wasm32"))]
   resolver: parcel_resolver::Resolver<'static>,
-  #[cfg(target_arch = "wasm32")]
-  resolver: parcel_resolver::Resolver<'static, JsFileSystem>,
   #[cfg(not(target_arch = "wasm32"))]
   invalidations_cache: parcel_dev_dep_resolver::Cache,
   supports_async: bool,
