@@ -1,5 +1,7 @@
-mod bundler_plugin;
+use std::path::PathBuf;
+use std::sync::Arc;
 
+mod bundler_plugin;
 pub use bundler_plugin::*;
 
 mod compressor_plugin;
@@ -32,16 +34,19 @@ pub use transformer_plugin::*;
 mod validator_plugin;
 pub use validator_plugin::*;
 
+use crate::types::BuildMode;
+
 pub struct PluginContext {
   pub config: PluginConfig,
-  pub options: PluginOptions,
+  pub options: Arc<PluginOptions>,
   pub logger: PluginLogger,
 }
 
 #[derive(Default)]
 pub struct PluginLogger {}
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct PluginOptions {
-  pub mode: crate::types::BuildMode,
+  pub mode: BuildMode,
+  pub project_root: PathBuf,
 }

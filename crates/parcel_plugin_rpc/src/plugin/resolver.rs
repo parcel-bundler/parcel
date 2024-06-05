@@ -3,10 +3,11 @@ use std::fmt::Debug;
 
 use parcel_config::PluginNode;
 use parcel_core::plugin::PluginContext;
-use parcel_core::plugin::Resolution;
 use parcel_core::plugin::ResolveContext;
+use parcel_core::plugin::Resolved;
 use parcel_core::plugin::ResolverPlugin;
 
+#[derive(Hash)]
 pub struct RpcResolverPlugin {}
 
 impl Debug for RpcResolverPlugin {
@@ -22,7 +23,7 @@ impl RpcResolverPlugin {
 }
 
 impl ResolverPlugin for RpcResolverPlugin {
-  fn resolve(&self, _ctx: &ResolveContext) -> Result<Resolution, anyhow::Error> {
+  fn resolve(&self, _ctx: ResolveContext) -> Result<Resolved, anyhow::Error> {
     todo!()
   }
 }

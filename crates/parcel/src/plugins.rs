@@ -204,7 +204,7 @@ mod tests {
         PathBuf::default(),
         PathBuf::default(),
       ),
-      options: PluginOptions::default(),
+      options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
     }
   }

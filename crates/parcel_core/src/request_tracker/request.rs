@@ -58,5 +58,5 @@ pub enum RequestError {
   Impossible,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Invalidation {}
