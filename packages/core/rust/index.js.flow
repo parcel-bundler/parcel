@@ -5,27 +5,48 @@ declare export var init: void | (() => void);
 
 export type ProjectPath = any;
 export interface ConfigRequest {
-  id: string,
-  invalidateOnFileChange: Array<ProjectPath>,
-  invalidateOnConfigKeyChange: Array<any>,
-  invalidateOnFileCreate: Array<any>,
-  invalidateOnEnvChange: Array<string>,
-  invalidateOnOptionChange: Array<string>,
-  invalidateOnStartup: boolean,
-  invalidateOnBuild: boolean,
+  id: string;
+  invalidateOnFileChange: Array<ProjectPath>;
+  invalidateOnConfigKeyChange: Array<any>;
+  invalidateOnFileCreate: Array<any>;
+  invalidateOnEnvChange: Array<string>;
+  invalidateOnOptionChange: Array<string>;
+  invalidateOnStartup: boolean;
+  invalidateOnBuild: boolean;
 }
-export interface RequestOptions {
+export interface RequestOptions {}
+
+export interface ParcelNapiOptions {
+  fs?: any;
+}
+
+declare export class ParcelNapi {
+  constructor(options: ParcelNapiOptions): ParcelNapi;
+  testingTempFsReadToString(path: string): string;
+  testingTempFsIsDir(path: string): boolean;
+  testingTempFsIsFile(path: string): boolean;
 }
 
 declare export function initSentry(): void;
 declare export function closeSentry(): void;
-declare export function napiRunConfigRequest(configRequest: ConfigRequest, api: any, options: any): void
-declare export function findAncestorFile(filenames: Array<string>, from: string, root: string): string | null
-declare export function findFirstFile(names: Array<string>): string | null
-declare export function findNodeModule(module: string, from: string): string | null
-declare export function hashString(s: string): string
-declare export function hashBuffer(buf: Buffer): string
-declare export function optimizeImage(kind: string, buf: Buffer): Buffer
+declare export function napiRunConfigRequest(
+  configRequest: ConfigRequest,
+  api: any,
+  options: any,
+): void;
+declare export function findAncestorFile(
+  filenames: Array<string>,
+  from: string,
+  root: string,
+): string | null;
+declare export function findFirstFile(names: Array<string>): string | null;
+declare export function findNodeModule(
+  module: string,
+  from: string,
+): string | null;
+declare export function hashString(s: string): string;
+declare export function hashBuffer(buf: Buffer): string;
+declare export function optimizeImage(kind: string, buf: Buffer): Buffer;
 export interface JsFileSystemOptions {
   canonicalize: string => string;
   read: string => Buffer;

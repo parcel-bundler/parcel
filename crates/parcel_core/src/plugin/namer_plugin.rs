@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::path::PathBuf;
 
 use super::PluginConfig;
@@ -8,7 +9,7 @@ use crate::types::Bundle;
 ///
 /// Namers run in a pipeline until one returns a result.
 ///
-pub trait NamerPlugin {
+pub trait NamerPlugin: Debug {
   /// A hook designed to setup config needed for naming bundles
   ///
   /// This function will run once, shortly after the plugin is initialised.
@@ -32,6 +33,7 @@ pub trait NamerPlugin {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestNamerPlugin {}
 
   impl NamerPlugin for TestNamerPlugin {

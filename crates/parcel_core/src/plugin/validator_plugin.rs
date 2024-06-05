@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use super::PluginConfig;
 use crate::types::Asset;
 
@@ -18,7 +20,7 @@ pub struct Validation {
 /// remain productive, and do not have to worry about every small typing or linting issue while
 /// trying to solve a problem.
 ///
-pub trait ValidatorPlugin {
+pub trait ValidatorPlugin: Debug {
   /// A hook designed to setup config needed to validate assets
   ///
   /// This function will run once, shortly after the plugin is initialised.
@@ -56,6 +58,7 @@ pub trait ValidatorPlugin {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestValidatorPlugin {}
 
   impl ValidatorPlugin for TestValidatorPlugin {

@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 use std::path::PathBuf;
 
@@ -30,7 +31,7 @@ pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, an
 /// Many transformers are wrappers around other tools such as compilers and preprocessors, and are
 /// designed to integrate with Parcel.
 ///
-pub trait TransformerPlugin: Send + Sync {
+pub trait TransformerPlugin: Debug + Send + Sync {
   /// A hook designed to setup config needed to transform assets
   ///
   /// This function will run once, shortly after the plugin is initialised.
@@ -82,6 +83,7 @@ pub trait TransformerPlugin: Send + Sync {
 mod tests {
   use super::*;
 
+  #[derive(Debug)]
   struct TestTransformerPlugin {}
 
   impl TransformerPlugin for TestTransformerPlugin {

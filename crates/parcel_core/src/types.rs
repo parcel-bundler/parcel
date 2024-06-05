@@ -1,3 +1,6 @@
+// Re-export this from core, probably want to move this type here
+pub use parcel_filesystem::FileSystem;
+
 mod asset;
 pub use self::asset::*;
 
