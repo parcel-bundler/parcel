@@ -9,6 +9,7 @@ import logger from '@parcel/logger';
 export type RequestTrackerCacheInfo = {|
   requestGraphKey: string,
   snapshotKey: string,
+  allLargeBlobKeys: string[],
   timestamp: number,
 |};
 
@@ -63,7 +64,16 @@ export async function storeRequestTrackerCacheInfo(
  * When starting a build the request tracker cache keys are cleared.
  * This prevents dangling references from being present if the process exits
  * while writing the cache.
+ *
+ * This also cleans-up all the large blobs on disk, including dangling node
+ * entries.
  */
 export async function clearRequestTrackerCacheInfo(cache: Cache) {
+  const requestTrackerCacheInfo = await getRequestTrackerCacheInfo(cache);
   await cache.set(toFsCacheKey('RequestTrackerCacheInfo'), null);
+
+  await cache.deleteLargeBlob(requestTrackerCacheInfo.requestGraphKey);
+  for (let largeBlobKey of requestTrackerCacheInfo.allLargeBlobKeys) {
+    await cache.deleteLargeBlob(largeBlobKey);
+  }
 }
