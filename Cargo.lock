@@ -1722,6 +1722,7 @@ name = "parcel"
 version = "0.1.0"
 dependencies = [
  "parcel_filesystem",
+ "parcel_package_manager",
 ]
 
 [[package]]
@@ -1824,6 +1825,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "serde_json",
+ "thiserror",
  "typed-arena",
  "url",
  "xxhash-rust",
@@ -1833,6 +1835,7 @@ dependencies = [
 name = "parcel_config"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "derive_builder",
  "glob-match",
  "indexmap 2.2.6",
@@ -1877,7 +1880,10 @@ dependencies = [
 name = "parcel_package_manager"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "mockall",
+ "parcel-resolver",
+ "parcel_filesystem",
  "thiserror",
 ]
 

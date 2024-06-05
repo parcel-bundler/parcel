@@ -2,6 +2,7 @@
 use std::io::Result;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use dashmap::DashMap;
 
@@ -12,6 +13,8 @@ pub mod search;
 
 /// File-system implementation using std::fs and a canonicalize cache
 pub mod os_file_system;
+
+pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 
 /// Trait abstracting file-system operations
 /// .
