@@ -18,6 +18,7 @@ use napi::JsUnknown;
 use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
+#[cfg(not(target_arch = "wasm32"))]
 use parcel::file_system::FileSystemRef;
 use parcel::plugin::SpecifierType;
 use parcel::types::ExportsCondition;
@@ -39,8 +40,11 @@ use parcel_plugin_resolver::core::ResolveResult as CoreResolveResult;
 use parcel_plugin_resolver::core::Resolver as CoreResolver;
 use parcel_plugin_resolver::core::ResolverError;
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::dev_dep_resolver::build_esm_graph;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::dev_dep_resolver::Cache as DevDepCache;
+
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
 #[napi(object)]
