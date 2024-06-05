@@ -10,7 +10,7 @@
 <PROJECT_ROOT>/packages/core/integration-tests/test/input/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/integration/babel-strip-flow-types/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/integration/diagnostic-sourcemap/**
-<PROJECT_ROOT>/packages/utils/node-resolver-core/test/fixture/node_modules/json-error/package.json
+<PROJECT_ROOT>/crates/**/*
 
 [untyped]
 .*/node_modules/graphql/error/GraphQLError.js.flow
