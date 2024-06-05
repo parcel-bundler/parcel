@@ -1783,7 +1783,6 @@ name = "parcel-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "dashmap",
  "jemallocator",
  "libc",
  "mimalloc",
@@ -1795,10 +1794,9 @@ dependencies = [
  "oxipng",
  "parcel",
  "parcel-crypto",
- "parcel-dev-dep-resolver",
  "parcel-js-swc-core",
  "parcel-macros",
- "parcel-resolver",
+ "parcel_plugin_resolver",
  "rayon",
  "sentry",
  "serde",
@@ -1835,13 +1833,13 @@ dependencies = [
 name = "parcel-wasm"
 version = "0.1.0"
 dependencies = [
- "dashmap",
  "getrandom",
  "napi",
+ "napi-build",
  "napi-derive",
  "parcel-crypto",
  "parcel-js-swc-core",
- "parcel-resolver",
+ "parcel_plugin_resolver",
 ]
 
 [[package]]
@@ -1900,7 +1898,14 @@ name = "parcel_plugin_resolver"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dashmap",
+ "napi",
+ "napi-derive",
+ "parcel-dev-dep-resolver",
+ "parcel-resolver",
  "parcel_core",
+ "parcel_plugin_resolver",
+ "rayon",
 ]
 
 [[package]]

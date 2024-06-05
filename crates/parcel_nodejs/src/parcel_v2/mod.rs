@@ -3,7 +3,7 @@
 pub mod fs_search;
 pub mod image;
 pub mod init_sentry;
-pub mod resolver;
 pub mod transformer;
 
-pub use parcel_crypto::hash_napi::*;
+pub use parcel_crypto::nodejs::*;
+pub use parcel_plugin_resolver::nodejs::parcel_v2::*;

@@ -15,14 +15,12 @@ openssl = ["sentry/native-tls"]
 
 [dependencies]
 parcel = { path = "../parcel" }
-parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-macros = { path = "../macros", features = ["napi"] }
-parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parcel-crypto = { path = "../parcel_crypto", features = ["napi"] }
+parcel_plugin_resolver = { path = "../parcel_plugin_resolver", features = ["nodejs"] }
+parcel-crypto = { path = "../parcel_crypto", features = ["nodejs"] }
 
 anyhow = "1.0.82"
-dashmap = "5.4.0"
 libc = "0.2"
 mozjpeg-sys = "1.0.0"
 napi = { version = "2", features = ["serde-json","napi4", "napi5", "async"] }

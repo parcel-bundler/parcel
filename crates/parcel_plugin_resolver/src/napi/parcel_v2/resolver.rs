@@ -1,46 +1,38 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(not(feature = "wasm"))]
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use napi::bindgen_prelude::Either3;
 use napi::Env;
-use napi::JsBoolean;
-use napi::JsBuffer;
 use napi::JsFunction;
 use napi::JsObject;
 use napi::JsString;
 use napi::JsUnknown;
-use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
 use parcel_resolver::ExportsCondition;
 use parcel_resolver::Extensions;
 use parcel_resolver::Fields;
 use parcel_resolver::FileCreateInvalidation;
-use parcel_resolver::FileSystem;
 use parcel_resolver::Flags;
 use parcel_resolver::IncludeNodeModules;
 use parcel_resolver::Invalidations;
 use parcel_resolver::ModuleType;
+#[cfg(not(feature = "wasm"))]
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::Resolution;
 use parcel_resolver::ResolverError;
 use parcel_resolver::SpecifierType;
 
-type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
-
-#[napi(object)]
-pub struct JsFileSystemOptions {
-  pub canonicalize: JsFunction,
-  pub read: JsFunction,
-  pub is_file: JsFunction,
-  pub is_dir: JsFunction,
-  pub include_node_modules: Option<NapiSideEffectsVariants>,
-}
+#[cfg(not(feature = "wasm"))]
+use super::file_system::EitherFs;
+use super::file_system::JsFileSystem;
+use super::function_ref::FunctionRef;
+use super::JsFileSystemOptions;
+use super::NapiSideEffectsVariants;
 
 #[napi(object, js_name = "FileSystem")]
 pub struct JsResolverOptions {
@@ -53,132 +45,6 @@ pub struct JsResolverOptions {
   pub extensions: Option<Vec<String>>,
   pub package_exports: bool,
   pub typescript: Option<bool>,
-}
-
-pub struct FunctionRef {
-  env: Env,
-  reference: Ref<()>,
-}
-
-// We don't currently call functions from multiple threads, but we'll need to change this when we do.
-unsafe impl Send for FunctionRef {}
-unsafe impl Sync for FunctionRef {}
-
-impl FunctionRef {
-  fn new(env: Env, f: JsFunction) -> napi::Result<Self> {
-    Ok(Self {
-      env,
-      reference: env.create_reference(f)?,
-    })
-  }
-
-  fn get(&self) -> napi::Result<JsFunction> {
-    self.env.get_reference_value(&self.reference)
-  }
-}
-
-impl Drop for FunctionRef {
-  fn drop(&mut self) {
-    drop(self.reference.unref(self.env))
-  }
-}
-
-pub struct JsFileSystem {
-  pub canonicalize: FunctionRef,
-  pub read: FunctionRef,
-  pub is_file: FunctionRef,
-  pub is_dir: FunctionRef,
-}
-
-impl FileSystem for JsFileSystem {
-  fn canonicalize(
-    &self,
-    path: &Path,
-    _cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> std::io::Result<std::path::PathBuf> {
-    let canonicalize = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.canonicalize.env.create_string(path.as_ref())?;
-      let res: JsString = self.canonicalize.get()?.call(None, &[path])?.try_into()?;
-      let utf8 = res.into_utf8()?;
-      Ok(utf8.into_owned()?.into())
-    };
-
-    canonicalize().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
-  }
-
-  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    let read = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.read.env.create_string(path.as_ref())?;
-      let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
-      let value = res.into_value()?;
-      Ok(unsafe { String::from_utf8_unchecked(value.to_vec()) })
-    };
-
-    read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
-  }
-
-  fn is_file(&self, path: &Path) -> bool {
-    let is_file = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let p = self.is_file.env.create_string(path.as_ref())?;
-      let res: JsBoolean = self.is_file.get()?.call(None, &[p])?.try_into()?;
-      res.get_value()
-    };
-
-    is_file().unwrap_or(false)
-  }
-
-  fn is_dir(&self, path: &Path) -> bool {
-    let is_dir = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.is_dir.env.create_string(path.as_ref())?;
-      let res: JsBoolean = self.is_dir.get()?.call(None, &[path])?.try_into()?;
-      res.get_value()
-    };
-
-    is_dir().unwrap_or(false)
-  }
-}
-
-enum EitherFs<A, B> {
-  A(A),
-  B(B),
-}
-
-impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
-  fn canonicalize(
-    &self,
-    path: &Path,
-    cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> std::io::Result<std::path::PathBuf> {
-    match self {
-      EitherFs::A(a) => a.canonicalize(path, cache),
-      EitherFs::B(b) => b.canonicalize(path, cache),
-    }
-  }
-
-  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    match self {
-      EitherFs::A(a) => a.read_to_string(path),
-      EitherFs::B(b) => b.read_to_string(path),
-    }
-  }
-
-  fn is_file(&self, path: &Path) -> bool {
-    match self {
-      EitherFs::A(a) => a.is_file(path),
-      EitherFs::B(b) => b.is_file(path),
-    }
-  }
-
-  fn is_dir(&self, path: &Path) -> bool {
-    match self {
-      EitherFs::A(a) => a.is_dir(path),
-      EitherFs::B(b) => b.is_dir(path),
-    }
-  }
 }
 
 #[napi(object)]
@@ -228,7 +94,11 @@ pub struct JsInvalidations {
 #[napi]
 pub struct Resolver {
   mode: u8,
+  #[cfg(not(feature = "wasm"))]
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
+  #[cfg(feature = "wasm")]
+  resolver: parcel_resolver::Resolver<'static, JsFileSystem>,
+  #[cfg(not(feature = "wasm"))]
   invalidations_cache: parcel_dev_dep_resolver::Cache,
 }
 
@@ -236,6 +106,7 @@ pub struct Resolver {
 impl Resolver {
   #[napi(constructor)]
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
+    #[cfg(not(feature = "wasm"))]
     let fs = if let Some(fs) = options.fs {
       EitherFs::A(JsFileSystem {
         canonicalize: FunctionRef::new(env, fs.canonicalize)?,
@@ -245,6 +116,16 @@ impl Resolver {
       })
     } else {
       EitherFs::B(OsFileSystem)
+    };
+    #[cfg(feature = "wasm")]
+    let fs = {
+      let fsjs = options.fs.unwrap();
+      JsFileSystem {
+        canonicalize: FunctionRef::new(env, fsjs.canonicalize)?,
+        read: FunctionRef::new(env, fsjs.read)?,
+        is_file: FunctionRef::new(env, fsjs.is_file)?,
+        is_dir: FunctionRef::new(env, fsjs.is_dir)?,
+      }
     };
 
     let mut resolver = match options.mode {
@@ -307,6 +188,7 @@ impl Resolver {
     Ok(Self {
       mode: options.mode,
       resolver,
+      #[cfg(not(feature = "wasm"))]
       invalidations_cache: Default::default(),
     })
   }
@@ -412,6 +294,13 @@ impl Resolver {
     self.resolve_result_to_js(env, res, side_effects, module_type)
   }
 
+  #[cfg(feature = "wasm")]
+  #[napi]
+  pub fn resolve_async(&'static self) -> Result<JsObject> {
+    panic!("resolveAsync() is not supported in Wasm builds")
+  }
+
+  #[cfg(not(feature = "wasm"))]
   #[napi]
   pub fn resolve_async(&'static self, options: ResolveOptions, env: Env) -> Result<JsObject> {
     let (deferred, promise) = env.create_deferred()?;
@@ -436,6 +325,13 @@ impl Resolver {
     Ok(promise)
   }
 
+  #[cfg(feature = "wasm")]
+  #[napi]
+  pub fn get_invalidations(&self, _path: String) -> napi::Result<JsInvalidations> {
+    panic!("getInvalidations() is not supported in Wasm builds")
+  }
+
+  #[cfg(not(feature = "wasm"))]
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
     let path = Path::new(&path);

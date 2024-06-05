@@ -5,14 +5,17 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+path = "./src/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
+parcel_plugin_resolver = { path = "../parcel_plugin_resolver", features = ["wasm"] }
+parcel-crypto = { path = "../parcel_crypto", features = ["wasm"] }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parcel-crypto = { path = "../parcel_crypto", features = ["napi"] }
 
-dashmap = "5.4.0"
 getrandom = { version = "0.2", features = ["custom"], default-features = false }
 napi = { version = "2", features = ["serde-json"] }
 napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"

@@ -5,11 +5,9 @@ use napi_derive::napi;
 use std::alloc::alloc;
 use std::alloc::Layout;
 
-pub use parcel_crypto::hash_napi::*;
-pub mod file_system;
-pub mod function_ref;
-pub mod resolver;
-pub mod transformer;
+pub mod parcel_v2;
+pub use parcel_crypto::wasm::*;
+pub use parcel_plugin_resolver::wasm::parcel_v2::*;
 
 #[no_mangle]
 pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {

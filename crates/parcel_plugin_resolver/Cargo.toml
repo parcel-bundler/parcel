@@ -4,10 +4,25 @@ version = "0.1.0"
 edition = "2021"
 description = "Resolver Plugin for the Parcel Bundler"
 
+[features]
+napi_bindings = ["dep:napi", "dep:napi-derive", "dep:rayon", "dep:dashmap"]
+nodejs = ["napi_bindings", "dep:parcel-dev-dep-resolver"]
+wasm = ["napi_bindings"]
+
 [lib]
 path = "./src/lib.rs"
 
 [dependencies]
 parcel_core = { path = "../parcel_core" }
-
+parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 anyhow = "1"
+
+napi = { version = "2", features = ["serde-json"], optional = true  }
+napi-derive = { version = "2", optional = true }
+parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver", optional = true }
+rayon = { version = "1", optional = true }
+dashmap = { version = "5", optional = true }
+
+[dev-dependencies]
+napi = { version = "2", features = ["serde-json", "dyn-symbols", "noop"] }
+parcel_plugin_resolver = { path = ".", features = [] }

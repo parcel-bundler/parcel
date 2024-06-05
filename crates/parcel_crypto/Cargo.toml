@@ -8,7 +8,9 @@ edition = "2021"
 path = "./src/lib.rs"
 
 [features]
-napi = ["dep:napi", "dep:napi-derive"]
+napi_bindings = ["dep:napi", "dep:napi-derive"]
+nodejs = ["napi_bindings"]
+wasm = ["napi_bindings"]
 
 [dependencies]
 napi = { version = "2", features = ["serde-json"], optional = true  }
@@ -17,4 +19,4 @@ xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [dev-dependencies]
 napi = { version = "2", features = ["serde-json", "napi5", "dyn-symbols", "noop"] }
-parcel-crypto = { path = ".", features = ["napi"] }
+parcel-crypto = { path = ".", features = ["napi_bindings"] }

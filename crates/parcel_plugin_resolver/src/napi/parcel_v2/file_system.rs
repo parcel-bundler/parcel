@@ -11,16 +11,27 @@ use napi::JsString;
 use napi_derive::napi;
 use parcel_resolver::FileSystem;
 
-use crate::function_ref::FunctionRef;
+use super::function_ref::FunctionRef;
 
-pub struct FileSystemWasm {
+pub type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
+
+#[napi(object)]
+pub struct JsFileSystemOptions {
+  pub canonicalize: JsFunction,
+  pub read: JsFunction,
+  pub is_file: JsFunction,
+  pub is_dir: JsFunction,
+  pub include_node_modules: Option<NapiSideEffectsVariants>,
+}
+
+pub struct JsFileSystem {
   pub canonicalize: FunctionRef,
   pub read: FunctionRef,
   pub is_file: FunctionRef,
   pub is_dir: FunctionRef,
 }
 
-impl FileSystem for FileSystemWasm {
+impl FileSystem for JsFileSystem {
   fn canonicalize(
     &self,
     path: &Path,
@@ -72,26 +83,43 @@ impl FileSystem for FileSystemWasm {
   }
 }
 
-type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
-
-#[napi(object)]
-pub struct JsFileSystemOptions {
-  pub canonicalize: JsFunction,
-  pub read: JsFunction,
-  pub is_file: JsFunction,
-  pub is_dir: JsFunction,
-  pub include_node_modules: Option<NapiSideEffectsVariants>,
+#[cfg(not(feature = "wasm"))]
+pub enum EitherFs<A, B> {
+  A(A),
+  B(B),
 }
 
-#[napi(object, js_name = "FileSystem")]
-pub struct JsResolverOptions {
-  pub fs: Option<JsFileSystemOptions>,
-  pub include_node_modules: Option<NapiSideEffectsVariants>,
-  pub conditions: Option<u16>,
-  pub module_dir_resolver: Option<JsFunction>,
-  pub mode: u8,
-  pub entries: Option<u8>,
-  pub extensions: Option<Vec<String>>,
-  pub package_exports: bool,
-  pub typescript: Option<bool>,
+#[cfg(not(feature = "wasm"))]
+impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
+  fn canonicalize(
+    &self,
+    path: &Path,
+    cache: &DashMap<PathBuf, Option<PathBuf>>,
+  ) -> std::io::Result<std::path::PathBuf> {
+    match self {
+      EitherFs::A(a) => a.canonicalize(path, cache),
+      EitherFs::B(b) => b.canonicalize(path, cache),
+    }
+  }
+
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+    match self {
+      EitherFs::A(a) => a.read_to_string(path),
+      EitherFs::B(b) => b.read_to_string(path),
+    }
+  }
+
+  fn is_file(&self, path: &Path) -> bool {
+    match self {
+      EitherFs::A(a) => a.is_file(path),
+      EitherFs::B(b) => b.is_file(path),
+    }
+  }
+
+  fn is_dir(&self, path: &Path) -> bool {
+    match self {
+      EitherFs::A(a) => a.is_dir(path),
+      EitherFs::B(b) => b.is_dir(path),
+    }
+  }
 }
