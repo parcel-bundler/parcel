@@ -31,7 +31,7 @@ pub struct Resolution {
   pub is_excluded: bool,
 
   /// Is spread (shallowly merged) onto the request's dependency.meta
-  pub meta: Option<JSONObject>,
+  pub meta: JSONObject,
 
   /// An optional named pipeline to use to compile the resolved file
   pub pipeline: Option<String>,

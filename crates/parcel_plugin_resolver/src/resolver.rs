@@ -8,6 +8,7 @@ use parcel_core::plugin::ResolveContext;
 use parcel_core::plugin::ResolverPlugin;
 use parcel_core::types::BuildMode;
 use parcel_core::types::EnvironmentContext;
+use parcel_core::types::JSONObject;
 use parcel_core::types::SpecifierType;
 use parcel_resolver::Cache;
 use parcel_resolver::CacheCow;
@@ -178,7 +179,7 @@ impl ResolverPlugin for ParcelResolver {
         can_defer: false,
         code: None,
         is_excluded: false,
-        meta: None,
+        meta: JSONObject::default(),
         pipeline: None,
         priority: None,
         query: None,
@@ -194,7 +195,7 @@ impl ResolverPlugin for ParcelResolver {
         can_defer: false,
         code: None,
         is_excluded: false,
-        meta: None,
+        meta: JSONObject::default(),
         pipeline: None,
         priority: None,
         query: None,
@@ -216,7 +217,7 @@ impl ResolverPlugin for ParcelResolver {
         side_effects,
         can_defer: false,
         is_excluded: false,
-        meta: None,
+        meta: JSONObject::default(),
         priority: None,
         query: None,
       }),
