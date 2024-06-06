@@ -258,3 +258,70 @@ fn should_include_node_module(include_node_modules: &IncludeNodeModules, name: &
     }
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use parcel_core::{
+    plugin::{PluginConfig, PluginLogger, PluginOptions},
+    types::{BundleBehavior, Dependency, Environment, JSONObject, Priority},
+  };
+  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use std::sync::Arc;
+
+  #[test]
+  fn test_resolver() {
+    let fs = Arc::new(InMemoryFileSystem::default());
+    fs.write_file(&PathBuf::from("/foo/index.js"), "contents".to_string());
+    fs.write_file(&PathBuf::from("/foo/something.js"), "contents".to_string());
+
+    let plugin_context = PluginContext {
+      config: PluginConfig::new(fs, PathBuf::from("/foo"), PathBuf::default()),
+      options: PluginOptions::default(),
+      logger: PluginLogger::default(),
+    };
+    let resolver = ParcelResolver::new(&plugin_context);
+
+    let specifier = String::from("./something.js");
+    let ctx = ResolveContext {
+      specifier: specifier.clone(),
+      dependency: Dependency {
+        resolve_from: Some(PathBuf::from("/foo/index.js")),
+        env: Environment::default(),
+        bundle_behavior: BundleBehavior::default(),
+        is_entry: false,
+        is_optional: false,
+        loc: None,
+        meta: JSONObject::default(),
+        needs_stable_name: false,
+        package_conditions: ExportsCondition::default(),
+        pipeline: None,
+        priority: Priority::default(),
+        range: None,
+        source_asset_id: None,
+        source_path: None,
+        specifier,
+        specifier_type: SpecifierType::default(),
+        symbols: vec![],
+        target: None,
+      },
+      pipeline: None,
+    };
+    let result = resolver.resolve(&ctx).map_err(|err| err.to_string());
+
+    assert_eq!(
+      result,
+      Ok(Resolution {
+        file_path: PathBuf::from("/foo/something.js"),
+        can_defer: false,
+        code: None,
+        is_excluded: false,
+        meta: None,
+        pipeline: None,
+        priority: None,
+        side_effects: true,
+        query: None
+      })
+    )
+  }
+}
