@@ -3,6 +3,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use parcel_core::plugin::PluginConfig;
+use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::Resolution;
 use parcel_core::plugin::ResolveContext;
 use parcel_core::plugin::ResolverPlugin;

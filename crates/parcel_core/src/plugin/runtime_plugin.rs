@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 use crate::types::Bundle;
 use crate::types::Dependency;
@@ -23,16 +22,9 @@ pub struct RuntimeAsset {
 
 /// Programmatically insert assets into bundles
 pub trait RuntimePlugin: Debug {
-  /// A hook designed to setup config needed to create runtime assets
-  ///
-  /// This function will run once, shortly after the plugin is initialised.
-  ///
-  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
-
   /// Generates runtime assets to insert into bundles
   fn apply(
-    &mut self,
-    config: &PluginConfig,
+    &self,
     bundle: Bundle,
     bundle_graph: BundleGraph,
   ) -> Result<Option<Vec<RuntimeAsset>>, anyhow::Error>;
@@ -46,13 +38,8 @@ mod tests {
   struct TestRuntimePlugin {}
 
   impl RuntimePlugin for TestRuntimePlugin {
-    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-      todo!()
-    }
-
     fn apply(
-      &mut self,
-      _config: &PluginConfig,
+      &self,
       _bundle: Bundle,
       _bundle_graph: BundleGraph,
     ) -> Result<Option<Vec<RuntimeAsset>>, anyhow::Error> {

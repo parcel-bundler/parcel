@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 
 /// Converts an asset graph into a BundleGraph
@@ -11,12 +10,6 @@ use crate::bundle_graph::BundleGraph;
 /// Bundle and optimize run in series and are functionally identitical.
 ///
 pub trait BundlerPlugin: Debug {
-  /// A hook designed to load config necessary for the bundler to operate
-  ///
-  /// This function will run once, shortly after the plugin is initialised.
-  ///
-  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
-
   // TODO: Should BundleGraph be AssetGraph or something that contains AssetGraph in the name?
   fn bundle(&self, bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error>;
 
@@ -31,10 +24,6 @@ mod tests {
   struct TestBundlerPlugin {}
 
   impl BundlerPlugin for TestBundlerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-      todo!()
-    }
-
     fn bundle(&self, _bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error> {
       todo!()
     }

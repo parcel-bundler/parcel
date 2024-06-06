@@ -222,7 +222,7 @@ mod tests {
   fn fail_package_manager_resolution(package_manager: &mut MockPackageManager) {
     package_manager
       .expect_resolve()
-      .return_once(|specifier, from| Err(anyhow!("Something bad happened")));
+      .return_once(|_specifier, _from| Err(anyhow!("Something bad happened")));
   }
 
   struct TestPackageManager {

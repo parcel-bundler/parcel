@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use super::PluginConfig;
 use crate::types::Dependency;
 use crate::types::JSONObject;
 use crate::types::ParcelOptions;
@@ -54,18 +53,8 @@ pub struct Resolution {
 /// Resolvers run in a pipeline until one of them return a result.
 ///
 pub trait ResolverPlugin: Debug + Send + Sync {
-  /// A hook designed to setup any config needed to resolve dependencies
-  ///
-  /// This function will run once, shortly after the plugin is initialised.
-  ///
-  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
-
   /// Determines what the dependency specifier resolves to
-  fn resolve(
-    &mut self,
-    config: &PluginConfig,
-    ctx: &ResolveContext,
-  ) -> Result<Resolution, anyhow::Error>;
+  fn resolve(&self, ctx: &ResolveContext) -> Result<Resolution, anyhow::Error>;
 }
 
 #[cfg(test)]
@@ -76,15 +65,7 @@ mod tests {
   struct TestResolverPlugin {}
 
   impl ResolverPlugin for TestResolverPlugin {
-    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-      todo!()
-    }
-
-    fn resolve(
-      &mut self,
-      _config: &PluginConfig,
-      _ctx: &ResolveContext,
-    ) -> Result<Resolution, anyhow::Error> {
+    fn resolve(&self, _ctx: &ResolveContext) -> Result<Resolution, anyhow::Error> {
       todo!()
     }
   }
