@@ -1,26 +1,22 @@
-use std::sync::Arc;
-
 use parcel_config::PluginNode;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::ReporterPlugin;
 
-use super::Adapter;
-
 #[derive(Debug)]
-pub struct ReporterAdapter {
+pub struct NapiReporterPlugin {
   name: String,
 }
 
-impl ReporterAdapter {
-  pub fn new(adapter: Arc<dyn Adapter>, ctx: &PluginContext, plugin: &PluginNode) -> Self {
-    ReporterAdapter {
+impl NapiReporterPlugin {
+  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Self {
+    NapiReporterPlugin {
       name: plugin.package_name.clone(),
     }
   }
 }
 
-impl ReporterPlugin for ReporterAdapter {
+impl ReporterPlugin for NapiReporterPlugin {
   fn report(&self, event: ReporterEvent) -> Result<(), anyhow::Error> {
     todo!()
   }

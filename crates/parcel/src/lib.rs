@@ -2,7 +2,7 @@
 
 #[allow(dead_code)]
 #[allow(unused_variables)]
-mod adapter;
+mod napi;
 
 pub mod parcel;
 pub use parcel::*;

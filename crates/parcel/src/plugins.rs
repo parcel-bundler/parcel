@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::anyhow;
 use parcel_config::map::NamedPattern;
@@ -18,22 +17,20 @@ use parcel_core::plugin::ValidatorPlugin;
 use parcel_plugin_resolver::ParcelResolver;
 use parcel_plugin_transformer_js::ParcelTransformerJs;
 
-use crate::adapter::Adapter;
-use crate::adapter::BundlerAdapter;
-use crate::adapter::CompressorAdapter;
-use crate::adapter::NamerAdapter;
-use crate::adapter::OptimizerAdapter;
-use crate::adapter::PackagerAdapter;
-use crate::adapter::ReporterAdapter;
-use crate::adapter::ResolverAdapter;
-use crate::adapter::RuntimeAdapter;
-use crate::adapter::TransformerAdapter;
+use crate::napi::NapiBundlerPlugin;
+use crate::napi::NapiCompressorPlugin;
+use crate::napi::NapiNamerPlugin;
+use crate::napi::NapiOptimizerPlugin;
+use crate::napi::NapiPackagerPlugin;
+use crate::napi::NapiReporterPlugin;
+use crate::napi::NapiResolverPlugin;
+use crate::napi::NapiRuntimePlugin;
+use crate::napi::NapiTransformerPlugin;
+
+// TODO Implement specifics of injecting env for napi plugins
 
 /// Loads plugins based on the Parcel config
 pub struct Plugins<'a> {
-  /// An adapter that enables the creation of JavaScript plugins via napi
-  adapter: Arc<dyn Adapter>,
-
   /// The Parcel config that determines what plugins will be loaded
   config: ParcelConfig,
 
@@ -42,12 +39,8 @@ pub struct Plugins<'a> {
 }
 
 impl<'a> Plugins<'a> {
-  pub fn new(adapter: Arc<dyn Adapter>, config: ParcelConfig, ctx: &'a PluginContext) -> Self {
-    Plugins {
-      adapter,
-      config,
-      ctx,
-    }
+  pub fn new(config: ParcelConfig, ctx: &'a PluginContext) -> Self {
+    Plugins { config, ctx }
   }
 
   fn missing_plugin(&self, path: &Path, phase: &str) -> anyhow::Error {
@@ -64,8 +57,7 @@ impl<'a> Plugins<'a> {
   }
 
   pub fn bundler(&self) -> Result<Box<dyn BundlerPlugin>, anyhow::Error> {
-    Ok(Box::new(BundlerAdapter::new(
-      Arc::clone(&self.adapter),
+    Ok(Box::new(NapiBundlerPlugin::new(
       self.ctx,
       &self.config.bundler,
     )?))
@@ -75,11 +67,7 @@ impl<'a> Plugins<'a> {
     let mut compressors: Vec<Box<dyn CompressorPlugin>> = Vec::new();
 
     for compressor in self.config.compressors.get(path).iter() {
-      compressors.push(Box::new(CompressorAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        compressor,
-      )));
+      compressors.push(Box::new(NapiCompressorPlugin::new(self.ctx, compressor)));
     }
 
     if compressors.is_empty() {
@@ -93,11 +81,7 @@ impl<'a> Plugins<'a> {
     let mut namers: Vec<Box<dyn NamerPlugin>> = Vec::new();
 
     for namer in self.config.namers.iter() {
-      namers.push(Box::new(NamerAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        namer,
-      )?));
+      namers.push(Box::new(NapiNamerPlugin::new(self.ctx, namer)?));
     }
 
     Ok(namers)
@@ -115,11 +99,7 @@ impl<'a> Plugins<'a> {
     });
 
     for optimizer in self.config.optimizers.get(path, named_pattern).iter() {
-      optimizers.push(Box::new(OptimizerAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        optimizer,
-      )?));
+      optimizers.push(Box::new(NapiOptimizerPlugin::new(self.ctx, optimizer)?));
     }
 
     Ok(optimizers)
@@ -130,11 +110,7 @@ impl<'a> Plugins<'a> {
 
     match packager {
       None => Err(self.missing_plugin(path, "packager")),
-      Some(packager) => Ok(Box::new(PackagerAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        packager,
-      )?)),
+      Some(packager) => Ok(Box::new(NapiPackagerPlugin::new(self.ctx, packager)?)),
     }
   }
 
@@ -142,11 +118,7 @@ impl<'a> Plugins<'a> {
     let mut reporters: Vec<Box<dyn ReporterPlugin>> = Vec::new();
 
     for reporter in self.config.reporters.iter() {
-      reporters.push(Box::new(ReporterAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        reporter,
-      )));
+      reporters.push(Box::new(NapiReporterPlugin::new(self.ctx, reporter)));
     }
 
     reporters
@@ -161,11 +133,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      resolvers.push(Box::new(ResolverAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        resolver,
-      )?));
+      resolvers.push(Box::new(NapiResolverPlugin::new(self.ctx, resolver)?));
     }
 
     Ok(resolvers)
@@ -175,11 +143,7 @@ impl<'a> Plugins<'a> {
     let mut runtimes: Vec<Box<dyn RuntimePlugin>> = Vec::new();
 
     for runtime in self.config.runtimes.iter() {
-      runtimes.push(Box::new(RuntimeAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        runtime,
-      )?));
+      runtimes.push(Box::new(NapiRuntimePlugin::new(self.ctx, runtime)?));
     }
 
     Ok(runtimes)
@@ -202,11 +166,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      transformers.push(Box::new(TransformerAdapter::new(
-        Arc::clone(&self.adapter),
-        self.ctx,
-        transformer,
-      )?));
+      transformers.push(Box::new(NapiTransformerPlugin::new(self.ctx, transformer)?));
     }
 
     if transformers.is_empty() {
@@ -237,11 +197,6 @@ mod tests {
 
   use super::*;
 
-  // TODO Replace with actual impl later
-  struct NapiAdapter {}
-
-  impl Adapter for NapiAdapter {}
-
   fn ctx() -> PluginContext {
     PluginContext {
       config: PluginConfig::new(
@@ -257,7 +212,7 @@ mod tests {
   fn plugins<'a>(ctx: &'a PluginContext) -> Plugins<'a> {
     let fixture = default_config(Rc::new(PathBuf::default()));
 
-    Plugins::new(Arc::new(NapiAdapter {}), fixture.parcel_config, ctx)
+    Plugins::new(fixture.parcel_config, ctx)
   }
 
   #[test]
@@ -266,7 +221,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", bundler),
-      "Ok(BundlerAdapter { name: \"@parcel/bundler-default\" })"
+      "Ok(NapiBundlerPlugin { name: \"@parcel/bundler-default\" })"
     )
   }
 
@@ -276,7 +231,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", compressors),
-      "Ok([CompressorAdapter { name: \"@parcel/compressor-raw\" }])"
+      "Ok([NapiCompressorPlugin { name: \"@parcel/compressor-raw\" }])"
     )
   }
 
@@ -286,7 +241,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", namers),
-      "Ok([NamerAdapter { name: \"@parcel/namer-default\" }])"
+      "Ok([NapiNamerPlugin { name: \"@parcel/namer-default\" }])"
     )
   }
 
@@ -296,7 +251,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", optimizers),
-      "Ok([OptimizerAdapter { name: \"@parcel/optimizer-swc\" }])"
+      "Ok([NapiOptimizerPlugin { name: \"@parcel/optimizer-swc\" }])"
     )
   }
 
@@ -306,7 +261,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", packager),
-      "Ok(PackagerAdapter { name: \"@parcel/packager-js\" })"
+      "Ok(NapiPackagerPlugin { name: \"@parcel/packager-js\" })"
     )
   }
 
@@ -316,7 +271,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", resolvers),
-      "[ReporterAdapter { name: \"@parcel/reporter-dev-server\" }]"
+      "[NapiReporterPlugin { name: \"@parcel/reporter-dev-server\" }]"
     )
   }
 
@@ -333,7 +288,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", runtimes),
-      "Ok([RuntimeAdapter { name: \"@parcel/runtime-js\" }])"
+      "Ok([NapiRuntimePlugin { name: \"@parcel/runtime-js\" }])"
     )
   }
 
@@ -343,7 +298,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", transformers),
-      "Ok([TransformerAdapter { name: \"@parcel/transformer-js\" }])"
+      "Ok([NapiTransformerPlugin { name: \"@parcel/transformer-js\" }])"
     )
   }
 }

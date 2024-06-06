@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use parcel_config::PluginNode;
 use parcel_core::plugin::GenerateOutput;
 use parcel_core::plugin::PluginConfig;
@@ -9,26 +7,20 @@ use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::AST;
 use parcel_core::types::Asset;
 
-use super::Adapter;
-
 #[derive(Debug)]
-pub struct TransformerAdapter {
+pub struct NapiTransformerPlugin {
   name: String,
 }
 
-impl TransformerAdapter {
-  pub fn new(
-    adapter: Arc<dyn Adapter>,
-    ctx: &PluginContext,
-    plugin: &PluginNode,
-  ) -> Result<Self, anyhow::Error> {
-    Ok(TransformerAdapter {
+impl NapiTransformerPlugin {
+  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
+    Ok(NapiTransformerPlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl TransformerPlugin for TransformerAdapter {
+impl TransformerPlugin for NapiTransformerPlugin {
   fn can_reuse_ast(&self, ast: AST) -> bool {
     todo!()
   }

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use parcel_config::PluginNode;
 use parcel_core::bundle_graph::BundleGraph;
 use parcel_core::plugin::PluginContext;
@@ -7,26 +5,20 @@ use parcel_core::plugin::RuntimeAsset;
 use parcel_core::plugin::RuntimePlugin;
 use parcel_core::types::Bundle;
 
-use super::Adapter;
-
 #[derive(Debug)]
-pub struct RuntimeAdapter {
+pub struct NapiRuntimePlugin {
   name: String,
 }
 
-impl RuntimeAdapter {
-  pub fn new(
-    adapter: Arc<dyn Adapter>,
-    ctx: &PluginContext,
-    plugin: &PluginNode,
-  ) -> Result<Self, anyhow::Error> {
-    Ok(RuntimeAdapter {
+impl NapiRuntimePlugin {
+  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
+    Ok(NapiRuntimePlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl RuntimePlugin for RuntimeAdapter {
+impl RuntimePlugin for NapiRuntimePlugin {
   fn apply(
     &self,
     bundle: Bundle,

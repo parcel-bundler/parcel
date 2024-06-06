@@ -1,31 +1,23 @@
-use std::sync::Arc;
-
 use parcel_config::PluginNode;
 use parcel_core::plugin::PackageContext;
 use parcel_core::plugin::PackagedBundle;
 use parcel_core::plugin::PackagerPlugin;
 use parcel_core::plugin::PluginContext;
 
-use super::Adapter;
-
 #[derive(Debug)]
-pub struct PackagerAdapter {
+pub struct NapiPackagerPlugin {
   name: String,
 }
 
-impl PackagerAdapter {
-  pub fn new(
-    adapter: Arc<dyn Adapter>,
-    ctx: &PluginContext,
-    plugin: &PluginNode,
-  ) -> Result<Self, anyhow::Error> {
-    Ok(PackagerAdapter {
+impl NapiPackagerPlugin {
+  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
+    Ok(NapiPackagerPlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl PackagerPlugin for PackagerAdapter {
+impl PackagerPlugin for NapiPackagerPlugin {
   fn package(&self, ctx: PackageContext) -> Result<PackagedBundle, anyhow::Error> {
     todo!()
   }
