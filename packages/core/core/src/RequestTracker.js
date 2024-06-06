@@ -57,7 +57,7 @@ import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
 import {
   storeRequestTrackerCacheInfo,
-  clearRequestTrackerCacheInfo,
+  clearRequestTrackerCache,
 } from './RequestTrackerCacheInfo';
 import type {AssetGraphRequestResult} from './requests/AssetGraphRequest';
 import type {PackageRequestResult} from './requests/PackageRequest';
@@ -1393,9 +1393,9 @@ export default class RequestTracker {
     let serialisedGraph = this.graph.serialize();
 
     // Delete an existing request graph cache, to prevent invalid states
-    await clearRequestTrackerCacheInfo(this.options.cache);
-    await this.options.cache.deleteLargeBlob(requestGraphKey);
+    await clearRequestTrackerCache(this.options.cache);
 
+    const allLargeBlobKeys = new Set<string>();
     let total = 0;
     const serialiseAndSet = async (
       key: string,
@@ -1406,6 +1406,7 @@ export default class RequestTracker {
         throw new Error('Serialization was aborted');
       }
 
+      allLargeBlobKeys.add(key);
       await this.options.cache.setLargeBlob(
         key,
         serialize(contents),
@@ -1521,6 +1522,7 @@ export default class RequestTracker {
     }
 
     await storeRequestTrackerCacheInfo(this.options.cache, {
+      allLargeBlobKeys: Array.from(allLargeBlobKeys),
       requestGraphKey,
       snapshotKey,
       timestamp: Date.now(),
