@@ -233,7 +233,7 @@ fn excluded_resolution() -> Resolution {
     side_effects: true,
     can_defer: false,
     code: None,
-    meta: None,
+    meta: JSONObject::default(),
     pipeline: None,
     priority: None,
     query: None,
