@@ -9,9 +9,9 @@ use crate::types::JSONObject;
 
 /// Enables plugins to load config in various formats
 pub struct PluginConfig {
-  fs: Rc<dyn FileSystem>,
-  project_root: PathBuf,
-  search_path: PathBuf,
+  pub fs: Rc<dyn FileSystem>,
+  pub project_root: PathBuf,
+  pub search_path: PathBuf,
 }
 
 // TODO JavaScript configs, invalidations, dev deps, etc

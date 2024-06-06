@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use super::PluginConfig;
 use crate::types::Dependency;
 use crate::types::JSONObject;
+use crate::types::ParcelOptions;
 use crate::types::Priority;
 
 // TODO Diagnostics and invalidations
@@ -12,6 +13,7 @@ pub struct ResolveContext {
   pub specifier: String,
   pub dependency: Dependency,
   pub pipeline: Option<String>,
+  pub options: ParcelOptions,
 }
 
 #[derive(Debug, Default)]
@@ -32,7 +34,7 @@ pub struct Resolution {
   pub is_excluded: bool,
 
   /// Is spread (shallowly merged) onto the request's dependency.meta
-  pub meta: JSONObject,
+  pub meta: Option<JSONObject>,
 
   /// An optional named pipeline to use to compile the resolved file
   pub pipeline: Option<String>,

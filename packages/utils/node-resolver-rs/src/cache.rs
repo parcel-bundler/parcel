@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
@@ -28,6 +29,12 @@ pub struct Cache {
   is_file_cache: DashMap<PathBuf, bool>,
   is_dir_cache: DashMap<PathBuf, bool>,
   realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
+}
+
+impl fmt::Debug for Cache {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Cache").finish()
+  }
 }
 
 #[allow(clippy::large_enum_variant)]
