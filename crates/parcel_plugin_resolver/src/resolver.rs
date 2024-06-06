@@ -21,7 +21,7 @@ use parcel_resolver::Resolver;
 #[derive(Debug)]
 pub struct ParcelResolver {
   cache: Cache,
-  // TODO: Should these be references instead?
+  // TODO: These should probably be references instead?
   project_root: PathBuf,
   mode: BuildMode,
 }
