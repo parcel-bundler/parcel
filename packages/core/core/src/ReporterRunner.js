@@ -21,6 +21,7 @@ import logger, {
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {anyToDiagnostic} from '@parcel/diagnostic';
 
 type Opts = {|
   options: ParcelOptions,
@@ -85,7 +86,16 @@ export default class ReporterRunner {
     this.report(event);
   };
 
-  async report(event: ReporterEvent) {
+  async report(unsanitisedEvent: ReporterEvent) {
+    let event: ReporterEvent = unsanitisedEvent;
+    if (event.diagnostics) {
+      // Sanitise input before passing to reporters
+      // $FlowFixMe too complex to narrow down by type
+      event = {
+        ...event,
+        diagnostics: anyToDiagnostic(event.diagnostics),
+      };
+    }
     for (let reporter of this.reporters) {
       let measurement;
       try {
@@ -95,6 +105,7 @@ export default class ReporterRunner {
           measurement = tracer.createMeasurement(reporter.name, 'reporter');
         }
         await reporter.plugin.report({
+          // $FlowFixMe
           event,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: reporter.name}),
