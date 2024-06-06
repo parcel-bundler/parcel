@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use crate::types::Dependency;
 use crate::types::JSONObject;
-use crate::types::ParcelOptions;
 use crate::types::Priority;
 
 // TODO Diagnostics and invalidations
@@ -12,7 +11,6 @@ pub struct ResolveContext {
   pub specifier: String,
   pub dependency: Dependency,
   pub pipeline: Option<String>,
-  pub options: ParcelOptions,
 }
 
 #[derive(Debug, Default)]

@@ -42,4 +42,6 @@ pub struct PluginContext {
 pub struct PluginLogger {}
 
 #[derive(Default)]
-pub struct PluginOptions {}
+pub struct PluginOptions {
+  pub mode: crate::types::BuildMode,
+}

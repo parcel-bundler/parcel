@@ -20,12 +20,17 @@ use parcel_resolver::Resolver;
 #[derive(Debug)]
 pub struct ParcelResolver {
   cache: Cache,
+  // TODO: Should these be references instead?
+  project_root: PathBuf,
+  mode: BuildMode,
 }
 
 impl ParcelResolver {
   pub fn new(ctx: &PluginContext) -> Self {
     Self {
       cache: Cache::new(ctx.config.fs.clone()),
+      project_root: ctx.config.project_root.clone(),
+      mode: ctx.options.mode.clone(),
     }
   }
 
@@ -72,7 +77,6 @@ impl ParcelResolver {
 
     self.resolve(&ResolveContext {
       // TODO: Can we get rid of the clones?
-      options: ctx.options.clone(),
       dependency: ctx.dependency.clone(),
       pipeline: ctx.pipeline.clone(),
       specifier: browser_module.to_owned(),
@@ -85,11 +89,10 @@ impl ResolverPlugin for ParcelResolver {
     let ResolveContext {
       specifier,
       dependency: dep,
-      options,
       pipeline: _pipeline,
     } = ctx;
     let mut resolver = Resolver::parcel(
-      Cow::Borrowed(&options.project_root),
+      Cow::Borrowed(&self.project_root),
       CacheCow::Borrowed(&self.cache),
     );
 
@@ -111,11 +114,11 @@ impl ResolverPlugin for ParcelResolver {
       .set(ExportsCondition::NODE, dep.env.context.is_node());
     resolver.conditions.set(
       ExportsCondition::PRODUCTION,
-      options.mode == BuildMode::Production,
+      self.mode == BuildMode::Production,
     );
     resolver.conditions.set(
       ExportsCondition::DEVELOPMENT,
-      options.mode == BuildMode::Development,
+      self.mode == BuildMode::Development,
     );
 
     resolver.entries = Fields::MAIN | Fields::MODULE | Fields::SOURCE;
@@ -138,7 +141,7 @@ impl ResolverPlugin for ParcelResolver {
       .or(dep.source_path.as_ref())
       .as_ref()
       .map(|p| Cow::Borrowed(p.as_path()))
-      .unwrap_or_else(|| Cow::Owned(options.project_root.join("index")));
+      .unwrap_or_else(|| Cow::Owned(self.project_root.join("index")));
 
     let mut res = resolver.resolve_with_options(
       specifier,
@@ -184,7 +187,7 @@ impl ResolverPlugin for ParcelResolver {
         self.resolve_builtin(ctx, builtin)
       }
       (parcel_resolver::Resolution::Empty, _invalidations) => Ok(Resolution {
-        file_path: options
+        file_path: self
           .project_root
           .join("packages/utils/node-resolver-core/src/_empty.js"),
         side_effects,
