@@ -87,6 +87,10 @@ export async function clearRequestTrackerCache(cache: Cache) {
   const requestTrackerCacheInfo = await getRequestTrackerCacheInfo(cache);
   await clearRequestTrackerCacheInfo(cache);
 
+  if (!requestTrackerCacheInfo) {
+    return;
+  }
+
   await cache.deleteLargeBlob(requestTrackerCacheInfo.requestGraphKey);
   for (const largeBlobKey of requestTrackerCacheInfo.allLargeBlobKeys ?? []) {
     await cache.deleteLargeBlob(largeBlobKey);
