@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::path::PathBuf;
 
-use parcel_core::plugin::PluginConfig;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::Resolution;
 use parcel_core::plugin::ResolveContext;
@@ -10,7 +9,6 @@ use parcel_core::plugin::ResolverPlugin;
 use parcel_core::types::BuildMode;
 use parcel_core::types::EnvironmentContext;
 use parcel_core::types::SpecifierType;
-use parcel_filesystem::FileSystemRef;
 use parcel_resolver::Cache;
 use parcel_resolver::CacheCow;
 use parcel_resolver::ExportsCondition;
@@ -25,9 +23,9 @@ pub struct ParcelResolver {
 }
 
 impl ParcelResolver {
-  pub fn new(fs: FileSystemRef) -> Self {
+  pub fn new(ctx: &PluginContext) -> Self {
     Self {
-      cache: Cache::new(fs),
+      cache: Cache::new(ctx.config.fs.clone()),
     }
   }
 
@@ -35,12 +33,7 @@ impl ParcelResolver {
     todo!()
   }
 
-  fn resolve_builtin(
-    &mut self,
-    config: &PluginConfig,
-    ctx: &ResolveContext,
-    builtin: String,
-  ) -> anyhow::Result<Resolution> {
+  fn resolve_builtin(&self, ctx: &ResolveContext, builtin: String) -> anyhow::Result<Resolution> {
     let dep = &ctx.dependency;
     if dep.env.context.is_node() {
       return Ok(excluded_resolution());
@@ -77,25 +70,18 @@ impl ParcelResolver {
       _ => return Ok(excluded_resolution()),
     };
 
-    self.resolve(
-      config,
-      &ResolveContext {
-        // TODO: Can we get rid of the clones?
-        options: ctx.options.clone(),
-        dependency: ctx.dependency.clone(),
-        pipeline: ctx.pipeline.clone(),
-        specifier: browser_module.to_owned(),
-      },
-    )
+    self.resolve(&ResolveContext {
+      // TODO: Can we get rid of the clones?
+      options: ctx.options.clone(),
+      dependency: ctx.dependency.clone(),
+      pipeline: ctx.pipeline.clone(),
+      specifier: browser_module.to_owned(),
+    })
   }
 }
 
 impl ResolverPlugin for ParcelResolver {
-  fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-    todo!()
-  }
-
-  fn resolve(&mut self, config: &PluginConfig, ctx: &ResolveContext) -> anyhow::Result<Resolution> {
+  fn resolve(&self, ctx: &ResolveContext) -> anyhow::Result<Resolution> {
     let ResolveContext {
       specifier,
       dependency: dep,
@@ -195,12 +181,12 @@ impl ResolverPlugin for ParcelResolver {
         query: None,
       }),
       (parcel_resolver::Resolution::Builtin(builtin), _invalidations) => {
-        self.resolve_builtin(config, ctx, builtin)
+        self.resolve_builtin(ctx, builtin)
       }
       (parcel_resolver::Resolution::Empty, _invalidations) => Ok(Resolution {
         file_path: options
           .project_root
-          .join("/packages/utils/node-resolver-core/src/_empty.js"),
+          .join("packages/utils/node-resolver-core/src/_empty.js"),
         side_effects,
         can_defer: false,
         code: None,
