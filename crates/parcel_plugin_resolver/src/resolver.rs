@@ -317,7 +317,7 @@ mod test {
         can_defer: false,
         code: None,
         is_excluded: false,
-        meta: None,
+        meta: JSONObject::default(),
         pipeline: None,
         priority: None,
         side_effects: true,
