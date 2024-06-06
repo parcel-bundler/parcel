@@ -1,22 +1,21 @@
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use parcel_filesystem::search::find_ancestor_file;
-use parcel_filesystem::FileSystem;
+use parcel_filesystem::FileSystemRef;
 use serde::de::DeserializeOwned;
 
 use crate::types::JSONObject;
 
 /// Enables plugins to load config in various formats
 pub struct PluginConfig {
-  pub fs: Rc<dyn FileSystem>,
+  pub fs: FileSystemRef,
   pub project_root: PathBuf,
   pub search_path: PathBuf,
 }
 
 // TODO JavaScript configs, invalidations, dev deps, etc
 impl PluginConfig {
-  pub fn new(fs: Rc<dyn FileSystem>, project_root: PathBuf, search_path: PathBuf) -> Self {
+  pub fn new(fs: FileSystemRef, project_root: PathBuf, search_path: PathBuf) -> Self {
     Self {
       fs,
       project_root,
@@ -68,6 +67,8 @@ mod tests {
   use super::*;
 
   mod load_json_config {
+    use std::sync::Arc;
+
     use serde::Deserialize;
 
     use super::*;
@@ -81,7 +82,7 @@ mod tests {
       let search_path = project_root.join("index");
 
       let config = PluginConfig {
-        fs: Rc::new(InMemoryFileSystem::default()),
+        fs: Arc::new(InMemoryFileSystem::default()),
         project_root,
         search_path: search_path.clone(),
       };
@@ -99,7 +100,7 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_the_config_is_outside_the_search_path() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
 
@@ -127,7 +128,7 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_the_config_is_outside_the_project_root() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
 
@@ -152,7 +153,7 @@ mod tests {
 
     #[test]
     fn returns_json_config_at_search_path() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let config_path = search_path.join("config.json");
@@ -175,7 +176,7 @@ mod tests {
 
     #[test]
     fn returns_json_config_at_project_root() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let config_path = project_root.join("config.json");
@@ -198,6 +199,8 @@ mod tests {
   }
 
   mod load_package_json_config {
+    use std::sync::Arc;
+
     use serde_json::Map;
     use serde_json::Value;
 
@@ -229,7 +232,7 @@ mod tests {
       let search_path = project_root.join("index");
 
       let config = PluginConfig {
-        fs: Rc::new(InMemoryFileSystem::default()),
+        fs: Arc::new(InMemoryFileSystem::default()),
         project_root,
         search_path: search_path.clone(),
       };
@@ -247,7 +250,7 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_config_key_does_not_exist_at_search_path() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = search_path.join("package.json");
@@ -274,7 +277,7 @@ mod tests {
 
     #[test]
     fn returns_an_error_when_config_key_does_not_exist_at_project_root() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = project_root.join("package.json");
@@ -300,7 +303,7 @@ mod tests {
 
     #[test]
     fn returns_package_config_at_search_path() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = search_path.join("package.json");
@@ -323,7 +326,7 @@ mod tests {
 
     #[test]
     fn returns_package_config_at_project_root() {
-      let fs = Rc::new(InMemoryFileSystem::default());
+      let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
       let package_path = project_root.join("package.json");
