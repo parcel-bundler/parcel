@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 use crate::types::Bundle;
 
@@ -10,20 +9,13 @@ use crate::types::Bundle;
 /// Namers run in a pipeline until one returns a result.
 ///
 pub trait NamerPlugin: Debug {
-  /// A hook designed to setup config needed for naming bundles
-  ///
-  /// This function will run once, shortly after the plugin is initialised.
-  ///
-  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
-
   /// Names the given bundle
   ///
   /// The returned file path should be relative to the target dist directory, and will be used to
   /// name the bundle. Naming can be forwarded onto the next plugin by returning None.
   ///
   fn name(
-    &mut self,
-    config: &PluginConfig,
+    &self,
     bundle: &Bundle,
     bundle_graph: &BundleGraph,
   ) -> Result<Option<PathBuf>, anyhow::Error>;
@@ -37,13 +29,8 @@ mod tests {
   struct TestNamerPlugin {}
 
   impl NamerPlugin for TestNamerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-      todo!()
-    }
-
     fn name(
-      &mut self,
-      _config: &PluginConfig,
+      &self,
       _bundle: &Bundle,
       _bundle_graph: &BundleGraph,
     ) -> Result<Option<PathBuf>, anyhow::Error> {

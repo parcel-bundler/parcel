@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::fs::File;
 
-use super::PluginConfig;
 use crate::bundle_graph::BundleGraph;
 use crate::types::Bundle;
 use crate::types::SourceMap;
@@ -25,18 +24,8 @@ pub struct PackagedBundle {
 /// source maps.
 ///
 pub trait PackagerPlugin: Debug + Send + Sync {
-  /// A hook designed to setup config needed for packaging
-  ///
-  /// This function will run once, shortly after the plugin is initialised.
-  ///
-  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
-
   /// Combines assets in a bundle
-  fn package(
-    &mut self,
-    config: &PluginConfig,
-    ctx: PackageContext,
-  ) -> Result<PackagedBundle, anyhow::Error>;
+  fn package(&self, ctx: PackageContext) -> Result<PackagedBundle, anyhow::Error>;
 }
 
 #[cfg(test)]
@@ -47,15 +36,7 @@ mod tests {
   struct TestPackagerPlugin {}
 
   impl PackagerPlugin for TestPackagerPlugin {
-    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
-      todo!()
-    }
-
-    fn package(
-      &mut self,
-      _config: &PluginConfig,
-      _ctx: PackageContext,
-    ) -> Result<PackagedBundle, anyhow::Error> {
+    fn package(&self, _ctx: PackageContext) -> Result<PackagedBundle, anyhow::Error> {
       todo!()
     }
   }
