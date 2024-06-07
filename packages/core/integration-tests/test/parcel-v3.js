@@ -31,10 +31,28 @@ describe('parcel-v3', function () {
         isFile: (_, path) => inputFS.statSync(path).isFile(),
         isDir: (_, path) => inputFS.statSync(path).isDirectory(),
       },
+      rpc: rpc_wrapper(async (id, data) => {
+        console.log(id, data);
+        return undefined;
+      }),
     });
 
     assert(typeof (await p.testingTempFsReadToString(__filename)) === 'string');
     assert(!(await p.testingTempFsIsDir(__filename)));
     assert(await p.testingTempFsIsFile(__filename));
+    assert.doesNotThrow(async () => await p.testingRpcPing());
   });
 });
+
+// shim for Rpc types
+const rpc_wrapper = callback => async (err, id, data, done) => {
+  if (err) {
+    done({Err: err});
+    return;
+  }
+  try {
+    done({Ok: (await callback(id, data)) ?? undefined});
+  } catch (error) {
+    done({Err: error});
+  }
+};
