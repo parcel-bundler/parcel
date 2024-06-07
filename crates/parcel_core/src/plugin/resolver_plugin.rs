@@ -1,6 +1,10 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use dyn_hash::DynHash;
+
+use crate::request_tracker::Invalidation;
 use crate::types::Dependency;
 use crate::types::JSONObject;
 use crate::types::Priority;
@@ -8,13 +12,13 @@ use crate::types::Priority;
 // TODO Diagnostics and invalidations
 
 pub struct ResolveContext {
-  pub specifier: String,
-  pub dependency: Dependency,
+  pub dependency: Arc<Dependency>,
   pub pipeline: Option<String>,
+  pub specifier: String,
 }
 
-#[derive(Debug, Default, PartialEq)]
-pub struct Resolution {
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ResolvedResolution {
   /// Whether this dependency can be deferred by Parcel itself
   pub can_defer: bool,
 
@@ -27,43 +31,59 @@ pub struct Resolution {
   /// An absolute path to the resolved file
   pub file_path: PathBuf,
 
-  /// Whether the resolved file should be excluded from the build
-  pub is_excluded: bool,
-
   /// Is spread (shallowly merged) onto the request's dependency.meta
-  pub meta: JSONObject,
+  pub meta: Option<JSONObject>,
 
-  /// An optional named pipeline to use to compile the resolved file
+  /// An optional named pipeline to compile the resolved file
   pub pipeline: Option<String>,
 
   /// Overrides the priority set on the dependency
   pub priority: Option<Priority>,
 
-  /// Corresponds to the asset side effects
-  pub side_effects: bool,
-
   /// Query parameters to be used by transformers when compiling the resolved file
   pub query: Option<String>,
+
+  /// Corresponds to the asset side effects
+  pub side_effects: bool,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Resolution {
+  /// Indicates the dependency was not resolved
+  Unresolved,
+
+  /// Whether the resolved file should be excluded from the build
+  Excluded,
+
+  Resolved(ResolvedResolution),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Resolved {
+  pub invalidations: Vec<Invalidation>,
+  pub resolution: Resolution,
 }
 
 /// Converts a dependency specifier into a file path that will be processed by transformers
 ///
 /// Resolvers run in a pipeline until one of them return a result.
 ///
-pub trait ResolverPlugin: Debug + Send + Sync {
+pub trait ResolverPlugin: Debug + DynHash + Send + Sync {
   /// Determines what the dependency specifier resolves to
-  fn resolve(&self, ctx: &ResolveContext) -> Result<Resolution, anyhow::Error>;
+  fn resolve(&self, ctx: ResolveContext) -> Result<Resolved, anyhow::Error>;
 }
+
+dyn_hash::hash_trait_object!(ResolverPlugin);
 
 #[cfg(test)]
 mod tests {
   use super::*;
 
-  #[derive(Debug)]
+  #[derive(Debug, Hash)]
   struct TestResolverPlugin {}
 
   impl ResolverPlugin for TestResolverPlugin {
-    fn resolve(&self, _ctx: &ResolveContext) -> Result<Resolution, anyhow::Error> {
+    fn resolve(&self, _ctx: ResolveContext) -> Result<Resolved, anyhow::Error> {
       todo!()
     }
   }

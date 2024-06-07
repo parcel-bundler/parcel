@@ -4,9 +4,6 @@ version = "0.1.0"
 edition = "2021"
 description = "Resolver Plugin for the Parcel Bundler"
 
-[lib]
-path = "./src/lib.rs"
-
 [dependencies]
 parcel_core = { path = "../parcel_core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }

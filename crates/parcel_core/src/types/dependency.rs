@@ -17,7 +17,7 @@ use super::symbol::Symbol;
 use super::target::Target;
 
 /// A dependency denotes a connection between two assets
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   /// Controls the behavior of the bundle the resolved asset is placed into
@@ -124,19 +124,22 @@ impl Dependency {
   }
 
   pub fn id(&self) -> u64 {
-    // Compute hashed dependency id
     let mut hasher = AHasher::default();
-
-    self.bundle_behavior.hash(&mut hasher);
-    self.env.hash(&mut hasher);
-    self.package_conditions.hash(&mut hasher);
-    self.pipeline.hash(&mut hasher);
-    self.priority.hash(&mut hasher);
-    self.source_path.hash(&mut hasher);
-    self.specifier.hash(&mut hasher);
-    self.specifier_type.hash(&mut hasher);
-
+    self.hash(&mut hasher);
     hasher.finish()
+  }
+}
+
+impl Hash for Dependency {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.bundle_behavior.hash(state);
+    self.env.hash(state);
+    self.package_conditions.hash(state);
+    self.pipeline.hash(state);
+    self.priority.hash(state);
+    self.source_path.hash(state);
+    self.specifier.hash(state);
+    self.specifier_type.hash(state);
   }
 }
 
