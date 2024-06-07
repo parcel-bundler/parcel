@@ -4,19 +4,19 @@ use parcel_core::plugin::BundlerPlugin;
 use parcel_core::plugin::PluginContext;
 
 #[derive(Debug)]
-pub struct PluginBundlerRpc {
+pub struct RpcBundlerPlugin {
   name: String,
 }
 
-impl PluginBundlerRpc {
+impl RpcBundlerPlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(PluginBundlerRpc {
+    Ok(RpcBundlerPlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl BundlerPlugin for PluginBundlerRpc {
+impl BundlerPlugin for RpcBundlerPlugin {
   fn bundle(&self, bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error> {
     todo!()
   }

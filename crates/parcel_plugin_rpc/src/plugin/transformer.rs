@@ -8,19 +8,19 @@ use parcel_core::plugin::AST;
 use parcel_core::types::Asset;
 
 #[derive(Debug)]
-pub struct PluginTransformerRpc {
+pub struct RpcTransformerPlugin {
   name: String,
 }
 
-impl PluginTransformerRpc {
+impl RpcTransformerPlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(PluginTransformerRpc {
+    Ok(RpcTransformerPlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl TransformerPlugin for PluginTransformerRpc {
+impl TransformerPlugin for RpcTransformerPlugin {
   fn can_reuse_ast(&self, ast: AST) -> bool {
     todo!()
   }

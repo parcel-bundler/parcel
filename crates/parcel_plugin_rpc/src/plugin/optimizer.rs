@@ -5,19 +5,19 @@ use parcel_core::plugin::OptimizerPlugin;
 use parcel_core::plugin::PluginContext;
 
 #[derive(Debug)]
-pub struct PluginOptimizerRpc {
+pub struct RpcOptimizerPlugin {
   name: String,
 }
 
-impl PluginOptimizerRpc {
+impl RpcOptimizerPlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(PluginOptimizerRpc {
+    Ok(RpcOptimizerPlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl OptimizerPlugin for PluginOptimizerRpc {
+impl OptimizerPlugin for RpcOptimizerPlugin {
   fn optimize(&self, ctx: OptimizeContext) -> Result<OptimizedBundle, anyhow::Error> {
     todo!()
   }

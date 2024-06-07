@@ -6,19 +6,19 @@ use parcel_core::plugin::RuntimePlugin;
 use parcel_core::types::Bundle;
 
 #[derive(Debug)]
-pub struct PluginRuntimeRpc {
+pub struct RpcRuntimePlugin {
   name: String,
 }
 
-impl PluginRuntimeRpc {
+impl RpcRuntimePlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(PluginRuntimeRpc {
+    Ok(RpcRuntimePlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl RuntimePlugin for PluginRuntimeRpc {
+impl RuntimePlugin for RpcRuntimePlugin {
   fn apply(
     &self,
     bundle: Bundle,

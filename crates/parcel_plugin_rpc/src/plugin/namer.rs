@@ -5,19 +5,19 @@ use parcel_core::plugin::PluginContext;
 use parcel_core::types::Bundle;
 
 #[derive(Debug)]
-pub struct PluginNamerRpc {
+pub struct RpcNamerPlugin {
   name: String,
 }
 
-impl PluginNamerRpc {
+impl RpcNamerPlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(PluginNamerRpc {
+    Ok(RpcNamerPlugin {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl NamerPlugin for PluginNamerRpc {
+impl NamerPlugin for RpcNamerPlugin {
   fn name(
     &self,
     bundle: &Bundle,

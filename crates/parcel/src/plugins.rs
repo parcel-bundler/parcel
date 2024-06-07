@@ -15,15 +15,15 @@ use parcel_core::plugin::RuntimePlugin;
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::ValidatorPlugin;
 use parcel_plugin_resolver::ParcelResolver;
-use parcel_plugin_rpc::plugin::PluginBundlerRpc;
-use parcel_plugin_rpc::plugin::PluginCompressorRpc;
-use parcel_plugin_rpc::plugin::PluginNamerRpc;
-use parcel_plugin_rpc::plugin::PluginOptimizerRpc;
-use parcel_plugin_rpc::plugin::PluginPackagerRpc;
-use parcel_plugin_rpc::plugin::PluginReporterRpc;
-use parcel_plugin_rpc::plugin::PluginResolverRpc;
-use parcel_plugin_rpc::plugin::PluginRuntimeRpc;
-use parcel_plugin_rpc::plugin::PluginTransformerRpc;
+use parcel_plugin_rpc::plugin::RpcBundlerPlugin;
+use parcel_plugin_rpc::plugin::RpcCompressorPlugin;
+use parcel_plugin_rpc::plugin::RpcNamerPlugin;
+use parcel_plugin_rpc::plugin::RpcOptimizerPlugin;
+use parcel_plugin_rpc::plugin::RpcPackagerPlugin;
+use parcel_plugin_rpc::plugin::RpcReporterPlugin;
+use parcel_plugin_rpc::plugin::RpcResolverPlugin;
+use parcel_plugin_rpc::plugin::RpcRuntimePlugin;
+use parcel_plugin_rpc::plugin::RpcTransformerPlugin;
 use parcel_plugin_transformer_js::ParcelTransformerJs;
 
 // TODO Implement specifics of injecting env for napi plugins
@@ -56,7 +56,7 @@ impl<'a> Plugins<'a> {
   }
 
   pub fn bundler(&self) -> Result<Box<dyn BundlerPlugin>, anyhow::Error> {
-    Ok(Box::new(PluginBundlerRpc::new(
+    Ok(Box::new(RpcBundlerPlugin::new(
       self.ctx,
       &self.config.bundler,
     )?))
@@ -66,7 +66,7 @@ impl<'a> Plugins<'a> {
     let mut compressors: Vec<Box<dyn CompressorPlugin>> = Vec::new();
 
     for compressor in self.config.compressors.get(path).iter() {
-      compressors.push(Box::new(PluginCompressorRpc::new(self.ctx, compressor)));
+      compressors.push(Box::new(RpcCompressorPlugin::new(self.ctx, compressor)));
     }
 
     if compressors.is_empty() {
@@ -80,7 +80,7 @@ impl<'a> Plugins<'a> {
     let mut namers: Vec<Box<dyn NamerPlugin>> = Vec::new();
 
     for namer in self.config.namers.iter() {
-      namers.push(Box::new(PluginNamerRpc::new(self.ctx, namer)?));
+      namers.push(Box::new(RpcNamerPlugin::new(self.ctx, namer)?));
     }
 
     Ok(namers)
@@ -98,7 +98,7 @@ impl<'a> Plugins<'a> {
     });
 
     for optimizer in self.config.optimizers.get(path, named_pattern).iter() {
-      optimizers.push(Box::new(PluginOptimizerRpc::new(self.ctx, optimizer)?));
+      optimizers.push(Box::new(RpcOptimizerPlugin::new(self.ctx, optimizer)?));
     }
 
     Ok(optimizers)
@@ -109,7 +109,7 @@ impl<'a> Plugins<'a> {
 
     match packager {
       None => Err(self.missing_plugin(path, "packager")),
-      Some(packager) => Ok(Box::new(PluginPackagerRpc::new(self.ctx, packager)?)),
+      Some(packager) => Ok(Box::new(RpcPackagerPlugin::new(self.ctx, packager)?)),
     }
   }
 
@@ -117,7 +117,7 @@ impl<'a> Plugins<'a> {
     let mut reporters: Vec<Box<dyn ReporterPlugin>> = Vec::new();
 
     for reporter in self.config.reporters.iter() {
-      reporters.push(Box::new(PluginReporterRpc::new(self.ctx, reporter)));
+      reporters.push(Box::new(RpcReporterPlugin::new(self.ctx, reporter)));
     }
 
     reporters
@@ -132,7 +132,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      resolvers.push(Box::new(PluginResolverRpc::new(self.ctx, resolver)?));
+      resolvers.push(Box::new(RpcResolverPlugin::new(self.ctx, resolver)?));
     }
 
     Ok(resolvers)
@@ -142,7 +142,7 @@ impl<'a> Plugins<'a> {
     let mut runtimes: Vec<Box<dyn RuntimePlugin>> = Vec::new();
 
     for runtime in self.config.runtimes.iter() {
-      runtimes.push(Box::new(PluginRuntimeRpc::new(self.ctx, runtime)?));
+      runtimes.push(Box::new(RpcRuntimePlugin::new(self.ctx, runtime)?));
     }
 
     Ok(runtimes)
@@ -165,7 +165,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      transformers.push(Box::new(PluginTransformerRpc::new(self.ctx, transformer)?));
+      transformers.push(Box::new(RpcTransformerPlugin::new(self.ctx, transformer)?));
     }
 
     if transformers.is_empty() {

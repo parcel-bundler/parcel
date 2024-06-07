@@ -4,19 +4,19 @@ use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::ReporterPlugin;
 
 #[derive(Debug)]
-pub struct PluginReporterRpc {
+pub struct RpcReporterPlugin {
   name: String,
 }
 
-impl PluginReporterRpc {
+impl RpcReporterPlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Self {
-    PluginReporterRpc {
+    RpcReporterPlugin {
       name: plugin.package_name.clone(),
     }
   }
 }
 
-impl ReporterPlugin for PluginReporterRpc {
+impl ReporterPlugin for RpcReporterPlugin {
   fn report(&self, event: ReporterEvent) -> Result<(), anyhow::Error> {
     todo!()
   }

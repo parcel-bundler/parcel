@@ -5,15 +5,15 @@ use parcel_core::plugin::ResolveContext;
 use parcel_core::plugin::ResolverPlugin;
 
 #[derive(Debug)]
-pub struct PluginResolverRpc {}
+pub struct RpcResolverPlugin {}
 
-impl PluginResolverRpc {
+impl RpcResolverPlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(PluginResolverRpc {})
+    Ok(RpcResolverPlugin {})
   }
 }
 
-impl ResolverPlugin for PluginResolverRpc {
+impl ResolverPlugin for RpcResolverPlugin {
   fn resolve(&self, ctx: &ResolveContext) -> Result<Resolution, anyhow::Error> {
     todo!()
   }

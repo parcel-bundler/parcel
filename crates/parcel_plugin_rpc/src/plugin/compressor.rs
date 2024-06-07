@@ -6,19 +6,19 @@ use parcel_core::plugin::CompressorPlugin;
 use parcel_core::plugin::PluginContext;
 
 #[derive(Debug)]
-pub struct PluginCompressorRpc {
+pub struct RpcCompressorPlugin {
   name: String,
 }
 
-impl PluginCompressorRpc {
+impl RpcCompressorPlugin {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Self {
-    PluginCompressorRpc {
+    RpcCompressorPlugin {
       name: plugin.package_name.clone(),
     }
   }
 }
 
-impl CompressorPlugin for PluginCompressorRpc {
+impl CompressorPlugin for RpcCompressorPlugin {
   fn compress(&self, _file: &File) -> Result<Option<CompressedFile>, String> {
     todo!()
   }
