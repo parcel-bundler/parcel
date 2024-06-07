@@ -15,17 +15,16 @@ use parcel_core::plugin::RuntimePlugin;
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::ValidatorPlugin;
 use parcel_plugin_resolver::ParcelResolver;
+use parcel_plugin_rpc::plugin::RpcBundlerPlugin;
+use parcel_plugin_rpc::plugin::RpcCompressorPlugin;
+use parcel_plugin_rpc::plugin::RpcNamerPlugin;
+use parcel_plugin_rpc::plugin::RpcOptimizerPlugin;
+use parcel_plugin_rpc::plugin::RpcPackagerPlugin;
+use parcel_plugin_rpc::plugin::RpcReporterPlugin;
+use parcel_plugin_rpc::plugin::RpcResolverPlugin;
+use parcel_plugin_rpc::plugin::RpcRuntimePlugin;
+use parcel_plugin_rpc::plugin::RpcTransformerPlugin;
 use parcel_plugin_transformer_js::ParcelTransformerJs;
-
-use crate::napi::NapiBundlerPlugin;
-use crate::napi::NapiCompressorPlugin;
-use crate::napi::NapiNamerPlugin;
-use crate::napi::NapiOptimizerPlugin;
-use crate::napi::NapiPackagerPlugin;
-use crate::napi::NapiReporterPlugin;
-use crate::napi::NapiResolverPlugin;
-use crate::napi::NapiRuntimePlugin;
-use crate::napi::NapiTransformerPlugin;
 
 // TODO Implement specifics of injecting env for napi plugins
 
@@ -57,7 +56,7 @@ impl<'a> Plugins<'a> {
   }
 
   pub fn bundler(&self) -> Result<Box<dyn BundlerPlugin>, anyhow::Error> {
-    Ok(Box::new(NapiBundlerPlugin::new(
+    Ok(Box::new(RpcBundlerPlugin::new(
       self.ctx,
       &self.config.bundler,
     )?))
@@ -67,7 +66,7 @@ impl<'a> Plugins<'a> {
     let mut compressors: Vec<Box<dyn CompressorPlugin>> = Vec::new();
 
     for compressor in self.config.compressors.get(path).iter() {
-      compressors.push(Box::new(NapiCompressorPlugin::new(self.ctx, compressor)));
+      compressors.push(Box::new(RpcCompressorPlugin::new(self.ctx, compressor)));
     }
 
     if compressors.is_empty() {
@@ -81,7 +80,7 @@ impl<'a> Plugins<'a> {
     let mut namers: Vec<Box<dyn NamerPlugin>> = Vec::new();
 
     for namer in self.config.namers.iter() {
-      namers.push(Box::new(NapiNamerPlugin::new(self.ctx, namer)?));
+      namers.push(Box::new(RpcNamerPlugin::new(self.ctx, namer)?));
     }
 
     Ok(namers)
@@ -99,7 +98,7 @@ impl<'a> Plugins<'a> {
     });
 
     for optimizer in self.config.optimizers.get(path, named_pattern).iter() {
-      optimizers.push(Box::new(NapiOptimizerPlugin::new(self.ctx, optimizer)?));
+      optimizers.push(Box::new(RpcOptimizerPlugin::new(self.ctx, optimizer)?));
     }
 
     Ok(optimizers)
@@ -110,7 +109,7 @@ impl<'a> Plugins<'a> {
 
     match packager {
       None => Err(self.missing_plugin(path, "packager")),
-      Some(packager) => Ok(Box::new(NapiPackagerPlugin::new(self.ctx, packager)?)),
+      Some(packager) => Ok(Box::new(RpcPackagerPlugin::new(self.ctx, packager)?)),
     }
   }
 
@@ -118,7 +117,7 @@ impl<'a> Plugins<'a> {
     let mut reporters: Vec<Box<dyn ReporterPlugin>> = Vec::new();
 
     for reporter in self.config.reporters.iter() {
-      reporters.push(Box::new(NapiReporterPlugin::new(self.ctx, reporter)));
+      reporters.push(Box::new(RpcReporterPlugin::new(self.ctx, reporter)));
     }
 
     reporters
@@ -133,7 +132,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      resolvers.push(Box::new(NapiResolverPlugin::new(self.ctx, resolver)?));
+      resolvers.push(Box::new(RpcResolverPlugin::new(self.ctx, resolver)?));
     }
 
     Ok(resolvers)
@@ -143,7 +142,7 @@ impl<'a> Plugins<'a> {
     let mut runtimes: Vec<Box<dyn RuntimePlugin>> = Vec::new();
 
     for runtime in self.config.runtimes.iter() {
-      runtimes.push(Box::new(NapiRuntimePlugin::new(self.ctx, runtime)?));
+      runtimes.push(Box::new(RpcRuntimePlugin::new(self.ctx, runtime)?));
     }
 
     Ok(runtimes)
@@ -166,7 +165,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      transformers.push(Box::new(NapiTransformerPlugin::new(self.ctx, transformer)?));
+      transformers.push(Box::new(RpcTransformerPlugin::new(self.ctx, transformer)?));
     }
 
     if transformers.is_empty() {
@@ -218,91 +217,72 @@ mod tests {
 
   #[test]
   fn returns_bundler() {
-    let bundler = plugins(&ctx()).bundler();
+    let bundler = plugins(&ctx()).bundler().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", bundler),
-      "Ok(NapiBundlerPlugin { name: \"@parcel/bundler-default\" })"
-    )
+    assert_eq!(format!("{:?}", bundler), "RpcBundlerPlugin")
   }
 
   #[test]
   fn returns_compressors() {
-    let compressors = plugins(&ctx()).compressors(Path::new("a.js"));
+    let compressors = plugins(&ctx())
+      .compressors(Path::new("a.js"))
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", compressors),
-      "Ok([NapiCompressorPlugin { name: \"@parcel/compressor-raw\" }])"
-    )
+    assert_eq!(format!("{:?}", compressors), "[RpcCompressorPlugin]")
   }
 
   #[test]
   fn returns_namers() {
-    let namers = plugins(&ctx()).namers();
+    let namers = plugins(&ctx()).namers().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", namers),
-      "Ok([NapiNamerPlugin { name: \"@parcel/namer-default\" }])"
-    )
+    assert_eq!(format!("{:?}", namers), "[RpcNamerPlugin]")
   }
 
   #[test]
   fn returns_optimizers() {
-    let optimizers = plugins(&ctx()).optimizers(Path::new("a.js"), None);
+    let optimizers = plugins(&ctx())
+      .optimizers(Path::new("a.js"), None)
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", optimizers),
-      "Ok([NapiOptimizerPlugin { name: \"@parcel/optimizer-swc\" }])"
-    )
+    assert_eq!(format!("{:?}", optimizers), "[RpcOptimizerPlugin]")
   }
 
   #[test]
   fn returns_packager() {
-    let packager = plugins(&ctx()).packager(Path::new("a.js"));
+    let packager = plugins(&ctx())
+      .packager(Path::new("a.js"))
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", packager),
-      "Ok(NapiPackagerPlugin { name: \"@parcel/packager-js\" })"
-    )
+    assert_eq!(format!("{:?}", packager), "RpcPackagerPlugin")
   }
 
   #[test]
   fn returns_reporters() {
     let reporters = plugins(&ctx()).reporters();
 
-    assert_eq!(
-      format!("{:?}", reporters),
-      "[NapiReporterPlugin { name: \"@parcel/reporter-dev-server\" }]"
-    )
+    assert_eq!(format!("{:?}", reporters), "[RpcReporterPlugin]")
   }
 
   #[test]
   fn returns_resolvers() {
-    let resolvers = plugins(&ctx()).resolvers();
+    let resolvers = plugins(&ctx()).resolvers().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", resolvers),
-      "Ok([ParcelResolver { cache: Cache, project_root: \"\", mode: Development }])"
-    )
+    assert_eq!(format!("{:?}", resolvers), "[ParcelResolver]")
   }
 
   #[test]
   fn returns_runtimes() {
-    let runtimes = plugins(&ctx()).runtimes();
+    let runtimes = plugins(&ctx()).runtimes().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", runtimes),
-      "Ok([NapiRuntimePlugin { name: \"@parcel/runtime-js\" }])"
-    )
+    assert_eq!(format!("{:?}", runtimes), "[RpcRuntimePlugin]")
   }
 
   #[test]
   fn returns_transformers() {
-    let transformers = plugins(&ctx()).transformers(Path::new("a.ts"), None);
+    let transformers = plugins(&ctx())
+      .transformers(Path::new("a.ts"), None)
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", transformers),
-      "Ok([NapiTransformerPlugin { name: \"@parcel/transformer-js\" }])"
-    )
+    assert_eq!(format!("{:?}", transformers), "[RpcTransformerPlugin]")
   }
 }

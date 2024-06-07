@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::fmt;
+use std::fmt::Debug;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -18,12 +20,17 @@ use parcel_resolver::IncludeNodeModules;
 use parcel_resolver::ResolveOptions;
 use parcel_resolver::Resolver;
 
-#[derive(Debug)]
 pub struct ParcelResolver {
   cache: Cache,
   // TODO: These should probably be references instead?
   project_root: PathBuf,
   mode: BuildMode,
+}
+
+impl Debug for ParcelResolver {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "ParcelResolver")
+  }
 }
 
 impl ParcelResolver {

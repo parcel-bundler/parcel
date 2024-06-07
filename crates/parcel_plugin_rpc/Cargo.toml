@@ -1,0 +1,14 @@
+[package]
+name = "parcel_plugin_rpc"
+version = "0.1.0"
+edition = "2021"
+description = "Parcel Bundler"
+
+[features]
+nodejs = []
+
+[dependencies]
+parcel_config = { path = "../parcel_config" }
+parcel_core = { path = "../parcel_core" }
+
+anyhow = "1.0.82"

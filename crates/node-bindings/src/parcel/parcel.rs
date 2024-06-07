@@ -7,6 +7,7 @@ use napi_derive::napi;
 use parcel::file_system::FileSystemRef;
 use parcel::Parcel;
 use parcel::ParcelOptions;
+use parcel_plugin_rpc::nodejs::RpcHostNodejs;
 
 use crate::file_system::FileSystemNapi;
 
@@ -24,6 +25,8 @@ impl ParcelNapi {
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");
 
+    let rpc_host_nodejs = RpcHostNodejs::new();
+
     let mut fs = None::<FileSystemRef>;
 
     if options.has_named_property("fs")? {
@@ -31,7 +34,10 @@ impl ParcelNapi {
       fs.replace(Arc::new(FileSystemNapi::new(&env, fs_raw)?));
     }
 
-    let parcel = Parcel::new(ParcelOptions { fs });
+    let parcel = Parcel::new(ParcelOptions {
+      fs,
+      rpc: Some(Arc::new(rpc_host_nodejs)),
+    });
 
     Ok(Self {
       internal: Arc::new(parcel),
