@@ -221,7 +221,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", bundler),
-      "Ok(NapiBundlerPlugin { name: \"@parcel/bundler-default\" })"
+      "Ok(RpcBundlerPlugin { name: \"@parcel/bundler-default\" })"
     )
   }
 
@@ -231,7 +231,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", compressors),
-      "Ok([NapiCompressorPlugin { name: \"@parcel/compressor-raw\" }])"
+      "Ok([RpcCompressorPlugin { name: \"@parcel/compressor-raw\" }])"
     )
   }
 
@@ -241,7 +241,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", namers),
-      "Ok([NapiNamerPlugin { name: \"@parcel/namer-default\" }])"
+      "Ok([RpcNamerPlugin { name: \"@parcel/namer-default\" }])"
     )
   }
 
@@ -251,7 +251,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", optimizers),
-      "Ok([NapiOptimizerPlugin { name: \"@parcel/optimizer-swc\" }])"
+      "Ok([RpcOptimizerPlugin { name: \"@parcel/optimizer-swc\" }])"
     )
   }
 
@@ -261,7 +261,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", packager),
-      "Ok(NapiPackagerPlugin { name: \"@parcel/packager-js\" })"
+      "Ok(RpcPackagerPlugin { name: \"@parcel/packager-js\" })"
     )
   }
 
@@ -271,7 +271,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", reporters),
-      "[NapiReporterPlugin { name: \"@parcel/reporter-dev-server\" }]"
+      "[RpcReporterPlugin { name: \"@parcel/reporter-dev-server\" }]"
     )
   }
 
@@ -291,7 +291,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", runtimes),
-      "Ok([NapiRuntimePlugin { name: \"@parcel/runtime-js\" }])"
+      "Ok([RpcRuntimePlugin { name: \"@parcel/runtime-js\" }])"
     )
   }
 
@@ -301,7 +301,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", transformers),
-      "Ok([NapiTransformerPlugin { name: \"@parcel/transformer-js\" }])"
+      "Ok([RpcTransformerPlugin { name: \"@parcel/transformer-js\" }])"
     )
   }
 }
