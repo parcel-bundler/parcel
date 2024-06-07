@@ -5,7 +5,7 @@ edition = "2021"
 description = "Parcel Bundler"
 
 [features]
-nodejs = ["dep:napi"]
+nodejs = ["dep:napi", "dep:serde"]
 
 [dependencies]
 parcel_config = { path = "../parcel_config" }
@@ -13,4 +13,4 @@ parcel_core = { path = "../parcel_core" }
 
 anyhow = "1.0.82"
 napi = { version = "2.16.4", features = ["serde"], optional = true }
-serde = { version = "1.0.198" }
+serde = { version = "1.0.198", optional = true }

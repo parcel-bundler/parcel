@@ -22,8 +22,8 @@ pub struct RpcHostNodejs {
 
 impl RpcHostNodejs {
   pub fn new(env: &Env, callback: JsFunction) -> napi::Result<Self> {
-    // Create a threadsafe function that casts the incoming message data to
-    // something accessible in JavaScript. The function accepts from a JS callback
+    // Create a threadsafe function that casts the incoming message data to something
+    // accessible in JavaScript. The function accepts a return value from a JS callback
     let threadsafe_function: ThreadsafeFunction<RpcHostMessage> = env.create_threadsafe_function(
       &callback,
       0,
