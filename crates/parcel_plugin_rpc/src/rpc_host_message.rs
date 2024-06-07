@@ -1,5 +1,7 @@
-pub enum RpcHostMessage {
-  Ping(RpcHostMessagePing),
-}
+use std::sync::mpsc::Sender;
 
-pub struct RpcHostMessagePing {}
+pub enum RpcHostMessage {
+  Ping {
+    response: Sender<Result<(), String>>,
+  },
+}

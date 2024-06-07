@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use crate::RpcHostMessage;
-use crate::RpcHostResponse;
+use anyhow;
 
 pub type RpcHostRef = Arc<dyn RpcHost>;
 
 pub trait RpcHost: Send + Sync {
-  fn send(&self, message: RpcHostMessage) -> RpcHostResponse;
+  fn ping(&self) -> anyhow::Result<()>;
 }

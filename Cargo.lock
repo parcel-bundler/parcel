@@ -1909,8 +1909,10 @@ name = "parcel_plugin_rpc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "napi",
  "parcel_config",
  "parcel_core",
+ "serde",
 ]
 
 [[package]]
