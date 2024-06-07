@@ -8,9 +8,9 @@ use std::thread;
 use napi::Env;
 use napi::JsObject;
 use napi_derive::napi;
+use parcel::rpc::nodejs::RpcHostNodejs;
 use parcel::Parcel;
 use parcel::ParcelOptions;
-use parcel_plugin_rpc::nodejs::RpcHostNodejs;
 
 use crate::file_system::FileSystemNapi;
 

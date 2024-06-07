@@ -1800,7 +1800,6 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel-macros",
  "parcel-resolver",
- "parcel_plugin_rpc",
  "parking_lot",
  "rayon",
  "sentry",
