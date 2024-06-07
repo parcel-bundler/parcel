@@ -16,8 +16,10 @@ export interface ConfigRequest {
 }
 export interface RequestOptions {}
 
+
 export interface ParcelNapiOptions {
   fs?: any;
+  rpc?: (error: any, id: number, data: any, done: (value: {| Ok: any |} | {| Err: any |}) => any) => any | Promise<any>;
 }
 
 declare export class ParcelNapi {
@@ -25,6 +27,7 @@ declare export class ParcelNapi {
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;
   testingTempFsIsFile(path: string): boolean;
+  testingRpcPing(): void;
 }
 
 declare export function initSentry(): void;
