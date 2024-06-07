@@ -188,6 +188,7 @@ impl<'a> Plugins<'a> {
 mod tests {
   use std::path::PathBuf;
   use std::rc::Rc;
+  use std::sync::Arc;
 
   use parcel_config::parcel_config_fixtures::default_config;
   use parcel_core::plugin::PluginConfig;
@@ -200,7 +201,7 @@ mod tests {
   fn ctx() -> PluginContext {
     PluginContext {
       config: PluginConfig::new(
-        Rc::new(InMemoryFileSystem::default()),
+        Arc::new(InMemoryFileSystem::default()),
         PathBuf::default(),
         PathBuf::default(),
       ),
@@ -267,10 +268,10 @@ mod tests {
 
   #[test]
   fn returns_reporters() {
-    let resolvers = plugins(&ctx()).reporters();
+    let reporters = plugins(&ctx()).reporters();
 
     assert_eq!(
-      format!("{:?}", resolvers),
+      format!("{:?}", reporters),
       "[NapiReporterPlugin { name: \"@parcel/reporter-dev-server\" }]"
     )
   }
@@ -279,7 +280,10 @@ mod tests {
   fn returns_resolvers() {
     let resolvers = plugins(&ctx()).resolvers();
 
-    assert_eq!(format!("{:?}", resolvers), "Ok([ParcelResolver])")
+    assert_eq!(
+      format!("{:?}", resolvers),
+      "Ok([ParcelResolver { cache: Cache, project_root: \"\", mode: Development }])"
+    )
   }
 
   #[test]

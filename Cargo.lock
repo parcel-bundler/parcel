@@ -1897,7 +1897,9 @@ name = "parcel_plugin_resolver"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "parcel-resolver",
  "parcel_core",
+ "parcel_filesystem",
 ]
 
 [[package]]

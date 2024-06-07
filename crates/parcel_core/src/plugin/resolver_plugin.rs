@@ -13,7 +13,7 @@ pub struct ResolveContext {
   pub pipeline: Option<String>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Resolution {
   /// Whether this dependency can be deferred by Parcel itself
   pub can_defer: bool,

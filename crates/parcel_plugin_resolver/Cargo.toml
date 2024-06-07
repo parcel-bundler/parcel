@@ -9,5 +9,8 @@ path = "./src/lib.rs"
 
 [dependencies]
 parcel_core = { path = "../parcel_core" }
-
+parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 anyhow = "1"
+
+[dev-dependencies]
+parcel_filesystem = { path = "../parcel_filesystem" }

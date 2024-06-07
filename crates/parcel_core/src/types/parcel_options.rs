@@ -16,8 +16,9 @@ pub struct ParcelOptions {
   pub project_root: PathBuf,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum BuildMode {
+  #[default]
   Development,
   Production,
   Other(String),
