@@ -14,63 +14,49 @@ rustls = ["sentry/rustls"]
 openssl = ["sentry/native-tls"]
 
 [dependencies]
-napi-derive = "2.16.3"
+parcel = { path = "../parcel" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parcel_plugin_rpc = { path = "../parcel_plugin_rpc", features = ["nodejs"] }
-parcel = { path = "../parcel" }
-dashmap = "5.4.0"
-xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
-log = "0.4.21"
-tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
 
+anyhow = "1.0.82"
+dashmap = "5.4.0"
 glob = "0.3.1"
+log = "0.4.21"
+mockall = "0.12.1"
+napi-derive = "2.16.3"
+parking_lot = "0.12"
 serde = "1.0.198"
 serde_json = "1.0.116"
 toml = "0.8.12"
-anyhow = "1.0.82"
-mockall = "0.12.1"
-parking_lot = "0.12"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-sentry = { version = "0.32.2", optional = true, default-features = false, features = [
-    "backtrace",
-    "contexts",
-    "panic",
-    "reqwest",
-    "debug-images",
-    "anyhow",
-] }
-whoami = { version = "1.5.1", optional = true }
-once_cell = { version = "1.19.0", optional = true }
-
-napi = { version = "2.16.4", features = [
-    "serde-json",
-    "napi4",
-    "napi5",
-    "async",
-] }
+parcel = { path = "../parcel", features = ["nodejs"] }
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
-oxipng = "8.0.0"
-mozjpeg-sys = "1.0.0"
-libc = "0.2"
-rayon = "1.7.0"
+
 crossbeam-channel = "0.5.6"
 indexmap = "1.9.2"
+libc = "0.2"
+mozjpeg-sys = "1.0.0"
+napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5", "async"] }
+once_cell = { version = "1.19.0", optional = true }
+oxipng = "8.0.0"
+rayon = "1.7.0"
+sentry = { version = "0.32.2", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "debug-images", "anyhow"] }
+whoami = { version = "1.5.1", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-napi = { version = "2.16.4", features = ["serde-json"] }
 getrandom = { version = "0.2", features = ["custom"], default-features = false }
+napi = { version = "2.16.4", features = ["serde-json"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
 [target.'cfg(windows)'.dependencies]
 mimalloc = { version = "0.1.25", default-features = false }
-
-[dev-dependencies]
 
 [build-dependencies]
 napi-build = "2.1.3"

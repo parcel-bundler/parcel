@@ -31,10 +31,37 @@ describe('parcel-v3', function () {
         isFile: (_, path) => inputFS.statSync(path).isFile(),
         isDir: (_, path) => inputFS.statSync(path).isDirectory(),
       },
+      // eslint-disable-next-line no-unused-vars
+      rpc: rpc_wrapper((id, data) => {
+        return undefined;
+      }),
     });
 
     assert(typeof (await p.testingTempFsReadToString(__filename)) === 'string');
     assert(!(await p.testingTempFsIsDir(__filename)));
     assert(await p.testingTempFsIsFile(__filename));
+    assert.doesNotThrow(async () => {
+      await p.testingRpcPing();
+    });
   });
 });
+
+// shim for Rpc types
+const rpc_wrapper =
+  (callback: (id: number, data: any) => any | Promise<any>) =>
+  async (
+    err: any,
+    id: number,
+    data: any,
+    done: (value: {|Ok: any|} | {|Err: any|}) => null,
+  ) => {
+    if (err) {
+      done({Err: err});
+      return;
+    }
+    try {
+      done({Ok: (await callback(id, data)) ?? undefined});
+    } catch (error) {
+      done({Err: error});
+    }
+  };

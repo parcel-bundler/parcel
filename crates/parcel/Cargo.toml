@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "Parcel Bundler"
 
+[features]
+nodejs = ["parcel_plugin_rpc/nodejs"]
+
 [lib]
 path = "./src/lib.rs"
 
