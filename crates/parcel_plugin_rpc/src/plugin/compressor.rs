@@ -6,19 +6,19 @@ use parcel_core::plugin::CompressorPlugin;
 use parcel_core::plugin::PluginContext;
 
 #[derive(Debug)]
-pub struct NapiCompressorPlugin {
+pub struct PluginCompressorRpc {
   name: String,
 }
 
-impl NapiCompressorPlugin {
+impl PluginCompressorRpc {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Self {
-    NapiCompressorPlugin {
+    PluginCompressorRpc {
       name: plugin.package_name.clone(),
     }
   }
 }
 
-impl CompressorPlugin for NapiCompressorPlugin {
+impl CompressorPlugin for PluginCompressorRpc {
   fn compress(&self, _file: &File) -> Result<Option<CompressedFile>, String> {
     todo!()
   }

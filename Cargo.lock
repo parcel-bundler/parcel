@@ -1727,6 +1727,7 @@ dependencies = [
  "parcel_filesystem",
  "parcel_package_manager",
  "parcel_plugin_resolver",
+ "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
 ]
 
@@ -1799,6 +1800,7 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel-macros",
  "parcel-resolver",
+ "parcel_plugin_rpc",
  "parking_lot",
  "rayon",
  "sentry",
@@ -1900,6 +1902,15 @@ dependencies = [
  "parcel-resolver",
  "parcel_core",
  "parcel_filesystem",
+]
+
+[[package]]
+name = "parcel_plugin_rpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "parcel_config",
+ "parcel_core",
 ]
 
 [[package]]

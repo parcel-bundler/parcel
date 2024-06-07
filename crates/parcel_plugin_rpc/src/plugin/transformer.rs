@@ -8,19 +8,19 @@ use parcel_core::plugin::AST;
 use parcel_core::types::Asset;
 
 #[derive(Debug)]
-pub struct NapiTransformerPlugin {
+pub struct PluginTransformerRpc {
   name: String,
 }
 
-impl NapiTransformerPlugin {
+impl PluginTransformerRpc {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(NapiTransformerPlugin {
+    Ok(PluginTransformerRpc {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl TransformerPlugin for NapiTransformerPlugin {
+impl TransformerPlugin for PluginTransformerRpc {
   fn can_reuse_ast(&self, ast: AST) -> bool {
     todo!()
   }

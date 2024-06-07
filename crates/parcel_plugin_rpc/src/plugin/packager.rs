@@ -5,19 +5,19 @@ use parcel_core::plugin::PackagerPlugin;
 use parcel_core::plugin::PluginContext;
 
 #[derive(Debug)]
-pub struct NapiPackagerPlugin {
+pub struct PluginPackagerRpc {
   name: String,
 }
 
-impl NapiPackagerPlugin {
+impl PluginPackagerRpc {
   pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
-    Ok(NapiPackagerPlugin {
+    Ok(PluginPackagerRpc {
       name: plugin.package_name.clone(),
     })
   }
 }
 
-impl PackagerPlugin for NapiPackagerPlugin {
+impl PackagerPlugin for PluginPackagerRpc {
   fn package(&self, ctx: PackageContext) -> Result<PackagedBundle, anyhow::Error> {
     todo!()
   }
