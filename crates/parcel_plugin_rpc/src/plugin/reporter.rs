@@ -1,23 +1,31 @@
+use std::fmt;
+use std::fmt::Debug;
+
 use parcel_config::PluginNode;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::ReporterPlugin;
 
-#[derive(Debug)]
 pub struct RpcReporterPlugin {
-  name: String,
+  _name: String,
+}
+
+impl Debug for RpcReporterPlugin {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "RpcReporterPlugin")
+  }
 }
 
 impl RpcReporterPlugin {
-  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Self {
+  pub fn new(_ctx: &PluginContext, plugin: &PluginNode) -> Self {
     RpcReporterPlugin {
-      name: plugin.package_name.clone(),
+      _name: plugin.package_name.clone(),
     }
   }
 }
 
 impl ReporterPlugin for RpcReporterPlugin {
-  fn report(&self, event: ReporterEvent) -> Result<(), anyhow::Error> {
+  fn report(&self, _event: ReporterEvent) -> Result<(), anyhow::Error> {
     todo!()
   }
 }

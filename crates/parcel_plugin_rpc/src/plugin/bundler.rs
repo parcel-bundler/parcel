@@ -1,27 +1,35 @@
+use std::fmt;
+use std::fmt::Debug;
+
 use parcel_config::PluginNode;
 use parcel_core::bundle_graph::BundleGraph;
 use parcel_core::plugin::BundlerPlugin;
 use parcel_core::plugin::PluginContext;
 
-#[derive(Debug)]
 pub struct RpcBundlerPlugin {
-  name: String,
+  _name: String,
+}
+
+impl Debug for RpcBundlerPlugin {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "RpcBundlerPlugin")
+  }
 }
 
 impl RpcBundlerPlugin {
-  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
+  pub fn new(_ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
     Ok(RpcBundlerPlugin {
-      name: plugin.package_name.clone(),
+      _name: plugin.package_name.clone(),
     })
   }
 }
 
 impl BundlerPlugin for RpcBundlerPlugin {
-  fn bundle(&self, bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error> {
+  fn bundle(&self, _bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error> {
     todo!()
   }
 
-  fn optimize(&self, bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error> {
+  fn optimize(&self, _bundle_graph: &mut BundleGraph) -> Result<(), anyhow::Error> {
     todo!()
   }
 }

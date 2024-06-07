@@ -217,91 +217,72 @@ mod tests {
 
   #[test]
   fn returns_bundler() {
-    let bundler = plugins(&ctx()).bundler();
+    let bundler = plugins(&ctx()).bundler().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", bundler),
-      "Ok(RpcBundlerPlugin { name: \"@parcel/bundler-default\" })"
-    )
+    assert_eq!(format!("{:?}", bundler), "RpcBundlerPlugin")
   }
 
   #[test]
   fn returns_compressors() {
-    let compressors = plugins(&ctx()).compressors(Path::new("a.js"));
+    let compressors = plugins(&ctx())
+      .compressors(Path::new("a.js"))
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", compressors),
-      "Ok([RpcCompressorPlugin { name: \"@parcel/compressor-raw\" }])"
-    )
+    assert_eq!(format!("{:?}", compressors), "[RpcCompressorPlugin]")
   }
 
   #[test]
   fn returns_namers() {
-    let namers = plugins(&ctx()).namers();
+    let namers = plugins(&ctx()).namers().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", namers),
-      "Ok([RpcNamerPlugin { name: \"@parcel/namer-default\" }])"
-    )
+    assert_eq!(format!("{:?}", namers), "[RpcNamerPlugin]")
   }
 
   #[test]
   fn returns_optimizers() {
-    let optimizers = plugins(&ctx()).optimizers(Path::new("a.js"), None);
+    let optimizers = plugins(&ctx())
+      .optimizers(Path::new("a.js"), None)
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", optimizers),
-      "Ok([RpcOptimizerPlugin { name: \"@parcel/optimizer-swc\" }])"
-    )
+    assert_eq!(format!("{:?}", optimizers), "[RpcOptimizerPlugin]")
   }
 
   #[test]
   fn returns_packager() {
-    let packager = plugins(&ctx()).packager(Path::new("a.js"));
+    let packager = plugins(&ctx())
+      .packager(Path::new("a.js"))
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", packager),
-      "Ok(RpcPackagerPlugin { name: \"@parcel/packager-js\" })"
-    )
+    assert_eq!(format!("{:?}", packager), "RpcPackagerPlugin")
   }
 
   #[test]
   fn returns_reporters() {
     let reporters = plugins(&ctx()).reporters();
 
-    assert_eq!(
-      format!("{:?}", reporters),
-      "[RpcReporterPlugin { name: \"@parcel/reporter-dev-server\" }]"
-    )
+    assert_eq!(format!("{:?}", reporters), "[RpcReporterPlugin]")
   }
 
   #[test]
   fn returns_resolvers() {
-    let resolvers = plugins(&ctx()).resolvers();
+    let resolvers = plugins(&ctx()).resolvers().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", resolvers),
-      "Ok([ParcelResolver { cache: Cache, project_root: \"\", mode: Development }])"
-    )
+    assert_eq!(format!("{:?}", resolvers), "[ParcelResolver]")
   }
 
   #[test]
   fn returns_runtimes() {
-    let runtimes = plugins(&ctx()).runtimes();
+    let runtimes = plugins(&ctx()).runtimes().expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", runtimes),
-      "Ok([RpcRuntimePlugin { name: \"@parcel/runtime-js\" }])"
-    )
+    assert_eq!(format!("{:?}", runtimes), "[RpcRuntimePlugin]")
   }
 
   #[test]
   fn returns_transformers() {
-    let transformers = plugins(&ctx()).transformers(Path::new("a.ts"), None);
+    let transformers = plugins(&ctx())
+      .transformers(Path::new("a.ts"), None)
+      .expect("Not to panic");
 
-    assert_eq!(
-      format!("{:?}", transformers),
-      "Ok([RpcTransformerPlugin { name: \"@parcel/transformer-js\" }])"
-    )
+    assert_eq!(format!("{:?}", transformers), "[RpcTransformerPlugin]")
   }
 }

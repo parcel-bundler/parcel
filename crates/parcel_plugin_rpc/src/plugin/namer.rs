@@ -1,18 +1,26 @@
+use std::fmt;
+use std::fmt::Debug;
+
 use parcel_config::PluginNode;
 use parcel_core::bundle_graph::BundleGraph;
 use parcel_core::plugin::NamerPlugin;
 use parcel_core::plugin::PluginContext;
 use parcel_core::types::Bundle;
 
-#[derive(Debug)]
 pub struct RpcNamerPlugin {
-  name: String,
+  _name: String,
+}
+
+impl Debug for RpcNamerPlugin {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "RpcNamerPlugin")
+  }
 }
 
 impl RpcNamerPlugin {
-  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
+  pub fn new(_ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
     Ok(RpcNamerPlugin {
-      name: plugin.package_name.clone(),
+      _name: plugin.package_name.clone(),
     })
   }
 }
@@ -20,8 +28,8 @@ impl RpcNamerPlugin {
 impl NamerPlugin for RpcNamerPlugin {
   fn name(
     &self,
-    bundle: &Bundle,
-    bundle_graph: &BundleGraph,
+    _bundle: &Bundle,
+    _bundle_graph: &BundleGraph,
   ) -> Result<Option<std::path::PathBuf>, anyhow::Error> {
     todo!()
   }

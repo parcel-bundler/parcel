@@ -1,3 +1,6 @@
+use std::fmt;
+use std::fmt::Debug;
+
 use parcel_config::PluginNode;
 use parcel_core::plugin::GenerateOutput;
 use parcel_core::plugin::PluginConfig;
@@ -7,51 +10,56 @@ use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::AST;
 use parcel_core::types::Asset;
 
-#[derive(Debug)]
 pub struct RpcTransformerPlugin {
-  name: String,
+  _name: String,
+}
+
+impl Debug for RpcTransformerPlugin {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "RpcTransformerPlugin")
+  }
 }
 
 impl RpcTransformerPlugin {
-  pub fn new(ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
+  pub fn new(_ctx: &PluginContext, plugin: &PluginNode) -> Result<Self, anyhow::Error> {
     Ok(RpcTransformerPlugin {
-      name: plugin.package_name.clone(),
+      _name: plugin.package_name.clone(),
     })
   }
 }
 
 impl TransformerPlugin for RpcTransformerPlugin {
-  fn can_reuse_ast(&self, ast: AST) -> bool {
+  fn can_reuse_ast(&self, _ast: AST) -> bool {
     todo!()
   }
 
   fn parse(
     &mut self,
-    config: &PluginConfig,
-    asset: &Asset,
-    resolve: &Resolve,
+    _config: &PluginConfig,
+    _asset: &Asset,
+    _resolve: &Resolve,
   ) -> Result<AST, anyhow::Error> {
     todo!()
   }
 
   fn transform(
     &mut self,
-    config: &PluginConfig,
-    asset: &mut Asset,
-    resolve: &Resolve,
+    _config: &PluginConfig,
+    _asset: &mut Asset,
+    _resolve: &Resolve,
   ) -> Result<Vec<Asset>, anyhow::Error> {
     todo!()
   }
 
   fn post_process(
     &mut self,
-    config: &PluginConfig,
-    assets: Vec<&Asset>,
+    _config: &PluginConfig,
+    _assets: Vec<&Asset>,
   ) -> Result<Vec<Asset>, anyhow::Error> {
     todo!()
   }
 
-  fn generate(&self, asset: Asset, ast: AST) -> Result<GenerateOutput, anyhow::Error> {
+  fn generate(&self, _asset: Asset, _ast: AST) -> Result<GenerateOutput, anyhow::Error> {
     todo!()
   }
 }
