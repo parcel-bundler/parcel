@@ -7,9 +7,6 @@ description = "Parcel Bundler"
 [features]
 nodejs = []
 
-[lib]
-path = "./src/lib.rs"
-
 [dependencies]
 parcel_config = { path = "../parcel_config" }
 parcel_core = { path = "../parcel_core" }
