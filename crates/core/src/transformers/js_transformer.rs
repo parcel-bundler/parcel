@@ -14,7 +14,6 @@ use crate::environment::{
 };
 use crate::intern::Interned;
 use crate::requests::asset_request::{AssetRequestResult, Transformer};
-use crate::requests::path_request::CACHE;
 use crate::types::{
   Asset, AssetFlags, AssetType, BuildMode, BundleBehavior, Dependency, DependencyFlags,
   ImportAttribute, JSONObject, Location, LogLevel, ParcelOptions, Priority, SourceLocation,
@@ -26,7 +25,7 @@ pub struct JsTransformer;
 impl Transformer for JsTransformer {
   fn transform(
     &self,
-    asset: &Asset,
+    asset: Asset,
     code: Vec<u8>,
     _farm: &crate::worker_farm::WorkerFarm,
     options: &ParcelOptions,
@@ -35,9 +34,9 @@ impl Transformer for JsTransformer {
     match parcel_js_swc_core::transform(&config, None) {
       Ok(res) => {
         if let Some(diagnostics) = res.diagnostics {
-          Err(convert_diagnostics(asset, diagnostics))
+          Err(convert_diagnostics(&asset, diagnostics))
         } else {
-          convert_result(asset.clone(), None, &config, res)
+          convert_result(asset, None, &config, res)
         }
       }
       Err(err) => todo!(),
@@ -89,7 +88,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>, options: &'a ParcelOptions) -> Confi
 
   let resolver = parcel_resolver::Resolver::parcel(
     Cow::Borrowed(&options.project_root),
-    CacheCow::Borrowed(&CACHE),
+    CacheCow::Borrowed(&options.resolver_cache),
   );
 
   let invalidations = Invalidations::default();

@@ -1,10 +1,10 @@
 use crate::{environment::Environment, intern::Interned};
 use bitflags::bitflags;
 use gxhash::GxHasher;
-use parcel_resolver::ExportsCondition;
+use parcel_resolver::{ExportsCondition, FileSystem};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{collections::HashMap, num::NonZeroU32, path::PathBuf};
+use std::{collections::HashMap, num::NonZeroU32, path::PathBuf, sync::Arc};
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -75,7 +75,7 @@ impl Asset {
 
 pub type JSONObject = serde_json::value::Map<String, serde_json::value::Value>;
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum AssetType {
   Js,
   Jsx,
@@ -84,7 +84,7 @@ pub enum AssetType {
   Css,
   Html,
   Json,
-  Other(String),
+  Other(Interned<String>),
 }
 
 impl Serialize for AssetType {
@@ -129,7 +129,7 @@ impl AssetType {
       "css" => AssetType::Css,
       "html" => AssetType::Html,
       "json" => AssetType::Json,
-      ext => AssetType::Other(ext.to_string()),
+      ext => AssetType::Other(ext.into()),
     }
   }
 }
@@ -388,9 +388,32 @@ bitflags! {
 
 impl_bitflags_serde!(BundleFlags);
 
+pub struct ParcelOptions {
+  pub mode: BuildMode,
+  pub env: HashMap<String, String>,
+  pub log_level: LogLevel,
+  pub project_root: Interned<PathBuf>,
+  pub input_fs: Arc<dyn FileSystem>,
+  pub resolver_cache: parcel_resolver::Cache<Arc<dyn FileSystem>>,
+}
+
+impl ParcelOptions {
+  pub fn new(opts: BaseParcelOptions, input_fs: Arc<dyn FileSystem>) -> Self {
+    let resolver_cache = parcel_resolver::Cache::new(Arc::clone(&input_fs));
+    ParcelOptions {
+      mode: opts.mode,
+      env: opts.env,
+      log_level: opts.log_level,
+      project_root: opts.project_root,
+      input_fs,
+      resolver_cache,
+    }
+  }
+}
+
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ParcelOptions {
+pub struct BaseParcelOptions {
   pub mode: BuildMode,
   pub env: HashMap<String, String>,
   pub log_level: LogLevel,

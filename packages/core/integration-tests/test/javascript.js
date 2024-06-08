@@ -5748,7 +5748,7 @@ describe.only('javascript', function () {
     assert(false);
   });
 
-  it.skip('should error on mismatched helpers version for libraries', async function () {
+  it.only('should error on mismatched helpers version for libraries', async function () {
     let fixture = path.join(
       __dirname,
       'integration/undeclared-external/helpers.js',

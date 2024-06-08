@@ -14,17 +14,10 @@ use crate::{
 };
 use itertools::Itertools;
 use parcel_resolver::{
-  parse_scheme, Cache, CacheCow, ExportsCondition, Fields, Flags, IncludeNodeModules,
+  parse_scheme, Cache, CacheCow, ExportsCondition, Fields, FileSystem, Flags, IncludeNodeModules,
   Invalidations, OsFileSystem, Resolution, ResolveOptions, ResolverError, Specifier,
 };
 use path_slash::{PathBufExt, PathExt};
-
-// TODO: find a way to have a cached resolver per project.
-lazy_static::lazy_static! {
-  pub static ref CACHE: parcel_resolver::Cache<OsFileSystem> = {
-    Cache::new(OsFileSystem::default())
-  };
-}
 
 pub struct PathRequest<'a> {
   pub dep: Dependency,
@@ -101,7 +94,12 @@ impl<'a> Request for PathRequest<'a> {
             {
               vec![CodeFrame {
                 file_path: Some(*source_path),
-                code: Some(std::fs::read_to_string(source_path.as_ref()).unwrap_or_default()),
+                code: Some(
+                  options
+                    .input_fs
+                    .read_to_string(source_path.as_ref())
+                    .unwrap_or_default(),
+                ),
                 code_highlights: vec![CodeHighlight::from_loc(loc, None)],
                 language: None,
               }]
@@ -158,7 +156,7 @@ impl Resolver for DefaultResolver {
   ) -> RequestResult<ResolverResult> {
     let mut resolver = parcel_resolver::Resolver::parcel(
       Cow::Borrowed(&options.project_root),
-      CacheCow::Borrowed(&CACHE),
+      CacheCow::Borrowed(&options.resolver_cache),
     );
 
     resolver
@@ -273,7 +271,7 @@ impl Resolver for DefaultResolver {
           if dep.env.flags.contains(EnvironmentFlags::IS_LIBRARY)
             && dep.specifier_type != SpecifierType::Url
           {
-            result = check_excluded_dependency(&source_path, specifier, dep, &options.project_root)
+            result = check_excluded_dependency(&source_path, specifier, dep, &resolver)
               .map_err(|e| vec![e]);
           }
         }
@@ -552,11 +550,11 @@ fn fuzzy_search(potential: Vec<String>, specifier: &str) -> Vec<String> {
     .collect()
 }
 
-fn check_excluded_dependency(
+fn check_excluded_dependency<Fs: FileSystem>(
   source_path: &Path,
   specifier: &str,
   dep: &Dependency,
-  project_root: &Path,
+  resolver: &parcel_resolver::Resolver<Fs>,
 ) -> Result<ResolverResult, Diagnostic> {
   let Ok((Specifier::Package(module, _), _)) = Specifier::parse(
     specifier,
@@ -565,9 +563,6 @@ fn check_excluded_dependency(
   ) else {
     return Ok(ResolverResult::Excluded);
   };
-
-  let resolver =
-    parcel_resolver::Resolver::parcel(Cow::Borrowed(project_root), CacheCow::Borrowed(&CACHE));
 
   let Ok(Some(pkg)) = resolver.find_package(source_path, &Invalidations::default()) else {
     return Ok(ResolverResult::Excluded);

@@ -76,7 +76,7 @@ impl<'a> Request for AssetRequest<'a> {
 
     let code = self
       .code
-      .unwrap_or_else(|| std::fs::read(&asset.file_path.as_ref()).unwrap());
+      .unwrap_or_else(|| options.input_fs.read(&asset.file_path.as_ref()).unwrap());
     let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
 
     if let Ok(result) = &mut result {
@@ -95,7 +95,7 @@ impl<'a> Request for AssetRequest<'a> {
 pub trait Transformer {
   fn transform(
     &self,
-    asset: &Asset,
+    asset: Asset,
     code: Vec<u8>,
     farm: &WorkerFarm,
     options: &ParcelOptions,
@@ -117,8 +117,9 @@ fn run_pipeline(
   };
 
   for transformer in &pipeline {
-    let transformed = run_transformer(transformer, &result.asset, result.code, farm, options)?;
-    if transformed.asset.asset_type != result.asset.asset_type {
+    let asset_type = result.asset.asset_type;
+    let transformed = run_transformer(transformer, result.asset, result.code, farm, options)?;
+    if transformed.asset.asset_type != asset_type {
       let next_path = transformed
         .asset
         .file_path

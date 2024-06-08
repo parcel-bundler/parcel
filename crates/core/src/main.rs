@@ -12,6 +12,7 @@ use parcel_core::{
   types::{ParcelOptions, Target},
   worker_farm::{WorkerFarm, WorkerRequest, WorkerResult},
 };
+use parcel_resolver::OsFileSystem;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -62,6 +63,8 @@ fn main() {
       env: Default::default(),
       log_level: parcel_core::types::LogLevel::Info,
       project_root: "/Users/devongovett/Downloads/bundler-benchmark/cases/all".into(),
+      input_fs: Arc::new(OsFileSystem::default()),
+      resolver_cache: parcel_resolver::Cache::new(Arc::new(OsFileSystem::default())),
     },
   );
 

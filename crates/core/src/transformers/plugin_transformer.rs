@@ -19,7 +19,7 @@ pub struct PluginTransformRequest {
 impl Transformer for PluginTransformer {
   fn transform(
     &self,
-    asset: &Asset,
+    asset: Asset,
     code: Vec<u8>,
     farm: &WorkerFarm,
     options: &ParcelOptions,

@@ -12,7 +12,7 @@ pub mod plugin_transformer;
 
 pub fn run_transformer(
   plugin: &PluginNode,
-  asset: &Asset,
+  asset: Asset,
   code: Vec<u8>,
   farm: &WorkerFarm,
   options: &ParcelOptions,

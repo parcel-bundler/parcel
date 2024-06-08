@@ -38,6 +38,7 @@ import invariant from 'assert';
 import {propagateSymbols} from '../SymbolPropagation';
 import {PluginTracer} from '@parcel/profiler';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+import {NodeFS} from '@parcel/fs';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -84,6 +85,12 @@ export default function createAssetGraphRequestRust(
       let result = await parcel(
         input.input.entries,
         options.cache,
+        options.inputFS instanceof NodeFS ? null : {
+          canonicalize: path => options.inputFS.realpathSync(path),
+          read: path => options.inputFS.readFileSync(path),
+          isFile: path => options.inputFS.statSync(path).isFile(),
+          isDir: path => options.inputFS.statSync(path).isDirectory(),
+        },
         options,
         async (err, request) => {
           // console.log(request)

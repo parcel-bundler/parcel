@@ -11,10 +11,13 @@ use parcel_core::{
   asset_graph::AssetGraphRequest,
   cache::Cache,
   request_tracker::RequestTracker,
-  types::ParcelOptions,
+  types::{BaseParcelOptions, ParcelOptions},
   worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
 };
 use parcel_core::{build, worker_farm::WorkerCallback};
+use parcel_resolver::{FileSystem, OsFileSystem};
+
+use crate::resolver::{FunctionRef, JsFileSystem, JsFileSystemOptions};
 
 // Allocate a single channel per thread to communicate with the JS thread.
 thread_local! {
@@ -87,6 +90,7 @@ fn await_promise(
 pub fn parcel(
   entries: Vec<String>,
   cache: &mut RustCache,
+  fs: Option<JsFileSystemOptions>,
   options: JsObject,
   callback: JsFunction,
   env: Env,
@@ -95,7 +99,17 @@ pub fn parcel(
   farm.register_worker(create_worker_callback(callback, env)?);
 
   let (deferred, promise) = env.create_deferred()?;
-  let options: ParcelOptions = env.from_js_value(options)?;
+  let options: BaseParcelOptions = env.from_js_value(options)?;
+  let fs: Arc<dyn FileSystem> = match fs {
+    Some(fs) => Arc::new(JsFileSystem {
+      canonicalize: FunctionRef::new(env, fs.canonicalize)?,
+      read: FunctionRef::new(env, fs.read)?,
+      is_file: FunctionRef::new(env, fs.is_file)?,
+      is_dir: FunctionRef::new(env, fs.is_dir)?,
+    }),
+    None => Arc::new(OsFileSystem::default()),
+  };
+  let options = ParcelOptions::new(options, fs);
 
   let cache = Arc::clone(&cache.cache);
   rayon::spawn(move || {
