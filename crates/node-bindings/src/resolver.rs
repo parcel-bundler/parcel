@@ -1,10 +1,16 @@
 use dashmap::DashMap;
 use gxhash::GxBuildHasher;
 use napi::{
-  bindgen_prelude::Either3, Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown,
-  Ref, Result,
+  bindgen_prelude::{Either3, FromNapiValue},
+  threadsafe_function::{
+    ErrorStrategy::{self, T},
+    ThreadsafeFunction, ThreadsafeFunctionCallMode,
+  },
+  Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown, NapiRaw, NapiValue, Ref,
+  Result,
 };
 use napi_derive::napi;
+use serde::{de::DeserializeOwned, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
 use std::{
@@ -35,7 +41,7 @@ pub struct JsFileSystemOptions {
 
 #[napi(object, js_name = "FileSystem")]
 pub struct JsResolverOptions {
-  pub fs: Option<JsFileSystemOptions>,
+  pub fs: Option<JsObject>,
   pub include_node_modules: Option<NapiSideEffectsVariants>,
   pub conditions: Option<u16>,
   pub module_dir_resolver: Option<JsFunction>,
@@ -74,11 +80,44 @@ impl Drop for FunctionRef {
   }
 }
 
+#[derive(serde::Deserialize)]
+#[serde(transparent)]
+struct Buffer(#[serde(with = "serde_bytes")] Vec<u8>);
+
 pub struct JsFileSystem {
-  pub canonicalize: FunctionRef,
-  pub read: FunctionRef,
-  pub is_file: FunctionRef,
-  pub is_dir: FunctionRef,
+  canonicalize: Box<dyn Fn(PathBuf) -> napi::Result<PathBuf> + Send + Sync>,
+  read: Box<dyn Fn(PathBuf) -> napi::Result<Buffer> + Send + Sync>,
+  read_string: Box<dyn Fn(PathBuf) -> napi::Result<String> + Send + Sync>,
+  is_file: Box<dyn Fn(PathBuf) -> napi::Result<bool> + Send + Sync>,
+  is_dir: Box<dyn Fn(PathBuf) -> napi::Result<bool> + Send + Sync>,
+}
+
+impl JsFileSystem {
+  pub fn new(env: &Env, js_file_system: &JsObject) -> napi::Result<Self> {
+    Ok(Self {
+      canonicalize: Box::new(create_js_thread_safe_method(
+        &env,
+        &js_file_system,
+        "canonicalize",
+      )?),
+      read: Box::new(create_js_thread_safe_method(&env, &js_file_system, "read")?),
+      read_string: Box::new(create_js_thread_safe_method(
+        &env,
+        &js_file_system,
+        "readString",
+      )?),
+      is_file: Box::new(create_js_thread_safe_method(
+        &env,
+        &js_file_system,
+        "isFile",
+      )?),
+      is_dir: Box::new(create_js_thread_safe_method(
+        &env,
+        &js_file_system,
+        "isDir",
+      )?),
+    })
+  }
 }
 
 impl FileSystem for JsFileSystem {
@@ -87,62 +126,80 @@ impl FileSystem for JsFileSystem {
     path: &Path,
     _cache: &DashMap<PathBuf, Option<PathBuf>, GxBuildHasher>,
   ) -> std::io::Result<std::path::PathBuf> {
-    let canonicalize = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.canonicalize.env.create_string(path.as_ref())?;
-      let res: JsString = self.canonicalize.get()?.call(None, &[path])?.try_into()?;
-      let utf8 = res.into_utf8()?;
-      Ok(utf8.into_owned()?.into())
-    };
-
-    canonicalize().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
+    (*self.canonicalize)(path.to_path_buf())
+      .map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
   fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
-    let read = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.read.env.create_string(path.as_ref())?;
-      let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
-      let value = res.into_value()?;
-      Ok(value.to_vec())
-    };
-
-    read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
+    (*self.read)(path.to_path_buf())
+      .map(|b| b.0)
+      .map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    let read = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.read.env.create_string(path.as_ref())?;
-      let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
-      let value = res.into_value()?;
-      Ok(unsafe { String::from_utf8_unchecked(value.to_vec()) })
-    };
-
-    read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
+    (*self.read_string)(path.to_path_buf())
+      .map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
   fn is_file(&self, path: &Path) -> bool {
-    let is_file = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let p = self.is_file.env.create_string(path.as_ref())?;
-      let res: JsBoolean = self.is_file.get()?.call(None, &[p])?.try_into()?;
-      res.get_value()
-    };
-
-    is_file().unwrap_or(false)
+    (*self.is_file)(path.to_path_buf()).unwrap_or_default()
   }
 
   fn is_dir(&self, path: &Path) -> bool {
-    let is_dir = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.is_dir.env.create_string(path.as_ref())?;
-      let res: JsBoolean = self.is_dir.get()?.call(None, &[path])?.try_into()?;
-      res.get_value()
-    };
-
-    is_dir().unwrap_or(false)
+    (*self.is_dir)(path.to_path_buf()).unwrap_or_default()
   }
+}
+
+fn create_js_thread_safe_method<
+  Params: Send + Serialize + 'static + std::fmt::Debug,
+  Response: Send + DeserializeOwned + 'static,
+>(
+  env: &Env,
+  js_file_system: &JsObject,
+  method_name: &str,
+) -> napi::Result<impl Fn(Params) -> napi::Result<Response>> {
+  let jsfn: JsFunction = js_file_system.get_property(env.create_string(method_name)?)?;
+  let js_fn_ref = FunctionRef::new(
+    *env,
+    js_file_system.get_property(env.create_string(method_name)?)?,
+  )?;
+
+  let threadsafe_function: ThreadsafeFunction<Params, ErrorStrategy::Fatal> = jsfn
+    .create_threadsafe_function(
+      0,
+      |ctx: napi::threadsafe_function::ThreadSafeCallContext<Params>| {
+        Ok(vec![ctx.env.to_js_value(&ctx.value)?])
+      },
+    )?;
+
+  let tid = std::thread::current().id();
+
+  let result = move |params| {
+    let env = js_fn_ref.env;
+    if std::thread::current().id() == tid {
+      let jsfn = js_fn_ref.get()?;
+      let result = jsfn.call(None, &[env.to_js_value(&params)?])?;
+      return env.from_js_value(result);
+    }
+
+    let (tx, rx) = crossbeam_channel::bounded(1);
+    threadsafe_function.call_with_return_value(
+      params,
+      ThreadsafeFunctionCallMode::Blocking,
+      move |result: JsUnknown| {
+        let result = if result.is_error()? {
+          Err(napi::Error::from(result))
+        } else {
+          env.from_js_value(result)
+        };
+        let _ = tx.send(result);
+        Ok(())
+      },
+    );
+    rx.recv().unwrap()
+  };
+
+  Ok(result)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -254,13 +311,8 @@ impl Resolver {
   #[napi(constructor)]
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
     #[cfg(not(target_arch = "wasm32"))]
-    let fs = if let Some(fs) = options.fs {
-      EitherFs::A(JsFileSystem {
-        canonicalize: FunctionRef::new(env, fs.canonicalize)?,
-        read: FunctionRef::new(env, fs.read)?,
-        is_file: FunctionRef::new(env, fs.is_file)?,
-        is_dir: FunctionRef::new(env, fs.is_dir)?,
-      })
+    let fs = if let Some(fs) = &options.fs {
+      EitherFs::A(JsFileSystem::new(&env, fs)?)
     } else {
       EitherFs::B(OsFileSystem)
     };

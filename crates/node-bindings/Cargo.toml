@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi-derive = "2.12.5"
+napi-derive = "2.16.4"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 dashmap = "5.4.0"
@@ -17,7 +17,7 @@ parcel-core = { path = "../core" }
 indexmap = "1.9.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi5", "napi6"]}
+napi = {version =  "2.16.6", features = ["serde-json", "napi4", "napi5", "napi6"]}
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 oxipng = "8.0.0"
@@ -27,6 +27,8 @@ rayon = "1.7.0"
 crossbeam-channel = "0.5.6"
 indexmap = "1.9.2"
 gxhash = "*"
+serde = "1.0.123"
+serde_bytes = "0.11.5"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 napi = {version =  "2.12.6", features = ["serde-json"]}

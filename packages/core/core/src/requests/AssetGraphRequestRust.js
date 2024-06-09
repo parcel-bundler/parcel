@@ -86,10 +86,41 @@ export default function createAssetGraphRequestRust(
         input.input.entries,
         options.cache,
         options.inputFS instanceof NodeFS ? null : {
-          canonicalize: path => options.inputFS.realpathSync(path),
-          read: path => options.inputFS.readFileSync(path),
-          isFile: path => options.inputFS.statSync(path).isFile(),
-          isDir: path => options.inputFS.statSync(path).isDirectory(),
+          canonicalize: path => {
+            try {
+              return options.inputFS.realpathSync(path)
+            } catch (err) {
+              return err;
+            }
+          },
+          read: path => {
+            try {
+              return options.inputFS.readFileSync(path);
+            } catch (err) {
+              return err;
+            }
+          },
+          readString: path => {
+            try {
+              return options.inputFS.readFileSync(path, 'utf8');
+            } catch (err) {
+              return err;
+            }
+          },
+          isFile: path => {
+            try {
+              return options.inputFS.statSync(path).isFile();
+            } catch (err) {
+              return err;
+            }
+          },
+          isDir: path => {
+            try {
+              return options.inputFS.statSync(path).isDirectory();
+            } catch (err) {
+              return err;
+            }
+          }
         },
         options,
         async (err, request) => {

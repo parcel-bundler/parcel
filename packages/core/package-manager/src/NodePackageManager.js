@@ -86,6 +86,7 @@ export class NodePackageManager implements PackageManager {
           : {
               canonicalize: path => this.fs.realpathSync(path),
               read: path => this.fs.readFileSync(path),
+              readString: path => this.fs.readFileSync(path, 'utf8'),
               isFile: path => this.fs.statSync(path).isFile(),
               isDir: path => this.fs.statSync(path).isDirectory(),
             },

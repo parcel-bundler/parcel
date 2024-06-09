@@ -92,6 +92,7 @@ export default class NodeResolver {
             : {
                 canonicalize: path => this.options.fs.realpathSync(path),
                 read: path => this.options.fs.readFileSync(path),
+                readString: path => this.options.fs.readFileSync(path, 'utf8'),
                 isFile: path => this.options.fs.statSync(path).isFile(),
                 isDir: path => this.options.fs.statSync(path).isDirectory(),
               },

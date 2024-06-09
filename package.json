@@ -42,7 +42,7 @@
   "devDependencies": {
     "@babel/core": "^7.22.11",
     "@khanacademy/flow-to-ts": "^0.5.2",
-    "@napi-rs/cli": "^2.15.2",
+    "@napi-rs/cli": "^2.18.3",
     "@parcel/babel-register": "*",
     "@types/node": ">= 18",
     "buffer": "mischnic/buffer#b8a4fa94",

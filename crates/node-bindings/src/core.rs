@@ -7,17 +7,15 @@ use napi::{
   Env, JsFunction, JsObject, JsUnknown,
 };
 use napi_derive::napi;
+use parcel_core::{build, worker_farm::WorkerCallback};
 use parcel_core::{
-  asset_graph::AssetGraphRequest,
   cache::Cache,
-  request_tracker::RequestTracker,
   types::{BaseParcelOptions, ParcelOptions},
   worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
 };
-use parcel_core::{build, worker_farm::WorkerCallback};
 use parcel_resolver::{FileSystem, OsFileSystem};
 
-use crate::resolver::{FunctionRef, JsFileSystem, JsFileSystemOptions};
+use crate::resolver::JsFileSystem;
 
 // Allocate a single channel per thread to communicate with the JS thread.
 thread_local! {
@@ -90,7 +88,7 @@ fn await_promise(
 pub fn parcel(
   entries: Vec<String>,
   cache: &mut RustCache,
-  fs: Option<JsFileSystemOptions>,
+  fs: Option<JsObject>,
   options: JsObject,
   callback: JsFunction,
   env: Env,
@@ -101,12 +99,7 @@ pub fn parcel(
   let (deferred, promise) = env.create_deferred()?;
   let options: BaseParcelOptions = env.from_js_value(options)?;
   let fs: Arc<dyn FileSystem> = match fs {
-    Some(fs) => Arc::new(JsFileSystem {
-      canonicalize: FunctionRef::new(env, fs.canonicalize)?,
-      read: FunctionRef::new(env, fs.read)?,
-      is_file: FunctionRef::new(env, fs.is_file)?,
-      is_dir: FunctionRef::new(env, fs.is_dir)?,
-    }),
+    Some(fs) => Arc::new(JsFileSystem::new(&env, &fs)?),
     None => Arc::new(OsFileSystem::default()),
   };
   let options = ParcelOptions::new(options, fs);

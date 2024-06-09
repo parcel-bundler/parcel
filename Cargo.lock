@@ -1078,9 +1078,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.14.2"
+version = "2.16.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fc1cb00cde484640da9f01a124edbb013576a6ae9843b23857c940936b76d91"
+checksum = "dfc300228808a0e6aea5a58115c82889240bcf8dab16fc25ad675b33e454b368"
 dependencies = [
  "bitflags 2.3.3",
  "ctor",
@@ -1099,9 +1099,9 @@ checksum = "d4b4532cf86bfef556348ac65e561e3123879f0e7566cca6d43a6ff5326f13df"
 
 [[package]]
 name = "napi-derive"
-version = "2.14.6"
+version = "2.16.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e61bec1ee990ae3e9a5f443484c65fb38e571a898437f0ad283ed69c82fc59c0"
+checksum = "e0e034ddf6155192cf83f267ede763fe6c164dfa9971585436b16173718d94c4"
 dependencies = [
  "cfg-if",
  "convert_case",
@@ -1113,9 +1113,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.58"
+version = "1.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2314f777bc9cde51705d991c44466cee4de4a3f41c6d3d019fcbbebb5cdd47c4"
+checksum = "bff2c00437f3b3266391eb5e6aa25d0029187daf5caf05b8e3271468fb5ae73e"
 dependencies = [
  "convert_case",
  "once_cell",
@@ -1128,9 +1128,9 @@ dependencies = [
 
 [[package]]
 name = "napi-sys"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2503fa6af34dc83fb74888df8b22afe933b58d37daf7d80424b1c60c68196b8b"
+checksum = "427802e8ec3a734331fec1035594a210ce1ff4dc5bc1950530920ab717964ea3"
 dependencies = [
  "libloading",
 ]
@@ -1367,6 +1367,8 @@ dependencies = [
  "parcel-macros",
  "parcel-resolver",
  "rayon",
+ "serde",
+ "serde_bytes",
  "xxhash-rust",
 ]
 
