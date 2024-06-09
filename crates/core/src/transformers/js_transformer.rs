@@ -36,7 +36,7 @@ impl Transformer for JsTransformer {
         if let Some(diagnostics) = res.diagnostics {
           Err(convert_diagnostics(&asset, diagnostics))
         } else {
-          convert_result(asset, None, &config, res)
+          convert_result(asset, None, &config, res, options)
         }
       }
       Err(err) => todo!(),
@@ -285,6 +285,7 @@ fn convert_result(
   map_buf: Option<&[u8]>,
   config: &Config,
   result: TransformResult,
+  options: &ParcelOptions,
 ) -> Result<AssetRequestResult, Vec<Diagnostic>> {
   let file_path = asset.file_path;
   let env = asset.env;
@@ -573,12 +574,7 @@ fn convert_result(
             range = Some("^0.13.7".into());
           }
 
-          resolve_from = Some(
-            Path::new(
-              "/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js",
-            )
-            .into(),
-          );
+          resolve_from = Some(options.core_path.as_path().into());
         }
 
         let mut import_attributes = Vec::new();
@@ -639,10 +635,7 @@ fn convert_result(
         ..(*env).clone()
       }
       .into(),
-      resolve_from: Some(
-        Path::new("/Users/devongovett/dev/parcel/packages/transformers/js/src/JSTransformer.js")
-          .into(),
-      ),
+      resolve_from: Some(options.core_path.as_path().into()),
       range: None,
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,

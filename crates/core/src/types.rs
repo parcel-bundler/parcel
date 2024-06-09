@@ -393,6 +393,7 @@ pub struct ParcelOptions {
   pub env: HashMap<String, String>,
   pub log_level: LogLevel,
   pub project_root: Interned<PathBuf>,
+  pub core_path: PathBuf,
   pub input_fs: Arc<dyn FileSystem>,
   pub resolver_cache: parcel_resolver::Cache<Arc<dyn FileSystem>>,
 }
@@ -405,19 +406,21 @@ impl ParcelOptions {
       env: opts.env,
       log_level: opts.log_level,
       project_root: opts.project_root,
+      core_path: opts.core_path,
       input_fs,
       resolver_cache,
     }
   }
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BaseParcelOptions {
   pub mode: BuildMode,
   pub env: HashMap<String, String>,
   pub log_level: LogLevel,
   pub project_root: Interned<PathBuf>,
+  pub core_path: PathBuf,
 }
 
 #[derive(Clone, PartialEq, Debug)]

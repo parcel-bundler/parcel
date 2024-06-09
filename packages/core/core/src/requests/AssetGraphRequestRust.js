@@ -39,6 +39,7 @@ import {propagateSymbols} from '../SymbolPropagation';
 import {PluginTracer} from '@parcel/profiler';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
+import path from 'path';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -122,7 +123,7 @@ export default function createAssetGraphRequestRust(
             }
           }
         },
-        options,
+        {...options, corePath: path.dirname(__dirname)},
         async (err, request) => {
           // console.log(request)
           switch (request.type) {

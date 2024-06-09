@@ -256,10 +256,7 @@ impl Resolver for DefaultResolver {
       Resolution::Builtin(builtin) => self.resolve_builtin(dep, builtin, options),
       Resolution::Empty => RequestResult {
         result: Ok(ResolverResult::Resolved {
-          path: Path::new(
-            "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js",
-          )
-          .into(),
+          path: options.core_path.join("_empty.js").into(),
           code: None,
           pipeline: None,
           side_effects,
@@ -346,10 +343,7 @@ impl DefaultResolver {
       _ => {
         return RequestResult {
           result: Ok(ResolverResult::Resolved {
-            path: Path::new(
-              "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js",
-            )
-            .into(),
+            path: options.core_path.join("_empty.js").into(),
             code: None,
             pipeline: None,
             side_effects: true,
