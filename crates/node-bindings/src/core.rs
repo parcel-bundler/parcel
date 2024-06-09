@@ -9,13 +9,13 @@ use napi::{
 use napi_derive::napi;
 use parcel_core::{build, worker_farm::WorkerCallback};
 use parcel_core::{
-  cache::Cache,
+  cache::{Cache, MemoryCache},
   types::{BaseParcelOptions, ParcelOptions},
   worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
 };
 use parcel_resolver::{FileSystem, OsFileSystem};
 
-use crate::resolver::JsFileSystem;
+use crate::{resolver::JsFileSystem, utils::create_js_thread_safe_method};
 
 // Allocate a single channel per thread to communicate with the JS thread.
 thread_local! {
@@ -87,7 +87,7 @@ fn await_promise(
 #[napi]
 pub fn parcel(
   entries: Vec<String>,
-  cache: &mut RustCache,
+  cache: JsObject,
   fs: Option<JsObject>,
   options: JsObject,
   callback: JsFunction,
@@ -102,11 +102,11 @@ pub fn parcel(
     Some(fs) => Arc::new(JsFileSystem::new(&env, &fs)?),
     None => Arc::new(OsFileSystem::default()),
   };
-  let options = ParcelOptions::new(options, fs);
+  let cache = Arc::new(JsCache::new(&env, &cache)?);
+  let options = ParcelOptions::new(options, fs, cache);
 
-  let cache = Arc::clone(&cache.cache);
   rayon::spawn(move || {
-    let asset_graph = build(entries, farm, &cache, options);
+    let asset_graph = build(entries, farm, options);
     deferred.resolve(move |env| env.to_js_value(&asset_graph));
   });
 
@@ -115,7 +115,7 @@ pub fn parcel(
 
 #[napi]
 pub struct RustCache {
-  cache: Arc<Cache>,
+  cache: Arc<MemoryCache>,
 }
 
 #[napi]
@@ -123,7 +123,7 @@ impl RustCache {
   #[napi(constructor)]
   pub fn new() -> Self {
     RustCache {
-      cache: Arc::new(Cache::new()),
+      cache: Arc::new(MemoryCache::new()),
     }
   }
 
@@ -160,7 +160,7 @@ impl RustCache {
 
   #[napi(factory)]
   pub fn deserialize(value: SerializedCache) -> Self {
-    let ptr = value.id.words[0] as *const Cache;
+    let ptr = value.id.words[0] as *const MemoryCache;
     let cache = unsafe {
       Arc::increment_strong_count(ptr);
       Arc::from_raw(ptr)
@@ -172,4 +172,34 @@ impl RustCache {
 #[napi(object)]
 pub struct SerializedCache {
   pub id: BigInt,
+}
+
+struct JsCache {
+  get: Box<dyn Fn(String) -> napi::Result<crate::utils::Buffer> + Send + Sync>,
+  has: Box<dyn Fn(String) -> napi::Result<bool> + Send + Sync>,
+  set: Box<dyn Fn((String, crate::utils::Buffer)) -> napi::Result<()> + Send + Sync>,
+}
+
+impl JsCache {
+  fn new(env: &Env, obj: &JsObject) -> napi::Result<Self> {
+    Ok(Self {
+      get: Box::new(create_js_thread_safe_method(env, obj, "getBlob")?),
+      has: Box::new(create_js_thread_safe_method(env, obj, "has")?),
+      set: Box::new(create_js_thread_safe_method(env, obj, "setBlob")?),
+    })
+  }
+}
+
+impl Cache for JsCache {
+  fn get(&self, key: String) -> Option<Vec<u8>> {
+    (*self.get)(key).ok().map(|v| v.0)
+  }
+
+  fn has(&self, key: String) -> bool {
+    (*self.has)(key).unwrap_or_default()
+  }
+
+  fn set(&self, key: String, value: Vec<u8>) {
+    let _ = (*self.set)((key, crate::utils::Buffer(value)));
+  }
 }

@@ -11,7 +11,6 @@ pub mod types;
 pub mod worker_farm;
 
 use asset_graph::{AssetGraph, AssetGraphRequest};
-use cache::Cache;
 use diagnostic::Diagnostic;
 use environment::reset_env_interner;
 use request_tracker::{Request, RequestTracker};
@@ -24,7 +23,6 @@ use crate::requests::parcel_config_request::ParcelConfigRequest;
 pub fn build(
   entries: Vec<String>,
   farm: WorkerFarm,
-  cache: &Cache,
   options: ParcelOptions,
 ) -> Result<AssetGraph, Vec<Diagnostic>> {
   // TODO: this is a hack to fix the tests.
@@ -41,7 +39,7 @@ pub fn build(
     transformers: &config.transformers,
     resolvers: &config.resolvers,
   };
-  let asset_graph = req.build(&mut request_tracker, cache, &farm, &options);
+  let asset_graph = req.build(&mut request_tracker, &farm, &options);
   // println!("{:#?}", asset_graph);
 
   // let bundles = request_tracker

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
   parcel_config::ParcelConfig,
   requests::{
-    asset_request::AssetRequestResult,
+    asset_request::TransformerResult,
     bundle_graph_request::BundleGraphRequest,
     entry_request::{Entry, EntryRequest},
     target_request::TargetRequest,
@@ -35,7 +35,7 @@ pub enum WorkerResult {
   ParcelConfig(ParcelConfig),
   Entry(Vec<Entry>),
   Target(Vec<Target>),
-  Transform(AssetRequestResult),
+  Transform(TransformerResult),
   BundleGraph(Vec<Bundle>),
 }
 

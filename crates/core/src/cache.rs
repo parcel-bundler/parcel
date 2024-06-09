@@ -1,26 +1,34 @@
 use dashmap::DashMap;
-use std::ops::Deref;
 
-pub struct Cache {
+pub trait Cache: Send + Sync {
+  fn has(&self, key: String) -> bool;
+  fn get(&self, key: String) -> Option<Vec<u8>>;
+  fn set(&self, key: String, value: Vec<u8>);
+}
+
+pub struct MemoryCache {
   entries: DashMap<String, Vec<u8>>,
 }
 
-impl Cache {
+impl MemoryCache {
   pub fn new() -> Self {
-    Cache {
+    MemoryCache {
       entries: DashMap::new(),
     }
   }
+}
 
-  pub fn has(&self, key: String) -> bool {
+impl Cache for MemoryCache {
+  fn has(&self, key: String) -> bool {
     self.entries.contains_key(&key)
   }
 
-  pub fn get<'a>(&'a self, key: String) -> Option<impl Deref<Target = Vec<u8>> + 'a> {
-    self.entries.get(&key)
+  fn get<'a>(&'a self, key: String) -> Option<Vec<u8>> {
+    let entry = self.entries.get(&key);
+    entry.map(|e| e.clone())
   }
 
-  pub fn set(&self, key: String, value: Vec<u8>) {
+  fn set(&self, key: String, value: Vec<u8>) {
     self.entries.insert(key, value);
   }
 }

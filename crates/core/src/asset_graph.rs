@@ -7,14 +7,13 @@ use petgraph::{
 };
 
 use crate::{
-  cache::Cache,
   diagnostic::Diagnostic,
   environment::EnvironmentFlags,
   intern::{Interned, InternedSet},
   parcel_config::{PipelineMap, PluginNode},
-  request_tracker::{self, Request, RequestOutput, RequestTracker, StoreRequestOutput},
+  request_tracker::{Request, RequestOutput, RequestTracker, StoreRequestOutput},
   requests::{
-    asset_request::{AssetRequest, AssetRequestResult},
+    asset_request::AssetRequest,
     entry_request::EntryRequest,
     path_request::{PathRequest, ResolverResult},
     target_request::TargetRequest,
@@ -293,7 +292,6 @@ impl<'a> AssetGraphRequest<'a> {
   pub fn build(
     &mut self,
     request_tracker: &mut RequestTracker,
-    cache: &Cache,
     farm: &WorkerFarm,
     options: &ParcelOptions,
   ) -> Result<AssetGraph, Vec<Diagnostic>> {
@@ -428,8 +426,6 @@ impl<'a> AssetGraphRequest<'a> {
             }
           }
           Ok(RequestOutput::AssetRequest(res)) => {
-            cache.set(res.asset.content_key.clone(), res.code.clone());
-
             let asset_node = graph.add_asset(res.asset.clone());
             asset_request_to_asset.insert(request, asset_node);
             graph.graph.add_edge(node, asset_node, AssetGraphEdge {});

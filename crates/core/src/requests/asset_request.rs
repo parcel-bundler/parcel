@@ -25,8 +25,6 @@ pub struct AssetRequest<'a> {
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct AssetRequestResult {
   pub asset: Asset,
-  #[serde(with = "serde_bytes")]
-  pub code: Vec<u8>,
   pub dependencies: Vec<Dependency>,
 }
 
@@ -77,19 +75,38 @@ impl<'a> Request for AssetRequest<'a> {
     let code = self
       .code
       .unwrap_or_else(|| options.input_fs.read(&asset.file_path.as_ref()).unwrap());
-    let mut result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
+    let result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
 
-    if let Ok(result) = &mut result {
-      result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
-      result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
-      result.asset.stats.size = result.code.len() as u32;
-    }
+    let result = match result {
+      Ok(mut result) => {
+        result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
+        result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
+        result.asset.stats.size = result.code.len() as u32;
+
+        options
+          .cache
+          .set(result.asset.content_key.clone(), result.code);
+        Ok(AssetRequestResult {
+          asset: result.asset,
+          dependencies: result.dependencies,
+        })
+      }
+      Err(err) => Err(err),
+    };
 
     RequestResult {
       result,
       invalidations: Vec::new(),
     }
   }
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct TransformerResult {
+  pub asset: Asset,
+  #[serde(with = "serde_bytes")]
+  pub code: Vec<u8>,
+  pub dependencies: Vec<Dependency>,
 }
 
 pub trait Transformer {
@@ -99,7 +116,7 @@ pub trait Transformer {
     code: Vec<u8>,
     farm: &WorkerFarm,
     options: &ParcelOptions,
-  ) -> Result<AssetRequestResult, Vec<Diagnostic>>;
+  ) -> Result<TransformerResult, Vec<Diagnostic>>;
 }
 
 fn run_pipeline(
@@ -109,8 +126,8 @@ fn run_pipeline(
   transformers: &PipelineMap,
   farm: &WorkerFarm,
   options: &ParcelOptions,
-) -> Result<AssetRequestResult, Vec<Diagnostic>> {
-  let mut result = AssetRequestResult {
+) -> Result<TransformerResult, Vec<Diagnostic>> {
+  let mut result = TransformerResult {
     asset,
     code,
     dependencies: vec![],

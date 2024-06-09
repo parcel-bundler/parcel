@@ -107,12 +107,12 @@ export default async function resolveOptions(
       ? path.resolve(initialOptions.watchDir)
       : projectRoot;
 
-  // let cache =
-  //   initialOptions.cache ??
-  //   (outputFS instanceof NodeFS
-  //     ? new LMDBCache(cacheDir)
-  //     : new FSCache(outputFS, cacheDir));
-  let cache = new RustCache();
+  let cache =
+    initialOptions.cache ??
+    (outputFS instanceof NodeFS
+      ? new LMDBCache(cacheDir)
+      : new FSCache(outputFS, cacheDir));
+  // let cache = new RustCache();
 
   let mode = initialOptions.mode ?? 'development';
   let shouldOptimize =

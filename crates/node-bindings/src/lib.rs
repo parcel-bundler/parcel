@@ -19,6 +19,7 @@ mod hash;
 mod image;
 mod resolver;
 mod transformer;
+mod utils;
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]

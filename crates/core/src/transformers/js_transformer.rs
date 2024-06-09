@@ -13,7 +13,7 @@ use crate::environment::{
   Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, OutputFormat, SourceType,
 };
 use crate::intern::Interned;
-use crate::requests::asset_request::{AssetRequestResult, Transformer};
+use crate::requests::asset_request::{Transformer, TransformerResult};
 use crate::types::{
   Asset, AssetFlags, AssetType, BuildMode, BundleBehavior, Dependency, DependencyFlags,
   ImportAttribute, JSONObject, Location, LogLevel, ParcelOptions, Priority, SourceLocation,
@@ -29,7 +29,7 @@ impl Transformer for JsTransformer {
     code: Vec<u8>,
     _farm: &crate::worker_farm::WorkerFarm,
     options: &ParcelOptions,
-  ) -> Result<AssetRequestResult, Vec<Diagnostic>> {
+  ) -> Result<TransformerResult, Vec<Diagnostic>> {
     let config = config(&asset, code, options);
     match parcel_js_swc_core::transform(&config, None) {
       Ok(res) => {
@@ -286,7 +286,7 @@ fn convert_result(
   config: &Config,
   result: TransformResult,
   options: &ParcelOptions,
-) -> Result<AssetRequestResult, Vec<Diagnostic>> {
+) -> Result<TransformerResult, Vec<Diagnostic>> {
   let file_path = asset.file_path;
   let env = asset.env;
   let asset_id = asset.id();
@@ -890,7 +890,7 @@ fn convert_result(
   }
 
   asset.asset_type = AssetType::Js;
-  Ok(AssetRequestResult {
+  Ok(TransformerResult {
     asset,
     code: result.code,
     dependencies: dep_map.into_values().collect(),

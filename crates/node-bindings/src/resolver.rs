@@ -1,22 +1,12 @@
 use dashmap::DashMap;
 use gxhash::GxBuildHasher;
-use napi::{
-  bindgen_prelude::{Either3, FromNapiValue},
-  threadsafe_function::{
-    ErrorStrategy::{self, T},
-    ThreadsafeFunction, ThreadsafeFunctionCallMode,
-  },
-  Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown, NapiRaw, NapiValue, Ref,
-  Result,
-};
+use napi::{bindgen_prelude::Either3, Env, JsFunction, JsObject, JsString, JsUnknown, Result};
 use napi_derive::napi;
-use serde::{de::DeserializeOwned, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
 use std::{
   borrow::Cow,
   collections::HashMap,
-  ffi::OsString,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -27,6 +17,8 @@ use parcel_resolver::{
   ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, Flags,
   IncludeNodeModules, Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
 };
+
+use crate::utils::{create_js_thread_safe_method, Buffer, FunctionRef};
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
@@ -51,38 +43,6 @@ pub struct JsResolverOptions {
   pub package_exports: bool,
   pub typescript: Option<bool>,
 }
-
-pub struct FunctionRef {
-  env: Env,
-  reference: Ref<()>,
-}
-
-// We don't currently call functions from multiple threads, but we'll need to change this when we do.
-unsafe impl Send for FunctionRef {}
-unsafe impl Sync for FunctionRef {}
-
-impl FunctionRef {
-  pub fn new(env: Env, f: JsFunction) -> napi::Result<Self> {
-    Ok(Self {
-      env,
-      reference: env.create_reference(f)?,
-    })
-  }
-
-  fn get(&self) -> napi::Result<JsFunction> {
-    self.env.get_reference_value(&self.reference)
-  }
-}
-
-impl Drop for FunctionRef {
-  fn drop(&mut self) {
-    drop(self.reference.unref(self.env))
-  }
-}
-
-#[derive(serde::Deserialize)]
-#[serde(transparent)]
-struct Buffer(#[serde(with = "serde_bytes")] Vec<u8>);
 
 pub struct JsFileSystem {
   canonicalize: Box<dyn Fn(PathBuf) -> napi::Result<PathBuf> + Send + Sync>,
@@ -148,58 +108,6 @@ impl FileSystem for JsFileSystem {
   fn is_dir(&self, path: &Path) -> bool {
     (*self.is_dir)(path.to_path_buf()).unwrap_or_default()
   }
-}
-
-fn create_js_thread_safe_method<
-  Params: Send + Serialize + 'static + std::fmt::Debug,
-  Response: Send + DeserializeOwned + 'static,
->(
-  env: &Env,
-  js_file_system: &JsObject,
-  method_name: &str,
-) -> napi::Result<impl Fn(Params) -> napi::Result<Response>> {
-  let jsfn: JsFunction = js_file_system.get_property(env.create_string(method_name)?)?;
-  let js_fn_ref = FunctionRef::new(
-    *env,
-    js_file_system.get_property(env.create_string(method_name)?)?,
-  )?;
-
-  let threadsafe_function: ThreadsafeFunction<Params, ErrorStrategy::Fatal> = jsfn
-    .create_threadsafe_function(
-      0,
-      |ctx: napi::threadsafe_function::ThreadSafeCallContext<Params>| {
-        Ok(vec![ctx.env.to_js_value(&ctx.value)?])
-      },
-    )?;
-
-  let tid = std::thread::current().id();
-
-  let result = move |params| {
-    let env = js_fn_ref.env;
-    if std::thread::current().id() == tid {
-      let jsfn = js_fn_ref.get()?;
-      let result = jsfn.call(None, &[env.to_js_value(&params)?])?;
-      return env.from_js_value(result);
-    }
-
-    let (tx, rx) = crossbeam_channel::bounded(1);
-    threadsafe_function.call_with_return_value(
-      params,
-      ThreadsafeFunctionCallMode::Blocking,
-      move |result: JsUnknown| {
-        let result = if result.is_error()? {
-          Err(napi::Error::from(result))
-        } else {
-          env.from_js_value(result)
-        };
-        let _ = tx.send(result);
-        Ok(())
-      },
-    );
-    rx.recv().unwrap()
-  };
-
-  Ok(result)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -369,7 +277,7 @@ impl Resolver {
       let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
       resolver.module_dir_resolver = Some(Arc::new(move |module: &str, from: &Path| {
         let call = |module: &str| -> napi::Result<PathBuf> {
-          let env = module_dir_resolver.env;
+          let env = module_dir_resolver.env();
           let s = env.create_string(module)?;
           let f = env.create_string(from.to_string_lossy().as_ref())?;
           let res: JsString = module_dir_resolver.get()?.call(None, &[s, f])?.try_into()?;

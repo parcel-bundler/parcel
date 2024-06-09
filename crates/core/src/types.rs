@@ -1,4 +1,4 @@
-use crate::{environment::Environment, intern::Interned};
+use crate::{cache::Cache, environment::Environment, intern::Interned};
 use bitflags::bitflags;
 use gxhash::GxHasher;
 use parcel_resolver::{ExportsCondition, FileSystem};
@@ -395,11 +395,16 @@ pub struct ParcelOptions {
   pub project_root: Interned<PathBuf>,
   pub core_path: PathBuf,
   pub input_fs: Arc<dyn FileSystem>,
+  pub cache: Arc<dyn Cache>,
   pub resolver_cache: parcel_resolver::Cache<Arc<dyn FileSystem>>,
 }
 
 impl ParcelOptions {
-  pub fn new(opts: BaseParcelOptions, input_fs: Arc<dyn FileSystem>) -> Self {
+  pub fn new(
+    opts: BaseParcelOptions,
+    input_fs: Arc<dyn FileSystem>,
+    cache: Arc<dyn Cache>,
+  ) -> Self {
     let resolver_cache = parcel_resolver::Cache::new(Arc::clone(&input_fs));
     ParcelOptions {
       mode: opts.mode,
@@ -408,6 +413,7 @@ impl ParcelOptions {
       project_root: opts.project_root,
       core_path: opts.core_path,
       input_fs,
+      cache,
       resolver_cache,
     }
   }

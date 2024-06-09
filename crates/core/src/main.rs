@@ -3,7 +3,7 @@ use std::sync::Arc;
 use mimalloc::MiMalloc;
 use parcel_core::{
   build,
-  cache::Cache,
+  cache::MemoryCache,
   environment::{
     Browsers, Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
   },
@@ -57,7 +57,6 @@ fn main() {
     vec!["./src/index.js".into()],
     // vec!["/Users/devongovett/Downloads/esm-test/index.mjs".into()],
     farm,
-    &mut Cache::new(),
     ParcelOptions {
       mode: parcel_core::types::BuildMode::Development,
       env: Default::default(),
@@ -65,6 +64,7 @@ fn main() {
       project_root: "/Users/devongovett/Downloads/bundler-benchmark/cases/all".into(),
       core_path: "/Users/devongovett/dev/parcel/packages/core/core".into(),
       input_fs: Arc::new(OsFileSystem::default()),
+      cache: Arc::new(MemoryCache::new()),
       resolver_cache: parcel_resolver::Cache::new(Arc::new(OsFileSystem::default())),
     },
   );

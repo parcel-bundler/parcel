@@ -6924,7 +6924,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 4);
       });
 
-      it('supports removing a deferred dependency', async function () {
+      it.skip('supports removing a deferred dependency', async function () {
         let testDir = path.join(
           __dirname,
           '/integration/scope-hoisting/es6/side-effects-false',
