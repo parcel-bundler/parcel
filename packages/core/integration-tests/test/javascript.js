@@ -2623,7 +2623,7 @@ describe.only('javascript', function () {
     assert(false)
   });
 
-  it.skip('should support importing a URL to a large raw asset', async function () {
+  it('should support importing a URL to a large raw asset', async function () {
     // 6 megabytes, which exceeds the threshold in summarizeRequest for buffering
     // entire contents into memory and should stream content instead
     let assetSizeBytes = 6000000;
@@ -5748,7 +5748,7 @@ describe.only('javascript', function () {
     assert(false);
   });
 
-  it.only('should error on mismatched helpers version for libraries', async function () {
+  it('should error on mismatched helpers version for libraries', async function () {
     let fixture = path.join(
       __dirname,
       'integration/undeclared-external/helpers.js',
@@ -6349,7 +6349,7 @@ describe.only('javascript', function () {
     assert.equal(await res.default, 'target');
   });
 
-  it.skip('should detect shorthand identifier imports', async function () {
+  it('should detect shorthand identifier imports', async function () {
     const dir = path.join(__dirname, 'js-import-shorthand-identifier');
     overlayFS.mkdirp(dir);
 
@@ -6387,7 +6387,7 @@ describe.only('javascript', function () {
     assert.deepEqual(output.default, {color: 'blue'});
   });
 
-  it.skip('should retain unicode escape sequences', async function () {
+  it('should retain unicode escape sequences', async function () {
     // See issue #8877
     await fsFixture(overlayFS, __dirname)`
         src/index.js:
@@ -6408,7 +6408,7 @@ describe.only('javascript', function () {
     assert(!contents.includes('\ufffe'));
   });
 
-  it.skip(`should not wrap assets that are duplicated in different targets`, async function () {
+  it(`should not wrap assets that are duplicated in different targets`, async function () {
     const dir = path.join(__dirname, 'multi-target-duplicates');
     overlayFS.mkdirp(dir);
 
@@ -7618,7 +7618,7 @@ describe.only('javascript', function () {
       assert.equal(await result.output, 2);
     });
 
-    it.skip(`should work correctly with export called hasOwnProperty ${
+    it(`should work correctly with export called hasOwnProperty ${
       shouldScopeHoist ? 'with' : 'without'
     } scope-hoisting`, async () => {
       await fsFixture(overlayFS, __dirname)`

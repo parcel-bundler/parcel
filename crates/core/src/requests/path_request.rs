@@ -1,11 +1,12 @@
 use std::{
   borrow::Cow,
-  fs::read_to_string,
   path::{Path, PathBuf},
 };
 
 use crate::{
-  diagnostic::{format_markdown, CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity},
+  diagnostic::{
+    format_markdown, json_key, CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity,
+  },
   environment::{EnvironmentContext, EnvironmentFlags},
   intern::Interned,
   parcel_config::PluginNode,
@@ -271,8 +272,9 @@ impl Resolver for DefaultResolver {
           if dep.env.flags.contains(EnvironmentFlags::IS_LIBRARY)
             && dep.specifier_type != SpecifierType::Url
           {
-            result = check_excluded_dependency(&source_path, specifier, dep, &resolver)
-              .map_err(|e| vec![e]);
+            result =
+              check_excluded_dependency(&source_path, specifier, dep, &resolver, &options.input_fs)
+                .map_err(|e| vec![e]);
           }
         }
 
@@ -555,6 +557,7 @@ fn check_excluded_dependency<Fs: FileSystem>(
   specifier: &str,
   dep: &Dependency,
   resolver: &parcel_resolver::Resolver<Fs>,
+  fs: &Fs,
 ) -> Result<ResolverResult, Diagnostic> {
   let Ok((Specifier::Package(module, _), _)) = Specifier::parse(
     specifier,
@@ -568,34 +571,90 @@ fn check_excluded_dependency<Fs: FileSystem>(
     return Ok(ResolverResult::Excluded);
   };
 
-  if pkg.dependencies.contains_key(&*module) || pkg.peer_dependencies.contains_key(&*module) {
-    return Ok(ResolverResult::Excluded);
+  if !pkg.dependencies.contains_key(&*module) && !pkg.peer_dependencies.contains_key(&*module) {
+    let contents = fs.read_to_string(&pkg.path)?;
+    let parsed = json_sourcemap::parse(&contents, Default::default())?;
+
+    return Err(Diagnostic {
+      origin: Some("@parcel/resolver-default".into()),
+      message: format!(
+        "External dependency \"{}\" is not declared in package.json.",
+        module
+      ),
+      code_frames: vec![CodeFrame {
+        file_path: Some(pkg.path.clone().into()),
+        code: Some(contents),
+        code_highlights: vec![parsed
+          .get_location("/dependencies")
+          .map(|loc| CodeHighlight::from_json(loc.key(), loc.key_end(), None))
+          .unwrap_or(CodeHighlight {
+            message: None,
+            start: Location { line: 1, column: 1 },
+            end: Location { line: 1, column: 1 },
+          })],
+        language: Some(crate::types::AssetType::Json),
+      }],
+      hints: vec![format!("Add \"{}\" as a dependency.", module)],
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    });
   }
 
-  let contents = std::fs::read_to_string(&pkg.path)?;
-  let parsed = json_sourcemap::parse(&contents, Default::default())?;
+  if let Some(range) = dep
+    .range
+    .as_ref()
+    .and_then(|r| node_semver::Range::parse(r).ok())
+  {
+    let dep_range = pkg
+      .dependencies
+      .get(&*module)
+      .or(pkg.peer_dependencies.get(&*module));
+    if let Some(dep_range) = dep_range.and_then(|r| node_semver::Range::parse(r).ok()) {
+      let field = if pkg.dependencies.contains_key(&*module) {
+        "dependencies"
+      } else {
+        "peerDependencies"
+      };
+      if range.intersect(&dep_range).is_none() {
+        let contents = fs.read_to_string(&pkg.path)?;
+        let parsed = json_sourcemap::parse(&contents, Default::default())?;
+        return Err(Diagnostic {
+          origin: Some("@parcel/resolver-default".into()),
+          message: format_markdown!(
+            "External dependency \"{}\" does not satisfy required semver range \"{}\".",
+            module,
+            dep.range.as_ref().unwrap()
+          ),
+          code_frames: vec![CodeFrame {
+            file_path: Some(pkg.path.clone().into()),
+            code: Some(contents),
+            code_highlights: vec![parsed
+              .get_location(&json_key!("/{}/{}", field, module))
+              .map(|loc| {
+                CodeHighlight::from_json(
+                  loc.value(),
+                  loc.value_end(),
+                  Some("Found this conflicting requirement."),
+                )
+              })
+              .unwrap_or(CodeHighlight {
+                message: None,
+                start: Location { line: 1, column: 1 },
+                end: Location { line: 1, column: 1 },
+              })],
+            language: Some(crate::types::AssetType::Json),
+          }],
+          hints: vec![format_markdown!(
+            "Update the dependency on \"{}\" to satisfy \"{}\".",
+            module,
+            dep.range.as_ref().unwrap()
+          )],
+          severity: DiagnosticSeverity::Error,
+          documentation_url: None,
+        });
+      }
+    }
+  }
 
-  return Err(Diagnostic {
-    origin: Some("@parcel/resolver-default".into()),
-    message: format!(
-      "External dependency \"{}\" is not declared in package.json.",
-      module
-    ),
-    code_frames: vec![CodeFrame {
-      file_path: Some(pkg.path.clone().into()),
-      code: Some(contents),
-      code_highlights: vec![parsed
-        .get_location("/dependencies")
-        .map(|loc| CodeHighlight::from_json(loc.key(), loc.key_end()))
-        .unwrap_or(CodeHighlight {
-          message: None,
-          start: Location { line: 1, column: 1 },
-          end: Location { line: 1, column: 1 },
-        })],
-      language: Some(crate::types::AssetType::Json),
-    }],
-    hints: vec![format!("Add \"{}\" as a dependency.", module)],
-    severity: DiagnosticSeverity::Error,
-    documentation_url: None,
-  });
+  return Ok(ResolverResult::Excluded);
 }
