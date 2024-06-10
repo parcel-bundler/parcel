@@ -477,7 +477,7 @@ impl<'a> AssetGraphRequest<'a> {
 }
 
 /// Runs a callback inside a rayon scope, and provides an interface to queue requests.
-fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope>) -> R>(
+fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope, '_>) -> R>(
   request_tracker: &'scope mut RequestTracker,
   farm: &'scope WorkerFarm,
   options: &'scope ParcelOptions,
@@ -501,24 +501,27 @@ fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope>) -> R>(
   result.unwrap()
 }
 
-struct Queue<'a, 'scope> {
+struct Queue<'a, 'scope, 'r> {
   scope: &'a rayon::Scope<'scope>,
   in_flight: usize,
   farm: &'scope WorkerFarm,
   options: &'scope ParcelOptions,
-  request_tracker: &'scope mut RequestTracker,
+  request_tracker: &'scope mut RequestTracker<'r>,
   sender: crossbeam_channel::Sender<(u64, NodeIndex, Result<RequestOutput, Vec<Diagnostic>>)>,
   receiver: crossbeam_channel::Receiver<(u64, NodeIndex, Result<RequestOutput, Vec<Diagnostic>>)>,
 }
 
-impl<'a, 'scope> Queue<'a, 'scope> {
+impl<'a, 'scope, 'r> Queue<'a, 'scope, 'r> {
   pub fn queue_request<'s: 'scope, R: Request + StoreRequestOutput + Send + 'scope>(
     &mut self,
     req: R,
     node: NodeIndex,
   ) {
     self.in_flight += 1;
-    if self.request_tracker.start_request(&req) {
+    if let Some(result) = self.request_tracker.start_request(&req) {
+      // We already have a result for this require, so just clone it and send it on the channel.
+      drop(self.sender.send((req.id(), node, Ok(result))));
+    } else {
       // This request hasn't run before, so spawn a task in the thread pool.
       let sender = self.sender.clone();
       let farm = self.farm;
@@ -538,10 +541,6 @@ impl<'a, 'scope> Queue<'a, 'scope> {
           )),
         );
       });
-    } else {
-      // We already have a result for this require, so just clone it and send it on the channel.
-      let result = self.request_tracker.get_request_result(&req);
-      drop(self.sender.send((req.id(), node, result.clone())));
     }
   }
 

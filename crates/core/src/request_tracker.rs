@@ -1,5 +1,5 @@
 use std::{
-  collections::HashMap,
+  collections::{hash_map::Entry, HashMap},
   hash::{Hash, Hasher},
   path::{Path, PathBuf},
 };
@@ -41,9 +41,9 @@ pub struct RequestResult<Output> {
 
 #[derive(Debug)]
 enum RequestGraphNode {
-  FileName,
-  FilePath,
-  Glob,
+  FileName(Interned<String>),
+  FilePath(Interned<PathBuf>),
+  Glob(Interned<String>),
   Option,
   ConfigKey,
   Request(u64),
@@ -71,7 +71,6 @@ pub enum RequestOutput {
 struct RequestNode {
   node: NodeIndex,
   state: RequestNodeState,
-  output: Option<Result<RequestOutput, Vec<Diagnostic>>>,
 }
 
 pub trait StoreRequestOutput: Request {
@@ -103,12 +102,12 @@ impl_store_request!(PathRequest<'a>);
 impl_store_request!(AssetRequest<'a>);
 impl_store_request!(BundleGraphRequest);
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 enum RequestNodeState {
   Incomplete,
   Invalid,
-  Error,
-  Valid,
+  Error(Vec<Diagnostic>),
+  Valid(RequestOutput),
 }
 
 pub enum Invalidation {
@@ -122,9 +121,8 @@ pub enum Invalidation {
   InvalidateOnFileDelete(Interned<PathBuf>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum RequestEdgeType {
-  SubRequest,
   InvalidatedByUpdate,
   InvalidatedByDelete,
   InvalidatedByCreate,
@@ -132,7 +130,6 @@ enum RequestEdgeType {
     dir: Option<Interned<PathBuf>>,
     above: Interned<PathBuf>,
   },
-  Dirname,
 }
 
 #[derive(serde::Deserialize)]
@@ -144,7 +141,8 @@ pub enum FileEvent {
 }
 
 #[derive(Debug)]
-pub struct RequestTracker {
+pub struct RequestTracker<'a> {
+  prev: Option<&'a RequestTracker<'a>>,
   graph: DiGraph<RequestGraphNode, RequestEdgeType>,
   requests: HashMap<u64, RequestNode>,
   file_names: HashMap<&'static str, NodeIndex>,
@@ -152,9 +150,10 @@ pub struct RequestTracker {
   globs: HashMap<&'static str, NodeIndex>,
 }
 
-impl RequestTracker {
+impl<'a> RequestTracker<'a> {
   pub fn new() -> Self {
     RequestTracker {
+      prev: None,
       graph: DiGraph::new(),
       requests: HashMap::new(),
       file_names: HashMap::new(),
@@ -163,27 +162,51 @@ impl RequestTracker {
     }
   }
 
-  pub fn start_request<R: Request>(&mut self, request: &R) -> bool {
-    let id = request.id();
-    let request = self.requests.entry(id).or_insert_with(|| {
-      let node = self.graph.add_node(RequestGraphNode::Request(id));
-      RequestNode {
-        node,
-        state: RequestNodeState::Incomplete,
-        output: None,
-      }
-    });
+  pub fn child(&'a self) -> Self {
+    RequestTracker {
+      prev: Some(self),
+      graph: DiGraph::new(),
+      requests: HashMap::new(),
+      file_names: HashMap::new(),
+      file_paths: HashMap::new(),
+      globs: HashMap::new(),
+    }
+  }
 
-    if request.state == RequestNodeState::Valid {
-      return false;
+  pub fn start_request<R: Request>(&mut self, request: &R) -> Option<RequestOutput> {
+    let id = request.id();
+    let request = match self.requests.entry(id) {
+      Entry::Occupied(entry) => entry.into_mut(),
+      Entry::Vacant(entry) => {
+        let node = self.graph.add_node(RequestGraphNode::Request(id));
+
+        // Check if we have a valid result from a previous build.
+        if let Some(prev) = self.prev {
+          if let Some(prev_request) = prev.requests.get(&id) {
+            if let RequestNodeState::Valid(res) = &prev_request.state {
+              entry.insert(RequestNode {
+                node,
+                state: RequestNodeState::Valid(res.clone()),
+              });
+              prev.copy_invalidations(prev_request.node, self, node);
+              return Some(res.clone());
+            }
+          }
+        }
+
+        entry.insert(RequestNode {
+          node,
+          state: RequestNodeState::Incomplete,
+        })
+      }
+    };
+
+    if let RequestNodeState::Valid(res) = &request.state {
+      return Some(res.clone());
     }
 
     request.state = RequestNodeState::Incomplete;
-    request.output = None;
-
-    // TODO: clear invalidations
-
-    true
+    None
   }
 
   pub fn finish_request(
@@ -193,15 +216,13 @@ impl RequestTracker {
     invalidations: Vec<Invalidation>,
   ) {
     let request = self.requests.get_mut(&id).unwrap();
-    if request.state == RequestNodeState::Valid {
+    if matches!(request.state, RequestNodeState::Valid(_)) {
       return;
     }
     request.state = match result {
-      Ok(_) => RequestNodeState::Valid,
-      Err(_) => RequestNodeState::Error,
+      Ok(res) => RequestNodeState::Valid(res),
+      Err(err) => RequestNodeState::Error(err),
     };
-
-    request.output = Some(result);
 
     let node = request.node;
     for invalidation in invalidations {
@@ -225,31 +246,50 @@ impl RequestTracker {
     }
   }
 
-  pub fn get_request_result<R: Request + StoreRequestOutput>(
+  fn copy_invalidations(
     &self,
-    request: &R,
-  ) -> &Result<RequestOutput, Vec<Diagnostic>> {
-    let request = self.get_request(request);
-    request.output.as_ref().unwrap()
+    from_node: NodeIndex,
+    dest: &mut RequestTracker,
+    to_node: NodeIndex,
+  ) {
+    for edge in self.graph.edges_directed(from_node, Direction::Incoming) {
+      let target = &self.graph[edge.source()];
+      match (edge.weight(), target) {
+        (
+          kind @ (RequestEdgeType::InvalidatedByCreate
+          | RequestEdgeType::InvalidatedByUpdate
+          | RequestEdgeType::InvalidatedByDelete),
+          RequestGraphNode::FilePath(path),
+        ) => {
+          dest.invalidate_on_file_event(to_node, path.clone(), kind.clone());
+        }
+        (
+          kind @ (RequestEdgeType::InvalidatedByCreate
+          | RequestEdgeType::InvalidatedByUpdate
+          | RequestEdgeType::InvalidatedByDelete),
+          RequestGraphNode::Glob(glob),
+        ) => {
+          dest.invalidate_on_glob_event(to_node, glob.clone(), kind.clone());
+        }
+        (
+          weight @ RequestEdgeType::InvalidateByCreateAbove { .. },
+          RequestGraphNode::FileName(name),
+        ) => {
+          let file_name_node = dest.get_file_name_node(name);
+          dest.graph.add_edge(file_name_node, to_node, weight.clone());
+        }
+        _ => unreachable!("unexpected graph structure"),
+      }
+    }
   }
 
   fn has_valid_result<R: Request>(&self, request: &R) -> bool {
     let id = request.id();
     if let Some(req) = self.requests.get(&id) {
-      return req.state == RequestNodeState::Valid;
+      return matches!(req.state, RequestNodeState::Valid(_));
     }
 
     false
-  }
-
-  fn get_request<R: Request>(&self, request: &R) -> &RequestNode {
-    let id = request.id();
-    self.requests.get(&id).unwrap()
-  }
-
-  fn get_request_mut<R: Request>(&mut self, request: &R) -> &mut RequestNode {
-    let id = request.id();
-    self.requests.get_mut(&id).unwrap()
   }
 
   fn invalidate_on_file_event(
@@ -261,9 +301,19 @@ impl RequestTracker {
     let file_name_node = self
       .file_paths
       .entry(Interned::data(&path).as_path())
-      .or_insert_with(|| self.graph.add_node(RequestGraphNode::FilePath));
+      .or_insert_with(|| self.graph.add_node(RequestGraphNode::FilePath(path)));
 
     self.graph.add_edge(*file_name_node, request_node, kind);
+  }
+
+  fn get_file_name_node(&mut self, name: &str) -> NodeIndex {
+    let name: Interned<String> = name.into();
+    let file_name_node = self
+      .file_names
+      .entry(Interned::data(&name).as_str())
+      .or_insert_with(|| self.graph.add_node(RequestGraphNode::FileName(name)));
+
+    *file_name_node
   }
 
   fn invalidate_on_file_create_above(
@@ -273,14 +323,10 @@ impl RequestTracker {
     above: Interned<PathBuf>,
   ) {
     let (dir, name) = pattern.rsplit_once('/').unwrap_or(("", pattern));
-    let name: Interned<String> = name.into();
-    let file_name_node = self
-      .file_names
-      .entry(Interned::data(&name).as_str())
-      .or_insert_with(|| self.graph.add_node(RequestGraphNode::FileName));
+    let file_name_node = self.get_file_name_node(name);
 
     self.graph.add_edge(
-      *file_name_node,
+      file_name_node,
       request_node,
       RequestEdgeType::InvalidateByCreateAbove {
         dir: if dir.is_empty() {
@@ -302,7 +348,7 @@ impl RequestTracker {
     let glob_node = self
       .globs
       .entry(Interned::data(&glob).as_str())
-      .or_insert_with(|| self.graph.add_node(RequestGraphNode::Glob));
+      .or_insert_with(|| self.graph.add_node(RequestGraphNode::Glob(glob)));
 
     self.graph.add_edge(*glob_node, request_node, kind);
   }
@@ -510,5 +556,21 @@ mod tests {
 
     tracker.respond_to_fs_event(FileEvent::Create("test/hi/bar/yo/foo".into()));
     assert!(!tracker.has_valid_result(&request));
+  }
+
+  #[test]
+  fn test_child_build() {
+    let mut tracker = RequestTracker::new();
+    let request: EntryRequest = run_request(&mut tracker);
+    assert!(tracker.has_valid_result(&request));
+
+    let mut child = tracker.child();
+    assert!(!child.has_valid_result(&request));
+
+    assert!(child.start_request(&request).is_some());
+    assert!(child.has_valid_result(&request));
+
+    child.respond_to_fs_event(FileEvent::Update("foo/bar".into()));
+    assert!(!child.has_valid_result(&request));
   }
 }

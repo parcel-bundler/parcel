@@ -1373,14 +1373,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel-path"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "gxhash",
-]
-
-[[package]]
 name = "parcel-resolver"
 version = "0.1.0"
 dependencies = [
