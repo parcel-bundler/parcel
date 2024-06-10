@@ -555,7 +555,9 @@ impl<'a, 'scope> Queue<'a, 'scope> {
 
     // Receive a result from the channel, and store the result in the RequestTracker.
     if let Ok((request, node, result)) = self.receiver.recv() {
-      self.request_tracker.finish_request(request, result.clone());
+      self
+        .request_tracker
+        .finish_request(request, result.clone(), vec![]);
       self.in_flight -= 1;
       Some((request, node, result))
     } else {

@@ -1,5 +1,6 @@
 use std::{
-  collections::HashSet,
+  borrow::Borrow,
+  collections::{HashMap, HashSet},
   fmt::{Debug, Display},
   hash::{BuildHasherDefault, Hash, Hasher},
   ops::Deref,
@@ -9,6 +10,7 @@ use std::{
 
 use dashmap::{DashMap, SharedValue};
 use gxhash::{GxBuildHasher, GxHasher};
+use petgraph::data::Build;
 use serde::{Deserialize, Serialize};
 
 /// An Interned value is a unique pointer to a value.
@@ -115,8 +117,7 @@ impl<T: PartialOrd> PartialOrd for Interned<T> {
 
 impl<T> Hash for Interned<T> {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    // Use the pre-computed hash.
-    self.0.hash.hash(state)
+    state.write_u64(self.0.hash);
   }
 }
 
@@ -147,6 +148,12 @@ impl<T> Clone for Interned<T> {
 
 impl<T> Copy for Interned<T> {}
 
+impl<T> Interned<T> {
+  pub fn data(value: &Self) -> &'static T {
+    &value.0.data
+  }
+}
+
 /// A hasher that just passes through a value that is already a hash.
 #[derive(Default)]
 pub struct IdentityHasher {
@@ -159,6 +166,8 @@ impl Hasher for IdentityHasher {
       self.hash = u64::from_ne_bytes([
         bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
       ])
+    } else {
+      unreachable!()
     }
   }
 
@@ -169,6 +178,7 @@ impl Hasher for IdentityHasher {
 
 /// A HashSet that stores Interned values and uses their pre-computed hashes for efficiency.
 pub type InternedSet<T> = HashSet<Interned<T>, BuildHasherDefault<IdentityHasher>>;
+pub type InternedMap<K, V> = HashMap<Interned<K>, V, BuildHasherDefault<IdentityHasher>>;
 
 fn string_interner() -> &'static Interner<String> {
   static INTERNER: OnceLock<Interner<String>> = OnceLock::new();
