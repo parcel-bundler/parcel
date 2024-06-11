@@ -4,6 +4,8 @@ use std::hash::Hash;
 use std::hash::Hasher;
 
 use dyn_hash::DynHash;
+use parcel_core::plugin::ReporterEvent;
+use parcel_core::types::Invalidation;
 
 use super::RequestTracker;
 
@@ -21,6 +23,10 @@ impl<'a, T: Clone> RunRequestContext<'a, T> {
       parent_request_hash,
       request_tracker,
     }
+  }
+
+  pub fn report(&self, _event: ReporterEvent) {
+    // TODO
   }
 
   // TODO: Why is this boxed?
@@ -42,12 +48,13 @@ pub trait Request<T: Clone>: DynHash {
     hasher.finish()
   }
 
-  fn run(&self, request_tracker: RunRequestContext<T>)
+  fn run(&self, request_context: RunRequestContext<T>)
     -> Result<RequestResult<T>, RunRequestError>;
 }
 
 dyn_hash::hash_trait_object!(<T: Clone> Request<T>);
 
+#[derive(Debug, PartialEq)]
 pub struct RequestResult<Req> {
   pub result: Req,
   pub invalidations: Vec<Invalidation>,
@@ -57,6 +64,3 @@ pub struct RequestResult<Req> {
 pub enum RequestError {
   Impossible,
 }
-
-#[derive(Debug, PartialEq)]
-pub enum Invalidation {}

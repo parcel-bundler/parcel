@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use dyn_hash::DynHash;
 
-use crate::request_tracker::Invalidation;
 use crate::types::Dependency;
+use crate::types::Invalidation;
 use crate::types::JSONObject;
 use crate::types::Priority;
 
