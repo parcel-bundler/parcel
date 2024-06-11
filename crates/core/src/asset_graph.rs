@@ -283,7 +283,7 @@ impl AssetGraph {
 }
 
 pub struct AssetGraphRequest<'a> {
-  pub entries: Vec<String>,
+  pub entries: &'a Vec<String>,
   pub transformers: &'a PipelineMap,
   pub resolvers: &'a Vec<PluginNode>,
 }
@@ -300,7 +300,7 @@ impl<'a> AssetGraphRequest<'a> {
     let named_pipelines = self.transformers.named_pipelines();
 
     scope(request_tracker, farm, options, |scope| {
-      for entry in &self.entries {
+      for entry in self.entries {
         // Currently some tests depend on the order of the entry dependencies
         // in the graph. Insert a placeholder node here so that the dependency
         // order is consistent no matter which order the requests resolve in.
@@ -477,7 +477,7 @@ impl<'a> AssetGraphRequest<'a> {
 }
 
 /// Runs a callback inside a rayon scope, and provides an interface to queue requests.
-fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope, '_>) -> R>(
+fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope>) -> R>(
   request_tracker: &'scope mut RequestTracker,
   farm: &'scope WorkerFarm,
   options: &'scope ParcelOptions,
@@ -501,17 +501,17 @@ fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope, '_>) -> R>(
   result.unwrap()
 }
 
-struct Queue<'a, 'scope, 'r> {
+struct Queue<'a, 'scope> {
   scope: &'a rayon::Scope<'scope>,
   in_flight: usize,
   farm: &'scope WorkerFarm,
   options: &'scope ParcelOptions,
-  request_tracker: &'scope mut RequestTracker<'r>,
+  request_tracker: &'scope mut RequestTracker,
   sender: crossbeam_channel::Sender<(u64, NodeIndex, Result<RequestOutput, Vec<Diagnostic>>)>,
   receiver: crossbeam_channel::Receiver<(u64, NodeIndex, Result<RequestOutput, Vec<Diagnostic>>)>,
 }
 
-impl<'a, 'scope, 'r> Queue<'a, 'scope, 'r> {
+impl<'a, 'scope> Queue<'a, 'scope> {
   pub fn queue_request<'s: 'scope, R: Request + StoreRequestOutput + Send + 'scope>(
     &mut self,
     req: R,

@@ -13,12 +13,47 @@ pub mod worker_farm;
 use asset_graph::{AssetGraph, AssetGraphRequest};
 use diagnostic::Diagnostic;
 use environment::reset_env_interner;
-use request_tracker::{Request, RequestTracker};
+use request_tracker::{FileEvent, Request, RequestTracker};
 use types::ParcelOptions;
-// use requests::bundle_graph_request::BundleGraphRequest;
 use worker_farm::WorkerFarm;
 
 use crate::requests::parcel_config_request::ParcelConfigRequest;
+
+struct Parcel {
+  request_tracker: RequestTracker,
+  entries: Vec<String>,
+  farm: WorkerFarm,
+  options: ParcelOptions,
+}
+
+impl Parcel {
+  pub fn new(entries: Vec<String>, farm: WorkerFarm, options: ParcelOptions) -> Self {
+    Parcel {
+      request_tracker: RequestTracker::new(),
+      entries,
+      farm,
+      options,
+    }
+  }
+
+  pub fn build(&mut self, events: Vec<FileEvent>) -> Result<AssetGraph, Vec<Diagnostic>> {
+    self.request_tracker.next_build(events);
+
+    let config = ParcelConfigRequest {}
+      .run(&self.farm, &self.options)
+      .result
+      .unwrap();
+
+    let mut req = AssetGraphRequest {
+      entries: &self.entries,
+      transformers: &config.transformers,
+      resolvers: &config.resolvers,
+    };
+    let asset_graph = req.build(&mut self.request_tracker, &self.farm, &self.options);
+
+    asset_graph
+  }
+}
 
 pub fn build(
   entries: Vec<String>,
@@ -30,25 +65,6 @@ pub fn build(
   // and this results in interned envs being reused between tests.
   reset_env_interner();
 
-  let mut request_tracker = RequestTracker::new();
-  // let config = request_tracker.run_request(ParcelConfigRequest {}).unwrap();
-  let config = ParcelConfigRequest {}.run(&farm, &options).result.unwrap();
-
-  let mut req = AssetGraphRequest {
-    entries,
-    transformers: &config.transformers,
-    resolvers: &config.resolvers,
-  };
-  let asset_graph = req.build(&mut request_tracker, &farm, &options);
-  // println!("{:#?}", asset_graph);
-
-  // let bundles = request_tracker
-  //   .run_request(BundleGraphRequest {
-  //     asset_graph,
-  //     bundler: config.bundler.clone(),
-  //   })
-  //   .unwrap();
-
-  // println!("BUNDLES: {:?}", bundles);
-  asset_graph
+  let mut parcel = Parcel::new(entries, farm, options);
+  parcel.build(vec![])
 }

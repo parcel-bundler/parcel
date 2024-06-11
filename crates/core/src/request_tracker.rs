@@ -140,9 +140,19 @@ pub enum FileEvent {
   Delete(PathBuf),
 }
 
-#[derive(Debug)]
-pub struct RequestTracker<'a> {
-  prev: Option<&'a RequestTracker<'a>>,
+/// A RequestTracker is a builder for a RequestGraph.
+/// The RequestGraph is not mutated once a build is complete.
+/// When file system events occur, nodes are invalidated in the previous RequestGraph.
+/// Then, a new RequestGraph is created for the next build. As requests are run,
+/// valid results can be reused from the previous build.
+#[derive(Default)]
+pub struct RequestTracker {
+  prev: RequestGraph,
+  graph: RequestGraph,
+}
+
+#[derive(Default)]
+struct RequestGraph {
   graph: DiGraph<RequestGraphNode, RequestEdgeType>,
   requests: HashMap<u64, RequestNode>,
   file_names: HashMap<&'static str, NodeIndex>,
@@ -150,47 +160,38 @@ pub struct RequestTracker<'a> {
   globs: HashMap<&'static str, NodeIndex>,
 }
 
-impl<'a> RequestTracker<'a> {
+impl RequestTracker {
   pub fn new() -> Self {
-    RequestTracker {
-      prev: None,
-      graph: DiGraph::new(),
-      requests: HashMap::new(),
-      file_names: HashMap::new(),
-      file_paths: HashMap::new(),
-      globs: HashMap::new(),
-    }
+    RequestTracker::default()
   }
 
-  pub fn child(&'a self) -> Self {
-    RequestTracker {
-      prev: Some(self),
-      graph: DiGraph::new(),
-      requests: HashMap::new(),
-      file_names: HashMap::new(),
-      file_paths: HashMap::new(),
-      globs: HashMap::new(),
+  pub fn next_build(&mut self, events: Vec<FileEvent>) {
+    // Invalidate nodes in the current graph, and create a new one for the next build.
+    // TODO: possibly could be faster if we didn't move the whole graph in memory. Could just swap between them.
+    self.prev = std::mem::take(&mut self.graph);
+    for event in events {
+      self.prev.respond_to_fs_event(event);
     }
   }
 
   pub fn start_request<R: Request>(&mut self, request: &R) -> Option<RequestOutput> {
     let id = request.id();
-    let request = match self.requests.entry(id) {
+    let request = match self.graph.requests.entry(id) {
       Entry::Occupied(entry) => entry.into_mut(),
       Entry::Vacant(entry) => {
-        let node = self.graph.add_node(RequestGraphNode::Request(id));
+        let node = self.graph.graph.add_node(RequestGraphNode::Request(id));
 
         // Check if we have a valid result from a previous build.
-        if let Some(prev) = self.prev {
-          if let Some(prev_request) = prev.requests.get(&id) {
-            if let RequestNodeState::Valid(res) = &prev_request.state {
-              entry.insert(RequestNode {
-                node,
-                state: RequestNodeState::Valid(res.clone()),
-              });
-              prev.copy_invalidations(prev_request.node, self, node);
-              return Some(res.clone());
-            }
+        if let Some(prev_request) = self.prev.requests.get(&id) {
+          if let RequestNodeState::Valid(res) = &prev_request.state {
+            entry.insert(RequestNode {
+              node,
+              state: RequestNodeState::Valid(res.clone()),
+            });
+            self
+              .prev
+              .copy_invalidations(prev_request.node, &mut self.graph, node);
+            return Some(res.clone());
           }
         }
 
@@ -215,7 +216,7 @@ impl<'a> RequestTracker<'a> {
     result: Result<RequestOutput, Vec<Diagnostic>>,
     invalidations: Vec<Invalidation>,
   ) {
-    let request = self.requests.get_mut(&id).unwrap();
+    let request = self.graph.requests.get_mut(&id).unwrap();
     if matches!(request.state, RequestNodeState::Valid(_)) {
       return;
     }
@@ -228,30 +229,40 @@ impl<'a> RequestTracker<'a> {
     for invalidation in invalidations {
       match invalidation {
         Invalidation::InvalidateOnFileCreate(path) => {
-          self.invalidate_on_file_event(node, path, RequestEdgeType::InvalidatedByCreate);
+          self
+            .graph
+            .invalidate_on_file_event(node, path, RequestEdgeType::InvalidatedByCreate);
         }
-        Invalidation::InvalidateOnFileCreateAbove { file_name, above } => {
-          self.invalidate_on_file_create_above(node, &file_name, above)
-        }
+        Invalidation::InvalidateOnFileCreateAbove { file_name, above } => self
+          .graph
+          .invalidate_on_file_create_above(node, &file_name, above),
         Invalidation::InvalidateOnGlobCreate(glob) => {
-          self.invalidate_on_glob_event(node, glob, RequestEdgeType::InvalidatedByCreate);
+          self
+            .graph
+            .invalidate_on_glob_event(node, glob, RequestEdgeType::InvalidatedByCreate);
         }
         Invalidation::InvalidateOnFileUpdate(path) => {
-          self.invalidate_on_file_event(node, path, RequestEdgeType::InvalidatedByUpdate);
+          self
+            .graph
+            .invalidate_on_file_event(node, path, RequestEdgeType::InvalidatedByUpdate);
         }
         Invalidation::InvalidateOnFileDelete(path) => {
-          self.invalidate_on_file_event(node, path, RequestEdgeType::InvalidatedByDelete);
+          self
+            .graph
+            .invalidate_on_file_event(node, path, RequestEdgeType::InvalidatedByDelete);
         }
       }
     }
   }
 
-  fn copy_invalidations(
-    &self,
-    from_node: NodeIndex,
-    dest: &mut RequestTracker,
-    to_node: NodeIndex,
-  ) {
+  pub fn build_success(&mut self) {
+    // After a successful build, drop the previous RequestGraph to free up memory.
+    self.prev = RequestGraph::default();
+  }
+}
+
+impl RequestGraph {
+  fn copy_invalidations(&self, from_node: NodeIndex, dest: &mut RequestGraph, to_node: NodeIndex) {
     for edge in self.graph.edges_directed(from_node, Direction::Incoming) {
       let target = &self.graph[edge.source()];
       match (edge.weight(), target) {
@@ -351,12 +362,6 @@ impl<'a> RequestTracker<'a> {
       .or_insert_with(|| self.graph.add_node(RequestGraphNode::Glob(glob)));
 
     self.graph.add_edge(*glob_node, request_node, kind);
-  }
-
-  pub fn respond_to_fs_events(&mut self, events: Vec<FileEvent>) {
-    for event in events {
-      self.respond_to_fs_event(event)
-    }
   }
 
   fn respond_to_fs_event(&mut self, event: FileEvent) {
@@ -495,14 +500,15 @@ mod tests {
     let mut tracker = RequestTracker::new();
     let request = run_request(&mut tracker);
 
-    assert!(tracker.has_valid_result(&request));
+    let graph = &mut tracker.graph;
+    assert!(graph.has_valid_result(&request));
 
     // other files don't invalidate
-    tracker.respond_to_fs_event(FileEvent::Update("foo/yo".into()));
-    assert!(tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Update("foo/yo".into()));
+    assert!(graph.has_valid_result(&request));
 
-    tracker.respond_to_fs_event(FileEvent::Update("foo/bar".into()));
-    assert!(!tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Update("foo/bar".into()));
+    assert!(!graph.has_valid_result(&request));
   }
 
   #[test]
@@ -510,14 +516,15 @@ mod tests {
     let mut tracker = RequestTracker::new();
     let request = run_request(&mut tracker);
 
-    assert!(tracker.has_valid_result(&request));
+    let graph = &mut tracker.graph;
+    assert!(graph.has_valid_result(&request));
 
     // other files don't invalidate
-    tracker.respond_to_fs_event(FileEvent::Create("foo/yo".into()));
-    assert!(tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("foo/yo".into()));
+    assert!(graph.has_valid_result(&request));
 
-    tracker.respond_to_fs_event(FileEvent::Create("foo/create".into()));
-    assert!(!tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("foo/create".into()));
+    assert!(!graph.has_valid_result(&request));
   }
 
   #[test]
@@ -525,22 +532,23 @@ mod tests {
     let mut tracker = RequestTracker::new();
     let request = run_request(&mut tracker);
 
-    assert!(tracker.has_valid_result(&request));
+    let graph = &mut tracker.graph;
+    assert!(graph.has_valid_result(&request));
 
     // other files don't invalidate
-    tracker.respond_to_fs_event(FileEvent::Create("node_modules/bar".into()));
-    assert!(tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("node_modules/bar".into()));
+    assert!(graph.has_valid_result(&request));
 
     // deeper files don't invalidate
-    tracker.respond_to_fs_event(FileEvent::Create("foo/bar/baz/node_modules/foo".into()));
-    assert!(tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("foo/bar/baz/node_modules/foo".into()));
+    assert!(graph.has_valid_result(&request));
 
     // files outside subtree don't invalidate
-    tracker.respond_to_fs_event(FileEvent::Create("baz/node_modules/foo".into()));
-    assert!(tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("baz/node_modules/foo".into()));
+    assert!(graph.has_valid_result(&request));
 
-    tracker.respond_to_fs_event(FileEvent::Create("foo/node_modules/foo".into()));
-    assert!(!tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("foo/node_modules/foo".into()));
+    assert!(!graph.has_valid_result(&request));
   }
 
   #[test]
@@ -548,29 +556,32 @@ mod tests {
     let mut tracker = RequestTracker::new();
     let request = run_request(&mut tracker);
 
-    assert!(tracker.has_valid_result(&request));
+    let graph = &mut tracker.graph;
+    assert!(graph.has_valid_result(&request));
 
     // non-matching files don't invalidate
-    tracker.respond_to_fs_event(FileEvent::Create("foo/test".into()));
-    assert!(tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("foo/test".into()));
+    assert!(graph.has_valid_result(&request));
 
-    tracker.respond_to_fs_event(FileEvent::Create("test/hi/bar/yo/foo".into()));
-    assert!(!tracker.has_valid_result(&request));
+    graph.respond_to_fs_event(FileEvent::Create("test/hi/bar/yo/foo".into()));
+    assert!(!graph.has_valid_result(&request));
   }
 
   #[test]
-  fn test_child_build() {
+  fn test_next_build() {
     let mut tracker = RequestTracker::new();
     let request: EntryRequest = run_request(&mut tracker);
-    assert!(tracker.has_valid_result(&request));
 
-    let mut child = tracker.child();
-    assert!(!child.has_valid_result(&request));
+    let graph = &mut tracker.graph;
+    assert!(graph.has_valid_result(&request));
 
-    assert!(child.start_request(&request).is_some());
-    assert!(child.has_valid_result(&request));
+    tracker.next_build(vec![]);
+    assert!(!tracker.graph.has_valid_result(&request));
 
-    child.respond_to_fs_event(FileEvent::Update("foo/bar".into()));
-    assert!(!child.has_valid_result(&request));
+    assert!(tracker.start_request(&request).is_some());
+    assert!(tracker.graph.has_valid_result(&request));
+
+    tracker.next_build(vec![FileEvent::Update("foo/bar".into())]);
+    assert!(tracker.start_request(&request).is_none());
   }
 }
