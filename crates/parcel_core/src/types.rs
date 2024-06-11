@@ -16,6 +16,9 @@ pub use self::environment::*;
 mod file_type;
 pub use self::file_type::*;
 
+mod invalidation;
+pub use self::invalidation::*;
+
 mod json;
 pub use self::json::*;
 

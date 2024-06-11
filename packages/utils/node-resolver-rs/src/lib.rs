@@ -11,7 +11,6 @@ use package_json::ExportsResolution;
 use package_json::PackageJson;
 use serde::Deserialize;
 use serde::Serialize;
-use specifier::parse_scheme;
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -36,6 +35,7 @@ pub use package_json::PackageJsonError;
 pub use parcel_filesystem::os_file_system::OsFileSystem;
 pub use parcel_filesystem::FileSystem;
 pub use specifier::parse_package_specifier;
+pub use specifier::parse_scheme;
 pub use specifier::Specifier;
 pub use specifier::SpecifierError;
 pub use specifier::SpecifierType;

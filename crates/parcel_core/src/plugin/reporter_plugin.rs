@@ -1,9 +1,20 @@
 use std::fmt::Debug;
+use std::sync::Arc;
+
+use crate::types::Dependency;
+
+pub struct ResolvingEvent {
+  pub dependency: Arc<Dependency>,
+}
+
+pub enum BuildProgressEvent {
+  Resolving(ResolvingEvent),
+}
 
 // TODO Flesh these out
 pub enum ReporterEvent {
   BuildStart,
-  BuildProgress,
+  BuildProgress(BuildProgressEvent),
   BuildFailure,
   BuildSuccess,
   Log,
