@@ -4,11 +4,13 @@ use std::collections::HashMap;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 
+use super::Request;
 use super::RequestEdgeType;
 use super::RequestGraph;
 use super::RequestNode;
 use super::RequestResult;
-use super::{Request, RunRequestContext, RunRequestError};
+use super::RunRequestContext;
+use super::RunRequestError;
 
 pub struct RequestTracker<T> {
   graph: RequestGraph<T>,

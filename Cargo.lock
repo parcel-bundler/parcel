@@ -1721,7 +1721,10 @@ dependencies = [
 name = "parcel"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "anyhow",
+ "dyn-hash",
+ "parcel-resolver",
  "parcel_config",
  "parcel_core",
  "parcel_filesystem",
@@ -1729,6 +1732,7 @@ dependencies = [
  "parcel_plugin_resolver",
  "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
+ "petgraph",
 ]
 
 [[package]]
@@ -1865,7 +1869,6 @@ dependencies = [
  "nodejs-semver",
  "parcel-resolver",
  "parcel_filesystem",
- "petgraph",
  "serde",
  "serde-value",
  "serde_json",
