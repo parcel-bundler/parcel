@@ -439,9 +439,17 @@ export default class Parcel {
       resolvedOptions.watchDir,
       async (err, events) => {
         if (err) {
+          logger.verbose({
+            message: `File watch event error occured`,
+            meta: {err},
+          });
           this.#watchEvents.emit({error: err});
           return;
         }
+
+        logger.verbose({
+          message: `File watch event emitted with ${events.length} events`,
+        });
 
         let isInvalid = await this.#requestTracker.respondToFSEvents(
           events,
