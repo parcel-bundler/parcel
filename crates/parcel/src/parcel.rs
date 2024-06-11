@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use anyhow;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
 use parcel_package_manager::NodePackageManager;
+use parcel_plugin_rpc::RpcConnectionRef;
 use parcel_plugin_rpc::RpcHostRef;
 
 pub struct Parcel {
@@ -27,5 +29,15 @@ impl Parcel {
       fs,
       rpc: options.rpc,
     }
+  }
+
+  pub fn build(&self) -> anyhow::Result<()> {
+    let mut _rpc_connection = None::<RpcConnectionRef>;
+
+    if let Some(rpc_host) = &self.rpc {
+      _rpc_connection = Some(rpc_host.start()?);
+    }
+
+    Ok(())
   }
 }

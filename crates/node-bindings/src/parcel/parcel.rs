@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use napi::Env;
+use napi::JsNumber;
 use napi::JsObject;
 use napi_derive::napi;
 use parcel::rpc::nodejs::RpcHostNodejs;
@@ -28,7 +29,10 @@ impl ParcelNapi {
     let fs = FileSystemNapi::from_options(&env, &options)?;
 
     // Set up Nodejs plugin bindings
-    let rpc_host_nodejs = RpcHostNodejs::new(&env, options.get_named_property("rpc")?)?;
+    let node_workers: JsNumber = options.get_property(env.create_string("nodeWorkers")?)?;
+    let node_workers = node_workers.get_uint32()?;
+    let rpc_host_nodejs =
+      RpcHostNodejs::new(&env, options.get_named_property("rpc")?, node_workers)?;
 
     // Initialize Parcel
     let parcel = Parcel::new(ParcelOptions {
@@ -39,6 +43,19 @@ impl ParcelNapi {
     Ok(Self {
       parcel: Arc::new(parcel),
     })
+  }
+
+  #[napi]
+  pub async fn build(&self) -> napi::Result<()> {
+    self.parcel.build().unwrap();
+    Ok(())
+  }
+
+  #[napi]
+  pub fn default_thread_count(env: Env) -> napi::Result<JsNumber> {
+    let cpus = num_cpus::get();
+    let cpus = env.create_int32(cpus as i32)?;
+    Ok(cpus)
   }
 
   // Temporary, for testing

@@ -14,3 +14,5 @@ parcel_core = { path = "../parcel_core" }
 anyhow = "1.0.82"
 napi = { version = "2.16.4", features = ["serde"], optional = true }
 serde = { version = "1.0.198", optional = true }
+parking_lot = "0.12"
+once_cell = { version = "1.19.0" }
