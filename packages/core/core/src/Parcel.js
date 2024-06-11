@@ -448,7 +448,7 @@ export default class Parcel {
         }
 
         logger.verbose({
-          message: `File watch event emitted with ${events.length} events. Sample event: [${events[0].type}] ${events[0].path}`,
+          message: `File watch event emitted with ${events.length} events. Sample event: [${events[0]?.type}] ${events[0]?.path}`,
         });
 
         let isInvalid = await this.#requestTracker.respondToFSEvents(
