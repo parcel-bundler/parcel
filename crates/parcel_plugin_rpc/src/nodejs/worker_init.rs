@@ -13,7 +13,7 @@ enum WorkerInitMessage {
 }
 
 // This allows for workers to notify RPC Connections that they are ready
-const WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
+static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   let (tx_subscribe, rx_subscribe) = channel::<WorkerInitMessage>();
 
   thread::spawn(move || {
