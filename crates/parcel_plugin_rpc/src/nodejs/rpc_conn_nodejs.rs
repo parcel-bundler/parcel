@@ -15,6 +15,7 @@ use crate::RpcConnection;
 use super::napi::create_done_callback;
 use super::rpc_conn_message::RpcConnectionMessage;
 use super::worker_init::get_worker_rx;
+use super::worker_init::get_worker_tx;
 
 /// RpcConnectionNodejs wraps the communication with a
 /// single Nodejs worker thread
@@ -23,8 +24,10 @@ pub struct RpcConnectionNodejs {
 }
 
 impl RpcConnectionNodejs {
-  pub fn new(tx_rpc: Sender<RpcConnectionMessage>) -> Self {
-    Self { tx_rpc }
+  pub fn new() -> Self {
+    Self {
+      tx_rpc: get_worker_tx(),
+    }
   }
 
   pub fn create_worker_callback(env: &Env, callback: JsFunction) -> napi::Result<()> {

@@ -48,10 +48,12 @@ static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   tx_subscribe
 });
 
-pub fn register_worker_rx(rx_rpc: Receiver<RpcConnectionMessage>) {
+pub fn get_worker_tx() -> Sender<RpcConnectionMessage> {
+  let (tx_rpc, rx_rpc) = channel();
   WORKER_INIT
     .send(WorkerInitMessage::Register(rx_rpc))
     .unwrap();
+  tx_rpc
 }
 
 pub fn get_worker_rx() -> Receiver<RpcConnectionMessage> {

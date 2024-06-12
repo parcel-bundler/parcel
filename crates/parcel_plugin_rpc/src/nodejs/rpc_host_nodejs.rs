@@ -14,7 +14,6 @@ use crate::RpcHost;
 
 use super::napi::create_done_callback;
 use super::rpc_host_message::RpcHostMessage;
-use super::worker_init::register_worker_rx;
 use super::RpcConnectionNodejs;
 use super::RpcConnectionsNodejs;
 
@@ -86,9 +85,7 @@ impl RpcHost for RpcHostNodejs {
     let mut connections = vec![];
 
     for _ in 0..self.node_workers {
-      let (tx_rpc, rx_rpc) = channel();
-      register_worker_rx(rx_rpc);
-      connections.push(RpcConnectionNodejs::new(tx_rpc))
+      connections.push(RpcConnectionNodejs::new())
     }
 
     Ok(Arc::new(RpcConnectionsNodejs::new(connections)))
