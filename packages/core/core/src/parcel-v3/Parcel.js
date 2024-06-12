@@ -50,9 +50,14 @@ export class ParcelV3 {
   }
 
   async build(): Promise<any> {
-    const workers = await this.#startWorkers();
+    // initialize workers lazily
+    const workers = this.#startWorkers();
+
+    // Run the Parcel build
     let result = await this._internal.build();
-    this.#stopWorkers(workers);
+
+    // Stop workers
+    this.#stopWorkers(await workers);
     return result;
   }
 
