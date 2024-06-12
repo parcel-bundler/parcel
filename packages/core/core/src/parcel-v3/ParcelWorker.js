@@ -5,11 +5,11 @@ import * as napi from '@parcel/rust';
 export class ParcelWorker {
   constructor() {
     napi.workerCallback(async (err, id, data, done) => {
-      if (err) {
-        done({Err: err});
-        return;
-      }
       try {
+        if (err) {
+          done({Err: err});
+          return;
+        }
         done({Ok: (await this.#on_event(id, data)) ?? undefined});
       } catch (error) {
         done({Err: error});
@@ -23,7 +23,7 @@ export class ParcelWorker {
     switch (id) {
       // Ping
       case 0:
-        return undefined;
+        return;
       default:
         throw new Error('Unknown message');
     }

@@ -23,16 +23,16 @@ export class ParcelV3 {
     this._internal = new napi.ParcelNapi({
       threads,
       nodeWorkers,
-      // eslint-disable-next-line no-unused-vars
       rpc: async (err, id, data, done) => {
-        if (err) {
-          done({Err: err});
-          return;
-        }
         try {
+          if (err) {
+            done({Err: err});
+            return;
+          }
           done({Ok: (await this.#on_event(id, data)) ?? undefined});
         } catch (error) {
           done({Err: error});
+          return;
         }
       },
     });
@@ -43,10 +43,7 @@ export class ParcelV3 {
     switch (id) {
       // Ping
       case 0:
-        return undefined;
-      // Start workers
-      case 1:
-        return undefined;
+        return;
       default:
         throw new Error('Unknown message');
     }
@@ -59,16 +56,17 @@ export class ParcelV3 {
     return result;
   }
 
-  async #startWorkers() {
-    const workers = [];
+  #startWorkers() {
+    const workersOnLoad = [];
 
     for (let i = 0; i < this.#nodeWorkerCount; i++) {
       let worker = new Worker(path.join(__dirname, 'worker', 'index.js'));
-      await new Promise(resolve => worker.once('message', resolve));
-      workers.push(worker);
+      workersOnLoad.push(
+        new Promise(resolve => worker.once('message', resolve)),
+      );
     }
 
-    return workers;
+    return Promise.all(workersOnLoad);
   }
 
   #stopWorkers(workers) {

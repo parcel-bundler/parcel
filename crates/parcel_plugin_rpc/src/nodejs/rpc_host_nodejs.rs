@@ -17,6 +17,8 @@ use super::napi::wrap_threadsafe_function;
 use super::RpcConnectionNodejs;
 use super::RpcConnectionsNodejs;
 
+// RpcHostNodejs has a connection to the main Nodejs thread and manages
+// the lazy initialization of Nodejs worker threads.
 pub struct RpcHostNodejs {
   tx_rpc: Sender<RpcHostMessage>,
   node_workers: u32,
@@ -37,10 +39,12 @@ impl RpcHostNodejs {
         },
       )?;
 
-    // Don't prevent Nodejs from shutting down
+    // Normally, holding a threadsafe function tells Nodejs that an async action is
+    // running and that the process should not exist until the reference is released.
+    // This tells Nodejs that it's okay to terminate the process despite active references.
     threadsafe_function.unref(&env)?;
 
-    // Forward RPC events to the threadsafe function
+    // Forward RPC events to the threadsafe function via a channel.
     let (tx_rpc, rx_rpc) = channel();
     wrap_threadsafe_function(threadsafe_function, rx_rpc);
 

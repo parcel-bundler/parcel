@@ -12,7 +12,12 @@ enum WorkerInitMessage {
   Register(Sender<RpcConnectionMessage>),
 }
 
-// This allows for workers to notify RPC Connections that they are ready
+// Nodejs worker threads are initialized from JavaScript and cannot
+// have channels passed into them as that requires creating a channel in Rust,
+// passing that to the main JavaScript thread, passes them to the Js workers
+// then back into Rust. For this reason, WORKER_INIT acts a global mpmc broadcast channel
+// that allows Nodejs worker threads to notify a listener that they are ready to be used.
+// It's something like a cross-thread globalThis.postMessage() but in Rust
 static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   let (tx_subscribe, rx_subscribe) = channel::<WorkerInitMessage>();
 
@@ -51,7 +56,7 @@ pub fn on_worker_loaded() -> Sender<RpcConnectionMessage> {
   rx_rpc_subscribe.recv().unwrap()
 }
 
-pub fn register_worker_loaded() -> Receiver<RpcConnectionMessage> {
+pub fn notify_worker_loaded() -> Receiver<RpcConnectionMessage> {
   let (tx_rpc, rx_rpc) = channel();
   WORKER_INIT
     .send(WorkerInitMessage::Register(tx_rpc))

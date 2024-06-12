@@ -9,13 +9,14 @@ use napi::JsUnknown;
 
 use super::napi::create_callback;
 use super::napi::wrap_threadsafe_function;
+use super::worker_init::notify_worker_loaded;
 use super::worker_init::on_worker_loaded;
-use super::worker_init::register_worker_loaded;
 
 use crate::RpcConnection;
 use crate::RpcConnectionMessage;
 
-/// Connection to a single Nodejs Worker
+/// RpcConnectionNodejs wraps the communication with a
+/// single Nodejs worker thread
 pub struct RpcConnectionNodejs {
   tx_rpc: Sender<RpcConnectionMessage>,
 }
@@ -28,8 +29,13 @@ impl RpcConnectionNodejs {
   }
 
   pub fn create_worker_callback(env: &Env, callback: JsFunction) -> napi::Result<()> {
-    // Nodejs will not shutdown automatically. The threads
-    // need to be closed manually at the end of a build
+    // This is a reference to the worker thread callback.
+    // WARN: Holding a reference to this callback tells Nodejs that a long lived
+    // async action is occurring which will force the Nodejs process to remain open.
+    // You can "unref" a callback only on the main thread to tell Nodejs that it's okay to close,
+    // however threadsafe functions obtained from worker threads cannot be unrefed
+    // (otherwise the worker will exit immediately).
+    // For this reason, the worker threads need to be closed manually in JavaScript by the caller
     let threadsafe_function: ThreadsafeFunction<RpcConnectionMessage> = env
       .create_threadsafe_function(
         &callback,
@@ -41,7 +47,7 @@ impl RpcConnectionNodejs {
         },
       )?;
 
-    let rx_rpc = register_worker_loaded();
+    let rx_rpc = notify_worker_loaded();
     wrap_threadsafe_function(threadsafe_function, rx_rpc);
 
     Ok(())
