@@ -1,26 +1,27 @@
 use std::sync::mpsc::channel;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use napi::threadsafe_function::ThreadSafeCallContext;
 use napi::threadsafe_function::ThreadsafeFunction;
+use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use napi::Env;
 use napi::JsFunction;
 use napi::JsUnknown;
+use napi::Status;
 
 use crate::RpcConnectionRef;
 use crate::RpcHost;
-use crate::RpcHostMessage;
 
-use super::napi::create_callback;
-use super::napi::wrap_threadsafe_function;
+use super::napi::create_done_callback;
+use super::rpc_host_message::RpcHostMessage;
+use super::worker_init::register_worker_rx;
 use super::RpcConnectionNodejs;
 use super::RpcConnectionsNodejs;
 
 // RpcHostNodejs has a connection to the main Nodejs thread and manages
 // the lazy initialization of Nodejs worker threads.
 pub struct RpcHostNodejs {
-  tx_rpc: Sender<RpcHostMessage>,
+  threadsafe_function: ThreadsafeFunction<RpcHostMessage>,
   node_workers: u32,
 }
 
@@ -40,18 +41,25 @@ impl RpcHostNodejs {
       )?;
 
     // Normally, holding a threadsafe function tells Nodejs that an async action is
-    // running and that the process should not exist until the reference is released.
-    // This tells Nodejs that it's okay to terminate the process despite active references.
+    // running and that the process should not exist until the reference is released (like an http server).
+    // This tells Nodejs that it's okay to terminate the process despite active reference.
     threadsafe_function.unref(&env)?;
-
-    // Forward RPC events to the threadsafe function via a channel.
-    let (tx_rpc, rx_rpc) = channel();
-    wrap_threadsafe_function(threadsafe_function, rx_rpc);
 
     Ok(Self {
       node_workers,
-      tx_rpc,
+      threadsafe_function,
     })
+  }
+
+  fn call_threadsafe_function(&self, msg: RpcHostMessage) {
+    if !matches!(
+      self
+        .threadsafe_function
+        .call(Ok(msg), ThreadsafeFunctionCallMode::NonBlocking),
+      Status::Ok
+    ) {
+      return;
+    };
   }
 
   // Map the RPC message to a JavaScript type
@@ -59,11 +67,8 @@ impl RpcHostNodejs {
     Ok(match msg {
       RpcHostMessage::Ping { response: reply } => {
         let message = env.to_js_value(&())?;
-        let callback = create_callback(&env, reply)?;
+        let callback = create_done_callback(&env, reply)?;
         (message, callback)
-      }
-      RpcHostMessage::Start { response: _ } => {
-        unreachable!()
       }
     })
   }
@@ -73,16 +78,17 @@ impl RpcHostNodejs {
 impl RpcHost for RpcHostNodejs {
   fn ping(&self) -> anyhow::Result<()> {
     let (tx, rx) = channel();
-    self.tx_rpc.send(RpcHostMessage::Ping { response: tx })?;
+    self.call_threadsafe_function(RpcHostMessage::Ping { response: tx });
     Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
   }
 
   fn start(&self) -> anyhow::Result<RpcConnectionRef> {
-    // JavaScript workers will have already been created
-    // This waits for the workers to connect
     let mut connections = vec![];
+
     for _ in 0..self.node_workers {
-      connections.push(RpcConnectionNodejs::new())
+      let (tx_rpc, rx_rpc) = channel();
+      register_worker_rx(rx_rpc);
+      connections.push(RpcConnectionNodejs::new(tx_rpc))
     }
 
     Ok(Arc::new(RpcConnectionsNodejs::new(connections)))

@@ -1,19 +1,20 @@
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
+use std::thread;
 
 use napi::threadsafe_function::ThreadSafeCallContext;
 use napi::threadsafe_function::ThreadsafeFunction;
+use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use napi::Env;
 use napi::JsFunction;
 use napi::JsUnknown;
-
-use super::napi::create_callback;
-use super::napi::wrap_threadsafe_function;
-use super::worker_init::notify_worker_loaded;
-use super::worker_init::on_worker_loaded;
+use napi::Status;
 
 use crate::RpcConnection;
-use crate::RpcConnectionMessage;
+
+use super::napi::create_done_callback;
+use super::rpc_conn_message::RpcConnectionMessage;
+use super::worker_init::get_worker_rx;
 
 /// RpcConnectionNodejs wraps the communication with a
 /// single Nodejs worker thread
@@ -22,10 +23,8 @@ pub struct RpcConnectionNodejs {
 }
 
 impl RpcConnectionNodejs {
-  pub fn new() -> Self {
-    Self {
-      tx_rpc: on_worker_loaded(),
-    }
+  pub fn new(tx_rpc: Sender<RpcConnectionMessage>) -> Self {
+    Self { tx_rpc }
   }
 
   pub fn create_worker_callback(env: &Env, callback: JsFunction) -> napi::Result<()> {
@@ -47,9 +46,17 @@ impl RpcConnectionNodejs {
         },
       )?;
 
-    let rx_rpc = notify_worker_loaded();
-    wrap_threadsafe_function(threadsafe_function, rx_rpc);
-
+    thread::spawn(move || {
+      let rx = get_worker_rx();
+      while let Ok(msg) = rx.recv() {
+        if !matches!(
+          threadsafe_function.call(Ok(msg), ThreadsafeFunctionCallMode::NonBlocking),
+          Status::Ok
+        ) {
+          return;
+        };
+      }
+    });
     Ok(())
   }
 
@@ -58,7 +65,7 @@ impl RpcConnectionNodejs {
     Ok(match msg {
       RpcConnectionMessage::Ping { response: reply } => {
         let message = env.to_js_value(&())?;
-        let callback = create_callback(&env, reply)?;
+        let callback = create_done_callback(&env, reply)?;
         (message, callback)
       }
     })

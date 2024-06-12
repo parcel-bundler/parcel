@@ -56,17 +56,20 @@ export class ParcelV3 {
     return result;
   }
 
-  #startWorkers() {
+  async #startWorkers() {
     const workersOnLoad = [];
+    const workers = [];
 
     for (let i = 0; i < this.#nodeWorkerCount; i++) {
       let worker = new Worker(path.join(__dirname, 'worker', 'index.js'));
+      workers.push(worker);
       workersOnLoad.push(
         new Promise(resolve => worker.once('message', resolve)),
       );
     }
 
-    return Promise.all(workersOnLoad);
+    await Promise.all(workersOnLoad);
+    return workers;
   }
 
   #stopWorkers(workers) {

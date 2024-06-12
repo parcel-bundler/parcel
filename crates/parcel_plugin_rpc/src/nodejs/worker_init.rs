@@ -5,40 +5,40 @@ use std::thread;
 
 use once_cell::sync::Lazy;
 
-use crate::RpcConnectionMessage;
+use super::rpc_conn_message::RpcConnectionMessage;
 
 enum WorkerInitMessage {
-  Subscribe(Sender<Sender<RpcConnectionMessage>>),
-  Register(Sender<RpcConnectionMessage>),
+  Subscribe(Sender<Receiver<RpcConnectionMessage>>),
+  Register(Receiver<RpcConnectionMessage>),
 }
 
 // Nodejs worker threads are initialized from JavaScript and cannot
-// have channels passed into them as that requires creating a channel in Rust,
-// passing that to the main JavaScript thread, passes them to the Js workers
-// then back into Rust. For this reason, WORKER_INIT acts a global mpmc broadcast channel
-// that allows Nodejs worker threads to notify a listener that they are ready to be used.
+// have Rust channels passed into them (without unsafe Rust).
+// For this reason, WORKER_INIT acts a global mpmc broadcast channel
+// that allows a listener to prepare a channel for a Nodejs worker thread
+// to obtain when it has initialized.
 // It's something like a cross-thread globalThis.postMessage() but in Rust
 static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   let (tx_subscribe, rx_subscribe) = channel::<WorkerInitMessage>();
 
   thread::spawn(move || {
-    let mut subscribers = Vec::<Sender<Sender<RpcConnectionMessage>>>::new();
-    let mut workers = Vec::<Sender<RpcConnectionMessage>>::new();
+    let mut subscribers = Vec::<Sender<Receiver<RpcConnectionMessage>>>::new();
+    let mut rpx_receivers = Vec::<Receiver<RpcConnectionMessage>>::new();
 
     while let Ok(msg) = rx_subscribe.recv() {
       match msg {
         WorkerInitMessage::Subscribe(subscriber) => {
-          if let Some(worker) = workers.pop() {
-            subscriber.send(worker).unwrap();
+          if let Some(rx_rpc) = rpx_receivers.pop() {
+            subscriber.send(rx_rpc).unwrap();
           } else {
             subscribers.push(subscriber);
           }
         }
-        WorkerInitMessage::Register(worker) => {
+        WorkerInitMessage::Register(rx_rpc) => {
           if let Some(subscriber) = subscribers.pop() {
-            subscriber.send(worker).unwrap();
+            subscriber.send(rx_rpc).unwrap();
           } else {
-            workers.push(worker);
+            rpx_receivers.push(rx_rpc);
           }
         }
       }
@@ -48,18 +48,14 @@ static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   tx_subscribe
 });
 
-pub fn on_worker_loaded() -> Sender<RpcConnectionMessage> {
-  let (tx_rpc_subscribe, rx_rpc_subscribe) = channel();
+pub fn register_worker_rx(rx_rpc: Receiver<RpcConnectionMessage>) {
   WORKER_INIT
-    .send(WorkerInitMessage::Subscribe(tx_rpc_subscribe))
+    .send(WorkerInitMessage::Register(rx_rpc))
     .unwrap();
-  rx_rpc_subscribe.recv().unwrap()
 }
 
-pub fn notify_worker_loaded() -> Receiver<RpcConnectionMessage> {
-  let (tx_rpc, rx_rpc) = channel();
-  WORKER_INIT
-    .send(WorkerInitMessage::Register(tx_rpc))
-    .unwrap();
-  rx_rpc
+pub fn get_worker_rx() -> Receiver<RpcConnectionMessage> {
+  let (tx, rx) = channel();
+  WORKER_INIT.send(WorkerInitMessage::Subscribe(tx)).unwrap();
+  rx.recv().unwrap()
 }
