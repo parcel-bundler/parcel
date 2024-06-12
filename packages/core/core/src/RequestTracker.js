@@ -17,6 +17,7 @@ import type {
 } from './types';
 import logger from '@parcel/logger';
 import {type Deferred} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -54,6 +55,7 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
+import {createRustParcel} from './requests/AssetGraphRequestRust';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -166,6 +168,13 @@ export const requestTypes = {
 type RequestType = $Values<typeof requestTypes>;
 type RequestTypeName = $Keys<typeof requestTypes>;
 
+type ParcelRustBuildResult = {|Err: Diagnostic[]|} | {|Ok: mixed|};
+
+interface ParcelRust {
+  nextBuild(events: Event[]): void;
+  buildAssetGraph(): Promise<ParcelRustBuildResult>;
+}
+
 type RequestGraphNode =
   | RequestNode
   | FileNode
@@ -210,6 +219,7 @@ export type StaticRunOpts<TResult> = {|
   options: ParcelOptions,
   api: RunAPI<TResult>,
   invalidateReason: InvalidateReason,
+  rustParcel: ParcelRust,
 |};
 
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
@@ -1029,6 +1039,7 @@ export default class RequestTracker {
   options: ParcelOptions;
   signal: ?AbortSignal;
   stats: Map<RequestType, number> = new Map();
+  rustParcel: ParcelRust;
 
   constructor({
     graph,
@@ -1042,6 +1053,7 @@ export default class RequestTracker {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
+    this.rustParcel = createRustParcel(options);
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1137,8 +1149,22 @@ export default class RequestTracker {
     }
   }
 
-  respondToFSEvents(events: Array<Event>, threshold: number): Async<boolean> {
-    return this.graph.respondToFSEvents(events, this.options, threshold);
+  async respondToFSEvents(
+    events: Array<Event>,
+    threshold: number,
+  ): Async<boolean> {
+    let rustInvalidated = false;
+    if (this.rustParcel.nextBuild(events)) {
+      let id = this.graph.getNodeIdByContentKey('Main');
+      this.graph.invalidateNode(id, FILE_UPDATE); // TODO
+      rustInvalidated = true;
+    }
+    let jsInvalidated = await this.graph.respondToFSEvents(
+      events,
+      this.options,
+      threshold,
+    );
+    return rustInvalidated || jsInvalidated;
   }
 
   hasInvalidRequests(): boolean {
@@ -1217,6 +1243,7 @@ export default class RequestTracker {
         farm: this.farm,
         options: this.options,
         invalidateReason: node.invalidateReason,
+        rustParcel: this.rustParcel,
       });
 
       assertSignalNotAborted(this.signal);

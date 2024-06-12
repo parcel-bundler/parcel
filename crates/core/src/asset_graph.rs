@@ -11,7 +11,7 @@ use crate::{
   environment::EnvironmentFlags,
   intern::{Interned, InternedSet},
   parcel_config::{PipelineMap, PluginNode},
-  request_tracker::{Request, RequestOutput, RequestTracker, StoreRequestOutput},
+  request_tracker::{Invalidation, Request, RequestOutput, RequestTracker, StoreRequestOutput},
   requests::{
     asset_request::AssetRequest,
     entry_request::EntryRequest,
@@ -507,8 +507,18 @@ struct Queue<'a, 'scope> {
   farm: &'scope WorkerFarm,
   options: &'scope ParcelOptions,
   request_tracker: &'scope mut RequestTracker,
-  sender: crossbeam_channel::Sender<(u64, NodeIndex, Result<RequestOutput, Vec<Diagnostic>>)>,
-  receiver: crossbeam_channel::Receiver<(u64, NodeIndex, Result<RequestOutput, Vec<Diagnostic>>)>,
+  sender: crossbeam_channel::Sender<(
+    u64,
+    NodeIndex,
+    Result<RequestOutput, Vec<Diagnostic>>,
+    Vec<Invalidation>,
+  )>,
+  receiver: crossbeam_channel::Receiver<(
+    u64,
+    NodeIndex,
+    Result<RequestOutput, Vec<Diagnostic>>,
+    Vec<Invalidation>,
+  )>,
 }
 
 impl<'a, 'scope> Queue<'a, 'scope> {
@@ -520,7 +530,7 @@ impl<'a, 'scope> Queue<'a, 'scope> {
     self.in_flight += 1;
     if let Some(result) = self.request_tracker.start_request(&req) {
       // We already have a result for this require, so just clone it and send it on the channel.
-      drop(self.sender.send((req.id(), node, Ok(result))));
+      drop(self.sender.send((req.id(), node, Ok(result), vec![])));
     } else {
       // This request hasn't run before, so spawn a task in the thread pool.
       let sender = self.sender.clone();
@@ -538,6 +548,7 @@ impl<'a, 'scope> Queue<'a, 'scope> {
             result
               .result
               .map(|result| <R as StoreRequestOutput>::store(result)),
+            result.invalidations,
           )),
         );
       });
@@ -553,10 +564,10 @@ impl<'a, 'scope> Queue<'a, 'scope> {
     }
 
     // Receive a result from the channel, and store the result in the RequestTracker.
-    if let Ok((request, node, result)) = self.receiver.recv() {
+    if let Ok((request, node, result, invalidations)) = self.receiver.recv() {
       self
         .request_tracker
-        .finish_request(request, result.clone(), vec![]);
+        .finish_request(request, result.clone(), invalidations);
       self.in_flight -= 1;
       Some((request, node, result))
     } else {

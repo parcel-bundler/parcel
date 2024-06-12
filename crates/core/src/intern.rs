@@ -10,7 +10,6 @@ use std::{
 
 use dashmap::{DashMap, SharedValue};
 use gxhash::{GxBuildHasher, GxHasher};
-use petgraph::data::Build;
 use serde::{Deserialize, Serialize};
 
 /// An Interned value is a unique pointer to a value.

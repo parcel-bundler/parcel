@@ -1759,7 +1759,7 @@ describe.only('javascript', function () {
           origin: '@parcel/resolver-default',
         },
       ]);
-      return
+      return;
     }
     assert(false);
   });
@@ -2620,7 +2620,7 @@ describe.only('javascript', function () {
       ]);
       return;
     }
-    assert(false)
+    assert(false);
   });
 
   it('should support importing a URL to a large raw asset', async function () {
@@ -4699,9 +4699,7 @@ describe.only('javascript', function () {
       'utf8',
     );
 
-    assert(
-      /const add = require\(`lodash\/\${\$.*?\$var\$fn}`\);/.test(dist)
-    );
+    assert(/const add = require\(`lodash\/\${\$.*?\$var\$fn}`\);/.test(dist));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);
@@ -5690,7 +5688,11 @@ describe.only('javascript', function () {
         },
       });
     } catch (err) {
-      assert(err.diagnostics[0].message.startsWith(md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '`));
+      assert(
+        err.diagnostics[0].message.startsWith(
+          md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '`,
+        ),
+      );
       assertEqualDiagnostics(err.diagnostics, [
         {
           message: err.diagnostics[0].message,
@@ -5777,7 +5779,11 @@ describe.only('javascript', function () {
         },
       });
     } catch (err) {
-      assert(err.diagnostics[0].message.startsWith(md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '`));
+      assert(
+        err.diagnostics[0].message.startsWith(
+          md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '`,
+        ),
+      );
       assertEqualDiagnostics(err.diagnostics, [
         {
           message: err.diagnostics[0].message,
@@ -6787,7 +6793,7 @@ describe.only('javascript', function () {
       });
 
       if (shouldScopeHoist) {
-        it.skip('correctly updates deferred assets that are reexported', async function () {
+        it('correctly updates deferred assets that are reexported', async function () {
           let testDir = path.join(
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported',
@@ -6820,7 +6826,7 @@ describe.only('javascript', function () {
           await subscription.unsubscribe();
         });
 
-        it.skip('correctly updates deferred assets that are reexported and imported directly', async function () {
+        it('correctly updates deferred assets that are reexported and imported directly', async function () {
           let testDir = path.join(
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-update-deferred-direct',
@@ -6924,7 +6930,7 @@ describe.only('javascript', function () {
         assert.deepEqual(res.output, 4);
       });
 
-      it.skip('supports removing a deferred dependency', async function () {
+      it('supports removing a deferred dependency', async function () {
         let testDir = path.join(
           __dirname,
           '/integration/scope-hoisting/es6/side-effects-false',

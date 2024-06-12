@@ -133,7 +133,7 @@ enum RequestEdgeType {
 }
 
 #[derive(serde::Deserialize)]
-#[serde(tag = "type", content = "path")]
+#[serde(tag = "type", content = "path", rename_all = "lowercase")]
 pub enum FileEvent {
   Create(PathBuf),
   Update(PathBuf),
@@ -165,13 +165,19 @@ impl RequestTracker {
     RequestTracker::default()
   }
 
-  pub fn next_build(&mut self, events: Vec<FileEvent>) {
+  pub fn next_build(&mut self, events: Vec<FileEvent>) -> bool {
     // Invalidate nodes in the current graph, and create a new one for the next build.
-    // TODO: possibly could be faster if we didn't move the whole graph in memory. Could just swap between them.
-    self.prev = std::mem::take(&mut self.graph);
+    let mut invalidated = false;
     for event in events {
-      self.prev.respond_to_fs_event(event);
+      if self.graph.respond_to_fs_event(event) {
+        invalidated = true;
+      }
     }
+    if invalidated {
+      // TODO: possibly could be faster if we didn't move the whole graph in memory. Could just swap between them.
+      self.prev = std::mem::take(&mut self.graph);
+    }
+    invalidated
   }
 
   pub fn start_request<R: Request>(&mut self, request: &R) -> Option<RequestOutput> {
@@ -364,7 +370,8 @@ impl RequestGraph {
     self.graph.add_edge(*glob_node, request_node, kind);
   }
 
-  fn respond_to_fs_event(&mut self, event: FileEvent) {
+  fn respond_to_fs_event(&mut self, event: FileEvent) -> bool {
+    let mut invalidated = false;
     match event {
       FileEvent::Create(path) => {
         if let Some(file_path_node) = self.file_paths.get(path.as_path()) {
@@ -374,11 +381,24 @@ impl RequestGraph {
             *file_path_node,
             RequestEdgeType::InvalidatedByCreate,
           );
+
+          // sometimes mac os reports update events as create events.
+          // if it was a create event, but the file already exists in the graph,
+          // then also invalidate nodes connected by InvalidatedByUpdate edges.
+          invalidate_file(
+            &self.graph,
+            &mut self.requests,
+            *file_path_node,
+            RequestEdgeType::InvalidatedByUpdate,
+          );
+
+          invalidated = true;
         }
 
         let file_name = path.file_name().unwrap().to_string_lossy();
         if let Some(file_name_node) = self.file_names.get(file_name.as_ref()) {
           self.invalidate_file_name(*file_name_node, &path);
+          invalidated = true;
         }
 
         let path_str = path.to_string_lossy();
@@ -390,6 +410,7 @@ impl RequestGraph {
               *node_index,
               RequestEdgeType::InvalidatedByCreate,
             );
+            invalidated = true;
           }
         }
       }
@@ -401,6 +422,7 @@ impl RequestGraph {
             *file_path_node,
             RequestEdgeType::InvalidatedByUpdate,
           );
+          invalidated = true;
         }
       }
       FileEvent::Delete(path) => {
@@ -411,9 +433,12 @@ impl RequestGraph {
             *file_path_node,
             RequestEdgeType::InvalidatedByDelete,
           );
+          invalidated = true;
         }
       }
     }
+
+    invalidated
   }
 
   fn invalidate_file_name(&mut self, node: NodeIndex, path: &Path) {

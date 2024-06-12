@@ -9,6 +9,7 @@ import {
   type AssetGroup,
   AssetFlags,
   EnvironmentFlags,
+  type ParcelOptions,
 } from '../types';
 import type {StaticRunOpts} from '../RequestTracker';
 
@@ -16,7 +17,7 @@ import {EntryResolver} from './EntryRequest';
 import {TargetResolver} from './TargetRequest';
 import {hashString} from '@parcel/rust';
 import {requestTypes} from '../RequestTracker';
-import {parcel} from '@parcel/rust';
+import {ParcelRust} from '@parcel/rust';
 import {loadParcelConfig} from './ParcelConfigRequest';
 import {
   type ProjectPath,
@@ -83,129 +84,11 @@ export default function createAssetGraphRequestRust(
     id: input.name,
     run: async input => {
       let options = input.options;
-      let result = await parcel(
-        input.input.entries,
-        options.cache,
-        options.inputFS instanceof NodeFS ? null : {
-          canonicalize: path => {
-            try {
-              return options.inputFS.realpathSync(path)
-            } catch (err) {
-              return err;
-            }
-          },
-          read: path => {
-            try {
-              return options.inputFS.readFileSync(path);
-            } catch (err) {
-              return err;
-            }
-          },
-          readString: path => {
-            try {
-              return options.inputFS.readFileSync(path, 'utf8');
-            } catch (err) {
-              return err;
-            }
-          },
-          isFile: path => {
-            try {
-              return options.inputFS.statSync(path).isFile();
-            } catch (err) {
-              return err;
-            }
-          },
-          isDir: path => {
-            try {
-              return options.inputFS.statSync(path).isDirectory();
-            } catch (err) {
-              return err;
-            }
-          }
-        },
-        {...options, corePath: path.dirname(__dirname)},
-        async (err, request) => {
-          // console.log(request)
-          switch (request.type) {
-            case 'Entry': {
-              let entryResolver = new EntryResolver(options);
-              let filePath = fromProjectPath(
-                options.projectRoot,
-                request.entry,
-              );
-              let result = await entryResolver.resolveEntry(filePath);
-              return {
-                type: 'Entry',
-                value: result.entries.map(e => ({
-                  // TODO: use project paths in rust
-                  filePath: fromProjectPathRelative(e.filePath),
-                  packagePath: fromProjectPath(
-                    options.projectRoot,
-                    e.packagePath,
-                  ),
-                  target: e.target,
-                  loc: e.loc,
-                })),
-              };
-            }
-            case 'ParcelConfig': {
-              let {config} = await loadParcelConfig(options);
-              return {
-                type: 'ParcelConfig',
-                value: config,
-              };
-            }
-            case 'Target': {
-              let targetResolver = new TargetResolver(
-                {
-                  invalidateOnFileCreate() {},
-                  invalidateOnFileUpdate() {},
-                  invalidateOnFileDelete() {},
-                },
-                options,
-              );
-              let targets = await targetResolver.resolve(
-                fromProjectPath(options.projectRoot, request.entry.filePath),
-                request.entry.target,
-              );
-              return {
-                type: 'Target',
-                value: targets,
-              };
-            }
-            case 'Transform': {
-              let {plugin} = await loadPlugin(
-                request.plugin.packageName,
-                fromProjectPath(
-                  options.projectRoot,
-                  request.plugin.resolveFrom,
-                ),
-                request.plugin.keyPath,
-                options,
-              );
-              try {
-                let result = await runTransformer(
-                  request.plugin.packageName,
-                  plugin,
-                  request.asset,
-                  request.code,
-                  options,
-                );
-                return {
-                  type: 'Transform',
-                  value: result,
-                };
-              } catch (err) {
-                console.log(err);
-              }
-            }
-          }
-        },
-      );
+      let result = await input.rustParcel.buildAssetGraph();
 
       if (result.Err) {
         throw new ThrowableDiagnostic({
-          diagnostic: result.Err
+          diagnostic: result.Err,
         });
       }
 
@@ -233,6 +116,124 @@ export default function createAssetGraphRequestRust(
     },
     input,
   };
+}
+
+export function createRustParcel(options: ParcelOptions) {
+  return new ParcelRust(
+    options.entries,
+    {
+      ...options,
+      corePath: path.dirname(__dirname),
+      fs:
+        options.inputFS instanceof NodeFS
+          ? null
+          : {
+              canonicalize: path => {
+                try {
+                  return options.inputFS.realpathSync(path);
+                } catch (err) {
+                  return err;
+                }
+              },
+              read: path => {
+                try {
+                  return options.inputFS.readFileSync(path);
+                } catch (err) {
+                  return err;
+                }
+              },
+              readString: path => {
+                try {
+                  return options.inputFS.readFileSync(path, 'utf8');
+                } catch (err) {
+                  return err;
+                }
+              },
+              isFile: path => {
+                try {
+                  return options.inputFS.statSync(path).isFile();
+                } catch (err) {
+                  return err;
+                }
+              },
+              isDir: path => {
+                try {
+                  return options.inputFS.statSync(path).isDirectory();
+                } catch (err) {
+                  return err;
+                }
+              },
+            },
+    },
+    async (err, request) => {
+      // console.log(request)
+      switch (request.type) {
+        case 'Entry': {
+          let entryResolver = new EntryResolver(options);
+          let filePath = fromProjectPath(options.projectRoot, request.entry);
+          let result = await entryResolver.resolveEntry(filePath);
+          return {
+            type: 'Entry',
+            value: result.entries.map(e => ({
+              // TODO: use project paths in rust
+              filePath: fromProjectPathRelative(e.filePath),
+              packagePath: fromProjectPath(options.projectRoot, e.packagePath),
+              target: e.target,
+              loc: e.loc,
+            })),
+          };
+        }
+        case 'ParcelConfig': {
+          let {config} = await loadParcelConfig(options);
+          return {
+            type: 'ParcelConfig',
+            value: config,
+          };
+        }
+        case 'Target': {
+          let targetResolver = new TargetResolver(
+            {
+              invalidateOnFileCreate() {},
+              invalidateOnFileUpdate() {},
+              invalidateOnFileDelete() {},
+            },
+            options,
+          );
+          let targets = await targetResolver.resolve(
+            fromProjectPath(options.projectRoot, request.entry.filePath),
+            request.entry.target,
+          );
+          return {
+            type: 'Target',
+            value: targets,
+          };
+        }
+        case 'Transform': {
+          let {plugin} = await loadPlugin(
+            request.plugin.packageName,
+            fromProjectPath(options.projectRoot, request.plugin.resolveFrom),
+            request.plugin.keyPath,
+            options,
+          );
+          try {
+            let result = await runTransformer(
+              request.plugin.packageName,
+              plugin,
+              request.asset,
+              request.code,
+              options,
+            );
+            return {
+              type: 'Transform',
+              value: result,
+            };
+          } catch (err) {
+            console.log(err);
+          }
+        }
+      }
+    },
+  );
 }
 
 async function runTransformer(
@@ -367,6 +368,7 @@ function getAssetGraph(serializedGraph, options) {
     _contentKeyToNodeId: new Map(),
     _nodeIdToContentKey: new Map(),
   });
+  graph.safeToIncrementallyBundle = false;
 
   let changedAssets = new Map();
   let entry = 0;

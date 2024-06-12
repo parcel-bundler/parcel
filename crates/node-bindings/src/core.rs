@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crossbeam_channel::{Receiver, Sender};
 use napi::{
@@ -7,12 +7,12 @@ use napi::{
   Env, JsFunction, JsObject, JsUnknown,
 };
 use napi_derive::napi;
-use parcel_core::{build, worker_farm::WorkerCallback};
 use parcel_core::{
   cache::{Cache, MemoryCache},
   types::{BaseParcelOptions, ParcelOptions},
   worker_farm::{WorkerError, WorkerFarm, WorkerRequest, WorkerResult},
 };
+use parcel_core::{request_tracker::FileEvent, worker_farm::WorkerCallback, Parcel};
 use parcel_resolver::{FileSystem, OsFileSystem};
 
 use crate::{resolver::JsFileSystem, utils::create_js_thread_safe_method};
@@ -85,32 +85,57 @@ fn await_promise(
 }
 
 #[napi]
-pub fn parcel(
-  entries: Vec<String>,
-  cache: JsObject,
-  fs: Option<JsObject>,
-  options: JsObject,
-  callback: JsFunction,
-  env: Env,
-) -> napi::Result<JsObject> {
-  let mut farm = WorkerFarm::new();
-  farm.register_worker(create_worker_callback(callback, env)?);
+pub struct ParcelRust {
+  parcel: Arc<Mutex<Parcel>>,
+}
 
-  let (deferred, promise) = env.create_deferred()?;
-  let options: BaseParcelOptions = env.from_js_value(options)?;
-  let fs: Arc<dyn FileSystem> = match fs {
-    Some(fs) => Arc::new(JsFileSystem::new(&env, &fs)?),
-    None => Arc::new(OsFileSystem::default()),
-  };
-  let cache = Arc::new(JsCache::new(&env, &cache)?);
-  let options = ParcelOptions::new(options, fs, cache);
+#[napi]
+impl ParcelRust {
+  #[napi(constructor)]
+  pub fn new(
+    entries: Vec<String>,
+    options: JsObject,
+    callback: JsFunction,
+    env: Env,
+  ) -> napi::Result<Self> {
+    let mut farm = WorkerFarm::new();
+    farm.register_worker(create_worker_callback(callback, env)?);
 
-  rayon::spawn(move || {
-    let asset_graph = build(entries, farm, options);
-    deferred.resolve(move |env| env.to_js_value(&asset_graph));
-  });
+    let fs: Option<JsObject> = options.get_named_property("fs")?;
+    let cache: JsObject = options.get_named_property("cache")?;
+    let options: BaseParcelOptions = env.from_js_value(options)?;
+    let fs: Arc<dyn FileSystem> = match fs {
+      Some(fs) => Arc::new(JsFileSystem::new(&env, &fs)?),
+      None => Arc::new(OsFileSystem::default()),
+    };
+    let cache = Arc::new(JsCache::new(&env, &cache)?);
+    let options = ParcelOptions::new(options, fs, cache);
 
-  Ok(promise)
+    Ok(ParcelRust {
+      parcel: Arc::new(Mutex::new(Parcel::new(entries, farm, options))),
+    })
+  }
+
+  #[napi]
+  pub fn next_build(&mut self, events: JsUnknown, env: Env) -> napi::Result<bool> {
+    let events: Vec<FileEvent> = env.from_js_value(events)?;
+    let mut parcel = self.parcel.lock().unwrap();
+    let invalidated = parcel.next_build(events);
+    Ok(invalidated)
+  }
+
+  #[napi]
+  pub fn build_asset_graph(&self, env: Env) -> napi::Result<JsObject> {
+    let (deferred, promise) = env.create_deferred()?;
+    let parcel = Arc::clone(&self.parcel);
+    rayon::spawn(move || {
+      let mut parcel = parcel.lock().unwrap();
+      let asset_graph = parcel.build_asset_graph();
+      deferred.resolve(move |env| env.to_js_value(&asset_graph));
+    });
+
+    Ok(promise)
+  }
 }
 
 #[napi]

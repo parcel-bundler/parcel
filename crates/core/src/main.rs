@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use mimalloc::MiMalloc;
 use parcel_core::{
-  build,
   cache::MemoryCache,
   environment::{
     Browsers, Engines, Environment, EnvironmentContext, EnvironmentFlags, OutputFormat, SourceType,
@@ -11,6 +10,7 @@ use parcel_core::{
   requests::entry_request::Entry,
   types::{ParcelOptions, Target},
   worker_farm::{WorkerFarm, WorkerRequest, WorkerResult},
+  Parcel,
 };
 use parcel_resolver::OsFileSystem;
 
@@ -53,7 +53,7 @@ fn main() {
     _ => todo!(),
   }));
 
-  let graph = build(
+  let mut parcel = Parcel::new(
     vec!["./src/index.js".into()],
     // vec!["/Users/devongovett/Downloads/esm-test/index.mjs".into()],
     farm,
@@ -68,6 +68,8 @@ fn main() {
       resolver_cache: parcel_resolver::Cache::new(Arc::new(OsFileSystem::default())),
     },
   );
+
+  parcel.build_asset_graph();
 
   // println!("{:#?}", graph);
 

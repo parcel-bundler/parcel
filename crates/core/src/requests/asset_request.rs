@@ -5,7 +5,7 @@ use crate::{
   environment::Environment,
   intern::Interned,
   parcel_config::{PipelineMap, PluginNode},
-  request_tracker::{Request, RequestResult},
+  request_tracker::{Invalidation, Request, RequestResult},
   transformers::run_transformer,
   types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, JSONObject, ParcelOptions},
   worker_farm::WorkerFarm,
@@ -96,7 +96,8 @@ impl<'a> Request for AssetRequest<'a> {
 
     RequestResult {
       result,
-      invalidations: Vec::new(),
+      // TODO: add more invalidations
+      invalidations: vec![Invalidation::InvalidateOnFileUpdate(self.file_path)],
     }
   }
 }

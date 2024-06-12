@@ -19,7 +19,7 @@ use worker_farm::WorkerFarm;
 
 use crate::requests::parcel_config_request::ParcelConfigRequest;
 
-struct Parcel {
+pub struct Parcel {
   request_tracker: RequestTracker,
   entries: Vec<String>,
   farm: WorkerFarm,
@@ -36,8 +36,15 @@ impl Parcel {
     }
   }
 
-  pub fn build(&mut self, events: Vec<FileEvent>) -> Result<AssetGraph, Vec<Diagnostic>> {
-    self.request_tracker.next_build(events);
+  pub fn next_build(&mut self, events: Vec<FileEvent>) -> bool {
+    self.request_tracker.next_build(events)
+  }
+
+  pub fn build_asset_graph(&mut self) -> Result<AssetGraph, Vec<Diagnostic>> {
+    // TODO: this is a hack to fix the tests.
+    // Environments don't include the source location in their hash,
+    // and this results in interned envs being reused between tests.
+    reset_env_interner();
 
     let config = ParcelConfigRequest {}
       .run(&self.farm, &self.options)
@@ -53,18 +60,4 @@ impl Parcel {
 
     asset_graph
   }
-}
-
-pub fn build(
-  entries: Vec<String>,
-  farm: WorkerFarm,
-  options: ParcelOptions,
-) -> Result<AssetGraph, Vec<Diagnostic>> {
-  // TODO: this is a hack to fix the tests.
-  // Environments don't include the source location in their hash,
-  // and this results in interned envs being reused between tests.
-  reset_env_interner();
-
-  let mut parcel = Parcel::new(entries, farm, options);
-  parcel.build(vec![])
 }
