@@ -1,0 +1,21 @@
+{
+  "name": "@parcel/parcel-watcher-watchman-js",
+  "version": "0.0.0",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src --ext ts"
+  },
+  "dependencies": {
+    "fb-watchman": "^2.0.2",
+    "@parcel/watcher": "^2.4.1"
+  },
+  "devDependencies": {
+    "@types/node": ">= 18",
+    "@types/fb-watchman": "2.0.4",
+    "@typescript-eslint/eslint-plugin": "^5.59.7",
+    "@typescript-eslint/parser": "^5.59.7",
+    "eslint": "^8.41.0",
+    "typescript": ">=3.0.0"
+  }
+}

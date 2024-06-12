@@ -2268,7 +2268,7 @@
   resolved "https://registry.yarnpkg.com/@parcel/watcher-win32-x64/-/watcher-win32-x64-2.2.0.tgz#f2fcc255b7cadfd0afa7c51cde36413632075bcc"
   integrity sha512-JqGW0RJ61BkKx+yYzIURt9s53P7xMVbv0uxYPzAXLBINGaFmkIKSuUPyBVfy8TMbvp93lvF4SPBNDzVRJfvgOw==
 
-"@parcel/watcher@2.0.4", "@parcel/watcher@^2.0.7", "@parcel/watcher@~2.2.0":
+"@parcel/watcher@2.0.4", "@parcel/watcher@^2.0.7", "@parcel/watcher@^2.4.1", "@parcel/watcher@~2.2.0":
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/@parcel/watcher/-/watcher-2.2.0.tgz#92067954e591d239c3ecfa08add205f88f476068"
   integrity sha512-71S4TF+IMyAn24PK4KSkdKtqJDR3zRzb0HE3yXpacItqTM7XfF2f5q9NEGLEVl0dAaBAGfNwDCjH120y25F6Tg==
@@ -2559,6 +2559,13 @@
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/@types/color-name/-/color-name-1.1.1.tgz#1c1261bbeaa10a8055bbc5d8ab84b7b2afc846a0"
   integrity sha512-rr+OQyAjxze7GgWrSaJwydHStIhHq2lvY3BOC2Mj7KnzI7XK0Uw1TOOdI9lDoajEbSWLiYgoo4f1R51erQfhPQ==
+
+"@types/fb-watchman@2.0.4":
+  version "2.0.4"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@types/fb-watchman/-/fb-watchman-2.0.4.tgz#3a02379aa90d86ceb965a2beaebd7e79faa81e82"
+  integrity sha512-h7yAQ5Sf96PdZz+sfDDl6Hscl/JqsVXadjF6YHmJeWviziDCGQtqUQUDS2tYjfD/eTzhfZwNfwcfb91a4PaZKQ==
+  dependencies:
+    "@types/node" "*"
 
 "@types/glob@^7.1.3":
   version "7.1.3"
@@ -3890,6 +3897,13 @@ browserslist@^4.0.0, browserslist@^4.16.0, browserslist@^4.16.6, browserslist@^4
     electron-to-chromium "^1.4.535"
     node-releases "^2.0.13"
     update-browserslist-db "^1.0.13"
+
+bser@2.1.1:
+  version "2.1.1"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/bser/-/bser-2.1.1.tgz#e6787da20ece9d07998533cfd9de6f5c38f4bc05"
+  integrity sha512-gQxTNE/GAfIIrmHLUE3oJyp5FO6HRBfhjnw4/wMmA63ZGDJnWBmgY/lyQBpnDUkGmAhbSe39tx2d/iTOAfglwQ==
+  dependencies:
+    node-int64 "^0.4.0"
 
 buffer-crc32@~0.2.3:
   version "0.2.13"
@@ -6477,6 +6491,13 @@ fault@^1.0.0:
   integrity sha512-CJ0HCB5tL5fYTEA7ToAq5+kTwd++Borf1/bifxd9iT70QcXr4MRrO3Llf8Ifs70q+SJcGHFtnIE/Nw6giCtECA==
   dependencies:
     format "^0.2.0"
+
+fb-watchman@^2.0.2:
+  version "2.0.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/fb-watchman/-/fb-watchman-2.0.2.tgz#e9524ee6b5c77e9e5001af0f85f3adbb8623255c"
+  integrity sha512-p5161BqbuCaSnB8jIbzQHOlpgsPmK5rJVDfDKO91Axs5NC1uu3HRQm6wt9cd9/+GtQQIO53JdGXXoyDpTAsgYA==
+  dependencies:
+    bser "2.1.1"
 
 fclone@^1.0.11:
   version "1.0.11"
@@ -10229,6 +10250,11 @@ node-gyp@^9.0.0:
     semver "^7.3.5"
     tar "^6.1.2"
     which "^2.0.2"
+
+node-int64@^0.4.0:
+  version "0.4.0"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/node-int64/-/node-int64-0.4.0.tgz#87a9065cdb355d3182d8f94ce11188b825c68a3b"
+  integrity sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw==
 
 node-ipc@^9.1.4:
   version "9.1.4"
