@@ -15,7 +15,7 @@ use crate::RpcHost;
 use super::napi::create_done_callback;
 use super::rpc_host_message::RpcHostMessage;
 use super::RpcConnectionNodejs;
-use super::RpcConnectionsNodejs;
+use super::RpcConnectionNodejsMulti;
 
 // RpcHostNodejs has a connection to the main Nodejs thread and manages
 // the lazy initialization of Nodejs worker threads.
@@ -50,7 +50,7 @@ impl RpcHostNodejs {
     })
   }
 
-  fn call_threadsafe_function(&self, msg: RpcHostMessage) {
+  fn call_rpc(&self, msg: RpcHostMessage) {
     if !matches!(
       self
         .threadsafe_function
@@ -77,7 +77,7 @@ impl RpcHostNodejs {
 impl RpcHost for RpcHostNodejs {
   fn ping(&self) -> anyhow::Result<()> {
     let (tx, rx) = channel();
-    self.call_threadsafe_function(RpcHostMessage::Ping { response: tx });
+    self.call_rpc(RpcHostMessage::Ping { response: tx });
     Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
   }
 
@@ -88,6 +88,6 @@ impl RpcHost for RpcHostNodejs {
       connections.push(RpcConnectionNodejs::new())
     }
 
-    Ok(Arc::new(RpcConnectionsNodejs::new(connections)))
+    Ok(Arc::new(RpcConnectionNodejsMulti::new(connections)))
   }
 }

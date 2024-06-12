@@ -6,12 +6,12 @@ use crate::RpcConnection;
 
 /// Connection to multiple Nodejs Workers
 /// Implements round robin messaging
-pub struct RpcConnectionsNodejs {
+pub struct RpcConnectionNodejsMulti {
   current_index: Mutex<usize>, // TODO use AtomicUsize
   conns: Vec<RpcConnectionNodejs>,
 }
 
-impl RpcConnectionsNodejs {
+impl RpcConnectionNodejsMulti {
   pub fn new(conns: Vec<RpcConnectionNodejs>) -> Self {
     Self {
       current_index: Default::default(),
@@ -30,7 +30,7 @@ impl RpcConnectionsNodejs {
   }
 }
 
-impl RpcConnection for RpcConnectionsNodejs {
+impl RpcConnection for RpcConnectionNodejsMulti {
   fn ping(&self) -> anyhow::Result<()> {
     let next = self.next_index();
     self.conns[next].ping()
