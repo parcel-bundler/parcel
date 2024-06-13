@@ -2,7 +2,9 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 
+use crate::impl_bitflags_serde;
 use ahash::AHasher;
+use bitflags::bitflags;
 use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
@@ -142,6 +144,21 @@ impl Hash for Dependency {
     self.specifier_type.hash(state);
   }
 }
+
+bitflags! {
+  #[derive(Debug, Clone, Copy, Hash)]
+  pub struct DependencyFlags: u8 {
+    const ENTRY    = 1 << 0;
+    const OPTIONAL = 1 << 1;
+    const NEEDS_STABLE_NAME = 1 << 2;
+    const SHOULD_WRAP = 1 << 3;
+    const IS_ESM = 1 << 4;
+    const IS_WEBWORKER = 1 << 5;
+    const HAS_SYMBOLS = 1 << 6;
+  }
+}
+
+impl_bitflags_serde!(DependencyFlags);
 
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct ImportAttribute {

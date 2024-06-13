@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Error};
 use indexmap::{indexmap, IndexMap};
 use std::path::PathBuf;
+use swc_core::atoms::Atom;
+use swc_core::ecma::atoms::JsWord;
 
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::TransformerPlugin;
@@ -11,7 +13,7 @@ use parcel_core::types::{
   JSONObject, Location, OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol,
   SymbolFlags,
 };
-use parcel_js_swc_core::{Config, DependencyKind};
+use parcel_js_swc_core::{Config, DependencyDescriptor, DependencyKind};
 use parcel_resolver::{ExportsCondition, IncludeNodeModules};
 
 #[derive(Debug)]
@@ -94,313 +96,17 @@ fn convert_result(
       .map(|d| d.as_str().into())
       .unwrap_or_else(|| dep.specifier.clone());
 
-    match dep.kind {
-      DependencyKind::WebWorker => {
-        // Use native ES module output if the worker was created with `type: 'module'` and all targets
-        // support native module workers. Only do this if parent asset output format is also esmodule so that
-        // assets can be shared between workers and the main thread in the global output format.
-        let mut output_format = env.output_format;
-        if output_format == OutputFormat::EsModule
-          && matches!(
-            dep.source_type,
-            Some(parcel_js_swc_core::SourceType::Module)
-          )
-          && config.supports_module_workers
-        {
-          output_format = OutputFormat::EsModule;
-        } else if output_format != OutputFormat::Commonjs {
-          output_format = OutputFormat::Global;
-        }
-
-        let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env: Environment {
-            context: EnvironmentContext::WebWorker,
-            source_type: if matches!(
-              dep.source_type,
-              Some(parcel_js_swc_core::SourceType::Module)
-            ) {
-              SourceType::Module
-            } else {
-              SourceType::Script
-            },
-            output_format,
-            loc: Some(loc.clone()),
-            ..env.clone()
-          }
-          .into(),
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::None,
-          // flags: dep_flags | DependencyFlags::IS_WEBWORKER,
-          loc: Some(loc.clone()),
-          // placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          // promise_symbol: None,
-          // import_attributes: Vec::new(),
-          pipeline: None,
-          meta: JSONObject::new(),
-          // resolver_meta: JSONObject::new(),
-          package_conditions: ExportsCondition::empty(),
-          // custom_package_conditions: Vec::new(),
-          ..Dependency::default()
-        };
-
-        dep_map.insert(placeholder, d);
-      }
-      DependencyKind::ServiceWorker => {
-        let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env: Environment {
-            context: EnvironmentContext::ServiceWorker,
-            source_type: if matches!(
-              dep.source_type,
-              Some(parcel_js_swc_core::SourceType::Module)
-            ) {
-              SourceType::Module
-            } else {
-              SourceType::Script
-            },
-            output_format: OutputFormat::Global,
-            loc: Some(loc.clone()),
-            ..env.clone()
-          }
-          .into(),
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::None,
-          // flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
-          loc: Some(loc.clone()),
-          // placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          // promise_symbol: None,
-          // import_attributes: Vec::new(),
-          pipeline: None,
-          meta: JSONObject::new(),
-          // resolver_meta: JSONObject::new(),
-          package_conditions: ExportsCondition::empty(),
-          // custom_package_conditions: Vec::new(),
-          ..Dependency::default()
-        };
-
-        dep_map.insert(placeholder, d);
-      }
-      DependencyKind::Worklet => {
-        let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env: Environment {
-            context: EnvironmentContext::Worklet,
-            source_type: SourceType::Module,
-            output_format: OutputFormat::EsModule,
-            loc: Some(loc.clone()),
-            ..env.clone()
-          }
-          .into(),
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::None,
-          // flags: dep_flags,
-          loc: Some(loc.clone()),
-          // placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          // promise_symbol: None,
-          // import_attributes: Vec::new(),
-          pipeline: None,
-          meta: JSONObject::new(),
-          // resolver_meta: JSONObject::new(),
-          package_conditions: ExportsCondition::empty(),
-          // custom_package_conditions: Vec::new(),
-          ..Dependency::default()
-        };
-
-        dep_map.insert(placeholder, d);
-      }
-      DependencyKind::Url => {
-        let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env: env.clone(),
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::Isolated,
-          // flags: dep_flags,
-          loc: Some(loc.clone()),
-          // placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          // promise_symbol: None,
-          // import_attributes: Vec::new(),
-          pipeline: None,
-          meta: JSONObject::new(),
-          // resolver_meta: JSONObject::new(),
-          package_conditions: ExportsCondition::empty(),
-          // custom_package_conditions: Vec::new(),
-          ..Dependency::default()
-        };
-
-        dep_map.insert(placeholder, d);
-      }
-      DependencyKind::File => {
-        invalidate_on_file_change.push(dep.specifier.to_string());
-      }
-      _ => {
-        // let mut flags = dep_flags;
-        // flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
-        // flags.set(
-        //   DependencyFlags::IS_ESM,
-        //   matches!(dep.kind, DependencyKind::Import | DependencyKind::Export),
-        // );
-
-        let mut env = env.clone();
-        if dep.kind == DependencyKind::DynamicImport {
-          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
-          if matches!(
-            env.context,
-            EnvironmentContext::Worklet | EnvironmentContext::ServiceWorker
-          ) {
-            let mut diagnostic = Diagnostic {
-              // origin: Some("@parcel/transformer-js".into()),
-              // message: format!(
-              //   "import() is not allowed in {}.",
-              //   match env.context {
-              //     EnvironmentContext::Worklet => "worklets",
-              //     EnvironmentContext::ServiceWorker => "service workers",
-              //     _ => unreachable!(),
-              //   }
-              // ),
-              // code_frames: vec![CodeFrame {
-              //   file_path: Some(asset.file_path),
-              //   code: None,
-              //   language: None,
-              //   code_highlights: vec![CodeHighlight::from_loc(
-              //     &convert_loc(asset.file_path, &dep.loc),
-              //     None,
-              //   )],
-              // }],
-              // hints: vec!["Try using a static `import`.".into()],
-              // severity: DiagnosticSeverity::Error,
-              // documentation_url: None,
-            };
-            // environment_diagnostic(&mut diagnostic, &asset, false);
-            return Err(vec![diagnostic]);
-          }
-
-          // If all of the target engines support dynamic import natively,
-          // we can output native ESM if scope hoisting is enabled.
-          // Only do this for scripts, rather than modules in the global
-          // output format so that assets can be shared between the bundles.
-          let mut output_format = env.output_format;
-          if env.source_type == SourceType::Script
-              // && env.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
-              && env.engines.supports(EnvironmentFeature::DynamicImport)
-          {
-            output_format = OutputFormat::EsModule;
-          }
-
-          if env.source_type != SourceType::Module || env.output_format != output_format {
-            env = Environment {
-              source_type: SourceType::Module,
-              output_format,
-              loc: Some(loc.clone()),
-              ..env.clone()
-            }
-            .into();
-          }
-        }
-
-        // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-        let is_helper = dep.is_helper
-          && !(dep.specifier.ends_with("/jsx-runtime")
-            || dep.specifier.ends_with("/jsx-dev-runtime"));
-        if is_helper {
-          // && !env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-          env = Environment {
-            include_node_modules: IncludeNodeModules::Bool(true),
-            ..env.clone()
-          }
-          .into();
-        }
-
-        // Add required version range for helpers.
-        let mut range = None;
-        let mut resolve_from = None;
-        if is_helper {
-          // TODO: get versions from package.json? Can we do it at compile time?
-          if dep.specifier.starts_with("@swc/helpers") {
-            range = Some("^0.5.0".into());
-          } else if dep.specifier.starts_with("regenerator-runtime") {
-            range = Some("^0.13.7".into());
-          }
-
-          // resolve_from = Some(options.core_path.as_path().into());
-        }
-
-        let mut import_attributes = Vec::new();
-        if let Some(attrs) = dep.attributes {
-          for (key, value) in attrs {
-            import_attributes.push(ImportAttribute {
-              key: String::from(&*key),
-              value,
-            });
-          }
-        }
-
-        let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: match dep.kind {
-            parcel_js_swc_core::DependencyKind::Require => SpecifierType::CommonJS,
-            _ => SpecifierType::Esm,
-          },
-          source_path: Some(file_path.clone()),
-          env,
-          resolve_from,
-          range,
-          priority: match dep.kind {
-            parcel_js_swc_core::DependencyKind::DynamicImport => Priority::Lazy,
-            _ => Priority::Sync,
-          },
-          bundle_behavior: BundleBehavior::None,
-          // flags,
-          loc: Some(loc.clone()),
-          // placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          // promise_symbol: None,
-          // import_attributes,
-          pipeline: None,
-          meta: JSONObject::new(),
-          // resolver_meta: JSONObject::new(),
-          package_conditions: ExportsCondition::empty(),
-          // custom_package_conditions: Vec::new(),
-
-          // TODO:
-          is_entry: false,
-          needs_stable_name: false,
-          is_optional: false,
-        };
-
-        dep_map.insert(placeholder, d);
-      }
-    }
+    convert_dependency(
+      config,
+      &file_path,
+      &env,
+      asset_id,
+      &mut dep_map,
+      &mut invalidate_on_file_change,
+      dep,
+      loc,
+      placeholder,
+    )?;
   }
 
   if result.needs_esm_helpers {
@@ -691,6 +397,327 @@ fn convert_result(
     // used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
     // invalidate_on_file_change,
   })
+}
+
+fn convert_dependency(
+  config: &Config,
+  file_path: &PathBuf,
+  env: &Environment,
+  asset_id: u64,
+  dep_map: &mut IndexMap<JsWord, Dependency>,
+  invalidate_on_file_change: &mut Vec<String>,
+  dep: DependencyDescriptor,
+  loc: SourceLocation,
+  placeholder: Atom,
+) -> Result<(), Vec<Diagnostic>> {
+  match dep.kind {
+    DependencyKind::WebWorker => {
+      // Use native ES module output if the worker was created with `type: 'module'` and all targets
+      // support native module workers. Only do this if parent asset output format is also esmodule so that
+      // assets can be shared between workers and the main thread in the global output format.
+      let mut output_format = env.output_format;
+      if output_format == OutputFormat::EsModule
+        && matches!(
+          dep.source_type,
+          Some(parcel_js_swc_core::SourceType::Module)
+        )
+        && config.supports_module_workers
+      {
+        output_format = OutputFormat::EsModule;
+      } else if output_format != OutputFormat::Commonjs {
+        output_format = OutputFormat::Global;
+      }
+
+      let d = Dependency {
+        source_asset_id: Some(format!("{:016x}", asset_id)),
+        specifier: dep.specifier.as_ref().into(),
+        specifier_type: SpecifierType::Url,
+        source_path: Some(file_path.clone()),
+        env: Environment {
+          context: EnvironmentContext::WebWorker,
+          source_type: if matches!(
+            dep.source_type,
+            Some(parcel_js_swc_core::SourceType::Module)
+          ) {
+            SourceType::Module
+          } else {
+            SourceType::Script
+          },
+          output_format,
+          loc: Some(loc.clone()),
+          ..env.clone()
+        }
+        .into(),
+        resolve_from: None,
+        range: None,
+        priority: Priority::Lazy,
+        bundle_behavior: BundleBehavior::None,
+        // flags: dep_flags | DependencyFlags::IS_WEBWORKER,
+        loc: Some(loc.clone()),
+        // placeholder: dep.placeholder.map(|s| s.into()),
+        target: None,
+        symbols: Vec::new(),
+        // promise_symbol: None,
+        // import_attributes: Vec::new(),
+        pipeline: None,
+        meta: JSONObject::new(),
+        // resolver_meta: JSONObject::new(),
+        package_conditions: ExportsCondition::empty(),
+        // custom_package_conditions: Vec::new(),
+        ..Dependency::default()
+      };
+
+      dep_map.insert(placeholder, d);
+    }
+    DependencyKind::ServiceWorker => {
+      let d = Dependency {
+        source_asset_id: Some(format!("{:016x}", asset_id)),
+        specifier: dep.specifier.as_ref().into(),
+        specifier_type: SpecifierType::Url,
+        source_path: Some(file_path.clone()),
+        env: Environment {
+          context: EnvironmentContext::ServiceWorker,
+          source_type: if matches!(
+            dep.source_type,
+            Some(parcel_js_swc_core::SourceType::Module)
+          ) {
+            SourceType::Module
+          } else {
+            SourceType::Script
+          },
+          output_format: OutputFormat::Global,
+          loc: Some(loc.clone()),
+          ..env.clone()
+        }
+        .into(),
+        resolve_from: None,
+        range: None,
+        priority: Priority::Lazy,
+        bundle_behavior: BundleBehavior::None,
+        // flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
+        loc: Some(loc.clone()),
+        // placeholder: dep.placeholder.map(|s| s.into()),
+        target: None,
+        symbols: Vec::new(),
+        // promise_symbol: None,
+        // import_attributes: Vec::new(),
+        pipeline: None,
+        meta: JSONObject::new(),
+        // resolver_meta: JSONObject::new(),
+        package_conditions: ExportsCondition::empty(),
+        // custom_package_conditions: Vec::new(),
+        ..Dependency::default()
+      };
+
+      dep_map.insert(placeholder, d);
+    }
+    DependencyKind::Worklet => {
+      let d = Dependency {
+        source_asset_id: Some(format!("{:016x}", asset_id)),
+        specifier: dep.specifier.as_ref().into(),
+        specifier_type: SpecifierType::Url,
+        source_path: Some(file_path.clone()),
+        env: Environment {
+          context: EnvironmentContext::Worklet,
+          source_type: SourceType::Module,
+          output_format: OutputFormat::EsModule,
+          loc: Some(loc.clone()),
+          ..env.clone()
+        }
+        .into(),
+        resolve_from: None,
+        range: None,
+        priority: Priority::Lazy,
+        bundle_behavior: BundleBehavior::None,
+        // flags: dep_flags,
+        loc: Some(loc.clone()),
+        // placeholder: dep.placeholder.map(|s| s.into()),
+        target: None,
+        symbols: Vec::new(),
+        // promise_symbol: None,
+        // import_attributes: Vec::new(),
+        pipeline: None,
+        meta: JSONObject::new(),
+        // resolver_meta: JSONObject::new(),
+        package_conditions: ExportsCondition::empty(),
+        // custom_package_conditions: Vec::new(),
+        ..Dependency::default()
+      };
+
+      dep_map.insert(placeholder, d);
+    }
+    DependencyKind::Url => {
+      let d = Dependency {
+        source_asset_id: Some(format!("{:016x}", asset_id)),
+        specifier: dep.specifier.as_ref().into(),
+        specifier_type: SpecifierType::Url,
+        source_path: Some(file_path.clone()),
+        env: env.clone(),
+        resolve_from: None,
+        range: None,
+        priority: Priority::Lazy,
+        bundle_behavior: BundleBehavior::Isolated,
+        // flags: dep_flags,
+        loc: Some(loc.clone()),
+        // placeholder: dep.placeholder.map(|s| s.into()),
+        target: None,
+        symbols: Vec::new(),
+        // promise_symbol: None,
+        // import_attributes: Vec::new(),
+        pipeline: None,
+        meta: JSONObject::new(),
+        // resolver_meta: JSONObject::new(),
+        package_conditions: ExportsCondition::empty(),
+        // custom_package_conditions: Vec::new(),
+        ..Dependency::default()
+      };
+
+      dep_map.insert(placeholder, d);
+    }
+    DependencyKind::File => {
+      invalidate_on_file_change.push(dep.specifier.to_string());
+    }
+    _ => {
+      // let mut flags = dep_flags;
+      // flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
+      // flags.set(
+      //   DependencyFlags::IS_ESM,
+      //   matches!(dep.kind, DependencyKind::Import | DependencyKind::Export),
+      // );
+
+      let mut env = env.clone();
+      if dep.kind == DependencyKind::DynamicImport {
+        // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
+        if matches!(
+          env.context,
+          EnvironmentContext::Worklet | EnvironmentContext::ServiceWorker
+        ) {
+          let mut diagnostic = Diagnostic {
+            // origin: Some("@parcel/transformer-js".into()),
+            // message: format!(
+            //   "import() is not allowed in {}.",
+            //   match env.context {
+            //     EnvironmentContext::Worklet => "worklets",
+            //     EnvironmentContext::ServiceWorker => "service workers",
+            //     _ => unreachable!(),
+            //   }
+            // ),
+            // code_frames: vec![CodeFrame {
+            //   file_path: Some(asset.file_path),
+            //   code: None,
+            //   language: None,
+            //   code_highlights: vec![CodeHighlight::from_loc(
+            //     &convert_loc(asset.file_path, &dep.loc),
+            //     None,
+            //   )],
+            // }],
+            // hints: vec!["Try using a static `import`.".into()],
+            // severity: DiagnosticSeverity::Error,
+            // documentation_url: None,
+          };
+          // environment_diagnostic(&mut diagnostic, &asset, false);
+          return Err(vec![diagnostic]);
+        }
+
+        // If all of the target engines support dynamic import natively,
+        // we can output native ESM if scope hoisting is enabled.
+        // Only do this for scripts, rather than modules in the global
+        // output format so that assets can be shared between the bundles.
+        let mut output_format = env.output_format;
+        if env.source_type == SourceType::Script
+            // && env.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
+            && env.engines.supports(EnvironmentFeature::DynamicImport)
+        {
+          output_format = OutputFormat::EsModule;
+        }
+
+        if env.source_type != SourceType::Module || env.output_format != output_format {
+          env = Environment {
+            source_type: SourceType::Module,
+            output_format,
+            loc: Some(loc.clone()),
+            ..env.clone()
+          }
+          .into();
+        }
+      }
+
+      // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
+      let is_helper = dep.is_helper
+        && !(dep.specifier.ends_with("/jsx-runtime")
+          || dep.specifier.ends_with("/jsx-dev-runtime"));
+      if is_helper {
+        // && !env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+        env = Environment {
+          include_node_modules: IncludeNodeModules::Bool(true),
+          ..env.clone()
+        }
+        .into();
+      }
+
+      // Add required version range for helpers.
+      let mut range = None;
+      let mut resolve_from = None;
+      if is_helper {
+        // TODO: get versions from package.json? Can we do it at compile time?
+        if dep.specifier.starts_with("@swc/helpers") {
+          range = Some("^0.5.0".into());
+        } else if dep.specifier.starts_with("regenerator-runtime") {
+          range = Some("^0.13.7".into());
+        }
+
+        // resolve_from = Some(options.core_path.as_path().into());
+      }
+
+      let mut import_attributes = Vec::new();
+      if let Some(attrs) = dep.attributes {
+        for (key, value) in attrs {
+          import_attributes.push(ImportAttribute {
+            key: String::from(&*key),
+            value,
+          });
+        }
+      }
+
+      let d = Dependency {
+        source_asset_id: Some(format!("{:016x}", asset_id)),
+        specifier: dep.specifier.as_ref().into(),
+        specifier_type: match dep.kind {
+          parcel_js_swc_core::DependencyKind::Require => SpecifierType::CommonJS,
+          _ => SpecifierType::Esm,
+        },
+        source_path: Some(file_path.clone()),
+        env,
+        resolve_from,
+        range,
+        priority: match dep.kind {
+          parcel_js_swc_core::DependencyKind::DynamicImport => Priority::Lazy,
+          _ => Priority::Sync,
+        },
+        bundle_behavior: BundleBehavior::None,
+        // flags,
+        loc: Some(loc.clone()),
+        // placeholder: dep.placeholder.map(|s| s.into()),
+        target: None,
+        symbols: Vec::new(),
+        // promise_symbol: None,
+        // import_attributes,
+        pipeline: None,
+        meta: JSONObject::new(),
+        // resolver_meta: JSONObject::new(),
+        package_conditions: ExportsCondition::empty(),
+        // custom_package_conditions: Vec::new(),
+
+        // TODO:
+        is_entry: false,
+        needs_stable_name: false,
+        is_optional: false,
+      };
+
+      dep_map.insert(placeholder, d);
+    }
+  }
+  Ok(())
 }
 
 fn convert_loc(
