@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 /// The options passed into Parcel either through the CLI or the progrommatic API
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Default, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParcelOptions {
   pub config: Option<String>,
@@ -39,9 +39,10 @@ impl<'de> Deserialize<'de> for BuildMode {
   }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Default, Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
+  #[default]
   Error,
   Info,
   None,

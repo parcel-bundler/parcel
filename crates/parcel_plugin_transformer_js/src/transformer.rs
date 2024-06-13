@@ -11,8 +11,8 @@ use parcel_core::plugin::{RunTransformContext, TransformResult};
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
   Asset, BundleBehavior, Dependency, Environment, EnvironmentContext, FileType, ImportAttribute,
-  JSONObject, Location, OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol,
-  SymbolFlags,
+  JSONObject, Location, OutputFormat, ParcelOptions, Priority, SourceLocation, SourceType,
+  SpecifierType, Symbol, SymbolFlags,
 };
 use parcel_js_swc_core::{Config, DependencyDescriptor, DependencyKind};
 use parcel_resolver::{ExportsCondition, IncludeNodeModules};
@@ -45,15 +45,10 @@ impl TransformerPlugin for ParcelTransformerJs {
       None,
     )?;
 
-    let new_code = transformation_result.code;
-    let dependencies = transformation_result.dependencies;
-    let dependencies: Vec<Dependency> = dependencies
-      .iter()
-      .map(|dependency| Dependency {
-        specifier: dependency.specifier.to_string(),
-        ..Dependency::default()
-      })
-      .collect();
+    let asset = context.asset();
+    let config = Config::default();
+    let options = ParcelOptions::default();
+    let result = convert_result(asset, &config, transformation_result, &options);
 
     Ok(TransformResult {})
   }
@@ -62,11 +57,10 @@ impl TransformerPlugin for ParcelTransformerJs {
 struct Diagnostic;
 
 fn convert_result(
-  mut asset: Asset,
-  map_buf: Option<&[u8]>,
+  asset: &mut Asset,
   config: &Config,
   result: parcel_js_swc_core::TransformResult,
-  options: &parcel_core::types::ParcelOptions,
+  options: &ParcelOptions,
 ) -> Result<TransformResult, Vec<Diagnostic>> {
   let file_path = asset.file_path().to_path_buf();
   let env = asset.env.clone();
@@ -411,6 +405,23 @@ fn convert_dependency(
   loc: SourceLocation,
   placeholder: Atom,
 ) -> Result<(), Vec<Diagnostic>> {
+  let base_dependency = Dependency {
+    source_asset_id: Some(format!("{:016x}", asset_id)),
+    specifier: dep.specifier.as_ref().into(),
+    specifier_type: SpecifierType::Url,
+    source_path: Some(file_path.clone()),
+    resolve_from: None,
+    range: None,
+    priority: Priority::Lazy,
+    bundle_behavior: BundleBehavior::None,
+    loc: Some(loc.clone()),
+    target: None,
+    symbols: Vec::new(),
+    pipeline: None,
+    meta: JSONObject::new(),
+    package_conditions: ExportsCondition::empty(),
+    ..Dependency::default()
+  };
   match dep.kind {
     DependencyKind::WebWorker => {
       // Use native ES module output if the worker was created with `type: 'module'` and all targets
@@ -430,10 +441,6 @@ fn convert_dependency(
       }
 
       let d = Dependency {
-        source_asset_id: Some(format!("{:016x}", asset_id)),
-        specifier: dep.specifier.as_ref().into(),
-        specifier_type: SpecifierType::Url,
-        source_path: Some(file_path.clone()),
         env: Environment {
           context: EnvironmentContext::WebWorker,
           source_type: if matches!(
@@ -449,33 +456,13 @@ fn convert_dependency(
           ..env.clone()
         }
         .into(),
-        resolve_from: None,
-        range: None,
-        priority: Priority::Lazy,
-        bundle_behavior: BundleBehavior::None,
-        // flags: dep_flags | DependencyFlags::IS_WEBWORKER,
-        loc: Some(loc.clone()),
-        // placeholder: dep.placeholder.map(|s| s.into()),
-        target: None,
-        symbols: Vec::new(),
-        // promise_symbol: None,
-        // import_attributes: Vec::new(),
-        pipeline: None,
-        meta: JSONObject::new(),
-        // resolver_meta: JSONObject::new(),
-        package_conditions: ExportsCondition::empty(),
-        // custom_package_conditions: Vec::new(),
-        ..Dependency::default()
+        ..base_dependency
       };
 
       dep_map.insert(placeholder, d);
     }
     DependencyKind::ServiceWorker => {
       let d = Dependency {
-        source_asset_id: Some(format!("{:016x}", asset_id)),
-        specifier: dep.specifier.as_ref().into(),
-        specifier_type: SpecifierType::Url,
-        source_path: Some(file_path.clone()),
         env: Environment {
           context: EnvironmentContext::ServiceWorker,
           source_type: if matches!(
@@ -491,33 +478,19 @@ fn convert_dependency(
           ..env.clone()
         }
         .into(),
-        resolve_from: None,
-        range: None,
-        priority: Priority::Lazy,
-        bundle_behavior: BundleBehavior::None,
         // flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
-        loc: Some(loc.clone()),
         // placeholder: dep.placeholder.map(|s| s.into()),
-        target: None,
-        symbols: Vec::new(),
         // promise_symbol: None,
         // import_attributes: Vec::new(),
-        pipeline: None,
-        meta: JSONObject::new(),
         // resolver_meta: JSONObject::new(),
-        package_conditions: ExportsCondition::empty(),
         // custom_package_conditions: Vec::new(),
-        ..Dependency::default()
+        ..base_dependency
       };
 
       dep_map.insert(placeholder, d);
     }
     DependencyKind::Worklet => {
       let d = Dependency {
-        source_asset_id: Some(format!("{:016x}", asset_id)),
-        specifier: dep.specifier.as_ref().into(),
-        specifier_type: SpecifierType::Url,
-        source_path: Some(file_path.clone()),
         env: Environment {
           context: EnvironmentContext::Worklet,
           source_type: SourceType::Module,
@@ -526,51 +499,28 @@ fn convert_dependency(
           ..env.clone()
         }
         .into(),
-        resolve_from: None,
-        range: None,
-        priority: Priority::Lazy,
-        bundle_behavior: BundleBehavior::None,
         // flags: dep_flags,
-        loc: Some(loc.clone()),
         // placeholder: dep.placeholder.map(|s| s.into()),
-        target: None,
-        symbols: Vec::new(),
         // promise_symbol: None,
         // import_attributes: Vec::new(),
-        pipeline: None,
-        meta: JSONObject::new(),
         // resolver_meta: JSONObject::new(),
-        package_conditions: ExportsCondition::empty(),
         // custom_package_conditions: Vec::new(),
-        ..Dependency::default()
+        ..base_dependency
       };
 
       dep_map.insert(placeholder, d);
     }
     DependencyKind::Url => {
       let d = Dependency {
-        source_asset_id: Some(format!("{:016x}", asset_id)),
-        specifier: dep.specifier.as_ref().into(),
-        specifier_type: SpecifierType::Url,
-        source_path: Some(file_path.clone()),
         env: env.clone(),
-        resolve_from: None,
-        range: None,
-        priority: Priority::Lazy,
         bundle_behavior: BundleBehavior::Isolated,
         // flags: dep_flags,
-        loc: Some(loc.clone()),
         // placeholder: dep.placeholder.map(|s| s.into()),
-        target: None,
-        symbols: Vec::new(),
         // promise_symbol: None,
         // import_attributes: Vec::new(),
-        pipeline: None,
-        meta: JSONObject::new(),
         // resolver_meta: JSONObject::new(),
-        package_conditions: ExportsCondition::empty(),
         // custom_package_conditions: Vec::new(),
-        ..Dependency::default()
+        ..base_dependency
       };
 
       dep_map.insert(placeholder, d);
@@ -593,7 +543,7 @@ fn convert_dependency(
           env.context,
           EnvironmentContext::Worklet | EnvironmentContext::ServiceWorker
         ) {
-          let mut diagnostic = Diagnostic {
+          let diagnostic = Diagnostic {
             // origin: Some("@parcel/transformer-js".into()),
             // message: format!(
             //   "import() is not allowed in {}.",
@@ -681,38 +631,24 @@ fn convert_dependency(
       }
 
       let d = Dependency {
-        source_asset_id: Some(format!("{:016x}", asset_id)),
-        specifier: dep.specifier.as_ref().into(),
         specifier_type: match dep.kind {
-          parcel_js_swc_core::DependencyKind::Require => SpecifierType::CommonJS,
+          DependencyKind::Require => SpecifierType::CommonJS,
           _ => SpecifierType::Esm,
         },
-        source_path: Some(file_path.clone()),
         env,
         resolve_from,
         range,
         priority: match dep.kind {
-          parcel_js_swc_core::DependencyKind::DynamicImport => Priority::Lazy,
+          DependencyKind::DynamicImport => Priority::Lazy,
           _ => Priority::Sync,
         },
-        bundle_behavior: BundleBehavior::None,
         // flags,
-        loc: Some(loc.clone()),
         // placeholder: dep.placeholder.map(|s| s.into()),
-        target: None,
-        symbols: Vec::new(),
         // promise_symbol: None,
         // import_attributes,
-        pipeline: None,
-        meta: JSONObject::new(),
         // resolver_meta: JSONObject::new(),
-        package_conditions: ExportsCondition::empty(),
         // custom_package_conditions: Vec::new(),
-
-        // TODO:
-        is_entry: false,
-        needs_stable_name: false,
-        is_optional: false,
+        ..base_dependency
       };
 
       dep_map.insert(placeholder, d);
