@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use std::sync::Arc;
+use std::{fmt::Debug, path::PathBuf};
 
 use crate::types::Dependency;
 
@@ -7,8 +7,13 @@ pub struct ResolvingEvent {
   pub dependency: Arc<Dependency>,
 }
 
+pub struct AssetBuildEvent {
+  pub file_path: PathBuf,
+}
+
 pub enum BuildProgressEvent {
   Resolving(ResolvingEvent),
+  Building(AssetBuildEvent),
 }
 
 // TODO Flesh these out

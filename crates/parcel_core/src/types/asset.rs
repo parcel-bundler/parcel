@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use ahash::AHasher;
 use serde::Deserialize;
@@ -31,7 +32,7 @@ pub struct Asset {
   pub bundle_behavior: BundleBehavior,
 
   /// The environment of the asset
-  pub env: Environment,
+  pub env: Arc<Environment>,
 
   /// The file path to the asset
   pub file_path: PathBuf,
@@ -82,15 +83,19 @@ pub struct Asset {
 impl Asset {
   pub fn id(&self) -> u64 {
     let mut hasher = AHasher::default();
-
-    self.asset_type.hash(&mut hasher);
-    self.env.hash(&mut hasher);
-    self.file_path.hash(&mut hasher);
-    self.pipeline.hash(&mut hasher);
-    self.query.hash(&mut hasher);
-    self.unique_key.hash(&mut hasher);
-
+    self.hash(&mut hasher);
     hasher.finish()
+  }
+}
+
+impl Hash for Asset {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.asset_type.hash(state);
+    self.env.hash(state);
+    self.file_path.hash(state);
+    self.pipeline.hash(state);
+    self.query.hash(state);
+    self.unique_key.hash(state);
   }
 }
 
