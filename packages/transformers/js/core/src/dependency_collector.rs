@@ -32,6 +32,7 @@ macro_rules! hash {
   }};
 }
 
+// TODO: Document dependency kinds
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
   Import,

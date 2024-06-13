@@ -1,12 +1,13 @@
 use parcel_filesystem::FileSystemRef;
 use std::fmt::Debug;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use parcel_resolver::SpecifierType;
 
-use crate::types::Asset;
 use crate::types::SourceMap;
+use crate::types::{Asset, SourceCode};
 
 pub struct GenerateOutput {
   pub content: File,
@@ -24,26 +25,58 @@ pub struct ResolveOptions {
 /// A function that enables transformers to resolve a dependency specifier
 pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, anyhow::Error>;
 
-pub struct RunTransformContext<'a> {
-  // TODO: We want to split this into its own tbh
-  asset: &'a mut Asset,
+/// Transformers may run against:
+///
+/// * File-paths that have just been discovered
+/// * Outputs of previous transformation steps, which are in-place modified
+/// * These two scenarios are distinguished
+pub enum TransformationInput {
+  FilePath(PathBuf),
+  Asset(Asset),
 }
 
-impl<'a> RunTransformContext<'a> {
-  pub fn new(asset: &'a mut Asset) -> Self {
-    Self { asset }
+impl TransformationInput {
+  pub fn file_path(&self) -> &Path {
+    match self {
+      TransformationInput::FilePath(path) => path,
+      TransformationInput::Asset(asset) => asset.file_path(),
+    }
   }
 
-  pub fn asset(&mut self) -> &mut Asset {
-    self.asset
+  pub fn read_source_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<SourceCode>> {
+    match self {
+      TransformationInput::FilePath(file_path) => {
+        let code = fs.read_to_string(&file_path)?;
+        let code = SourceCode::from(code);
+        Ok(Rc::new(code))
+      }
+      TransformationInput::Asset(asset) => Ok(asset.source_code.clone()),
+    }
+  }
+}
+
+/// Context parameters for the transformer, other than the input.
+pub struct RunTransformContext {
+  file_system: FileSystemRef,
+}
+
+impl RunTransformContext {
+  pub fn new(file_system: FileSystemRef) -> Self {
+    Self { file_system }
   }
 
   pub fn file_system(&self) -> FileSystemRef {
-    todo!()
+    self.file_system.clone()
   }
 }
 
-pub struct TransformResult {}
+#[derive(PartialEq, Debug)]
+pub struct TransformResult {
+  pub asset: Asset,
+  /// The transformer signals through this field that its result should be invalidated
+  /// if these paths change.
+  pub invalidate_on_file_change: Vec<PathBuf>,
+}
 
 /// Compile a single asset, discover dependencies, or convert the asset to a different format
 ///
@@ -55,29 +88,6 @@ pub trait TransformerPlugin: Debug + Send + Sync {
   fn transform(
     &mut self,
     context: &mut RunTransformContext,
+    input: TransformationInput,
   ) -> Result<TransformResult, anyhow::Error>;
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use anyhow::Error;
-
-  #[derive(Debug)]
-  struct TestTransformerPlugin {}
-
-  impl TransformerPlugin for TestTransformerPlugin {
-    fn transform(&mut self, context: &mut RunTransformContext) -> Result<TransformResult, Error> {
-      todo!()
-    }
-  }
-
-  #[test]
-  fn can_be_defined_in_dyn_vec() {
-    let mut transformers = Vec::<Box<dyn TransformerPlugin>>::new();
-
-    transformers.push(Box::new(TestTransformerPlugin {}));
-
-    assert_eq!(transformers.len(), 1);
-  }
 }

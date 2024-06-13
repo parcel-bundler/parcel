@@ -14,3 +14,5 @@ parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 swc_core = { version = "0.93.4", features = ["ecma_ast"] }
 indexmap = "2.2.6"
+serde = { version = "1.0.203", features = ["derive"] }
+parcel_filesystem = { path = "../parcel_filesystem" }

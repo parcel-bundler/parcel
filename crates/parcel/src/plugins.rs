@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use anyhow::anyhow;
+
 use parcel_config::map::NamedPattern;
 use parcel_config::ParcelConfig;
 use parcel_core::plugin::BundlerPlugin;
@@ -162,7 +163,7 @@ impl<'a> Plugins<'a> {
 
     for transformer in self.config.transformers.get(path, named_pattern).iter() {
       if transformer.package_name == "@parcel/transformer-swc" {
-        transformers.push(Box::new(ParcelTransformerJs::new(self.ctx)));
+        transformers.push(Box::new(ParcelTransformerJs::new()));
         continue;
       }
 
@@ -198,7 +199,7 @@ mod tests {
 
   use super::*;
 
-  fn ctx() -> PluginContext {
+  fn make_test_plugin_context() -> PluginContext {
     PluginContext {
       config: PluginConfig::new(
         Arc::new(InMemoryFileSystem::default()),
@@ -210,7 +211,7 @@ mod tests {
     }
   }
 
-  fn plugins<'a>(ctx: &'a PluginContext) -> Plugins<'a> {
+  fn plugins(ctx: &PluginContext) -> Plugins {
     let fixture = default_config(Rc::new(PathBuf::default()));
 
     Plugins::new(fixture.parcel_config, ctx)
@@ -218,14 +219,16 @@ mod tests {
 
   #[test]
   fn returns_bundler() {
-    let bundler = plugins(&ctx()).bundler().expect("Not to panic");
+    let bundler = plugins(&make_test_plugin_context())
+      .bundler()
+      .expect("Not to panic");
 
     assert_eq!(format!("{:?}", bundler), "RpcBundlerPlugin")
   }
 
   #[test]
   fn returns_compressors() {
-    let compressors = plugins(&ctx())
+    let compressors = plugins(&make_test_plugin_context())
       .compressors(Path::new("a.js"))
       .expect("Not to panic");
 
@@ -234,14 +237,16 @@ mod tests {
 
   #[test]
   fn returns_namers() {
-    let namers = plugins(&ctx()).namers().expect("Not to panic");
+    let namers = plugins(&make_test_plugin_context())
+      .namers()
+      .expect("Not to panic");
 
     assert_eq!(format!("{:?}", namers), "[RpcNamerPlugin]")
   }
 
   #[test]
   fn returns_optimizers() {
-    let optimizers = plugins(&ctx())
+    let optimizers = plugins(&make_test_plugin_context())
       .optimizers(Path::new("a.js"), None)
       .expect("Not to panic");
 
@@ -250,7 +255,7 @@ mod tests {
 
   #[test]
   fn returns_packager() {
-    let packager = plugins(&ctx())
+    let packager = plugins(&make_test_plugin_context())
       .packager(Path::new("a.js"))
       .expect("Not to panic");
 
@@ -259,28 +264,32 @@ mod tests {
 
   #[test]
   fn returns_reporters() {
-    let reporters = plugins(&ctx()).reporters();
+    let reporters = plugins(&make_test_plugin_context()).reporters();
 
     assert_eq!(format!("{:?}", reporters), "[RpcReporterPlugin]")
   }
 
   #[test]
   fn returns_resolvers() {
-    let resolvers = plugins(&ctx()).resolvers().expect("Not to panic");
+    let resolvers = plugins(&make_test_plugin_context())
+      .resolvers()
+      .expect("Not to panic");
 
     assert_eq!(format!("{:?}", resolvers), "[ParcelResolver]")
   }
 
   #[test]
   fn returns_runtimes() {
-    let runtimes = plugins(&ctx()).runtimes().expect("Not to panic");
+    let runtimes = plugins(&make_test_plugin_context())
+      .runtimes()
+      .expect("Not to panic");
 
     assert_eq!(format!("{:?}", runtimes), "[RpcRuntimePlugin]")
   }
 
   #[test]
   fn returns_transformers() {
-    let transformers = plugins(&ctx())
+    let transformers = plugins(&make_test_plugin_context())
       .transformers(Path::new("a.ts"), None)
       .expect("Not to panic");
 

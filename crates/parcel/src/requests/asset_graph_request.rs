@@ -28,10 +28,12 @@ impl Request<AssetGraph> for AssetGraphRequest {
   }
 }
 
+/// This is some initial asset building code
 fn get_asset() -> Asset {
   todo!()
 }
 
+/// This is part of the asset request ultimately
 fn run_transformer_pipeline(
   transformers: Vec<Box<dyn TransformerPlugin>>,
   asset: &mut Asset,

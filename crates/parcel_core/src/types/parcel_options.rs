@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use serde::Deserializer;
 
-/// The options passed into Parcel either through the CLI or the progrommatic API
+/// The options passed into Parcel either through the CLI or the programmatic API
 #[derive(Default, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParcelOptions {
@@ -14,6 +14,10 @@ pub struct ParcelOptions {
   pub log_level: LogLevel,
   pub mode: BuildMode,
   pub project_root: PathBuf,
+  /// Path to the parcel core node_module. This will be used to resolve built-ins or runtime files.
+  ///
+  /// In the future this may be replaced with embedding those files into the rust binary.
+  pub core_path: PathBuf,
 }
 
 #[derive(Clone, Debug, Default, Hash, PartialEq)]
