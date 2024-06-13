@@ -14,6 +14,7 @@ use parcel_core::plugin::ResolverPlugin;
 use parcel_core::plugin::ResolvingEvent;
 use parcel_core::types::Dependency;
 use parcel_resolver::parse_scheme;
+use xxhash_rust::xxh3::Xxh3;
 
 use crate::request_tracker::Request;
 use crate::request_tracker::RequestResult;
@@ -43,7 +44,7 @@ pub enum PathResolution {
 // TODO tracing, dev deps
 impl Request<PathResolution> for PathRequest {
   fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = Xxh3::default();
 
     self.dependency.hash(&mut hasher);
     self.named_pipelines.hash(&mut hasher);

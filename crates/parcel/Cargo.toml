@@ -16,6 +16,7 @@ parcel_plugin_resolver = { path = "../parcel_plugin_resolver" }
 parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
 parcel_plugin_rpc = { path = "../parcel_plugin_rpc" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+xxhash-rust = "0.8.10"
 
 ahash = "0.8.11"
 anyhow = "1.0.82"

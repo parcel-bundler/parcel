@@ -3,13 +3,13 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 
 use crate::impl_bitflags_serde;
-use ahash::AHasher;
 use bitflags::bitflags;
 use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
+use xxhash_rust::xxh3::Xxh3;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
@@ -126,7 +126,7 @@ impl Dependency {
   }
 
   pub fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = Xxh3::new();
     self.hash(&mut hasher);
     hasher.finish()
   }
