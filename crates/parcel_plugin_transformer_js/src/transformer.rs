@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Error};
-use indexmap::{indexmap, IndexMap};
 use std::path::PathBuf;
+
+use anyhow::{anyhow, Error};
+use indexmap::IndexMap;
 use swc_core::atoms::Atom;
 use swc_core::ecma::atoms::JsWord;
 
