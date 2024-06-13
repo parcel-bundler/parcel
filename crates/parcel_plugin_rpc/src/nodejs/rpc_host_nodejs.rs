@@ -1,9 +1,6 @@
 use std::sync::mpsc::channel;
-use std::sync::mpsc::Sender;
-use std::thread;
+use std::sync::Arc;
 
-use anyhow::anyhow;
-use napi;
 use napi::threadsafe_function::ThreadSafeCallContext;
 use napi::threadsafe_function::ThreadsafeFunction;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
@@ -11,80 +8,68 @@ use napi::Env;
 use napi::JsFunction;
 use napi::JsUnknown;
 use napi::Status;
-use serde::de::DeserializeOwned;
 
+use crate::RpcConnectionRef;
 use crate::RpcHost;
-use crate::RpcHostMessage;
 
+use super::napi::create_done_callback;
+use super::rpc_host_message::RpcHostMessage;
+use super::RpcConnectionNodejs;
+use super::RpcConnectionNodejsMulti;
+
+// RpcHostNodejs has a connection to the main Nodejs thread and manages
+// the lazy initialization of Nodejs worker threads.
 pub struct RpcHostNodejs {
-  tx_rpc: Sender<RpcHostMessage>,
+  threadsafe_function: ThreadsafeFunction<RpcHostMessage>,
+  node_workers: u32,
 }
 
 impl RpcHostNodejs {
-  pub fn new(env: &Env, callback: JsFunction) -> napi::Result<Self> {
+  pub fn new(env: &Env, callback: JsFunction, node_workers: u32) -> napi::Result<Self> {
     // Create a threadsafe function that casts the incoming message data to something
     // accessible in JavaScript. The function accepts a return value from a JS callback
-    let threadsafe_function: ThreadsafeFunction<RpcHostMessage> = env.create_threadsafe_function(
-      &callback,
-      0,
-      |ctx: ThreadSafeCallContext<RpcHostMessage>| {
-        let id = Self::get_message_id(&ctx.value);
-        match ctx.value {
-          RpcHostMessage::Ping { response: reply } => {
-            let callback = Self::create_callback(&ctx.env, reply)?;
-            let id = ctx.env.create_uint32(id)?.into_unknown();
-            let message = ctx.env.to_js_value(&())?;
-            Ok(vec![id, message, callback])
-          }
-        }
-      },
-    )?;
+    let mut threadsafe_function: ThreadsafeFunction<RpcHostMessage> = env
+      .create_threadsafe_function(
+        &callback,
+        0,
+        |ctx: ThreadSafeCallContext<RpcHostMessage>| {
+          let id = ctx.env.create_uint32(ctx.value.get_id())?.into_unknown();
+          let (message, callback) = Self::map_rpc_message(&ctx.env, ctx.value)?;
+          Ok(vec![id, message, callback])
+        },
+      )?;
 
-    // Forward RPC events to the threadsafe function from a new thread
-    let (tx_rpc, rx_rpc) = channel();
-    thread::spawn(move || {
-      while let Ok(msg) = rx_rpc.recv() {
-        if !matches!(
-          threadsafe_function.call(Ok(msg), ThreadsafeFunctionCallMode::NonBlocking),
-          Status::Ok
-        ) {
-          return;
-        };
+    // Normally, holding a threadsafe function tells Nodejs that an async action is
+    // running and that the process should not exist until the reference is released (like an http server).
+    // This tells Nodejs that it's okay to terminate the process despite active reference.
+    threadsafe_function.unref(&env)?;
+
+    Ok(Self {
+      node_workers,
+      threadsafe_function,
+    })
+  }
+
+  fn call_rpc(&self, msg: RpcHostMessage) {
+    if !matches!(
+      self
+        .threadsafe_function
+        .call(Ok(msg), ThreadsafeFunctionCallMode::NonBlocking),
+      Status::Ok
+    ) {
+      return;
+    };
+  }
+
+  // Map the RPC message to a JavaScript type
+  fn map_rpc_message(env: &Env, msg: RpcHostMessage) -> napi::Result<(JsUnknown, JsUnknown)> {
+    Ok(match msg {
+      RpcHostMessage::Ping { response: reply } => {
+        let message = env.to_js_value(&())?;
+        let callback = create_done_callback(&env, reply)?;
+        (message, callback)
       }
-    });
-
-    Ok(Self { tx_rpc })
-  }
-
-  // Generic method to create a "resolve" javascript function to
-  // return the value from the thread safe function
-  fn create_callback<Returns: DeserializeOwned + 'static>(
-    env: &Env,
-    reply: Sender<Returns>,
-  ) -> napi::Result<JsUnknown> {
-    let callback = env
-      .create_function_from_closure("callback", move |ctx| {
-        let response = ctx
-          .env
-          .from_js_value::<Returns, JsUnknown>(ctx.get::<JsUnknown>(0)?)?;
-
-        if reply.send(response).is_err() {
-          return Err(napi::Error::from_reason("Unable to send rpc response"));
-        }
-
-        ctx.env.get_undefined()
-      })?
-      .into_unknown();
-
-    Ok(callback)
-  }
-
-  // Map the RPC messages to numerical values to make matching
-  // easier from within JavaScript
-  fn get_message_id(message: &RpcHostMessage) -> u32 {
-    match message {
-      RpcHostMessage::Ping { response: _ } => 0,
-    }
+    })
   }
 }
 
@@ -92,7 +77,17 @@ impl RpcHostNodejs {
 impl RpcHost for RpcHostNodejs {
   fn ping(&self) -> anyhow::Result<()> {
     let (tx, rx) = channel();
-    self.tx_rpc.send(RpcHostMessage::Ping { response: tx })?;
-    Ok(rx.recv()?.map_err(|e| anyhow!(e))?)
+    self.call_rpc(RpcHostMessage::Ping { response: tx });
+    Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
+  }
+
+  fn start(&self) -> anyhow::Result<RpcConnectionRef> {
+    let mut connections = vec![];
+
+    for _ in 0..self.node_workers {
+      connections.push(RpcConnectionNodejs::new())
+    }
+
+    Ok(Arc::new(RpcConnectionNodejsMulti::new(connections)))
   }
 }
