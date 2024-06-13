@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
 use indexmap::IndexMap;
@@ -9,22 +10,26 @@ use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationIn
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
   Asset, BundleBehavior, Dependency, Environment, EnvironmentContext, FileType, ImportAttribute,
-  JSONObject, Location, OutputFormat, ParcelOptions, Priority, SourceLocation, SourceType,
-  SpecifierType, Symbol, SymbolFlags,
+  JSONObject, Location, OutputFormat, ParcelOptions, Priority, SourceCode, SourceLocation,
+  SourceType, SpecifierType, Symbol, SymbolFlags,
 };
-use parcel_js_swc_core::{Config, DependencyDescriptor, DependencyKind};
+use parcel_js_swc_core::{
+  Config, DependencyDescriptor, DependencyKind, ExportedSymbol, ImportedSymbol,
+};
 use parcel_resolver::{ExportsCondition, IncludeNodeModules};
 
+/// This is a rust only `TransformerPlugin` implementation for JS assets that goes through the
+/// default SWC transformer.
 #[derive(Debug)]
-pub struct ParcelTransformerJs {}
+pub struct ParcelJsTransformerPlugin {}
 
-impl ParcelTransformerJs {
+impl ParcelJsTransformerPlugin {
   pub fn new() -> Self {
     Self {}
   }
 }
 
-impl TransformerPlugin for ParcelTransformerJs {
+impl TransformerPlugin for ParcelJsTransformerPlugin {
   fn transform(
     &mut self,
     context: &mut RunTransformContext,
@@ -113,102 +118,55 @@ fn convert_result(
   }
 
   if result.needs_esm_helpers {
-    let d = Dependency {
-      source_asset_id: Some(format!("{:016x}", asset_id)),
-      specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
-      specifier_type: SpecifierType::Esm,
-      source_path: Some(asset_file_path.clone()),
-      env: Environment {
-        include_node_modules: IncludeNodeModules::Map(
-          [("@parcel/transformer-js".to_string(), true)]
-            .into_iter()
-            .collect(),
-        ),
-        ..asset_environment.clone()
-      }
-      .into(),
-      resolve_from: Some(options.core_path.as_path().into()),
-      range: None,
-      priority: Priority::Sync,
-      bundle_behavior: BundleBehavior::None,
-      // flags: dep_flags,
-      loc: None,
-      // placeholder: None,
-      target: None,
-      // promise_symbol: None,
-      symbols: Vec::new(),
-      // import_attributes: Vec::new(),
-      pipeline: None,
-      meta: JSONObject::new(),
-      // resolver_meta: JSONObject::new(),
-      package_conditions: ExportsCondition::empty(),
-      // custom_package_conditions: Vec::new(),
-      // TODO:
-      is_entry: false,
-      needs_stable_name: false,
-      is_optional: false,
-    };
-
+    let d = make_esm_helpers_dependency(options, &asset_file_path, asset_environment, asset_id);
     dependency_by_specifier.insert(d.specifier.as_str().into(), d);
   }
 
   let mut has_cjs_exports = false;
   let mut static_cjs_exports = false;
   let mut should_wrap = false;
-
   let symbols = &mut asset.symbols;
   if let Some(hoist_result) = result.hoist_result {
     // asset.flags |= AssetFlags::HAS_SYMBOLS;
     symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
 
-    for s in &hoist_result.exported_symbols {
-      let mut flags = SymbolFlags::empty();
-      flags.set(SymbolFlags::IS_ESM, s.is_esm);
-      let sym = Symbol {
-        exported: s.exported.as_ref().into(),
-        local: s.local.as_ref().into(),
-        loc: Some(convert_loc(asset_file_path.clone(), &s.loc)),
-        flags,
-      };
-      symbols.push(sym);
+    for symbol in &hoist_result.exported_symbols {
+      let symbol = transformer_exported_symbol_into_symbol(&asset_file_path, &symbol);
+      symbols.push(symbol);
     }
 
-    for sym in hoist_result.imported_symbols {
-      if let Some(dependency) = dependency_by_specifier.get_mut(&sym.source) {
-        dependency.symbols.push(Symbol {
-          exported: sym.imported.as_ref().into(),
-          local: sym.local.as_ref().into(),
-          loc: Some(convert_loc(asset_file_path.clone(), &sym.loc)),
-          flags: SymbolFlags::empty(),
-        });
+    for symbol in hoist_result.imported_symbols {
+      if let Some(dependency) = dependency_by_specifier.get_mut(&symbol.source) {
+        let symbol = transformer_imported_symbol_to_symbol(&asset_file_path, &symbol);
+        dependency.symbols.push(symbol);
       }
     }
 
-    for s in hoist_result.re_exports {
-      if let Some(dependency) = dependency_by_specifier.get_mut(&s.source) {
-        if &*s.local == "*" && &*s.imported == "*" {
-          let loc = Some(convert_loc(asset_file_path.clone(), &s.loc));
+    for symbol in hoist_result.re_exports {
+      if let Some(dependency) = dependency_by_specifier.get_mut(&symbol.source) {
+        if &*symbol.local == "*" && &*symbol.imported == "*" {
+          let loc = Some(convert_loc(asset_file_path.clone(), &symbol.loc));
           dependency.symbols.push(make_export_all_symbol(loc));
         } else {
           let existing = dependency
             .symbols
             .as_slice()
             .iter()
-            .find(|sym| sym.exported == &*s.imported);
+            .find(|candidate| candidate.exported == &*symbol.imported);
           let existing_flags = existing.map(|e| e.flags).unwrap_or(SymbolFlags::IS_WEAK);
           let re_export_name = existing
             .map(|sym| sym.local.clone())
-            .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, s.local).into());
+            .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, symbol.local).into());
           dependency.symbols.push(Symbol {
-            exported: s.imported.as_ref().into(),
+            exported: symbol.imported.as_ref().into(),
             local: re_export_name.clone(),
-            loc: Some(convert_loc(asset_file_path.clone(), &s.loc)),
+            loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
             flags: existing_flags & SymbolFlags::IS_WEAK,
           });
           symbols.push(Symbol {
-            exported: s.local.as_ref().into(),
+            exported: symbol.local.as_ref().into(),
             local: re_export_name,
-            loc: Some(convert_loc(asset_file_path.clone(), &s.loc)),
+            loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
             flags: existing_flags & SymbolFlags::IS_WEAK,
           });
         }
@@ -378,11 +336,15 @@ fn convert_result(
   // }
   asset.asset_type = FileType::Js;
 
+  // Overwrite the source-code with SWC output
+  let result_source_code_string = String::from_utf8(result.code)
+    // TODO: This is impossible; but we should extend 'diagnostic' type to be nicer / easier to build
+    .map_err(|_| vec![])?;
+  asset.source_code = Rc::new(SourceCode::from(result_source_code_string));
+
   Ok(TransformResult {
     asset,
-    // code: result.code,
     // dependencies: dep_map.into_values().collect(),
-    // code: result.code,
     // map: result.map,
     // shebang: result.shebang,
     // dependencies: deps,
@@ -390,6 +352,75 @@ fn convert_result(
     // used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
     invalidate_on_file_change,
   })
+}
+
+fn transformer_imported_symbol_to_symbol(
+  asset_file_path: &PathBuf,
+  sym: &ImportedSymbol,
+) -> Symbol {
+  Symbol {
+    exported: sym.imported.as_ref().into(),
+    local: sym.local.as_ref().into(),
+    loc: Some(convert_loc(asset_file_path.clone(), &sym.loc)),
+    flags: SymbolFlags::empty(),
+  }
+}
+
+fn transformer_exported_symbol_into_symbol(
+  asset_file_path: &PathBuf,
+  symbol: &ExportedSymbol,
+) -> Symbol {
+  let mut flags = SymbolFlags::empty();
+  flags.set(SymbolFlags::IS_ESM, symbol.is_esm);
+  Symbol {
+    exported: symbol.exported.as_ref().into(),
+    local: symbol.local.as_ref().into(),
+    loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
+    flags,
+  }
+}
+
+fn make_esm_helpers_dependency(
+  options: &ParcelOptions,
+  asset_file_path: &PathBuf,
+  asset_environment: Environment,
+  asset_id: u64,
+) -> Dependency {
+  Dependency {
+    source_asset_id: Some(format!("{:016x}", asset_id)),
+    specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+    specifier_type: SpecifierType::Esm,
+    source_path: Some(asset_file_path.clone()),
+    env: Environment {
+      include_node_modules: IncludeNodeModules::Map(
+        [("@parcel/transformer-js".to_string(), true)]
+          .into_iter()
+          .collect(),
+      ),
+      ..asset_environment.clone()
+    }
+    .into(),
+    resolve_from: Some(options.core_path.as_path().into()),
+    range: None,
+    priority: Priority::Sync,
+    bundle_behavior: BundleBehavior::None,
+    // flags: dep_flags,
+    loc: None,
+    // placeholder: None,
+    target: None,
+    // promise_symbol: None,
+    symbols: Vec::new(),
+    // import_attributes: Vec::new(),
+    pipeline: None,
+    meta: JSONObject::new(),
+    // resolver_meta: JSONObject::new(),
+    package_conditions: ExportsCondition::empty(),
+    // custom_package_conditions: Vec::new(),
+    // TODO:
+    is_entry: false,
+    needs_stable_name: false,
+    is_optional: false,
+  }
 }
 
 fn make_export_all_symbol(loc: Option<SourceLocation>) -> Symbol {
@@ -640,10 +671,10 @@ mod test {
   use parcel_core::plugin::{
     RunTransformContext, TransformResult, TransformationInput, TransformerPlugin,
   };
-  use parcel_core::types::{Asset, FileType, SourceCode, Symbol, SymbolFlags};
+  use parcel_core::types::{Asset, FileType, SourceCode};
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
-  use crate::ParcelTransformerJs;
+  use crate::ParcelJsTransformerPlugin;
 
   fn empty_asset() -> Asset {
     Asset {
@@ -671,7 +702,7 @@ mod test {
     let target_asset = Asset::new_empty("mock_path".into(), source_code);
     let file_system = Arc::new(InMemoryFileSystem::default());
     let mut context = RunTransformContext::new(file_system);
-    let mut transformer = ParcelTransformerJs::new();
+    let mut transformer = ParcelJsTransformerPlugin::new();
     let input = TransformationInput::Asset(target_asset);
 
     let result = transformer.transform(&mut context, input).unwrap();

@@ -25,7 +25,7 @@ use parcel_plugin_rpc::plugin::RpcReporterPlugin;
 use parcel_plugin_rpc::plugin::RpcResolverPlugin;
 use parcel_plugin_rpc::plugin::RpcRuntimePlugin;
 use parcel_plugin_rpc::plugin::RpcTransformerPlugin;
-use parcel_plugin_transformer_js::ParcelTransformerJs;
+use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
 
 // TODO Implement specifics of injecting env for napi plugins
 
@@ -163,7 +163,7 @@ impl<'a> Plugins<'a> {
 
     for transformer in self.config.transformers.get(path, named_pattern).iter() {
       if transformer.package_name == "@parcel/transformer-swc" {
-        transformers.push(Box::new(ParcelTransformerJs::new()));
+        transformers.push(Box::new(ParcelJsTransformerPlugin::new()));
         continue;
       }
 
