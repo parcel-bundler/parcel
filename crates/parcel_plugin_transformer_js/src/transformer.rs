@@ -713,7 +713,8 @@ mod test {
         asset: Asset {
           file_path: "mock_path".into(),
           asset_type: FileType::Js,
-          source_code: Rc::new(SourceCode::from(String::from("function hello() {}"))),
+          // SWC inserts a newline here
+          source_code: Rc::new(SourceCode::from(String::from("function hello() {}\n"))),
           symbols: vec![],
           ..empty_asset()
         },

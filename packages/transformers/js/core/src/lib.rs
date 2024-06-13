@@ -134,6 +134,7 @@ pub struct TransformResult {
   pub map: Option<String>,
   pub shebang: Option<String>,
   pub dependencies: Vec<DependencyDescriptor>,
+  // TODO: Document what this is
   pub hoist_result: Option<HoistResult>,
   pub symbol_result: Option<CollectResult>,
   pub diagnostics: Option<Vec<Diagnostic>>,
