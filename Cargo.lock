@@ -1864,6 +1864,7 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "anyhow",
+ "bitflags 2.5.0",
  "browserslist-rs",
  "dyn-hash",
  "nodejs-semver",
@@ -1922,6 +1923,9 @@ name = "parcel_plugin_transformer_js"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "indexmap 2.2.6",
+ "parcel-js-swc-core",
+ "parcel-resolver",
  "parcel_core",
 ]
 

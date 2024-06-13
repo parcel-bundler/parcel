@@ -61,19 +61,19 @@ pub fn hoist(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ExportedSymbol {
-  local: JsWord,
-  exported: JsWord,
-  loc: SourceLocation,
-  is_esm: bool,
+pub struct ExportedSymbol {
+  pub local: JsWord,
+  pub exported: JsWord,
+  pub loc: SourceLocation,
+  pub is_esm: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ImportedSymbol {
-  source: JsWord,
-  local: JsWord,
-  imported: JsWord,
-  loc: SourceLocation,
+pub struct ImportedSymbol {
+  pub source: JsWord,
+  pub local: JsWord,
+  pub imported: JsWord,
+  pub loc: SourceLocation,
   kind: ImportKind,
 }
 
@@ -94,17 +94,18 @@ struct Hoist<'a> {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct HoistResult {
-  imported_symbols: Vec<ImportedSymbol>,
-  exported_symbols: Vec<ExportedSymbol>,
-  re_exports: Vec<ImportedSymbol>,
-  self_references: HashSet<JsWord>,
-  wrapped_requires: HashSet<String>,
-  dynamic_imports: HashMap<JsWord, JsWord>,
-  static_cjs_exports: bool,
-  has_cjs_exports: bool,
-  is_esm: bool,
-  should_wrap: bool,
+  pub imported_symbols: Vec<ImportedSymbol>,
+  pub exported_symbols: Vec<ExportedSymbol>,
+  pub re_exports: Vec<ImportedSymbol>,
+  pub self_references: HashSet<JsWord>,
+  pub wrapped_requires: HashSet<String>,
+  pub dynamic_imports: HashMap<JsWord, JsWord>,
+  pub static_cjs_exports: bool,
+  pub has_cjs_exports: bool,
+  pub is_esm: bool,
+  pub should_wrap: bool,
 }
 
 impl<'a> Hoist<'a> {

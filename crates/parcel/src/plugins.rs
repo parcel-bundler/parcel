@@ -148,6 +148,7 @@ impl<'a> Plugins<'a> {
     Ok(runtimes)
   }
 
+  /// Resolve and load transformer plugins for a given path.
   pub fn transformers(
     &self,
     path: &Path,
