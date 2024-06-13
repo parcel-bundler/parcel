@@ -46,10 +46,16 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
           .ok_or_else(|| anyhow!("Invalid non UTF-8 file-path"))?
           .to_string(),
         code: source_code.bytes().to_vec(),
+        source_type: parcel_js_swc_core::SourceType::Module,
         ..Config::default()
       },
       None,
     )?;
+
+    // TODO handle errors properly
+    if let Some(errors) = transformation_result.diagnostics {
+      return Err(anyhow!(format!("{:#?}", errors)));
+    }
 
     let asset = Asset::new_empty(input.file_path().to_path_buf(), source_code);
     let config = Config::default();
@@ -217,12 +223,7 @@ fn convert_result(
       || hoist_result.should_wrap)
       && !symbols.as_slice().iter().any(|s| s.exported == "*")
     {
-      symbols.push(Symbol {
-        exported: "*".into(),
-        local: format!("${:016x}$exports", asset_id).into(),
-        loc: None,
-        flags: SymbolFlags::empty(),
-      });
+      symbols.push(make_export_star_symbol(asset_id));
     }
 
     has_cjs_exports = hoist_result.has_cjs_exports;
@@ -285,21 +286,11 @@ fn convert_result(
           && symbol_result.exports.is_empty())
         || (symbol_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
       {
-        symbols.push(Symbol {
-          exported: "*".into(),
-          local: format!("${:016x}$exports", asset_id).into(),
-          loc: None,
-          flags: SymbolFlags::empty(),
-        });
+        symbols.push(make_export_star_symbol(asset_id));
       }
     } else {
       // If the asset is wrapped, add * as a fallback
-      symbols.push(Symbol {
-        exported: "*".into(),
-        local: format!("${:016x}$exports", asset_id).into(),
-        loc: None,
-        flags: SymbolFlags::empty(),
-      });
+      symbols.push(make_export_star_symbol(asset_id));
     }
 
     // For all other imports and requires, mark everything as imported (this covers both dynamic
@@ -344,7 +335,7 @@ fn convert_result(
 
   Ok(TransformResult {
     asset,
-    // dependencies: dep_map.into_values().collect(),
+    dependencies: dependency_by_specifier.into_values().collect(),
     // map: result.map,
     // shebang: result.shebang,
     // dependencies: deps,
@@ -352,6 +343,16 @@ fn convert_result(
     // used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
     invalidate_on_file_change,
   })
+}
+
+fn make_export_star_symbol(asset_id: u64) -> Symbol {
+  Symbol {
+    exported: "*".into(),
+    // This is the mangled exports name
+    local: format!("${:016x}$exports", asset_id).into(),
+    loc: None,
+    flags: SymbolFlags::empty(),
+  }
 }
 
 fn transformer_imported_symbol_to_symbol(
@@ -665,15 +666,20 @@ fn convert_loc(file_path: PathBuf, loc: &parcel_js_swc_core::SourceLocation) -> 
 
 #[cfg(test)]
 mod test {
+  use std::path::PathBuf;
   use std::rc::Rc;
   use std::sync::Arc;
 
   use parcel_core::plugin::{
     RunTransformContext, TransformResult, TransformationInput, TransformerPlugin,
   };
-  use parcel_core::types::{Asset, FileType, SourceCode};
+  use parcel_core::types::{
+    Asset, Dependency, Environment, FileType, Location, SourceCode, SourceLocation, SpecifierType,
+    Symbol, SymbolFlags,
+  };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
+  use crate::transformer::make_export_star_symbol;
   use crate::ParcelJsTransformerPlugin;
 
   fn empty_asset() -> Asset {
@@ -683,7 +689,6 @@ mod test {
       env: Default::default(),
       file_path: Default::default(),
       source_code: Rc::new(SourceCode::from(String::new())),
-      dependencies: vec![],
       is_bundle_splittable: false,
       is_source: false,
       meta: Default::default(),
@@ -697,15 +702,20 @@ mod test {
   }
 
   #[test]
+  fn test_asset_id_is_stable() {
+    let source_code = Rc::new(SourceCode::from(String::from("function hello() {}")));
+    let asset_1 = Asset::new_empty("mock_path".into(), source_code.clone());
+    let asset_2 = Asset::new_empty("mock_path".into(), source_code);
+    // This nº should not change across runs/compilation
+    assert_eq!(asset_1.id(), 4127533076662631483);
+    assert_eq!(asset_1.id(), asset_2.id());
+  }
+
+  #[test]
   fn test_transformer_on_noop_asset() {
     let source_code = Rc::new(SourceCode::from(String::from("function hello() {}")));
     let target_asset = Asset::new_empty("mock_path".into(), source_code);
-    let file_system = Arc::new(InMemoryFileSystem::default());
-    let mut context = RunTransformContext::new(file_system);
-    let mut transformer = ParcelJsTransformerPlugin::new();
-    let input = TransformationInput::Asset(target_asset);
-
-    let result = transformer.transform(&mut context, input).unwrap();
+    let result = run_test(target_asset).unwrap();
 
     assert_eq!(
       result,
@@ -718,8 +728,146 @@ mod test {
           symbols: vec![],
           ..empty_asset()
         },
+        dependencies: vec![],
         invalidate_on_file_change: vec![]
       }
     );
+  }
+
+  #[test]
+  fn test_transformer_on_module_asset() {
+    let source_code = Rc::new(SourceCode::from(String::from(
+      r#"
+import { x as y } from 'other';
+export function hello() {}
+export { y };
+    "#,
+    )));
+    let target_asset = Asset::new_empty("mock_path.mjs".into(), source_code);
+    let asset_id = target_asset.id();
+    let result = run_test(target_asset).unwrap();
+
+    assert_eq!(
+      result,
+      TransformResult {
+        asset: Asset {
+          file_path: "mock_path.mjs".into(),
+          asset_type: FileType::Js,
+          // SWC inserts a newline here
+          source_code: Rc::new(SourceCode::from(String::from(""))),
+          symbols: vec![make_export_star_symbol(asset_id)],
+          ..empty_asset()
+        },
+        dependencies: vec![],
+        invalidate_on_file_change: vec![]
+      }
+    );
+  }
+
+  #[test]
+  fn test_transformer_on_asset_that_requires_other() {
+    let source_code = Rc::new(SourceCode::from(String::from(
+      r#"
+const x = require('other');
+exports.hello = function() {};
+    "#,
+    )));
+    let target_asset = Asset::new_empty("mock_path.js".into(), source_code);
+    let asset_id = target_asset.id();
+    let result = run_test(target_asset).unwrap();
+
+    let expected_dependencies = vec![Dependency {
+      bundle_behavior: Default::default(),
+      env: Environment::default(),
+      is_entry: false,
+      is_optional: false,
+      loc: Some(SourceLocation {
+        file_path: PathBuf::from("mock_path.js"),
+        start: Location {
+          line: 2,
+          column: 19,
+        },
+        end: Location {
+          line: 2,
+          column: 26,
+        },
+      }),
+      meta: Default::default(),
+      needs_stable_name: false,
+      package_conditions: Default::default(),
+      pipeline: None,
+      priority: Default::default(),
+      range: None,
+      resolve_from: None,
+      source_asset_id: Some(format!("{:016x}", asset_id)),
+      source_path: Some(PathBuf::from("mock_path.js")),
+      specifier: String::from("other"),
+      specifier_type: SpecifierType::CommonJS,
+      symbols: vec![Symbol {
+        exported: String::from("*"),
+        loc: None,
+        local: String::from(""),
+        flags: SymbolFlags::empty(),
+      }],
+      target: None,
+    }];
+    assert_eq!(result.dependencies, expected_dependencies);
+    assert_eq!(
+      result,
+      TransformResult {
+        asset: Asset {
+          file_path: "mock_path.js".into(),
+          asset_type: FileType::Js,
+          // SWC inserts a newline here
+          source_code: Rc::new(SourceCode::from(String::from(
+            "const x = require(\"e83f3db3d6f57ea6\");\nexports.hello = function() {};\n"
+          ))),
+          symbols: vec![
+            Symbol {
+              exported: String::from("hello"),
+              loc: Some(SourceLocation {
+                file_path: PathBuf::from("mock_path.js"),
+                start: Location { line: 3, column: 9 },
+                end: Location {
+                  line: 3,
+                  column: 14
+                }
+              }),
+              local: String::from("$hello"),
+              flags: SymbolFlags::empty(),
+            },
+            Symbol {
+              exported: String::from("*"),
+              loc: Some(SourceLocation {
+                file_path: PathBuf::from("mock_path.js"),
+                start: Location { line: 1, column: 1 },
+                end: Location { line: 1, column: 1 }
+              }),
+              local: String::from("$_"),
+              flags: SymbolFlags::empty(),
+            },
+            Symbol {
+              exported: String::from("*"),
+              loc: None,
+              local: format!("${:016x}$exports", asset_id),
+              flags: SymbolFlags::empty(),
+            }
+          ],
+          ..empty_asset()
+        },
+        dependencies: expected_dependencies,
+        invalidate_on_file_change: vec![]
+      }
+    );
+  }
+
+  fn run_test(asset: Asset) -> anyhow::Result<TransformResult> {
+    let file_system = Arc::new(InMemoryFileSystem::default());
+    let mut context = RunTransformContext::new(file_system);
+    let mut transformer = ParcelJsTransformerPlugin::new();
+    let input = TransformationInput::Asset(asset);
+
+    let result = transformer.transform(&mut context, input)?;
+    Ok(result)
   }
 }

@@ -7,8 +7,9 @@ use std::rc::Rc;
 use ahash::AHasher;
 use serde::Deserialize;
 use serde::Serialize;
+use xxhash_rust::xxh3::Xxh3;
 
-use crate::types::Dependency;
+use crate::types::{Dependency, EnvironmentContext};
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
@@ -61,9 +62,6 @@ pub struct Asset {
   /// The source code of this asset
   pub source_code: Rc<SourceCode>,
 
-  /// The dependencies of this asset
-  pub dependencies: Vec<Dependency>,
-
   /// Indicates if the asset is used as a bundle entry
   ///
   /// This controls whether a bundle can be split into multiple, or whether all of the
@@ -110,7 +108,7 @@ pub struct Asset {
 
 impl Asset {
   pub fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = Xxh3::default();
 
     self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);
@@ -132,9 +130,11 @@ impl Asset {
       file_path,
       asset_type,
       bundle_behavior: Default::default(),
-      env: Default::default(),
+      env: Environment {
+        context: EnvironmentContext::Browser,
+        ..Default::default()
+      },
       source_code,
-      dependencies: vec![],
       is_bundle_splittable: false,
       is_source: false,
       meta: Default::default(),

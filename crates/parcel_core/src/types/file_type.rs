@@ -50,6 +50,8 @@ impl FileType {
   pub fn from_extension(ext: &str) -> Self {
     match ext {
       "js" => FileType::Js,
+      "mjs" => FileType::Js,
+      "cjs" => FileType::Js,
       "jsx" => FileType::Jsx,
       "ts" => FileType::Ts,
       "tsx" => FileType::Tsx,

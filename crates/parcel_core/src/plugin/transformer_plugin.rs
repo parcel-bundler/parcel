@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use parcel_resolver::SpecifierType;
 
-use crate::types::SourceMap;
 use crate::types::{Asset, SourceCode};
+use crate::types::{Dependency, SourceMap};
 
 pub struct GenerateOutput {
   pub content: File,
@@ -73,6 +73,7 @@ impl RunTransformContext {
 #[derive(PartialEq, Debug)]
 pub struct TransformResult {
   pub asset: Asset,
+  pub dependencies: Vec<Dependency>,
   /// The transformer signals through this field that its result should be invalidated
   /// if these paths change.
   pub invalidate_on_file_change: Vec<PathBuf>,
