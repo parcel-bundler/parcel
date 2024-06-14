@@ -18,7 +18,7 @@ use super::symbol::Symbol;
 pub struct AssetId(pub NonZeroU32);
 
 /// The source code for an asset.
-#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
+#[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceCode {
   inner: String,
@@ -40,7 +40,7 @@ impl From<String> for SourceCode {
 ///
 /// Note that assets may exist in the file system or virtually.
 ///
-#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
+#[derive(Default, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
   /// The file type of the asset, which may change during transformation
