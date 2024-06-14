@@ -1863,7 +1863,6 @@ dependencies = [
 name = "parcel_core"
 version = "0.1.0"
 dependencies = [
- "ahash",
  "anyhow",
  "browserslist-rs",
  "dyn-hash",

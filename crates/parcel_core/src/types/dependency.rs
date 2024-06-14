@@ -2,7 +2,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 
-use ahash::AHasher;
 use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
@@ -124,7 +123,7 @@ impl Dependency {
   }
 
   pub fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
     self.hash(&mut hasher);
     hasher.finish()
   }
