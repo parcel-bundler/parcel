@@ -126,26 +126,13 @@ impl Asset {
     Self {
       file_path,
       asset_type,
-      bundle_behavior: Default::default(),
       env: Environment {
         context: EnvironmentContext::Browser,
         ..Default::default()
       },
       source_code,
-      is_bundle_splittable: false,
-      is_source: false,
-      meta: Default::default(),
-      pipeline: None,
-      query: None,
-      side_effects: false,
-      stats: Default::default(),
-      symbols: vec![],
-      unique_key: None,
+      ..Default::default()
     }
-  }
-
-  pub fn file_path(&self) -> &Path {
-    &self.file_path
   }
 }
 

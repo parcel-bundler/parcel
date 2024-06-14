@@ -39,7 +39,7 @@ impl TransformationInput {
   pub fn file_path(&self) -> &Path {
     match self {
       TransformationInput::FilePath(path) => path,
-      TransformationInput::Asset(asset) => asset.file_path(),
+      TransformationInput::Asset(asset) => &asset.file_path,
     }
   }
 
