@@ -7,6 +7,7 @@ use parcel_config::PluginNode;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult};
+use parcel_core::types::Asset;
 
 pub struct RpcTransformerPlugin {
   _name: String,
@@ -27,7 +28,11 @@ impl RpcTransformerPlugin {
 }
 
 impl TransformerPlugin for RpcTransformerPlugin {
-  fn transform(&mut self, _context: &mut RunTransformContext) -> Result<TransformResult, Error> {
+  fn transform(
+    &mut self,
+    _context: &mut RunTransformContext,
+    _asset: Asset,
+  ) -> Result<TransformResult, Error> {
     todo!()
   }
 }
