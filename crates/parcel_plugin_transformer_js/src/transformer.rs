@@ -127,9 +127,9 @@ fn convert_result(
     dependency_by_specifier.insert(d.specifier.as_str().into(), d);
   }
 
-  let mut _has_cjs_exports = false;
-  let mut _static_cjs_exports = false;
-  let mut _should_wrap = false;
+  let mut has_cjs_exports = false;
+  let mut static_cjs_exports = false;
+  let mut should_wrap = false;
   let symbols = &mut asset.symbols;
   if let Some(hoist_result) = result.hoist_result {
     // asset.flags |= AssetFlags::HAS_SYMBOLS;
@@ -225,9 +225,9 @@ fn convert_result(
       symbols.push(make_export_star_symbol(asset_id));
     }
 
-    _has_cjs_exports = hoist_result.has_cjs_exports;
-    _static_cjs_exports = hoist_result.static_cjs_exports;
-    _should_wrap = hoist_result.should_wrap;
+    has_cjs_exports = hoist_result.has_cjs_exports;
+    static_cjs_exports = hoist_result.static_cjs_exports;
+    should_wrap = hoist_result.should_wrap;
   } else {
     if let Some(symbol_result) = result.symbol_result {
       asset.flags |= AssetFlags::HAS_SYMBOLS;
@@ -306,24 +306,24 @@ fn convert_result(
     }
   }
 
-  // asset.flags.set(
-  //   AssetFlags::HAS_NODE_REPLACEMENTS,
-  //   result.has_node_replacements,
-  // );
-  // asset
-  //     .flags
-  //     .set(AssetFlags::IS_CONSTANT_MODULE, result.is_constant_module);
-  // asset
-  //     .flags
-  //     .set(AssetFlags::HAS_CJS_EXPORTS, has_cjs_exports);
-  // asset
-  //     .flags
-  //     .set(AssetFlags::STATIC_EXPORTS, static_cjs_exports);
-  // asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
+  asset.flags.set(
+    AssetFlags::HAS_NODE_REPLACEMENTS,
+    result.has_node_replacements,
+  );
+  asset
+    .flags
+    .set(AssetFlags::IS_CONSTANT_MODULE, result.is_constant_module);
+  asset
+    .flags
+    .set(AssetFlags::HAS_CJS_EXPORTS, has_cjs_exports);
+  asset
+    .flags
+    .set(AssetFlags::STATIC_EXPORTS, static_cjs_exports);
+  asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
 
-  // if asset.unique_key.is_none() {
-  //   asset.unique_key = Some(format!("{:016x}", asset_id));
-  // }
+  if asset.unique_key.is_none() {
+    asset.unique_key = Some(format!("{:016x}", asset_id));
+  }
   asset.asset_type = FileType::Js;
 
   // Overwrite the source-code with SWC output
@@ -716,6 +716,7 @@ mod test {
   fn test_transformer_on_noop_asset() {
     let source_code = Rc::new(SourceCode::from(String::from("function hello() {}")));
     let target_asset = Asset::new_empty("mock_path".into(), source_code);
+    let asset_id = target_asset.id();
     let result = run_test(target_asset).unwrap();
 
     assert_eq!(
@@ -728,6 +729,7 @@ mod test {
           source_code: Rc::new(SourceCode::from(String::from("function hello() {}\n"))),
           symbols: vec![],
           flags: AssetFlags::HAS_SYMBOLS,
+          unique_key: Some(format!("{:016x}", asset_id)),
           ..empty_asset()
         },
         dependencies: vec![],
@@ -815,6 +817,7 @@ exports.hello = function() {};
             }
           ],
           flags: AssetFlags::HAS_SYMBOLS,
+          unique_key: Some(format!("{:016x}", asset_id)),
           ..empty_asset()
         },
         dependencies: expected_dependencies,
