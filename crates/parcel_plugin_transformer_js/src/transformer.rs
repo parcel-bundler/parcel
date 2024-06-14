@@ -162,18 +162,15 @@ fn convert_result(
           let re_export_name = existing
             .map(|sym| sym.local.clone())
             .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, symbol.local).into());
-          dependency.symbols.push(Symbol {
+          let symbol = Symbol {
             exported: symbol.imported.as_ref().into(),
             local: re_export_name.clone(),
             loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
             flags: existing_flags & SymbolFlags::IS_WEAK,
-          });
-          symbols.push(Symbol {
-            exported: symbol.local.as_ref().into(),
-            local: re_export_name,
-            loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
-            flags: existing_flags & SymbolFlags::IS_WEAK,
-          });
+          };
+
+          dependency.symbols.push(symbol.clone());
+          symbols.push(symbol);
         }
       }
     }
