@@ -60,10 +60,18 @@ pub fn hoist(
   Ok((module, hoist.get_result(), diagnostics))
 }
 
+/// An exported identifier with its original name and new mangled name.
+///
+/// When a file exports a symbol, parcel will rewrite it as a mangled
+/// export identifier.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExportedSymbol {
+  /// The mangled name the transformer has generated and replaced the variable
+  /// uses with
   pub local: JsWord,
+  /// The original source name that was exported
   pub exported: JsWord,
+  /// The location of this export
   pub loc: SourceLocation,
   pub is_esm: bool,
 }
@@ -80,23 +88,16 @@ pub struct ExportedSymbol {
 ///
 /// * `source` will be `'./dependency-source'`
 /// * `imported` will be `something`
-/// * `local` will be a mangled name the transformer has generated and replaced the
-///   call-site with
+/// * `local` will usually be a mangled name the transformer has generated and replaced the
+///   call-site with - except for re-exports, in which case it's just the rename
 /// * `loc` will be this source-code location
 ///
-/// Alternatively, if there is a rename, `imported` and `local` might differ:
-///
-/// ```skip
-/// import { something as renamedSomething } from './dependency-source';
-/// ```
-///
-/// * `imported` will still be `something`
-/// * and `local` will be `renamedSomething`
+/// See [`HoistResult::imported_symbols`] and [`HoistResult::re_exports`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImportedSymbol {
   /// The specifier for a certain dependency this symbol comes from
   pub source: JsWord,
-  /// The local name for a certain imported symbol
+  /// The (usually mangled) local name for a certain imported symbol
   pub local: JsWord,
   /// The original name for a certain imported symbol
   pub imported: JsWord,
@@ -115,6 +116,7 @@ struct Hoist<'a> {
   hoisted_imports: IndexMap<JsWord, ModuleItem>,
   /// See [`HoistResult::imported_symbols`]
   imported_symbols: Vec<ImportedSymbol>,
+  /// See [`HoistResult::exported_symbols`]
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
@@ -125,11 +127,14 @@ struct Hoist<'a> {
   unresolved_mark: Mark,
 }
 
+/// Data pertaining to mangled identifiers replacing import and export statements
+/// on transformed files.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct HoistResult {
   /// A vector of the symbols imported from other files.
-  /// For example, if a source file is
+  ///
+  /// For example, if a source file is:
   ///
   /// ```skip
   /// import { value as v1 } from './dependency-1';
@@ -176,9 +181,82 @@ pub struct HoistResult {
   ///
   /// `local` will be the manged name of the variables.
   pub imported_symbols: Vec<ImportedSymbol>,
+  /// A vector of the symbols exported from this file, along with their mangled replacement
+  /// identifiers.
+  ///
+  /// For example, if a source file is:
+  ///
+  /// ```skip
+  /// export const x = 1234;
+  /// export function something() {}
+  /// ```
+  ///
+  /// The transformer will replace all usages of `x` and `something` with a mangled generated name.
+  /// For example, the output will look like:
+  ///
+  /// ```skip
+  /// const $abc$export$hashfashdfasdfahsdfh_x = 1234;
+  /// function $abc$export$hashfashdfasdfahsdfh_something() {}
+  /// ```
+  ///
+  ///
+  /// This `exported_symbols` vector will be:
+  ///
+  /// ```skip
+  /// vec![
+  ///     ExportedSymbol {
+  ///         exported: "x",
+  ///         local: "$abc$export$hashfashdfashdfahsdfh_x",
+  ///         ...
+  ///     },
+  ///     ExportedSymbol {
+  ///         exported: "something",
+  ///         local: "$abc$export$hashfashdfashdfahsdfh_something",
+  ///         ...
+  ///     },
+  /// ]
+  /// ```
   pub exported_symbols: Vec<ExportedSymbol>,
+  /// Symbols re-exported from other modules.
+  ///
+  /// If a symbol is re-exported from another module, parcel will remove delete the export statement
+  /// from the asset.
+  ///
+  /// For example, if an input file is:
+  ///
+  /// ```skip
+  /// export { view as mainView } from './view';
+  /// ```
+  ///
+  /// The output will be
+  /// ```skip
+  /// import 'abc:./view:esm';
+  /// ```
+  ///
+  /// And this vector will contain the information about the re-exported symbol.
+  ///
+  /// On this case, the fields of `ImportedSymbol` will mean different things than they do for
+  /// [`HoistResult::imported_symbols`].
+  ///
+  /// In particular, since there is no mangled name, `local` means the "exported" name rather than
+  /// the mangled name.
+  ///
+  /// On the case above, this field would be:
+  ///
+  /// ```skip
+  /// vec![
+  ///     ImportedSymbol {
+  ///         source: "./view",
+  ///         local: "mainView",
+  ///         imported: "view",
+  ///         ...
+  ///     },
+  /// ]
+  /// ```
   pub re_exports: Vec<ImportedSymbol>,
+  /// TODO: What is this?
   pub self_references: HashSet<JsWord>,
+  /// TODO: What is this?
   pub wrapped_requires: HashSet<String>,
   /// A map of async import placeholder variable names to source specifiers.
   ///
@@ -3038,6 +3116,54 @@ mod tests {
     console.log($abc$var$module.exports.foo);
     "#}
     );
+  }
+
+  #[test]
+  fn test_parse_module_exports() {
+    let (_collect, code, hoist) = parse(
+      r#"
+    module.exports.foo = 10;
+    "#,
+    );
+
+    assert_eq!(
+      code,
+      indoc! {r#"
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 10;
+    "#}
+    );
+    assert_eq!(hoist.self_references.len(), 0);
+    assert_eq!(hoist.exported_symbols.len(), 1);
+    assert_eq!(
+      hoist.exported_symbols[0].local,
+      JsWord::from("$abc$export$6a5cdcad01c973fa")
+    );
+    assert_eq!(hoist.exported_symbols[0].exported, JsWord::from("foo"));
+  }
+
+  #[test]
+  fn test_parse_this() {
+    let (_collect, code, hoist) = parse(
+      r#"
+    this.foo = 10;
+    "#,
+    );
+
+    assert_eq!(
+      code,
+      indoc! {r#"
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 10;
+    "#}
+    );
+    assert_eq!(hoist.self_references.len(), 0);
+    assert_eq!(hoist.exported_symbols.len(), 1);
+    assert_eq!(
+      hoist.exported_symbols[0].local,
+      JsWord::from("$abc$export$6a5cdcad01c973fa")
+    );
+    assert_eq!(hoist.exported_symbols[0].exported, JsWord::from("foo"));
   }
 
   #[test]
