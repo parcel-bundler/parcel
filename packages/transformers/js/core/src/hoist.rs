@@ -119,6 +119,7 @@ struct Hoist<'a> {
   /// See [`HoistResult::exported_symbols`]
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
+  /// See [`HoistResult::self_references`]
   self_references: HashSet<JsWord>,
   /// See [`HoistResult::dynamic_imports`]
   dynamic_imports: HashMap<JsWord, JsWord>,
@@ -254,7 +255,26 @@ pub struct HoistResult {
   /// ]
   /// ```
   pub re_exports: Vec<ImportedSymbol>,
-  /// TODO: What is this?
+  /// A vector of the 'original local' names of exported symbols that are self-referenced within the
+  /// file they are being exported from.
+  ///
+  /// For example, if a file is:
+  /// ```skip
+  /// exports.foo = 10;
+  /// exports.something = function() {
+  ///     return exports.foo;
+  /// }
+  /// ```
+  ///
+  /// `self_references` will contain the `foo` symbol, un-mangled. Note the output will be mangled:
+  /// ```skip
+  /// var $abc$export$6a5cdcad01c973fa;
+  /// var $abc$export$ce14ccb78c97a7d4;
+  /// $abc$export$6a5cdcad01c973fa = 10;
+  /// $abc$export$ce14ccb78c97a7d4 = function() {
+  ///     return $abc$export$6a5cdcad01c973fa;
+  /// };
+  /// ```
   pub self_references: HashSet<JsWord>,
   /// TODO: What is this?
   pub wrapped_requires: HashSet<String>,
@@ -3116,6 +3136,64 @@ mod tests {
     console.log($abc$var$module.exports.foo);
     "#}
     );
+  }
+
+  #[test]
+  fn test_parse_self_reference() {
+    let (_collect, code, hoist) = parse(
+      r#"
+    exports.foo = 10;
+    exports.something = function() {
+       return exports.foo;
+    }
+    "#,
+    );
+
+    assert_eq!(
+      code,
+      indoc! {r#"
+    var $abc$export$6a5cdcad01c973fa;
+    var $abc$export$ce14ccb78c97a7d4;
+    $abc$export$6a5cdcad01c973fa = 10;
+    $abc$export$ce14ccb78c97a7d4 = function() {
+        return $abc$export$6a5cdcad01c973fa;
+    };
+    "#}
+    );
+    assert_eq!(
+      hoist
+        .self_references
+        .iter()
+        .cloned()
+        .collect::<Vec<JsWord>>(),
+      vec![JsWord::from("foo")]
+    );
+    assert_eq!(hoist.exported_symbols.len(), 3);
+    /// First exported symbol is `export foo`
+    assert_eq!(
+      hoist.exported_symbols[0].local,
+      JsWord::from("$abc$export$6a5cdcad01c973fa")
+    );
+    assert_eq!(hoist.exported_symbols[0].exported, JsWord::from("foo"));
+
+    /// Second is `export something`
+    assert_eq!(
+      hoist.exported_symbols[1].local,
+      JsWord::from("$abc$export$ce14ccb78c97a7d4")
+    );
+    assert_eq!(
+      hoist.exported_symbols[1].exported,
+      JsWord::from("something")
+    );
+
+    /// Third is `export foo` again, but on the something location
+    assert_eq!(
+      hoist.exported_symbols[2].local,
+      JsWord::from("$abc$export$6a5cdcad01c973fa")
+    );
+    assert_eq!(hoist.exported_symbols[2].exported, JsWord::from("foo"));
+
+    assert_ne!(hoist.exported_symbols[2].loc, hoist.exported_symbols[0].loc);
   }
 
   #[test]
