@@ -123,7 +123,7 @@ impl Dependency {
   }
 
   pub fn id(&self) -> u64 {
-    let mut hasher = parcel_core::hash::IdentifierHasher::default();
+    let mut hasher = crate::hash::IdentifierHasher::default();
     self.hash(&mut hasher);
     hasher.finish()
   }
