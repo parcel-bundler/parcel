@@ -1,11 +1,14 @@
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::num::NonZeroU32;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
-use ahash::AHasher;
 use serde::Deserialize;
 use serde::Serialize;
+use xxhash_rust::xxh3::Xxh3;
+
+use crate::types::EnvironmentContext;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
@@ -16,11 +19,30 @@ use super::symbol::Symbol;
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
 pub struct AssetId(pub NonZeroU32);
 
+/// The source code for an asset.
+#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceCode {
+  inner: String,
+}
+
+impl SourceCode {
+  pub fn bytes(&self) -> &[u8] {
+    self.inner.as_bytes()
+  }
+}
+
+impl From<String> for SourceCode {
+  fn from(value: String) -> Self {
+    Self { inner: value }
+  }
+}
+
 /// An asset is a file or part of a file that may represent any data type including source code, binary data, etc.
 ///
 /// Note that assets may exist in the file system or virtually.
 ///
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
   /// The file type of the asset, which may change during transformation
@@ -35,6 +57,9 @@ pub struct Asset {
 
   /// The file path to the asset
   pub file_path: PathBuf,
+
+  /// The source code of this asset
+  pub source_code: Rc<SourceCode>,
 
   /// Indicates if the asset is used as a bundle entry
   ///
@@ -76,12 +101,13 @@ pub struct Asset {
   /// This can be used to find assets during packaging, or to create dependencies between multiple
   /// assets returned by a transformer by using the unique key as the dependency specifier.
   ///
+  /// TODO: Make this non-nullable and disallow creating assets without it.
   pub unique_key: Option<String>,
 }
 
 impl Asset {
   pub fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = Xxh3::default();
 
     self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);
@@ -92,11 +118,42 @@ impl Asset {
 
     hasher.finish()
   }
+
+  /// Build a new empty asset
+  pub fn new_empty(file_path: PathBuf, source_code: Rc<SourceCode>) -> Self {
+    let asset_type =
+      FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
+
+    // TODO: rest of this
+    Self {
+      file_path,
+      asset_type,
+      bundle_behavior: Default::default(),
+      env: Environment {
+        context: EnvironmentContext::Browser,
+        ..Default::default()
+      },
+      source_code,
+      is_bundle_splittable: false,
+      is_source: false,
+      meta: Default::default(),
+      pipeline: None,
+      query: None,
+      side_effects: false,
+      stats: Default::default(),
+      symbols: vec![],
+      unique_key: None,
+    }
+  }
+
+  pub fn file_path(&self) -> &Path {
+    &self.file_path
+  }
 }
 
 /// Statistics that pertain to an asset
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AssetStats {
-  pub size: u32,
-  pub time: u32,
+  size: u32,
+  time: u32,
 }
