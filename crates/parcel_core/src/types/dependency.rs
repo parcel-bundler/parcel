@@ -100,6 +100,9 @@ pub struct Dependency {
   /// The target associated with an entry, if any
   #[serde(default)]
   pub target: Option<Box<Target>>,
+
+  /// Boolean flags associated with this dependency. TODO: we might inline this
+  pub flags: DependencyFlags,
 }
 
 impl Dependency {
@@ -123,6 +126,7 @@ impl Dependency {
       specifier_type: SpecifierType::default(),
       symbols: Vec::new(),
       target: None,
+      flags: Default::default(),
     }
   }
 
@@ -147,7 +151,7 @@ impl Hash for Dependency {
 }
 
 bitflags! {
-  #[derive(Debug, Clone, Copy, Hash)]
+  #[derive(Default, Debug, Clone, Copy, Hash, PartialEq)]
   pub struct DependencyFlags: u8 {
     const ENTRY    = 1 << 0;
     const OPTIONAL = 1 << 1;

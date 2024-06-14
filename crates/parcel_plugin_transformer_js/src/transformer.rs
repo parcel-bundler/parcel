@@ -8,9 +8,9 @@ use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
-  Asset, BundleBehavior, Dependency, Diagnostic, Environment, EnvironmentContext, FileType,
-  ImportAttribute, JSONObject, Location, OutputFormat, ParcelOptions, Priority, SourceCode,
-  SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  Asset, AssetFlags, BundleBehavior, Dependency, DependencyFlags, Diagnostic, Environment,
+  EnvironmentContext, FileType, ImportAttribute, JSONObject, Location, OutputFormat, ParcelOptions,
+  Priority, SourceCode, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
 };
 use parcel_js_swc_core::{
   Config, DependencyDescriptor, DependencyKind, ExportedSymbol, ImportedSymbol,
@@ -82,11 +82,11 @@ fn convert_result(
   }
 
   let mut dependency_by_specifier = IndexMap::new();
-  // let mut dep_flags = DependencyFlags::empty();
-  // dep_flags.set(
-  //   DependencyFlags::HAS_SYMBOLS,
-  //   result.hoist_result.is_some() || result.symbol_result.is_some(),
-  // );
+  let mut dependency_flags = DependencyFlags::empty();
+  dependency_flags.set(
+    DependencyFlags::HAS_SYMBOLS,
+    result.hoist_result.is_some() || result.symbol_result.is_some(),
+  );
 
   let mut invalidate_on_file_change = Vec::new();
 
@@ -117,7 +117,13 @@ fn convert_result(
   }
 
   if result.needs_esm_helpers {
-    let d = make_esm_helpers_dependency(options, &asset_file_path, asset_environment, asset_id);
+    let d = make_esm_helpers_dependency(
+      options,
+      &asset_file_path,
+      asset_environment,
+      dependency_flags,
+      asset_id,
+    );
     dependency_by_specifier.insert(d.specifier.as_str().into(), d);
   }
 
@@ -224,7 +230,7 @@ fn convert_result(
     _should_wrap = hoist_result.should_wrap;
   } else {
     if let Some(symbol_result) = result.symbol_result {
-      // asset.flags |= AssetFlags::HAS_SYMBOLS;
+      asset.flags |= AssetFlags::HAS_SYMBOLS;
       symbols.reserve(symbol_result.exports.len() + 1);
       for sym in &symbol_result.exports {
         let (local, flags) = if let Some(dep) = sym
@@ -378,6 +384,7 @@ fn make_esm_helpers_dependency(
   options: &ParcelOptions,
   asset_file_path: &PathBuf,
   asset_environment: Environment,
+  dependency_flags: DependencyFlags,
   asset_id: u64,
 ) -> Dependency {
   Dependency {
@@ -398,7 +405,7 @@ fn make_esm_helpers_dependency(
     range: None,
     priority: Priority::Sync,
     bundle_behavior: BundleBehavior::None,
-    // flags: dep_flags,
+    flags: dependency_flags,
     loc: None,
     // placeholder: None,
     target: None,
@@ -668,7 +675,7 @@ mod test {
     RunTransformContext, TransformResult, TransformationInput, TransformerPlugin,
   };
   use parcel_core::types::{
-    Asset, Dependency, Environment, FileType, Location, SourceCode, SourceLocation, SpecifierType,
+    Asset, AssetFlags, Dependency, FileType, Location, SourceCode, SourceLocation, SpecifierType,
     Symbol, SymbolFlags,
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
@@ -691,6 +698,7 @@ mod test {
       stats: Default::default(),
       symbols: vec![],
       unique_key: None,
+      flags: Default::default(),
     }
   }
 
@@ -719,6 +727,7 @@ mod test {
           // SWC inserts a newline here
           source_code: Rc::new(SourceCode::from(String::from("function hello() {}\n"))),
           symbols: vec![],
+          flags: AssetFlags::HAS_SYMBOLS,
           ..empty_asset()
         },
         dependencies: vec![],
@@ -740,10 +749,6 @@ exports.hello = function() {};
     let result = run_test(target_asset).unwrap();
 
     let expected_dependencies = vec![Dependency {
-      bundle_behavior: Default::default(),
-      env: Environment::default(),
-      is_entry: false,
-      is_optional: false,
       loc: Some(SourceLocation {
         file_path: PathBuf::from("mock_path.js"),
         start: Location {
@@ -755,13 +760,6 @@ exports.hello = function() {};
           column: 26,
         },
       }),
-      meta: Default::default(),
-      needs_stable_name: false,
-      package_conditions: Default::default(),
-      pipeline: None,
-      priority: Default::default(),
-      range: None,
-      resolve_from: None,
       source_asset_id: Some(format!("{:016x}", asset_id)),
       source_path: Some(PathBuf::from("mock_path.js")),
       specifier: String::from("other"),
@@ -772,7 +770,7 @@ exports.hello = function() {};
         local: String::from(""),
         flags: SymbolFlags::empty(),
       }],
-      target: None,
+      ..Default::default()
     }];
     assert_eq!(result.dependencies, expected_dependencies);
     assert_eq!(
@@ -816,6 +814,7 @@ exports.hello = function() {};
               flags: SymbolFlags::empty(),
             }
           ],
+          flags: AssetFlags::HAS_SYMBOLS,
           ..empty_asset()
         },
         dependencies: expected_dependencies,

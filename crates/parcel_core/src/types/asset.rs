@@ -4,6 +4,7 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use crate::impl_bitflags_serde;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -102,6 +103,11 @@ pub struct Asset {
   ///
   /// TODO: Make this non-nullable and disallow creating assets without it.
   pub unique_key: Option<String>,
+
+  /// A collection of boolean properties related to this asset.
+  ///
+  /// TODO: we might inline these
+  pub flags: AssetFlags,
 }
 
 impl Asset {
@@ -139,7 +145,7 @@ impl Asset {
 
 // TODO: All of these should have documentation
 bitflags! {
-  #[derive(Debug, Clone, Copy)]
+  #[derive(Debug, Clone, Copy, Default, PartialEq)]
   pub struct AssetFlags: u32 {
     const IS_SOURCE = 1 << 0;
     // replaced with `Asset::side_effects` for now
@@ -154,6 +160,8 @@ bitflags! {
     const HAS_SYMBOLS = 1 << 9;
   }
 }
+
+impl_bitflags_serde!(AssetFlags);
 
 /// Statistics that pertain to an asset
 #[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
