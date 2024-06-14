@@ -1,6 +1,6 @@
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use serde::Deserialize;

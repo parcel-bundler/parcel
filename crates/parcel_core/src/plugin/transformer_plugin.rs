@@ -70,7 +70,7 @@ impl RunTransformContext {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TransformResult {
   pub asset: Asset,
   pub dependencies: Vec<Dependency>,

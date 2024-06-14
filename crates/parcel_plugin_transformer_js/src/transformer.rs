@@ -3,15 +3,14 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
-  Asset, BundleBehavior, Dependency, Environment, EnvironmentContext, FileType, ImportAttribute,
-  JSONObject, Location, OutputFormat, ParcelOptions, Priority, SourceCode, SourceLocation,
-  SourceType, SpecifierType, Symbol, SymbolFlags,
+  Asset, BundleBehavior, Dependency, Diagnostic, Environment, EnvironmentContext, FileType,
+  ImportAttribute, JSONObject, Location, OutputFormat, ParcelOptions, Priority, SourceCode,
+  SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
 };
 use parcel_js_swc_core::{
   Config, DependencyDescriptor, DependencyKind, ExportedSymbol, ImportedSymbol,
@@ -68,19 +67,13 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Diagnostic {
-  origin: String,
-  message: String,
-}
-
 fn convert_result(
   mut asset: Asset,
   transformer_config: &Config,
   result: parcel_js_swc_core::TransformResult,
   options: &ParcelOptions,
 ) -> Result<TransformResult, Vec<Diagnostic>> {
-  let asset_file_path = asset.file_path().to_path_buf();
+  let asset_file_path = asset.file_path.to_path_buf();
   let asset_environment = asset.env.clone();
   let asset_id = asset.id();
 
@@ -588,6 +581,7 @@ fn convert_dependency(
                 _ => unreachable!(),
               }
             ),
+            ..Default::default()
           };
           // environment_diagnostic(&mut diagnostic, &asset, false);
           return Err(vec![diagnostic]);
