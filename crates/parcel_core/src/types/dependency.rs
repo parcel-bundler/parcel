@@ -7,7 +7,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
-use xxhash_rust::xxh3::Xxh3;
 
 use parcel_resolver::ExportsCondition;
 
@@ -128,11 +127,7 @@ impl Dependency {
   }
 
   pub fn id(&self) -> u64 {
-<<<<<<< HEAD
-    let mut hasher = Xxh3::new();
-=======
-    let mut hasher = parcel_core::hash::IdentifierHasher::default();
->>>>>>> origin/issue/remove-ahash
+    let mut hasher = crate::hash::IdentifierHasher::default();
     self.hash(&mut hasher);
     hasher.finish()
   }

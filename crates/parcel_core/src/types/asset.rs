@@ -1,5 +1,4 @@
-use std::hash::Hash;
-use std::hash::Hasher;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -106,7 +105,7 @@ pub struct Asset {
 
 impl Asset {
   pub fn id(&self) -> u64 {
-    let mut hasher = parcel_core::hash::IdentifierHasher::default();
+    let mut hasher = crate::hash::IdentifierHasher::default();
 
     self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);
