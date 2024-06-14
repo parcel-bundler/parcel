@@ -18,7 +18,7 @@ parcel_plugin_rpc = { path = "../parcel_plugin_rpc" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 xxhash-rust = "0.8.10"
 
-ahash = "0.8.11"
 anyhow = "1.0.82"
 dyn-hash = "0.x"
 petgraph = "0.x"
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }

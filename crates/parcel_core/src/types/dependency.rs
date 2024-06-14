@@ -2,14 +2,16 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 
-use crate::impl_bitflags_serde;
 use bitflags::bitflags;
-use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
 use xxhash_rust::xxh3::Xxh3;
+
+use parcel_resolver::ExportsCondition;
+
+use crate::impl_bitflags_serde;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
@@ -126,7 +128,11 @@ impl Dependency {
   }
 
   pub fn id(&self) -> u64 {
+<<<<<<< HEAD
     let mut hasher = Xxh3::new();
+=======
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
+>>>>>>> origin/issue/remove-ahash
     self.hash(&mut hasher);
     hasher.finish()
   }

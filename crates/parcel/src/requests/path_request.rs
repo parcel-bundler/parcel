@@ -44,7 +44,7 @@ pub enum PathResolution {
 // TODO tracing, dev deps
 impl Request<PathResolution> for PathRequest {
   fn id(&self) -> u64 {
-    let mut hasher = Xxh3::default();
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
 
     self.dependency.hash(&mut hasher);
     self.named_pipelines.hash(&mut hasher);

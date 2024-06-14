@@ -1864,7 +1864,6 @@ dependencies = [
 name = "parcel_core"
 version = "0.1.0"
 dependencies = [
- "ahash",
  "anyhow",
  "bitflags 2.5.0",
  "browserslist-rs",
