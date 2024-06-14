@@ -1797,6 +1797,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "num_cpus",
  "once_cell",
  "oxipng",
  "parcel",
@@ -1912,8 +1913,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "napi",
+ "once_cell",
  "parcel_config",
  "parcel_core",
+ "parking_lot",
  "serde",
 ]
 

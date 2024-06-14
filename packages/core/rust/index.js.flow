@@ -1,5 +1,5 @@
 // @flow
-import type {FileCreateInvalidation} from '@parcel/types';
+import type {FileCreateInvalidation, FileSystem as ParcelFileSystem} from '@parcel/types';
 
 declare export var init: void | (() => void);
 
@@ -16,19 +16,25 @@ export interface ConfigRequest {
 }
 export interface RequestOptions {}
 
+export type RpcCallback = (error: any, id: number, data: any, done: (value: {| Ok: any |} | {| Err: any |}) => any) => any | Promise<any>;
 
 export interface ParcelNapiOptions {
-  fs?: any;
-  rpc?: (error: any, id: number, data: any, done: (value: {| Ok: any |} | {| Err: any |}) => any) => any | Promise<any>;
+  fs?: ParcelFileSystem;
+  nodeWorkers?: number;
+  rpc?: RpcCallback;
 }
 
 declare export class ParcelNapi {
   constructor(options: ParcelNapiOptions): ParcelNapi;
+  build(): Promise<void>;
+  static defaultThreadCount(): number;
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;
   testingTempFsIsFile(path: string): boolean;
   testingRpcPing(): void;
 }
+
+declare export function workerCallback(callback: RpcCallback): void
 
 declare export function initSentry(): void;
 declare export function closeSentry(): void;
