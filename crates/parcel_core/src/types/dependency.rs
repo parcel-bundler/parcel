@@ -2,7 +2,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 
-use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
@@ -11,6 +10,7 @@ use serde_repr::Serialize_repr;
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
 use super::json::JSONObject;
+use super::package_json::ExportsCondition;
 use super::source::SourceLocation;
 use super::symbol::Symbol;
 use super::target::Target;

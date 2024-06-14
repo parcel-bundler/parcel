@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 
-use parcel_resolver::IncludeNodeModules;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
@@ -137,6 +137,34 @@ impl EnvironmentContext {
   pub fn is_electron(&self) -> bool {
     use EnvironmentContext::*;
     matches!(self, ElectronMain | ElectronRenderer)
+  }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum IncludeNodeModules {
+  Bool(bool),
+  Array(Vec<String>),
+  Map(HashMap<String, bool>),
+}
+
+impl Default for IncludeNodeModules {
+  fn default() -> Self {
+    IncludeNodeModules::Bool(true)
+  }
+}
+
+impl std::hash::Hash for IncludeNodeModules {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    match self {
+      IncludeNodeModules::Bool(b) => b.hash(state),
+      IncludeNodeModules::Array(a) => a.hash(state),
+      IncludeNodeModules::Map(m) => {
+        for (k, v) in m {
+          k.hash(state);
+          v.hash(state);
+        }
+      }
+    }
   }
 }
 
