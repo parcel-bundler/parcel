@@ -3,8 +3,8 @@
 import assert from 'assert';
 import path from 'path';
 import {bundle, run} from '@parcel/test-utils';
-import * as napi from '@parcel/rust';
 import {inputFS} from '@parcel/test-utils';
+import {ParcelV3} from '@parcel/core';
 
 describe('parcel-v3', function () {
   // Duplicated temporarily for convenience, will remove once the Rust stuff works
@@ -25,43 +25,25 @@ describe('parcel-v3', function () {
   });
 
   it('should run the main-thread bootstrap function', async function () {
-    let p = new napi.ParcelNapi({
-      fs: {
-        readFileSync: (_, [...args]) => inputFS.readFileSync(...args),
-        isFile: (_, path) => inputFS.statSync(path).isFile(),
-        isDir: (_, path) => inputFS.statSync(path).isDirectory(),
-      },
-      // eslint-disable-next-line no-unused-vars
-      rpc: rpc_wrapper((id, data) => {
-        return undefined;
-      }),
+    let fs: any = {
+      readFileSync: (_, [...args]) => inputFS.readFileSync(...args),
+      isFile: (_, path) => inputFS.statSync(path).isFile(),
+      isDir: (_, path) => inputFS.statSync(path).isDirectory(),
+    };
+
+    let parcel = new ParcelV3({
+      fs,
+      nodeWorkers: 1,
     });
 
-    assert(typeof (await p.testingTempFsReadToString(__filename)) === 'string');
-    assert(!(await p.testingTempFsIsDir(__filename)));
-    assert(await p.testingTempFsIsFile(__filename));
-    assert.doesNotThrow(async () => {
-      await p.testingRpcPing();
-    });
+    assert(
+      typeof (await parcel._internal.testingTempFsReadToString(__filename)) ===
+        'string',
+    );
+    assert(!(await parcel._internal.testingTempFsIsDir(__filename)));
+    assert(await parcel._internal.testingTempFsIsFile(__filename));
+    await parcel._internal.testingRpcPing();
+
+    await parcel.build();
   });
 });
-
-// shim for Rpc types
-const rpc_wrapper =
-  (callback: (id: number, data: any) => any | Promise<any>) =>
-  async (
-    err: any,
-    id: number,
-    data: any,
-    done: (value: {|Ok: any|} | {|Err: any|}) => null,
-  ) => {
-    if (err) {
-      done({Err: err});
-      return;
-    }
-    try {
-      done({Ok: (await callback(id, data)) ?? undefined});
-    } catch (error) {
-      done({Err: error});
-    }
-  };

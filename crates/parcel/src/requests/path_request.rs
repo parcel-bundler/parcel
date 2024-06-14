@@ -3,8 +3,9 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ahash::AHasher;
 use anyhow::anyhow;
+use xxhash_rust::xxh3::Xxh3;
+
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::Resolution;
@@ -14,7 +15,6 @@ use parcel_core::plugin::ResolverPlugin;
 use parcel_core::plugin::ResolvingEvent;
 use parcel_core::types::Dependency;
 use parcel_resolver::parse_scheme;
-use xxhash_rust::xxh3::Xxh3;
 
 use crate::request_tracker::Request;
 use crate::request_tracker::RequestResult;

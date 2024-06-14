@@ -7,7 +7,7 @@ use crate::impl_bitflags_serde;
 use super::source::SourceLocation;
 
 /// A map of export names to the corresponding local variable names
-#[derive(PartialEq, Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, PartialEq, Debug, Deserialize, Hash, Serialize)]
 pub struct Symbol {
   pub exported: String,
   pub loc: Option<SourceLocation>,

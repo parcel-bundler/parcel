@@ -6,8 +6,7 @@ use anyhow::Error;
 use parcel_config::PluginNode;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::TransformerPlugin;
-use parcel_core::plugin::{RunTransformContext, TransformResult};
-use parcel_core::types::Asset;
+use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
 
 pub struct RpcTransformerPlugin {
   _name: String,
@@ -31,7 +30,7 @@ impl TransformerPlugin for RpcTransformerPlugin {
   fn transform(
     &mut self,
     _context: &mut RunTransformContext,
-    _asset: Asset,
+    _asset: TransformationInput,
   ) -> Result<TransformResult, Error> {
     todo!()
   }

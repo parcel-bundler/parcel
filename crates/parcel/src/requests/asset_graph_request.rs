@@ -1,7 +1,9 @@
 use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
-use parcel_core::plugin::{RunTransformContext, TransformerPlugin};
+use parcel_core::plugin::{RunTransformContext, TransformationInput, TransformerPlugin};
 use parcel_core::types::Asset;
+use parcel_filesystem::os_file_system::OsFileSystem;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Clone)]
 struct AssetGraph;
@@ -21,8 +23,8 @@ impl Request<AssetGraph> for AssetGraphRequest {
     let entry = &self.entry_point;
     let config = request_context.get_plugins();
     let transformers = config.transformers(&entry, None)?;
-    let mut asset = get_asset();
-    let _result = run_transformer_pipeline(transformers, &mut asset);
+    let asset = get_asset();
+    let _result = run_transformer_pipeline(transformers, asset);
 
     todo!()
   }
@@ -36,11 +38,13 @@ fn get_asset() -> Asset {
 /// This is part of the asset request ultimately
 fn run_transformer_pipeline(
   transformers: Vec<Box<dyn TransformerPlugin>>,
-  asset: &mut Asset,
+  asset: Asset,
 ) -> anyhow::Result<()> {
+  let mut input = TransformationInput::Asset(asset);
+  let mut transform_context = RunTransformContext::new(Arc::new(OsFileSystem::default()));
   for mut transformer in transformers {
-    let mut transform_context = RunTransformContext::new(asset);
-    transformer.transform(&mut transform_context)?;
+    let result = transformer.transform(&mut transform_context, input)?;
+    input = TransformationInput::Asset(result.asset);
   }
 
   Ok(())
