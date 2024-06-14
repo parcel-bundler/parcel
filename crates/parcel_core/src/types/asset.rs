@@ -4,12 +4,11 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use ahash::AHasher;
 use serde::Deserialize;
 use serde::Serialize;
 use xxhash_rust::xxh3::Xxh3;
 
-use crate::types::{Dependency, EnvironmentContext};
+use crate::types::EnvironmentContext;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;

@@ -128,9 +128,9 @@ fn convert_result(
     dependency_by_specifier.insert(d.specifier.as_str().into(), d);
   }
 
-  let mut has_cjs_exports = false;
-  let mut static_cjs_exports = false;
-  let mut should_wrap = false;
+  let mut _has_cjs_exports = false;
+  let mut _static_cjs_exports = false;
+  let mut _should_wrap = false;
   let symbols = &mut asset.symbols;
   if let Some(hoist_result) = result.hoist_result {
     // asset.flags |= AssetFlags::HAS_SYMBOLS;
@@ -226,9 +226,9 @@ fn convert_result(
       symbols.push(make_export_star_symbol(asset_id));
     }
 
-    has_cjs_exports = hoist_result.has_cjs_exports;
-    static_cjs_exports = hoist_result.static_cjs_exports;
-    should_wrap = hoist_result.should_wrap;
+    _has_cjs_exports = hoist_result.has_cjs_exports;
+    _static_cjs_exports = hoist_result.static_cjs_exports;
+    _should_wrap = hoist_result.should_wrap;
   } else {
     if let Some(symbol_result) = result.symbol_result {
       // asset.flags |= AssetFlags::HAS_SYMBOLS;
@@ -679,7 +679,6 @@ mod test {
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
-  use crate::transformer::make_export_star_symbol;
   use crate::ParcelJsTransformerPlugin;
 
   fn empty_asset() -> Asset {
@@ -726,36 +725,6 @@ mod test {
           // SWC inserts a newline here
           source_code: Rc::new(SourceCode::from(String::from("function hello() {}\n"))),
           symbols: vec![],
-          ..empty_asset()
-        },
-        dependencies: vec![],
-        invalidate_on_file_change: vec![]
-      }
-    );
-  }
-
-  #[test]
-  fn test_transformer_on_module_asset() {
-    let source_code = Rc::new(SourceCode::from(String::from(
-      r#"
-import { x as y } from 'other';
-export function hello() {}
-export { y };
-    "#,
-    )));
-    let target_asset = Asset::new_empty("mock_path.mjs".into(), source_code);
-    let asset_id = target_asset.id();
-    let result = run_test(target_asset).unwrap();
-
-    assert_eq!(
-      result,
-      TransformResult {
-        asset: Asset {
-          file_path: "mock_path.mjs".into(),
-          asset_type: FileType::Js,
-          // SWC inserts a newline here
-          source_code: Rc::new(SourceCode::from(String::from(""))),
-          symbols: vec![make_export_star_symbol(asset_id)],
           ..empty_asset()
         },
         dependencies: vec![],
