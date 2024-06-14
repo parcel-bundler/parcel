@@ -68,25 +68,57 @@ pub struct ExportedSymbol {
   pub is_esm: bool,
 }
 
+/// An imported identifier with its rename and original name
+///
+/// For example, if an ESM module import is seen:
+///
+/// ```skip
+/// import { something } from './dependency-source';
+/// ```
+///
+/// The transformer will replace this import statement with a mangled identififer.
+///
+/// * `source` will be `'./dependency-source'`
+/// * `imported` will be `something`
+/// * `local` will be a mangled name the transformer has generated and replaced the
+///   call-site with
+/// * `loc` will be this source-code location
+///
+/// Alternatively, if there is a rename, `imported` and `local` might differ:
+///
+/// ```skip
+/// import { something as renamedSomething } from './dependency-source';
+/// ```
+///
+/// * `imported` will still be `something`
+/// * and `local` will be `renamedSomething`
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImportedSymbol {
+  /// The specifier for a certain dependency this symbol comes from
   pub source: JsWord,
+  /// The local name for a certain imported symbol
   pub local: JsWord,
+  /// The original name for a certain imported symbol
   pub imported: JsWord,
+  /// A location in the import site
   pub loc: SourceLocation,
+  /// The type of import this symbol is coming from
   kind: ImportKind,
 }
 
+/// See [`HoistResult`] for field documentation.
 struct Hoist<'a> {
   module_id: &'a str,
   collect: &'a Collect,
   module_items: Vec<ModuleItem>,
   export_decls: HashSet<JsWord>,
   hoisted_imports: IndexMap<JsWord, ModuleItem>,
+  /// See [`HoistResult::imported_symbols`]
   imported_symbols: Vec<ImportedSymbol>,
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
+  /// See [`HoistResult::dynamic_imports`]
   dynamic_imports: HashMap<JsWord, JsWord>,
   in_function_scope: bool,
   diagnostics: Vec<Diagnostic>,
@@ -96,11 +128,95 @@ struct Hoist<'a> {
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct HoistResult {
+  /// A vector of the symbols imported from other files.
+  /// For example, if a source file is
+  ///
+  /// ```skip
+  /// import { value as v1 } from './dependency-1';
+  /// import { value as v2 } from './dependency-2';
+  ///
+  /// function main() {
+  ///     console.log(v1);
+  ///     console.log(v2);
+  /// }
+  /// ```
+  ///
+  /// The transformer will replace all usages of `v1` and `v2` with a mangled generated name.
+  /// For example, the output will look like:
+  ///
+  /// ```skip
+  /// import './dependency-1';
+  /// import './dependency-2';
+  ///
+  /// function main() {
+  ///     console.log((0, $abc$import$hashfashdfashdfahsdfh_v1));
+  ///     console.log((0, $abc$import$hashfashdfashdfahsdfh_v2));
+  /// }
+  /// ```
+  ///
+  ///
+  /// This `imported_symbols` vector will be:
+  ///
+  /// ```skip
+  /// vec![
+  ///     ImportedSymbol {
+  ///         source: "dependency-1",
+  ///         local: "$abc$import$hashfashdfashdfahsdfh_v1",
+  ///         imported: "value",
+  ///         ...
+  ///     },
+  ///     ImportedSymbol {
+  ///         source: "dependency-2",
+  ///         local: "$abc$import$hashfashdfashdfahsdfh_v2",
+  ///         imported: "value",
+  ///         ...
+  ///     },
+  /// ]
+  /// ```
+  ///
+  /// `local` will be the manged name of the variables.
   pub imported_symbols: Vec<ImportedSymbol>,
   pub exported_symbols: Vec<ExportedSymbol>,
   pub re_exports: Vec<ImportedSymbol>,
   pub self_references: HashSet<JsWord>,
   pub wrapped_requires: HashSet<String>,
+  /// A map of async import placeholder variable names to source specifiers.
+  ///
+  /// When a dynamic import expression is found in the input file (`import('dependency')`), it is
+  /// replaced with a generated identifier.
+  ///
+  /// This output field contains a map of the generated placeholder variable to the dependency
+  /// specifier (`'dependency'`).
+  ///
+  /// For example, if the source file is
+  ///
+  /// ```skip
+  /// async function run() {
+  ///     const viewModule = await import('./view');
+  ///     viewModule.render();
+  /// }
+  /// ```
+  ///
+  /// And the `module_id` of this file is `"moduleId"`, then the transformer will replace this dynamic
+  /// import (assume `12345` is a hash of the `'view'` value):
+  ///
+  /// ```skip
+  /// async function run() {
+  ///     const viewModule = await $moduleId$importAsync$12345;
+  ///     viewModule.render();
+  /// }
+  /// ```
+  ///
+  /// The `dynamic_imports` field will then be:
+  ///
+  /// ```skip
+  /// {
+  ///     "$moduleId$importAsync$12345": "./view"
+  /// }
+  /// ```
+  ///
+  /// In other words, the keys are the generated identifier names, inserted by the transformer and
+  /// the values, the specifiers on the original source code.
   pub dynamic_imports: HashMap<JsWord, JsWord>,
   pub static_cjs_exports: bool,
   pub has_cjs_exports: bool,
@@ -2922,6 +3038,36 @@ mod tests {
     console.log($abc$var$module.exports.foo);
     "#}
     );
+  }
+
+  #[test]
+  fn test_parse_import_statement() {
+    let (_collect, code, hoist) = parse(
+      r#"
+    import { x } from 'other';
+    async function test() {
+      console.log(x.foo);
+    }
+    "#,
+    );
+
+    assert_eq!(
+      code,
+      indoc! {r#"
+    import "abc:other:esm";
+    async function $abc$var$test() {
+        console.log((0, $abc$import$70a00e0a8474f72a$d141bba7fdc215a3).foo);
+    }
+    "#}
+    );
+    assert_eq!(hoist.imported_symbols.len(), 1);
+    assert_eq!(hoist.imported_symbols[0].imported, JsWord::from("x"));
+    assert_eq!(
+      hoist.imported_symbols[0].local,
+      JsWord::from("$abc$import$70a00e0a8474f72a$d141bba7fdc215a3")
+    );
+    assert_eq!(hoist.imported_symbols[0].source, JsWord::from("other"));
+    assert_eq!(hoist.imported_symbols[0].kind, ImportKind::Import);
   }
 
   #[test]

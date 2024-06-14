@@ -9,9 +9,16 @@ use super::source::SourceLocation;
 /// A map of export names to the corresponding local variable names
 #[derive(Clone, PartialEq, Debug, Deserialize, Hash, Serialize)]
 pub struct Symbol {
-  pub exported: String,
-  pub loc: Option<SourceLocation>,
+  /// The IMPORTED name
   pub local: String,
+  /// The original EXPORTED name
+  pub exported: String,
+  /// The location might be None if the symbol is the "*" symbol. The location here always refers
+  /// to the location within the IMPORT site.
+  ///
+  /// The star symbol is a special case for "all" exports and should be modeled by a separate ADT
+  /// case in the future
+  pub loc: Option<SourceLocation>,
   pub flags: SymbolFlags,
 }
 

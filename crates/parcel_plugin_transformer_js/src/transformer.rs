@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
 use indexmap::IndexMap;
+use swc_core::atoms::Atom;
 
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
@@ -81,50 +82,28 @@ fn convert_result(
     asset.meta.insert("interpreter".into(), shebang.into());
   }
 
-  let mut dependency_by_specifier = IndexMap::new();
-  let mut dependency_flags = DependencyFlags::empty();
-  dependency_flags.set(
-    DependencyFlags::HAS_SYMBOLS,
-    result.hoist_result.is_some() || result.symbol_result.is_some(),
-  );
-
-  let mut invalidate_on_file_change = Vec::new();
-
-  for transformer_dependency in result.dependencies {
-    let loc = convert_loc(asset_file_path.clone(), &transformer_dependency.loc);
-    let placeholder = transformer_dependency
-      .placeholder
-      .as_ref()
-      .map(|d| d.as_str().into())
-      .unwrap_or_else(|| transformer_dependency.specifier.clone());
-
-    let result = convert_dependency(
-      transformer_config,
-      &asset_file_path,
-      &asset_environment,
-      asset_id,
-      transformer_dependency,
-      loc,
-    )?;
-    match result {
-      DependencyConversionResult::Dependency(dependency) => {
-        dependency_by_specifier.insert(placeholder, dependency);
-      }
-      DependencyConversionResult::InvalidateOnFileChange(file_path) => {
-        invalidate_on_file_change.push(file_path);
-      }
-    }
-  }
+  let (mut dependency_by_specifier, invalidate_on_file_change) = convert_dependencies(
+    transformer_config,
+    result.dependencies,
+    &asset_file_path,
+    &asset_environment,
+    asset_id,
+  )?;
 
   if result.needs_esm_helpers {
-    let d = make_esm_helpers_dependency(
+    let mut dependency_flags = DependencyFlags::empty();
+    dependency_flags.set(
+      DependencyFlags::HAS_SYMBOLS,
+      result.hoist_result.is_some() || result.symbol_result.is_some(),
+    );
+    let dependency = make_esm_helpers_dependency(
       options,
       &asset_file_path,
       asset_environment,
       dependency_flags,
       asset_id,
     );
-    dependency_by_specifier.insert(d.specifier.as_str().into(), d);
+    dependency_by_specifier.insert(dependency.specifier.as_str().into(), dependency);
   }
 
   let mut has_cjs_exports = false;
@@ -132,7 +111,7 @@ fn convert_result(
   let mut should_wrap = false;
   let symbols = &mut asset.symbols;
   if let Some(hoist_result) = result.hoist_result {
-    // asset.flags |= AssetFlags::HAS_SYMBOLS;
+    asset.flags |= AssetFlags::HAS_SYMBOLS;
     symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
 
     for symbol in &hoist_result.exported_symbols {
@@ -149,9 +128,10 @@ fn convert_result(
 
     for symbol in hoist_result.re_exports {
       if let Some(dependency) = dependency_by_specifier.get_mut(&symbol.source) {
-        if &*symbol.local == "*" && &*symbol.imported == "*" {
+        if symbol.local == "*" && symbol.imported == "*" {
           let loc = Some(convert_loc(asset_file_path.clone(), &symbol.loc));
           dependency.symbols.push(make_export_all_symbol(loc));
+          // Why isn't this added to the symbols array
         } else {
           let existing = dependency
             .symbols
@@ -175,17 +155,17 @@ fn convert_result(
       }
     }
 
-    // for specifier in hoist_result.wrapped_requires {
-    //   if let Some(dep) = dep_map.get_mut(&specifier) {
-    //     dep.flags |= DependencyFlags::SHOULD_WRAP;
-    //   }
-    // }
+    for specifier in hoist_result.wrapped_requires {
+      if let Some(dep) = dependency_by_specifier.get_mut(&swc_core::atoms::JsWord::new(specifier)) {
+        dep.flags |= DependencyFlags::SHOULD_WRAP;
+      }
+    }
 
-    // for (name, specifier) in hoist_result.dynamic_imports {
-    //   if let Some(dep) = dep_map.get_mut(&specifier) {
-    //     dep.promise_symbol = Some((&*name).into());
-    //   }
-    // }
+    for (name, specifier) in hoist_result.dynamic_imports {
+      if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
+        dep.promise_symbol = Some((&*name).into());
+      }
+    }
 
     if !hoist_result.self_references.is_empty() {
       for name in hoist_result.self_references {
@@ -339,6 +319,43 @@ fn convert_result(
     // used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
     invalidate_on_file_change,
   })
+}
+
+fn convert_dependencies(
+  transformer_config: &Config,
+  dependencies: Vec<DependencyDescriptor>,
+  asset_file_path: &PathBuf,
+  asset_environment: &Environment,
+  asset_id: u64,
+) -> Result<(IndexMap<Atom, Dependency>, Vec<PathBuf>), Vec<Diagnostic>> {
+  let mut dependency_by_specifier = IndexMap::new();
+  let mut invalidate_on_file_change = Vec::new();
+  for transformer_dependency in dependencies {
+    let loc = convert_loc(asset_file_path.clone(), &transformer_dependency.loc);
+    let placeholder = transformer_dependency
+      .placeholder
+      .as_ref()
+      .map(|d| d.as_str().into())
+      .unwrap_or_else(|| transformer_dependency.specifier.clone());
+
+    let result = convert_dependency(
+      transformer_config,
+      &asset_file_path,
+      &asset_environment,
+      asset_id,
+      transformer_dependency,
+      loc,
+    )?;
+    match result {
+      DependencyConversionResult::Dependency(dependency) => {
+        dependency_by_specifier.insert(placeholder, dependency);
+      }
+      DependencyConversionResult::InvalidateOnFileChange(file_path) => {
+        invalidate_on_file_change.push(file_path);
+      }
+    }
+  }
+  Ok((dependency_by_specifier, invalidate_on_file_change))
 }
 
 fn make_export_star_symbol(asset_id: u64) -> Symbol {

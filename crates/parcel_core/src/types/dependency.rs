@@ -94,6 +94,9 @@ pub struct Dependency {
   /// How the specifier should be interpreted
   pub specifier_type: SpecifierType,
 
+  /// These are the "Symbols" this dependency has which are used in import sites.
+  ///
+  /// We might want to split this information from this type.
   #[serde(default)]
   pub symbols: Vec<Symbol>,
 
