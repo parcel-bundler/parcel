@@ -6,7 +6,6 @@ use std::rc::Rc;
 
 use serde::Deserialize;
 use serde::Serialize;
-use xxhash_rust::xxh3::Xxh3;
 
 use crate::types::EnvironmentContext;
 
@@ -107,7 +106,7 @@ pub struct Asset {
 
 impl Asset {
   pub fn id(&self) -> u64 {
-    let mut hasher = Xxh3::default();
+    let mut hasher = crate::hash::IdentifierHasher::default();
 
     self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);

@@ -1721,7 +1721,6 @@ dependencies = [
 name = "parcel"
 version = "0.1.0"
 dependencies = [
- "ahash",
  "anyhow",
  "dyn-hash",
  "parcel-resolver",
@@ -1733,6 +1732,7 @@ dependencies = [
  "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
  "petgraph",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -1863,7 +1863,6 @@ dependencies = [
 name = "parcel_core"
 version = "0.1.0"
 dependencies = [
- "ahash",
  "anyhow",
  "browserslist-rs",
  "dyn-hash",

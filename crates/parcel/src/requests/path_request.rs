@@ -3,7 +3,6 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ahash::AHasher;
 use anyhow::anyhow;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::ReporterEvent;
@@ -43,7 +42,7 @@ pub enum PathResolution {
 // TODO tracing, dev deps
 impl Request<PathResolution> for PathRequest {
   fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
 
     self.dependency.hash(&mut hasher);
     self.named_pipelines.hash(&mut hasher);
