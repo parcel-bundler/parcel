@@ -9,6 +9,7 @@ use parcel_core::plugin::AssetBuildEvent;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::PluginConfig;
 use parcel_core::plugin::ReporterEvent;
+use parcel_core::plugin::RunTransformContext;
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::types::Asset;
 use parcel_core::types::AssetStats;
@@ -18,13 +19,14 @@ use parcel_core::types::Environment;
 use parcel_core::types::FileType;
 use parcel_core::types::JSONObject;
 use parcel_core::types::ParcelOptions;
+use parcel_plugin_transformer_js::RunTransformContext;
+use parcel_plugin_transformer_js::TransformationInput;
 
 use crate::plugins::Plugins;
 use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
 
 pub struct AssetRequest<'a> {
   pub plugins: Arc<Plugins<'a>>,
-  pub options: Arc<ParcelOptions>,
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
   pub code: Option<Vec<u8>>,
@@ -117,22 +119,23 @@ fn run_pipeline(
   pipeline: Vec<Box<dyn TransformerPlugin>>,
   asset: Asset,
   plugins: &Plugins,
-  options: &ParcelOptions,
 ) -> anyhow::Result<TransformerResult> {
   let mut result = TransformerResult {
     asset,
     dependencies: vec![],
   };
 
-  let config = PluginConfig::new(fs, options.project_root.clone(), search_path);
-
+  let mut transformer_ctx = RunTransformContext::new();
   fn resolve() -> anyhow::Result<PathBuf> {
     todo!("Internal Transformation resolve");
   }
 
   for transformer in pipeline {
     let asset_type = result.asset.asset_type;
-    let transformed = transformer.transform(&config, &result.asset, &resolve)?;
+    let transformed = transformer.transform(
+      &mut transformer_ctx,
+      TransformationInput::file_path(asset.file_path),
+    )?;
     if transformed.asset.asset_type != asset_type {
       let next_path = transformed
         .asset
@@ -140,14 +143,7 @@ fn run_pipeline(
         .with_extension(transformed.asset.asset_type.extension());
       let next_pipeline = transformers.get(&next_path, &transformed.asset.pipeline, false);
       if next_pipeline != pipeline {
-        return run_pipeline(
-          next_pipeline,
-          transformed.asset,
-          transformed.code,
-          transformers,
-          farm,
-          options,
-        );
+        return run_pipeline(next_pipeline, transformed.asset, transformed.code);
       };
     }
     result.asset = transformed.asset;
