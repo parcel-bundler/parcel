@@ -52,7 +52,7 @@ pub struct Asset {
   pub bundle_behavior: BundleBehavior,
 
   /// The environment of the asset
-  pub env: Arc<Environment>,
+  pub env: Environment,
 
   /// The file path to the asset
   pub file_path: PathBuf,

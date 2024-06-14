@@ -87,7 +87,7 @@ pub struct TransformResult {
 pub trait TransformerPlugin: Debug + Send + Sync {
   /// Transform the asset and/or add new assets
   fn transform(
-    &mut self,
+    &self,
     context: &mut RunTransformContext,
     input: TransformationInput,
   ) -> Result<TransformResult, anyhow::Error>;

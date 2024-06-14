@@ -3,30 +3,26 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ahash::AHasher;
-use parcel_config::ParcelConfig;
+use anyhow::anyhow;
 use parcel_core::plugin::AssetBuildEvent;
 use parcel_core::plugin::BuildProgressEvent;
-use parcel_core::plugin::PluginConfig;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::RunTransformContext;
+use parcel_core::plugin::TransformResult;
+use parcel_core::plugin::TransformationInput;
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::types::Asset;
-use parcel_core::types::AssetStats;
-use parcel_core::types::BundleBehavior;
-use parcel_core::types::Dependency;
 use parcel_core::types::Environment;
 use parcel_core::types::FileType;
-use parcel_core::types::JSONObject;
-use parcel_core::types::ParcelOptions;
-use parcel_plugin_transformer_js::RunTransformContext;
-use parcel_plugin_transformer_js::TransformationInput;
+use parcel_filesystem::FileSystemRef;
 
 use crate::plugins::Plugins;
+use crate::plugins::TransformerPipeline;
 use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
 
 pub struct AssetRequest<'a> {
   pub plugins: Arc<Plugins<'a>>,
+  pub file_system: FileSystemRef,
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
   pub code: Option<Vec<u8>>,
@@ -54,7 +50,7 @@ pub enum AssetResult {
 
 impl<'a> Request<AssetResult> for AssetRequest<'a> {
   fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
 
     self.file_path.hash(&mut hasher);
     self.code.hash(&mut hasher);
@@ -80,76 +76,81 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
       .plugins
       .transformers(&self.file_path, self.pipeline.as_deref());
 
-    let asset = Asset {
-      file_path: self.file_path.to_path_buf(),
-      asset_type: FileType::from_extension(
-        self
-          .file_path
-          .extension()
-          .and_then(|s| s.to_str())
-          .unwrap_or(""),
-      ),
-      env: Arc::clone(&self.env),
-      meta: JSONObject::new(),
-      side_effects: self.side_effects,
-      stats: AssetStats::default(),
-      symbols: vec![],
-      unique_key: None,
+    // let asset = Asset {
+    //   file_path: self.file_path.to_path_buf(),
+    //   asset_type: FileType::from_extension(
+    //     self
+    //       .file_path
+    //       .extension()
+    //       .and_then(|s| s.to_str())
+    //       .unwrap_or(""),
+    //   ),
+    //   env: Arc::clone(&self.env),
+    //   meta: JSONObject::new(),
+    //   side_effects: self.side_effects,
+    //   stats: AssetStats::default(),
+    //   symbols: vec![],
+    //   unique_key: None,
+    //
+    //   // TODO: Do we really need the clone?
+    //   pipeline: self.pipeline.clone(),
+    //
+    //   //TODO: Assign correct values to the following
+    //   bundle_behavior: BundleBehavior::None,
+    //   is_bundle_splittable: false,
+    //   is_source: true,
+    //   query: None,
+    // };
 
-      // TODO: Do we really need the clone?
-      pipeline: self.pipeline.clone(),
-
-      //TODO: Assign correct values to the following
-      bundle_behavior: BundleBehavior::None,
-      is_bundle_splittable: false,
-      is_source: true,
-      query: None,
-    };
-
+    // let asset_type = FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
     todo!()
   }
 }
 
-struct TransformerResult {
-  asset: Asset,
-  dependencies: Vec<Dependency>,
-}
-
 fn run_pipeline(
-  pipeline: Vec<Box<dyn TransformerPlugin>>,
-  asset: Asset,
+  pipeline: TransformerPipeline,
+  input: TransformationInput,
+  asset_type: FileType,
   plugins: &Plugins,
-) -> anyhow::Result<TransformerResult> {
-  let mut result = TransformerResult {
-    asset,
-    dependencies: vec![],
-  };
+  transform_ctx: &mut RunTransformContext,
+) -> anyhow::Result<TransformResult> {
+  let mut dependencies = vec![];
+  let mut invalidations = vec![];
 
-  let mut transformer_ctx = RunTransformContext::new();
-  fn resolve() -> anyhow::Result<PathBuf> {
-    todo!("Internal Transformation resolve");
-  }
+  let mut transform_input = input;
 
-  for transformer in pipeline {
-    let asset_type = result.asset.asset_type;
-    let transformed = transformer.transform(
-      &mut transformer_ctx,
-      TransformationInput::file_path(asset.file_path),
-    )?;
-    if transformed.asset.asset_type != asset_type {
-      let next_path = transformed
-        .asset
-        .file_path
-        .with_extension(transformed.asset.asset_type.extension());
-      let next_pipeline = transformers.get(&next_path, &transformed.asset.pipeline, false);
+  for transformer in &pipeline.transformers {
+    let transform_result = transformer.transform(transform_ctx, transform_input)?;
+    let is_different_asset_type = transform_result.asset.asset_type != asset_type;
+
+    transform_input = TransformationInput::Asset(transform_result.asset);
+
+    // If the Asset has changed type then we may need to trigger a different pipeline
+    if is_different_asset_type {
+      let next_pipeline = plugins.transformers(transform_input.file_path(), None)?;
+
       if next_pipeline != pipeline {
-        return run_pipeline(next_pipeline, transformed.asset, transformed.code);
+        return run_pipeline(
+          next_pipeline,
+          transform_input,
+          asset_type,
+          plugins,
+          transform_ctx,
+        );
       };
     }
-    result.asset = transformed.asset;
-    result.code = transformed.code;
-    result.dependencies.extend(transformed.dependencies);
+
+    dependencies.extend(transform_result.dependencies);
+    invalidations.extend(transform_result.invalidate_on_file_change);
   }
 
-  Ok(result)
+  if let TransformationInput::Asset(asset) = transform_input {
+    Ok(TransformResult {
+      asset,
+      dependencies,
+      invalidate_on_file_change: invalidations,
+    })
+  } else {
+    Err(anyhow!("No transformations for Asset"))
+  }
 }
