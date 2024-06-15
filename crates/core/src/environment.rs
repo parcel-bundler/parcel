@@ -229,12 +229,40 @@ impl From<Vec<Distrib>> for Browsers {
   }
 }
 
+#[derive(Serialize, Deserialize)]
+struct SerializedBrowsers {
+  pub android: Option<Version>,
+  pub chrome: Option<Version>,
+  pub edge: Option<Version>,
+  pub firefox: Option<Version>,
+  pub ie: Option<Version>,
+  pub ios_saf: Option<Version>,
+  pub opera: Option<Version>,
+  pub safari: Option<Version>,
+  pub samsung: Option<Version>,
+}
+
 impl serde::Serialize for Browsers {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {
-    format!("{}", self).serialize(serializer)
+    if serializer.is_human_readable() {
+      format!("{}", self).serialize(serializer)
+    } else {
+      let s = SerializedBrowsers {
+        android: self.android,
+        chrome: self.chrome,
+        edge: self.edge,
+        firefox: self.firefox,
+        ie: self.ie,
+        ios_saf: self.ios_saf,
+        opera: self.opera,
+        safari: self.safari,
+        samsung: self.samsung,
+      };
+      s.serialize(serializer)
+    }
   }
 }
 
@@ -243,13 +271,28 @@ impl<'de> serde::Deserialize<'de> for Browsers {
   where
     D: serde::Deserializer<'de>,
   {
-    let value = serde_value::Value::deserialize(deserializer)?;
-    let browsers = match value {
-      serde_value::Value::String(s) => vec![s],
-      value => Vec::<String>::deserialize(serde_value::ValueDeserializer::new(value))?,
-    };
-    let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
-    Ok(distribs.into())
+    if deserializer.is_human_readable() {
+      let value = serde_value::Value::deserialize(deserializer)?;
+      let browsers = match value {
+        serde_value::Value::String(s) => vec![s],
+        value => Vec::<String>::deserialize(serde_value::ValueDeserializer::new(value))?,
+      };
+      let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
+      Ok(distribs.into())
+    } else {
+      let s = SerializedBrowsers::deserialize(deserializer)?;
+      Ok(Browsers {
+        android: s.android,
+        chrome: s.chrome,
+        edge: s.edge,
+        firefox: s.firefox,
+        ie: s.ie,
+        ios_saf: s.ios_saf,
+        opera: s.opera,
+        safari: s.safari,
+        samsung: s.samsung,
+      })
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 use crate::{cache::Cache, environment::Environment, intern::Interned};
 use bitflags::bitflags;
 use gxhash::GxHasher;
+use indexmap::IndexMap;
 use parcel_resolver::{ExportsCondition, FileSystem};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -73,7 +74,8 @@ impl Asset {
   }
 }
 
-pub type JSONObject = serde_json::value::Map<String, serde_json::value::Value>;
+// pub type JSONObject = serde_json::value::Map<String, serde_json::value::Value>;
+pub type JSONObject = IndexMap<String, String>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum AssetType {

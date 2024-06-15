@@ -70,8 +70,7 @@ bitflags! {
   }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IncludeNodeModules {
   Bool(bool),
   Array(Vec<String>),
@@ -96,6 +95,88 @@ impl std::hash::Hash for IncludeNodeModules {
 impl Default for IncludeNodeModules {
   fn default() -> Self {
     IncludeNodeModules::Bool(true)
+  }
+}
+
+impl serde::Serialize for IncludeNodeModules {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    if serializer.is_human_readable() {
+      #[derive(serde::Serialize)]
+      #[serde(untagged)]
+      enum SerializedIncludeNodeModules<'a> {
+        Bool(bool),
+        #[serde(borrow)]
+        Array(&'a Vec<String>),
+        Map(&'a IndexMap<String, bool>),
+      }
+
+      let s = match self {
+        IncludeNodeModules::Bool(b) => SerializedIncludeNodeModules::Bool(*b),
+        IncludeNodeModules::Array(a) => SerializedIncludeNodeModules::Array(a),
+        IncludeNodeModules::Map(a) => SerializedIncludeNodeModules::Map(a),
+      };
+
+      s.serialize(serializer)
+    } else {
+      #[derive(serde::Serialize)]
+      enum SerializedIncludeNodeModules<'a> {
+        Bool(bool),
+        #[serde(borrow)]
+        Array(&'a Vec<String>),
+        Map(&'a IndexMap<String, bool>),
+      }
+
+      let s = match self {
+        IncludeNodeModules::Bool(b) => SerializedIncludeNodeModules::Bool(*b),
+        IncludeNodeModules::Array(a) => SerializedIncludeNodeModules::Array(a),
+        IncludeNodeModules::Map(a) => SerializedIncludeNodeModules::Map(a),
+      };
+
+      s.serialize(serializer)
+    }
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for IncludeNodeModules {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    if deserializer.is_human_readable() {
+      #[derive(serde::Deserialize)]
+      #[serde(untagged)]
+      enum SerializedIncludeNodeModules {
+        Bool(bool),
+        Array(Vec<String>),
+        Map(IndexMap<String, bool>),
+      }
+
+      Ok(
+        match SerializedIncludeNodeModules::deserialize(deserializer)? {
+          SerializedIncludeNodeModules::Bool(b) => IncludeNodeModules::Bool(b),
+          SerializedIncludeNodeModules::Array(a) => IncludeNodeModules::Array(a),
+          SerializedIncludeNodeModules::Map(a) => IncludeNodeModules::Map(a),
+        },
+      )
+    } else {
+      #[derive(serde::Deserialize)]
+      enum SerializedIncludeNodeModules {
+        Bool(bool),
+        Array(Vec<String>),
+        Map(IndexMap<String, bool>),
+      }
+
+      Ok(
+        match SerializedIncludeNodeModules::deserialize(deserializer)? {
+          SerializedIncludeNodeModules::Bool(b) => IncludeNodeModules::Bool(b),
+          SerializedIncludeNodeModules::Array(a) => IncludeNodeModules::Array(a),
+          SerializedIncludeNodeModules::Map(a) => IncludeNodeModules::Map(a),
+        },
+      )
+    }
   }
 }
 

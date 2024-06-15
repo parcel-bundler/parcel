@@ -329,15 +329,15 @@ impl RequestTracker {
   }
 
   pub fn to_buffer(&self) -> Vec<u8> {
-    // bincode::serialize(&self.graph).unwrap()
-    serde_json::to_vec(&self.graph).unwrap()
+    bincode::serialize(&self.graph).unwrap()
+    // serde_json::to_vec(&self.graph).unwrap()
   }
 
   pub fn from_buffer(buf: Vec<u8>) -> Self {
     Self {
       prev: RequestGraph::default(),
       // prev: bincode::deserialize_from(buf.as_slice()).unwrap(),
-      graph: serde_json::from_reader(buf.as_slice()).unwrap(),
+      graph: bincode::deserialize_from(buf.as_slice()).unwrap(),
     }
   }
 }
