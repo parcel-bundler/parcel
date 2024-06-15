@@ -1045,15 +1045,17 @@ export default class RequestTracker {
     graph,
     farm,
     options,
+    rustParcel
   }: {|
     graph?: RequestGraph,
     farm: WorkerFarm,
     options: ParcelOptions,
+    rustParcel?: RustParcel
   |}) {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
-    this.rustParcel = createRustParcel(options);
+    this.rustParcel = rustParcel;
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1363,6 +1365,8 @@ export default class RequestTracker {
       return;
     }
 
+    this.rustParcel.writeToCache(`${cacheKey}-rustCache`);
+
     let serialisedGraph = this.graph.serialize();
 
     let total = 0;
@@ -1495,8 +1499,8 @@ export default class RequestTracker {
     farm: WorkerFarm,
     options: ParcelOptions,
   |}): Async<RequestTracker> {
-    let graph = await loadRequestGraph(options);
-    return new RequestTracker({farm, options, graph});
+    let [graph, rustParcel] = await loadRequestGraph(options);
+    return new RequestTracker({farm, options, graph, rustParcel});
   }
 }
 
@@ -1556,9 +1560,10 @@ export async function readAndDeserializeRequestGraph(
   };
 }
 
-async function loadRequestGraph(options): Async<RequestGraph> {
+async function loadRequestGraph(options): Async<[RequestGraph, ParcelRust]> {
+  let rustParcel = createRustParcel(options);
   if (options.shouldDisableCache) {
-    return new RequestGraph();
+    return [new RequestGraph(), rustParcel];
   }
 
   let cacheKey = getCacheKey(options);
@@ -1604,19 +1609,27 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
 
+    rustParcel.readFromCache(`${cacheKey}-rustCache`);
+    console.log(options.cache.getBlob(`${cacheKey}-rustCache`).toString())
+
+    if (rustParcel.nextBuild(events)) {
+      let id = requestGraph.getNodeIdByContentKey('Main');
+      requestGraph.invalidateNode(id, FILE_UPDATE); // TODO
+    }
+
     try {
       await requestGraph.respondToFSEvents(
         options.unstableFileInvalidations || events,
         options,
         10000,
       );
-      return requestGraph;
+      return [requestGraph, rustParcel];
     } catch (e) {
       // This error means respondToFSEvents timed out handling the invalidation events
       // In this case we'll return a fresh RequestGraph
-      return new RequestGraph();
+      return [new RequestGraph(), rustParcel];
     }
   }
 
-  return new RequestGraph();
+  return [new RequestGraph(), rustParcel];
 }

@@ -6,7 +6,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ParcelConfig {
   pub resolvers: Vec<PluginNode>,
   pub transformers: PipelineMap,
@@ -22,6 +22,15 @@ pub struct ParcelConfig {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PipelineMap(IndexMap<String, Vec<PipelineNode>>, u64);
+
+impl serde::Serialize for PipelineMap {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.0.serialize(serializer)
+  }
+}
 
 impl<'de> serde::Deserialize<'de> for PipelineMap {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -56,6 +65,18 @@ pub struct PluginNode {
 pub enum PipelineNode {
   Plugin(PluginNode),
   Spread,
+}
+
+impl serde::Serialize for PipelineNode {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    match self {
+      PipelineNode::Plugin(p) => p.serialize(serializer),
+      PipelineNode::Spread => "...".serialize(serializer),
+    }
+  }
 }
 
 impl<'de> serde::Deserialize<'de> for PipelineNode {

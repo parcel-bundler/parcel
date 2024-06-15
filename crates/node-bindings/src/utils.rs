@@ -74,11 +74,11 @@ pub fn create_js_thread_safe_method<
 
   let tid = std::thread::current().id();
 
-  let result = move |params| {
+  let result = move |params: Params| {
     let env = js_fn_ref.env;
     if std::thread::current().id() == tid {
       let jsfn = js_fn_ref.get()?;
-      let result = jsfn.call(None, &[env.to_js_value(&params)?])?;
+      let result = jsfn.call(None, params.to_js_args(&env)?.as_ref())?;
       return env.from_js_value(result);
     }
 

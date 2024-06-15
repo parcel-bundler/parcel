@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 rayon = "1.7.0"
 crossbeam-channel = "0.5.6"
-petgraph = "*"
+petgraph = { version = "*", features = ["serde-1"] }
 bitflags = { version = "2.2.1", features = ["serde"] }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }

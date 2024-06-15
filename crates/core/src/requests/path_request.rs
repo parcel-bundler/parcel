@@ -135,7 +135,7 @@ pub trait Resolver {
   ) -> RequestResult<ResolverResult>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ResolverResult {
   NotResolved,
   Excluded,

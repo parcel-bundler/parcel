@@ -136,6 +136,18 @@ impl ParcelRust {
 
     Ok(promise)
   }
+
+  #[napi]
+  pub fn read_from_cache(&self, key: String) {
+    let mut parcel = self.parcel.lock().unwrap();
+    parcel.read_from_cache(key);
+  }
+
+  #[napi]
+  pub fn write_to_cache(&self, key: String) {
+    let parcel = self.parcel.lock().unwrap();
+    parcel.write_to_cache(key);
+  }
 }
 
 #[napi]

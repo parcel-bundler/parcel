@@ -27,7 +27,7 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe.only('javascript', function () {
+describe('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -4705,7 +4705,7 @@ describe.only('javascript', function () {
     assert.equal(add(2, 3), 5);
   });
 
-  it.skip('only updates bundle names of changed bundles for browsers', async () => {
+  it('only updates bundle names of changed bundles for browsers', async () => {
     let fixtureDir = path.join(__dirname, '/integration/name-invalidation');
     let _bundle = () =>
       bundle(path.join(fixtureDir, 'index.js'), {

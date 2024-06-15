@@ -62,8 +62,9 @@ export class FSCache implements Cache {
     return this.fs.exists(this._getCachePath(key));
   }
 
-  getBlob(key: string): Promise<Buffer> {
-    return this.fs.readFile(this._getCachePath(key));
+  getBlob(key: string): Buffer {
+    // TODO: async
+    return this.fs.readFileSync(this._getCachePath(key));
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {

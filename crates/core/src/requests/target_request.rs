@@ -11,7 +11,7 @@ pub struct TargetRequest {
   pub entry: Entry,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TargetRequestResult {
   pub entry: String,
   pub targets: Vec<Target>,

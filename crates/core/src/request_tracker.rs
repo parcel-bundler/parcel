@@ -39,7 +39,7 @@ pub struct RequestResult<Output> {
   pub invalidations: Vec<Invalidation>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 enum RequestGraphNode {
   FileName(Interned<String>),
   FilePath(Interned<PathBuf>),
@@ -49,7 +49,7 @@ enum RequestGraphNode {
   Request(u64),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RequestOutput {
   ParcelBuildRequest,
   BundleGraphRequest(<BundleGraphRequest as Request>::Output),
@@ -67,7 +67,7 @@ pub enum RequestOutput {
   ValidationRequest,
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct RequestNode {
   node: NodeIndex,
   state: RequestNodeState,
@@ -102,7 +102,7 @@ impl_store_request!(PathRequest<'a>);
 impl_store_request!(AssetRequest<'a>);
 impl_store_request!(BundleGraphRequest);
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 enum RequestNodeState {
   Incomplete,
   Invalid,
@@ -121,7 +121,7 @@ pub enum Invalidation {
   InvalidateOnFileDelete(Interned<PathBuf>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 enum RequestEdgeType {
   InvalidatedByUpdate,
   InvalidatedByDelete,
@@ -158,6 +158,68 @@ struct RequestGraph {
   file_names: HashMap<&'static str, NodeIndex>,
   file_paths: HashMap<&'static Path, NodeIndex>,
   globs: HashMap<&'static str, NodeIndex>,
+}
+
+impl serde::Serialize for RequestGraph {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    #[derive(serde::Serialize)]
+    struct SerializedRequestGraph<'a> {
+      graph: &'a DiGraph<RequestGraphNode, RequestEdgeType>,
+      requests: &'a HashMap<u64, RequestNode>,
+    }
+
+    let s = SerializedRequestGraph {
+      graph: &self.graph,
+      requests: &self.requests,
+    };
+
+    s.serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for RequestGraph {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    #[derive(serde::Deserialize)]
+    struct SerializedRequestGraph {
+      graph: DiGraph<RequestGraphNode, RequestEdgeType>,
+      requests: HashMap<u64, RequestNode>,
+    }
+
+    let d = SerializedRequestGraph::deserialize(deserializer)?;
+
+    let mut file_names = HashMap::new();
+    let mut file_paths = HashMap::new();
+    let mut globs = HashMap::new();
+
+    for (idx, node) in d.graph.node_weights().enumerate() {
+      match node {
+        RequestGraphNode::Glob(g) => {
+          globs.insert(Interned::data(g).as_str(), NodeIndex::new(idx));
+        }
+        RequestGraphNode::FileName(f) => {
+          file_names.insert(Interned::data(f).as_str(), NodeIndex::new(idx));
+        }
+        RequestGraphNode::FilePath(f) => {
+          file_paths.insert(Interned::data(f).as_path(), NodeIndex::new(idx));
+        }
+        _ => {}
+      }
+    }
+
+    Ok(RequestGraph {
+      graph: d.graph,
+      requests: d.requests,
+      file_names,
+      file_paths,
+      globs,
+    })
+  }
 }
 
 impl RequestTracker {
@@ -264,6 +326,19 @@ impl RequestTracker {
   pub fn build_success(&mut self) {
     // After a successful build, drop the previous RequestGraph to free up memory.
     self.prev = RequestGraph::default();
+  }
+
+  pub fn to_buffer(&self) -> Vec<u8> {
+    // bincode::serialize(&self.graph).unwrap()
+    serde_json::to_vec(&self.graph).unwrap()
+  }
+
+  pub fn from_buffer(buf: Vec<u8>) -> Self {
+    Self {
+      prev: RequestGraph::default(),
+      // prev: bincode::deserialize_from(buf.as_slice()).unwrap(),
+      graph: serde_json::from_reader(buf.as_slice()).unwrap(),
+    }
   }
 }
 

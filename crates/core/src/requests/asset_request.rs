@@ -22,7 +22,7 @@ pub struct AssetRequest<'a> {
   pub side_effects: bool,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AssetRequestResult {
   pub asset: Asset,
   pub dependencies: Vec<Dependency>,
