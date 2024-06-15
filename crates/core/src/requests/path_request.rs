@@ -10,7 +10,7 @@ use crate::{
   environment::{EnvironmentContext, EnvironmentFlags},
   intern::Interned,
   parcel_config::PluginNode,
-  request_tracker::{Request, RequestResult},
+  request_tracker::{Invalidation, Request, RequestResult},
   types::{BuildMode, Dependency, DependencyFlags, Location, ParcelOptions, SpecifierType},
 };
 use itertools::Itertools;
@@ -55,26 +55,31 @@ impl<'a> Request for PathRequest<'a> {
 
     let resolver = DefaultResolver {};
     let result = resolver.resolve(specifier, &self.dep, options);
+    let mut invalidations = result.invalidations;
+
     match result.result {
       Ok(ResolverResult::Resolved {
         path,
         code,
         pipeline,
         side_effects,
-      }) => RequestResult {
-        result: Ok(ResolverResult::Resolved {
-          path,
-          code,
-          pipeline: pipeline.or(parsed_pipeline),
-          side_effects,
-        }),
-        invalidations: result.invalidations,
-      },
+      }) => {
+        invalidations.push(Invalidation::InvalidateOnFileDelete(path));
+        RequestResult {
+          result: Ok(ResolverResult::Resolved {
+            path,
+            code,
+            pipeline: pipeline.or(parsed_pipeline),
+            side_effects,
+          }),
+          invalidations,
+        }
+      }
       Err(mut diagnostics) => {
         if self.dep.flags.contains(DependencyFlags::OPTIONAL) {
           return RequestResult {
             result: Ok(ResolverResult::Excluded),
-            invalidations: result.invalidations,
+            invalidations,
           };
         }
 
@@ -115,12 +120,12 @@ impl<'a> Request for PathRequest<'a> {
 
         RequestResult {
           result: Err(diagnostics),
-          invalidations: result.invalidations,
+          invalidations,
         }
       }
       res => RequestResult {
         result: res,
-        invalidations: result.invalidations,
+        invalidations,
       },
     }
   }

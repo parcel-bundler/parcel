@@ -4,7 +4,11 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::{diagnostic::Diagnostic, intern::Interned, worker_farm::WorkerFarm};
+use crate::{
+  diagnostic::Diagnostic,
+  intern::{deserialize_intern, serialize_intern, Interned},
+  worker_farm::WorkerFarm,
+};
 use crate::{
   requests::{
     asset_request::AssetRequest, bundle_graph_request::BundleGraphRequest,
@@ -329,15 +333,16 @@ impl RequestTracker {
   }
 
   pub fn to_buffer(&self) -> Vec<u8> {
-    bincode::serialize(&self.graph).unwrap()
-    // serde_json::to_vec(&self.graph).unwrap()
+    // Must use serialize_into otherwise bincode serializes twice (to calculate vec capacity), messing up intern state.
+    let mut res = Vec::new();
+    serialize_intern(|| bincode::serialize_into(&mut res, &self.graph).unwrap());
+    res
   }
 
   pub fn from_buffer(buf: Vec<u8>) -> Self {
     Self {
       prev: RequestGraph::default(),
-      // prev: bincode::deserialize_from(buf.as_slice()).unwrap(),
-      graph: bincode::deserialize_from(buf.as_slice()).unwrap(),
+      graph: deserialize_intern(|| bincode::deserialize_from(buf.as_slice()).unwrap()),
     }
   }
 }

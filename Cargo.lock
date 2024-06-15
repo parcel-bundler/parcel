@@ -1303,6 +1303,7 @@ dependencies = [
  "pathdiff",
  "petgraph",
  "rayon",
+ "scoped-tls",
  "serde",
  "serde-value",
  "serde_bytes",

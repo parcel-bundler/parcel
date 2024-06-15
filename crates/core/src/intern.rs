@@ -1,5 +1,4 @@
 use std::{
-  borrow::Borrow,
   collections::{HashMap, HashSet},
   fmt::{Debug, Display},
   hash::{BuildHasherDefault, Hash, Hasher},
@@ -10,6 +9,7 @@ use std::{
 
 use dashmap::{DashMap, SharedValue};
 use gxhash::{GxBuildHasher, GxHasher};
+use scoped_tls::scoped_thread_local;
 use serde::{Deserialize, Serialize};
 
 /// An Interned value is a unique pointer to a value.
@@ -120,22 +120,73 @@ impl<T> Hash for Interned<T> {
   }
 }
 
-impl<T: Serialize> Serialize for Interned<T> {
+// When serialized, interned values are deduplicated.
+// This is done by storing a (type erased) pointer in a map when serializing,
+// and returning a reference to that value when serializing a second time.
+struct Erased;
+scoped_thread_local!(static SER_MAP: DashMap<*const Erased, u32, BuildHasherDefault<IdentityHasher>>);
+scoped_thread_local!(static DE_MAP: DashMap<usize, *const Erased, BuildHasherDefault<IdentityHasher>>);
+
+pub fn serialize_intern<R, F: FnOnce() -> R>(f: F) -> R {
+  SER_MAP.set(&DashMap::default(), f)
+}
+
+pub fn deserialize_intern<R, F: FnOnce() -> R>(f: F) -> R {
+  DE_MAP.set(&DashMap::default(), f)
+}
+
+#[derive(Serialize, Deserialize)]
+enum Serialized<T: 'static> {
+  Value(T),
+  Reference(u32),
+}
+
+impl<T: Serialize + Debug + Clone> Serialize for Interned<T> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {
-    self.0.data.serialize(serializer)
+    if serializer.is_human_readable() {
+      self.0.data.serialize(serializer)
+    } else {
+      let ptr = self.0 as *const Entry<T> as *const Erased;
+      SER_MAP.with(|map| {
+        if let Some(idx) = map.get(&ptr) {
+          let v: Serialized<T> = Serialized::Reference(*idx as u32);
+          v.serialize(serializer)
+        } else {
+          let v = Serialized::Value(&self.0.data);
+          let res = v.serialize(serializer);
+          map.insert(ptr, map.len() as u32);
+          res
+        }
+      })
+    }
   }
 }
 
-impl<'de, T: Deserialize<'de> + Into<Interned<T>>> Deserialize<'de> for Interned<T> {
+impl<'de, T: Debug + Deserialize<'de> + Into<Interned<T>>> Deserialize<'de> for Interned<T> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
   {
-    let v: T = Deserialize::deserialize(deserializer)?;
-    Ok(v.into())
+    if deserializer.is_human_readable() {
+      let v: T = Deserialize::deserialize(deserializer)?;
+      Ok(v.into())
+    } else {
+      let s: Serialized<T> = Serialized::deserialize(deserializer)?;
+      DE_MAP.with(|map| match s {
+        Serialized::Value(v) => {
+          let interned = v.into();
+          map.insert(map.len(), interned.0 as *const Entry<T> as *const Erased);
+          Ok(interned)
+        }
+        Serialized::Reference(idx) => {
+          let ptr = map.get(&(idx as usize)).unwrap();
+          Ok(Interned(unsafe { &*(*ptr as *const Entry<T>) }))
+        }
+      })
+    }
   }
 }
 
@@ -234,5 +285,33 @@ impl From<String> for Interned<PathBuf> {
 impl PartialEq<&Path> for Interned<PathBuf> {
   fn eq(&self, other: &&Path) -> bool {
     self.0.data == *other
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::intern::{deserialize_intern, serialize_intern};
+
+  use super::Interned;
+
+  #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
+  struct Test {
+    a: Interned<String>,
+    b: Interned<String>,
+  }
+
+  #[test]
+  fn test_serde() {
+    let test = Test {
+      a: "foo".into(),
+      b: "foo".into(),
+    };
+
+    let mut serialized = Vec::new();
+    serialize_intern(|| bincode::serialize_into(&mut serialized, &test).unwrap());
+    assert_eq!(serialized.len(), 23);
+
+    let deserialized: Test = deserialize_intern(|| bincode::deserialize(&serialized).unwrap());
+    assert_eq!(deserialized, test);
   }
 }

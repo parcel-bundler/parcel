@@ -117,7 +117,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   return b;
 }
 
-describe('cache', function () {
+describe.only('cache', function () {
   before(async () => {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });
@@ -142,7 +142,7 @@ describe('cache', function () {
     assert.equal(await run(b.bundleGraph), 6);
   });
 
-  it.only('should support adding a dependency', async function () {
+  it('should support adding a dependency', async function () {
     let b = await testCache(async b => {
       assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
@@ -195,7 +195,7 @@ describe('cache', function () {
     assert.deepEqual(await exec(b.bundleGraph, html[1]), ['c', 'b']);
   });
 
-  it('should error when deleting a file', async function () {
+  it.only('should error when deleting a file', async function () {
     // $FlowFixMe
     await assert.rejects(
       async () => {
