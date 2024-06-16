@@ -22,6 +22,7 @@ pub struct AssetRequest<'a> {
   pub pipeline: Option<String>,
   pub env: Interned<Environment>,
   pub side_effects: bool,
+  pub query: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -54,7 +55,7 @@ impl<'a> Request for AssetRequest<'a> {
     let asset = Asset {
       file_path: self.file_path,
       env: self.env,
-      query: None,
+      query: self.query,
       asset_type: AssetType::from_extension(
         self
           .file_path
@@ -87,7 +88,7 @@ impl<'a> Request for AssetRequest<'a> {
 
         options
           .cache
-          .set(format!("{:016x}", result.asset.content_key.0), result.code);
+          .set(result.asset.content_key.to_string(), result.code);
         (
           Ok(AssetRequestResult {
             asset: result.asset,

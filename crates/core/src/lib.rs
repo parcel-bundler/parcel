@@ -63,14 +63,13 @@ impl Parcel {
 
   pub fn read_from_cache(&mut self, key: String) {
     if let Some(buf) = self.options.cache.get(key.clone()) {
-      println!("READ {:?} {:?}", key, buf.len());
       self.request_tracker = RequestTracker::from_buffer(buf);
     }
   }
 
   pub fn write_to_cache(&self, key: String) {
     let buf = self.request_tracker.to_buffer();
-    println!("WRITE {:?} {:?}", key, buf.len());
+    // std::fs::write("graph.bin", &buf);
     self.options.cache.set(key, buf);
   }
 }

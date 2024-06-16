@@ -109,7 +109,7 @@ export default function createBundleGraphRequest(
       let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
         request,
         {
-          force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+          force: true //options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
 

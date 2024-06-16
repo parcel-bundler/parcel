@@ -368,6 +368,7 @@ impl<'a> AssetGraphRequest<'a> {
                 code,
                 pipeline,
                 side_effects,
+                query,
               } => {
                 if !side_effects
                   && requested_symbols.is_empty()
@@ -385,6 +386,7 @@ impl<'a> AssetGraphRequest<'a> {
                   pipeline: pipeline.clone(),
                   side_effects: side_effects.clone(),
                   env: dependency.env,
+                  query,
                 }
               }
               ResolverResult::Excluded => {

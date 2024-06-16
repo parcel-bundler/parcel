@@ -64,6 +64,7 @@ impl<'a> Request for PathRequest<'a> {
         code,
         pipeline,
         side_effects,
+        query,
       }) => {
         invalidations.push(Invalidation::InvalidateOnFileDelete(path));
         RequestResult {
@@ -72,6 +73,7 @@ impl<'a> Request for PathRequest<'a> {
             code,
             pipeline: pipeline.or(parsed_pipeline),
             side_effects,
+            query,
           }),
           invalidations,
         }
@@ -150,6 +152,7 @@ pub enum ResolverResult {
     code: Option<Vec<u8>>,
     pipeline: Option<String>,
     side_effects: bool,
+    query: Option<String>,
   },
 }
 
@@ -276,6 +279,7 @@ impl Resolver for DefaultResolver {
           code: None,
           pipeline: None,
           side_effects,
+          query: result.1,
         }),
         invalidations,
       },
@@ -286,6 +290,7 @@ impl Resolver for DefaultResolver {
           code: None,
           pipeline: None,
           side_effects,
+          query: None,
         }),
         invalidations,
       },
@@ -312,6 +317,7 @@ impl Resolver for DefaultResolver {
           code: Some(format!("module.exports={};", global).into_bytes()),
           pipeline: None,
           side_effects,
+          query: None,
         }),
         invalidations,
       },
@@ -373,6 +379,7 @@ impl DefaultResolver {
             code: None,
             pipeline: None,
             side_effects: true,
+            query: None,
           }),
           invalidations: Vec::new(),
         }

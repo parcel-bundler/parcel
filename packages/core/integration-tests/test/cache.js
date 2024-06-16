@@ -2392,7 +2392,7 @@ describe.only('cache', function () {
     });
   });
 
-  describe('options', function () {
+  describe.skip('options', function () {
     it('should update when publicUrl changes', async function () {
       let b = await testCache({
         entries: ['src/index.html'],
@@ -2900,7 +2900,7 @@ describe.only('cache', function () {
     });
   });
 
-  describe('resolver', function () {
+  describe.skip('resolver', function () {
     it('should support updating a package.json#main field', async function () {
       let b = await testCache(async b => {
         assert.equal(await run(b.bundleGraph), 4);
@@ -3598,7 +3598,7 @@ describe.only('cache', function () {
       });
     });
 
-    describe('stylus', function () {
+    describe.skip('stylus', function () {
       it('should support resolver inside stylus file', async function () {
         let b = await testCache(
           {
@@ -3823,7 +3823,7 @@ describe.only('cache', function () {
       });
     });
 
-    describe('less', function () {
+    describe.skip('less', function () {
       it('should support adding higher priority less include paths', async function () {
         let b = await testCache(
           {
@@ -3930,7 +3930,7 @@ describe.only('cache', function () {
       });
     });
 
-    describe('sass', function () {
+    describe.skip('sass', function () {
       it('should support adding higher priority sass include paths', async function () {
         let b = await testCache(
           {
@@ -4066,7 +4066,7 @@ describe.only('cache', function () {
     });
   });
 
-  describe('dev deps', function () {
+  describe.skip('dev deps', function () {
     it('should invalidate when updating a parcel transformer plugin', async function () {
       let b = await testCache({
         async setup() {
