@@ -172,15 +172,27 @@ export function createRustParcel(options: ParcelOptions) {
           let entryResolver = new EntryResolver(options);
           let filePath = fromProjectPath(options.projectRoot, request.entry);
           let result = await entryResolver.resolveEntry(filePath);
+          let invalidations = [];
+          for (let file of result.files) {
+            file = fromProjectPath(options.projectRoot, file.filePath);
+            invalidations.push({InvalidateOnFileUpdate: file});
+            invalidations.push({InvalidateOnFileDelete: file});
+          }
+          for (let glob of result.globs) {
+            invalidations.push({InvalidateOnGlobCreate: glob});
+          }
           return {
             type: 'Entry',
-            value: result.entries.map(e => ({
-              // TODO: use project paths in rust
-              filePath: fromProjectPathRelative(e.filePath),
-              packagePath: fromProjectPath(options.projectRoot, e.packagePath),
-              target: e.target,
-              loc: e.loc,
-            })),
+            value: {
+              entries: result.entries.map(e => ({
+                // TODO: use project paths in rust
+                filePath: fromProjectPathRelative(e.filePath),
+                packagePath: fromProjectPath(options.projectRoot, e.packagePath),
+                target: e.target,
+                loc: e.loc,
+              })),
+              invalidations
+            }
           };
         }
         case 'ParcelConfig': {
@@ -191,11 +203,63 @@ export function createRustParcel(options: ParcelOptions) {
           };
         }
         case 'Target': {
+          let invalidations = [];
           let targetResolver = new TargetResolver(
             {
-              invalidateOnFileCreate() {},
-              invalidateOnFileUpdate() {},
+              invalidateOnFileCreate(f) {
+                if (f.filePath != null) {
+                  invalidations.push({InvalidateOnFileCreate: fromProjectPath(options.projectRoot, f.filePath)});
+                } else if (f.glob != null) {
+                  invalidations.push({InvalidateOnGlobCreate: f.glob});
+                } else {
+                  invalidations.push({InvalidateOnFileCreateAbove: {file_name: f.fileName, above: fromProjectPath(options.projectRoot, f.aboveFilePath)}});
+                }
+              },
+              invalidateOnFileUpdate(file) {
+                let filePath = fromProjectPath(options.projectRoot, file);
+                invalidations.push({InvalidateOnFileUpdate: filePath});
+                invalidations.push({InvalidateOnFileDelete: filePath});
+              },
               invalidateOnFileDelete() {},
+              invalidateOnBuild() {
+                // throw new Error('not implemented');
+              },
+              invalidateOnConfigKeyChange() {
+                // throw new Error('not implemented');
+              },
+              invalidateOnEnvChange() {
+                // throw new Error('not implemented');
+              },
+              invalidateOnOptionChange() {
+                // throw new Error('not implemented');
+              },
+              invalidateOnStartup() {
+                // throw new Error('not implemented');
+              },
+              canSkipSubrequest() {
+                throw new Error('not implemented');
+              },
+              getInvalidSubRequests() {
+                throw new Error('not implemented');
+              },
+              getInvalidations() {
+                throw new Error('not implemented');
+              },
+              getPreviousResult() {
+                throw new Error('not implemented');
+              },
+              getRequestResult() {
+                throw new Error('not implemented');
+              },
+              getSubRequests() {
+                throw new Error('not implemented');
+              },
+              runRequest() {
+                throw new Error('not implemented');
+              },
+              storeResult() {
+                throw new Error('not implemented');
+              }
             },
             options,
           );
@@ -205,7 +269,10 @@ export function createRustParcel(options: ParcelOptions) {
           );
           return {
             type: 'Target',
-            value: targets,
+            value: {
+              targets,
+              invalidations
+            },
           };
         }
         case 'Transform': {

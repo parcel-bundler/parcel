@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{
   parcel_config::ParcelConfig,
+  request_tracker::Invalidation,
   requests::{
     asset_request::TransformerResult,
     bundle_graph_request::BundleGraphRequest,
@@ -33,8 +34,14 @@ pub enum WorkerRequest {
 #[serde(tag = "type", content = "value")]
 pub enum WorkerResult {
   ParcelConfig(ParcelConfig),
-  Entry(Vec<Entry>),
-  Target(Vec<Target>),
+  Entry {
+    entries: Vec<Entry>,
+    invalidations: Vec<Invalidation>,
+  },
+  Target {
+    targets: Vec<Target>,
+    invalidations: Vec<Invalidation>,
+  },
   Transform(TransformerResult),
   BundleGraph(Vec<Bundle>),
 }

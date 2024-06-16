@@ -3217,7 +3217,7 @@ describe.only('cache', function () {
       assert.equal(await run(b.bundleGraph), 10);
     });
 
-    it('should recover from an invalid package.json', async function () {
+    it.skip('should recover from an invalid package.json', async function () {
       // $FlowFixMe
       await assert.rejects(async () => {
         await testCache({

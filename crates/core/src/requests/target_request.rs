@@ -26,13 +26,17 @@ impl Request for TargetRequest {
     _options: &ParcelOptions,
   ) -> RequestResult<Self::Output> {
     let entry = self.entry.file_path.clone();
-    let WorkerResult::Target(targets) = farm.run(WorkerRequest::Target(self)).unwrap() else {
+    let WorkerResult::Target {
+      targets,
+      invalidations,
+    } = farm.run(WorkerRequest::Target(self)).unwrap()
+    else {
       unreachable!()
     };
 
     RequestResult {
       result: Ok(TargetRequestResult { entry, targets }),
-      invalidations: Vec::new(),
+      invalidations,
     }
   }
 }

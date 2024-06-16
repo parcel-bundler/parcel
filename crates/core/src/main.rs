@@ -20,39 +20,47 @@ static GLOBAL: MiMalloc = MiMalloc;
 fn main() {
   let mut farm = WorkerFarm::new();
   farm.register_worker(Arc::new(|req| match req {
-    WorkerRequest::Entry(entry) => Ok(WorkerResult::Entry(vec![Entry {
-      file_path: entry.entry.clone(),
-      package_path: "/Users/devongovett/Downloads/bundler-benchmark/cases/all/package.json".into(),
-      target: None,
-    }])),
+    WorkerRequest::Entry(entry) => Ok(WorkerResult::Entry {
+      entries: vec![Entry {
+        file_path: entry.entry.clone(),
+        package_path: "/Users/devongovett/Downloads/bundler-benchmark/cases/all/package.json"
+          .into(),
+        target: None,
+      }],
+      invalidations: vec![],
+    }),
     WorkerRequest::ParcelConfig => Ok(WorkerResult::ParcelConfig(ParcelConfig::default())),
-    WorkerRequest::Target(target) => Ok(WorkerResult::Target(vec![Target {
-      env: Environment {
-        context: EnvironmentContext::Browser,
-        output_format: OutputFormat::Esmodule,
-        source_type: SourceType::Module,
-        source_map: None,
-        flags: EnvironmentFlags::SHOULD_SCOPE_HOIST,
+    WorkerRequest::Target(target) => Ok(WorkerResult::Target {
+      targets: vec![Target {
+        env: Environment {
+          context: EnvironmentContext::Browser,
+          output_format: OutputFormat::Esmodule,
+          source_type: SourceType::Module,
+          source_map: None,
+          flags: EnvironmentFlags::SHOULD_SCOPE_HOIST,
+          loc: None,
+          include_node_modules: parcel_resolver::IncludeNodeModules::Bool(true),
+          engines: Engines {
+            browsers: Browsers::default(),
+            node: None,
+            electron: None,
+            parcel: None,
+          },
+        }
+        .into(),
+        dist_dir: String::new(),
+        name: String::new(),
+        dist_entry: None,
+        public_url: String::new(),
         loc: None,
-        include_node_modules: parcel_resolver::IncludeNodeModules::Bool(true),
-        engines: Engines {
-          browsers: Browsers::default(),
-          node: None,
-          electron: None,
-          parcel: None,
-        },
-      }
-      .into(),
-      dist_dir: String::new(),
-      name: String::new(),
-      dist_entry: None,
-      public_url: String::new(),
-      loc: None,
-      pipeline: None,
-    }])),
+        pipeline: None,
+      }],
+      invalidations: vec![],
+    }),
     _ => todo!(),
   }));
 
+  let start_time = std::time::Instant::now();
   let mut parcel = Parcel::new(
     vec!["./src/index.js".into()],
     // vec!["/Users/devongovett/Downloads/esm-test/index.mjs".into()],
@@ -70,6 +78,11 @@ fn main() {
   );
 
   parcel.build_asset_graph();
+  println!("TIME: {:?}", start_time.elapsed());
+
+  let start_time = std::time::Instant::now();
+  parcel.write_to_cache("graph".into());
+  println!("TIME: {:?}", start_time.elapsed());
 
   // println!("{:#?}", graph);
 

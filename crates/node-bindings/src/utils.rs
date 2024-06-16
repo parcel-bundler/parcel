@@ -81,7 +81,7 @@ pub fn create_js_thread_safe_method<
       let jsfn = js_fn_ref.get()?;
       let result = jsfn.call(None, params.to_js_args(&env)?.as_ref())?;
       if result.is_promise()? {
-        println!("PROMISE");
+        // TODO
       }
       return env.from_js_value(result);
     }

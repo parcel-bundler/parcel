@@ -24,15 +24,19 @@ impl Request for EntryRequest {
   fn run(
     self,
     farm: &crate::worker_farm::WorkerFarm,
-    options: &ParcelOptions,
+    _options: &ParcelOptions,
   ) -> RequestResult<Self::Output> {
-    let WorkerResult::Entry(entries) = farm.run(WorkerRequest::Entry(self)).unwrap() else {
+    let WorkerResult::Entry {
+      entries,
+      invalidations,
+    } = farm.run(WorkerRequest::Entry(self)).unwrap()
+    else {
       unreachable!()
     };
 
     RequestResult {
       result: Ok(entries),
-      invalidations: Vec::new(),
+      invalidations,
     }
   }
 }
