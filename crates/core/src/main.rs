@@ -62,7 +62,7 @@ fn main() {
       env: Default::default(),
       log_level: parcel_core::types::LogLevel::Info,
       project_root: "/Users/devongovett/Downloads/bundler-benchmark/cases/all".into(),
-      core_path: "/Users/devongovett/dev/parcel/packages/core/core".into(),
+      core_path: "/Users/devongovett/dev/parcel/packages/core/core/src".into(),
       input_fs: Arc::new(OsFileSystem::default()),
       cache: Arc::new(MemoryCache::new()),
       resolver_cache: parcel_resolver::Cache::new(Arc::new(OsFileSystem::default())),

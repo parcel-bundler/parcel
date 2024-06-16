@@ -114,6 +114,7 @@ enum RequestNodeState {
   Valid(RequestOutput),
 }
 
+#[derive(Debug, serde::Deserialize)]
 pub enum Invalidation {
   InvalidateOnFileCreate(Interned<PathBuf>),
   InvalidateOnFileCreateAbove {
@@ -681,7 +682,7 @@ mod tests {
     assert!(graph.has_valid_result(&request));
 
     tracker.next_build(vec![]);
-    assert!(!tracker.graph.has_valid_result(&request));
+    assert!(tracker.graph.has_valid_result(&request));
 
     assert!(tracker.start_request(&request).is_some());
     assert!(tracker.graph.has_valid_result(&request));

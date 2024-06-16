@@ -15,8 +15,9 @@ use crate::{
 };
 use itertools::Itertools;
 use parcel_resolver::{
-  parse_scheme, Cache, CacheCow, ExportsCondition, Fields, FileSystem, Flags, IncludeNodeModules,
-  Invalidations, OsFileSystem, Resolution, ResolveOptions, ResolverError, Specifier,
+  parse_scheme, Cache, CacheCow, ExportsCondition, Fields, FileCreateInvalidation, FileSystem,
+  Flags, IncludeNodeModules, Invalidations, OsFileSystem, Resolution, ResolveOptions,
+  ResolverError, Specifier,
 };
 use path_slash::{PathBufExt, PathExt};
 
@@ -234,6 +235,26 @@ impl Resolver for DefaultResolver {
       true
     };
 
+    let mut invalidations = Vec::new();
+    for file in res.invalidations.invalidate_on_file_change {
+      let file = file.into();
+      invalidations.push(Invalidation::InvalidateOnFileUpdate(file));
+      invalidations.push(Invalidation::InvalidateOnFileDelete(file));
+    }
+
+    for file in res.invalidations.invalidate_on_file_create {
+      invalidations.push(match file {
+        FileCreateInvalidation::Path(path) => Invalidation::InvalidateOnFileCreate(path.into()),
+        FileCreateInvalidation::Glob(glob) => Invalidation::InvalidateOnGlobCreate(glob.into()),
+        FileCreateInvalidation::FileName { file_name, above } => {
+          Invalidation::InvalidateOnFileCreateAbove {
+            file_name,
+            above: above.into(),
+          }
+        }
+      });
+    }
+
     let result = match res.result {
       Ok(res) => res,
       Err(err) => {
@@ -243,7 +264,7 @@ impl Resolver for DefaultResolver {
             options.project_root,
             &resolve_from,
           )]),
-          invalidations: Vec::new(),
+          invalidations,
         }
       }
     };
@@ -256,7 +277,7 @@ impl Resolver for DefaultResolver {
           pipeline: None,
           side_effects,
         }),
-        invalidations: Vec::new(),
+        invalidations,
       },
       Resolution::Builtin(builtin) => self.resolve_builtin(dep, builtin, options),
       Resolution::Empty => RequestResult {
@@ -266,7 +287,7 @@ impl Resolver for DefaultResolver {
           pipeline: None,
           side_effects,
         }),
-        invalidations: Vec::new(),
+        invalidations,
       },
       Resolution::External => {
         let mut result = Ok(ResolverResult::Excluded);
@@ -282,7 +303,7 @@ impl Resolver for DefaultResolver {
 
         RequestResult {
           result,
-          invalidations: Vec::new(),
+          invalidations,
         }
       }
       Resolution::Global(global) => RequestResult {
@@ -292,7 +313,7 @@ impl Resolver for DefaultResolver {
           pipeline: None,
           side_effects,
         }),
-        invalidations: Vec::new(),
+        invalidations,
       },
     }
   }

@@ -13,6 +13,7 @@ use crate::environment::{
   Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, OutputFormat, SourceType,
 };
 use crate::intern::Interned;
+use crate::request_tracker::Invalidation;
 use crate::requests::asset_request::{Transformer, TransformerResult};
 use crate::types::{
   Asset, AssetFlags, AssetType, BuildMode, BundleBehavior, Dependency, DependencyFlags,
@@ -231,7 +232,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>, options: &'a ParcelOptions) -> Confi
   Config {
     filename: (*asset.file_path).clone(),
     code,
-    module_id: format!("{:016x}", asset.id()),
+    module_id: asset.id().to_string(),
     project_root: Cow::Borrowed(&options.project_root),
     replace_env: !asset.env.context.is_node(),
     env: Cow::Borrowed(&options.env),
@@ -291,9 +292,7 @@ fn convert_result(
   let env = asset.env;
   let asset_id = asset.id();
 
-  asset
-    .meta
-    .insert("id".into(), format!("{:016x}", asset_id).into());
+  asset.meta.insert("id".into(), asset_id.to_string());
 
   if let Some(shebang) = result.shebang {
     asset.meta.insert("interpreter".into(), shebang.into());
@@ -313,7 +312,7 @@ fn convert_result(
     result.hoist_result.is_some() || result.symbol_result.is_some(),
   );
 
-  let mut invalidate_on_file_change = Vec::new();
+  let mut invalidations = Vec::new();
 
   for dep in result.dependencies {
     let loc = convert_loc(file_path, &dep.loc);
@@ -342,7 +341,7 @@ fn convert_result(
         }
 
         let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -383,7 +382,7 @@ fn convert_result(
       }
       DependencyKind::ServiceWorker => {
         let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -424,7 +423,7 @@ fn convert_result(
       }
       DependencyKind::Worklet => {
         let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -458,7 +457,7 @@ fn convert_result(
       }
       DependencyKind::Url => {
         let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           source_path: Some(file_path.clone()),
@@ -484,7 +483,9 @@ fn convert_result(
         dep_map.insert(placeholder, d);
       }
       DependencyKind::File => {
-        invalidate_on_file_change.push(dep.specifier.to_string());
+        let file = dep.specifier.as_ref().into();
+        invalidations.push(Invalidation::InvalidateOnFileUpdate(file));
+        invalidations.push(Invalidation::InvalidateOnFileDelete(file));
       }
       _ => {
         let mut flags = dep_flags;
@@ -588,7 +589,7 @@ fn convert_result(
         }
 
         let d = Dependency {
-          source_asset_id: Some(format!("{:016x}", asset_id)),
+          source_asset_id: Some(asset_id),
           specifier: dep.specifier.as_ref().into(),
           specifier_type: match dep.kind {
             DependencyKind::Require => SpecifierType::Commonjs,
@@ -624,7 +625,7 @@ fn convert_result(
 
   if result.needs_esm_helpers {
     let d = Dependency {
-      source_asset_id: Some(format!("{:016x}", asset_id)),
+      source_asset_id: Some(asset_id),
       specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
       specifier_type: SpecifierType::Esm,
       source_path: Some(file_path.clone()),
@@ -706,7 +707,7 @@ fn convert_result(
           let existing_flags = existing.map(|e| e.flags).unwrap_or(SymbolFlags::IS_WEAK);
           let re_export_name = existing
             .map(|sym| sym.local.clone())
-            .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, s.local).into());
+            .unwrap_or_else(|| format!("${}$re_export${}", asset_id, s.local).into());
           dep.symbols.push(Symbol {
             exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
@@ -769,7 +770,7 @@ fn convert_result(
     {
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${:016x}$exports", asset_id).into(),
+        local: format!("${}$exports", asset_id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -788,7 +789,7 @@ fn convert_result(
           .as_ref()
           .and_then(|source| dep_map.get_mut(source))
         {
-          let local = format!("${:016x}${}", dep.id(), sym.local).into();
+          let local = format!("${}${}", dep.id(), sym.local).into();
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
             local: local,
@@ -841,7 +842,7 @@ fn convert_result(
       {
         symbols.push(Symbol {
           exported: "*".into(),
-          local: format!("${:016x}$exports", asset_id).into(),
+          local: format!("${}$exports", asset_id).into(),
           loc: None,
           flags: SymbolFlags::empty(),
         });
@@ -850,7 +851,7 @@ fn convert_result(
       // If the asset is wrapped, add * as a fallback
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${:016x}$exports", asset_id).into(),
+        local: format!("${}$exports", asset_id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -886,7 +887,7 @@ fn convert_result(
   asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
 
   if asset.unique_key.is_none() {
-    asset.unique_key = Some(format!("{:016x}", asset_id));
+    asset.unique_key = Some(asset_id.to_string());
   }
 
   asset.asset_type = AssetType::Js;
@@ -894,13 +895,13 @@ fn convert_result(
     asset,
     code: result.code,
     dependencies: dep_map.into_values().collect(),
+    invalidations,
     // code: result.code,
     // map: result.map,
     // shebang: result.shebang,
     // dependencies: deps,
     // diagnostics: result.diagnostics,
     // used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
-    // invalidate_on_file_change,
   })
 }
 

@@ -1610,7 +1610,7 @@ async function loadRequestGraph(options): Async<[RequestGraph, ParcelRust]> {
     requestGraph.invalidateOptionNodes(options);
 
     rustParcel.readFromCache(`${cacheKey}-rustCache`);
-    console.log(options.cache.getBlob(`${cacheKey}-rustCache`).toString())
+    // console.log(options.cache.getBlob(`${cacheKey}-rustCache`).toString())
 
     if (rustParcel.nextBuild(events)) {
       let id = requestGraph.getNodeIdByContentKey('Main');

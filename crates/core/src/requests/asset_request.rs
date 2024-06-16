@@ -7,7 +7,9 @@ use crate::{
   parcel_config::{PipelineMap, PluginNode},
   request_tracker::{Invalidation, Request, RequestResult},
   transformers::run_transformer,
-  types::{Asset, AssetFlags, AssetStats, AssetType, Dependency, JSONObject, ParcelOptions},
+  types::{
+    Asset, AssetFlags, AssetStats, AssetType, Dependency, HashValue, JSONObject, ParcelOptions,
+  },
   worker_farm::WorkerFarm,
 };
 use xxhash_rust::xxh3::xxh3_64;
@@ -60,9 +62,9 @@ impl<'a> Request for AssetRequest<'a> {
           .and_then(|s| s.to_str())
           .unwrap_or(""),
       ),
-      content_key: String::new(),
+      content_key: HashValue(0),
       map_key: None,
-      output_hash: String::new(),
+      output_hash: HashValue(0),
       pipeline: self.pipeline,
       meta: JSONObject::new(),
       stats: AssetStats { size: 0, time: 0 },
@@ -77,37 +79,42 @@ impl<'a> Request for AssetRequest<'a> {
       .unwrap_or_else(|| options.input_fs.read(&asset.file_path.as_ref()).unwrap());
     let result = run_pipeline(pipeline, asset, code, &self.transformers, farm, options);
 
-    let result = match result {
+    let (result, mut invalidations) = match result {
       Ok(mut result) => {
-        result.asset.output_hash = format!("{:x}", xxh3_64(&result.code));
-        result.asset.content_key = format!("{:x}", result.asset.id()); // TODO
+        result.asset.output_hash = HashValue(xxh3_64(&result.code));
+        result.asset.content_key = result.asset.id(); // TODO
         result.asset.stats.size = result.code.len() as u32;
 
         options
           .cache
-          .set(result.asset.content_key.clone(), result.code);
-        Ok(AssetRequestResult {
-          asset: result.asset,
-          dependencies: result.dependencies,
-        })
+          .set(format!("{:016x}", result.asset.content_key.0), result.code);
+        (
+          Ok(AssetRequestResult {
+            asset: result.asset,
+            dependencies: result.dependencies,
+          }),
+          result.invalidations,
+        )
       }
-      Err(err) => Err(err),
+      Err(err) => (Err(err), Vec::new()),
     };
+
+    invalidations.push(Invalidation::InvalidateOnFileUpdate(self.file_path));
 
     RequestResult {
       result,
-      // TODO: add more invalidations
-      invalidations: vec![Invalidation::InvalidateOnFileUpdate(self.file_path)],
+      invalidations,
     }
   }
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 pub struct TransformerResult {
   pub asset: Asset,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub dependencies: Vec<Dependency>,
+  pub invalidations: Vec<Invalidation>,
 }
 
 pub trait Transformer {
@@ -132,6 +139,7 @@ fn run_pipeline(
     asset,
     code,
     dependencies: vec![],
+    invalidations: vec![],
   };
 
   for transformer in &pipeline {
@@ -157,6 +165,7 @@ fn run_pipeline(
     result.asset = transformed.asset;
     result.code = transformed.code;
     result.dependencies.extend(transformed.dependencies);
+    result.invalidations.extend(transformed.invalidations);
   }
 
   Ok(result)

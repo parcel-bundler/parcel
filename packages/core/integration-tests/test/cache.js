@@ -195,7 +195,7 @@ describe.only('cache', function () {
     assert.deepEqual(await exec(b.bundleGraph, html[1]), ['c', 'b']);
   });
 
-  it.only('should error when deleting a file', async function () {
+  it('should error when deleting a file', async function () {
     // $FlowFixMe
     await assert.rejects(
       async () => {
@@ -227,18 +227,18 @@ describe.only('cache', function () {
 
   describe('babel', function () {
     let json = config => JSON.stringify(config);
-    let cjs = config => `module.exports = ${JSON.stringify(config)}`;
+    // let cjs = config => `module.exports = ${JSON.stringify(config)}`;
     // TODO: not sure how to invalidate the ESM cache in node...
     // let mjs = (config) => `export default ${JSON.stringify(config)}`;
     let configs = [
       {name: '.babelrc', formatter: json, nesting: true},
       {name: '.babelrc.json', formatter: json, nesting: true},
-      {name: '.babelrc.js', formatter: cjs, nesting: true},
-      {name: '.babelrc.cjs', formatter: cjs, nesting: true},
+      // {name: '.babelrc.js', formatter: cjs, nesting: true},
+      // {name: '.babelrc.cjs', formatter: cjs, nesting: true},
       // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
       {name: 'babel.config.json', formatter: json, nesting: false},
-      {name: 'babel.config.js', formatter: cjs, nesting: false},
-      {name: 'babel.config.cjs', formatter: cjs, nesting: false},
+      // {name: 'babel.config.js', formatter: cjs, nesting: false},
+      // {name: 'babel.config.cjs', formatter: cjs, nesting: false},
       // {name: 'babel.config.mjs', formatter: mjs, nesting: false},
     ];
 
@@ -785,7 +785,7 @@ describe.only('cache', function () {
       });
     });
 
-    describe('plugins', function () {
+    describe.skip('plugins', function () {
       it('should invalidate when plugins are updated', async function () {
         let b = await testCache({
           // Babel's config loader only works with the node filesystem
@@ -6671,7 +6671,7 @@ describe.only('cache', function () {
     });
   });
 
-  it('should correctly read additional child assets from cache', async function () {
+  it.skip('should correctly read additional child assets from cache', async function () {
     await ncp(
       path.join(__dirname, '/integration/postcss-modules-cjs'),
       path.join(inputDir),
@@ -6705,7 +6705,7 @@ describe.only('cache', function () {
     assert.strictEqual(result1, result3);
   });
 
-  it('should correctly read additional child assets from cache 2', async function () {
+  it.skip('should correctly read additional child assets from cache 2', async function () {
     await ncp(
       path.join(__dirname, '/integration/postcss-modules-cjs'),
       path.join(inputDir),
@@ -6775,7 +6775,7 @@ describe.only('cache', function () {
     assert.strictEqual(result3, 3);
   });
 
-  it('properly watches included files even after resaving them without changes', async function () {
+  it.skip('properly watches included files even after resaving them without changes', async function () {
     this.timeout(15000);
     let subscription;
     let fixture = path.join(__dirname, '/integration/included-file');

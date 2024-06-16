@@ -265,6 +265,7 @@ async function runTransformer(
     category: 'transform',
   });
   let config = undefined;
+  let invalidations = [];
 
   if (transformer.loadConfig) {
     config = createConfig({
@@ -280,6 +281,8 @@ async function runTransformer(
       logger,
       tracer,
     });
+
+    addInvalidations(options.projectRoot, config, invalidations);
   }
 
   if (transformer.parse) {
@@ -353,13 +356,35 @@ async function runTransformer(
         : null;
       dep.placeholder ??= dep.id;
     }
+
+    addInvalidations(options.projectRoot, uncommittedAsset.invalidations, invalidations);
+
     return {
       asset,
       dependencies,
       code: await uncommittedAsset.getBuffer(),
+      invalidations
     };
   } else {
     throw new Error('todo');
+  }
+}
+
+function addInvalidations(projectRoot, invalidations, result) {
+  for (let file of invalidations.invalidateOnFileChange) {
+    file = fromProjectPath(projectRoot, file);
+    result.push({InvalidateOnFileUpdate: file});
+    result.push({InvalidateOnFileDelete: file});
+  }
+
+  for (let f of invalidations.invalidateOnFileCreate) {
+    if (f.filePath != null) {
+      result.push({InvalidateOnFileCreate: fromProjectPath(projectRoot, f.filePath)});
+    } else if (f.glob != null) {
+      result.push({InvalidateOnGlobCreate: f.glob});
+    } else {
+      result.push({InvalidateOnFileCreateAbove: {file_name: f.fileName, above: fromProjectPath(projectRoot, f.aboveFilePath)}});
+    }
   }
 }
 

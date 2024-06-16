@@ -38,7 +38,43 @@ pub struct Location {
 }
 
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
-pub struct AssetId(pub NonZeroU32);
+pub struct HashValue(pub u64);
+
+impl Serialize for HashValue {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    if serializer.is_human_readable() {
+      format!("{:016x}", self.0).serialize(serializer)
+    } else {
+      self.0.serialize(serializer)
+    }
+  }
+}
+
+impl<'de> Deserialize<'de> for HashValue {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    if deserializer.is_human_readable() {
+      let s: String = Deserialize::deserialize(deserializer)?;
+      Ok(HashValue(
+        u64::from_str_radix(&s, 16).map_err(|e| serde::de::Error::custom(e.to_string()))?,
+      ))
+    } else {
+      let v: u64 = Deserialize::deserialize(deserializer)?;
+      Ok(HashValue(v))
+    }
+  }
+}
+
+impl std::fmt::Display for HashValue {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{:016x}", self.0)
+  }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,9 +84,9 @@ pub struct Asset {
   pub query: Option<String>,
   #[serde(rename = "type")]
   pub asset_type: AssetType,
-  pub content_key: String,
-  pub map_key: Option<String>,
-  pub output_hash: String,
+  pub content_key: HashValue,
+  pub map_key: Option<HashValue>,
+  pub output_hash: HashValue,
   pub pipeline: Option<String>,
   pub meta: JSONObject,
   pub stats: AssetStats,
@@ -61,7 +97,7 @@ pub struct Asset {
 }
 
 impl Asset {
-  pub fn id(&self) -> u64 {
+  pub fn id(&self) -> HashValue {
     use std::hash::{Hash, Hasher};
     let mut hasher = GxHasher::default();
     self.file_path.hash(&mut hasher);
@@ -70,7 +106,7 @@ impl Asset {
     self.unique_key.hash(&mut hasher);
     self.pipeline.hash(&mut hasher);
     self.query.hash(&mut hasher);
-    hasher.finish()
+    HashValue(hasher.finish())
   }
 }
 
@@ -204,7 +240,7 @@ impl_bitflags_serde!(AssetFlags);
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   // pub id: String,
-  pub source_asset_id: Option<String>,
+  pub source_asset_id: Option<HashValue>,
   pub specifier: String,
   pub specifier_type: SpecifierType,
   pub source_path: Option<Interned<PathBuf>>,
@@ -266,7 +302,7 @@ impl Dependency {
     }
   }
 
-  pub fn id(&self) -> u64 {
+  pub fn id(&self) -> HashValue {
     // Compute hashed dependency id.
     use std::hash::{Hash, Hasher};
     let mut hasher = GxHasher::default();
@@ -280,7 +316,7 @@ impl Dependency {
     self.priority.hash(&mut hasher);
     self.package_conditions.hash(&mut hasher);
     self.custom_package_conditions.hash(&mut hasher);
-    hasher.finish()
+    HashValue(hasher.finish())
   }
 
   // pub fn commit(mut self) -> u32 {

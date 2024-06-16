@@ -1,3 +1,4 @@
+use crossbeam_channel::Sender;
 use napi::{
   threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
   Env, JsFunction, JsObject, JsUnknown, Ref,
@@ -79,6 +80,9 @@ pub fn create_js_thread_safe_method<
     if std::thread::current().id() == tid {
       let jsfn = js_fn_ref.get()?;
       let result = jsfn.call(None, params.to_js_args(&env)?.as_ref())?;
+      if result.is_promise()? {
+        println!("PROMISE");
+      }
       return env.from_js_value(result);
     }
 
@@ -86,15 +90,7 @@ pub fn create_js_thread_safe_method<
     threadsafe_function.call_with_return_value(
       params,
       ThreadsafeFunctionCallMode::Blocking,
-      move |result: JsUnknown| {
-        let result = if result.is_error()? {
-          Err(napi::Error::from(result))
-        } else {
-          env.from_js_value(result)
-        };
-        let _ = tx.send(result);
-        Ok(())
-      },
+      move |result: JsUnknown| await_promise(env, result, tx),
     );
     rx.recv().unwrap()
   };
@@ -108,6 +104,39 @@ fn get_bound_function(obj: &JsObject, method_name: &str) -> napi::Result<JsFunct
   let bind: JsFunction = fn_obj.get_named_property("bind")?;
   let jsfn: JsFunction = bind.call(Some(&fn_obj), &[obj])?.try_into()?;
   Ok(jsfn)
+}
+
+fn await_promise<Response: Send + DeserializeOwned + 'static>(
+  env: Env,
+  result: JsUnknown,
+  tx: Sender<napi::Result<Response>>,
+) -> napi::Result<()> {
+  // If the result is a promise, wait for it to resolve, and send the result to the channel.
+  // Otherwise, send the result immediately.
+  if result.is_promise()? {
+    let result: JsObject = result.try_into()?;
+    let then: JsFunction = result.get_named_property("then")?;
+    let tx2 = tx.clone();
+    let cb = env.create_function_from_closure("callback", move |ctx| {
+      let res = ctx.env.from_js_value(ctx.get::<JsUnknown>(0)?)?;
+      tx.send(Ok(res)).expect("send failure");
+      ctx.env.get_undefined()
+    })?;
+    let eb = env.create_function_from_closure("error_callback", move |ctx| {
+      let err = napi::Error::from(ctx.get::<JsUnknown>(0)?);
+      tx2.send(Err(err)).expect("send failure");
+      ctx.env.get_undefined()
+    })?;
+    then.call(Some(&result), &[cb, eb])?;
+  } else if result.is_error()? {
+    let res = Err(napi::Error::from(result));
+    tx.send(res).expect("send failure");
+  } else {
+    let res = env.from_js_value(result)?;
+    tx.send(Ok(res)).expect("send failure");
+  }
+
+  Ok(())
 }
 
 pub trait JsArgs: Serialize {
