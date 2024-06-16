@@ -259,15 +259,15 @@ pub struct Dependency {
   #[serde(default)]
   pub symbols: Vec<Symbol>,
   #[serde(default)]
-  pub promise_symbol: Option<String>,
+  pub promise_symbol: Option<Interned<String>>,
   #[serde(default)]
   pub import_attributes: Vec<ImportAttribute>,
   #[serde(default)]
   pub pipeline: Option<String>,
   #[serde(default)]
-  pub meta: JSONObject,
+  pub meta: Option<Box<JSONObject>>,
   #[serde(default)]
-  pub resolver_meta: JSONObject,
+  pub resolver_meta: Option<Box<JSONObject>>,
   #[serde(default)]
   pub package_conditions: ExportsCondition,
   #[serde(default)]
@@ -295,8 +295,8 @@ impl Dependency {
       promise_symbol: None,
       import_attributes: Vec::new(),
       pipeline: None,
-      meta: JSONObject::new(),
-      resolver_meta: JSONObject::new(),
+      meta: None,
+      resolver_meta: None,
       package_conditions: ExportsCondition::empty(),
       custom_package_conditions: Vec::new(),
     }

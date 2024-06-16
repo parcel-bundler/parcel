@@ -130,7 +130,7 @@ export default class Dependency implements IDependency {
   }
 
   get meta(): Meta {
-    return new Proxy(this.#dep.meta, {
+    return new Proxy(this.#dep.meta ?? {}, {
       get: (target, prop) => {
         let flags = this.#dep.flags;
         switch (prop) {
