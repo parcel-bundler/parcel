@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
@@ -79,7 +79,7 @@ fn convert_result(
   let asset_id = asset.id();
 
   if let Some(shebang) = result.shebang {
-    asset.meta.insert("interpreter".into(), shebang.into());
+    asset.set_interpreter(shebang);
   }
 
   let (mut dependency_by_specifier, invalidate_on_file_change) = convert_dependencies(
@@ -109,16 +109,20 @@ fn convert_result(
   let mut has_cjs_exports = false;
   let mut static_cjs_exports = false;
   let mut should_wrap = false;
-  let symbols = &mut asset.symbols;
   if let Some(hoist_result) = result.hoist_result {
-    asset.flags |= AssetFlags::HAS_SYMBOLS;
-    symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
+    asset.flags.set(AssetFlags::HAS_SYMBOLS, true);
+    // Pre-allocate expected symbols
+    asset
+      .symbols
+      .reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
 
+    // Collect all exported variable names into `asset.symbols`
     for symbol in &hoist_result.exported_symbols {
       let symbol = transformer_exported_symbol_into_symbol(&asset_file_path, &symbol);
-      symbols.push(symbol);
+      asset.symbols.push(symbol);
     }
 
+    // Collect all imported symbols into each of the corresponding dependencies' symbols array
     for symbol in hoist_result.imported_symbols {
       if let Some(dependency) = dependency_by_specifier.get_mut(&symbol.source) {
         let symbol = transformer_imported_symbol_to_symbol(&asset_file_path, &symbol);
@@ -128,10 +132,10 @@ fn convert_result(
 
     for symbol in hoist_result.re_exports {
       if let Some(dependency) = dependency_by_specifier.get_mut(&symbol.source) {
-        if symbol.local == "*" && symbol.imported == "*" {
+        if is_re_export_all_symbol(&symbol) {
           let loc = Some(convert_loc(asset_file_path.clone(), &symbol.loc));
           dependency.symbols.push(make_export_all_symbol(loc));
-          // Why isn't this added to the symbols array
+          // TODO: Why isn't this added to the asset.symbols array?
         } else {
           let existing = dependency
             .symbols
@@ -139,6 +143,8 @@ fn convert_result(
             .iter()
             .find(|candidate| candidate.exported == &*symbol.imported);
           let existing_flags = existing.map(|e| e.flags).unwrap_or(SymbolFlags::IS_WEAK);
+
+          // TODO: What is this? There is no such mangling in the transformer
           let re_export_name = existing
             .map(|sym| sym.local.clone())
             .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, symbol.local).into());
@@ -150,42 +156,42 @@ fn convert_result(
           };
 
           dependency.symbols.push(symbol.clone());
-          symbols.push(symbol);
+          asset.symbols.push(symbol);
         }
       }
     }
 
     for specifier in hoist_result.wrapped_requires {
       if let Some(dep) = dependency_by_specifier.get_mut(&swc_core::atoms::JsWord::new(specifier)) {
-        dep.flags |= DependencyFlags::SHOULD_WRAP;
+        dep.flags.set(DependencyFlags::SHOULD_WRAP, true);
       }
     }
 
-    for (name, specifier) in hoist_result.dynamic_imports {
-      if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
-        dep.promise_symbol = Some((&*name).into());
+    // for (name, specifier) in hoist_result.dynamic_imports {
+    //   if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
+    //     dep.promise_symbol = Some((&*name).into());
+    //   }
+    // }
+
+    for name in hoist_result.self_references {
+      // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
+      if &*name == "default"
+        && !asset
+          .symbols
+          .as_slice()
+          .iter()
+          .any(|s| &*s.exported == "__esModule")
+      {
+        continue;
       }
-    }
 
-    if !hoist_result.self_references.is_empty() {
-      for name in hoist_result.self_references {
-        // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
-        if &*name == "default"
-          && !symbols
-            .as_slice()
-            .iter()
-            .any(|s| &*s.exported == "__esModule")
-        {
-          continue;
-        }
+      let symbol = asset
+        .symbols
+        .iter_mut()
+        .find(|s| s.exported.as_str() == name.as_str())
+        .unwrap();
 
-        let symbol = symbols
-          .iter_mut()
-          .find(|s| s.exported.as_str() == name.as_str())
-          .unwrap();
-
-        symbol.flags |= SymbolFlags::SELF_REFERENCED;
-      }
+      symbol.flags.set(SymbolFlags::SELF_REFERENCED, true);
     }
 
     // Add * symbol if there are CJS exports, no imports/exports at all
@@ -197,9 +203,9 @@ fn convert_result(
         && dependency_by_specifier.is_empty()
         && hoist_result.exported_symbols.is_empty())
       || hoist_result.should_wrap)
-      && !symbols.as_slice().iter().any(|s| s.exported == "*")
+      && !asset.symbols.as_slice().iter().any(|s| s.exported == "*")
     {
-      symbols.push(make_export_star_symbol(asset_id));
+      asset.symbols.push(make_export_star_symbol(asset_id));
     }
 
     has_cjs_exports = hoist_result.has_cjs_exports;
@@ -208,7 +214,7 @@ fn convert_result(
   } else {
     if let Some(symbol_result) = result.symbol_result {
       asset.flags |= AssetFlags::HAS_SYMBOLS;
-      symbols.reserve(symbol_result.exports.len() + 1);
+      asset.symbols.reserve(symbol_result.exports.len() + 1);
       for sym in &symbol_result.exports {
         let (local, flags) = if let Some(dep) = sym
           .source
@@ -227,7 +233,7 @@ fn convert_result(
           (format!("${}", sym.local).into(), SymbolFlags::empty())
         };
 
-        symbols.push(Symbol {
+        asset.symbols.push(Symbol {
           exported: sym.exported.as_ref().into(),
           local,
           loc: Some(convert_loc(asset_file_path.clone(), &sym.loc)),
@@ -237,12 +243,12 @@ fn convert_result(
 
       for sym in symbol_result.imports {
         if let Some(dep) = dependency_by_specifier.get_mut(&sym.source) {
-          dep.symbols.push(Symbol {
-            exported: sym.imported.as_ref().into(),
-            local: sym.local.as_ref().into(),
-            loc: Some(convert_loc(asset_file_path.clone(), &sym.loc)),
-            flags: SymbolFlags::empty(),
-          });
+          dep
+            .symbols
+            .push(transformer_collect_imported_symbol_to_symbol(
+              &asset_file_path,
+              &sym,
+            ));
         }
       }
 
@@ -260,13 +266,14 @@ fn convert_result(
           && asset.side_effects
           && dependency_by_specifier.is_empty()
           && symbol_result.exports.is_empty())
-        || (symbol_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
+        || (symbol_result.should_wrap
+          && !asset.symbols.as_slice().iter().any(|s| s.exported == "*"))
       {
-        symbols.push(make_export_star_symbol(asset_id));
+        asset.symbols.push(make_export_star_symbol(asset_id));
       }
     } else {
       // If the asset is wrapped, add * as a fallback
-      symbols.push(make_export_star_symbol(asset_id));
+      asset.symbols.push(make_export_star_symbol(asset_id));
     }
 
     // For all other imports and requires, mark everything as imported (this covers both dynamic
@@ -321,9 +328,20 @@ fn convert_result(
   })
 }
 
+/// Returns true if this `ImportedSymbol` corresponds to a statement such as:
+///
+/// ```skip
+/// export * from 'other';
+/// ```
+///
+/// See [`HoistResult::re_exports`]
+fn is_re_export_all_symbol(symbol: &ImportedSymbol) -> bool {
+  symbol.local == "*" && symbol.imported == "*"
+}
+
 fn convert_dependencies(
   transformer_config: &Config,
-  dependencies: Vec<DependencyDescriptor>,
+  dependencies: Vec<parcel_js_swc_core::DependencyDescriptor>,
   asset_file_path: &PathBuf,
   asset_environment: &Environment,
   asset_id: u64,
@@ -368,18 +386,28 @@ fn make_export_star_symbol(asset_id: u64) -> Symbol {
   }
 }
 
-fn transformer_imported_symbol_to_symbol(
-  asset_file_path: &PathBuf,
-  sym: &ImportedSymbol,
+fn transformer_collect_imported_symbol_to_symbol(
+  asset_file_path: &Path,
+  sym: &parcel_js_swc_core::CollectImportedSymbol,
 ) -> Symbol {
   Symbol {
     exported: sym.imported.as_ref().into(),
     local: sym.local.as_ref().into(),
-    loc: Some(convert_loc(asset_file_path.clone(), &sym.loc)),
+    loc: Some(convert_loc(asset_file_path.to_owned(), &sym.loc)),
     flags: SymbolFlags::empty(),
   }
 }
 
+fn transformer_imported_symbol_to_symbol(asset_file_path: &Path, sym: &ImportedSymbol) -> Symbol {
+  Symbol {
+    exported: sym.imported.as_ref().into(),
+    local: sym.local.as_ref().into(),
+    loc: Some(convert_loc(asset_file_path.to_owned(), &sym.loc)),
+    flags: SymbolFlags::empty(),
+  }
+}
+
+/// Convert from `[ExportedSymbol]` to `[Symbol]`
 fn transformer_exported_symbol_into_symbol(
   asset_file_path: &PathBuf,
   symbol: &ExportedSymbol,
@@ -457,7 +485,7 @@ fn convert_dependency(
   asset_file_path: &PathBuf,
   asset_environment: &Environment,
   asset_id: u64,
-  transformer_dependency: DependencyDescriptor,
+  transformer_dependency: parcel_js_swc_core::DependencyDescriptor,
   loc: SourceLocation,
 ) -> Result<DependencyConversionResult, Vec<Diagnostic>> {
   let base_dependency = Dependency {
@@ -477,14 +505,7 @@ fn convert_dependency(
     package_conditions: ExportsCondition::empty(),
     ..Dependency::default()
   };
-  let source_type = if matches!(
-    transformer_dependency.source_type,
-    Some(parcel_js_swc_core::SourceType::Module)
-  ) {
-    SourceType::Module
-  } else {
-    SourceType::Script
-  };
+  let source_type = convert_source_type(&transformer_dependency);
   match transformer_dependency.kind {
     DependencyKind::WebWorker => {
       // Use native ES module output if the worker was created with `type: 'module'` and all targets
@@ -662,6 +683,17 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
+  }
+}
+
+fn convert_source_type(transformer_dependency: &DependencyDescriptor) -> SourceType {
+  if matches!(
+    transformer_dependency.source_type,
+    Some(parcel_js_swc_core::SourceType::Module)
+  ) {
+    SourceType::Module
+  } else {
+    SourceType::Script
   }
 }
 

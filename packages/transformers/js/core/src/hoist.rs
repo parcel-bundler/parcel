@@ -254,6 +254,13 @@ pub struct HoistResult {
   ///     },
   /// ]
   /// ```
+  ///
+  /// On the case the export statement is an export star:
+  /// ```skip
+  /// export * from './something';
+  /// ```
+  ///
+  /// Then this array will have both `imported` and `local` set to a magic "*" value.
   pub re_exports: Vec<ImportedSymbol>,
   /// A vector of the 'original local' names of exported symbols that are self-referenced within the
   /// file they are being exported from.
@@ -276,7 +283,11 @@ pub struct HoistResult {
   /// };
   /// ```
   pub self_references: HashSet<JsWord>,
-  /// TODO: What is this?
+  /// When require statements are used programmatically, their sources will be collected here.
+  ///
+  /// These would be the module names of dynamically imported or required modules.
+  ///
+  /// TODO: add example
   pub wrapped_requires: HashSet<String>,
   /// A map of async import placeholder variable names to source specifiers.
   ///

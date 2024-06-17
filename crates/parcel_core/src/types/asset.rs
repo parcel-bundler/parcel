@@ -141,6 +141,10 @@ impl Asset {
       ..Default::default()
     }
   }
+
+  pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {
+    self.meta.insert("interpreter".into(), shebang.into());
+  }
 }
 
 // TODO: All of these should have documentation

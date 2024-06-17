@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use collect::Collect;
+pub use collect::CollectImportedSymbol;
 use collect::CollectResult;
 use constant_module::ConstantModule;
 pub use dependency_collector::dependency_collector;
