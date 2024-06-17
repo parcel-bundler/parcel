@@ -924,7 +924,13 @@ ${code}
     if (resolved.meta.isConstantModule) {
       invariant(
         this.bundle.hasAsset(resolved),
-        'Constant module not found in bundle',
+        `Constant module ${path.relative(
+          this.options.projectRoot,
+          resolved.filePath,
+        )} referenced from ${path.relative(
+          this.options.projectRoot,
+          parentAsset.filePath,
+        )} not found in bundle ${this.bundle.name}`,
       );
       return false;
     }
