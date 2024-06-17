@@ -220,7 +220,7 @@ pub struct HoistResult {
   pub exported_symbols: Vec<ExportedSymbol>,
   /// Symbols re-exported from other modules.
   ///
-  /// If a symbol is re-exported from another module, parcel will remove delete the export statement
+  /// If a symbol is re-exported from another module, parcel will remove the export statement
   /// from the asset.
   ///
   /// For example, if an input file is:

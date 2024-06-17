@@ -1721,6 +1721,7 @@ dependencies = [
 name = "parcel"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "anyhow",
  "dyn-hash",
  "parcel-resolver",
@@ -1831,6 +1832,7 @@ dependencies = [
  "itertools 0.10.5",
  "json_comments",
  "once_cell",
+ "parcel_core",
  "parcel_filesystem",
  "parking_lot",
  "percent-encoding",
@@ -1864,11 +1866,9 @@ name = "parcel_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bitflags 2.5.0",
  "browserslist-rs",
  "dyn-hash",
  "nodejs-semver",
- "parcel-resolver",
  "parcel_filesystem",
  "serde",
  "serde-value",

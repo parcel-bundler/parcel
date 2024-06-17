@@ -1,18 +1,10 @@
 use parcel_filesystem::FileSystemRef;
 use std::fmt::Debug;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use parcel_resolver::SpecifierType;
-
 use crate::types::{Asset, SourceCode};
-use crate::types::{Dependency, SourceMap};
-
-pub struct GenerateOutput {
-  pub content: File,
-  pub map: Option<SourceMap>,
-}
+use crate::types::{Dependency, SpecifierType};
 
 pub struct ResolveOptions {
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
@@ -25,11 +17,12 @@ pub struct ResolveOptions {
 /// A function that enables transformers to resolve a dependency specifier
 pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, anyhow::Error>;
 
-/// Transformers may run against:
+/// The input to transform within the plugin
 ///
+/// Transformers may run against two distinguished scenarios:
 /// * File-paths that have just been discovered
 /// * Outputs of previous transformation steps, which are in-place modified
-/// * These two scenarios are distinguished
+///
 pub enum TransformationInput {
   FilePath(PathBuf),
   Asset(Asset),
