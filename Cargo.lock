@@ -1723,6 +1723,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dyn-hash",
+ "num_cpus",
  "parcel-resolver",
  "parcel_config",
  "parcel_core",
@@ -1797,7 +1798,6 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "num_cpus",
  "once_cell",
  "oxipng",
  "parcel",

@@ -11,15 +11,12 @@ export type ParcelV3Options = {|
   fs?: FileSystem,
 |};
 
+export type ParcelV3BuildOptions = {||};
+
 export class ParcelV3 {
   _internal: napi.ParcelNapi;
-  #nodeWorkerCount: number;
 
-  constructor({
-    threads = napi.ParcelNapi.defaultThreadCount(),
-    nodeWorkers,
-  }: ParcelV3Options) {
-    this.#nodeWorkerCount = nodeWorkers || threads;
+  constructor({threads, nodeWorkers}: ParcelV3Options) {
     this._internal = new napi.ParcelNapi({
       threads,
       nodeWorkers,
@@ -49,12 +46,12 @@ export class ParcelV3 {
     }
   }
 
-  async build(): Promise<any> {
+  async build(options: ParcelV3BuildOptions): Promise<any> {
     // initialize workers lazily
     const workers = this.#startWorkers();
 
     // Run the Parcel build
-    let result = await this._internal.build();
+    let result = await this._internal.build(options);
 
     // Stop workers
     this.#stopWorkers(await workers);
@@ -65,7 +62,7 @@ export class ParcelV3 {
     const workersOnLoad = [];
     const workers = [];
 
-    for (let i = 0; i < this.#nodeWorkerCount; i++) {
+    for (let i = 0; i < this._internal.nodeWorkerCount; i++) {
       let worker = new Worker(path.join(__dirname, 'worker', 'index.js'));
       workers.push(worker);
       workersOnLoad.push(

@@ -10,12 +10,27 @@ use parcel_plugin_rpc::RpcHostRef;
 pub struct Parcel {
   pub fs: FileSystemRef,
   pub rpc: Option<RpcHostRef>,
+  pub threads: usize,
 }
 
 pub struct ParcelOptions {
   pub fs: Option<FileSystemRef>,
   pub rpc: Option<RpcHostRef>,
+  pub threads: usize,
 }
+
+impl Default for ParcelOptions {
+  fn default() -> Self {
+    Self {
+      fs: Some(Arc::new(OsFileSystem::default())),
+      rpc: Default::default(),
+      threads: num_cpus::get(),
+    }
+  }
+}
+
+pub struct BuildOptions;
+pub struct BuildResult;
 
 impl Parcel {
   pub fn new(options: ParcelOptions) -> Self {
@@ -28,16 +43,17 @@ impl Parcel {
     Self {
       fs,
       rpc: options.rpc,
+      threads: options.threads,
     }
   }
 
-  pub fn build(&self) -> anyhow::Result<()> {
+  pub fn build(&self, options: BuildOptions) -> anyhow::Result<BuildResult> {
     let mut _rpc_connection = None::<RpcConnectionRef>;
 
     if let Some(rpc_host) = &self.rpc {
       _rpc_connection = Some(rpc_host.start()?);
     }
 
-    Ok(())
+    Ok(BuildResult {})
   }
 }
