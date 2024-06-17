@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,8 +8,7 @@ use once_cell::unsync::OnceCell;
 use package_json::AliasValue;
 use package_json::ExportsResolution;
 use package_json::PackageJson;
-use serde::Deserialize;
-use serde::Serialize;
+pub use parcel_core::types::IncludeNodeModules;
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -74,34 +72,6 @@ bitflags! {
     const NODE_ESM = Self::EXPORTS.bits;
     /// Default TypeScript settings.
     const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits;
-  }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum IncludeNodeModules {
-  Bool(bool),
-  Array(Vec<String>),
-  Map(HashMap<String, bool>),
-}
-
-impl Default for IncludeNodeModules {
-  fn default() -> Self {
-    IncludeNodeModules::Bool(true)
-  }
-}
-
-impl std::hash::Hash for IncludeNodeModules {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    match self {
-      IncludeNodeModules::Bool(b) => b.hash(state),
-      IncludeNodeModules::Array(a) => a.hash(state),
-      IncludeNodeModules::Map(m) => {
-        for (k, v) in m {
-          k.hash(state);
-          v.hash(state);
-        }
-      }
-    }
   }
 }
 
@@ -1230,7 +1200,7 @@ impl<'a> ResolveRequest<'a> {
 
 #[cfg(test)]
 mod tests {
-  use std::collections::HashSet;
+  use std::collections::{HashMap, HashSet};
 
   use super::cache::Cache;
   use super::*;

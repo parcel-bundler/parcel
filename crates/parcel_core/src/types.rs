@@ -25,6 +25,8 @@ pub use self::json::*;
 mod parcel_options;
 pub use self::parcel_options::*;
 
+pub mod package_json;
+
 mod source;
 pub use self::source::*;
 
