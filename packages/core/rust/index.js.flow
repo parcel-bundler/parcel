@@ -16,7 +16,7 @@ export interface ConfigRequest {
 }
 export interface RequestOptions {}
 
-export type RpcCallback = (error: any, id: number, data: any, done: (value: {| Ok: any |} | {| Err: any |}) => any) => any | Promise<any>;
+export type RpcCallback = (error: any, id: string, data: any, done: (value: {| Ok: any |} | {| Err: any |}) => any) => any | Promise<any>;
 
 export interface ParcelNapiOptions {
   fs?: ParcelFileSystem;

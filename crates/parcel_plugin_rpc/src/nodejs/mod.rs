@@ -1,11 +1,8 @@
+mod host;
 mod napi;
-mod rpc_conn_message;
-mod rpc_conn_nodejs;
-mod rpc_conns_nodejs;
-mod rpc_host_message;
-mod rpc_host_nodejs;
-mod worker_init;
+mod worker;
+mod worker_farm;
 
-pub use rpc_conn_nodejs::*;
-pub use rpc_conns_nodejs::*;
-pub use rpc_host_nodejs::*;
+pub use host::*;
+pub use worker::*;
+pub use worker_farm::*;

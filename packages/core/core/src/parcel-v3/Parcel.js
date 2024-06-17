@@ -4,6 +4,10 @@ import path from 'path';
 import {Worker} from 'worker_threads';
 import * as napi from '@parcel/rust';
 import type {FileSystem} from '@parcel/types';
+import {RpcEventRouter} from './RpcEventRouter';
+import type {HandlerFunc} from './RpcEventRouter';
+
+type PingHandler = HandlerFunc<'ping', void, void>;
 
 export type ParcelV3Options = {|
   threads?: number,
@@ -17,34 +21,18 @@ export class ParcelV3 {
   _internal: napi.ParcelNapi;
 
   constructor({threads, nodeWorkers, fs}: ParcelV3Options) {
+    const rpc = new RpcEventRouter();
+
     this._internal = new napi.ParcelNapi({
       threads,
       nodeWorkers,
       fs,
-      rpc: async (err, id, data, done) => {
-        try {
-          if (err) {
-            done({Err: err});
-            return;
-          }
-          done({Ok: (await this.#on_event(id, data)) ?? undefined});
-        } catch (error) {
-          done({Err: error});
-          return;
-        }
-      },
-    });
-  }
+      rpc: rpc.callback
+    })
 
-  // eslint-disable-next-line no-unused-vars
-  #on_event(id, data: any) {
-    switch (id) {
-      // Ping
-      case 0:
-        return;
-      default:
-        throw new Error('Unknown message');
-    }
+    rpc.on<PingHandler>('ping', () => {
+      /* loopback */
+    });
   }
 
   async build(options: ParcelV3BuildOptions): Promise<any> {

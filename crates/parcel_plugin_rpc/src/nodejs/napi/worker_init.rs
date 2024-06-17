@@ -1,15 +1,14 @@
 use std::sync::mpsc::channel;
-use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use std::thread;
 
 use once_cell::sync::Lazy;
 
-use super::rpc_conn_message::RpcConnectionMessage;
+use super::RpcCallback;
 
 enum WorkerInitMessage {
-  Subscribe(Sender<Receiver<RpcConnectionMessage>>),
-  Register(Receiver<RpcConnectionMessage>),
+  Subscribe(Sender<RpcCallback>),
+  Register(RpcCallback),
 }
 
 // Nodejs worker threads are initialized from JavaScript and cannot
@@ -22,8 +21,8 @@ static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   let (tx_subscribe, rx_subscribe) = channel::<WorkerInitMessage>();
 
   thread::spawn(move || {
-    let mut subscribers = Vec::<Sender<Receiver<RpcConnectionMessage>>>::new();
-    let mut rpx_receivers = Vec::<Receiver<RpcConnectionMessage>>::new();
+    let mut subscribers = Vec::<Sender<RpcCallback>>::new();
+    let mut rpx_receivers = Vec::<RpcCallback>::new();
 
     while let Ok(msg) = rx_subscribe.recv() {
       match msg {
@@ -48,16 +47,14 @@ static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   tx_subscribe
 });
 
-pub fn get_worker_tx() -> Sender<RpcConnectionMessage> {
-  let (tx_rpc, rx_rpc) = channel();
-  WORKER_INIT
-    .send(WorkerInitMessage::Register(rx_rpc))
-    .unwrap();
-  tx_rpc
-}
-
-pub fn get_worker_rx() -> Receiver<RpcConnectionMessage> {
+pub fn get_worker_callback() -> RpcCallback {
   let (tx, rx) = channel();
   WORKER_INIT.send(WorkerInitMessage::Subscribe(tx)).unwrap();
   rx.recv().unwrap()
+}
+
+pub fn register_worker_callback(callback: RpcCallback) {
+  WORKER_INIT
+    .send(WorkerInitMessage::Register(callback))
+    .unwrap();
 }
