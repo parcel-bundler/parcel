@@ -3,7 +3,6 @@
 import {fromNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
-import {getFeatureFlag} from '@parcel/feature-flags';
 import type {
   TraversalActions,
   GraphVisitor,

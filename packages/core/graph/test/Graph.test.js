@@ -4,7 +4,7 @@ import assert from 'assert';
 import sinon from 'sinon';
 import type {TraversalActions} from '@parcel/types-internal';
 
-import Graph, {type DFSParams} from '../src/Graph';
+import Graph from '../src/Graph';
 import {toNodeId, type NodeId} from '../src/types';
 
 describe('Graph', () => {
