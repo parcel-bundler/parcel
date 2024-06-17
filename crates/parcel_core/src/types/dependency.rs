@@ -8,9 +8,8 @@ use serde::Serialize;
 use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
 
-use parcel_resolver::ExportsCondition;
-
 use crate::impl_bitflags_serde;
+use crate::types::ExportsCondition;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;

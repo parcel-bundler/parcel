@@ -1721,7 +1721,6 @@ dependencies = [
 name = "parcel"
 version = "0.1.0"
 dependencies = [
- "ahash",
  "anyhow",
  "dyn-hash",
  "parcel-resolver",
@@ -1866,6 +1865,7 @@ name = "parcel_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags 2.5.0",
  "browserslist-rs",
  "dyn-hash",
  "nodejs-semver",

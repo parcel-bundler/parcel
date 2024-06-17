@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 bitflags! {
   /// Represents a condition name within the exports field of package.json
+  #[derive(Default, Debug, Copy, Clone)]
   pub struct ExportsCondition: u16 {
     const IMPORT = 1 << 0;
     const REQUIRE = 1 << 1;

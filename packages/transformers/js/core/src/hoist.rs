@@ -3169,14 +3169,14 @@ mod tests {
       vec![JsWord::from("foo")]
     );
     assert_eq!(hoist.exported_symbols.len(), 3);
-    /// First exported symbol is `export foo`
+    // First exported symbol is `export foo`
     assert_eq!(
       hoist.exported_symbols[0].local,
       JsWord::from("$abc$export$6a5cdcad01c973fa")
     );
     assert_eq!(hoist.exported_symbols[0].exported, JsWord::from("foo"));
 
-    /// Second is `export something`
+    // Second is `export something`
     assert_eq!(
       hoist.exported_symbols[1].local,
       JsWord::from("$abc$export$ce14ccb78c97a7d4")
@@ -3186,7 +3186,7 @@ mod tests {
       JsWord::from("something")
     );
 
-    /// Third is `export foo` again, but on the something location
+    // Third is `export foo` again, but on the something location
     assert_eq!(
       hoist.exported_symbols[2].local,
       JsWord::from("$abc$export$6a5cdcad01c973fa")
