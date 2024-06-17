@@ -14,7 +14,11 @@ pub struct Symbol {
   ///
   /// Re-exports are the exception. See `HoistResult`.
   pub local: String,
-  /// The original EXPORTED name
+  /// The original EXPORTED name. Since this type is used also for imported symbols, this might
+  /// mean the name of a symbol imported from another module as well.
+  ///
+  /// This is a non-mangled name, for example, in `import { x } from './dep'`, this name is `x`.
+  /// Alternatively on `export const x = 'something';` this is also `x`.
   pub exported: String,
   /// The location might be None if the symbol is the "*" symbol. The location here always refers
   /// to the location within the IMPORT site.

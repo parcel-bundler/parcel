@@ -390,7 +390,7 @@ fn make_export_star_symbol(asset_id: u64) -> Symbol {
   }
 }
 
-/// Convert `CollectImportedSymbol`, `ImportedSymbol` and `ExportedSymbol` into `Symbol`
+/// Convert `CollectImportedSymbol`, `ImportedSymbol` and into `Symbol`
 macro_rules! convert_symbol {
   ($asset_file_path: ident, $symbol: ident, $flags: expr) => {
     Symbol {
@@ -425,7 +425,12 @@ fn transformer_exported_symbol_into_symbol(
 ) -> Symbol {
   let mut flags = SymbolFlags::empty();
   flags.set(SymbolFlags::IS_ESM, symbol.is_esm);
-  convert_symbol!(asset_file_path, symbol, flags)
+  Symbol {
+    exported: symbol.exported.as_ref().into(),
+    local: symbol.local.as_ref().into(),
+    loc: Some(convert_loc(asset_file_path.to_owned(), &symbol.loc)),
+    flags,
+  }
 }
 
 fn make_esm_helpers_dependency(
@@ -493,15 +498,17 @@ fn convert_dependency(
   asset_id: u64,
   transformer_dependency: parcel_js_swc_core::DependencyDescriptor,
 ) -> Result<DependencyConversionResult, Vec<Diagnostic>> {
+  use parcel_js_swc_core::DependencyKind;
+
   let loc = convert_loc(asset_file_path.clone(), &transformer_dependency.loc);
   let base_dependency = Dependency {
     source_asset_id: Some(format!("{:016x}", asset_id)),
     specifier: transformer_dependency.specifier.as_ref().into(),
-    specifier_type: SpecifierType::Url,
+    specifier_type: convert_specifier_type(&transformer_dependency),
     source_path: Some(asset_file_path.clone()),
     resolve_from: None,
     range: None,
-    priority: Priority::Lazy,
+    priority: convert_priority(&transformer_dependency),
     bundle_behavior: BundleBehavior::None,
     loc: Some(loc.clone()),
     target: None,
@@ -513,7 +520,19 @@ fn convert_dependency(
   };
   let source_type = convert_source_type(&transformer_dependency);
   match transformer_dependency.kind {
-    parcel_js_swc_core::DependencyKind::WebWorker => {
+    // For all of web-worker, service-worker, worklet and URL we should probably set BundleBehaviour
+    // to "isolated". At the moment though it is set to None on all but worklet.
+    //
+    // `output_format` here corresponds to `{ type: '...' }` on the `new Worker` or
+    // `serviceWorker.register` calls
+    //
+    // ```skip
+    // let worker = new Worker(
+    //  new URL("./dependency", import.meta.url),
+    //  {type: 'module'} // <- output format
+    // );
+    // ```
+    DependencyKind::WebWorker => {
       // Use native ES module output if the worker was created with `type: 'module'` and all targets
       // support native module workers. Only do this if parent asset output format is also esmodule so that
       // assets can be shared between workers and the main thread in the global output format.
@@ -544,7 +563,7 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    parcel_js_swc_core::DependencyKind::ServiceWorker => {
+    DependencyKind::ServiceWorker => {
       let dependency = Dependency {
         env: Environment {
           context: EnvironmentContext::ServiceWorker,
@@ -565,7 +584,7 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    parcel_js_swc_core::DependencyKind::Worklet => {
+    DependencyKind::Worklet => {
       let dependency = Dependency {
         env: Environment {
           context: EnvironmentContext::Worklet,
@@ -586,7 +605,7 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    parcel_js_swc_core::DependencyKind::Url => {
+    DependencyKind::Url => {
       let dependency = Dependency {
         env: asset_environment.clone(),
         bundle_behavior: BundleBehavior::Isolated,
@@ -601,21 +620,29 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    parcel_js_swc_core::DependencyKind::File => {
-      Ok(DependencyConversionResult::InvalidateOnFileChange(
-        PathBuf::from(transformer_dependency.specifier.to_string()),
-      ))
-    }
+    // File dependencies need no handling and should just register an invalidation request.
+    //
+    // This is a bit non-uniform, and we might want to just consolidate dependencies as also being
+    // non-module file dependencies.
+    DependencyKind::File => Ok(DependencyConversionResult::InvalidateOnFileChange(
+      PathBuf::from(transformer_dependency.specifier.to_string()),
+    )),
     _ => {
-      // let mut flags = dep_flags;
-      // flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
-      // flags.set(
-      //   DependencyFlags::IS_ESM,
-      //   matches!(dep.kind, DependencyKind::Import | DependencyKind::Export),
-      // );
+      let mut flags = base_dependency.flags;
+      flags.set(
+        DependencyFlags::OPTIONAL,
+        transformer_dependency.is_optional,
+      );
+      flags.set(
+        DependencyFlags::IS_ESM,
+        matches!(
+          transformer_dependency.kind,
+          DependencyKind::Import | DependencyKind::Export
+        ),
+      );
 
       let mut env = asset_environment.clone();
-      if transformer_dependency.kind == parcel_js_swc_core::DependencyKind::DynamicImport {
+      if transformer_dependency.kind == DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
         if matches!(
           env.context,
@@ -671,16 +698,8 @@ fn convert_dependency(
       }
 
       let dependency = Dependency {
-        specifier_type: match transformer_dependency.kind {
-          parcel_js_swc_core::DependencyKind::Require => SpecifierType::CommonJS,
-          _ => SpecifierType::Esm,
-        },
         env,
-        priority: match transformer_dependency.kind {
-          parcel_js_swc_core::DependencyKind::DynamicImport => Priority::Lazy,
-          _ => Priority::Sync,
-        },
-        // flags,
+        flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
         // promise_symbol: None,
         // import_attributes,
@@ -691,6 +710,40 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
+  }
+}
+
+fn convert_priority(transformer_dependency: &parcel_js_swc_core::DependencyDescriptor) -> Priority {
+  use parcel_js_swc_core::DependencyKind;
+
+  match transformer_dependency.kind {
+    DependencyKind::DynamicImport => Priority::Lazy,
+    DependencyKind::Import => Priority::Sync,
+    DependencyKind::Export => Priority::Sync,
+    DependencyKind::Require => Priority::Sync,
+    DependencyKind::WebWorker => Priority::Lazy,
+    DependencyKind::ServiceWorker => Priority::Lazy,
+    DependencyKind::Worklet => Priority::Lazy,
+    DependencyKind::Url => Priority::Lazy,
+    DependencyKind::File => Priority::Sync,
+  }
+}
+
+fn convert_specifier_type(
+  transformer_dependency: &parcel_js_swc_core::DependencyDescriptor,
+) -> SpecifierType {
+  use parcel_js_swc_core::DependencyKind;
+
+  match transformer_dependency.kind {
+    DependencyKind::Require => SpecifierType::CommonJS,
+    DependencyKind::Import => SpecifierType::Esm,
+    DependencyKind::Export => SpecifierType::Esm,
+    DependencyKind::DynamicImport => SpecifierType::Esm,
+    DependencyKind::WebWorker => SpecifierType::Url,
+    DependencyKind::ServiceWorker => SpecifierType::Url,
+    DependencyKind::Worklet => SpecifierType::Url,
+    DependencyKind::Url => SpecifierType::Url,
+    DependencyKind::File => SpecifierType::Custom,
   }
 }
 
