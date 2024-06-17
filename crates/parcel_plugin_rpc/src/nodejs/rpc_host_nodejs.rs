@@ -69,6 +69,15 @@ impl RpcHostNodejs {
         let callback = create_done_callback(&env, reply)?;
         (message, callback)
       }
+      RpcHostMessage::CacheSetBlob {
+        key,
+        blob,
+        response,
+      } => {
+        let message = env.to_js_value(&[key, blob])?;
+        let callback = create_done_callback(&env, response)?;
+        (message, callback)
+      }
     })
   }
 }
@@ -78,6 +87,16 @@ impl RpcHost for RpcHostNodejs {
   fn ping(&self) -> anyhow::Result<()> {
     let (tx, rx) = channel();
     self.call_rpc(RpcHostMessage::Ping { response: tx });
+    Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
+  }
+
+  fn cache_set_blob(&self, key: &str, blob: &str) -> anyhow::Result<()> {
+    let (tx, rx) = channel();
+    self.call_rpc(RpcHostMessage::CacheSetBlob {
+      key: key.to_owned(),
+      blob: blob.to_owned(),
+      response: tx,
+    });
     Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
   }
 

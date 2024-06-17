@@ -3,8 +3,11 @@
 import assert from 'assert';
 import path from 'path';
 import {bundle, run} from '@parcel/test-utils';
-import {inputFS} from '@parcel/test-utils';
+import {inputFS, outputFS} from '@parcel/test-utils';
 import {ParcelV3} from '@parcel/core';
+import {FSCache} from '@parcel/cache';
+
+const cache: FSCache = new FSCache(outputFS, 'some-dir');
 
 describe('parcel-v3', function () {
   // Duplicated temporarily for convenience, will remove once the Rust stuff works
@@ -33,6 +36,7 @@ describe('parcel-v3', function () {
 
     let parcel = new ParcelV3({
       fs,
+      cache,
       nodeWorkers: 1,
     });
 

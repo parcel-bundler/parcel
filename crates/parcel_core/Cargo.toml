@@ -14,6 +14,7 @@ parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 anyhow = "1.0.82"
 browserslist-rs = "0.15.0"
 dyn-hash = "0.x"
+mockall = "0.12.1"
 nodejs-semver = "4.0.0"
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = { version = "1.0.116", features = ["preserve_order"] }

@@ -1866,6 +1866,7 @@ dependencies = [
  "anyhow",
  "browserslist-rs",
  "dyn-hash",
+ "mockall",
  "nodejs-semver",
  "parcel-resolver",
  "parcel_filesystem",

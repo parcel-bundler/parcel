@@ -5,6 +5,8 @@ pub use parcel::*;
 pub use parcel_filesystem as file_system;
 pub use parcel_plugin_rpc as rpc;
 
+pub use parcel_core::cache;
+
 #[allow(dead_code)]
 mod request_tracker;
 

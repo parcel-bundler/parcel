@@ -3,23 +3,27 @@
 import path from 'path';
 import {Worker} from 'worker_threads';
 import * as napi from '@parcel/rust';
-import type {FileSystem} from '@parcel/types';
+import type {FileSystem, Cache} from '@parcel/types';
 
 export type ParcelV3Options = {|
   threads?: number,
   nodeWorkers?: number,
   fs?: FileSystem,
+  cache: Cache,
 |};
 
 export class ParcelV3 {
   _internal: napi.ParcelNapi;
   #nodeWorkerCount: number;
+  #cache: Cache;
 
   constructor({
     threads = napi.ParcelNapi.defaultThreadCount(),
     nodeWorkers,
+    cache,
   }: ParcelV3Options) {
     this.#nodeWorkerCount = nodeWorkers || threads;
+    this.#cache = cache;
     this._internal = new napi.ParcelNapi({
       threads,
       nodeWorkers,
@@ -44,6 +48,11 @@ export class ParcelV3 {
       // Ping
       case 0:
         return;
+      // Cache.setBlob
+      case 1: {
+        let [key, blob] = data;
+        return this.#cache.setBlob(key, blob);
+      }
       default:
         throw new Error('Unknown message');
     }

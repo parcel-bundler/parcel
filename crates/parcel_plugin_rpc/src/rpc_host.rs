@@ -7,6 +7,7 @@ pub type RpcConnectionRef = Arc<dyn RpcConnection>;
 
 pub trait RpcHost: Send + Sync {
   fn ping(&self) -> anyhow::Result<()>;
+  fn cache_set_blob(&self, key: &str, blob: &str) -> anyhow::Result<()>;
   fn start(&self) -> anyhow::Result<RpcConnectionRef>;
 }
 
