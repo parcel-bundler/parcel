@@ -9,7 +9,10 @@ use super::source::SourceLocation;
 /// A map of export names to the corresponding local variable names
 #[derive(Clone, PartialEq, Debug, Deserialize, Hash, Serialize)]
 pub struct Symbol {
-  /// The IMPORTED name
+  /// The IMPORTED name. Most of the time this is the mangled symbol the transformer has replaced
+  /// an import with.
+  ///
+  /// Re-exports are the exception. See `HoistResult`.
   pub local: String,
   /// The original EXPORTED name
   pub exported: String,

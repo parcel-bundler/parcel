@@ -13,9 +13,6 @@ use parcel_core::types::{
   EnvironmentContext, FileType, ImportAttribute, JSONObject, Location, OutputFormat, ParcelOptions,
   Priority, SourceCode, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
 };
-use parcel_js_swc_core::{
-  Config, DependencyDescriptor, DependencyKind, ExportedSymbol, ImportedSymbol,
-};
 use parcel_resolver::{ExportsCondition, IncludeNodeModules};
 
 /// This is a rust only `TransformerPlugin` implementation for JS assets that goes through the
@@ -30,6 +27,8 @@ impl ParcelJsTransformerPlugin {
 }
 
 impl TransformerPlugin for ParcelJsTransformerPlugin {
+  /// This does a lot of equivalent work to `JSTransformer::transform` in
+  /// `packages/transformers/js`
   fn transform(
     &mut self,
     context: &mut RunTransformContext,
@@ -39,7 +38,7 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
     let source_code = input.read_source_code(file_system)?;
 
     let transformation_result = parcel_js_swc_core::transform(
-      Config {
+      parcel_js_swc_core::Config {
         filename: input
           .file_path()
           .to_str()
@@ -47,7 +46,7 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
           .to_string(),
         code: source_code.bytes().to_vec(),
         source_type: parcel_js_swc_core::SourceType::Module,
-        ..Config::default()
+        ..parcel_js_swc_core::Config::default()
       },
       None,
     )?;
@@ -58,7 +57,7 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
     }
 
     let asset = Asset::new_empty(input.file_path().to_path_buf(), source_code);
-    let config = Config::default();
+    let config = parcel_js_swc_core::Config::default();
     let options = ParcelOptions::default();
     let result = convert_result(asset, &config, transformation_result, &options)
       // TODO handle errors properly
@@ -70,7 +69,7 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
 
 fn convert_result(
   mut asset: Asset,
-  transformer_config: &Config,
+  transformer_config: &parcel_js_swc_core::Config,
   result: parcel_js_swc_core::TransformResult,
   options: &ParcelOptions,
 ) -> Result<TransformResult, Vec<Diagnostic>> {
@@ -106,9 +105,6 @@ fn convert_result(
     dependency_by_specifier.insert(dependency.specifier.as_str().into(), dependency);
   }
 
-  let mut has_cjs_exports = false;
-  let mut static_cjs_exports = false;
-  let mut should_wrap = false;
   if let Some(hoist_result) = result.hoist_result {
     asset.flags.set(AssetFlags::HAS_SYMBOLS, true);
     // Pre-allocate expected symbols
@@ -142,7 +138,9 @@ fn convert_result(
             .as_slice()
             .iter()
             .find(|candidate| candidate.exported == &*symbol.imported);
-          let existing_flags = existing.map(|e| e.flags).unwrap_or(SymbolFlags::IS_WEAK);
+          let existing_flags = existing
+            .map(|e| e.flags & SymbolFlags::IS_WEAK)
+            .unwrap_or(SymbolFlags::IS_WEAK);
 
           // TODO: What is this? There is no such mangling in the transformer
           let re_export_name = existing
@@ -152,7 +150,7 @@ fn convert_result(
             exported: symbol.imported.as_ref().into(),
             local: re_export_name.clone(),
             loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
-            flags: existing_flags & SymbolFlags::IS_WEAK,
+            flags: existing_flags,
           };
 
           dependency.symbols.push(symbol.clone());
@@ -208,9 +206,15 @@ fn convert_result(
       asset.symbols.push(make_export_star_symbol(asset_id));
     }
 
-    has_cjs_exports = hoist_result.has_cjs_exports;
-    static_cjs_exports = hoist_result.static_cjs_exports;
-    should_wrap = hoist_result.should_wrap;
+    asset
+      .flags
+      .set(AssetFlags::HAS_CJS_EXPORTS, hoist_result.has_cjs_exports);
+    asset
+      .flags
+      .set(AssetFlags::STATIC_EXPORTS, hoist_result.static_cjs_exports);
+    asset
+      .flags
+      .set(AssetFlags::SHOULD_WRAP, hoist_result.should_wrap);
   } else {
     if let Some(symbol_result) = result.symbol_result {
       asset.flags |= AssetFlags::HAS_SYMBOLS;
@@ -282,6 +286,7 @@ fn convert_result(
       if dep.symbols.is_empty() {
         dep.symbols.push(Symbol {
           exported: "*".into(),
+          // TODO: What does it mean?
           local: "".into(), // format!("${}$", dep.placeholder.as_ref().unwrap_or(&dep.specifier)).into(),
           flags: SymbolFlags::empty(),
           loc: None,
@@ -297,13 +302,6 @@ fn convert_result(
   asset
     .flags
     .set(AssetFlags::IS_CONSTANT_MODULE, result.is_constant_module);
-  asset
-    .flags
-    .set(AssetFlags::HAS_CJS_EXPORTS, has_cjs_exports);
-  asset
-    .flags
-    .set(AssetFlags::STATIC_EXPORTS, static_cjs_exports);
-  asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
 
   if asset.unique_key.is_none() {
     asset.unique_key = Some(format!("{:016x}", asset_id));
@@ -335,12 +333,19 @@ fn convert_result(
 /// ```
 ///
 /// See [`HoistResult::re_exports`]
-fn is_re_export_all_symbol(symbol: &ImportedSymbol) -> bool {
+fn is_re_export_all_symbol(symbol: &parcel_js_swc_core::ImportedSymbol) -> bool {
   symbol.local == "*" && symbol.imported == "*"
 }
 
+/// Convert the SWC transformer dependency descriptors into the core `Dependency` type.
+///
+/// Collect the dependencies by their local scope-hoisting names that the transformer has output
+/// onto the file. This returns a map of mangled JS name (that the transformer generated) to the
+/// dependency value.
+///
+/// This will be used to find dependencies corresponding to imported symbols' `local` mangled names.
 fn convert_dependencies(
-  transformer_config: &Config,
+  transformer_config: &parcel_js_swc_core::Config,
   dependencies: Vec<parcel_js_swc_core::DependencyDescriptor>,
   asset_file_path: &PathBuf,
   asset_environment: &Environment,
@@ -349,7 +354,6 @@ fn convert_dependencies(
   let mut dependency_by_specifier = IndexMap::new();
   let mut invalidate_on_file_change = Vec::new();
   for transformer_dependency in dependencies {
-    let loc = convert_loc(asset_file_path.clone(), &transformer_dependency.loc);
     let placeholder = transformer_dependency
       .placeholder
       .as_ref()
@@ -362,8 +366,8 @@ fn convert_dependencies(
       &asset_environment,
       asset_id,
       transformer_dependency,
-      loc,
     )?;
+
     match result {
       DependencyConversionResult::Dependency(dependency) => {
         dependency_by_specifier.insert(placeholder, dependency);
@@ -386,40 +390,42 @@ fn make_export_star_symbol(asset_id: u64) -> Symbol {
   }
 }
 
-fn transformer_collect_imported_symbol_to_symbol(
-  asset_file_path: &Path,
-  sym: &parcel_js_swc_core::CollectImportedSymbol,
-) -> Symbol {
-  Symbol {
-    exported: sym.imported.as_ref().into(),
-    local: sym.local.as_ref().into(),
-    loc: Some(convert_loc(asset_file_path.to_owned(), &sym.loc)),
-    flags: SymbolFlags::empty(),
-  }
+/// Convert `CollectImportedSymbol`, `ImportedSymbol` and `ExportedSymbol` into `Symbol`
+macro_rules! convert_symbol {
+  ($asset_file_path: ident, $symbol: ident, $flags: expr) => {
+    Symbol {
+      exported: $symbol.imported.as_ref().into(),
+      local: $symbol.local.as_ref().into(),
+      loc: Some(convert_loc($asset_file_path.to_owned(), &$symbol.loc)),
+      flags: $flags,
+    }
+  };
 }
 
-fn transformer_imported_symbol_to_symbol(asset_file_path: &Path, sym: &ImportedSymbol) -> Symbol {
-  Symbol {
-    exported: sym.imported.as_ref().into(),
-    local: sym.local.as_ref().into(),
-    loc: Some(convert_loc(asset_file_path.to_owned(), &sym.loc)),
-    flags: SymbolFlags::empty(),
-  }
+/// Convert from `[CollectImportedSymbol]` to `[Symbol]`
+fn transformer_collect_imported_symbol_to_symbol(
+  asset_file_path: &Path,
+  symbol: &parcel_js_swc_core::CollectImportedSymbol,
+) -> Symbol {
+  convert_symbol!(asset_file_path, symbol, SymbolFlags::empty())
+}
+
+/// Convert from `[ImportedSymbol]` to `[Symbol]`
+fn transformer_imported_symbol_to_symbol(
+  asset_file_path: &Path,
+  symbol: &parcel_js_swc_core::ImportedSymbol,
+) -> Symbol {
+  convert_symbol!(asset_file_path, symbol, SymbolFlags::empty())
 }
 
 /// Convert from `[ExportedSymbol]` to `[Symbol]`
 fn transformer_exported_symbol_into_symbol(
   asset_file_path: &PathBuf,
-  symbol: &ExportedSymbol,
+  symbol: &parcel_js_swc_core::ExportedSymbol,
 ) -> Symbol {
   let mut flags = SymbolFlags::empty();
   flags.set(SymbolFlags::IS_ESM, symbol.is_esm);
-  Symbol {
-    exported: symbol.exported.as_ref().into(),
-    local: symbol.local.as_ref().into(),
-    loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
-    flags,
-  }
+  convert_symbol!(asset_file_path, symbol, flags)
 }
 
 fn make_esm_helpers_dependency(
@@ -481,13 +487,13 @@ enum DependencyConversionResult {
 }
 
 fn convert_dependency(
-  transformer_config: &Config,
+  transformer_config: &parcel_js_swc_core::Config,
   asset_file_path: &PathBuf,
   asset_environment: &Environment,
   asset_id: u64,
   transformer_dependency: parcel_js_swc_core::DependencyDescriptor,
-  loc: SourceLocation,
 ) -> Result<DependencyConversionResult, Vec<Diagnostic>> {
+  let loc = convert_loc(asset_file_path.clone(), &transformer_dependency.loc);
   let base_dependency = Dependency {
     source_asset_id: Some(format!("{:016x}", asset_id)),
     specifier: transformer_dependency.specifier.as_ref().into(),
@@ -507,7 +513,7 @@ fn convert_dependency(
   };
   let source_type = convert_source_type(&transformer_dependency);
   match transformer_dependency.kind {
-    DependencyKind::WebWorker => {
+    parcel_js_swc_core::DependencyKind::WebWorker => {
       // Use native ES module output if the worker was created with `type: 'module'` and all targets
       // support native module workers. Only do this if parent asset output format is also esmodule so that
       // assets can be shared between workers and the main thread in the global output format.
@@ -538,7 +544,7 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    DependencyKind::ServiceWorker => {
+    parcel_js_swc_core::DependencyKind::ServiceWorker => {
       let dependency = Dependency {
         env: Environment {
           context: EnvironmentContext::ServiceWorker,
@@ -559,7 +565,7 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    DependencyKind::Worklet => {
+    parcel_js_swc_core::DependencyKind::Worklet => {
       let dependency = Dependency {
         env: Environment {
           context: EnvironmentContext::Worklet,
@@ -580,7 +586,7 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    DependencyKind::Url => {
+    parcel_js_swc_core::DependencyKind::Url => {
       let dependency = Dependency {
         env: asset_environment.clone(),
         bundle_behavior: BundleBehavior::Isolated,
@@ -595,9 +601,11 @@ fn convert_dependency(
 
       Ok(DependencyConversionResult::Dependency(dependency))
     }
-    DependencyKind::File => Ok(DependencyConversionResult::InvalidateOnFileChange(
-      PathBuf::from(transformer_dependency.specifier.to_string()),
-    )),
+    parcel_js_swc_core::DependencyKind::File => {
+      Ok(DependencyConversionResult::InvalidateOnFileChange(
+        PathBuf::from(transformer_dependency.specifier.to_string()),
+      ))
+    }
     _ => {
       // let mut flags = dep_flags;
       // flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
@@ -607,7 +615,7 @@ fn convert_dependency(
       // );
 
       let mut env = asset_environment.clone();
-      if transformer_dependency.kind == DependencyKind::DynamicImport {
+      if transformer_dependency.kind == parcel_js_swc_core::DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
         if matches!(
           env.context,
@@ -664,12 +672,12 @@ fn convert_dependency(
 
       let dependency = Dependency {
         specifier_type: match transformer_dependency.kind {
-          DependencyKind::Require => SpecifierType::CommonJS,
+          parcel_js_swc_core::DependencyKind::Require => SpecifierType::CommonJS,
           _ => SpecifierType::Esm,
         },
         env,
         priority: match transformer_dependency.kind {
-          DependencyKind::DynamicImport => Priority::Lazy,
+          parcel_js_swc_core::DependencyKind::DynamicImport => Priority::Lazy,
           _ => Priority::Sync,
         },
         // flags,
@@ -686,7 +694,9 @@ fn convert_dependency(
   }
 }
 
-fn convert_source_type(transformer_dependency: &DependencyDescriptor) -> SourceType {
+fn convert_source_type(
+  transformer_dependency: &parcel_js_swc_core::DependencyDescriptor,
+) -> SourceType {
   if matches!(
     transformer_dependency.source_type,
     Some(parcel_js_swc_core::SourceType::Module)

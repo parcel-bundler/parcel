@@ -32,17 +32,71 @@ macro_rules! hash {
   }};
 }
 
-// TODO: Document dependency kinds
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
+  /// Corresponds to ESM import statements
+  /// ```skip
+  /// import {x} from './dependency';
+  /// ```
   Import,
+  /// Corresponds to ESM re-export statements
+  /// ```skip
+  /// export {x} from './dependency';
+  /// ```
   Export,
+  /// Corresponds to dynamic import statements
+  /// ```skip
+  /// import('./dependency').then(({x}) => {/* ... */});
+  /// ```
   DynamicImport,
+  /// Corresponds to CJS require statements
+  /// ```skip
+  /// const {x} = require('./dependency');
+  /// ```
   Require,
+  /// Corresponds to Worker URL statements
+  /// ```skip
+  /// const worker = new Worker(
+  ///     new URL('./dependency', import.meta.url),
+  ///     {type: 'module'}
+  /// );
+  /// ```
   WebWorker,
+  /// Corresponds to ServiceWorker URL statements
+  /// ```skip
+  /// navigator.serviceWorker.register(
+  ///     new URL('./dependency', import.meta.url),
+  ///     {type: 'module'}
+  /// );
+  /// ```
   ServiceWorker,
+  /// CSS / WebAudio worklets
+  /// ```skip
+  /// CSS.paintWorklet.addModule(
+  ///   new URL('./dependency', import.meta.url)
+  /// );
+  /// ```
   Worklet,
+  /// URL statements
+  /// ```skip
+  /// let img = document.createElement('img');
+  /// img.src = new URL('hero.jpg', import.meta.url);
+  /// document.body.appendChild(img);
+  /// ```
   Url,
+  /// `fs.readFileSync` statements
+  ///
+  /// > Calls to fs.readFileSync are replaced with the file's contents if the filepath is statically
+  /// > determinable and inside the project root.
+  ///
+  /// ```skip
+  /// import fs from "fs";
+  /// import path from "path";
+  ///
+  /// const data = fs.readFileSync(path.join(__dirname, "data.json"), "utf8");
+  /// ```
+  ///
+  /// * https://parceljs.org/features/node-emulation/#inlining-fs.readfilesync
   File,
 }
 
