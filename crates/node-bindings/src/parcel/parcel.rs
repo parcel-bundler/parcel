@@ -5,11 +5,10 @@ use napi::Env;
 use napi::JsNumber;
 use napi::JsObject;
 use napi_derive::napi;
+use parcel::rpc::filesystem::RpcFileSystem;
 use parcel::rpc::nodejs::RpcHostNodejs;
 use parcel::Parcel;
 use parcel::ParcelOptions;
-
-use crate::file_system::FileSystemNapi;
 
 #[napi]
 pub struct ParcelNapi {
@@ -25,19 +24,21 @@ impl ParcelNapi {
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");
 
-    // Wrap the JavaScript-supplied FileSystem
-    let fs = FileSystemNapi::from_options(&env, &options)?;
-
     // Set up Nodejs plugin bindings
     let node_workers: JsNumber = options.get_property(env.create_string("nodeWorkers")?)?;
     let node_workers = node_workers.get_uint32()?;
-    let rpc_host_nodejs =
-      RpcHostNodejs::new(&env, options.get_named_property("rpc")?, node_workers)?;
+    let rpc_host_nodejs = Arc::new(RpcHostNodejs::new(
+      &env,
+      options.get_named_property("rpc")?,
+      node_workers,
+    )?);
+
+    let fs = Arc::new(RpcFileSystem::new(rpc_host_nodejs.clone()));
 
     // Initialize Parcel
     let parcel = Parcel::new(ParcelOptions {
-      fs,
-      rpc: Some(Arc::new(rpc_host_nodejs)),
+      fs: Some(fs),
+      rpc: Some(rpc_host_nodejs),
     });
 
     Ok(Self {

@@ -14,12 +14,15 @@ export type ParcelV3Options = {|
 export class ParcelV3 {
   _internal: napi.ParcelNapi;
   #nodeWorkerCount: number;
+  #fs: FileSystem | void;
 
   constructor({
     threads = napi.ParcelNapi.defaultThreadCount(),
     nodeWorkers,
+    fs,
   }: ParcelV3Options) {
     this.#nodeWorkerCount = nodeWorkers || threads;
+    this.#fs = fs;
     this._internal = new napi.ParcelNapi({
       threads,
       nodeWorkers,
@@ -44,6 +47,15 @@ export class ParcelV3 {
       // Ping
       case 0:
         return;
+      case 1:
+        if (!this.#fs) throw new Error('FS Unset');
+        return this.#fs.readFileSync(data, 'utf8');
+      case 2:
+        if (!this.#fs) throw new Error('FS Unset');
+        return this.#fs.statSync(data).isFile();
+      case 3:
+        if (!this.#fs) throw new Error('FS Unset');
+        return this.#fs.statSync(data).isDirectory();
       default:
         throw new Error('Unknown message');
     }

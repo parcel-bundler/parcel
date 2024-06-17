@@ -25,14 +25,8 @@ describe('parcel-v3', function () {
   });
 
   it('should run the main-thread bootstrap function', async function () {
-    let fs: any = {
-      readFileSync: (_, [...args]) => inputFS.readFileSync(...args),
-      isFile: (_, path) => inputFS.statSync(path).isFile(),
-      isDir: (_, path) => inputFS.statSync(path).isDirectory(),
-    };
-
     let parcel = new ParcelV3({
-      fs,
+      fs: inputFS,
       nodeWorkers: 1,
     });
 
@@ -40,8 +34,8 @@ describe('parcel-v3', function () {
       typeof (await parcel._internal.testingTempFsReadToString(__filename)) ===
         'string',
     );
-    assert(!(await parcel._internal.testingTempFsIsDir(__filename)));
     assert(await parcel._internal.testingTempFsIsFile(__filename));
+    assert(!(await parcel._internal.testingTempFsIsDir(__filename)));
     await parcel._internal.testingRpcPing();
 
     await parcel.build();

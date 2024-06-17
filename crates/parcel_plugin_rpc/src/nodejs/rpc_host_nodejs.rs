@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 
@@ -64,9 +65,24 @@ impl RpcHostNodejs {
   // Map the RPC message to a JavaScript type
   fn map_rpc_message(env: &Env, msg: RpcHostMessage) -> napi::Result<(JsUnknown, JsUnknown)> {
     Ok(match msg {
-      RpcHostMessage::Ping { response: reply } => {
+      RpcHostMessage::Ping { response } => {
         let message = env.to_js_value(&())?;
-        let callback = create_done_callback(&env, reply)?;
+        let callback = create_done_callback(&env, response)?;
+        (message, callback)
+      }
+      RpcHostMessage::FsReadToString { path, response } => {
+        let message = env.to_js_value(&path)?;
+        let callback = create_done_callback(&env, response)?;
+        (message, callback)
+      }
+      RpcHostMessage::FsIsFile { path, response } => {
+        let message = env.to_js_value(&path)?;
+        let callback = create_done_callback(&env, response)?;
+        (message, callback)
+      }
+      RpcHostMessage::FsIsDir { path, response } => {
+        let message = env.to_js_value(&path)?;
+        let callback = create_done_callback(&env, response)?;
         (message, callback)
       }
     })
@@ -89,5 +105,32 @@ impl RpcHost for RpcHostNodejs {
     }
 
     Ok(Arc::new(RpcConnectionNodejsMulti::new(connections)))
+  }
+
+  fn fs_read_to_string(&self, path: &Path) -> anyhow::Result<String> {
+    let (tx, rx) = channel();
+    self.call_rpc(RpcHostMessage::FsReadToString {
+      path: path.to_path_buf(),
+      response: tx,
+    });
+    Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
+  }
+
+  fn fs_is_file(&self, path: &Path) -> anyhow::Result<bool> {
+    let (tx, rx) = channel();
+    self.call_rpc(RpcHostMessage::FsIsFile {
+      path: path.to_path_buf(),
+      response: tx,
+    });
+    Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
+  }
+
+  fn fs_is_dir(&self, path: &Path) -> anyhow::Result<bool> {
+    let (tx, rx) = channel();
+    self.call_rpc(RpcHostMessage::FsIsDir {
+      path: path.to_path_buf(),
+      response: tx,
+    });
+    Ok(rx.recv()?.map_err(|e| anyhow::anyhow!(e))?)
   }
 }

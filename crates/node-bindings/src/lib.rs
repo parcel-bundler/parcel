@@ -16,9 +16,6 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod file_system;
-
 /// napi versions of `crate::core::requests`
 #[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
