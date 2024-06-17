@@ -3,7 +3,6 @@
 import {fromNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
-import {getFeatureFlag} from '@parcel/feature-flags';
 import type {
   TraversalActions,
   GraphVisitor,
@@ -335,17 +334,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     ) {
       return this.dfsFast(enter, startNodeId);
     } else {
-      return getFeatureFlag('dfsFasterRefactor')
-        ? this.dfsNew({
-            visit,
-            startNodeId,
-            getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
-          })
-        : this.dfs({
-            visit,
-            startNodeId,
-            getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
-          });
+      return this.dfs({
+        visit,
+        startNodeId,
+        getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
+      });
     }
   }
 
@@ -506,7 +499,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
    *
    * This replaces `dfs` and will replace `dfsFast`.
    */
-  dfsNew<TContext>({
+  dfs<TContext>({
     visit,
     startNodeId,
     getChildren,
@@ -607,103 +600,6 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     }
 
     this._visited = visited;
-  }
-
-  /**
-   * @deprecated Will be replaced by `dfsNew`
-   */
-  dfs<TContext>({
-    visit,
-    startNodeId,
-    getChildren,
-  }: DFSParams<TContext>): ?TContext {
-    let traversalStartNode = nullthrows(
-      startNodeId ?? this.rootNodeId,
-      'A start node is required to traverse',
-    );
-    this._assertHasNodeId(traversalStartNode);
-
-    let visited;
-    if (!this._visited || this._visited.capacity < this.nodes.length) {
-      this._visited = new BitSet(this.nodes.length);
-      visited = this._visited;
-    } else {
-      visited = this._visited;
-      visited.clear();
-    }
-    // Take shared instance to avoid re-entrancy issues.
-    this._visited = null;
-
-    let stopped = false;
-    let skipped = false;
-    let actions: TraversalActions = {
-      skipChildren() {
-        skipped = true;
-      },
-      stop() {
-        stopped = true;
-      },
-    };
-
-    let walk = (nodeId, context: ?TContext) => {
-      if (!this.hasNode(nodeId)) return;
-      visited.add(nodeId);
-
-      skipped = false;
-      let enter = typeof visit === 'function' ? visit : visit.enter;
-      if (enter) {
-        let newContext = enter(nodeId, context, actions);
-        if (typeof newContext !== 'undefined') {
-          // $FlowFixMe[reassign-const]
-          context = newContext;
-        }
-      }
-
-      if (skipped) {
-        return;
-      }
-
-      if (stopped) {
-        return context;
-      }
-
-      for (let child of getChildren(nodeId)) {
-        if (visited.has(child)) {
-          continue;
-        }
-
-        visited.add(child);
-        let result = walk(child, context);
-        if (stopped) {
-          return result;
-        }
-      }
-
-      if (
-        typeof visit !== 'function' &&
-        visit.exit &&
-        // Make sure the graph still has the node: it may have been removed between enter and exit
-        this.hasNode(nodeId)
-      ) {
-        let newContext = visit.exit(nodeId, context, actions);
-        if (typeof newContext !== 'undefined') {
-          // $FlowFixMe[reassign-const]
-          context = newContext;
-        }
-      }
-
-      if (skipped) {
-        return;
-      }
-
-      if (stopped) {
-        return context;
-      }
-    };
-
-    let result = walk(traversalStartNode);
-    this._visited = visited;
-    return result;
   }
 
   bfs(visit: (nodeId: NodeId) => ?boolean): ?NodeId {
