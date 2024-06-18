@@ -3,10 +3,11 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use parcel_resolver::SpecifierType;
 
-use crate::types::{Asset, SourceCode};
+use crate::types::{Asset, Environment, SourceCode};
 use crate::types::{Dependency, SourceMap};
 
 pub struct GenerateOutput {
@@ -25,29 +26,42 @@ pub struct ResolveOptions {
 /// A function that enables transformers to resolve a dependency specifier
 pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, anyhow::Error>;
 
+/// A newly resolved file_path/code that needs to be transformed into an Asset
+pub struct InitialAsset {
+  pub file_path: PathBuf,
+  /// Dynamic code returned from the resolver for virtual files.
+  /// It is not set in most cases but should be respected when present.
+  pub code: Option<String>,
+  pub env: Arc<Environment>,
+  pub side_effects: bool,
+}
 /// Transformers may run against:
 ///
-/// * File-paths that have just been discovered
+/// * InitialAsset that have just been discovered
 /// * Outputs of previous transformation steps, which are in-place modified
 /// * These two scenarios are distinguished
 pub enum TransformationInput {
-  FilePath(PathBuf),
+  InitialAsset(InitialAsset),
   Asset(Asset),
 }
 
 impl TransformationInput {
   pub fn file_path(&self) -> &Path {
     match self {
-      TransformationInput::FilePath(path) => path,
+      TransformationInput::InitialAsset(raw_asset) => raw_asset.file_path.as_path(),
       TransformationInput::Asset(asset) => asset.file_path(),
     }
   }
 
-  pub fn read_source_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<SourceCode>> {
+  pub fn read_source_code(self, fs: FileSystemRef) -> anyhow::Result<Rc<SourceCode>> {
     match self {
-      TransformationInput::FilePath(file_path) => {
-        let code = fs.read_to_string(&file_path)?;
-        let code = SourceCode::from(code);
+      TransformationInput::InitialAsset(raw_asset) => {
+        let code = if let Some(code) = raw_asset.code {
+          SourceCode::from(code.clone())
+        } else {
+          let source = fs.read_to_string(&raw_asset.file_path)?;
+          SourceCode::from(source)
+        };
         Ok(Rc::new(code))
       }
       TransformationInput::Asset(asset) => Ok(asset.source_code.clone()),

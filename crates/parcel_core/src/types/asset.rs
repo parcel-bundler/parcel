@@ -3,6 +3,7 @@ use std::hash::Hasher;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -56,7 +57,7 @@ pub struct Asset {
   pub bundle_behavior: BundleBehavior,
 
   /// The environment of the asset
-  pub env: Environment,
+  pub env: Arc<Environment>,
 
   /// The file path to the asset
   pub file_path: PathBuf,
@@ -132,10 +133,10 @@ impl Asset {
       file_path,
       asset_type,
       bundle_behavior: Default::default(),
-      env: Environment {
+      env: Arc::new(Environment {
         context: EnvironmentContext::Browser,
         ..Default::default()
-      },
+      }),
       source_code,
       is_bundle_splittable: false,
       is_source: false,

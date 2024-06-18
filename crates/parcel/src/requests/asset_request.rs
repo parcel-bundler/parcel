@@ -7,6 +7,7 @@ use anyhow::anyhow;
 use parcel_core::cache::CacheRef;
 use parcel_core::plugin::AssetBuildEvent;
 use parcel_core::plugin::BuildProgressEvent;
+use parcel_core::plugin::InitialAsset;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::RunTransformContext;
 use parcel_core::plugin::TransformResult;
@@ -30,7 +31,7 @@ use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunReque
 pub struct AssetRequest<'a> {
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
-  pub code: Option<Vec<u8>>,
+  pub code: Option<String>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
   // TODO: move the following to RunRequestContext
@@ -82,7 +83,12 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
 
     let result = run_pipeline(
       pipeline,
-      TransformationInput::FilePath(self.file_path.clone()),
+      TransformationInput::InitialAsset(InitialAsset {
+        file_path: self.file_path.clone(),
+        code: self.code.clone(),
+        env: self.env.clone(),
+        side_effects: self.side_effects,
+      }),
       asset_type,
       &self.plugins,
       &mut transform_ctx,

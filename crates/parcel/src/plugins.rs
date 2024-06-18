@@ -192,6 +192,7 @@ impl<'a> Plugins<'a> {
   }
 }
 
+#[derive(Debug)]
 pub struct TransformerPipeline {
   pub transformers: Vec<Box<dyn TransformerPlugin>>,
   hash: u64,
