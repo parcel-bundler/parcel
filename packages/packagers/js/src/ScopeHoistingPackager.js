@@ -17,7 +17,7 @@ import {
 } from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
-import invariant from 'assert';
+import invariant, {AssertionError} from 'assert';
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
@@ -922,16 +922,17 @@ ${code}
 
   isWrapped(resolved: Asset, parentAsset: Asset): boolean {
     if (resolved.meta.isConstantModule) {
-      invariant(
-        this.bundle.hasAsset(resolved),
-        `Constant module ${path.relative(
-          this.options.projectRoot,
-          resolved.filePath,
-        )} referenced from ${path.relative(
-          this.options.projectRoot,
-          parentAsset.filePath,
-        )} not found in bundle ${this.bundle.name}`,
-      );
+      if (!this.bundle.hasAsset(resolved)) {
+        throw new AssertionError({
+          message: `Constant module ${path.relative(
+            this.options.projectRoot,
+            resolved.filePath,
+          )} referenced from ${path.relative(
+            this.options.projectRoot,
+            parentAsset.filePath,
+          )} not found in bundle ${this.bundle.name}`,
+        });
+      }
       return false;
     }
     return (
