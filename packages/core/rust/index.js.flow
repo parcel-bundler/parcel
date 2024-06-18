@@ -1,5 +1,5 @@
 // @flow
-import type {FileCreateInvalidation, FileSystem as ParcelFileSystem} from '@parcel/types';
+import type {FileCreateInvalidation} from '@parcel/types';
 
 declare export var init: void | (() => void);
 
@@ -18,9 +18,16 @@ export interface RequestOptions {}
 
 export type RpcCallback = (error: any, id: string, data: any, done: (value: {| Ok: any |} | {| Err: any |}) => any) => any | Promise<any>;
 
+export interface ParcelNapiFileSystem {
+  readToString: (path: string) => string;
+  isFile: (path: string) => bool;
+  isDir: (path: string) => bool;
+}
+
 export interface ParcelNapiOptions {
-  fs?: ParcelFileSystem;
+  threads?: number;
   nodeWorkers?: number;
+  useFileSystem: bool;
   rpc?: RpcCallback;
 }
 

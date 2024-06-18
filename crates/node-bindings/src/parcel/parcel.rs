@@ -6,12 +6,11 @@ use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
 use napi_derive::napi;
+use parcel::rpc::nodejs::RpcFileSystemNodejs;
 use parcel::rpc::nodejs::RpcHostNodejs;
 use parcel::BuildOptions;
 use parcel::Parcel;
 use parcel::ParcelOptions;
-
-use crate::file_system::FileSystemNapi;
 
 #[napi(object)]
 pub struct ParcelNapiBuildOptions {}
@@ -23,7 +22,7 @@ pub struct ParcelNapiBuildResult {}
 pub struct ParcelNapiOptions {
   pub threads: Option<u32>,
   pub node_workers: Option<u32>,
-  pub fs: Option<JsObject>,
+  pub use_file_system: bool,
   pub rpc: JsFunction,
 }
 
@@ -45,11 +44,6 @@ impl ParcelNapi {
     // Parcel Core Options
     let mut parcel_options = ParcelOptions::default();
 
-    // Wrap the JavaScript-supplied FileSystem
-    if let Some(fs) = options.fs {
-      parcel_options.fs = Some(Arc::new(FileSystemNapi::new(&env, &fs)?));
-    }
-
     // Assign Rust thread count from JavaScript
     if let Some(threads) = options.threads {
       parcel_options.threads = threads as usize;
@@ -63,8 +57,17 @@ impl ParcelNapi {
       node_worker_count = parcel_options.threads;
     }
 
-    let rpc_host_nodejs = RpcHostNodejs::new(&env, options.rpc, node_worker_count.clone())?;
-    parcel_options.rpc = Some(Arc::new(rpc_host_nodejs));
+    let rpc_host_nodejs = Arc::new(RpcHostNodejs::new(
+      &env,
+      options.rpc,
+      node_worker_count.clone(),
+    )?);
+    parcel_options.rpc = Some(rpc_host_nodejs.clone());
+
+    // Wrap the JavaScript-supplied FileSystem
+    if options.use_file_system {
+      parcel_options.fs = Some(Arc::new(RpcFileSystemNodejs::new(rpc_host_nodejs.clone())));
+    }
 
     // Return self
     Ok(Self {

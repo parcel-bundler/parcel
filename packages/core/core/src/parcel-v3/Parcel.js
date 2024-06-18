@@ -6,6 +6,7 @@ import * as napi from '@parcel/rust';
 import type {FileSystem} from '@parcel/types';
 import {RpcEventRouter} from './RpcEventRouter';
 import type {HandlerFunc} from './RpcEventRouter';
+import {FileSystemRpc} from './FileSystem';
 
 type PingHandler = HandlerFunc<'ping', void, void>;
 
@@ -19,16 +20,21 @@ export type ParcelV3BuildOptions = {||};
 
 export class ParcelV3 {
   _internal: napi.ParcelNapi;
+  #nodeWorkerCount: number;
 
   constructor({threads, nodeWorkers, fs}: ParcelV3Options) {
     const rpc = new RpcEventRouter();
 
+    if (fs) {
+      new FileSystemRpc(rpc, fs);
+    }
+
     this._internal = new napi.ParcelNapi({
       threads,
       nodeWorkers,
-      fs,
-      rpc: rpc.callback
-    })
+      useFileSystem: !!fs,
+      rpc: rpc.callback,
+    });
 
     rpc.on<PingHandler>('ping', () => {
       /* loopback */

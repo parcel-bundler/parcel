@@ -17,11 +17,11 @@ use super::RpcWorkerNodejs;
 // RpcHostNodejs has a connection to the main Nodejs thread
 pub struct RpcHostNodejs {
   tsfn: RpcCallback,
-  node_workers: u32,
+  node_workers: usize,
 }
 
 impl RpcHostNodejs {
-  pub fn new(env: &Env, callback: JsFunction, node_workers: u32) -> napi::Result<Self> {
+  pub fn new(env: &Env, callback: JsFunction, node_workers: usize) -> napi::Result<Self> {
     let mut tsfn = create_js_callback(env, callback)?;
 
     // Normally, holding a threadsafe function tells Nodejs that an async action is
