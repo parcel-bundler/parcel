@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
@@ -192,7 +193,6 @@ impl<'a> Plugins<'a> {
   }
 }
 
-#[derive(Debug)]
 pub struct TransformerPipeline {
   pub transformers: Vec<Box<dyn TransformerPlugin>>,
   hash: u64,
@@ -201,6 +201,14 @@ pub struct TransformerPipeline {
 impl PartialEq for TransformerPipeline {
   fn eq(&self, other: &Self) -> bool {
     self.hash == other.hash
+  }
+}
+
+impl Debug for TransformerPipeline {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("TransformerPipeline")
+      .field("transformers", &self.transformers)
+      .finish()
   }
 }
 
@@ -304,6 +312,9 @@ mod tests {
       .transformers(Path::new("a.ts"), None)
       .expect("Not to panic");
 
-    assert_eq!(format!("{:?}", transformers), "[RpcTransformerPlugin]")
+    assert_eq!(
+      format!("{:?}", transformers),
+      r"TransformerPipeline { transformers: [RpcTransformerPlugin] }"
+    )
   }
 }
