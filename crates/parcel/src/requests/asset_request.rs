@@ -28,21 +28,20 @@ use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunReque
 /// - Stores the final Asset source code in the cache, for access in packaging
 /// - Finally, returns the complete Asset and it's discovered Dependencies
 pub struct AssetRequest<'a> {
-  pub cache: CacheRef,
-  pub file_system: FileSystemRef,
-  pub plugins: Arc<Plugins<'a>>,
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
   pub code: Option<Vec<u8>>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
+  // TODO: move the following to RunRequestContext
+  pub cache: CacheRef,
+  pub file_system: FileSystemRef,
+  pub plugins: Arc<Plugins<'a>>,
 }
 
 impl<'a> Hash for AssetRequest<'a> {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    // We don't include 'plugins' in the hash as we don't know
-    // which plugins will be needed until after the request has run.
-    // These are tracked via invalidations instead.
+    // TODO: Just derive this once the contextual params are moved to RunRequestContext
     self.file_path.hash(state);
     self.code.hash(state);
     self.pipeline.hash(state);
