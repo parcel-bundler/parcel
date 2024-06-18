@@ -84,6 +84,7 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
     let result = run_pipeline(
       pipeline,
       TransformationInput::InitialAsset(InitialAsset {
+        // TODO: Are these clones neccessary?
         file_path: self.file_path.clone(),
         code: self.code.clone(),
         env: self.env.clone(),
@@ -95,6 +96,7 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
     )?;
 
     // Write the Asset source code to the cache, this is read later in packaging
+    // TODO: Clarify the correct content key
     let content_key = result.asset.id().to_string();
     self
       .cache
@@ -111,6 +113,7 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
         },
         dependencies: result.dependencies,
       },
+      // TODO: Support invalidations
       invalidations: vec![],
     })
   }
