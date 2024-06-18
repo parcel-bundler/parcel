@@ -16,7 +16,7 @@ use super::symbol::Symbol;
 use super::target::Target;
 
 /// A dependency denotes a connection between two assets
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   /// Controls the behavior of the bundle the resolved asset is placed into

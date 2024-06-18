@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use parcel_core::cache::CacheRef;
 use parcel_core::plugin::AssetBuildEvent;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::ReporterEvent;
@@ -12,6 +13,7 @@ use parcel_core::plugin::TransformResult;
 use parcel_core::plugin::TransformationInput;
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::types::Asset;
+use parcel_core::types::Dependency;
 use parcel_core::types::Environment;
 use parcel_core::types::FileType;
 use parcel_filesystem::FileSystemRef;
@@ -21,6 +23,8 @@ use crate::plugins::TransformerPipeline;
 use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
 
 pub struct AssetRequest<'a> {
+  pub cache: CacheRef,
+  pub file_system: FileSystemRef,
   pub plugins: Arc<Plugins<'a>>,
   pub file_system: FileSystemRef,
   pub env: Arc<Environment>,
@@ -44,8 +48,9 @@ impl<'a> Hash for AssetRequest<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum AssetResult {
-  Something,
+pub struct AssetResult {
+  pub asset: Asset,
+  pub dependencies: Vec<Dependency>,
 }
 
 impl<'a> Request<AssetResult> for AssetRequest<'a> {
@@ -74,36 +79,36 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
 
     let pipeline = self
       .plugins
-      .transformers(&self.file_path, self.pipeline.as_deref());
+      .transformers(&self.file_path, self.pipeline.as_deref())?;
+    let asset_type = FileType::from_extension(
+      self
+        .file_path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or(""),
+    );
+    let mut transform_ctx = RunTransformContext::new(self.file_system.clone());
 
-    // let asset = Asset {
-    //   file_path: self.file_path.to_path_buf(),
-    //   asset_type: FileType::from_extension(
-    //     self
-    //       .file_path
-    //       .extension()
-    //       .and_then(|s| s.to_str())
-    //       .unwrap_or(""),
-    //   ),
-    //   env: Arc::clone(&self.env),
-    //   meta: JSONObject::new(),
-    //   side_effects: self.side_effects,
-    //   stats: AssetStats::default(),
-    //   symbols: vec![],
-    //   unique_key: None,
-    //
-    //   // TODO: Do we really need the clone?
-    //   pipeline: self.pipeline.clone(),
-    //
-    //   //TODO: Assign correct values to the following
-    //   bundle_behavior: BundleBehavior::None,
-    //   is_bundle_splittable: false,
-    //   is_source: true,
-    //   query: None,
-    // };
+    let result = run_pipeline(
+      pipeline,
+      TransformationInput::FilePath(self.file_path.clone()),
+      asset_type,
+      &self.plugins,
+      &mut transform_ctx,
+    )?;
 
-    // let asset_type = FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
-    todo!()
+    // Write the Asset source code to the cache, this is read later in packaging
+    self
+      .cache
+      .set_blob(result.asset.id(), result.asset.source_code.bytes());
+
+    Ok(RequestResult {
+      result: AssetResult {
+        asset: result.asset,
+        dependencies: result.dependencies,
+      },
+      invalidations: vec![],
+    })
   }
 }
 
