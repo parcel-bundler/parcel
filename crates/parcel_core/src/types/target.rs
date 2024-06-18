@@ -9,7 +9,7 @@ use super::source::SourceLocation;
 /// For example, you could have a "modern" target that compiles code for new browsers and a
 /// "legacy" target for older browsers.
 ///
-#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
   /// The output folder for compiled bundles

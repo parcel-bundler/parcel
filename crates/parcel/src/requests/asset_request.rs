@@ -11,8 +11,8 @@ use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::RunTransformContext;
 use parcel_core::plugin::TransformResult;
 use parcel_core::plugin::TransformationInput;
-use parcel_core::plugin::TransformerPlugin;
 use parcel_core::types::Asset;
+use parcel_core::types::AssetStats;
 use parcel_core::types::Dependency;
 use parcel_core::types::Environment;
 use parcel_core::types::FileType;
@@ -89,13 +89,20 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
     )?;
 
     // Write the Asset source code to the cache, this is read later in packaging
+    let content_key = result.asset.id().to_string();
     self
       .cache
-      .set_blob(result.asset.id(), result.asset.source_code.bytes());
+      .set_blob(&content_key, result.asset.source_code.bytes())?;
 
     Ok(RequestResult {
       result: AssetResult {
-        asset: result.asset,
+        asset: Asset {
+          stats: AssetStats {
+            size: result.asset.source_code.size(),
+            time: 0,
+          },
+          ..result.asset
+        },
         dependencies: result.dependencies,
       },
       invalidations: vec![],

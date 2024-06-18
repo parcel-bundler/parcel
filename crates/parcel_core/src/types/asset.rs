@@ -29,6 +29,10 @@ impl SourceCode {
   pub fn bytes(&self) -> &[u8] {
     self.inner.as_bytes()
   }
+
+  pub fn size(&self) -> u32 {
+    self.inner.len() as u32
+  }
 }
 
 impl From<String> for SourceCode {
@@ -164,6 +168,6 @@ impl Hash for Asset {
 /// Statistics that pertain to an asset
 #[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AssetStats {
-  size: u32,
-  time: u32,
+  pub size: u32,
+  pub time: u32,
 }
