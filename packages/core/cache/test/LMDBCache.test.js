@@ -1,5 +1,6 @@
 // @flow
 
+import {DEFAULT_FEATURE_FLAGS, setFeatureFlags} from '@parcel/feature-flags';
 import * as mkdirp from 'mkdirp';
 import * as tempy from 'tempy';
 import fs from 'fs';
@@ -15,6 +16,17 @@ describe('LMDBCache', () => {
     mkdirp.sync(tmpDir);
     lmdbCache = new LMDBCache(tmpDir);
     await lmdbCache.ensure();
+
+    setFeatureFlags({
+      ...DEFAULT_FEATURE_FLAGS,
+      randomLargeBlobKeys: true,
+    });
+  });
+
+  afterEach(() => {
+    setFeatureFlags({
+      ...DEFAULT_FEATURE_FLAGS,
+    });
   });
 
   it('LMDBCache::get / set will return key values', async () => {
