@@ -16,10 +16,11 @@ export type ParcelV3BuildOptions = {||};
 export class ParcelV3 {
   _internal: napi.ParcelNapi;
 
-  constructor({threads, nodeWorkers}: ParcelV3Options) {
+  constructor({threads, nodeWorkers, fs}: ParcelV3Options) {
     this._internal = new napi.ParcelNapi({
       threads,
       nodeWorkers,
+      fs,
       rpc: async (err, id, data, done) => {
         try {
           if (err) {

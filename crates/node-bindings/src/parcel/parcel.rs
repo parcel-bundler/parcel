@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::thread;
 
 use napi::Env;
+use napi::JsFunction;
 use napi::JsObject;
-use napi::JsUnknown;
 use napi_derive::napi;
 use parcel::rpc::nodejs::RpcHostNodejs;
 use parcel::BuildOptions;
@@ -12,6 +12,20 @@ use parcel::Parcel;
 use parcel::ParcelOptions;
 
 use crate::file_system::FileSystemNapi;
+
+#[napi(object)]
+pub struct ParcelNapiBuildOptions {}
+
+#[napi(object)]
+pub struct ParcelNapiBuildResult {}
+
+#[napi(object)]
+pub struct ParcelNapiOptions {
+  pub threads: Option<u32>,
+  pub node_workers: Option<u32>,
+  pub fs: Option<JsObject>,
+  pub rpc: JsFunction,
+}
 
 #[napi]
 pub struct ParcelNapi {
@@ -22,7 +36,7 @@ pub struct ParcelNapi {
 #[napi]
 impl ParcelNapi {
   #[napi(constructor)]
-  pub fn new(env: Env, options: JsObject) -> napi::Result<Self> {
+  pub fn new(env: Env, options: ParcelNapiOptions) -> napi::Result<Self> {
     // Debugging Instrumentation
     let _ = tracing_subscriber::fmt::try_init();
     let thread_id = std::thread::current().id();
@@ -32,29 +46,24 @@ impl ParcelNapi {
     let mut parcel_options = ParcelOptions::default();
 
     // Wrap the JavaScript-supplied FileSystem
-    parcel_options.fs = FileSystemNapi::from_options(&env, &options)?;
+    if let Some(fs) = options.fs {
+      parcel_options.fs = Some(Arc::new(FileSystemNapi::new(&env, &fs)?));
+    }
 
     // Assign Rust thread count from JavaScript
-    let js_threads = options.get_named_property::<JsUnknown>("threads")?;
-    parcel_options.threads = match js_threads.get_type()? {
-      napi::ValueType::Undefined => Ok(parcel_options.threads),
-      napi::ValueType::Number => Ok(js_threads.coerce_to_number()?.get_uint32()? as usize),
-      _ => Err(napi::Error::from_reason("Expected number for threads")),
-    }?;
+    if let Some(threads) = options.threads {
+      parcel_options.threads = threads as usize;
+    }
 
     // Set up Nodejs plugin bindings
-    let js_node_workers = options.get_named_property::<JsUnknown>("nodeWorkers")?;
-    let node_worker_count = match js_node_workers.get_type()? {
-      napi::ValueType::Undefined => Ok(parcel_options.threads.clone()),
-      napi::ValueType::Number => Ok(js_node_workers.coerce_to_number()?.get_uint32()? as usize),
-      _ => Err(napi::Error::from_reason("Expected number for threads")),
-    }?;
+    let node_worker_count: usize;
+    if let Some(node_workers) = options.node_workers {
+      node_worker_count = node_workers as usize;
+    } else {
+      node_worker_count = parcel_options.threads;
+    }
 
-    let rpc_host_nodejs = RpcHostNodejs::new(
-      &env,
-      options.get_named_property("rpc")?,
-      node_worker_count.clone(),
-    )?;
+    let rpc_host_nodejs = RpcHostNodejs::new(&env, options.rpc, node_worker_count.clone())?;
     parcel_options.rpc = Some(Arc::new(rpc_host_nodejs));
 
     // Return self
@@ -65,7 +74,7 @@ impl ParcelNapi {
   }
 
   #[napi]
-  pub fn build(&self, env: Env, _options: JsObject) -> napi::Result<JsObject> {
+  pub fn build(&self, env: Env, _options: ParcelNapiBuildOptions) -> napi::Result<JsObject> {
     let (deferred, promise) = env.create_deferred()?;
     // Parse build options from JS options
     let build_options = BuildOptions {};
@@ -74,7 +83,7 @@ impl ParcelNapi {
     thread::spawn({
       let parcel = self.parcel.clone();
       move || match parcel.build(build_options) {
-        Ok(_result) => deferred.resolve(|env| env.create_object()),
+        Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
         Err(error) => deferred.reject(napi::Error::from_reason(format!("{:?}", error))),
       }
     });
