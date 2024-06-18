@@ -29,8 +29,7 @@ impl<'a, T: Clone> RunRequestContext<'a, T> {
     // TODO
   }
 
-  // TODO: Why is this boxed?
-  pub fn run_request(&mut self, request: Box<&dyn Request<T>>) -> anyhow::Result<T> {
+  pub fn run_request(&mut self, request: &impl Request<T>) -> anyhow::Result<T> {
     self
       .request_tracker
       .run_child_request(request, self.parent_request_hash)

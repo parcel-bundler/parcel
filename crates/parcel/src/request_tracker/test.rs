@@ -13,7 +13,7 @@ fn should_run_request() {
   let request_b = TestRequest::new("B", &[&request_c]);
   let request_a = TestRequest::new("A", &[&request_b]);
 
-  let result = rt.run_request(Box::new(&request_a)).unwrap();
+  let result = rt.run_request(&request_a).unwrap();
 
   assert_eq!(result[0], "A");
   assert_eq!(result[1], "B");
@@ -28,13 +28,13 @@ fn should_reuse_previously_run_request() {
   let request_b = TestRequest::new("B", &[&request_c]);
   let request_a = TestRequest::new("A", &[&request_b]);
 
-  let result = rt.run_request(Box::new(&request_a)).unwrap();
+  let result = rt.run_request(&request_a).unwrap();
 
   assert_eq!(result[0], "A");
   assert_eq!(result[1], "B");
   assert_eq!(result[2], "C");
 
-  let result = rt.run_request(Box::new(&request_a)).unwrap();
+  let result = rt.run_request(&request_a).unwrap();
   assert_eq!(result[0], "A");
   assert_eq!(result[1], "B");
   assert_eq!(result[2], "C");
@@ -46,12 +46,12 @@ fn should_run_request_once() {
 
   let request_a = TestRequest::new("A", &[]);
 
-  let result = rt.run_request(Box::new(&request_a)).unwrap();
+  let result = rt.run_request(&request_a).unwrap();
 
   assert_eq!(result[0], "A");
   assert_eq!(request_a.run_count(), 1);
 
-  let result = rt.run_request(Box::new(&request_a)).unwrap();
+  let result = rt.run_request(&request_a).unwrap();
   assert_eq!(result[0], "A");
   assert_eq!(request_a.run_count(), 1);
 }
@@ -63,14 +63,14 @@ fn should_run_request_once_2() {
   let request_b = TestRequest::new("B", &[]);
   let request_a = TestRequest::new("A", &[&request_b]);
 
-  let result = rt.run_request(Box::new(&request_a)).unwrap();
+  let result = rt.run_request(&request_a).unwrap();
 
   assert_eq!(result[0], "A");
   assert_eq!(result[1], "B");
   assert_eq!(request_a.run_count(), 1);
   assert_eq!(request_b.run_count(), 1);
 
-  let result = rt.run_request(Box::new(&request_a)).unwrap();
+  let result = rt.run_request(&request_a).unwrap();
   assert_eq!(result[0], "A");
   assert_eq!(result[1], "B");
   assert_eq!(request_a.run_count(), 1);
@@ -127,7 +127,7 @@ impl<'a> Request<Vec<String>> for TestRequest<'a> {
 
     while let Some(subrequest) = subrequets.pop() {
       let req = subrequest.clone();
-      let subrequest_result = context.run_request(Box::new(&req))?;
+      let subrequest_result = context.run_request(&req)?;
       result.extend(subrequest_result);
     }
 

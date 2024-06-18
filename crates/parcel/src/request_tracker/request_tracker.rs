@@ -27,13 +27,13 @@ impl<T: Clone> RequestTracker<T> {
     }
   }
 
-  pub fn run_request(&mut self, request: Box<&dyn Request<T>>) -> anyhow::Result<T> {
+  pub fn run_request(&mut self, request: &impl Request<T>) -> anyhow::Result<T> {
     self.run_child_request(request, None)
   }
 
   pub fn run_child_request(
     &mut self,
-    request: Box<&dyn Request<T>>,
+    request: &impl Request<T>,
     parent_request_hash: Option<u64>,
   ) -> anyhow::Result<T> {
     let request_id = request.id();
