@@ -21,11 +21,11 @@ use super::RpcConnectionNodejsMulti;
 // the lazy initialization of Nodejs worker threads.
 pub struct RpcHostNodejs {
   threadsafe_function: ThreadsafeFunction<RpcHostMessage>,
-  node_workers: u32,
+  node_workers: usize,
 }
 
 impl RpcHostNodejs {
-  pub fn new(env: &Env, callback: JsFunction, node_workers: u32) -> napi::Result<Self> {
+  pub fn new(env: &Env, callback: JsFunction, node_workers: usize) -> napi::Result<Self> {
     // Create a threadsafe function that casts the incoming message data to something
     // accessible in JavaScript. The function accepts a return value from a JS callback
     let mut threadsafe_function: ThreadsafeFunction<RpcHostMessage> = env

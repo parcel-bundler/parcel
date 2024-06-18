@@ -1,6 +1,5 @@
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use napi::bindgen_prelude::FromNapiValue;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
@@ -8,7 +7,6 @@ use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
 use parcel::file_system::FileSystem;
-use parcel::file_system::FileSystemRef;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -39,15 +37,6 @@ impl FileSystemNapi {
         "isDir",
       )?),
     })
-  }
-
-  pub fn from_options(env: &Env, options: &JsObject) -> napi::Result<Option<FileSystemRef>> {
-    let mut fs = None::<FileSystemRef>;
-    if options.has_named_property("fs")? {
-      let fs_raw: JsObject = options.get_named_property("fs")?;
-      fs.replace(Arc::new(FileSystemNapi::new(&env, &fs_raw)?));
-    }
-    Ok(fs)
   }
 }
 
