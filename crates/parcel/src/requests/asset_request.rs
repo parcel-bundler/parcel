@@ -22,11 +22,15 @@ use crate::plugins::Plugins;
 use crate::plugins::TransformerPipeline;
 use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
 
+/// The AssetRequest runs transformer plugins on discovered Assets.
+/// - Decides which transformer pipeline to run from the input Asset type
+/// - Runs the pipeline in series, switching pipeline if the Asset type changes
+/// - Stores the final Asset source code in the cache, for access in packaging
+/// - Finally, returns the complete Asset and it's discovered Dependencies
 pub struct AssetRequest<'a> {
   pub cache: CacheRef,
   pub file_system: FileSystemRef,
   pub plugins: Arc<Plugins<'a>>,
-  pub file_system: FileSystemRef,
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
   pub code: Option<Vec<u8>>,
@@ -54,18 +58,6 @@ pub struct AssetResult {
 }
 
 impl<'a> Request<AssetResult> for AssetRequest<'a> {
-  fn id(&self) -> u64 {
-    let mut hasher = parcel_core::hash::IdentifierHasher::default();
-
-    self.file_path.hash(&mut hasher);
-    self.code.hash(&mut hasher);
-    self.pipeline.hash(&mut hasher);
-    self.env.hash(&mut hasher);
-    self.side_effects.hash(&mut hasher);
-
-    hasher.finish()
-  }
-
   fn run(
     &self,
     request_context: RunRequestContext<AssetResult>,
