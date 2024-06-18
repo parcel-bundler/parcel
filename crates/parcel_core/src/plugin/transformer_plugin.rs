@@ -1,6 +1,5 @@
 use parcel_filesystem::FileSystemRef;
 use std::fmt::Debug;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -39,7 +38,7 @@ pub struct InitialAsset {
 ///
 /// * InitialAsset that have just been discovered
 /// * Outputs of previous transformation steps, which are in-place modified
-/// * These two scenarios are distinguished
+///
 pub enum TransformationInput {
   InitialAsset(InitialAsset),
   Asset(Asset),

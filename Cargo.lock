@@ -1723,6 +1723,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dyn-hash",
+ "num_cpus",
  "parcel-resolver",
  "parcel_config",
  "parcel_core",
@@ -1797,7 +1798,6 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "num_cpus",
  "once_cell",
  "oxipng",
  "parcel",
@@ -1831,6 +1831,7 @@ dependencies = [
  "itertools 0.10.5",
  "json_comments",
  "once_cell",
+ "parcel_core",
  "parcel_filesystem",
  "parking_lot",
  "percent-encoding",
@@ -1864,10 +1865,10 @@ name = "parcel_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags 1.3.2",
  "browserslist-rs",
  "dyn-hash",
  "nodejs-semver",
- "parcel-resolver",
  "parcel_filesystem",
  "serde",
  "serde-value",

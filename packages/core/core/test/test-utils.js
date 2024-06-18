@@ -6,6 +6,7 @@ import {FSCache} from '@parcel/cache';
 import tempy from 'tempy';
 import path from 'path';
 import {inputFS, outputFS} from '@parcel/test-utils';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 import {relativePath} from '@parcel/utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createEnvironment} from '../src/Environment';
@@ -53,10 +54,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
     sourceMaps: false,
   },
   featureFlags: {
-    exampleFeature: false,
-    configKeyInvalidation: false,
-    parcelV3: false,
-    dfsFasterRefactor: false,
+    ...DEFAULT_FEATURE_FLAGS,
   },
 };
 
