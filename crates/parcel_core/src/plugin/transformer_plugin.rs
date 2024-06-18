@@ -4,20 +4,11 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use parcel_resolver::SpecifierType;
-
-use crate::types::{Asset, Environment, SourceCode};
-use crate::types::{Dependency, SourceMap};
-
-pub struct GenerateOutput {
-  pub content: File,
-  pub map: Option<SourceMap>,
-}
+use crate::types::{Asset, Dependency, Environment, SourceCode, SpecifierType};
 
 pub struct ResolveOptions {
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
   pub package_conditions: Vec<String>,
-
   /// How the specifier should be interpreted
   pub specifier_type: SpecifierType,
 }
@@ -34,7 +25,10 @@ pub struct InitialAsset {
   pub env: Arc<Environment>,
   pub side_effects: bool,
 }
-/// Transformers may run against:
+
+/// The input to transform within the plugin
+///
+/// Transformers may run against two distinguished scenarios:
 ///
 /// * InitialAsset that have just been discovered
 /// * Outputs of previous transformation steps, which are in-place modified
