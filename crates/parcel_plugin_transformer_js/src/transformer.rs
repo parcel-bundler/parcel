@@ -541,12 +541,8 @@ fn convert_dependency(
           ..asset_environment.clone()
         }
         .into(),
-        // flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
+        needs_stable_name: true,
         // placeholder: dep.placeholder.map(|s| s.into()),
-        // promise_symbol: None,
-        // import_attributes: Vec::new(),
-        // resolver_meta: JSONObject::new(),
-        // custom_package_conditions: Vec::new(),
         ..base_dependency
       };
 
@@ -565,9 +561,6 @@ fn convert_dependency(
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
         // promise_symbol: None,
-        // import_attributes: Vec::new(),
-        // resolver_meta: JSONObject::new(),
-        // custom_package_conditions: Vec::new(),
         ..base_dependency
       };
 
@@ -579,10 +572,6 @@ fn convert_dependency(
         bundle_behavior: BundleBehavior::Isolated,
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
-        // promise_symbol: None,
-        // import_attributes: Vec::new(),
-        // resolver_meta: JSONObject::new(),
-        // custom_package_conditions: Vec::new(),
         ..base_dependency
       };
 
@@ -660,10 +649,7 @@ fn convert_dependency(
           DependencyKind::Import | DependencyKind::Export
         ),
         // placeholder: dep.placeholder.map(|s| s.into()),
-        // promise_symbol: None,
         // import_attributes,
-        // resolver_meta: JSONObject::new(),
-        // custom_package_conditions: Vec::new(),
         ..base_dependency
       };
 
