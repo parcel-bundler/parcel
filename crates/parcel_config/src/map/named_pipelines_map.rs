@@ -40,6 +40,7 @@ pub struct NamedPattern<'a> {
 /// ```
 ///
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct NamedPipelinesMap {
   /// Maps patterns and named patterns to a series of plugins, called pipelines
   inner: IndexMap<String, Vec<PluginNode>>,
