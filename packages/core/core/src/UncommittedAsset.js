@@ -28,7 +28,7 @@ import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {createAsset, createAssetIdFromOptions} from './assetUtils';
-import {BundleBehaviorNames} from './types';
+import {AssetFlags, BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
 
@@ -116,7 +116,9 @@ export default class UncommittedAsset {
       this.value.stats.size = size;
     }
 
-    this.value.isLargeBlob = this.content instanceof Readable;
+    if (this.content instanceof Readable) {
+      this.value.flags |= AssetFlags.LARGE_BLOB;
+    }
     this.value.committed = true;
   }
 
@@ -367,8 +369,9 @@ export default class UncommittedAsset {
             ? null
             : BundleBehaviorNames[this.value.bundleBehavior]),
         isBundleSplittable:
-          result.isBundleSplittable ?? this.value.isBundleSplittable,
-        isSource: this.value.isSource,
+          result.isBundleSplittable ??
+          Boolean(this.value.flags & AssetFlags.IS_BUNDLE_SPLITTABLE),
+        isSource: Boolean(this.value.flags & AssetFlags.IS_SOURCE),
         env: mergeEnvironments(
           this.options.projectRoot,
           this.value.env,
@@ -391,7 +394,9 @@ export default class UncommittedAsset {
         },
         // $FlowFixMe
         symbols: result.symbols,
-        sideEffects: result.sideEffects ?? this.value.sideEffects,
+        sideEffects:
+          result.sideEffects ??
+          Boolean(this.value.flags & AssetFlags.SIDE_EFFECTS),
         uniqueKey: result.uniqueKey,
         astGenerator: result.ast
           ? {type: result.ast.type, version: result.ast.version}

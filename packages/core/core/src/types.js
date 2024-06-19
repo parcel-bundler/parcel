@@ -5,7 +5,6 @@ import type {
   ASTGenerator,
   BuildMode,
   Engines,
-  EnvironmentContext,
   EnvMap,
   FilePath,
   Glob,
@@ -16,12 +15,11 @@ import type {
   ReporterEvent,
   SemverRange,
   ServerOptions,
-  SourceType,
   Stats,
   Symbol,
   TargetSourceMapOptions,
   ConfigResult,
-  OutputFormat,
+  OutputFormat as TOutputFormat,
   TargetDescriptor,
   HMROptions,
   DetailedReportOptions,
@@ -63,20 +61,54 @@ export type ProcessedParcelConfig = {|
 
 export type Environment = {|
   id: string,
-  context: EnvironmentContext,
+  context: $Values<typeof EnvironmentContext>,
   engines: Engines,
   includeNodeModules:
     | boolean
     | Array<PackageName>
     | {[PackageName]: boolean, ...},
-  outputFormat: OutputFormat,
-  sourceType: SourceType,
-  isLibrary: boolean,
-  shouldOptimize: boolean,
-  shouldScopeHoist: boolean,
+  outputFormat: $Values<typeof OutputFormat>,
+  sourceType: $Values<typeof SourceType>,
+  flags: number,
   sourceMap: ?TargetSourceMapOptions,
   loc: ?InternalSourceLocation,
 |};
+
+export const EnvironmentFlags = {
+  IS_LIBRARY: 1 << 0,
+  SHOULD_OPTIMIZE: 1 << 1,
+  SHOULD_SCOPE_HOIST: 1 << 2,
+};
+
+export const OutputFormat = {
+  global: 0,
+  commonjs: 1,
+  esmodule: 2,
+};
+
+export const OutputFormatNames: Array<$Keys<typeof OutputFormat>> =
+  Object.keys(OutputFormat);
+
+export const SourceType = {
+  module: 0,
+  script: 1,
+};
+
+export const SourceTypeNames: Array<$Keys<typeof SourceType>> =
+  Object.keys(SourceType);
+
+export const EnvironmentContext = {
+  browser: 0,
+  'web-worker': 1,
+  'service-worker': 2,
+  worklet: 3,
+  node: 4,
+  'electron-main': 5,
+  'electron-renderer': 6,
+};
+
+export const EnvironmentContextNames: Array<$Keys<typeof EnvironmentContext>> =
+  Object.keys(EnvironmentContext);
 
 export type InternalSourceLocation = {|
   +filePath: ProjectPath,
@@ -132,10 +164,10 @@ export type Dependency = {|
   specifier: DependencySpecifier,
   specifierType: $Values<typeof SpecifierType>,
   priority: $Values<typeof Priority>,
-  needsStableName: boolean,
-  bundleBehavior: ?$Values<typeof BundleBehavior>,
-  isEntry: boolean,
-  isOptional: boolean,
+  flags: number,
+  placeholder?: ?string,
+  promiseSymbol?: ?string,
+  bundleBehavior: $Values<typeof BundleBehavior>,
   loc: ?InternalSourceLocation,
   env: Environment,
   packageConditions?: number,
@@ -158,12 +190,28 @@ export type Dependency = {|
     |},
   >,
   pipeline?: ?string,
+  importAttributes?: Array<ImportAttribute>,
 |};
+
+export const DependencyFlags = {
+  ENTRY: 1 << 0,
+  OPTIONAL: 1 << 1,
+  NEEDS_STABLE_NAME: 1 << 2,
+  SHOULD_WRAP: 1 << 3,
+  IS_ESM: 1 << 4,
+  IS_WEBWORKER: 1 << 5,
+  HAS_SYMBOLS: 1 << 6,
+};
 
 export const BundleBehavior = {
   inline: 0,
   isolated: 1,
 };
+
+export type ImportAttribute = {|
+  key: string,
+  value: boolean,
+|};
 
 export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
   Object.keys(BundleBehavior);
@@ -175,9 +223,8 @@ export type Asset = {|
   query: ?string,
   type: string,
   dependencies: Map<string, Dependency>,
-  bundleBehavior: ?$Values<typeof BundleBehavior>,
-  isBundleSplittable: boolean,
-  isSource: boolean,
+  bundleBehavior: $Values<typeof BundleBehavior>,
+  flags: number,
   env: Environment,
   meta: Meta,
   stats: Stats,
@@ -191,13 +238,24 @@ export type Asset = {|
     Symbol,
     {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
   >,
-  sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: ProjectPath,
   plugin: ?PackageName,
   configKeyPath?: string,
-  isLargeBlob?: boolean,
 |};
+
+export const AssetFlags = {
+  IS_SOURCE: 1 << 0,
+  SIDE_EFFECTS: 1 << 1,
+  IS_BUNDLE_SPLITTABLE: 1 << 2,
+  LARGE_BLOB: 1 << 3,
+  HAS_CJS_EXPORTS: 1 << 4,
+  STATIC_EXPORTS: 1 << 5,
+  SHOULD_WRAP: 1 << 6,
+  IS_CONSTANT_MODULE: 1 << 7,
+  HAS_NODE_REPLACEMENTS: 1 << 8,
+  HAS_SYMBOLS: 1 << 9,
+};
 
 export type InternalGlob = ProjectPath;
 
@@ -316,7 +374,7 @@ export type ParcelOptions = {|
     +publicUrl: string,
     +distDir?: ProjectPath,
     +engines?: Engines,
-    +outputFormat?: OutputFormat,
+    +outputFormat?: TOutputFormat,
     +isLibrary?: boolean,
   |},
 

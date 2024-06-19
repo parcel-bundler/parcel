@@ -1798,13 +1798,13 @@ describe('bundler', function () {
           assets: ['index.html'],
         },
         {
-          assets: ['a.js', 'i.js'],
+          assets: ['a.js', 'b.js', 'd.js', 'h.js', 'i.js'],
         },
         {
-          assets: ['vendor.js', 'b.js', 'j.js'],
+          assets: ['j.js'],
         },
         {
-          assets: ['c.js', 'd.js', 'e.js', 'f.js', 'g.js', 'h.js'],
+          assets: ['c.js', 'e.js', 'f.js', 'g.js', 'vendor.js'],
         },
         {
           assets: ['esmodule-helpers.js', 'index.js'],

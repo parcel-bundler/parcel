@@ -37,7 +37,14 @@ import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/rust';
 import {DefaultMap, objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
-import {Priority, BundleBehavior, SpecifierType} from './types';
+import {
+  Priority,
+  BundleBehavior,
+  SpecifierType,
+  AssetFlags,
+  EnvironmentFlags,
+  EnvironmentContextNames,
+} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
@@ -203,7 +210,7 @@ export default class BundleGraph {
       if (
         node.type === 'dependency' &&
         node.value.symbols != null &&
-        node.value.env.shouldScopeHoist &&
+        node.value.env.flags & EnvironmentFlags.SHOULD_SCOPE_HOIST &&
         // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
         isProduction
       ) {
@@ -530,7 +537,7 @@ export default class BundleGraph {
             ? BundleBehavior[opts.bundleBehavior]
             : null,
         isSplittable: opts.entryAsset
-          ? opts.entryAsset.isBundleSplittable
+          ? Boolean(opts.entryAsset.flags & AssetFlags.IS_BUNDLE_SPLITTABLE)
           : opts.isSplittable,
         isPlaceholder,
         target,
@@ -1303,7 +1310,7 @@ export default class BundleGraph {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't consider any assets reachable.
     if (
-      ISOLATED_ENVS.has(bundle.env.context) ||
+      ISOLATED_ENVS.has(EnvironmentContextNames[bundle.env.context]) ||
       !bundle.isSplittable ||
       bundle.bundleBehavior === BundleBehavior.isolated ||
       bundle.bundleBehavior === BundleBehavior.inline

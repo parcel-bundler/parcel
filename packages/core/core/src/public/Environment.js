@@ -16,6 +16,12 @@ import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import {fromInternalSourceLocation} from '../utils';
+import {
+  EnvironmentContextNames,
+  EnvironmentFlags,
+  OutputFormatNames,
+  SourceTypeNames,
+} from '../types';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -174,7 +180,7 @@ export default class Environment implements IEnvironment {
   }
 
   get context(): EnvironmentContext {
-    return this.#environment.context;
+    return EnvironmentContextNames[this.#environment.context];
   }
 
   get engines(): Engines {
@@ -189,23 +195,25 @@ export default class Environment implements IEnvironment {
   }
 
   get outputFormat(): OutputFormat {
-    return this.#environment.outputFormat;
+    return OutputFormatNames[this.#environment.outputFormat];
   }
 
   get sourceType(): SourceType {
-    return this.#environment.sourceType;
+    return SourceTypeNames[this.#environment.sourceType];
   }
 
   get isLibrary(): boolean {
-    return this.#environment.isLibrary;
+    return Boolean(this.#environment.flags & EnvironmentFlags.IS_LIBRARY);
   }
 
   get shouldOptimize(): boolean {
-    return this.#environment.shouldOptimize;
+    return Boolean(this.#environment.flags & EnvironmentFlags.SHOULD_OPTIMIZE);
   }
 
   get shouldScopeHoist(): boolean {
-    return this.#environment.shouldScopeHoist;
+    return Boolean(
+      this.#environment.flags & EnvironmentFlags.SHOULD_SCOPE_HOIST,
+    );
   }
 
   get sourceMap(): ?TargetSourceMapOptions {
@@ -221,31 +229,31 @@ export default class Environment implements IEnvironment {
 
   // $FlowFixMe[unsupported-syntax]
   [inspect](): string {
-    return `Env(${this.#environment.context})`;
+    return `Env(${this.context})`;
   }
 
   isBrowser(): boolean {
-    return BROWSER_ENVS.has(this.#environment.context);
+    return BROWSER_ENVS.has(this.context);
   }
 
   isNode(): boolean {
-    return NODE_ENVS.has(this.#environment.context);
+    return NODE_ENVS.has(this.context);
   }
 
   isElectron(): boolean {
-    return ELECTRON_ENVS.has(this.#environment.context);
+    return ELECTRON_ENVS.has(this.context);
   }
 
   isIsolated(): boolean {
-    return ISOLATED_ENVS.has(this.#environment.context);
+    return ISOLATED_ENVS.has(this.context);
   }
 
   isWorker(): boolean {
-    return WORKER_ENVS.has(this.#environment.context);
+    return WORKER_ENVS.has(this.context);
   }
 
   isWorklet(): boolean {
-    return this.#environment.context === 'worklet';
+    return this.context === 'worklet';
   }
 
   matchesEngines(
