@@ -12,7 +12,9 @@ pub struct Symbol {
   /// The IMPORTED name. Most of the time this is the mangled symbol the transformer has replaced
   /// an import with.
   ///
-  /// Re-exports are the exception. See `HoistResult`.
+  /// On re-exports, this is rather a generated string, using the asset-id and symbol local value.
+  /// this is different to `HoistResult::re_exports`. We're generating this mangled key when
+  /// converting from `ImportedSymbol` to `Symbol`
   pub local: String,
   /// The original EXPORTED name. Since this type is used also for imported symbols, this might
   /// mean the name of a symbol imported from another module as well.

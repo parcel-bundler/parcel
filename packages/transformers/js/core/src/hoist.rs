@@ -98,6 +98,8 @@ pub struct ImportedSymbol {
   /// The specifier for a certain dependency this symbol comes from
   pub source: JsWord,
   /// The (usually mangled) local name for a certain imported symbol
+  ///
+  /// On re-exports, this is rather the rename for the import. See `HoistResult::re_exports`.
   pub local: JsWord,
   /// The original name for a certain imported symbol
   pub imported: JsWord,

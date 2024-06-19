@@ -142,13 +142,17 @@ fn convert_result(
             .map(|e| e.flags & SymbolFlags::IS_WEAK)
             .unwrap_or(SymbolFlags::IS_WEAK);
 
-          // TODO: What is this? There is no such mangling in the transformer
-          let re_export_name = existing
+          // `re_export_fake_local_key` is a generated mangled identifier only for purposes of
+          // keying this `Symbol`. It is not actually inserted onto the file.
+          //
+          // Unlike other symbols, we're generating the mangled name in here rather than in the
+          // SWC transformer implementation.
+          let re_export_fake_local_key = existing
             .map(|sym| sym.local.clone())
             .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, symbol.local).into());
           let symbol = Symbol {
             exported: symbol.imported.as_ref().into(),
-            local: re_export_name.clone(),
+            local: re_export_fake_local_key.clone(),
             loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
             flags: existing_flags,
           };
