@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use napi::bindgen_prelude::FromNapiValue;
+use napi::bindgen_prelude::{FromNapiValue, Promise};
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use napi::Env;
 use napi::JsFunction;

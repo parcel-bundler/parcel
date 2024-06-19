@@ -106,7 +106,11 @@ fn convert_result(
   }
 
   if let Some(hoist_result) = result.hoist_result {
+    // Has symbols is currently needed to differentiate between assets with no symbols vs assets
+    // which haven't had symbols analyzed yet.
+    // TODO: replace `asset.symbols` with `Option<Vec<...>>`
     asset.flags.set(AssetFlags::HAS_SYMBOLS, true);
+
     // Pre-allocate expected symbols
     asset
       .symbols
@@ -147,6 +151,7 @@ fn convert_result(
           //
           // Unlike other symbols, we're generating the mangled name in here rather than in the
           // SWC transformer implementation.
+          // TODO: Move this into the SWC transformer
           let re_export_fake_local_key = existing
             .map(|sym| sym.local.clone())
             .unwrap_or_else(|| format!("${:016x}$re_export${}", asset_id, symbol.local).into());
@@ -290,8 +295,7 @@ fn convert_result(
       if dep.symbols.is_empty() {
         dep.symbols.push(Symbol {
           exported: "*".into(),
-          // TODO: What does it mean?
-          local: "".into(), // format!("${}$", dep.placeholder.as_ref().unwrap_or(&dep.specifier)).into(),
+          local: format!("${}$", dep.specifier), // TODO: coalesce with dep.placeholder
           flags: SymbolFlags::empty(),
           loc: None,
         });
