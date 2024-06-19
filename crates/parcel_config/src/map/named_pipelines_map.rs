@@ -1,3 +1,5 @@
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::path::Path;
 
 use indexmap::IndexMap;
@@ -44,6 +46,14 @@ pub struct NamedPattern<'a> {
 pub struct NamedPipelinesMap {
   /// Maps patterns and named patterns to a series of plugins, called pipelines
   inner: IndexMap<String, Vec<PluginNode>>,
+}
+
+impl Hash for NamedPipelinesMap {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    for item in self.0.iter() {
+      item.hash(state);
+    }
+  }
 }
 
 impl NamedPipelinesMap {

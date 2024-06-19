@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::impl_bitflags_serde;
 use serde::Deserialize;
@@ -22,17 +23,21 @@ pub struct AssetId(pub NonZeroU32);
 /// The source code for an asset.
 #[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SourceCode {
+pub struct Code {
   inner: String,
 }
 
-impl SourceCode {
+impl Code {
   pub fn bytes(&self) -> &[u8] {
     self.inner.as_bytes()
   }
+
+  pub fn size(&self) -> u32 {
+    self.inner.len() as u32
+  }
 }
 
-impl From<String> for SourceCode {
+impl From<String> for Code {
   fn from(value: String) -> Self {
     Self { inner: value }
   }
@@ -53,13 +58,14 @@ pub struct Asset {
   pub bundle_behavior: BundleBehavior,
 
   /// The environment of the asset
-  pub env: Environment,
+  pub env: Arc<Environment>,
 
   /// The file path to the asset
   pub file_path: PathBuf,
 
-  /// The source code of this asset
-  pub source_code: Rc<SourceCode>,
+  /// The code of this asset, initially read from disk, then becoming the
+  /// transformed output
+  pub code: Rc<Code>,
 
   /// Indicates if the asset is used as a bundle entry
   ///
@@ -125,7 +131,7 @@ impl Asset {
   }
 
   /// Build a new empty asset
-  pub fn new_empty(file_path: PathBuf, source_code: Rc<SourceCode>) -> Self {
+  pub fn new_empty(file_path: PathBuf, source_code: Rc<Code>) -> Self {
     let asset_type =
       FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
 
@@ -133,11 +139,11 @@ impl Asset {
     Self {
       file_path,
       asset_type,
-      env: Environment {
+      env: Arc::new(Environment {
         context: EnvironmentContext::Browser,
         ..Default::default()
-      },
-      source_code,
+      }),
+      code: source_code,
       ..Default::default()
     }
   }
@@ -170,6 +176,6 @@ impl_bitflags_serde!(AssetFlags);
 /// Statistics that pertain to an asset
 #[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AssetStats {
-  size: u32,
-  time: u32,
+  pub size: u32,
+  pub time: u32,
 }
