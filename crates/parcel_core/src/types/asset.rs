@@ -156,17 +156,6 @@ impl Asset {
   }
 }
 
-impl Hash for Asset {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.asset_type.hash(state);
-    self.env.hash(state);
-    self.file_path.hash(state);
-    self.pipeline.hash(state);
-    self.query.hash(state);
-    self.unique_key.hash(state);
-  }
-}
-
 /// Statistics that pertain to an asset
 #[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AssetStats {
