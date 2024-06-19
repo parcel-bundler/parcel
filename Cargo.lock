@@ -1931,8 +1931,6 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel-resolver",
  "parcel_core",
- "parcel_filesystem",
- "serde",
  "swc_core 0.93.4",
 ]
 
