@@ -15,7 +15,7 @@ impl ParcelTransformerJs {
 
 impl TransformerPlugin for ParcelTransformerJs {
   fn transform(
-    &mut self,
+    &self,
     _context: &mut RunTransformContext,
     _asset: TransformationInput,
   ) -> Result<TransformResult, anyhow::Error> {
