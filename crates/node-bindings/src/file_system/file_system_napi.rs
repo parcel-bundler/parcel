@@ -64,10 +64,10 @@ fn create_js_thread_safe_method<
   Response: Send + DeserializeOwned + 'static + FromNapiValue,
 >(
   env: &Env,
-  js_file_system: &JsObject,
+  js_object: &JsObject,
   method_name: &str,
 ) -> Result<impl Fn(Params) -> Response, napi::Error> {
-  let jsfn: JsFunction = js_file_system.get_property(env.create_string(method_name)?)?;
+  let jsfn: JsFunction = js_object.get_property(env.create_string(method_name)?)?;
 
   let threadsafe_function = env.create_threadsafe_function(
     &jsfn,
