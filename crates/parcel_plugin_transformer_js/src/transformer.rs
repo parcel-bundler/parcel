@@ -459,25 +459,8 @@ fn make_esm_helpers_dependency(
     }
     .into(),
     resolve_from: Some(options.core_path.as_path().into()),
-    range: None,
-    priority: Priority::Sync,
-    bundle_behavior: BundleBehavior::None,
     flags: dependency_flags,
-    loc: None,
-    // placeholder: None,
-    target: None,
-    // promise_symbol: None,
-    symbols: Vec::new(),
-    // import_attributes: Vec::new(),
-    pipeline: None,
-    meta: JSONObject::new(),
-    // resolver_meta: JSONObject::new(),
-    package_conditions: ExportsCondition::empty(),
-    // custom_package_conditions: Vec::new(),
-    // TODO:
-    is_entry: false,
-    needs_stable_name: false,
-    is_optional: false,
+    ..Default::default()
   }
 }
 
@@ -510,16 +493,8 @@ fn convert_dependency(
     specifier: transformer_dependency.specifier.as_ref().into(),
     specifier_type: convert_specifier_type(&transformer_dependency),
     source_path: Some(asset_file_path.clone()),
-    resolve_from: None,
-    range: None,
     priority: convert_priority(&transformer_dependency),
-    bundle_behavior: BundleBehavior::None,
     loc: Some(loc.clone()),
-    target: None,
-    symbols: Vec::new(),
-    pipeline: None,
-    meta: JSONObject::new(),
-    package_conditions: ExportsCondition::empty(),
     ..Dependency::default()
   };
   let source_type = convert_source_type(&transformer_dependency);
