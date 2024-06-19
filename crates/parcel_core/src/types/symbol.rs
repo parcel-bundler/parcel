@@ -1,13 +1,10 @@
-use bitflags::bitflags;
 use serde::Deserialize;
 use serde::Serialize;
-
-use crate::impl_bitflags_serde;
 
 use super::source::SourceLocation;
 
 /// A map of export names to the corresponding local variable names
-#[derive(Clone, PartialEq, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, PartialEq, Debug, Default, Deserialize, Hash, Serialize)]
 pub struct Symbol {
   /// The IMPORTED name. Most of the time this is the mangled symbol the transformer has replaced
   /// an import with.
@@ -28,16 +25,7 @@ pub struct Symbol {
   /// The star symbol is a special case for "all" exports and should be modeled by a separate ADT
   /// case in the future
   pub loc: Option<SourceLocation>,
-  pub flags: SymbolFlags,
+  pub is_weak: bool,
+  pub is_esm: bool,
+  pub self_referenced: bool,
 }
-
-bitflags! {
-  #[derive(PartialEq, Debug, Clone, Copy, Hash)]
-  pub struct SymbolFlags: u8 {
-    const IS_WEAK = 1 << 0;
-    const IS_ESM = 1 << 1;
-    const SELF_REFERENCED = 1 << 2;
-  }
-}
-
-impl_bitflags_serde!(SymbolFlags);

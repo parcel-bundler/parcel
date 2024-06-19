@@ -1,11 +1,9 @@
-use bitflags::bitflags;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::impl_bitflags_serde;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -67,19 +65,6 @@ pub struct Asset {
   /// transformed output
   pub code: Rc<Code>,
 
-  /// Indicates if the asset is used as a bundle entry
-  ///
-  /// This controls whether a bundle can be split into multiple, or whether all of the
-  /// dependencies must be placed in a single bundle.
-  ///
-  pub is_bundle_splittable: bool,
-
-  /// Whether this asset is part of the project, and not an external dependency
-  ///
-  /// This indicates that transformation using the project configuration should be applied.
-  ///
-  pub is_source: bool,
-
   /// Plugin specific metadata for the asset
   pub meta: JSONObject,
 
@@ -88,12 +73,6 @@ pub struct Asset {
 
   /// The transformer options for the asset from the dependency query string
   pub query: Option<String>,
-
-  /// Whether this asset can be omitted if none of its exports are being used
-  ///
-  /// This is initially set by the resolver, but can be overridden by transformers.
-  ///
-  pub side_effects: bool,
 
   /// Statistics about the asset
   pub stats: AssetStats,
@@ -110,10 +89,53 @@ pub struct Asset {
   /// TODO: Make this non-nullable and disallow creating assets without it.
   pub unique_key: Option<String>,
 
-  /// A collection of boolean properties related to this asset.
+  /// Whether this asset can be omitted if none of its exports are being used
   ///
-  /// TODO: we might inline these
-  pub flags: AssetFlags,
+  /// This is initially set by the resolver, but can be overridden by transformers.
+  ///
+  pub side_effects: bool,
+
+  /// Indicates if the asset is used as a bundle entry
+  ///
+  /// This controls whether a bundle can be split into multiple, or whether all of the
+  /// dependencies must be placed in a single bundle.
+  ///
+  pub is_bundle_splittable: bool,
+
+  /// Whether this asset is part of the project, and not an external dependency
+  ///
+  /// This indicates that transformation using the project configuration should be applied.
+  ///
+  pub is_source: bool,
+
+  /// True if the asset has CommonJS exports
+  pub has_cjs_exports: bool,
+
+  /// This is true unless the module is a CommonJS module that does non-static access of the
+  /// `this`, `exports` or `module.exports` objects. For example if the module uses code like
+  /// `module.exports[key] = 10`.
+  pub static_exports: bool,
+
+  /// TODO: MISSING DOCUMENTATION
+  pub should_wrap: bool,
+
+  /// TODO: MISSING DOCUMENTATION
+  pub has_node_replacements: bool,
+
+  /// True if this is a 'constant module', meaning it only exports constant assignment statements,
+  /// on this case this module may be inlined on its usage depending on whether it is only used
+  /// once and the parcel configuration.
+  ///
+  /// An example of a 'constant module' would be:
+  ///
+  /// ```skip
+  /// export const styles = { margin: 10 };
+  /// ```
+  pub is_constant_module: bool,
+
+  /// True if `Asset::symbols` has been populated. This field is deprecated and should be phased
+  /// out.
+  pub has_symbols: bool,
 }
 
 impl Asset {
@@ -152,26 +174,6 @@ impl Asset {
     self.meta.insert("interpreter".into(), shebang.into());
   }
 }
-
-// TODO: All of these should have documentation
-bitflags! {
-  #[derive(Debug, Clone, Copy, Default, PartialEq)]
-  pub struct AssetFlags: u32 {
-    const IS_SOURCE = 1 << 0;
-    // replaced with `Asset::side_effects` for now
-    // const SIDE_EFFECTS = 1 << 1;
-    const IS_BUNDLE_SPLITTABLE = 1 << 2;
-    const LARGE_BLOB = 1 << 3;
-    const HAS_CJS_EXPORTS = 1 << 4;
-    const STATIC_EXPORTS = 1 << 5;
-    const SHOULD_WRAP = 1 << 6;
-    const IS_CONSTANT_MODULE = 1 << 7;
-    const HAS_NODE_REPLACEMENTS = 1 << 8;
-    const HAS_SYMBOLS = 1 << 9;
-  }
-}
-
-impl_bitflags_serde!(AssetFlags);
 
 /// Statistics that pertain to an asset
 #[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]

@@ -9,9 +9,9 @@ use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
-  Asset, AssetFlags, BundleBehavior, Code, Dependency, DependencyFlags, Diagnostic, Environment,
-  EnvironmentContext, FileType, ImportAttribute, Location, OutputFormat, ParcelOptions, Priority,
-  SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  Asset, BundleBehavior, Code, Dependency, Diagnostic, Environment, EnvironmentContext, FileType,
+  ImportAttribute, Location, OutputFormat, ParcelOptions, Priority, SourceLocation, SourceType,
+  SpecifierType, Symbol,
 };
 use parcel_resolver::IncludeNodeModules;
 
@@ -90,16 +90,12 @@ fn convert_result(
   )?;
 
   if result.needs_esm_helpers {
-    let mut dependency_flags = DependencyFlags::empty();
-    dependency_flags.set(
-      DependencyFlags::HAS_SYMBOLS,
-      result.hoist_result.is_some() || result.symbol_result.is_some(),
-    );
+    let has_symbols = result.hoist_result.is_some() || result.symbol_result.is_some();
     let dependency = make_esm_helpers_dependency(
       options,
       &asset_file_path,
       (*asset_environment).clone(),
-      dependency_flags,
+      has_symbols,
       asset_id,
     );
     dependency_by_specifier.insert(dependency.specifier.as_str().into(), dependency);
@@ -109,7 +105,7 @@ fn convert_result(
     // Has symbols is currently needed to differentiate between assets with no symbols vs assets
     // which haven't had symbols analyzed yet.
     // TODO: replace `asset.symbols` with `Option<Vec<...>>`
-    asset.flags.set(AssetFlags::HAS_SYMBOLS, true);
+    asset.has_symbols = true;
 
     // Pre-allocate expected symbols
     asset
@@ -142,9 +138,6 @@ fn convert_result(
             .as_slice()
             .iter()
             .find(|candidate| candidate.exported == &*symbol.imported);
-          let existing_flags = existing
-            .map(|e| e.flags & SymbolFlags::IS_WEAK)
-            .unwrap_or(SymbolFlags::IS_WEAK);
 
           // `re_export_fake_local_key` is a generated mangled identifier only for purposes of
           // keying this `Symbol`. It is not actually inserted onto the file.
@@ -159,7 +152,8 @@ fn convert_result(
             exported: symbol.imported.as_ref().into(),
             local: re_export_fake_local_key.clone(),
             loc: Some(convert_loc(asset_file_path.clone(), &symbol.loc)),
-            flags: existing_flags,
+            is_weak: existing.map(|e| e.is_weak).unwrap_or(true),
+            ..Symbol::default()
           };
 
           dependency.symbols.push(symbol.clone());
@@ -170,7 +164,7 @@ fn convert_result(
 
     for specifier in hoist_result.wrapped_requires {
       if let Some(dep) = dependency_by_specifier.get_mut(&swc_core::atoms::JsWord::new(specifier)) {
-        dep.flags.set(DependencyFlags::SHOULD_WRAP, true);
+        dep.should_wrap = true;
       }
     }
 
@@ -198,7 +192,7 @@ fn convert_result(
         .find(|s| s.exported.as_str() == name.as_str())
         .unwrap();
 
-      symbol.flags.set(SymbolFlags::SELF_REFERENCED, true);
+      symbol.self_referenced = true;
     }
 
     // Add * symbol if there are CJS exports, no imports/exports at all
@@ -215,21 +209,15 @@ fn convert_result(
       asset.symbols.push(make_export_star_symbol(asset_id));
     }
 
-    asset
-      .flags
-      .set(AssetFlags::HAS_CJS_EXPORTS, hoist_result.has_cjs_exports);
-    asset
-      .flags
-      .set(AssetFlags::STATIC_EXPORTS, hoist_result.static_cjs_exports);
-    asset
-      .flags
-      .set(AssetFlags::SHOULD_WRAP, hoist_result.should_wrap);
+    asset.has_cjs_exports = hoist_result.has_cjs_exports;
+    asset.static_exports = hoist_result.static_cjs_exports;
+    asset.should_wrap = hoist_result.should_wrap;
   } else {
     if let Some(symbol_result) = result.symbol_result {
-      asset.flags |= AssetFlags::HAS_SYMBOLS;
+      asset.has_symbols = true;
       asset.symbols.reserve(symbol_result.exports.len() + 1);
       for sym in &symbol_result.exports {
-        let (local, flags) = if let Some(dep) = sym
+        let (local, is_weak) = if let Some(dep) = sym
           .source
           .as_ref()
           .and_then(|source| dependency_by_specifier.get_mut(source))
@@ -239,18 +227,20 @@ fn convert_result(
             exported: sym.local.as_ref().into(),
             local: local.clone(),
             loc: Some(convert_loc(asset_file_path.clone(), &sym.loc)),
-            flags: SymbolFlags::IS_WEAK,
+            is_weak: true,
+            ..Symbol::default()
           });
-          (local, SymbolFlags::IS_WEAK)
+          (local, true)
         } else {
-          (format!("${}", sym.local).into(), SymbolFlags::empty())
+          (format!("${}", sym.local).into(), false)
         };
 
         asset.symbols.push(Symbol {
           exported: sym.exported.as_ref().into(),
           local,
           loc: Some(convert_loc(asset_file_path.clone(), &sym.loc)),
-          flags,
+          is_weak,
+          ..Symbol::default()
         });
       }
 
@@ -296,20 +286,15 @@ fn convert_result(
         dep.symbols.push(Symbol {
           exported: "*".into(),
           local: format!("${}$", dep.specifier), // TODO: coalesce with dep.placeholder
-          flags: SymbolFlags::empty(),
           loc: None,
+          ..Default::default()
         });
       }
     }
   }
 
-  asset.flags.set(
-    AssetFlags::HAS_NODE_REPLACEMENTS,
-    result.has_node_replacements,
-  );
-  asset
-    .flags
-    .set(AssetFlags::IS_CONSTANT_MODULE, result.is_constant_module);
+  asset.has_node_replacements = result.has_node_replacements;
+  asset.is_constant_module = result.is_constant_module;
 
   if asset.unique_key.is_none() {
     asset.unique_key = Some(format!("{:016x}", asset_id));
@@ -394,18 +379,18 @@ fn make_export_star_symbol(asset_id: u64) -> Symbol {
     // This is the mangled exports name
     local: format!("${:016x}$exports", asset_id).into(),
     loc: None,
-    flags: SymbolFlags::empty(),
+    ..Default::default()
   }
 }
 
 /// Convert `CollectImportedSymbol`, `ImportedSymbol` and into `Symbol`
 macro_rules! convert_symbol {
-  ($asset_file_path: ident, $symbol: ident, $flags: expr) => {
+  ($asset_file_path: ident, $symbol: ident) => {
     Symbol {
       exported: $symbol.imported.as_ref().into(),
       local: $symbol.local.as_ref().into(),
       loc: Some(convert_loc($asset_file_path.to_owned(), &$symbol.loc)),
-      flags: $flags,
+      ..Default::default()
     }
   };
 }
@@ -415,7 +400,7 @@ fn transformer_collect_imported_symbol_to_symbol(
   asset_file_path: &Path,
   symbol: &parcel_js_swc_core::CollectImportedSymbol,
 ) -> Symbol {
-  convert_symbol!(asset_file_path, symbol, SymbolFlags::empty())
+  convert_symbol!(asset_file_path, symbol)
 }
 
 /// Convert from `[ImportedSymbol]` to `[Symbol]`
@@ -423,7 +408,7 @@ fn transformer_imported_symbol_to_symbol(
   asset_file_path: &Path,
   symbol: &parcel_js_swc_core::ImportedSymbol,
 ) -> Symbol {
-  convert_symbol!(asset_file_path, symbol, SymbolFlags::empty())
+  convert_symbol!(asset_file_path, symbol)
 }
 
 /// Convert from `[ExportedSymbol]` to `[Symbol]`
@@ -431,13 +416,12 @@ fn transformer_exported_symbol_into_symbol(
   asset_file_path: &PathBuf,
   symbol: &parcel_js_swc_core::ExportedSymbol,
 ) -> Symbol {
-  let mut flags = SymbolFlags::empty();
-  flags.set(SymbolFlags::IS_ESM, symbol.is_esm);
   Symbol {
     exported: symbol.exported.as_ref().into(),
     local: symbol.local.as_ref().into(),
     loc: Some(convert_loc(asset_file_path.to_owned(), &symbol.loc)),
-    flags,
+    is_esm: symbol.is_esm,
+    ..Default::default()
   }
 }
 
@@ -445,7 +429,7 @@ fn make_esm_helpers_dependency(
   options: &ParcelOptions,
   asset_file_path: &PathBuf,
   asset_environment: Environment,
-  dependency_flags: DependencyFlags,
+  has_symbols: bool,
   asset_id: u64,
 ) -> Dependency {
   Dependency {
@@ -463,7 +447,7 @@ fn make_esm_helpers_dependency(
     }
     .into(),
     resolve_from: Some(options.core_path.as_path().into()),
-    flags: dependency_flags,
+    has_symbols,
     ..Default::default()
   }
 }
@@ -473,7 +457,8 @@ fn make_export_all_symbol(loc: Option<SourceLocation>) -> Symbol {
     exported: "*".into(),
     local: "*".into(),
     loc,
-    flags: SymbolFlags::IS_WEAK,
+    is_weak: true,
+    ..Default::default()
   }
 }
 
@@ -611,19 +596,6 @@ fn convert_dependency(
       PathBuf::from(transformer_dependency.specifier.to_string()),
     )),
     _ => {
-      let mut flags = base_dependency.flags;
-      flags.set(
-        DependencyFlags::OPTIONAL,
-        transformer_dependency.is_optional,
-      );
-      flags.set(
-        DependencyFlags::IS_ESM,
-        matches!(
-          transformer_dependency.kind,
-          DependencyKind::Import | DependencyKind::Export
-        ),
-      );
-
       let mut env = asset_environment.clone();
       if transformer_dependency.kind == DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
@@ -682,7 +654,11 @@ fn convert_dependency(
 
       let dependency = Dependency {
         env,
-        flags,
+        is_optional: transformer_dependency.is_optional,
+        is_esm: matches!(
+          transformer_dependency.kind,
+          DependencyKind::Import | DependencyKind::Export
+        ),
         // placeholder: dep.placeholder.map(|s| s.into()),
         // promise_symbol: None,
         // import_attributes,
@@ -767,8 +743,7 @@ mod test {
     RunTransformContext, TransformResult, TransformationInput, TransformerPlugin,
   };
   use parcel_core::types::{
-    Asset, AssetFlags, Code, Dependency, FileType, Location, SourceLocation, SpecifierType, Symbol,
-    SymbolFlags,
+    Asset, Code, Dependency, FileType, Location, SourceLocation, SpecifierType, Symbol,
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
@@ -777,20 +752,7 @@ mod test {
   fn empty_asset() -> Asset {
     Asset {
       asset_type: FileType::Js,
-      bundle_behavior: Default::default(),
-      env: Default::default(),
-      file_path: Default::default(),
-      code: Rc::new(Code::from(String::new())),
-      is_bundle_splittable: false,
-      is_source: false,
-      meta: Default::default(),
-      pipeline: None,
-      query: None,
-      side_effects: false,
-      stats: Default::default(),
-      symbols: vec![],
-      unique_key: None,
-      flags: Default::default(),
+      ..Default::default()
     }
   }
 
@@ -820,7 +782,7 @@ mod test {
           // SWC inserts a newline here
           code: Rc::new(Code::from(String::from("function hello() {}\n"))),
           symbols: vec![],
-          flags: AssetFlags::HAS_SYMBOLS,
+          has_symbols: true,
           unique_key: Some(format!("{:016x}", asset_id)),
           ..empty_asset()
         },
@@ -862,7 +824,7 @@ exports.hello = function() {};
         exported: String::from("*"),
         loc: None,
         local: String::from(""),
-        flags: SymbolFlags::empty(),
+        ..Symbol::default()
       }],
       ..Default::default()
     }];
@@ -889,7 +851,7 @@ exports.hello = function() {};
                 }
               }),
               local: String::from("$hello"),
-              flags: SymbolFlags::empty(),
+              ..Default::default()
             },
             Symbol {
               exported: String::from("*"),
@@ -899,16 +861,16 @@ exports.hello = function() {};
                 end: Location { line: 1, column: 1 }
               }),
               local: String::from("$_"),
-              flags: SymbolFlags::empty(),
+              ..Default::default()
             },
             Symbol {
               exported: String::from("*"),
               loc: None,
               local: format!("${:016x}$exports", asset_id),
-              flags: SymbolFlags::empty(),
+              ..Default::default()
             }
           ],
-          flags: AssetFlags::HAS_SYMBOLS,
+          has_symbols: true,
           unique_key: Some(format!("{:016x}", asset_id)),
           ..empty_asset()
         },
