@@ -291,7 +291,7 @@ pub enum SourceType {
 
 impl Default for SourceType {
   fn default() -> Self {
-    SourceType::Script
+    SourceType::Module
   }
 }
 
