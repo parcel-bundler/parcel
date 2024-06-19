@@ -7,7 +7,7 @@ use super::*;
 
 #[test]
 fn should_run_request() {
-  let mut rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::default();
 
   let request_c = TestRequest::new("C", &[]);
   let request_b = TestRequest::new("B", &[&request_c]);
@@ -22,7 +22,7 @@ fn should_run_request() {
 
 #[test]
 fn should_reuse_previously_run_request() {
-  let mut rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::default();
 
   let request_c = TestRequest::new("C", &[]);
   let request_b = TestRequest::new("B", &[&request_c]);
@@ -42,7 +42,7 @@ fn should_reuse_previously_run_request() {
 
 #[test]
 fn should_run_request_once() {
-  let mut rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::default();
 
   let request_a = TestRequest::new("A", &[]);
 
@@ -58,7 +58,7 @@ fn should_run_request_once() {
 
 #[test]
 fn should_run_request_once_2() {
-  let mut rt = RequestTracker::<Vec<String>>::new();
+  let mut rt = RequestTracker::<Vec<String>>::default();
 
   let request_b = TestRequest::new("B", &[]);
   let request_a = TestRequest::new("A", &[&request_b]);
