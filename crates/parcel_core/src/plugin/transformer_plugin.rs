@@ -46,10 +46,10 @@ impl TransformationInput {
     }
   }
 
-  pub fn read_source_code(self, fs: FileSystemRef) -> anyhow::Result<Rc<SourceCode>> {
+  pub fn read_source_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<SourceCode>> {
     match self {
       TransformationInput::InitialAsset(raw_asset) => {
-        let code = if let Some(code) = raw_asset.code {
+        let code = if let Some(code) = &raw_asset.code {
           SourceCode::from(code.clone())
         } else {
           let source = fs.read_to_string(&raw_asset.file_path)?;
