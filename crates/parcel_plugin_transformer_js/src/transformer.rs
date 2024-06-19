@@ -10,10 +10,10 @@ use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationIn
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
   Asset, AssetFlags, BundleBehavior, Dependency, DependencyFlags, Diagnostic, Environment,
-  EnvironmentContext, FileType, ImportAttribute, JSONObject, Location, OutputFormat, ParcelOptions,
-  Priority, SourceCode, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  EnvironmentContext, FileType, ImportAttribute, Location, OutputFormat, ParcelOptions, Priority,
+  SourceCode, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
 };
-use parcel_resolver::{ExportsCondition, IncludeNodeModules};
+use parcel_resolver::IncludeNodeModules;
 
 /// This is a rust only `TransformerPlugin` implementation for JS assets that goes through the
 /// default SWC transformer.
