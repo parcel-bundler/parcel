@@ -3,7 +3,9 @@ use napi::JsObject;
 use napi::JsUnknown;
 use napi_derive::napi;
 
-use parcel_core::plugin::{RunTransformContext, TransformationInput, TransformerPlugin};
+use parcel_core::plugin::{
+  InitialAsset, RunTransformContext, TransformationInput, TransformerPlugin,
+};
 use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
 
 use crate::helpers::anyhow_napi;
@@ -15,7 +17,10 @@ pub fn _testing_run_parcel_js_transformer_plugin(
 ) -> napi::Result<JsUnknown> {
   let mut transformer = ParcelJsTransformerPlugin::new();
   let mut context = RunTransformContext::default();
-  let input = TransformationInput::FilePath(target_path.into());
+  let input = TransformationInput::InitialAsset(InitialAsset {
+    file_path: target_path.into(),
+    ..Default::default()
+  });
   let result = transformer
     .transform(&mut context, input)
     .map_err(anyhow_napi)?;

@@ -200,9 +200,9 @@ pub struct TransformerPipeline {
   hash: u64,
 }
 
-impl PartialEq for TransformerPipeline {
-  fn eq(&self, other: &Self) -> bool {
-    self.hash == other.hash
+impl TransformerPipeline {
+  pub fn hash(&self) -> u64 {
+    self.hash
   }
 }
 

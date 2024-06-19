@@ -9,9 +9,9 @@ use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
-  Asset, AssetFlags, BundleBehavior, Dependency, DependencyFlags, Diagnostic, Environment,
+  Asset, AssetFlags, BundleBehavior, Code, Dependency, DependencyFlags, Diagnostic, Environment,
   EnvironmentContext, FileType, ImportAttribute, Location, OutputFormat, ParcelOptions, Priority,
-  SourceCode, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
 };
 use parcel_resolver::IncludeNodeModules;
 
@@ -35,7 +35,7 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
     input: TransformationInput,
   ) -> Result<TransformResult, Error> {
     let file_system = context.file_system();
-    let source_code = input.read_source_code(file_system)?;
+    let source_code = input.read_code(file_system)?;
 
     let transformation_result = parcel_js_swc_core::transform(
       parcel_js_swc_core::Config {
@@ -98,7 +98,7 @@ fn convert_result(
     let dependency = make_esm_helpers_dependency(
       options,
       &asset_file_path,
-      asset_environment,
+      (*asset_environment).clone(),
       dependency_flags,
       asset_id,
     );
@@ -316,7 +316,7 @@ fn convert_result(
   let result_source_code_string = String::from_utf8(result.code)
     // TODO: This is impossible; but we should extend 'diagnostic' type to be nicer / easier to build
     .map_err(|_| vec![])?;
-  asset.source_code = Rc::new(SourceCode::from(result_source_code_string));
+  asset.code = Rc::new(Code::from(result_source_code_string));
 
   Ok(TransformResult {
     asset,
@@ -763,8 +763,8 @@ mod test {
     RunTransformContext, TransformResult, TransformationInput, TransformerPlugin,
   };
   use parcel_core::types::{
-    Asset, AssetFlags, Dependency, FileType, Location, SourceCode, SourceLocation, SpecifierType,
-    Symbol, SymbolFlags,
+    Asset, AssetFlags, Code, Dependency, FileType, Location, SourceLocation, SpecifierType, Symbol,
+    SymbolFlags,
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
@@ -776,7 +776,7 @@ mod test {
       bundle_behavior: Default::default(),
       env: Default::default(),
       file_path: Default::default(),
-      source_code: Rc::new(SourceCode::from(String::new())),
+      code: Rc::new(Code::from(String::new())),
       is_bundle_splittable: false,
       is_source: false,
       meta: Default::default(),
@@ -792,7 +792,7 @@ mod test {
 
   #[test]
   fn test_asset_id_is_stable() {
-    let source_code = Rc::new(SourceCode::from(String::from("function hello() {}")));
+    let source_code = Rc::new(Code::from(String::from("function hello() {}")));
     let asset_1 = Asset::new_empty("mock_path".into(), source_code.clone());
     let asset_2 = Asset::new_empty("mock_path".into(), source_code);
     // This nº should not change across runs/compilation
@@ -802,7 +802,7 @@ mod test {
 
   #[test]
   fn test_transformer_on_noop_asset() {
-    let source_code = Rc::new(SourceCode::from(String::from("function hello() {}")));
+    let source_code = Rc::new(Code::from(String::from("function hello() {}")));
     let target_asset = Asset::new_empty("mock_path".into(), source_code);
     let asset_id = target_asset.id();
     let result = run_test(target_asset).unwrap();
@@ -814,7 +814,7 @@ mod test {
           file_path: "mock_path".into(),
           asset_type: FileType::Js,
           // SWC inserts a newline here
-          source_code: Rc::new(SourceCode::from(String::from("function hello() {}\n"))),
+          code: Rc::new(Code::from(String::from("function hello() {}\n"))),
           symbols: vec![],
           flags: AssetFlags::HAS_SYMBOLS,
           unique_key: Some(format!("{:016x}", asset_id)),
@@ -828,7 +828,7 @@ mod test {
 
   #[test]
   fn test_transformer_on_asset_that_requires_other() {
-    let source_code = Rc::new(SourceCode::from(String::from(
+    let source_code = Rc::new(Code::from(String::from(
       r#"
 const x = require('other');
 exports.hello = function() {};
@@ -870,7 +870,7 @@ exports.hello = function() {};
           file_path: "mock_path.js".into(),
           asset_type: FileType::Js,
           // SWC inserts a newline here
-          source_code: Rc::new(SourceCode::from(String::from(
+          code: Rc::new(Code::from(String::from(
             "const x = require(\"e83f3db3d6f57ea6\");\nexports.hello = function() {};\n"
           ))),
           symbols: vec![

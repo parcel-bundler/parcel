@@ -50,7 +50,7 @@ pub struct NamedPipelinesMap {
 
 impl Hash for NamedPipelinesMap {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    for item in self.0.iter() {
+    for item in self.inner.iter() {
       item.hash(state);
     }
   }
