@@ -1764,7 +1764,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "sha-1",
- "swc_core 0.92.9",
+ "swc_core",
 ]
 
 [[package]]
@@ -1776,7 +1776,7 @@ dependencies = [
  "napi",
  "napi-derive",
  "serde",
- "swc_core 0.92.9",
+ "swc_core",
 ]
 
 [[package]]
@@ -1932,7 +1932,7 @@ dependencies = [
  "parcel-resolver",
  "parcel_core",
  "parcel_filesystem",
- "swc_core 0.93.4",
+ "swc_core",
 ]
 
 [[package]]
@@ -3158,18 +3158,6 @@ dependencies = [
  "swc_ecma_transforms_typescript",
  "swc_ecma_utils",
  "swc_ecma_visit",
- "vergen",
-]
-
-[[package]]
-name = "swc_core"
-version = "0.93.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f331506bd57c03b006b5585797c23bf10077bc8ef949d80efce3ef4b9ee8a664"
-dependencies = [
- "swc_atoms",
- "swc_ecma_ast",
- "swc_ecma_transforms_base",
  "vergen",
 ]
 
