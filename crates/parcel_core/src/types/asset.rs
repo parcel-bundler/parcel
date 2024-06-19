@@ -22,11 +22,11 @@ pub struct AssetId(pub NonZeroU32);
 /// The source code for an asset.
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SourceCode {
+pub struct Code {
   inner: String,
 }
 
-impl SourceCode {
+impl Code {
   pub fn bytes(&self) -> &[u8] {
     self.inner.as_bytes()
   }
@@ -36,7 +36,7 @@ impl SourceCode {
   }
 }
 
-impl From<String> for SourceCode {
+impl From<String> for Code {
   fn from(value: String) -> Self {
     Self { inner: value }
   }
@@ -62,8 +62,9 @@ pub struct Asset {
   /// The file path to the asset
   pub file_path: PathBuf,
 
-  /// The source code of this asset
-  pub source_code: Rc<SourceCode>,
+  /// The code of this asset, initially read from disk, then becoming the
+  /// transformed output
+  pub code: Rc<Code>,
 
   /// Indicates if the asset is used as a bundle entry
   ///
@@ -124,7 +125,7 @@ impl Asset {
   }
 
   /// Build a new empty asset
-  pub fn new_empty(file_path: PathBuf, source_code: Rc<SourceCode>) -> Self {
+  pub fn new_empty(file_path: PathBuf, source_code: Rc<Code>) -> Self {
     let asset_type =
       FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
 
@@ -137,7 +138,7 @@ impl Asset {
         context: EnvironmentContext::Browser,
         ..Default::default()
       }),
-      source_code,
+      code: source_code,
       is_bundle_splittable: false,
       is_source: false,
       meta: Default::default(),

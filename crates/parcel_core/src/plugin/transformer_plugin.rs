@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::types::{Asset, Dependency, Environment, SourceCode, SpecifierType};
+use crate::types::{Asset, Code, Dependency, Environment, SpecifierType};
 
 pub struct ResolveOptions {
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
@@ -46,18 +46,18 @@ impl TransformationInput {
     }
   }
 
-  pub fn read_source_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<SourceCode>> {
+  pub fn read_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<Code>> {
     match self {
       TransformationInput::InitialAsset(raw_asset) => {
         let code = if let Some(code) = &raw_asset.code {
-          SourceCode::from(code.clone())
+          Code::from(code.clone())
         } else {
           let source = fs.read_to_string(&raw_asset.file_path)?;
-          SourceCode::from(source)
+          Code::from(source)
         };
         Ok(Rc::new(code))
       }
-      TransformationInput::Asset(asset) => Ok(asset.source_code.clone()),
+      TransformationInput::Asset(asset) => Ok(asset.code.clone()),
     }
   }
 }

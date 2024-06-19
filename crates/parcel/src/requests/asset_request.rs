@@ -100,13 +100,13 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
     let content_key = result.asset.id().to_string();
     self
       .cache
-      .set_blob(&content_key, result.asset.source_code.bytes())?;
+      .set_blob(&content_key, result.asset.code.bytes())?;
 
     Ok(RequestResult {
       result: AssetResult {
         asset: Asset {
           stats: AssetStats {
-            size: result.asset.source_code.size(),
+            size: result.asset.code.size(),
             time: 0,
           },
           ..result.asset
