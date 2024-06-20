@@ -1,11 +1,11 @@
 use std::hash::Hash;
-use std::path::PathBuf;
 
 use anyhow::anyhow;
-
-use super::RequestResult;
+use parcel_core::types::{Entry, EntryOption};
 
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
+
+use super::RequestResult;
 
 /// A resolved entry file for the build
 #[derive(Clone, Debug, Default, Hash, PartialEq)]

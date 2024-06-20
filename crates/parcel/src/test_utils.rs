@@ -6,6 +6,7 @@ use parcel_core::{
   cache::MockCache,
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
+  types::ParcelOptions,
 };
 use parcel_filesystem::{in_memory_file_system::InMemoryFileSystem, FileSystemRef};
 
@@ -58,10 +59,13 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     search_path,
   });
 
+  let parcel_options = ParcelOptions::default();
+
   RequestTracker::new(
     Arc::new(MockCache::new()),
     Arc::clone(&config_loader),
     fs,
+    parcel_options,
     plugins(PluginContext {
       config: Arc::clone(&config_loader),
       options: Arc::new(PluginOptions::default()),

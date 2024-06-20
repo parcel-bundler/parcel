@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use dyn_hash::DynHash;
 use parcel_core::config_loader::ConfigLoaderRef;
+use parcel_core::types::ParcelOptions;
 
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
@@ -20,7 +21,7 @@ use parcel_filesystem::FileSystemRef;
 pub struct RunRequestMessage {
   pub request: Box<dyn Request>,
   pub parent_request_id: Option<u64>,
-  pub response_tx: Option<Sender<Result<RequestResult, anyhow::Error>>>,
+  pub response_tx: Option<Sender<Result<(RequestResult, RequestId), anyhow::Error>>>,
 }
 
 type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
@@ -33,6 +34,7 @@ pub struct RunRequestContext {
   cache: CacheRef,
   config_loader: ConfigLoaderRef,
   file_system: FileSystemRef,
+  options: Arc<ParcelOptions>,
   parent_request_id: Option<u64>,
   plugins: PluginsRef,
   pub project_root: PathBuf,
@@ -45,6 +47,7 @@ impl RunRequestContext {
     cache: CacheRef,
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
+    options: Arc<ParcelOptions>,
     parent_request_id: Option<u64>,
     plugins: PluginsRef,
     project_root: PathBuf,
@@ -55,6 +58,7 @@ impl RunRequestContext {
       cache,
       config_loader,
       file_system,
+      options,
       parent_request_id,
       plugins,
       project_root,
@@ -76,7 +80,7 @@ impl RunRequestContext {
   pub fn queue_request(
     &mut self,
     request: impl Request,
-    tx: Sender<anyhow::Result<RequestResult>>,
+    tx: Sender<anyhow::Result<(RequestResult, RequestId)>>,
   ) -> anyhow::Result<()> {
     let request: Box<dyn Request> = Box::new(request);
     let message = RunRequestMessage {
@@ -103,13 +107,18 @@ impl RunRequestContext {
   pub fn config(&self) -> &ConfigLoaderRef {
     &self.config_loader
   }
+
+  pub fn options(&self) -> &ParcelOptions {
+    &self.options
+  }
 }
 
 // We can type this properly
 pub type RunRequestError = anyhow::Error;
+pub type RequestId = u64;
 
 pub trait Request: DynHash + Send + Debug + 'static {
-  fn id(&self) -> u64 {
+  fn id(&self) -> RequestId {
     let mut hasher = parcel_core::hash::IdentifierHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher);
     self.dyn_hash(&mut hasher);

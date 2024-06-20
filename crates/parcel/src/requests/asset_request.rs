@@ -34,6 +34,7 @@ pub struct AssetRequest {
   pub code: Option<String>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
+  pub query: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
