@@ -11,7 +11,7 @@ use crate::map::NamedPipelinesMap;
 use crate::map::PipelineMap;
 use crate::map::PipelinesMap;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginNode {
   pub package_name: String,

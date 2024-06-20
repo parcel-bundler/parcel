@@ -1,4 +1,8 @@
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::path::Path;
+use std::u64;
 
 use anyhow::anyhow;
 use parcel_config::map::NamedPattern;
@@ -152,14 +156,17 @@ impl<'a> Plugins<'a> {
     &self,
     path: &Path,
     pipeline: Option<&str>,
-  ) -> Result<Vec<Box<dyn TransformerPlugin>>, anyhow::Error> {
+  ) -> Result<TransformerPipeline, anyhow::Error> {
     let mut transformers: Vec<Box<dyn TransformerPlugin>> = Vec::new();
     let named_pattern = pipeline.map(|pipeline| NamedPattern {
       pipeline,
       use_fallback: false,
     });
 
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
+
     for transformer in self.config.transformers.get(path, named_pattern).iter() {
+      transformer.hash(&mut hasher);
       if transformer.package_name == "@parcel/transformer-swc" {
         transformers.push(Box::new(ParcelTransformerJs::new(self.ctx)));
         continue;
@@ -175,11 +182,33 @@ impl<'a> Plugins<'a> {
       };
     }
 
-    Ok(transformers)
+    Ok(TransformerPipeline {
+      transformers,
+      hash: hasher.finish(),
+    })
   }
 
   pub fn validators(&self, _path: &Path) -> Result<Vec<Box<dyn ValidatorPlugin>>, anyhow::Error> {
     todo!()
+  }
+}
+
+pub struct TransformerPipeline {
+  pub transformers: Vec<Box<dyn TransformerPlugin>>,
+  hash: u64,
+}
+
+impl PartialEq for TransformerPipeline {
+  fn eq(&self, other: &Self) -> bool {
+    self.hash == other.hash
+  }
+}
+
+impl Debug for TransformerPipeline {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("TransformerPipeline")
+      .field("transformers", &self.transformers)
+      .finish()
   }
 }
 
@@ -283,6 +312,9 @@ mod tests {
       .transformers(Path::new("a.ts"), None)
       .expect("Not to panic");
 
-    assert_eq!(format!("{:?}", transformers), "[RpcTransformerPlugin]")
+    assert_eq!(
+      format!("{:?}", transformers),
+      r"TransformerPipeline { transformers: [RpcTransformerPlugin] }"
+    )
   }
 }
