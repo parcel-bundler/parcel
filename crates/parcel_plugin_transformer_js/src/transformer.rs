@@ -17,6 +17,15 @@ use parcel_resolver::IncludeNodeModules;
 
 /// This is a rust only `TransformerPlugin` implementation for JS assets that goes through the
 /// default SWC transformer.
+///
+/// The transformer is part of the `AssetRequest` and is responsible for:
+///
+/// * Parsing a JS/TS file
+/// * Transforming the file using SWC
+/// * Analyzing all its `require`/`import`/`export` statements and returning lists of found
+///  `Dependency` as well as exported, imported and re-exported symbols (as `Symbol`, usually
+///   mapping to a mangled name that the SWC transformer replaced in the source file + the source
+///   module and the source name that has been imported)
 #[derive(Debug)]
 pub struct ParcelJsTransformerPlugin {}
 
