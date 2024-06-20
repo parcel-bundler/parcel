@@ -1870,6 +1870,7 @@ dependencies = [
  "dyn-hash",
  "nodejs-semver",
  "parcel_filesystem",
+ "petgraph",
  "serde",
  "serde-value",
  "serde_json",
@@ -2022,6 +2023,8 @@ checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
  "indexmap 2.2.6",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]
