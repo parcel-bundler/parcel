@@ -1,94 +1,47 @@
 use std::path::Path;
-use std::path::PathBuf;
 
-use napi::bindgen_prelude::FromNapiValue;
-use napi::threadsafe_function::ThreadsafeFunctionCallMode;
-use napi::Env;
-use napi::JsFunction;
 use napi::JsObject;
 use parcel::file_system::FileSystem;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+
+use crate::helpers::js_callable::JsCallable;
 
 // TODO error handling
 
 pub struct FileSystemNapi {
-  read_file_fn: Box<dyn Fn((PathBuf, String)) -> String + Send + Sync>,
-  is_file_fn: Box<dyn Fn(PathBuf) -> bool + Send + Sync>,
-  is_dir_fn: Box<dyn Fn(PathBuf) -> bool + Send + Sync>,
+  read_file_fn: JsCallable,
+  is_file_fn: JsCallable,
+  is_dir_fn: JsCallable,
 }
 
 impl FileSystemNapi {
-  pub fn new(env: &Env, js_file_system: &JsObject) -> napi::Result<Self> {
+  pub fn new(js_file_system: &JsObject) -> napi::Result<Self> {
     Ok(Self {
-      read_file_fn: Box::new(create_js_thread_safe_method(
-        &env,
-        &js_file_system,
-        "readFileSync",
-      )?),
-      is_file_fn: Box::new(create_js_thread_safe_method(
-        &env,
-        &js_file_system,
-        "isFile",
-      )?),
-      is_dir_fn: Box::new(create_js_thread_safe_method(
-        &env,
-        &js_file_system,
-        "isDir",
-      )?),
+      read_file_fn: JsCallable::new_from_object_prop("readFileSync", &js_file_system)?,
+      is_file_fn: JsCallable::new_from_object_prop("isFile", &js_file_system)?,
+      is_dir_fn: JsCallable::new_from_object_prop("isDir", &js_file_system)?,
     })
   }
 }
 
-// These methods must be run off the nodejs main/worker
-// thread or they will cause JavaScript to deadlock
 impl FileSystem for FileSystemNapi {
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-    Ok((*self.read_file_fn)((
-      path.to_path_buf(),
-      "utf8".to_string(),
-    )))
+    self
+      .read_file_fn
+      .call_with_return((path.to_path_buf(), "utf8"))
+      .map_err(|e| std::io::Error::other(e))
   }
 
   fn is_file(&self, path: &Path) -> bool {
-    (*self.is_file_fn)(path.to_path_buf())
+    self
+      .is_file_fn
+      .call_with_return(path.to_path_buf())
+      .expect("TODO handle error case")
   }
 
   fn is_dir(&self, path: &Path) -> bool {
-    (*self.is_dir_fn)(path.to_path_buf())
+    self
+      .is_dir_fn
+      .call_with_return(path.to_path_buf())
+      .expect("TODO handle error case")
   }
-}
-
-fn create_js_thread_safe_method<
-  Params: Send + Serialize + 'static,
-  Response: Send + DeserializeOwned + 'static + FromNapiValue,
->(
-  env: &Env,
-  js_object: &JsObject,
-  method_name: &str,
-) -> Result<impl Fn(Params) -> Response, napi::Error> {
-  let jsfn: JsFunction = js_object.get_property(env.create_string(method_name)?)?;
-
-  let threadsafe_function = env.create_threadsafe_function(
-    &jsfn,
-    0,
-    |ctx: napi::threadsafe_function::ThreadSafeCallContext<Params>| {
-      Ok(vec![ctx.env.to_js_value(&ctx.value)?])
-    },
-  )?;
-
-  let result = move |params| {
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    threadsafe_function.call_with_return_value(
-      Ok(params),
-      ThreadsafeFunctionCallMode::Blocking,
-      move |result: Response| {
-        let _ = tx.send(result);
-        Ok(())
-      },
-    );
-    rx.recv().unwrap()
-  };
-
-  Ok(result)
 }

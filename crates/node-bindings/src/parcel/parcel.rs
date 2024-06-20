@@ -47,7 +47,7 @@ impl ParcelNapi {
 
     // Wrap the JavaScript-supplied FileSystem
     if let Some(fs) = options.fs {
-      parcel_options.fs = Some(Arc::new(FileSystemNapi::new(&env, &fs)?));
+      parcel_options.fs = Some(Arc::new(FileSystemNapi::new(&fs)?));
     }
 
     // Assign Rust thread count from JavaScript
