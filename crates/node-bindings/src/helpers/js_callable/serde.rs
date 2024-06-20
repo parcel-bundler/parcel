@@ -1,8 +1,6 @@
 use napi::bindgen_prelude::Array;
 use napi::bindgen_prelude::FromNapiValue;
 use napi::Env;
-use napi::JsFunction;
-use napi::JsObject;
 use napi::JsUnknown;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
