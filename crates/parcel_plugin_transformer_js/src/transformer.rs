@@ -809,7 +809,7 @@ exports.hello = function() {};
       symbols: vec![Symbol {
         exported: String::from("*"),
         loc: None,
-        local: String::from(""),
+        local: String::from("$other$"),
         ..Symbol::default()
       }],
       ..Default::default()
