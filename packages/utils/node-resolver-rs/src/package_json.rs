@@ -9,8 +9,9 @@ use bitflags::bitflags;
 use glob_match::glob_match;
 use glob_match::glob_match_with_captures;
 use indexmap::IndexMap;
-pub use parcel_core::types::package_json::ExportsCondition;
 use serde::Deserialize;
+
+pub use parcel_core::types::ExportsCondition;
 
 use crate::path::resolve_path;
 use crate::specifier::decode_path;

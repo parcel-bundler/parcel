@@ -3,6 +3,7 @@ use std::hash::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 
+use crate::plugins::Plugins;
 use dyn_hash::DynHash;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::types::Invalidation;
@@ -33,6 +34,10 @@ impl<'a, T: Clone> RunRequestContext<'a, T> {
     self
       .request_tracker
       .run_child_request(request, self.parent_request_hash)
+  }
+
+  pub fn get_plugins(&self) -> Plugins {
+    todo!()
   }
 }
 

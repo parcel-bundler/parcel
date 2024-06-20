@@ -15,8 +15,10 @@ openssl = ["sentry/native-tls"]
 
 [dependencies]
 parcel = { path = "../parcel" }
+parcel_core = { path = "../parcel_core" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
 
 anyhow = "1.0.82"
 dashmap = "5.4.0"

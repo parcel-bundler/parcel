@@ -28,7 +28,7 @@ impl RpcTransformerPlugin {
 
 impl TransformerPlugin for RpcTransformerPlugin {
   fn transform(
-    &self,
+    &mut self,
     _context: &mut RunTransformContext,
     _asset: TransformationInput,
   ) -> Result<TransformResult, Error> {

@@ -120,7 +120,7 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
 }
 
 fn run_pipeline(
-  pipeline: TransformerPipeline,
+  mut pipeline: TransformerPipeline,
   input: TransformationInput,
   asset_type: FileType,
   plugins: &Plugins,
@@ -131,7 +131,8 @@ fn run_pipeline(
 
   let mut transform_input = input;
 
-  for transformer in &pipeline.transformers {
+  let pipeline_hash = pipeline.hash();
+  for transformer in &mut pipeline.transformers {
     let transform_result = transformer.transform(transform_ctx, transform_input)?;
     let is_different_asset_type = transform_result.asset.asset_type != asset_type;
 
@@ -141,7 +142,7 @@ fn run_pipeline(
     if is_different_asset_type {
       let next_pipeline = plugins.transformers(transform_input.file_path(), None)?;
 
-      if next_pipeline != pipeline {
+      if next_pipeline.hash() != pipeline_hash {
         return run_pipeline(
           next_pipeline,
           transform_input,

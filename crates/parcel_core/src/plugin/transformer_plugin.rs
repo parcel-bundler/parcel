@@ -1,8 +1,12 @@
-use parcel_filesystem::FileSystemRef;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
+
+use serde::Serialize;
+
+use parcel_filesystem::os_file_system::OsFileSystem;
+use parcel_filesystem::FileSystemRef;
 
 use crate::types::{Asset, Code, Dependency, Environment, SpecifierType};
 
@@ -17,6 +21,7 @@ pub struct ResolveOptions {
 pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, anyhow::Error>;
 
 /// A newly resolved file_path/code that needs to be transformed into an Asset
+#[derive(Default)]
 pub struct InitialAsset {
   pub file_path: PathBuf,
   /// Dynamic code returned from the resolver for virtual files.
@@ -42,7 +47,7 @@ impl TransformationInput {
   pub fn file_path(&self) -> &Path {
     match self {
       TransformationInput::InitialAsset(raw_asset) => raw_asset.file_path.as_path(),
-      TransformationInput::Asset(asset) => asset.file_path(),
+      TransformationInput::Asset(asset) => &asset.file_path,
     }
   }
 
@@ -67,6 +72,14 @@ pub struct RunTransformContext {
   file_system: FileSystemRef,
 }
 
+impl Default for RunTransformContext {
+  fn default() -> Self {
+    Self {
+      file_system: Arc::new(OsFileSystem::default()),
+    }
+  }
+}
+
 impl RunTransformContext {
   pub fn new(file_system: FileSystemRef) -> Self {
     Self { file_system }
@@ -77,7 +90,7 @@ impl RunTransformContext {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct TransformResult {
   pub asset: Asset,
   pub dependencies: Vec<Dependency>,
@@ -94,7 +107,7 @@ pub struct TransformResult {
 pub trait TransformerPlugin: Debug + Send + Sync {
   /// Transform the asset and/or add new assets
   fn transform(
-    &self,
+    &mut self,
     context: &mut RunTransformContext,
     input: TransformationInput,
   ) -> Result<TransformResult, anyhow::Error>;

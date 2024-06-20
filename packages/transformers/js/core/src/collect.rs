@@ -99,36 +99,39 @@ pub struct Collect {
 }
 
 #[derive(Debug, Serialize)]
-struct CollectImportedSymbol {
-  source: JsWord,
-  local: JsWord,
-  imported: JsWord,
-  loc: SourceLocation,
-  kind: ImportKind,
+#[non_exhaustive]
+pub struct CollectImportedSymbol {
+  pub source: JsWord,
+  pub local: JsWord,
+  pub imported: JsWord,
+  pub loc: SourceLocation,
+  pub kind: ImportKind,
 }
 
 #[derive(Debug, Serialize)]
-struct CollectExportedSymbol {
-  source: Option<JsWord>,
-  local: JsWord,
-  exported: JsWord,
-  loc: SourceLocation,
+#[non_exhaustive]
+pub struct CollectExportedSymbol {
+  pub source: Option<JsWord>,
+  pub local: JsWord,
+  pub exported: JsWord,
+  pub loc: SourceLocation,
 }
 
 #[derive(Debug, Serialize)]
-struct CollectExportedAll {
-  source: JsWord,
-  loc: SourceLocation,
+pub struct CollectExportedAll {
+  pub source: JsWord,
+  pub loc: SourceLocation,
 }
 
 #[derive(Serialize, Debug)]
+#[non_exhaustive]
 pub struct CollectResult {
-  imports: Vec<CollectImportedSymbol>,
-  exports: Vec<CollectExportedSymbol>,
-  exports_all: Vec<CollectExportedAll>,
-  should_wrap: bool,
-  has_cjs_exports: bool,
-  is_esm: bool,
+  pub imports: Vec<CollectImportedSymbol>,
+  pub exports: Vec<CollectExportedSymbol>,
+  pub exports_all: Vec<CollectExportedAll>,
+  pub should_wrap: bool,
+  pub has_cjs_exports: bool,
+  pub is_esm: bool,
 }
 
 impl Collect {

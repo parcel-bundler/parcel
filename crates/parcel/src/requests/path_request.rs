@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::anyhow;
+
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::Resolution;
