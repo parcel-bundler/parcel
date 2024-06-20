@@ -676,13 +676,13 @@ fn convert_priority(transformer_dependency: &parcel_js_swc_core::DependencyDescr
 
   match transformer_dependency.kind {
     DependencyKind::DynamicImport => Priority::Lazy,
-    DependencyKind::Import => Priority::Sync,
-    DependencyKind::Export => Priority::Sync,
-    DependencyKind::Require => Priority::Sync,
     DependencyKind::WebWorker => Priority::Lazy,
     DependencyKind::ServiceWorker => Priority::Lazy,
     DependencyKind::Worklet => Priority::Lazy,
     DependencyKind::Url => Priority::Lazy,
+    DependencyKind::Import => Priority::Sync,
+    DependencyKind::Export => Priority::Sync,
+    DependencyKind::Require => Priority::Sync,
     DependencyKind::File => Priority::Sync,
   }
 }
@@ -745,6 +745,7 @@ mod test {
     Asset, Code, Dependency, FileType, Location, SourceLocation, SpecifierType, Symbol,
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use parcel_js_swc_core::{Config, DependencyKind};
 
   use crate::ParcelJsTransformerPlugin;
 
@@ -886,15 +887,7 @@ exports.hello = function() {};
     let source = r#"
 export * from 'other';
     "#;
-    let swc_output = parcel_js_swc_core::transform(
-      parcel_js_swc_core::Config {
-        code: source.as_bytes().to_vec(),
-        scope_hoist: true,
-        ..Default::default()
-      },
-      None,
-    )
-    .unwrap();
+    let swc_output = parcel_js_swc_core::transform(make_test_swc_config(source), None).unwrap();
     let export = &swc_output.hoist_result.unwrap().re_exports[0];
     assert_eq!(is_re_export_all_symbol(export), true);
   }
@@ -907,16 +900,7 @@ export function test() {
   return x;
 }
     "#;
-    let swc_output = parcel_js_swc_core::transform(
-      parcel_js_swc_core::Config {
-        source_type: parcel_js_swc_core::SourceType::Module,
-        code: source.as_bytes().to_vec(),
-        scope_hoist: true,
-        ..Default::default()
-      },
-      None,
-    )
-    .unwrap();
+    let swc_output = parcel_js_swc_core::transform(make_test_swc_config(source), None).unwrap();
     let import = &swc_output.hoist_result.unwrap().imported_symbols[0];
     let output = transformer_imported_symbol_to_symbol(Path::new("path"), import);
 
@@ -938,6 +922,104 @@ export function test() {
         self_referenced: false,
       }
     );
+  }
+
+  struct DependencyKindTestCase {
+    source: &'static str,
+    dependency_kind: DependencyKind,
+    priority: Priority,
+  }
+  fn get_dependency_kind_test_cases() -> Vec<DependencyKindTestCase> {
+    vec![
+      DependencyKindTestCase {
+        source: r#"import {x} from 'other';"#,
+        dependency_kind: DependencyKind::Import,
+        priority: Priority::Sync,
+      },
+      DependencyKindTestCase {
+        source: r#"import('other')"#,
+        dependency_kind: DependencyKind::DynamicImport,
+        priority: Priority::Lazy,
+      },
+      DependencyKindTestCase {
+        source: r#"export {x} from 'other';"#,
+        dependency_kind: DependencyKind::Export,
+        priority: Priority::Sync,
+      },
+      DependencyKindTestCase {
+        source: r#"const {x} = require('other');"#,
+        dependency_kind: DependencyKind::Require,
+        priority: Priority::Sync,
+      },
+      DependencyKindTestCase {
+        source: r#"new Worker(new URL('other', import.meta.url), {type: 'module'})"#,
+        dependency_kind: DependencyKind::WebWorker,
+        priority: Priority::Lazy,
+      },
+      DependencyKindTestCase {
+        source: r#"navigator.serviceWorker.register(new URL('./dependency', import.meta.url), {type: 'module'});"#,
+        dependency_kind: DependencyKind::ServiceWorker,
+        priority: Priority::Lazy,
+      },
+      DependencyKindTestCase {
+        source: r#"CSS.paintWorklet.addModule(new URL('other', import.meta.url));"#,
+        dependency_kind: DependencyKind::Worklet,
+        priority: Priority::Lazy,
+      },
+      DependencyKindTestCase {
+        source: r#"
+  let img = document.createElement('img');
+  img.src = new URL('hero.jpg', import.meta.url);
+  document.body.appendChild(img);
+      "#,
+        dependency_kind: DependencyKind::Url,
+        priority: Priority::Lazy,
+      },
+      // This test-case can't be written right now because in order to parse inline-fs
+      // declarations, parcel needs to canonicalize paths, meaning that it does not work
+      // unless the source/project and read files exist on disk.
+      //
+      // DependencyKindTestCase {
+      //   source: r#"
+      // import fs from "fs";
+      // import path from "path";
+      // const data = fs.readFileSync(path.join(__dirname, "data.json"), "utf8");
+      //   "#,
+      //   dependency_kind: DependencyKind::File,
+      //   priority: Priority::Sync,
+      // },
+    ]
+  }
+
+  #[test]
+  fn test_convert_priority() {
+    let get_dependency = |source| {
+      let swc_output = parcel_js_swc_core::transform(make_test_swc_config(source), None).unwrap();
+      println!("{:?}", swc_output.dependencies);
+      swc_output.dependencies.last().unwrap().clone()
+    };
+    for DependencyKindTestCase {
+      dependency_kind,
+      priority,
+      source,
+    } in &get_dependency_kind_test_cases()
+    {
+      let dependency = get_dependency(source);
+      assert_eq!(&dependency.kind, dependency_kind);
+      assert_eq!(convert_priority(&dependency), *priority);
+    }
+  }
+
+  fn make_test_swc_config(source: &str) -> Config {
+    Config {
+      source_type: parcel_js_swc_core::SourceType::Module,
+      is_browser: true,
+      filename: "something/file.js".to_string(),
+      inline_fs: true,
+      code: source.as_bytes().to_vec(),
+      scope_hoist: true,
+      ..Default::default()
+    }
   }
 
   fn run_test(asset: Asset) -> anyhow::Result<TransformResult> {
