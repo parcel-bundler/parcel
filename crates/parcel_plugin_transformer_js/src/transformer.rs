@@ -476,6 +476,8 @@ enum DependencyConversionResult {
   InvalidateOnFileChange(PathBuf),
 }
 
+/// Convert dependency from the transformer `parcel_js_swc_core::DependencyDescriptor` into a
+/// `DependencyConversionResult`.
 fn convert_dependency(
   transformer_config: &parcel_js_swc_core::Config,
   asset_file_path: &PathBuf,

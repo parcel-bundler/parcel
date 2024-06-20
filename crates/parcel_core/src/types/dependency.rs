@@ -102,7 +102,12 @@ pub struct Dependency {
   pub needs_stable_name: bool,
 
   pub should_wrap: bool,
+
+  /// Whether this dependency object corresponds to an ESM import/export statement or to a dynamic
+  /// import expression.
   pub is_esm: bool,
+
+  /// Whether the symbols vector of this dependency has had symbols added to it.
   pub has_symbols: bool,
 }
 
