@@ -126,7 +126,28 @@ impl JsCallable {
       Box::new(map_params),
       ThreadsafeFunctionCallMode::NonBlocking,
       move |JsValue(value, env)| {
-        tx.send(map_return(&env, value)).unwrap();
+        if value.is_promise()? {
+          let result: JsObject = value.try_into()?;
+          let then: JsFunction = result.get_named_property("then")?;
+
+          let tx2 = tx.clone();
+          let cb = env.create_function_from_closure("callback", move |ctx| {
+            tx.send(map_return(&env, ctx.get::<JsUnknown>(0)?)).unwrap();
+            ctx.env.get_undefined()
+          })?;
+
+          let eb = env.create_function_from_closure("error_callback", move |ctx| {
+            let err = napi::Error::from(ctx.get::<JsUnknown>(0)?);
+            tx2.send(Err(err)).expect("send failure");
+            ctx.env.get_undefined()
+          })?;
+
+          then.call(Some(&result), &[cb, eb])?;
+        } else if value.is_error()? {
+          tx.send(Err(napi::Error::from(value))).unwrap();
+        } else {
+          tx.send(map_return(&env, value)).unwrap();
+        }
         Ok(())
       },
     );
