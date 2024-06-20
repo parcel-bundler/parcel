@@ -3,6 +3,8 @@ use std::path::Path;
 use napi::JsObject;
 use parcel::file_system::FileSystem;
 
+use crate::helpers::js_callable::map_params_serde;
+use crate::helpers::js_callable::map_return_serde;
 use crate::helpers::js_callable::JsCallable;
 
 // TODO error handling
@@ -27,21 +29,24 @@ impl FileSystem for FileSystemNapi {
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     self
       .read_file_fn
-      .call_with_return((path.to_path_buf(), "utf8"))
+      .call_with_return(
+        map_params_serde((path.to_path_buf(), "utf8")),
+        map_return_serde(),
+      )
       .map_err(|e| std::io::Error::other(e))
   }
 
   fn is_file(&self, path: &Path) -> bool {
     self
       .is_file_fn
-      .call_with_return(path.to_path_buf())
+      .call_with_return(map_params_serde(path.to_path_buf()), map_return_serde())
       .expect("TODO handle error case")
   }
 
   fn is_dir(&self, path: &Path) -> bool {
     self
       .is_dir_fn
-      .call_with_return(path.to_path_buf())
+      .call_with_return(map_params_serde(path.to_path_buf()), map_return_serde())
       .expect("TODO handle error case")
   }
 }
