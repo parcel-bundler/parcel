@@ -429,7 +429,7 @@ fn transformer_exported_symbol_into_symbol(
     exported: symbol.exported.as_ref().into(),
     local: symbol.local.as_ref().into(),
     loc: Some(convert_loc(asset_file_path.to_owned(), &symbol.loc)),
-    is_esm: symbol.is_esm,
+    is_esm_export: symbol.is_esm,
     ..Default::default()
   }
 }
@@ -746,6 +746,8 @@ mod test {
 
   use crate::ParcelJsTransformerPlugin;
 
+  use super::*;
+
   fn empty_asset() -> Asset {
     Asset {
       asset_type: FileType::Js,
@@ -873,6 +875,65 @@ exports.hello = function() {};
         },
         dependencies: expected_dependencies,
         invalidate_on_file_change: vec![]
+      }
+    );
+  }
+
+  #[test]
+  fn test_is_re_export_all_symbol() {
+    let source = r#"
+export * from 'other';
+    "#;
+    let swc_output = parcel_js_swc_core::transform(
+      parcel_js_swc_core::Config {
+        code: source.as_bytes().to_vec(),
+        scope_hoist: true,
+        ..Default::default()
+      },
+      None,
+    )
+    .unwrap();
+    let export = &swc_output.hoist_result.unwrap().re_exports[0];
+    assert_eq!(is_re_export_all_symbol(export), true);
+  }
+
+  #[test]
+  fn test_convert_transformer_imported_symbol_to_symbol() {
+    let source = r#"
+import {x} from 'other';
+export function test() {
+  return x;
+}
+    "#;
+    let swc_output = parcel_js_swc_core::transform(
+      parcel_js_swc_core::Config {
+        source_type: parcel_js_swc_core::SourceType::Module,
+        code: source.as_bytes().to_vec(),
+        scope_hoist: true,
+        ..Default::default()
+      },
+      None,
+    )
+    .unwrap();
+    let import = &swc_output.hoist_result.unwrap().imported_symbols[0];
+    let output = transformer_imported_symbol_to_symbol(Path::new("path"), import);
+
+    assert_eq!(
+      output,
+      Symbol {
+        local: "$$import$70a00e0a8474f72a$d141bba7fdc215a3".into(),
+        exported: "x".to_string(),
+        loc: Some(SourceLocation {
+          file_path: PathBuf::from("path"),
+          start: Location { line: 2, column: 9 },
+          end: Location {
+            line: 2,
+            column: 10
+          }
+        }),
+        is_weak: false,
+        is_esm_export: false,
+        self_referenced: false,
       }
     );
   }

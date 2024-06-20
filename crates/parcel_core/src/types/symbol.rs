@@ -26,6 +26,7 @@ pub struct Symbol {
   /// case in the future
   pub loc: Option<SourceLocation>,
   pub is_weak: bool,
-  pub is_esm: bool,
+  /// Only on ESM exports, this may be set to true
+  pub is_esm_export: bool,
   pub self_referenced: bool,
 }
