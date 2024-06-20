@@ -413,6 +413,8 @@ fn transformer_collect_imported_symbol_to_symbol(
 }
 
 /// Convert from `[ImportedSymbol]` to `[Symbol]`
+///
+/// `ImportedSymbol` corresponds to `x`, `y` in `import { x, y } from 'other';`
 fn transformer_imported_symbol_to_symbol(
   asset_file_path: &Path,
   symbol: &parcel_js_swc_core::ImportedSymbol,
