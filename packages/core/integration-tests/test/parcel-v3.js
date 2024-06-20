@@ -25,9 +25,9 @@ describe('parcel-v3', function () {
     assert.equal(output(), 3);
   });
 
-  it.only('should run the main-thread bootstrap function', async function () {
+  it('should run the main-thread bootstrap function', async function () {
     let fs: any = {
-      readFileSync: (...args) => promisify(inputFS.readFile)(...args),
+      readFileSync: promisify(inputFS.readFile),
       isFile: async (...args) =>
         (await promisify(inputFS.stat)(...args)).isFile(),
       isDir: (...args) => inputFS.statSync(...args).isDirectory(),

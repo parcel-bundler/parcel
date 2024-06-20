@@ -45,9 +45,9 @@ impl JsCallable {
       .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<Box<dyn ErasedSerialize>>| {
         let result = ctx.env.to_js_value(&ctx.value)?;
         if result.is_array()? {
-          let result = panic::catch_unwind::<_, napi::Result<Array>>(|| {
-            // SAFETY: type assertion above
-            unsafe { Array::from_napi_value(ctx.env.raw(), result.raw()) }
+          // SAFETY: type assertion above
+          let result = panic::catch_unwind::<_, napi::Result<Array>>(|| unsafe {
+            Array::from_napi_value(ctx.env.raw(), result.raw())
           })
           .map_err(|_| napi::Error::from_reason("Unable to cast to array"))??;
 
@@ -152,7 +152,11 @@ impl JsCallable {
 
     let result = env.to_js_value(&params)?;
     if result.is_array()? {
-      let result = unsafe { Array::from_napi_value(env.raw(), result.raw())? };
+      // SAFETY: type assertion above
+      let result = panic::catch_unwind::<_, napi::Result<Array>>(|| unsafe {
+        Array::from_napi_value(env.raw(), result.raw())
+      })
+      .map_err(|_| napi::Error::from_reason("Unable to cast to array"))??;
 
       for index in 0..result.len() {
         let item = result.get::<JsUnknown>(index)?.unwrap(); // TODO
