@@ -1,5 +1,5 @@
 #![deny(unused_crate_dependencies)]
 
-mod transformer;
+pub use transformer::ParcelJsTransformerPlugin;
 
-pub use transformer::*;
+mod transformer;

@@ -98,7 +98,7 @@ pub struct Collect {
   is_module: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[non_exhaustive]
 pub struct CollectImportedSymbol {
   pub source: JsWord,
