@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use parcel_core::types::Symbol;
 
@@ -50,6 +50,8 @@ pub(crate) fn transformer_exported_symbol_into_symbol(
 
 #[cfg(test)]
 mod test {
+  use std::path::PathBuf;
+
   use parcel_core::types::{Location, SourceLocation};
 
   use crate::transformer::test_helpers::{make_test_swc_config, run_swc_core_transform};
