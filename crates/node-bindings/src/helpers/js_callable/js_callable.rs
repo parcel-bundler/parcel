@@ -1,4 +1,5 @@
 use std::sync::mpsc::channel;
+#[cfg(debug_assertions)]
 use std::thread::ThreadId;
 
 use napi::threadsafe_function::ErrorStrategy;

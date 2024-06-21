@@ -1,11 +1,11 @@
-use anyhow::anyhow;
-use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::ReporterPlugin;
 use std::collections::HashMap;
-use std::sync::Arc;
 
+use anyhow::anyhow;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
+
+use parcel_core::plugin::ReporterEvent;
+use parcel_core::plugin::ReporterPlugin;
 
 use super::Request;
 use super::RequestEdgeType;
