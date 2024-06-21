@@ -11,7 +11,6 @@ path = "./src/lib.rs"
 parcel_core = { path = "../parcel_core" }
 anyhow = "1"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 swc_core = { version = "0.92", features = ["ecma_ast"] }
 indexmap = "2.2.6"
 
