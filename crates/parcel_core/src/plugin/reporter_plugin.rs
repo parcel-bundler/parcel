@@ -35,7 +35,7 @@ pub enum ReporterEvent {
 ///
 pub trait ReporterPlugin: Debug {
   /// Processes the event from Parcel
-  fn report(&self, event: ReporterEvent) -> Result<(), anyhow::Error>;
+  fn report(&self, event: &ReporterEvent) -> Result<(), anyhow::Error>;
 }
 
 #[cfg(test)]
@@ -46,7 +46,7 @@ mod tests {
   struct TestReporterPlugin {}
 
   impl ReporterPlugin for TestReporterPlugin {
-    fn report(&self, _event: ReporterEvent) -> Result<(), anyhow::Error> {
+    fn report(&self, _event: &ReporterEvent) -> Result<(), anyhow::Error> {
       todo!()
     }
   }

@@ -26,8 +26,8 @@ impl<'a, T: Clone> RunRequestContext<'a, T> {
     }
   }
 
-  pub fn report(&self, _event: ReporterEvent) {
-    // TODO
+  pub fn report(&self, event: ReporterEvent) {
+    self.request_tracker.report(event);
   }
 
   pub fn run_request(&mut self, request: &impl Request<T>) -> anyhow::Result<T> {

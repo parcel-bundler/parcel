@@ -222,7 +222,7 @@ mod tests {
       resolvers: Arc::new(vec![Box::new(ExcludedResolverPlugin {})]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::new()));
+    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -246,7 +246,7 @@ mod tests {
       })]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::new()));
+    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -284,7 +284,7 @@ mod tests {
       ]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::new()));
+    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -317,7 +317,7 @@ mod tests {
         resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
       };
 
-      let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::new()));
+      let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
@@ -340,7 +340,7 @@ mod tests {
           resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
         };
 
-        let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::new()));
+        let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
 
         assert_eq!(
           resolution.map_err(|e| e.to_string()),
