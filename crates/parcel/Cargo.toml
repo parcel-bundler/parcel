@@ -22,3 +22,4 @@ dyn-hash = "0.x"
 petgraph = "0.x"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 num_cpus = "1.16.0"
+tracing = "0.1.40"

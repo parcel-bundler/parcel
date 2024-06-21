@@ -3,13 +3,17 @@ use std::hash::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 
-use crate::plugins::Plugins;
 use dyn_hash::DynHash;
+
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::types::Invalidation;
 
 use super::RequestTracker;
 
+/// This is the API for requests to call back onto the `RequestTracker`.
+///
+/// We want to avoid exposing internals of the request tracker to the implementations so that we
+/// can change this.
 pub struct RunRequestContext<'a, T> {
   parent_request_hash: Option<u64>,
   request_tracker: &'a mut RequestTracker<T>,
@@ -26,18 +30,17 @@ impl<'a, T: Clone> RunRequestContext<'a, T> {
     }
   }
 
+  /// Report an event.
   pub fn report(&self, event: ReporterEvent) {
     self.request_tracker.report(event);
   }
 
+  /// Run a child request to the current request.
+  #[allow(unused)]
   pub fn run_request(&mut self, request: &impl Request<T>) -> anyhow::Result<T> {
     self
       .request_tracker
       .run_child_request(request, self.parent_request_hash)
-  }
-
-  pub fn get_plugins(&self) -> Plugins {
-    todo!()
   }
 }
 
@@ -62,9 +65,4 @@ dyn_hash::hash_trait_object!(<T: Clone> Request<T>);
 pub struct RequestResult<Req> {
   pub result: Req,
   pub invalidations: Vec<Invalidation>,
-}
-
-#[derive(Debug, Clone)]
-pub enum RequestError {
-  Impossible,
 }

@@ -43,6 +43,7 @@ pub struct Plugins<'a> {
 }
 
 impl<'a> Plugins<'a> {
+  #[allow(unused)]
   pub fn new(config: ParcelConfig, ctx: &'a PluginContext) -> Self {
     Plugins { config, ctx }
   }
@@ -60,6 +61,7 @@ impl<'a> Plugins<'a> {
     )
   }
 
+  #[allow(unused)]
   pub fn bundler(&self) -> Result<Box<dyn BundlerPlugin>, anyhow::Error> {
     Ok(Box::new(RpcBundlerPlugin::new(
       self.ctx,
@@ -67,6 +69,7 @@ impl<'a> Plugins<'a> {
     )?))
   }
 
+  #[allow(unused)]
   pub fn compressors(&self, path: &Path) -> Result<Vec<Box<dyn CompressorPlugin>>, anyhow::Error> {
     let mut compressors: Vec<Box<dyn CompressorPlugin>> = Vec::new();
 
@@ -81,6 +84,7 @@ impl<'a> Plugins<'a> {
     Ok(compressors)
   }
 
+  #[allow(unused)]
   pub fn namers(&self) -> Result<Vec<Box<dyn NamerPlugin>>, anyhow::Error> {
     let mut namers: Vec<Box<dyn NamerPlugin>> = Vec::new();
 
@@ -91,6 +95,7 @@ impl<'a> Plugins<'a> {
     Ok(namers)
   }
 
+  #[allow(unused)]
   pub fn optimizers(
     &self,
     path: &Path,
@@ -109,6 +114,7 @@ impl<'a> Plugins<'a> {
     Ok(optimizers)
   }
 
+  #[allow(unused)]
   pub fn packager(&self, path: &Path) -> Result<Box<dyn PackagerPlugin>, anyhow::Error> {
     let packager = self.config.packagers.get(path);
 
@@ -118,6 +124,7 @@ impl<'a> Plugins<'a> {
     }
   }
 
+  #[allow(unused)]
   pub fn reporters(&self) -> Vec<Box<dyn ReporterPlugin>> {
     let mut reporters: Vec<Box<dyn ReporterPlugin>> = Vec::new();
 
@@ -128,6 +135,7 @@ impl<'a> Plugins<'a> {
     reporters
   }
 
+  #[allow(unused)]
   pub fn resolvers(&self) -> Result<Vec<Box<dyn ResolverPlugin>>, anyhow::Error> {
     let mut resolvers: Vec<Box<dyn ResolverPlugin>> = Vec::new();
 
@@ -143,6 +151,7 @@ impl<'a> Plugins<'a> {
     Ok(resolvers)
   }
 
+  #[allow(unused)]
   pub fn runtimes(&self) -> Result<Vec<Box<dyn RuntimePlugin>>, anyhow::Error> {
     let mut runtimes: Vec<Box<dyn RuntimePlugin>> = Vec::new();
 
@@ -154,6 +163,7 @@ impl<'a> Plugins<'a> {
   }
 
   /// Resolve and load transformer plugins for a given path.
+  #[allow(unused)]
   pub fn transformers(
     &self,
     path: &Path,
@@ -190,6 +200,7 @@ impl<'a> Plugins<'a> {
     })
   }
 
+  #[allow(unused)]
   pub fn validators(&self, _path: &Path) -> Result<Vec<Box<dyn ValidatorPlugin>>, anyhow::Error> {
     todo!()
   }
