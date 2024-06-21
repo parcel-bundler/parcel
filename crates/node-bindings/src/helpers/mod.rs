@@ -1,3 +1,6 @@
+#[cfg(not(target_arch = "wasm32"))]
+pub mod js_callable;
+
 use napi::bindgen_prelude::FromNapiValue;
 use napi::Env;
 use napi::JsFunction;
