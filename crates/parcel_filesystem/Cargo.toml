@@ -6,6 +6,7 @@ description = "FileSystem wrapper trait for use in Parcel codebase."
 
 [dependencies]
 dashmap = "5.5.3"
+mockall = "0.12.1"
 
 [dev-dependencies]
 assert_fs = "1.1.1"

@@ -158,10 +158,12 @@ impl Request<PathResolution> for PathRequest {
 
 #[cfg(test)]
 mod tests {
+  use parcel_core::cache::MockCache;
   use std::fmt::Debug;
 
   use parcel_core::plugin::Resolved;
   use parcel_core::plugin::ResolvedResolution;
+  use parcel_filesystem::MockFileSystem;
 
   use crate::request_tracker::RequestTracker;
 
@@ -222,7 +224,12 @@ mod tests {
       resolvers: Arc::new(vec![Box::new(ExcludedResolverPlugin {})]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+    let resolution = request.run(RunRequestContext::new(
+      None,
+      &mut RequestTracker::default(),
+      Arc::new(MockCache::default()),
+      Arc::new(MockFileSystem::default()),
+    ));
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -246,7 +253,12 @@ mod tests {
       })]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+    let resolution = request.run(RunRequestContext::new(
+      None,
+      &mut RequestTracker::default(),
+      Arc::new(MockCache::default()),
+      Arc::new(MockFileSystem::default()),
+    ));
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -284,7 +296,12 @@ mod tests {
       ]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+    let resolution = request.run(RunRequestContext::new(
+      None,
+      &mut RequestTracker::default(),
+      Arc::new(MockCache::default()),
+      Arc::new(MockFileSystem::default()),
+    ));
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -317,7 +334,12 @@ mod tests {
         resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
       };
 
-      let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+      let resolution = request.run(RunRequestContext::new(
+        None,
+        &mut RequestTracker::default(),
+        Arc::new(MockCache::default()),
+        Arc::new(MockFileSystem::default()),
+      ));
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
@@ -340,7 +362,12 @@ mod tests {
           resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
         };
 
-        let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+        let resolution = request.run(RunRequestContext::new(
+          None,
+          &mut RequestTracker::default(),
+          Arc::new(MockCache::default()),
+          Arc::new(MockFileSystem::default()),
+        ));
 
         assert_eq!(
           resolution.map_err(|e| e.to_string()),

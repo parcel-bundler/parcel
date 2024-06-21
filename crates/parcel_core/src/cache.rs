@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use anyhow::anyhow;
-
 pub type CacheRef = Arc<dyn Cache + Sync + Send>;
 
+#[mockall::automock]
 pub trait Cache {
-  fn set_blob(&self, _key: &str, _blob: &[u8]) -> anyhow::Result<()> {
-    Err(anyhow!("Not implmented"))
-  }
+  fn set_blob(&self, key: &str, blob: &[u8]) -> anyhow::Result<()>;
+  fn get_blob(&self, key: &str) -> anyhow::Result<Vec<u8>>;
 }

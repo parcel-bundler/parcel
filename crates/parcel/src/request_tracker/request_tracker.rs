@@ -1,12 +1,18 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use anyhow::anyhow;
-use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 
+use parcel_core::cache::CacheRef;
+use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::ReporterPlugin;
+use parcel_filesystem::os_file_system::OsFileSystem;
+use parcel_filesystem::FileSystemRef;
+
+use crate::cache::LMDBCache;
 
 use super::Request;
 use super::RequestEdgeType;
@@ -20,6 +26,8 @@ pub struct RequestTracker<T> {
   graph: RequestGraph<T>,
   reporter: CompositeReporterPlugin,
   request_index: HashMap<u64, NodeIndex>,
+  cache: CacheRef,
+  file_system: FileSystemRef,
 }
 
 impl<T: Clone> Default for RequestTracker<T> {
@@ -36,6 +44,8 @@ impl<T: Clone> RequestTracker<T> {
       graph,
       reporter: CompositeReporterPlugin::new(reporters),
       request_index: HashMap::new(),
+      cache: Arc::new(LMDBCache::new().unwrap()),
+      file_system: Arc::new(OsFileSystem::default()),
     }
   }
 
@@ -62,7 +72,12 @@ impl<T: Clone> RequestTracker<T> {
     let request_id = request.id();
 
     if self.prepare_request(request_id.clone())? {
-      let result = request.run(RunRequestContext::new(Some(request_id), self));
+      let result = request.run(RunRequestContext::new(
+        Some(request_id),
+        self,
+        self.cache.clone(),
+        self.file_system.clone(),
+      ));
       self.store_request(&request_id, result)?;
     }
 
