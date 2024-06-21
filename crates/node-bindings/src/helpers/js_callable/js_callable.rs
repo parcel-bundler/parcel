@@ -10,9 +10,6 @@ use napi::JsFunction;
 use napi::JsObject;
 use napi::JsUnknown;
 
-use super::local_functions::get_local_function;
-use super::local_functions::remove_local_function;
-use super::local_functions::set_local_function;
 use super::JsValue;
 
 pub type JsMapInput = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send>;
@@ -23,7 +20,6 @@ pub type JsMapInput = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Sen
 pub struct JsCallable {
   initial_thread: ThreadId,
   tsfn: ThreadsafeFunction<JsMapInput, ErrorStrategy::Fatal>,
-  callback: usize,
 }
 
 impl JsCallable {
@@ -36,13 +32,9 @@ impl JsCallable {
         (ctx.value)(&ctx.env)
       })?;
 
-    // Store the local thread function in a local key
-    let index = set_local_function(callback)?;
-
     Ok(Self {
       initial_thread,
       tsfn,
-      callback: index,
     })
   }
 
@@ -65,48 +57,6 @@ impl JsCallable {
     &self,
     map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
   ) -> napi::Result<()> {
-    if self.initial_thread == std::thread::current().id() {
-      self.call_local(map_params)
-    } else {
-      self.call_thread(map_params)
-    }
-  }
-
-  pub fn call_with_return<Return: Send + 'static>(
-    &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
-    map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + Send + 'static,
-  ) -> napi::Result<Return> {
-    if self.initial_thread == std::thread::current().id() {
-      self.call_local_with_return(map_params, map_return)
-    } else {
-      self.call_thread_with_return(map_params, map_return)
-    }
-  }
-
-  pub fn call_local(
-    &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
-  ) -> napi::Result<()> {
-    self.call_local_with_return(map_params, |_, _| Ok(()))
-  }
-
-  pub fn call_local_with_return<Return: Send + 'static>(
-    &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
-    map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + Send + 'static,
-  ) -> napi::Result<Return> {
-    let (callback, env) = get_local_function(&self.callback)?.unwrap();
-
-    let params = map_params(&env)?;
-    let returned = callback.call(None, &params)?;
-    map_return(&env, returned)
-  }
-
-  pub fn call_thread(
-    &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
-  ) -> napi::Result<()> {
     self.tsfn.call(
       Box::new(map_params),
       ThreadsafeFunctionCallMode::NonBlocking,
@@ -115,7 +65,7 @@ impl JsCallable {
     Ok(())
   }
 
-  pub fn call_thread_with_return<Return: Send + 'static>(
+  pub fn call_with_return<Return: Send + 'static>(
     &self,
     map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
     map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + Send + 'static,
@@ -153,11 +103,5 @@ impl JsCallable {
     );
 
     rx.recv().unwrap()
-  }
-}
-
-impl Drop for JsCallable {
-  fn drop(&mut self) {
-    remove_local_function(&self.callback)
   }
 }
