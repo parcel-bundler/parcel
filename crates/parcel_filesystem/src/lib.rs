@@ -1,4 +1,5 @@
 #![deny(unused_crate_dependencies)]
+
 use std::io::Result;
 use std::path::Path;
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ pub mod search;
 
 /// File-system implementation using std::fs and a canonicalize cache
 pub mod os_file_system;
+mod tracking_file_system;
 
 /// FileSystem abstraction instance.
 /// This should be `OsFileSystem` for non-testing environments and `InMemoryFileSystem` for
