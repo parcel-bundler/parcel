@@ -6,6 +6,10 @@ use napi::JsUnknown;
 use napi::NapiValue;
 use std::panic;
 
+/// ## Safety
+/// This will do unsafe casting of a raw env pointer in order to access it
+/// from the underlying napi type. This is safe because the napi types cannot be
+/// sent to a non-main thread and is how other NapiValue types work too.
 pub struct JsValue(pub JsUnknown, pub Env);
 
 impl JsValue {
