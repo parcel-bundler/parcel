@@ -86,8 +86,8 @@ impl JsCallable {
   /// Call JavaScript function and handle the return value
   pub fn call_with_return<Return: Send + 'static>(
     &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
-    map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + Send + 'static,
+    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static,
+    map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + 'static,
   ) -> napi::Result<Return> {
     #[cfg(debug_assertions)]
     if self.initial_thread == std::thread::current().id() {

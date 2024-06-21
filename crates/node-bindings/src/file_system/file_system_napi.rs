@@ -29,24 +29,21 @@ impl FileSystem for FileSystemNapi {
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     self
       .read_file_fn
-      .call_with_return(
-        map_params_serde((path.to_path_buf(), "utf8")),
-        map_return_serde(),
-      )
+      .call_with_return_serde((path.to_path_buf(), "utf8"))
       .map_err(|e| std::io::Error::other(e))
   }
 
   fn is_file(&self, path: &Path) -> bool {
     self
       .is_file_fn
-      .call_with_return(map_params_serde(path.to_path_buf()), map_return_serde())
+      .call_with_return_serde(path.to_path_buf())
       .expect("TODO handle error case")
   }
 
   fn is_dir(&self, path: &Path) -> bool {
     self
       .is_dir_fn
-      .call_with_return(map_params_serde(path.to_path_buf()), map_return_serde())
+      .call_with_return_serde(path.to_path_buf())
       .expect("TODO handle error case")
   }
 }
