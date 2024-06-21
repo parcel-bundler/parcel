@@ -9,23 +9,26 @@ use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
 use napi::JsUnknown;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
+use super::map_params_serde;
+use super::map_return_serde;
 use super::JsValue;
 
-pub type JsMapInput = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send>;
+pub type JsMapInput = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>>>;
 
 /// JsCallable provides a Send + Sync wrapper around callable JavaScript functions.
 /// Functions can be called from threads or the main thread.
-/// Parameters and return types will automatically be converted using serde.
+/// Parameters and return types can be mapped by the caller.
 pub struct JsCallable {
+  #[cfg(debug_assertions)]
   initial_thread: ThreadId,
   tsfn: ThreadsafeFunction<JsMapInput, ErrorStrategy::Fatal>,
 }
 
 impl JsCallable {
   pub fn new(callback: JsFunction) -> napi::Result<Self> {
-    let initial_thread = std::thread::current().id();
-
     // Store the threadsafe function on the struct
     let tsfn: ThreadsafeFunction<JsMapInput, ErrorStrategy::Fatal> = callback
       .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<JsMapInput>| {
@@ -33,7 +36,8 @@ impl JsCallable {
       })?;
 
     Ok(Self {
-      initial_thread,
+      #[cfg(debug_assertions)]
+      initial_thread: std::thread::current().id(),
       tsfn,
     })
   }
@@ -53,10 +57,17 @@ impl JsCallable {
   }
 
   /// Call JavaScript function and discard return value
-  pub fn call<Return: Send + 'static>(
+  pub fn call(
     &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
+    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static,
   ) -> napi::Result<()> {
+    #[cfg(debug_assertions)]
+    if self.initial_thread == std::thread::current().id() {
+      return Err(napi::Error::from_reason(
+        "Cannot run threadsafe function on main thread",
+      ));
+    }
+
     self.tsfn.call(
       Box::new(map_params),
       ThreadsafeFunctionCallMode::NonBlocking,
@@ -65,11 +76,26 @@ impl JsCallable {
     Ok(())
   }
 
+  pub fn call_serde<Params: Serialize + Send + Sync + 'static>(
+    &self,
+    params: Params,
+  ) -> napi::Result<()> {
+    self.call(map_params_serde(params))
+  }
+
+  /// Call JavaScript function and handle the return value
   pub fn call_with_return<Return: Send + 'static>(
     &self,
     map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static,
     map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + Send + 'static,
   ) -> napi::Result<Return> {
+    #[cfg(debug_assertions)]
+    if self.initial_thread == std::thread::current().id() {
+      return Err(napi::Error::from_reason(
+        "Cannot run threadsafe function on main thread",
+      ));
+    }
+
     let (tx, rx) = channel();
 
     self.tsfn.call_with_return_value(
@@ -103,5 +129,15 @@ impl JsCallable {
     );
 
     rx.recv().unwrap()
+  }
+
+  pub fn call_with_return_serde<
+    Params: Serialize + Send + Sync + 'static,
+    Return: Send + DeserializeOwned + 'static,
+  >(
+    &self,
+    params: Params,
+  ) -> napi::Result<Return> {
+    self.call_with_return(map_params_serde(params), map_return_serde())
   }
 }
