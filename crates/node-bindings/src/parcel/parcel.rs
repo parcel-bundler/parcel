@@ -6,12 +6,19 @@ use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
 use napi_derive::napi;
+
 use parcel::rpc::nodejs::RpcHostNodejs;
 use parcel::BuildOptions;
 use parcel::Parcel;
 use parcel::ParcelOptions;
 
 use crate::file_system::FileSystemNapi;
+use crate::helpers::anyhow_napi;
+use crate::parcel::parcel::tracing_setup::{
+  setup_tracing, ParcelTracingGuard, ParcelTracingOptions,
+};
+
+mod tracing_setup;
 
 #[napi(object)]
 pub struct ParcelNapiBuildOptions {}
@@ -25,11 +32,13 @@ pub struct ParcelNapiOptions {
   pub node_workers: Option<u32>,
   pub fs: Option<JsObject>,
   pub rpc: JsFunction,
+  pub tracing_options: Option<ParcelTracingOptions>,
 }
 
 #[napi]
 pub struct ParcelNapi {
   pub node_worker_count: u32,
+  tracing_guard: ParcelTracingGuard,
   parcel: Arc<Parcel>,
 }
 
@@ -38,7 +47,8 @@ impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(env: Env, options: ParcelNapiOptions) -> napi::Result<Self> {
     // Debugging Instrumentation
-    let _ = tracing_subscriber::fmt::try_init();
+    let tracing_guard = setup_tracing(&options.tracing_options).map_err(anyhow_napi)?;
+
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");
 
@@ -70,6 +80,7 @@ impl ParcelNapi {
     Ok(Self {
       node_worker_count: node_worker_count as u32,
       parcel: Arc::new(Parcel::new(parcel_options)),
+      tracing_guard,
     })
   }
 
