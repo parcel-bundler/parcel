@@ -16,7 +16,8 @@ use super::map_params_serde;
 use super::map_return_serde;
 use super::JsValue;
 
-pub type JsMapInput = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>>>;
+pub type MapJsParams = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static>;
+pub type MapJsReturn<Return> = Box<dyn Fn(&Env, JsUnknown) -> napi::Result<Return> + 'static>;
 
 /// JsCallable provides a Send + Sync wrapper around callable JavaScript functions.
 /// Functions can be called from threads or the main thread.
@@ -24,14 +25,14 @@ pub type JsMapInput = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>>>;
 pub struct JsCallable {
   #[cfg(debug_assertions)]
   initial_thread: ThreadId,
-  tsfn: ThreadsafeFunction<JsMapInput, ErrorStrategy::Fatal>,
+  tsfn: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal>,
 }
 
 impl JsCallable {
   pub fn new(callback: JsFunction) -> napi::Result<Self> {
     // Store the threadsafe function on the struct
-    let tsfn: ThreadsafeFunction<JsMapInput, ErrorStrategy::Fatal> = callback
-      .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<JsMapInput>| {
+    let tsfn: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal> = callback
+      .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<MapJsParams>| {
         (ctx.value)(&ctx.env)
       })?;
 
@@ -76,19 +77,22 @@ impl JsCallable {
     Ok(())
   }
 
-  pub fn call_serde<Params: Serialize + Send + Sync + 'static>(
-    &self,
-    params: Params,
-  ) -> napi::Result<()> {
+  pub fn call_serde<Params>(&self, params: Params) -> napi::Result<()>
+  where
+    Params: Serialize + Send + Sync + 'static,
+  {
     self.call(map_params_serde(params))
   }
 
   /// Call JavaScript function and handle the return value
-  pub fn call_with_return<Return: Send + 'static>(
+  pub fn call_with_return<Return>(
     &self,
     map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static,
     map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + 'static,
-  ) -> napi::Result<Return> {
+  ) -> napi::Result<Return>
+  where
+    Return: Send + 'static,
+  {
     #[cfg(debug_assertions)]
     if self.initial_thread == std::thread::current().id() {
       return Err(napi::Error::from_reason(
@@ -131,13 +135,11 @@ impl JsCallable {
     rx.recv().unwrap()
   }
 
-  pub fn call_with_return_serde<
+  pub fn call_with_return_serde<Params, Return>(&self, params: Params) -> napi::Result<Return>
+  where
     Params: Serialize + Send + Sync + 'static,
     Return: Send + DeserializeOwned + 'static,
-  >(
-    &self,
-    params: Params,
-  ) -> napi::Result<Return> {
+  {
     self.call_with_return(map_params_serde(params), map_return_serde())
   }
 }

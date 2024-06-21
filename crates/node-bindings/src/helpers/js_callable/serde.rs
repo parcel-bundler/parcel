@@ -1,13 +1,16 @@
 use napi::bindgen_prelude::Array;
 use napi::bindgen_prelude::FromNapiValue;
-use napi::Env;
 use napi::JsUnknown;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-pub fn map_params_serde<Params: Serialize + Send + Sync + 'static>(
-  params: Params,
-) -> Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + Send + 'static> {
+use super::MapJsParams;
+use super::MapJsReturn;
+
+pub fn map_params_serde<Params>(params: Params) -> MapJsParams
+where
+  Params: Serialize + Send + Sync + 'static,
+{
   Box::new(move |env| {
     let result = env.to_js_value(&params)?;
     if result.is_array()? {
@@ -28,7 +31,9 @@ pub fn map_params_serde<Params: Serialize + Send + Sync + 'static>(
   })
 }
 
-pub fn map_return_serde<Return: Send + DeserializeOwned + 'static>(
-) -> Box<dyn Fn(&Env, JsUnknown) -> napi::Result<Return> + Send + 'static> {
+pub fn map_return_serde<Return>() -> MapJsReturn<Return>
+where
+  Return: Send + DeserializeOwned + 'static,
+{
   Box::new(move |env, value| env.from_js_value(&value))
 }
