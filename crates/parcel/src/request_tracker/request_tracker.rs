@@ -309,18 +309,17 @@ mod test {
       let thread_id = std::thread::current().id();
       tracing::info!(?thread_id, "Running {}", self.remaining);
       let responses: Vec<u64> = vec![random()];
-      let (tx, rx) = channel();
       if self.remaining > 0 {
+        let (tx, rx) = channel();
         let _ = request_context.queue_request(
           TestRequest {
             remaining: self.remaining - 1,
           },
           tx,
         );
-      }
-
-      while let Ok(response) = rx.recv() {
-        tracing::info!("result {:?}", response);
+        while let Ok(response) = rx.recv() {
+          tracing::info!("result {:?}", response);
+        }
       }
 
       Ok(ResultAndInvalidations {
