@@ -122,7 +122,7 @@ impl RequestTracker {
               let request_id = request.id();
               if self.prepare_request(request_id)? {
                 let context = RunRequestContext::new(
-                  parent_request_id,
+                  Some(request_id),
                   // sub-request run
                   Box::new({
                     let tx = tx.clone();
