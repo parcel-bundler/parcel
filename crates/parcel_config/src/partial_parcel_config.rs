@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use derive_builder::Builder;
 use indexmap::IndexMap;
@@ -33,11 +33,11 @@ impl TryFrom<&ParcelRcFile> for PartialParcelConfig {
   fn try_from(parcel_rc: &ParcelRcFile) -> Result<PartialParcelConfig, ConfigError> {
     // TODO Add validation here: multiple ..., plugin name format, reserved pipelines, etc
 
-    let resolve_from = Rc::new(parcel_rc.path.clone());
+    let resolve_from = Arc::new(parcel_rc.path.clone());
 
     let to_entry = |package_name: &String| PluginNode {
       package_name: String::from(package_name),
-      resolve_from: Rc::clone(&resolve_from),
+      resolve_from: resolve_from.clone(),
     };
 
     let to_vec = |maybe_plugins: Option<&Vec<String>>| {
@@ -80,7 +80,7 @@ impl TryFrom<&ParcelRcFile> for PartialParcelConfig {
         .as_ref()
         .map(|package_name| PluginNode {
           package_name: String::from(package_name),
-          resolve_from: Rc::clone(&resolve_from),
+          resolve_from: resolve_from.clone(),
         }),
       compressors: to_pipelines(parcel_rc.contents.compressors.as_ref()),
       namers: to_vec(parcel_rc.contents.namers.as_ref()),
@@ -224,6 +224,7 @@ mod tests {
 
     mod bundler {
       use std::path::PathBuf;
+      use std::sync::Arc;
 
       use super::*;
 
@@ -232,7 +233,7 @@ mod tests {
         let from = PartialParcelConfigBuilder::default()
           .bundler(Some(PluginNode {
             package_name: String::from("a"),
-            resolve_from: Rc::new(PathBuf::from("/")),
+            resolve_from: Arc::new(PathBuf::from("/")),
           }))
           .build()
           .unwrap();
@@ -249,7 +250,7 @@ mod tests {
         let extend = PartialParcelConfigBuilder::default()
           .bundler(Some(PluginNode {
             package_name: String::from("a"),
-            resolve_from: Rc::new(PathBuf::from("/")),
+            resolve_from: Arc::new(PathBuf::from("/")),
           }))
           .build()
           .unwrap();
@@ -264,7 +265,7 @@ mod tests {
         let from = PartialParcelConfigBuilder::default()
           .bundler(Some(PluginNode {
             package_name: String::from("a"),
-            resolve_from: Rc::new(PathBuf::from("/")),
+            resolve_from: Arc::new(PathBuf::from("/")),
           }))
           .build()
           .unwrap();
@@ -272,7 +273,7 @@ mod tests {
         let extend = PartialParcelConfigBuilder::default()
           .bundler(Some(PluginNode {
             package_name: String::from("b"),
-            resolve_from: Rc::new(PathBuf::from("/")),
+            resolve_from: Arc::new(PathBuf::from("/")),
           }))
           .build()
           .unwrap();

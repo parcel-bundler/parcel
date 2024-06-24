@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use parcel_core::cache::CacheRef;
 use parcel_core::plugin::AssetBuildEvent;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::InitialAsset;
@@ -17,30 +16,30 @@ use parcel_core::types::AssetStats;
 use parcel_core::types::Dependency;
 use parcel_core::types::Environment;
 use parcel_core::types::FileType;
-use parcel_filesystem::FileSystemRef;
 
 use crate::plugins::Plugins;
 use crate::plugins::TransformerPipeline;
-use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
+use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
 /// The AssetRequest runs transformer plugins on discovered Assets.
 /// - Decides which transformer pipeline to run from the input Asset type
 /// - Runs the pipeline in series, switching pipeline if the Asset type changes
 /// - Stores the final Asset source code in the cache, for access in packaging
 /// - Finally, returns the complete Asset and it's discovered Dependencies
-pub struct AssetRequest<'a> {
+#[derive(Debug)]
+pub struct AssetRequest {
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
   pub code: Option<String>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
-  // TODO: move the following to RunRequestContext
-  pub cache: CacheRef,
-  pub file_system: FileSystemRef,
-  pub plugins: Arc<Plugins<'a>>,
+  // // TODO: move the following to RunRequestContext
+  // pub cache: CacheRef,
+  // pub file_system: FileSystemRef,
+  // pub plugins: Arc<Plugins<'a>>,
 }
 
-impl<'a> Hash for AssetRequest<'a> {
+impl Hash for AssetRequest {
   fn hash<H: Hasher>(&self, state: &mut H) {
     // TODO: Just derive this once the contextual params are moved to RunRequestContext
     self.file_path.hash(state);
@@ -57,11 +56,11 @@ pub struct AssetResult {
   pub dependencies: Vec<Dependency>,
 }
 
-impl<'a> Request<AssetResult> for AssetRequest<'a> {
+impl Request<AssetResult> for AssetRequest {
   fn run(
     &self,
     request_context: RunRequestContext<AssetResult>,
-  ) -> Result<RequestResult<AssetResult>, RunRequestError> {
+  ) -> Result<ResultAndInvalidations<AssetResult>, RunRequestError> {
     request_context.report(ReporterEvent::BuildProgress(BuildProgressEvent::Building(
       AssetBuildEvent {
         // TODO: Should we try avoid a clone here?
@@ -69,8 +68,8 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
       },
     )));
 
-    let pipeline = self
-      .plugins
+    let pipeline = request_context
+      .plugins()
       .transformers(&self.file_path, self.pipeline.as_deref())?;
     let asset_type = FileType::from_extension(
       self
@@ -79,7 +78,7 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
         .and_then(|s| s.to_str())
         .unwrap_or(""),
     );
-    let mut transform_ctx = RunTransformContext::new(self.file_system.clone());
+    let mut transform_ctx = RunTransformContext::new(request_context.file_system().clone());
 
     let result = run_pipeline(
       pipeline,
@@ -91,18 +90,18 @@ impl<'a> Request<AssetResult> for AssetRequest<'a> {
         side_effects: self.side_effects,
       }),
       asset_type,
-      &self.plugins,
+      request_context.plugins(),
       &mut transform_ctx,
     )?;
 
     // Write the Asset source code to the cache, this is read later in packaging
     // TODO: Clarify the correct content key
     let content_key = result.asset.id().to_string();
-    self
-      .cache
+    request_context
+      .cache()
       .set_blob(&content_key, result.asset.code.bytes())?;
 
-    Ok(RequestResult {
+    Ok(ResultAndInvalidations {
       result: AssetResult {
         asset: Asset {
           stats: AssetStats {

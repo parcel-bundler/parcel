@@ -1733,6 +1733,10 @@ dependencies = [
  "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
  "petgraph",
+ "rand",
+ "rayon",
+ "tracing",
+ "tracing-subscriber",
  "xxhash-rust",
 ]
 
@@ -1870,6 +1874,7 @@ dependencies = [
  "bitflags 2.5.0",
  "browserslist-rs",
  "dyn-hash",
+ "mockall",
  "nodejs-semver",
  "parcel_filesystem",
  "serde",
@@ -1886,6 +1891,7 @@ dependencies = [
  "assert_fs",
  "dashmap",
  "is_elevated",
+ "mockall",
 ]
 
 [[package]]

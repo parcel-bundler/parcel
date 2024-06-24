@@ -18,5 +18,6 @@ nodejs-semver = "4.0.0"
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = { version = "1.0.116", features = ["preserve_order"] }
 serde_repr = "0.1.19"
+mockall = "0.12.1"
 serde-value = "0.7.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }

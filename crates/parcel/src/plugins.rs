@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
+use std::sync::Arc;
 use std::u64;
 
 use anyhow::anyhow;
@@ -33,17 +34,19 @@ use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
 
 // TODO Implement specifics of injecting env for napi plugins
 
+pub type PluginsRef = Arc<Plugins>;
+
 /// Loads plugins based on the Parcel config
-pub struct Plugins<'a> {
+pub struct Plugins {
   /// The Parcel config that determines what plugins will be loaded
   config: ParcelConfig,
 
   /// Dependencies available to all plugin types
-  ctx: &'a PluginContext,
+  ctx: Arc<PluginContext>,
 }
 
-impl<'a> Plugins<'a> {
-  pub fn new(config: ParcelConfig, ctx: &'a PluginContext) -> Self {
+impl Plugins {
+  pub fn new(config: ParcelConfig, ctx: Arc<PluginContext>) -> Self {
     Plugins { config, ctx }
   }
 
@@ -62,7 +65,7 @@ impl<'a> Plugins<'a> {
 
   pub fn bundler(&self) -> Result<Box<dyn BundlerPlugin>, anyhow::Error> {
     Ok(Box::new(RpcBundlerPlugin::new(
-      self.ctx,
+      &self.ctx,
       &self.config.bundler,
     )?))
   }
@@ -71,7 +74,7 @@ impl<'a> Plugins<'a> {
     let mut compressors: Vec<Box<dyn CompressorPlugin>> = Vec::new();
 
     for compressor in self.config.compressors.get(path).iter() {
-      compressors.push(Box::new(RpcCompressorPlugin::new(self.ctx, compressor)));
+      compressors.push(Box::new(RpcCompressorPlugin::new(&self.ctx, compressor)));
     }
 
     if compressors.is_empty() {
@@ -85,7 +88,7 @@ impl<'a> Plugins<'a> {
     let mut namers: Vec<Box<dyn NamerPlugin>> = Vec::new();
 
     for namer in self.config.namers.iter() {
-      namers.push(Box::new(RpcNamerPlugin::new(self.ctx, namer)?));
+      namers.push(Box::new(RpcNamerPlugin::new(&self.ctx, namer)?));
     }
 
     Ok(namers)
@@ -103,7 +106,7 @@ impl<'a> Plugins<'a> {
     });
 
     for optimizer in self.config.optimizers.get(path, named_pattern).iter() {
-      optimizers.push(Box::new(RpcOptimizerPlugin::new(self.ctx, optimizer)?));
+      optimizers.push(Box::new(RpcOptimizerPlugin::new(&self.ctx, optimizer)?));
     }
 
     Ok(optimizers)
@@ -114,7 +117,7 @@ impl<'a> Plugins<'a> {
 
     match packager {
       None => Err(self.missing_plugin(path, "packager")),
-      Some(packager) => Ok(Box::new(RpcPackagerPlugin::new(self.ctx, packager)?)),
+      Some(packager) => Ok(Box::new(RpcPackagerPlugin::new(&self.ctx, packager)?)),
     }
   }
 
@@ -122,7 +125,7 @@ impl<'a> Plugins<'a> {
     let mut reporters: Vec<Box<dyn ReporterPlugin>> = Vec::new();
 
     for reporter in self.config.reporters.iter() {
-      reporters.push(Box::new(RpcReporterPlugin::new(self.ctx, reporter)));
+      reporters.push(Box::new(RpcReporterPlugin::new(&self.ctx, reporter)));
     }
 
     reporters
@@ -137,7 +140,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      resolvers.push(Box::new(RpcResolverPlugin::new(self.ctx, resolver)?));
+      resolvers.push(Box::new(RpcResolverPlugin::new(&self.ctx, resolver)?));
     }
 
     Ok(resolvers)
@@ -147,7 +150,7 @@ impl<'a> Plugins<'a> {
     let mut runtimes: Vec<Box<dyn RuntimePlugin>> = Vec::new();
 
     for runtime in self.config.runtimes.iter() {
-      runtimes.push(Box::new(RpcRuntimePlugin::new(self.ctx, runtime)?));
+      runtimes.push(Box::new(RpcRuntimePlugin::new(&self.ctx, runtime)?));
     }
 
     Ok(runtimes)
@@ -174,7 +177,7 @@ impl<'a> Plugins<'a> {
         continue;
       }
 
-      transformers.push(Box::new(RpcTransformerPlugin::new(self.ctx, transformer)?));
+      transformers.push(Box::new(RpcTransformerPlugin::new(&self.ctx, transformer)?));
     }
 
     if transformers.is_empty() {
@@ -216,39 +219,13 @@ impl Debug for TransformerPipeline {
 
 #[cfg(test)]
 mod tests {
-  use std::path::PathBuf;
-  use std::rc::Rc;
-  use std::sync::Arc;
-
-  use parcel_config::parcel_config_fixtures::default_config;
-  use parcel_core::plugin::PluginConfig;
-  use parcel_core::plugin::PluginLogger;
-  use parcel_core::plugin::PluginOptions;
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use crate::test_utils::{make_test_plugin_context, plugins};
 
   use super::*;
 
-  fn make_test_plugin_context() -> PluginContext {
-    PluginContext {
-      config: PluginConfig::new(
-        Arc::new(InMemoryFileSystem::default()),
-        PathBuf::default(),
-        PathBuf::default(),
-      ),
-      options: Arc::new(PluginOptions::default()),
-      logger: PluginLogger::default(),
-    }
-  }
-
-  fn plugins(ctx: &PluginContext) -> Plugins {
-    let fixture = default_config(Rc::new(PathBuf::default()));
-
-    Plugins::new(fixture.parcel_config, ctx)
-  }
-
   #[test]
   fn returns_bundler() {
-    let bundler = plugins(&make_test_plugin_context())
+    let bundler = plugins(make_test_plugin_context())
       .bundler()
       .expect("Not to panic");
 
@@ -257,7 +234,7 @@ mod tests {
 
   #[test]
   fn returns_compressors() {
-    let compressors = plugins(&make_test_plugin_context())
+    let compressors = plugins(make_test_plugin_context())
       .compressors(Path::new("a.js"))
       .expect("Not to panic");
 
@@ -266,7 +243,7 @@ mod tests {
 
   #[test]
   fn returns_namers() {
-    let namers = plugins(&make_test_plugin_context())
+    let namers = plugins(make_test_plugin_context())
       .namers()
       .expect("Not to panic");
 
@@ -275,7 +252,7 @@ mod tests {
 
   #[test]
   fn returns_optimizers() {
-    let optimizers = plugins(&make_test_plugin_context())
+    let optimizers = plugins(make_test_plugin_context())
       .optimizers(Path::new("a.js"), None)
       .expect("Not to panic");
 
@@ -284,7 +261,7 @@ mod tests {
 
   #[test]
   fn returns_packager() {
-    let packager = plugins(&make_test_plugin_context())
+    let packager = plugins(make_test_plugin_context())
       .packager(Path::new("a.js"))
       .expect("Not to panic");
 
@@ -293,14 +270,14 @@ mod tests {
 
   #[test]
   fn returns_reporters() {
-    let reporters = plugins(&make_test_plugin_context()).reporters();
+    let reporters = plugins(make_test_plugin_context()).reporters();
 
     assert_eq!(format!("{:?}", reporters), "[RpcReporterPlugin]")
   }
 
   #[test]
   fn returns_resolvers() {
-    let resolvers = plugins(&make_test_plugin_context())
+    let resolvers = plugins(make_test_plugin_context())
       .resolvers()
       .expect("Not to panic");
 
@@ -309,7 +286,7 @@ mod tests {
 
   #[test]
   fn returns_runtimes() {
-    let runtimes = plugins(&make_test_plugin_context())
+    let runtimes = plugins(make_test_plugin_context())
       .runtimes()
       .expect("Not to panic");
 
@@ -318,7 +295,7 @@ mod tests {
 
   #[test]
   fn returns_transformers() {
-    let transformers = plugins(&make_test_plugin_context())
+    let transformers = plugins(make_test_plugin_context())
       .transformers(Path::new("a.ts"), None)
       .expect("Not to panic");
 

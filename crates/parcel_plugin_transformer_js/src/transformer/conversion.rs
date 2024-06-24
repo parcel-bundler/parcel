@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use swc_core::atoms::Atom;
@@ -262,7 +262,7 @@ pub(crate) fn convert_result(
   let result_source_code_string = String::from_utf8(result.code)
     // TODO: This is impossible; but we should extend 'diagnostic' type to be nicer / easier to build
     .map_err(|_| vec![])?;
-  asset.code = Rc::new(Code::from(result_source_code_string));
+  asset.code = Arc::new(Code::from(result_source_code_string));
 
   Ok(TransformResult {
     asset,

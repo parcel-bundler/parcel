@@ -1,7 +1,6 @@
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -63,7 +62,7 @@ pub struct Asset {
 
   /// The code of this asset, initially read from disk, then becoming the
   /// transformed output
-  pub code: Rc<Code>,
+  pub code: Arc<Code>,
 
   /// Plugin specific metadata for the asset
   pub meta: JSONObject,
@@ -153,7 +152,7 @@ impl Asset {
   }
 
   /// Build a new empty asset
-  pub fn new_empty(file_path: PathBuf, source_code: Rc<Code>) -> Self {
+  pub fn new_empty(file_path: PathBuf, source_code: Arc<Code>) -> Self {
     let asset_type =
       FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
 
