@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::num::NonZeroU32;
 
 use serde::Deserialize;
@@ -68,8 +70,8 @@ pub struct Environment {
   pub source_type: SourceType,
 }
 
-impl std::hash::Hash for Environment {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl Hash for Environment {
+  fn hash<H: Hasher>(&self, state: &mut H) {
     // Hashing intentionally does not include loc
     self.context.hash(state);
     self.engines.hash(state);
@@ -102,17 +104,17 @@ impl PartialEq for Environment {
 ///
 /// This informs Parcel what environment-specific APIs are available.
 ///
-#[derive(Clone, Copy, Debug, Default, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
-#[repr(u8)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum EnvironmentContext {
   #[default]
-  Browser = 0,
-  ElectronMain = 1,
-  ElectronRenderer = 2,
-  Node = 3,
-  ServiceWorker = 4,
-  WebWorker = 5,
-  Worklet = 6,
+  Browser,
+  ElectronMain,
+  ElectronRenderer,
+  Node,
+  ServiceWorker,
+  WebWorker,
+  Worklet,
 }
 
 impl EnvironmentContext {
@@ -141,6 +143,7 @@ impl EnvironmentContext {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum IncludeNodeModules {
   Bool(bool),
   Array(Vec<String>),
@@ -153,8 +156,19 @@ impl Default for IncludeNodeModules {
   }
 }
 
-impl std::hash::Hash for IncludeNodeModules {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl From<EnvironmentContext> for IncludeNodeModules {
+  fn from(context: EnvironmentContext) -> Self {
+    match context {
+      EnvironmentContext::Browser => IncludeNodeModules::Bool(true),
+      EnvironmentContext::ServiceWorker => IncludeNodeModules::Bool(true),
+      EnvironmentContext::WebWorker => IncludeNodeModules::Bool(true),
+      _ => IncludeNodeModules::Bool(false),
+    }
+  }
+}
+
+impl Hash for IncludeNodeModules {
+  fn hash<H: Hasher>(&self, state: &mut H) {
     match self {
       IncludeNodeModules::Bool(b) => b.hash(state),
       IncludeNodeModules::Array(a) => a.hash(state),
@@ -177,7 +191,7 @@ pub enum SourceType {
 }
 
 /// Source map options for the target output
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TargetSourceMapOptions {
   /// Inlines the source map as a data URL into the bundle, rather than link to it as a separate output file

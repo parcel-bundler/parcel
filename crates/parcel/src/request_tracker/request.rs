@@ -1,8 +1,8 @@
 use std::fmt::Debug;
-use std::hash::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 
+use crate::plugins::Plugins;
 use dyn_hash::DynHash;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::types::Invalidation;
@@ -25,15 +25,18 @@ impl<'a, T: Clone> RunRequestContext<'a, T> {
     }
   }
 
-  pub fn report(&self, _event: ReporterEvent) {
-    // TODO
+  pub fn report(&self, event: ReporterEvent) {
+    self.request_tracker.report(event);
   }
 
-  // TODO: Why is this boxed?
-  pub fn run_request(&mut self, request: Box<&dyn Request<T>>) -> anyhow::Result<T> {
+  pub fn run_request(&mut self, request: &impl Request<T>) -> anyhow::Result<T> {
     self
       .request_tracker
       .run_child_request(request, self.parent_request_hash)
+  }
+
+  pub fn get_plugins(&self) -> Plugins {
+    todo!()
   }
 }
 
@@ -42,7 +45,7 @@ pub type RunRequestError = anyhow::Error;
 
 pub trait Request<T: Clone>: DynHash {
   fn id(&self) -> u64 {
-    let mut hasher = DefaultHasher::default();
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher);
     self.dyn_hash(&mut hasher);
     hasher.finish()

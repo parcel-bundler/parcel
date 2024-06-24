@@ -1,4 +1,6 @@
 use anyhow::anyhow;
+use parcel_core::plugin::ReporterEvent;
+use parcel_core::plugin::ReporterPlugin;
 use std::collections::HashMap;
 
 use petgraph::graph::NodeIndex;
@@ -14,26 +16,41 @@ use super::RunRequestError;
 
 pub struct RequestTracker<T> {
   graph: RequestGraph<T>,
+  reporters: Vec<Box<dyn ReporterPlugin>>,
   request_index: HashMap<u64, NodeIndex>,
 }
 
+impl<T: Clone> Default for RequestTracker<T> {
+  fn default() -> Self {
+    RequestTracker::new(Vec::new())
+  }
+}
+
 impl<T: Clone> RequestTracker<T> {
-  pub fn new() -> Self {
+  pub fn new(reporters: Vec<Box<dyn ReporterPlugin>>) -> Self {
     let mut graph = StableDiGraph::<RequestNode<T>, RequestEdgeType>::new();
     graph.add_node(RequestNode::Root);
     RequestTracker {
       graph,
+      reporters,
       request_index: HashMap::new(),
     }
   }
 
-  pub fn run_request(&mut self, request: Box<&dyn Request<T>>) -> anyhow::Result<T> {
+  pub fn report(&self, event: ReporterEvent) {
+    for reporter in self.reporters.iter() {
+      // TODO Decide how to handle errors
+      let _ = reporter.report(&event);
+    }
+  }
+
+  pub fn run_request(&mut self, request: &impl Request<T>) -> anyhow::Result<T> {
     self.run_child_request(request, None)
   }
 
   pub fn run_child_request(
     &mut self,
-    request: Box<&dyn Request<T>>,
+    request: &impl Request<T>,
     parent_request_hash: Option<u64>,
   ) -> anyhow::Result<T> {
     let request_id = request.id();

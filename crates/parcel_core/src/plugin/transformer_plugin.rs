@@ -1,15 +1,18 @@
-use parcel_filesystem::FileSystemRef;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::Arc;
 
-use crate::types::{Asset, SourceCode};
-use crate::types::{Dependency, SpecifierType};
+use serde::Serialize;
+
+use parcel_filesystem::os_file_system::OsFileSystem;
+use parcel_filesystem::FileSystemRef;
+
+use crate::types::{Asset, Code, Dependency, Environment, SpecifierType};
 
 pub struct ResolveOptions {
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
   pub package_conditions: Vec<String>,
-
   /// How the specifier should be interpreted
   pub specifier_type: SpecifierType,
 }
@@ -17,33 +20,49 @@ pub struct ResolveOptions {
 /// A function that enables transformers to resolve a dependency specifier
 pub type Resolve = dyn Fn(PathBuf, String, ResolveOptions) -> Result<PathBuf, anyhow::Error>;
 
+/// A newly resolved file_path/code that needs to be transformed into an Asset
+#[derive(Default)]
+pub struct InitialAsset {
+  pub file_path: PathBuf,
+  /// Dynamic code returned from the resolver for virtual files.
+  /// It is not set in most cases but should be respected when present.
+  pub code: Option<String>,
+  pub env: Arc<Environment>,
+  pub side_effects: bool,
+}
+
 /// The input to transform within the plugin
 ///
 /// Transformers may run against two distinguished scenarios:
-/// * File-paths that have just been discovered
+///
+/// * InitialAsset that have just been discovered
 /// * Outputs of previous transformation steps, which are in-place modified
 ///
 pub enum TransformationInput {
-  FilePath(PathBuf),
+  InitialAsset(InitialAsset),
   Asset(Asset),
 }
 
 impl TransformationInput {
   pub fn file_path(&self) -> &Path {
     match self {
-      TransformationInput::FilePath(path) => path,
-      TransformationInput::Asset(asset) => asset.file_path(),
+      TransformationInput::InitialAsset(raw_asset) => raw_asset.file_path.as_path(),
+      TransformationInput::Asset(asset) => &asset.file_path,
     }
   }
 
-  pub fn read_source_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<SourceCode>> {
+  pub fn read_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<Code>> {
     match self {
-      TransformationInput::FilePath(file_path) => {
-        let code = fs.read_to_string(&file_path)?;
-        let code = SourceCode::from(code);
+      TransformationInput::InitialAsset(raw_asset) => {
+        let code = if let Some(code) = &raw_asset.code {
+          Code::from(code.clone())
+        } else {
+          let source = fs.read_to_string(&raw_asset.file_path)?;
+          Code::from(source)
+        };
         Ok(Rc::new(code))
       }
-      TransformationInput::Asset(asset) => Ok(asset.source_code.clone()),
+      TransformationInput::Asset(asset) => Ok(asset.code.clone()),
     }
   }
 }
@@ -51,6 +70,14 @@ impl TransformationInput {
 /// Context parameters for the transformer, other than the input.
 pub struct RunTransformContext {
   file_system: FileSystemRef,
+}
+
+impl Default for RunTransformContext {
+  fn default() -> Self {
+    Self {
+      file_system: Arc::new(OsFileSystem::default()),
+    }
+  }
 }
 
 impl RunTransformContext {
@@ -63,7 +90,7 @@ impl RunTransformContext {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct TransformResult {
   pub asset: Asset,
   pub dependencies: Vec<Dependency>,

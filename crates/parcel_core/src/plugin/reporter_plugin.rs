@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use std::sync::Arc;
+use std::{fmt::Debug, path::PathBuf};
 
 use crate::types::Dependency;
 
@@ -7,8 +7,13 @@ pub struct ResolvingEvent {
   pub dependency: Arc<Dependency>,
 }
 
+pub struct AssetBuildEvent {
+  pub file_path: PathBuf,
+}
+
 pub enum BuildProgressEvent {
   Resolving(ResolvingEvent),
+  Building(AssetBuildEvent),
 }
 
 // TODO Flesh these out
@@ -30,7 +35,7 @@ pub enum ReporterEvent {
 ///
 pub trait ReporterPlugin: Debug {
   /// Processes the event from Parcel
-  fn report(&self, event: ReporterEvent) -> Result<(), anyhow::Error>;
+  fn report(&self, event: &ReporterEvent) -> Result<(), anyhow::Error>;
 }
 
 #[cfg(test)]
@@ -41,7 +46,7 @@ mod tests {
   struct TestReporterPlugin {}
 
   impl ReporterPlugin for TestReporterPlugin {
-    fn report(&self, _event: ReporterEvent) -> Result<(), anyhow::Error> {
+    fn report(&self, _event: &ReporterEvent) -> Result<(), anyhow::Error> {
       todo!()
     }
   }

@@ -1,3 +1,5 @@
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::path::Path;
 
 use indexmap::IndexMap;
@@ -40,14 +42,23 @@ pub struct NamedPattern<'a> {
 /// ```
 ///
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct NamedPipelinesMap(
+#[serde(transparent)]
+pub struct NamedPipelinesMap {
   /// Maps patterns and named patterns to a series of plugins, called pipelines
-  IndexMap<String, Vec<PluginNode>>,
-);
+  inner: IndexMap<String, Vec<PluginNode>>,
+}
+
+impl Hash for NamedPipelinesMap {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    for item in self.inner.iter() {
+      item.hash(state);
+    }
+  }
+}
 
 impl NamedPipelinesMap {
   pub fn new(map: IndexMap<String, Vec<PluginNode>>) -> Self {
-    Self(map)
+    Self { inner: map }
   }
 
   /// Finds pipelines contained by a pattern that match the given file path and named pipeline
@@ -104,7 +115,7 @@ impl NamedPipelinesMap {
     // If a named pipeline is requested, the glob needs to match exactly
     if let Some(named_pattern) = named_pattern {
       let exact_match = self
-        .0
+        .inner
         .iter()
         .find(|(pattern, _)| is_match(pattern, named_pattern.pipeline.as_ref()));
 
@@ -115,7 +126,7 @@ impl NamedPipelinesMap {
       }
     }
 
-    for (pattern, pipelines) in self.0.iter() {
+    for (pattern, pipelines) in self.inner.iter() {
       if is_match(&pattern, "") {
         matches.extend(pipelines.iter().cloned());
       }
@@ -127,12 +138,15 @@ impl NamedPipelinesMap {
   pub fn contains_named_pipeline(&self, pipeline: impl AsRef<str>) -> bool {
     let named_pipeline = format!("{}:", pipeline.as_ref());
 
-    self.0.keys().any(|glob| glob.starts_with(&named_pipeline))
+    self
+      .inner
+      .keys()
+      .any(|glob| glob.starts_with(&named_pipeline))
   }
 
   pub fn named_pipelines(&self) -> Vec<&str> {
     self
-      .0
+      .inner
       .keys()
       .filter_map(|glob| glob.split_once(':').map(|g| g.0))
       .collect()

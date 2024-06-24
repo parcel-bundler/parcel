@@ -4,10 +4,13 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// Represents a file type by its extension
-#[derive(Debug, Clone, PartialEq, Hash)]
+///
+/// Defaults to `FileType::Js` for convenience.
+#[derive(Default, Debug, Clone, PartialEq, Hash)]
 pub enum FileType {
   Css,
   Html,
+  #[default]
   Js,
   Jsx,
   Ts,
@@ -50,6 +53,8 @@ impl FileType {
   pub fn from_extension(ext: &str) -> Self {
     match ext {
       "js" => FileType::Js,
+      "mjs" => FileType::Js,
+      "cjs" => FileType::Js,
       "jsx" => FileType::Jsx,
       "ts" => FileType::Ts,
       "tsx" => FileType::Tsx,
