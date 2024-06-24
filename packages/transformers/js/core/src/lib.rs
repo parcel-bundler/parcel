@@ -55,11 +55,11 @@ use swc_core::ecma::ast::Program;
 use swc_core::ecma::codegen::text_writer::JsWriter;
 use swc_core::ecma::parser::error::Error;
 use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::EsConfig;
+use swc_core::ecma::parser::EsSyntax;
 use swc_core::ecma::parser::Parser;
 use swc_core::ecma::parser::StringInput;
 use swc_core::ecma::parser::Syntax;
-use swc_core::ecma::parser::TsConfig;
+use swc_core::ecma::parser::TsSyntax;
 use swc_core::ecma::preset_env::preset_env;
 use swc_core::ecma::preset_env::Mode::Entry;
 use swc_core::ecma::preset_env::Targets;
@@ -570,13 +570,13 @@ fn parse(
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
-    Syntax::Typescript(TsConfig {
+    Syntax::Typescript(TsSyntax {
       tsx: config.is_jsx,
       decorators: config.decorators,
       ..Default::default()
     })
   } else {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
       jsx: config.is_jsx,
       export_default_from: true,
       decorators: config.decorators,
