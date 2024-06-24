@@ -1,9 +1,19 @@
-use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
+use parcel_core::asset_graph::{AssetGraph, AssetGraphNode};
+use petgraph::graph::NodeIndex;
+
+use crate::{
+  request_tracker::{Request, RequestResult, RequestTracker, RunRequestContext, RunRequestError},
+  ParcelOptions,
+};
+
+use super::entry_request::EntryRequest;
 
 /// The AssetGraphRequest is in charge of building the AssetGraphRequest
 /// In doing so, it kicks of the TargetRequest, PathRequest and AssetRequests.
 #[derive(Hash)]
-pub struct AssetGraphRequest {}
+pub struct AssetGraphRequest {
+  pub entries: Vec<String>,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AssetGraphResult {}
@@ -13,7 +23,16 @@ impl Request<AssetGraphResult> for AssetGraphRequest {
     &self,
     request_context: RunRequestContext<AssetGraphResult>,
   ) -> Result<RequestResult<AssetGraphResult>, RunRequestError> {
-    todo!();
+    let mut graph = AssetGraph::new();
+    let root = graph.graph.add_node(AssetGraphNode::Root);
+
+    request_context.start_request_queue(|request_queue| {
+      for entry in self.entries {
+        request_queue.queue_request(Box::new(EntryRequest {
+          entry: entry.clone(),
+        }));
+      }
+    });
   }
 }
 
@@ -216,10 +235,8 @@ impl Request<AssetGraphResult> for AssetGraphRequest {
 // }
 //
 // /// Runs a callback inside a rayon scope, and provides an interface to queue requests.
-// fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope>) -> R>(
-//   request_tracker: &'scope mut RequestTracker,
-//   farm: &'scope WorkerFarm,
-//   options: &'scope ParcelOptions,
+// fn scope<'scope, R, F: FnOnce(&mut Queue<'_, 'scope, T>) -> R, T: Clone>(
+//   request_ctx: &'scope mut RunRequestContext<'scope, T>,
 //   f: F,
 // ) -> R {
 //   let mut result = None;
@@ -228,9 +245,7 @@ impl Request<AssetGraphResult> for AssetGraphRequest {
 //     let mut queue = Queue {
 //       scope,
 //       in_flight: 0,
-//       farm,
-//       options,
-//       request_tracker,
+//       request_ctx,
 //       sender,
 //       receiver,
 //     };
@@ -240,75 +255,42 @@ impl Request<AssetGraphResult> for AssetGraphRequest {
 //   result.unwrap()
 // }
 //
-// struct Queue<'a, 'scope> {
+// struct Queue<'a, 'scope, T: Clone> {
 //   scope: &'a rayon::Scope<'scope>,
 //   in_flight: usize,
-//   farm: &'scope WorkerFarm,
-//   options: &'scope ParcelOptions,
-//   request_tracker: &'scope mut RequestTracker,
-//   sender: crossbeam_channel::Sender<(
-//     u64,
-//     NodeIndex,
-//     Result<RequestOutput, Vec<Diagnostic>>,
-//     Vec<Invalidation>,
-//   )>,
-//   receiver: crossbeam_channel::Receiver<(
-//     u64,
-//     NodeIndex,
-//     Result<RequestOutput, Vec<Diagnostic>>,
-//     Vec<Invalidation>,
-//   )>,
+//   request_ctx: &'scope mut RunRequestContext<'scope, T>,
+//   sender: crossbeam_channel::Sender<(NodeIndex, anyhow::Result<T>)>,
+//   receiver: crossbeam_channel::Receiver<(NodeIndex, anyhow::Result<T>)>,
 // }
 //
-// impl<'a, 'scope> Queue<'a, 'scope> {
-//   pub fn queue_request<'s: 'scope, R: Request + StoreRequestOutput + Send + 'scope>(
-//     &mut self,
+// impl<'a, 'scope, T: Clone + Send> Queue<'a, 'scope, T> {
+//   pub fn queue_request<'s: 'scope, R: Request<T> + Send + 'scope>(
+//     &'a mut self,
 //     req: R,
 //     node: NodeIndex,
 //   ) {
+//     // TODO: If the request already has a cached result don't bother calling
+//     // into another thread?
 //     self.in_flight += 1;
-//     if let Some(result) = self.request_tracker.start_request(&req) {
-//       // We already have a result for this require, so just clone it and send it on the channel.
-//       drop(self.sender.send((req.id(), node, Ok(result), vec![])));
-//     } else {
-//       // This request hasn't run before, so spawn a task in the thread pool.
-//       let sender = self.sender.clone();
-//       let farm = self.farm;
-//       let options = self.options;
-//       self.scope.spawn(move |_| {
-//         let id = req.id();
-//         let result = req.run(farm, options);
-//         // Send the result back to the main thread via a channel.
-//         // If this errors, the channel was closed due to a previous error.
-//         drop(
-//           sender.send((
-//             id,
-//             node,
-//             result
-//               .result
-//               .map(|result| <R as StoreRequestOutput>::store(result)),
-//             result.invalidations,
-//           )),
-//         );
-//       });
-//     }
+//     let sender = self.sender.clone();
+//     let request_ctx = self.request_ctx;
+//     self.scope.spawn(move |_| {
+//       let result = request_ctx.run_request(&req);
+//       // Send the result back to the main thread via a channel.
+//       // If this errors, the channel was closed due to a previous error.
+//       drop(sender.send((node, result)));
+//     });
 //   }
 //
-//   pub fn receive_result(
-//     &mut self,
-//   ) -> Option<(u64, NodeIndex, Result<RequestOutput, Vec<Diagnostic>>)> {
+//   pub fn receive_result(&mut self) -> Option<(NodeIndex, anyhow::Result<T>)> {
 //     // If there are no requests in flight, the build is complete.
 //     if self.in_flight == 0 {
 //       return None;
 //     }
 //
-//     // Receive a result from the channel, and store the result in the RequestTracker.
-//     if let Ok((request, node, result, invalidations)) = self.receiver.recv() {
-//       self
-//         .request_tracker
-//         .finish_request(request, result.clone(), invalidations);
+//     if let Ok((node, result)) = self.receiver.recv() {
 //       self.in_flight -= 1;
-//       Some((request, node, result))
+//       Some((node, result))
 //     } else {
 //       None
 //     }

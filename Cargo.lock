@@ -1722,6 +1722,7 @@ name = "parcel"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "crossbeam-channel",
  "dyn-hash",
  "num_cpus",
  "parcel-resolver",
@@ -1733,6 +1734,7 @@ dependencies = [
  "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
  "petgraph",
+ "rayon",
  "xxhash-rust",
 ]
 

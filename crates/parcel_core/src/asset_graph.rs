@@ -6,7 +6,7 @@ use crate::types::{Asset, Dependency};
 
 #[derive(Debug, Clone)]
 pub struct AssetGraph {
-  graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
+  pub graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
   assets: Vec<AssetNode>,
   dependencies: Vec<DependencyNode>,
 }

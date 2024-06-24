@@ -10,9 +10,9 @@ use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunReque
 /// The EntryRequest resolves an entry option to a file path, or list of file
 /// paths if a glob or directory is specified.
 pub struct EntryRequest {
-  entry: String,
-  project_path: PathBuf,
-  file_system: FileSystemRef,
+  pub entry: String,
+  // project_path: PathBuf,
+  // file_system: FileSystemRef,
 }
 
 impl Hash for EntryRequest {
