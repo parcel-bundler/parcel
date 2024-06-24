@@ -25,10 +25,8 @@ pub struct NodeReplacer<'a> {
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub global_mark: Mark,
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
-  pub project_root: &'a Path,
   pub filename: &'a Path,
   pub unresolved_mark: Mark,
-  pub scope_hoist: bool,
   pub has_node_replacements: &'a mut bool,
 }
 
