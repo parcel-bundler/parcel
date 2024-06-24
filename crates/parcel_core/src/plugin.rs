@@ -1,45 +1,50 @@
-mod bundler;
+use std::path::PathBuf;
+use std::sync::Arc;
 
-pub use bundler::*;
+mod bundler_plugin;
+pub use bundler_plugin::*;
 
-mod compressor;
-pub use compressor::*;
+mod compressor_plugin;
+pub use compressor_plugin::*;
 
-mod namer;
-pub use namer::*;
+mod namer_plugin;
+pub use namer_plugin::*;
 
-mod optimizer;
-pub use optimizer::*;
+mod optimizer_plugin;
+pub use optimizer_plugin::*;
 
-mod packager;
-pub use packager::*;
+mod packager_plugin;
+pub use packager_plugin::*;
 
-mod plugin_config;
-pub use plugin_config::*;
+mod reporter_plugin;
+pub use reporter_plugin::*;
 
-mod reporter;
-pub use reporter::*;
+mod resolver_plugin;
+pub use resolver_plugin::*;
 
-mod resolver;
-pub use resolver::*;
+mod runtime_plugin;
+pub use runtime_plugin::*;
 
-mod runtime;
-pub use runtime::*;
+mod transformer_plugin;
+pub use transformer_plugin::*;
 
-mod transformer;
-pub use transformer::*;
+mod validator_plugin;
+pub use validator_plugin::*;
 
-mod validator;
-pub use validator::*;
+use crate::config_loader::ConfigLoader;
+use crate::types::BuildMode;
 
-#[derive(Default)]
 pub struct PluginContext {
-  pub options: PluginOptions,
+  pub config: ConfigLoader,
+  pub options: Arc<PluginOptions>,
   pub logger: PluginLogger,
 }
 
 #[derive(Default)]
 pub struct PluginLogger {}
 
-#[derive(Default)]
-pub struct PluginOptions {}
+#[derive(Debug, Default)]
+pub struct PluginOptions {
+  pub mode: BuildMode,
+  pub project_root: PathBuf,
+}

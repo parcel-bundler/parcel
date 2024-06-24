@@ -71,6 +71,7 @@ jobs:
           github-comment: false
           working-directory: packages/dev/repl
           vercel-args: '--prod'
+          scope: parcel
       - name: Update Deployment Status
         uses: bobheadxi/deployments@v1
         if: always()

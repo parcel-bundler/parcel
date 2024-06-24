@@ -18,7 +18,7 @@ import Transformation, {
   type TransformationResult,
 } from './Transformation';
 import {reportWorker, report} from './ReporterRunner';
-import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
+import PackagerRunner, {type RunPackagerRunnerResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './registerCoreWithSerializer';
@@ -142,7 +142,7 @@ export async function runPackage(
     invalidDevDeps: Array<DevDepSpecifier>,
     previousInvalidations: Array<RequestInvalidation>,
   |},
-): Promise<PackageRequestResult> {
+): Promise<RunPackagerRunnerResult> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);

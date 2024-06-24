@@ -2,7 +2,7 @@
 name = "json_comments"
 version = "0.2.1"
 authors = ["Thayne McCombs <astrothayne@gmail.com>"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/tmccombs/json-comments-rs"

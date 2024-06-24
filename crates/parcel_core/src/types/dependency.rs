@@ -2,12 +2,12 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 
-use ahash::AHasher;
-use parcel_resolver::ExportsCondition;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
+
+use crate::types::ExportsCondition;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
@@ -17,7 +17,7 @@ use super::symbol::Symbol;
 use super::target::Target;
 
 /// A dependency denotes a connection between two assets
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   /// Controls the behavior of the bundle the resolved asset is placed into
@@ -29,15 +29,6 @@ pub struct Dependency {
   /// The environment of the dependency
   pub env: Environment,
 
-  /// Whether the dependency is an entry
-  pub is_entry: bool,
-
-  /// Whether the dependency is optional
-  ///
-  /// If an optional dependency cannot be resolved, it will not fail the build.
-  ///
-  pub is_optional: bool,
-
   /// The location within the source file where the dependency was found
   #[serde(default)]
   pub loc: Option<SourceLocation>,
@@ -45,16 +36,6 @@ pub struct Dependency {
   /// Plugin-specific metadata for the dependency
   #[serde(default)]
   pub meta: JSONObject,
-
-  /// Indicates that the name should be stable over time, even when the content of the bundle changes
-  ///
-  /// When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the
-  /// naming of that bundle.
-  ///
-  /// This is useful for entries that a user would manually enter the URL for, as well as for
-  /// things like service workers or RSS feeds, where the URL must remain consistent over time.
-  ///
-  pub needs_stable_name: bool,
 
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
   ///
@@ -91,12 +72,43 @@ pub struct Dependency {
   /// How the specifier should be interpreted
   pub specifier_type: SpecifierType,
 
+  /// These are the "Symbols" this dependency has which are used in import sites.
+  ///
+  /// We might want to split this information from this type.
   #[serde(default)]
   pub symbols: Vec<Symbol>,
 
   /// The target associated with an entry, if any
   #[serde(default)]
   pub target: Option<Box<Target>>,
+
+  /// Whether the dependency is an entry
+  pub is_entry: bool,
+
+  /// Whether the dependency is optional
+  ///
+  /// If an optional dependency cannot be resolved, it will not fail the build.
+  ///
+  pub is_optional: bool,
+
+  /// Indicates that the name should be stable over time, even when the content of the bundle changes
+  ///
+  /// When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the
+  /// naming of that bundle.
+  ///
+  /// This is useful for entries that a user would manually enter the URL for, as well as for
+  /// things like service workers or RSS feeds, where the URL must remain consistent over time.
+  ///
+  pub needs_stable_name: bool,
+
+  pub should_wrap: bool,
+
+  /// Whether this dependency object corresponds to an ESM import/export statement or to a dynamic
+  /// import expression.
+  pub is_esm: bool,
+
+  /// Whether the symbols vector of this dependency has had symbols added to it.
+  pub has_symbols: bool,
 }
 
 impl Dependency {
@@ -104,11 +116,8 @@ impl Dependency {
     Dependency {
       bundle_behavior: BundleBehavior::None,
       env,
-      is_entry: false,
-      is_optional: false,
       loc: None,
       meta: JSONObject::new(),
-      needs_stable_name: false,
       package_conditions: ExportsCondition::empty(),
       pipeline: None,
       priority: Priority::default(),
@@ -120,23 +129,32 @@ impl Dependency {
       specifier_type: SpecifierType::default(),
       symbols: Vec::new(),
       target: None,
+      is_entry: false,
+      is_optional: false,
+      needs_stable_name: false,
+      should_wrap: false,
+      has_symbols: false,
+      is_esm: false,
     }
   }
 
   pub fn id(&self) -> u64 {
-    // Compute hashed dependency id
-    let mut hasher = AHasher::default();
-
-    self.bundle_behavior.hash(&mut hasher);
-    self.env.hash(&mut hasher);
-    self.package_conditions.hash(&mut hasher);
-    self.pipeline.hash(&mut hasher);
-    self.priority.hash(&mut hasher);
-    self.source_path.hash(&mut hasher);
-    self.specifier.hash(&mut hasher);
-    self.specifier_type.hash(&mut hasher);
-
+    let mut hasher = crate::hash::IdentifierHasher::default();
+    self.hash(&mut hasher);
     hasher.finish()
+  }
+}
+
+impl Hash for Dependency {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.bundle_behavior.hash(state);
+    self.env.hash(state);
+    self.package_conditions.hash(state);
+    self.pipeline.hash(state);
+    self.priority.hash(state);
+    self.source_path.hash(state);
+    self.specifier.hash(state);
+    self.specifier_type.hash(state);
   }
 }
 

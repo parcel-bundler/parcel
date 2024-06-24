@@ -71,7 +71,7 @@ type Opts = {|
   previousInvalidations: Array<RequestInvalidation>,
 |};
 
-export type PackageRequestResult = {|
+export type RunPackagerRunnerResult = {|
   bundleInfo: BundleInfo,
   configRequests: Array<ConfigRequest>,
   devDepRequests: Array<DevDepRequest>,
@@ -142,7 +142,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
     invalidDevDeps: Array<DevDepSpecifier>,
-  ): Promise<PackageRequestResult> {
+  ): Promise<RunPackagerRunnerResult> {
     invalidateDevDeps(invalidDevDeps, this.options, this.config);
 
     let {configs, bundleConfigs} = await this.loadConfigs(bundleGraph, bundle);

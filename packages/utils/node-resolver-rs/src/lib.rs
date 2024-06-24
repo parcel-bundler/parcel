@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,10 +8,7 @@ use once_cell::unsync::OnceCell;
 use package_json::AliasValue;
 use package_json::ExportsResolution;
 use package_json::PackageJson;
-use serde::Deserialize;
-use serde::Serialize;
-use specifier::parse_package_specifier;
-use specifier::parse_scheme;
+pub use parcel_core::types::IncludeNodeModules;
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -36,6 +32,8 @@ pub use package_json::PackageJsonError;
 #[cfg(not(target_arch = "wasm32"))]
 pub use parcel_filesystem::os_file_system::OsFileSystem;
 pub use parcel_filesystem::FileSystem;
+pub use specifier::parse_package_specifier;
+pub use specifier::parse_scheme;
 pub use specifier::Specifier;
 pub use specifier::SpecifierError;
 pub use specifier::SpecifierType;
@@ -77,37 +75,9 @@ bitflags! {
   }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum IncludeNodeModules {
-  Bool(bool),
-  Array(Vec<String>),
-  Map(HashMap<String, bool>),
-}
-
-impl Default for IncludeNodeModules {
-  fn default() -> Self {
-    IncludeNodeModules::Bool(true)
-  }
-}
-
-impl std::hash::Hash for IncludeNodeModules {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    match self {
-      IncludeNodeModules::Bool(b) => b.hash(state),
-      IncludeNodeModules::Array(a) => a.hash(state),
-      IncludeNodeModules::Map(m) => {
-        for (k, v) in m {
-          k.hash(state);
-          v.hash(state);
-        }
-      }
-    }
-  }
-}
-
 type ResolveModuleDir = dyn Fn(&str, &Path) -> Result<PathBuf, ResolverError> + Send + Sync;
 
-pub struct Resolver<'a, Fs> {
+pub struct Resolver<'a> {
   pub project_root: Cow<'a, Path>,
   pub extensions: Extensions<'a>,
   pub index_file: &'a str,
@@ -116,7 +86,7 @@ pub struct Resolver<'a, Fs> {
   pub include_node_modules: Cow<'a, IncludeNodeModules>,
   pub conditions: ExportsCondition,
   pub module_dir_resolver: Option<Arc<ResolveModuleDir>>,
-  pub cache: CacheCow<'a, Fs>,
+  pub cache: CacheCow<'a>,
 }
 
 pub enum Extensions<'a> {
@@ -159,8 +129,8 @@ pub struct ResolveResult {
   pub invalidations: Invalidations,
 }
 
-impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
-  pub fn node(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
+impl<'a> Resolver<'a> {
+  pub fn node(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
     Self {
       project_root,
       extensions: Extensions::Borrowed(&["js", "json", "node"]),
@@ -174,7 +144,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
   }
 
-  pub fn node_esm(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
+  pub fn node_esm(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
     Self {
       project_root,
       extensions: Extensions::Borrowed(&[]),
@@ -188,7 +158,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
   }
 
-  pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
+  pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
     Self {
       project_root,
       extensions: Extensions::Borrowed(&["mjs", "js", "jsx", "cjs", "json"]),
@@ -341,8 +311,8 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
   }
 }
 
-struct ResolveRequest<'a, Fs> {
-  resolver: &'a Resolver<'a, Fs>,
+struct ResolveRequest<'a> {
+  resolver: &'a Resolver<'a>,
   specifier: &'a Specifier<'a>,
   specifier_type: SpecifierType,
   from: &'a Path,
@@ -363,9 +333,9 @@ bitflags! {
   }
 }
 
-impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
+impl<'a> ResolveRequest<'a> {
   fn new(
-    resolver: &'a Resolver<'a, Fs>,
+    resolver: &'a Resolver<'a>,
     specifier: &'a Specifier<'a>,
     mut specifier_type: SpecifierType,
     from: &'a Path,
@@ -1230,7 +1200,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
 #[cfg(test)]
 mod tests {
-  use std::collections::HashSet;
+  use std::collections::{HashMap, HashSet};
 
   use super::cache::Cache;
   use super::*;
@@ -1242,12 +1212,18 @@ mod tests {
       .join("node-resolver-core/test/fixture")
   }
 
-  fn test_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::parcel(root().into(), CacheCow::Owned(Cache::new(OsFileSystem)))
+  fn test_resolver<'a>() -> Resolver<'a> {
+    Resolver::parcel(
+      root().into(),
+      CacheCow::Owned(Cache::new(Arc::new(OsFileSystem))),
+    )
   }
 
-  fn node_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::node(root().into(), CacheCow::Owned(Cache::new(OsFileSystem)))
+  fn node_resolver<'a>() -> Resolver<'a> {
+    Resolver::node(
+      root().into(),
+      CacheCow::Owned(Cache::new(Arc::new(OsFileSystem))),
+    )
   }
 
   #[test]

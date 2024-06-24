@@ -2,6 +2,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use anyhow::anyhow;
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystem;
 use parcel_package_manager::PackageManager;
@@ -39,19 +40,14 @@ impl ParcelRcConfigLoader {
     }
   }
 
-  fn find_config(&self, project_root: &Path, path: &PathBuf) -> Result<PathBuf, ConfigError> {
+  fn find_config(&self, project_root: &Path, path: &Path) -> Result<PathBuf, ConfigError> {
     let from = path.parent().unwrap_or(path);
 
-    find_ancestor_file(
-      Rc::clone(&self.fs),
-      vec![String::from(".parcelrc")],
-      from,
-      project_root,
-    )
-    .ok_or(ConfigError::MissingParcelRc(PathBuf::from(from)))
+    find_ancestor_file(&*self.fs, &[".parcelrc"], from, project_root)
+      .ok_or(ConfigError::MissingParcelRc(PathBuf::from(from)))
   }
 
-  fn resolve_from(&self, project_root: &PathBuf) -> PathBuf {
+  fn resolve_from(&self, project_root: &Path) -> PathBuf {
     let cwd = self.fs.cwd().unwrap();
     let relative = diff_paths(cwd.clone(), project_root);
     let is_cwd_inside_project_root =
@@ -85,11 +81,7 @@ impl ParcelRcConfigLoader {
     self.process_config(&ParcelRcFile { path, contents })
   }
 
-  fn resolve_extends(
-    &self,
-    config_path: &PathBuf,
-    extend: &String,
-  ) -> Result<PathBuf, ConfigError> {
+  fn resolve_extends(&self, config_path: &Path, extend: &str) -> Result<PathBuf, ConfigError> {
     let path = if extend.starts_with(".") {
       config_path.parent().unwrap_or(config_path).join(extend)
     } else {
@@ -99,7 +91,7 @@ impl ParcelRcConfigLoader {
         .map_err(|source| ConfigError::UnresolvedConfig {
           config_type: String::from("extended config"),
           from: PathBuf::from(config_path),
-          source: Box::new(source),
+          source,
           specifier: String::from(extend),
         })?
         .resolved
@@ -111,7 +103,7 @@ impl ParcelRcConfigLoader {
       .map_err(|source| ConfigError::UnresolvedConfig {
         config_type: String::from("extended config"),
         from: path,
-        source: Box::new(source),
+        source: anyhow!(source),
         specifier: String::from(extend),
       })
   }
@@ -171,7 +163,7 @@ impl ParcelRcConfigLoader {
   ///
   pub fn load(
     &self,
-    project_root: &PathBuf,
+    project_root: &Path,
     options: LoadConfigOptions,
   ) -> Result<(ParcelConfig, Vec<PathBuf>), ConfigError> {
     let resolve_from = self.resolve_from(project_root);
@@ -183,7 +175,7 @@ impl ParcelRcConfigLoader {
         .map_err(|source| ConfigError::UnresolvedConfig {
           config_type: String::from("config"),
           from: resolve_from.clone(),
-          source: Box::new(source),
+          source,
           specifier: String::from(config),
         }),
       None => self.find_config(project_root, &resolve_from),
@@ -198,7 +190,7 @@ impl ParcelRcConfigLoader {
           .map_err(|source| ConfigError::UnresolvedConfig {
             config_type: String::from("fallback"),
             from: resolve_from,
-            source: Box::new(source),
+            source,
             specifier: String::from(fallback_config),
           });
       }
@@ -219,23 +211,18 @@ impl ParcelRcConfigLoader {
 
 #[cfg(test)]
 mod tests {
+  use anyhow::anyhow;
   use mockall::predicate::eq;
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_package_manager::MockPackageManager;
   use parcel_package_manager::Resolution;
-  use parcel_package_manager::ResolveError;
 
   use super::*;
 
   fn fail_package_manager_resolution(package_manager: &mut MockPackageManager) {
     package_manager
       .expect_resolve()
-      .return_once(|specifier, from| {
-        Err(ResolveError::NotFound(
-          String::from(specifier),
-          from.display().to_string(),
-        ))
-      });
+      .return_once(|_specifier, _from| Err(anyhow!("Something bad happened")));
   }
 
   struct TestPackageManager {
@@ -249,7 +236,7 @@ mod tests {
   }
 
   impl PackageManager for TestPackageManager {
-    fn resolve(&self, specifier: &str, from: &Path) -> Result<Resolution, ResolveError> {
+    fn resolve(&self, specifier: &str, from: &Path) -> anyhow::Result<Resolution> {
       let path = match "true" {
         _s if specifier.starts_with(".") => from.join(specifier),
         _s if specifier.starts_with("@") => self
@@ -263,10 +250,7 @@ mod tests {
       };
 
       if !self.fs.is_file(&path) {
-        return Err(ResolveError::NotFound(
-          String::from(specifier),
-          from.display().to_string(),
-        ));
+        return Err(anyhow!("File was missing"));
       }
 
       Ok(Resolution { resolved: path })
@@ -343,7 +327,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: config.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -355,7 +339,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
-      let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.write_file(&default_config.path, default_config.parcel_rc);
@@ -372,7 +356,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap().join("src").join("packages").join("root");
 
-      let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.write_file(&default_config.path, default_config.parcel_rc);
@@ -389,7 +373,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/root");
 
-      let default_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.set_current_working_directory(PathBuf::from("/cwd"));
@@ -467,7 +451,7 @@ mod tests {
             config_type: String::from("config"),
             from: project_root.join("index"),
             specifier: String::from("@scope/config"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -504,7 +488,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: config.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -616,7 +600,7 @@ mod tests {
             config_type: String::from("fallback"),
             from: project_root.join("index"),
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: anyhow!("It broke"),
           }
           .to_string()
         )
@@ -653,7 +637,7 @@ mod tests {
             config_type: String::from("extended config"),
             from: fallback.base_config.path,
             specifier: String::from("@parcel/config-default"),
-            source: Box::new(ResolveError::NotFound(String::from(""), String::from(""))),
+            source: anyhow!("It broke"),
           }
           .to_string()
         ),
@@ -703,7 +687,7 @@ mod tests {
       let project_root = fs.cwd().unwrap();
 
       let (fallback_specifier, fallback) = fallback_config(&project_root);
-      let project_root_config = default_config(&Rc::new(project_root.join(".parcelrc")));
+      let project_root_config = default_config(Rc::new(project_root.join(".parcelrc")));
 
       fs.write_file(&project_root_config.path, project_root_config.parcel_rc);
       fs.write_file(&fallback.path, String::from("{}"));

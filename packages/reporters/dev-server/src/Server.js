@@ -495,6 +495,17 @@ export default class Server {
       setHeaders(res);
       next();
     });
+
+    app.use((req, res, next) => {
+      if (req.url === '/__parcel_healthcheck') {
+        res.statusCode = 200;
+        res.write(`${Date.now()}`);
+        res.end();
+      } else {
+        next();
+      }
+    });
+
     await this.applyProxyTable(app);
     app.use(finalHandler);
 

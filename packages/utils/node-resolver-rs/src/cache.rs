@@ -1,11 +1,12 @@
 use std::borrow::Cow;
+use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
-use parcel_filesystem::FileSystem;
+use parcel_filesystem::FileSystemRef;
 use parking_lot::Mutex;
 use typed_arena::Arena;
 
@@ -15,8 +16,8 @@ use crate::tsconfig::TsConfig;
 use crate::tsconfig::TsConfigWrapper;
 use crate::ResolverError;
 
-pub struct Cache<Fs> {
-  pub fs: Fs,
+pub struct Cache {
+  pub fs: FileSystemRef,
   /// This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
   arena: Mutex<Arena<Box<str>>>,
   /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
@@ -30,15 +31,21 @@ pub struct Cache<Fs> {
   realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
 }
 
-#[allow(clippy::large_enum_variant)]
-/// Special Cow implementation for a Cache that doesn't require Clone.
-pub enum CacheCow<'a, Fs> {
-  Borrowed(&'a Cache<Fs>),
-  Owned(Cache<Fs>),
+impl fmt::Debug for Cache {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Cache").finish()
+  }
 }
 
-impl<'a, Fs> Deref for CacheCow<'a, Fs> {
-  type Target = Cache<Fs>;
+#[allow(clippy::large_enum_variant)]
+/// Special Cow implementation for a Cache that doesn't require Clone.
+pub enum CacheCow<'a> {
+  Borrowed(&'a Cache),
+  Owned(Cache),
+}
+
+impl<'a> Deref for CacheCow<'a> {
+  type Target = Cache;
 
   fn deref(&self) -> &Self::Target {
     match self {
@@ -67,8 +74,8 @@ impl JsonError {
   }
 }
 
-impl<Fs: FileSystem> Cache<Fs> {
-  pub fn new(fs: Fs) -> Self {
+impl Cache {
+  pub fn new(fs: FileSystemRef) -> Self {
     Self {
       fs,
       arena: Mutex::new(Arena::new()),
@@ -109,8 +116,8 @@ impl<Fs: FileSystem> Cache<Fs> {
       return clone_result(pkg);
     }
 
-    fn read_package<Fs: FileSystem>(
-      fs: &Fs,
+    fn read_package(
+      fs: &FileSystemRef,
       realpath_cache: &DashMap<PathBuf, Option<PathBuf>>,
       arena: &Mutex<Arena<Box<str>>>,
       path: PathBuf,
@@ -160,12 +167,8 @@ impl<Fs: FileSystem> Cache<Fs> {
       return clone_result(tsconfig);
     }
 
-    fn read_tsconfig<
-      'a,
-      Fs: FileSystem,
-      F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>,
-    >(
-      fs: &Fs,
+    fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
+      fs: &FileSystemRef,
       arena: &Mutex<Arena<Box<str>>>,
       path: &Path,
       process: F,
@@ -188,8 +191,8 @@ impl<Fs: FileSystem> Cache<Fs> {
   }
 }
 
-fn read<F: FileSystem>(
-  fs: &F,
+fn read(
+  fs: &FileSystemRef,
   arena: &Mutex<Arena<Box<str>>>,
   path: &Path,
 ) -> std::io::Result<&'static mut str> {

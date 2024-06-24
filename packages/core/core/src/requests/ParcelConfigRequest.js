@@ -56,8 +56,10 @@ export type ParcelConfigRequest = {|
   id: string,
   type: typeof requestTypes.parcel_config_request,
   input: null,
-  run: (RunOpts<ConfigAndCachePath>) => Async<ConfigAndCachePath>,
+  run: (RunOpts<ParcelConfigRequestResult>) => Async<ParcelConfigRequestResult>,
 |};
+
+export type ParcelConfigRequestResult = ConfigAndCachePath;
 
 type ParcelConfigChain = {|
   config: ProcessedParcelConfig,

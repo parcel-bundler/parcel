@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 use dashmap::DashMap;
 
-#[cfg(not(target_arch = "wasm32"))]
 /// A reimplementation of std::fs::canonicalize with intermediary caching.
 pub fn canonicalize(
   path: &Path,

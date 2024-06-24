@@ -8,6 +8,7 @@ import stream from 'stream';
 import path from 'path';
 import {promisify} from 'util';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
+import {getFeatureFlag} from '@parcel/feature-flags';
 import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
@@ -141,8 +142,16 @@ export class LMDBCache implements Cache {
     contents: Buffer | string,
     options?: {|signal?: AbortSignal|},
   ): Promise<void> {
-    // $FlowFixMe flow libs are outdated but we only support node>16 so randomUUID is present
-    const largeBlobKey = `${key}_${crypto.randomUUID()}`;
+    const previousEntry = await this.get<LargeBlobEntry>(key);
+    if (previousEntry) {
+      await this.store.remove(key);
+      await this.fsCache.deleteLargeBlob(previousEntry.largeBlobKey);
+    }
+
+    const largeBlobKey = getFeatureFlag('randomLargeBlobKeys')
+      ? // $FlowFixMe flow libs are outdated but we only support node>16 so randomUUID is present
+        `${key}_${crypto.randomUUID()}`
+      : key;
     await this.fsCache.setLargeBlob(largeBlobKey, contents, options);
     const entry: LargeBlobEntry = {type: 'LARGE_BLOB', largeBlobKey};
     await this.set(key, entry);

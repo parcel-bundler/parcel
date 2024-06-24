@@ -1,11 +1,10 @@
+#![deny(unused_crate_dependencies)]
 use std::io::Result;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use dashmap::DashMap;
-
-/// FileSystem implementation that delegates calls to a JS object
-pub mod js_delegate_file_system;
 
 /// In-memory file-system for testing
 pub mod in_memory_file_system;
@@ -13,8 +12,12 @@ pub mod in_memory_file_system;
 pub mod search;
 
 /// File-system implementation using std::fs and a canonicalize cache
-#[cfg(not(target_arch = "wasm32"))]
 pub mod os_file_system;
+
+/// FileSystem abstraction instance.
+/// This should be `OsFileSystem` for non-testing environments and `InMemoryFileSystem` for
+/// testing.
+pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 
 /// Trait abstracting file-system operations
 /// .

@@ -1,11 +1,13 @@
-use std::hash::Hash;
-use std::hash::Hasher;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::Arc;
 
-use ahash::AHasher;
 use serde::Deserialize;
 use serde::Serialize;
+
+use crate::types::EnvironmentContext;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
@@ -16,11 +18,34 @@ use super::symbol::Symbol;
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
 pub struct AssetId(pub NonZeroU32);
 
+/// The source code for an asset.
+#[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Code {
+  inner: String,
+}
+
+impl Code {
+  pub fn bytes(&self) -> &[u8] {
+    self.inner.as_bytes()
+  }
+
+  pub fn size(&self) -> u32 {
+    self.inner.len() as u32
+  }
+}
+
+impl From<String> for Code {
+  fn from(value: String) -> Self {
+    Self { inner: value }
+  }
+}
+
 /// An asset is a file or part of a file that may represent any data type including source code, binary data, etc.
 ///
 /// Note that assets may exist in the file system or virtually.
 ///
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Default, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
   /// The file type of the asset, which may change during transformation
@@ -31,10 +56,44 @@ pub struct Asset {
   pub bundle_behavior: BundleBehavior,
 
   /// The environment of the asset
-  pub env: Environment,
+  pub env: Arc<Environment>,
 
   /// The file path to the asset
   pub file_path: PathBuf,
+
+  /// The code of this asset, initially read from disk, then becoming the
+  /// transformed output
+  pub code: Rc<Code>,
+
+  /// Plugin specific metadata for the asset
+  pub meta: JSONObject,
+
+  /// The pipeline defined in .parcelrc that the asset should be processed with
+  pub pipeline: Option<String>,
+
+  /// The transformer options for the asset from the dependency query string
+  pub query: Option<String>,
+
+  /// Statistics about the asset
+  pub stats: AssetStats,
+
+  /// The symbols that the asset exports
+  pub symbols: Vec<Symbol>,
+
+  /// A unique key that identifies an asset
+  ///
+  /// When a transformer returns multiple assets, it can give them unique keys to identify them.
+  /// This can be used to find assets during packaging, or to create dependencies between multiple
+  /// assets returned by a transformer by using the unique key as the dependency specifier.
+  ///
+  /// TODO: Make this non-nullable and disallow creating assets without it.
+  pub unique_key: Option<String>,
+
+  /// Whether this asset can be omitted if none of its exports are being used
+  ///
+  /// This is initially set by the resolver, but can be overridden by transformers.
+  ///
+  pub side_effects: bool,
 
   /// Indicates if the asset is used as a bundle entry
   ///
@@ -49,39 +108,39 @@ pub struct Asset {
   ///
   pub is_source: bool,
 
-  /// Plugin specific metadata for the asset
-  pub meta: JSONObject,
+  /// True if the asset has CommonJS exports
+  pub has_cjs_exports: bool,
 
-  /// The pipeline defined in .parcelrc that the asset should be processed with
-  pub pipeline: Option<String>,
+  /// This is true unless the module is a CommonJS module that does non-static access of the
+  /// `this`, `exports` or `module.exports` objects. For example if the module uses code like
+  /// `module.exports[key] = 10`.
+  pub static_exports: bool,
 
-  /// The transformer options for the asset from the dependency query string
-  pub query: Option<String>,
+  /// TODO: MISSING DOCUMENTATION
+  pub should_wrap: bool,
 
-  /// Whether this asset can be omitted if none of its exports are being used
+  /// TODO: MISSING DOCUMENTATION
+  pub has_node_replacements: bool,
+
+  /// True if this is a 'constant module', meaning it only exports constant assignment statements,
+  /// on this case this module may be inlined on its usage depending on whether it is only used
+  /// once and the parcel configuration.
   ///
-  /// This is initially set by the resolver, but can be overridden by transformers.
+  /// An example of a 'constant module' would be:
   ///
-  pub side_effects: bool,
+  /// ```skip
+  /// export const styles = { margin: 10 };
+  /// ```
+  pub is_constant_module: bool,
 
-  /// Statistics about the asset
-  pub stats: AssetStats,
-
-  /// The symbols that the asset exports
-  pub symbols: Vec<Symbol>,
-
-  /// A unique key that identifies an asset
-  ///
-  /// When a transformer returns multiple assets, it can give them unique keys to identify them.
-  /// This can be used to find assets during packaging, or to create dependencies between multiple
-  /// assets returned by a transformer by using the unique key as the dependency specifier.
-  ///
-  pub unique_key: Option<String>,
+  /// True if `Asset::symbols` has been populated. This field is deprecated and should be phased
+  /// out.
+  pub has_symbols: bool,
 }
 
 impl Asset {
   pub fn id(&self) -> u64 {
-    let mut hasher = AHasher::default();
+    let mut hasher = crate::hash::IdentifierHasher::default();
 
     self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);
@@ -92,10 +151,32 @@ impl Asset {
 
     hasher.finish()
   }
+
+  /// Build a new empty asset
+  pub fn new_empty(file_path: PathBuf, source_code: Rc<Code>) -> Self {
+    let asset_type =
+      FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
+
+    // TODO: rest of this
+    Self {
+      file_path,
+      asset_type,
+      env: Arc::new(Environment {
+        context: EnvironmentContext::Browser,
+        ..Default::default()
+      }),
+      code: source_code,
+      ..Default::default()
+    }
+  }
+
+  pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {
+    self.meta.insert("interpreter".into(), shebang.into());
+  }
 }
 
 /// Statistics that pertain to an asset
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AssetStats {
   pub size: u32,
   pub time: u32,
