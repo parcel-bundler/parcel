@@ -168,7 +168,6 @@ impl RequestTracker {
             }
 
             let result = self.get_request(parent_request_id, request_id);
-            tracing::info!(?result, "Sending back response");
             if let Some(response_tx) = response_tx {
               let _ = response_tx.send(result);
             }
@@ -294,34 +293,51 @@ mod test {
   use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
   use parcel_filesystem::MockFileSystem;
   use rand::random;
-  use std::sync::mpsc::channel;
+  use std::sync::mpsc::{channel, Sender};
   use std::sync::Arc;
 
   #[derive(Debug, Hash)]
-  struct TestRequest {
-    remaining: usize,
+  struct TestChildRequest {
+    count: u32,
   }
+  impl Request<ParcelRequestResult> for TestChildRequest {
+    fn run(
+      &self,
+      mut _request_context: RunRequestContext<ParcelRequestResult>,
+    ) -> Result<ResultAndInvalidations<ParcelRequestResult>, RunRequestError> {
+      let thread_id = std::thread::current().id();
+      tracing::info!(?thread_id, "Running TestChildRequest");
+
+      Ok(ResultAndInvalidations {
+        result: ParcelRequestResult::Test(vec![]),
+        invalidations: vec![],
+      })
+    }
+  }
+  #[derive(Debug, Hash)]
+  struct TestRequest {}
   impl Request<ParcelRequestResult> for TestRequest {
     fn run(
       &self,
       mut request_context: RunRequestContext<ParcelRequestResult>,
     ) -> Result<ResultAndInvalidations<ParcelRequestResult>, RunRequestError> {
       let thread_id = std::thread::current().id();
-      tracing::info!(?thread_id, "Running {}", self.remaining);
+      tracing::info!(?thread_id, "Running TestRequest");
       let responses: Vec<u64> = vec![random()];
-      if self.remaining > 0 {
-        let (tx, rx) = channel();
-        let _ = request_context.queue_request(
-          TestRequest {
-            remaining: self.remaining - 1,
-          },
-          tx,
-        );
-        while let Ok(response) = rx.recv() {
-          tracing::info!("result {:?}", response);
-        }
-      }
+      let (tx, rx) = channel();
 
+      let run_sub_requests = |tx: Sender<_>, ctx: &mut RunRequestContext<ParcelRequestResult>| {
+        for count in 0..10 {
+          let _ = ctx.queue_request(TestChildRequest { count }, tx.clone());
+        }
+      };
+
+      // Run requests in closure to force the sender to drop when done
+      run_sub_requests(tx, &mut request_context);
+
+      while let Ok(response) = rx.recv() {
+        tracing::info!("result {:?}", response);
+      }
       Ok(ResultAndInvalidations {
         result: ParcelRequestResult::Test(responses),
         invalidations: vec![],
@@ -339,7 +355,7 @@ mod test {
       Arc::new(MockFileSystem::new()),
       Arc::new(plugins(make_test_plugin_context())),
     );
-    let result = request_tracker.run_request(TestRequest { remaining: 10 });
+    let result = request_tracker.run_request(TestRequest {});
     assert!(result.is_ok());
     tracing::info!("Got result {:?}", result);
   }
