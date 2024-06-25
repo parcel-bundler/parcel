@@ -1,4 +1,5 @@
 use core::panic;
+use std::collections::HashSet;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::channel;
@@ -177,5 +178,72 @@ impl Request for TestRequest {
       result: RequestResult::Main(results),
       invalidations: vec![],
     })
+  }
+}
+
+#[derive(Debug, Hash)]
+struct TestChildRequest {
+  count: u32,
+}
+impl Request for TestChildRequest {
+  fn run(
+    &self,
+    mut _request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
+    Ok(ResultAndInvalidations {
+      result: RequestResult::Sub(self.count.to_string()),
+      invalidations: vec![],
+    })
+  }
+}
+#[derive(Debug, Hash)]
+struct TestRequest2 {
+  sub_requests: u32,
+}
+impl Request for TestRequest2 {
+  fn run(
+    &self,
+    mut request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
+    let (tx, rx) = channel();
+
+    let run_sub_requests = |tx: Sender<_>, ctx: &mut RunRequestContext| {
+      for count in 0..self.sub_requests {
+        let _ = ctx.queue_request(TestChildRequest { count }, tx.clone());
+      }
+    };
+
+    // Run requests in closure to force the sender to drop when done
+    run_sub_requests(tx, &mut request_context);
+
+    let mut responses = Vec::new();
+    while let Ok(response) = rx.recv() {
+      match response {
+        Ok(RequestResult::Sub(result)) => responses.push(result),
+        _ => todo!("unimplemented"),
+      }
+    }
+
+    Ok(ResultAndInvalidations {
+      result: RequestResult::Main(responses),
+      invalidations: vec![],
+    })
+  }
+}
+
+#[test]
+fn test_queued_subrequests() {
+  let mut request_tracker = request_tracker();
+  let sub_requests = 20;
+  let result = request_tracker.run_request(TestRequest2 { sub_requests });
+
+  match result {
+    Ok(RequestResult::Main(responses)) => {
+      let expected: HashSet<String> = (0..sub_requests).map(|v| v.to_string()).collect();
+      assert_eq!(HashSet::from_iter(responses.iter().cloned()), expected);
+    }
+    _ => {
+      panic!("Request should pass");
+    }
   }
 }
