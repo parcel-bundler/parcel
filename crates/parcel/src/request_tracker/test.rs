@@ -53,13 +53,13 @@ fn should_run_request_once() {
 
   let request_a = TestRequest::new("A", &[]);
 
-  let result = run_request(&mut rt, &request_a);
+  let result = run_sub_request(&mut rt, &request_a);
 
-  assert_eq!(result[0], "A");
+  assert_eq!(result, "A");
   assert_eq!(request_a.run_count(), 1);
 
-  let result = run_request(&mut rt, &request_a);
-  assert_eq!(result[0], "A");
+  let result = run_sub_request(&mut rt, &request_a);
+  assert_eq!(result, "A");
   assert_eq!(request_a.run_count(), 1);
 }
 
@@ -84,15 +84,15 @@ fn should_run_request_once_2() {
   assert_eq!(request_b.run_count(), 1);
 }
 
-fn run_request(rt: &mut RequestTracker, request_a: &TestRequest) -> Vec<String> {
-  let ParcelRequestResult::MainRequest(result) = rt.run_request(request_a.clone()).unwrap() else {
+fn run_request(rt: &mut RequestTracker, request: &TestRequest) -> Vec<String> {
+  let ParcelRequestResult::MainRequest(result) = rt.run_request(request.clone()).unwrap() else {
     panic!("Unexpected result");
   };
   result
 }
 
-fn run_sub_request(rt: &mut RequestTracker, request_a: &TestRequest) -> Vec<String> {
-  let ParcelRequestResult::MainRequest(result) = rt.run_request(request_a.clone()).unwrap() else {
+fn run_sub_request(rt: &mut RequestTracker, request: &TestRequest) -> String {
+  let ParcelRequestResult::SubRequest(result) = rt.run_request(request.clone()).unwrap() else {
     panic!("Unexpected result");
   };
   result
@@ -142,7 +142,15 @@ impl Request for TestRequest {
     self.runs.fetch_add(1, Ordering::Relaxed);
 
     let name = self.name.clone();
+
     let mut subrequests = self.subrequests.lock().unwrap().clone();
+
+    if subrequests.is_empty() {
+      return Ok(ResultAndInvalidations {
+        result: ParcelRequestResult::SubRequest(name),
+        invalidations: vec![],
+      });
+    }
 
     let (tx, rx) = channel();
 
@@ -160,7 +168,8 @@ impl Request for TestRequest {
     while let Ok(response) = rx.recv() {
       match response {
         Ok(ParcelRequestResult::SubRequest(result)) => results.push(result),
-        _ => todo!("unimplemented"),
+        Ok(ParcelRequestResult::MainRequest(sub_results)) => results.extend(sub_results),
+        a => todo!("{:?}", a),
       }
     }
 

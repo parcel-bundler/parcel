@@ -160,12 +160,10 @@ impl Request for PathRequest {
 
 #[cfg(test)]
 mod tests {
-  use parcel_core::cache::MockCache;
   use std::fmt::Debug;
 
-  use crate::test_utils::{make_test_plugin_context, plugins, request_tracker};
-  use parcel_core::plugin::{MockReporterPlugin, Resolved, ResolvedResolution};
-  use parcel_filesystem::MockFileSystem;
+  use crate::test_utils::request_tracker;
+  use parcel_core::plugin::{Resolved, ResolvedResolution};
 
   use super::*;
 
