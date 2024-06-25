@@ -35,6 +35,7 @@ pub enum ReporterEvent {
 /// For example, reporters may write status information to stdout, run a dev server, or generate a
 /// bundle analysis report at the end of a build.
 ///
+#[mockall::automock]
 pub trait ReporterPlugin: Debug {
   /// Processes the event from Parcel
   fn report(&self, event: &ReporterEvent) -> Result<(), anyhow::Error>;
