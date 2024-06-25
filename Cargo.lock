@@ -1756,10 +1756,10 @@ dependencies = [
  "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
  "petgraph",
- "tracing",
  "serde",
  "serde-bool",
  "serde_json",
+ "tracing",
  "xxhash-rust",
 ]
 
