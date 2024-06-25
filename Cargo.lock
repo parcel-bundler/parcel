@@ -1875,6 +1875,7 @@ dependencies = [
  "bitflags 2.5.0",
  "browserslist-rs",
  "dyn-hash",
+ "mockall",
  "nodejs-semver",
  "parcel_filesystem",
  "serde",
