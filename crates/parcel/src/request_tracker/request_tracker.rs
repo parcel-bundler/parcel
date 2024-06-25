@@ -12,7 +12,7 @@ use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::ReporterPlugin;
 use parcel_filesystem::FileSystemRef;
 
-use crate::requests::ParcelRequestResult;
+use crate::requests::RequestResult;
 
 use super::RequestEdgeType;
 use super::RequestGraph;
@@ -31,11 +31,11 @@ enum RequestQueueMessage {
     request_id: u64,
     parent_request_id: Option<u64>,
     result: Result<ResultAndInvalidations, RunRequestError>,
-    response_tx: Option<Sender<anyhow::Result<ParcelRequestResult>>>,
+    response_tx: Option<Sender<anyhow::Result<RequestResult>>>,
   },
 }
 pub struct RequestTracker {
-  graph: RequestGraph<ParcelRequestResult>,
+  graph: RequestGraph<RequestResult>,
   reporter: Arc<dyn ReporterPlugin>,
   request_index: HashMap<u64, NodeIndex>,
   cache: CacheRef,
@@ -50,7 +50,7 @@ impl RequestTracker {
     file_system: FileSystemRef,
     plugins: PluginsRef,
   ) -> Self {
-    let mut graph = StableDiGraph::<RequestNode<ParcelRequestResult>, RequestEdgeType>::new();
+    let mut graph = StableDiGraph::<RequestNode<RequestResult>, RequestEdgeType>::new();
     graph.add_node(RequestNode::Root);
     RequestTracker {
       graph,
@@ -66,7 +66,7 @@ impl RequestTracker {
     let _ = self.reporter.report(&event);
   }
 
-  pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<ParcelRequestResult> {
+  pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
     rayon::in_place_scope(|scope| {
       let request_id = request.id();
       let (tx, rx) = std::sync::mpsc::channel();
@@ -163,7 +163,7 @@ impl RequestTracker {
       .ok_or_else(|| anyhow!("Failed to find request node"))?;
 
     // Don't run if already run
-    if let RequestNode::<ParcelRequestResult>::Valid(_) = request_node {
+    if let RequestNode::<RequestResult>::Valid(_) = request_node {
       return Ok(false);
     }
 
@@ -184,7 +184,7 @@ impl RequestTracker {
       .graph
       .node_weight_mut(*node_index)
       .ok_or_else(|| anyhow!("Failed to find request"))?;
-    if let RequestNode::<ParcelRequestResult>::Valid(_) = request_node {
+    if let RequestNode::<RequestResult>::Valid(_) = request_node {
       return Ok(());
     }
     *request_node = match result {
@@ -199,7 +199,7 @@ impl RequestTracker {
     &mut self,
     parent_request_hash: Option<u64>,
     request_id: u64,
-  ) -> anyhow::Result<ParcelRequestResult> {
+  ) -> anyhow::Result<RequestResult> {
     self.link_request_to_parent(request_id, parent_request_hash)?;
 
     let Some(node_index) = self.request_index.get(&request_id) else {
@@ -247,7 +247,7 @@ mod test {
   use crate::request_tracker::{
     Request, ResultAndInvalidations, RunRequestContext, RunRequestError,
   };
-  use crate::requests::ParcelRequestResult;
+  use crate::requests::RequestResult;
   use crate::test_utils::request_tracker;
   use std::collections::HashSet;
   use std::sync::mpsc::{channel, Sender};
@@ -262,7 +262,7 @@ mod test {
       mut _request_context: RunRequestContext,
     ) -> Result<ResultAndInvalidations, RunRequestError> {
       Ok(ResultAndInvalidations {
-        result: ParcelRequestResult::SubRequest(self.count.to_string()),
+        result: RequestResult::Sub(self.count.to_string()),
         invalidations: vec![],
       })
     }
@@ -290,13 +290,13 @@ mod test {
       let mut responses = Vec::new();
       while let Ok(response) = rx.recv() {
         match response {
-          Ok(ParcelRequestResult::SubRequest(result)) => responses.push(result),
+          Ok(RequestResult::Sub(result)) => responses.push(result),
           _ => todo!("unimplemented"),
         }
       }
 
       Ok(ResultAndInvalidations {
-        result: ParcelRequestResult::MainRequest(responses),
+        result: RequestResult::Main(responses),
         invalidations: vec![],
       })
     }
@@ -309,7 +309,7 @@ mod test {
     let result = request_tracker.run_request(TestRequest { sub_requests });
 
     match result {
-      Ok(ParcelRequestResult::MainRequest(responses)) => {
+      Ok(RequestResult::Main(responses)) => {
         let expected: HashSet<String> = (0..sub_requests).map(|v| v.to_string()).collect();
         assert_eq!(HashSet::from_iter(responses.iter().cloned()), expected);
       }

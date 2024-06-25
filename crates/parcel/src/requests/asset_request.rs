@@ -20,7 +20,7 @@ use crate::plugins::Plugins;
 use crate::plugins::TransformerPipeline;
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
-use super::ParcelRequestResult;
+use super::RequestResult;
 
 /// The AssetRequest runs transformer plugins on discovered Assets.
 /// - Decides which transformer pipeline to run from the input Asset type
@@ -88,7 +88,7 @@ impl Request for AssetRequest {
       .set_blob(&content_key, result.asset.code.bytes())?;
 
     Ok(ResultAndInvalidations {
-      result: ParcelRequestResult::AssetRequest(AssetResult {
+      result: RequestResult::Asset(AssetResult {
         asset: Asset {
           stats: AssetStats {
             size: result.asset.code.size(),

@@ -20,7 +20,7 @@ use crate::request_tracker::ResultAndInvalidations;
 use crate::request_tracker::RunRequestContext;
 use crate::request_tracker::RunRequestError;
 
-use super::ParcelRequestResult;
+use super::RequestResult;
 
 #[derive(Hash, Debug)]
 pub struct PathRequest {
@@ -93,7 +93,7 @@ impl Request for PathRequest {
         Resolution::Excluded => {
           return Ok(ResultAndInvalidations {
             invalidations: Vec::new(),
-            result: ParcelRequestResult::PathRequest(PathResolution::Excluded),
+            result: RequestResult::Path(PathResolution::Excluded),
           })
         }
         Resolution::Resolved(ResolvedResolution {
@@ -119,7 +119,7 @@ impl Request for PathRequest {
 
           return Ok(ResultAndInvalidations {
             invalidations,
-            result: ParcelRequestResult::PathRequest(PathResolution::Resolved {
+            result: RequestResult::Path(PathResolution::Resolved {
               can_defer,
               code,
               path: file_path,
@@ -137,7 +137,7 @@ impl Request for PathRequest {
     if self.dependency.is_optional {
       return Ok(ResultAndInvalidations {
         invalidations,
-        result: ParcelRequestResult::PathRequest(PathResolution::Excluded),
+        result: RequestResult::Path(PathResolution::Excluded),
       });
     }
 
@@ -226,7 +226,7 @@ mod tests {
     let resolution = request_tracker.run_request(request);
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(ParcelRequestResult::PathRequest(PathResolution::Excluded))
+      Ok(RequestResult::Path(PathResolution::Excluded))
     );
   }
 
@@ -285,7 +285,7 @@ mod tests {
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(ParcelRequestResult::PathRequest(PathResolution::Resolved {
+      Ok(RequestResult::Path(PathResolution::Resolved {
         can_defer: false,
         code: None,
         path: root.join("a.js"),
@@ -315,7 +315,7 @@ mod tests {
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
-        Ok(ParcelRequestResult::PathRequest(PathResolution::Excluded))
+        Ok(RequestResult::Path(PathResolution::Excluded))
       );
     }
 

@@ -6,7 +6,7 @@ use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::requests::ParcelRequestResult;
+use crate::requests::RequestResult;
 use crate::test_utils::request_tracker;
 
 use super::*;
@@ -85,14 +85,14 @@ fn should_run_request_once_2() {
 }
 
 fn run_request(rt: &mut RequestTracker, request: &TestRequest) -> Vec<String> {
-  let ParcelRequestResult::MainRequest(result) = rt.run_request(request.clone()).unwrap() else {
+  let RequestResult::Main(result) = rt.run_request(request.clone()).unwrap() else {
     panic!("Unexpected result");
   };
   result
 }
 
 fn run_sub_request(rt: &mut RequestTracker, request: &TestRequest) -> String {
-  let ParcelRequestResult::SubRequest(result) = rt.run_request(request.clone()).unwrap() else {
+  let RequestResult::Sub(result) = rt.run_request(request.clone()).unwrap() else {
     panic!("Unexpected result");
   };
   result
@@ -147,7 +147,7 @@ impl Request for TestRequest {
 
     if subrequests.is_empty() {
       return Ok(ResultAndInvalidations {
-        result: ParcelRequestResult::SubRequest(name),
+        result: RequestResult::Sub(name),
         invalidations: vec![],
       });
     }
@@ -167,14 +167,14 @@ impl Request for TestRequest {
     let mut results = vec![name];
     while let Ok(response) = rx.recv() {
       match response {
-        Ok(ParcelRequestResult::SubRequest(result)) => results.push(result),
-        Ok(ParcelRequestResult::MainRequest(sub_results)) => results.extend(sub_results),
+        Ok(RequestResult::Sub(result)) => results.push(result),
+        Ok(RequestResult::Main(sub_results)) => results.extend(sub_results),
         a => todo!("{:?}", a),
       }
     }
 
     Ok(ResultAndInvalidations {
-      result: ParcelRequestResult::MainRequest(results),
+      result: RequestResult::Main(results),
       invalidations: vec![],
     })
   }

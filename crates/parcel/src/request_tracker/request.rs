@@ -8,7 +8,7 @@ use std::sync::Arc;
 use dyn_hash::DynHash;
 
 use crate::plugins::PluginsRef;
-use crate::requests::ParcelRequestResult;
+use crate::requests::RequestResult;
 use parcel_core::cache::CacheRef;
 use parcel_core::plugin::{ReporterEvent, ReporterPlugin};
 use parcel_core::types::Invalidation;
@@ -18,7 +18,7 @@ use parcel_filesystem::FileSystemRef;
 pub struct RunRequestMessage {
   pub request: Box<dyn Request>,
   pub parent_request_id: Option<u64>,
-  pub response_tx: Option<Sender<Result<ParcelRequestResult, anyhow::Error>>>,
+  pub response_tx: Option<Sender<Result<RequestResult, anyhow::Error>>>,
 }
 
 type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
@@ -61,7 +61,7 @@ impl RunRequestContext {
   pub fn queue_request(
     &mut self,
     request: impl Request,
-    tx: Sender<anyhow::Result<ParcelRequestResult>>,
+    tx: Sender<anyhow::Result<RequestResult>>,
   ) -> anyhow::Result<()> {
     let request: Box<dyn Request> = Box::new(request);
     let message = RunRequestMessage {
@@ -107,7 +107,7 @@ dyn_hash::hash_trait_object!(Request);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResultAndInvalidations {
-  pub result: ParcelRequestResult,
+  pub result: RequestResult,
   pub invalidations: Vec<Invalidation>,
 }
 

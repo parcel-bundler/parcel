@@ -5,12 +5,12 @@ mod asset_request;
 mod path_request;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ParcelRequestResult {
-  PathRequest(PathResolution),
-  AssetRequest(AssetResult),
+pub enum RequestResult {
+  Path(PathResolution),
+  Asset(AssetResult),
   // The following are test request types only used in the test build
   #[cfg(test)]
-  SubRequest(String),
+  Sub(String),
   #[cfg(test)]
-  MainRequest(Vec<String>),
+  Main(Vec<String>),
 }
