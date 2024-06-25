@@ -21,30 +21,7 @@ export class ParcelV3 {
       threads,
       nodeWorkers,
       fs,
-      rpc: async (err, id, data, done) => {
-        try {
-          if (err) {
-            done({Err: err});
-            return;
-          }
-          done({Ok: (await this.#on_event(id, data)) ?? undefined});
-        } catch (error) {
-          done({Err: error});
-          return;
-        }
-      },
     });
-  }
-
-  // eslint-disable-next-line no-unused-vars
-  #on_event(id, data: any) {
-    switch (id) {
-      // Ping
-      case 0:
-        return;
-      default:
-        throw new Error('Unknown message');
-    }
   }
 
   async build(options: ParcelV3BuildOptions): Promise<any> {
