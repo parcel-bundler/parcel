@@ -1693,6 +1693,8 @@ function logErrorOnBailout(
       origin: '@parcel/core',
       message: `Unexpected error loading cache from disk, building with clean cache.`,
       meta: {
+        errorMessage: e.message,
+        errorStack: e.stack,
         trackableEvent: 'cache_load_error',
       },
     });

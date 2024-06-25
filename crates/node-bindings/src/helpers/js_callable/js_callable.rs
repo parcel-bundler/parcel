@@ -1,4 +1,5 @@
 use std::sync::mpsc::channel;
+#[cfg(debug_assertions)]
 use std::thread::ThreadId;
 
 use napi::threadsafe_function::ErrorStrategy;
@@ -25,7 +26,7 @@ pub type MapJsReturn<Return> = Box<dyn Fn(&Env, JsUnknown) -> napi::Result<Retur
 pub struct JsCallable {
   #[cfg(debug_assertions)]
   initial_thread: ThreadId,
-  tsfn: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal>,
+  threadsafe_function: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal>,
 }
 
 impl JsCallable {
@@ -39,7 +40,7 @@ impl JsCallable {
     Ok(Self {
       #[cfg(debug_assertions)]
       initial_thread: std::thread::current().id(),
-      tsfn,
+      threadsafe_function: tsfn,
     })
   }
 
@@ -69,7 +70,7 @@ impl JsCallable {
       ));
     }
 
-    self.tsfn.call(
+    self.threadsafe_function.call(
       Box::new(map_params),
       ThreadsafeFunctionCallMode::NonBlocking,
     );
@@ -102,7 +103,7 @@ impl JsCallable {
 
     let (tx, rx) = channel();
 
-    self.tsfn.call_with_return_value(
+    self.threadsafe_function.call_with_return_value(
       Box::new(map_params),
       ThreadsafeFunctionCallMode::NonBlocking,
       move |JsValue(value, env)| {
