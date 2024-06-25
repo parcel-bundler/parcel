@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::hash::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
 
@@ -49,7 +48,7 @@ pub type RunRequestError = anyhow::Error;
 
 pub trait Request<T: Clone>: DynHash {
   fn id(&self) -> u64 {
-    let mut hasher = DefaultHasher::default();
+    let mut hasher = parcel_core::hash::IdentifierHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher);
     self.dyn_hash(&mut hasher);
     hasher.finish()

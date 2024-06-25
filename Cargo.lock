@@ -1734,6 +1734,9 @@ dependencies = [
  "parcel_plugin_transformer_js",
  "petgraph",
  "tracing",
+ "serde",
+ "serde-bool",
+ "serde_json",
  "xxhash-rust",
 ]
 
@@ -2746,6 +2749,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7253ab4de971e72fb7be983802300c30b5a7f0c2e56fab8abfc6a214307c0094"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-bool"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2af14f9242b0beec13757cf161feb2d600c11a764310425c3429dca9925b7a92"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

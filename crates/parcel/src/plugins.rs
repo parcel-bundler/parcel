@@ -232,7 +232,7 @@ mod tests {
   use std::sync::Arc;
 
   use parcel_config::parcel_config_fixtures::default_config;
-  use parcel_core::plugin::PluginConfig;
+  use parcel_core::config_loader::ConfigLoader;
   use parcel_core::plugin::PluginLogger;
   use parcel_core::plugin::PluginOptions;
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
@@ -241,11 +241,11 @@ mod tests {
 
   fn make_test_plugin_context() -> PluginContext {
     PluginContext {
-      config: PluginConfig::new(
-        Arc::new(InMemoryFileSystem::default()),
-        PathBuf::default(),
-        PathBuf::default(),
-      ),
+      config: ConfigLoader {
+        fs: Arc::new(InMemoryFileSystem::default()),
+        project_root: PathBuf::default(),
+        search_path: PathBuf::default(),
+      },
       options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
     }
