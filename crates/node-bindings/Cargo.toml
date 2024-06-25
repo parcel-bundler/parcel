@@ -31,6 +31,7 @@ serde = "1.0.198"
 serde_json = "1.0.116"
 toml = "0.8.12"
 tracing = "0.1.40"
+tracing-appender = "0.2.3"
 tracing-subscriber = "0.3.18"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 

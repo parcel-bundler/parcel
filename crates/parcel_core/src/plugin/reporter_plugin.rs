@@ -3,6 +3,8 @@ use std::{fmt::Debug, path::PathBuf};
 
 use crate::types::Dependency;
 
+pub mod composite_reporter_plugin;
+
 pub struct ResolvingEvent {
   pub dependency: Arc<Dependency>,
 }
