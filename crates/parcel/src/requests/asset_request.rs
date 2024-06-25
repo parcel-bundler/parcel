@@ -1,5 +1,4 @@
 use std::hash::Hash;
-use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -21,33 +20,20 @@ use crate::plugins::Plugins;
 use crate::plugins::TransformerPipeline;
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
+use super::ParcelRequestResult;
+
 /// The AssetRequest runs transformer plugins on discovered Assets.
 /// - Decides which transformer pipeline to run from the input Asset type
 /// - Runs the pipeline in series, switching pipeline if the Asset type changes
 /// - Stores the final Asset source code in the cache, for access in packaging
 /// - Finally, returns the complete Asset and it's discovered Dependencies
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub struct AssetRequest {
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
   pub code: Option<String>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
-  // // TODO: move the following to RunRequestContext
-  // pub cache: CacheRef,
-  // pub file_system: FileSystemRef,
-  // pub plugins: Arc<Plugins<'a>>,
-}
-
-impl Hash for AssetRequest {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    // TODO: Just derive this once the contextual params are moved to RunRequestContext
-    self.file_path.hash(state);
-    self.code.hash(state);
-    self.pipeline.hash(state);
-    self.env.hash(state);
-    self.side_effects.hash(state);
-  }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,11 +42,11 @@ pub struct AssetResult {
   pub dependencies: Vec<Dependency>,
 }
 
-impl Request<AssetResult> for AssetRequest {
+impl Request for AssetRequest {
   fn run(
     &self,
-    request_context: RunRequestContext<AssetResult>,
-  ) -> Result<ResultAndInvalidations<AssetResult>, RunRequestError> {
+    request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
     request_context.report(ReporterEvent::BuildProgress(BuildProgressEvent::Building(
       AssetBuildEvent {
         // TODO: Should we try avoid a clone here?
@@ -102,7 +88,7 @@ impl Request<AssetResult> for AssetRequest {
       .set_blob(&content_key, result.asset.code.bytes())?;
 
     Ok(ResultAndInvalidations {
-      result: AssetResult {
+      result: ParcelRequestResult::AssetRequest(AssetResult {
         asset: Asset {
           stats: AssetStats {
             size: result.asset.code.size(),
@@ -111,7 +97,7 @@ impl Request<AssetResult> for AssetRequest {
           ..result.asset
         },
         dependencies: result.dependencies,
-      },
+      }),
       // TODO: Support invalidations
       invalidations: vec![],
     })

@@ -2,39 +2,40 @@ use std::fmt::Debug;
 use std::hash::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use dyn_hash::DynHash;
 
 use crate::plugins::PluginsRef;
+use crate::requests::ParcelRequestResult;
 use parcel_core::cache::CacheRef;
 use parcel_core::plugin::{ReporterEvent, ReporterPlugin};
 use parcel_core::types::Invalidation;
 use parcel_filesystem::FileSystemRef;
 
 #[derive(Debug)]
-pub struct RunRequestMessage<T> {
-  pub request: Box<dyn Request<T>>,
+pub struct RunRequestMessage {
+  pub request: Box<dyn Request>,
   pub parent_request_id: Option<u64>,
-  pub response_tx: Option<Sender<Result<T, anyhow::Error>>>,
+  pub response_tx: Option<Sender<Result<ParcelRequestResult, anyhow::Error>>>,
 }
 
-type RunRequestFn<T> = Box<dyn Fn(RunRequestMessage<T>) + Send>;
+type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
 
-pub struct RunRequestContext<T> {
+pub struct RunRequestContext {
   parent_request_id: Option<u64>,
-  run_request_fn: RunRequestFn<T>,
+  run_request_fn: RunRequestFn,
   reporter: Arc<dyn ReporterPlugin + Send>,
   cache: CacheRef,
   file_system: FileSystemRef,
   plugins: PluginsRef,
 }
 
-impl<T: Clone + Send> RunRequestContext<T> {
+impl RunRequestContext {
   pub(crate) fn new(
     parent_request_id: Option<u64>,
-    run_request_fn: RunRequestFn<T>,
+    run_request_fn: RunRequestFn,
     reporter: Arc<dyn ReporterPlugin + Send>,
     cache: CacheRef,
     file_system: FileSystemRef,
@@ -59,10 +60,10 @@ impl<T: Clone + Send> RunRequestContext<T> {
 
   pub fn queue_request(
     &mut self,
-    request: impl Request<T>,
-    tx: Sender<anyhow::Result<T>>,
+    request: impl Request,
+    tx: Sender<anyhow::Result<ParcelRequestResult>>,
   ) -> anyhow::Result<()> {
-    let request: Box<dyn Request<T>> = Box::new(request);
+    let request: Box<dyn Request> = Box::new(request);
     let message = RunRequestMessage {
       request,
       response_tx: Some(tx),
@@ -88,7 +89,7 @@ impl<T: Clone + Send> RunRequestContext<T> {
 // We can type this properly
 pub type RunRequestError = anyhow::Error;
 
-pub trait Request<T: Clone>: DynHash + Send + Debug + 'static {
+pub trait Request: DynHash + Send + Debug + 'static {
   fn id(&self) -> u64 {
     let mut hasher = DefaultHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher);
@@ -98,15 +99,15 @@ pub trait Request<T: Clone>: DynHash + Send + Debug + 'static {
 
   fn run(
     &self,
-    request_context: RunRequestContext<T>,
-  ) -> Result<ResultAndInvalidations<T>, RunRequestError>;
+    request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError>;
 }
 
-dyn_hash::hash_trait_object!(<T: Clone> Request<T>);
+dyn_hash::hash_trait_object!(Request);
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ResultAndInvalidations<Req> {
-  pub result: Req,
+pub struct ResultAndInvalidations {
+  pub result: ParcelRequestResult,
   pub invalidations: Vec<Invalidation>,
 }
 

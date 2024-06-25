@@ -20,6 +20,8 @@ use crate::request_tracker::ResultAndInvalidations;
 use crate::request_tracker::RunRequestContext;
 use crate::request_tracker::RunRequestError;
 
+use super::ParcelRequestResult;
+
 #[derive(Hash, Debug)]
 pub struct PathRequest {
   pub dependency: Arc<Dependency>,
@@ -41,7 +43,7 @@ pub enum PathResolution {
 }
 
 // TODO tracing, dev deps
-impl Request<PathResolution> for PathRequest {
+impl Request for PathRequest {
   fn id(&self) -> u64 {
     let mut hasher = parcel_core::hash::IdentifierHasher::default();
 
@@ -54,8 +56,8 @@ impl Request<PathResolution> for PathRequest {
 
   fn run(
     &self,
-    request_context: RunRequestContext<PathResolution>,
-  ) -> Result<ResultAndInvalidations<PathResolution>, RunRequestError> {
+    request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
     request_context.report(ReporterEvent::BuildProgress(BuildProgressEvent::Resolving(
       ResolvingEvent {
         dependency: Arc::clone(&self.dependency),
@@ -91,7 +93,7 @@ impl Request<PathResolution> for PathRequest {
         Resolution::Excluded => {
           return Ok(ResultAndInvalidations {
             invalidations: Vec::new(),
-            result: PathResolution::Excluded,
+            result: ParcelRequestResult::PathRequest(PathResolution::Excluded),
           })
         }
         Resolution::Resolved(ResolvedResolution {
@@ -117,7 +119,7 @@ impl Request<PathResolution> for PathRequest {
 
           return Ok(ResultAndInvalidations {
             invalidations,
-            result: PathResolution::Resolved {
+            result: ParcelRequestResult::PathRequest(PathResolution::Resolved {
               can_defer,
               code,
               path: file_path,
@@ -126,7 +128,7 @@ impl Request<PathResolution> for PathRequest {
                 .or(self.dependency.pipeline.clone()),
               query,
               side_effects,
-            },
+            }),
           });
         }
       };
@@ -135,7 +137,7 @@ impl Request<PathResolution> for PathRequest {
     if self.dependency.is_optional {
       return Ok(ResultAndInvalidations {
         invalidations,
-        result: PathResolution::Excluded,
+        result: ParcelRequestResult::PathRequest(PathResolution::Excluded),
       });
     }
 
@@ -158,20 +160,12 @@ impl Request<PathResolution> for PathRequest {
 
 #[cfg(test)]
 mod tests {
-  use parcel_config::parcel_config_fixtures::default_config;
   use parcel_core::cache::MockCache;
   use std::fmt::Debug;
 
-  use crate::plugins::Plugins;
-  use parcel_core::plugin::ResolvedResolution;
-  use parcel_core::plugin::{
-    MockReporterPlugin, PluginConfig, PluginContext, PluginLogger, PluginOptions, Resolved,
-  };
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use crate::test_utils::{make_test_plugin_context, plugins, request_tracker};
+  use parcel_core::plugin::{MockReporterPlugin, Resolved, ResolvedResolution};
   use parcel_filesystem::MockFileSystem;
-
-  use crate::request_tracker::RequestTracker;
-  use crate::test_utils::{make_test_plugin_context, plugins};
 
   use super::*;
 
@@ -224,28 +218,17 @@ mod tests {
 
   #[test]
   fn returns_excluded_resolution() {
+    let mut request_tracker = request_tracker();
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
       named_pipelines: Vec::new(),
       resolvers: Arc::new(vec![Box::new(ExcludedResolverPlugin {})]),
     };
 
-    let resolution = request.run(RunRequestContext::new(
-      None,
-      // Run child
-      Box::new(|_| {}),
-      Arc::new(MockReporterPlugin::new()),
-      Arc::new(MockCache::new()),
-      Arc::new(MockFileSystem::new()),
-      plugins(make_test_plugin_context()).into(),
-    ));
-
+    let resolution = request_tracker.run_request(request);
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(ResultAndInvalidations {
-        result: PathResolution::Excluded,
-        invalidations: Vec::new(),
-      })
+      Ok(ParcelRequestResult::PathRequest(PathResolution::Excluded))
     );
   }
 
@@ -262,15 +245,7 @@ mod tests {
       })]),
     };
 
-    let resolution = request.run(RunRequestContext::new(
-      None,
-      // Run child
-      Box::new(|_| {}),
-      Arc::new(MockReporterPlugin::new()),
-      Arc::new(MockCache::new()),
-      Arc::new(MockFileSystem::new()),
-      plugins(make_test_plugin_context()).into(),
-    ));
+    let resolution = request_tracker().run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -308,29 +283,18 @@ mod tests {
       ]),
     };
 
-    let resolution = request.run(RunRequestContext::new(
-      None,
-      // Run child
-      Box::new(|_| {}),
-      Arc::new(MockReporterPlugin::new()),
-      Arc::new(MockCache::new()),
-      Arc::new(MockFileSystem::new()),
-      plugins(make_test_plugin_context()).into(),
-    ));
+    let resolution = request_tracker().run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(ResultAndInvalidations {
-        result: PathResolution::Resolved {
-          can_defer: false,
-          code: None,
-          path: root.join("a.js"),
-          pipeline: None,
-          query: None,
-          side_effects: false
-        },
-        invalidations: Vec::new(),
-      })
+      Ok(ParcelRequestResult::PathRequest(PathResolution::Resolved {
+        can_defer: false,
+        code: None,
+        path: root.join("a.js"),
+        pipeline: None,
+        query: None,
+        side_effects: false
+      }))
     );
   }
 
@@ -349,22 +313,11 @@ mod tests {
         resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
       };
 
-      let resolution = request.run(RunRequestContext::new(
-        None,
-        // Run child
-        Box::new(|_| {}),
-        Arc::new(MockReporterPlugin::new()),
-        Arc::new(MockCache::new()),
-        Arc::new(MockFileSystem::new()),
-        plugins(make_test_plugin_context()).into(),
-      ));
+      let resolution = request_tracker().run_request(request);
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
-        Ok(ResultAndInvalidations {
-          result: PathResolution::Excluded,
-          invalidations: Vec::new(),
-        })
+        Ok(ParcelRequestResult::PathRequest(PathResolution::Excluded))
       );
     }
 
@@ -380,15 +333,7 @@ mod tests {
           resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
         };
 
-        let resolution = request.run(RunRequestContext::new(
-          None,
-          // Run child
-          Box::new(|_| {}),
-          Arc::new(MockReporterPlugin::new()),
-          Arc::new(MockCache::new()),
-          Arc::new(MockFileSystem::new()),
-          plugins(make_test_plugin_context()).into(),
-        ));
+        let resolution = request_tracker().run_request(request);
 
         assert_eq!(
           resolution.map_err(|e| e.to_string()),
