@@ -1,5 +1,4 @@
 use std::hash::Hash;
-use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -42,16 +41,6 @@ pub enum PathResolution {
 
 // TODO tracing, dev deps
 impl Request<PathResolution> for PathRequest {
-  fn id(&self) -> u64 {
-    let mut hasher = parcel_core::hash::IdentifierHasher::default();
-
-    self.dependency.hash(&mut hasher);
-    self.named_pipelines.hash(&mut hasher);
-    self.resolvers.hash(&mut hasher);
-
-    hasher.finish()
-  }
-
   fn run(
     &self,
     request_context: RunRequestContext<PathResolution>,
@@ -192,7 +181,7 @@ mod tests {
   }
 
   impl Hash for ResolvedResolverPlugin {
-    fn hash<H: Hasher>(&self, _state: &mut H) {}
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
   }
 
   impl ResolverPlugin for ResolvedResolverPlugin {
