@@ -14,6 +14,15 @@ use parcel_filesystem::FileSystemRef;
 
 use crate::requests::RequestResult;
 
+use anyhow::anyhow;
+use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
+use petgraph::graph::NodeIndex;
+use petgraph::stable_graph::StableDiGraph;
+
+use parcel_core::plugin::ReporterEvent;
+use parcel_core::plugin::ReporterPlugin;
+
+use super::Request;
 use super::RequestEdgeType;
 use super::RequestGraph;
 use super::RequestNode;
@@ -36,7 +45,7 @@ enum RequestQueueMessage {
 }
 pub struct RequestTracker {
   graph: RequestGraph<RequestResult>,
-  reporter: Arc<dyn ReporterPlugin>,
+  reporter: CompositeReporterPlugin,
   request_index: HashMap<u64, NodeIndex>,
   cache: CacheRef,
   file_system: FileSystemRef,
@@ -45,7 +54,7 @@ pub struct RequestTracker {
 
 impl RequestTracker {
   pub fn new(
-    reporter: Arc<dyn ReporterPlugin>,
+    reporters: Arc<Box<dyn ReporterPlugin>>,
     cache: CacheRef,
     file_system: FileSystemRef,
     plugins: PluginsRef,
@@ -54,7 +63,7 @@ impl RequestTracker {
     graph.add_node(RequestNode::Root);
     RequestTracker {
       graph,
-      reporter,
+      reporter: CompositeReporterPlugin::new(reporters),
       request_index: HashMap::new(),
       cache,
       file_system,
@@ -63,9 +72,14 @@ impl RequestTracker {
   }
 
   pub fn report(&self, event: ReporterEvent) {
-    let _ = self.reporter.report(&event);
+    if let Err(err) = self.reporter.report(&event) {
+      // TODO: We should fail the build
+      tracing::error!("REPORTER FAILED {}", err)
+    }
   }
 
+  // Run a request that has no parent. Return the result.
+  #[allow(unused)]
   pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
     rayon::in_place_scope(|scope| {
       let request_id = request.id();
@@ -151,6 +165,8 @@ impl RequestTracker {
     })
   }
 
+  /// Before a request is ran, a 'pending' `RequestNode::Incomplete` entry is added to the graph.
+  #[allow(unused)]
   fn prepare_request(&mut self, request_id: u64) -> anyhow::Result<bool> {
     let node_index = self
       .request_index
@@ -171,6 +187,8 @@ impl RequestTracker {
     Ok(true)
   }
 
+  /// Once a request finishes, its result is stored under its `RequestNode` entry on the graph
+  #[allow(unused)]
   fn store_request(
     &mut self,
     request_id: u64,
@@ -195,6 +213,8 @@ impl RequestTracker {
     Ok(())
   }
 
+  /// Get a request result and call link_request_to_parent
+  #[allow(unused)]
   fn get_request(
     &mut self,
     parent_request_hash: Option<u64>,
@@ -217,6 +237,8 @@ impl RequestTracker {
     }
   }
 
+  /// Create an edge between a parent request and the target request.
+  #[allow(unused)]
   fn link_request_to_parent(
     &mut self,
     request_id: u64,

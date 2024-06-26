@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use super::PluginConfig;
+use super::ConfigLoader;
 use crate::types::Asset;
 
 pub struct Validation {
@@ -25,7 +25,7 @@ pub trait ValidatorPlugin: Debug {
   ///
   /// This function will run once, shortly after the plugin is initialised.
   ///
-  fn load_config(&mut self, config: &PluginConfig) -> Result<(), anyhow::Error>;
+  fn load_config(&mut self, config: &ConfigLoader) -> Result<(), anyhow::Error>;
 
   /// Validates a single asset at a time
   ///
@@ -33,7 +33,7 @@ pub trait ValidatorPlugin: Debug {
   ///
   fn validate_asset(
     &mut self,
-    config: &PluginConfig,
+    config: &ConfigLoader,
     asset: &Asset,
   ) -> Result<Validation, anyhow::Error>;
 
@@ -49,7 +49,7 @@ pub trait ValidatorPlugin: Debug {
   ///
   fn validate_assets(
     &mut self,
-    config: &PluginConfig,
+    config: &ConfigLoader,
     assets: Vec<&Asset>,
   ) -> Result<Validation, anyhow::Error>;
 }
@@ -62,13 +62,13 @@ mod tests {
   struct TestValidatorPlugin {}
 
   impl ValidatorPlugin for TestValidatorPlugin {
-    fn load_config(&mut self, _config: &PluginConfig) -> Result<(), anyhow::Error> {
+    fn load_config(&mut self, _config: &ConfigLoader) -> Result<(), anyhow::Error> {
       todo!()
     }
 
     fn validate_asset(
       &mut self,
-      _config: &PluginConfig,
+      _config: &ConfigLoader,
       _asset: &Asset,
     ) -> Result<Validation, anyhow::Error> {
       todo!()
@@ -76,7 +76,7 @@ mod tests {
 
     fn validate_assets(
       &mut self,
-      _config: &PluginConfig,
+      _config: &ConfigLoader,
       _assets: Vec<&Asset>,
     ) -> Result<Validation, anyhow::Error> {
       todo!()

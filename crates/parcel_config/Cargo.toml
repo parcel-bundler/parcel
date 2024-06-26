@@ -19,5 +19,5 @@ serde = { version = "1.0.123", features = ["derive", "rc"] }
 serde_json5 = "0.1.0"
 thiserror = "1.0.59"
 
-[dev_dependencies]
+[dev-dependencies]
 mockall = "0.12.1"

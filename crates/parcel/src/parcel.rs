@@ -47,7 +47,7 @@ impl Parcel {
     }
   }
 
-  pub fn build(&self, options: BuildOptions) -> anyhow::Result<BuildResult> {
+  pub fn build(&self, _options: BuildOptions) -> anyhow::Result<BuildResult> {
     let mut _rpc_connection = None::<RpcConnectionRef>;
 
     if let Some(rpc_host) = &self.rpc {

@@ -439,7 +439,7 @@ fn convert_dependency(
         && transformer_config.supports_module_workers
       {
         output_format = OutputFormat::EsModule;
-      } else if output_format != OutputFormat::Commonjs {
+      } else if output_format != OutputFormat::CommonJS {
         output_format = OutputFormat::Global;
       }
 

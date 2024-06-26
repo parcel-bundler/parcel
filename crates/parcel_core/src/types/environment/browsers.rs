@@ -1,6 +1,7 @@
+use std::fmt::Display;
+use std::fmt::Formatter;
+
 use browserslist::Distrib;
-use serde::Deserialize;
-use serde::Serialize;
 
 use super::version::Version;
 
@@ -18,8 +19,22 @@ pub struct Browsers {
   pub samsung: Option<Version>,
 }
 
-impl std::fmt::Display for Browsers {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Browsers {
+  pub fn is_empty(&self) -> bool {
+    self.android.is_none()
+      && self.chrome.is_none()
+      && self.edge.is_none()
+      && self.firefox.is_none()
+      && self.ie.is_none()
+      && self.ios_saf.is_none()
+      && self.opera.is_none()
+      && self.safari.is_none()
+      && self.samsung.is_none()
+  }
+}
+
+impl Display for Browsers {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     macro_rules! browsers {
       ( $( $b:ident ),* ) => {
         // Bypass unused_assignments false positive
@@ -73,16 +88,7 @@ impl From<Vec<Distrib>> for Browsers {
   }
 }
 
-impl Serialize for Browsers {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    format!("{}", self).serialize(serializer)
-  }
-}
-
-impl<'de> Deserialize<'de> for Browsers {
+impl<'de> serde::Deserialize<'de> for Browsers {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
@@ -94,6 +100,15 @@ impl<'de> Deserialize<'de> for Browsers {
     };
     let distribs = browserslist::resolve(browsers, &Default::default()).unwrap_or(Vec::new());
     Ok(distribs.into())
+  }
+}
+
+impl serde::Serialize for Browsers {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    format!("{}", self).serialize(serializer)
   }
 }
 
