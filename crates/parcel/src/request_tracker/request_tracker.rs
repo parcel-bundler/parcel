@@ -36,6 +36,17 @@ enum RequestQueueMessage {
     response_tx: Option<Sender<anyhow::Result<RequestResult>>>,
   },
 }
+/// [`RequestTracker`] runs parcel work items and constructs a graph of their dependencies.
+///
+/// Whenever a [`Request`] implementation needs to get the result of another piece of work, it'll
+/// make a call into [`RequestTracker`] through its [`RunRequestContext`] abstraction. The request
+/// tracker will verify if the piece of work has been completed and return its result. If the work
+/// has not been seen yet, it'll be scheduled for execution.
+///
+/// By asking for the result of a piece of work (through [`RunRequestContext::queue_request`]) a
+/// request is creating an edge between itself and that sub-request.
+///
+/// This will be used to trigger cache invalidations.
 pub struct RequestTracker {
   graph: RequestGraph<RequestResult>,
   reporter: Arc<CompositeReporterPlugin>,
@@ -45,6 +56,7 @@ pub struct RequestTracker {
   plugins: PluginsRef,
   config_loader: ConfigLoaderRef,
 }
+
 impl RequestTracker {
   #[allow(unused)]
   pub fn new(
