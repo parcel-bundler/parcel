@@ -5,12 +5,13 @@ use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use dyn_hash::DynHash;
+use parcel_core::config_loader::ConfigLoaderRef;
 
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
 use parcel_core::cache::CacheRef;
 use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::{ReporterEvent, ReporterPlugin};
+use parcel_core::plugin::ReporterPlugin;
 use parcel_core::types::Invalidation;
 use parcel_filesystem::FileSystemRef;
 
@@ -34,6 +35,7 @@ pub struct RunRequestContext {
   cache: CacheRef,
   file_system: FileSystemRef,
   plugins: PluginsRef,
+  config_loader: ConfigLoaderRef,
 }
 
 impl RunRequestContext {
@@ -44,6 +46,7 @@ impl RunRequestContext {
     cache: CacheRef,
     file_system: FileSystemRef,
     plugins: PluginsRef,
+    config_loader: ConfigLoaderRef,
   ) -> Self {
     Self {
       parent_request_id,
@@ -52,6 +55,7 @@ impl RunRequestContext {
       cache,
       file_system,
       plugins,
+      config_loader,
     }
   }
 
@@ -89,6 +93,10 @@ impl RunRequestContext {
 
   pub fn plugins(&self) -> &PluginsRef {
     &self.plugins
+  }
+
+  pub fn config(&self) -> &ConfigLoaderRef {
+    &self.config_loader
   }
 }
 

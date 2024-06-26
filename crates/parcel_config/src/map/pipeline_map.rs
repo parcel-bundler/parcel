@@ -13,7 +13,7 @@ use crate::PluginNode;
 ///
 /// ```
 /// use std::path::PathBuf;
-/// use std::rc::Rc;
+/// use std::sync::Arc;
 ///
 /// use indexmap::indexmap;
 /// use parcel_config::map::PipelineMap;
@@ -22,7 +22,7 @@ use crate::PluginNode;
 /// PipelineMap::new(indexmap! {
 ///   String::from("*.{js,mjs,cjs}") => PluginNode {
 ///     package_name: String::from("@parcel/packager-js"),
-///     resolve_from: Rc::new(PathBuf::default()),
+///     resolve_from: Arc::new(PathBuf::default()),
 ///   }
 /// });
 /// ```
@@ -45,7 +45,7 @@ impl PipelineMap {
   /// ```
   /// use std::path::Path;
   /// use std::path::PathBuf;
-  /// use std::rc::Rc;
+  /// use std::sync::Arc;
   ///
   /// use indexmap::indexmap;
   /// use parcel_config::map::PipelineMap;
@@ -54,7 +54,7 @@ impl PipelineMap {
   /// let pipeline_map = PipelineMap::new(indexmap! {
   ///   String::from("*.{js,mjs,cjs}") => PluginNode {
   ///     package_name: String::from("@parcel/packager-js"),
-  ///     resolve_from: Rc::new(PathBuf::default()),
+  ///     resolve_from: Arc::new(PathBuf::default()),
   ///   }
   /// });
   ///
@@ -77,7 +77,7 @@ impl PipelineMap {
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;
-  use std::rc::Rc;
+  use std::sync::Arc;
 
   use super::*;
 
@@ -89,7 +89,7 @@ mod tests {
     fn pipeline(name: &str) -> PluginNode {
       PluginNode {
         package_name: format!("@parcel/plugin-{}", name),
-        resolve_from: Rc::new(PathBuf::default()),
+        resolve_from: Arc::new(PathBuf::default()),
       }
     }
 

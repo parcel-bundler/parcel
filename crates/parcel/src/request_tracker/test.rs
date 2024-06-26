@@ -14,7 +14,7 @@ use super::*;
 
 #[test]
 fn should_run_request() {
-  let mut rt = request_tracker();
+  let mut rt = request_tracker(Default::default());
 
   let request_c = TestRequest::new("C", &[]);
   let request_b = TestRequest::new("B", &[request_c.clone()]);
@@ -29,7 +29,7 @@ fn should_run_request() {
 
 #[test]
 fn should_reuse_previously_run_request() {
-  let mut rt = request_tracker();
+  let mut rt = request_tracker(Default::default());
 
   let request_c = TestRequest::new("C", &[]);
   let request_b = TestRequest::new("B", &[request_c.clone()]);
@@ -50,7 +50,7 @@ fn should_reuse_previously_run_request() {
 
 #[test]
 fn should_run_request_once() {
-  let mut rt = request_tracker();
+  let mut rt = request_tracker(Default::default());
 
   let request_a = TestRequest::new("A", &[]);
 
@@ -66,7 +66,7 @@ fn should_run_request_once() {
 
 #[test]
 fn should_run_request_once_2() {
-  let mut rt = request_tracker();
+  let mut rt = request_tracker(Default::default());
 
   let request_b = TestRequest::new("B", &[]);
   let request_a = TestRequest::new("A", &[request_b.clone()]);
@@ -233,9 +233,8 @@ impl Request for TestRequest2 {
 
 #[test]
 fn test_queued_subrequests() {
-  let mut request_tracker = request_tracker();
   let sub_requests = 20;
-  let result = request_tracker.run_request(TestRequest2 { sub_requests });
+  let result = request_tracker(Default::default()).run_request(TestRequest2 { sub_requests });
 
   match result {
     Ok(RequestResult::Main(responses)) => {

@@ -205,7 +205,7 @@ mod tests {
 
   #[test]
   fn returns_excluded_resolution() {
-    let mut request_tracker = request_tracker();
+    let mut request_tracker = request_tracker(Default::default());
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
       named_pipelines: Vec::new(),
@@ -232,7 +232,7 @@ mod tests {
       })]),
     };
 
-    let resolution = request_tracker().run_request(request);
+    let resolution = request_tracker(Default::default()).run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -270,7 +270,7 @@ mod tests {
       ]),
     };
 
-    let resolution = request_tracker().run_request(request);
+    let resolution = request_tracker(Default::default()).run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -300,7 +300,7 @@ mod tests {
         resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
       };
 
-      let resolution = request_tracker().run_request(request);
+      let resolution = request_tracker(Default::default()).run_request(request);
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
@@ -320,7 +320,7 @@ mod tests {
           resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
         };
 
-        let resolution = request_tracker().run_request(request);
+        let resolution = request_tracker(Default::default()).run_request(request);
 
         assert_eq!(
           resolution.map_err(|e| e.to_string()),

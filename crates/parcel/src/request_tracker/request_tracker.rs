@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use parcel_core::cache::CacheRef;
+use parcel_core::config_loader::ConfigLoaderRef;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 
@@ -16,11 +16,6 @@ use crate::requests::RequestResult;
 
 use anyhow::anyhow;
 use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
-use petgraph::graph::NodeIndex;
-use petgraph::stable_graph::StableDiGraph;
-
-use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::ReporterPlugin;
 
 use super::Request;
 use super::RequestEdgeType;
@@ -28,7 +23,7 @@ use super::RequestGraph;
 use super::RequestNode;
 use super::ResultAndInvalidations;
 use super::RunRequestError;
-use super::{Request, RunRequestContext, RunRequestMessage};
+use super::{RunRequestContext, RunRequestMessage};
 
 #[derive(Debug)]
 enum RequestQueueMessage {
@@ -45,29 +40,31 @@ enum RequestQueueMessage {
 }
 pub struct RequestTracker {
   graph: RequestGraph<RequestResult>,
-  reporter: CompositeReporterPlugin,
+  reporter: Arc<CompositeReporterPlugin>,
   request_index: HashMap<u64, NodeIndex>,
   cache: CacheRef,
   file_system: FileSystemRef,
   plugins: PluginsRef,
+  config_loader: ConfigLoaderRef,
 }
-
 impl RequestTracker {
   pub fn new(
-    reporters: Arc<Box<dyn ReporterPlugin>>,
+    reporters: Vec<Box<dyn ReporterPlugin>>,
     cache: CacheRef,
     file_system: FileSystemRef,
     plugins: PluginsRef,
+    config_loader: ConfigLoaderRef,
   ) -> Self {
     let mut graph = StableDiGraph::<RequestNode<RequestResult>, RequestEdgeType>::new();
     graph.add_node(RequestNode::Root);
     RequestTracker {
       graph,
-      reporter: CompositeReporterPlugin::new(reporters),
+      reporter: Arc::new(CompositeReporterPlugin::new(reporters)),
       request_index: HashMap::new(),
       cache,
       file_system,
       plugins,
+      config_loader,
     }
   }
 
@@ -123,6 +120,7 @@ impl RequestTracker {
                 self.cache.clone(),
                 self.file_system.clone(),
                 self.plugins.clone(),
+                self.config_loader.clone(),
               );
 
               scope.spawn({

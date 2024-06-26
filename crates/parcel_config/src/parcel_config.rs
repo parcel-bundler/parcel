@@ -118,14 +118,14 @@ mod tests {
       fn plugin() -> PluginNode {
         PluginNode {
           package_name: String::from("package"),
-          resolve_from: Rc::new(PathBuf::from("/")),
+          resolve_from: Arc::new(PathBuf::from("/")),
         }
       }
 
       fn extension() -> PluginNode {
         PluginNode {
           package_name: String::from("..."),
-          resolve_from: Rc::new(PathBuf::from("/")),
+          resolve_from: Arc::new(PathBuf::from("/")),
         }
       }
 

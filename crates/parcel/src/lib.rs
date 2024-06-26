@@ -10,7 +10,6 @@ pub mod request_tracker;
 
 #[allow(dead_code)]
 mod plugins;
-mod request_tracker;
 mod requests;
 
 #[cfg(test)]

@@ -35,7 +35,7 @@ use crate::config_loader::ConfigLoader;
 use crate::types::BuildMode;
 
 pub struct PluginContext {
-  pub config: ConfigLoader,
+  pub config: Arc<ConfigLoader>,
   pub options: Arc<PluginOptions>,
   pub logger: PluginLogger,
 }

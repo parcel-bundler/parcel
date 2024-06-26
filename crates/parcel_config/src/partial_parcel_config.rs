@@ -300,7 +300,7 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 })
               })
               .build()
@@ -319,7 +319,7 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 })
               })
               .build()
@@ -336,7 +336,7 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 })
               })
               .build()
@@ -346,7 +346,7 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.{cjs,js,mjs}") => vec!(PluginNode {
                   package_name: String::from("b"),
-                  resolve_from: Rc::new(PathBuf::from("~")),
+                  resolve_from: Arc::new(PathBuf::from("~")),
                 })
               })
               .build()
@@ -358,11 +358,11 @@ mod tests {
                 .$property(indexmap! {
                   String::from("*.js") => vec!(PluginNode {
                     package_name: String::from("a"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   }),
                   String::from("*.{cjs,js,mjs}") => vec!(PluginNode {
                     package_name: String::from("b"),
-                    resolve_from: Rc::new(PathBuf::from("~")),
+                    resolve_from: Arc::new(PathBuf::from("~")),
                   }),
                 })
                 .build()
@@ -376,10 +376,10 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 }, PluginNode {
                   package_name: String::from("b"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 })
               })
               .build()
@@ -389,7 +389,7 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("c"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 })
               })
               .build()
@@ -406,15 +406,15 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("..."),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("c"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 })
               })
               .build()
@@ -424,7 +424,7 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("b"),
-                  resolve_from: Rc::new(PathBuf::from("~")),
+                  resolve_from: Arc::new(PathBuf::from("~")),
                 })
               })
               .build()
@@ -436,15 +436,15 @@ mod tests {
                 .$property(indexmap! {
                   String::from("*.js") => vec!(PluginNode {
                     package_name: String::from("a"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   },
                   PluginNode {
                     package_name: String::from("b"),
-                    resolve_from: Rc::new(PathBuf::from("~")),
+                    resolve_from: Arc::new(PathBuf::from("~")),
                   },
                   PluginNode {
                     package_name: String::from("c"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   })
                 })
                 .build()
@@ -458,15 +458,15 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("..."),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("c"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 })
               })
               .build()
@@ -477,7 +477,7 @@ mod tests {
               .$property(indexmap! {
                 String::from("*.js") => vec!(PluginNode {
                   package_name: String::from("b"),
-                  resolve_from: Rc::new(PathBuf::from("~")),
+                  resolve_from: Arc::new(PathBuf::from("~")),
                 })
               })
               .build()
@@ -489,15 +489,15 @@ mod tests {
                 .$property(indexmap! {
                   String::from("*.js") => vec!(PluginNode {
                     package_name: String::from("a"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   },
                   PluginNode {
                     package_name: String::from("b"),
-                    resolve_from: Rc::new(PathBuf::from("~")),
+                    resolve_from: Arc::new(PathBuf::from("~")),
                   },
                   PluginNode {
                     package_name: String::from("c"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   })
                 })
                 .build()
@@ -521,7 +521,7 @@ mod tests {
             let from = PartialParcelConfigBuilder::default()
               .$property(vec![PluginNode {
                 package_name: String::from("a"),
-                resolve_from: Rc::new(PathBuf::from("/")),
+                resolve_from: Arc::new(PathBuf::from("/")),
               }])
               .build()
               .unwrap();
@@ -538,7 +538,7 @@ mod tests {
             let extend = PartialParcelConfigBuilder::default()
               .$property(vec![PluginNode {
                 package_name: String::from("a"),
-                resolve_from: Rc::new(PathBuf::from("/")),
+                resolve_from: Arc::new(PathBuf::from("/")),
               }])
               .build()
               .unwrap();
@@ -554,11 +554,11 @@ mod tests {
               .$property(vec![
                 PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("b"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
               ])
               .build()
@@ -567,7 +567,7 @@ mod tests {
             let extend = PartialParcelConfigBuilder::default()
               .$property(vec![PluginNode {
                 package_name: String::from("c"),
-                resolve_from: Rc::new(PathBuf::from("/")),
+                resolve_from: Arc::new(PathBuf::from("/")),
               }])
               .build()
               .unwrap();
@@ -583,15 +583,15 @@ mod tests {
               .$property(vec![
                 PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("..."),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("c"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
               ])
               .build()
@@ -600,7 +600,7 @@ mod tests {
             let extend = PartialParcelConfigBuilder::default()
               .$property(vec![PluginNode {
                 package_name: String::from("b"),
-                resolve_from: Rc::new(PathBuf::from("~")),
+                resolve_from: Arc::new(PathBuf::from("~")),
               }])
               .build()
               .unwrap();
@@ -611,15 +611,15 @@ mod tests {
                 .$property(vec!(
                   PluginNode {
                     package_name: String::from("a"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   },
                   PluginNode {
                     package_name: String::from("b"),
-                    resolve_from: Rc::new(PathBuf::from("~")),
+                    resolve_from: Arc::new(PathBuf::from("~")),
                   },
                   PluginNode {
                     package_name: String::from("c"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   }
                 ))
                 .build()
@@ -633,15 +633,15 @@ mod tests {
               .$property(vec![
                 PluginNode {
                   package_name: String::from("a"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("..."),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
                 PluginNode {
                   package_name: String::from("c"),
-                  resolve_from: Rc::new(PathBuf::from("/")),
+                  resolve_from: Arc::new(PathBuf::from("/")),
                 },
               ])
               .build()
@@ -651,7 +651,7 @@ mod tests {
             let extend_2 = PartialParcelConfigBuilder::default()
               .$property(vec![PluginNode {
                 package_name: String::from("b"),
-                resolve_from: Rc::new(PathBuf::from("~")),
+                resolve_from: Arc::new(PathBuf::from("~")),
               }])
               .build()
               .unwrap();
@@ -662,15 +662,15 @@ mod tests {
                 .$property(vec!(
                   PluginNode {
                     package_name: String::from("a"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   },
                   PluginNode {
                     package_name: String::from("b"),
-                    resolve_from: Rc::new(PathBuf::from("~")),
+                    resolve_from: Arc::new(PathBuf::from("~")),
                   },
                   PluginNode {
                     package_name: String::from("c"),
-                    resolve_from: Rc::new(PathBuf::from("/")),
+                    resolve_from: Arc::new(PathBuf::from("/")),
                   }
                 ))
                 .build()
