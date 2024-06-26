@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::channel;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::requests::RequestResult;
 use crate::test_utils::request_tracker;
@@ -154,7 +154,7 @@ impl Request for TestRequest {
     drop(tx);
 
     let mut results = vec![name];
-    while let Ok(response) = rx.recv() {
+    while let Ok(response) = rx.recv_timeout(Duration::from_secs(2)) {
       match response {
         Ok(RequestResult::TestSub(result)) => results.push(result),
         Ok(RequestResult::TestMain(sub_results)) => results.extend(sub_results),
@@ -176,7 +176,7 @@ struct TestChildRequest {
 impl Request for TestChildRequest {
   fn run(
     &self,
-    mut _request_context: RunRequestContext,
+    _request_context: RunRequestContext,
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     Ok(ResultAndInvalidations {
       result: RequestResult::TestSub(self.count.to_string()),
@@ -195,17 +195,13 @@ impl Request for TestRequest2 {
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     let (tx, rx) = channel();
 
-    let run_sub_requests = |tx: Sender<_>, ctx: &mut RunRequestContext| {
-      for count in 0..self.sub_requests {
-        let _ = ctx.queue_request(TestChildRequest { count }, tx.clone());
-      }
-    };
-
-    // Run requests in closure to force the sender to drop when done
-    run_sub_requests(tx, &mut request_context);
+    for count in 0..self.sub_requests {
+      let _ = request_context.queue_request(TestChildRequest { count }, tx.clone());
+    }
+    drop(tx);
 
     let mut responses = Vec::new();
-    while let Ok(response) = rx.recv() {
+    while let Ok(response) = rx.recv_timeout(Duration::from_secs(2)) {
       match response {
         Ok(RequestResult::TestSub(result)) => responses.push(result),
         _ => todo!("unimplemented"),
