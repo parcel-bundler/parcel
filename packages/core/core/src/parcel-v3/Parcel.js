@@ -25,36 +25,15 @@ export class ParcelV3 {
   }
 
   async build(options: ParcelV3BuildOptions): Promise<any> {
-    // initialize workers lazily
-    const workers = this.#startWorkers();
-
-    // Run the Parcel build
-    let result = await this._internal.build(options);
-
-    // Stop workers
-    this.#stopWorkers(await workers);
-    return result;
-  }
-
-  async #startWorkers() {
-    const workersOnLoad = [];
     const workers = [];
 
     for (let i = 0; i < this._internal.nodeWorkerCount; i++) {
-      let worker = new Worker(path.join(__dirname, 'worker', 'index.js'));
-      workers.push(worker);
-      workersOnLoad.push(
-        new Promise(resolve => worker.once('message', resolve)),
-      );
+      workers.push(new Worker(path.join(__dirname, 'worker', 'index.js')));
     }
 
-    await Promise.all(workersOnLoad);
-    return workers;
-  }
+    let result = await this._internal.build(options);
 
-  #stopWorkers(workers) {
-    for (const worker of workers) {
-      worker.terminate();
-    }
+    for (const worker of workers) worker.terminate();
+    return result;
   }
 }

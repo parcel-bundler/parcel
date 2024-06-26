@@ -8,7 +8,7 @@ use parcel_core::plugin::{
 };
 use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
 
-use crate::helpers::anyhow_napi;
+use parcel_napi_helpers::anyhow_napi;
 
 #[napi]
 pub fn _testing_run_parcel_js_transformer_plugin(

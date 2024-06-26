@@ -2,7 +2,7 @@ use parking_lot::Mutex;
 
 use super::RpcConnectionNodejs;
 
-use crate::RpcConnection;
+use crate::RpcWorker;
 
 /// Connection to multiple Nodejs Workers
 /// Implements round robin messaging
@@ -30,7 +30,7 @@ impl RpcConnectionNodejsMulti {
   }
 }
 
-impl RpcConnection for RpcConnectionNodejsMulti {
+impl RpcWorker for RpcConnectionNodejsMulti {
   fn ping(&self) -> anyhow::Result<()> {
     let next = self.next_index();
     self.conns[next].ping()

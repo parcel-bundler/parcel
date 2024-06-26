@@ -33,7 +33,7 @@ declare export class ParcelNapi {
   testingRpcPing(): void;
 }
 
-declare export function registerWorker(worker: any, onReady: () => (void | Promise<void>)): void
+declare export function registerWorker(worker: any): void
 
 declare export function initSentry(): void;
 declare export function closeSentry(): void;

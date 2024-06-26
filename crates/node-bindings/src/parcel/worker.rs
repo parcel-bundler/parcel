@@ -1,10 +1,11 @@
-use napi::{Env, JsFunction, JsUndefined};
-use napi_derive::napi;
+use std::sync::mpsc::{channel, Receiver};
 
-use parcel::rpc::nodejs::RpcConnectionNodejs;
+use napi::{Env, JsObject, JsUndefined};
+use napi_derive::napi;
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 
 #[napi]
-pub fn worker_callback(env: Env, callback: JsFunction) -> napi::Result<JsUndefined> {
-  RpcConnectionNodejs::create_worker_callback(&env, callback)?;
+pub fn register_worker(env: Env, worker: JsObject) -> napi::Result<JsUndefined> {
   env.get_undefined()
 }
