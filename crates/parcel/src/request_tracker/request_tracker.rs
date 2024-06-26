@@ -81,11 +81,13 @@ impl RequestTracker {
   /// pool runs out of threads. For the same reason, the number of threads must always be greater
   /// than 1. For this reason the minimum number of threads our thread-pool uses is 4.
   ///
-  /// There are two ways we can fix this in our implementation:
+  /// There are multiple ways we can fix this in our implementation:
   /// * Use async, so we get cooperative multi-threading and don't need to worry about this
-  /// * Whenever we block a thread, block using recv_timeout and then use [`rayon::yield`] so other
-  ///   tasks get a chance to tick on our thread-pool. This is a very poor implementation of
+  /// * Whenever we block a thread, block using recv_timeout and then use [`rayon::yield_now`] so
+  ///   other tasks get a chance to tick on our thread-pool. This is a very poor implementation of
   ///   the cooperative threading behaviours async will grant us.
+  /// * Don't use rayon for multi-threading here and use a custom thread-pool implementation which
+  ///   ensures we always have more threads than concurrently running requests
   #[allow(unused)]
   pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
     let thread_pool = rayon::ThreadPoolBuilder::new()
