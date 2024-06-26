@@ -12,7 +12,6 @@ use package_json::ModuleFormat;
 use package_json::PackageJson;
 use package_json::SourceMapField;
 use package_json::TargetDescriptor;
-use parcel_core::config_loader::ConfigLoader;
 use parcel_core::types::engines::Engines;
 use parcel_core::types::BuildMode;
 use parcel_core::types::DefaultTargetOptions;
@@ -26,9 +25,11 @@ use parcel_core::types::TargetSourceMapOptions;
 use parcel_resolver::IncludeNodeModules;
 
 use crate::request_tracker::Request;
-use crate::request_tracker::RequestResult;
+use crate::request_tracker::ResultAndInvalidations;
 use crate::request_tracker::RunRequestContext;
 use crate::request_tracker::RunRequestError;
+
+use super::RequestResult;
 
 mod package_json;
 
@@ -36,9 +37,8 @@ mod package_json;
 ///
 /// Targets will be generated from the project package.json file and input Parcel options.
 ///
+#[derive(Debug)]
 pub struct TargetRequest {
-  // TODO Either pass in package.json directly or make config available on the req context
-  pub config: ConfigLoader,
   pub default_target_options: DefaultTargetOptions,
   pub env: Option<HashMap<String, String>>,
   pub exclusive_target: Option<String>,
@@ -54,7 +54,9 @@ impl Hash for TargetRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Targets(Vec<Target>);
+pub struct TargetRequestOutput {
+  targets: Vec<Target>,
+}
 
 struct BuiltInTarget<'a> {
   descriptor: BuiltInTargetDescriptor,
@@ -226,9 +228,14 @@ impl TargetRequest {
     Ok(inferred_output_format)
   }
 
-  fn load_package_json(&self) -> Result<(PathBuf, PackageJson), anyhow::Error> {
+  fn load_package_json(
+    &self,
+    request_context: RunRequestContext,
+  ) -> Result<(PathBuf, PackageJson), anyhow::Error> {
     // TODO Invalidations
-    let (package_path, mut package_json) = self.config.load_package_json_config::<PackageJson>()?;
+    let (package_path, mut package_json) = request_context
+      .config()
+      .load_package_json_config::<PackageJson>()?;
 
     if package_json
       .engines
@@ -270,8 +277,11 @@ impl TargetRequest {
     Ok((package_path, package_json))
   }
 
-  fn resolve_package_targets(&self) -> Result<Vec<Option<Target>>, anyhow::Error> {
-    let (package_path, package_json) = self.load_package_json()?;
+  fn resolve_package_targets(
+    &self,
+    request_context: RunRequestContext,
+  ) -> Result<Vec<Option<Target>>, anyhow::Error> {
+    let (package_path, package_json) = self.load_package_json(request_context)?;
     let mut targets: Vec<Option<Target>> = Vec::new();
 
     let builtin_targets = [
@@ -562,23 +572,23 @@ fn fallback_output_format(context: EnvironmentContext) -> OutputFormat {
   }
 }
 
-impl Request<Targets> for TargetRequest {
+impl Request for TargetRequest {
   fn run(
     &self,
-    _request_context: RunRequestContext<Targets>,
-  ) -> Result<RequestResult<Targets>, RunRequestError> {
+    request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
     // TODO options.targets, should this still be supported?
     // TODO serve options
-    let package_targets = self.resolve_package_targets()?;
+    let package_targets = self.resolve_package_targets(request_context)?;
 
-    Ok(RequestResult {
+    Ok(ResultAndInvalidations {
       invalidations: Vec::new(),
-      result: Targets(
-        package_targets
+      result: RequestResult::Target(TargetRequestOutput {
+        targets: package_targets
           .into_iter()
           .filter_map(std::convert::identity)
           .collect(),
-      ),
+      }),
     })
   }
 }
@@ -591,7 +601,7 @@ mod tests {
   use parcel_core::types::{browsers::Browsers, version::Version};
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
-  use crate::request_tracker::RequestTracker;
+  use crate::test_utils::{request_tracker, RequestTrackerTestOptions};
 
   use super::*;
 
@@ -613,9 +623,7 @@ mod tests {
     PathBuf::from("packages").join("test")
   }
 
-  fn targets_from_package_json(
-    package_json: String,
-  ) -> Result<RequestResult<Targets>, anyhow::Error> {
+  fn targets_from_package_json(package_json: String) -> Result<RequestResult, anyhow::Error> {
     let fs = InMemoryFileSystem::default();
     let project_root = PathBuf::default();
     let package_dir = package_dir();
@@ -626,18 +634,19 @@ mod tests {
     );
 
     let request = TargetRequest {
-      config: ConfigLoader {
-        fs: Arc::new(fs),
-        project_root: project_root.clone(),
-        search_path: project_root.join(&package_dir),
-      },
       default_target_options: DefaultTargetOptions::default(),
       env: None,
       exclusive_target: None,
       mode: BuildMode::Development,
     };
 
-    request.run(RunRequestContext::new(None, &mut RequestTracker::default()))
+    request_tracker(RequestTrackerTestOptions {
+      search_path: project_root.join(&package_dir),
+      project_root,
+      fs: Arc::new(fs),
+      ..Default::default()
+    })
+    .run_request(request)
   }
 
   #[test]
@@ -738,10 +747,9 @@ mod tests {
 
       assert_eq!(
         targets.map_err(|e| e.to_string()),
-        Ok(RequestResult {
-          result: Targets(vec![default_target()]),
-          invalidations: Vec::new()
-        })
+        Ok(RequestResult::Target(TargetRequestOutput {
+          targets: vec![default_target()]
+        }),)
       );
     }
   }
@@ -752,10 +760,9 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![default_target()]),
-        invalidations: Vec::new(),
-      })
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![default_target()]
+      }),)
     );
   }
 
@@ -775,8 +782,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![Target {
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("browser.js")),
           env: Environment {
@@ -786,9 +793,8 @@ mod tests {
           },
           name: String::from("browser"),
           ..Target::default()
-        },]),
-        invalidations: Vec::new(),
-      })
+        },]
+      }),)
     );
   }
 
@@ -798,8 +804,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![Target {
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("main.js")),
           env: Environment {
@@ -809,9 +815,8 @@ mod tests {
           },
           name: String::from("main"),
           ..Target::default()
-        },]),
-        invalidations: Vec::new(),
-      })
+        },]
+      }),)
     );
   }
 
@@ -821,8 +826,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![Target {
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("module.js")),
           env: Environment {
@@ -832,9 +837,8 @@ mod tests {
           },
           name: String::from("module"),
           ..Target::default()
-        },]),
-        invalidations: Vec::new(),
-      })
+        },]
+      }),)
     );
   }
 
@@ -844,8 +848,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![Target {
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("types.d.ts")),
           env: Environment {
@@ -855,9 +859,8 @@ mod tests {
           },
           name: String::from("types"),
           ..Target::default()
-        },]),
-        invalidations: Vec::new(),
-      })
+        },]
+      }),)
     );
   }
 
@@ -890,8 +893,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![
           Target {
             dist_dir: package_dir.join("build"),
             dist_entry: Some(PathBuf::from("browser.js")),
@@ -936,9 +939,8 @@ mod tests {
             name: String::from("types"),
             ..Target::default()
           },
-        ]),
-        invalidations: Vec::new(),
-      })
+        ]
+      }),)
     );
   }
 
@@ -948,8 +950,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![Target {
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
           dist_dir: package_dir().join("dist").join("custom"),
           dist_entry: None,
           env: Environment {
@@ -962,9 +964,8 @@ mod tests {
           },
           name: String::from("custom"),
           ..Target::default()
-        },]),
-        invalidations: Vec::new(),
-      })
+        },]
+      }),)
     );
   }
 
@@ -987,8 +988,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![Target {
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
           env: Environment {
@@ -1000,9 +1001,8 @@ mod tests {
           },
           name: String::from("custom"),
           ..Target::default()
-        },]),
-        invalidations: Vec::new(),
-      })
+        },]
+      }),)
     );
   }
 
@@ -1022,8 +1022,8 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: Targets(vec![Target {
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
           env: Environment {
@@ -1042,19 +1042,18 @@ mod tests {
           },
           name: String::from("custom"),
           ..Target::default()
-        },]),
-        invalidations: Vec::new(),
-      })
+        },]
+      }),)
     );
   }
 
   #[test]
   fn returns_inferred_custom_node_target() {
-    let assert_targets = |targets: Result<RequestResult<Targets>, anyhow::Error>, engines| {
+    let assert_targets = |targets: Result<RequestResult, anyhow::Error>, engines| {
       assert_eq!(
         targets.map_err(|e| e.to_string()),
-        Ok(RequestResult {
-          result: Targets(vec![Target {
+        Ok(RequestResult::Target(TargetRequestOutput {
+          targets: vec![Target {
             dist_dir: package_dir().join("dist"),
             dist_entry: Some(PathBuf::from("custom.js")),
             env: Environment {
@@ -1066,9 +1065,8 @@ mod tests {
             },
             name: String::from("custom"),
             ..Target::default()
-          },]),
-          invalidations: Vec::new(),
-        })
+          },]
+        }),)
       );
     };
 

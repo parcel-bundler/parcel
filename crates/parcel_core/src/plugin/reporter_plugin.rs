@@ -36,7 +36,7 @@ pub enum ReporterEvent {
 /// bundle analysis report at the end of a build.
 ///
 #[mockall::automock]
-pub trait ReporterPlugin: Debug {
+pub trait ReporterPlugin: Debug + Send + Sync {
   /// Processes the event from Parcel
   fn report(&self, event: &ReporterEvent) -> Result<(), anyhow::Error>;
 }

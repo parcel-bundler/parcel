@@ -28,6 +28,7 @@ pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 ///       it should not be in the trait
 /// * [ ] Do not use io results, instead use anyhow or this error
 ///
+#[mockall::automock]
 pub trait FileSystem {
   fn cwd(&self) -> Result<PathBuf> {
     Err(std::io::Error::new(

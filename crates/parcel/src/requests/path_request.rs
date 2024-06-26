@@ -15,11 +15,13 @@ use parcel_core::types::Dependency;
 use parcel_resolver::parse_scheme;
 
 use crate::request_tracker::Request;
-use crate::request_tracker::RequestResult;
+use crate::request_tracker::ResultAndInvalidations;
 use crate::request_tracker::RunRequestContext;
 use crate::request_tracker::RunRequestError;
 
-#[derive(Hash)]
+use super::RequestResult;
+
+#[derive(Hash, Debug)]
 pub struct PathRequest {
   pub dependency: Arc<Dependency>,
   pub named_pipelines: Vec<String>,
@@ -27,7 +29,7 @@ pub struct PathRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PathResolution {
+pub enum PathRequestOutput {
   Excluded,
   Resolved {
     can_defer: bool,
@@ -40,11 +42,11 @@ pub enum PathResolution {
 }
 
 // TODO tracing, dev deps
-impl Request<PathResolution> for PathRequest {
+impl Request for PathRequest {
   fn run(
     &self,
-    request_context: RunRequestContext<PathResolution>,
-  ) -> Result<RequestResult<PathResolution>, RunRequestError> {
+    request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
     request_context.report(ReporterEvent::BuildProgress(BuildProgressEvent::Resolving(
       ResolvingEvent {
         dependency: Arc::clone(&self.dependency),
@@ -78,9 +80,9 @@ impl Request<PathResolution> for PathRequest {
       match resolved.resolution {
         Resolution::Unresolved => continue,
         Resolution::Excluded => {
-          return Ok(RequestResult {
+          return Ok(ResultAndInvalidations {
             invalidations: Vec::new(),
-            result: PathResolution::Excluded,
+            result: RequestResult::Path(PathRequestOutput::Excluded),
           })
         }
         Resolution::Resolved(ResolvedResolution {
@@ -104,9 +106,9 @@ impl Request<PathResolution> for PathRequest {
           // TODO resolution.diagnostics
           // TODO Set dependency meta and priority
 
-          return Ok(RequestResult {
+          return Ok(ResultAndInvalidations {
             invalidations,
-            result: PathResolution::Resolved {
+            result: RequestResult::Path(PathRequestOutput::Resolved {
               can_defer,
               code,
               path: file_path,
@@ -115,16 +117,16 @@ impl Request<PathResolution> for PathRequest {
                 .or(self.dependency.pipeline.clone()),
               query,
               side_effects,
-            },
+            }),
           });
         }
       };
     }
 
     if self.dependency.is_optional {
-      return Ok(RequestResult {
+      return Ok(ResultAndInvalidations {
         invalidations,
-        result: PathResolution::Excluded,
+        result: RequestResult::Path(PathRequestOutput::Excluded),
       });
     }
 
@@ -149,10 +151,8 @@ impl Request<PathResolution> for PathRequest {
 mod tests {
   use std::fmt::Debug;
 
-  use parcel_core::plugin::Resolved;
-  use parcel_core::plugin::ResolvedResolution;
-
-  use crate::request_tracker::RequestTracker;
+  use crate::test_utils::request_tracker;
+  use parcel_core::plugin::{Resolved, ResolvedResolution};
 
   use super::*;
 
@@ -205,20 +205,17 @@ mod tests {
 
   #[test]
   fn returns_excluded_resolution() {
+    let mut request_tracker = request_tracker(Default::default());
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
       named_pipelines: Vec::new(),
       resolvers: Arc::new(vec![Box::new(ExcludedResolverPlugin {})]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
-
+    let resolution = request_tracker.run_request(request);
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: PathResolution::Excluded,
-        invalidations: Vec::new(),
-      })
+      Ok(RequestResult::Path(PathRequestOutput::Excluded))
     );
   }
 
@@ -235,7 +232,7 @@ mod tests {
       })]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+    let resolution = request_tracker(Default::default()).run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -273,21 +270,18 @@ mod tests {
       ]),
     };
 
-    let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+    let resolution = request_tracker(Default::default()).run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(RequestResult {
-        result: PathResolution::Resolved {
-          can_defer: false,
-          code: None,
-          path: root.join("a.js"),
-          pipeline: None,
-          query: None,
-          side_effects: false
-        },
-        invalidations: Vec::new(),
-      })
+      Ok(RequestResult::Path(PathRequestOutput::Resolved {
+        can_defer: false,
+        code: None,
+        path: root.join("a.js"),
+        pipeline: None,
+        query: None,
+        side_effects: false
+      }))
     );
   }
 
@@ -306,14 +300,11 @@ mod tests {
         resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
       };
 
-      let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+      let resolution = request_tracker(Default::default()).run_request(request);
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
-        Ok(RequestResult {
-          result: PathResolution::Excluded,
-          invalidations: Vec::new(),
-        })
+        Ok(RequestResult::Path(PathRequestOutput::Excluded))
       );
     }
 
@@ -329,7 +320,7 @@ mod tests {
           resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
         };
 
-        let resolution = request.run(RunRequestContext::new(None, &mut RequestTracker::default()));
+        let resolution = request_tracker(Default::default()).run_request(request);
 
         assert_eq!(
           resolution.map_err(|e| e.to_string()),

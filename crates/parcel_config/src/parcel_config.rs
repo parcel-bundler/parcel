@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -15,7 +15,7 @@ use crate::map::PipelinesMap;
 #[serde(rename_all = "camelCase")]
 pub struct PluginNode {
   pub package_name: String,
-  pub resolve_from: Rc<PathBuf>,
+  pub resolve_from: Arc<PathBuf>,
 }
 
 /// Represents a fully merged and validated .parcel_rc config
@@ -118,14 +118,14 @@ mod tests {
       fn plugin() -> PluginNode {
         PluginNode {
           package_name: String::from("package"),
-          resolve_from: Rc::new(PathBuf::from("/")),
+          resolve_from: Arc::new(PathBuf::from("/")),
         }
       }
 
       fn extension() -> PluginNode {
         PluginNode {
           package_name: String::from("..."),
-          resolve_from: Rc::new(PathBuf::from("/")),
+          resolve_from: Arc::new(PathBuf::from("/")),
         }
       }
 
