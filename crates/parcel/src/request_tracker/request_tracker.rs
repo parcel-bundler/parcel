@@ -75,7 +75,7 @@ impl RequestTracker {
     }
   }
 
-  // Run a request that has no parent. Return the result.
+  /// Run a request that has no parent. Return the result.
   #[allow(unused)]
   pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
     rayon::in_place_scope(|scope| {
