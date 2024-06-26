@@ -19,7 +19,7 @@ use parcel_filesystem::FileSystemRef;
 pub struct RunRequestMessage {
   pub request: Box<dyn Request>,
   pub parent_request_id: Option<u64>,
-  pub response_tx: Option<Sender<Result<RequestResult, anyhow::Error>>>,
+  pub response_tx: Option<Sender<Result<RequestResult, CloneableRunRequestError>>>,
 }
 
 type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
@@ -72,8 +72,8 @@ impl RunRequestContext {
   pub fn queue_request(
     &mut self,
     request: impl Request,
-    tx: Sender<anyhow::Result<RequestResult>>,
-  ) -> anyhow::Result<()> {
+    tx: Sender<Result<RequestResult, CloneableRunRequestError>>,
+  ) -> Result<(), RunRequestError> {
     let request: Box<dyn Request> = Box::new(request);
     let message = RunRequestMessage {
       request,
@@ -103,6 +103,7 @@ impl RunRequestContext {
 
 // We can type this properly
 pub type RunRequestError = anyhow::Error;
+pub type CloneableRunRequestError = Arc<anyhow::Error>;
 
 pub trait Request: DynHash + Send + Debug + 'static {
   fn id(&self) -> u64 {

@@ -15,6 +15,7 @@ use parcel_filesystem::FileSystemRef;
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
 
+use super::CloneableRunRequestError;
 use super::Request;
 use super::RequestEdgeType;
 use super::RequestGraph;
@@ -32,8 +33,8 @@ enum RequestQueueMessage {
   RequestResult {
     request_id: u64,
     parent_request_id: Option<u64>,
-    result: Result<ResultAndInvalidations, RunRequestError>,
-    response_tx: Option<Sender<anyhow::Result<RequestResult>>>,
+    result: Result<ResultAndInvalidations, CloneableRunRequestError>,
+    response_tx: Option<Sender<Result<RequestResult, CloneableRunRequestError>>>,
   },
 }
 pub struct RequestTracker {
@@ -89,7 +90,7 @@ impl RequestTracker {
   /// * Don't use rayon for multi-threading here and use a custom thread-pool implementation which
   ///   ensures we always have more threads than concurrently running requests
   #[allow(unused)]
-  pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
+  pub fn run_request(&mut self, request: impl Request) -> Result<RequestResult, RunRequestError> {
     let thread_pool = rayon::ThreadPoolBuilder::new()
       .num_threads(num_cpus::get() + 4)
       .build()?;
@@ -142,7 +143,7 @@ impl RequestTracker {
               scope.spawn({
                 let tx = tx.clone();
                 move |_scope| {
-                  let result = request.run(context);
+                  let result = request.run(context).map_err(|err| Arc::new(err));
                   let _ = tx.send(RequestQueueMessage::RequestResult {
                     request_id,
                     parent_request_id,
@@ -154,7 +155,10 @@ impl RequestTracker {
             } else {
               // Cached request
               if let Some(response_tx) = response_tx {
-                let result = self.get_request(parent_request_id, request_id);
+                let result = self
+                  .get_request(parent_request_id, request_id)
+                  .map_err(|err| Arc::new(err));
+
                 let _ = response_tx.send(result);
               }
             };
@@ -206,7 +210,7 @@ impl RequestTracker {
   fn store_request(
     &mut self,
     request_id: u64,
-    result: &Result<ResultAndInvalidations, RunRequestError>,
+    result: &Result<ResultAndInvalidations, CloneableRunRequestError>,
   ) -> anyhow::Result<()> {
     let node_index = self
       .request_index
@@ -219,9 +223,10 @@ impl RequestTracker {
     if let RequestNode::<RequestResult>::Valid(_) = request_node {
       return Ok(());
     }
+
     *request_node = match result {
       Ok(result) => RequestNode::Valid(result.result.clone()),
-      Err(error) => RequestNode::Error(error.to_string()),
+      Err(error) => RequestNode::Error(Arc::clone(&error)),
     };
 
     Ok(())
@@ -233,7 +238,7 @@ impl RequestTracker {
     &mut self,
     parent_request_hash: Option<u64>,
     request_id: u64,
-  ) -> anyhow::Result<RequestResult> {
+  ) -> Result<RequestResult, RunRequestError> {
     self.link_request_to_parent(request_id, parent_request_hash)?;
 
     let Some(node_index) = self.request_index.get(&request_id) else {
