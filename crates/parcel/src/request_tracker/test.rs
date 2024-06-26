@@ -86,14 +86,14 @@ fn should_run_request_once_2() {
 }
 
 fn run_request(rt: &mut RequestTracker, request: &TestRequest) -> Vec<String> {
-  let RequestResult::Main(result) = rt.run_request(request.clone()).unwrap() else {
+  let RequestResult::TestMain(result) = rt.run_request(request.clone()).unwrap() else {
     panic!("Unexpected result");
   };
   result
 }
 
 fn run_sub_request(rt: &mut RequestTracker, request: &TestRequest) -> String {
-  let RequestResult::Sub(result) = rt.run_request(request.clone()).unwrap() else {
+  let RequestResult::TestSub(result) = rt.run_request(request.clone()).unwrap() else {
     panic!("Unexpected result");
   };
   result
@@ -148,7 +148,7 @@ impl Request for TestRequest {
 
     if subrequests.is_empty() {
       return Ok(ResultAndInvalidations {
-        result: RequestResult::Sub(name),
+        result: RequestResult::TestSub(name),
         invalidations: vec![],
       });
     }
@@ -168,14 +168,14 @@ impl Request for TestRequest {
     let mut results = vec![name];
     while let Ok(response) = rx.recv() {
       match response {
-        Ok(RequestResult::Sub(result)) => results.push(result),
-        Ok(RequestResult::Main(sub_results)) => results.extend(sub_results),
+        Ok(RequestResult::TestSub(result)) => results.push(result),
+        Ok(RequestResult::TestMain(sub_results)) => results.extend(sub_results),
         a => todo!("{:?}", a),
       }
     }
 
     Ok(ResultAndInvalidations {
-      result: RequestResult::Main(results),
+      result: RequestResult::TestMain(results),
       invalidations: vec![],
     })
   }
@@ -191,7 +191,7 @@ impl Request for TestChildRequest {
     mut _request_context: RunRequestContext,
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     Ok(ResultAndInvalidations {
-      result: RequestResult::Sub(self.count.to_string()),
+      result: RequestResult::TestSub(self.count.to_string()),
       invalidations: vec![],
     })
   }
@@ -219,13 +219,13 @@ impl Request for TestRequest2 {
     let mut responses = Vec::new();
     while let Ok(response) = rx.recv() {
       match response {
-        Ok(RequestResult::Sub(result)) => responses.push(result),
+        Ok(RequestResult::TestSub(result)) => responses.push(result),
         _ => todo!("unimplemented"),
       }
     }
 
     Ok(ResultAndInvalidations {
-      result: RequestResult::Main(responses),
+      result: RequestResult::TestMain(responses),
       invalidations: vec![],
     })
   }
@@ -237,7 +237,7 @@ fn test_queued_subrequests() {
   let result = request_tracker(Default::default()).run_request(TestRequest2 { sub_requests });
 
   match result {
-    Ok(RequestResult::Main(responses)) => {
+    Ok(RequestResult::TestMain(responses)) => {
       let expected: HashSet<String> = (0..sub_requests).map(|v| v.to_string()).collect();
       assert_eq!(HashSet::from_iter(responses.iter().cloned()), expected);
     }

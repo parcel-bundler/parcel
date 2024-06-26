@@ -13,7 +13,7 @@ pub enum RequestResult {
   Target(Targets),
   // The following are test request types only used in the test build
   #[cfg(test)]
-  Sub(String),
+  TestSub(String),
   #[cfg(test)]
-  Main(Vec<String>),
+  TestMain(Vec<String>),
 }
