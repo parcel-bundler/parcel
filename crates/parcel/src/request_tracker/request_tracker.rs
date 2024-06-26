@@ -83,8 +83,9 @@ impl RequestTracker {
       });
       drop(tx);
 
-      while let Ok(result) = rx.recv() {
-        match result {
+      while let Ok(request_queue_message) = rx.recv() {
+        tracing::debug!("Received message {:?}", request_queue_message);
+        match request_queue_message {
           RequestQueueMessage::RunRequest {
             message:
               RunRequestMessage {

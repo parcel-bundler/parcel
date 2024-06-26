@@ -5,6 +5,7 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::Level;
 
 use crate::requests::RequestResult;
 use crate::test_utils::request_tracker;
@@ -13,6 +14,9 @@ use super::*;
 
 #[test]
 fn should_run_request() {
+  let _ = tracing_subscriber::fmt::fmt()
+    .with_max_level(Level::TRACE)
+    .try_init();
   let mut rt = request_tracker(Default::default());
 
   let request_c = TestRequest::new("C", &[]);
