@@ -46,6 +46,7 @@ pub struct RequestTracker {
   config_loader: ConfigLoaderRef,
 }
 impl RequestTracker {
+  #[allow(unused)]
   pub fn new(
     reporters: Vec<Box<dyn ReporterPlugin>>,
     cache: CacheRef,

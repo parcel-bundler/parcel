@@ -1,10 +1,9 @@
+pub use self::request::*;
+pub use self::request_graph::*;
+
 mod request;
 mod request_graph;
-pub mod request_tracker;
+mod request_tracker;
 
 #[cfg(test)]
 mod test;
-
-pub use self::request::*;
-pub use self::request_graph::*;
-pub use self::request_tracker::*;
