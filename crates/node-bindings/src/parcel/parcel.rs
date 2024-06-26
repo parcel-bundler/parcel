@@ -16,7 +16,7 @@ use crate::file_system::FileSystemNapi;
 use crate::parcel::parcel::tracing_setup::{
   setup_tracing, ParcelTracingGuard, ParcelTracingOptions,
 };
-use parcel_napi_helpers::anyhow_napi;
+use parcel_napi_helpers::anyhow_to_napi;
 
 mod tracing_setup;
 
@@ -45,9 +45,9 @@ pub struct ParcelNapi {
 #[napi]
 impl ParcelNapi {
   #[napi(constructor)]
-  pub fn new(env: Env, options: ParcelNapiOptions) -> napi::Result<Self> {
+  pub fn new(options: ParcelNapiOptions) -> napi::Result<Self> {
     // Debugging Instrumentation
-    let tracing_guard = setup_tracing(&options.tracing_options).map_err(anyhow_napi)?;
+    let tracing_guard = setup_tracing(&options.tracing_options).map_err(anyhow_to_napi)?;
 
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");

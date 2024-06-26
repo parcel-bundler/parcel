@@ -1,4 +1,3 @@
-mod napi;
 mod rpc_conn_nodejs;
 mod rpc_conns_nodejs;
 mod rpc_host_nodejs;
