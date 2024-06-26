@@ -23,19 +23,6 @@ use super::ResultAndInvalidations;
 use super::RunRequestError;
 use super::{RunRequestContext, RunRequestMessage};
 
-#[derive(Debug)]
-enum RequestQueueMessage {
-  RunRequest {
-    tx: Sender<RequestQueueMessage>,
-    message: RunRequestMessage,
-  },
-  RequestResult {
-    request_id: u64,
-    parent_request_id: Option<u64>,
-    result: Result<ResultAndInvalidations, RunRequestError>,
-    response_tx: Option<Sender<anyhow::Result<RequestResult>>>,
-  },
-}
 /// [`RequestTracker`] runs parcel work items and constructs a graph of their dependencies.
 ///
 /// Whenever a [`Request`] implementation needs to get the result of another piece of work, it'll
@@ -191,7 +178,7 @@ impl RequestTracker {
     })
   }
 
-  /// Before a request is run, a 'pending' `RequestNode::Incomplete` entry is added to the graph.
+  /// Before a request is run, a 'pending' [`RequestNode::Incomplete`] entry is added to the graph.
   #[allow(unused)]
   fn prepare_request(&mut self, request_id: u64) -> anyhow::Result<bool> {
     let node_index = self
@@ -213,7 +200,7 @@ impl RequestTracker {
     Ok(true)
   }
 
-  /// Once a request finishes, its result is stored under its `RequestNode` entry on the graph
+  /// Once a request finishes, its result is stored under its [`RequestNode`] entry on the graph
   #[allow(unused)]
   fn store_request(
     &mut self,
@@ -239,7 +226,8 @@ impl RequestTracker {
     Ok(())
   }
 
-  /// Get a request result and call link_request_to_parent
+  /// Get a request result and call [`RequestTracker::link_request_to_parent`] to create a
+  /// dependency link between the source request and this sub-request.
   #[allow(unused)]
   fn get_request(
     &mut self,
@@ -288,4 +276,24 @@ impl RequestTracker {
     }
     Ok(())
   }
+}
+
+/// Internally, [`RequestTracker`] ticks a queue of work related to each 'entry request' ran.
+///
+/// This enum represents messages that can be sent to the main-thread that is ticking the work for
+/// an entry from worker threads that are processing individual requests.
+///
+/// See [`RequestTracker::run_request`].
+#[derive(Debug)]
+enum RequestQueueMessage {
+  RunRequest {
+    tx: Sender<RequestQueueMessage>,
+    message: RunRequestMessage,
+  },
+  RequestResult {
+    request_id: u64,
+    parent_request_id: Option<u64>,
+    result: Result<ResultAndInvalidations, RunRequestError>,
+    response_tx: Option<Sender<anyhow::Result<RequestResult>>>,
+  },
 }
