@@ -1,6 +1,6 @@
 mod request;
 mod request_graph;
-mod request_tracker;
+pub mod request_tracker;
 
 #[cfg(test)]
 mod test;
