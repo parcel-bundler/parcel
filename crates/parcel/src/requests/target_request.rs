@@ -54,7 +54,9 @@ impl Hash for TargetRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Targets(Vec<Target>);
+pub struct TargetRequestOutput {
+  targets: Vec<Target>,
+}
 
 struct BuiltInTarget<'a> {
   descriptor: BuiltInTargetDescriptor,
@@ -581,12 +583,12 @@ impl Request for TargetRequest {
 
     Ok(ResultAndInvalidations {
       invalidations: Vec::new(),
-      result: RequestResult::Target(Targets(
-        package_targets
+      result: RequestResult::Target(TargetRequestOutput {
+        targets: package_targets
           .into_iter()
           .filter_map(std::convert::identity)
           .collect(),
-      )),
+      }),
     })
   }
 }
@@ -745,7 +747,9 @@ mod tests {
 
       assert_eq!(
         targets.map_err(|e| e.to_string()),
-        Ok(RequestResult::Target(Targets(vec![default_target()])),)
+        Ok(RequestResult::Target(TargetRequestOutput {
+          targets: vec![default_target()]
+        }),)
       );
     }
   }
@@ -756,7 +760,9 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![default_target()])),)
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![default_target()]
+      }),)
     );
   }
 
@@ -776,17 +782,19 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![Target {
-        dist_dir: package_dir().join("build"),
-        dist_entry: Some(PathBuf::from("browser.js")),
-        env: Environment {
-          context: EnvironmentContext::Browser,
-          output_format: OutputFormat::CommonJS,
-          ..builtin_default_env()
-        },
-        name: String::from("browser"),
-        ..Target::default()
-      },])),)
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
+          dist_dir: package_dir().join("build"),
+          dist_entry: Some(PathBuf::from("browser.js")),
+          env: Environment {
+            context: EnvironmentContext::Browser,
+            output_format: OutputFormat::CommonJS,
+            ..builtin_default_env()
+          },
+          name: String::from("browser"),
+          ..Target::default()
+        },]
+      }),)
     );
   }
 
@@ -796,17 +804,19 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![Target {
-        dist_dir: package_dir().join("build"),
-        dist_entry: Some(PathBuf::from("main.js")),
-        env: Environment {
-          context: EnvironmentContext::Node,
-          output_format: OutputFormat::CommonJS,
-          ..builtin_default_env()
-        },
-        name: String::from("main"),
-        ..Target::default()
-      },])),)
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
+          dist_dir: package_dir().join("build"),
+          dist_entry: Some(PathBuf::from("main.js")),
+          env: Environment {
+            context: EnvironmentContext::Node,
+            output_format: OutputFormat::CommonJS,
+            ..builtin_default_env()
+          },
+          name: String::from("main"),
+          ..Target::default()
+        },]
+      }),)
     );
   }
 
@@ -816,17 +826,19 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![Target {
-        dist_dir: package_dir(),
-        dist_entry: Some(PathBuf::from("module.js")),
-        env: Environment {
-          context: EnvironmentContext::Node,
-          output_format: OutputFormat::EsModule,
-          ..builtin_default_env()
-        },
-        name: String::from("module"),
-        ..Target::default()
-      },])),)
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
+          dist_dir: package_dir(),
+          dist_entry: Some(PathBuf::from("module.js")),
+          env: Environment {
+            context: EnvironmentContext::Node,
+            output_format: OutputFormat::EsModule,
+            ..builtin_default_env()
+          },
+          name: String::from("module"),
+          ..Target::default()
+        },]
+      }),)
     );
   }
 
@@ -836,17 +848,19 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![Target {
-        dist_dir: package_dir(),
-        dist_entry: Some(PathBuf::from("types.d.ts")),
-        env: Environment {
-          context: EnvironmentContext::Node,
-          output_format: OutputFormat::CommonJS,
-          ..builtin_default_env()
-        },
-        name: String::from("types"),
-        ..Target::default()
-      },])),)
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
+          dist_dir: package_dir(),
+          dist_entry: Some(PathBuf::from("types.d.ts")),
+          env: Environment {
+            context: EnvironmentContext::Node,
+            output_format: OutputFormat::CommonJS,
+            ..builtin_default_env()
+          },
+          name: String::from("types"),
+          ..Target::default()
+        },]
+      }),)
     );
   }
 
@@ -879,52 +893,54 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![
-        Target {
-          dist_dir: package_dir.join("build"),
-          dist_entry: Some(PathBuf::from("browser.js")),
-          env: Environment {
-            context: EnvironmentContext::Browser,
-            output_format: OutputFormat::CommonJS,
-            ..env()
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![
+          Target {
+            dist_dir: package_dir.join("build"),
+            dist_entry: Some(PathBuf::from("browser.js")),
+            env: Environment {
+              context: EnvironmentContext::Browser,
+              output_format: OutputFormat::CommonJS,
+              ..env()
+            },
+            name: String::from("browser"),
+            ..Target::default()
           },
-          name: String::from("browser"),
-          ..Target::default()
-        },
-        Target {
-          dist_dir: package_dir.join("build"),
-          dist_entry: Some(PathBuf::from("main.js")),
-          env: Environment {
-            context: EnvironmentContext::Node,
-            output_format: OutputFormat::CommonJS,
-            ..env()
+          Target {
+            dist_dir: package_dir.join("build"),
+            dist_entry: Some(PathBuf::from("main.js")),
+            env: Environment {
+              context: EnvironmentContext::Node,
+              output_format: OutputFormat::CommonJS,
+              ..env()
+            },
+            name: String::from("main"),
+            ..Target::default()
           },
-          name: String::from("main"),
-          ..Target::default()
-        },
-        Target {
-          dist_dir: package_dir.clone(),
-          dist_entry: Some(PathBuf::from("module.js")),
-          env: Environment {
-            context: EnvironmentContext::Node,
-            output_format: OutputFormat::EsModule,
-            ..env()
+          Target {
+            dist_dir: package_dir.clone(),
+            dist_entry: Some(PathBuf::from("module.js")),
+            env: Environment {
+              context: EnvironmentContext::Node,
+              output_format: OutputFormat::EsModule,
+              ..env()
+            },
+            name: String::from("module"),
+            ..Target::default()
           },
-          name: String::from("module"),
-          ..Target::default()
-        },
-        Target {
-          dist_dir: package_dir,
-          dist_entry: Some(PathBuf::from("types.d.ts")),
-          env: Environment {
-            context: EnvironmentContext::Node,
-            output_format: OutputFormat::CommonJS,
-            ..env()
+          Target {
+            dist_dir: package_dir,
+            dist_entry: Some(PathBuf::from("types.d.ts")),
+            env: Environment {
+              context: EnvironmentContext::Node,
+              output_format: OutputFormat::CommonJS,
+              ..env()
+            },
+            name: String::from("types"),
+            ..Target::default()
           },
-          name: String::from("types"),
-          ..Target::default()
-        },
-      ])),)
+        ]
+      }),)
     );
   }
 
@@ -934,20 +950,22 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![Target {
-        dist_dir: package_dir().join("dist").join("custom"),
-        dist_entry: None,
-        env: Environment {
-          context: EnvironmentContext::Browser,
-          is_library: false,
-          output_format: OutputFormat::Global,
-          should_optimize: false,
-          should_scope_hoist: false,
-          ..Environment::default()
-        },
-        name: String::from("custom"),
-        ..Target::default()
-      },])),)
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
+          dist_dir: package_dir().join("dist").join("custom"),
+          dist_entry: None,
+          env: Environment {
+            context: EnvironmentContext::Browser,
+            is_library: false,
+            output_format: OutputFormat::Global,
+            should_optimize: false,
+            should_scope_hoist: false,
+            ..Environment::default()
+          },
+          name: String::from("custom"),
+          ..Target::default()
+        },]
+      }),)
     );
   }
 
@@ -970,19 +988,21 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![Target {
-        dist_dir: package_dir().join("dist"),
-        dist_entry: Some(PathBuf::from("custom.js")),
-        env: Environment {
-          context: EnvironmentContext::Node,
-          include_node_modules: IncludeNodeModules::Bool(true),
-          is_library: false,
-          output_format: OutputFormat::CommonJS,
-          ..Environment::default()
-        },
-        name: String::from("custom"),
-        ..Target::default()
-      },])),)
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
+          dist_dir: package_dir().join("dist"),
+          dist_entry: Some(PathBuf::from("custom.js")),
+          env: Environment {
+            context: EnvironmentContext::Node,
+            include_node_modules: IncludeNodeModules::Bool(true),
+            is_library: false,
+            output_format: OutputFormat::CommonJS,
+            ..Environment::default()
+          },
+          name: String::from("custom"),
+          ..Target::default()
+        },]
+      }),)
     );
   }
 
@@ -1002,26 +1022,28 @@ mod tests {
 
     assert_eq!(
       targets.map_err(|e| e.to_string()),
-      Ok(RequestResult::Target(Targets(vec![Target {
-        dist_dir: package_dir().join("dist"),
-        dist_entry: Some(PathBuf::from("custom.js")),
-        env: Environment {
-          context: EnvironmentContext::Browser,
-          engines: Engines {
-            browsers: Browsers {
-              chrome: Some(Version::new(NonZeroU16::new(20).unwrap(), 0)),
-              firefox: Some(Version::new(NonZeroU16::new(2).unwrap(), 0)),
-              ..Browsers::default()
+      Ok(RequestResult::Target(TargetRequestOutput {
+        targets: vec![Target {
+          dist_dir: package_dir().join("dist"),
+          dist_entry: Some(PathBuf::from("custom.js")),
+          env: Environment {
+            context: EnvironmentContext::Browser,
+            engines: Engines {
+              browsers: Browsers {
+                chrome: Some(Version::new(NonZeroU16::new(20).unwrap(), 0)),
+                firefox: Some(Version::new(NonZeroU16::new(2).unwrap(), 0)),
+                ..Browsers::default()
+              },
+              ..Engines::default()
             },
-            ..Engines::default()
+            include_node_modules: IncludeNodeModules::Bool(true),
+            output_format: OutputFormat::Global,
+            ..Environment::default()
           },
-          include_node_modules: IncludeNodeModules::Bool(true),
-          output_format: OutputFormat::Global,
-          ..Environment::default()
-        },
-        name: String::from("custom"),
-        ..Target::default()
-      },])),)
+          name: String::from("custom"),
+          ..Target::default()
+        },]
+      }),)
     );
   }
 
@@ -1030,19 +1052,21 @@ mod tests {
     let assert_targets = |targets: Result<RequestResult, anyhow::Error>, engines| {
       assert_eq!(
         targets.map_err(|e| e.to_string()),
-        Ok(RequestResult::Target(Targets(vec![Target {
-          dist_dir: package_dir().join("dist"),
-          dist_entry: Some(PathBuf::from("custom.js")),
-          env: Environment {
-            context: EnvironmentContext::Node,
-            engines,
-            include_node_modules: IncludeNodeModules::Bool(false),
-            output_format: OutputFormat::CommonJS,
-            ..Environment::default()
-          },
-          name: String::from("custom"),
-          ..Target::default()
-        },])),)
+        Ok(RequestResult::Target(TargetRequestOutput {
+          targets: vec![Target {
+            dist_dir: package_dir().join("dist"),
+            dist_entry: Some(PathBuf::from("custom.js")),
+            env: Environment {
+              context: EnvironmentContext::Node,
+              engines,
+              include_node_modules: IncludeNodeModules::Bool(false),
+              output_format: OutputFormat::CommonJS,
+              ..Environment::default()
+            },
+            name: String::from("custom"),
+            ..Target::default()
+          },]
+        }),)
       );
     };
 

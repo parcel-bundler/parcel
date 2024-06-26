@@ -37,7 +37,7 @@ pub struct AssetRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AssetResult {
+pub struct AssetRequestOutput {
   pub asset: Asset,
   pub dependencies: Vec<Dependency>,
 }
@@ -69,7 +69,7 @@ impl Request for AssetRequest {
     let result = run_pipeline(
       pipeline,
       TransformationInput::InitialAsset(InitialAsset {
-        // TODO: Are these clones neccessary?
+        // TODO: Are these clones necessary?
         file_path: self.file_path.clone(),
         code: self.code.clone(),
         env: self.env.clone(),
@@ -88,7 +88,7 @@ impl Request for AssetRequest {
       .set_blob(&content_key, result.asset.code.bytes())?;
 
     Ok(ResultAndInvalidations {
-      result: RequestResult::Asset(AssetResult {
+      result: RequestResult::Asset(AssetRequestOutput {
         asset: Asset {
           stats: AssetStats {
             size: result.asset.code.size(),

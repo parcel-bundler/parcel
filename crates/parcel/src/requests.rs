@@ -1,16 +1,17 @@
-use asset_request::AssetResult;
-use path_request::PathResolution;
-use target_request::Targets;
+use asset_request::AssetRequestOutput;
+use path_request::PathRequestOutput;
+use target_request::TargetRequestOutput;
 
 mod asset_request;
 mod path_request;
 mod target_request;
 
+/// Union of all request outputs
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestResult {
-  Path(PathResolution),
-  Asset(AssetResult),
-  Target(Targets),
+  Path(PathRequestOutput),
+  Asset(AssetRequestOutput),
+  Target(TargetRequestOutput),
   // The following are test request types only used in the test build
   #[cfg(test)]
   TestSub(String),

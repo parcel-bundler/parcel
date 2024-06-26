@@ -29,7 +29,7 @@ pub struct PathRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PathResolution {
+pub enum PathRequestOutput {
   Excluded,
   Resolved {
     can_defer: bool,
@@ -82,7 +82,7 @@ impl Request for PathRequest {
         Resolution::Excluded => {
           return Ok(ResultAndInvalidations {
             invalidations: Vec::new(),
-            result: RequestResult::Path(PathResolution::Excluded),
+            result: RequestResult::Path(PathRequestOutput::Excluded),
           })
         }
         Resolution::Resolved(ResolvedResolution {
@@ -108,7 +108,7 @@ impl Request for PathRequest {
 
           return Ok(ResultAndInvalidations {
             invalidations,
-            result: RequestResult::Path(PathResolution::Resolved {
+            result: RequestResult::Path(PathRequestOutput::Resolved {
               can_defer,
               code,
               path: file_path,
@@ -126,7 +126,7 @@ impl Request for PathRequest {
     if self.dependency.is_optional {
       return Ok(ResultAndInvalidations {
         invalidations,
-        result: RequestResult::Path(PathResolution::Excluded),
+        result: RequestResult::Path(PathRequestOutput::Excluded),
       });
     }
 
@@ -215,7 +215,7 @@ mod tests {
     let resolution = request_tracker.run_request(request);
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(RequestResult::Path(PathResolution::Excluded))
+      Ok(RequestResult::Path(PathRequestOutput::Excluded))
     );
   }
 
@@ -274,7 +274,7 @@ mod tests {
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
-      Ok(RequestResult::Path(PathResolution::Resolved {
+      Ok(RequestResult::Path(PathRequestOutput::Resolved {
         can_defer: false,
         code: None,
         path: root.join("a.js"),
@@ -304,7 +304,7 @@ mod tests {
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
-        Ok(RequestResult::Path(PathResolution::Excluded))
+        Ok(RequestResult::Path(PathRequestOutput::Excluded))
       );
     }
 
