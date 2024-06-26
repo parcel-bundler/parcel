@@ -100,18 +100,11 @@ fn run_sub_request(rt: &mut RequestTracker, request: &TestRequest) -> String {
 
 /// This is a universal "Request" that can be instructed
 /// to run subrequests via the constructor
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct TestRequest {
   pub runs: Arc<AtomicUsize>,
   pub name: String,
   pub subrequests: Vec<TestRequest>,
-}
-
-impl std::fmt::Debug for TestRequest {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct(&format!("TestRequest({})", self.name))
-      .finish()
-  }
 }
 
 impl TestRequest {
@@ -154,15 +147,11 @@ impl Request for TestRequest {
 
     let (tx, rx) = channel();
 
-    let mut run_sub_requests = |tx: Sender<_>, ctx: &mut RunRequestContext| {
-      while let Some(subrequest) = subrequests.pop() {
-        let req = subrequest.clone();
-        let _ = ctx.queue_request(req, tx.clone());
-      }
-    };
-
-    // Run requests in closure to force the sender to drop when done
-    run_sub_requests(tx, &mut request_context);
+    while let Some(subrequest) = subrequests.pop() {
+      let req = subrequest.clone();
+      let _ = request_context.queue_request(req, tx.clone());
+    }
+    drop(tx);
 
     let mut results = vec![name];
     while let Ok(response) = rx.recv() {
