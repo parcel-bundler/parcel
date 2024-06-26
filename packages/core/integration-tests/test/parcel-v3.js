@@ -44,7 +44,6 @@ describe('parcel-v3', function () {
     );
     assert(!(await parcel._internal.testingTempFsIsDir(__filename)));
     assert(await parcel._internal.testingTempFsIsFile(__filename));
-    await parcel._internal.testingRpcPing();
 
     await parcel.build({});
   });

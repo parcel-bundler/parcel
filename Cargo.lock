@@ -1810,6 +1810,7 @@ dependencies = [
  "parcel-macros",
  "parcel-resolver",
  "parcel_core",
+ "parcel_napi_helpers",
  "parcel_plugin_transformer_js",
  "parking_lot",
  "rayon",
@@ -1895,6 +1896,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel_napi_helpers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "napi",
+ "napi-build",
+ "serde",
+]
+
+[[package]]
 name = "parcel_package_manager"
 version = "0.1.0"
 dependencies = [
@@ -1924,6 +1935,7 @@ dependencies = [
  "once_cell",
  "parcel_config",
  "parcel_core",
+ "parcel_napi_helpers",
  "parking_lot",
  "serde",
 ]

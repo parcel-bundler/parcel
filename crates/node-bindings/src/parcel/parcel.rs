@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::thread;
 
 use napi::Env;
-use napi::JsFunction;
 use napi::JsObject;
 use napi_derive::napi;
 
@@ -13,10 +12,10 @@ use parcel::Parcel;
 use parcel::ParcelOptions;
 
 use crate::file_system::FileSystemNapi;
-use crate::helpers::anyhow_napi;
 use crate::parcel::parcel::tracing_setup::{
   setup_tracing, ParcelTracingGuard, ParcelTracingOptions,
 };
+use parcel_napi_helpers::anyhow_to_napi;
 
 mod tracing_setup;
 
@@ -31,7 +30,6 @@ pub struct ParcelNapiOptions {
   pub threads: Option<u32>,
   pub node_workers: Option<u32>,
   pub fs: Option<JsObject>,
-  pub rpc: JsFunction,
   pub tracing_options: Option<ParcelTracingOptions>,
 }
 
@@ -45,9 +43,9 @@ pub struct ParcelNapi {
 #[napi]
 impl ParcelNapi {
   #[napi(constructor)]
-  pub fn new(env: Env, options: ParcelNapiOptions) -> napi::Result<Self> {
+  pub fn new(options: ParcelNapiOptions) -> napi::Result<Self> {
     // Debugging Instrumentation
-    let tracing_guard = setup_tracing(&options.tracing_options).map_err(anyhow_napi)?;
+    let tracing_guard = setup_tracing(&options.tracing_options).map_err(anyhow_to_napi)?;
 
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");
@@ -73,7 +71,7 @@ impl ParcelNapi {
       node_worker_count = parcel_options.threads;
     }
 
-    let rpc_host_nodejs = RpcHostNodejs::new(&env, options.rpc, node_worker_count.clone())?;
+    let rpc_host_nodejs = RpcHostNodejs::new(node_worker_count.clone())?;
     parcel_options.rpc = Some(Arc::new(rpc_host_nodejs));
 
     // Return self
@@ -116,13 +114,5 @@ impl ParcelNapi {
   #[napi]
   pub async fn _testing_temp_fs_is_dir(&self, path: String) -> napi::Result<bool> {
     Ok(self.parcel.fs.is_dir(&PathBuf::from(path)))
-  }
-
-  #[napi]
-  pub async fn _testing_rpc_ping(&self) -> napi::Result<()> {
-    if self.parcel.rpc.as_ref().unwrap().ping().is_err() {
-      return Err(napi::Error::from_reason("Failed to run"));
-    }
-    Ok(())
   }
 }

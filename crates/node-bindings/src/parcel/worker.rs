@@ -1,10 +1,10 @@
-use napi::{Env, JsFunction, JsUndefined};
+use napi::{Env, JsObject, JsUndefined};
 use napi_derive::napi;
-
-use parcel::rpc::nodejs::RpcConnectionNodejs;
+use parcel::rpc::nodejs::NodejsWorker;
 
 #[napi]
-pub fn worker_callback(env: Env, callback: JsFunction) -> napi::Result<JsUndefined> {
-  RpcConnectionNodejs::create_worker_callback(&env, callback)?;
+pub fn register_worker(env: Env, worker: JsObject) -> napi::Result<JsUndefined> {
+  let worker = NodejsWorker::new(worker)?;
+  NodejsWorker::register_worker(worker);
   env.get_undefined()
 }
