@@ -1,18 +1,18 @@
 use parking_lot::Mutex;
 
-use super::RpcConnectionNodejs;
+use super::NodejsWorker;
 
 use crate::RpcWorker;
 
 /// Connection to multiple Nodejs Workers
 /// Implements round robin messaging
-pub struct RpcConnectionNodejsMulti {
+pub struct NodejsWorkerFarm {
   current_index: Mutex<usize>, // TODO use AtomicUsize
-  conns: Vec<RpcConnectionNodejs>,
+  conns: Vec<NodejsWorker>,
 }
 
-impl RpcConnectionNodejsMulti {
-  pub fn new(conns: Vec<RpcConnectionNodejs>) -> Self {
+impl NodejsWorkerFarm {
+  pub fn new(conns: Vec<NodejsWorker>) -> Self {
     Self {
       current_index: Default::default(),
       conns,
@@ -31,7 +31,7 @@ impl RpcConnectionNodejsMulti {
   }
 }
 
-impl RpcWorker for RpcConnectionNodejsMulti {
+impl RpcWorker for NodejsWorkerFarm {
   fn ping(&self) -> anyhow::Result<()> {
     for conn in &self.conns {
       conn.ping()?;

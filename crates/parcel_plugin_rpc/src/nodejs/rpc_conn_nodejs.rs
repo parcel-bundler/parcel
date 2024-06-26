@@ -8,11 +8,11 @@ use super::worker_init::register_worker;
 
 /// RpcConnectionNodejs wraps the communication with a
 /// single Nodejs worker thread
-pub struct RpcConnectionNodejs {
+pub struct NodejsWorker {
   ping_fn: JsCallable,
 }
 
-impl RpcConnectionNodejs {
+impl NodejsWorker {
   pub fn new(delegate: JsObject) -> napi::Result<Self> {
     Ok(Self {
       ping_fn: JsCallable::new_from_object_prop_bound("ping", &delegate)?,
@@ -24,7 +24,7 @@ impl RpcConnectionNodejs {
   }
 }
 
-impl RpcWorker for RpcConnectionNodejs {
+impl RpcWorker for NodejsWorker {
   fn ping(&self) -> anyhow::Result<()> {
     self
       .ping_fn

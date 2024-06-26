@@ -4,7 +4,7 @@ use crate::RpcHost;
 use crate::RpcWorkerRef;
 
 use super::worker_init::get_worker;
-use super::RpcConnectionNodejsMulti;
+use super::NodejsWorkerFarm;
 
 pub struct RpcHostNodejs {
   node_workers: usize,
@@ -25,6 +25,6 @@ impl RpcHost for RpcHostNodejs {
       connections.push(get_worker())
     }
 
-    Ok(Arc::new(RpcConnectionNodejsMulti::new(connections)))
+    Ok(Arc::new(NodejsWorkerFarm::new(connections)))
   }
 }

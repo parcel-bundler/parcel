@@ -5,19 +5,19 @@ use std::{
 
 use once_cell::sync::Lazy;
 
-use super::RpcConnectionNodejs;
+use super::NodejsWorker;
 
 enum WorkerInitMessage {
-  Subscribe(Sender<RpcConnectionNodejs>),
-  Register(RpcConnectionNodejs),
+  Subscribe(Sender<NodejsWorker>),
+  Register(NodejsWorker),
 }
 
 static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   let (tx_subscribe, rx_subscribe) = channel::<WorkerInitMessage>();
 
   thread::spawn(move || {
-    let mut subscribers = Vec::<Sender<RpcConnectionNodejs>>::new();
-    let mut workers = Vec::<RpcConnectionNodejs>::new();
+    let mut subscribers = Vec::<Sender<NodejsWorker>>::new();
+    let mut workers = Vec::<NodejsWorker>::new();
 
     while let Ok(msg) = rx_subscribe.recv() {
       match msg {
@@ -42,13 +42,13 @@ static WORKER_INIT: Lazy<Sender<WorkerInitMessage>> = Lazy::new(|| {
   tx_subscribe
 });
 
-pub fn get_worker() -> RpcConnectionNodejs {
+pub fn get_worker() -> NodejsWorker {
   let (tx, rx) = channel();
   WORKER_INIT.send(WorkerInitMessage::Subscribe(tx)).unwrap();
   rx.recv().unwrap()
 }
 
-pub fn register_worker(worker: RpcConnectionNodejs) {
+pub fn register_worker(worker: NodejsWorker) {
   WORKER_INIT
     .send(WorkerInitMessage::Register(worker))
     .unwrap();
