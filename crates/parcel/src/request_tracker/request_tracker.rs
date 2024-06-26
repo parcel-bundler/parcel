@@ -87,6 +87,11 @@ impl RequestTracker {
   ///   the cooperative threading behaviours async will grant us.
   /// * Don't use rayon for multi-threading here and use a custom thread-pool implementation which
   ///   ensures we always have more threads than concurrently running requests
+  /// * Run requests that need to spawn multithreaded sub-requests on the main-thread
+  ///   - That is, introduce a new `MainThreadRequest` trait, which is able to enqueue requests,
+  ///     these will run on the main-thread, therefore it'll be simpler to implement queueing
+  ///     without stalls and locks/channels
+  ///   - For non-main-thread requests, do not allow enqueueing of sub-requests
   #[allow(unused)]
   pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
     let thread_pool = rayon::ThreadPoolBuilder::new()
