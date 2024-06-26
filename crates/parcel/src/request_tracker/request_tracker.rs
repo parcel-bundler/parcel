@@ -68,9 +68,30 @@ impl RequestTracker {
   }
 
   /// Run a request that has no parent. Return the result.
+  ///
+  /// ## Multi-threading
+  /// Sub-requests may be queued from this initial `request` using
+  /// [`RunRequestContext::queue_request`].
+  /// All sub-requests will run on separate tasks on a thread-pool.
+  ///
+  /// A request may use the channel passed into  [`RunRequestContext::queue_request`] to wait for
+  /// results from sub-requests.
+  ///
+  /// Because threads will be blocked by waiting on sub-requests, the system may stall if the thread
+  /// pool runs out of threads. For the same reason, the number of threads must always be greater
+  /// than 1. For this reason the minimum number of threads our thread-pool uses is 4.
+  ///
+  /// There are two ways we can fix this in our implementation:
+  /// * Use async, so we get cooperative multi-threading and don't need to worry about this
+  /// * Whenever we block a thread, block using recv_timeout and then use [`rayon::yield`] so other
+  ///   tasks get a chance to tick on our thread-pool. This is a very poor implementation of
+  ///   the cooperative threading behaviours async will grant us.
   #[allow(unused)]
   pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
-    rayon::in_place_scope(|scope| {
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+      .num_threads(num_cpus::get() + 4)
+      .build()?;
+    thread_pool.in_place_scope(|scope| {
       let request_id = request.id();
       let (tx, rx) = std::sync::mpsc::channel();
       let tx2 = tx.clone();
@@ -156,7 +177,7 @@ impl RequestTracker {
     })
   }
 
-  /// Before a request is ran, a 'pending' `RequestNode::Incomplete` entry is added to the graph.
+  /// Before a request is run, a 'pending' `RequestNode::Incomplete` entry is added to the graph.
   #[allow(unused)]
   fn prepare_request(&mut self, request_id: u64) -> anyhow::Result<bool> {
     let node_index = self

@@ -88,15 +88,16 @@ fn should_run_request_once_2() {
   assert_eq!(request_b.run_count(), 1);
 }
 
-fn run_request(rt: &mut RequestTracker, request: &TestRequest) -> Vec<String> {
-  let RequestResult::TestMain(result) = rt.run_request(request.clone()).unwrap() else {
+fn run_request(request_tracker: &mut RequestTracker, request: &TestRequest) -> Vec<String> {
+  let RequestResult::TestMain(result) = request_tracker.run_request(request.clone()).unwrap()
+  else {
     panic!("Unexpected result");
   };
   result
 }
 
-fn run_sub_request(rt: &mut RequestTracker, request: &TestRequest) -> String {
-  let RequestResult::TestSub(result) = rt.run_request(request.clone()).unwrap() else {
+fn run_sub_request(request_tracker: &mut RequestTracker, request: &TestRequest) -> String {
+  let RequestResult::TestSub(result) = request_tracker.run_request(request.clone()).unwrap() else {
     panic!("Unexpected result");
   };
   result
