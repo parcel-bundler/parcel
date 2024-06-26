@@ -1,4 +1,4 @@
-# Parcel v3 - RFC 1 - Cache implementation
+# Parcel v3 - RFC - Cache implementation
 
 ## Current state
 
@@ -190,6 +190,16 @@ We will deprecate hybrid file-system and LMDB caches. All entries will be writte
 We should consider that at some point the cache contents may be segmented between a local and a remote cache. That is,
 a cache server URL might be provided and the bundler should be able to fetch from it if a cache entry is missing
 locally.
+
+## LMDB wrapper library
+
+Suggest we use:
+
+* https://github.com/meilisearch/heed
+
+Which seems mature enough due to usage in `meilisearch`. We should aim to use a zero-copy serialization library in
+conjunction to this (such as https://rkyv.org/ or captn proto), to improve performance of reading from the cache
+further.
 
 ## Serialization performance
 
