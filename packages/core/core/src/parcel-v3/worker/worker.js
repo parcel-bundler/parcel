@@ -6,10 +6,8 @@ export class ParcelWorker {
   #resolvers: Map<string, ResolverNapi>;
 
   ping() {
-    console.log('Hi');
+    // console.log('Hi');
   }
-
-  registerResolver() {}
 }
 
 napi.registerWorker(new ParcelWorker());

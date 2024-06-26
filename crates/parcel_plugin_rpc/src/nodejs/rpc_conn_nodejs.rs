@@ -28,7 +28,11 @@ impl RpcWorker for RpcConnectionNodejs {
   fn ping(&self) -> anyhow::Result<()> {
     self
       .ping_fn
-      .call(|_env| Ok(Vec::<JsUnknown>::new()))
-      .map_err(anyhow_from_napi)
+      .call_with_return(
+        |_env| Ok(Vec::<JsUnknown>::new()),
+        |_env, _| Ok(Vec::<()>::new()),
+      )
+      .map_err(anyhow_from_napi)?;
+    Ok(())
   }
 }

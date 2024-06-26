@@ -19,6 +19,7 @@ impl RpcConnectionNodejsMulti {
     }
   }
 
+  #[allow(unused)]
   fn next_index(&self) -> usize {
     let mut current_index = self.current_index.lock();
     if *current_index >= self.conns.len() - 1 {
@@ -32,7 +33,9 @@ impl RpcConnectionNodejsMulti {
 
 impl RpcWorker for RpcConnectionNodejsMulti {
   fn ping(&self) -> anyhow::Result<()> {
-    let next = self.next_index();
-    self.conns[next].ping()
+    for conn in &self.conns {
+      conn.ping()?;
+    }
+    Ok(())
   }
 }

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::thread;
 
 use napi::Env;
-use napi::JsFunction;
 use napi::JsObject;
 use napi_derive::napi;
 
@@ -31,7 +30,6 @@ pub struct ParcelNapiOptions {
   pub threads: Option<u32>,
   pub node_workers: Option<u32>,
   pub fs: Option<JsObject>,
-  pub rpc: JsFunction,
   pub tracing_options: Option<ParcelTracingOptions>,
 }
 
