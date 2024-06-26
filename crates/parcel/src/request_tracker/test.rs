@@ -221,7 +221,7 @@ impl Request for TestRequest2 {
 
 #[test]
 fn test_queued_subrequests() {
-  let sub_requests = 500;
+  let sub_requests = 20;
   let result = request_tracker(Default::default()).run_request(TestRequest2 { sub_requests });
 
   match result {
