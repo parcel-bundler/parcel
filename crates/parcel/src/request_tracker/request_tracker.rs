@@ -2,20 +2,18 @@ use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-use parcel_core::cache::CacheRef;
-use parcel_core::config_loader::ConfigLoaderRef;
+use anyhow::anyhow;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 
-use crate::plugins::PluginsRef;
-use parcel_core::plugin::ReporterEvent;
+use parcel_core::cache::CacheRef;
+use parcel_core::config_loader::ConfigLoaderRef;
+use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 use parcel_core::plugin::ReporterPlugin;
 use parcel_filesystem::FileSystemRef;
 
+use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
-
-use anyhow::anyhow;
-use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 
 use super::Request;
 use super::RequestEdgeType;
@@ -65,13 +63,6 @@ impl RequestTracker {
       file_system,
       plugins,
       config_loader,
-    }
-  }
-
-  pub fn report(&self, event: ReporterEvent) {
-    if let Err(err) = self.reporter.report(&event) {
-      // TODO: We should fail the build
-      tracing::error!("REPORTER FAILED {}", err)
     }
   }
 

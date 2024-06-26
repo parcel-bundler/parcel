@@ -5,7 +5,6 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use crate::requests::RequestResult;
 use crate::test_utils::request_tracker;
@@ -105,7 +104,7 @@ fn run_sub_request(rt: &mut RequestTracker, request: &TestRequest) -> String {
 pub struct TestRequest {
   pub runs: Arc<AtomicUsize>,
   pub name: String,
-  pub subrequests: Arc<Mutex<Vec<TestRequest>>>,
+  pub subrequests: Vec<TestRequest>,
 }
 
 impl std::fmt::Debug for TestRequest {
@@ -120,7 +119,7 @@ impl TestRequest {
     Self {
       runs: Default::default(),
       name: name.as_ref().to_string(),
-      subrequests: Arc::new(Mutex::new(subrequests.to_owned())),
+      subrequests: subrequests.to_owned(),
     }
   }
 
@@ -144,7 +143,7 @@ impl Request for TestRequest {
 
     let name = self.name.clone();
 
-    let mut subrequests = self.subrequests.lock().unwrap().clone();
+    let mut subrequests = self.subrequests.clone();
 
     if subrequests.is_empty() {
       return Ok(ResultAndInvalidations {
@@ -233,7 +232,7 @@ impl Request for TestRequest2 {
 
 #[test]
 fn test_queued_subrequests() {
-  let sub_requests = 20;
+  let sub_requests = 500;
   let result = request_tracker(Default::default()).run_request(TestRequest2 { sub_requests });
 
   match result {
