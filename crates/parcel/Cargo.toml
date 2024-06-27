@@ -19,6 +19,7 @@ parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 
 anyhow = "1.0.82"
 dyn-hash = "0.x"
+heed = "0.20.2"
 petgraph = "0.x"
 serde = { version = "1.0.200", features = ["derive"] }
 serde-bool = "0.1.3"
