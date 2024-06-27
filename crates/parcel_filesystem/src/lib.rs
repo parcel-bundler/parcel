@@ -14,7 +14,9 @@ pub mod search;
 
 /// File-system implementation using std::fs and a canonicalize cache
 pub mod os_file_system;
-mod tracking_file_system;
+
+/// File-system wrapper that tracks methods calls
+pub mod tracking_file_system;
 
 /// FileSystem abstraction instance.
 /// This should be `OsFileSystem` for non-testing environments and `InMemoryFileSystem` for
@@ -54,4 +56,64 @@ pub trait FileSystem {
   fn read_to_string(&self, path: &Path) -> Result<String>;
   fn is_file(&self, path: &Path) -> bool;
   fn is_dir(&self, path: &Path) -> bool;
+}
+
+impl<'a, Fs: FileSystem> FileSystem for &'a Fs {
+  fn cwd(&self) -> Result<PathBuf> {
+    (*self).cwd()
+  }
+
+  fn canonicalize_base(&self, path: &Path) -> Result<PathBuf> {
+    (*self).canonicalize_base(path)
+  }
+
+  fn canonicalize(
+    &self,
+    path: &Path,
+    cache: &DashMap<PathBuf, Option<PathBuf>>,
+  ) -> Result<PathBuf> {
+    (*self).canonicalize(path, cache)
+  }
+
+  fn read_to_string(&self, path: &Path) -> Result<String> {
+    (*self).read_to_string(path)
+  }
+
+  fn is_file(&self, path: &Path) -> bool {
+    (*self).is_file(path)
+  }
+
+  fn is_dir(&self, path: &Path) -> bool {
+    (*self).is_dir(path)
+  }
+}
+
+impl FileSystem for FileSystemRef {
+  fn cwd(&self) -> Result<PathBuf> {
+    (**self).cwd()
+  }
+
+  fn canonicalize_base(&self, path: &Path) -> Result<PathBuf> {
+    (**self).canonicalize_base(path)
+  }
+
+  fn canonicalize(
+    &self,
+    path: &Path,
+    cache: &DashMap<PathBuf, Option<PathBuf>>,
+  ) -> Result<PathBuf> {
+    (**self).canonicalize(path, cache)
+  }
+
+  fn read_to_string(&self, path: &Path) -> Result<String> {
+    (**self).read_to_string(path)
+  }
+
+  fn is_file(&self, path: &Path) -> bool {
+    (**self).is_file(path)
+  }
+
+  fn is_dir(&self, path: &Path) -> bool {
+    (**self).is_dir(path)
+  }
 }

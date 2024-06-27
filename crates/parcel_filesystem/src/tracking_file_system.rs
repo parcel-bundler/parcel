@@ -5,11 +5,24 @@ use dashmap::DashMap;
 
 use crate::FileSystem;
 
+#[derive(PartialEq, Eq, Debug, PartialOrd)]
 pub enum FileSystemOperation {
   Read(PathBuf),
   Stat(PathBuf),
   Cwd,
   Canonicalize(PathBuf),
+}
+
+impl FileSystemOperation {
+  /// Return the path this operation refers to if it's a path-based operation.
+  pub fn path(&self) -> Option<PathBuf> {
+    match self {
+      FileSystemOperation::Read(path) => Some(path.clone()),
+      FileSystemOperation::Stat(path) => Some(path.clone()),
+      FileSystemOperation::Canonicalize(path) => Some(path.clone()),
+      _ => None,
+    }
+  }
 }
 
 /// This is a FileSystem implementation that tracks reads and writes to a delegate filesystem
@@ -88,5 +101,65 @@ where
       .borrow_mut()
       .push(FileSystemOperation::Stat(path.to_path_buf()));
     self.delegate.is_dir(path)
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use std::path::{Path, PathBuf};
+
+  use crate::{FileSystem, MockFileSystem};
+
+  use super::*;
+
+  #[test]
+  fn test_tracking_filesystem() {
+    let mut child = MockFileSystem::new();
+    child
+      .expect_canonicalize()
+      .returning(|_, _| Ok(PathBuf::from("foo")));
+    child.expect_cwd().returning(|| Ok(PathBuf::from("foo")));
+    child
+      .expect_read_to_string()
+      .returning(|_| Ok("".to_string()));
+    child.expect_is_file().returning(|_| true);
+    child.expect_is_dir().returning(|_| true);
+
+    let fs = TrackingFileSystem::new(child);
+
+    let _ = fs.cwd();
+    let _ = fs.canonicalize(Path::new("foo"), &DashMap::new());
+    let _ = fs.read_to_string(Path::new("bar"));
+    let _ = fs.is_file(Path::new("bar"));
+    let _ = fs.is_dir(Path::new("bar"));
+
+    let operations = fs.take_operations();
+    assert_eq!(operations.len(), 5);
+    assert_eq!(operations[0], FileSystemOperation::Cwd);
+    assert_eq!(
+      operations[1],
+      FileSystemOperation::Canonicalize(PathBuf::from("foo"))
+    );
+    assert_eq!(
+      operations[2],
+      FileSystemOperation::Read(PathBuf::from("bar"))
+    );
+    assert_eq!(
+      operations[3],
+      FileSystemOperation::Stat(PathBuf::from("bar"))
+    );
+    assert_eq!(
+      operations[4],
+      FileSystemOperation::Stat(PathBuf::from("bar"))
+    );
+
+    let operations = fs.take_operations();
+    assert_eq!(operations.len(), 0);
+  }
+
+  #[test]
+  fn test_create_tracking_file_system_from_ref() {
+    let child = MockFileSystem::new();
+    let _tracking = TrackingFileSystem::new(&child);
   }
 }
