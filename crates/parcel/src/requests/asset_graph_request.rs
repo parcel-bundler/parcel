@@ -1,11 +1,17 @@
+use std::collections::HashSet;
 use std::sync::mpsc::channel;
+use std::sync::Arc;
 
-use parcel_core::asset_graph::{AssetGraph, AssetGraphNode};
+use parcel_core::asset_graph::{
+  AssetGraph, AssetGraphEdge, AssetGraphNode, DependencyNode, DependencyState,
+};
 use parcel_core::types::DefaultTargetOptions;
 
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
+use super::asset_request::AssetRequest;
 use super::entry_request::{EntryRequest, EntryRequestOutput};
+use super::path_request::{PathRequest, PathRequestOutput};
 use super::target_request::TargetRequest;
 use super::RequestResult;
 
@@ -26,6 +32,7 @@ impl Request for AssetGraphRequest {
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     let mut graph = AssetGraph::new();
     let root = graph.graph.add_node(AssetGraphNode::Root);
+    let mut visited = HashSet::new();
 
     let (tx, rx) = channel();
     request_context.queue_request(
@@ -53,11 +60,79 @@ impl Request for AssetGraphRequest {
             request_context.queue_request(target_request, tx.clone());
           }
         }
+        Ok(RequestResult::Target(_)) => {
+          todo!();
+        }
         Ok(RequestResult::Asset(_)) => {
           todo!();
         }
-        Ok(RequestResult::Path(_)) => {
-          todo!();
+        Ok(RequestResult::Path(result)) => {
+          // TODO: Get revelant node
+          let node = root;
+          let dep_index = graph.dependency_index(node).unwrap();
+          let DependencyNode {
+            dependency,
+            requested_symbols,
+            state,
+          } = &mut graph.dependencies[dep_index];
+          let asset_request = match result {
+            PathRequestOutput::Resolved {
+              path,
+              code,
+              pipeline,
+              side_effects,
+              query,
+              can_defer,
+            } => {
+              if !side_effects
+                && can_defer
+                && requested_symbols.is_empty()
+                && dependency.has_symbols
+              {
+                *state = DependencyState::Deferred;
+                continue;
+              }
+
+              *state = DependencyState::Resolved;
+              AssetRequest {
+                file_path: path,
+                code: code.clone(),
+                pipeline: pipeline.clone(),
+                side_effects: side_effects.clone(),
+                // TODO: Dependency.env should be an Arc by default
+                env: Arc::new(dependency.env),
+                query,
+              }
+            }
+            PathRequestOutput::Excluded => {
+              *state = DependencyState::Excluded;
+              continue;
+            }
+          };
+
+          let id = asset_request.id();
+          if visited.insert(id) {
+            request_context.queue_request(asset_request, tx.clone());
+          } else if let Some(asset_node) = asset_request_to_asset.get(&id) {
+            graph.graph.add_edge(node, *asset_node, AssetGraphEdge {});
+
+            // TODO: Symbol propagation like in core-rs2?
+            request_context.queue_request(
+              PathRequest {
+                dependency: dependency.clone(),
+                // TODO: Where should named pipelines come from?
+                named_pipelines: vec![],
+              },
+              tx.clone(),
+            );
+          } else {
+            waiting_asset_requests
+              .entry(id)
+              .and_modify(|nodes| {
+                nodes.insert(node);
+              })
+              .or_insert_with(|| HashSet::from([node]));
+          }
         }
         other => {
           todo!("{:?}", other);

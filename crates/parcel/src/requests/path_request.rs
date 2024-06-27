@@ -25,7 +25,6 @@ use super::RequestResult;
 pub struct PathRequest {
   pub dependency: Arc<Dependency>,
   pub named_pipelines: Vec<String>,
-  pub resolvers: Arc<Vec<Box<dyn ResolverPlugin>>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,7 +67,7 @@ impl Request for PathRequest {
 
     let mut invalidations = Vec::new();
 
-    for resolver in self.resolvers.iter() {
+    for resolver in request_context.plugins().resolvers()? {
       let resolved = resolver.resolve(ResolveContext {
         dependency: Arc::clone(&self.dependency),
         pipeline: parsed_pipeline.clone(),

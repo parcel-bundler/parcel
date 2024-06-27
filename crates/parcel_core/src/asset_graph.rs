@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use petgraph::graph::{DiGraph, NodeIndex};
 
@@ -7,20 +7,20 @@ use crate::types::{Asset, Dependency};
 #[derive(Debug, Clone)]
 pub struct AssetGraph {
   pub graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
-  assets: Vec<AssetNode>,
-  dependencies: Vec<DependencyNode>,
+  pub assets: Vec<AssetNode>,
+  pub dependencies: Vec<DependencyNode>,
 }
 
 #[derive(Debug, Clone)]
-struct AssetNode {
-  asset: Asset,
+pub struct AssetNode {
+  pub asset: Asset,
 }
 
 #[derive(Debug, Clone)]
-struct DependencyNode {
-  dependency: Dependency,
-  requested_symbols: HashSet<String>,
-  state: DependencyState,
+pub struct DependencyNode {
+  pub dependency: Arc<Dependency>,
+  pub requested_symbols: HashSet<String>,
+  pub state: DependencyState,
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +35,7 @@ pub enum AssetGraphNode {
 pub struct AssetGraphEdge {}
 
 #[derive(Debug, Clone, PartialEq)]
-enum DependencyState {
+pub enum DependencyState {
   New,
   Deferred,
   Excluded,
@@ -58,7 +58,7 @@ impl AssetGraph {
   ) -> NodeIndex {
     let idx = self.dependencies.len();
     self.dependencies.push(DependencyNode {
-      dependency: dep,
+      dependency: Arc::new(dep),
       requested_symbols,
       state: DependencyState::New,
     });
