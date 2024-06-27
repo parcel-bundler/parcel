@@ -1,9 +1,12 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystemRef;
 use serde::de::DeserializeOwned;
+
+pub type ConfigLoaderRef = Arc<ConfigLoader>;
 
 /// Enables config to be loaded in various formats
 pub struct ConfigLoader {

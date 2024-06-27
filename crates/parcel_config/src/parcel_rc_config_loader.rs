@@ -284,6 +284,7 @@ mod tests {
 
   mod empty_config_and_fallback {
     use std::rc::Rc;
+    use std::sync::Arc;
 
     use super::*;
     use crate::parcel_config_fixtures::default_config;
@@ -339,7 +340,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap();
 
-      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Arc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.write_file(&default_config.path, default_config.parcel_rc);
@@ -356,7 +357,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = fs.cwd().unwrap().join("src").join("packages").join("root");
 
-      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Arc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.write_file(&default_config.path, default_config.parcel_rc);
@@ -373,7 +374,7 @@ mod tests {
       let fs = Rc::new(InMemoryFileSystem::default());
       let project_root = PathBuf::from("/root");
 
-      let default_config = default_config(Rc::new(project_root.join(".parcelrc")));
+      let default_config = default_config(Arc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
       fs.set_current_working_directory(PathBuf::from("/cwd"));
@@ -566,6 +567,7 @@ mod tests {
 
   mod fallback_config {
     use std::rc::Rc;
+    use std::sync::Arc;
 
     use super::*;
     use crate::parcel_config_fixtures::default_config;
@@ -687,7 +689,7 @@ mod tests {
       let project_root = fs.cwd().unwrap();
 
       let (fallback_specifier, fallback) = fallback_config(&project_root);
-      let project_root_config = default_config(Rc::new(project_root.join(".parcelrc")));
+      let project_root_config = default_config(Arc::new(project_root.join(".parcelrc")));
 
       fs.write_file(&project_root_config.path, project_root_config.parcel_rc);
       fs.write_file(&fallback.path, String::from("{}"));

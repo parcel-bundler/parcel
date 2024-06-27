@@ -72,7 +72,6 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
 #[cfg(test)]
 mod test {
   use std::path::PathBuf;
-  use std::rc::Rc;
   use std::sync::Arc;
 
   use parcel_core::plugin::{
@@ -94,7 +93,7 @@ mod test {
 
   #[test]
   fn test_asset_id_is_stable() {
-    let source_code = Rc::new(Code::from(String::from("function hello() {}")));
+    let source_code = Arc::new(Code::from(String::from("function hello() {}")));
     let asset_1 = Asset::new_empty("mock_path".into(), source_code.clone());
     let asset_2 = Asset::new_empty("mock_path".into(), source_code);
     // This nº should not change across runs / compilation
@@ -104,7 +103,7 @@ mod test {
 
   #[test]
   fn test_transformer_on_noop_asset() {
-    let source_code = Rc::new(Code::from(String::from("function hello() {}")));
+    let source_code = Arc::new(Code::from(String::from("function hello() {}")));
     let target_asset = Asset::new_empty("mock_path".into(), source_code);
     let asset_id = target_asset.id();
     let result = run_test(target_asset).unwrap();
@@ -116,7 +115,7 @@ mod test {
           file_path: "mock_path".into(),
           asset_type: FileType::Js,
           // SWC inserts a newline here
-          code: Rc::new(Code::from(String::from("function hello() {}\n"))),
+          code: Arc::new(Code::from(String::from("function hello() {}\n"))),
           symbols: vec![],
           has_symbols: true,
           unique_key: Some(format!("{:016x}", asset_id)),
@@ -130,7 +129,7 @@ mod test {
 
   #[test]
   fn test_transformer_on_asset_that_requires_other() {
-    let source_code = Rc::new(Code::from(String::from(
+    let source_code = Arc::new(Code::from(String::from(
       r#"
 const x = require('other');
 exports.hello = function() {};
@@ -172,7 +171,7 @@ exports.hello = function() {};
           file_path: "mock_path.js".into(),
           asset_type: FileType::Js,
           // SWC inserts a newline here
-          code: Rc::new(Code::from(String::from(
+          code: Arc::new(Code::from(String::from(
             "const x = require(\"e83f3db3d6f57ea6\");\nexports.hello = function() {};\n"
           ))),
           symbols: vec![

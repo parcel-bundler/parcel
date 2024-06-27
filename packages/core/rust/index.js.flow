@@ -16,12 +16,10 @@ export interface ConfigRequest {
 }
 export interface RequestOptions {}
 
-export type RpcCallback = (error: any, id: number, data: any, done: (value: {| Ok: any |} | {| Err: any |}) => any) => any | Promise<any>;
-
 export interface ParcelNapiOptions {
-  fs?: ParcelFileSystem;
+  threads?: number;
   nodeWorkers?: number;
-  rpc?: RpcCallback;
+  fs?: ParcelFileSystem;
 }
 
 declare export class ParcelNapi {
@@ -35,7 +33,7 @@ declare export class ParcelNapi {
   testingRpcPing(): void;
 }
 
-declare export function workerCallback(callback: RpcCallback): void
+declare export function registerWorker(worker: any): void
 
 declare export function initSentry(): void;
 declare export function closeSentry(): void;

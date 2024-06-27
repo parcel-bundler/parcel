@@ -8,7 +8,7 @@ use parcel_core::plugin::{
 };
 use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
 
-use crate::helpers::anyhow_napi;
+use parcel_napi_helpers::anyhow_to_napi;
 
 #[napi]
 pub fn _testing_run_parcel_js_transformer_plugin(
@@ -23,7 +23,7 @@ pub fn _testing_run_parcel_js_transformer_plugin(
   });
   let result = transformer
     .transform(&mut context, input)
-    .map_err(anyhow_napi)?;
+    .map_err(anyhow_to_napi)?;
   let result = env.to_js_value(&result)?;
   Ok(result)
 }

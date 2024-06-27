@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -51,7 +50,7 @@ impl TransformationInput {
     }
   }
 
-  pub fn read_code(&self, fs: FileSystemRef) -> anyhow::Result<Rc<Code>> {
+  pub fn read_code(&self, fs: FileSystemRef) -> anyhow::Result<Arc<Code>> {
     match self {
       TransformationInput::InitialAsset(raw_asset) => {
         let code = if let Some(code) = &raw_asset.code {
@@ -60,7 +59,7 @@ impl TransformationInput {
           let source = fs.read_to_string(&raw_asset.file_path)?;
           Code::from(source)
         };
-        Ok(Rc::new(code))
+        Ok(Arc::new(code))
       }
       TransformationInput::Asset(asset) => Ok(asset.code.clone()),
     }

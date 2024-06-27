@@ -284,11 +284,11 @@ mod test {
     fs.write_file(Path::new("/foo/something.js"), "contents".to_string());
 
     let plugin_context = PluginContext {
-      config: ConfigLoader {
+      config: Arc::new(ConfigLoader {
         fs,
         project_root: PathBuf::default(),
         search_path: PathBuf::from("/foo"),
-      },
+      }),
       options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
     };

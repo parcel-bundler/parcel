@@ -4,7 +4,7 @@ use napi::JsObject;
 
 use parcel::file_system::FileSystem;
 
-use crate::helpers::js_callable::JsCallable;
+use parcel_napi_helpers::js_callable::JsCallable;
 
 // TODO error handling
 

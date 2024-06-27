@@ -34,7 +34,6 @@ use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
 
 // TODO Implement specifics of injecting env for napi plugins
 
-// TODO: remove lifetime from plugins
 pub type PluginsRef = Arc<Plugins>;
 
 /// Loads plugins based on the Parcel config
@@ -43,12 +42,12 @@ pub struct Plugins {
   config: ParcelConfig,
 
   /// Dependencies available to all plugin types
-  ctx: PluginContext,
+  ctx: Arc<PluginContext>,
 }
 
 impl Plugins {
   #[allow(unused)]
-  pub fn new(config: ParcelConfig, ctx: PluginContext) -> Self {
+  pub fn new(config: ParcelConfig, ctx: Arc<PluginContext>) -> Self {
     Plugins { config, ctx }
   }
 
@@ -231,35 +230,9 @@ impl Debug for TransformerPipeline {
 
 #[cfg(test)]
 mod tests {
-  use std::path::PathBuf;
-  use std::rc::Rc;
-  use std::sync::Arc;
-
-  use parcel_config::parcel_config_fixtures::default_config;
-  use parcel_core::config_loader::ConfigLoader;
-  use parcel_core::plugin::PluginLogger;
-  use parcel_core::plugin::PluginOptions;
-  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use crate::test_utils::{make_test_plugin_context, plugins};
 
   use super::*;
-
-  fn make_test_plugin_context() -> PluginContext {
-    PluginContext {
-      config: ConfigLoader {
-        fs: Arc::new(InMemoryFileSystem::default()),
-        project_root: PathBuf::default(),
-        search_path: PathBuf::default(),
-      },
-      options: Arc::new(PluginOptions::default()),
-      logger: PluginLogger::default(),
-    }
-  }
-
-  fn plugins(ctx: PluginContext) -> Plugins {
-    let fixture = default_config(Rc::new(PathBuf::default()));
-
-    Plugins::new(fixture.parcel_config, ctx)
-  }
 
   #[test]
   fn returns_bundler() {

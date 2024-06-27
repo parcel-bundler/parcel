@@ -27,7 +27,7 @@ pub struct NamedPattern<'a> {
 ///
 /// ```
 /// use std::path::PathBuf;
-/// use std::rc::Rc;
+/// use std::sync::Arc;
 ///
 /// use indexmap::indexmap;
 /// use parcel_config::map::NamedPipelinesMap;
@@ -36,7 +36,7 @@ pub struct NamedPattern<'a> {
 /// NamedPipelinesMap::new(indexmap! {
 ///   String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec![PluginNode {
 ///     package_name: String::from("@parcel/transformer-js"),
-///     resolve_from: Rc::new(PathBuf::default()),
+///     resolve_from: Arc::new(PathBuf::default()),
 ///   }]
 /// });
 /// ```
@@ -72,7 +72,7 @@ impl NamedPipelinesMap {
   /// ```
   /// use std::path::Path;
   /// use std::path::PathBuf;
-  /// use std::rc::Rc;
+  /// use std::sync::Arc;
   ///
   /// use indexmap::indexmap;
   /// use parcel_config::map::NamedPattern;
@@ -82,11 +82,11 @@ impl NamedPipelinesMap {
   /// let pipelines_map = NamedPipelinesMap::new(indexmap! {
   ///   String::from("types:*.{ts,tsx}") => vec![PluginNode {
   ///     package_name: String::from("@parcel/transformer-typescript-types"),
-  ///     resolve_from: Rc::new(PathBuf::default()),
+  ///     resolve_from: Arc::new(PathBuf::default()),
   ///   }],
   ///   String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec![PluginNode {
   ///     package_name: String::from("@parcel/transformer-js"),
-  ///     resolve_from: Rc::new(PathBuf::default()),
+  ///     resolve_from: Arc::new(PathBuf::default()),
   ///   }],
   /// });
   ///
@@ -156,14 +156,14 @@ impl NamedPipelinesMap {
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;
-  use std::rc::Rc;
+  use std::sync::Arc;
 
   use super::*;
 
   fn pipelines(name: &str) -> Vec<PluginNode> {
     vec![PluginNode {
       package_name: format!("@parcel/plugin-{}", name),
-      resolve_from: Rc::new(PathBuf::default()),
+      resolve_from: Arc::new(PathBuf::default()),
     }]
   }
 

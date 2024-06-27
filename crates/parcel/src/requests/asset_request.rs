@@ -1,5 +1,4 @@
 use std::hash::Hash;
-use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -19,44 +18,35 @@ use parcel_core::types::FileType;
 
 use crate::plugins::Plugins;
 use crate::plugins::TransformerPipeline;
-use crate::request_tracker::{Request, RequestResult, RunRequestContext, RunRequestError};
+use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
+
+use super::RequestResult;
 
 /// The AssetRequest runs transformer plugins on discovered Assets.
 /// - Decides which transformer pipeline to run from the input Asset type
 /// - Runs the pipeline in series, switching pipeline if the Asset type changes
 /// - Stores the final Asset source code in the cache, for access in packaging
 /// - Finally, returns the complete Asset and it's discovered Dependencies
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub struct AssetRequest {
   pub env: Arc<Environment>,
   pub file_path: PathBuf,
   pub code: Option<String>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
-  // TODO: move the following to RunRequestContext
-}
-
-impl Hash for AssetRequest {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    // TODO: Just derive this once the contextual params are moved to RunRequestContext
-    self.file_path.hash(state);
-    self.code.hash(state);
-    self.pipeline.hash(state);
-    self.env.hash(state);
-    self.side_effects.hash(state);
-  }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AssetResult {
+pub struct AssetRequestOutput {
   pub asset: Asset,
   pub dependencies: Vec<Dependency>,
 }
 
-impl Request<AssetResult> for AssetRequest {
+impl Request for AssetRequest {
   fn run(
     &self,
-    request_context: RunRequestContext<AssetResult>,
-  ) -> Result<RequestResult<AssetResult>, RunRequestError> {
+    request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
     request_context.report(ReporterEvent::BuildProgress(BuildProgressEvent::Building(
       AssetBuildEvent {
         // TODO: Should we try avoid a clone here?
@@ -79,14 +69,14 @@ impl Request<AssetResult> for AssetRequest {
     let result = run_pipeline(
       pipeline,
       TransformationInput::InitialAsset(InitialAsset {
-        // TODO: Are these clones neccessary?
+        // TODO: Are these clones necessary?
         file_path: self.file_path.clone(),
         code: self.code.clone(),
         env: self.env.clone(),
         side_effects: self.side_effects,
       }),
       asset_type,
-      &request_context.plugins(),
+      request_context.plugins(),
       &mut transform_ctx,
     )?;
 
@@ -97,8 +87,8 @@ impl Request<AssetResult> for AssetRequest {
       .cache()
       .set_blob(&content_key, result.asset.code.bytes())?;
 
-    Ok(RequestResult {
-      result: AssetResult {
+    Ok(ResultAndInvalidations {
+      result: RequestResult::Asset(AssetRequestOutput {
         asset: Asset {
           stats: AssetStats {
             size: result.asset.code.size(),
@@ -107,7 +97,7 @@ impl Request<AssetResult> for AssetRequest {
           ..result.asset
         },
         dependencies: result.dependencies,
-      },
+      }),
       // TODO: Support invalidations
       invalidations: vec![],
     })

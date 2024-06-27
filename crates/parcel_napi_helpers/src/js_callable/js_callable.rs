@@ -70,10 +70,9 @@ impl JsCallable {
       ));
     }
 
-    self.threadsafe_function.call(
-      Box::new(map_params),
-      ThreadsafeFunctionCallMode::NonBlocking,
-    );
+    self
+      .threadsafe_function
+      .call(Box::new(map_params), ThreadsafeFunctionCallMode::Blocking);
 
     Ok(())
   }
