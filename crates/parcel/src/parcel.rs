@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
 use parcel_package_manager::NodePackageManager;

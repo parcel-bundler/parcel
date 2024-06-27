@@ -1202,7 +1202,6 @@ impl<'a> ResolveRequest<'a> {
 mod tests {
   use std::collections::{HashMap, HashSet};
 
-  use super::cache::Cache;
   use super::*;
 
   fn root() -> PathBuf {

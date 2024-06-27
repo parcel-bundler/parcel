@@ -5,10 +5,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::u64;
 
-use anyhow::anyhow;
-
 use parcel_config::map::NamedPattern;
 use parcel_config::ParcelConfig;
+use parcel_core::diagnostic_error;
 use parcel_core::plugin::BundlerPlugin;
 use parcel_core::plugin::CompressorPlugin;
 use parcel_core::plugin::NamerPlugin;
@@ -52,15 +51,13 @@ impl Plugins {
   }
 
   fn missing_plugin(&self, path: &Path, phase: &str) -> anyhow::Error {
-    anyhow!("No {} found for path {}", phase, path.display())
+    diagnostic_error!("No {phase} found for path {}", path.display())
   }
 
   fn missing_pipeline_plugin(&self, path: &Path, phase: &str, pipeline: &str) -> anyhow::Error {
-    anyhow!(
-      "No {} found for path {} with pipeline {}",
-      phase,
+    diagnostic_error!(
+      "No {phase} found for path {} with pipeline {pipeline}",
       path.display(),
-      pipeline
     )
   }
 

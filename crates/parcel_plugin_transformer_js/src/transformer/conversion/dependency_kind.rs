@@ -39,7 +39,6 @@ pub(crate) fn convert_specifier_type(
 #[cfg(test)]
 mod test {
   use crate::transformer::test_helpers::run_swc_core_transform;
-  use parcel_core::types::Priority;
   use parcel_js_swc_core::DependencyKind;
 
   use super::*;

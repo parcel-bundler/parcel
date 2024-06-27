@@ -3,14 +3,14 @@ use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use petgraph::graph::NodeIndex;
-use petgraph::stable_graph::StableDiGraph;
-
 use parcel_core::cache::CacheRef;
 use parcel_core::config_loader::ConfigLoaderRef;
+use parcel_core::diagnostic_error;
 use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 use parcel_core::plugin::ReporterPlugin;
 use parcel_filesystem::FileSystemRef;
+use petgraph::graph::NodeIndex;
+use petgraph::stable_graph::StableDiGraph;
 
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
@@ -194,7 +194,7 @@ impl RequestTracker {
     let request_node = self
       .graph
       .node_weight_mut(*node_index)
-      .ok_or_else(|| anyhow!("Failed to find request node"))?;
+      .ok_or_else(|| diagnostic_error!("Failed to find request node"))?;
 
     // Don't run if already run
     if let RequestNode::<RequestResult>::Valid(_) = request_node {
@@ -215,14 +215,17 @@ impl RequestTracker {
     let node_index = self
       .request_index
       .get(&request_id)
-      .ok_or_else(|| anyhow!("Failed to find request"))?;
+      .ok_or_else(|| diagnostic_error!("Failed to find request"))?;
+
     let request_node = self
       .graph
       .node_weight_mut(*node_index)
-      .ok_or_else(|| anyhow!("Failed to find request"))?;
+      .ok_or_else(|| diagnostic_error!("Failed to find request"))?;
+
     if let RequestNode::<RequestResult>::Valid(_) = request_node {
       return Ok(());
     }
+
     *request_node = match result {
       Ok(result) => RequestNode::Valid(result.result.clone()),
       Err(error) => RequestNode::Error(error.to_string()),
@@ -242,15 +245,15 @@ impl RequestTracker {
     self.link_request_to_parent(request_id, parent_request_hash)?;
 
     let Some(node_index) = self.request_index.get(&request_id) else {
-      return Err(anyhow!("Impossible error"));
+      return Err(diagnostic_error!("Impossible error"));
     };
     let Some(request_node) = self.graph.node_weight(*node_index) else {
-      return Err(anyhow!("Impossible"));
+      return Err(diagnostic_error!("Impossible"));
     };
 
     match request_node {
-      RequestNode::Root => Err(anyhow!("Impossible")),
-      RequestNode::Incomplete => Err(anyhow!("Impossible")),
+      RequestNode::Root => Err(diagnostic_error!("Impossible")),
+      RequestNode::Incomplete => Err(diagnostic_error!("Impossible")),
       RequestNode::Error(error) => Err(anyhow!(error.clone())),
       RequestNode::Valid(value) => Ok(value.clone()),
     }
@@ -264,13 +267,15 @@ impl RequestTracker {
     parent_request_hash: Option<u64>,
   ) -> anyhow::Result<()> {
     let Some(node_index) = self.request_index.get(&request_id) else {
-      return Err(anyhow!("Impossible error"));
+      return Err(diagnostic_error!("Impossible error"));
     };
+
     if let Some(parent_request_id) = parent_request_hash {
       let parent_node_index = self
         .request_index
         .get(&parent_request_id)
-        .ok_or_else(|| anyhow!("Failed to find requests"))?;
+        .ok_or_else(|| diagnostic_error!("Failed to find requests"))?;
+
       self
         .graph
         .add_edge(*parent_node_index, *node_index, RequestEdgeType::SubRequest);
