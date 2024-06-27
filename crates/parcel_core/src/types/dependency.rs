@@ -11,13 +11,87 @@ use crate::types::ExportsCondition;
 
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
-use super::json::JSONObject;
 use super::source::SourceLocation;
 use super::symbol::Symbol;
 use super::target::Target;
 
+mod bitflags_archiver {
+  use bitflags::Flags;
+  use rkyv::primitive::ArchivedU16;
+  use rkyv::rancor::Fallible;
+  use rkyv::rend::u16_le;
+  use rkyv::with::{ArchiveWith, DeserializeWith, SerializeWith};
+  use rkyv::{Archive, Serialize, SerializeUnsized};
+  use std::error::Error;
+  use std::marker::PhantomData;
+
+  pub struct BitFlagsArchiver<T: Flags<Bits = u16>> {
+    _phantom: PhantomData<T>,
+  }
+
+  impl<T: Flags<Bits = u16>> ArchiveWith<T> for BitFlagsArchiver<T> {
+    type Archived = ArchivedU16;
+    type Resolver = ();
+
+    #[inline]
+    unsafe fn resolve_with(
+      field: &T,
+      pos: usize,
+      resolver: Self::Resolver,
+      out: *mut Self::Archived,
+    ) {
+      let le_value = u16_le::from_native(field.bits());
+      ArchivedU16::resolve(&le_value, pos, resolver, out);
+    }
+  }
+
+  impl<T: Flags<Bits = u16>, S: Fallible + ?Sized> SerializeWith<T, S> for BitFlagsArchiver<T>
+  where
+    S::Error: Error,
+    str: SerializeUnsized<S>,
+  {
+    #[inline]
+    fn serialize_with(field: &T, serializer: &mut S) -> Result<Self::Resolver, S::Error> {
+      let le_value = u16_le::from_native(field.bits());
+      ArchivedU16::serialize(&le_value, serializer)
+    }
+  }
+
+  impl<T: Flags<Bits = u16>, D: Fallible + ?Sized> DeserializeWith<ArchivedU16, T, D>
+    for BitFlagsArchiver<T>
+  {
+    #[inline]
+    fn deserialize_with(field: &ArchivedU16, _: &mut D) -> Result<T, D::Error> {
+      Ok(T::from_bits(field.to_native()).unwrap())
+    }
+  }
+}
+
+#[derive(
+  PartialEq,
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Serialize,
+  rkyv::Archive,
+  rkyv::Deserialize,
+  rkyv::Serialize,
+)]
+pub struct DependencyMeta {}
+
 /// A dependency denotes a connection between two assets
-#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(
+  PartialEq,
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Serialize,
+  rkyv::Archive,
+  rkyv::Deserialize,
+  rkyv::Serialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   /// Controls the behavior of the bundle the resolved asset is placed into
@@ -34,14 +108,14 @@ pub struct Dependency {
   pub loc: Option<SourceLocation>,
 
   /// Plugin-specific metadata for the dependency
-  #[serde(default)]
-  pub meta: JSONObject,
+  pub meta: DependencyMeta,
 
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
   ///
   /// This will be combined with the conditions from the environment. However, it overrides the default "import" and "require" conditions inferred from the specifierType. To include those in addition to custom conditions, explicitly add them to this list.
   ///
   #[serde(default)]
+  #[with(bitflags_archiver::BitFlagsArchiver<ExportsCondition>)]
   pub package_conditions: ExportsCondition,
 
   /// The pipeline defined in .parcelrc that the dependency should be processed with
@@ -58,12 +132,14 @@ pub struct Dependency {
   ///
   /// By default, this is the path of the source file where the dependency was specified.
   ///
+  #[with(rkyv::with::Map<rkyv::with::AsString>)]
   pub resolve_from: Option<PathBuf>,
 
   /// The id of the asset with this dependency
   pub source_asset_id: Option<String>,
 
   /// The file path of the asset with this dependency
+  #[with(rkyv::with::Map<rkyv::with::AsString>)]
   pub source_path: Option<PathBuf>,
 
   /// The import or export specifier that connects two assets together
@@ -117,7 +193,7 @@ impl Dependency {
       bundle_behavior: BundleBehavior::None,
       env,
       loc: None,
-      meta: JSONObject::new(),
+      meta: DependencyMeta {},
       package_conditions: ExportsCondition::empty(),
       pipeline: None,
       priority: Priority::default(),
@@ -165,7 +241,19 @@ pub struct ImportAttribute {
 }
 
 /// Determines when a dependency should load
-#[derive(Clone, Copy, Debug, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Deserialize_repr,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize_repr,
+  rkyv::Archive,
+  rkyv::Deserialize,
+  rkyv::Serialize,
+)]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum Priority {
@@ -184,7 +272,19 @@ impl Default for Priority {
 }
 
 /// The type of the import specifier
-#[derive(Clone, Copy, Debug, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Deserialize_repr,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize_repr,
+  rkyv::Archive,
+  rkyv::Deserialize,
+  rkyv::Serialize,
+)]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum SpecifierType {

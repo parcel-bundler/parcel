@@ -38,7 +38,9 @@ impl Default for Entry {
   }
 }
 
-#[derive(Clone, Debug, Default, Hash, PartialEq)]
+#[derive(
+  Clone, Debug, Default, Hash, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub enum BuildMode {
   #[default]
   Development,
@@ -71,8 +73,9 @@ impl<'de> Deserialize<'de> for BuildMode {
   }
 }
 
-#[derive(Clone, Debug, Deserialize, Hash)]
+#[derive(Clone, Debug, Deserialize, Hash, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct DefaultTargetOptions {
+  #[with(rkyv::with::Map<rkyv::with::AsString>)]
   pub dist_dir: Option<PathBuf>,
   pub engines: Engines,
   pub is_library: bool,

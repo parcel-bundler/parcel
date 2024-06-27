@@ -21,6 +21,7 @@ pub struct LMDBCache {
 }
 
 impl LMDBCache {
+  #[allow(unused)]
   pub fn new() -> anyhow::Result<Self> {
     let rust_cache_path = Path::new(".parcel-cache/rust-cache");
     std::fs::create_dir_all(rust_cache_path)?;

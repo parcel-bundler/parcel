@@ -11,13 +11,25 @@ use super::source::SourceLocation;
 /// For example, a "modern" target would output code that can run on the latest browsers while a
 /// "legacy" target generates code compatible with older browsers.
 ///
-#[derive(PartialEq, Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(
+  PartialEq,
+  Clone,
+  Debug,
+  Deserialize,
+  Hash,
+  Serialize,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
   /// The output folder for compiled bundles
+  #[with(rkyv::with::AsString)]
   pub dist_dir: PathBuf,
 
   /// The output filename of the entry
+  #[with(rkyv::with::Map<rkyv::with::AsString>)]
   pub dist_entry: Option<PathBuf>,
 
   /// The environment the code will run in

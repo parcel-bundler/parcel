@@ -11,14 +11,23 @@ use crate::types::EnvironmentContext;
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
 use super::file_type::FileType;
-use super::json::JSONObject;
 use super::symbol::Symbol;
 
 #[derive(PartialEq, Hash, Clone, Copy, Debug)]
 pub struct AssetId(pub NonZeroU32);
 
 /// The source code for an asset.
-#[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
+#[derive(
+  PartialEq,
+  Default,
+  Clone,
+  Debug,
+  Deserialize,
+  Serialize,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Code {
   inner: String,
@@ -40,11 +49,36 @@ impl From<String> for Code {
   }
 }
 
+#[derive(
+  Default,
+  PartialEq,
+  Clone,
+  Debug,
+  Deserialize,
+  Serialize,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+)]
+pub struct AssetMeta {
+  interpreter: Option<String>,
+}
+
 /// An asset is a file or part of a file that may represent any data type including source code, binary data, etc.
 ///
 /// Note that assets may exist in the file system or virtually.
 ///
-#[derive(Default, PartialEq, Clone, Debug, Deserialize, Serialize)]
+#[derive(
+  Default,
+  PartialEq,
+  Clone,
+  Debug,
+  Deserialize,
+  Serialize,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
   /// The file type of the asset, which may change during transformation
@@ -58,6 +92,7 @@ pub struct Asset {
   pub env: Arc<Environment>,
 
   /// The file path to the asset
+  #[with(rkyv::with::AsString)]
   pub file_path: PathBuf,
 
   /// The code of this asset, initially read from disk, then becoming the
@@ -65,7 +100,7 @@ pub struct Asset {
   pub code: Arc<Code>,
 
   /// Plugin specific metadata for the asset
-  pub meta: JSONObject,
+  pub meta: AssetMeta,
 
   /// The pipeline defined in .parcelrc that the asset should be processed with
   pub pipeline: Option<String>,
@@ -169,13 +204,23 @@ impl Asset {
     }
   }
 
-  pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {
-    self.meta.insert("interpreter".into(), shebang.into());
+  pub fn set_interpreter(&mut self, shebang: impl Into<String>) {
+    self.meta.interpreter = Some(shebang.into());
   }
 }
 
 /// Statistics that pertain to an asset
-#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(
+  PartialEq,
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Serialize,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+)]
 pub struct AssetStats {
   pub size: u32,
   pub time: u32,

@@ -6,7 +6,9 @@ use browserslist::Distrib;
 use super::version::Version;
 
 /// List of targeted browsers
-#[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
+#[derive(
+  Clone, Default, Debug, Eq, Hash, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct Browsers {
   pub android: Option<Version>,
   pub chrome: Option<Version>,

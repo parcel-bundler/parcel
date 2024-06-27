@@ -72,7 +72,19 @@ pub struct Bundle {
 }
 
 /// Determines when the bundle loads
-#[derive(Clone, Copy, Debug, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Deserialize_repr,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize_repr,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+)]
 #[repr(u8)]
 pub enum BundleBehavior {
   /// Embeds an asset into the parent bundle by creating an inline bundle

@@ -7,7 +7,7 @@ mod path_request;
 mod target_request;
 
 /// Union of all request outputs
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
 pub enum RequestResult {
   Path(PathRequestOutput),
   Asset(AssetRequestOutput),
