@@ -1,6 +1,7 @@
 use std::sync::mpsc::channel;
 
 use parcel_core::asset_graph::{AssetGraph, AssetGraphNode};
+use parcel_core::types::DefaultTargetOptions;
 
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
@@ -11,9 +12,7 @@ use super::RequestResult;
 /// The AssetGraphRequest is in charge of building the AssetGraphRequest
 /// In doing so, it kicks of the TargetRequest, PathRequest and AssetRequests.
 #[derive(Debug, Hash)]
-pub struct AssetGraphRequest {
-  pub entries: Vec<String>,
-}
+pub struct AssetGraphRequest {}
 
 #[derive(Clone, Debug)]
 pub struct AssetGraphRequestOutput {
@@ -29,22 +28,30 @@ impl Request for AssetGraphRequest {
     let root = graph.graph.add_node(AssetGraphNode::Root);
 
     let (tx, rx) = channel();
-    for entry in &self.entries {
-      request_context.queue_request(
-        EntryRequest {
-          entry: entry.clone(),
-        },
-        tx.clone(),
-      );
-    }
+    request_context.queue_request(
+      EntryRequest {
+        entry: request_context
+          .options()
+          .entries
+          .as_ref()
+          .expect("TODO: Handle implicit entries")
+          .clone(),
+      },
+      tx.clone(),
+    );
 
     while let result = rx.recv()? {
       match result {
-        Ok(RequestResult::Entry(EntryRequestOutput { entries: _entries })) => {
-          // for entry in entries {
-          //   request_context.queue_request(TargetRequest { entry }, tx.clone());
-          // }
-          todo!();
+        Ok(RequestResult::Entry(EntryRequestOutput { entries })) => {
+          for entry in entries {
+            let target_request = TargetRequest {
+              default_target_options: DefaultTargetOptions::default(),
+              env: None,
+              exclusive_target: entry.target,
+              mode: request_context.options().mode.clone(),
+            };
+            request_context.queue_request(target_request, tx.clone());
+          }
         }
         Ok(RequestResult::Asset(_)) => {
           todo!();

@@ -3,6 +3,7 @@ use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use parcel_core::types::ParcelOptions;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 
@@ -42,6 +43,7 @@ pub struct RequestTracker {
   file_system: FileSystemRef,
   plugins: PluginsRef,
   config_loader: ConfigLoaderRef,
+  options: Arc<ParcelOptions>,
 }
 
 impl RequestTracker {
@@ -52,6 +54,7 @@ impl RequestTracker {
     file_system: FileSystemRef,
     plugins: PluginsRef,
     config_loader: ConfigLoaderRef,
+    options: ParcelOptions,
   ) -> Self {
     let mut graph = StableDiGraph::<RequestNode<RequestResult>, RequestEdgeType>::new();
     graph.add_node(RequestNode::Root);
@@ -63,6 +66,7 @@ impl RequestTracker {
       file_system,
       plugins,
       config_loader,
+      options: Arc::new(options),
     }
   }
 
@@ -141,6 +145,7 @@ impl RequestTracker {
                 self.file_system.clone(),
                 self.plugins.clone(),
                 self.config_loader.clone(),
+                self.options.clone(),
               );
 
               scope.spawn({
@@ -301,89 +306,4 @@ enum RequestQueueMessage {
     result: Result<ResultAndInvalidations, RunRequestError>,
     response_tx: Option<Sender<anyhow::Result<RequestResult>>>,
   },
-}
-
-enum ChannelResult<T> {
-  Executed((u64, Result<RequestResult<T>, RunRequestError>)),
-  Cached(anyhow::Result<T>),
-}
-pub struct RequestQueue<'a, 'scope, T> {
-  scope: &'a rayon::Scope<'scope>,
-  request_tracker: &'scope mut RequestTracker<T>,
-  parent_request_hash: Option<u64>,
-  sender: crossbeam_channel::Sender<ChannelResult<T>>,
-  receiver: crossbeam_channel::Receiver<ChannelResult<T>>,
-}
-
-impl<'a, 'scope, T: Clone + Send + 'scope> RequestQueue<'a, 'scope, T> {
-  pub fn new(
-    scope: &'a rayon::Scope<'scope>,
-    request_tracker: Arc<RequestTracker<T>>,
-    parent_request_hash: Option<u64>,
-  ) -> Self {
-    let (sender, receiver) = crossbeam_channel::unbounded();
-    Self {
-      scope,
-      request_tracker,
-      parent_request_hash,
-      sender,
-      receiver,
-    }
-  }
-
-  pub fn queue_request(
-    &mut self,
-    request: Box<dyn Request<T> + Send + 'scope>,
-  ) -> anyhow::Result<()> {
-    let request_id = request.id();
-    // let mut rt = self
-    //   .request_tracker
-    //   .lock()
-    //   .map_err(|_| anyhow::anyhow!("Failed to acquire request tracker lock"))?;
-    let rt = self.request_tracker;
-    if rt.prepare_request(request_id.clone())? {
-      let sender = self.sender.clone();
-
-      self.scope.spawn(move |_| {
-        let result = request.run(RunRequestContext::new(Some(request_id), rt));
-
-        sender.send(ChannelResult::Executed((request_id, result)));
-      });
-    } else {
-      self.sender.send(ChannelResult::Cached(
-        rt.get_request(self.parent_request_hash, &request_id),
-      ));
-    }
-    Ok(())
-  }
-
-  pub fn receive_result(&self, handler: &dyn Fn(anyhow::Result<T>)) {
-    for channel_result in self.receiver.recv() {
-      match channel_result {
-        ChannelResult::Cached(result) => {
-          handler(result);
-        }
-        ChannelResult::Executed((request_id, result)) => {
-          let rt_result = self
-            .request_tracker
-            .lock()
-            .map_err(|_| anyhow::anyhow!("Failed to acquire request tracker lock"));
-
-          let mut rt = match rt_result {
-            Err(err) => {
-              return handler(Err(err));
-            }
-            Ok(rt) => rt,
-          };
-
-          if let Err(err) = rt.store_request(&request_id, result) {
-            return handler(Err(err));
-          }
-
-          let result = rt.get_request(self.parent_request_hash, &request_id);
-          handler(result);
-        }
-      }
-    }
-  }
 }

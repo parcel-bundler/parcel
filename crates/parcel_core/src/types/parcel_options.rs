@@ -15,7 +15,7 @@ pub struct ParcelOptions {
   pub config: Option<String>,
   pub default_config: Option<String>,
   pub default_target_options: DefaultTargetOptions,
-  pub entries: Option<Entry>,
+  pub entries: Option<EntryOption>,
   pub env: Option<HashMap<String, String>>,
   pub log_level: LogLevel,
   pub mode: BuildMode,
@@ -27,14 +27,14 @@ pub struct ParcelOptions {
 }
 
 #[derive(Clone, Debug, Deserialize, Hash)]
-pub enum Entry {
+pub enum EntryOption {
   Single(String),
   Multiple(Vec<String>),
 }
 
-impl Default for Entry {
+impl Default for EntryOption {
   fn default() -> Self {
-    Entry::Single(String::default())
+    EntryOption::Single(String::default())
   }
 }
 

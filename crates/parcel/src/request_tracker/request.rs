@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use dyn_hash::DynHash;
 use parcel_core::config_loader::ConfigLoaderRef;
+use parcel_core::types::ParcelOptions;
 
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
@@ -36,6 +37,7 @@ pub struct RunRequestContext {
   file_system: FileSystemRef,
   plugins: PluginsRef,
   config_loader: ConfigLoaderRef,
+  options: Arc<ParcelOptions>,
 }
 
 impl RunRequestContext {
@@ -47,6 +49,7 @@ impl RunRequestContext {
     file_system: FileSystemRef,
     plugins: PluginsRef,
     config_loader: ConfigLoaderRef,
+    options: Arc<ParcelOptions>,
   ) -> Self {
     Self {
       parent_request_id,
@@ -56,6 +59,7 @@ impl RunRequestContext {
       file_system,
       plugins,
       config_loader,
+      options,
     }
   }
 
@@ -98,6 +102,10 @@ impl RunRequestContext {
 
   pub fn config(&self) -> &ConfigLoaderRef {
     &self.config_loader
+  }
+
+  pub fn options(&self) -> &ParcelOptions {
+    &self.options
   }
 }
 
