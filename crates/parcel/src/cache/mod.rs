@@ -5,6 +5,16 @@ use heed::EnvOpenOptions;
 
 use parcel_core::cache::Cache;
 
+/// Implements a `lmdb` cache back-end using [`heed`].
+///
+/// This should change as we progress because we would want to:
+///
+/// * We want the cache to be able to store data and be opinionated about the serialization format
+/// * Cache keys don't need to be strings; ideally they'll be strongly typed enums which we will
+///   implement efficient serialization into nice keys we can iterate and lookup efficiently
+/// * Entries should use binary serialization. Ideally with zero-copy. Zero copy de-serialization
+///   can be implemented over LMDB using `rkyv`.
+/// * We don't need to allocate when returning the entries
 pub struct LMDBCache {
   environment: heed::Env,
   database: heed::Database<Str, Bytes>,
