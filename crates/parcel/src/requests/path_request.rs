@@ -29,6 +29,7 @@ pub struct PathRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
+#[archive(check_bytes)]
 pub enum PathRequestOutput {
   Excluded,
   Resolved {

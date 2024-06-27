@@ -16,7 +16,7 @@ browserslist-rs = "0.15.0"
 dyn-hash = "0.x"
 mockall = "0.12.1"
 nodejs-semver = "4.0.0"
-rkyv = "0.8.0-alpha.2"
+rkyv = { version = "0.8.0-alpha.2" }
 serde = { version = "1.0.200", features = ["derive", "rc"] }
 serde-value = "0.7.0"
 serde_json = { version = "1.0.116", features = ["preserve_order"] }

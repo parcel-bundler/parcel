@@ -26,6 +26,7 @@ use super::target::Target;
   rkyv::Deserialize,
   rkyv::Serialize,
 )]
+#[archive(check_bytes)]
 pub struct DependencyMeta {}
 
 /// A dependency denotes a connection between two assets
@@ -41,6 +42,7 @@ pub struct DependencyMeta {}
   rkyv::Serialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[archive(check_bytes)]
 pub struct Dependency {
   /// Controls the behavior of the bundle the resolved asset is placed into
   ///
@@ -204,6 +206,7 @@ pub struct ImportAttribute {
 )]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
+#[archive(check_bytes)]
 pub enum Priority {
   /// Resolves the dependency synchronously, placing the resolved asset in the same bundle as the parent or another bundle that is already on the page
   Sync = 0,
@@ -235,6 +238,7 @@ impl Default for Priority {
 )]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
+#[archive(check_bytes)]
 pub enum SpecifierType {
   /// An ES Module specifier
   ///

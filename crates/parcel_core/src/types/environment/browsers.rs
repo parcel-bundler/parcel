@@ -9,6 +9,7 @@ use super::version::Version;
 #[derive(
   Clone, Default, Debug, Eq, Hash, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub struct Browsers {
   pub android: Option<Version>,
   pub chrome: Option<Version>,

@@ -23,6 +23,7 @@ use super::source::SourceLocation;
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[archive(check_bytes)]
 pub struct Target {
   /// The output folder for compiled bundles
   #[with(rkyv::with::AsString)]

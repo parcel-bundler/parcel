@@ -16,6 +16,7 @@ use super::source::SourceLocation;
   rkyv::Serialize,
   rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub struct Symbol {
   /// The IMPORTED name. Most of the time this is the mangled symbol the transformer has replaced
   /// an import with.

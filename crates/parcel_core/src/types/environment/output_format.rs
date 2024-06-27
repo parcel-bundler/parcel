@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "lowercase")]
+#[archive(check_bytes)]
 pub enum OutputFormat {
   /// A classic script that can be loaded in a <script> tag in the browser
   ///

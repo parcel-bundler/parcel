@@ -19,6 +19,7 @@ use serde::Serializer;
   rkyv::Serialize,
   rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub struct Version(NonZeroU16);
 
 impl Version {

@@ -37,6 +37,7 @@ pub struct EnvironmentId(pub NonZeroU32);
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[archive(check_bytes)]
 pub struct Environment {
   /// The environment the output should run in
   pub context: EnvironmentContext,
@@ -129,6 +130,7 @@ impl PartialEq for Environment {
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "kebab-case")]
+#[archive(check_bytes)]
 pub enum EnvironmentContext {
   #[default]
   Browser,
@@ -177,6 +179,7 @@ impl EnvironmentContext {
   rkyv::Deserialize,
 )]
 #[serde(untagged)]
+#[archive(check_bytes)]
 pub enum IncludeNodeModules {
   Bool(bool),
   Array(Vec<String>),
@@ -230,6 +233,7 @@ impl Hash for IncludeNodeModules {
   rkyv::Deserialize,
 )]
 #[repr(u8)]
+#[archive(check_bytes)]
 pub enum SourceType {
   #[default]
   Module = 0,
@@ -251,6 +255,7 @@ pub enum SourceType {
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[archive(check_bytes)]
 pub struct TargetSourceMapOptions {
   /// Inlines the source map as a data URL into the bundle, rather than link to it as a separate output file
   inline: Option<bool>,

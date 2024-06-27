@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use bitflags::Flags;
-use rkyv::primitive::ArchivedU16;
 use rkyv::rancor::Fallible;
 use rkyv::rend::u16_le;
 use rkyv::with::{ArchiveWith, DeserializeWith, SerializeWith};
@@ -16,7 +15,7 @@ pub(crate) struct BitFlagsArchiver<T: Flags<Bits = u16>> {
 }
 
 impl<T: Flags<Bits = u16>> ArchiveWith<T> for BitFlagsArchiver<T> {
-  type Archived = ArchivedU16;
+  type Archived = u16_le;
   type Resolver = ();
 
   #[inline]
@@ -26,32 +25,32 @@ impl<T: Flags<Bits = u16>> ArchiveWith<T> for BitFlagsArchiver<T> {
     resolver: Self::Resolver,
     out: *mut Self::Archived,
   ) {
-    let le_value = u16_le::from_native(field.bits());
-    ArchivedU16::resolve(&le_value, pos, resolver, out);
+    let le_value = u16_le::from(field.bits());
+    u16_le::resolve(&le_value, pos, resolver, out);
   }
 }
 
 impl<T: Flags<Bits = u16>, S: Fallible + ?Sized> SerializeWith<T, S> for BitFlagsArchiver<T> {
   #[inline]
   fn serialize_with(field: &T, serializer: &mut S) -> Result<Self::Resolver, S::Error> {
-    let le_value = u16_le::from_native(field.bits());
-    ArchivedU16::serialize(&le_value, serializer)
+    let le_value = u16_le::from(field.bits());
+    u16_le::serialize(&le_value, serializer)
   }
 }
 
-impl<T: Flags<Bits = u16>, D: Fallible + ?Sized> DeserializeWith<ArchivedU16, T, D>
+impl<T: Flags<Bits = u16>, D: Fallible + ?Sized> DeserializeWith<u16_le, T, D>
   for BitFlagsArchiver<T>
 {
   #[inline]
-  fn deserialize_with(field: &ArchivedU16, _: &mut D) -> Result<T, D::Error> {
-    Ok(T::from_bits(field.to_native()).unwrap())
+  fn deserialize_with(field: &u16_le, _: &mut D) -> Result<T, D::Error> {
+    Ok(T::from_bits(field.into()).unwrap())
   }
 }
 
 #[cfg(test)]
 mod test {
   use bitflags::bitflags;
-  use rkyv::rancor::Failure;
+  use rkyv::rancor::Panic;
 
   use super::*;
 
@@ -77,8 +76,8 @@ mod test {
     flags.set(TestFlags::CASE_ONE, true);
 
     let holder = Holder { value: flags };
-    let bytes = rkyv::to_bytes::<_, 256, anyhow::Error>(&holder).unwrap();
-    let Holder { value } = rkyv::from_bytes::<Holder, Failure>(&bytes).unwrap();
+    let bytes = rkyv::to_bytes::<_, 256, Panic>(&holder).unwrap();
+    let Holder { value } = rkyv::from_bytes::<Holder, Panic>(&bytes).unwrap();
     assert!(!value.is_empty());
     assert_eq!(value, TestFlags::CASE_ONE);
   }

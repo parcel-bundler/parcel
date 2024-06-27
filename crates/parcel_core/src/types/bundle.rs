@@ -86,6 +86,7 @@ pub struct Bundle {
   rkyv::Deserialize,
 )]
 #[repr(u8)]
+#[archive(check_bytes)]
 pub enum BundleBehavior {
   /// Embeds an asset into the parent bundle by creating an inline bundle
   Inline = 0,

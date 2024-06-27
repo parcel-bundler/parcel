@@ -37,6 +37,7 @@ pub struct AssetRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
+#[archive(check_bytes)]
 pub struct AssetRequestOutput {
   pub asset: Asset,
   pub dependencies: Vec<Dependency>,

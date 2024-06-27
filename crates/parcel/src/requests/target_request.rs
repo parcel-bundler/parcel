@@ -54,6 +54,7 @@ impl Hash for TargetRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
+#[archive(check_bytes)]
 pub struct TargetRequestOutput {
   targets: Vec<Target>,
 }

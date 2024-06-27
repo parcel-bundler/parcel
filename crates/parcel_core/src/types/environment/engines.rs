@@ -21,6 +21,7 @@ use super::OutputFormat;
   rkyv::Serialize,
   rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub struct Engines {
   #[serde(default)]
   pub browsers: Browsers,

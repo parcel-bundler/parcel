@@ -29,6 +29,7 @@ pub struct AssetId(pub NonZeroU32);
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[archive(check_bytes)]
 pub struct Code {
   inner: String,
 }
@@ -60,6 +61,7 @@ impl From<String> for Code {
   rkyv::Serialize,
   rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub struct AssetMeta {
   interpreter: Option<String>,
 }
@@ -80,6 +82,7 @@ pub struct AssetMeta {
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[archive(check_bytes)]
 pub struct Asset {
   /// The file type of the asset, which may change during transformation
   #[serde(rename = "type")]
@@ -221,6 +224,7 @@ impl Asset {
   rkyv::Serialize,
   rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub struct AssetStats {
   pub size: u32,
   pub time: u32,

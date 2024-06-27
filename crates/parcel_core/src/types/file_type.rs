@@ -9,6 +9,7 @@ use serde::Serialize;
 #[derive(
   Default, Debug, Clone, PartialEq, Hash, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub enum FileType {
   Css,
   Html,

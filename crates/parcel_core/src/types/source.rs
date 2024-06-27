@@ -15,6 +15,7 @@ use serde::Serialize;
   rkyv::Serialize,
   rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 pub struct Location {
   pub line: u32,
   pub column: u32,
@@ -37,6 +38,7 @@ pub struct Location {
   rkyv::Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[archive(check_bytes)]
 pub struct SourceLocation {
   /// The file path associated with the source
   #[with(rkyv::with::AsString)]
