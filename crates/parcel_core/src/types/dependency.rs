@@ -15,58 +15,6 @@ use super::source::SourceLocation;
 use super::symbol::Symbol;
 use super::target::Target;
 
-mod bitflags_archiver {
-  use bitflags::Flags;
-  use rkyv::primitive::ArchivedU16;
-  use rkyv::rancor::Fallible;
-  use rkyv::rend::u16_le;
-  use rkyv::with::{ArchiveWith, DeserializeWith, SerializeWith};
-  use rkyv::{Archive, Serialize, SerializeUnsized};
-  use std::error::Error;
-  use std::marker::PhantomData;
-
-  pub struct BitFlagsArchiver<T: Flags<Bits = u16>> {
-    _phantom: PhantomData<T>,
-  }
-
-  impl<T: Flags<Bits = u16>> ArchiveWith<T> for BitFlagsArchiver<T> {
-    type Archived = ArchivedU16;
-    type Resolver = ();
-
-    #[inline]
-    unsafe fn resolve_with(
-      field: &T,
-      pos: usize,
-      resolver: Self::Resolver,
-      out: *mut Self::Archived,
-    ) {
-      let le_value = u16_le::from_native(field.bits());
-      ArchivedU16::resolve(&le_value, pos, resolver, out);
-    }
-  }
-
-  impl<T: Flags<Bits = u16>, S: Fallible + ?Sized> SerializeWith<T, S> for BitFlagsArchiver<T>
-  where
-    S::Error: Error,
-    str: SerializeUnsized<S>,
-  {
-    #[inline]
-    fn serialize_with(field: &T, serializer: &mut S) -> Result<Self::Resolver, S::Error> {
-      let le_value = u16_le::from_native(field.bits());
-      ArchivedU16::serialize(&le_value, serializer)
-    }
-  }
-
-  impl<T: Flags<Bits = u16>, D: Fallible + ?Sized> DeserializeWith<ArchivedU16, T, D>
-    for BitFlagsArchiver<T>
-  {
-    #[inline]
-    fn deserialize_with(field: &ArchivedU16, _: &mut D) -> Result<T, D::Error> {
-      Ok(T::from_bits(field.to_native()).unwrap())
-    }
-  }
-}
-
 #[derive(
   PartialEq,
   Clone,
@@ -115,7 +63,7 @@ pub struct Dependency {
   /// This will be combined with the conditions from the environment. However, it overrides the default "import" and "require" conditions inferred from the specifierType. To include those in addition to custom conditions, explicitly add them to this list.
   ///
   #[serde(default)]
-  #[with(bitflags_archiver::BitFlagsArchiver<ExportsCondition>)]
+  #[with(crate::types::utils::bitflags_archiver::BitFlagsArchiver<ExportsCondition>)]
   pub package_conditions: ExportsCondition,
 
   /// The pipeline defined in .parcelrc that the dependency should be processed with
