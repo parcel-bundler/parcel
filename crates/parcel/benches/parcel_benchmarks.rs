@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use rand::random;
-use rkyv::rancor::{BoxedError, Failure, Panic};
+use rkyv::rancor::{Failure, Panic};
 
 use parcel::cache::LMDBCache;
 use parcel::requests::asset_request::AssetRequestOutput;
