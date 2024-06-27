@@ -14,6 +14,9 @@ pub mod search;
 /// File-system implementation using std::fs and a canonicalize cache
 pub mod os_file_system;
 
+/// FileSystem abstraction instance.
+/// This should be `OsFileSystem` for non-testing environments and `InMemoryFileSystem` for
+/// testing.
 pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 
 /// Trait abstracting file-system operations
@@ -25,6 +28,7 @@ pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 ///       it should not be in the trait
 /// * [ ] Do not use io results, instead use anyhow or this error
 ///
+#[mockall::automock]
 pub trait FileSystem {
   fn cwd(&self) -> Result<PathBuf> {
     Err(std::io::Error::new(

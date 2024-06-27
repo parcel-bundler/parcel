@@ -27,7 +27,7 @@ pub struct NamedPattern<'a> {
 ///
 /// ```
 /// use std::path::PathBuf;
-/// use std::rc::Rc;
+/// use std::sync::Arc;
 ///
 /// use indexmap::indexmap;
 /// use parcel_config::map::NamedPipelinesMap;
@@ -36,20 +36,21 @@ pub struct NamedPattern<'a> {
 /// NamedPipelinesMap::new(indexmap! {
 ///   String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec![PluginNode {
 ///     package_name: String::from("@parcel/transformer-js"),
-///     resolve_from: Rc::new(PathBuf::default()),
+///     resolve_from: Arc::new(PathBuf::default()),
 ///   }]
 /// });
 /// ```
 ///
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct NamedPipelinesMap(
+#[serde(transparent)]
+pub struct NamedPipelinesMap {
   /// Maps patterns and named patterns to a series of plugins, called pipelines
-  IndexMap<String, Vec<PluginNode>>,
-);
+  inner: IndexMap<String, Vec<PluginNode>>,
+}
 
 impl Hash for NamedPipelinesMap {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    for item in self.0.iter() {
+    for item in self.inner.iter() {
       item.hash(state);
     }
   }
@@ -57,7 +58,7 @@ impl Hash for NamedPipelinesMap {
 
 impl NamedPipelinesMap {
   pub fn new(map: IndexMap<String, Vec<PluginNode>>) -> Self {
-    Self(map)
+    Self { inner: map }
   }
 
   /// Finds pipelines contained by a pattern that match the given file path and named pipeline
@@ -71,7 +72,7 @@ impl NamedPipelinesMap {
   /// ```
   /// use std::path::Path;
   /// use std::path::PathBuf;
-  /// use std::rc::Rc;
+  /// use std::sync::Arc;
   ///
   /// use indexmap::indexmap;
   /// use parcel_config::map::NamedPattern;
@@ -81,11 +82,11 @@ impl NamedPipelinesMap {
   /// let pipelines_map = NamedPipelinesMap::new(indexmap! {
   ///   String::from("types:*.{ts,tsx}") => vec![PluginNode {
   ///     package_name: String::from("@parcel/transformer-typescript-types"),
-  ///     resolve_from: Rc::new(PathBuf::default()),
+  ///     resolve_from: Arc::new(PathBuf::default()),
   ///   }],
   ///   String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec![PluginNode {
   ///     package_name: String::from("@parcel/transformer-js"),
-  ///     resolve_from: Rc::new(PathBuf::default()),
+  ///     resolve_from: Arc::new(PathBuf::default()),
   ///   }],
   /// });
   ///
@@ -114,7 +115,7 @@ impl NamedPipelinesMap {
     // If a named pipeline is requested, the glob needs to match exactly
     if let Some(named_pattern) = named_pattern {
       let exact_match = self
-        .0
+        .inner
         .iter()
         .find(|(pattern, _)| is_match(pattern, named_pattern.pipeline.as_ref()));
 
@@ -125,7 +126,7 @@ impl NamedPipelinesMap {
       }
     }
 
-    for (pattern, pipelines) in self.0.iter() {
+    for (pattern, pipelines) in self.inner.iter() {
       if is_match(&pattern, "") {
         matches.extend(pipelines.iter().cloned());
       }
@@ -137,12 +138,15 @@ impl NamedPipelinesMap {
   pub fn contains_named_pipeline(&self, pipeline: impl AsRef<str>) -> bool {
     let named_pipeline = format!("{}:", pipeline.as_ref());
 
-    self.0.keys().any(|glob| glob.starts_with(&named_pipeline))
+    self
+      .inner
+      .keys()
+      .any(|glob| glob.starts_with(&named_pipeline))
   }
 
   pub fn named_pipelines(&self) -> Vec<&str> {
     self
-      .0
+      .inner
       .keys()
       .filter_map(|glob| glob.split_once(':').map(|g| g.0))
       .collect()
@@ -152,14 +156,14 @@ impl NamedPipelinesMap {
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;
-  use std::rc::Rc;
+  use std::sync::Arc;
 
   use super::*;
 
   fn pipelines(name: &str) -> Vec<PluginNode> {
     vec![PluginNode {
       package_name: format!("@parcel/plugin-{}", name),
-      resolve_from: Rc::new(PathBuf::default()),
+      resolve_from: Arc::new(PathBuf::default()),
     }]
   }
 

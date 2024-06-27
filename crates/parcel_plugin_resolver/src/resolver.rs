@@ -269,7 +269,8 @@ fn should_include_node_module(include_node_modules: &IncludeNodeModules, name: &
 mod test {
   use super::*;
   use parcel_core::{
-    plugin::{PluginConfig, PluginLogger, PluginOptions},
+    config_loader::ConfigLoader,
+    plugin::{PluginLogger, PluginOptions},
     types::Dependency,
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
@@ -283,7 +284,11 @@ mod test {
     fs.write_file(Path::new("/foo/something.js"), "contents".to_string());
 
     let plugin_context = PluginContext {
-      config: PluginConfig::new(fs, PathBuf::from("/foo"), PathBuf::default()),
+      config: Arc::new(ConfigLoader {
+        fs,
+        project_root: PathBuf::default(),
+        search_path: PathBuf::from("/foo"),
+      }),
       options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
     };

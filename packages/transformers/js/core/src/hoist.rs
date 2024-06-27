@@ -98,6 +98,8 @@ pub struct ImportedSymbol {
   /// The specifier for a certain dependency this symbol comes from
   pub source: JsWord,
   /// The (usually mangled) local name for a certain imported symbol
+  ///
+  /// On re-exports, this is rather the rename for the import. See `HoistResult::re_exports`.
   pub local: JsWord,
   /// The original name for a certain imported symbol
   pub imported: JsWord,
@@ -254,6 +256,13 @@ pub struct HoistResult {
   ///     },
   /// ]
   /// ```
+  ///
+  /// On the case the export statement is an export star:
+  /// ```skip
+  /// export * from './something';
+  /// ```
+  ///
+  /// Then this array will have both `imported` and `local` set to a magic "*" value.
   pub re_exports: Vec<ImportedSymbol>,
   /// A vector of the 'original local' names of exported symbols that are self-referenced within the
   /// file they are being exported from.
@@ -276,7 +285,11 @@ pub struct HoistResult {
   /// };
   /// ```
   pub self_references: HashSet<JsWord>,
-  /// TODO: What is this?
+  /// When require statements are used programmatically, their sources will be collected here.
+  ///
+  /// These would be the module names of dynamically imported or required modules.
+  ///
+  /// TODO: add example
   pub wrapped_requires: HashSet<String>,
   /// A map of async import placeholder variable names to source specifiers.
   ///
@@ -3169,14 +3182,14 @@ mod tests {
       vec![JsWord::from("foo")]
     );
     assert_eq!(hoist.exported_symbols.len(), 3);
-    /// First exported symbol is `export foo`
+    // First exported symbol is `export foo`
     assert_eq!(
       hoist.exported_symbols[0].local,
       JsWord::from("$abc$export$6a5cdcad01c973fa")
     );
     assert_eq!(hoist.exported_symbols[0].exported, JsWord::from("foo"));
 
-    /// Second is `export something`
+    // Second is `export something`
     assert_eq!(
       hoist.exported_symbols[1].local,
       JsWord::from("$abc$export$ce14ccb78c97a7d4")
@@ -3186,7 +3199,7 @@ mod tests {
       JsWord::from("something")
     );
 
-    /// Third is `export foo` again, but on the something location
+    // Third is `export foo` again, but on the something location
     assert_eq!(
       hoist.exported_symbols[2].local,
       JsWord::from("$abc$export$6a5cdcad01c973fa")

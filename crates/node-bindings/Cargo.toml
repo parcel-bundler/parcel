@@ -8,15 +8,18 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-canary = ["sentry", "once_cell", "whoami", "rustls"]
+canary = ["sentry", "whoami", "rustls"]
 
 rustls = ["sentry/rustls"]
 openssl = ["sentry/native-tls"]
 
 [dependencies]
 parcel = { path = "../parcel" }
+parcel_core = { path = "../parcel_core" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
+parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
+parcel_napi_helpers = { path = "../parcel_napi_helpers" }
 
 anyhow = "1.0.82"
 dashmap = "5.4.0"
@@ -29,6 +32,7 @@ serde = "1.0.198"
 serde_json = "1.0.116"
 toml = "0.8.12"
 tracing = "0.1.40"
+tracing-appender = "0.2.3"
 tracing-subscriber = "0.3.18"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
@@ -42,7 +46,7 @@ indexmap = "1.9.2"
 libc = "0.2"
 mozjpeg-sys = "1.0.0"
 napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5", "async"] }
-once_cell = { version = "1.19.0", optional = true }
+once_cell = { version = "1.19.0" }
 oxipng = "8.0.0"
 rayon = "1.7.0"
 sentry = { version = "0.32.2", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "debug-images", "anyhow"] }

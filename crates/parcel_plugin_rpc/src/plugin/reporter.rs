@@ -25,7 +25,7 @@ impl RpcReporterPlugin {
 }
 
 impl ReporterPlugin for RpcReporterPlugin {
-  fn report(&self, _event: ReporterEvent) -> Result<(), anyhow::Error> {
+  fn report(&self, _event: &ReporterEvent) -> Result<(), anyhow::Error> {
     todo!()
   }
 }

@@ -2,6 +2,7 @@
 
 import assert from 'assert';
 import path from 'path';
+import {promisify} from 'util';
 import {bundle, run} from '@parcel/test-utils';
 import {inputFS} from '@parcel/test-utils';
 import {ParcelV3} from '@parcel/core';
@@ -26,9 +27,10 @@ describe('parcel-v3', function () {
 
   it('should run the main-thread bootstrap function', async function () {
     let fs: any = {
-      readFileSync: (_, [...args]) => inputFS.readFileSync(...args),
-      isFile: (_, path) => inputFS.statSync(path).isFile(),
-      isDir: (_, path) => inputFS.statSync(path).isDirectory(),
+      readFileSync: promisify(inputFS.readFile),
+      isFile: async (...args) =>
+        (await promisify(inputFS.stat)(...args)).isFile(),
+      isDir: (...args) => inputFS.statSync(...args).isDirectory(),
     };
 
     let parcel = new ParcelV3({
@@ -42,7 +44,6 @@ describe('parcel-v3', function () {
     );
     assert(!(await parcel._internal.testingTempFsIsDir(__filename)));
     assert(await parcel._internal.testingTempFsIsFile(__filename));
-    await parcel._internal.testingRpcPing();
 
     await parcel.build({});
   });

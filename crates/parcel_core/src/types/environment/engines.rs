@@ -4,8 +4,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use super::browsers::Browsers;
-use super::output_format::OutputFormat;
 use super::version::Version;
+use super::OutputFormat;
 
 /// The engines field in package.json
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -62,7 +62,7 @@ impl EnvironmentFeature {
 
 /// List of browsers to exclude when the esmodule target is specified based on
 /// https://caniuse.com/#feat=es6-module
-const ESMODULE_BROWSERS: &'static [&'static str] = &[
+const _ESMODULE_BROWSERS: &'static [&'static str] = &[
   "not ie <= 11",
   "not edge < 16",
   "not firefox < 60",
@@ -85,24 +85,16 @@ const ESMODULE_BROWSERS: &'static [&'static str] = &[
 ];
 
 impl Engines {
-  pub fn from_browserslist(browserslist: &str, output_format: OutputFormat) -> Engines {
-    let browsers = if output_format == OutputFormat::EsModule {
-      // If the output format is esmodule, exclude browsers
-      // that support them natively so that we transpile less.
-      browserslist::resolve(
-        std::iter::once(browserslist).chain(ESMODULE_BROWSERS.iter().map(|s| *s)),
-        &Default::default(),
-      )
-    } else {
-      browserslist::resolve(std::iter::once(browserslist), &Default::default())
-    };
+  pub fn from_browserslist(browserslist: Vec<String>) -> Browsers {
+    browserslist::resolve(browserslist, &Default::default())
+      .map(|b| b.into())
+      .unwrap_or_default()
+  }
 
-    Engines {
-      browsers: browsers.map(|b| b.into()).unwrap_or_default(),
-      electron: None,
-      node: None,
-      parcel: None,
-    }
+  // TODO Reinstate this so that engines.browsers are filtered out with ESMODULE_BROWSERS when
+  // we are using an esmodule output format
+  pub fn optimize(_engines: Engines, _output_format: OutputFormat) -> Engines {
+    todo!()
   }
 
   pub fn supports(&self, feature: EnvironmentFeature) -> bool {

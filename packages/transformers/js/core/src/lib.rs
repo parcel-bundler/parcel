@@ -17,14 +17,19 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use collect::Collect;
+pub use collect::CollectImportedSymbol;
 use collect::CollectResult;
 use constant_module::ConstantModule;
-use dependency_collector::*;
+pub use dependency_collector::dependency_collector;
+pub use dependency_collector::DependencyDescriptor;
+pub use dependency_collector::DependencyKind;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
+pub use hoist::ExportedSymbol;
 use hoist::HoistResult;
+pub use hoist::ImportedSymbol;
 use indexmap::IndexMap;
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
@@ -50,11 +55,11 @@ use swc_core::ecma::ast::Program;
 use swc_core::ecma::codegen::text_writer::JsWriter;
 use swc_core::ecma::parser::error::Error;
 use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::EsConfig;
+use swc_core::ecma::parser::EsSyntax;
 use swc_core::ecma::parser::Parser;
 use swc_core::ecma::parser::StringInput;
 use swc_core::ecma::parser::Syntax;
-use swc_core::ecma::parser::TsConfig;
+use swc_core::ecma::parser::TsSyntax;
 use swc_core::ecma::preset_env::preset_env;
 use swc_core::ecma::preset_env::Mode::Entry;
 use swc_core::ecma::preset_env::Targets;
@@ -81,61 +86,62 @@ use utils::Diagnostic;
 use utils::DiagnosticSeverity;
 use utils::ErrorBuffer;
 pub use utils::SourceLocation;
-use utils::SourceType;
+pub use utils::SourceType;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Default, Serialize, Debug, Deserialize)]
 pub struct Config {
-  filename: String,
+  pub filename: String,
   #[serde(with = "serde_bytes")]
-  code: Vec<u8>,
-  module_id: String,
-  project_root: String,
-  replace_env: bool,
-  env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
-  inline_fs: bool,
-  insert_node_globals: bool,
-  node_replacer: bool,
-  is_browser: bool,
-  is_worker: bool,
-  is_type_script: bool,
-  is_jsx: bool,
-  jsx_pragma: Option<String>,
-  jsx_pragma_frag: Option<String>,
-  automatic_jsx_runtime: bool,
-  jsx_import_source: Option<String>,
-  decorators: bool,
-  use_define_for_class_fields: bool,
-  is_development: bool,
-  react_refresh: bool,
-  targets: Option<HashMap<String, String>>,
-  source_maps: bool,
-  scope_hoist: bool,
-  source_type: SourceType,
-  supports_module_workers: bool,
-  is_library: bool,
-  is_esm_output: bool,
-  trace_bailouts: bool,
-  is_swc_helpers: bool,
-  standalone: bool,
-  inline_constants: bool,
+  pub code: Vec<u8>,
+  pub module_id: String,
+  pub project_root: String,
+  pub replace_env: bool,
+  pub env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
+  pub inline_fs: bool,
+  pub insert_node_globals: bool,
+  pub node_replacer: bool,
+  pub is_browser: bool,
+  pub is_worker: bool,
+  pub is_type_script: bool,
+  pub is_jsx: bool,
+  pub jsx_pragma: Option<String>,
+  pub jsx_pragma_frag: Option<String>,
+  pub automatic_jsx_runtime: bool,
+  pub jsx_import_source: Option<String>,
+  pub decorators: bool,
+  pub use_define_for_class_fields: bool,
+  pub is_development: bool,
+  pub react_refresh: bool,
+  pub targets: Option<HashMap<String, String>>,
+  pub source_maps: bool,
+  pub scope_hoist: bool,
+  pub source_type: SourceType,
+  pub supports_module_workers: bool,
+  pub is_library: bool,
+  pub is_esm_output: bool,
+  pub trace_bailouts: bool,
+  pub is_swc_helpers: bool,
+  pub standalone: bool,
+  pub inline_constants: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
+#[non_exhaustive]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
-  code: Vec<u8>,
-  map: Option<String>,
-  shebang: Option<String>,
-  dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<HoistResult>,
-  symbol_result: Option<CollectResult>,
-  diagnostics: Option<Vec<Diagnostic>>,
-  needs_esm_helpers: bool,
-  used_env: HashSet<swc_core::ecma::atoms::JsWord>,
-  has_node_replacements: bool,
-  is_constant_module: bool,
+  pub code: Vec<u8>,
+  pub map: Option<String>,
+  pub shebang: Option<String>,
+  pub dependencies: Vec<DependencyDescriptor>,
+  pub hoist_result: Option<HoistResult>,
+  pub symbol_result: Option<CollectResult>,
+  pub diagnostics: Option<Vec<Diagnostic>>,
+  pub needs_esm_helpers: bool,
+  pub used_env: HashSet<swc_core::ecma::atoms::JsWord>,
+  pub has_node_replacements: bool,
+  pub is_constant_module: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -393,10 +399,8 @@ pub fn transform(
                     items: &mut global_deps,
                     global_mark,
                     globals: HashMap::new(),
-                    project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
                     unresolved_mark,
-                    scope_hoist: config.scope_hoist,
                     has_node_replacements: &mut result.has_node_replacements,
                   },
                   config.node_replacer,
@@ -564,13 +568,13 @@ fn parse(
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
-    Syntax::Typescript(TsConfig {
+    Syntax::Typescript(TsSyntax {
       tsx: config.is_jsx,
       decorators: config.decorators,
       ..Default::default()
     })
   } else {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
       jsx: config.is_jsx,
       export_default_from: true,
       decorators: config.decorators,

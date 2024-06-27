@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use indexmap::indexmap;
 use indexmap::IndexMap;
@@ -31,7 +31,7 @@ pub struct ExtendedConfigFixture {
 pub fn config(project_root: &Path) -> (String, ConfigFixture) {
   (
     String::from("@config/default"),
-    default_config(Rc::new(
+    default_config(Arc::new(
       project_root
         .join("node_modules")
         .join("@config/default")
@@ -43,7 +43,7 @@ pub fn config(project_root: &Path) -> (String, ConfigFixture) {
 pub fn fallback_config(project_root: &Path) -> (String, ConfigFixture) {
   (
     String::from("@parcel/config-default"),
-    default_config(Rc::new(
+    default_config(Arc::new(
       project_root
         .join("node_modules")
         .join("@parcel/config-default")
@@ -52,51 +52,51 @@ pub fn fallback_config(project_root: &Path) -> (String, ConfigFixture) {
   )
 }
 
-pub fn default_config(resolve_from: Rc<PathBuf>) -> ConfigFixture {
+pub fn default_config(resolve_from: Arc<PathBuf>) -> ConfigFixture {
   ConfigFixture {
     parcel_config: ParcelConfig {
       bundler: PluginNode {
         package_name: String::from("@parcel/bundler-default"),
-        resolve_from: Rc::clone(&resolve_from),
+        resolve_from: resolve_from.clone(),
       },
       compressors: PipelinesMap::new(indexmap! {
         String::from("*") => vec!(PluginNode {
           package_name: String::from("@parcel/compressor-raw"),
-          resolve_from: Rc::clone(&resolve_from),
+          resolve_from: resolve_from.clone(),
         })
       }),
       namers: vec![PluginNode {
         package_name: String::from("@parcel/namer-default"),
-        resolve_from: Rc::clone(&resolve_from),
+        resolve_from: resolve_from.clone(),
       }],
       optimizers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => vec!(PluginNode {
           package_name: String::from("@parcel/optimizer-swc"),
-          resolve_from: Rc::clone(&resolve_from),
+          resolve_from: resolve_from.clone(),
         })
       }),
       packagers: PipelineMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => PluginNode {
           package_name: String::from("@parcel/packager-js"),
-          resolve_from: Rc::clone(&resolve_from),
+          resolve_from: resolve_from.clone(),
         }
       }),
       reporters: vec![PluginNode {
         package_name: String::from("@parcel/reporter-dev-server"),
-        resolve_from: Rc::clone(&resolve_from),
+        resolve_from: resolve_from.clone(),
       }],
       resolvers: vec![PluginNode {
         package_name: String::from("@parcel/resolver-default"),
-        resolve_from: Rc::clone(&resolve_from),
+        resolve_from: resolve_from.clone(),
       }],
       runtimes: vec![PluginNode {
         package_name: String::from("@parcel/runtime-js"),
-        resolve_from: Rc::clone(&resolve_from),
+        resolve_from: resolve_from.clone(),
       }],
       transformers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec!(PluginNode {
           package_name: String::from("@parcel/transformer-js"),
-          resolve_from: Rc::clone(&resolve_from),
+          resolve_from: resolve_from.clone(),
         })
       }),
       validators: PipelinesMap::new(IndexMap::new()),
@@ -132,71 +132,71 @@ pub fn default_config(resolve_from: Rc<PathBuf>) -> ConfigFixture {
 
 fn extended_config_from(
   project_root: &Path,
-  base_resolve_from: Rc<PathBuf>,
+  base_resolve_from: Arc<PathBuf>,
 ) -> ExtendedConfigFixture {
-  let extended_resolve_from = Rc::new(
+  let extended_resolve_from = Arc::new(
     project_root
       .join("node_modules")
       .join("@parcel/config-default")
       .join("index.json"),
   );
 
-  let extended_config = default_config(Rc::clone(&extended_resolve_from));
+  let extended_config = default_config(extended_resolve_from.clone());
 
   ExtendedConfigFixture {
     parcel_config: ParcelConfig {
       bundler: PluginNode {
         package_name: String::from("@parcel/bundler-default"),
-        resolve_from: Rc::clone(&extended_resolve_from),
+        resolve_from: extended_resolve_from.clone(),
       },
       compressors: PipelinesMap::new(indexmap! {
         String::from("*") => vec!(PluginNode {
           package_name: String::from("@parcel/compressor-raw"),
-          resolve_from: Rc::clone(&extended_resolve_from),
+          resolve_from: extended_resolve_from.clone(),
         })
       }),
       namers: vec![PluginNode {
         package_name: String::from("@parcel/namer-default"),
-        resolve_from: Rc::clone(&extended_resolve_from),
+        resolve_from: extended_resolve_from.clone(),
       }],
       optimizers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => vec!(PluginNode {
           package_name: String::from("@parcel/optimizer-swc"),
-          resolve_from: Rc::clone(&extended_resolve_from),
+          resolve_from: extended_resolve_from.clone(),
         })
       }),
       packagers: PipelineMap::new(indexmap! {
         String::from("*.{js,mjs,cjs}") => PluginNode {
           package_name: String::from("@parcel/packager-js"),
-          resolve_from: Rc::clone(&extended_resolve_from),
+          resolve_from: extended_resolve_from.clone(),
         }
       }),
       reporters: vec![
         PluginNode {
           package_name: String::from("@parcel/reporter-dev-server"),
-          resolve_from: Rc::clone(&extended_resolve_from),
+          resolve_from: extended_resolve_from.clone(),
         },
         PluginNode {
           package_name: String::from("@scope/parcel-metrics-reporter"),
-          resolve_from: Rc::clone(&base_resolve_from),
+          resolve_from: base_resolve_from.clone(),
         },
       ],
       resolvers: vec![PluginNode {
         package_name: String::from("@parcel/resolver-default"),
-        resolve_from: Rc::clone(&extended_resolve_from),
+        resolve_from: extended_resolve_from.clone(),
       }],
       runtimes: vec![PluginNode {
         package_name: String::from("@parcel/runtime-js"),
-        resolve_from: Rc::clone(&extended_resolve_from),
+        resolve_from: extended_resolve_from.clone(),
       }],
       transformers: NamedPipelinesMap::new(indexmap! {
         String::from("*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}") => vec!(PluginNode {
           package_name: String::from("@parcel/transformer-js"),
-          resolve_from: Rc::clone(&extended_resolve_from),
+          resolve_from: extended_resolve_from.clone(),
         }),
         String::from("*.{ts,tsx}") => vec!(PluginNode {
           package_name: String::from("@scope/parcel-transformer-ts"),
-          resolve_from: Rc::clone(&base_resolve_from),
+          resolve_from: base_resolve_from.clone(),
         }),
       }),
       validators: PipelinesMap::new(IndexMap::new()),
@@ -226,13 +226,13 @@ fn extended_config_from(
 }
 
 pub fn default_extended_config(project_root: &Path) -> ExtendedConfigFixture {
-  let base_resolve_from = Rc::from(project_root.join(".parcelrc"));
+  let base_resolve_from = Arc::from(project_root.join(".parcelrc"));
 
   extended_config_from(project_root, base_resolve_from)
 }
 
 pub fn extended_config(project_root: &Path) -> (String, ExtendedConfigFixture) {
-  let base_resolve_from = Rc::from(
+  let base_resolve_from = Arc::from(
     project_root
       .join("node_modules")
       .join("@config/default")

@@ -116,7 +116,7 @@ export class DevPackager {
         let output = code || '';
         wrapped +=
           JSON.stringify(this.bundleGraph.getAssetPublicId(asset)) +
-          ':[function(require,module,exports) {\n' +
+          ':[function(require,module,exports,__globalThis) {\n' +
           output +
           '\n},';
         wrapped += JSON.stringify(deps);

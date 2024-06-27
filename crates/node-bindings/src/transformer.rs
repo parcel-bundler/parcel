@@ -3,6 +3,31 @@ use napi::JsObject;
 use napi::JsUnknown;
 use napi_derive::napi;
 
+use parcel_core::plugin::{
+  InitialAsset, RunTransformContext, TransformationInput, TransformerPlugin,
+};
+use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
+
+use parcel_napi_helpers::anyhow_to_napi;
+
+#[napi]
+pub fn _testing_run_parcel_js_transformer_plugin(
+  target_path: String,
+  env: Env,
+) -> napi::Result<JsUnknown> {
+  let mut transformer = ParcelJsTransformerPlugin::new();
+  let mut context = RunTransformContext::default();
+  let input = TransformationInput::InitialAsset(InitialAsset {
+    file_path: target_path.into(),
+    ..Default::default()
+  });
+  let result = transformer
+    .transform(&mut context, input)
+    .map_err(anyhow_to_napi)?;
+  let result = env.to_js_value(&result)?;
+  Ok(result)
+}
+
 #[napi]
 pub fn transform(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
   let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;

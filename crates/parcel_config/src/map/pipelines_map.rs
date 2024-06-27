@@ -13,7 +13,7 @@ use crate::PluginNode;
 ///
 /// ```
 /// use std::path::PathBuf;
-/// use std::rc::Rc;
+/// use std::sync::Arc;
 ///
 /// use indexmap::indexmap;
 /// use parcel_config::map::PipelinesMap;
@@ -22,7 +22,7 @@ use crate::PluginNode;
 /// PipelinesMap::new(indexmap! {
 ///   String::from("*") => vec![PluginNode {
 ///     package_name: String::from("@parcel/compressor-raw"),
-///     resolve_from: Rc::new(PathBuf::default()),
+///     resolve_from: Arc::new(PathBuf::default()),
 ///   }]
 /// });
 /// ```
@@ -45,7 +45,7 @@ impl PipelinesMap {
   /// ```
   /// use std::path::Path;
   /// use std::path::PathBuf;
-  /// use std::rc::Rc;
+  /// use std::sync::Arc;
   ///
   /// use indexmap::indexmap;
   /// use parcel_config::map::PipelinesMap;
@@ -54,7 +54,7 @@ impl PipelinesMap {
   /// let pipelines_map = PipelinesMap::new(indexmap! {
   ///   String::from("*") => vec![PluginNode {
   ///     package_name: String::from("@parcel/compressor-raw"),
-  ///     resolve_from: Rc::new(PathBuf::default()),
+  ///     resolve_from: Arc::new(PathBuf::default()),
   ///   }]
   /// });
   ///
@@ -78,14 +78,14 @@ impl PipelinesMap {
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;
-  use std::rc::Rc;
+  use std::sync::Arc;
 
   use super::*;
 
   fn pipelines(name: &str) -> Vec<PluginNode> {
     vec![PluginNode {
       package_name: format!("@parcel/plugin-{}", name),
-      resolve_from: Rc::new(PathBuf::default()),
+      resolve_from: Arc::new(PathBuf::default()),
     }]
   }
 

@@ -1,28 +1,22 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use anyhow::anyhow;
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystemRef;
 use serde::de::DeserializeOwned;
 
-use crate::types::JSONObject;
+pub type ConfigLoaderRef = Arc<ConfigLoader>;
 
-/// Enables plugins to load config in various formats
-pub struct PluginConfig {
+/// Enables config to be loaded in various formats
+pub struct ConfigLoader {
   pub fs: FileSystemRef,
   pub project_root: PathBuf,
   pub search_path: PathBuf,
 }
 
 // TODO JavaScript configs, invalidations, dev deps, etc
-impl PluginConfig {
-  pub fn new(fs: FileSystemRef, project_root: PathBuf, search_path: PathBuf) -> Self {
-    Self {
-      fs,
-      project_root,
-      search_path,
-    }
-  }
-
+impl ConfigLoader {
   pub fn load_json_config<Config: DeserializeOwned>(
     &self,
     filename: &str,
@@ -33,30 +27,23 @@ impl PluginConfig {
       &self.search_path,
       &self.project_root,
     )
-    .ok_or(anyhow::Error::msg(format!(
+    .ok_or(anyhow!(
       "Unable to locate {} config file from {}",
       filename,
       self.search_path.display()
-    )))?;
+    ))?;
 
     let config = self.fs.read_to_string(&config_path)?;
-    let config = serde_json::from_str::<Config>(&config)?;
+    let config = serde_json::from_str::<Config>(&config)
+      .map_err(|error| anyhow!("{} in {}", error, config_path.display(),))?;
 
     Ok((config_path, config))
   }
 
-  pub fn load_package_json_config(
+  pub fn load_package_json_config<Config: DeserializeOwned>(
     &self,
-    key: &str,
-  ) -> Result<(PathBuf, serde_json::Value), anyhow::Error> {
-    let (config_path, config) = self.load_json_config::<JSONObject>("package.json")?;
-    let config = config.get(key).ok_or(anyhow::Error::msg(format!(
-      "Unable to locate {} config key in {}",
-      key,
-      config_path.display()
-    )))?;
-
-    Ok((config_path, config.clone()))
+  ) -> Result<(PathBuf, Config), anyhow::Error> {
+    self.load_json_config::<Config>("package.json")
   }
 }
 
@@ -81,7 +68,7 @@ mod tests {
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs: Arc::new(InMemoryFileSystem::default()),
         project_root,
         search_path: search_path.clone(),
@@ -109,7 +96,7 @@ mod tests {
         String::from("{}"),
       );
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root: PathBuf::default(),
         search_path: search_path.clone(),
@@ -134,7 +121,7 @@ mod tests {
 
       fs.write_file(&PathBuf::from("config.json"), String::from("{}"));
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root,
         search_path: search_path.clone(),
@@ -160,7 +147,7 @@ mod tests {
 
       fs.write_file(&config_path, String::from("{}"));
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root,
         search_path,
@@ -183,7 +170,7 @@ mod tests {
 
       fs.write_file(&config_path, String::from("{}"));
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root,
         search_path,
@@ -201,15 +188,14 @@ mod tests {
   mod load_package_json_config {
     use std::sync::Arc;
 
-    use serde_json::Map;
-    use serde_json::Value;
-
     use super::*;
 
     fn package_json() -> String {
       String::from(
         r#"
         {
+          "name": "parcel",
+          "version": "1.0.0",
           "plugin": {
             "enabled": true
           }
@@ -218,12 +204,20 @@ mod tests {
       )
     }
 
-    fn package_config() -> Value {
-      let mut map = Map::new();
+    fn package_config() -> PackageJsonConfig {
+      PackageJsonConfig {
+        plugin: PluginConfig { enabled: true },
+      }
+    }
 
-      map.insert(String::from("enabled"), Value::Bool(true));
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct PluginConfig {
+      enabled: bool,
+    }
 
-      Value::Object(map)
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct PackageJsonConfig {
+      plugin: PluginConfig,
     }
 
     #[test]
@@ -231,7 +225,7 @@ mod tests {
       let project_root = PathBuf::from("/project-root");
       let search_path = project_root.join("index");
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs: Arc::new(InMemoryFileSystem::default()),
         project_root,
         search_path: search_path.clone(),
@@ -239,7 +233,7 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config("plugin")
+          .load_package_json_config::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Err(format!(
           "Unable to locate package.json config file from {}",
@@ -258,7 +252,7 @@ mod tests {
       fs.write_file(&package_path, String::from("{}"));
       fs.write_file(&project_root.join("package.json"), package_json());
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root,
         search_path,
@@ -266,10 +260,10 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config("plugin")
+          .load_package_json_config::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Err(format!(
-          "Unable to locate plugin config key in {}",
+          "missing field `plugin` at line 1 column 2 in {}",
           package_path.display()
         ))
       )
@@ -284,7 +278,7 @@ mod tests {
 
       fs.write_file(&package_path, String::from("{}"));
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root,
         search_path,
@@ -292,10 +286,10 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config("plugin")
+          .load_package_json_config::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Err(format!(
-          "Unable to locate plugin config key in {}",
+          "missing field `plugin` at line 1 column 2 in {}",
           package_path.display()
         ))
       )
@@ -310,7 +304,7 @@ mod tests {
 
       fs.write_file(&package_path, package_json());
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root,
         search_path,
@@ -318,7 +312,7 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config("plugin")
+          .load_package_json_config::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Ok((package_path, package_config()))
       )
@@ -333,7 +327,7 @@ mod tests {
 
       fs.write_file(&package_path, package_json());
 
-      let config = PluginConfig {
+      let config = ConfigLoader {
         fs,
         project_root,
         search_path,
@@ -341,7 +335,7 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config("plugin")
+          .load_package_json_config::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Ok((package_path, package_config()))
       )

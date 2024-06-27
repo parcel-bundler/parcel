@@ -4,8 +4,8 @@ use anyhow;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
 use parcel_package_manager::NodePackageManager;
-use parcel_plugin_rpc::RpcConnectionRef;
 use parcel_plugin_rpc::RpcHostRef;
+use parcel_plugin_rpc::RpcWorkerRef;
 
 pub struct Parcel {
   pub fs: FileSystemRef,
@@ -47,8 +47,8 @@ impl Parcel {
     }
   }
 
-  pub fn build(&self, options: BuildOptions) -> anyhow::Result<BuildResult> {
-    let mut _rpc_connection = None::<RpcConnectionRef>;
+  pub fn build(&self, _options: BuildOptions) -> anyhow::Result<BuildResult> {
+    let mut _rpc_connection = None::<RpcWorkerRef>;
 
     if let Some(rpc_host) = &self.rpc {
       _rpc_connection = Some(rpc_host.start()?);

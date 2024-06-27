@@ -16,9 +16,6 @@ pub use optimizer_plugin::*;
 mod packager_plugin;
 pub use packager_plugin::*;
 
-mod plugin_config;
-pub use plugin_config::*;
-
 mod reporter_plugin;
 pub use reporter_plugin::*;
 
@@ -34,10 +31,11 @@ pub use transformer_plugin::*;
 mod validator_plugin;
 pub use validator_plugin::*;
 
+use crate::config_loader::ConfigLoader;
 use crate::types::BuildMode;
 
 pub struct PluginContext {
-  pub config: PluginConfig,
+  pub config: Arc<ConfigLoader>,
   pub options: Arc<PluginOptions>,
   pub logger: PluginLogger,
 }

@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 description = "JavaScript Transformer Plugin for the Parcel Bundler"
 
-[lib]
-path = "./src/lib.rs"
-
 [dependencies]
 parcel_core = { path = "../parcel_core" }
 anyhow = "1"
+parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
+swc_core = { version = "0.95", features = ["ecma_ast"] }
+indexmap = "2.2.6"
+
+[dev-dependencies]
+parcel_filesystem = { path = "../parcel_filesystem" }
