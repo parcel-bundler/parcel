@@ -93,6 +93,7 @@ impl Cache for LMDBCache {
 mod test {
   use rand::random;
   use rkyv::rancor::Panic;
+  use rkyv::{from_bytes, to_bytes};
 
   use parcel_core::types::Asset;
 
@@ -117,12 +118,45 @@ mod test {
       dependencies: vec![],
     });
     let cache_key = random::<u64>().to_string();
-    let bytes = rkyv::to_bytes::<_, 256, Panic>(&request_result).unwrap();
+    let bytes = to_bytes::<_, 256, Panic>(&request_result).unwrap();
     cache.set_blob(&cache_key, bytes.as_slice()).unwrap();
 
     let txn = cache.environment().read_txn().unwrap();
     let blob = cache.get_blob_ref(&txn, &cache_key).unwrap();
     assert_eq!(blob, bytes.as_slice());
-    let _request_result: RequestResult = rkyv::from_bytes::<RequestResult, Panic>(&blob).unwrap();
+    let _request_result: RequestResult = from_bytes::<RequestResult, Panic>(&blob).unwrap();
+  }
+
+  #[test]
+  fn test_round_trip_serialize() {
+    let cache = LMDBCache::new().unwrap();
+    let asset = Asset::default();
+    let request_result = RequestResult::Asset(AssetRequestOutput {
+      asset,
+      dependencies: vec![],
+    });
+    let cache_key = random::<u64>().to_string();
+    let mut bytes = to_bytes::<_, 256, Panic>(&request_result).unwrap();
+    bytes.shrink_to_fit();
+    let copy = bytes.as_slice().to_vec();
+    cache.set_blob(&cache_key, bytes.as_slice()).unwrap();
+    let blob_vec = cache.get_blob(&cache_key).unwrap();
+    let txn = cache.environment().read_txn().unwrap();
+    let blob = cache.get_blob_ref(&txn, &cache_key).unwrap();
+    assert_eq!(blob_vec, bytes.as_slice());
+    assert_eq!(blob, bytes.as_slice());
+
+    let _request_result: RequestResult =
+      from_bytes::<RequestResult, Panic>(&bytes.as_slice()).unwrap();
+    let _request_result: RequestResult = from_bytes::<RequestResult, Panic>(&copy).unwrap();
+    let _request_result: RequestResult = from_bytes::<RequestResult, Panic>(&blob_vec).unwrap();
+    assert_eq!(blob, bytes.as_slice());
+    let blob_copy = blob.to_vec();
+    let _request_result = from_bytes::<RequestResult, Panic>(&blob_copy);
+    let blob_copy_ref = blob_copy.as_slice();
+    assert_eq!(blob, bytes.as_slice());
+    let request_result = from_bytes::<RequestResult, Panic>(&blob);
+
+    txn.commit().unwrap();
   }
 }
