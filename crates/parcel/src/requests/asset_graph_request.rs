@@ -1,38 +1,67 @@
+use std::sync::mpsc::channel;
+
 use parcel_core::asset_graph::{AssetGraph, AssetGraphNode};
-use petgraph::graph::NodeIndex;
 
-use crate::{
-  request_tracker::{Request, RequestResult, RequestTracker, RunRequestContext, RunRequestError},
-  ParcelOptions,
-};
+use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
-use super::entry_request::EntryRequest;
+use super::entry_request::{EntryRequest, EntryRequestOutput};
+use super::target_request::TargetRequest;
+use super::RequestResult;
 
 /// The AssetGraphRequest is in charge of building the AssetGraphRequest
 /// In doing so, it kicks of the TargetRequest, PathRequest and AssetRequests.
-#[derive(Hash)]
+#[derive(Debug, Hash)]
 pub struct AssetGraphRequest {
   pub entries: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct AssetGraphResult {}
+#[derive(Clone, Debug)]
+pub struct AssetGraphRequestOutput {
+  pub graph: AssetGraph,
+}
 
-impl Request<AssetGraphResult> for AssetGraphRequest {
+impl Request for AssetGraphRequest {
   fn run(
     &self,
-    request_context: RunRequestContext<AssetGraphResult>,
-  ) -> Result<RequestResult<AssetGraphResult>, RunRequestError> {
+    mut request_context: RunRequestContext,
+  ) -> Result<ResultAndInvalidations, RunRequestError> {
     let mut graph = AssetGraph::new();
     let root = graph.graph.add_node(AssetGraphNode::Root);
 
-    request_context.start_request_queue(|request_queue| {
-      for entry in self.entries {
-        request_queue.queue_request(Box::new(EntryRequest {
+    let (tx, rx) = channel();
+    for entry in &self.entries {
+      request_context.queue_request(
+        EntryRequest {
           entry: entry.clone(),
-        }));
+        },
+        tx.clone(),
+      );
+    }
+
+    while let result = rx.recv()? {
+      match result {
+        Ok(RequestResult::Entry(EntryRequestOutput { entries: _entries })) => {
+          // for entry in entries {
+          //   request_context.queue_request(TargetRequest { entry }, tx.clone());
+          // }
+          todo!();
+        }
+        Ok(RequestResult::Asset(_)) => {
+          todo!();
+        }
+        Ok(RequestResult::Path(_)) => {
+          todo!();
+        }
+        other => {
+          todo!("{:?}", other);
+        }
       }
-    });
+    }
+
+    Ok(ResultAndInvalidations {
+      result: RequestResult::AssetGraph(AssetGraphRequestOutput { graph }),
+      invalidations: vec![],
+    })
   }
 }
 
