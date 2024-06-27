@@ -30,6 +30,21 @@ impl FileSystemOperation {
 ///
 /// The purpose of this is to implement objects that access the file-system, and automatically
 /// register invalidations for all files read.
+///
+/// ## Example
+/// ```
+/// use parcel_filesystem::FileSystem;
+/// use parcel_filesystem::os_file_system::OsFileSystem;
+/// use parcel_filesystem::tracking_file_system::{FileSystemOperation, TrackingFileSystem};
+///
+/// let file_system = OsFileSystem::default();
+/// // We can create the tracking instance from a reference, Arc or value.
+/// let tracking_file_system = TrackingFileSystem::new(&file_system);
+/// let _ = tracking_file_system.cwd();
+///
+/// let operations = tracking_file_system.take_operations();
+/// assert_eq!(operations, vec!(FileSystemOperation::Cwd));
+/// ```
 pub struct TrackingFileSystem<Fs: FileSystem> {
   delegate: Fs,
   operations: RefCell<Vec<FileSystemOperation>>,
