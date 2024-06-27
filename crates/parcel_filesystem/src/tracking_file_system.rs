@@ -107,8 +107,9 @@ where
 #[cfg(test)]
 mod test {
   use std::path::{Path, PathBuf};
+  use std::sync::Arc;
 
-  use crate::{FileSystem, MockFileSystem};
+  use crate::{FileSystem, FileSystemRef, MockFileSystem};
 
   use super::*;
 
@@ -161,5 +162,8 @@ mod test {
   fn test_create_tracking_file_system_from_ref() {
     let child = MockFileSystem::new();
     let _tracking = TrackingFileSystem::new(&child);
+    let child: FileSystemRef = Arc::new(MockFileSystem::new());
+    let _tracking = TrackingFileSystem::new(&child);
+    let _tracking = TrackingFileSystem::new(child);
   }
 }
