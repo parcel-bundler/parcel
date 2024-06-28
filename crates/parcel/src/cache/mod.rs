@@ -92,7 +92,7 @@ impl Cache for LMDBCache {
 #[cfg(test)]
 mod test {
   use rand::random;
-  use rkyv::rancor::Panic;
+  use rkyv::rancor::{Failure, Panic};
   use rkyv::{from_bytes, to_bytes};
 
   use parcel_core::types::Asset;
@@ -152,10 +152,13 @@ mod test {
     let _request_result: RequestResult = from_bytes::<RequestResult, Panic>(&blob_vec).unwrap();
     assert_eq!(blob, bytes.as_slice());
     let blob_copy = blob.to_vec();
-    let _request_result = from_bytes::<RequestResult, Panic>(&blob_copy);
-    let blob_copy_ref = blob_copy.as_slice();
+    let _request_result = from_bytes::<RequestResult, Panic>(&blob_copy).unwrap();
     assert_eq!(blob, bytes.as_slice());
-    let request_result = from_bytes::<RequestResult, Panic>(&blob);
+    let request_result = from_bytes::<RequestResult, Failure>(&blob);
+    assert_eq!(blob, bytes.as_slice());
+    let request_result2 = from_bytes::<RequestResult, Failure>(&bytes.as_slice());
+    request_result2.unwrap();
+    request_result.unwrap();
 
     txn.commit().unwrap();
   }

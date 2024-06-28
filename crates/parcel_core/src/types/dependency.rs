@@ -106,7 +106,7 @@ pub struct Dependency {
 
   /// The target associated with an entry, if any
   #[serde(default)]
-  pub target: Option<Box<Target>>,
+  pub target: Option<Target>,
 
   /// Whether the dependency is an entry
   pub is_entry: bool,
