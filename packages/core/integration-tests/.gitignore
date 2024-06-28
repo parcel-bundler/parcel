@@ -8,3 +8,4 @@ test/integration/**/target
 test/integration/**/Cargo.lock
 test/**/package-lock.json
 test/integration/babel-plugin-autoinstall/package.json
+.swc
