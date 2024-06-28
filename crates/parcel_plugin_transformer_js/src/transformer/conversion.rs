@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
-use parcel_core::diagnostic;
 use swc_core::atoms::Atom;
 
+use parcel_core::diagnostic;
 use parcel_core::plugin::TransformResult;
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
@@ -588,9 +588,66 @@ fn convert_source_type(source_type: &Option<parcel_js_swc_core::SourceType>) -> 
 
 #[cfg(test)]
 mod test {
-  use crate::transformer::test_helpers::run_swc_core_transform;
+  use swc_core::atoms::JsWord;
+
+  use crate::transformer::test_helpers::{make_test_swc_config, run_swc_core_transform};
 
   use super::*;
+
+  #[test]
+  fn test_jsx_pragma_works() {
+    let source = r#"
+/** @jsx jsx */
+
+import { jsx, css } from '@emotion/react'
+
+export function Component() {
+    console.log(css);
+    return <div css={{}} />
+}
+    "#;
+    let swc_output = parcel_js_swc_core::transform(
+      parcel_js_swc_core::Config {
+        is_jsx: true,
+        ..make_test_swc_config(source)
+      },
+      None,
+    )
+    .unwrap();
+    assert!(swc_output.code.len() > 0);
+    let export = String::from_utf8(swc_output.code).unwrap();
+    assert_eq!(
+      export,
+      r#"
+/** @jsx jsx */ import ":@emotion/react:esm";
+function $$export$16fa2f45be04daa8() {
+    console.log((0, $$import$197eebf0e1b56492$dbf350e5966cf602));
+    return /*#__PURE__*/ (0, $$import$197eebf0e1b56492$34b9dba7ce09269b)("div", {
+        css: {}
+    });
+}
+"#
+      .trim_start()
+    );
+    // css
+    assert_eq!(
+      swc_output.hoist_result.as_ref().unwrap().imported_symbols[0].local,
+      JsWord::from(Atom::from("$$import$197eebf0e1b56492$dbf350e5966cf602")),
+    );
+    assert_eq!(
+      swc_output.hoist_result.as_ref().unwrap().imported_symbols[0].imported,
+      JsWord::from(Atom::from("css")),
+    );
+    // jsx
+    assert_eq!(
+      swc_output.hoist_result.as_ref().unwrap().imported_symbols[1].local,
+      JsWord::from(Atom::from("$$import$197eebf0e1b56492$34b9dba7ce09269b")),
+    );
+    assert_eq!(
+      swc_output.hoist_result.as_ref().unwrap().imported_symbols[1].imported,
+      JsWord::from(Atom::from("jsx")),
+    );
+  }
 
   #[test]
   fn test_is_re_export_all_symbol() {
