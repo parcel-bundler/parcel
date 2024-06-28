@@ -1,18 +1,21 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 
 use parcel_core::asset_graph::{
   AssetGraph, AssetGraphEdge, AssetGraphNode, DependencyNode, DependencyState,
 };
-use parcel_core::types::DefaultTargetOptions;
+use parcel_core::types::{DefaultTargetOptions, Dependency, Entry, SpecifierType, Symbol};
+use petgraph::graph::NodeIndex;
 
-use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
+use crate::request_tracker::{
+  Request, RequestId, ResultAndInvalidations, RunRequestContext, RunRequestError,
+};
 
-use super::asset_request::AssetRequest;
+use super::asset_request::{AssetRequest, AssetRequestOutput};
 use super::entry_request::{EntryRequest, EntryRequestOutput};
 use super::path_request::{PathRequest, PathRequestOutput};
-use super::target_request::TargetRequest;
+use super::target_request::{TargetRequest, TargetRequestOutput};
 use super::RequestResult;
 
 /// The AssetGraphRequest is in charge of building the AssetGraphRequest
@@ -32,9 +35,9 @@ impl Request for AssetGraphRequest {
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     let mut graph = AssetGraph::new();
     let root = graph.graph.add_node(AssetGraphNode::Root);
-    let mut visited = HashSet::new();
 
     let (tx, rx) = channel();
+
     request_context.queue_request(
       EntryRequest {
         entry: request_context
@@ -47,9 +50,35 @@ impl Request for AssetGraphRequest {
       tx.clone(),
     );
 
+    let mut visited = HashSet::new();
+    let mut asset_request_to_asset = HashMap::new();
+    let mut waiting_asset_requests = HashMap::<u64, HashSet<NodeIndex>>::new();
+    let mut request_id_to_dep_node_index = HashMap::<RequestId, NodeIndex>::new();
+
+    /// This allows us to defer PathRequests that are not yet known to be used
+    /// as their requested symbols are not yet referenced in any discovered
+    /// Assets.
+    let mut request_path_if_required = |asset_node_index: NodeIndex, dep_node_index: NodeIndex| {
+      graph.propagate_requested_symbols(
+        asset_node_index,
+        dep_node_index,
+        &mut |dep_node, dependency| {
+          let request = PathRequest {
+            dependency: dependency.clone(),
+            // TODO: Where should named pipelines come from?
+            named_pipelines: vec![],
+          };
+
+          request_id_to_dep_node_index.insert(request.id(), dep_node);
+
+          request_context.queue_request(request, tx.clone());
+        },
+      );
+    };
+
     while let result = rx.recv()? {
       match result {
-        Ok(RequestResult::Entry(EntryRequestOutput { entries })) => {
+        Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
           for entry in entries {
             let target_request = TargetRequest {
               default_target_options: DefaultTargetOptions::default(),
@@ -60,15 +89,91 @@ impl Request for AssetGraphRequest {
             request_context.queue_request(target_request, tx.clone());
           }
         }
-        Ok(RequestResult::Target(_)) => {
-          todo!();
+        Ok((RequestResult::Target(TargetRequestOutput { targets }), request_id)) => {
+          let entry_node_index = *request_id_to_dep_node_index
+            .get(&request_id)
+            .expect("Missing node index for request id {request_id}");
+          // TODO: Get actual entry
+          let entry = Entry::default();
+          for target in targets {
+            let mut dependency = Dependency::new(entry.file_path.to_string(), target.env);
+            dependency.specifier_type = SpecifierType::Url;
+            dependency.target = Some(Box::new(target));
+            dependency.is_entry = true;
+            dependency.needs_stable_name = true;
+
+            let mut requested_symbols = HashSet::default();
+            if dependency.env.is_library {
+              dependency.has_symbols = true;
+              dependency.symbols.push(Symbol {
+                exported: "*".into(),
+                local: "*".into(),
+                is_weak: true,
+                loc: None,
+                is_esm_export: false,
+                self_referenced: false,
+              });
+              requested_symbols.insert("*".into());
+            }
+            let dep_node = graph.add_dependency(dependency.clone(), requested_symbols);
+            graph
+              .graph
+              .add_edge(entry_node_index, dep_node, AssetGraphEdge {});
+
+            let request = PathRequest {
+              dependency,
+              // TODO: Where should named pipelines come from?
+              named_pipelines: vec![],
+            };
+            request_id_to_dep_node_index.insert(request.id(), dep_node);
+            request_context.queue_request(request, tx.clone());
+          }
         }
-        Ok(RequestResult::Asset(_)) => {
-          todo!();
+        Ok((
+          RequestResult::Asset(AssetRequestOutput {
+            asset,
+            dependencies,
+          }),
+          request_id,
+        )) => {
+          let asset_node_index = graph.add_asset(asset.clone());
+          let incoming_dep_node_index = *request_id_to_dep_node_index
+            .get(&request_id)
+            .expect("Missing node index for request id {request_id}");
+          asset_request_to_asset.insert(request_id, asset_node_index);
+
+          // Connect the incoming DependencyNode to the new AssetNode
+          graph
+            .graph
+            .add_edge(incoming_dep_node_index, asset_node_index, AssetGraphEdge {});
+
+          for dep in &dependencies {
+            // Create DependencyNode's for each dep of the Asset and connect
+            // them in the graph
+            let dep_node = graph.add_dependency(dep.clone(), HashSet::default());
+            graph
+              .graph
+              .add_edge(asset_node_index, dep_node, AssetGraphEdge {});
+          }
+
+          request_path_if_required(asset_node_index, incoming_dep_node_index);
+
+          // Connect any previously discovered Dependencies that were waiting
+          // for this AssetNode to be created
+          if let Some(waiting) = waiting_asset_requests.remove(&request_id) {
+            for dep in waiting {
+              graph
+                .graph
+                .add_edge(dep, asset_node_index, AssetGraphEdge {});
+
+              request_path_if_required(asset_node_index, dep);
+            }
+          }
         }
-        Ok(RequestResult::Path(result)) => {
-          // TODO: Get revelant node
-          let node = root;
+        Ok((RequestResult::Path(result), request_id)) => {
+          let node = *request_id_to_dep_node_index
+            .get(&request_id)
+            .expect("Missing node index for request id {request_id}");
           let dep_index = graph.dependency_index(node).unwrap();
           let DependencyNode {
             dependency,
@@ -112,20 +217,20 @@ impl Request for AssetGraphRequest {
 
           let id = asset_request.id();
           if visited.insert(id) {
+            request_id_to_dep_node_index.insert(id, node);
             request_context.queue_request(asset_request, tx.clone());
-          } else if let Some(asset_node) = asset_request_to_asset.get(&id) {
-            graph.graph.add_edge(node, *asset_node, AssetGraphEdge {});
+          } else if let Some(asset_node_index) = asset_request_to_asset.get(&id) {
+            // We have already completed this AssetRequest so we can connect the
+            // Dependency to the Asset immediately
+            graph
+              .graph
+              .add_edge(node, *asset_node_index, AssetGraphEdge {});
 
-            // TODO: Symbol propagation like in core-rs2?
-            request_context.queue_request(
-              PathRequest {
-                dependency: dependency.clone(),
-                // TODO: Where should named pipelines come from?
-                named_pipelines: vec![],
-              },
-              tx.clone(),
-            );
+            request_path_if_required(*asset_node_index, node);
           } else {
+            // The AssetRequest has already been kicked off but is yet to
+            // complete. Register this Dependency to be connected once it
+            // completes
             waiting_asset_requests
               .entry(id)
               .and_modify(|nodes| {

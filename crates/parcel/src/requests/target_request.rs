@@ -55,7 +55,7 @@ impl Hash for TargetRequest {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TargetRequestOutput {
-  targets: Vec<Target>,
+  pub targets: Vec<Target>,
 }
 
 struct BuiltInTarget<'a> {

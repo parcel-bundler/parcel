@@ -20,7 +20,7 @@ use parcel_filesystem::FileSystemRef;
 pub struct RunRequestMessage {
   pub request: Box<dyn Request>,
   pub parent_request_id: Option<u64>,
-  pub response_tx: Option<Sender<Result<RequestResult, anyhow::Error>>>,
+  pub response_tx: Option<Sender<Result<(RequestResult, RequestId), anyhow::Error>>>,
 }
 
 type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
@@ -76,7 +76,7 @@ impl RunRequestContext {
   pub fn queue_request(
     &mut self,
     request: impl Request,
-    tx: Sender<anyhow::Result<RequestResult>>,
+    tx: Sender<anyhow::Result<(RequestResult, RequestId)>>,
   ) -> anyhow::Result<()> {
     let request: Box<dyn Request> = Box::new(request);
     let message = RunRequestMessage {
@@ -111,9 +111,10 @@ impl RunRequestContext {
 
 // We can type this properly
 pub type RunRequestError = anyhow::Error;
+pub type RequestId = u64;
 
 pub trait Request: DynHash + Send + Debug + 'static {
-  fn id(&self) -> u64 {
+  fn id(&self) -> RequestId {
     let mut hasher = parcel_core::hash::IdentifierHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher);
     self.dyn_hash(&mut hasher);
