@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
+use parcel_core::types::File;
 use parcel_filesystem::FileSystemRef;
 use parking_lot::Mutex;
 use typed_arena::Arena;
@@ -57,16 +58,16 @@ impl<'a> Deref for CacheCow<'a> {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct JsonError {
-  pub path: PathBuf,
+  pub file: File,
   pub line: usize,
   pub column: usize,
   pub message: String,
 }
 
 impl JsonError {
-  fn new(path: PathBuf, err: serde_json::Error) -> JsonError {
+  fn new(file: File, err: serde_json::Error) -> JsonError {
     JsonError {
-      path,
+      file,
       line: err.line(),
       column: err.column(),
       message: err.to_string(),
@@ -122,8 +123,16 @@ impl Cache {
       arena: &Mutex<Arena<Box<str>>>,
       path: PathBuf,
     ) -> Result<PackageJson<'static>, ResolverError> {
-      let data = read(fs, arena, &path)?;
-      let mut pkg = PackageJson::parse(path.clone(), data).map_err(|e| JsonError::new(path, e))?;
+      let contents: &str = read(fs, arena, &path)?;
+      let mut pkg = PackageJson::parse(path.clone(), contents).map_err(|e| {
+        JsonError::new(
+          File {
+            path,
+            contents: contents.into(),
+          },
+          e,
+        )
+      })?;
 
       // If the package has a `source` field, make sure
       // - the package is behind symlinks
@@ -174,8 +183,16 @@ impl Cache {
       process: F,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
       let data = read(fs, arena, path)?;
-      let mut tsconfig =
-        TsConfig::parse(path.to_owned(), data).map_err(|e| JsonError::new(path.to_owned(), e))?;
+      let contents = data.to_owned();
+      let mut tsconfig = TsConfig::parse(path.to_owned(), data).map_err(|e| {
+        JsonError::new(
+          File {
+            contents,
+            path: path.to_owned(),
+          },
+          e,
+        )
+      })?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.
       // Since the data is in our arena, this is true.
       process(unsafe { std::mem::transmute(&mut tsconfig) })?;

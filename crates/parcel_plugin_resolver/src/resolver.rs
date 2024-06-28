@@ -5,6 +5,7 @@ use std::hash::Hash;
 use std::path::Path;
 use std::sync::Arc;
 
+use parcel_core::diagnostic_error;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::PluginOptions;
 use parcel_core::plugin::Resolution;
@@ -13,6 +14,9 @@ use parcel_core::plugin::Resolved;
 use parcel_core::plugin::ResolvedResolution;
 use parcel_core::plugin::ResolverPlugin;
 use parcel_core::types::BuildMode;
+use parcel_core::types::CodeFrame;
+use parcel_core::types::CodeHighlight;
+use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::EnvironmentContext;
 use parcel_core::types::SpecifierType;
 use parcel_resolver::Cache;
@@ -20,8 +24,11 @@ use parcel_resolver::CacheCow;
 use parcel_resolver::ExportsCondition;
 use parcel_resolver::Fields;
 use parcel_resolver::IncludeNodeModules;
+use parcel_resolver::PackageJsonError;
 use parcel_resolver::ResolveOptions;
 use parcel_resolver::Resolver;
+use parcel_resolver::ResolverError;
+use parcel_resolver::SpecifierError;
 
 pub struct ParcelResolver {
   cache: Cache,
@@ -40,6 +47,126 @@ impl ParcelResolver {
       cache: Cache::new(ctx.config.fs.clone()),
       options: Arc::clone(&ctx.options),
     }
+  }
+
+  fn to_diagnostic_error(&self, specifier: &str, error: ResolverError) -> anyhow::Error {
+    let mut diagnostic = DiagnosticBuilder::default();
+    let diagnostic_error = match error {
+      ResolverError::FileNotFound { from, relative } => {
+        // TODO: Add potential files hints
+        let file = relative.display();
+        let from = from
+          .strip_prefix(self.options.project_root.clone())
+          .unwrap_or(&from)
+          .display();
+
+        diagnostic_error!(diagnostic.message(format!("Cannot load file '{file}' in '{from}'")))
+      }
+      ResolverError::InvalidSpecifier(specifier_error) => {
+        diagnostic_error!(diagnostic.message(match specifier_error {
+          SpecifierError::EmptySpecifier => format!("Invalid specifier: {specifier}"),
+          SpecifierError::InvalidFileUrl => format!("Invalid file url: {specifier}"),
+          SpecifierError::InvalidPackageSpecifier =>
+            format!("Invalid package specifier: {specifier}"),
+          SpecifierError::UrlError(parse_error) => format!("{}: {specifier}", parse_error),
+        }))
+      }
+      ResolverError::IOError(io_error) => {
+        diagnostic_error!(diagnostic.message(format!("{}", io_error)))
+      }
+      ResolverError::JsonError(json_error) => diagnostic_error!(diagnostic
+        .code_frames(vec![CodeFrame {
+          code_highlights: vec![CodeHighlight::from([json_error.line, json_error.column])],
+          ..CodeFrame::from(json_error.file)
+        }])
+        .message("Error parsing JSON")),
+      ResolverError::ModuleEntryNotFound {
+        entry_path,
+        field,
+        module,
+        package_path,
+      } => {
+        let package_dir = package_path.parent().unwrap_or(&package_path);
+        let specifier = package_dir.join(entry_path);
+        let specifier = specifier.display();
+
+        // TODO: Add alternative files
+        diagnostic_error!(diagnostic.message(format!(
+          "Could not load '{specifier}' from module '{module}' found in package.json#{field}"
+        )))
+      }
+      ResolverError::ModuleNotFound { module } => {
+        // TODO: Add alternative modules
+        diagnostic_error!(diagnostic.message(format!("Cannot find module '{module}'")))
+      }
+      ResolverError::ModuleSubpathNotFound {
+        module,
+        path,
+        package_path,
+      } => {
+        // TODO: Add potential files hints
+        let package_dir = package_path.parent().unwrap_or(&package_path);
+        let path = path.strip_prefix(package_dir).unwrap_or(&path).display();
+
+        diagnostic_error!(
+          diagnostic.message(format!("Cannot load file '{path}' from module {module}"))
+        )
+      }
+      ResolverError::PackageJsonError {
+        error,
+        module,
+        path,
+      } => {
+        match error {
+          PackageJsonError::InvalidPackageTarget => {
+            // TODO Exports code highlight
+            diagnostic_error!(diagnostic
+              .code_frames(vec![CodeFrame::from(path)])
+              .message(format!("Invalid package target in the '{module}' package. Targets may not refer to files outside the package.")))
+          }
+          PackageJsonError::PackagePathNotExported => {
+            // TODO Exports code highlight
+            diagnostic_error!(diagnostic
+              .code_frames(vec![CodeFrame::from(path)])
+              .message(format!(
+                "Module '{specifier}' is not exported from the '{module}' package"
+              )))
+          }
+          PackageJsonError::ImportNotDefined => {
+            // TODO Imports code highlight
+            diagnostic_error!(diagnostic
+              .code_frames(vec![CodeFrame::from(path)])
+              .message(format!(
+                "Package import '{specifier}' is not defined in the '{module}' package"
+              )))
+          }
+          PackageJsonError::InvalidSpecifier => {
+            diagnostic_error!(diagnostic
+              .code_frames(vec![CodeFrame::from(path)])
+              .message(format!("Invalid package import specifier {specifier}")))
+          }
+        }
+      }
+      ResolverError::PackageJsonNotFound { from } => diagnostic_error!(diagnostic.message(
+        format!("Cannot find a package.json above '{}'", from.display())
+      )),
+      ResolverError::TsConfigExtendsNotFound { error, tsconfig } => {
+        let source_diagnostic = self.to_diagnostic_error(specifier, *error);
+        let tsconfig = tsconfig.display();
+
+        source_diagnostic.context(diagnostic_error!(
+          diagnostic.message(format!("Could not find extended tsconfig {tsconfig}"))
+        ))
+      }
+      ResolverError::UnknownError => {
+        diagnostic_error!(diagnostic.message("Encountered unknown error"))
+      }
+      ResolverError::UnknownScheme { scheme } => {
+        diagnostic_error!(diagnostic.message(format!("Unknown url scheme or pipeline {scheme}")))
+      }
+    };
+
+    diagnostic_error
   }
 
   pub fn resolve_simple<S: AsRef<str>>(_from: &Path, _specifier: S) {
@@ -153,7 +280,7 @@ impl ResolverPlugin for ParcelResolver {
 
     resolver.include_node_modules = Cow::Borrowed(&ctx.dependency.env.include_node_modules);
 
-    let resolver_options = ResolveOptions {
+    let resolve_options = ResolveOptions {
       conditions: ctx.dependency.package_conditions,
       custom_conditions: vec![],
       // TODO: Do we need custom condition?
@@ -179,7 +306,7 @@ impl ResolverPlugin for ParcelResolver {
         // TODO: what should specifier custom map to?
         SpecifierType::Custom => parcel_resolver::SpecifierType::Esm,
       },
-      resolver_options,
+      resolve_options,
     );
 
     let side_effects = if let Ok((parcel_resolver::Resolution::Path(p), _)) = &res.result {
@@ -194,10 +321,13 @@ impl ResolverPlugin for ParcelResolver {
       true
     };
 
-    // TODO: Create diagnostics from errors
     // TODO: Handle invalidations
 
-    match res.result? {
+    let resolution = res
+      .result
+      .map_err(|err| self.to_diagnostic_error(&ctx.specifier, err))?;
+
+    match resolution {
       (parcel_resolver::Resolution::Path(path), _invalidations) => Ok(Resolved {
         invalidations: Vec::new(),
         resolution: Resolution::Resolved(ResolvedResolution {
@@ -268,16 +398,99 @@ fn should_include_node_module(include_node_modules: &IncludeNodeModules, name: &
 #[cfg(test)]
 mod test {
   use super::*;
-  use parcel_core::{config_loader::ConfigLoader, plugin::PluginLogger, types::Dependency};
+  use parcel_core::{
+    config_loader::ConfigLoader,
+    plugin::PluginLogger,
+    types::{Dependency, Diagnostic},
+  };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use std::path::PathBuf;
 
+  fn plugin_context(fs: InMemoryFileSystem) -> PluginContext {
+    PluginContext {
+      config: Arc::new(ConfigLoader {
+        fs: Arc::new(fs),
+        project_root: PathBuf::default(),
+        search_path: PathBuf::default(),
+      }),
+      logger: PluginLogger::default(),
+      options: Arc::new(PluginOptions::default()),
+    }
+  }
+
+  fn resolve_context(specifier: &str) -> ResolveContext {
+    ResolveContext {
+      dependency: Arc::new(Dependency {
+        specifier: specifier.into(),
+        ..Dependency::default()
+      }),
+      pipeline: None,
+      specifier: specifier.into(),
+    }
+  }
+
   #[test]
-  fn test_resolver() {
+  fn returns_module_not_found_error_diagnostic() {
+    let plugin_context = plugin_context(InMemoryFileSystem::default());
+    let resolver = ParcelResolver::new(&plugin_context);
+    let ctx = resolve_context("foo.js");
+
+    let err = resolver
+      .resolve(ctx)
+      .expect_err("Expected resolution to fail")
+      .downcast::<Diagnostic>()
+      .expect("Expected error to be a diagnostic");
+
+    assert_eq!(
+      err,
+      Diagnostic {
+        code_frames: Vec::new(),
+        documentation_url: None,
+        hints: Vec::new(),
+        message: String::from("Cannot find module 'foo.js'"),
+        origin: Some(String::from("parcel_plugin_resolver::resolver"))
+      }
+    );
+  }
+
+  #[test]
+  fn returns_package_json_error_diagnostic() {
+    let fs = InMemoryFileSystem::default();
+    let package_path = Path::new("node_modules").join("foo").join("package.json");
+
+    fs.write_file(
+      &package_path,
+      String::from(r#"{ "name": "foo", "exports": {} }"#),
+    );
+
+    let plugin_context = plugin_context(fs);
+    let resolver = ParcelResolver::new(&plugin_context);
+    let ctx = resolve_context("foo/bar");
+
+    let err = resolver
+      .resolve(ctx)
+      .expect_err("Expected resolution to fail")
+      .downcast::<Diagnostic>()
+      .expect("Expected error to be a diagnostic");
+
+    assert_eq!(
+      err,
+      Diagnostic {
+        code_frames: vec![CodeFrame::from(package_path)],
+        documentation_url: None,
+        hints: Vec::new(),
+        message: String::from("Module 'foo/bar' is not exported from the 'foo' package"),
+        origin: Some(String::from("parcel_plugin_resolver::resolver"))
+      }
+    );
+  }
+
+  #[test]
+  fn returns_resolution() {
     let fs = Arc::new(InMemoryFileSystem::default());
 
-    fs.write_file(Path::new("/foo/index.js"), "contents".to_string());
-    fs.write_file(Path::new("/foo/something.js"), "contents".to_string());
+    fs.write_file(Path::new("/foo/index.js"), String::default());
+    fs.write_file(Path::new("/foo/something.js"), String::default());
 
     let plugin_context = PluginContext {
       config: Arc::new(ConfigLoader {
@@ -285,21 +498,21 @@ mod test {
         project_root: PathBuf::default(),
         search_path: PathBuf::from("/foo"),
       }),
-      options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
+      options: Arc::new(PluginOptions::default()),
     };
 
     let resolver = ParcelResolver::new(&plugin_context);
     let specifier = String::from("./something.js");
 
     let ctx = ResolveContext {
-      specifier: specifier.clone(),
       dependency: Arc::new(Dependency {
         resolve_from: Some(PathBuf::from("/foo/index.js")),
-        specifier,
+        specifier: specifier.clone(),
         ..Dependency::default()
       }),
       pipeline: None,
+      specifier,
     };
 
     let result = resolver.resolve(ctx).map_err(|err| err.to_string());
