@@ -18,6 +18,8 @@ use serde::Serializer;
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub struct Version(NonZeroU16);

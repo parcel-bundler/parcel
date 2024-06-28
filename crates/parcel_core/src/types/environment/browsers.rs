@@ -7,7 +7,17 @@ use super::version::Version;
 
 /// List of targeted browsers
 #[derive(
-  Clone, Default, Debug, Eq, Hash, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+  Clone,
+  Default,
+  Debug,
+  Eq,
+  Hash,
+  PartialEq,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub struct Browsers {

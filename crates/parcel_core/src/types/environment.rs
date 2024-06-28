@@ -35,6 +35,8 @@ pub struct EnvironmentId(pub NonZeroU32);
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 #[archive(check_bytes)]
@@ -128,6 +130,8 @@ impl PartialEq for Environment {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 #[archive(check_bytes)]
@@ -177,6 +181,8 @@ impl EnvironmentContext {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(untagged)]
 #[archive(check_bytes)]
@@ -231,6 +237,8 @@ impl Hash for IncludeNodeModules {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[repr(u8)]
 #[archive(check_bytes)]
@@ -253,6 +261,8 @@ pub enum SourceType {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 #[archive(check_bytes)]

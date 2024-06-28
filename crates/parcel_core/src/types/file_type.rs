@@ -7,7 +7,16 @@ use serde::Serialize;
 ///
 /// Defaults to `FileType::Js` for convenience.
 #[derive(
-  Default, Debug, Clone, PartialEq, Hash, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+  Default,
+  Debug,
+  Clone,
+  PartialEq,
+  Hash,
+  rkyv::Archive,
+  rkyv::Serialize,
+  rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub enum FileType {

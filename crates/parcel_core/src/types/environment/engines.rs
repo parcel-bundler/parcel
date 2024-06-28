@@ -20,6 +20,8 @@ use super::OutputFormat;
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub struct Engines {

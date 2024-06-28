@@ -36,7 +36,16 @@ pub struct AssetRequest {
   pub side_effects: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
+#[derive(
+  Clone,
+  Debug,
+  PartialEq,
+  bincode::Encode,
+  bincode::Decode,
+  rkyv::Archive,
+  rkyv::Deserialize,
+  rkyv::Serialize,
+)]
 #[archive(check_bytes)]
 pub struct AssetRequestOutput {
   pub asset: Asset,

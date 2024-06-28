@@ -21,6 +21,8 @@ use super::source::SourceLocation;
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 #[archive(check_bytes)]

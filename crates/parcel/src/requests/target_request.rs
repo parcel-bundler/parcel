@@ -53,7 +53,16 @@ impl Hash for TargetRequest {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
+#[derive(
+  Debug,
+  Clone,
+  PartialEq,
+  rkyv::Archive,
+  rkyv::Deserialize,
+  rkyv::Serialize,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[archive(check_bytes)]
 pub struct TargetRequestOutput {
   targets: Vec<Target>,

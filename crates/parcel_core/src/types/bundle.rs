@@ -84,6 +84,8 @@ pub struct Bundle {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[repr(u8)]
 #[archive(check_bytes)]

@@ -14,6 +14,8 @@ use serde::Serialize;
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub struct Location {
@@ -36,6 +38,8 @@ pub struct Location {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 #[archive(check_bytes)]

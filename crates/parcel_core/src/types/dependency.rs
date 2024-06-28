@@ -25,6 +25,8 @@ use super::target::Target;
   rkyv::Archive,
   rkyv::Deserialize,
   rkyv::Serialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub struct DependencyMeta {}
@@ -40,6 +42,8 @@ pub struct DependencyMeta {}
   rkyv::Archive,
   rkyv::Deserialize,
   rkyv::Serialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 #[archive(check_bytes)]
@@ -203,6 +207,8 @@ pub struct ImportAttribute {
   rkyv::Archive,
   rkyv::Deserialize,
   rkyv::Serialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
@@ -235,6 +241,8 @@ impl Default for Priority {
   rkyv::Archive,
   rkyv::Deserialize,
   rkyv::Serialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]

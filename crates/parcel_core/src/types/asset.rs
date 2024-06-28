@@ -27,6 +27,8 @@ pub struct AssetId(pub NonZeroU32);
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 #[archive(check_bytes)]
@@ -60,6 +62,8 @@ impl From<String> for Code {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub struct AssetMeta {
@@ -80,6 +84,8 @@ pub struct AssetMeta {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 #[archive(check_bytes)]
@@ -223,6 +229,8 @@ impl Asset {
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[archive(check_bytes)]
 pub struct AssetStats {

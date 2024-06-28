@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
   rkyv::Archive,
   rkyv::Serialize,
   rkyv::Deserialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "lowercase")]
 #[archive(check_bytes)]
