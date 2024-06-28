@@ -2,8 +2,7 @@ use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::anyhow;
-
+use parcel_core::diagnostic_error;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::Resolution;
@@ -96,7 +95,7 @@ impl Request for PathRequest {
           side_effects,
         }) => {
           if !file_path.is_absolute() {
-            return Err(anyhow!(
+            return Err(diagnostic_error!(
               "{:?} must return an absolute path, but got {}",
               resolver,
               file_path.display()
@@ -137,8 +136,11 @@ impl Request for PathRequest {
       .or(self.dependency.source_path.as_ref());
 
     match resolve_from {
-      None => Err(anyhow!("Failed to resolve {}", self.dependency.specifier)),
-      Some(from) => Err(anyhow!(
+      None => Err(diagnostic_error!(
+        "Failed to resolve {}",
+        self.dependency.specifier
+      )),
+      Some(from) => Err(diagnostic_error!(
         "Failed to resolve {} from {}",
         self.dependency.specifier,
         from.display()
@@ -151,8 +153,9 @@ impl Request for PathRequest {
 mod tests {
   use std::fmt::Debug;
 
+  use parcel_core::plugin::Resolved;
+
   use crate::test_utils::request_tracker;
-  use parcel_core::plugin::{Resolved, ResolvedResolution};
 
   use super::*;
 

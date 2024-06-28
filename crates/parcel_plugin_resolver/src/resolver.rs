@@ -268,13 +268,9 @@ fn should_include_node_module(include_node_modules: &IncludeNodeModules, name: &
 #[cfg(test)]
 mod test {
   use super::*;
-  use parcel_core::{
-    config_loader::ConfigLoader,
-    plugin::{PluginLogger, PluginOptions},
-    types::Dependency,
-  };
+  use parcel_core::{config_loader::ConfigLoader, plugin::PluginLogger, types::Dependency};
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-  use std::{path::PathBuf, sync::Arc};
+  use std::path::PathBuf;
 
   #[test]
   fn test_resolver() {

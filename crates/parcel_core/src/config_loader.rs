@@ -1,10 +1,14 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystemRef;
 use serde::de::DeserializeOwned;
+
+use crate::{
+  diagnostic_error,
+  types::{CodeFrame, CodeHighlight, DiagnosticBuilder, File},
+};
 
 pub type ConfigLoaderRef = Arc<ConfigLoader>;
 
@@ -15,34 +19,56 @@ pub struct ConfigLoader {
   pub search_path: PathBuf,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ConfigFile<T> {
+  pub contents: T,
+  pub path: PathBuf,
+  pub raw: String,
+}
+
 // TODO JavaScript configs, invalidations, dev deps, etc
 impl ConfigLoader {
   pub fn load_json_config<Config: DeserializeOwned>(
     &self,
     filename: &str,
-  ) -> Result<(PathBuf, Config), anyhow::Error> {
-    let config_path = find_ancestor_file(
+  ) -> Result<ConfigFile<Config>, anyhow::Error> {
+    let path = find_ancestor_file(
       &*self.fs,
       &[filename],
       &self.search_path,
       &self.project_root,
     )
-    .ok_or(anyhow!(
-      "Unable to locate {} config file from {}",
-      filename,
-      self.search_path.display()
-    ))?;
+    .ok_or_else(|| {
+      diagnostic_error!(
+        "Unable to locate {filename} config file from {}",
+        self.search_path.display(),
+      )
+    })?;
 
-    let config = self.fs.read_to_string(&config_path)?;
-    let config = serde_json::from_str::<Config>(&config)
-      .map_err(|error| anyhow!("{} in {}", error, config_path.display(),))?;
+    let code = self.fs.read_to_string(&path)?;
 
-    Ok((config_path, config))
+    let contents = serde_json::from_str::<Config>(&code).map_err(|error| {
+      diagnostic_error!(DiagnosticBuilder::default()
+        .code_frames(vec![CodeFrame {
+          code_highlights: vec![CodeHighlight::from([error.line(), error.column()])],
+          ..CodeFrame::from(File {
+            contents: code.clone(),
+            path: path.clone()
+          })
+        }])
+        .message(format!("{error} in {}", path.display())))
+    })?;
+
+    Ok(ConfigFile {
+      contents,
+      path,
+      raw: code,
+    })
   }
 
-  pub fn load_package_json_config<Config: DeserializeOwned>(
+  pub fn load_package_json<Config: DeserializeOwned>(
     &self,
-  ) -> Result<(PathBuf, Config), anyhow::Error> {
+  ) -> Result<ConfigFile<Config>, anyhow::Error> {
     self.load_json_config::<Config>("package.json")
   }
 }
@@ -157,7 +183,11 @@ mod tests {
         config
           .load_json_config::<JsonConfig>("config.json")
           .map_err(|err| err.to_string()),
-        Ok((config_path, JsonConfig {}))
+        Ok(ConfigFile {
+          path: config_path,
+          contents: JsonConfig {},
+          raw: String::from("{}")
+        })
       )
     }
 
@@ -180,7 +210,11 @@ mod tests {
         config
           .load_json_config::<JsonConfig>("config.json")
           .map_err(|err| err.to_string()),
-        Ok((config_path, JsonConfig {}))
+        Ok(ConfigFile {
+          path: config_path,
+          contents: JsonConfig {},
+          raw: String::from("{}")
+        })
       )
     }
   }
@@ -233,7 +267,7 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config::<PackageJsonConfig>()
+          .load_package_json::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Err(format!(
           "Unable to locate package.json config file from {}",
@@ -260,7 +294,7 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config::<PackageJsonConfig>()
+          .load_package_json::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Err(format!(
           "missing field `plugin` at line 1 column 2 in {}",
@@ -286,7 +320,7 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config::<PackageJsonConfig>()
+          .load_package_json::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
         Err(format!(
           "missing field `plugin` at line 1 column 2 in {}",
@@ -312,9 +346,13 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config::<PackageJsonConfig>()
+          .load_package_json::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
-        Ok((package_path, package_config()))
+        Ok(ConfigFile {
+          path: package_path,
+          contents: package_config(),
+          raw: package_json()
+        })
       )
     }
 
@@ -335,9 +373,13 @@ mod tests {
 
       assert_eq!(
         config
-          .load_package_json_config::<PackageJsonConfig>()
+          .load_package_json::<PackageJsonConfig>()
           .map_err(|err| err.to_string()),
-        Ok((package_path, package_config()))
+        Ok(ConfigFile {
+          path: package_path,
+          contents: package_config(),
+          raw: package_json()
+        })
       )
     }
   }

@@ -97,7 +97,7 @@ mod test {
     let asset_1 = Asset::new_empty("mock_path".into(), source_code.clone());
     let asset_2 = Asset::new_empty("mock_path".into(), source_code);
     // This nº should not change across runs / compilation
-    assert_eq!(asset_1.id(), 17693125794769022406);
+    assert_eq!(asset_1.id(), 597396293677231496);
     assert_eq!(asset_1.id(), asset_2.id());
   }
 

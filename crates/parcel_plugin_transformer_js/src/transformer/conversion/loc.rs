@@ -9,12 +9,12 @@ pub(crate) fn convert_loc(
   SourceLocation {
     file_path,
     start: Location {
-      line: loc.start_line as u32,
-      column: loc.start_col as u32,
+      line: loc.start_line,
+      column: loc.start_col,
     },
     end: Location {
-      line: loc.end_line as u32,
-      column: loc.end_col as u32,
+      line: loc.end_line,
+      column: loc.end_col,
     },
   }
 }

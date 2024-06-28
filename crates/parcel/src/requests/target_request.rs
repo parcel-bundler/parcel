@@ -1,10 +1,8 @@
 use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::hash::Hash;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::anyhow;
 use package_json::BrowserField;
 use package_json::BrowsersList;
 use package_json::BuiltInTargetDescriptor;
@@ -12,12 +10,18 @@ use package_json::ModuleFormat;
 use package_json::PackageJson;
 use package_json::SourceMapField;
 use package_json::TargetDescriptor;
+
+use parcel_core::config_loader::ConfigFile;
+use parcel_core::diagnostic_error;
 use parcel_core::types::engines::Engines;
 use parcel_core::types::BuildMode;
+use parcel_core::types::CodeFrame;
 use parcel_core::types::DefaultTargetOptions;
+use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::Entry;
 use parcel_core::types::Environment;
 use parcel_core::types::EnvironmentContext;
+use parcel_core::types::File;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::SourceType;
 use parcel_core::types::Target;
@@ -61,7 +65,6 @@ pub struct TargetRequestOutput {
 struct BuiltInTarget<'a> {
   descriptor: BuiltInTargetDescriptor,
   dist: Option<PathBuf>,
-  extensions: Vec<&'a str>,
   name: &'a str,
 }
 
@@ -71,15 +74,6 @@ struct CustomTarget<'a> {
 }
 
 impl TargetRequest {
-  fn builtin_target_descriptor(&self) -> TargetDescriptor {
-    TargetDescriptor {
-      include_node_modules: Some(IncludeNodeModules::Bool(false)),
-      is_library: Some(true),
-      scope_hoist: Some(true),
-      ..TargetDescriptor::default()
-    }
-  }
-
   fn builtin_browser_target(
     &self,
     descriptor: Option<BuiltInTargetDescriptor>,
@@ -90,7 +84,7 @@ impl TargetRequest {
       descriptor: descriptor.unwrap_or_else(|| {
         BuiltInTargetDescriptor::TargetDescriptor(TargetDescriptor {
           context: Some(EnvironmentContext::Browser),
-          ..self.builtin_target_descriptor()
+          ..builtin_target_descriptor()
         })
       }),
       dist: dist.and_then(|browser| match browser {
@@ -99,7 +93,6 @@ impl TargetRequest {
           name.and_then(|name| replacements.get(&name).map(|v| v.into()))
         }
       }),
-      extensions: vec!["cjs", "js", "mjs"],
       name: "browser",
     }
   }
@@ -113,11 +106,10 @@ impl TargetRequest {
       descriptor: descriptor.unwrap_or_else(|| {
         BuiltInTargetDescriptor::TargetDescriptor(TargetDescriptor {
           context: Some(EnvironmentContext::Node),
-          ..self.builtin_target_descriptor()
+          ..builtin_target_descriptor()
         })
       }),
       dist,
-      extensions: vec!["cjs", "js", "mjs"],
       name: "main",
     }
   }
@@ -131,11 +123,10 @@ impl TargetRequest {
       descriptor: descriptor.unwrap_or_else(|| {
         BuiltInTargetDescriptor::TargetDescriptor(TargetDescriptor {
           context: Some(EnvironmentContext::Node),
-          ..self.builtin_target_descriptor()
+          ..builtin_target_descriptor()
         })
       }),
       dist,
-      extensions: vec!["js", "mjs"],
       name: "module",
     }
   }
@@ -149,20 +140,12 @@ impl TargetRequest {
       descriptor: descriptor.unwrap_or_else(|| {
         BuiltInTargetDescriptor::TargetDescriptor(TargetDescriptor {
           context: Some(EnvironmentContext::Node),
-          ..self.builtin_target_descriptor()
+          ..builtin_target_descriptor()
         })
       }),
       dist,
-      extensions: vec!["ts"],
       name: "types",
     }
-  }
-
-  fn default_dist_dir(&self, package_path: &Path) -> PathBuf {
-    package_path
-      .parent()
-      .unwrap_or_else(|| &package_path)
-      .join("dist")
   }
 
   fn infer_environment_context(&self, package_json: &PackageJson) -> EnvironmentContext {
@@ -193,11 +176,11 @@ impl TargetRequest {
 
   fn infer_output_format(
     &self,
-    module_format: &Option<ModuleFormat>,
+    dist_entry: &Option<PathBuf>,
+    package_json: &ConfigFile<PackageJson>,
     target: &TargetDescriptor,
   ) -> Result<Option<OutputFormat>, anyhow::Error> {
-    let ext = target
-      .dist_entry
+    let ext = dist_entry
       .as_ref()
       .and_then(|e| e.extension())
       .unwrap_or_default()
@@ -206,21 +189,25 @@ impl TargetRequest {
     let inferred_output_format = match ext {
       Some("cjs") => Some(OutputFormat::CommonJS),
       Some("mjs") => Some(OutputFormat::EsModule),
-      Some("js") => module_format.as_ref().and_then(|format| match format {
-        ModuleFormat::CommonJS => Some(OutputFormat::CommonJS),
-        ModuleFormat::Module => Some(OutputFormat::EsModule),
-      }),
+      Some("js") => package_json
+        .contents
+        .module_format
+        .as_ref()
+        .and_then(|format| match format {
+          ModuleFormat::CommonJS => Some(OutputFormat::CommonJS),
+          ModuleFormat::Module => Some(OutputFormat::EsModule),
+        }),
       _ => None,
     };
 
     if let Some(inferred_output_format) = inferred_output_format {
       if let Some(output_format) = target.output_format {
         if output_format != inferred_output_format {
-          return Err(anyhow!(
-            "Declared output format {} does not match expected output format {}",
-            output_format,
-            inferred_output_format
-          ));
+          return Err(diagnostic_error!(DiagnosticBuilder::default()
+            .code_frames(vec![CodeFrame::from(package_json)])
+            .message(format!(
+              "Declared output format {output_format} does not match expected output format {inferred_output_format}",
+            ))));
         }
       }
     }
@@ -231,18 +218,19 @@ impl TargetRequest {
   fn load_package_json(
     &self,
     request_context: RunRequestContext,
-  ) -> Result<(PathBuf, PackageJson), anyhow::Error> {
+  ) -> Result<ConfigFile<PackageJson>, anyhow::Error> {
     // TODO Invalidations
-    let (package_path, mut package_json) = request_context
+    let mut package_json = request_context
       .config()
-      .load_package_json_config::<PackageJson>()?;
+      .load_package_json::<PackageJson>()?;
 
     if package_json
+      .contents
       .engines
       .as_ref()
       .is_some_and(|e| !e.browsers.is_empty())
     {
-      return Ok((package_path, package_json));
+      return Ok(package_json);
     }
 
     let env = self
@@ -252,7 +240,7 @@ impl TargetRequest {
       .map(|e| e.to_owned())
       .unwrap_or_else(|| self.mode.to_string());
 
-    match package_json.browserslist.clone() {
+    match package_json.contents.browserslist.clone() {
       // TODO Process browserslist config file
       None => {}
       Some(browserslist) => {
@@ -264,9 +252,9 @@ impl TargetRequest {
             .unwrap_or_default(),
         };
 
-        package_json.engines = Some(Engines {
+        package_json.contents.engines = Some(Engines {
           browsers: Engines::from_browserslist(browserslist),
-          ..match package_json.engines {
+          ..match package_json.contents.engines {
             None => Engines::default(),
             Some(engines) => engines,
           }
@@ -274,30 +262,33 @@ impl TargetRequest {
       }
     };
 
-    Ok((package_path, package_json))
+    Ok(package_json)
   }
 
   fn resolve_package_targets(
     &self,
     request_context: RunRequestContext,
   ) -> Result<Vec<Option<Target>>, anyhow::Error> {
-    let (package_path, package_json) = self.load_package_json(request_context)?;
+    let package_json = self.load_package_json(request_context)?;
     let mut targets: Vec<Option<Target>> = Vec::new();
 
     let builtin_targets = [
       self.builtin_browser_target(
-        package_json.targets.browser.clone(),
-        package_json.browser.clone(),
-        package_json.name.clone(),
+        package_json.contents.targets.browser.clone(),
+        package_json.contents.browser.clone(),
+        package_json.contents.name.clone(),
       ),
-      self.builtin_main_target(package_json.targets.main.clone(), package_json.main.clone()),
+      self.builtin_main_target(
+        package_json.contents.targets.main.clone(),
+        package_json.contents.main.clone(),
+      ),
       self.builtin_module_target(
-        package_json.targets.module.clone(),
-        package_json.module.clone(),
+        package_json.contents.targets.module.clone(),
+        package_json.contents.module.clone(),
       ),
       self.builtin_types_target(
-        package_json.targets.types.clone(),
-        package_json.types.clone(),
+        package_json.contents.targets.types.clone(),
+        package_json.contents.types.clone(),
       ),
     ];
 
@@ -309,40 +300,9 @@ impl TargetRequest {
       match builtin_target.descriptor {
         BuiltInTargetDescriptor::Disabled(_disabled) => continue,
         BuiltInTargetDescriptor::TargetDescriptor(builtin_target_descriptor) => {
-          if builtin_target_descriptor
-            .output_format
-            .is_some_and(|f| f == OutputFormat::Global)
-          {
-            return Err(anyhow!(
-              "The \"global\" output format is not supported in the {} target",
-              builtin_target.name
-            ));
-          }
-
-          if let Some(target_dist) = builtin_target.dist.as_ref() {
-            let target_dist_ext = target_dist
-              .extension()
-              .unwrap_or(OsStr::new(""))
-              .to_string_lossy()
-              .into_owned();
-
-            if builtin_target
-              .extensions
-              .iter()
-              .all(|ext| &target_dist_ext != ext)
-            {
-              return Err(anyhow!(
-                "Unexpected file type {:?} in \"{}\" target",
-                target_dist.file_name().unwrap_or(OsStr::new(&target_dist)),
-                builtin_target.name
-              ));
-            }
-          }
-
           targets.push(self.target_from_descriptor(
             builtin_target.dist,
             &package_json,
-            &package_path,
             builtin_target_descriptor,
             builtin_target.name,
           )?);
@@ -351,6 +311,7 @@ impl TargetRequest {
     }
 
     let custom_targets = package_json
+      .contents
       .targets
       .custom_targets
       .iter()
@@ -358,37 +319,41 @@ impl TargetRequest {
 
     for custom_target in custom_targets {
       let mut dist = None;
-      if let Some(value) = package_json.fields.get(custom_target.name) {
+      if let Some(value) = package_json.contents.fields.get(custom_target.name) {
         match value {
           serde_json::Value::String(str) => {
             dist = Some(PathBuf::from(str));
           }
-          _ => return Err(anyhow!("Invalid path for target {}", custom_target.name)),
-        };
+          _ => {
+            return Err(diagnostic_error!(DiagnosticBuilder::default()
+              .code_frames(vec![CodeFrame::from(&package_json)])
+              .message(format!("Invalid path for target {}", custom_target.name))));
+          }
+        }
       }
 
       targets.push(self.target_from_descriptor(
         dist,
         &package_json,
-        &package_path,
         custom_target.descriptor.clone(),
         &custom_target.name,
       )?);
     }
 
     if targets.is_empty() {
-      let context = self.infer_environment_context(&package_json);
+      let context = self.infer_environment_context(&package_json.contents);
 
       targets.push(Some(Target {
         dist_dir: self
           .default_target_options
           .dist_dir
           .clone()
-          .unwrap_or_else(|| self.default_dist_dir(&package_path)),
+          .unwrap_or_else(|| default_dist_dir(&package_json.path)),
         dist_entry: None,
         env: Environment {
           context,
           engines: package_json
+            .contents
             .engines
             .unwrap_or_else(|| self.default_target_options.engines.clone()),
           include_node_modules: IncludeNodeModules::from(context),
@@ -430,8 +395,7 @@ impl TargetRequest {
   fn target_from_descriptor(
     &self,
     dist: Option<PathBuf>,
-    package_json: &PackageJson,
-    package_path: &Path,
+    package_json: &ConfigFile<PackageJson>,
     target_descriptor: TargetDescriptor,
     target_name: &str,
   ) -> Result<Option<Target>, anyhow::Error> {
@@ -439,22 +403,19 @@ impl TargetRequest {
       return Ok(None);
     }
 
-    if target_descriptor.is_library.is_some_and(|l| l == true)
-      && target_descriptor.scope_hoist.is_some_and(|s| s == false)
-    {
-      return Err(anyhow!(
-        "Scope hoisting cannot be disabled for \"{}\" library target",
-        target_name
-      ));
-    }
-
     // TODO LOC
     let context = target_descriptor
       .context
-      .unwrap_or_else(|| self.infer_environment_context(&package_json));
+      .unwrap_or_else(|| self.infer_environment_context(&package_json.contents));
+
+    let dist_entry = target_descriptor.dist_entry.clone().or_else(|| {
+      dist
+        .as_ref()
+        .and_then(|d| d.file_name().map(|f| PathBuf::from(f)))
+    });
 
     let inferred_output_format =
-      self.infer_output_format(&package_json.module_format, &target_descriptor)?;
+      self.infer_output_format(&dist_entry, &package_json, &target_descriptor)?;
 
     let output_format = target_descriptor
       .output_format
@@ -477,7 +438,9 @@ impl TargetRequest {
       && output_format == OutputFormat::EsModule
       && inferred_output_format.is_some_and(|f| f != OutputFormat::EsModule)
     {
-      return Err(anyhow!("Output format \"esmodule\" cannot be used in the \"main\" target without a .mjs extension or \"type\": \"module\" field"));
+      return Err(diagnostic_error!(DiagnosticBuilder::default()
+        .code_frames(vec![CodeFrame::from(package_json)])
+        .message(String::from("Output format \"esmodule\" cannot be used in the \"main\" target without a .mjs extension or \"type\": \"module\" field"))));
     }
 
     let is_library = target_descriptor
@@ -490,9 +453,12 @@ impl TargetRequest {
           .default_target_options
           .dist_dir
           .clone()
-          .unwrap_or_else(|| self.default_dist_dir(&package_path).join(target_name)),
+          .unwrap_or_else(|| default_dist_dir(&package_json.path).join(target_name)),
         Some(target_dist) => {
-          let package_dir = package_path.parent().unwrap_or_else(|| &package_path);
+          let package_dir = package_json
+            .path
+            .parent()
+            .unwrap_or_else(|| &package_json.path);
           let dir = target_dist
             .parent()
             .map(|dir| dir.strip_prefix("./").ok().unwrap_or(dir))
@@ -506,24 +472,17 @@ impl TargetRequest {
 
           match dir {
             None => PathBuf::from(package_dir),
-            Some(dir) => {
-              println!("got a dir {}", dir.display());
-              package_dir.join(dir)
-            }
+            Some(dir) => package_dir.join(dir),
           }
         }
       },
-      dist_entry: target_descriptor.dist_entry.clone().or_else(|| {
-        dist
-          .as_ref()
-          .and_then(|d| d.file_name().map(|f| PathBuf::from(f)))
-      }),
+      dist_entry,
       env: Environment {
         context,
         engines: target_descriptor
           .engines
           .clone()
-          .or_else(|| package_json.engines.clone())
+          .or_else(|| package_json.contents.engines.clone())
           .unwrap_or_else(|| self.default_target_options.engines.clone()),
         include_node_modules: target_descriptor
           .include_node_modules
@@ -563,6 +522,22 @@ impl TargetRequest {
   }
 }
 
+fn builtin_target_descriptor() -> TargetDescriptor {
+  TargetDescriptor {
+    include_node_modules: Some(IncludeNodeModules::Bool(false)),
+    is_library: Some(true),
+    scope_hoist: Some(true),
+    ..TargetDescriptor::default()
+  }
+}
+
+fn default_dist_dir(package_path: &Path) -> PathBuf {
+  package_path
+    .parent()
+    .unwrap_or_else(|| &package_path)
+    .join("dist")
+}
+
 fn fallback_output_format(context: EnvironmentContext) -> OutputFormat {
   match context {
     EnvironmentContext::Node => OutputFormat::CommonJS,
@@ -596,10 +571,11 @@ impl Request for TargetRequest {
 // TODO Add more tests when revisiting targets config structure
 #[cfg(test)]
 mod tests {
-  use std::{num::NonZeroU16, path::PathBuf, sync::Arc};
+  use std::{num::NonZeroU16, sync::Arc};
 
   use parcel_core::types::{browsers::Browsers, version::Version};
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use regex::Regex;
 
   use crate::test_utils::{request_tracker, RequestTrackerTestOptions};
 
@@ -649,18 +625,24 @@ mod tests {
     .run_request(request)
   }
 
+  fn to_deterministic_error(error: anyhow::Error) -> String {
+    let re = Regex::new(r"\d+").unwrap();
+    re.replace_all(&format!("{:#}", error), "\\d").into_owned()
+  }
+
   #[test]
   fn returns_error_when_builtin_target_is_true() {
     for builtin_target in BUILT_IN_TARGETS {
       let targets = targets_from_package_json(format!(
-        r#"{{ "targets": {{ "{}": true }} }}"#,
-        builtin_target,
+        r#"{{ "targets": {{ "{builtin_target}": true }} }}"#,
       ));
 
-      assert!(targets
-        .map_err(|e| e.to_string())
-        .unwrap_err()
-        .starts_with("data did not match any variant"));
+      assert_eq!(
+        targets.map_err(to_deterministic_error),
+        Err(format!("data did not match any variant of untagged enum BuiltInTargetDescriptor at line \\d column \\d in {}",
+          package_dir().join("package.json").display()
+        ))
+      );
     }
   }
 
@@ -668,16 +650,83 @@ mod tests {
   fn returns_error_when_builtin_target_does_not_reference_expected_extension() {
     for builtin_target in BUILT_IN_TARGETS {
       let targets =
-        targets_from_package_json(format!(r#"{{ "{}": "dist/main.rs" }}"#, builtin_target,));
+        targets_from_package_json(format!(r#"{{ "{}": "dist/main.rs" }}"#, builtin_target));
 
       assert_eq!(
-        targets.map_err(|e| e.to_string()),
+        targets.map_err(to_deterministic_error),
         Err(format!(
-          "Unexpected file type \"main.rs\" in \"{}\" target",
-          builtin_target
+          "Unexpected file type \"main.rs\" in \"{}\" target at line \\d column \\d in {}",
+          builtin_target,
+          package_dir().join("package.json").display()
         ))
       );
     }
+  }
+
+  #[test]
+  fn returns_error_when_builtin_target_has_global_output_format() {
+    for builtin_target in BUILT_IN_TARGETS {
+      let targets = targets_from_package_json(format!(
+        r#"{{
+          "targets": {{
+            "{builtin_target}": {{ "outputFormat": "global" }}
+          }}
+        }}"#
+      ));
+
+      assert_eq!(
+        targets.map_err(to_deterministic_error),
+        Err(format!(
+          "The \"global\" output format is not supported in the {} target at line \\d column \\d in {}",
+          builtin_target,
+          package_dir().join("package.json").display()
+        ))
+      );
+    }
+  }
+
+  #[test]
+  fn returns_error_when_output_format_does_not_match_inferred_output_format() {
+    let assert_error = |ext, module_format: Option<&str>, output_format| {
+      let targets = targets_from_package_json(format!(
+        r#"
+          {{
+            {}
+            "custom": "dist/custom.{ext}",
+            "targets": {{
+              "custom": {{
+                "outputFormat": "{output_format}"
+              }}
+            }}
+          }}
+        "#,
+        module_format.map_or_else(
+          || String::default(),
+          |module_format| format!(r#""type": "{module_format}","#)
+        ),
+      ));
+
+      assert_eq!(
+        targets.map_err(|err| err.to_string()),
+        Err(format!(
+          "Declared output format {output_format} does not match expected output format {}",
+          if output_format == OutputFormat::CommonJS {
+            "esmodule"
+          } else {
+            "commonjs"
+          }
+        ))
+      );
+    };
+
+    assert_error("cjs", None, OutputFormat::EsModule);
+    assert_error("cjs", Some("module"), OutputFormat::EsModule);
+
+    assert_error("js", Some("commonjs"), OutputFormat::EsModule);
+    assert_error("js", Some("module"), OutputFormat::CommonJS);
+
+    assert_error("mjs", None, OutputFormat::CommonJS);
+    assert_error("mjs", Some("commonjs"), OutputFormat::CommonJS);
   }
 
   #[test]
@@ -686,36 +735,31 @@ mod tests {
       let targets = targets_from_package_json(package_json);
 
       assert_eq!(
-        targets.map_err(|e| e.to_string()),
+        targets.map_err(to_deterministic_error),
         Err(format!(
-          "Scope hoisting cannot be disabled for \"{}\" library target",
-          name
+          "Scope hoisting cannot be disabled for \"{}\" library target at line \\d column \\d in {}",
+          name,
+          package_dir().join("package.json").display()
         ))
       );
     };
 
-    for builtin_target in BUILT_IN_TARGETS {
+    for target in BUILT_IN_TARGETS {
       assert_error(
-        builtin_target,
+        target,
         format!(
           r#"
             {{
-              "{}": "dist/target.{}",
+              "{target}": "dist/target.{ext}",
               "targets": {{
-                "{}": {{
+                "{target}": {{
                   "isLibrary": true,
                   "scopeHoist": false
                 }}
               }}
             }}
           "#,
-          builtin_target,
-          if builtin_target == "types" {
-            "ts"
-          } else {
-            "js"
-          },
-          builtin_target,
+          ext = if target == "types" { "ts" } else { "js" },
         ),
       );
     }
@@ -741,15 +785,14 @@ mod tests {
   fn returns_default_target_when_builtin_targets_are_disabled() {
     for builtin_target in BUILT_IN_TARGETS {
       let targets = targets_from_package_json(format!(
-        r#"{{ "targets": {{ "{}": false }} }}"#,
-        builtin_target,
+        r#"{{ "targets": {{ "{builtin_target}": false }} }}"#
       ));
 
       assert_eq!(
         targets.map_err(|e| e.to_string()),
         Ok(RequestResult::Target(TargetRequestOutput {
           targets: vec![default_target()]
-        }),)
+        }))
       );
     }
   }
@@ -793,8 +836,8 @@ mod tests {
           },
           name: String::from("browser"),
           ..Target::default()
-        },]
-      }),)
+        }]
+      }))
     );
   }
 
@@ -815,8 +858,8 @@ mod tests {
           },
           name: String::from("main"),
           ..Target::default()
-        },]
-      }),)
+        }]
+      }))
     );
   }
 
@@ -837,8 +880,8 @@ mod tests {
           },
           name: String::from("module"),
           ..Target::default()
-        },]
-      }),)
+        }]
+      }))
     );
   }
 
@@ -859,7 +902,7 @@ mod tests {
           },
           name: String::from("types"),
           ..Target::default()
-        },]
+        }]
       }),)
     );
   }
@@ -964,7 +1007,7 @@ mod tests {
           },
           name: String::from("custom"),
           ..Target::default()
-        },]
+        }]
       }),)
     );
   }
@@ -1001,8 +1044,8 @@ mod tests {
           },
           name: String::from("custom"),
           ..Target::default()
-        },]
-      }),)
+        }]
+      }))
     );
   }
 
@@ -1042,8 +1085,8 @@ mod tests {
           },
           name: String::from("custom"),
           ..Target::default()
-        },]
-      }),)
+        }]
+      }))
     );
   }
 
@@ -1065,8 +1108,8 @@ mod tests {
             },
             name: String::from("custom"),
             ..Target::default()
-          },]
-        }),)
+          }]
+        }))
       );
     };
 
@@ -1106,5 +1149,58 @@ mod tests {
         ..Engines::default()
       },
     );
+  }
+
+  #[test]
+  fn returns_custom_target_when_output_format_matches_inferred_output_format() {
+    let assert_targets = |ext, module_format: Option<ModuleFormat>, output_format| {
+      let targets = targets_from_package_json(format!(
+        r#"
+          {{
+            {}
+            "custom": "dist/custom.{ext}",
+            "targets": {{
+              "custom": {{
+                "outputFormat": "{output_format}"
+              }}
+            }}
+          }}
+        "#,
+        module_format.map_or_else(
+          || String::default(),
+          |module_format| format!(r#""type": "{module_format}","#)
+        ),
+      ));
+
+      assert_eq!(
+        targets.map_err(|e| e.to_string()),
+        Ok(RequestResult::Target(TargetRequestOutput {
+          targets: vec![Target {
+            dist_dir: package_dir().join("dist"),
+            dist_entry: Some(PathBuf::from(format!("custom.{ext}"))),
+            env: Environment {
+              output_format,
+              ..Environment::default()
+            },
+            name: String::from("custom"),
+            ..Target::default()
+          }],
+        }))
+      );
+    };
+
+    assert_targets("cjs", None, OutputFormat::CommonJS);
+    assert_targets("cjs", Some(ModuleFormat::CommonJS), OutputFormat::CommonJS);
+    assert_targets("cjs", Some(ModuleFormat::Module), OutputFormat::CommonJS);
+
+    assert_targets("js", None, OutputFormat::CommonJS);
+    assert_targets("js", Some(ModuleFormat::CommonJS), OutputFormat::CommonJS);
+
+    assert_targets("js", None, OutputFormat::EsModule);
+    assert_targets("js", Some(ModuleFormat::Module), OutputFormat::EsModule);
+
+    assert_targets("mjs", None, OutputFormat::EsModule);
+    assert_targets("mjs", Some(ModuleFormat::CommonJS), OutputFormat::EsModule);
+    assert_targets("mjs", Some(ModuleFormat::Module), OutputFormat::EsModule);
   }
 }
