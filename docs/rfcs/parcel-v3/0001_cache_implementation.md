@@ -201,17 +201,31 @@ Which seems mature enough due to usage in `meilisearch`. We should aim to use a 
 conjunction to this (such as https://rkyv.org/ or captn proto), to improve performance of reading from the cache
 further.
 
+### LMDB tuning
+
+We should flip the following [LMDB flags](http://www.lmdb.tech/doc/group__mdb__env.html#ga5791dd1adb09123f82dd1f331209e12e):
+
+- `NOSYNC` - Do not call [`fsync`](https://man7.org/linux/man-pages/man2/fsync.2.html) after commit. This means
+  potentially our cache won't be durable (if the system shuts-down before the OS is able to flush data, it could be
+  there would be data loss, even after writing), but we don't care about durability for our use-case.
+- `MAPASYNC` - Do not call [`msync`](https://man7.org/linux/man-pages/man2/msync.2.html) after writing. This is
+  the same effect.
+- `NOMETASYNC` - Do not `fsync` the metapage after commit
+
+This greatly improves write performance.
+
 ### LMDB and RKYV
 
 Unfortunately `rkyv` and LMDB can't be used together. You can see a failing test case reproduction on commit
 `d75dda3af93179c58a4b55fdcc42a6a60e7f3e2f`.
 
-The issue is discussed on https://github.com/AltSysrq/lmdb-zero/issues/8 and https://github.com/meilisearch/heed/issues/198.
-
 `rkyv` requires values to be aligned by 4-byte words - https://rkyv.org/architecture/alignment.html. Since LMDB has no
 alignment guarantee on values, in order to use `rkyv` we'd be forced to copy the LMDB buffers onto an aligned location.
 
-This breaks the point of using zero-copy serialization.
+This breaks the point of using zero-copy serialization, since in order to use `rkyv` with LMDB we'll need to copy the
+buffers into aligned memory locations or to try to get LMDB to align its internal structures.
+
+The issue is discussed on https://github.com/AltSysrq/lmdb-zero/issues/8 and https://github.com/meilisearch/heed/issues/198.
 
 ## Serialization performance
 

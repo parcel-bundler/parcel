@@ -24,18 +24,18 @@ pub struct LMDBCache {
 
 impl LMDBCache {
   #[allow(unused)]
-  pub fn new() -> anyhow::Result<Self> {
+  pub fn new(options: LMDBCacheOptions) -> anyhow::Result<Self> {
     let rust_cache_path = Path::new(".parcel-cache/rust-cache");
     std::fs::create_dir_all(rust_cache_path)?;
     let environment = unsafe {
       let mut flags = EnvFlags::empty();
-      flags.set(EnvFlags::MAP_ASYNC, true);
-      flags.set(EnvFlags::NO_SYNC, true);
-      flags.set(EnvFlags::NO_META_SYNC, true);
+      flags.set(EnvFlags::MAP_ASYNC, options.async_writes);
+      flags.set(EnvFlags::NO_SYNC, options.async_writes);
+      flags.set(EnvFlags::NO_META_SYNC, options.async_writes);
       EnvOpenOptions::new()
         // http://www.lmdb.tech/doc/group__mdb.html#gaa2506ec8dab3d969b0e609cd82e619e5
         // 10GB max DB size that will be memory mapped
-        .map_size(10 * 1024 * 1024 * 1024)
+        .map_size(40 * 1024 * 1024 * 1024)
         .flags(flags)
         .open(rust_cache_path)
     }?;
@@ -47,6 +47,11 @@ impl LMDBCache {
       environment,
       database,
     })
+  }
+
+  pub fn close(self) {
+    let event = self.environment.prepare_for_closing();
+    event.wait();
   }
 }
 
@@ -89,6 +94,17 @@ impl Cache for LMDBCache {
   }
 }
 
+pub struct LMDBCacheOptions {
+  /// Non-durable writes
+  pub async_writes: bool,
+}
+
+impl Default for LMDBCacheOptions {
+  fn default() -> Self {
+    LMDBCacheOptions { async_writes: true }
+  }
+}
+
 #[cfg(test)]
 mod test {
   use rand::random;
@@ -104,14 +120,14 @@ mod test {
 
   #[test]
   fn test_e2e_cache_write() {
-    let cache = LMDBCache::new().unwrap();
+    let cache = LMDBCache::new(Default::default()).unwrap();
     cache.set_blob("key1", "data".as_bytes()).unwrap();
     assert_eq!(cache.get_blob("key1").unwrap(), "data".as_bytes());
   }
 
   #[test]
   fn test_write_request() {
-    let cache = LMDBCache::new().unwrap();
+    let cache = LMDBCache::new(Default::default()).unwrap();
     let asset = Asset::default();
     let request_result = RequestResult::Asset(AssetRequestOutput {
       asset,
@@ -129,7 +145,7 @@ mod test {
 
   #[test]
   fn test_round_trip_serialize() {
-    let cache = LMDBCache::new().unwrap();
+    let cache = LMDBCache::new(Default::default()).unwrap();
     let asset = Asset::default();
     let request_result = RequestResult::Asset(AssetRequestOutput {
       asset,
