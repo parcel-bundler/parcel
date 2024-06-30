@@ -59,7 +59,7 @@ pub enum RequestOutput {
   BundleGraphRequest(<BundleGraphRequest as Request>::Output),
   AssetGraphRequest,
   EntryRequest(<EntryRequest as Request>::Output),
-  TargetRequest(<TargetRequest as Request>::Output),
+  TargetRequest(<TargetRequest<'static> as Request>::Output),
   ParcelConfigRequest(<ParcelConfigRequest as Request>::Output),
   PathRequest(<PathRequest<'static> as Request>::Output),
   DevDepRequest,
@@ -101,7 +101,7 @@ macro_rules! impl_store_request {
 
 impl_store_request!(ParcelConfigRequest);
 impl_store_request!(EntryRequest);
-impl_store_request!(TargetRequest);
+impl_store_request!(TargetRequest<'a>);
 impl_store_request!(PathRequest<'a>);
 impl_store_request!(AssetRequest<'a>);
 impl_store_request!(BundleGraphRequest);

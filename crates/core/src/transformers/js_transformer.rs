@@ -198,6 +198,12 @@ fn config<'a>(asset: &Asset, code: Vec<u8>, options: &'a ParcelOptions) -> Confi
         }
       }
     }
+
+    if asset.asset_type == AssetType::Ts {
+      is_jsx = false;
+    } else if !is_jsx {
+      is_jsx = matches!(asset.asset_type, AssetType::Jsx | AssetType::Tsx);
+    }
   }
 
   let mut inline_fs = true;

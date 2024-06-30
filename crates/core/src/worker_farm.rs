@@ -7,7 +7,6 @@ use crate::{
     asset_request::TransformerResult,
     bundle_graph_request::BundleGraphRequest,
     entry_request::{Entry, EntryRequest},
-    target_request::TargetRequest,
   },
   transformers::plugin_transformer::PluginTransformRequest,
   types::{Bundle, Target},
@@ -25,7 +24,7 @@ pub struct WorkerFarm {
 pub enum WorkerRequest {
   ParcelConfig,
   Entry(EntryRequest),
-  Target(TargetRequest),
+  Target(Entry),
   Transform(PluginTransformRequest),
   BundleGraph(BundleGraphRequest),
 }

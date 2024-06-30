@@ -7,8 +7,9 @@ use crate::{
 use super::entry_request::Entry;
 
 #[derive(Hash, serde::Serialize, Clone, Debug)]
-pub struct TargetRequest {
+pub struct TargetRequest<'a> {
   pub entry: Entry,
+  pub named_pipelines: &'a Vec<&'a str>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -17,7 +18,7 @@ pub struct TargetRequestResult {
   pub targets: Vec<Target>,
 }
 
-impl Request for TargetRequest {
+impl<'a> Request for TargetRequest<'a> {
   type Output = TargetRequestResult;
 
   fn run(
@@ -27,12 +28,19 @@ impl Request for TargetRequest {
   ) -> RequestResult<Self::Output> {
     let entry = self.entry.file_path.clone();
     let WorkerResult::Target {
-      targets,
+      mut targets,
       invalidations,
-    } = farm.run(WorkerRequest::Target(self)).unwrap()
+    } = farm.run(WorkerRequest::Target(self.entry)).unwrap()
     else {
       unreachable!()
     };
+
+    // Find named pipelines for each target.
+    for target in &mut targets {
+      if self.named_pipelines.contains(&target.name.as_str()) {
+        target.pipeline = Some(target.name.clone());
+      }
+    }
 
     RequestResult {
       result: Ok(TargetRequestResult { entry, targets }),

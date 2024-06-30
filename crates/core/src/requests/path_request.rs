@@ -71,7 +71,7 @@ impl<'a> Request for PathRequest<'a> {
           result: Ok(ResolverResult::Resolved {
             path,
             code,
-            pipeline: pipeline.or(parsed_pipeline),
+            pipeline: pipeline.or(parsed_pipeline).or(self.dep.pipeline),
             side_effects,
             query,
           }),

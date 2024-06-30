@@ -272,8 +272,8 @@ export function createRustParcel(options: ParcelOptions) {
             options,
           );
           let targets = await targetResolver.resolve(
-            fromProjectPath(options.projectRoot, request.entry.filePath),
-            request.entry.target,
+            fromProjectPath(options.projectRoot, request.filePath),
+            request.target,
           );
           return {
             type: 'Target',

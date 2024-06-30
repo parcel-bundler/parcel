@@ -322,7 +322,13 @@ impl<'a> AssetGraphRequest<'a> {
         match result {
           Ok(RequestOutput::EntryRequest(entries)) => {
             for entry in entries {
-              scope.queue_request(TargetRequest { entry }, node);
+              scope.queue_request(
+                TargetRequest {
+                  entry,
+                  named_pipelines: &named_pipelines,
+                },
+                node,
+              );
             }
           }
           Ok(RequestOutput::TargetRequest(result)) => {
