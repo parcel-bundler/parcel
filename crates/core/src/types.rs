@@ -1,4 +1,8 @@
-use crate::{cache::Cache, environment::Environment, intern::Interned};
+use crate::{
+  cache::Cache,
+  environment::{Environment, EnvironmentFlags},
+  intern::Interned,
+};
 use bitflags::bitflags;
 use gxhash::GxHasher;
 use indexmap::IndexMap;
@@ -79,6 +83,7 @@ impl std::fmt::Display for HashValue {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
+  pub id: HashValue,
   pub file_path: Interned<PathBuf>,
   pub env: Interned<Environment>,
   pub query: Option<String>,
@@ -97,7 +102,7 @@ pub struct Asset {
 }
 
 impl Asset {
-  pub fn id(&self) -> HashValue {
+  pub fn update_id(&mut self) {
     use std::hash::{Hash, Hasher};
     let mut hasher = GxHasher::default();
     self.file_path.hash(&mut hasher);
@@ -106,7 +111,7 @@ impl Asset {
     self.unique_key.hash(&mut hasher);
     self.pipeline.hash(&mut hasher);
     self.query.hash(&mut hasher);
-    HashValue(hasher.finish())
+    self.id = HashValue(hasher.finish());
   }
 }
 
@@ -239,7 +244,7 @@ impl_bitflags_serde!(AssetFlags);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
-  // pub id: String,
+  pub id: HashValue,
   pub source_asset_id: Option<HashValue>,
   pub specifier: String,
   pub specifier_type: SpecifierType,
@@ -275,14 +280,54 @@ pub struct Dependency {
 }
 
 impl Dependency {
-  pub fn new(specifier: String, env: Interned<Environment>) -> Dependency {
-    Dependency {
-      // id: String::default(),
+  pub fn entry(entry: String, target: Target) -> Dependency {
+    let mut dep = Dependency {
+      id: HashValue(0),
       source_asset_id: None,
+      specifier: entry,
+      specifier_type: SpecifierType::Url,
+      source_path: None,
+      env: target.env,
+      priority: Priority::Sync,
+      bundle_behavior: BundleBehavior::None,
+      flags: DependencyFlags::ENTRY | DependencyFlags::NEEDS_STABLE_NAME,
+      resolve_from: None,
+      range: None,
+      loc: None,
+      placeholder: None,
+      target: Some(Box::new(target)),
+      symbols: Vec::new(),
+      promise_symbol: None,
+      import_attributes: Vec::new(),
+      pipeline: None,
+      meta: None,
+      resolver_meta: None,
+      package_conditions: ExportsCondition::empty(),
+      custom_package_conditions: Vec::new(),
+    };
+
+    if dep.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+      dep.flags |= DependencyFlags::HAS_SYMBOLS;
+      dep.symbols.push(Symbol {
+        exported: "*".into(),
+        local: "*".into(),
+        flags: SymbolFlags::IS_WEAK,
+        loc: None,
+      });
+    }
+
+    dep.update_id();
+    dep
+  }
+
+  pub fn new_from_asset(asset: &Asset, specifier: String, specifier_type: SpecifierType) -> Self {
+    Dependency {
+      id: HashValue(0),
+      source_asset_id: Some(asset.id),
       specifier,
-      specifier_type: SpecifierType::Esm,
-      source_path: None, //Some(source_asset.id),
-      env,
+      specifier_type,
+      source_path: Some(asset.file_path),
+      env: asset.env,
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
       flags: DependencyFlags::empty(),
@@ -302,27 +347,22 @@ impl Dependency {
     }
   }
 
-  pub fn id(&self) -> HashValue {
+  pub fn update_id(&mut self) {
     // Compute hashed dependency id.
     use std::hash::{Hash, Hasher};
     let mut hasher = GxHasher::default();
-    self.source_path.hash(&mut hasher);
+    self.source_asset_id.hash(&mut hasher);
     self.specifier.hash(&mut hasher);
     self.specifier_type.hash(&mut hasher);
     self.env.hash(&mut hasher);
-    // self.target.hash(&mut hasher);
+    self.target.hash(&mut hasher);
     self.pipeline.hash(&mut hasher);
     self.bundle_behavior.hash(&mut hasher);
     self.priority.hash(&mut hasher);
     self.package_conditions.hash(&mut hasher);
     self.custom_package_conditions.hash(&mut hasher);
-    HashValue(hasher.finish())
+    self.id = HashValue(hasher.finish());
   }
-
-  // pub fn commit(mut self) -> u32 {
-  //   self.id = format!("{:016x}", self.get_id_hash()).into();
-  //   self.into_arena()
-  // }
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize)]

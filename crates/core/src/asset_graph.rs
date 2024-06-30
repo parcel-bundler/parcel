@@ -155,8 +155,8 @@ impl std::hash::Hash for AssetGraph {
     for node in self.graph.node_weights() {
       std::mem::discriminant(node).hash(state);
       match node {
-        AssetGraphNode::Asset(idx) => self.assets[*idx].asset.id().hash(state),
-        AssetGraphNode::Dependency(idx) => self.dependencies[*idx].dependency.id().hash(state),
+        AssetGraphNode::Asset(idx) => self.assets[*idx].asset.id.hash(state),
+        AssetGraphNode::Dependency(idx) => self.dependencies[*idx].dependency.id.hash(state),
         _ => {}
       }
     }
@@ -327,19 +327,9 @@ impl<'a> AssetGraphRequest<'a> {
           }
           Ok(RequestOutput::TargetRequest(result)) => {
             for target in result.targets {
-              let mut dep = Dependency::new(result.entry.to_string(), target.env);
-              dep.specifier_type = SpecifierType::Url;
-              dep.target = Some(Box::new(target));
-              dep.flags |= DependencyFlags::ENTRY | DependencyFlags::NEEDS_STABLE_NAME;
+              let dep = Dependency::entry(result.entry.to_string(), target);
               let mut requested_symbols = InternedSet::default();
               if dep.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-                dep.flags |= DependencyFlags::HAS_SYMBOLS;
-                dep.symbols.push(Symbol {
-                  exported: "*".into(),
-                  local: "*".into(),
-                  flags: SymbolFlags::IS_WEAK,
-                  loc: None,
-                });
                 requested_symbols.insert("*".into());
               }
 

@@ -232,7 +232,7 @@ fn config<'a>(asset: &Asset, code: Vec<u8>, options: &'a ParcelOptions) -> Confi
   Config {
     filename: (*asset.file_path).clone(),
     code,
-    module_id: asset.id().to_string(),
+    module_id: asset.id.to_string(),
     project_root: Cow::Borrowed(&options.project_root),
     replace_env: !asset.env.context.is_node(),
     env: Cow::Borrowed(&options.env),
@@ -290,7 +290,7 @@ fn convert_result(
 ) -> Result<TransformerResult, Vec<Diagnostic>> {
   let file_path = asset.file_path;
   let env = asset.env;
-  let asset_id = asset.id();
+  let asset_id = asset.id;
 
   asset.meta.insert("id".into(), asset_id.to_string());
 
@@ -340,145 +340,85 @@ fn convert_result(
           output_format = OutputFormat::Global;
         }
 
-        let d = Dependency {
-          source_asset_id: Some(asset_id),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env: Environment {
-            context: EnvironmentContext::WebWorker,
-            source_type: if matches!(
-              dep.source_type,
-              Some(parcel_js_swc_core::SourceType::Module)
-            ) {
-              SourceType::Module
-            } else {
-              SourceType::Script
-            },
-            output_format,
-            loc: Some(loc.clone()),
-            ..(*env).clone()
-          }
-          .into(),
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::None,
-          flags: dep_flags | DependencyFlags::IS_WEBWORKER,
+        let mut d =
+          Dependency::new_from_asset(&asset, dep.specifier.as_ref().into(), SpecifierType::Url);
+
+        d.priority = Priority::Lazy;
+        d.flags = dep_flags | DependencyFlags::IS_WEBWORKER;
+        d.loc = Some(loc.clone());
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.env = Environment {
+          context: EnvironmentContext::WebWorker,
+          source_type: if matches!(
+            dep.source_type,
+            Some(parcel_js_swc_core::SourceType::Module)
+          ) {
+            SourceType::Module
+          } else {
+            SourceType::Script
+          },
+          output_format,
           loc: Some(loc.clone()),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          promise_symbol: None,
-          import_attributes: Vec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: Vec::new(),
-        };
+          ..(*env).clone()
+        }
+        .into();
 
         dep_map.insert(placeholder, d);
       }
       DependencyKind::ServiceWorker => {
-        let d = Dependency {
-          source_asset_id: Some(asset_id),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env: Environment {
-            context: EnvironmentContext::ServiceWorker,
-            source_type: if matches!(
-              dep.source_type,
-              Some(parcel_js_swc_core::SourceType::Module)
-            ) {
-              SourceType::Module
-            } else {
-              SourceType::Script
-            },
-            output_format: OutputFormat::Global,
-            loc: Some(loc.clone()),
-            ..(*env).clone()
-          }
-          .into(),
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::None,
-          flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
+        let mut d =
+          Dependency::new_from_asset(&asset, dep.specifier.as_ref().into(), SpecifierType::Url);
+
+        d.priority = Priority::Lazy;
+        d.flags = dep_flags | DependencyFlags::NEEDS_STABLE_NAME;
+        d.loc = Some(loc.clone());
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.env = Environment {
+          context: EnvironmentContext::ServiceWorker,
+          source_type: if matches!(
+            dep.source_type,
+            Some(parcel_js_swc_core::SourceType::Module)
+          ) {
+            SourceType::Module
+          } else {
+            SourceType::Script
+          },
+          output_format: OutputFormat::Global,
           loc: Some(loc.clone()),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          promise_symbol: None,
-          import_attributes: Vec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: Vec::new(),
-        };
+          ..(*env).clone()
+        }
+        .into();
 
         dep_map.insert(placeholder, d);
       }
       DependencyKind::Worklet => {
-        let d = Dependency {
-          source_asset_id: Some(asset_id),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env: Environment {
-            context: EnvironmentContext::Worklet,
-            source_type: SourceType::Module,
-            output_format: OutputFormat::Esmodule,
-            loc: Some(loc.clone()),
-            ..(*env).clone()
-          }
-          .into(),
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::None,
-          flags: dep_flags,
+        let mut d =
+          Dependency::new_from_asset(&asset, dep.specifier.as_ref().into(), SpecifierType::Url);
+
+        d.priority = Priority::Lazy;
+        d.flags = dep_flags;
+        d.loc = Some(loc.clone());
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.env = Environment {
+          context: EnvironmentContext::Worklet,
+          source_type: SourceType::Module,
+          output_format: OutputFormat::Esmodule,
           loc: Some(loc.clone()),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          promise_symbol: None,
-          import_attributes: Vec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: Vec::new(),
-        };
+          ..(*env).clone()
+        }
+        .into();
 
         dep_map.insert(placeholder, d);
       }
       DependencyKind::Url => {
-        let d = Dependency {
-          source_asset_id: Some(asset_id),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          source_path: Some(file_path.clone()),
-          env,
-          resolve_from: None,
-          range: None,
-          priority: Priority::Lazy,
-          bundle_behavior: BundleBehavior::Isolated,
-          flags: dep_flags,
-          loc: Some(loc.clone()),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          promise_symbol: None,
-          import_attributes: Vec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: Vec::new(),
-        };
+        let mut d =
+          Dependency::new_from_asset(&asset, dep.specifier.as_ref().into(), SpecifierType::Url);
+
+        d.priority = Priority::Lazy;
+        d.bundle_behavior = BundleBehavior::Isolated;
+        d.flags = dep_flags;
+        d.loc = Some(loc.clone());
+        d.placeholder = dep.placeholder.map(|s| s.into());
 
         dep_map.insert(placeholder, d);
       }
@@ -588,34 +528,23 @@ fn convert_result(
           }
         }
 
-        let d = Dependency {
-          source_asset_id: Some(asset_id),
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: match dep.kind {
-            DependencyKind::Require => SpecifierType::Commonjs,
-            _ => SpecifierType::Esm,
-          },
-          source_path: Some(file_path.clone()),
-          env,
-          resolve_from,
-          range,
-          priority: match dep.kind {
-            DependencyKind::DynamicImport => Priority::Lazy,
-            _ => Priority::Sync,
-          },
-          bundle_behavior: BundleBehavior::None,
-          flags,
-          loc: Some(loc.clone()),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          target: None,
-          symbols: Vec::new(),
-          promise_symbol: None,
-          import_attributes,
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: Vec::new(),
+        let specifier_type = match dep.kind {
+          DependencyKind::Require => SpecifierType::Commonjs,
+          _ => SpecifierType::Esm,
+        };
+
+        let mut d =
+          Dependency::new_from_asset(&asset, dep.specifier.as_ref().into(), specifier_type);
+        d.env = env;
+        d.resolve_from = resolve_from;
+        d.range = range;
+        d.flags = flags;
+        d.loc = Some(loc.clone());
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.import_attributes = import_attributes;
+        d.priority = match dep.kind {
+          DependencyKind::DynamicImport => Priority::Lazy,
+          _ => Priority::Sync,
         };
 
         dep_map.insert(placeholder, d);
@@ -624,35 +553,21 @@ fn convert_result(
   }
 
   if result.needs_esm_helpers {
-    let d = Dependency {
-      source_asset_id: Some(asset_id),
-      specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
-      specifier_type: SpecifierType::Esm,
-      source_path: Some(file_path.clone()),
-      env: Environment {
-        include_node_modules: IncludeNodeModules::Map(indexmap! {
-          "@parcel/transformer-js".into() => true
-        }),
-        ..(*env).clone()
-      }
-      .into(),
-      resolve_from: Some(options.core_path.as_path().into()),
-      range: None,
-      priority: Priority::Sync,
-      bundle_behavior: BundleBehavior::None,
-      flags: dep_flags,
-      loc: None,
-      placeholder: None,
-      target: None,
-      promise_symbol: None,
-      symbols: Vec::new(),
-      import_attributes: Vec::new(),
-      pipeline: None,
-      meta: None,
-      resolver_meta: None,
-      package_conditions: ExportsCondition::empty(),
-      custom_package_conditions: Vec::new(),
-    };
+    let mut d = Dependency::new_from_asset(
+      &asset,
+      "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+      SpecifierType::Esm,
+    );
+
+    d.flags = dep_flags;
+    d.resolve_from = Some(options.core_path.as_path().into());
+    d.env = Environment {
+      include_node_modules: IncludeNodeModules::Map(indexmap! {
+        "@parcel/transformer-js".into() => true
+      }),
+      ..(*env).clone()
+    }
+    .into();
 
     dep_map.insert(d.specifier.as_str().into(), d);
   }
@@ -718,7 +633,7 @@ fn convert_result(
             exported: s.local.as_ref().into(),
             local: re_export_name,
             loc: Some(convert_loc(file_path.clone(), &s.loc)),
-            flags: existing_flags & SymbolFlags::IS_WEAK,
+            flags: SymbolFlags::IS_WEAK,
           });
         }
       }
@@ -789,7 +704,7 @@ fn convert_result(
           .as_ref()
           .and_then(|source| dep_map.get_mut(source))
         {
-          let local = format!("${}${}", dep.id(), sym.local).into();
+          let local = format!("${}${}", sym.source.as_ref().unwrap(), sym.local).into();
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
             local: local,

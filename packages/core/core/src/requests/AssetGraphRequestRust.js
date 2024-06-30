@@ -106,6 +106,14 @@ export default function createAssetGraphRequestRust(
         previousErrors: new Map(), //this.previousSymbolPropagationErrors,
       });
 
+      if (errors.size > 0) {
+        // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
+        // determining which failing export is the root cause is nontrivial (because of circular dependencies).
+        throw new ThrowableDiagnostic({
+          diagnostic: [...errors.values()][0],
+        });
+      }
+
       return {
         assetGraph,
         changedAssets,
@@ -480,13 +488,12 @@ function getAssetGraph(serializedGraph, options) {
         value: null,
       });
     } else if (node.type === 'asset') {
-      let id = createAssetIdFromOptions(node.value);
+      let id = node.value.id;
       let value = {
         ...node.value,
         committed: true,
         filePath: toProjectPath(options.projectRoot, node.value.filePath),
         flags: node.value.flags & ~AssetFlags.HAS_SYMBOLS,
-        id,
         // backward compatibility
         symbols:
           node.value.flags & AssetFlags.HAS_SYMBOLS
@@ -503,7 +510,7 @@ function getAssetGraph(serializedGraph, options) {
         usedSymbolsUpDirty: true,
       });
     } else if (node.type === 'dependency') {
-      let id = dependencyId(node.value);
+      let id = node.value.id;
       let value = {
         ...node.value,
         specifier:
@@ -514,7 +521,6 @@ function getAssetGraph(serializedGraph, options) {
           ? toProjectPath(options.projectRoot, node.value.sourcePath)
           : null,
         flags: node.value.flags & ~DependencyFlags.HAS_SYMBOLS,
-        id,
         symbols:
           node.value.flags & DependencyFlags.HAS_SYMBOLS
             ? new Map(node.value.symbols.map(s => [s.exported, s]))
@@ -572,18 +578,4 @@ function getAssetGraph(serializedGraph, options) {
   }
 
   return [graph, changedAssets];
-}
-
-function dependencyId(opts) {
-  return hashString(
-    (opts.sourceAssetId ?? '') +
-      opts.specifier +
-      JSON.stringify(opts.env) +
-      (opts.target ? JSON.stringify(opts.target) : '') +
-      (opts.pipeline ?? '') +
-      opts.specifierType +
-      (opts.bundleBehavior ?? '') +
-      (opts.priority ?? 'sync') +
-      (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
-  );
 }

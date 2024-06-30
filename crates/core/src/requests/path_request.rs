@@ -29,7 +29,7 @@ pub struct PathRequest<'a> {
 
 impl<'a> std::hash::Hash for PathRequest<'a> {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    self.dep.id().hash(state);
+    self.dep.id.hash(state);
     self.resolvers.hash(state);
     self.named_pipelines.hash(state);
   }

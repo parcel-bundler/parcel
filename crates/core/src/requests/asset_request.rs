@@ -52,7 +52,8 @@ impl<'a> Request for AssetRequest<'a> {
     );
     flags.set(AssetFlags::SIDE_EFFECTS, self.side_effects);
 
-    let asset = Asset {
+    let mut asset = Asset {
+      id: HashValue(0),
       file_path: self.file_path,
       env: self.env,
       query: self.query,
@@ -75,6 +76,8 @@ impl<'a> Request for AssetRequest<'a> {
       unique_key: None,
     };
 
+    asset.update_id();
+
     let code = self
       .code
       .unwrap_or_else(|| options.input_fs.read(&asset.file_path.as_ref()).unwrap());
@@ -83,8 +86,12 @@ impl<'a> Request for AssetRequest<'a> {
     let (result, mut invalidations) = match result {
       Ok(mut result) => {
         result.asset.output_hash = HashValue(xxh3_64(&result.code));
-        result.asset.content_key = result.asset.id(); // TODO
+        result.asset.content_key = result.asset.id; // TODO
         result.asset.stats.size = result.code.len() as u32;
+
+        for dep in &mut result.dependencies {
+          dep.update_id();
+        }
 
         options
           .cache
@@ -145,8 +152,9 @@ fn run_pipeline(
 
   for transformer in &pipeline {
     let asset_type = result.asset.asset_type;
-    let transformed = run_transformer(transformer, result.asset, result.code, farm, options)?;
+    let mut transformed = run_transformer(transformer, result.asset, result.code, farm, options)?;
     if transformed.asset.asset_type != asset_type {
+      transformed.asset.update_id();
       let next_path = transformed
         .asset
         .file_path
