@@ -245,7 +245,10 @@ impl_bitflags_serde!(AssetFlags);
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   pub id: HashValue,
+  // TODO: ideally we would only store source_asset_id and not source_asset_type or source_path.
+  // This is done for backward compatibility with JS implementation. Remove later.
   pub source_asset_id: Option<HashValue>,
+  pub source_asset_type: Option<AssetType>,
   pub specifier: String,
   pub specifier_type: SpecifierType,
   pub source_path: Option<Interned<PathBuf>>,
@@ -284,6 +287,7 @@ impl Dependency {
     let mut dep = Dependency {
       id: HashValue(0),
       source_asset_id: None,
+      source_asset_type: None,
       specifier: entry,
       specifier_type: SpecifierType::Url,
       source_path: None,
@@ -324,6 +328,7 @@ impl Dependency {
     Dependency {
       id: HashValue(0),
       source_asset_id: Some(asset.id),
+      source_asset_type: Some(asset.asset_type),
       specifier,
       specifier_type,
       source_path: Some(asset.file_path),

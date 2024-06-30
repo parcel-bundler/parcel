@@ -254,7 +254,7 @@ pub enum ExportsResolution<'a> {
 pub struct JsTransformerConfig {
   pub inline_fs: Option<bool>,
   pub inline_environment: Option<InlineEnvironment>,
-  #[serde(default)]
+  #[serde(default, rename = "unstable_inlineConstants")]
   pub inline_constants: bool,
 }
 

@@ -1262,6 +1262,18 @@ export function assertEqualDiagnostics(actual: Diagnostic[], expected: Diagnosti
   assert.deepEqual(mappedActual, mappedExpected);
 }
 
+export async function assertRejectsWithDiagnostic(fn, expected) {
+  try {
+    await fn();
+  } catch (err) {
+    assert.equal(err.name, expected.name);
+    assert.equal(err.message, expected.message);
+    assertEqualDiagnostics(err.diagnostics, expected.diagnostics);
+    return;
+  }
+  assert(false, "Expected an error");
+}
+
 function normalizeDiagnostic(diagnostic: Diagnostic): Diagnostic {
   return {
     message: diagnostic.message,
