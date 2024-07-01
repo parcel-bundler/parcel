@@ -1,5 +1,8 @@
 # Parcel v3 - RFC - Cache implementation
 
+- **Status** - _Discussing_
+- **Last updated** - 01-06-2024
+
 ## Current state
 
 Currently, parcel caches data to abstract caches. Many different types of entries are stored, and there are multiple
