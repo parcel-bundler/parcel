@@ -48,6 +48,8 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
+    "@parcel/feature-flags": "2.12.0",
+    "@parcel/watcher-watchman-js": "2.12.0",
     "@parcel/rust": "2.12.0",
     "@parcel/types-internal": "2.12.0",
     "@parcel/utils": "2.12.0",

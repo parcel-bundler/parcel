@@ -14,6 +14,10 @@ export type FeatureFlags = {|
    */
   +parcelV3: boolean,
   /**
+   * Use node.js implementation of @parcel/watcher watchman backend
+   */
+  +useNodeWatcher: boolean,
+  /**
    * Store large blobs on randomly generated keys
    */
   +randomLargeBlobKeys: boolean,

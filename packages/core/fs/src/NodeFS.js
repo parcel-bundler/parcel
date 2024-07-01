@@ -21,7 +21,9 @@ import {tmpdir} from 'os';
 import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
 import {hashFile} from '@parcel/utils';
+import {getFeatureFlag} from '@parcel/feature-flags/src';
 import watcher from '@parcel/watcher';
+import * as nodeWatcher from '@parcel/watcher-watchman-js';
 import packageJSON from '../package.json';
 
 import * as searchNative from '@parcel/rust';
@@ -163,7 +165,9 @@ export class NodeFS implements FileSystem {
     fn: (err: ?Error, events: Array<Event>) => mixed,
     opts: WatcherOptions,
   ): Promise<AsyncSubscription> {
-    return watcher.subscribe(dir, fn, opts);
+    return getFeatureFlag('useNodeWatcher')
+      ? nodeWatcher.subscribe(dir, fn, opts)
+      : watcher.subscribe(dir, fn, opts);
   }
 
   getEventsSince(
@@ -171,7 +175,9 @@ export class NodeFS implements FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<Array<Event>> {
-    return watcher.getEventsSince(dir, snapshot, opts);
+    return getFeatureFlag('useNodeWatcher')
+      ? nodeWatcher.getEventsSince(dir, snapshot, opts)
+      : watcher.getEventsSince(dir, snapshot, opts);
   }
 
   async writeSnapshot(
@@ -179,7 +185,9 @@ export class NodeFS implements FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<void> {
-    await watcher.writeSnapshot(dir, snapshot, opts);
+    (await getFeatureFlag('useNodeWatcher'))
+      ? nodeWatcher.writeSnapshot(dir, snapshot, opts)
+      : watcher.writeSnapshot(dir, snapshot, opts);
   }
 
   static deserialize(): NodeFS {
@@ -229,6 +237,7 @@ try {
 }
 
 let useOsTmpDir;
+
 function shouldUseOsTmpDir(filePath) {
   if (useOsTmpDir != null) {
     return useOsTmpDir;

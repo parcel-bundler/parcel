@@ -1,14 +1,14 @@
 {
-  "name": "@parcel/parcel-watcher-watchman-js",
-  "version": "0.0.0",
+  "name": "@parcel/watcher-watchman-js",
+  "version": "2.12.0",
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc",
+    "build-ts": "tsc",
     "lint": "eslint src --ext ts"
   },
   "dependencies": {
     "fb-watchman": "^2.0.2",
-    "@parcel/watcher": "^2.4.1"
+    "@parcel/wutcher": "^2.4.1"
   },
   "devDependencies": {
     "@types/node": ">= 18",

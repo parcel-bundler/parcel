@@ -10,6 +10,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   configKeyInvalidation: false,
   parcelV3: false,
   randomLargeBlobKeys: false,
+  useNodeWatcher: false,
 };
 
 let featureFlagValues: FeatureFlags = {...DEFAULT_FEATURE_FLAGS};
