@@ -349,6 +349,10 @@ pub fn transform(
                 result.is_constant_module = constant_module.is_constant_module;
               }
 
+              if config.source_type != SourceType::Script {
+                module.visit_mut_with(&mut TypeofReplacer::new(unresolved_mark));
+              }
+
               let module = {
                 let mut passes = chain!(
                   // Inline process.env and process.browser
@@ -383,11 +387,6 @@ pub fn transform(
                     should_inline_fs
                   ),
                 );
-
-                let mut module = module.fold_with(&mut passes);
-                if config.source_type != SourceType::Script {
-                  module.visit_mut_with(&mut TypeofReplacer { unresolved_mark });
-                }
 
                 module
               };

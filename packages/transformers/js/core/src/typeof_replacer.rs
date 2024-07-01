@@ -16,7 +16,13 @@ use crate::utils::is_unresolved;
 /// expression will be replaced at build time with the resulting literal only if it's referring to
 /// the global `module`, `exports` and `require` symbols.
 pub struct TypeofReplacer {
-  pub unresolved_mark: Mark,
+  unresolved_mark: Mark,
+}
+
+impl TypeofReplacer {
+  pub fn new(unresolved_mark: Mark) -> Self {
+    Self { unresolved_mark }
+  }
 }
 
 impl TypeofReplacer {
