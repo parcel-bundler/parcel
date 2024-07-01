@@ -1,5 +1,8 @@
+//! This benchmark measures write performance of individual request results into an LMDB cache
+//! backend using different serialization and write strategies.
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
-use rand::random;
 use rkyv::rancor::Failure;
 
 use parcel::cache::{LMDBCache, LMDBCacheOptions};
@@ -13,13 +16,15 @@ struct BenchmarkItem {
   cache_key: String,
 }
 
+static CURRENT_KEY: AtomicU64 = AtomicU64::new(0);
+
 fn setup() -> BenchmarkItem {
   let asset = Asset::default();
   let request_result = RequestResult::Asset(AssetRequestOutput {
     asset,
     dependencies: vec![],
   });
-  let cache_key = random::<u64>().to_string();
+  let cache_key = CURRENT_KEY.fetch_add(1, Ordering::Relaxed).to_string();
   BenchmarkItem {
     request_result,
     cache_key,
