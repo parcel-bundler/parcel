@@ -3,7 +3,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
-use rkyv::rancor::Failure;
 
 use parcel::cache::{LMDBCache, LMDBCacheOptions};
 use parcel::requests::asset_request::AssetRequestOutput;
@@ -49,17 +48,6 @@ pub fn cache_benchmark(c: &mut Criterion) {
     );
   });
 
-  c.bench_function("serialize request using rkyv to_bytes", |b| {
-    b.iter_batched(
-      setup,
-      |BenchmarkItem { request_result, .. }| {
-        let bytes = rkyv::to_bytes::<RequestResult, 256, Failure>(&request_result).unwrap();
-        black_box(bytes);
-      },
-      BatchSize::SmallInput,
-    );
-  });
-
   benchmark_suite(c, "async writes", cache);
 
   let cache = LMDBCache::new(LMDBCacheOptions {
@@ -71,6 +59,8 @@ pub fn cache_benchmark(c: &mut Criterion) {
 }
 
 fn benchmark_suite(c: &mut Criterion, name: &str, cache: LMDBCache) {
+  let _ = std::fs::remove_dir_all(".parcel-cache/rust-cache").unwrap();
+
   c.bench_function(
     &format!(
       "{} - write request to cache one at a time using bincode to serialize",
@@ -164,6 +154,8 @@ fn benchmark_suite(c: &mut Criterion, name: &str, cache: LMDBCache) {
   );
 
   cache.close();
+
+  let _ = std::fs::remove_dir_all(".parcel-cache/rust-cache");
 }
 
 criterion_group!(benches, cache_benchmark);

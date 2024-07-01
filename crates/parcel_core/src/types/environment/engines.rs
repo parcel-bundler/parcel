@@ -17,13 +17,9 @@ use super::OutputFormat;
   Hash,
   PartialEq,
   Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
   bincode::Encode,
   bincode::Decode,
 )]
-#[archive(check_bytes)]
 pub struct Engines {
   #[serde(default)]
   pub browsers: Browsers,

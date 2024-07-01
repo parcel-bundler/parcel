@@ -13,14 +13,10 @@ use serde::{Deserialize, Serialize};
   Hash,
   PartialEq,
   Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
   bincode::Encode,
   bincode::Decode,
 )]
 #[serde(rename_all = "lowercase")]
-#[archive(check_bytes)]
 pub enum OutputFormat {
   /// A classic script that can be loaded in a <script> tag in the browser
   ///

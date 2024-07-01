@@ -1,6 +1,3 @@
-/// Implements bitflags archival using rkyv
-pub(crate) mod bitflags_archiver;
-
 #[macro_export]
 macro_rules! impl_bitflags_serde {
   ($t: ty) => {

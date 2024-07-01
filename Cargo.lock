@@ -51,12 +51,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "allocator-api2"
-version = "0.2.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -288,29 +282,6 @@ name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
-
-[[package]]
-name = "bytecheck"
-version = "0.8.0-pre6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58167cc4244105c1b50a4d0a9f4672107138def79b73755b74d21c0b807e7755"
-dependencies = [
- "bytecheck_derive",
- "ptr_meta",
- "rancor",
- "simdutf8",
-]
-
-[[package]]
-name = "bytecheck_derive"
-version = "0.8.0-pre6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41412be9f547e2c7aa8e444c935958d711ec34189b42a24208635cab44c07cd1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "bytecount"
@@ -1074,10 +1045,6 @@ name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
-dependencies = [
- "ahash",
- "allocator-api2",
-]
 
 [[package]]
 name = "heed"
@@ -2012,7 +1979,6 @@ dependencies = [
  "petgraph",
  "rand",
  "rayon",
- "rkyv",
  "serde",
  "serde-bool",
  "serde_json",
@@ -2161,7 +2127,6 @@ dependencies = [
  "mockall",
  "nodejs-semver",
  "parcel_filesystem",
- "rkyv",
  "serde",
  "serde-value",
  "serde_json",
@@ -2554,26 +2519,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ptr_meta"
-version = "0.3.0-pre1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "305e6272a833a48eecd7f05cc3b00f7bc6dce9b8955bb31ffd0481fa5947118e"
-dependencies = [
- "ptr_meta_derive",
-]
-
-[[package]]
-name = "ptr_meta_derive"
-version = "0.3.0-pre1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb26b4ec087a56688b4dddd8c7bbed38ad1867042ba6e1314162e5b370edaaac"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2587,15 +2532,6 @@ name = "radium"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
-
-[[package]]
-name = "rancor"
-version = "0.1.0-pre8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7194da341620fb0871865b69e50d7522a8ff0ab9d0b6084067edfc1f11b1e11"
-dependencies = [
- "ptr_meta",
-]
 
 [[package]]
 name = "rand"
@@ -2695,15 +2631,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 
 [[package]]
-name = "rend"
-version = "0.5.0-pre6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f02fc3227b019649985d2f89e254e345f027cc58af7bbf5faa4f3f7271bc4cc"
-dependencies = [
- "bytecheck",
-]
-
-[[package]]
 name = "reqwest"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2770,36 +2697,6 @@ dependencies = [
  "spin",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "rkyv"
-version = "0.8.0-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d125265f4bf0016653476f0e6f33757f4d5ce34447473c2b317c1bb28766481"
-dependencies = [
- "bitvec",
- "bytecheck",
- "bytes",
- "hashbrown 0.14.5",
- "indexmap 2.2.6",
- "ptr_meta",
- "rancor",
- "rend",
- "rkyv_derive",
- "tinyvec",
- "uuid",
-]
-
-[[package]]
-name = "rkyv_derive"
-version = "0.8.0-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670836f48c7644bc9f68e507064f0a83984e910a5a5515ac5f496ccf4e109e6b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -3294,12 +3191,6 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
-
-[[package]]
-name = "simdutf8"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
 
 [[package]]
 name = "siphasher"

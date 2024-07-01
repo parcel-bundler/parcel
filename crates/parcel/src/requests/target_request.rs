@@ -37,7 +37,7 @@ mod package_json;
 ///
 /// Targets will be generated from the project package.json file and input Parcel options.
 ///
-#[derive(Debug, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(Debug)]
 pub struct TargetRequest {
   pub default_target_options: DefaultTargetOptions,
   pub env: Option<HashMap<String, String>>,
@@ -53,17 +53,7 @@ impl Hash for TargetRequest {
   }
 }
 
-#[derive(
-  Debug,
-  Clone,
-  PartialEq,
-  rkyv::Archive,
-  rkyv::Deserialize,
-  rkyv::Serialize,
-  bincode::Encode,
-  bincode::Decode,
-)]
-#[archive(check_bytes)]
+#[derive(Debug, Clone, PartialEq, bincode::Encode, bincode::Decode)]
 pub struct TargetRequestOutput {
   targets: Vec<Target>,
 }

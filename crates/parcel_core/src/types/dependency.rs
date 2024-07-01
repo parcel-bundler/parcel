@@ -16,37 +16,15 @@ use super::symbol::Symbol;
 use super::target::Target;
 
 #[derive(
-  PartialEq,
-  Clone,
-  Debug,
-  Default,
-  Deserialize,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Deserialize,
-  rkyv::Serialize,
-  bincode::Encode,
-  bincode::Decode,
+  PartialEq, Clone, Debug, Default, Deserialize, Serialize, bincode::Encode, bincode::Decode,
 )]
-#[archive(check_bytes)]
 pub struct DependencyMeta {}
 
 /// A dependency denotes a connection between two assets
 #[derive(
-  PartialEq,
-  Clone,
-  Debug,
-  Default,
-  Deserialize,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Deserialize,
-  rkyv::Serialize,
-  bincode::Encode,
-  bincode::Decode,
+  PartialEq, Clone, Debug, Default, Deserialize, Serialize, bincode::Encode, bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
-#[archive(check_bytes)]
 pub struct Dependency {
   /// Controls the behavior of the bundle the resolved asset is placed into
   ///
@@ -69,7 +47,6 @@ pub struct Dependency {
   /// This will be combined with the conditions from the environment. However, it overrides the default "import" and "require" conditions inferred from the specifierType. To include those in addition to custom conditions, explicitly add them to this list.
   ///
   #[serde(default)]
-  #[with(crate::types::utils::bitflags_archiver::BitFlagsArchiver<ExportsCondition>)]
   pub package_conditions: ExportsCondition,
 
   /// The pipeline defined in .parcelrc that the dependency should be processed with
@@ -86,14 +63,12 @@ pub struct Dependency {
   ///
   /// By default, this is the path of the source file where the dependency was specified.
   ///
-  #[with(rkyv::with::Map<rkyv::with::AsString>)]
   pub resolve_from: Option<PathBuf>,
 
   /// The id of the asset with this dependency
   pub source_asset_id: Option<String>,
 
   /// The file path of the asset with this dependency
-  #[with(rkyv::with::Map<rkyv::with::AsString>)]
   pub source_path: Option<PathBuf>,
 
   /// The import or export specifier that connects two assets together
@@ -204,15 +179,11 @@ pub struct ImportAttribute {
   Hash,
   PartialEq,
   Serialize_repr,
-  rkyv::Archive,
-  rkyv::Deserialize,
-  rkyv::Serialize,
   bincode::Encode,
   bincode::Decode,
 )]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
-#[archive(check_bytes)]
 pub enum Priority {
   /// Resolves the dependency synchronously, placing the resolved asset in the same bundle as the parent or another bundle that is already on the page
   Sync = 0,
@@ -238,15 +209,11 @@ impl Default for Priority {
   Hash,
   PartialEq,
   Serialize_repr,
-  rkyv::Archive,
-  rkyv::Deserialize,
-  rkyv::Serialize,
   bincode::Encode,
   bincode::Decode,
 )]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
-#[archive(check_bytes)]
 pub enum SpecifierType {
   /// An ES Module specifier
   ///

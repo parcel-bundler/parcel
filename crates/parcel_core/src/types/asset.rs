@@ -18,20 +18,9 @@ pub struct AssetId(pub NonZeroU32);
 
 /// The source code for an asset.
 #[derive(
-  PartialEq,
-  Default,
-  Clone,
-  Debug,
-  Deserialize,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
-  bincode::Encode,
-  bincode::Decode,
+  PartialEq, Default, Clone, Debug, Deserialize, Serialize, bincode::Encode, bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
-#[archive(check_bytes)]
 pub struct Code {
   inner: String,
 }
@@ -53,19 +42,8 @@ impl From<String> for Code {
 }
 
 #[derive(
-  Default,
-  PartialEq,
-  Clone,
-  Debug,
-  Deserialize,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
-  bincode::Encode,
-  bincode::Decode,
+  Default, PartialEq, Clone, Debug, Deserialize, Serialize, bincode::Encode, bincode::Decode,
 )]
-#[archive(check_bytes)]
 pub struct AssetMeta {
   interpreter: Option<String>,
 }
@@ -75,20 +53,9 @@ pub struct AssetMeta {
 /// Note that assets may exist in the file system or virtually.
 ///
 #[derive(
-  Default,
-  PartialEq,
-  Clone,
-  Debug,
-  Deserialize,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
-  bincode::Encode,
-  bincode::Decode,
+  Default, PartialEq, Clone, Debug, Deserialize, Serialize, bincode::Encode, bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
-#[archive(check_bytes)]
 pub struct Asset {
   /// The file type of the asset, which may change during transformation
   #[serde(rename = "type")]
@@ -101,7 +68,6 @@ pub struct Asset {
   pub env: Arc<Environment>,
 
   /// The file path to the asset
-  #[with(rkyv::with::AsString)]
   pub file_path: PathBuf,
 
   /// The code of this asset, initially read from disk, then becoming the
@@ -220,19 +186,8 @@ impl Asset {
 
 /// Statistics that pertain to an asset
 #[derive(
-  PartialEq,
-  Clone,
-  Debug,
-  Default,
-  Deserialize,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
-  bincode::Encode,
-  bincode::Decode,
+  PartialEq, Clone, Debug, Default, Deserialize, Serialize, bincode::Encode, bincode::Decode,
 )]
-#[archive(check_bytes)]
 pub struct AssetStats {
   pub size: u32,
   pub time: u32,

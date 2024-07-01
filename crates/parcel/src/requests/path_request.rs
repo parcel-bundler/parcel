@@ -28,22 +28,11 @@ pub struct PathRequest {
   pub resolvers: Arc<Vec<Box<dyn ResolverPlugin>>>,
 }
 
-#[derive(
-  Clone,
-  Debug,
-  PartialEq,
-  bincode::Encode,
-  bincode::Decode,
-  rkyv::Archive,
-  rkyv::Deserialize,
-  rkyv::Serialize,
-)]
-#[archive(check_bytes)]
+#[derive(Clone, Debug, PartialEq, bincode::Encode, bincode::Decode)]
 pub enum PathRequestOutput {
   Excluded,
   Resolved {
     can_defer: bool,
-    #[with(rkyv::with::AsString)]
     path: PathBuf,
     code: Option<String>,
     pipeline: Option<String>,

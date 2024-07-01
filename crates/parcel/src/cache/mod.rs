@@ -14,8 +14,7 @@ type Database = heed::Database<Str, Bytes>;
 /// * We want the cache to be able to store data and be opinionated about the serialization format
 /// * Cache keys don't need to be strings; ideally they'll be strongly typed enums which we will
 ///   implement efficient serialization into nice keys we can iterate and lookup efficiently
-/// * Entries should use binary serialization. Ideally with zero-copy. Zero copy de-serialization
-///   can be implemented over LMDB using `rkyv`.
+/// * Entries should use binary serialization.
 /// * We don't need to allocate when returning the entries
 pub struct LMDBCache {
   environment: heed::Env,
@@ -107,15 +106,6 @@ impl Default for LMDBCacheOptions {
 
 #[cfg(test)]
 mod test {
-  use rand::random;
-  use rkyv::rancor::{Failure, Panic};
-  use rkyv::{from_bytes, to_bytes};
-
-  use parcel_core::types::Asset;
-
-  use crate::requests::asset_request::AssetRequestOutput;
-  use crate::requests::RequestResult;
-
   use super::*;
 
   #[test]
@@ -123,59 +113,5 @@ mod test {
     let cache = LMDBCache::new(Default::default()).unwrap();
     cache.set_blob("key1", "data".as_bytes()).unwrap();
     assert_eq!(cache.get_blob("key1").unwrap(), "data".as_bytes());
-  }
-
-  #[test]
-  fn test_write_request() {
-    let cache = LMDBCache::new(Default::default()).unwrap();
-    let asset = Asset::default();
-    let request_result = RequestResult::Asset(AssetRequestOutput {
-      asset,
-      dependencies: vec![],
-    });
-    let cache_key = random::<u64>().to_string();
-    let bytes = to_bytes::<_, 256, Panic>(&request_result).unwrap();
-    cache.set_blob(&cache_key, bytes.as_slice()).unwrap();
-
-    let txn = cache.environment().read_txn().unwrap();
-    let blob = cache.get_blob_ref(&txn, &cache_key).unwrap();
-    assert_eq!(blob, bytes.as_slice());
-    let _request_result: RequestResult = from_bytes::<RequestResult, Panic>(&blob).unwrap();
-  }
-
-  #[test]
-  fn test_round_trip_serialize() {
-    let cache = LMDBCache::new(Default::default()).unwrap();
-    let asset = Asset::default();
-    let request_result = RequestResult::Asset(AssetRequestOutput {
-      asset,
-      dependencies: vec![],
-    });
-    let cache_key = random::<u64>().to_string();
-    let mut bytes = to_bytes::<_, 256, Panic>(&request_result).unwrap();
-    bytes.shrink_to_fit();
-    let copy = bytes.as_slice().to_vec();
-    cache.set_blob(&cache_key, bytes.as_slice()).unwrap();
-    let blob_vec = cache.get_blob(&cache_key).unwrap();
-    let txn = cache.environment().read_txn().unwrap();
-    let blob = cache.get_blob_ref(&txn, &cache_key).unwrap();
-    assert_eq!(blob_vec, bytes.as_slice());
-    assert_eq!(blob, bytes.as_slice());
-
-    let _request_result: RequestResult =
-      from_bytes::<RequestResult, Panic>(&bytes.as_slice()).unwrap();
-    let _request_result: RequestResult = from_bytes::<RequestResult, Panic>(&copy).unwrap();
-    let _request_result: RequestResult = from_bytes::<RequestResult, Panic>(&blob_vec).unwrap();
-    assert_eq!(blob, bytes.as_slice());
-    let blob_copy = blob.to_vec();
-    let _request_result = from_bytes::<RequestResult, Panic>(&blob_copy).unwrap();
-    assert_eq!(blob, bytes.as_slice());
-    let request_result = from_bytes::<RequestResult, Failure>(&blob);
-    assert_eq!(blob, bytes.as_slice());
-    let request_result2 = from_bytes::<RequestResult, Failure>(&bytes.as_slice());
-    request_result2.unwrap();
-    request_result.unwrap();
-
-    txn.commit().unwrap();
   }
 }

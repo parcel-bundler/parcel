@@ -25,21 +25,8 @@ pub struct EnvironmentId(pub NonZeroU32);
 ///
 /// This influences how Parcel compiles your code, including what syntax to transpile.
 ///
-#[derive(
-  Clone,
-  Debug,
-  Default,
-  Deserialize,
-  Eq,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
-  bincode::Encode,
-  bincode::Decode,
-)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Serialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
-#[archive(check_bytes)]
 pub struct Environment {
   /// The environment the output should run in
   pub context: EnvironmentContext,
@@ -127,14 +114,10 @@ impl PartialEq for Environment {
   Hash,
   PartialEq,
   Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
   bincode::Encode,
   bincode::Decode,
 )]
 #[serde(rename_all = "kebab-case")]
-#[archive(check_bytes)]
 pub enum EnvironmentContext {
   #[default]
   Browser,
@@ -171,21 +154,8 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(
-  Clone,
-  Debug,
-  Deserialize,
-  Eq,
-  PartialEq,
-  Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
-  bincode::Encode,
-  bincode::Decode,
-)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, bincode::Encode, bincode::Decode)]
 #[serde(untagged)]
-#[archive(check_bytes)]
 pub enum IncludeNodeModules {
   Bool(bool),
   Array(Vec<String>),
@@ -234,14 +204,10 @@ impl Hash for IncludeNodeModules {
   Hash,
   PartialEq,
   Serialize_repr,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
   bincode::Encode,
   bincode::Decode,
 )]
 #[repr(u8)]
-#[archive(check_bytes)]
 pub enum SourceType {
   #[default]
   Module = 0,
@@ -258,14 +224,10 @@ pub enum SourceType {
   Hash,
   PartialEq,
   Serialize,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
   bincode::Encode,
   bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
-#[archive(check_bytes)]
 pub struct TargetSourceMapOptions {
   /// Inlines the source map as a data URL into the bundle, rather than link to it as a separate output file
   inline: Option<bool>,

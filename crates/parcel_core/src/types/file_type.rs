@@ -6,19 +6,7 @@ use serde::Serialize;
 /// Represents a file type by its extension
 ///
 /// Defaults to `FileType::Js` for convenience.
-#[derive(
-  Default,
-  Debug,
-  Clone,
-  PartialEq,
-  Hash,
-  rkyv::Archive,
-  rkyv::Serialize,
-  rkyv::Deserialize,
-  bincode::Encode,
-  bincode::Decode,
-)]
-#[archive(check_bytes)]
+#[derive(Default, Debug, Clone, PartialEq, Hash, bincode::Encode, bincode::Decode)]
 pub enum FileType {
   Css,
   Html,
