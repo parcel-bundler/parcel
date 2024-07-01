@@ -227,6 +227,32 @@ buffers into aligned memory locations or to try to get LMDB to align its interna
 
 The issue is discussed on https://github.com/AltSysrq/lmdb-zero/issues/8 and https://github.com/meilisearch/heed/issues/198.
 
+### Orders of magnitude for LMDB write performance from rust
+
+This has been tested on an EC2 `c7i.8xlarge` instance using criterion.
+
+- Serializing a single request - **165ns** with `bincode` and 288ns with `rkyv`
+- Read a single request and deserialize - **821ns**
+- Write 1 request with async writes - **15204ns** / **15us**
+- Write 1 request with sync writes - **3000000ns** / **3000us** / **3ms**
+- Write 1000 request with async/sync writes - **14080000ns** / **14000us** / **14ms**
+
+These are just ballpark numbers. Using these numbers we can estimate that the cache throughput will be between
+hundreds of thousands of requests a second to a million requests a second. We can likely optimise things further.
+
+Serialization itself is relatively fast here, and the issue is waiting on the disk write. This could be performed in
+the background.
+
+### Request IDs and throughput
+
+LMDB stores entries on a B-tree following sorted lexicographically. We can improve read/write throughput significantly
+by putting related entries on close entries. That is, for two requests with keys `request::${id}`, if they will be
+written and read one after another then the ideal `id`s are consecutive lexicographical strings like `a` and `b` or
+`1` and `2`.
+
+When using sync writes, this improves the performance of writing 1000 entries in a single transaction by 10x, making
+it perform comparable to async writes.
+
 ## Serialization performance
 
 ### bincode
