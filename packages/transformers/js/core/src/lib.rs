@@ -388,7 +388,7 @@ pub fn transform(
                   ),
                 );
 
-                module
+                module.fold_with(&mut passes)
               };
 
               let module = module.fold_with(
