@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -37,9 +38,9 @@ pub enum ResolverError {
   IOError(IOError),
   #[error("Package JSON error. Module {module} at path {path}")]
   PackageJsonError {
+    error: PackageJsonError,
     module: String,
     path: PathBuf,
-    error: PackageJsonError,
   },
   #[error("Package JSON not found from {from}")]
   PackageJsonNotFound { from: PathBuf },
@@ -70,6 +71,12 @@ impl serde::Serialize for IOError {
     };
 
     msg.serialize(serializer)
+  }
+}
+
+impl Display for IOError {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.0.to_string())
   }
 }
 

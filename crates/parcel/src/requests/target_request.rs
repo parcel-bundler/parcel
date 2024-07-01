@@ -21,7 +21,6 @@ use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::Entry;
 use parcel_core::types::Environment;
 use parcel_core::types::EnvironmentContext;
-use parcel_core::types::File;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::SourceType;
 use parcel_core::types::Target;
@@ -440,7 +439,7 @@ impl TargetRequest {
     {
       return Err(diagnostic_error!(DiagnosticBuilder::default()
         .code_frames(vec![CodeFrame::from(package_json)])
-        .message(String::from("Output format \"esmodule\" cannot be used in the \"main\" target without a .mjs extension or \"type\": \"module\" field"))));
+        .message("Output format \"esmodule\" cannot be used in the \"main\" target without a .mjs extension or \"type\": \"module\" field")));
     }
 
     let is_library = target_descriptor

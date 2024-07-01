@@ -37,6 +37,12 @@ impl InMemoryFileSystem {
   pub fn write_file(&self, path: &Path, contents: String) {
     let mut files = self.files.write().unwrap();
     files.insert(path.into(), InMemoryFileSystemEntry::File { contents });
+
+    let mut dir = path.parent();
+    while let Some(path) = dir {
+      files.insert(path.to_path_buf(), InMemoryFileSystemEntry::Directory);
+      dir = path.parent();
+    }
   }
 }
 
