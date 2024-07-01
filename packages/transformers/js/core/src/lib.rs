@@ -77,8 +77,8 @@ use swc_core::ecma::transforms::optimization::simplify::expr_simplifier;
 use swc_core::ecma::transforms::proposal::decorators;
 use swc_core::ecma::transforms::react;
 use swc_core::ecma::transforms::typescript;
-use swc_core::ecma::visit::FoldWith;
 use swc_core::ecma::visit::VisitWith;
+use swc_core::ecma::visit::{FoldWith, VisitMutWith};
 use typeof_replacer::*;
 use utils::error_buffer_to_diagnostics;
 use utils::CodeHighlight;
@@ -351,10 +351,10 @@ pub fn transform(
 
               let module = {
                 let mut passes = chain!(
-                  Optional::new(
-                    TypeofReplacer { unresolved_mark },
-                    config.source_type != SourceType::Script
-                  ),
+                  // Optional::new(
+                  //   TypeofReplacer { unresolved_mark },
+                  //   config.source_type != SourceType::Script
+                  // ),
                   // Inline process.env and process.browser
                   Optional::new(
                     EnvReplacer {
@@ -388,7 +388,12 @@ pub fn transform(
                   ),
                 );
 
-                module.fold_with(&mut passes)
+                let mut module = module.fold_with(&mut passes);
+                if config.source_type != SourceType::Script {
+                  module.visit_mut_with(&mut TypeofReplacer { unresolved_mark });
+                }
+
+                module
               };
 
               let module = module.fold_with(

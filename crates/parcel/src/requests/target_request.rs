@@ -10,7 +10,6 @@ use package_json::ModuleFormat;
 use package_json::PackageJson;
 use package_json::SourceMapField;
 use package_json::TargetDescriptor;
-
 use parcel_core::config_loader::ConfigFile;
 use parcel_core::diagnostic_error;
 use parcel_core::types::engines::Engines;
@@ -21,7 +20,6 @@ use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::Entry;
 use parcel_core::types::Environment;
 use parcel_core::types::EnvironmentContext;
-use parcel_core::types::File;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::SourceType;
 use parcel_core::types::Target;
@@ -573,9 +571,10 @@ impl Request for TargetRequest {
 mod tests {
   use std::{num::NonZeroU16, sync::Arc};
 
+  use regex::Regex;
+
   use parcel_core::types::{browsers::Browsers, version::Version};
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
-  use regex::Regex;
 
   use crate::test_utils::{request_tracker, RequestTrackerTestOptions};
 
