@@ -351,10 +351,6 @@ pub fn transform(
 
               let module = {
                 let mut passes = chain!(
-                  // Optional::new(
-                  //   TypeofReplacer { unresolved_mark },
-                  //   config.source_type != SourceType::Script
-                  // ),
                   // Inline process.env and process.browser
                   Optional::new(
                     EnvReplacer {

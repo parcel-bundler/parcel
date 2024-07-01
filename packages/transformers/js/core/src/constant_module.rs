@@ -19,6 +19,29 @@ fn is_safe_literal(lit: &Lit) -> bool {
   )
 }
 
+/// Run analysis over a module to return whether it is a 'constant module'. A constant module is one
+/// which only consists of constant variable declaration export statements and is safe to inline
+/// at its usage site. Declarations are safe if they refer to value type literals (string, bool,
+/// null, big-int, numbers, certain template strings).
+///
+/// For example, this is a constant module:
+/// ```skip
+/// export const ANGLE = 30;
+/// export const COLOR = 'red';
+/// ```
+///
+/// For example, this is not a constant module:
+/// ```skip
+/// bail-out due to non-decl statement:
+/// import {writeFileSync, readFileSync} from 'fs';
+///
+/// // bail-out due to non-decl statement:
+/// writeFileSync('test', 'file');
+///
+/// // bail-out to non constant declarator RHS (only value type literals are supported):
+/// export const COLOR = readFileSync('test');
+///
+/// ```
 pub struct ConstantModule {
   pub is_constant_module: bool,
   constants: HashSet<JsWord>,
