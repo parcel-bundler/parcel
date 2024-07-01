@@ -197,9 +197,7 @@ Suggest we use:
 
 - https://github.com/meilisearch/heed
 
-Which seems mature enough due to usage in `meilisearch`. We should aim to use a zero-copy serialization library in
-conjunction to this (such as https://rkyv.org/ or captn proto), to improve performance of reading from the cache
-further.
+Which seems mature enough due to usage in `meilisearch`.
 
 ### LMDB tuning
 
@@ -217,7 +215,8 @@ This greatly improves write performance.
 ### LMDB and RKYV
 
 Unfortunately `rkyv` and LMDB can't be used together. You can see a failing test case reproduction on commit
-`d75dda3af93179c58a4b55fdcc42a6a60e7f3e2f`.
+`d75dda3af93179c58a4b55fdcc42a6a60e7f3e2f`. RKYV code was available on the `lmdb-cache-implementation` branch until
+being removed on commit `71e7fc269881a44bab0d44b054e53ce8beabc477`.
 
 `rkyv` requires values to be aligned by 4-byte words - https://rkyv.org/architecture/alignment.html. Since LMDB has no
 alignment guarantee on values, in order to use `rkyv` we'd be forced to copy the LMDB buffers onto an aligned location.
