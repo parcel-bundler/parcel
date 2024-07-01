@@ -211,7 +211,6 @@ impl ParcelRcConfigLoader {
 
 #[cfg(test)]
 mod tests {
-  use anyhow::anyhow;
   use mockall::predicate::eq;
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_package_manager::MockPackageManager;
@@ -283,12 +282,12 @@ mod tests {
   }
 
   mod empty_config_and_fallback {
-    use std::rc::Rc;
     use std::sync::Arc;
 
-    use super::*;
     use crate::parcel_config_fixtures::default_config;
     use crate::parcel_config_fixtures::default_extended_config;
+
+    use super::*;
 
     #[test]
     fn errors_on_missing_parcelrc_file() {
@@ -420,9 +419,10 @@ mod tests {
   }
 
   mod config {
-    use super::*;
     use crate::parcel_config_fixtures::config;
     use crate::parcel_config_fixtures::extended_config;
+
+    use super::*;
 
     #[test]
     fn errors_on_failed_config_resolution() {
@@ -566,13 +566,13 @@ mod tests {
   }
 
   mod fallback_config {
-    use std::rc::Rc;
     use std::sync::Arc;
 
-    use super::*;
     use crate::parcel_config_fixtures::default_config;
     use crate::parcel_config_fixtures::extended_config;
     use crate::parcel_config_fixtures::fallback_config;
+
+    use super::*;
 
     #[test]
     fn errors_on_failed_fallback_resolution() {
@@ -746,9 +746,10 @@ mod tests {
   }
 
   mod fallback_with_config {
-    use super::*;
     use crate::parcel_config_fixtures::config;
     use crate::parcel_config_fixtures::fallback_config;
+
+    use super::*;
 
     #[test]
     fn returns_specified_config() {

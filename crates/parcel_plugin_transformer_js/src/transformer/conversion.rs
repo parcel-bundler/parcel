@@ -2,14 +2,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use parcel_core::diagnostic;
 use swc_core::atoms::Atom;
 
 use parcel_core::plugin::TransformResult;
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
-  Asset, BundleBehavior, Code, Dependency, Diagnostic, Environment, EnvironmentContext, FileType,
-  ImportAttribute, IncludeNodeModules, OutputFormat, ParcelOptions, SourceLocation, SourceType,
-  SpecifierType, Symbol,
+  Asset, BundleBehavior, Code, CodeFrame, CodeHighlight, Dependency, Diagnostic, DiagnosticBuilder,
+  Environment, EnvironmentContext, File, FileType, ImportAttribute, IncludeNodeModules,
+  OutputFormat, ParcelOptions, SourceLocation, SourceType, SpecifierType, Symbol,
 };
 
 use crate::transformer::conversion::dependency_kind::{convert_priority, convert_specifier_type};
@@ -38,13 +39,8 @@ pub(crate) fn convert_result(
     asset.set_interpreter(shebang);
   }
 
-  let (mut dependency_by_specifier, invalidate_on_file_change) = convert_dependencies(
-    transformer_config,
-    result.dependencies,
-    &asset_file_path,
-    &asset_environment,
-    asset_id,
-  )?;
+  let (mut dependency_by_specifier, invalidate_on_file_change) =
+    convert_dependencies(transformer_config, result.dependencies, &asset, asset_id)?;
 
   if result.needs_esm_helpers {
     let has_symbols = result.hoist_result.is_some() || result.symbol_result.is_some();
@@ -297,8 +293,7 @@ pub(crate) fn is_re_export_all_symbol(symbol: &parcel_js_swc_core::ImportedSymbo
 pub(crate) fn convert_dependencies(
   transformer_config: &parcel_js_swc_core::Config,
   dependencies: Vec<parcel_js_swc_core::DependencyDescriptor>,
-  asset_file_path: &PathBuf,
-  asset_environment: &Environment,
+  asset: &Asset,
   asset_id: u64,
 ) -> Result<(IndexMap<Atom, Dependency>, Vec<PathBuf>), Vec<Diagnostic>> {
   let mut dependency_by_specifier = IndexMap::new();
@@ -310,13 +305,7 @@ pub(crate) fn convert_dependencies(
       .map(|d| d.as_str().into())
       .unwrap_or_else(|| transformer_dependency.specifier.clone());
 
-    let result = convert_dependency(
-      transformer_config,
-      &asset_file_path,
-      &asset_environment,
-      asset_id,
-      transformer_dependency,
-    )?;
+    let result = convert_dependency(transformer_config, &asset, asset_id, transformer_dependency)?;
 
     match result {
       DependencyConversionResult::Dependency(dependency) => {
@@ -395,19 +384,18 @@ enum DependencyConversionResult {
 /// `DependencyConversionResult`.
 fn convert_dependency(
   transformer_config: &parcel_js_swc_core::Config,
-  asset_file_path: &PathBuf,
-  asset_environment: &Environment,
+  asset: &Asset,
   asset_id: u64,
   transformer_dependency: parcel_js_swc_core::DependencyDescriptor,
 ) -> Result<DependencyConversionResult, Vec<Diagnostic>> {
   use parcel_js_swc_core::DependencyKind;
 
-  let loc = convert_loc(asset_file_path.clone(), &transformer_dependency.loc);
+  let loc = convert_loc(asset.file_path.clone(), &transformer_dependency.loc);
   let base_dependency = Dependency {
     source_asset_id: Some(format!("{:016x}", asset_id)),
     specifier: transformer_dependency.specifier.as_ref().into(),
     specifier_type: convert_specifier_type(&transformer_dependency),
-    source_path: Some(asset_file_path.clone()),
+    source_path: Some(asset.file_path.clone()),
     priority: convert_priority(&transformer_dependency),
     loc: Some(loc.clone()),
     ..Dependency::default()
@@ -430,7 +418,7 @@ fn convert_dependency(
       // Use native ES module output if the worker was created with `type: 'module'` and all targets
       // support native module workers. Only do this if parent asset output format is also esmodule so that
       // assets can be shared between workers and the main thread in the global output format.
-      let mut output_format = asset_environment.output_format;
+      let mut output_format = asset.env.output_format;
       if output_format == OutputFormat::EsModule
         && matches!(
           transformer_dependency.source_type,
@@ -449,7 +437,7 @@ fn convert_dependency(
           source_type,
           output_format,
           loc: Some(loc.clone()),
-          ..asset_environment.clone()
+          ..asset.env.as_ref().clone()
         }
         .into(),
         ..base_dependency
@@ -464,7 +452,7 @@ fn convert_dependency(
           source_type,
           output_format: OutputFormat::Global,
           loc: Some(loc.clone()),
-          ..asset_environment.clone()
+          ..asset.env.as_ref().clone()
         }
         .into(),
         needs_stable_name: true,
@@ -481,7 +469,7 @@ fn convert_dependency(
           source_type: SourceType::Module,
           output_format: OutputFormat::EsModule,
           loc: Some(loc.clone()),
-          ..asset_environment.clone()
+          ..asset.env.as_ref().clone()
         }
         .into(),
         // flags: dep_flags,
@@ -494,7 +482,7 @@ fn convert_dependency(
     }
     DependencyKind::Url => {
       let dependency = Dependency {
-        env: asset_environment.clone(),
+        env: asset.env.as_ref().clone(),
         bundle_behavior: BundleBehavior::Isolated,
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
@@ -511,25 +499,31 @@ fn convert_dependency(
       PathBuf::from(transformer_dependency.specifier.to_string()),
     )),
     _ => {
-      let mut env = asset_environment.clone();
+      let mut env = asset.env.as_ref().clone();
       if transformer_dependency.kind == DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
         if matches!(
           env.context,
           EnvironmentContext::Worklet | EnvironmentContext::ServiceWorker
         ) {
-          let diagnostic = Diagnostic {
-            origin: "@parcel/transformer-js".into(),
-            message: format!(
+          let diagnostic = diagnostic!(DiagnosticBuilder::default()
+            .code_frames(vec![CodeFrame {
+              code_highlights: vec![CodeHighlight::from(loc)],
+              ..CodeFrame::from(File {
+                contents: asset.code.to_string(),
+                path: asset.file_path.clone()
+              })
+            }])
+            .hints(vec![String::from("Try using a static `import`")])
+            .message(format!(
               "import() is not allowed in {}.",
               match env.context {
                 EnvironmentContext::Worklet => "worklets",
                 EnvironmentContext::ServiceWorker => "service workers",
                 _ => unreachable!(),
               }
-            ),
-            ..Default::default()
-          };
+            )));
+
           // environment_diagnostic(&mut diagnostic, &asset, false);
           return Err(vec![diagnostic]);
         }

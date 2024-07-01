@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 use std::path::PathBuf;
@@ -32,6 +33,12 @@ impl Code {
 
   pub fn size(&self) -> u32 {
     self.inner.len() as u32
+  }
+}
+
+impl Display for Code {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.inner)
   }
 }
 

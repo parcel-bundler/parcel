@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use anyhow;
-
 pub type RpcHostRef = Arc<dyn RpcHost>;
 pub type RpcWorkerRef = Arc<dyn RpcWorker>;
 

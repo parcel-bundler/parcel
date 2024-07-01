@@ -12,6 +12,7 @@ pub enum FileType {
   Html,
   #[default]
   Js,
+  Json,
   Jsx,
   Ts,
   Tsx,
@@ -41,6 +42,7 @@ impl FileType {
   pub fn extension(&self) -> &str {
     match self {
       FileType::Js => "js",
+      FileType::Json => "json",
       FileType::Jsx => "jsx",
       FileType::Ts => "ts",
       FileType::Tsx => "tsx",
@@ -58,6 +60,7 @@ impl FileType {
       "jsx" => FileType::Jsx,
       "ts" => FileType::Ts,
       "tsx" => FileType::Tsx,
+      "json" => FileType::Json,
       "css" => FileType::Css,
       "html" => FileType::Html,
       ext => FileType::Other(ext.to_string()),

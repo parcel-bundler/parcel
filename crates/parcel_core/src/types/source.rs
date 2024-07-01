@@ -4,11 +4,20 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(
-  Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, bincode::Encode, bincode::Decode,
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 pub struct Location {
-  pub line: u32,
-  pub column: u32,
+  pub line: usize,
+  pub column: usize,
 }
 
 /// Identifies a specific location in a source file
@@ -16,7 +25,16 @@ pub struct Location {
 /// Source locations start at 1:1.
 ///
 #[derive(
-  Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, bincode::Encode, bincode::Decode,
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize,
+  bincode::Encode,
+  bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {

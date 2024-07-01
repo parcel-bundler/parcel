@@ -2,7 +2,7 @@ use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::anyhow;
+use parcel_core::diagnostic_error;
 use parcel_core::plugin::AssetBuildEvent;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::InitialAsset;
@@ -149,6 +149,6 @@ fn run_pipeline(
       invalidate_on_file_change: invalidations,
     })
   } else {
-    Err(anyhow!("No transformations for Asset"))
+    Err(diagnostic_error!("No transformations for Asset"))
   }
 }

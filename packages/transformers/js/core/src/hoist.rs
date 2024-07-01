@@ -1357,14 +1357,11 @@ impl<'a> Hoist<'a> {
 
 #[cfg(test)]
 mod tests {
-  use std::iter::FromIterator;
-
   use swc_core::common::chain;
   use swc_core::common::comments::SingleThreadedComments;
   use swc_core::common::sync::Lrc;
   use swc_core::common::FileName;
   use swc_core::common::Globals;
-  use swc_core::common::Mark;
   use swc_core::common::SourceMap;
   use swc_core::ecma::codegen::text_writer::JsWriter;
   use swc_core::ecma::parser::lexer::Lexer;
