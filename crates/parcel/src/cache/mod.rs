@@ -12,6 +12,8 @@ type Database = heed::Database<Str, Bytes>;
 /// This should change as we progress because we would want to:
 ///
 /// * We want the cache to be able to store data and be opinionated about the serialization format
+///   That is, the current API of receiving and returning bytes is likely not what we want. Instead
+///   we want the cache to handle serializing entries.
 /// * Cache keys don't need to be strings; ideally they'll be strongly typed enums which we will
 ///   implement efficient serialization into nice keys we can iterate and lookup efficiently
 /// * Entries should use binary serialization.
