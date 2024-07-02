@@ -212,7 +212,23 @@ mod test {
 
   use crate::global_replacer::GlobalReplacer;
   use crate::test_utils::{run_visit, RunTestContext, RunVisitResult};
-  use crate::DependencyKind;
+  use crate::{DependencyDescriptor, DependencyKind};
+
+  fn make_global_replacer(
+    run_test_context: RunTestContext,
+    items: &mut Vec<DependencyDescriptor>,
+  ) -> GlobalReplacer {
+    GlobalReplacer {
+      source_map: run_test_context.source_map,
+      items,
+      global_mark: run_test_context.global_mark,
+      globals: Default::default(),
+      project_root: Path::new("project-root"),
+      filename: Path::new("filename"),
+      unresolved_mark: run_test_context.unresolved_mark,
+      scope_hoist: false,
+    }
+  }
 
   #[test]
   fn test_globals_visitor_with_require_process() {
@@ -222,16 +238,7 @@ mod test {
       r#"
 console.log(process.test);
     "#,
-      |run_test_context: RunTestContext| GlobalReplacer {
-        source_map: run_test_context.source_map,
-        items: &mut items,
-        global_mark: run_test_context.global_mark,
-        globals: Default::default(),
-        project_root: Path::new("project-root"),
-        filename: Path::new("filename"),
-        unresolved_mark: run_test_context.unresolved_mark,
-        scope_hoist: false,
-      },
+      |run_test_context: RunTestContext| make_global_replacer(run_test_context, &mut items),
     );
     assert_eq!(
       output_code,
@@ -242,5 +249,45 @@ console.log(process.test);
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].kind, DependencyKind::Require);
     assert_eq!(items[0].specifier, JsWord::from("process"));
+  }
+
+  #[test]
+  fn test_transforms_computed_property() {
+    let mut items = vec![];
+
+    let RunVisitResult { output_code, .. } = run_visit(
+      r#"
+object[process.test];
+object[__dirname];
+    "#,
+      |run_test_context: RunTestContext| make_global_replacer(run_test_context, &mut items),
+    );
+    assert_eq!(
+      output_code,
+      r#"var process = require("process");
+var __dirname = "..";
+object[process.test];
+object[__dirname];
+"#
+    );
+  }
+
+  #[test]
+  fn test_does_not_transform_member_property() {
+    let mut items = vec![];
+
+    let RunVisitResult { output_code, .. } = run_visit(
+      r#"
+object.process.test;
+object.__filename;
+    "#,
+      |run_test_context: RunTestContext| make_global_replacer(run_test_context, &mut items),
+    );
+    assert_eq!(
+      output_code,
+      r#"object.process.test;
+object.__filename;
+"#
+    );
   }
 }
