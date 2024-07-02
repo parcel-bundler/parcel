@@ -198,7 +198,10 @@ export default (new Transformer({
         Boolean(
           pkg?.dependencies?.react ||
             pkg?.devDependencies?.react ||
-            pkg?.peerDependencies?.react,
+            pkg?.peerDependencies?.react ||
+            pkg?.dependencies?.preact ||
+            pkg?.devDependencies?.preact ||
+            pkg?.peerDependencies?.preact,
         );
 
       let tsconfig = await config.getConfigFrom<TSConfig>(
