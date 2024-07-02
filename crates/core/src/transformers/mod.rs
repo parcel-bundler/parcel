@@ -7,6 +7,7 @@ use crate::{
   worker_farm::WorkerFarm,
 };
 
+mod css_transformer;
 mod js_transformer;
 pub mod plugin_transformer;
 
@@ -20,6 +21,9 @@ pub fn run_transformer(
   match plugin.package_name.as_str() {
     "@parcel/transformer-js" => {
       js_transformer::JsTransformer {}.transform(asset, code, farm, options)
+    }
+    "@parcel/transformer-css" => {
+      css_transformer::CssTransformer {}.transform(asset, code, farm, options)
     }
     _ => {
       let transformer = PluginTransformer {

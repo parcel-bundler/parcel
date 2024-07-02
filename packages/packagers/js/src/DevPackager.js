@@ -11,7 +11,7 @@ import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
-import {replaceScriptDependencies, getSpecifier} from './utils';
+import {replaceScriptDependencies, getSpecifier, synthesizeCSSModuleNamespace} from './utils';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'dev-prelude.js'), 'utf8')
@@ -59,6 +59,7 @@ export class DevPackager {
     let prefix = this.getPrefix();
     let lineOffset = countLines(prefix);
     let script: ?{|code: string, mapBuffer: ?Buffer|} = null;
+    let nonJSDeps = new Set();
 
     this.bundle.traverse(node => {
       let wrapped = first ? '' : ',';
@@ -68,13 +69,21 @@ export class DevPackager {
           node.value,
           this.bundle,
         );
-        if (resolved && resolved.type !== 'js') {
+        if (resolved && resolved.type !== 'js' && !nonJSDeps.has(resolved)) {
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
           invariant(!this.bundle.hasAsset(resolved));
+          let contents = ':[function() {},{}]';
+          if (resolved.type === 'css') {
+            contents = ':[function(require,module,exports){\n';
+            let exports = synthesizeCSSModuleNamespace(this.bundleGraph, resolved);
+            contents += `module.exports = ${JSON.stringify(exports)};\n`;
+            contents += '},{}]';
+          }
           wrapped +=
             JSON.stringify(this.bundleGraph.getAssetPublicId(resolved)) +
-            ':[function() {},{}]';
+            contents;
+          nonJSDeps.add(resolved);
         } else {
           return;
         }

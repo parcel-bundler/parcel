@@ -72,3 +72,26 @@ export function makeValidIdentifier(name: string): string {
   }
   return name;
 }
+
+export function synthesizeCSSModuleNamespace(bundleGraph: BundleGraph<NamedBundle>, asset: Asset) {
+  let exports = {};
+
+  for (let symbol of bundleGraph.getExportedSymbols(asset)) {
+    exports[symbol.exportAs] = resolveCSSModuleSymbol(bundleGraph, symbol.asset, symbol.exportAs);
+  }
+
+  return exports;
+}
+
+function resolveCSSModuleSymbol(bundleGraph: BundleGraph<NamedBundle>, asset: Asset, symbol: string) {
+  let replacements = new Map();
+  let resolved = bundleGraph.getSymbolResolution(asset, symbol);
+  for (let dep of bundleGraph.getDependencies(asset)) {
+    let resolvedAsset = bundleGraph.getResolvedAsset(dep);
+    for (let [, sym] of dep.symbols) {
+      replacements.set(sym.local, resolveCSSModuleSymbol(bundleGraph, resolvedAsset, sym.exported));
+    }
+  }
+
+  return resolved.symbol.split(' ').map(s => replacements.get(s) || s).join(' ');
+}

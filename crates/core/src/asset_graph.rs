@@ -24,19 +24,19 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct AssetGraph {
-  graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
-  assets: Vec<AssetNode>,
-  dependencies: Vec<DependencyNode>,
+  pub graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
+  pub assets: Vec<AssetNode>,
+  pub dependencies: Vec<DependencyNode>,
 }
 
 #[derive(Debug, Clone)]
-struct AssetNode {
+pub struct AssetNode {
   asset: Asset,
   requested_symbols: InternedSet<String>,
 }
 
 #[derive(Debug, Clone)]
-struct DependencyNode {
+pub struct DependencyNode {
   dependency: Dependency,
   requested_symbols: InternedSet<String>,
   state: DependencyState,

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use mimalloc::MiMalloc;
 use parcel_core::{
@@ -77,12 +77,26 @@ fn main() {
     },
   );
 
+  let graph = parcel.build_asset_graph().unwrap();
+  println!("TIME: {:?}", start_time.elapsed());
+  println!(
+    "ASSET GRAPH NODES: {} EDGES: {} ASSETS: {} DEPS: {}",
+    graph.graph.raw_nodes().len(),
+    graph.graph.raw_edges().len(),
+    graph.assets.len(),
+    graph.dependencies.len()
+  );
+
+  std::thread::sleep(Duration::from_secs(1));
+
+  let start_time = std::time::Instant::now();
+  parcel.next_build(vec![]);
   parcel.build_asset_graph();
   println!("TIME: {:?}", start_time.elapsed());
 
-  let start_time = std::time::Instant::now();
-  parcel.write_to_cache("graph".into());
-  println!("TIME: {:?}", start_time.elapsed());
+  // let start_time = std::time::Instant::now();
+  // parcel.write_to_cache("graph".into());
+  // println!("TIME: {:?}", start_time.elapsed());
 
   // println!("{:#?}", graph);
 

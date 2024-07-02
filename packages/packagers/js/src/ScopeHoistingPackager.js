@@ -33,6 +33,7 @@ import {
   getSpecifier,
   isValidIdentifier,
   makeValidIdentifier,
+  synthesizeCSSModuleNamespace,
 } from './utils';
 
 // General regex used to replace imports with the resolved code, references with resolutions,
@@ -96,6 +97,7 @@ export class ScopeHoistingPackager {
   needsPrelude: boolean = false;
   usedHelpers: Set<string> = new Set();
   externalAssets: Set<Asset> = new Set();
+  cssModuleNamespaces: Map<Asset, string> = new Map();
 
   constructor(
     options: PluginOptions,
@@ -930,6 +932,17 @@ ${code}
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
 
+    if (resolvedAsset.type === 'css') {
+      if (symbol === null) {
+        if (!this.cssModuleNamespaces.has(resolvedAsset)) {
+          this.cssModuleNamespaces.set(resolvedAsset, synthesizeCSSModuleNamespace(this.bundleGraph, resolvedAsset));
+          let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
+          return `$${publicId}`;
+        }
+      }
+      return JSON.stringify(symbol);
+    }
+
     if (
       resolvedAsset.type !== 'js' ||
       (dep && this.bundleGraph.isDependencySkipped(dep))
@@ -1395,6 +1408,12 @@ ${code}
 
       res += importScripts;
       lines += bundles.length;
+    }
+
+    for (let [asset, namespace] of this.cssModuleNamespaces) {
+      let publicId = this.bundleGraph.getAssetPublicId(asset);
+      res += `let $${publicId} = ${JSON.stringify(namespace)};\n`;
+      lines++;
     }
 
     return [res, lines];

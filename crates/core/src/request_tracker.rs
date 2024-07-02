@@ -234,6 +234,11 @@ impl RequestTracker {
 
   pub fn next_build(&mut self, events: Vec<FileEvent>) -> bool {
     // Invalidate nodes in the current graph, and create a new one for the next build.
+    println!(
+      "REQUESST NODES: {:?} EDGES {:?}",
+      self.graph.graph.raw_nodes().len(),
+      self.graph.graph.raw_edges().len()
+    );
     let mut invalidated = false;
     for event in events {
       if self.graph.respond_to_fs_event(event) {
