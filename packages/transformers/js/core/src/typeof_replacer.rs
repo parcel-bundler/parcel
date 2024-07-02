@@ -4,7 +4,7 @@ use swc_core::ecma::ast::Lit;
 use swc_core::ecma::ast::Str;
 use swc_core::ecma::ast::UnaryOp;
 use swc_core::ecma::atoms::js_word;
-use swc_core::ecma::visit::VisitMut;
+use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
 use crate::utils::is_unresolved;
 
@@ -72,6 +72,7 @@ impl TypeofReplacer {
 impl VisitMut for TypeofReplacer {
   fn visit_mut_expr(&mut self, node: &mut Expr) {
     let Some(replacement) = self.get_replacement(node) else {
+      node.visit_mut_children_with(self);
       return;
     };
 
@@ -108,6 +109,23 @@ const e = typeof exports;
 const x = "function";
 const m = "object";
 const e = "object";
+"#
+    .trim_start();
+    assert_eq!(output_code, expected_code);
+  }
+
+  #[test]
+  fn test_typeof_nested_expression() {
+    let code = r#"
+const x = typeof require === 'function';
+"#;
+
+    let output_code = run_visit(code, |context| TypeofReplacer {
+      unresolved_mark: context.unresolved_mark,
+    });
+
+    let expected_code = r#"
+const x = "function" === 'function';
 "#
     .trim_start();
     assert_eq!(output_code, expected_code);
