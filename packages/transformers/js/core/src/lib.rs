@@ -7,6 +7,8 @@ mod global_replacer;
 mod hoist;
 mod modules;
 mod node_replacer;
+#[cfg(test)]
+mod test_utils;
 mod typeof_replacer;
 mod utils;
 
@@ -411,8 +413,8 @@ pub fn transform(
                 let mut passes = chain!(
                   // Insert dependencies for node globals
                   Optional::new(
-                    GlobalReplacer {
-                      source_map: &source_map,
+                    as_folder(GlobalReplacer {
+                      source_map: source_map.clone(),
                       items: &mut global_deps,
                       global_mark,
                       globals: IndexMap::new(),
@@ -420,7 +422,7 @@ pub fn transform(
                       filename: Path::new(&config.filename),
                       unresolved_mark,
                       scope_hoist: config.scope_hoist
-                    },
+                    }),
                     config.insert_node_globals
                   ),
                   // Transpile new syntax to older syntax if needed
