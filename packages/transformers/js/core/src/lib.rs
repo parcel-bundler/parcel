@@ -78,7 +78,7 @@ use swc_core::ecma::transforms::proposal::decorators;
 use swc_core::ecma::transforms::react;
 use swc_core::ecma::transforms::typescript;
 use swc_core::ecma::visit::VisitWith;
-use swc_core::ecma::visit::{FoldWith, VisitMutWith};
+use swc_core::ecma::visit::{as_folder, FoldWith};
 use typeof_replacer::*;
 use utils::error_buffer_to_diagnostics;
 use utils::CodeHighlight;
@@ -349,13 +349,13 @@ pub fn transform(
                 result.is_constant_module = constant_module.is_constant_module;
               }
 
-              if config.source_type != SourceType::Script {
-                module.visit_mut_with(&mut TypeofReplacer::new(unresolved_mark));
-              }
-
               let module = {
                 let mut passes = chain!(
-                  // Inline process.env and process.browser
+                  Optional::new(
+                    as_folder(TypeofReplacer::new(unresolved_mark)),
+                    config.source_type != SourceType::Script,
+                  ),
+                  // Inline process.env and process.browser,
                   Optional::new(
                     EnvReplacer {
                       replace_env: config.replace_env,

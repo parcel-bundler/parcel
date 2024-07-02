@@ -26,6 +26,8 @@ impl TypeofReplacer {
 }
 
 impl TypeofReplacer {
+  /// Given an expression, optionally return a replacement if it happens to be `typeof $symbol` for
+  /// the constants supported in this transformation step (`require`, `exports` and `module`).
   fn get_replacement(&mut self, node: &Expr) -> Option<Expr> {
     let Expr::Unary(ref unary) = node else {
       return None;
@@ -114,7 +116,7 @@ const e = "object";
   #[test]
   fn test_visitor_typeof_replacer_with_shadowing() {
     let code = r#"
-function wrapper({ require, module, exports }) {
+function wrapper({ require, exports }) {
     const x = typeof require;
     const m = typeof module;
     const e = typeof exports;
@@ -126,9 +128,9 @@ function wrapper({ require, module, exports }) {
     });
 
     let expected_code = r#"
-function wrapper({ require, module, exports }) {
+function wrapper({ require, exports }) {
     const x = typeof require;
-    const m = typeof module;
+    const m = "object";
     const e = typeof exports;
 }
 "#
