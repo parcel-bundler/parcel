@@ -82,14 +82,7 @@ impl VisitMut for TypeofReplacer {
 
 #[cfg(test)]
 mod test {
-  use swc_core::common::input::StringInput;
-  use swc_core::common::sync::Lrc;
-  use swc_core::common::{FileName, Globals, SourceMap, GLOBALS};
-  use swc_core::ecma::codegen::text_writer::JsWriter;
-  use swc_core::ecma::parser::lexer::Lexer;
-  use swc_core::ecma::parser::Parser;
-  use swc_core::ecma::transforms::base::resolver;
-  use swc_core::ecma::visit::{FoldWith, VisitMutWith};
+  use crate::test_utils::run_visit;
 
   use super::*;
 
@@ -103,7 +96,8 @@ const e = typeof exports;
 
     let output_code = run_visit(code, |context| TypeofReplacer {
       unresolved_mark: context.unresolved_mark,
-    });
+    })
+    .output_code;
 
     let expected_code = r#"
 const x = "function";
@@ -122,7 +116,8 @@ const x = typeof require === 'function';
 
     let output_code = run_visit(code, |context| TypeofReplacer {
       unresolved_mark: context.unresolved_mark,
-    });
+    })
+    .output_code;
 
     let expected_code = r#"
 const x = "function" === 'function';
@@ -143,7 +138,8 @@ function wrapper({ require, exports }) {
 
     let output_code = run_visit(code, |context| TypeofReplacer {
       unresolved_mark: context.unresolved_mark,
-    });
+    })
+    .output_code;
 
     let expected_code = r#"
 function wrapper({ require, exports }) {
@@ -154,51 +150,5 @@ function wrapper({ require, exports }) {
 "#
     .trim_start();
     assert_eq!(output_code, expected_code);
-  }
-
-  struct RunTestContext {
-    #[allow(unused)]
-    global_mark: Mark,
-    unresolved_mark: Mark,
-  }
-
-  fn run_visit<V: VisitMut>(code: &str, make_visit: impl FnOnce(RunTestContext) -> V) -> String {
-    let source_map = Lrc::new(SourceMap::default());
-    let source_file = source_map.new_source_file(FileName::Anon, code.into());
-
-    let lexer = Lexer::new(
-      Default::default(),
-      Default::default(),
-      StringInput::from(&*source_file),
-      None,
-    );
-
-    let mut parser = Parser::new_from(lexer);
-    let module = parser.parse_module().unwrap();
-
-    let output_code = GLOBALS.set(&Globals::new(), || {
-      let global_mark = Mark::new();
-      let unresolved_mark = Mark::new();
-      let mut module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
-
-      let mut visit = make_visit(RunTestContext {
-        global_mark,
-        unresolved_mark,
-      });
-      module.visit_mut_with(&mut visit);
-
-      let mut output_buffer = vec![];
-      let writer = JsWriter::new(source_map.clone(), "\n", &mut output_buffer, None);
-      let mut emitter = swc_core::ecma::codegen::Emitter {
-        cfg: Default::default(),
-        cm: source_map,
-        comments: None,
-        wr: writer,
-      };
-      emitter.emit_module(&module).unwrap();
-      let output_code = String::from_utf8(output_buffer).unwrap();
-      output_code
-    });
-    output_code
   }
 }
