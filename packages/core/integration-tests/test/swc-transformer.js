@@ -20,9 +20,6 @@ describe('swc-transformer', function () {
   });
 
   it('should support building with swc', async function () {
-    await execSync('yarn', {
-      cwd: path.join(__dirname, '/integration/swc-transformer'),
-    });
     await bundle(
       path.join(__dirname, '/integration/swc-transformer/index.js'),
       {

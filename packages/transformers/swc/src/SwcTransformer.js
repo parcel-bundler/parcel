@@ -11,6 +11,9 @@ const swcTransformer: Transformer = new Transformer({
     const {code: newCode} = await swc.transform(code, {
       filename: path.resolve(asset.filePath),
       cwd: path.dirname(asset.filePath),
+      root: path.dirname(asset.filePath),
+      rootMode: 'upward-optional',
+      sourceRoot: path.dirname(asset.filePath),
       sourceMaps: true,
     });
     asset.setCode(`/* @parcel/swc-transformer */\n${newCode}`);
