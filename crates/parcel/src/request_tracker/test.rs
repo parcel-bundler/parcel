@@ -157,8 +157,8 @@ impl Request for TestRequest {
     let mut results = vec![name];
     while let Ok(response) = rx.recv_timeout(Duration::from_secs(2)) {
       match response {
-        Ok(RequestResult::TestSub(result)) => results.push(result),
-        Ok(RequestResult::TestMain(sub_results)) => results.extend(sub_results),
+        Ok((RequestResult::TestSub(result), 1)) => results.push(result),
+        Ok((RequestResult::TestMain(sub_results), 1)) => results.extend(sub_results),
         a => todo!("{:?}", a),
       }
     }
@@ -204,7 +204,7 @@ impl Request for TestRequest2 {
     let mut responses = Vec::new();
     while let Ok(response) = rx.recv_timeout(Duration::from_secs(2)) {
       match response {
-        Ok(RequestResult::TestSub(result)) => responses.push(result),
+        Ok((RequestResult::TestSub(result), 1)) => responses.push(result),
         _ => todo!("unimplemented"),
       }
     }

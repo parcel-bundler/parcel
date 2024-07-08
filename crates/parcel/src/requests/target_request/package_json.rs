@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use parcel_core::types::engines::Engines;
-use parcel_core::types::Entry;
 use parcel_core::types::EnvironmentContext;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::TargetSourceMapOptions;
@@ -37,7 +36,7 @@ pub struct TargetDescriptor {
   pub output_format: Option<OutputFormat>,
   pub public_url: Option<String>,
   pub scope_hoist: Option<bool>,
-  pub source: Option<Entry>,
+  pub source: Option<String>,
   pub source_map: Option<SourceMapField>,
 }
 

@@ -51,15 +51,18 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     search_path,
     project_root,
   } = options;
+
   let parcel_options = ParcelOptions {
     project_root: project_root.clone(),
     ..Default::default()
   };
+
   let config_loader = Arc::new(ConfigLoader {
     fs: fs.clone(),
     project_root,
     search_path,
   });
+
   RequestTracker::new(
     vec![],
     Arc::new(MockCache::new()),

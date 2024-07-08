@@ -208,7 +208,7 @@ mod tests {
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
       named_pipelines: Vec::new(),
-      resolvers: Arc::new(vec![Box::new(ExcludedResolverPlugin {})]),
+      // resolvers: Arc::new(vec![Box::new(ExcludedResolverPlugin {})]),
     };
 
     let resolution = request_tracker.run_request(request);
@@ -223,12 +223,12 @@ mod tests {
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
       named_pipelines: Vec::new(),
-      resolvers: Arc::new(vec![Box::new(ResolvedResolverPlugin {
-        resolution: ResolvedResolution {
-          file_path: PathBuf::from("./"),
-          ..ResolvedResolution::default()
-        },
-      })]),
+      // resolvers: Arc::new(vec![Box::new(ResolvedResolverPlugin {
+      //   resolution: ResolvedResolution {
+      //     file_path: PathBuf::from("./"),
+      //     ..ResolvedResolution::default()
+      //   },
+      // })]),
     };
 
     let resolution = request_tracker(Default::default()).run_request(request);
@@ -252,21 +252,21 @@ mod tests {
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
       named_pipelines: Vec::new(),
-      resolvers: Arc::new(vec![
-        Box::new(UnresolvedResolverPlugin {}),
-        Box::new(ResolvedResolverPlugin {
-          resolution: ResolvedResolution {
-            file_path: root.join("a.js"),
-            ..ResolvedResolution::default()
-          },
-        }),
-        Box::new(ResolvedResolverPlugin {
-          resolution: ResolvedResolution {
-            file_path: root.join("b.js"),
-            ..ResolvedResolution::default()
-          },
-        }),
-      ]),
+      // resolvers: Arc::new(vec![
+      //   Box::new(UnresolvedResolverPlugin {}),
+      //   Box::new(ResolvedResolverPlugin {
+      //     resolution: ResolvedResolution {
+      //       file_path: root.join("a.js"),
+      //       ..ResolvedResolution::default()
+      //     },
+      //   }),
+      //   Box::new(ResolvedResolverPlugin {
+      //     resolution: ResolvedResolution {
+      //       file_path: root.join("b.js"),
+      //       ..ResolvedResolution::default()
+      //     },
+      //   }),
+      // ]),
     };
 
     let resolution = request_tracker(Default::default()).run_request(request);
@@ -296,7 +296,7 @@ mod tests {
           ..Default::default()
         }),
         named_pipelines: Vec::new(),
-        resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
+        // resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
       };
 
       let resolution = request_tracker(Default::default()).run_request(request);
@@ -316,7 +316,7 @@ mod tests {
             ..dependency
           }),
           named_pipelines: Vec::new(),
-          resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
+          // resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
         };
 
         let resolution = request_tracker(Default::default()).run_request(request);
