@@ -13,7 +13,6 @@ const swcTransformer: Transformer = new Transformer({
       cwd: path.dirname(asset.filePath),
       sourceMaps: true,
     });
-    console.log(code, newCode);
     asset.setCode(`/* @parcel/swc-transformer */\n${newCode}`);
     return [asset];
   },
