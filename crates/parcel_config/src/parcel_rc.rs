@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use indexmap::IndexMap;
+use parcel_core::types::File;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +30,16 @@ pub struct ParcelRc {
 /// Represents the .parcel_rc config file
 #[derive(Debug)]
 pub struct ParcelRcFile {
-  pub path: PathBuf,
   pub contents: ParcelRc,
+  pub path: PathBuf,
+  pub raw: String,
+}
+
+impl From<&ParcelRcFile> for File {
+  fn from(parcel_rc: &ParcelRcFile) -> Self {
+    File {
+      contents: parcel_rc.raw.clone(),
+      path: parcel_rc.path.clone(),
+    }
+  }
 }

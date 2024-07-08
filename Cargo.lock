@@ -1864,12 +1864,12 @@ dependencies = [
  "glob-match",
  "indexmap 2.2.6",
  "mockall",
+ "parcel_core",
  "parcel_filesystem",
  "parcel_package_manager",
  "pathdiff",
  "serde",
  "serde_json5",
- "thiserror",
 ]
 
 [[package]]

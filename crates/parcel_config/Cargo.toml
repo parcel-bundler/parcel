@@ -8,16 +8,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.82"
+parcel_core = { path = "../parcel_core" }
+parcel_filesystem = { path = "../parcel_filesystem" }
+parcel_package_manager = { path = "../parcel_package_manager" }
+
 derive_builder = "0.20.0"
 glob-match = "0.2.1"
 indexmap = { version = "2.2.6", features = ["serde", "std"] }
-parcel_filesystem = { path = "../parcel_filesystem" }
-parcel_package_manager = { path = "../parcel_package_manager" }
 pathdiff = "0.2.1"
 serde = { version = "1.0.123", features = ["derive", "rc"] }
 serde_json5 = "0.1.0"
-thiserror = "1.0.59"
 
 [dev-dependencies]
+anyhow = "1.0.82"
 mockall = "0.12.1"
