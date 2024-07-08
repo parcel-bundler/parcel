@@ -21,7 +21,7 @@ import {tmpdir} from 'os';
 import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
 import {hashFile} from '@parcel/utils';
-import {getFeatureFlag} from '@parcel/feature-flags/src';
+import {getFeatureFlag} from '@parcel/feature-flags';
 import watcher from '@parcel/watcher';
 import * as nodeWatcher from '@parcel/watcher-watchman-js';
 import packageJSON from '../package.json';
