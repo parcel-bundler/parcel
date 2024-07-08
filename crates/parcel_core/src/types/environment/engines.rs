@@ -8,18 +8,7 @@ use super::version::Version;
 use super::OutputFormat;
 
 /// The engines field in package.json
-#[derive(
-  Clone,
-  Debug,
-  Default,
-  Deserialize,
-  Eq,
-  Hash,
-  PartialEq,
-  Serialize,
-  bincode::Encode,
-  bincode::Decode,
-)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Engines {
   #[serde(default)]
   pub browsers: Browsers,

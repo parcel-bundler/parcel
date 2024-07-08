@@ -11,9 +11,7 @@ use super::source::SourceLocation;
 /// For example, a "modern" target would output code that can run on the latest browsers while a
 /// "legacy" target generates code compatible with older browsers.
 ///
-#[derive(
-  PartialEq, Clone, Debug, Deserialize, Hash, Serialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(PartialEq, Clone, Debug, Deserialize, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
   /// The output folder for compiled bundles

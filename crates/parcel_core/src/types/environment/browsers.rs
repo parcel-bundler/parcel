@@ -6,7 +6,7 @@ use browserslist::Distrib;
 use super::version::Version;
 
 /// List of targeted browsers
-#[derive(Clone, Default, Debug, Eq, Hash, PartialEq, bincode::Encode, bincode::Decode)]
+#[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
 pub struct Browsers {
   pub android: Option<Version>,
   pub chrome: Option<Version>,

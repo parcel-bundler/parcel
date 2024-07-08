@@ -22,7 +22,7 @@ parcel_plugin_rpc = { path = "../parcel_plugin_rpc" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 
 anyhow = "1.0.82"
-bincode = "2.0.0-rc.3"
+bincode = { version = "2.0.0-rc.3", features = ["serde"] }
 dyn-hash = "0.x"
 heed = "0.20.2"
 num_cpus = "1.16.0"

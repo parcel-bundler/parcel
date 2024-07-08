@@ -1,6 +1,5 @@
-use bincode::de::{BorrowDecoder, Decoder};
-use bincode::enc::Encoder;
-use bincode::error::{DecodeError, EncodeError};
+use bincode::de::BorrowDecoder;
+use bincode::error::DecodeError;
 use bitflags::bitflags;
 use serde::Deserialize;
 
@@ -24,19 +23,6 @@ bitflags! {
     const SASS = 1 << 13;
     const LESS = 1 << 14;
     const STYLUS = 1 << 15;
-  }
-}
-
-impl bincode::Encode for ExportsCondition {
-  fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-    self.bits().encode(encoder)
-  }
-}
-
-impl bincode::Decode for ExportsCondition {
-  fn decode<D: Decoder>(decoder: &mut D) -> Result<Self, DecodeError> {
-    let result: u16 = bincode::Decode::decode(decoder)?;
-    Self::from_bits(result).ok_or(DecodeError::Other("Invalid bitflags value"))
   }
 }
 

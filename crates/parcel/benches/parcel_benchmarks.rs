@@ -40,8 +40,12 @@ pub fn cache_benchmark(c: &mut Criterion) {
     b.iter_batched(
       setup,
       |BenchmarkItem { request_result, .. }| {
-        bincode::encode_into_slice(&request_result, &mut output, bincode::config::standard())
-          .unwrap();
+        bincode::encode_into_slice(
+          &bincode::serde::Compat(request_result),
+          &mut output,
+          bincode::config::standard(),
+        )
+        .unwrap();
         black_box(&output);
       },
       BatchSize::SmallInput,
@@ -76,8 +80,12 @@ fn benchmark_suite(c: &mut Criterion, name: &str, cache: LMDBCache) {
            cache_key,
            ..
          }| {
-          bincode::encode_into_slice(&request_result, &mut scratch, bincode::config::standard())
-            .unwrap();
+          bincode::encode_into_slice(
+            &bincode::serde::Compat(request_result),
+            &mut scratch,
+            bincode::config::standard(),
+          )
+          .unwrap();
           cache.set_blob(&cache_key, &scratch).unwrap();
         },
         BatchSize::SmallInput,
@@ -107,8 +115,12 @@ fn benchmark_suite(c: &mut Criterion, name: &str, cache: LMDBCache) {
             ..
           } in items
           {
-            bincode::encode_into_slice(&request_result, &mut scratch, bincode::config::standard())
-              .unwrap();
+            bincode::encode_into_slice(
+              &bincode::serde::Compat(request_result),
+              &mut scratch,
+              bincode::config::standard(),
+            )
+            .unwrap();
             cache
               .database()
               .put(&mut write_txn, &cache_key, &scratch)
@@ -135,8 +147,12 @@ fn benchmark_suite(c: &mut Criterion, name: &str, cache: LMDBCache) {
             cache_key,
             ..
           } = setup();
-          bincode::encode_into_slice(&request_result, &mut scratch, bincode::config::standard())
-            .unwrap();
+          bincode::encode_into_slice(
+            &bincode::serde::Compat(request_result),
+            &mut scratch,
+            bincode::config::standard(),
+          )
+          .unwrap();
           cache.set_blob(&cache_key, &scratch).unwrap();
 
           cache_key
@@ -144,7 +160,7 @@ fn benchmark_suite(c: &mut Criterion, name: &str, cache: LMDBCache) {
         |cache_key: String| {
           let txn = cache.environment().read_txn().unwrap();
           let blob = cache.get_blob_ref(&txn, &cache_key).unwrap();
-          let request_result: (RequestResult, _) =
+          let request_result: (bincode::serde::Compat<RequestResult>, _) =
             bincode::decode_from_slice(&blob, bincode::config::standard()).unwrap();
           black_box(request_result);
         },

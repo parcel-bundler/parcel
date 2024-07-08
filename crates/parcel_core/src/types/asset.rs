@@ -18,9 +18,7 @@ use super::symbol::Symbol;
 pub struct AssetId(pub NonZeroU32);
 
 /// The source code for an asset.
-#[derive(
-  PartialEq, Default, Clone, Debug, Deserialize, Serialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Code {
   inner: String,
@@ -48,9 +46,7 @@ impl From<String> for Code {
   }
 }
 
-#[derive(
-  Default, PartialEq, Clone, Debug, Deserialize, Serialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(Default, PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct AssetMeta {
   interpreter: Option<String>,
 }
@@ -59,9 +55,7 @@ pub struct AssetMeta {
 ///
 /// Note that assets may exist in the file system or virtually.
 ///
-#[derive(
-  Default, PartialEq, Clone, Debug, Deserialize, Serialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(Default, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
   /// The file type of the asset, which may change during transformation
@@ -192,9 +186,7 @@ impl Asset {
 }
 
 /// Statistics that pertain to an asset
-#[derive(
-  PartialEq, Clone, Debug, Default, Deserialize, Serialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AssetStats {
   pub size: u32,
   pub time: u32,
