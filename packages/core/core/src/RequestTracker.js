@@ -1079,6 +1079,10 @@ export default class RequestTracker {
   options: ParcelOptions;
   signal: ?AbortSignal;
   stats: Map<RequestType, number> = new Map();
+  /**
+   * This field is used to queue cache writes
+   */
+  #writeToCachePromise: Promise<void> | null = null;
 
   constructor({
     graph,
@@ -1381,7 +1385,27 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
-  async writeToCache(signal?: AbortSignal) {
+  /**
+   * Queue a write to cache. Disallows concurrent writes.
+   */
+  async writeToCache(signal?: AbortSignal): Promise<void> {
+    const previousPromise = this.#writeToCachePromise;
+    const run = async () => {
+      try {
+        await previousPromise;
+      } catch (_err) {
+        /* empty */
+      }
+      const result = await this.#writeToCacheInternal(signal);
+      return result;
+    };
+    this.#writeToCachePromise = run();
+
+    const result = await this.#writeToCachePromise;
+    return result;
+  }
+
+  async #writeToCacheInternal(signal?: AbortSignal) {
     let cacheKey = getCacheKey(this.options);
     let requestGraphKey = `requestGraph-${cacheKey}`;
     let snapshotKey = `snapshot-${cacheKey}`;
@@ -1532,6 +1556,7 @@ export default class RequestTracker {
     } catch (err) {
       // If we have aborted, ignore the error and continue
       if (!signal?.aborted) throw err;
+
       logger.warn({
         origin: '@parcel/core',
         message: 'Aborted writing to cache, ignoring error',
@@ -1540,6 +1565,10 @@ export default class RequestTracker {
           errorStack: err.stack,
         },
       });
+
+      for (let key of allLargeBlobKeys) {
+        await this.options.cache.deleteLargeBlob(key);
+      }
     }
   }
 
