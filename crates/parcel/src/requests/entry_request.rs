@@ -1,7 +1,6 @@
-use std::hash::Hash;
+use std::{hash::Hash, path::PathBuf};
 
 use anyhow::anyhow;
-use parcel_core::types::{Entry, EntryOption};
 
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 

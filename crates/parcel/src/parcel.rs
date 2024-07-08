@@ -102,6 +102,7 @@ impl Parcel {
       Arc::new(MockCache::new()),
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
+      self.options,
       plugins,
       self.project_root.clone(),
     );

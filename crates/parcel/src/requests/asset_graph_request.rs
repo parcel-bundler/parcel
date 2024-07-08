@@ -2,10 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 
-use parcel_core::asset_graph::{
-  AssetGraph, AssetGraphEdge, AssetGraphNode, DependencyNode, DependencyState,
-};
-use parcel_core::types::{DefaultTargetOptions, Dependency, Entry, SpecifierType, Symbol};
+use parcel_core::asset_graph::{AssetGraph, DependencyNode, DependencyState};
+use parcel_core::types::{Dependency, SpecifierType, Symbol};
 use petgraph::graph::NodeIndex;
 
 use crate::request_tracker::{
@@ -23,7 +21,7 @@ use super::RequestResult;
 #[derive(Debug, Hash)]
 pub struct AssetGraphRequest {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AssetGraphRequestOutput {
   pub graph: AssetGraph,
 }
@@ -34,11 +32,9 @@ impl Request for AssetGraphRequest {
     mut request_context: RunRequestContext,
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     let mut graph = AssetGraph::new();
-    let root = graph.graph.add_node(AssetGraphNode::Root);
-
     let (tx, rx) = channel();
 
-    request_context.queue_request(
+    let _ = request_context.queue_request(
       EntryRequest {
         entry: request_context
           .options()
@@ -55,14 +51,11 @@ impl Request for AssetGraphRequest {
     let mut waiting_asset_requests = HashMap::<u64, HashSet<NodeIndex>>::new();
     let mut request_id_to_dep_node_index = HashMap::<RequestId, NodeIndex>::new();
 
-    /// This allows us to defer PathRequests that are not yet known to be used
-    /// as their requested symbols are not yet referenced in any discovered
-    /// Assets.
-    let mut request_path_if_required = |asset_node_index: NodeIndex, dep_node_index: NodeIndex| {
-      graph.propagate_requested_symbols(
-        asset_node_index,
-        dep_node_index,
-        &mut |dep_node, dependency| {
+    // This allows us to defer PathRequests that are not yet known to be used as their requested
+    // symbols are not yet referenced in any discovered Assets.
+    macro_rules! on_undeferred {
+      () => {
+        &mut |dep_node, dependency: Arc<Dependency>| {
           let request = PathRequest {
             dependency: dependency.clone(),
             // TODO: Where should named pipelines come from?
@@ -70,33 +63,44 @@ impl Request for AssetGraphRequest {
           };
 
           request_id_to_dep_node_index.insert(request.id(), dep_node);
-
           request_context.queue_request(request, tx.clone());
-        },
-      );
-    };
+        };
+      };
+    }
+
+    // let on_undeferred = &mut |dep_node, dependency: Arc<Dependency>| {
+    //   let request = PathRequest {
+    //     dependency: dependency.clone(),
+    //     // TODO: Where should named pipelines come from?
+    //     named_pipelines: vec![],
+    //   };
+
+    //   request_id_to_dep_node_index.insert(request.id(), dep_node);
+    //   request_context.queue_request(request, tx.clone());
+    // };
 
     while let result = rx.recv()? {
       match result {
         Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
           for entry in entries {
             let target_request = TargetRequest {
-              default_target_options: DefaultTargetOptions::default(),
-              env: None,
-              exclusive_target: entry.target,
+              default_target_options: request_context.options().default_target_options.clone(),
+              entry,
+              env: request_context.options().env.clone(),
               mode: request_context.options().mode.clone(),
             };
-            request_context.queue_request(target_request, tx.clone());
+
+            let _ = request_context.queue_request(target_request, tx.clone());
           }
         }
-        Ok((RequestResult::Target(TargetRequestOutput { targets }), request_id)) => {
+        Ok((RequestResult::Target(TargetRequestOutput { entry, targets }), request_id)) => {
           let entry_node_index = *request_id_to_dep_node_index
             .get(&request_id)
             .expect("Missing node index for request id {request_id}");
-          // TODO: Get actual entry
-          let entry = Entry::default();
+
           for target in targets {
-            let mut dependency = Dependency::new(entry.file_path.to_string(), target.env);
+            let mut dependency =
+              Dependency::new(entry.to_string_lossy().into_owned(), target.env.clone());
             dependency.specifier_type = SpecifierType::Url;
             dependency.target = Some(Box::new(target));
             dependency.is_entry = true;
@@ -115,13 +119,12 @@ impl Request for AssetGraphRequest {
               });
               requested_symbols.insert("*".into());
             }
-            let dep_node = graph.add_dependency(dependency.clone(), requested_symbols);
-            graph
-              .graph
-              .add_edge(entry_node_index, dep_node, AssetGraphEdge {});
+
+            let dep_node =
+              graph.add_dependency(entry_node_index, dependency.clone(), requested_symbols);
 
             let request = PathRequest {
-              dependency,
+              dependency: Arc::new(dependency),
               // TODO: Where should named pipelines come from?
               named_pipelines: vec![],
             };
@@ -136,37 +139,32 @@ impl Request for AssetGraphRequest {
           }),
           request_id,
         )) => {
-          let asset_node_index = graph.add_asset(asset.clone());
           let incoming_dep_node_index = *request_id_to_dep_node_index
             .get(&request_id)
             .expect("Missing node index for request id {request_id}");
-          asset_request_to_asset.insert(request_id, asset_node_index);
 
           // Connect the incoming DependencyNode to the new AssetNode
-          graph
-            .graph
-            .add_edge(incoming_dep_node_index, asset_node_index, AssetGraphEdge {});
+          let asset_node_index = graph.add_asset(incoming_dep_node_index, asset.clone());
 
-          for dep in &dependencies {
-            // Create DependencyNode's for each dep of the Asset and connect
-            // them in the graph
-            let dep_node = graph.add_dependency(dep.clone(), HashSet::default());
-            graph
-              .graph
-              .add_edge(asset_node_index, dep_node, AssetGraphEdge {});
+          asset_request_to_asset.insert(request_id, asset_node_index);
+
+          // Connect dependencies of the Asset
+          for dependency in &dependencies {
+            let _ = graph.add_dependency(asset_node_index, dependency.clone(), HashSet::default());
           }
 
-          request_path_if_required(asset_node_index, incoming_dep_node_index);
+          graph.propagate_requested_symbols(
+            asset_node_index,
+            incoming_dep_node_index,
+            on_undeferred!(),
+          );
 
           // Connect any previously discovered Dependencies that were waiting
           // for this AssetNode to be created
           if let Some(waiting) = waiting_asset_requests.remove(&request_id) {
             for dep in waiting {
-              graph
-                .graph
-                .add_edge(dep, asset_node_index, AssetGraphEdge {});
-
-              request_path_if_required(asset_node_index, dep);
+              graph.add_edge(&dep, &asset_node_index);
+              graph.propagate_requested_symbols(asset_node_index, dep, on_undeferred!());
             }
           }
         }
@@ -205,7 +203,7 @@ impl Request for AssetGraphRequest {
                 pipeline: pipeline.clone(),
                 side_effects: side_effects.clone(),
                 // TODO: Dependency.env should be an Arc by default
-                env: Arc::new(dependency.env),
+                env: Arc::new(dependency.env.clone()),
                 query,
               }
             }
@@ -222,11 +220,8 @@ impl Request for AssetGraphRequest {
           } else if let Some(asset_node_index) = asset_request_to_asset.get(&id) {
             // We have already completed this AssetRequest so we can connect the
             // Dependency to the Asset immediately
-            graph
-              .graph
-              .add_edge(node, *asset_node_index, AssetGraphEdge {});
-
-            request_path_if_required(*asset_node_index, node);
+            graph.add_edge(asset_node_index, &node);
+            graph.propagate_requested_symbols(*asset_node_index, node, on_undeferred!());
           } else {
             // The AssetRequest has already been kicked off but is yet to
             // complete. Register this Dependency to be connected once it

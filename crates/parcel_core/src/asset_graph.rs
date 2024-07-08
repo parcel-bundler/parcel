@@ -8,27 +8,27 @@ use petgraph::{
 
 use crate::types::{Asset, Dependency};
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct AssetGraph {
-  pub graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
+  graph: DiGraph<AssetGraphNode, AssetGraphEdge>,
   pub assets: Vec<AssetNode>,
   pub dependencies: Vec<DependencyNode>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AssetNode {
   pub asset: Asset,
   pub requested_symbols: HashSet<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DependencyNode {
   pub dependency: Arc<Dependency>,
   pub requested_symbols: HashSet<String>,
   pub state: DependencyState,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum AssetGraphNode {
   Root,
   Entry,
@@ -36,10 +36,10 @@ pub enum AssetGraphNode {
   Dependency(usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AssetGraphEdge {}
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DependencyState {
   New,
   Deferred,
@@ -47,36 +47,87 @@ pub enum DependencyState {
   Resolved,
 }
 
+impl PartialEq for AssetGraph {
+  fn eq(&self, other: &Self) -> bool {
+    let nodes = self.graph.raw_nodes().iter().map(|n| &n.weight);
+    let other_nodes = other.graph.raw_nodes().iter().map(|n| &n.weight);
+
+    let edges = self
+      .graph
+      .raw_edges()
+      .iter()
+      .map(|e| (e.source(), e.target(), &e.weight));
+
+    let other_edges = other
+      .graph
+      .raw_edges()
+      .iter()
+      .map(|e| (e.source(), e.target(), &e.weight));
+
+    nodes.eq(other_nodes)
+      && edges.eq(other_edges)
+      && self.assets == other.assets
+      && self.dependencies == other.dependencies
+  }
+}
+
 impl AssetGraph {
   pub fn new() -> Self {
+    let mut graph = DiGraph::new();
+
+    graph.add_node(AssetGraphNode::Root);
+
     AssetGraph {
-      graph: DiGraph::new(),
+      graph,
       assets: Vec::new(),
       dependencies: Vec::new(),
     }
   }
 
-  pub fn add_dependency(
-    &mut self,
-    dep: Dependency,
-    requested_symbols: HashSet<String>,
-  ) -> NodeIndex {
-    let idx = self.dependencies.len();
-    self.dependencies.push(DependencyNode {
-      dependency: Arc::new(dep),
-      requested_symbols,
-      state: DependencyState::New,
-    });
-    self.graph.add_node(AssetGraphNode::Dependency(idx))
-  }
-
-  pub fn add_asset(&mut self, asset: Asset) -> NodeIndex {
+  pub fn add_asset(&mut self, parent_idx: NodeIndex, asset: Asset) -> NodeIndex {
     let idx = self.assets.len();
+
     self.assets.push(AssetNode {
       asset,
       requested_symbols: HashSet::default(),
     });
-    self.graph.add_node(AssetGraphNode::Asset(idx))
+
+    let asset_idx = self.graph.add_node(AssetGraphNode::Asset(idx));
+
+    self
+      .graph
+      .add_edge(parent_idx, asset_idx, AssetGraphEdge {});
+
+    asset_idx
+  }
+
+  pub fn add_dependency(
+    &mut self,
+    parent_idx: NodeIndex,
+    dependency: Dependency,
+    requested_symbols: HashSet<String>,
+  ) -> NodeIndex {
+    let idx = self.dependencies.len();
+
+    self.dependencies.push(DependencyNode {
+      dependency: Arc::new(dependency),
+      requested_symbols,
+      state: DependencyState::New,
+    });
+
+    let dependency_idx = self.graph.add_node(AssetGraphNode::Dependency(idx));
+
+    self
+      .graph
+      .add_edge(parent_idx, dependency_idx, AssetGraphEdge {});
+
+    dependency_idx
+  }
+
+  pub fn add_edge(&mut self, parent_idx: &NodeIndex, child_idx: &NodeIndex) {
+    self
+      .graph
+      .add_edge(*parent_idx, *child_idx, AssetGraphEdge {});
   }
 
   pub fn dependency_index(&self, node_index: NodeIndex) -> Option<usize> {
@@ -193,7 +244,7 @@ impl AssetGraph {
         {
           self.propagate_requested_symbols(resolved.target(), dep_node, on_undeferred);
         } else {
-          on_undeferred(dep_node, dependency);
+          on_undeferred(dep_node, Arc::clone(&dependency));
         }
       }
     }
