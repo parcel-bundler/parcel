@@ -1516,18 +1516,31 @@ export default class RequestTracker {
         snapshotPath,
         opts,
       );
+
+      await storeRequestTrackerCacheInfo(this.options.cache, {
+        allLargeBlobKeys: Array.from(allLargeBlobKeys),
+        requestGraphKey,
+        snapshotKey,
+        timestamp: Date.now(),
+      });
+      report({
+        type: 'cache',
+        phase: 'end',
+        total,
+        size: this.graph.nodes.length,
+      });
     } catch (err) {
       // If we have aborted, ignore the error and continue
       if (!signal?.aborted) throw err;
+      logger.warn({
+        origin: '@parcel/core',
+        message: 'Aborted writing to cache, ignoring error',
+        meta: {
+          errorMessage: err.message,
+          errorStack: err.stack,
+        },
+      });
     }
-
-    await storeRequestTrackerCacheInfo(this.options.cache, {
-      allLargeBlobKeys: Array.from(allLargeBlobKeys),
-      requestGraphKey,
-      snapshotKey,
-      timestamp: Date.now(),
-    });
-    report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
 
   static async init({
