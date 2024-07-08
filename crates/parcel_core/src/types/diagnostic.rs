@@ -151,6 +151,8 @@ impl From<SourceLocation> for CodeHighlight {
   }
 }
 
+pub type DiagnosticError = anyhow::Error;
+
 #[doc(hidden)]
 pub mod __diagnostic {
   #[doc(hidden)]

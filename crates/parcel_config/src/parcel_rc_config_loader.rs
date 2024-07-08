@@ -2,13 +2,18 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use anyhow::anyhow;
+use parcel_core::diagnostic_error;
+use parcel_core::types::CodeFrame;
+use parcel_core::types::CodeHighlight;
+use parcel_core::types::DiagnosticBuilder;
+use parcel_core::types::DiagnosticError;
+use parcel_core::types::File;
 use parcel_filesystem::search::find_ancestor_file;
 use parcel_filesystem::FileSystem;
 use parcel_package_manager::PackageManager;
 use pathdiff::diff_paths;
+use serde_json5::Location;
 
-use super::config_error::ConfigError;
 use super::parcel_config::ParcelConfig;
 use super::parcel_config::PluginNode;
 use super::parcel_rc::Extends;
@@ -40,11 +45,11 @@ impl ParcelRcConfigLoader {
     }
   }
 
-  fn find_config(&self, project_root: &Path, path: &Path) -> Result<PathBuf, ConfigError> {
+  fn find_config(&self, project_root: &Path, path: &Path) -> Result<PathBuf, DiagnosticError> {
     let from = path.parent().unwrap_or(path);
 
     find_ancestor_file(&*self.fs, &[".parcelrc"], from, project_root)
-      .ok_or(ConfigError::MissingParcelRc(PathBuf::from(from)))
+      .ok_or_else(|| diagnostic_error!("Unable to locate .parcelrc from {}", from.display()))
   }
 
   fn resolve_from(&self, project_root: &Path) -> PathBuf {
@@ -62,50 +67,67 @@ impl ParcelRcConfigLoader {
     dir.join("index")
   }
 
-  fn load_config(&self, path: PathBuf) -> Result<(PartialParcelConfig, Vec<PathBuf>), ConfigError> {
-    let parcel_rc =
-      self
-        .fs
-        .read_to_string(&path)
-        .map_err(|source| ConfigError::ReadConfigFile {
+  fn load_config(
+    &self,
+    path: PathBuf,
+  ) -> Result<(PartialParcelConfig, Vec<PathBuf>), DiagnosticError> {
+    let raw = self.fs.read_to_string(&path).map_err(|source| {
+      diagnostic_error!(DiagnosticBuilder::default()
+        .message(source.to_string())
+        .code_frames(vec![CodeFrame::from(path.clone())]))
+    })?;
+
+    let contents = serde_json5::from_str(&raw).map_err(|error| {
+      serde_to_diagnostic_error(
+        error,
+        File {
+          contents: raw.clone(),
           path: path.clone(),
-          source,
-        })?;
+        },
+      )
+    })?;
 
-    let contents =
-      serde_json5::from_str(&parcel_rc).map_err(|source| ConfigError::ParseFailure {
-        path: path.clone(),
-        source,
-      })?;
-
-    self.process_config(&ParcelRcFile { path, contents })
+    self.process_config(ParcelRcFile {
+      contents,
+      path,
+      raw,
+    })
   }
 
-  fn resolve_extends(&self, config_path: &Path, extend: &str) -> Result<PathBuf, ConfigError> {
+  fn resolve_extends(
+    &self,
+    parcel_rc_file: &ParcelRcFile,
+    extend: &str,
+  ) -> Result<PathBuf, DiagnosticError> {
     let path = if extend.starts_with(".") {
-      config_path.parent().unwrap_or(config_path).join(extend)
+      parcel_rc_file
+        .path
+        .parent()
+        .unwrap_or(&parcel_rc_file.path)
+        .join(extend)
     } else {
       self
         .package_manager
-        .resolve(extend, config_path)
-        .map_err(|source| ConfigError::UnresolvedConfig {
-          config_type: String::from("extended config"),
-          from: PathBuf::from(config_path),
-          source,
-          specifier: String::from(extend),
+        .resolve(extend, &parcel_rc_file.path)
+        .map_err(|source| {
+          source.context(diagnostic_error!(DiagnosticBuilder::default()
+            .message(format!(
+              "Failed to resolve extended config {extend} from {}",
+              parcel_rc_file.path.display()
+            ))
+            .code_frames(vec![CodeFrame::from(File::from(parcel_rc_file))])))
         })?
         .resolved
     };
 
-    self
-      .fs
-      .canonicalize_base(&path)
-      .map_err(|source| ConfigError::UnresolvedConfig {
-        config_type: String::from("extended config"),
-        from: path,
-        source: anyhow!(source),
-        specifier: String::from(extend),
-      })
+    self.fs.canonicalize_base(&path).map_err(|source| {
+      diagnostic_error!("{}", source).context(diagnostic_error!(DiagnosticBuilder::default()
+        .message(format!(
+          "Failed to resolve extended config {extend} from {}",
+          parcel_rc_file.path.display()
+        ))
+        .code_frames(vec![CodeFrame::from(File::from(parcel_rc_file))])))
+    })
   }
 
   /// Processes a .parcelrc file by loading and merging "extends" configurations into a single
@@ -117,10 +139,10 @@ impl ParcelRcConfigLoader {
   ///
   fn process_config(
     &self,
-    parcel_rc: &ParcelRcFile,
-  ) -> Result<(PartialParcelConfig, Vec<PathBuf>), ConfigError> {
-    let mut files = vec![parcel_rc.path.clone()];
-    let extends = parcel_rc.contents.extends.as_ref();
+    parcel_rc_file: ParcelRcFile,
+  ) -> Result<(PartialParcelConfig, Vec<PathBuf>), DiagnosticError> {
+    let mut files = vec![parcel_rc_file.path.clone()];
+    let extends = parcel_rc_file.contents.extends.as_ref();
     let extends = match extends {
       None => Vec::new(),
       Some(extends) => match extends {
@@ -130,12 +152,12 @@ impl ParcelRcConfigLoader {
     };
 
     if extends.is_empty() {
-      return Ok((PartialParcelConfig::try_from(parcel_rc)?, files));
+      return Ok((PartialParcelConfig::try_from(parcel_rc_file)?, files));
     }
 
     let mut merged_config: Option<PartialParcelConfig> = None;
     for extend in extends {
-      let extended_file_path = self.resolve_extends(&parcel_rc.path, &extend)?;
+      let extended_file_path = self.resolve_extends(&parcel_rc_file, &extend)?;
       let (extended_config, mut extended_file_paths) = self.load_config(extended_file_path)?;
 
       merged_config = match merged_config {
@@ -147,7 +169,7 @@ impl ParcelRcConfigLoader {
     }
 
     let config = PartialParcelConfig::merge(
-      PartialParcelConfig::try_from(parcel_rc)?,
+      PartialParcelConfig::try_from(parcel_rc_file)?,
       merged_config.unwrap(),
     );
 
@@ -165,18 +187,18 @@ impl ParcelRcConfigLoader {
     &self,
     project_root: &Path,
     options: LoadConfigOptions,
-  ) -> Result<(ParcelConfig, Vec<PathBuf>), ConfigError> {
+  ) -> Result<(ParcelConfig, Vec<PathBuf>), DiagnosticError> {
     let resolve_from = self.resolve_from(project_root);
     let mut config_path = match options.config {
       Some(config) => self
         .package_manager
         .resolve(&config, &resolve_from)
         .map(|r| r.resolved)
-        .map_err(|source| ConfigError::UnresolvedConfig {
-          config_type: String::from("config"),
-          from: resolve_from.clone(),
-          source,
-          specifier: String::from(config),
+        .map_err(|source| {
+          source.context(diagnostic_error!(
+            "Failed to resolve config {config} from {}",
+            resolve_from.display()
+          ))
         }),
       None => self.find_config(project_root, &resolve_from),
     };
@@ -187,12 +209,12 @@ impl ParcelRcConfigLoader {
           .package_manager
           .resolve(&fallback_config, &resolve_from)
           .map(|r| r.resolved)
-          .map_err(|source| ConfigError::UnresolvedConfig {
-            config_type: String::from("fallback"),
-            from: resolve_from,
-            source,
-            specifier: String::from(fallback_config),
-          });
+          .map_err(|source| {
+            source.context(diagnostic_error!(
+              "Failed to resolve fallback {fallback_config} from {}",
+              resolve_from.display()
+            ))
+          })
       }
     }
 
@@ -209,8 +231,30 @@ impl ParcelRcConfigLoader {
   }
 }
 
+fn serde_to_diagnostic_error(error: serde_json5::Error, file: File) -> DiagnosticError {
+  let mut diagnostic_error = DiagnosticBuilder::default();
+  diagnostic_error.message(format!("Failed to parse {}", file.path.display()));
+
+  match error {
+    serde_json5::Error::Message { msg, location } => {
+      let location = location.unwrap_or_else(|| Location { column: 1, line: 1 });
+
+      diagnostic_error.code_frames(vec![CodeFrame {
+        code_highlights: vec![CodeHighlight {
+          message: Some(msg),
+          ..CodeHighlight::from([location.line, location.column])
+        }],
+        ..CodeFrame::from(file)
+      }]);
+    }
+  };
+
+  diagnostic_error!(diagnostic_error)
+}
+
 #[cfg(test)]
 mod tests {
+  use anyhow::anyhow;
   use mockall::predicate::eq;
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_package_manager::MockPackageManager;
@@ -300,7 +344,10 @@ mod tests {
 
       assert_eq!(
         err,
-        Err(ConfigError::MissingParcelRc(project_root).to_string())
+        Err(format!(
+          "Unable to locate .parcelrc from {}",
+          project_root.display()
+        ))
       );
     }
 
@@ -322,15 +369,10 @@ mod tests {
 
       assert_eq!(
         err,
-        Err(
-          ConfigError::UnresolvedConfig {
-            config_type: String::from("extended config"),
-            from: config.base_config.path,
-            specifier: String::from("@parcel/config-default"),
-            source: anyhow!("It broke"),
-          }
-          .to_string()
-        )
+        Err(format!(
+          "Failed to resolve extended config @parcel/config-default from {}",
+          config.base_config.path.display()
+        ))
       );
     }
 
@@ -419,6 +461,8 @@ mod tests {
   }
 
   mod config {
+    use parcel_core::types::Diagnostic;
+
     use crate::parcel_config_fixtures::config;
     use crate::parcel_config_fixtures::extended_config;
 
@@ -447,15 +491,10 @@ mod tests {
 
       assert_eq!(
         err,
-        Err(
-          ConfigError::UnresolvedConfig {
-            config_type: String::from("config"),
-            from: project_root.join("index"),
-            specifier: String::from("@scope/config"),
-            source: anyhow!("It broke"),
-          }
-          .to_string()
-        )
+        Err(format!(
+          "Failed to resolve config @scope/config from {}",
+          project_root.join("index").display()
+        ))
       );
     }
 
@@ -484,15 +523,10 @@ mod tests {
 
       assert_eq!(
         err,
-        Err(
-          ConfigError::UnresolvedConfig {
-            config_type: String::from("extended config"),
-            from: config.base_config.path,
-            specifier: String::from("@parcel/config-default"),
-            source: anyhow!("It broke"),
-          }
-          .to_string()
-        )
+        Err(format!(
+          "Failed to resolve extended config @parcel/config-default from {}",
+          config.base_config.path.display()
+        ))
       );
     }
 
@@ -522,17 +556,18 @@ mod tests {
             fallback_config: None,
           },
         )
-        .map_err(|e| e.to_string());
+        .unwrap_err()
+        .downcast::<Diagnostic>()
+        .expect("Expected diagnostic error");
 
       assert_eq!(
         err,
-        Err(
-          ConfigError::ReadConfigFile {
-            path: config_path,
-            source: std::io::Error::new(std::io::ErrorKind::NotFound, "Not found")
-          }
-          .to_string()
-        )
+        DiagnosticBuilder::default()
+          .code_frames(vec![CodeFrame::from(config_path)])
+          .message("File not found")
+          .origin(Some(String::from("parcel_config::parcel_rc_config_loader")))
+          .build()
+          .unwrap()
       );
     }
 
@@ -568,6 +603,8 @@ mod tests {
   mod fallback_config {
     use std::sync::Arc;
 
+    use parcel_core::types::Diagnostic;
+
     use crate::parcel_config_fixtures::default_config;
     use crate::parcel_config_fixtures::extended_config;
     use crate::parcel_config_fixtures::fallback_config;
@@ -597,15 +634,10 @@ mod tests {
 
       assert_eq!(
         err,
-        Err(
-          ConfigError::UnresolvedConfig {
-            config_type: String::from("fallback"),
-            from: project_root.join("index"),
-            specifier: String::from("@parcel/config-default"),
-            source: anyhow!("It broke"),
-          }
-          .to_string()
-        )
+        Err(format!(
+          "Failed to resolve fallback @parcel/config-default from {}",
+          project_root.join("index").display()
+        ))
       );
     }
 
@@ -634,15 +666,10 @@ mod tests {
 
       assert_eq!(
         err,
-        Err(
-          ConfigError::UnresolvedConfig {
-            config_type: String::from("extended config"),
-            from: fallback.base_config.path,
-            specifier: String::from("@parcel/config-default"),
-            source: anyhow!("It broke"),
-          }
-          .to_string()
-        ),
+        Err(format!(
+          "Failed to resolve extended config @parcel/config-default from {}",
+          fallback.base_config.path.display()
+        ))
       );
     }
 
@@ -669,17 +696,18 @@ mod tests {
             fallback_config: Some("@parcel/config-default"),
           },
         )
-        .map_err(|e| e.to_string());
+        .unwrap_err()
+        .downcast::<Diagnostic>()
+        .expect("Expected diagnostic error");
 
       assert_eq!(
         err,
-        Err(
-          ConfigError::ReadConfigFile {
-            path: fallback_config_path,
-            source: std::io::Error::new(std::io::ErrorKind::NotFound, "Not found")
-          }
-          .to_string()
-        )
+        DiagnosticBuilder::default()
+          .code_frames(vec![CodeFrame::from(fallback_config_path)])
+          .message("File not found")
+          .origin(Some(String::from("parcel_config::parcel_rc_config_loader")))
+          .build()
+          .unwrap()
       );
     }
 
