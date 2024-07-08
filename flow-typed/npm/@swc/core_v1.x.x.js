@@ -293,7 +293,7 @@ declare module '@swc/core' {
      * presence of the filename.
      * - Options like "test", "exclude", and "ignore" require the filename
      * for string/RegExp matching.
-     * - swc.config.js files are loaded relative to the file being compiled.
+     * - .swcrc files are loaded relative to the file being compiled.
      * If this option is omitted, Swc will behave as if swcrc: false has been set.
      */
     filename?: string,
@@ -353,19 +353,19 @@ declare module '@swc/core' {
     envName?: string,
 
     /**
-     * Defaults to searching for a default `swc.config.js` file, but can
+     * Defaults to searching for a default `.swcrc` file, but can
      * be passed the path of any JS or JSON5 config file.
      *
      *
-     * NOTE: This option does not affect loading of swc.config.js files,
-     * so while it may be tempting to do configFile: "./foo/swc.config.js",
-     * it is not recommended. If the given swc.config.js is loaded via the
+     * NOTE: This option does not affect loading of .swcrc files,
+     * so while it may be tempting to do configFile: "./foo/.swcrc",
+     * it is not recommended. If the given .swcrc is loaded via the
      * standard file-relative logic, you'll end up loading the same
      * config file twice, merging it with itself. If you are linking
      * a specific config file, it is recommended to stick with a
      * naming scheme that is independent of the "swcrc" name.
      *
-     * Defaults to `path.resolve(opts.root, "swc.config.js")`
+     * Defaults to `path.resolve(opts.root, ".swcrc")`
      */
     configFile?: string | boolean,
 
@@ -374,7 +374,7 @@ declare module '@swc/core' {
      *
      * A swcrc value passed in the programmatic options will override one set within a configuration file.
      *
-     * Note: swc.config.js files are only loaded if the current "filename" is inside of
+     * Note: .swcrc files are only loaded if the current "filename" is inside of
      *  a package that matches one of the "swcrcRoots" packages.
      *
      *
@@ -494,7 +494,7 @@ declare module '@swc/core' {
   |};
   declare export type Swcrc = Config | Config[];
   /**
-   * swc.config.js
+   * .swcrc
    */
   declare export type Config = {|
     /**
