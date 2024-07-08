@@ -3,7 +3,19 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 /// The JavaScript bundle output format
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Default,
+  Deserialize,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
   /// A classic script that can be loaded in a <script> tag in the browser

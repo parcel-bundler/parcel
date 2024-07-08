@@ -4,7 +4,9 @@ use serde::Serialize;
 use super::source::SourceLocation;
 
 /// A map of export names to the corresponding local variable names
-#[derive(Clone, PartialEq, Debug, Default, Deserialize, Hash, Serialize)]
+#[derive(
+  Clone, PartialEq, Debug, Default, Deserialize, Hash, Serialize, bincode::Encode, bincode::Decode,
+)]
 pub struct Symbol {
   /// The IMPORTED name. Most of the time this is the mangled symbol the transformer has replaced
   /// an import with.

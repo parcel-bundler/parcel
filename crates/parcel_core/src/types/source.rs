@@ -3,7 +3,18 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize,
+  bincode::Encode,
+  bincode::Decode,
+)]
 pub struct Location {
   pub line: usize,
   pub column: usize,
@@ -13,7 +24,18 @@ pub struct Location {
 ///
 /// Source locations start at 1:1.
 ///
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
   /// The file path associated with the source

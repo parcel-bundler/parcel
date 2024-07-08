@@ -1,6 +1,5 @@
 use asset_request::AssetRequestOutput;
 use path_request::PathRequestOutput;
-use serde::{Deserialize, Serialize};
 use target_request::TargetRequestOutput;
 
 pub mod asset_request;
@@ -8,7 +7,7 @@ pub mod path_request;
 pub mod target_request;
 
 /// Union of all request outputs
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, bincode::Encode, bincode::Decode)]
 pub enum RequestResult {
   Path(PathRequestOutput),
   Asset(AssetRequestOutput),

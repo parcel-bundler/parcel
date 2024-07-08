@@ -25,7 +25,7 @@ pub struct EnvironmentId(pub NonZeroU32);
 ///
 /// This influences how Parcel compiles your code, including what syntax to transpile.
 ///
-#[derive(Clone, Debug, Default, Deserialize, Eq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Serialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
   /// The environment the output should run in
@@ -104,7 +104,19 @@ impl PartialEq for Environment {
 ///
 /// This informs Parcel what environment-specific APIs are available.
 ///
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Default,
+  Deserialize,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum EnvironmentContext {
   #[default]
@@ -142,7 +154,7 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, bincode::Encode, bincode::Decode)]
 #[serde(untagged)]
 pub enum IncludeNodeModules {
   Bool(bool),
@@ -182,7 +194,19 @@ impl Hash for IncludeNodeModules {
   }
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Default,
+  Deserialize_repr,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize_repr,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[repr(u8)]
 pub enum SourceType {
   #[default]
@@ -191,7 +215,18 @@ pub enum SourceType {
 }
 
 /// Source map options for the target output
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(
+  Clone,
+  Debug,
+  Default,
+  Deserialize,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct TargetSourceMapOptions {
   /// Inlines the source map as a data URL into the bundle, rather than link to it as a separate output file

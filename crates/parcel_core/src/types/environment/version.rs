@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde::Serializer;
 
 /// Minimum semantic version range for browsers and engines
-#[derive(PartialEq, Clone, Copy, PartialOrd, Ord, Eq, Hash)]
+#[derive(PartialEq, Clone, Copy, PartialOrd, Ord, Eq, Hash, bincode::Encode, bincode::Decode)]
 pub struct Version(NonZeroU16);
 
 impl Version {

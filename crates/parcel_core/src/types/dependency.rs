@@ -15,11 +15,15 @@ use super::source::SourceLocation;
 use super::symbol::Symbol;
 use super::target::Target;
 
-#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(
+  PartialEq, Clone, Debug, Default, Deserialize, Serialize, bincode::Encode, bincode::Decode,
+)]
 pub struct DependencyMeta {}
 
 /// A dependency denotes a connection between two assets
-#[derive(PartialEq, Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(
+  PartialEq, Clone, Debug, Default, Deserialize, Serialize, bincode::Encode, bincode::Decode,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   /// Controls the behavior of the bundle the resolved asset is placed into
@@ -166,7 +170,18 @@ pub struct ImportAttribute {
 }
 
 /// Determines when a dependency should load
-#[derive(Clone, Copy, Debug, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Deserialize_repr,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize_repr,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum Priority {
@@ -185,7 +200,18 @@ impl Default for Priority {
 }
 
 /// The type of the import specifier
-#[derive(Clone, Copy, Debug, Deserialize_repr, Eq, Hash, PartialEq, Serialize_repr)]
+#[derive(
+  Clone,
+  Copy,
+  Debug,
+  Deserialize_repr,
+  Eq,
+  Hash,
+  PartialEq,
+  Serialize_repr,
+  bincode::Encode,
+  bincode::Decode,
+)]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum SpecifierType {

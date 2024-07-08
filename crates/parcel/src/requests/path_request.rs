@@ -2,8 +2,6 @@ use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-
 use parcel_core::diagnostic_error;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::ReporterEvent;
@@ -29,7 +27,7 @@ pub struct PathRequest {
   pub resolvers: Arc<Vec<Box<dyn ResolverPlugin>>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, bincode::Encode, bincode::Decode)]
 pub enum PathRequestOutput {
   Excluded,
   Resolved {
