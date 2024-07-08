@@ -20,6 +20,8 @@ use crate::utils::is_unresolved;
 use crate::utils::SourceLocation;
 use crate::utils::SourceType;
 
+/// Replaces __filename and __dirname with globals that reference to string literals for the
+/// file-path of this file.
 pub struct NodeReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,

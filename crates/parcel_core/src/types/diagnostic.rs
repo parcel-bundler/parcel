@@ -14,7 +14,7 @@ use super::File;
 /// This is a user facing error for Parcel.
 ///
 /// Usually but not always this is linked to a source-code location.
-#[derive(Builder, Debug, Serialize, Deserialize)]
+#[derive(Builder, Debug, Deserialize, PartialEq, Serialize)]
 #[builder(derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
@@ -32,6 +32,7 @@ pub struct Diagnostic {
   pub hints: Vec<String>,
 
   /// A summary user-facing message
+  #[builder(setter(into))]
   pub message: String,
 
   /// Indicates where this diagnostic was emitted from
@@ -90,6 +91,21 @@ impl<T> From<&ConfigFile<T>> for CodeFrame {
       contents: file.raw.clone(),
       path: file.path.clone(),
     })
+  }
+}
+
+impl From<PathBuf> for CodeFrame {
+  fn from(path: PathBuf) -> Self {
+    let language = path
+      .extension()
+      .map(|ext| Language(FileType::from_extension(&ext.to_string_lossy())));
+
+    CodeFrame {
+      code: None,
+      code_highlights: Vec::new(),
+      language,
+      path: Some(path),
+    }
   }
 }
 
@@ -165,21 +181,15 @@ macro_rules! diagnostic {
   };
 }
 
-// TODO Convert this to concrete error instead of anyhow! in follow up
 #[macro_export]
 macro_rules! diagnostic_error {
   ($fmt:expr, $($arg:tt)*) => {
-    $crate::types::__diagnostic::anyhow!($fmt, $($arg)*)
+    $crate::types::__diagnostic::anyhow!($crate::diagnostic!($fmt, $($arg)*))
   };
   ($msg:literal $(,)?) => {
-    $crate::types::__diagnostic::anyhow!($msg)
+    $crate::types::__diagnostic::anyhow!($crate::diagnostic!($msg))
   };
   ($diagnostic:expr) => {
-    $crate::types::__diagnostic::anyhow!(
-      $diagnostic
-        .origin(Some(module_path!().to_string()))
-        .build()
-        .unwrap()
-    )
+    $crate::types::__diagnostic::anyhow!($crate::diagnostic!($diagnostic))
   };
 }

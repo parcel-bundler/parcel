@@ -481,10 +481,10 @@ impl<'a> ResolveRequest<'a> {
           if let Some(package) = package {
             let res = package
               .resolve_package_imports(hash, self.conditions, self.custom_conditions)
-              .map_err(|e| ResolverError::PackageJsonError {
+              .map_err(|error| ResolverError::PackageJsonError {
+                error,
                 module: package.name.to_owned(),
                 path: package.path.clone(),
-                error: e,
               })?;
             match res {
               ExportsResolution::Path(path) => {

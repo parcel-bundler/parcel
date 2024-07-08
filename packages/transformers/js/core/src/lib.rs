@@ -7,6 +7,8 @@ mod global_replacer;
 mod hoist;
 mod modules;
 mod node_replacer;
+#[cfg(test)]
+mod test_utils;
 mod typeof_replacer;
 mod utils;
 
@@ -77,8 +79,8 @@ use swc_core::ecma::transforms::optimization::simplify::expr_simplifier;
 use swc_core::ecma::transforms::proposal::decorators;
 use swc_core::ecma::transforms::react;
 use swc_core::ecma::transforms::typescript;
-use swc_core::ecma::visit::FoldWith;
 use swc_core::ecma::visit::VisitWith;
+use swc_core::ecma::visit::{as_folder, FoldWith};
 use typeof_replacer::*;
 use utils::error_buffer_to_diagnostics;
 use utils::CodeHighlight;
@@ -352,10 +354,10 @@ pub fn transform(
               let module = {
                 let mut passes = chain!(
                   Optional::new(
-                    TypeofReplacer { unresolved_mark },
-                    config.source_type != SourceType::Script
+                    as_folder(TypeofReplacer::new(unresolved_mark)),
+                    config.source_type != SourceType::Script,
                   ),
-                  // Inline process.env and process.browser
+                  // Inline process.env and process.browser,
                   Optional::new(
                     EnvReplacer {
                       replace_env: config.replace_env,
@@ -411,8 +413,8 @@ pub fn transform(
                 let mut passes = chain!(
                   // Insert dependencies for node globals
                   Optional::new(
-                    GlobalReplacer {
-                      source_map: &source_map,
+                    as_folder(GlobalReplacer {
+                      source_map: source_map.clone(),
                       items: &mut global_deps,
                       global_mark,
                       globals: IndexMap::new(),
@@ -420,7 +422,7 @@ pub fn transform(
                       filename: Path::new(&config.filename),
                       unresolved_mark,
                       scope_hoist: config.scope_hoist
-                    },
+                    }),
                     config.insert_node_globals
                   ),
                   // Transpile new syntax to older syntax if needed

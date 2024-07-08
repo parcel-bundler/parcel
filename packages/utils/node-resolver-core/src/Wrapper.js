@@ -489,14 +489,13 @@ export default class NodeResolver {
         };
       }
       case 'JsonError': {
-        let pkgContent = await this.options.fs.readFile(error.path, 'utf8');
         return {
           message: 'Error parsing JSON',
           codeFrames: [
             {
-              filePath: error.path,
+              filePath: error.file.path,
               language: 'json',
-              code: pkgContent,
+              code: error.file.contents,
               // TODO
               codeHighlights: [
                 {
