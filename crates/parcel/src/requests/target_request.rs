@@ -21,7 +21,6 @@ use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::Entry;
 use parcel_core::types::Environment;
 use parcel_core::types::EnvironmentContext;
-use parcel_core::types::File;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::SourceType;
 use parcel_core::types::Target;
