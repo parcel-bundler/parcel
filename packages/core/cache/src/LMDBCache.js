@@ -141,12 +141,6 @@ export class LMDBCache implements Cache {
     contents: Buffer | string,
     options?: {|signal?: AbortSignal|},
   ): Promise<void> {
-    const previousEntry = await this.get<LargeBlobEntry>(key);
-    if (previousEntry) {
-      await this.store.remove(key);
-      await this.fsCache.deleteLargeBlob(previousEntry.largeBlobKey);
-    }
-
     // $FlowFixMe flow libs are outdated but we only support node>16 so randomUUID is present
     const largeBlobKey = `${key}_${crypto.randomUUID()}`;
     await this.fsCache.setLargeBlob(largeBlobKey, contents, options);

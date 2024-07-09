@@ -10,14 +10,6 @@ export type RequestTrackerCacheInfo = {|
   requestGraphKey: string,
   snapshotKey: string,
   timestamp: number,
-  /**
-   * All the entries associated with this cache instance, including the
-   * `requestGraphKey`. These will all be cleared when the cache
-   * `clearRequestTrackerCacheInfo` is called.
-   *
-   * Nullable for backwards compatibility only. Added on 05-06-2024.
-   */
-  allLargeBlobKeys?: string[],
 |};
 
 /**
@@ -26,7 +18,7 @@ export type RequestTrackerCacheInfo = {|
  * Non-hex strings will fail silently. That is a leaky abstraction and therefore
  * this function is required here to fix it.
  */
-export function toFsCacheKey(key: string): string {
+function toFsCacheKey(key: string): string {
   let result = '';
   for (let i = 0; i < key.length; i += 1) {
     result += key.charCodeAt(i).toString(16);
@@ -74,25 +66,4 @@ export async function storeRequestTrackerCacheInfo(
  */
 export async function clearRequestTrackerCacheInfo(cache: Cache) {
   await cache.set(toFsCacheKey('RequestTrackerCacheInfo'), null);
-}
-
-/**
- * Clear the current request tracker cache including all nodes and related
- * files. This is transactional and can't lead to an invalid state.
- *
- * This also cleans-up all the large blobs on disk, including dangling node
- * entries.
- */
-export async function clearRequestTrackerCache(cache: Cache) {
-  const requestTrackerCacheInfo = await getRequestTrackerCacheInfo(cache);
-  await clearRequestTrackerCacheInfo(cache);
-
-  if (!requestTrackerCacheInfo) {
-    return;
-  }
-
-  await cache.deleteLargeBlob(requestTrackerCacheInfo.requestGraphKey);
-  for (const largeBlobKey of requestTrackerCacheInfo.allLargeBlobKeys ?? []) {
-    await cache.deleteLargeBlob(largeBlobKey);
-  }
 }
