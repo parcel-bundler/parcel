@@ -55,10 +55,6 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
-import {
-  storeRequestTrackerCacheInfo,
-  clearRequestTrackerCache,
-} from './RequestTrackerCacheInfo';
 import type {AssetGraphRequestResult} from './requests/AssetGraphRequest';
 import type {PackageRequestResult} from './requests/PackageRequest';
 import type {ConfigRequestResult} from './requests/ConfigRequest';
@@ -1393,9 +1389,8 @@ export default class RequestTracker {
     let serialisedGraph = this.graph.serialize();
 
     // Delete an existing request graph cache, to prevent invalid states
-    await clearRequestTrackerCache(this.options.cache);
+    await this.options.cache.deleteLargeBlob(requestGraphKey);
 
-    const allLargeBlobKeys = new Set<string>();
     let total = 0;
     const serialiseAndSet = async (
       key: string,
@@ -1406,7 +1401,6 @@ export default class RequestTracker {
         throw new Error('Serialization was aborted');
       }
 
-      allLargeBlobKeys.add(key);
       await this.options.cache.setLargeBlob(
         key,
         serialize(contents),
@@ -1521,12 +1515,6 @@ export default class RequestTracker {
       if (!signal?.aborted) throw err;
     }
 
-    await storeRequestTrackerCacheInfo(this.options.cache, {
-      allLargeBlobKeys: Array.from(allLargeBlobKeys),
-      requestGraphKey,
-      snapshotKey,
-      timestamp: Date.now(),
-    });
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
 

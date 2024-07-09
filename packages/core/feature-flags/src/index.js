@@ -9,7 +9,6 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   exampleFeature: false,
   configKeyInvalidation: false,
   parcelV3: false,
-  randomLargeBlobKeys: false,
 };
 
 let featureFlagValues: FeatureFlags = {...DEFAULT_FEATURE_FLAGS};
