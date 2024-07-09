@@ -144,11 +144,15 @@ impl NamedPipelinesMap {
       .any(|glob| glob.starts_with(&named_pipeline))
   }
 
-  pub fn named_pipelines(&self) -> Vec<&str> {
+  pub fn named_pipelines(&self) -> Vec<String> {
     self
       .inner
       .keys()
-      .filter_map(|glob| glob.split_once(':').map(|g| g.0))
+      .filter_map(|glob| {
+        glob
+          .split_once(':')
+          .map(|(named_pipeline, _pattern)| String::from(named_pipeline))
+      })
       .collect()
   }
 }

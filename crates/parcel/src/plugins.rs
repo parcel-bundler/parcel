@@ -87,6 +87,10 @@ impl Plugins {
     Ok(compressors)
   }
 
+  pub fn named_pipelines(&self) -> Vec<String> {
+    self.config.transformers.named_pipelines()
+  }
+
   #[allow(unused)]
   pub fn namers(&self) -> Result<Vec<Box<dyn NamerPlugin>>, anyhow::Error> {
     let mut namers: Vec<Box<dyn NamerPlugin>> = Vec::new();
