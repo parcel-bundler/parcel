@@ -8,6 +8,7 @@ use package_json::BrowsersList;
 use package_json::BuiltInTargetDescriptor;
 use package_json::ModuleFormat;
 use package_json::PackageJson;
+use package_json::SourceField;
 use package_json::SourceMapField;
 use package_json::TargetDescriptor;
 use parcel_core::config_loader::ConfigFile;
@@ -17,7 +18,6 @@ use parcel_core::types::BuildMode;
 use parcel_core::types::CodeFrame;
 use parcel_core::types::DefaultTargetOptions;
 use parcel_core::types::DiagnosticBuilder;
-use parcel_core::types::Entry;
 use parcel_core::types::Environment;
 use parcel_core::types::EnvironmentContext;
 use parcel_core::types::OutputFormat;
@@ -31,6 +31,7 @@ use crate::request_tracker::ResultAndInvalidations;
 use crate::request_tracker::RunRequestContext;
 use crate::request_tracker::RunRequestError;
 
+use super::entry_request::Entry;
 use super::RequestResult;
 
 mod package_json;
@@ -42,22 +43,23 @@ mod package_json;
 #[derive(Debug)]
 pub struct TargetRequest {
   pub default_target_options: DefaultTargetOptions,
+  pub entry: Entry,
   pub env: Option<HashMap<String, String>>,
-  pub exclusive_target: Option<String>,
   pub mode: BuildMode,
 }
 
 impl Hash for TargetRequest {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
     self.default_target_options.hash(state);
-    self.exclusive_target.hash(state);
+    self.entry.hash(state);
     self.mode.hash(state);
   }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TargetRequestOutput {
-  targets: Vec<Target>,
+  pub entry: PathBuf,
+  pub targets: Vec<Target>,
 }
 
 struct BuiltInTarget<'a> {
@@ -380,11 +382,11 @@ impl TargetRequest {
     Ok(targets)
   }
 
-  fn skip_target(&self, target_name: &str, source: &Option<Entry>) -> bool {
+  fn skip_target(&self, target_name: &str, source: &Option<SourceField>) -> bool {
     // We skip targets if they have a descriptor.source that does not match the current
     // exclusiveTarget. They will be handled by a separate resolvePackageTargets call from their
     // Entry point but with exclusiveTarget set.
-    match self.exclusive_target.as_ref() {
+    match self.entry.target.as_ref() {
       None => source.is_some(),
       Some(exclusive_target) => target_name != exclusive_target,
     }
@@ -557,6 +559,7 @@ impl Request for TargetRequest {
     Ok(ResultAndInvalidations {
       invalidations: Vec::new(),
       result: RequestResult::Target(TargetRequestOutput {
+        entry: self.entry.file_path.clone(),
         targets: package_targets
           .into_iter()
           .filter_map(std::convert::identity)
@@ -610,8 +613,8 @@ mod tests {
 
     let request = TargetRequest {
       default_target_options: DefaultTargetOptions::default(),
+      entry: Entry::default(),
       env: None,
-      exclusive_target: None,
       mode: BuildMode::Development,
     };
 
@@ -790,6 +793,7 @@ mod tests {
       assert_eq!(
         targets.map_err(|e| e.to_string()),
         Ok(RequestResult::Target(TargetRequestOutput {
+          entry: PathBuf::default(),
           targets: vec![default_target()]
         }))
       );
@@ -803,8 +807,9 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![default_target()]
-      }),)
+      }))
     );
   }
 
@@ -825,6 +830,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("browser.js")),
@@ -847,6 +853,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("main.js")),
@@ -869,6 +876,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("module.js")),
@@ -891,6 +899,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("types.d.ts")),
@@ -902,7 +911,7 @@ mod tests {
           name: String::from("types"),
           ..Target::default()
         }]
-      }),)
+      }))
     );
   }
 
@@ -936,6 +945,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![
           Target {
             dist_dir: package_dir.join("build"),
@@ -982,7 +992,7 @@ mod tests {
             ..Target::default()
           },
         ]
-      }),)
+      }))
     );
   }
 
@@ -993,6 +1003,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![Target {
           dist_dir: package_dir().join("dist").join("custom"),
           dist_entry: None,
@@ -1007,7 +1018,7 @@ mod tests {
           name: String::from("custom"),
           ..Target::default()
         }]
-      }),)
+      }))
     );
   }
 
@@ -1031,6 +1042,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
@@ -1065,6 +1077,7 @@ mod tests {
     assert_eq!(
       targets.map_err(|e| e.to_string()),
       Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
         targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
@@ -1095,6 +1108,7 @@ mod tests {
       assert_eq!(
         targets.map_err(|e| e.to_string()),
         Ok(RequestResult::Target(TargetRequestOutput {
+          entry: PathBuf::default(),
           targets: vec![Target {
             dist_dir: package_dir().join("dist"),
             dist_entry: Some(PathBuf::from("custom.js")),
@@ -1174,6 +1188,7 @@ mod tests {
       assert_eq!(
         targets.map_err(|e| e.to_string()),
         Ok(RequestResult::Target(TargetRequestOutput {
+          entry: PathBuf::default(),
           targets: vec![Target {
             dist_dir: package_dir().join("dist"),
             dist_entry: Some(PathBuf::from(format!("custom.{ext}"))),
