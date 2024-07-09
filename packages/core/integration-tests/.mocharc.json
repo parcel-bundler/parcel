@@ -4,5 +4,5 @@
   // TODO: Remove this when https://github.com/nodejs/node/pull/28788 is resolved
   "exit": true,
   // This helps reduce CI flakiness of the Mac OS test run
-  "retries": 2
+  "retries": 0
 }

@@ -364,7 +364,7 @@ export default class PackagerRunner {
       res.map != null ? await this.generateSourceMap(bundle, res.map) : null;
     return {
       type: res.type ?? type,
-      contents: res.contents,
+      contents: packaged.contents,
       map,
     };
   }
