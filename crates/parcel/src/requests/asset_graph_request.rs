@@ -58,26 +58,14 @@ impl Request for AssetGraphRequest {
         &mut |dep_node, dependency: Arc<Dependency>| {
           let request = PathRequest {
             dependency: dependency.clone(),
-            // TODO: Where should named pipelines come from?
-            named_pipelines: vec![],
+            named_pipelines: request_context.plugins().named_pipelines(),
           };
 
           request_id_to_dep_node_index.insert(request.id(), dep_node);
-          request_context.queue_request(request, tx.clone());
+          let _ = request_context.queue_request(request, tx.clone());
         };
       };
     }
-
-    // let on_undeferred = &mut |dep_node, dependency: Arc<Dependency>| {
-    //   let request = PathRequest {
-    //     dependency: dependency.clone(),
-    //     // TODO: Where should named pipelines come from?
-    //     named_pipelines: vec![],
-    //   };
-
-    //   request_id_to_dep_node_index.insert(request.id(), dep_node);
-    //   request_context.queue_request(request, tx.clone());
-    // };
 
     while let result = rx.recv()? {
       match result {

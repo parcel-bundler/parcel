@@ -84,7 +84,6 @@ impl Plugins {
     Ok(compressors)
   }
 
-  #[allow(unused)]
   pub fn named_pipelines(&self) -> Vec<String> {
     self.config.transformers.named_pipelines()
   }
