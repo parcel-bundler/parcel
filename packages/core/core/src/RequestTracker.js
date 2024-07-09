@@ -1161,12 +1161,14 @@ export default class RequestTracker {
       return result;
     } else if (node.resultCacheKey != null && ifMatch == null) {
       let key = node.resultCacheKey;
-      invariant(this.options.cache.hasLargeBlob(key));
-      let cachedResult: T = deserialize(
-        await this.options.cache.getLargeBlob(key),
-      );
-      node.result = cachedResult;
-      return cachedResult;
+      try {
+        const cachedBlob = await this.options.cache.getLargeBlob(key);
+        let cachedResult: T = deserialize(cachedBlob);
+        node.result = cachedResult;
+        return cachedResult;
+      } catch (_error) {
+        return null;
+      }
     }
   }
 
