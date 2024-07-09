@@ -4,7 +4,6 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use parcel_core::types::engines::Engines;
-use parcel_core::types::Entry;
 use parcel_core::types::EnvironmentContext;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::TargetSourceMapOptions;
@@ -18,6 +17,13 @@ pub enum BrowserField {
   EntryPoint(PathBuf),
   // TODO false value
   ReplacementBySpecifier(HashMap<String, PathBuf>),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BrowsersList {
+  Browsers(Vec<String>),
+  BrowsersByEnv(HashMap<String, Vec<String>>),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -40,34 +46,8 @@ pub struct TargetDescriptor {
   pub output_format: Option<OutputFormat>,
   pub public_url: Option<String>,
   pub scope_hoist: Option<bool>,
-  pub source: Option<Entry>,
+  pub source: Option<SourceField>,
   pub source_map: Option<SourceMapField>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
-pub enum BrowsersList {
-  Browsers(Vec<String>),
-  BrowsersByEnv(HashMap<String, Vec<String>>),
-}
-
-#[derive(Debug, Default, Deserialize)]
-pub struct TargetsField {
-  #[serde(default, deserialize_with = "browser_target")]
-  pub browser: Option<BuiltInTargetDescriptor>,
-
-  #[serde(default, deserialize_with = "main_target")]
-  pub main: Option<BuiltInTargetDescriptor>,
-
-  #[serde(default, deserialize_with = "module_target")]
-  pub module: Option<BuiltInTargetDescriptor>,
-
-  #[serde(default, deserialize_with = "types_target")]
-  pub types: Option<BuiltInTargetDescriptor>,
-
-  #[serde(flatten)]
-  #[serde(deserialize_with = "custom_targets")]
-  pub custom_targets: HashMap<String, TargetDescriptor>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,6 +98,12 @@ pub struct PackageJson {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub enum SourceField {
+  Source(String),
+  Sources(Vec<String>),
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub enum SourceMapField {
   Bool(bool),
   Options(TargetSourceMapOptions),
@@ -144,6 +130,25 @@ where
   }
 
   Ok(browser)
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct TargetsField {
+  #[serde(default, deserialize_with = "browser_target")]
+  pub browser: Option<BuiltInTargetDescriptor>,
+
+  #[serde(default, deserialize_with = "main_target")]
+  pub main: Option<BuiltInTargetDescriptor>,
+
+  #[serde(default, deserialize_with = "module_target")]
+  pub module: Option<BuiltInTargetDescriptor>,
+
+  #[serde(default, deserialize_with = "types_target")]
+  pub types: Option<BuiltInTargetDescriptor>,
+
+  #[serde(flatten)]
+  #[serde(deserialize_with = "custom_targets")]
+  pub custom_targets: HashMap<String, TargetDescriptor>,
 }
 
 fn browser_target<'de, D>(deserializer: D) -> Result<Option<BuiltInTargetDescriptor>, D::Error>
