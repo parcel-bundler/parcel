@@ -55,10 +55,6 @@ import {report} from './ReporterRunner';
 import {PromiseQueue} from '@parcel/utils';
 import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
-import {
-  storeRequestTrackerCacheInfo,
-  clearRequestTrackerCacheInfo,
-} from './RequestTrackerCacheInfo';
 import type {AssetGraphRequestResult} from './requests/AssetGraphRequest';
 import type {PackageRequestResult} from './requests/PackageRequest';
 import type {ConfigRequestResult} from './requests/ConfigRequest';
@@ -1520,11 +1516,6 @@ export default class RequestTracker {
       if (!signal?.aborted) throw err;
     }
 
-    await storeRequestTrackerCacheInfo(this.options.cache, {
-      requestGraphKey,
-      snapshotKey,
-      timestamp: Date.now(),
-    });
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
 
