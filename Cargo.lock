@@ -1915,7 +1915,7 @@ dependencies = [
  "mockall",
  "parcel-resolver",
  "parcel_filesystem",
- "thiserror",
+ "serde",
 ]
 
 [[package]]
