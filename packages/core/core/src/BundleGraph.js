@@ -1142,8 +1142,8 @@ export default class BundleGraph {
       bundle == null
         ? firstAsset
         : // Otherwise, find the first asset that belongs to this bundle.
-          assets.find(asset => this.bundleHasAsset(bundle, asset)) ||
-          assets.find(a => a.type === bundle.type) ||
+          assets.find(asset => this.bundleHasAsset(bundle, asset)) ??
+          assets.find(a => a.type === bundle.type) ??
           firstAsset;
 
     // If a resolution still hasn't been found, return the first referenced asset.
@@ -1860,6 +1860,7 @@ export default class BundleGraph {
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
       // ..., but if it does exist, it has to be behind this one reexport.
+      console.log(potentialResults);
       return potentialResults[0];
     } else {
       let result = identifier;
@@ -1922,6 +1923,7 @@ export default class BundleGraph {
     let symbols = [];
 
     for (let symbol of asset.symbols.keys()) {
+      console.log(symbol);
       symbols.push({
         ...this.getSymbolResolution(asset, symbol, boundary),
         exportAs: symbol,

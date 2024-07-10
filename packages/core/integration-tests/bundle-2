@@ -1,0 +1,56 @@
+
+function $parcel$export(e, n, v, s) {
+  Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
+}
+
+function $parcel$exportWildcard(dest, source) {
+  Object.keys(source).forEach(function(key) {
+    if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) {
+      return;
+    }
+
+    Object.defineProperty(dest, key, {
+      enumerable: true,
+      get: function get() {
+        return source[key];
+      }
+    });
+  });
+
+  return dest;
+}
+
+      var $parcel$global = globalThis;
+    var parcelRequire = $parcel$global["parcelRequire94c2"];
+var parcelRegister = parcelRequire.register;
+
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js") */
+parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js", function(module, exports) {
+  	/* ScopeHoistingPackager::buildAssetPrelude(asset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js, dependency = ./c.js, symbol = thing) */
+	$parcel$export(module.exports, "thing", () => (parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js")).thing);
+	// a.js
+	parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js");
+	
+});
+
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js") */
+parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js", function(module, exports) {
+  	// c.js
+	
+	var $5ps2S = parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js");
+	$parcel$exportWildcard(module.exports, $5ps2S);
+	
+});
+
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js") */
+parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js", function(module, exports) {
+  	// empty.js
+	// intentionally empty
+	// export const r = 10; // <- uncomment fix
+	
+});
+
+
+
+
+//# sourceMappingURL=a.67de7fd2.js.map

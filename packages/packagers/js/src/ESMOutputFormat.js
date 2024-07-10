@@ -85,9 +85,11 @@ export class ESMOutputFormat implements OutputFormat {
       exportAs,
     } of this.packager.exportedSymbols.values()) {
       if (this.packager.wrappedAssets.has(asset.id)) {
-        let obj = `parcelRequire("${this.packager.bundleGraph.getAssetPublicId(
-          asset,
-        )}")`;
+        let obj = `parcelRequire("${
+          asset.filePath
+          // this.packager.bundleGraph.getAssetPublicId(
+          // asset,)
+        }")`;
         res += `\nvar ${local} = ${this.packager.getPropertyAccess(
           obj,
           exportSymbol,

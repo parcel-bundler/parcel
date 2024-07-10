@@ -122,23 +122,6 @@ export class ScopeHoistingPackager {
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
     let wrappedAssets = await this.loadAssets();
-    this.buildExportedSymbols();
-
-    // If building a library, the target is actually another bundler rather
-    // than the final output that could be loaded in a browser. So, loader
-    // runtimes are excluded, and instead we add imports into the entry bundle
-    // of each bundle group pointing at the sibling bundles. These can be
-    // picked up by another bundler later at which point runtimes will be added.
-    if (
-      this.bundle.env.isLibrary ||
-      this.bundle.env.outputFormat === 'commonjs'
-    ) {
-      for (let b of this.bundleGraph.getReferencedBundles(this.bundle, {
-        recursive: false,
-      })) {
-        this.externals.set(relativeBundlePath(this.bundle, b), new Map());
-      }
-    }
 
     let res = '';
     let lineCount = 0;
@@ -195,7 +178,8 @@ export class ScopeHoistingPackager {
     for (let entry of entries) {
       if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
         let parcelRequire = `parcelRequire(${JSON.stringify(
-          this.bundleGraph.getAssetPublicId(entry),
+          entry.filePath,
+          // this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
 
         let entryExports = entry.symbols.get('*')?.local;
@@ -349,72 +333,6 @@ export class ScopeHoistingPackager {
 
     this.assetOutputs = new Map(await queue.run());
     return wrapped;
-  }
-
-  buildExportedSymbols() {
-    if (
-      !this.bundle.env.isLibrary ||
-      this.bundle.env.outputFormat !== 'esmodule'
-    ) {
-      return;
-    }
-
-    // TODO: handle ESM exports of wrapped entry assets...
-    let entry = this.bundle.getMainEntry();
-    if (entry && !this.wrappedAssets.has(entry.id)) {
-      let hasNamespace = entry.symbols.hasExportSymbol('*');
-
-      for (let {
-        asset,
-        exportAs,
-        symbol,
-        exportSymbol,
-      } of this.bundleGraph.getExportedSymbols(entry)) {
-        if (typeof symbol === 'string') {
-          // If the module has a namespace (e.g. commonjs), and this is not an entry, only export the namespace
-          // as default, without individual exports. This mirrors the importing logic in addExternal, avoiding
-          // extra unused exports and potential for non-identifier export names.
-          if (hasNamespace && this.isAsyncBundle && exportAs !== '*') {
-            continue;
-          }
-
-          let symbols = this.exportedSymbols.get(
-            symbol === '*' ? nullthrows(entry.symbols.get('*')?.local) : symbol,
-          )?.exportAs;
-
-          if (!symbols) {
-            symbols = [];
-            this.exportedSymbols.set(symbol, {
-              asset,
-              exportSymbol,
-              local: symbol,
-              exportAs: symbols,
-            });
-          }
-
-          if (exportAs === '*') {
-            exportAs = 'default';
-          }
-
-          symbols.push(exportAs);
-        } else if (symbol === null) {
-          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
-          // let relativePath = relative(options.projectRoot, asset.filePath);
-          // throw getThrowableDiagnosticForNode(
-          //   md`${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
-          //   entry.filePath,
-          //   loc,
-          // );
-        } else if (symbol !== false) {
-          // let relativePath = relative(options.projectRoot, asset.filePath);
-          // throw getThrowableDiagnosticForNode(
-          //   md`${relativePath} does not export '${exportSymbol}'`,
-          //   entry.filePath,
-          //   loc,
-          // );
-        }
-      }
-    }
   }
 
   getTopLevelName(name: string): string {
@@ -631,10 +549,18 @@ export class ScopeHoistingPackager {
       sourceMap?.offsetLines(1, 1);
       lineCount++;
 
-      code = `parcelRegister(${JSON.stringify(
-        this.bundleGraph.getAssetPublicId(asset),
-      )}, function(module, exports) {
-${code}
+      const publicId = JSON.stringify(asset.filePath);
+      // JSON.stringify(
+      //   this.bundleGraph.getAssetPublicId(asset),
+      // );
+
+      code = `
+/* ScopeHoistingPackager::buildAsset(${publicId}) */
+parcelRegister(${publicId}, function(module, exports) {
+  ${code
+    .split('\n')
+    .map(line => '\t' + line)
+    .join('\n')}
 });
 `;
 
@@ -708,22 +634,6 @@ ${code}
       }
 
       // Handle imports from other bundles in libraries.
-      if (this.bundle.env.isLibrary && !this.bundle.hasAsset(resolved)) {
-        let referencedBundle = this.bundleGraph.getReferencedBundle(
-          dep,
-          this.bundle,
-        );
-        if (
-          referencedBundle &&
-          referencedBundle.getMainEntry() === resolved &&
-          referencedBundle.type === 'js' &&
-          !this.bundleGraph.isAssetReferenced(referencedBundle, resolved)
-        ) {
-          this.addExternal(dep, replacements, referencedBundle);
-          this.externalAssets.add(resolved);
-          continue;
-        }
-      }
 
       for (let [imported, {local}] of dep.symbols) {
         if (local === '*') {
@@ -967,14 +877,6 @@ ${code}
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
 
-    // External CommonJS dependencies need to be accessed as an object property rather than imported
-    // directly to maintain live binding.
-    let isExternalCommonJS =
-      !isWrapped &&
-      this.bundle.env.isLibrary &&
-      this.bundle.env.outputFormat === 'commonjs' &&
-      !this.bundle.hasAsset(resolvedAsset);
-
     // If the resolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
     if (
@@ -995,7 +897,9 @@ ${code}
 
       hoisted.set(
         resolvedAsset.id,
-        `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
+        `var $${publicId} = parcelRequire(${JSON.stringify(
+          resolvedAsset.filePath,
+        )});`,
       );
     }
 
@@ -1023,7 +927,9 @@ ${code}
     let obj;
     if (isWrapped && (!dep || dep?.meta.shouldWrap)) {
       // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
-      obj = `(parcelRequire(${JSON.stringify(publicId)}))`;
+      obj = `(parcelRequire(${JSON.stringify(
+        resolvedAsset.filePath /*publicId*/,
+      )}))`;
     } else if (isWrapped && dep) {
       obj = `$${publicId}`;
     } else {
@@ -1043,7 +949,7 @@ ${code}
         return obj;
       }
     } else if (
-      (!staticExports || isWrapped || !symbol || isExternalCommonJS) &&
+      (!staticExports || isWrapped || !symbol) &&
       resolvedAsset !== parentAsset
     ) {
       // If the resolved asset is wrapped or has non-static exports,
@@ -1096,7 +1002,8 @@ ${code}
     ) {
       this.needsPrelude = true;
       res += `parcelRequire(${JSON.stringify(
-        this.bundleGraph.getAssetPublicId(resolved),
+        resolved.filePath,
+        // this.bundleGraph.getAssetPublicId(resolved),
       )});`;
     }
 
@@ -1204,6 +1111,7 @@ ${code}
 
         for (let [imported, {local}] of dep.symbols) {
           if (imported === '*' && local === '*') {
+            console.log('RESOLVED', dep.specifier, resolved);
             if (!resolved) {
               // Re-exporting an external module. This should have already been handled in buildReplacements.
               let external = nullthrows(
@@ -1257,7 +1165,10 @@ ${code}
                   ? ', ' +
                     this.buildFunctionExpression(['v'], `${resolvedSymbol} = v`)
                   : '';
-                prepend += `$parcel$export($${assetId}$exports, ${JSON.stringify(
+                prepend += `/* ScopeHoistingPackager::buildAssetPrelude(asset = ${
+                  asset.filePath
+                }, dependency = ${dep.specifier}, symbol = ${symbol}) */
+$parcel$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
                 )}, ${get}${set});\n`;
                 this.usedHelpers.add('$parcel$export');

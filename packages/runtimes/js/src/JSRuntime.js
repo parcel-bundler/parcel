@@ -479,9 +479,13 @@ function getLoaderRuntime({
     let parcelRequire = bundle.env.shouldScopeHoist
       ? 'parcelRequire'
       : 'module.bundle.root';
-    loaderCode += `.then(() => ${parcelRequire}('${bundleGraph.getAssetPublicId(
-      bundleGraph.getAssetById(bundleGroup.entryAssetId),
-    )}'))`;
+    //   const publicId = '${bundleGraph.getAssetPublicId(
+    //   bundleGraph.getAssetById(bundleGroup.entryAssetId),
+    // )}'
+    const publicId = JSON.stringify(
+      bundleGraph.getAssetById(bundleGroup.entryAssetId).filePath,
+    );
+    loaderCode += `.then(() => ${parcelRequire}(${publicId}))`;
   }
 
   let code = [];

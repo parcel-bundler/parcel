@@ -1,0 +1,94 @@
+
+function $parcel$export(e, n, v, s) {
+  Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
+}
+
+      var $parcel$global = globalThis;
+    
+var $parcel$modules = {};
+var $parcel$inits = {};
+
+var parcelRequire = $parcel$global["parcelRequire94c2"];
+
+if (parcelRequire == null) {
+  parcelRequire = function(id) {
+    if (id in $parcel$modules) {
+      return $parcel$modules[id].exports;
+    }
+    if (id in $parcel$inits) {
+      var init = $parcel$inits[id];
+      delete $parcel$inits[id];
+      var module = {id: id, exports: {}};
+      $parcel$modules[id] = module;
+      init.call(module.exports, module, module.exports);
+      return module.exports;
+    }
+    var err = new Error("Cannot find module '" + id + "'");
+    err.code = 'MODULE_NOT_FOUND';
+    throw err;
+  };
+
+  parcelRequire.register = function register(id, init) {
+    $parcel$inits[id] = init;
+  };
+
+  $parcel$global["parcelRequire94c2"] = parcelRequire;
+}
+
+var parcelRegister = parcelRequire.register;
+
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js") */
+parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js", function(module, exports) {
+  	
+	$parcel$export(module.exports, "register", () => $110ddef5476dd17b$export$6503ec6e8aabbaf, (v) => $110ddef5476dd17b$export$6503ec6e8aabbaf = v);
+	$parcel$export(module.exports, "resolve", () => $110ddef5476dd17b$export$f7ad0328861e2f03, (v) => $110ddef5476dd17b$export$f7ad0328861e2f03 = v);
+	var $110ddef5476dd17b$export$6503ec6e8aabbaf;
+	var $110ddef5476dd17b$export$f7ad0328861e2f03;
+	var $110ddef5476dd17b$var$mapping = new Map();
+	function $110ddef5476dd17b$var$register(baseUrl, manifest) {
+	    for(var i = 0; i < manifest.length - 1; i += 2)$110ddef5476dd17b$var$mapping.set(manifest[i], {
+	        baseUrl: baseUrl,
+	        path: manifest[i + 1]
+	    });
+	}
+	function $110ddef5476dd17b$var$resolve(id) {
+	    var resolved = $110ddef5476dd17b$var$mapping.get(id);
+	    if (resolved == null) throw new Error('Could not resolve bundle with id ' + id);
+	    return new URL(resolved.path, resolved.baseUrl).toString();
+	}
+	$110ddef5476dd17b$export$6503ec6e8aabbaf = $110ddef5476dd17b$var$register;
+	$110ddef5476dd17b$export$f7ad0328861e2f03 = $110ddef5476dd17b$var$resolve;
+	
+});
+
+
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js") */
+parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js", function(module, exports) {
+  	
+	var $iQcms = parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js");
+	module.exports = $iQcms("9hrjg").then(()=>parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js"));
+	
+});
+
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js") */
+parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js", function(module, exports) {
+  	
+	function $db76abfb3030138d$var$load(id) {
+	    // eslint-disable-next-line no-undef
+	    return import((parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).resolve(id));
+	}
+	module.exports = $db76abfb3030138d$var$load;
+	
+});
+
+
+var $bd64f55a478d72f5$exports = {};
+
+(parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.bcd2b78c.js\",\"9hrjg\",\"a.407938d1.js\"]"));
+
+// index.js
+
+output((parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js")).then(({ thing: thing })=>thing));
+
+
+//# sourceMappingURL=index.bcd2b78c.js.map

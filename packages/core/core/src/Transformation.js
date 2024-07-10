@@ -389,6 +389,10 @@ export default class Transformation {
             transformer.configKeyPath,
             this.parcelConfig,
           );
+          console.log({
+            path: transformerResults[0].value.filePath,
+            assetSymbols: transformerResults[0].value.symbols,
+          });
 
           measurement && measurement.end();
 
