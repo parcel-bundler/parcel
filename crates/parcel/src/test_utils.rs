@@ -11,7 +11,7 @@ use parcel_filesystem::{in_memory_file_system::InMemoryFileSystem, FileSystemRef
 
 use crate::{plugins::Plugins, request_tracker::RequestTracker};
 
-pub(crate) fn make_test_plugin_context() -> Arc<PluginContext> {
+pub(crate) fn make_test_plugin_context() -> PluginContext {
   PluginContext {
     config: Arc::new(ConfigLoader {
       fs: Arc::new(InMemoryFileSystem::default()),
@@ -21,10 +21,9 @@ pub(crate) fn make_test_plugin_context() -> Arc<PluginContext> {
     options: Arc::new(PluginOptions::default()),
     logger: PluginLogger::default(),
   }
-  .into()
 }
 
-pub(crate) fn plugins(ctx: Arc<PluginContext>) -> Plugins {
+pub(crate) fn plugins(ctx: PluginContext) -> Plugins {
   let fixture = default_config(Arc::new(PathBuf::default()));
 
   Plugins::new(fixture.parcel_config, ctx)
@@ -50,20 +49,21 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     search_path,
     project_root,
   } = options;
+
   let config_loader = Arc::new(ConfigLoader {
     fs: fs.clone(),
     project_root,
     search_path,
   });
+
   RequestTracker::new(
-    vec![],
     Arc::new(MockCache::new()),
+    Arc::clone(&config_loader),
     Arc::new(MockFileSystem::new()),
-    Arc::new(plugins(Arc::new(PluginContext {
-      config: config_loader.clone(),
+    plugins(PluginContext {
+      config: Arc::clone(&config_loader),
       options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
-    }))),
-    config_loader,
+    }),
   )
 }

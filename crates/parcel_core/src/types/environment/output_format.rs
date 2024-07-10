@@ -6,12 +6,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
-  /// A classic script that can be loaded in a <script> tag in the browser
-  ///
-  /// This is unsupported for library targets.
-  ///
-  Global,
-
   /// A CommonJS module that outputs require and module.exports
   ///
   /// This format is typically loaded in Node.js.
@@ -24,14 +18,20 @@ pub enum OutputFormat {
   ///
   #[default]
   EsModule,
+
+  /// A classic script that can be loaded in a <script> tag in the browser
+  ///
+  /// This is unsupported for library targets.
+  ///
+  Global,
 }
 
 impl Display for OutputFormat {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      OutputFormat::Global => write!(f, "global"),
       OutputFormat::CommonJS => write!(f, "commonjs"),
       OutputFormat::EsModule => write!(f, "esmodule"),
+      OutputFormat::Global => write!(f, "global"),
     }
   }
 }

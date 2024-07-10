@@ -1,5 +1,12 @@
 // @flow
-import type {FileCreateInvalidation, FileSystem as ParcelFileSystem} from '@parcel/types';
+import type {
+  Encoding,
+  FileCreateInvalidation,
+  FilePath,
+  InitialParcelOptions,
+  PackageManager,
+  FileSystem as ParcelFileSystem,
+} from '@parcel/types';
 
 declare export var init: void | (() => void);
 
@@ -16,16 +23,29 @@ export interface ConfigRequest {
 }
 export interface RequestOptions {}
 
-export interface ParcelNapiOptions {
-  threads?: number;
-  nodeWorkers?: number;
-  fs?: ParcelFileSystem;
+export interface FileSystem {
+  canonicalize(path: FilePath): FilePath;
+  cwd(): FilePath;
+  isDir(path: FilePath): boolean;
+  isFile(path: FilePath): boolean;
+  readFile(path: FilePath, encoding?: Encoding): string;
 }
 
+export type ParcelNapiOptions = {|
+  fs?: FileSystem,
+  nodeWorkers?: number,
+  options: {|
+    corePath?: string,
+    ...Omit<InitialParcelOptions, 'fs' | 'packageManager'>,
+  |},
+  packageManager?: PackageManager,
+  threads?: number,
+|};
+
 declare export class ParcelNapi {
-  nodeWorkerCount: number,
+  nodeWorkerCount: number;
   constructor(options: ParcelNapiOptions): ParcelNapi;
-  build(options: {||}): Promise<void>;
+  build(): Promise<void>;
   static defaultThreadCount(): number;
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;
@@ -33,7 +53,7 @@ declare export class ParcelNapi {
   testingRpcPing(): void;
 }
 
-declare export function registerWorker(worker: any): void
+declare export function registerWorker(worker: any): void;
 
 declare export function initSentry(): void;
 declare export function closeSentry(): void;
@@ -61,16 +81,6 @@ export interface JsFileSystemOptions {
   isFile: string => boolean;
   isDir: string => boolean;
   includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
-}
-export interface FileSystem {
-  fs?: JsFileSystemOptions;
-  includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
-  conditions?: number;
-  moduleDirResolver?: (...args: any[]) => any;
-  mode: number;
-  entries?: number;
-  extensions?: Array<string>;
-  packageExports: boolean;
 }
 export interface ResolveOptions {
   filename: string;

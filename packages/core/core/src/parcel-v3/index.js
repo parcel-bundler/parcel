@@ -1,4 +1,4 @@
 // @flow
 
-export {ParcelV3} from './Parcel';
-export type * from './Parcel';
+export {ParcelV3} from './ParcelV3';
+export type * from './ParcelV3';

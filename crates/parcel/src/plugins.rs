@@ -41,12 +41,12 @@ pub struct Plugins {
   config: ParcelConfig,
 
   /// Dependencies available to all plugin types
-  ctx: Arc<PluginContext>,
+  ctx: PluginContext,
 }
 
 impl Plugins {
   #[allow(unused)]
-  pub fn new(config: ParcelConfig, ctx: Arc<PluginContext>) -> Self {
+  pub fn new(config: ParcelConfig, ctx: PluginContext) -> Self {
     Plugins { config, ctx }
   }
 

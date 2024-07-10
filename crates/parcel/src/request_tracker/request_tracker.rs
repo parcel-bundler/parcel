@@ -7,11 +7,11 @@ use parcel_core::cache::CacheRef;
 use parcel_core::config_loader::ConfigLoaderRef;
 use parcel_core::diagnostic_error;
 use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
-use parcel_core::plugin::ReporterPlugin;
 use parcel_filesystem::FileSystemRef;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 
+use crate::plugins::Plugins;
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
 
@@ -35,33 +35,32 @@ use super::{RunRequestContext, RunRequestMessage};
 ///
 /// This will be used to trigger cache invalidations.
 pub struct RequestTracker {
+  cache: CacheRef,
+  config_loader: ConfigLoaderRef,
+  file_system: FileSystemRef,
   graph: RequestGraph<RequestResult>,
+  plugins: PluginsRef,
   reporter: Arc<CompositeReporterPlugin>,
   request_index: HashMap<u64, NodeIndex>,
-  cache: CacheRef,
-  file_system: FileSystemRef,
-  plugins: PluginsRef,
-  config_loader: ConfigLoaderRef,
 }
 
 impl RequestTracker {
   #[allow(unused)]
   pub fn new(
-    reporters: Vec<Box<dyn ReporterPlugin>>,
     cache: CacheRef,
-    file_system: FileSystemRef,
-    plugins: PluginsRef,
     config_loader: ConfigLoaderRef,
+    file_system: FileSystemRef,
+    plugins: Plugins,
   ) -> Self {
     let mut graph = StableDiGraph::<RequestNode<RequestResult>, RequestEdgeType>::new();
     graph.add_node(RequestNode::Root);
     RequestTracker {
       graph,
-      reporter: Arc::new(CompositeReporterPlugin::new(reporters)),
+      reporter: Arc::new(CompositeReporterPlugin::new(plugins.reporters())),
       request_index: HashMap::new(),
       cache,
       file_system,
-      plugins,
+      plugins: Arc::new(plugins),
       config_loader,
     }
   }

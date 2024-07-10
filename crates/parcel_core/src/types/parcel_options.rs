@@ -4,29 +4,42 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 use serde::Deserializer;
+use serde::Serialize;
 
 use super::engines::Engines;
 use super::OutputFormat;
 
 /// The options passed into Parcel either through the CLI or the programmatic API
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParcelOptions {
   pub config: Option<String>,
-  pub default_config: Option<String>,
-  pub default_target_options: DefaultTargetOptions,
-  pub entries: Option<Entry>,
-  pub env: Option<HashMap<String, String>>,
-  pub log_level: LogLevel,
-  pub mode: BuildMode,
-  pub project_root: PathBuf,
+
   /// Path to the parcel core node_module. This will be used to resolve built-ins or runtime files.
   ///
   /// In the future this may be replaced with embedding those files into the rust binary.
   pub core_path: PathBuf,
+
+  #[serde(default)]
+  pub default_target_options: DefaultTargetOptions,
+
+  pub entries: Option<Entry>,
+  pub env: Option<HashMap<String, String>>,
+
+  #[serde(rename = "defaultConfig")]
+  pub fallback_config: Option<String>,
+
+  #[serde(default)]
+  pub log_level: LogLevel,
+
+  #[serde(default)]
+  pub mode: BuildMode,
+
+  pub project_root: PathBuf,
 }
 
-#[derive(Clone, Debug, Deserialize, Hash)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[serde(untagged)]
 pub enum Entry {
   Single(String),
   Multiple(Vec<String>),
@@ -38,7 +51,8 @@ impl Default for Entry {
   }
 }
 
-#[derive(Clone, Debug, Default, Hash, PartialEq)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum BuildMode {
   #[default]
   Development,
@@ -71,7 +85,7 @@ impl<'de> Deserialize<'de> for BuildMode {
   }
 }
 
-#[derive(Clone, Debug, Deserialize, Hash)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct DefaultTargetOptions {
   pub dist_dir: Option<PathBuf>,
   pub engines: Engines,
@@ -98,7 +112,7 @@ impl Default for DefaultTargetOptions {
   }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
   #[default]
