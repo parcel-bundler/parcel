@@ -1,4 +1,8 @@
 
+function $parcel$export(e, n, v, s) {
+  Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
+}
+
 function $parcel$exportWildcard(dest, source) {
   Object.keys(source).forEach(function(key) {
     if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) {
@@ -16,33 +20,19 @@ function $parcel$exportWildcard(dest, source) {
   return dest;
 }
 
-function $parcel$export(e, n, v, s) {
-  Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
-}
-
       var $parcel$global = globalThis;
     var parcelRequire = $parcel$global["parcelRequire94c2"];
 var parcelRegister = parcelRequire.register;
 
 /* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js") */
 parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js", function(module, exports) {
-  	// a.js
-	// export * from './c.js';
-	
-	var $ecbII = parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/b.js");
-	$parcel$exportWildcard(module.exports, $ecbII);
-	
-});
-
-/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/b.js") */
-parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/b.js", function(module, exports) {
-  	/* ScopeHoistingPackager::buildAssetPrelude(a55b47155192462b) */
+  	/* ScopeHoistingPackager::buildAssetPrelude(asset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js, dependency = ./thing.js, resolved = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js, symbol = thing) */
 	$parcel$export(module.exports, "thing", () => (parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js")).thing);
-	// b.js
+	/* ScopeHoistingPackager::buildAssetPrelude(asset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js, dependency = ./c.js, resolved = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js, symbol = thing) */
+	$parcel$export(module.exports, "thing", () => (parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js")).thing);
+	// a.js
 	parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js");
-	
-	var $5ps2S = parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js");
-	$parcel$exportWildcard(module.exports, $5ps2S);
+	parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js");
 	
 });
 
@@ -56,6 +46,15 @@ parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-r
 });
 
 
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js") */
+parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js", function(module, exports) {
+  	// c.js
+	
+	var $5ps2S = parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js");
+	$parcel$exportWildcard(module.exports, $5ps2S);
+	
+});
+
 /* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js") */
 parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js", function(module, exports) {
   	// empty.js
@@ -67,4 +66,4 @@ parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-r
 
 
 
-//# sourceMappingURL=a.407938d1.js.map
+//# sourceMappingURL=a.1cff02e8.js.map

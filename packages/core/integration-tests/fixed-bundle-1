@@ -84,11 +84,11 @@ parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm
 
 var $bd64f55a478d72f5$exports = {};
 
-(parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.bcd2b78c.js\",\"9hrjg\",\"a.407938d1.js\"]"));
+(parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.b351b053.js\",\"9hrjg\",\"a.1cff02e8.js\"]"));
 
 // index.js
 
 output((parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js")).then(({ thing: thing })=>thing));
 
 
-//# sourceMappingURL=index.bcd2b78c.js.map
+//# sourceMappingURL=index.b351b053.js.map

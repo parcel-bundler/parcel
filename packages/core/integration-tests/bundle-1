@@ -75,7 +75,7 @@ parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm
   	
 	function $db76abfb3030138d$var$load(id) {
 	    // eslint-disable-next-line no-undef
-	    return import((parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).resolve(id));
+	    return import((/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).resolve(id));
 	}
 	module.exports = $db76abfb3030138d$var$load;
 	
@@ -84,11 +84,13 @@ parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm
 
 var $bd64f55a478d72f5$exports = {};
 
-(parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.661140ac.js\",\"9hrjg\",\"a.67de7fd2.js\"]"));
+(/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.3570a33c.js\",\"9hrjg\",\"a.996e8686.js\"]"));
 
 // index.js
+// import {thing} from './a.js';
+// output(thing);
 
-output((parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js")).then(({ thing: thing })=>thing));
+output((/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js")).then(({ thing: thing })=>thing));
 
 
-//# sourceMappingURL=index.661140ac.js.map
+//# sourceMappingURL=index.3570a33c.js.map

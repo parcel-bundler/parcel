@@ -927,7 +927,9 @@ parcelRegister(${publicId}, function(module, exports) {
     let obj;
     if (isWrapped && (!dep || dep?.meta.shouldWrap)) {
       // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
-      obj = `(parcelRequire(${JSON.stringify(
+      obj = `(/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = ${
+        resolvedAsset.filePath
+      }) */ parcelRequire(${JSON.stringify(
         resolvedAsset.filePath /*publicId*/,
       )}))`;
     } else if (isWrapped && dep) {
@@ -1125,6 +1127,16 @@ parcelRegister(${publicId}, function(module, exports) {
             // If the resolved asset has an exports object, use the $parcel$exportWildcard helper
             // to re-export all symbols. Otherwise, if there's no namespace object available, add
             // $parcel$export calls for each used symbol of the dependency.
+            console.log({
+              source: asset.filePath,
+              resolvedAsset: resolved.filePath,
+              dep: dep.specifier,
+              isWrapped,
+              staticExports: resolved.meta.staticExports,
+              usedSymbols: this.bundleGraph.getUsedSymbols(resolved),
+              hasCJSExports: resolved.meta.hasCJSExports,
+              hasExportSymbol: resolved.symbols.hasExportSymbol('*'),
+            });
             if (
               isWrapped ||
               resolved.meta.staticExports === false ||
@@ -1142,7 +1154,9 @@ parcelRegister(${publicId}, function(module, exports) {
               );
               append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
+              console.log('using wildcard');
             } else {
+              console.log('using manual export');
               for (let symbol of nullthrows(
                 this.bundleGraph.getUsedSymbols(dep),
               )) {
@@ -1167,7 +1181,9 @@ parcelRegister(${publicId}, function(module, exports) {
                   : '';
                 prepend += `/* ScopeHoistingPackager::buildAssetPrelude(asset = ${
                   asset.filePath
-                }, dependency = ${dep.specifier}, symbol = ${symbol}) */
+                }, dependency = ${dep.specifier}, resolved = ${
+                  resolved.filePath
+                }, symbol = ${symbol}) */
 $parcel$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
                 )}, ${get}${set});\n`;

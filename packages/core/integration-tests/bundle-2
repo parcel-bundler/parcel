@@ -26,12 +26,25 @@ var parcelRegister = parcelRequire.register;
 
 /* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js") */
 parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js", function(module, exports) {
-  	/* ScopeHoistingPackager::buildAssetPrelude(asset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js, dependency = ./c.js, symbol = thing) */
-	$parcel$export(module.exports, "thing", () => (parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js")).thing);
+  	/* ScopeHoistingPackager::buildAssetPrelude(asset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js, dependency = ./thing.js, resolved = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js, symbol = thing) */
+	$parcel$export(module.exports, "thing", () => (/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js) */ parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js")).thing);
+	/* ScopeHoistingPackager::buildAssetPrelude(asset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js, dependency = ./c.js, resolved = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js, symbol = thing) */
+	$parcel$export(module.exports, "thing", () => (/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js) */ parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js")).thing);
 	// a.js
+	parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js");
 	parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js");
 	
 });
+
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js") */
+parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js", function(module, exports) {
+  	
+	$parcel$export(module.exports, "thing", () => $cd6cbec5f7d688ee$export$9ddb00a412fa2505);
+	// thing.js
+	const $cd6cbec5f7d688ee$export$9ddb00a412fa2505 = 'thing';
+	
+});
+
 
 /* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js") */
 parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/c.js", function(module, exports) {
@@ -47,10 +60,11 @@ parcelRegister("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-r
   	// empty.js
 	// intentionally empty
 	// export const r = 10; // <- uncomment fix
+	// import './thing';
 	
 });
 
 
 
 
-//# sourceMappingURL=a.67de7fd2.js.map
+//# sourceMappingURL=a.996e8686.js.map

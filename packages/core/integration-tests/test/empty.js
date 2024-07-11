@@ -181,6 +181,7 @@ describe.only('empty', () => {
           // empty.js
           // intentionally empty
           // export const r = 10; // <- uncomment fix
+          // import './thing';
         thing.js:
           // thing.js
           export const thing = 'thing';
@@ -189,9 +190,13 @@ describe.only('empty', () => {
           export * from './empty.js';
         a.js:
           // a.js
+          export * from './thing.js';
           export * from './c.js';
         index.js:
           // index.js
+          // import {thing} from './a.js';
+          // output(thing);
+
           output(import('./a.js').then(({thing}) => thing));
         index.html:
           <script src="./index.js" type="module" />

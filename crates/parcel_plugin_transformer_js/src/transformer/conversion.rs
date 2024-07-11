@@ -163,7 +163,7 @@ pub(crate) fn convert_result(
     }
 
     asset.has_cjs_exports = hoist_result.has_cjs_exports;
-    asset.static_exports = hoist_result.static_cjs_exports;
+    asset.static_exports = false; // hoist_result.static_cjs_exports;
     asset.should_wrap = hoist_result.should_wrap;
   } else {
     if let Some(symbol_result) = result.symbol_result {

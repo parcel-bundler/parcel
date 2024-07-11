@@ -713,4 +713,34 @@ describe('SymbolPropagation', () => {
       ],
     );
   });
+
+  it('empty file through barrel', async () => {
+    await testPropagation(
+      [
+        ['/index.js', [], true, []],
+        [
+          '/a.js',
+          [
+            ['a', {local: 'b$b'}],
+            ['real', {local: 'real'}],
+          ],
+          true,
+          ['real'],
+        ],
+        ['/b.js', [['b', {local: 'c$c'}]], true, []],
+        ['/c.js', [['c', {local: 'a$real'}]], true, []],
+      ],
+      [
+        ['/index.js', '/a.js', [['a', {local: 'a', isWeak: false}]], [['a']]],
+        ['/a.js', '/b.js', [['b', {local: 'b$b', isWeak: true}]], [['b']]],
+        ['/b.js', '/c.js', [['c', {local: 'c$c', isWeak: true}]], [['c']]],
+        [
+          '/c.js',
+          '/a.js',
+          [['real', {local: 'a$real', isWeak: true}]],
+          [['real']],
+        ],
+      ],
+    );
+  });
 });
