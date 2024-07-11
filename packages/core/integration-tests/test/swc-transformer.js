@@ -7,7 +7,6 @@ import {
   outputFS,
   removeDistDirectory,
 } from '@parcel/test-utils';
-import {execSync} from 'child_process';
 
 const config = path.join(__dirname, './integration/swc-transformer/.parcelrc');
 
