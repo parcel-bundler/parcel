@@ -93,8 +93,6 @@ jobs:
       image: node:22.4-bookworm
     steps:
       - uses: actions/checkout@v3
-      - name: Install yarn
-        run: npm install --global yarn@1
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
