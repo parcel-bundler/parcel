@@ -642,6 +642,8 @@ impl Visit for Collect {
         .or_default()
         .push(node.key.span);
     }
+
+    node.value.visit_with(self);
   }
 
   fn visit_member_expr(&mut self, node: &MemberExpr) {
