@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
-    "build-bundles": "rimraf --glob packages/*/*/lib && lerna run dev:prepare && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol}",
+    "build-bundles": "rimraf --glob packages/*/*/lib && lerna run dev:prepare && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build --no-cache packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol}",
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
