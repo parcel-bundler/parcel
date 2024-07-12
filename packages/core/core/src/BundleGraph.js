@@ -1858,7 +1858,7 @@ export default class BundleGraph {
     }
 
     // We didn't find the exact symbol...
-    if (false && potentialResults.length == 1) {
+    if (potentialResults.length == 1) {
       // ..., but if it does exist, it has to be behind this one reexport.
       console.log(potentialResults);
       return potentialResults[0];
