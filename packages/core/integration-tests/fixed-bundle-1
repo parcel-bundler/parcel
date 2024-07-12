@@ -62,11 +62,11 @@ parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-mani
 });
 
 
-/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js") */
-parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js", function(module, exports) {
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js") */
+parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js", function(module, exports) {
   	
 	var $iQcms = parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js");
-	module.exports = $iQcms("9hrjg").then(()=>parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js"));
+	module.exports = $iQcms("JJGvr").then(()=>parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js"));
 	
 });
 
@@ -75,20 +75,24 @@ parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm
   	
 	function $db76abfb3030138d$var$load(id) {
 	    // eslint-disable-next-line no-undef
-	    return import((parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).resolve(id));
+	    return import((/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).resolve(id));
 	}
 	module.exports = $db76abfb3030138d$var$load;
 	
 });
 
 
-var $bd64f55a478d72f5$exports = {};
+var $671a5dc2ac9bf404$exports = {};
 
-(parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.b351b053.js\",\"9hrjg\",\"a.1cff02e8.js\"]"));
+(/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.4c22ef3c.js\",\"JJGvr\",\"barrel-outer.0ccd5c57.js\"]"));
 
 // index.js
+// import {thing} from './barrel-outer.js';
+// output(thing);
 
-output((parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js")).then(({ thing: thing })=>thing));
+output((/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js")).then(({ thing: thing })=>{
+    return thing;
+}));
 
 
-//# sourceMappingURL=index.b351b053.js.map
+//# sourceMappingURL=index.4c22ef3c.js.map

@@ -1,0 +1,501 @@
+ubuntu@ip-10-205-38-81:~/parcel$ yarn test:integration
+Running your command via BARN -- See go/barn
+$ yarn workspace @parcel/integration-tests test
+Debugger attached.
+Waiting for the debugger to disconnect...
+$ cross-env NODE_ENV=test PARCEL_BUILD_ENV=test mocha --experimental-vm-modules
+Debugger attached.
+Waiting for the debugger to disconnect...
+Debugger attached.
+Waiting for the debugger to disconnect...
+Debugger attached.
+Waiting for the debugger to disconnect...
+Debugger attached.
+Debugger attached.
+Debugger attached.
+
+
+  empty
+{ path: 'index.html', assetSymbols: undefined }
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+{ path: 'index.html', assetSymbols: undefined }
+{ path: 'index.js', assetSymbols: undefined }
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+{ path: 'index.js', assetSymbols: Map(0) {} }
+{ path: 'index.js', assetSymbols: Map(0) {} }
+{ path: 'barrel-outer.js', assetSymbols: undefined }
+{ path: 'barrel-outer.js', assetSymbols: Map(0) {} }
+{ path: 'barrel-outer.js', assetSymbols: Map(0) {} }
+{ path: 'thing.js', assetSymbols: undefined }
+{
+  path: 'thing.js',
+  assetSymbols: Map(1) {
+    'thing' => {
+      local: '$cd6cbec5f7d688ee$export$9ddb00a412fa2505',
+      loc: [Object],
+      meta: [Object]
+    }
+  }
+}
+{
+  path: 'thing.js',
+  assetSymbols: Map(1) {
+    'thing' => {
+      local: '$cd6cbec5f7d688ee$export$9ddb00a412fa2505',
+      loc: [Object],
+      meta: [Object]
+    }
+  }
+}
+{ path: 'barrel-inner.js', assetSymbols: undefined }
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+{ path: 'barrel-inner.js', assetSymbols: Map(0) {} }
+{ path: 'barrel-inner.js', assetSymbols: Map(0) {} }
+{ path: 'empty.js', assetSymbols: undefined }
+{
+  path: 'empty.js',
+  assetSymbols: Map(1) {
+    'r' => {
+      local: '$3f050ac441d0c33b$export$43caf9889c228507',
+      loc: [Object],
+      meta: [Object]
+    }
+  }
+}
+{
+  path: 'empty.js',
+  assetSymbols: Map(1) {
+    'r' => {
+      local: '$3f050ac441d0c33b$export$43caf9889c228507',
+      loc: [Object],
+      meta: [Object]
+    }
+  }
+}
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$c0b59b0d7fd2307e$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$c0b59b0d7fd2307e$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js',
+  assetSymbols: Map(0) {}
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js',
+  assetSymbols: Map(0) {}
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$db76abfb3030138d$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$db76abfb3030138d$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js',
+  assetSymbols: Map(3) {
+    'register' => {
+      local: '$110ddef5476dd17b$export$6503ec6e8aabbaf',
+      loc: [Object],
+      meta: [Object]
+    },
+    'resolve' => {
+      local: '$110ddef5476dd17b$export$f7ad0328861e2f03',
+      loc: [Object],
+      meta: [Object]
+    },
+    '*' => {
+      local: '$110ddef5476dd17b$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js',
+  assetSymbols: Map(3) {
+    'register' => {
+      local: '$110ddef5476dd17b$export$6503ec6e8aabbaf',
+      loc: [Object],
+      meta: [Object]
+    },
+    'resolve' => {
+      local: '$110ddef5476dd17b$export$f7ad0328861e2f03',
+      loc: [Object],
+      meta: [Object]
+    },
+    '*' => {
+      local: '$110ddef5476dd17b$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+RESOLVED ./thing.js Asset(/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js)
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+{
+  source: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js',
+  resolvedAsset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js',
+  dep: './thing.js',
+  isWrapped: false,
+  staticExports: true,
+  usedSymbols: Set(1) { 'thing' },
+  hasCJSExports: false,
+  hasExportSymbol: false
+}
+using manual export
+buildAssetPrelude -  {
+  asset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js',
+  dep: './thing.js',
+  symbol: 'thing'
+}
+RESOLVED ./barrel-inner.js Asset(/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js)
+{
+  source: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js',
+  resolvedAsset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js',
+  dep: './barrel-inner.js',
+  isWrapped: false,
+  staticExports: true,
+  usedSymbols: Set(0) {},
+  hasCJSExports: false,
+  hasExportSymbol: false
+}
+using manual export
+RESOLVED ./empty.js Asset(/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js)
+{
+  source: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js',
+  resolvedAsset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js',
+  dep: './empty.js',
+  isWrapped: false,
+  staticExports: true,
+  usedSymbols: Set(0) {},
+  hasCJSExports: false,
+  hasExportSymbol: false
+}
+using manual export
+    ✓ fixed case (3012ms)
+(node:99790) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{ path: 'index.html', assetSymbols: undefined }
+{ path: 'index.html', assetSymbols: undefined }
+{ path: 'index.js', assetSymbols: undefined }
+{ path: 'index.js', assetSymbols: Map(0) {} }
+{ path: 'index.js', assetSymbols: Map(0) {} }
+{ path: 'barrel-outer.js', assetSymbols: undefined }
+{ path: 'barrel-outer.js', assetSymbols: Map(0) {} }
+{ path: 'barrel-outer.js', assetSymbols: Map(0) {} }
+{ path: 'thing.js', assetSymbols: undefined }
+{
+  path: 'thing.js',
+  assetSymbols: Map(1) {
+    'thing' => {
+      local: '$cd6cbec5f7d688ee$export$9ddb00a412fa2505',
+      loc: [Object],
+      meta: [Object]
+    }
+  }
+}
+{
+  path: 'thing.js',
+  assetSymbols: Map(1) {
+    'thing' => {
+      local: '$cd6cbec5f7d688ee$export$9ddb00a412fa2505',
+      loc: [Object],
+      meta: [Object]
+    }
+  }
+}
+{ path: 'barrel-inner.js', assetSymbols: undefined }
+{ path: 'barrel-inner.js', assetSymbols: Map(0) {} }
+{ path: 'barrel-inner.js', assetSymbols: Map(0) {} }
+{ path: 'empty.js', assetSymbols: undefined }
+{
+  path: 'empty.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$3f050ac441d0c33b$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: 'empty.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$3f050ac441d0c33b$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js',
+  assetSymbols: Map(0) {}
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js',
+  assetSymbols: Map(0) {}
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$c0b59b0d7fd2307e$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$c0b59b0d7fd2307e$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$db76abfb3030138d$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js',
+  assetSymbols: Map(1) {
+    '*' => {
+      local: '$db76abfb3030138d$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js',
+  assetSymbols: undefined
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js',
+  assetSymbols: Map(3) {
+    'register' => {
+      local: '$110ddef5476dd17b$export$6503ec6e8aabbaf',
+      loc: [Object],
+      meta: [Object]
+    },
+    'resolve' => {
+      local: '$110ddef5476dd17b$export$f7ad0328861e2f03',
+      loc: [Object],
+      meta: [Object]
+    },
+    '*' => {
+      local: '$110ddef5476dd17b$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+{
+  path: '/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js',
+  assetSymbols: Map(3) {
+    'register' => {
+      local: '$110ddef5476dd17b$export$6503ec6e8aabbaf',
+      loc: [Object],
+      meta: [Object]
+    },
+    'resolve' => {
+      local: '$110ddef5476dd17b$export$f7ad0328861e2f03',
+      loc: [Object],
+      meta: [Object]
+    },
+    '*' => {
+      local: '$110ddef5476dd17b$exports',
+      loc: undefined,
+      meta: undefined
+    }
+  }
+}
+RESOLVED ./thing.js Asset(/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js)
+{
+  source: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js',
+  resolvedAsset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js',
+  dep: './thing.js',
+  isWrapped: false,
+  staticExports: true,
+  usedSymbols: Set(1) { 'thing' },
+  hasCJSExports: false,
+  hasExportSymbol: false
+}
+using manual export
+buildAssetPrelude -  {
+  asset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js',
+  dep: './thing.js',
+  symbol: 'thing'
+}
+RESOLVED ./barrel-inner.js Asset(/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js)
+{
+  source: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js',
+  resolvedAsset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js',
+  dep: './barrel-inner.js',
+  isWrapped: false,
+  staticExports: true,
+  usedSymbols: Set(0) {},
+  hasCJSExports: false,
+  hasExportSymbol: false
+}
+using manual export
+buildAssetPrelude -  {
+  asset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js',
+  dep: './barrel-inner.js',
+  symbol: 'thing'
+}
+getSymbolResolution Asset(/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js) thing NamedBundle {}
+RESOLVED ./empty.js Asset(/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js)
+{
+  source: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js',
+  resolvedAsset: '/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js',
+  dep: './empty.js',
+  isWrapped: false,
+  staticExports: true,
+  usedSymbols: Set(1) { 'thing' },
+  hasCJSExports: false,
+  hasExportSymbol: true
+}
+using wildcard
+[ PackagedBundle {}, PackagedBundle {}, PackagedBundle {} ]
+Checking /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/index.html
+asset filepath= /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/index.html
+bundle filepath= /home/ubuntu/parcel/packages/core/integration-tests/dist/index.html
+Checking /home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js
+asset filepath= /home/ubuntu/parcel/packages/runtimes/js/src/runtime-81784e9f9109c6f1.js
+Checking /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js
+asset filepath= /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js
+Checking /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/index.js
+asset filepath= /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/index.js
+Checking /home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js
+asset filepath= /home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js
+Checking /home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js
+asset filepath= /home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js
+bundle filepath= /home/ubuntu/parcel/packages/core/integration-tests/dist/index.7b682189.js
+Checking /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js
+asset filepath= /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js
+Checking /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js
+asset filepath= /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/thing.js
+Checking /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js
+asset filepath= /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-inner.js
+Checking /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js
+asset filepath= /home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/empty.js
+    1) async
+    - should work
+
+
+  1 passing (4s)
+  1 pending
+  1 failing
+
+  1) empty
+       async:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    asset: Asset {},
+    exportSymbol: '*',
+    loc: undefined,
++   symbol: null
+-   symbol: '$3f050ac441d0c33b$exports'
+  }
+      + expected - actual
+
+       {
+         "asset": {}
+         "exportSymbol": "*"
+         "loc": [undefined]
+      -  "symbol": [null]
+      +  "symbol": "$3f050ac441d0c33b$exports"
+       }
+
+      at diffAssets (test/empty.js:125:16)
+      at Context.<anonymous> (test/empty.js:311:5)
+
+
+
+Waiting for the debugger to disconnect...
+Waiting for the debugger to disconnect...
+Waiting for the debugger to disconnect...
+🌽 ❌ Failed in 10.95s

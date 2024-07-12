@@ -865,6 +865,13 @@ parcelRegister(${publicId}, function(module, exports) {
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
 
     if (
+      parentAsset.filePath.includes('barrel-outer.js') &&
+      resolved.filePath.includes('barrel-inner.js') &&
+      imported === 'thing'
+    ) {
+      console.log('getSymbolResolution', resolved, imported, this.bundle);
+    }
+    if (
       resolvedAsset.type !== 'js' ||
       (dep && this.bundleGraph.isDependencySkipped(dep))
     ) {
@@ -1160,6 +1167,11 @@ parcelRegister(${publicId}, function(module, exports) {
               for (let symbol of nullthrows(
                 this.bundleGraph.getUsedSymbols(dep),
               )) {
+                console.log('buildAssetPrelude - ', {
+                  asset: asset.filePath,
+                  dep: dep.specifier,
+                  symbol,
+                });
                 if (
                   symbol === 'default' || // `export * as ...` does not include the default export
                   symbol === '__esModule'

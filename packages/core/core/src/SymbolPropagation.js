@@ -119,11 +119,20 @@ export function propagateSymbols({
             }
             if (
               !assetSymbols ||
-              assetSymbols.has(exportSymbol) ||
-              assetSymbols.has('*')
+              assetSymbols.has(exportSymbol) // || assetSymbols.has('*')
             ) {
               // An own symbol or a non-namespace reexport
+              console.log(
+                'adding symbol',
+                exportSymbol,
+                'to',
+                assetNode.value.filePath,
+                'because',
+                {assetSymbols},
+              );
               assetNode.usedSymbols.add(exportSymbol);
+            } else if (assetSymbols.has('*')) {
+              assetNode.usedSymbols.add('*');
             }
             // A namespace reexport
             // (but only if we actually have namespace-exporting outgoing dependencies,

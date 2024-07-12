@@ -62,11 +62,11 @@ parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-mani
 });
 
 
-/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js") */
-parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js", function(module, exports) {
+/* ScopeHoistingPackager::buildAsset("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js") */
+parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js", function(module, exports) {
   	
 	var $iQcms = parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm-js-loader.js");
-	module.exports = $iQcms("9hrjg").then(()=>parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/a.js"));
+	module.exports = $iQcms("JJGvr").then(()=>parcelRequire("/home/ubuntu/parcel/packages/core/integration-tests/test/empty-re-export/barrel-outer.js"));
 	
 });
 
@@ -82,15 +82,18 @@ parcelRegister("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/browser/esm
 });
 
 
-var $bd64f55a478d72f5$exports = {};
+var $671a5dc2ac9bf404$exports = {};
 
-(/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.3570a33c.js\",\"9hrjg\",\"a.996e8686.js\"]"));
+(/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/helpers/bundle-manifest.js")).register(new URL("", import.meta.url).toString(), JSON.parse("[\"2IdOk\",\"index.c7f04185.js\",\"JJGvr\",\"barrel-outer.3ba26849.js\"]"));
 
 // index.js
-// import {thing} from './a.js';
+// import {thing} from './barrel-outer.js';
 // output(thing);
 
-output((/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-a04f645dd7088afa.js")).then(({ thing: thing })=>thing));
+output((/* ScopeHoistingPackager::getSymbolResolution(resolvedAsset = /home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js) */ parcelRequire("/home/ubuntu/parcel/packages/runtimes/js/src/runtime-9b4b06308477e51b.js")).then(({ thing: thing, other: other })=>{
+    console.log(other);
+    return thing;
+}));
 
 
-//# sourceMappingURL=index.3570a33c.js.map
+//# sourceMappingURL=index.c7f04185.js.map

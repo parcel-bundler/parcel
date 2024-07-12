@@ -73,7 +73,7 @@ export type BundleGraphEdgeType = $Values<typeof bundleGraphEdgeTypes>;
 type InternalSymbolResolution = {|
   asset: Asset,
   exportSymbol: string,
-  symbol: ?Symbol | false,
+  symbol: null | Symbol | false,
   loc: ?InternalSourceLocation,
 |};
 
@@ -1757,7 +1757,7 @@ export default class BundleGraph {
           return {
             asset,
             exportSymbol: symbol,
-            symbol: identifier,
+            symbol: identifier ?? null,
             loc: asset.symbols?.get(symbol)?.loc,
           };
         }
@@ -1788,7 +1788,7 @@ export default class BundleGraph {
 
         return {
           asset: resolvedAsset,
-          symbol: resolvedSymbol,
+          symbol: resolvedSymbol ?? null,
           exportSymbol,
           loc,
         };
@@ -1808,7 +1808,7 @@ export default class BundleGraph {
         let result = this.getSymbolResolution(resolved, symbol, boundary);
 
         // We found the symbol
-        if (result.symbol != undefined) {
+        if (result.symbol != null) {
           if (assetOutside) {
             // ..., but `asset` is outside, return `asset` and the original symbol
             found = true;
@@ -1822,19 +1822,19 @@ export default class BundleGraph {
 
           return {
             asset: result.asset,
-            symbol: result.symbol,
+            symbol: result.symbol ?? null,
             exportSymbol: result.exportSymbol,
             loc: resolved.symbols?.get(symbol)?.loc,
           };
         }
-        if (result.symbol === null) {
-          found = true;
+        if (result.symbol == null) {
           if (boundary && !this.bundleHasAsset(boundary, result.asset)) {
+            found = true;
             // If the returned asset is outside (and it's the first asset that is outside), return it.
             if (!assetOutside) {
               return {
                 asset: result.asset,
-                symbol: result.symbol,
+                symbol: result.symbol ?? null,
                 exportSymbol: result.exportSymbol,
                 loc: resolved.symbols?.get(symbol)?.loc,
               };
@@ -1848,7 +1848,7 @@ export default class BundleGraph {
             // and there might be a another (re)export (where we might statically find the symbol).
             potentialResults.push({
               asset: result.asset,
-              symbol: result.symbol,
+              symbol: result.symbol ?? null,
               exportSymbol: result.exportSymbol,
               loc: resolved.symbols?.get(symbol)?.loc,
             });
@@ -1858,7 +1858,7 @@ export default class BundleGraph {
     }
 
     // We didn't find the exact symbol...
-    if (potentialResults.length == 1) {
+    if (false && potentialResults.length == 1) {
       // ..., but if it does exist, it has to be behind this one reexport.
       console.log(potentialResults);
       return potentialResults[0];
@@ -1887,7 +1887,7 @@ export default class BundleGraph {
       return {
         asset,
         exportSymbol: symbol,
-        symbol: result,
+        symbol: result ?? null,
         loc: asset.symbols?.get(symbol)?.loc,
       };
     }
