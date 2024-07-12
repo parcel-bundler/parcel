@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, path::PathBuf};
 
 use anyhow::anyhow;
 use parcel_filesystem::FileSystemRef;
@@ -11,10 +11,10 @@ pub struct NodePackageManager<'a> {
 }
 
 impl<'a> NodePackageManager<'a> {
-  pub fn new(project_root: &str, fs: FileSystemRef) -> Self {
+  pub fn new(project_root: PathBuf, fs: FileSystemRef) -> Self {
     Self {
       resolver: parcel_resolver::Resolver::node(
-        Cow::Owned(project_root.into()),
+        Cow::Owned(project_root),
         parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
       ),
     }
