@@ -90,7 +90,7 @@ jobs:
     name: linux-gnu-x64
     runs-on: ubuntu-20.04
     container:
-      image: node:22.4-bookworm
+      image: node:22.4-bullseye
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust
@@ -290,6 +290,10 @@ jobs:
         with:
           name: debug-symbols
           path: debug-symbols/**
+      - name: Build node packages
+        run: yarn build
+      - name: Build TypeScript types
+        run: yarn build-ts
       - name: Debug
         run: |
           ls -l packages/*/*/*.node
