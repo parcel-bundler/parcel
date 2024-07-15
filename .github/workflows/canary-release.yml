@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - v2
+      - ci-self-build-no-cache
   workflow_dispatch:
 
 jobs:
@@ -17,6 +18,6 @@ jobs:
     with:
       profile: canary
       release-command: |
-        yarn canary:release --summary-file
-        node scripts/tag-release.mjs --tag nightly
+        # yarn canary:release --summary-file
+        # node scripts/tag-release.mjs --tag nightly
       type: canary
