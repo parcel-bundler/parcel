@@ -23,3 +23,7 @@ Run the desired GitHub actions job:
 ```
 gh act --input profile=release --job "build-linux-gnu-x64"
 ```
+
+## GLIBC Versions
+
+- x86 builds rely on minimum GLIBC 2.31 in Debian 11 - bullseye https://packages.debian.org/bullseye/libc6
