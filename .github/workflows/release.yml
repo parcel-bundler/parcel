@@ -293,6 +293,10 @@ jobs:
       - name: Debug
         run: |
           ls -l packages/*/*/*.node
+      - name: Build node packages
+        run: yarn build
+      - name: Build TypeScript types
+        run: yarn build-ts
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
