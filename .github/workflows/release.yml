@@ -271,6 +271,10 @@ jobs:
       - uses: bahmutov/npm-install@v1.8.35
       - name: Build native packages
         run: yarn build-native-${{ inputs.profile }}
+      - name: Build node packages
+        run: yarn build
+      - name: Build TypeScript types
+        run: yarn build-ts
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:

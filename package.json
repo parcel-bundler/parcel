@@ -26,7 +26,7 @@
     "unlink-all": "node scripts/unlink-all.js packages",
     "check": "flow check",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different && cargo fmt --all -- --check",
-    "prepublishOnly": "yarn adjust-versions && yarn build && yarn build-ts",
+    "prepublishOnly": "yarn adjust-versions",
     "test:unit": "cross-env NODE_ENV=test mocha --timeout 5000 && cargo test",
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
