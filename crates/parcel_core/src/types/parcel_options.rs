@@ -34,8 +34,6 @@ pub struct ParcelOptions {
 
   #[serde(default)]
   pub mode: BuildMode,
-
-  pub project_root: PathBuf,
 }
 
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]

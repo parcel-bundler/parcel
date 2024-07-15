@@ -36,7 +36,15 @@ export type ParcelNapiOptions = {|
   nodeWorkers?: number,
   options: {|
     corePath?: string,
-    ...Omit<InitialParcelOptions, 'fs' | 'packageManager'>,
+    // TODO Use Omit when available in flow >0.210.0
+    ...$Diff<
+      InitialParcelOptions,
+      {|
+        inputFS: InitialParcelOptions['inputFS'],
+        outputFS: InitialParcelOptions['outputFS'],
+        packageManager: InitialParcelOptions['packageManager'],
+      |},
+    >,
   |},
   packageManager?: PackageManager,
   threads?: number,

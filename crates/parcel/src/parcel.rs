@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use parcel_config::parcel_rc_config_loader::LoadConfigOptions;
@@ -19,12 +20,14 @@ use parcel_plugin_rpc::RpcHostRef;
 use parcel_plugin_rpc::RpcWorkerRef;
 
 use crate::plugins::Plugins;
+use crate::project_root::infer_project_root;
 use crate::request_tracker::RequestTracker;
 
 pub struct Parcel {
   pub fs: FileSystemRef,
   pub options: ParcelOptions,
   pub package_manager: PackageManagerRef,
+  pub project_root: PathBuf,
   pub rpc: Option<RpcHostRef>,
 }
 
@@ -36,17 +39,16 @@ impl Parcel {
     rpc: Option<RpcHostRef>,
   ) -> Self {
     let fs = fs.unwrap_or_else(|| Arc::new(OsFileSystem::default()));
-    let package_manager = package_manager.unwrap_or_else(|| {
-      Arc::new(NodePackageManager::new(
-        options.project_root.clone(),
-        fs.clone(),
-      ))
-    });
+    let project_root = infer_project_root(Arc::clone(&fs), options.entries.clone());
+
+    let package_manager = package_manager
+      .unwrap_or_else(|| Arc::new(NodePackageManager::new(project_root.clone(), fs.clone())));
 
     Self {
       fs,
       options,
       package_manager,
+      project_root,
       rpc,
     }
   }
@@ -64,7 +66,7 @@ impl Parcel {
 
     let (config, _files) =
       ParcelRcConfigLoader::new(Arc::clone(&self.fs), Arc::clone(&self.package_manager)).load(
-        &self.options.project_root,
+        &self.project_root,
         LoadConfigOptions {
           additional_reporters: vec![], // TODO
           config: self.options.config.as_deref(),
@@ -74,8 +76,8 @@ impl Parcel {
 
     let config_loader = Arc::new(ConfigLoader {
       fs: Arc::clone(&self.fs),
-      project_root: self.options.project_root.clone(),
-      search_path: self.options.project_root.join("index"),
+      project_root: self.project_root.clone(),
+      search_path: self.project_root.join("index"),
     });
 
     let plugins = Plugins::new(

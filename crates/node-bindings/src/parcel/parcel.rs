@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
@@ -10,6 +9,7 @@ use parcel::file_system::FileSystemRef;
 use parcel::rpc::nodejs::RpcHostNodejs;
 use parcel::rpc::RpcHostRef;
 use parcel::Parcel;
+use parcel_core::types::ParcelOptions;
 use parcel_package_manager::PackageManagerRef;
 
 use crate::file_system::FileSystemNapi;
@@ -41,8 +41,11 @@ pub struct ParcelNapiOptions {
 #[napi]
 pub struct ParcelNapi {
   pub node_worker_count: u32,
+  fs: Option<FileSystemRef>,
+  options: ParcelOptions,
+  package_manager: Option<PackageManagerRef>,
+  rpc: Option<RpcHostRef>,
   tracing_guard: ParcelTracingGuard,
-  parcel: Arc<Parcel>,
 }
 
 #[napi]
@@ -85,13 +88,11 @@ impl ParcelNapi {
     let rpc = Some::<RpcHostRef>(Arc::new(rpc_host_nodejs));
 
     Ok(Self {
+      fs,
       node_worker_count: node_worker_count as u32,
-      parcel: Arc::new(Parcel::new(
-        fs,
-        env.from_js_value(napi_options.options)?,
-        package_manager,
-        rpc,
-      )),
+      options: env.from_js_value(napi_options.options)?,
+      package_manager,
+      rpc,
       tracing_guard,
     })
   }
@@ -100,31 +101,24 @@ impl ParcelNapi {
   pub fn build(&self, env: Env, _options: ParcelNapiBuildOptions) -> napi::Result<JsObject> {
     let (deferred, promise) = env.create_deferred()?;
 
-    // Call build in its own dedicated system thread
+    // Both the parcel initialisation and build must be run a dedicated system thread so that
+    // the napi threadsafe functions do not panic
     thread::spawn({
-      let parcel = self.parcel.clone();
-      move || match parcel.build() {
-        Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
-        Err(error) => deferred.reject(napi::Error::from_reason(format!("{:?}", error))),
+      let fs = self.fs.clone();
+      let options = self.options.clone();
+      let package_manager = self.package_manager.clone();
+      let rpc = self.rpc.clone();
+
+      move || {
+        let parcel = Parcel::new(fs, options, package_manager, rpc);
+
+        match parcel.build() {
+          Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
+          Err(error) => deferred.reject(napi::Error::from_reason(format!("{:?}", error))),
+        }
       }
     });
 
     Ok(promise)
-  }
-
-  // Temporary, for testing
-  #[napi]
-  pub async fn _testing_temp_fs_read_to_string(&self, path: String) -> napi::Result<String> {
-    Ok(self.parcel.fs.read_to_string(&PathBuf::from(path))?)
-  }
-
-  #[napi]
-  pub async fn _testing_temp_fs_is_file(&self, path: String) -> napi::Result<bool> {
-    Ok(self.parcel.fs.is_file(&PathBuf::from(path)))
-  }
-
-  #[napi]
-  pub async fn _testing_temp_fs_is_dir(&self, path: String) -> napi::Result<bool> {
-    Ok(self.parcel.fs.is_dir(&PathBuf::from(path)))
   }
 }

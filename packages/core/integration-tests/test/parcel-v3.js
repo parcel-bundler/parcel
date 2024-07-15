@@ -71,15 +71,7 @@ describe('parcel-v3', function () {
       fs: toFileSystemV3(overlayFS),
       nodeWorkers: 1,
       packageManager: new NodePackageManager(inputFS, __dirname),
-      projectRoot: __dirname,
     });
-
-    assert(
-      typeof (await parcel._internal.testingTempFsReadToString(__filename)) ===
-        'string',
-    );
-    assert(!(await parcel._internal.testingTempFsIsDir(__filename)));
-    assert(await parcel._internal.testingTempFsIsFile(__filename));
 
     await parcel.build();
   });
