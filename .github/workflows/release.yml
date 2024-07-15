@@ -290,10 +290,6 @@ jobs:
         with:
           name: debug-symbols
           path: debug-symbols/**
-      - name: Build node packages
-        run: yarn build
-      - name: Build TypeScript types
-        run: yarn build-ts
       - name: Debug
         run: |
           ls -l packages/*/*/*.node
