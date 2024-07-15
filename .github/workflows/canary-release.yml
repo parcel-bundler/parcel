@@ -18,6 +18,7 @@ jobs:
     with:
       profile: canary
       release-command: |
+        yarn run prepublishOnly
         # yarn canary:release --summary-file
         # node scripts/tag-release.mjs --tag nightly
       type: canary
