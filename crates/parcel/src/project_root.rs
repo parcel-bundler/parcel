@@ -33,15 +33,17 @@ fn absolute(cwd: &Path, path: &Path) -> PathBuf {
   normalized
 }
 
-struct CommonComponents<'a>(Vec<Components<'a>>);
+/// Finds the common path prefix shared between all input paths
+fn common_path(paths: &[PathBuf]) -> Option<PathBuf> {
+  let mut path_components: Vec<Components> = paths.iter().map(|path| path.components()).collect();
+  let mut common_path: Option<PathBuf> = None;
 
-/// An iterator that only returns the common components across all path components in series
-impl<'a> Iterator for CommonComponents<'a> {
-  type Item = Component<'a>;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    // Get the next component for all of our components
-    let components: Vec<Option<Component>> = self.0.iter_mut().map(Iterator::next).collect();
+  loop {
+    // Get the next component for all of our paths
+    let components = path_components
+      .iter_mut()
+      .map(Iterator::next)
+      .collect::<Vec<Option<Component>>>();
 
     // When the first component is available, check if all other components match as well
     if let Some(Some(component)) = components.first() {
@@ -49,31 +51,25 @@ impl<'a> Iterator for CommonComponents<'a> {
         .iter()
         .all(|c| c.is_some_and(|c| &c == component))
       {
-        return Some(component.to_owned());
+        common_path = common_path
+          .map(|p| p.join(component))
+          .or(Some(PathBuf::from(&component)));
+        continue;
       }
     }
 
-    // Not all of the components are equal, so we are now done with the iterator
-    return None;
-  }
-}
-
-/// Finds the common path prefix shared between all input paths
-fn common_path(paths: &[PathBuf]) -> Option<PathBuf> {
-  let components = paths.iter().map(|path| path.components()).collect();
-  let mut common_path: Option<PathBuf> = None;
-
-  for component in CommonComponents(components) {
-    common_path = common_path
-      .map(|p| p.join(component))
-      .or(Some(PathBuf::from(&component)));
+    // Not all of the components are equal, so we are now done
+    break;
   }
 
   common_path
 }
 
-pub fn infer_project_root(fs: FileSystemRef, entries: Option<Entry>) -> PathBuf {
-  let cwd = fs.cwd().expect("Expected fs.cwd() to exist");
+pub fn infer_project_root(
+  fs: FileSystemRef,
+  entries: Option<Entry>,
+) -> Result<PathBuf, anyhow::Error> {
+  let cwd = fs.cwd()?;
 
   // TODO Handle globs
   let entries = entries
@@ -110,7 +106,7 @@ pub fn infer_project_root(fs: FileSystemRef, entries: Option<Entry>) -> PathBuf 
     ))
     .map(|f| f.parent().map(|p| p.to_owned()).unwrap_or(f));
 
-  project_root_dir.unwrap_or(cwd)
+  Ok(project_root_dir.unwrap_or(cwd))
 }
 
 #[cfg(test)]
@@ -122,6 +118,66 @@ mod tests {
 
   use super::*;
 
+  mod common_path {
+    use super::*;
+
+    #[test]
+    fn returns_none_when_there_is_no_common_path() {
+      assert_eq!(
+        common_path(&vec![PathBuf::from("dist"), PathBuf::from("src")]),
+        None,
+      );
+
+      assert_eq!(
+        common_path(&vec![
+          PathBuf::from("dist"),
+          PathBuf::from("packages").join("foo"),
+        ]),
+        None,
+      );
+    }
+
+    #[test]
+    fn returns_the_common_prefix() {
+      assert_eq!(
+        common_path(&vec![PathBuf::from("/")]),
+        Some(PathBuf::from("/"))
+      );
+
+      assert_eq!(
+        common_path(&vec![PathBuf::from("src")]),
+        Some(PathBuf::from("src"))
+      );
+
+      assert_eq!(
+        common_path(&vec![
+          PathBuf::from("packages/foo"),
+          PathBuf::from("packages/bar"),
+          PathBuf::from("packages/baz"),
+        ]),
+        Some(PathBuf::from("packages"))
+      );
+
+      assert_eq!(
+        common_path(&vec![
+          PathBuf::from("packages/foo"),
+          PathBuf::from("packages/foo/a.js"),
+          PathBuf::from("packages/foo/bar/b.js"),
+        ]),
+        Some(PathBuf::from("packages").join("foo"))
+      );
+
+      assert_eq!(
+        common_path(&vec![
+          PathBuf::from("packages/foo/a.js"),
+          PathBuf::from("packages/bar/b.js"),
+          PathBuf::from("packages/baz/c.js"),
+        ]),
+        Some(PathBuf::from("packages"))
+      );
+    }
+  }
+
   mod returns_cwd_when_there_are_no_lockfiles_or_vcs {
     use super::*;
 
@@ -129,32 +185,38 @@ mod tests {
     fn or_entries() {
       let fs = Arc::new(InMemoryFileSystem::default());
 
-      assert_eq!(infer_project_root(fs.clone(), None), fs.cwd().unwrap());
+      assert_eq!(
+        infer_project_root(fs.clone(), None).map_err(|e| e.to_string()),
+        Ok(fs.cwd().unwrap())
+      );
     }
 
     #[test]
     fn with_a_single_entry() {
       let fs = Arc::new(InMemoryFileSystem::default());
+      let project_root =
+        infer_project_root(fs.clone(), Some(Entry::Single(String::from("src/a.js"))));
 
       assert_eq!(
-        infer_project_root(fs.clone(), Some(Entry::Single(String::from("src/a.js")))),
-        fs.cwd().unwrap()
+        project_root.map_err(|e| e.to_string()),
+        Ok(fs.cwd().unwrap())
       );
     }
 
     #[test]
     fn with_multiple_entries() {
       let fs = Arc::new(InMemoryFileSystem::default());
+      let project_root = infer_project_root(
+        fs.clone(),
+        Some(Entry::Multiple(vec![
+          String::from("src/a.js"),
+          String::from("src/b.js"),
+        ])),
+      );
 
       assert_eq!(
-        infer_project_root(
-          fs.clone(),
-          Some(Entry::Multiple(vec![
-            String::from("src/a.js"),
-            String::from("src/b.js")
-          ]))
-        ),
-        fs.cwd().unwrap()
+        project_root.map_err(|e| e.to_string()),
+        Ok(fs.cwd().unwrap())
       );
     }
   }
@@ -177,7 +239,10 @@ mod tests {
       fs.set_current_working_directory(cwd());
       fs.write_file(&root.join(lockfile), String::from("{}"));
 
-      assert_eq!(infer_project_root(fs, entries), root);
+      assert_eq!(
+        infer_project_root(fs, entries).map_err(|e| e.to_string()),
+        Ok(root)
+      );
     };
 
     assert_project_root("package-lock.json");
@@ -199,7 +264,10 @@ mod tests {
         fs.write_file(&root().join(lockfile), String::from("{}"));
         fs.write_file(&cwd.join(lockfile), String::from("{}"));
 
-        assert_eq!(infer_project_root(fs, entries), cwd);
+        assert_eq!(
+          infer_project_root(fs, entries).map_err(|e| e.to_string()),
+          Ok(cwd)
+        );
       };
 
       assert_project_root("package-lock.json");
@@ -226,7 +294,10 @@ mod tests {
           String::from("{}"),
         );
 
-        assert_eq!(infer_project_root(fs, entries), root());
+        assert_eq!(
+          infer_project_root(fs, entries).map_err(|e| e.to_string()),
+          Ok(root())
+        );
       };
 
       assert_project_root("package-lock.json");
@@ -245,7 +316,10 @@ mod tests {
       fs.set_current_working_directory(cwd());
       fs.create_directory(&root.join(vcs));
 
-      assert_eq!(infer_project_root(fs, entries), root);
+      assert_eq!(
+        infer_project_root(fs, entries).map_err(|e| e.to_string()),
+        Ok(root)
+      );
     };
 
     assert_project_root(".git");

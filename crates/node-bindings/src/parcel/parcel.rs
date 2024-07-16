@@ -111,10 +111,14 @@ impl ParcelNapi {
 
       move || {
         let parcel = Parcel::new(fs, options, package_manager, rpc);
+        let to_napi_error = |error| napi::Error::from_reason(format!("{:?}", error));
 
-        match parcel.build() {
-          Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
-          Err(error) => deferred.reject(napi::Error::from_reason(format!("{:?}", error))),
+        match parcel {
+          Err(error) => deferred.reject(to_napi_error(error)),
+          Ok(parcel) => match parcel.build() {
+            Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
+            Err(error) => deferred.reject(to_napi_error(error)),
+          },
         }
       }
     });

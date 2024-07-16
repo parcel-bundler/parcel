@@ -37,20 +37,20 @@ impl Parcel {
     options: ParcelOptions,
     package_manager: Option<PackageManagerRef>,
     rpc: Option<RpcHostRef>,
-  ) -> Self {
+  ) -> Result<Self, anyhow::Error> {
     let fs = fs.unwrap_or_else(|| Arc::new(OsFileSystem::default()));
-    let project_root = infer_project_root(Arc::clone(&fs), options.entries.clone());
+    let project_root = infer_project_root(Arc::clone(&fs), options.entries.clone())?;
 
     let package_manager = package_manager
       .unwrap_or_else(|| Arc::new(NodePackageManager::new(project_root.clone(), fs.clone())));
 
-    Self {
+    Ok(Self {
       fs,
       options,
       package_manager,
       project_root,
       rpc,
-    }
+    })
   }
 }
 
