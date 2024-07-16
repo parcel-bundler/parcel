@@ -1908,6 +1908,8 @@ dependencies = [
  "anyhow",
  "napi",
  "napi-build",
+ "once_cell",
+ "parking_lot",
  "serde",
 ]
 
