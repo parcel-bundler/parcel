@@ -103,6 +103,7 @@ impl Parcel {
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
       plugins,
+      self.project_root.clone(),
     );
 
     // TODO: Run asset graph request

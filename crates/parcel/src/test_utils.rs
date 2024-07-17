@@ -7,7 +7,7 @@ use parcel_core::{
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
 };
-use parcel_filesystem::{in_memory_file_system::InMemoryFileSystem, FileSystemRef, MockFileSystem};
+use parcel_filesystem::{in_memory_file_system::InMemoryFileSystem, FileSystemRef};
 
 use crate::{plugins::Plugins, request_tracker::RequestTracker};
 
@@ -34,6 +34,7 @@ pub struct RequestTrackerTestOptions {
   pub project_root: PathBuf,
   pub search_path: PathBuf,
 }
+
 impl Default for RequestTrackerTestOptions {
   fn default() -> Self {
     Self {
@@ -43,6 +44,7 @@ impl Default for RequestTrackerTestOptions {
     }
   }
 }
+
 pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTracker {
   let RequestTrackerTestOptions {
     fs,
@@ -52,18 +54,19 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
 
   let config_loader = Arc::new(ConfigLoader {
     fs: fs.clone(),
-    project_root,
+    project_root: project_root.clone(),
     search_path,
   });
 
   RequestTracker::new(
     Arc::new(MockCache::new()),
     Arc::clone(&config_loader),
-    Arc::new(MockFileSystem::new()),
+    fs,
     plugins(PluginContext {
       config: Arc::clone(&config_loader),
       options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
     }),
+    project_root,
   )
 }

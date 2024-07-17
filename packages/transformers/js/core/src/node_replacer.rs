@@ -41,7 +41,6 @@ pub struct NodeReplacer<'a> {
 impl<'a> VisitMut for NodeReplacer<'a> {
   fn visit_mut_expr(&mut self, node: &mut ast::Expr) {
     use ast::Expr::*;
-    use ast::MemberProp;
 
     match node {
       Ident(id) => {
