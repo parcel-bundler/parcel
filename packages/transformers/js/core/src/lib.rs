@@ -397,7 +397,7 @@ pub fn transform(
                 // Replace __dirname and __filename with placeholders in Node env
                 &mut Optional::new(
                   NodeReplacer {
-                    source_map: &source_map,
+                    source_map: source_map.clone(),
                     items: &mut global_deps,
                     global_mark,
                     globals: HashMap::new(),

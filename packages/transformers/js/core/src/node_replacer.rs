@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 
+use swc_core::common::sync::Lrc;
 use swc_core::common::Mark;
 use swc_core::common::SourceMap;
 use swc_core::common::SyntaxContext;
@@ -22,8 +23,12 @@ use crate::utils::SourceType;
 
 /// Replaces __filename and __dirname with globals that reference to string literals for the
 /// file-path of this file.
+///
+/// This is coupled with the packager implementations in `ScopeHoistingPackager.js` and
+/// `DevPackager.js` which handle inserting paths into this file through string replacement of
+/// the `"$parcel$filenameReplace"` and `"$parcel$dirnameReplace"` string literals.
 pub struct NodeReplacer<'a> {
-  pub source_map: &'a SourceMap,
+  pub source_map: Lrc<SourceMap>,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub global_mark: Mark,
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
@@ -75,7 +80,7 @@ impl<'a> Fold for NodeReplacer<'a> {
             } else {
               OsStr::new("unknown.js")
             };
-            ast::Expr::Call(ast::CallExpr {
+            Call(ast::CallExpr {
               span: DUMMY_SP,
               type_args: None,
               args: vec![
@@ -116,7 +121,7 @@ impl<'a> Fold for NodeReplacer<'a> {
           if self.update_binding(id, "$parcel$__filename".into(), expr) {
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
-              loc: SourceLocation::from(self.source_map, id.span),
+              loc: SourceLocation::from(&self.source_map, id.span),
               specifier,
               attributes: None,
               is_optional: false,
@@ -163,7 +168,7 @@ impl<'a> Fold for NodeReplacer<'a> {
           }) {
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
-              loc: SourceLocation::from(self.source_map, id.span),
+              loc: SourceLocation::from(&self.source_map, id.span),
               specifier,
               attributes: None,
               is_optional: false,
@@ -214,5 +219,172 @@ impl NodeReplacer<'_> {
       self.globals.insert(id_ref.sym.clone(), (ctxt, decl));
       true
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::test_utils::run_fold;
+
+  #[test]
+  fn test_replace_filename() {
+    let mut has_node_replacements = false;
+    let mut items = vec![];
+
+    let code = r#"
+const filename = __filename;
+console.log(__filename);
+    "#;
+    let output_code = run_fold(code, |context| NodeReplacer {
+      source_map: context.source_map.clone(),
+      global_mark: context.global_mark,
+      globals: HashMap::new(),
+      filename: Path::new("/path/random.js"),
+      has_node_replacements: &mut has_node_replacements,
+      items: &mut items,
+      unresolved_mark: context.unresolved_mark,
+    })
+    .output_code;
+
+    let expected_code = r#"
+var $parcel$__filename = require("path").resolve(__dirname, "$parcel$filenameReplace", "random.js");
+const filename = $parcel$__filename;
+console.log($parcel$__filename);
+"#
+    .trim_start();
+    assert_eq!(output_code, expected_code);
+    assert_eq!(has_node_replacements, true);
+    assert_eq!(items[0].specifier, JsWord::from("path"));
+    assert_eq!(items[0].kind, DependencyKind::Require);
+    assert_eq!(items[0].source_type, Some(SourceType::Module));
+    assert_eq!(items.len(), 1);
+  }
+
+  #[test]
+  fn test_replace_dirname() {
+    let mut has_node_replacements = false;
+    let mut items = vec![];
+
+    let code = r#"
+const dirname = __dirname;
+console.log(__dirname);
+    "#;
+    let output_code = run_fold(code, |context| NodeReplacer {
+      source_map: context.source_map.clone(),
+      global_mark: context.global_mark,
+      globals: HashMap::new(),
+      filename: Path::new("/path/random.js"),
+      has_node_replacements: &mut has_node_replacements,
+      items: &mut items,
+      unresolved_mark: context.unresolved_mark,
+    })
+    .output_code;
+
+    let expected_code = r#"
+var $parcel$__dirname = require("path").resolve(__dirname, "$parcel$dirnameReplace");
+const dirname = $parcel$__dirname;
+console.log($parcel$__dirname);
+"#
+    .trim_start();
+    assert_eq!(output_code, expected_code);
+    assert_eq!(has_node_replacements, true);
+    assert_eq!(items[0].specifier, JsWord::from("path"));
+    assert_eq!(items[0].kind, DependencyKind::Require);
+    assert_eq!(items[0].source_type, Some(SourceType::Module));
+    assert_eq!(items.len(), 1);
+  }
+
+  #[test]
+  fn test_does_not_replace_if_variables_are_shadowed() {
+    let mut has_node_replacements = false;
+    let mut items = vec![];
+
+    let code = r#"
+function something(__filename, __dirname) {
+    const filename = __filename;
+    console.log(__filename);
+    console.log(__dirname);
+}
+    "#;
+    let output_code = run_fold(code, |context| NodeReplacer {
+      source_map: context.source_map.clone(),
+      global_mark: context.global_mark,
+      globals: HashMap::new(),
+      filename: Path::new("/path/random.js"),
+      has_node_replacements: &mut has_node_replacements,
+      items: &mut items,
+      unresolved_mark: context.unresolved_mark,
+    })
+    .output_code;
+
+    let expected_code = r#"
+function something(__filename, __dirname) {
+    const filename = __filename;
+    console.log(__filename);
+    console.log(__dirname);
+}
+"#
+    .trim_start();
+    assert_eq!(output_code, expected_code);
+    assert_eq!(has_node_replacements, false);
+    assert_eq!(items.len(), 0);
+  }
+
+  #[test]
+  fn test_does_not_replace_filename_or_dirname_identifiers_randomly() {
+    let mut has_node_replacements = false;
+    let mut items = vec![];
+
+    let code = r#"
+const filename = obj.__filename;
+    "#;
+    let output_code = run_fold(code, |context| NodeReplacer {
+      source_map: context.source_map.clone(),
+      global_mark: context.global_mark,
+      globals: HashMap::new(),
+      filename: Path::new("/path/random.js"),
+      has_node_replacements: &mut has_node_replacements,
+      items: &mut items,
+      unresolved_mark: context.unresolved_mark,
+    })
+    .output_code;
+
+    let expected_code = r#"
+const filename = obj.__filename;
+"#
+    .trim_start();
+    assert_eq!(output_code, expected_code);
+    assert_eq!(has_node_replacements, false);
+    assert_eq!(items.len(), 0);
+  }
+
+  #[test]
+  fn test_does_replace_filename_or_dirname_identifiers_on_member_props() {
+    let mut has_node_replacements = false;
+    let mut items = vec![];
+
+    let code = r#"
+const filename = obj[__filename];
+    "#;
+    let output_code = run_fold(code, |context| NodeReplacer {
+      source_map: context.source_map.clone(),
+      global_mark: context.global_mark,
+      globals: HashMap::new(),
+      filename: Path::new("/path/random.js"),
+      has_node_replacements: &mut has_node_replacements,
+      items: &mut items,
+      unresolved_mark: context.unresolved_mark,
+    })
+    .output_code;
+
+    let expected_code = r#"
+var $parcel$__filename = require("path").resolve(__dirname, "$parcel$filenameReplace", "random.js");
+const filename = obj[$parcel$__filename];
+"#
+    .trim_start();
+    assert_eq!(output_code, expected_code);
+    assert_eq!(has_node_replacements, true);
+    assert_eq!(items.len(), 1);
   }
 }
