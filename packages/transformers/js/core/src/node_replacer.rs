@@ -8,10 +8,9 @@ use swc_core::common::SourceMap;
 use swc_core::common::SyntaxContext;
 use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
+use swc_core::ecma::ast::MemberProp;
 use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::utils::stack_size::maybe_grow_default;
-use swc_core::ecma::visit::Fold;
-use swc_core::ecma::visit::FoldWith;
+use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
 use crate::dependency_collector::DependencyDescriptor;
 use crate::dependency_collector::DependencyKind;
@@ -29,167 +28,169 @@ use crate::utils::SourceType;
 /// the `"$parcel$filenameReplace"` and `"$parcel$dirnameReplace"` string literals.
 pub struct NodeReplacer<'a> {
   pub source_map: Lrc<SourceMap>,
-  pub items: &'a mut Vec<DependencyDescriptor>,
   pub global_mark: Mark,
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub filename: &'a Path,
   pub unresolved_mark: Mark,
+  /// This will be set to true if the file has either __dirname or __filename replacements inserted
   pub has_node_replacements: &'a mut bool,
+  /// This will be populated with the added dependency into the `"path"` module.
+  pub items: &'a mut Vec<DependencyDescriptor>,
 }
 
-impl<'a> Fold for NodeReplacer<'a> {
-  fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
+impl<'a> VisitMut for NodeReplacer<'a> {
+  fn visit_mut_expr(&mut self, node: &mut ast::Expr) {
     use ast::Expr::*;
-    use ast::MemberExpr;
     use ast::MemberProp;
 
-    // Do not traverse into the `prop` side of member expressions unless computed.
-    let mut node = match node {
-      Member(expr) => {
-        if let MemberProp::Computed(_) = expr.prop {
-          Member(MemberExpr {
-            obj: expr.obj.fold_with(self),
-            prop: expr.prop.fold_with(self),
-            ..expr
-          })
-        } else {
-          Member(MemberExpr {
-            obj: expr.obj.fold_with(self),
-            ..expr
-          })
+    match node {
+      Ident(id) => {
+        // Only handle global variables
+        if !is_unresolved(&id, self.unresolved_mark) {
+          return;
         }
-      }
-      _ => maybe_grow_default(|| node.fold_children_with(self)),
-    };
 
-    if let Ident(id) = &mut node {
-      // Only handle global variables
-      if !is_unresolved(&id, self.unresolved_mark) {
-        return node;
-      }
+        match id.sym.to_string().as_str() {
+          "__filename" => {
+            let path_module_specifier = swc_core::ecma::atoms::JsWord::from("path");
+            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$filenameReplace");
 
-      let unresolved_mark = self.unresolved_mark;
-      match id.sym.to_string().as_str() {
-        "__filename" => {
-          let specifier = swc_core::ecma::atoms::JsWord::from("path");
-          let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$filenameReplace");
-
-          let expr = |this: &NodeReplacer| {
-            let filename = if let Some(name) = this.filename.file_name() {
-              name
-            } else {
-              OsStr::new("unknown.js")
+            let unresolved_mark = self.unresolved_mark;
+            let expr = |this: &NodeReplacer| {
+              let filename = if let Some(name) = this.filename.file_name() {
+                name
+              } else {
+                OsStr::new("unknown.js")
+              };
+              Call(ast::CallExpr {
+                span: DUMMY_SP,
+                type_args: None,
+                args: vec![
+                  ast::ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(ast::Expr::Ident(ast::Ident {
+                      optional: false,
+                      span: DUMMY_SP,
+                      // This also uses __dirname as later in the path.join call the hierarchy is then correct
+                      // Otherwise path.join(__filename, '..') would be one level to shallow (due to the /filename.js at the end)
+                      sym: swc_core::ecma::atoms::JsWord::from("__dirname"),
+                    })),
+                  },
+                  ast::ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                      span: DUMMY_SP,
+                      value: replace_me_value,
+                      raw: None,
+                    }))),
+                  },
+                  ast::ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                      span: DUMMY_SP,
+                      value: swc_core::ecma::atoms::JsWord::from(filename.to_string_lossy()),
+                      raw: None,
+                    }))),
+                  },
+                ],
+                callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+                  span: DUMMY_SP,
+                  obj: (Box::new(Call(create_require(
+                    path_module_specifier.clone(),
+                    unresolved_mark,
+                  )))),
+                  prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
+                }))),
+              })
             };
-            Call(ast::CallExpr {
-              span: DUMMY_SP,
-              type_args: None,
-              args: vec![
-                ast::ExprOrSpread {
-                  spread: None,
-                  expr: Box::new(ast::Expr::Ident(ast::Ident {
-                    optional: false,
-                    span: DUMMY_SP,
-                    // This also uses __dirname as later in the path.join call the hierarchy is then correct
-                    // Otherwise path.join(__filename, '..') would be one level to shallow (due to the /filename.js at the end)
-                    sym: swc_core::ecma::atoms::JsWord::from("__dirname"),
-                  })),
-                },
-                ast::ExprOrSpread {
-                  spread: None,
-                  expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                    span: DUMMY_SP,
-                    value: replace_me_value,
-                    raw: None,
-                  }))),
-                },
-                ast::ExprOrSpread {
-                  spread: None,
-                  expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                    span: DUMMY_SP,
-                    value: swc_core::ecma::atoms::JsWord::from(filename.to_string_lossy()),
-                    raw: None,
-                  }))),
-                },
-              ],
-              callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
-                span: DUMMY_SP,
-                obj: (Box::new(Call(create_require(specifier.clone(), unresolved_mark)))),
-                prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
-              }))),
-            })
-          };
-          if self.update_binding(id, "$parcel$__filename".into(), expr) {
-            self.items.push(DependencyDescriptor {
-              kind: DependencyKind::Require,
-              loc: SourceLocation::from(&self.source_map, id.span),
-              specifier,
-              attributes: None,
-              is_optional: false,
-              is_helper: false,
-              source_type: Some(SourceType::Module),
-              placeholder: None,
-            });
+            if self.update_binding(id, "$parcel$__filename".into(), expr) {
+              self.items.push(DependencyDescriptor {
+                kind: DependencyKind::Require,
+                loc: SourceLocation::from(&self.source_map, id.span),
+                specifier: path_module_specifier,
+                attributes: None,
+                is_optional: false,
+                is_helper: false,
+                source_type: Some(SourceType::Module),
+                placeholder: None,
+              });
 
-            *self.has_node_replacements = true;
+              *self.has_node_replacements = true;
+            }
           }
-        }
-        "__dirname" => {
-          let specifier = swc_core::ecma::atoms::JsWord::from("path");
-          let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$dirnameReplace");
+          "__dirname" => {
+            let path_module_specifier = swc_core::ecma::atoms::JsWord::from("path");
+            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$dirnameReplace");
 
-          if self.update_binding(id, "$parcel$__dirname".into(), |_| {
-            ast::Expr::Call(ast::CallExpr {
-              span: DUMMY_SP,
-              type_args: None,
-              args: vec![
-                ast::ExprOrSpread {
-                  spread: None,
-                  expr: Box::new(ast::Expr::Ident(ast::Ident {
-                    optional: false,
-                    span: DUMMY_SP,
-                    sym: swc_core::ecma::atoms::JsWord::from("__dirname"),
-                  })),
-                },
-                ast::ExprOrSpread {
-                  spread: None,
-                  expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                    span: DUMMY_SP,
-                    value: replace_me_value,
-                    raw: None,
-                  }))),
-                },
-              ],
-              callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+            let unresolved_mark = self.unresolved_mark;
+            if self.update_binding(id, "$parcel$__dirname".into(), |_| {
+              Call(ast::CallExpr {
                 span: DUMMY_SP,
-                obj: (Box::new(Call(create_require(specifier.clone(), unresolved_mark)))),
-                prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
-              }))),
-            })
-          }) {
-            self.items.push(DependencyDescriptor {
-              kind: DependencyKind::Require,
-              loc: SourceLocation::from(&self.source_map, id.span),
-              specifier,
-              attributes: None,
-              is_optional: false,
-              is_helper: false,
-              source_type: Some(SourceType::Module),
-              placeholder: None,
-            });
+                type_args: None,
+                args: vec![
+                  ast::ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(ast::Expr::Ident(ast::Ident {
+                      optional: false,
+                      span: DUMMY_SP,
+                      sym: swc_core::ecma::atoms::JsWord::from("__dirname"),
+                    })),
+                  },
+                  ast::ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                      span: DUMMY_SP,
+                      value: replace_me_value,
+                      raw: None,
+                    }))),
+                  },
+                ],
+                callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+                  span: DUMMY_SP,
+                  obj: (Box::new(Call(create_require(
+                    path_module_specifier.clone(),
+                    unresolved_mark,
+                  )))),
+                  prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
+                }))),
+              })
+            }) {
+              self.items.push(DependencyDescriptor {
+                kind: DependencyKind::Require,
+                loc: SourceLocation::from(&self.source_map, id.span),
+                specifier: path_module_specifier,
+                attributes: None,
+                is_optional: false,
+                is_helper: false,
+                source_type: Some(SourceType::Module),
+                placeholder: None,
+              });
 
-            *self.has_node_replacements = true;
+              *self.has_node_replacements = true;
+            }
           }
+          _ => {}
         }
-        _ => {}
       }
-    }
-
-    node
+      _ => {
+        node.visit_mut_children_with(self);
+      }
+    };
   }
 
-  fn fold_module(&mut self, node: ast::Module) -> ast::Module {
+  // Do not traverse into the `prop` side of member expressions unless computed.
+  fn visit_mut_member_prop(&mut self, node: &mut MemberProp) {
+    match node {
+      MemberProp::Computed(computed) => {
+        computed.visit_mut_children_with(self);
+      }
+      _ => {}
+    }
+  }
+
+  fn visit_mut_module(&mut self, node: &mut ast::Module) {
     // Insert globals at the top of the program
-    let mut node = swc_core::ecma::visit::fold_module(self, node);
+    node.visit_mut_children_with(self);
     node.body.splice(
       0..0,
       self
@@ -197,7 +198,6 @@ impl<'a> Fold for NodeReplacer<'a> {
         .values()
         .map(|(_, stmt)| ast::ModuleItem::Stmt(stmt.clone())),
     );
-    node
   }
 }
 
@@ -224,8 +224,9 @@ impl NodeReplacer<'_> {
 
 #[cfg(test)]
 mod test {
+  use crate::test_utils::run_visit;
+
   use super::*;
-  use crate::test_utils::run_fold;
 
   #[test]
   fn test_replace_filename() {
@@ -236,7 +237,7 @@ mod test {
 const filename = __filename;
 console.log(__filename);
     "#;
-    let output_code = run_fold(code, |context| NodeReplacer {
+    let output_code = run_visit(code, |context| NodeReplacer {
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: HashMap::new(),
@@ -270,7 +271,7 @@ console.log($parcel$__filename);
 const dirname = __dirname;
 console.log(__dirname);
     "#;
-    let output_code = run_fold(code, |context| NodeReplacer {
+    let output_code = run_visit(code, |context| NodeReplacer {
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: HashMap::new(),
@@ -307,7 +308,7 @@ function something(__filename, __dirname) {
     console.log(__dirname);
 }
     "#;
-    let output_code = run_fold(code, |context| NodeReplacer {
+    let output_code = run_visit(code, |context| NodeReplacer {
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: HashMap::new(),
@@ -339,7 +340,7 @@ function something(__filename, __dirname) {
     let code = r#"
 const filename = obj.__filename;
     "#;
-    let output_code = run_fold(code, |context| NodeReplacer {
+    let output_code = run_visit(code, |context| NodeReplacer {
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: HashMap::new(),
@@ -367,7 +368,7 @@ const filename = obj.__filename;
     let code = r#"
 const filename = obj[__filename];
     "#;
-    let output_code = run_fold(code, |context| NodeReplacer {
+    let output_code = run_visit(code, |context| NodeReplacer {
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: HashMap::new(),
