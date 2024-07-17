@@ -219,13 +219,13 @@ mod test {
     items: &mut Vec<DependencyDescriptor>,
   ) -> GlobalReplacer {
     GlobalReplacer {
-      source_map: run_test_context.source_map,
+      source_map: run_test_context.source_map.clone(),
       items,
-      global_mark: run_test_context.global_mark,
+      global_mark: run_test_context.global_mark.clone(),
       globals: Default::default(),
       project_root: Path::new("project-root"),
       filename: Path::new("filename"),
-      unresolved_mark: run_test_context.unresolved_mark,
+      unresolved_mark: run_test_context.unresolved_mark.clone(),
       scope_hoist: false,
     }
   }

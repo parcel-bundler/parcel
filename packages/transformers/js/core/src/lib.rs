@@ -359,15 +359,15 @@ pub fn transform(
                   ),
                   // Inline process.env and process.browser,
                   Optional::new(
-                    EnvReplacer {
+                    as_folder(EnvReplacer {
                       replace_env: config.replace_env,
                       env: &config.env,
                       is_browser: config.is_browser,
                       used_env: &mut result.used_env,
-                      source_map: &source_map,
+                      source_map: source_map.clone(),
                       diagnostics: &mut diagnostics,
                       unresolved_mark
-                    },
+                    }),
                     config.source_type != SourceType::Script
                   ),
                   paren_remover(Some(&comments)),
