@@ -84,8 +84,11 @@ impl Parcel {
       config,
       PluginContext {
         config: Arc::clone(&config_loader),
-        // TODO options and logger
-        options: Arc::new(PluginOptions::default()),
+        options: Arc::new(PluginOptions {
+          mode: self.options.mode.clone(),
+          project_root: self.project_root.clone(),
+        }),
+        // TODO Initialise actual logger
         logger: PluginLogger::default(),
       },
     );
