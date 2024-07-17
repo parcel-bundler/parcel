@@ -8,8 +8,7 @@ use swc_core::common::Mark;
 use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast;
 use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::utils::stack_size::maybe_grow;
-use swc_core::ecma::visit::{Fold, FoldWith, VisitMut, VisitMutWith};
+use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
 use crate::utils::*;
 
@@ -78,7 +77,7 @@ impl<'a> VisitMut for EnvReplacer<'a> {
       }
     }
 
-    if let Expr::Assign(assign) = &node {
+    if let Expr::Assign(assign) = node {
       if !self.replace_env {
         node.visit_mut_children_with(self);
         return;
@@ -89,7 +88,8 @@ impl<'a> VisitMut for EnvReplacer<'a> {
         if let Expr::Member(obj) = &*member.obj {
           if match_member_expr(obj, vec!["process", "env"], self.unresolved_mark) {
             self.emit_mutating_error(assign.span);
-            *assign.right.clone().visit_mut_children_with(self);
+            assign.right.visit_mut_with(self);
+            *node = *assign.right.clone();
             return;
           }
         }
@@ -155,10 +155,14 @@ impl<'a> VisitMut for EnvReplacer<'a> {
                 self.emit_mutating_error(*span);
                 *node = match &node {
                   Expr::Unary(_) => Expr::Lit(Lit::Bool(Bool { span: *span, value: true })),
-                  Expr::Update(_) => *arg.clone().fold_with(self),
+                  Expr::Update(_) => {
+                    // TODO: This can be written to run in-place to make it more efficient
+                    let mut replacement = *arg.clone();
+                    replacement.visit_mut_with(self);
+                    replacement
+                  }
                   _ => unreachable!()
                 };
-                return;
               }
             }
           }
@@ -187,7 +191,9 @@ impl<'a> VisitMut for EnvReplacer<'a> {
         }
       }
 
-      decls.push(decl.clone().fold_with(self));
+      let mut decl = decl.clone();
+      decl.visit_mut_with(self);
+      decls.push(decl);
     }
 
     *node = VarDecl {
@@ -196,173 +202,6 @@ impl<'a> VisitMut for EnvReplacer<'a> {
       decls,
       declare: node.declare,
     };
-  }
-}
-
-impl<'a> Fold for EnvReplacer<'a> {
-  fn fold_expr(&mut self, node: Expr) -> Expr {
-    // Replace assignments to process.browser with `true`
-    // TODO: this seems questionable but we did it in the JS version??
-    if let Some(value) = self.replace_browser_assignment(&node) {
-      return value;
-    }
-
-    // Replace `'foo' in process.env` with a boolean.
-    match &node {
-      Expr::Bin(binary) if binary.op == BinaryOp::In => {
-        if let (Expr::Lit(Lit::Str(left)), Expr::Member(member)) = (&*binary.left, &*binary.right) {
-          if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
-            self.used_env.insert(left.value.clone());
-            return Expr::Lit(Lit::Bool(Bool {
-              value: self.env.contains_key(&left.value),
-              span: DUMMY_SP,
-            }));
-          }
-        }
-      }
-      _ => {}
-    }
-
-    if let Expr::Member(ref member) = node {
-      if self.is_browser
-        && match_member_expr(member, vec!["process", "browser"], self.unresolved_mark)
-      {
-        return Expr::Lit(Lit::Bool(Bool {
-          value: true,
-          span: DUMMY_SP,
-        }));
-      }
-
-      if !self.replace_env {
-        return node.fold_children_with(self);
-      }
-
-      if let Expr::Member(obj) = &*member.obj {
-        if match_member_expr(obj, vec!["process", "env"], self.unresolved_mark) {
-          if let Some((sym, _)) = match_property_name(member) {
-            if let Some(replacement) = self.replace(&sym, true) {
-              return replacement;
-            }
-          }
-        }
-      }
-    }
-
-    if let Expr::Assign(assign) = &node {
-      if !self.replace_env {
-        return node.fold_children_with(self);
-      }
-
-      // process.env.FOO = ...;
-      if let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left {
-        if let Expr::Member(obj) = &*member.obj {
-          if match_member_expr(obj, vec!["process", "env"], self.unresolved_mark) {
-            self.emit_mutating_error(assign.span);
-            return *assign.right.clone().fold_with(self);
-          }
-        }
-      }
-
-      if let Expr::Member(member) = &*assign.right {
-        if assign.op == AssignOp::Assign
-          && match_member_expr(member, vec!["process", "env"], self.unresolved_mark)
-        {
-          let pat = match &assign.left {
-            // ({x, y, z, ...} = process.env);
-            AssignTarget::Simple(SimpleAssignTarget::Ident(ident)) => {
-              Some(Pat::Ident(ident.clone()))
-            }
-            // foo = process.env;
-            AssignTarget::Pat(AssignTargetPat::Object(obj)) => Some(obj.clone().into()),
-            _ => None,
-          };
-          if let Some(pat) = pat {
-            let mut decls = vec![];
-            self.collect_pat_bindings(&pat, &mut decls);
-
-            let mut exprs: Vec<Box<Expr>> = decls
-              .iter()
-              .map(|decl| {
-                Box::new(Expr::Assign(AssignExpr {
-                  span: DUMMY_SP,
-                  op: AssignOp::Assign,
-                  left: decl.name.clone().try_into().unwrap(),
-                  right: Box::new(if let Some(init) = &decl.init {
-                    *init.clone()
-                  } else {
-                    Expr::Ident(get_undefined_ident(self.unresolved_mark))
-                  }),
-                }))
-              })
-              .collect();
-
-            exprs.push(Box::new(Expr::Object(ObjectLit {
-              span: DUMMY_SP,
-              props: vec![],
-            })));
-
-            return Expr::Seq(SeqExpr {
-              span: assign.span,
-              exprs,
-            });
-          }
-        }
-      }
-    }
-
-    if self.replace_env {
-      match &node {
-        // e.g. delete process.env.SOMETHING
-        Expr::Unary(UnaryExpr { op: UnaryOp::Delete, arg, span, .. }) |
-        // e.g. process.env.UPDATE++
-        Expr::Update(UpdateExpr { arg, span, .. }) => {
-          if let Expr::Member(MemberExpr { ref obj, .. }) = &**arg {
-            if let Expr::Member(member) = &**obj {
-              if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
-                self.emit_mutating_error(*span);
-                return match &node {
-                  Expr::Unary(_) => Expr::Lit(Lit::Bool(Bool { span: *span, value: true })),
-                  Expr::Update(_) => *arg.clone().fold_with(self),
-                  _ => unreachable!()
-                }
-              }
-            }
-          }
-        },
-        _ => {}
-      }
-    }
-
-    // We need a larger red_zone here than swc's default because of possible
-    // stack overflows on windows with files like https://github.com/highlightjs/highlight.js/blob/105a11a13eedbf830c0e80cc052028ceb593837f/src/languages/isbl.js.
-    maybe_grow(32 * 1024, 16 * 1024, || node.fold_children_with(self))
-  }
-
-  fn fold_var_decl(&mut self, node: VarDecl) -> VarDecl {
-    if !self.replace_env {
-      return node.fold_children_with(self);
-    }
-
-    let mut decls = vec![];
-    for decl in &node.decls {
-      if let Some(init) = &decl.init {
-        if let Expr::Member(member) = &**init {
-          if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
-            self.collect_pat_bindings(&decl.name, &mut decls);
-            continue;
-          }
-        }
-      }
-
-      decls.push(decl.clone().fold_with(self));
-    }
-
-    VarDecl {
-      span: node.span,
-      kind: node.kind,
-      decls,
-      declare: node.declare,
-    }
   }
 }
 
@@ -436,7 +275,12 @@ impl<'a> EnvReplacer<'a> {
 
               decls.push(VarDeclarator {
                 span: DUMMY_SP,
-                name: *kv.value.clone().fold_with(self),
+                name: {
+                  // TODO: This can be written to run in-place to make it more efficient
+                  let mut replacement = *kv.value.clone();
+                  replacement.visit_mut_with(self);
+                  replacement
+                },
                 init: if let Some(key) = key {
                   self.replace(&key, false).map(Box::new)
                 } else {
@@ -454,7 +298,10 @@ impl<'a> EnvReplacer<'a> {
                 init: if let Some(init) = self.replace(&assign.key.sym, false) {
                   Some(Box::new(init))
                 } else {
-                  assign.value.clone().fold_with(self)
+                  // TODO: This can be written to run in-place to make it more efficient
+                  let mut replacement = assign.value.clone();
+                  replacement.visit_mut_with(self);
+                  replacement
                 },
                 definite: false,
               })
@@ -505,7 +352,7 @@ impl<'a> EnvReplacer<'a> {
 
 #[cfg(test)]
 mod test {
-  use crate::test_utils::{run_fold, RunTestContext, RunVisitResult};
+  use crate::test_utils::{run_visit, RunTestContext, RunVisitResult};
 
   use super::*;
 
@@ -532,7 +379,7 @@ mod test {
     let mut used_env = HashSet::new();
     let mut diagnostics = Vec::new();
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"process.browser = '1234';
 console.log('thing' in process.env);
 const isTest = process.env.IS_TEST === "true";
@@ -568,7 +415,7 @@ const { package, IS_TEST: isTest2, ...other } = process.env;
     let mut used_env = HashSet::new();
     let mut diagnostics = Vec::new();
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 process.browser = '1234';
 other = '1234';
@@ -600,7 +447,7 @@ console.log(other = false);
     let mut used_env = HashSet::new();
     let mut diagnostics = Vec::new();
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 process.env = {};
     "#,
@@ -626,9 +473,10 @@ process.env = {};
     let mut used_env = HashSet::new();
     let mut diagnostics = Vec::new();
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 process.env.PROP = 'other';
+delete process.env.PROP;
 process.env.PROP++;
     "#,
       |run_test_context: RunTestContext| {
@@ -640,18 +488,23 @@ process.env.PROP++;
     assert_eq!(
       output_code,
       r#"'other';
+true;
 undefined;
 "#
     );
     // tracks that the variable was used
     assert_eq!(used_env, HashSet::from(["PROP".into()]));
-    assert_eq!(diagnostics.len(), 2);
+    assert_eq!(diagnostics.len(), 3);
     assert_eq!(
       diagnostics[0].message,
       "Mutating process.env is not supported"
     );
     assert_eq!(
       diagnostics[1].message,
+      "Mutating process.env is not supported"
+    );
+    assert_eq!(
+      diagnostics[2].message,
       "Mutating process.env is not supported"
     );
   }
@@ -664,7 +517,7 @@ undefined;
 
     env.insert("foo".into(), "foo".into());
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 console.log(foo = process.env);
 const x = ({ foo, ...others } = process.env);
@@ -692,7 +545,7 @@ const x = (foo = "foo", others = {}, {});
     let mut used_env = HashSet::new();
     let mut diagnostics = Vec::new();
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 console.log(process.browser);
 function run(enabled = process.browser) {}
@@ -722,7 +575,7 @@ function run(enabled = true) {}
 
     env.insert("thing".into(), "here".into());
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 console.log('thing' in process.env);
 console.log('other' in process.env);
@@ -750,7 +603,7 @@ console.log(false);
     let mut used_env = HashSet::new();
     let mut diagnostics = Vec::new();
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 const isTest = process.something;
 const version = process.env.hasOwnProperty('version');
@@ -782,7 +635,7 @@ const version = process.env.hasOwnProperty('version');
     env.insert("VERSION".into(), "1.2.3".into());
     env.insert("package".into(), "parcel".into());
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 const isTest = process.env.IS_TEST === "true";
 const version = process.env['VERSION'];
@@ -820,7 +673,7 @@ const package = "parcel", isTest2 = "true";
 
     env.insert("package".into(), "parcel".into());
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 const { package, ...other } = process.env;
     "#,
@@ -850,7 +703,7 @@ const { package, ...other } = process.env;
     env.insert("B".into(), "B".into());
     env.insert("C".into(), "C".into());
 
-    let RunVisitResult { output_code, .. } = run_fold(
+    let RunVisitResult { output_code, .. } = run_visit(
       r#"
 const env = process.env;
     "#,
