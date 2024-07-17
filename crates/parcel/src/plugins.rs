@@ -41,12 +41,12 @@ pub struct Plugins {
   config: ParcelConfig,
 
   /// Dependencies available to all plugin types
-  ctx: Arc<PluginContext>,
+  ctx: PluginContext,
 }
 
 impl Plugins {
   #[allow(unused)]
-  pub fn new(config: ParcelConfig, ctx: Arc<PluginContext>) -> Self {
+  pub fn new(config: ParcelConfig, ctx: PluginContext) -> Self {
     Plugins { config, ctx }
   }
 
@@ -184,7 +184,7 @@ impl Plugins {
 
     for transformer in self.config.transformers.get(path, named_pattern).iter() {
       transformer.hash(&mut hasher);
-      if transformer.package_name == "@parcel/transformer-swc" {
+      if transformer.package_name == "@parcel/transformer-js" {
         transformers.push(Box::new(ParcelJsTransformerPlugin::new()));
         continue;
       }
@@ -314,7 +314,7 @@ mod tests {
 
     assert_eq!(
       format!("{:?}", transformers),
-      r"TransformerPipeline { transformers: [RpcTransformerPlugin] }"
+      r"TransformerPipeline { transformers: [ParcelJsTransformerPlugin] }"
     )
   }
 }

@@ -62,12 +62,12 @@ pub fn setup_tracing(options: &Option<ParcelTracingOptions>) -> anyhow::Result<P
     tracing_subscriber::fmt()
       .with_writer(non_blocking)
       .try_init()
-      .map_err(|_| anyhow!("Failed to setup tracing"))?;
+      .map_err(|err| anyhow!(err).context("Failed to setup file tracing"))?;
     Ok(ParcelTracingGuard { guard: Some(guard) })
   } else {
     tracing_subscriber::fmt()
       .try_init()
-      .map_err(|_| anyhow!("Failed to setup tracing"))?;
+      .map_err(|err| anyhow!(err).context("Failed to setup tracing"))?;
     Ok(ParcelTracingGuard { guard: None })
   }
 }
