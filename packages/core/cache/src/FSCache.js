@@ -21,19 +21,10 @@ const pipeline: (Readable, Writable) => Promise<void> = promisify(
 export class FSCache implements Cache {
   fs: FileSystem;
   dir: FilePath;
-  /**
-   * Maximum number of bytes per large blob file
-   */
-  #writeLimitChunk: number;
 
-  constructor(
-    fs: FileSystem,
-    cacheDir: FilePath,
-    writeLimitChunk: number = WRITE_LIMIT_CHUNK,
-  ) {
+  constructor(fs: FileSystem, cacheDir: FilePath) {
     this.fs = fs;
     this.dir = cacheDir;
-    this.#writeLimitChunk = writeLimitChunk;
   }
 
   async ensure(): Promise<void> {
@@ -124,7 +115,7 @@ export class FSCache implements Cache {
     contents: Buffer | string,
     options?: {|signal?: AbortSignal|},
   ): Promise<void> {
-    const chunks = Math.ceil(contents.length / this.#writeLimitChunk);
+    const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
 
     const writePromises: Promise<void>[] = [];
     if (chunks === 1) {
@@ -141,12 +132,12 @@ export class FSCache implements Cache {
             this.#getFilePath(key, i),
             typeof contents === 'string'
               ? contents.slice(
-                  i * this.#writeLimitChunk,
-                  (i + 1) * this.#writeLimitChunk,
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
                 )
               : contents.subarray(
-                  i * this.#writeLimitChunk,
-                  (i + 1) * this.#writeLimitChunk,
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
                 ),
             {signal: options?.signal},
           ),

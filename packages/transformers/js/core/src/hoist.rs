@@ -1669,6 +1669,25 @@ mod tests {
   }
 
   #[test]
+  fn collect_destructure_default() {
+    let (collect, _code, _hoist) = parse(
+      r#"
+    import {bar} from 'source';
+
+    export function thing(props) {
+      const {something = bar} = props;
+      return something;
+    }
+    "#,
+    );
+    assert_eq_imports!(
+      collect.imports,
+      map! { w!("bar") => (w!("source"), w!("bar"), false) }
+    );
+    assert_eq_set!(collect.used_imports, set! { w!("bar") });
+  }
+
+  #[test]
   fn collect_cjs_reassign() {
     let (collect, _code, _hoist) = parse(
       r#"

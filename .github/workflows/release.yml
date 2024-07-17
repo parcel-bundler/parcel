@@ -90,11 +90,9 @@ jobs:
     name: linux-gnu-x64
     runs-on: ubuntu-20.04
     container:
-      image: docker.io/mischnic/centos7-node16
+      image: node:22.4-bullseye
     steps:
       - uses: actions/checkout@v3
-      - name: Install yarn
-        run: npm install --global yarn@1
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:

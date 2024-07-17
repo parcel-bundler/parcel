@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use derive_builder::Builder;
 use indexmap::IndexMap;
+use parcel_core::types::DiagnosticError;
 
 use super::parcel_config::PluginNode;
 use super::parcel_rc::ParcelRcFile;
-use crate::config_error::ConfigError;
 
 /// An intermediate representation of the .parcelrc config
 ///
@@ -27,13 +27,13 @@ pub struct PartialParcelConfig {
   pub validators: IndexMap<String, Vec<PluginNode>>,
 }
 
-impl TryFrom<&ParcelRcFile> for PartialParcelConfig {
-  type Error = ConfigError;
+impl TryFrom<ParcelRcFile> for PartialParcelConfig {
+  type Error = DiagnosticError;
 
-  fn try_from(parcel_rc: &ParcelRcFile) -> Result<PartialParcelConfig, ConfigError> {
+  fn try_from(file: ParcelRcFile) -> Result<PartialParcelConfig, Self::Error> {
     // TODO Add validation here: multiple ..., plugin name format, reserved pipelines, etc
 
-    let resolve_from = Arc::new(parcel_rc.path.clone());
+    let resolve_from = Arc::new(file.path.clone());
 
     let to_entry = |package_name: &String| PluginNode {
       package_name: String::from(package_name),
@@ -74,7 +74,7 @@ impl TryFrom<&ParcelRcFile> for PartialParcelConfig {
     };
 
     Ok(PartialParcelConfig {
-      bundler: parcel_rc
+      bundler: file
         .contents
         .bundler
         .as_ref()
@@ -82,15 +82,15 @@ impl TryFrom<&ParcelRcFile> for PartialParcelConfig {
           package_name: String::from(package_name),
           resolve_from: resolve_from.clone(),
         }),
-      compressors: to_pipelines(parcel_rc.contents.compressors.as_ref()),
-      namers: to_vec(parcel_rc.contents.namers.as_ref()),
-      optimizers: to_pipelines(parcel_rc.contents.optimizers.as_ref()),
-      packagers: to_pipeline(parcel_rc.contents.packagers.as_ref()),
-      reporters: to_vec(parcel_rc.contents.reporters.as_ref()),
-      resolvers: to_vec(parcel_rc.contents.resolvers.as_ref()),
-      runtimes: to_vec(parcel_rc.contents.runtimes.as_ref()),
-      transformers: to_pipelines(parcel_rc.contents.transformers.as_ref()),
-      validators: to_pipelines(parcel_rc.contents.validators.as_ref()),
+      compressors: to_pipelines(file.contents.compressors.as_ref()),
+      namers: to_vec(file.contents.namers.as_ref()),
+      optimizers: to_pipelines(file.contents.optimizers.as_ref()),
+      packagers: to_pipeline(file.contents.packagers.as_ref()),
+      reporters: to_vec(file.contents.reporters.as_ref()),
+      resolvers: to_vec(file.contents.resolvers.as_ref()),
+      runtimes: to_vec(file.contents.runtimes.as_ref()),
+      transformers: to_pipelines(file.contents.transformers.as_ref()),
+      validators: to_pipelines(file.contents.validators.as_ref()),
     })
   }
 }

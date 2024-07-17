@@ -6,6 +6,7 @@ pub mod parcel;
 pub(crate) mod request_tracker;
 
 mod plugins;
+mod project_root;
 mod requests;
 
 #[cfg(test)]

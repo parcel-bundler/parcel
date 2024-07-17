@@ -2,10 +2,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use parcel_core::diagnostic_error;
+use parcel_core::types::DiagnosticError;
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::config_error::ConfigError;
 use super::partial_parcel_config::PartialParcelConfig;
 use crate::map::NamedPipelinesMap;
 use crate::map::PipelineMap;
@@ -34,7 +35,7 @@ pub struct ParcelConfig {
 }
 
 impl TryFrom<PartialParcelConfig> for ParcelConfig {
-  type Error = ConfigError;
+  type Error = DiagnosticError;
 
   fn try_from(config: PartialParcelConfig) -> Result<Self, Self::Error> {
     // The final stage of merging filters out any ... extensions as they are a noop
@@ -71,10 +72,10 @@ impl TryFrom<PartialParcelConfig> for ParcelConfig {
     }
 
     if !missing_phases.is_empty() {
-      return Err(ConfigError::InvalidConfig(format!(
+      return Err(diagnostic_error!(
         "Missing plugins for the following phases: {:?}",
         missing_phases
-      )));
+      ));
     }
 
     Ok(ParcelConfig {
@@ -104,10 +105,10 @@ mod tests {
       assert_eq!(
         ParcelConfig::try_from(PartialParcelConfig::default()).map_err(|e| e.to_string()),
         Err(
-          ConfigError::InvalidConfig(format!(
+          diagnostic_error!(
             "Missing plugins for the following phases: {:?}",
             vec!("bundler", "namers", "resolvers")
-          ))
+          )
           .to_string()
         )
       );

@@ -5,8 +5,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.82"
 mockall = "0.12.1"
-thiserror = "1.0.59"
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 parcel_filesystem = { path = "../parcel_filesystem" }
-anyhow = "1.0.82"
+serde = { version = "1.0.200", features = ["derive"] }

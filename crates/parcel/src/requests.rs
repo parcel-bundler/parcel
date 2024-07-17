@@ -3,6 +3,7 @@ use path_request::PathRequestOutput;
 use target_request::TargetRequestOutput;
 
 mod asset_request;
+mod entry_request;
 mod path_request;
 mod target_request;
 
