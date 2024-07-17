@@ -8,8 +8,7 @@
   },
   "private": true,
   "workspaces": [
-    "packages/*/*",
-    "packages/utils/parcel-watcher-watchman-js"
+    "packages/*/*"
   ],
   "scripts": {
     "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
