@@ -364,7 +364,7 @@ pub fn transform(
                       env: &config.env,
                       is_browser: config.is_browser,
                       used_env: &mut result.used_env,
-                      source_map: &source_map,
+                      source_map: source_map.clone(),
                       diagnostics: &mut diagnostics,
                       unresolved_mark
                     },
