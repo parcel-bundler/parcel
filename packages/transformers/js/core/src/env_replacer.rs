@@ -209,8 +209,7 @@ impl<'a> EnvReplacer<'a> {
   /// If an expression matches `process.browser = ...` then the RHS is replaced with
   /// `true` when `is_browser` is set to true.
   ///
-  /// This doesn't make sense so it's deprecated and will not run anymore on canary builds or
-  /// future versions.
+  /// This likely doesn't make sense so it should be deprecated in the future.
   fn replace_browser_assignment(&mut self, node: &Expr) -> Option<Expr> {
     let Expr::Assign(ref assign) = node else {
       return None;
