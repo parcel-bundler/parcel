@@ -225,7 +225,7 @@ pub struct SourceLocation {
 }
 
 impl SourceLocation {
-  pub fn from(source_map: &swc_core::common::SourceMap, span: swc_core::common::Span) -> Self {
+  pub fn from(source_map: &SourceMap, span: Span) -> Self {
     if span.lo.is_dummy() || span.hi.is_dummy() {
       return SourceLocation {
         start_line: 1,

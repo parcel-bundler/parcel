@@ -396,15 +396,15 @@ pub fn transform(
               let module = module.fold_with(
                 // Replace __dirname and __filename with placeholders in Node env
                 &mut Optional::new(
-                  NodeReplacer {
-                    source_map: &source_map,
+                  as_folder(NodeReplacer {
+                    source_map: source_map.clone(),
                     items: &mut global_deps,
                     global_mark,
                     globals: HashMap::new(),
                     filename: Path::new(&config.filename),
                     unresolved_mark,
                     has_node_replacements: &mut result.has_node_replacements,
-                  },
+                  }),
                   config.node_replacer,
                 ),
               );
