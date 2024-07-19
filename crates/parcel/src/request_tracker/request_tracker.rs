@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
@@ -40,6 +41,7 @@ pub struct RequestTracker {
   file_system: FileSystemRef,
   graph: RequestGraph<RequestResult>,
   plugins: PluginsRef,
+  project_root: PathBuf,
   reporter: Arc<CompositeReporterPlugin>,
   request_index: HashMap<u64, NodeIndex>,
 }
@@ -51,17 +53,21 @@ impl RequestTracker {
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
     plugins: Plugins,
+    project_root: PathBuf,
   ) -> Self {
     let mut graph = StableDiGraph::<RequestNode<RequestResult>, RequestEdgeType>::new();
+    let reporters = plugins.reporters();
+
     graph.add_node(RequestNode::Root);
     RequestTracker {
-      graph,
-      reporter: Arc::new(CompositeReporterPlugin::new(plugins.reporters())),
-      request_index: HashMap::new(),
       cache,
-      file_system,
-      plugins: Arc::new(plugins),
       config_loader,
+      file_system,
+      graph,
+      plugins: Arc::new(plugins),
+      project_root,
+      reporter: Arc::new(CompositeReporterPlugin::new(reporters)),
+      request_index: HashMap::new(),
     }
   }
 
@@ -125,7 +131,13 @@ impl RequestTracker {
             let request_id = request.id();
             if self.prepare_request(request_id)? {
               let context = RunRequestContext::new(
+                self.cache.clone(),
+                self.config_loader.clone(),
+                self.file_system.clone(),
                 Some(request_id),
+                self.plugins.clone(),
+                self.project_root.clone(),
+                self.reporter.clone(),
                 // sub-request run
                 Box::new({
                   let tx = tx.clone();
@@ -135,11 +147,6 @@ impl RequestTracker {
                       .unwrap();
                   }
                 }),
-                self.reporter.clone(),
-                self.cache.clone(),
-                self.file_system.clone(),
-                self.plugins.clone(),
-                self.config_loader.clone(),
               );
 
               scope.spawn({

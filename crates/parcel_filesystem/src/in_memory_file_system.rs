@@ -179,10 +179,18 @@ mod test {
 
   #[test]
   fn test_is_file() {
+    let cwd = PathBuf::from("parcel");
     let fs = InMemoryFileSystem::default();
-    fs.write_file(&PathBuf::from("/foo/bar"), "contents".to_string());
+
+    fs.write_file(&PathBuf::from("/foo/bar"), String::default());
+
     assert!(fs.is_file(Path::new("/foo/bar")));
     assert!(!fs.is_file(Path::new("/foo")));
+
+    fs.write_file(&cwd.join("src").join("a.js"), String::default());
+
+    assert!(fs.is_file(&cwd.join("src").join("a.js")));
+    assert!(fs.is_file(&cwd.join("src/a.js")));
   }
 
   #[test]

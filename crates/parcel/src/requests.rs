@@ -1,4 +1,5 @@
 use asset_request::AssetRequestOutput;
+use entry_request::EntryRequestOutput;
 use path_request::PathRequestOutput;
 use target_request::TargetRequestOutput;
 
@@ -10,8 +11,9 @@ mod target_request;
 /// Union of all request outputs
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestResult {
-  Path(PathRequestOutput),
   Asset(AssetRequestOutput),
+  Entry(EntryRequestOutput),
+  Path(PathRequestOutput),
   Target(TargetRequestOutput),
   // The following are test request types only used in the test build
   #[cfg(test)]
