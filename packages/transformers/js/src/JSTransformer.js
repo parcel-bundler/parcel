@@ -18,8 +18,11 @@ import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
+import {CSVLogger} from '@parcel/csv-logger';
 import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import pkg from '../package.json';
+
+const csv = new CSVLogger('js-transformer-slow', {console: false});
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -999,6 +1002,7 @@ export default (new Transformer({
           }
         }
 
+        csv.logRow(asset.filePath, symbol_result.imports.length);
         for (let {source, local, imported, loc} of symbol_result.imports) {
           let dep = deps.get(source);
           if (!dep) continue;

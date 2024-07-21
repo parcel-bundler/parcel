@@ -70,17 +70,19 @@ type AssetGraphRequest = {|
 |};
 
 export default function createAssetGraphRequest(
-  input: AssetGraphRequestInput,
+  agInput: AssetGraphRequestInput,
 ): AssetGraphRequest {
   return {
     type: requestTypes.asset_graph_request,
-    id: input.name,
+    id: agInput.name,
     run: async input => {
       let prevResult =
         await input.api.getPreviousResult<AssetGraphRequestResult>();
 
+      console.time(`AssetGraph ${agInput.name}`);
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
+      console.timeEnd(`AssetGraph ${agInput.name}`);
 
       // early break for incremental bundling if production or flag is off;
       if (
@@ -92,7 +94,7 @@ export default function createAssetGraphRequest(
 
       return assetGraphRequest;
     },
-    input,
+    input: agInput,
   };
 }
 

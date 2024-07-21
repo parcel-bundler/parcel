@@ -27,6 +27,7 @@
     "src"
   ],
   "dependencies": {
+    "@parcel/csv-logger": "2.12.0",
     "@parcel/diagnostic": "2.12.0",
     "@parcel/plugin": "2.12.0",
     "@parcel/rust": "2.12.0",
