@@ -14,6 +14,10 @@ import type {
 } from '@parcel/types-internal';
 
 describe('parcel-v3', function () {
+  if (!ParcelV3.available) {
+    return;
+  }
+
   // Add to @parcel/utils later
   function toFileSystemV3(fs: ClassicFileSystem): FileSystem {
     return {

@@ -3,18 +3,18 @@ use napi::JsObject;
 use napi::JsUnknown;
 use napi_derive::napi;
 
-use parcel_core::plugin::{
-  InitialAsset, RunTransformContext, TransformationInput, TransformerPlugin,
-};
-use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
-
-use parcel_napi_helpers::anyhow_to_napi;
-
+#[cfg(feature = "v3-prototype")]
 #[napi]
 pub fn _testing_run_parcel_js_transformer_plugin(
   target_path: String,
   env: Env,
 ) -> napi::Result<JsUnknown> {
+  use parcel_core::plugin::{
+    InitialAsset, RunTransformContext, TransformationInput, TransformerPlugin,
+  };
+  use parcel_napi_helpers::anyhow_to_napi;
+  use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
+
   let mut transformer = ParcelJsTransformerPlugin::new();
   let mut context = RunTransformContext::default();
   let input = TransformationInput::InitialAsset(InitialAsset {

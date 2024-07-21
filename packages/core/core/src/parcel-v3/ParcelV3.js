@@ -15,6 +15,8 @@ export type ParcelV3Options = {|
 export class ParcelV3 {
   _internal: ParcelNapi;
 
+  static available: boolean = !!ParcelNapi;
+
   constructor({
     fs,
     nodeWorkers,

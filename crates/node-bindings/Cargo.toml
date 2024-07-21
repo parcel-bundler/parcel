@@ -8,38 +8,55 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-canary = ["sentry", "whoami", "rustls"]
-
+canary = ["sentry", "whoami", "rustls", "v3-prototype"]
+v3-prototype = [
+  "parcel",
+  "parcel_core",
+  "parcel_package_manager",
+  "parcel_plugin_transformer_js",
+  "parcel_napi_helpers",
+  "anyhow",
+  "glob",
+  "log",
+  "mockall",
+  "num_cpus",
+  "parking_lot",
+  "toml",
+  "tracing",
+  "tracing-appender",
+  "tracing-subscriber",
+]
 rustls = ["sentry/rustls"]
 openssl = ["sentry/native-tls"]
 
 [dependencies]
-parcel = { path = "../parcel" }
-parcel_core = { path = "../parcel_core" }
+parcel = { path = "../parcel", optional = true }
+parcel_core = { path = "../parcel_core", optional = true }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parcel_package_manager = { path = "../parcel_package_manager" }
-parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
-parcel_napi_helpers = { path = "../parcel_napi_helpers" }
+parcel_package_manager = { path = "../parcel_package_manager", optional = true }
+parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js", optional = true }
+parcel_napi_helpers = { path = "../parcel_napi_helpers", optional = true }
+parcel_filesystem = { path = "../parcel_filesystem" }
 
-anyhow = "1.0.82"
+anyhow = { version = "1.0.82", optional = true }
 dashmap = "5.4.0"
-glob = "0.3.1"
-log = "0.4.21"
-mockall = "0.12.1"
+glob = { version = "0.3.1", optional = true }
+log = { version = "0.4.21", optional = true }
+mockall = { version = "0.12.1", optional = true }
 napi-derive = "2.16.3"
-num_cpus = "1.16.0"
-parking_lot = "0.12"
+num_cpus = { version = "1.16.0", optional = true }
+parking_lot = { version = "0.12", optional = true }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_json = "1.0.116"
-toml = "0.8.12"
-tracing = "0.1.40"
-tracing-appender = "0.2.3"
-tracing-subscriber = "0.3.18"
+toml = { version = "0.8.12", optional = true }
+tracing = { version = "0.1.40", optional = true }
+tracing-appender = { version = "0.2.3", optional = true }
+tracing-subscriber = { version = "0.3.18", optional = true }
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-parcel = { path = "../parcel", features = ["nodejs"] }
+parcel = { path = "../parcel", features = ["nodejs"], optional = true }
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 
@@ -47,11 +64,23 @@ crossbeam-channel = "0.5.6"
 indexmap = "1.9.2"
 libc = "0.2"
 mozjpeg-sys = "1.0.0"
-napi = { version = "2.16.4", features = ["async", "napi4", "napi5", "serde-json"] }
+napi = { version = "2.16.4", features = [
+  "async",
+  "napi4",
+  "napi5",
+  "serde-json",
+] }
 once_cell = { version = "1.19.0" }
 oxipng = "8.0.0"
 rayon = "1.7.0"
-sentry = { version = "0.32.2", optional = true, default-features = false, features = ["anyhow", "backtrace", "contexts", "debug-images", "panic", "reqwest"] }
+sentry = { version = "0.32.2", optional = true, default-features = false, features = [
+  "anyhow",
+  "backtrace",
+  "contexts",
+  "debug-images",
+  "panic",
+  "reqwest",
+] }
 whoami = { version = "1.5.1", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

@@ -1811,6 +1811,7 @@ dependencies = [
  "parcel-macros",
  "parcel-resolver",
  "parcel_core",
+ "parcel_filesystem",
  "parcel_napi_helpers",
  "parcel_package_manager",
  "parcel_plugin_transformer_js",
