@@ -5,6 +5,73 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] - 2024-XX-XX
+
+### Added
+
+- Core
+  - Expose watcher ignore and watcher backend options – [Details](https://github.com/parcel-bundler/parcel/pull/9547)
+  - Improve large watcher events payload experience – [Details](https://github.com/parcel-bundler/parcel/pull/9583)
+  - Add support for globs in package.json#source – [Details](https://github.com/parcel-bundler/parcel/pull/9590)
+
+- Bundler
+  - Add library bundler – [Details](https://github.com/parcel-bundler/parcel/pull/9489)
+
+- Dev Server
+  - Support .proxyrc.ts – [Details](https://github.com/parcel-bundler/parcel/pull/9654)
+
+- Resolver
+  - Correctly handle empty resolver diagnostics array – [Details](https://github.com/parcel-bundler/parcel/pull/9407)
+
+### Fixed
+
+- Core
+  - Remove abortcontroller-polyfill – [Details](https://github.com/parcel-bundler/parcel/pull/9592)
+  - Fix missing content key in symbol propagation when asset is removed – [Details](https://github.com/parcel-bundler/parcel/pull/9627)
+  - Update minimum supported node version to 16 – [Details](https://github.com/parcel-bundler/parcel/pull/9645)
+  - Ensure the snapshot directory matches the watch dir – [Details](https://github.com/parcel-bundler/parcel/pull/9653)
+  - Add parcel version to PluginOptions – [Details](https://github.com/parcel-bundler/parcel/pull/9671)
+  - Fix possible race condition in the caching of request graph – [Details](https://github.com/parcel-bundler/parcel/pull/9675)
+  - Ensure empty extended config throws a diagnostic – [Details](https://github.com/parcel-bundler/parcel/pull/9701)
+  - Ensure Asset public ids are assigned deterministically – [Details](https://github.com/parcel-bundler/parcel/pull/9706)
+  - Directories ignored by watcher should be relative to the watch directory – [Details](https://github.com/parcel-bundler/parcel/pull/9703)
+  - Fix request tracker incremental cache write for new nodes – [Details](https://github.com/parcel-bundler/parcel/pull/9719)
+  - Improve request graph cache reading – [Details](https://github.com/parcel-bundler/parcel/pull/9721)
+  - Exit process with error code when reporters fail – [Details](https://github.com/parcel-bundler/parcel/pull/9735)
+
+- Bundler
+  - Fix assets outside project root with Manual Shared Bundles – [Details](https://github.com/parcel-bundler/parcel/pull/9734)
+
+- JavaScript
+  - Avoid non-identifier export names in non-entry library bundles – [Details](https://github.com/parcel-bundler/parcel/pull/9587)
+  - Relax react-refresh version range – [Details](https://github.com/parcel-bundler/parcel/pull/9624)
+  - Also emit swc recoverable errors – [Details](https://github.com/parcel-bundler/parcel/pull/9650)
+  - Bump swc – [Details](https://github.com/parcel-bundler/parcel/pull/9574), [Details](https://github.com/parcel-bundler/parcel/pull/9818)
+  - Bump swc and browserslist-rs – [Details](https://github.com/parcel-bundler/parcel/pull/9838)
+  - Replace std::sync locks with parking_lot locks for better stability – [Details](https://github.com/parcel-bundler/parcel/pull/9731)
+  - Ensure const modules in async bundles are wrapped – [Details](https://github.com/parcel-bundler/parcel/pull/9740)
+  - Fix dev packager global reference – [Details](https://github.com/parcel-bundler/parcel/pull/9814)
+  - Fix import usage tracking for destructure defaulting – [Details](https://github.com/parcel-bundler/parcel/pull/9842)
+
+- Resolver
+  - Fix NUL byte crash in resolver – [Details](https://github.com/parcel-bundler/parcel/pull/9640)
+  - Change default resolver error message for custom specifiers – [Details](https://github.com/parcel-bundler/parcel/pull/9378)
+
+- TypeScript
+  - Handle dynamic import type references in TS types transformer – [Details](https://github.com/parcel-bundler/parcel/pull/9573)
+  - Correctly handle qualified names in TS types import() – [Details](https://github.com/parcel-bundler/parcel/pull/9579)
+
+- Vue
+  - Upgrade consolidate to v1 – [Details](https://github.com/parcel-bundler/parcel/pull/9570)
+
+- Web Extensions
+  - Allow both service_worker and scripts in MV3 Web Extensions – [Details](https://github.com/parcel-bundler/parcel/pull/9673)
+
+### Unstable
+
+- Optimise the Inline Requires plugin – [Details](https://github.com/parcel-bundler/parcel/pull/9664)
+- Fix issue in async bundle runtime where it would not always add the runtime code – [Details](https://github.com/parcel-bundler/parcel/pull/9736)
+
 ## [2.12.0] - 2024-02-28
 
 ### Added
