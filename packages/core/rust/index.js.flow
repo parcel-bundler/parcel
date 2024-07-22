@@ -9,6 +9,8 @@ import type {
 
 declare export var init: void | (() => void);
 
+export type Transferable = {||};
+
 export type ProjectPath = any;
 export interface ConfigRequest {
   id: string;
@@ -58,10 +60,14 @@ export type ParcelNapiOptions = {|
       |},
 |};
 
+export type ParcelBuildOptions = {|
+  registerWorker: (channel: Transferable) => void | Promise<void>,
+|};
+
 declare export class ParcelNapi {
   nodeWorkerCount: number;
   constructor(options: ParcelNapiOptions): ParcelNapi;
-  build(): Promise<void>;
+  build(options: ParcelBuildOptions): Promise<void>;
   static defaultThreadCount(): number;
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;
@@ -69,7 +75,10 @@ declare export class ParcelNapi {
   testingRpcPing(): void;
 }
 
-declare export function registerWorker(worker: any): void;
+declare export function registerWorker(
+  channel: Transferable,
+  worker: any,
+): void;
 
 declare export function initSentry(): void;
 declare export function closeSentry(): void;
