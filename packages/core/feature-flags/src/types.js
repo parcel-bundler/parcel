@@ -13,4 +13,8 @@ export type FeatureFlags = {|
    * Rust backed requests
    */
   +parcelV3: boolean,
+  /**
+   * Configure runtime to enable retriable dynamic imports
+   */
+  importRetry: boolean,
 |};

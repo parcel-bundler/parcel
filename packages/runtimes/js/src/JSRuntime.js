@@ -475,6 +475,24 @@ function getLoaderRuntime({
     loaderCode = `(${loaderCode})`;
   }
 
+  if (needsEsmLoadPrelude && options.featureFlags.importRetry) {
+    const assetId = bundleGraph.getAssetById(bundleGroup.entryAssetId);
+    loaderCode = `
+      Object.defineProperty(module, 'exports', { get: () => {
+        let load = require('./helpers/browser/esm-js-loader-retry');
+        return ${loaderCode}.then(() => parcelRequire("${bundleGraph.getAssetPublicId(
+      assetId,
+    )}"));
+      }})`;
+
+    return {
+      filePath: __filename,
+      code: loaderCode,
+      dependency,
+      env: {sourceType: 'module'},
+    };
+  }
+
   if (mainBundle.type === 'js') {
     let parcelRequire = bundle.env.shouldScopeHoist
       ? 'parcelRequire'
