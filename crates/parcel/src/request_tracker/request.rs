@@ -34,7 +34,7 @@ pub struct RunRequestContext {
   cache: CacheRef,
   config_loader: ConfigLoaderRef,
   file_system: FileSystemRef,
-  options: Arc<ParcelOptions>,
+  pub options: Arc<ParcelOptions>,
   parent_request_id: Option<u64>,
   plugins: PluginsRef,
   pub project_root: PathBuf,
@@ -106,10 +106,6 @@ impl RunRequestContext {
 
   pub fn config(&self) -> &ConfigLoaderRef {
     &self.config_loader
-  }
-
-  pub fn options(&self) -> &ParcelOptions {
-    &self.options
   }
 }
 

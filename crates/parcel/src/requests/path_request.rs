@@ -8,7 +8,6 @@ use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::Resolution;
 use parcel_core::plugin::ResolveContext;
 use parcel_core::plugin::ResolvedResolution;
-use parcel_core::plugin::ResolverPlugin;
 use parcel_core::plugin::ResolvingEvent;
 use parcel_core::types::Dependency;
 use parcel_resolver::parse_scheme;
@@ -152,7 +151,7 @@ impl Request for PathRequest {
 mod tests {
   use std::fmt::Debug;
 
-  use parcel_core::plugin::Resolved;
+  use parcel_core::plugin::{Resolved, ResolverPlugin};
 
   use crate::test_utils::request_tracker;
 

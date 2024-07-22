@@ -34,17 +34,14 @@ impl Request for AssetGraphRequest {
     let mut graph = AssetGraph::new();
     let (tx, rx) = channel();
 
-    let _ = request_context.queue_request(
-      EntryRequest {
-        entry: request_context
-          .options()
-          .entries
-          .as_ref()
-          .expect("TODO: Handle implicit entries")
-          .clone(),
-      },
-      tx.clone(),
-    );
+    for entry in request_context.options.clone().entries.iter() {
+      let _ = request_context.queue_request(
+        EntryRequest {
+          entry: entry.clone(),
+        },
+        tx.clone(),
+      );
+    }
 
     let mut visited = HashSet::new();
     let mut asset_request_to_asset = HashMap::new();
@@ -63,7 +60,7 @@ impl Request for AssetGraphRequest {
 
           request_id_to_dep_node_index.insert(request.id(), dep_node);
           let _ = request_context.queue_request(request, tx.clone());
-        };
+        }
       };
     }
 
