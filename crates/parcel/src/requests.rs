@@ -1,4 +1,4 @@
-use asset_graph_request::AssetGraphRequestOutput;
+pub use asset_graph_request::*;
 use asset_request::AssetRequestOutput;
 use entry_request::EntryRequestOutput;
 use path_request::PathRequestOutput;

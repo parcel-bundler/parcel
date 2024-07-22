@@ -5,12 +5,9 @@ use parcel_config::parcel_rc_config_loader::LoadConfigOptions;
 use parcel_config::parcel_rc_config_loader::ParcelRcConfigLoader;
 use parcel_core::cache::MockCache;
 use parcel_core::config_loader::ConfigLoader;
-use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::PluginLogger;
 use parcel_core::plugin::PluginOptions;
-use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::ReporterPlugin;
 use parcel_core::types::ParcelOptions;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
@@ -22,6 +19,8 @@ use parcel_plugin_rpc::RpcWorkerRef;
 use crate::plugins::Plugins;
 use crate::project_root::infer_project_root;
 use crate::request_tracker::RequestTracker;
+use crate::requests::AssetGraphRequest;
+use crate::requests::RequestResult;
 
 pub struct Parcel {
   pub fs: FileSystemRef,
@@ -57,7 +56,7 @@ impl Parcel {
 pub struct BuildResult;
 
 impl Parcel {
-  pub fn build(&self) -> anyhow::Result<BuildResult> {
+  pub fn build(&self) -> anyhow::Result<RequestResult> {
     let mut _rpc_connection = None::<RpcWorkerRef>;
 
     if let Some(rpc_host) = &self.rpc {
@@ -94,11 +93,12 @@ impl Parcel {
     );
 
     // TODO: Revisit plugins, so that the request tracker only has access to the composite plugin
-    let reporter = CompositeReporterPlugin::new(plugins.reporters());
+    // let reporter = CompositeReporterPlugin::new(plugins.reporters());
 
-    reporter.report(&ReporterEvent::BuildStart)?;
+    // TODO Reinstate this when we are in a full build
+    // reporter.report(&ReporterEvent::BuildStart)?;
 
-    let _request_tracker = RequestTracker::new(
+    let mut request_tracker = RequestTracker::new(
       Arc::new(MockCache::new()),
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
@@ -107,8 +107,8 @@ impl Parcel {
       self.project_root.clone(),
     );
 
-    // TODO: Run asset graph request
+    let asset_graph = request_tracker.run_request(AssetGraphRequest {})?;
 
-    Ok(BuildResult {})
+    Ok(asset_graph)
   }
 }

@@ -71,6 +71,7 @@ impl<'de> Deserialize<'de> for BuildMode {
 }
 
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct DefaultTargetOptions {
   pub dist_dir: Option<PathBuf>,
   pub engines: Engines,

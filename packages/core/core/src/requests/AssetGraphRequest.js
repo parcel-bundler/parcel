@@ -35,7 +35,7 @@ import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {propagateSymbols} from '../SymbolPropagation';
 import {requestTypes} from '../RequestTracker';
 
-type AssetGraphRequestInput = {|
+export type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
   assetGroups?: Array<AssetGroup>,
   optionsRef: SharedReference,

@@ -32,6 +32,11 @@ impl ConfigLoader {
     &self,
     filename: &str,
   ) -> Result<ConfigFile<Config>, anyhow::Error> {
+    println!(
+      "loading json config for {} with project root {}",
+      self.search_path.display(),
+      self.project_root.display()
+    );
     let path = find_ancestor_file(
       &*self.fs,
       &[filename],

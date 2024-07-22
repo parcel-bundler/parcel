@@ -53,7 +53,7 @@ export type ParcelNapiOptions = {|
 declare export class ParcelNapi {
   nodeWorkerCount: number;
   constructor(options: ParcelNapiOptions): ParcelNapi;
-  build(): Promise<void>;
+  build(): Promise<any>;
   static defaultThreadCount(): number;
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;

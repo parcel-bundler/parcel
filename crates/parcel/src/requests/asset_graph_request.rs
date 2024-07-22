@@ -69,10 +69,10 @@ impl Request for AssetGraphRequest {
         Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
           for entry in entries {
             let target_request = TargetRequest {
-              default_target_options: request_context.options().default_target_options.clone(),
+              default_target_options: request_context.options.default_target_options.clone(),
               entry,
-              env: request_context.options().env.clone(),
-              mode: request_context.options().mode.clone(),
+              env: request_context.options.env.clone(),
+              mode: request_context.options.mode.clone(),
             };
 
             let _ = request_context.queue_request(target_request, tx.clone());

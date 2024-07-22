@@ -52,7 +52,8 @@ import {
   fromProjectPathRelative,
   toProjectPathUnsafe,
 } from '../projectPath';
-import createAssetGraphRequest from './AssetGraphRequest';
+import createAssetGraphRequestJS from './AssetGraphRequest';
+import {createAssetGraphRequestRust} from './AssetGraphRequestRust';
 import {tracer, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 
@@ -95,6 +96,11 @@ export default function createBundleGraphRequest(
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
       let measurement = tracer.createMeasurement('building');
+      let assetGraphRequestResult;
+
+      let createAssetGraphRequest = input.rustParcel
+        ? createAssetGraphRequestRust(input.rustParcel)
+        : createAssetGraphRequestJS;
       let request = createAssetGraphRequest({
         name: 'Main',
         entries: options.entries,
@@ -104,12 +110,14 @@ export default function createBundleGraphRequest(
         lazyExcludes: options.lazyExcludes,
         requestedAssetIds,
       });
+
       let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
         request,
         {
           force: options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
+
       measurement && measurement.end();
       assertSignalNotAborted(signal);
 
