@@ -5,10 +5,10 @@ import type {
   FilePath,
   InitialParcelOptions,
   PackageManager,
-  FileSystem as ParcelFileSystem,
 } from '@parcel/types';
 
 declare export var init: void | (() => void);
+export opaque type TracingGuard = {||};
 
 export type ProjectPath = any;
 export interface ConfigRequest {
@@ -48,6 +48,15 @@ export type ParcelNapiOptions = {|
   |},
   packageManager?: PackageManager,
   threads?: number,
+  tracerOptions?:
+    | {|mode: 'disabled'|}
+    | {|mode: 'stdout'|}
+    | {|
+        mode: 'file',
+        directory: string,
+        prefix: string,
+        maxFiles: number,
+      |},
 |};
 
 declare export class ParcelNapi {

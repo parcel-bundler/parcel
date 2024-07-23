@@ -3,7 +3,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use napi::JsObject;
+use napi::{Env, JsObject};
 use parcel::file_system::FileSystem;
 
 use parcel_napi_helpers::js_callable::JsCallable;
@@ -19,13 +19,15 @@ pub struct FileSystemNapi {
 }
 
 impl FileSystemNapi {
-  pub fn new(js_file_system: &JsObject) -> napi::Result<Self> {
+  pub fn new(env: &Env, js_file_system: &JsObject) -> napi::Result<Self> {
     Ok(Self {
-      canonicalize_fn: JsCallable::new_from_object_prop("canonicalize", &js_file_system)?,
-      cwd_fn: JsCallable::new_from_object_prop("cwd", &js_file_system)?,
-      read_file_fn: JsCallable::new_from_object_prop("readFile", &js_file_system)?,
-      is_file_fn: JsCallable::new_from_object_prop("isFile", &js_file_system)?,
-      is_dir_fn: JsCallable::new_from_object_prop("isDir", &js_file_system)?,
+      canonicalize_fn: JsCallable::new_from_object_prop("canonicalize", &js_file_system)?
+        .into_unref(env)?,
+      cwd_fn: JsCallable::new_from_object_prop("cwd", &js_file_system)?.into_unref(env)?,
+      read_file_fn: JsCallable::new_from_object_prop("readFile", &js_file_system)?
+        .into_unref(env)?,
+      is_file_fn: JsCallable::new_from_object_prop("isFile", &js_file_system)?.into_unref(env)?,
+      is_dir_fn: JsCallable::new_from_object_prop("isDir", &js_file_system)?.into_unref(env)?,
     })
   }
 }

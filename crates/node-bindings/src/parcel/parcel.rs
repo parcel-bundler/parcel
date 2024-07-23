@@ -13,14 +13,11 @@ use parcel_core::types::ParcelOptions;
 use parcel_package_manager::PackageManagerRef;
 
 use crate::file_system::FileSystemNapi;
-use crate::parcel::parcel::tracing_setup::{
-  setup_tracing, ParcelTracingGuard, ParcelTracingOptions,
-};
 use parcel_napi_helpers::anyhow_to_napi;
 
 use super::package_manager_napi::PackageManagerNapi;
-
-mod tracing_setup;
+use super::tracer::Tracer;
+use super::tracer::TracerMode;
 
 #[napi(object)]
 pub struct ParcelNapiBuildOptions {}
@@ -35,7 +32,7 @@ pub struct ParcelNapiOptions {
   pub options: JsObject,
   pub package_manager: Option<JsObject>,
   pub threads: Option<u32>,
-  pub tracing_options: Option<ParcelTracingOptions>,
+  pub tracer_options: Option<TracerMode>,
 }
 
 #[napi]
@@ -45,7 +42,7 @@ pub struct ParcelNapi {
   options: ParcelOptions,
   package_manager: Option<PackageManagerRef>,
   rpc: Option<RpcHostRef>,
-  tracing_guard: ParcelTracingGuard,
+  tracer: Tracer,
 }
 
 #[napi]
@@ -53,21 +50,22 @@ impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(napi_options: ParcelNapiOptions, env: Env) -> napi::Result<Self> {
     // Debugging Instrumentation
-    let tracing_guard = setup_tracing(&napi_options.tracing_options).map_err(anyhow_to_napi)?;
+    let tracer_options = napi_options.tracer_options.unwrap_or_default();
+    let tracer = Tracer::new(tracer_options).map_err(anyhow_to_napi)?;
 
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");
 
     // Wrap the JavaScript-supplied FileSystem
     let fs: Option<FileSystemRef> = if let Some(fs) = napi_options.fs {
-      Some(Arc::new(FileSystemNapi::new(&fs)?))
+      Some(Arc::new(FileSystemNapi::new(&env, &fs)?))
     } else {
       None
     };
 
     let package_manager: Option<PackageManagerRef> = if let Some(pm) = napi_options.package_manager
     {
-      Some(Arc::new(PackageManagerNapi::new(&pm)?))
+      Some(Arc::new(PackageManagerNapi::new(&env, &pm)?))
     } else {
       None
     };
@@ -93,7 +91,7 @@ impl ParcelNapi {
       options: env.from_js_value(napi_options.options)?,
       package_manager,
       rpc,
-      tracing_guard,
+      tracer,
     })
   }
 
