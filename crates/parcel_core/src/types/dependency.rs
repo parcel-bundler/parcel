@@ -112,29 +112,40 @@ pub struct Dependency {
 }
 
 impl Dependency {
+  pub fn entry(entry: String, target: Target) -> Dependency {
+    let is_library = target.env.is_library;
+    let mut symbols = Vec::new();
+
+    if is_library {
+      symbols.push(Symbol {
+        exported: "*".into(),
+        is_esm_export: false,
+        is_weak: true,
+        loc: None,
+        local: "*".into(),
+        self_referenced: false,
+      });
+    }
+
+    Dependency {
+      env: target.env.clone(),
+      has_symbols: is_library,
+      is_entry: true,
+      needs_stable_name: true,
+      specifier: entry,
+      specifier_type: SpecifierType::Url,
+      symbols,
+      target: Some(Box::new(target)),
+      ..Dependency::default()
+    }
+  }
+
   pub fn new(specifier: String, env: Environment) -> Dependency {
     Dependency {
-      bundle_behavior: BundleBehavior::None,
       env,
-      loc: None,
       meta: JSONObject::new(),
-      package_conditions: ExportsCondition::empty(),
-      pipeline: None,
-      priority: Priority::default(),
-      range: None,
-      resolve_from: None,
-      source_asset_id: None,
-      source_path: None,
       specifier,
-      specifier_type: SpecifierType::default(),
-      symbols: Vec::new(),
-      target: None,
-      is_entry: false,
-      is_optional: false,
-      needs_stable_name: false,
-      should_wrap: false,
-      has_symbols: false,
-      is_esm: false,
+      ..Dependency::default()
     }
   }
 

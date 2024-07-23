@@ -3,7 +3,7 @@ use std::sync::mpsc::channel;
 use std::sync::Arc;
 
 use parcel_core::asset_graph::{AssetGraph, DependencyNode, DependencyState};
-use parcel_core::types::{Dependency, SpecifierType, Symbol};
+use parcel_core::types::Dependency;
 use petgraph::graph::NodeIndex;
 
 use crate::request_tracker::{
@@ -64,7 +64,15 @@ impl Request for AssetGraphRequest {
       };
     }
 
-    while let result = rx.recv()? {
+    let receive_result = || {
+      if let Ok(result) = rx.recv() {
+        Some(result)
+      } else {
+        None
+      }
+    };
+
+    while let Some(result) = receive_result() {
       match result {
         Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
           for entry in entries {
@@ -78,43 +86,24 @@ impl Request for AssetGraphRequest {
             let _ = request_context.queue_request(target_request, tx.clone());
           }
         }
-        Ok((RequestResult::Target(TargetRequestOutput { entry, targets }), request_id)) => {
-          let entry_node_index = *request_id_to_dep_node_index
-            .get(&request_id)
-            .expect("Missing node index for request id {request_id}");
-
+        Ok((RequestResult::Target(TargetRequestOutput { entry, targets }), _request_id)) => {
           for target in targets {
-            let mut dependency =
-              Dependency::new(entry.to_string_lossy().into_owned(), target.env.clone());
-            dependency.specifier_type = SpecifierType::Url;
-            dependency.target = Some(Box::new(target));
-            dependency.is_entry = true;
-            dependency.needs_stable_name = true;
-
+            let dependency = Dependency::entry(entry.to_string_lossy().into_owned(), target);
             let mut requested_symbols = HashSet::default();
+
             if dependency.env.is_library {
-              dependency.has_symbols = true;
-              dependency.symbols.push(Symbol {
-                exported: "*".into(),
-                local: "*".into(),
-                is_weak: true,
-                loc: None,
-                is_esm_export: false,
-                self_referenced: false,
-              });
               requested_symbols.insert("*".into());
             }
 
             let dep_node =
-              graph.add_dependency(entry_node_index, dependency.clone(), requested_symbols);
+              graph.add_dependency(NodeIndex::new(0), dependency.clone(), requested_symbols);
 
             let request = PathRequest {
               dependency: Arc::new(dependency),
-              // TODO: Where should named pipelines come from?
-              named_pipelines: vec![],
+              named_pipelines: request_context.plugins().named_pipelines(),
             };
             request_id_to_dep_node_index.insert(request.id(), dep_node);
-            request_context.queue_request(request, tx.clone());
+            let _ = request_context.queue_request(request, tx.clone());
           }
         }
         Ok((
@@ -201,7 +190,7 @@ impl Request for AssetGraphRequest {
           let id = asset_request.id();
           if visited.insert(id) {
             request_id_to_dep_node_index.insert(id, node);
-            request_context.queue_request(asset_request, tx.clone());
+            let _ = request_context.queue_request(asset_request, tx.clone());
           } else if let Some(asset_node_index) = asset_request_to_asset.get(&id) {
             // We have already completed this AssetRequest so we can connect the
             // Dependency to the Asset immediately
