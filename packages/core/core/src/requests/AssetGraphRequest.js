@@ -34,7 +34,6 @@ import {type ProjectPath, fromProjectPathRelative} from '../projectPath';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {propagateSymbols} from '../SymbolPropagation';
 import {requestTypes} from '../RequestTracker';
-import {CSVLogger} from '@parcel/csv-logger';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,

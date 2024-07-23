@@ -54,7 +54,6 @@ import {
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
 import {setFeatureFlags} from '@parcel/feature-flags';
-import {CSVLogger} from '@parcel/csv-logger';
 
 registerCoreWithSerializer();
 
@@ -186,7 +185,6 @@ export default class Parcel {
       throw new BuildError(result.diagnostics);
     }
 
-    new CSVLogger('js-transformer-slow').logRow('Build Complete');
     return result;
   }
 
