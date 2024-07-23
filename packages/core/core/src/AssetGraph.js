@@ -417,7 +417,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let deps = this.getIncomingDependencies(resolvedAsset);
 
-    for (const d of deps) {
+    return deps.every(d => {
       // If this dependency has already been through this process, and we
       // know it's not deferrable, then there's no need to re-check
       if (this.undeferredDependencies.has(d)) {
@@ -438,9 +438,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         this.undeferredDependencies.add(d);
         return false;
       }
-    }
-
-    return true;
+    });
   }
 
   resolveAssetGroup(
