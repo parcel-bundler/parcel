@@ -70,11 +70,11 @@ type AssetGraphRequest = {|
 |};
 
 export default function createAssetGraphRequest(
-  input: AssetGraphRequestInput,
+  requestInput: AssetGraphRequestInput,
 ): AssetGraphRequest {
   return {
     type: requestTypes.asset_graph_request,
-    id: input.name,
+    id: requestInput.name,
     run: async input => {
       let prevResult =
         await input.api.getPreviousResult<AssetGraphRequestResult>();
@@ -92,7 +92,7 @@ export default function createAssetGraphRequest(
 
       return assetGraphRequest;
     },
-    input,
+    input: requestInput,
   };
 }
 
