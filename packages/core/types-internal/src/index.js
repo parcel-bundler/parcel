@@ -530,7 +530,7 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   delete(exportSymbol: Symbol): void;
 }
 
-export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
+export type DependencyPriority = 'sync' | 'parallel' | 'lazy' | 'tier';
 export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
 
 /**

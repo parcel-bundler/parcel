@@ -10,6 +10,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   parcelV3: false,
   importRetry: false,
   ownedResolverStructures: false,
+  tieredImports: false,
 };
 
 let featureFlagValues: FeatureFlags = {...DEFAULT_FEATURE_FLAGS};

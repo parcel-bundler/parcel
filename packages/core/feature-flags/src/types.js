@@ -15,4 +15,8 @@ export type FeatureFlags = {|
    * Enable resolver refactor into owned data structures.
    */
   ownedResolverStructures: boolean,
+  /**
+   * Tiered imports API
+   */
+  +tieredImports: boolean,
 |};

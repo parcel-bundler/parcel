@@ -27,6 +27,7 @@ use crate::utils::is_unresolved;
 use crate::utils::match_export_name;
 use crate::utils::match_export_name_ident;
 use crate::utils::match_import;
+use crate::utils::match_import_tier;
 use crate::utils::match_member_expr;
 use crate::utils::match_property_name;
 use crate::utils::match_require;
@@ -48,8 +49,9 @@ pub fn hoist(
   module_id: &str,
   unresolved_mark: Mark,
   collect: &Collect,
+  tiered_imports: bool,
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
-  let mut hoist = Hoist::new(module_id, unresolved_mark, collect);
+  let mut hoist = Hoist::new(module_id, unresolved_mark, collect, tiered_imports);
   let module = module.fold_with(&mut hoist);
 
   if !hoist.diagnostics.is_empty() {
@@ -128,6 +130,7 @@ struct Hoist<'a> {
   in_function_scope: bool,
   diagnostics: Vec<Diagnostic>,
   unresolved_mark: Mark,
+  tiered_imports: bool,
 }
 
 /// Data pertaining to mangled identifiers replacing import and export statements
@@ -336,7 +339,12 @@ pub struct HoistResult {
 }
 
 impl<'a> Hoist<'a> {
-  fn new(module_id: &'a str, unresolved_mark: Mark, collect: &'a Collect) -> Self {
+  fn new(
+    module_id: &'a str,
+    unresolved_mark: Mark,
+    collect: &'a Collect,
+    tiered_imports: bool,
+  ) -> Self {
     Hoist {
       module_id,
       collect,
@@ -351,6 +359,7 @@ impl<'a> Hoist<'a> {
       in_function_scope: false,
       diagnostics: vec![],
       unresolved_mark,
+      tiered_imports,
     }
   }
 
@@ -952,6 +961,19 @@ impl<'a> Fold for Hoist<'a> {
           }
           return Expr::Ident(Ident::new(name, call.span));
         }
+
+        if self.tiered_imports {
+          if let Some(source) = match_import_tier(&node, self.collect.ignore_mark) {
+            self.add_require(&source, ImportKind::TierImport);
+            return Expr::Ident(self.get_import_ident(
+              call.span,
+              &source,
+              &("*".into()),
+              SourceLocation::from(&self.collect.source_map, call.span),
+              ImportKind::TierImport,
+            ));
+          }
+        }
       }
       Expr::This(this) => {
         if !self.in_function_scope {
@@ -1236,7 +1258,9 @@ impl<'a> Hoist<'a> {
   fn add_require(&mut self, source: &JsWord, import_kind: ImportKind) {
     let src = match import_kind {
       ImportKind::Import => format!("{}:{}:{}", self.module_id, source, "esm"),
-      ImportKind::DynamicImport | ImportKind::Require => format!("{}:{}", self.module_id, source),
+      ImportKind::DynamicImport | ImportKind::Require | ImportKind::TierImport => {
+        format!("{}:{}", self.module_id, source)
+      }
     };
     self
       .module_items
@@ -1420,7 +1444,7 @@ mod tests {
             module.visit_with(&mut collect);
 
             let (module, res) = {
-              let mut hoist = Hoist::new("abc", unresolved_mark, &collect);
+              let mut hoist = Hoist::new("abc", unresolved_mark, &collect, false);
               let module = module.fold_with(&mut hoist);
               (module, hoist.get_result())
             };

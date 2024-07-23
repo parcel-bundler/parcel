@@ -127,6 +127,7 @@ pub struct Config {
   pub is_swc_helpers: bool,
   pub standalone: bool,
   pub inline_constants: bool,
+  pub tier_imports: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -494,7 +495,13 @@ pub fn transform(
               }
 
               let module = if config.scope_hoist {
-                let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
+                let res = hoist(
+                  module,
+                  config.module_id.as_str(),
+                  unresolved_mark,
+                  &collect,
+                  config.tier_imports,
+                );
                 match res {
                   Ok((module, hoist_result, hoist_diagnostics)) => {
                     result.hoist_result = Some(hoist_result);

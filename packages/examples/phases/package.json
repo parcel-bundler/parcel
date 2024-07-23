@@ -1,0 +1,20 @@
+{
+  "name": "@parcel/phases-example",
+  "version": "2.12.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "parcel serve src/index.html --no-cache --https --feature-flag tieredImports=true",
+    "start:prod": "yarn build && npx http-server dist/",
+    "build": "PARCEL_WORKERS=0 parcel build src/index.html --no-cache --feature-flag tieredImports=true",
+    "debug": "PARCEL_WORKERS=0 node --inspect-brk $(yarn bin parcel) serve src/index.html --no-cache --https --feature-flag tieredImports=true --no-hmr",
+    "debug:prod": "PARCEL_WORKERS=0 node --inspect-brk $(yarn bin parcel) build src/index.html --no-cache --feature-flag tieredImports=true"
+  },
+  "devDependencies": {
+    "parcel": "2.12.0"
+  },
+  "dependencies": {
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  }
+}

@@ -574,6 +574,7 @@ export default (new Transformer({
             }
           }
         : null,
+      tier_imports: options.featureFlags.tieredImports,
     });
 
     if (is_constant_module) {
@@ -846,11 +847,25 @@ export default (new Transformer({
           range = pkg.dependencies[module];
         }
 
+        let priority;
+        switch (dep.kind) {
+          case 'DeferredForDisplayTierImport':
+          case 'DeferredTierImport':
+            priority = 'tier';
+            break;
+          case 'DynamicImport':
+            priority = 'lazy';
+            break;
+          default:
+            priority = 'sync';
+            break;
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
-          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
+          priority,
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,
@@ -882,6 +897,7 @@ export default (new Transformer({
           .getDependencies()
           .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
+
       for (let dep of deps.values()) {
         dep.symbols.ensure();
       }

@@ -51,6 +51,16 @@ pub enum DependencyKind {
   /// import('./dependency').then(({x}) => {/* ... */});
   /// ```
   DynamicImport,
+  /// Corresponds to a for display (tier) import statement
+  /// ```skip
+  /// const {x} = importDeferredForDisplay('./dependency');
+  /// ```
+  DeferredForDisplayTierImport,
+  /// Corresponds to a deferred (tier) import statement
+  /// ```skip
+  /// const {x} = importDeferred('./dependency');
+  /// ```
+  DeferredTierImport,
   /// Corresponds to CJS require statements
   /// ```skip
   /// const {x} = require('./dependency');
@@ -430,6 +440,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       Callee::Import(_) => DependencyKind::DynamicImport,
       Callee::Expr(expr) => {
         match &**expr {
+          Ident(ident) if ident.sym.to_string().as_str() == "importDeferredForDisplay" => {
+            DependencyKind::DeferredForDisplayTierImport
+          }
+          Ident(ident) if ident.sym.to_string().as_str() == "importDeferred" => {
+            DependencyKind::DeferredTierImport
+          }
           Ident(ident) => {
             // Bail if defined in scope
             if !is_unresolved(&ident, self.unresolved_mark) {
@@ -739,31 +755,71 @@ impl<'a> Fold for DependencyCollector<'a> {
     };
 
     // Replace import() with require()
-    if kind == DependencyKind::DynamicImport {
-      let mut call = node;
-      if !self.config.scope_hoist && !self.config.standalone {
-        let name = match &self.config.source_type {
-          SourceType::Module => "require",
-          SourceType::Script => "__parcel__require__",
-        };
-        call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-          name.into(),
-          DUMMY_SP,
-        ))));
+    match &kind {
+      DependencyKind::DynamicImport => {
+        let mut call = node;
+        if !self.config.scope_hoist && !self.config.standalone {
+          let name = match &self.config.source_type {
+            SourceType::Module => "require",
+            SourceType::Script => "__parcel__require__",
+          };
+          call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+            name.into(),
+            DUMMY_SP,
+          ))));
+        }
+
+        // Drop import attributes
+        call.args.truncate(1);
+
+        // Track the returned require call to be replaced with a promise chain.
+        let rewritten_call = rewrite_require_specifier(call, self.unresolved_mark);
+        self.require_node = Some(rewritten_call.clone());
+        rewritten_call
       }
-
-      // Drop import attributes
-      call.args.truncate(1);
-
-      // Track the returned require call to be replaced with a promise chain.
-      let rewritten_call = rewrite_require_specifier(call, self.unresolved_mark);
-      self.require_node = Some(rewritten_call.clone());
-      rewritten_call
-    } else if kind == DependencyKind::Require {
+      DependencyKind::Require =>
       // Don't continue traversing so that the `require` isn't replaced with undefined
-      rewrite_require_specifier(node, self.unresolved_mark)
-    } else {
-      node.fold_children_with(self)
+      {
+        rewrite_require_specifier(node, self.unresolved_mark)
+      }
+      DependencyKind::DeferredForDisplayTierImport | DependencyKind::DeferredTierImport => {
+        if !self.config.tier_imports {
+          return node.fold_children_with(self);
+        }
+        let mut call = node;
+        if call.args.len() != 1 {
+          self.diagnostics.push(Diagnostic {
+            message: format!("{} requires 1 argument", kind),
+            code_highlights: Some(vec![CodeHighlight {
+              message: None,
+              loc: SourceLocation::from(self.source_map, call.span),
+            }]),
+            hints: None,
+            show_environment: false,
+            severity: DiagnosticSeverity::Error,
+            documentation_url: None,
+          });
+        }
+
+        // Convert to require without scope hoisting
+        if !self.config.scope_hoist && !self.config.standalone {
+          let name = match &self.config.source_type {
+            SourceType::Module => "require",
+            SourceType::Script => "__parcel__require__",
+          };
+          call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+            name.into(),
+            DUMMY_SP,
+          ))));
+        }
+
+        // Track the returned require call to be replaced with a promise chain.
+        let rewritten_call = rewrite_require_specifier(call, self.unresolved_mark);
+        self.require_node = Some(rewritten_call.clone());
+
+        rewritten_call
+      }
+      _ => node.fold_children_with(self),
     }
   }
 

@@ -224,6 +224,8 @@ pub enum Priority {
   Parallel = 1,
   /// The dependency should be placed in a separate bundle that is loaded later
   Lazy = 2,
+  /// The dependency should be deferred to a different tier
+  Tier = 3,
 }
 
 impl Default for Priority {

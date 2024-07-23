@@ -57,6 +57,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
     ...DEFAULT_FEATURE_FLAGS,
     exampleFeature: false,
     parcelV3: false,
+    tieredImports: false,
     importRetry: false,
   },
 };

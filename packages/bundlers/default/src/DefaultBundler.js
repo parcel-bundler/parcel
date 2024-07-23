@@ -95,6 +95,7 @@ const dependencyPriorityEdges = {
   sync: 1,
   parallel: 2,
   lazy: 3,
+  tier: 4,
 };
 
 type DependencyBundleGraph = ContentGraph<
@@ -277,7 +278,8 @@ function decorateLegacyGraph(
         );
         for (let incomingDep of incomingDeps) {
           if (
-            incomingDep.priority === 'lazy' &&
+            (incomingDep.priority === 'lazy' ||
+              incomingDep.priority === 'tier') &&
             incomingDep.specifierType !== 'url' &&
             bundle.hasDependency(incomingDep)
           ) {
@@ -294,7 +296,7 @@ function decorateLegacyGraph(
     let incomingDeps = bundleGraph.getIncomingDependencies(manualSharedAsset);
     for (let incomingDep of incomingDeps) {
       if (
-        incomingDep.priority === 'lazy' &&
+        (incomingDep.priority === 'lazy' || incomingDep.priority === 'tier') &&
         incomingDep.specifierType !== 'url'
       ) {
         let bundles = bundleGraph.getBundlesWithDependency(incomingDep);
@@ -495,7 +497,7 @@ function createIdealGraph(
 
         if (
           node.type === 'dependency' &&
-          node.value.priority === 'lazy' &&
+          (node.value.priority === 'lazy' || node.value.priority === 'tier') &&
           parentAsset
         ) {
           // Don't walk past the bundle group assets
@@ -584,6 +586,7 @@ function createIdealGraph(
             }
             if (
               dependency.priority === 'lazy' ||
+              dependency.priority === 'tier' ||
               childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
             ) {
               if (bundleId == null) {

@@ -114,6 +114,7 @@ export const Priority = {
   sync: 0,
   parallel: 1,
   lazy: 2,
+  tier: 3,
 };
 
 // Must match package_json.rs in node-resolver-rs.
