@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use parcel_config::parcel_rc_config_loader::LoadConfigOptions;
 use parcel_config::parcel_rc_config_loader::ParcelRcConfigLoader;
+use parcel_core::asset_graph::AssetGraph;
 use parcel_core::cache::MockCache;
 use parcel_core::config_loader::ConfigLoader;
 use parcel_core::plugin::PluginContext;
@@ -16,6 +17,8 @@ use parcel_package_manager::PackageManagerRef;
 use parcel_plugin_rpc::RpcHostRef;
 use parcel_plugin_rpc::RpcWorkerRef;
 
+use crate::cache::LMDBCache;
+use crate::cache::LMDBCacheOptions;
 use crate::plugins::Plugins;
 use crate::project_root::infer_project_root;
 use crate::request_tracker::RequestTracker;
@@ -56,7 +59,7 @@ impl Parcel {
 pub struct BuildResult;
 
 impl Parcel {
-  pub fn build(&self) -> anyhow::Result<RequestResult> {
+  pub fn build(&self) -> anyhow::Result<AssetGraph> {
     let mut _rpc_connection = None::<RpcWorkerRef>;
 
     if let Some(rpc_host) = &self.rpc {
@@ -99,7 +102,9 @@ impl Parcel {
     // reporter.report(&ReporterEvent::BuildStart)?;
 
     let mut request_tracker = RequestTracker::new(
-      Arc::new(MockCache::new()),
+      Arc::new(LMDBCache::new(LMDBCacheOptions {
+        async_writes: false,
+      })?),
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
       self.options.clone(),
@@ -107,7 +112,12 @@ impl Parcel {
       self.project_root.clone(),
     );
 
-    let asset_graph = request_tracker.run_request(AssetGraphRequest {})?;
+    let request_result = request_tracker.run_request(AssetGraphRequest {})?;
+
+    let asset_graph = match request_result {
+      RequestResult::AssetGraph(result) => result.graph,
+      _ => panic!("TODO"),
+    };
 
     Ok(asset_graph)
   }

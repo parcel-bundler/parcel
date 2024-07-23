@@ -82,6 +82,9 @@ export default class NodeResolver {
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
       await init?.();
+      console.log(
+        `creating resolver with project root ${this.options.projectRoot}`,
+      );
       resolver = new Resolver(this.options.projectRoot, {
         fs:
           this.options.fs instanceof NodeFS &&
@@ -140,6 +143,7 @@ export default class NodeResolver {
       this.options.fs instanceof NodeFS &&
       process.versions.pnp == null;
 
+    console.log(`resolving with options: ${JSON.stringify(options)}`);
     let res = canResolveAsync
       ? // $FlowFixMe[incompatible-call] - parent is not null here.
         await resolver.resolveAsync(options)

@@ -220,20 +220,21 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     correspondingRequest: string,
   ) {
     let depNodes = targets.map(target => {
+      let dep = createDependency('', {
+        specifier: fromProjectPathRelative(entry.filePath),
+        specifierType: 'esm', // ???
+        pipeline: target.pipeline,
+        target: target,
+        env: target.env,
+        isEntry: true,
+        needsStableName: true,
+        symbols: target.env.isLibrary
+          ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
+          : undefined,
+      });
       let node = nodeFromDep(
         // The passed project path is ignored in this case, because there is no `loc`
-        createDependency('', {
-          specifier: fromProjectPathRelative(entry.filePath),
-          specifierType: 'esm', // ???
-          pipeline: target.pipeline,
-          target: target,
-          env: target.env,
-          isEntry: true,
-          needsStableName: true,
-          symbols: target.env.isLibrary
-            ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
-            : undefined,
-        }),
+        dep,
       );
 
       if (node.value.env.isLibrary) {

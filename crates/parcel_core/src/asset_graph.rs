@@ -5,6 +5,7 @@ use petgraph::{
   visit::EdgeRef,
   Direction,
 };
+use serde::Serialize;
 
 use crate::types::{Asset, Dependency};
 
@@ -251,6 +252,20 @@ impl AssetGraph {
   }
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializedAsset {
+  id: u64,
+  asset: Asset,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializedDependency {
+  id: u64,
+  dependency: Dependency,
+}
+
 impl serde::Serialize for AssetGraph {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
@@ -262,13 +277,26 @@ impl serde::Serialize for AssetGraph {
       .map(|node| match node {
         AssetGraphNode::Root => SerializedAssetGraphNode::Root,
         AssetGraphNode::Entry => SerializedAssetGraphNode::Entry,
-        AssetGraphNode::Asset(idx) => SerializedAssetGraphNode::Asset {
-          value: &self.assets[*idx].asset,
-        },
-        AssetGraphNode::Dependency(idx) => SerializedAssetGraphNode::Dependency {
-          value: &self.dependencies[*idx].dependency,
-          has_deferred: self.dependencies[*idx].state == DependencyState::Deferred,
-        },
+        AssetGraphNode::Asset(idx) => {
+          let asset = self.assets[*idx].asset.clone();
+
+          SerializedAssetGraphNode::Asset {
+            value: SerializedAsset {
+              id: asset.id(),
+              asset,
+            },
+          }
+        }
+        AssetGraphNode::Dependency(idx) => {
+          let dependency = self.dependencies[*idx].dependency.clone();
+          SerializedAssetGraphNode::Dependency {
+            value: SerializedDependency {
+              id: dependency.id(),
+              dependency: dependency.as_ref().clone(),
+            },
+            has_deferred: self.dependencies[*idx].state == DependencyState::Deferred,
+          }
+        }
       })
       .collect();
     let raw_edges = self.graph.raw_edges();
@@ -279,22 +307,22 @@ impl serde::Serialize for AssetGraph {
     }
 
     #[derive(serde::Serialize)]
-    #[serde(tag = "type", rename_all = "lowercase")]
-    enum SerializedAssetGraphNode<'a> {
+    #[serde(tag = "type", rename_all = "camelCase")]
+    enum SerializedAssetGraphNode {
       Root,
       Entry,
       Asset {
-        value: &'a Asset,
+        value: SerializedAsset,
       },
       Dependency {
-        value: &'a Dependency,
+        value: SerializedDependency,
         has_deferred: bool,
       },
     }
 
     #[derive(serde::Serialize)]
-    struct SerializedAssetGraph<'a> {
-      nodes: Vec<SerializedAssetGraphNode<'a>>,
+    struct SerializedAssetGraph {
+      nodes: Vec<SerializedAssetGraphNode>,
       // TODO: somehow make this a typed array?
       edges: Vec<u32>,
     }

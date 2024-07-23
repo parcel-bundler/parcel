@@ -148,6 +148,7 @@ export default function createBundleGraphRequest(
 
       let bundlingMeasurement = tracer.createMeasurement('bundling');
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
+      console.log('asset graph', assetGraph);
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
         changedAssets: changedAssets,

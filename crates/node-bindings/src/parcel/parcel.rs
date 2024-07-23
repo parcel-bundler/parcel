@@ -116,7 +116,7 @@ impl ParcelNapi {
         match parcel {
           Err(error) => deferred.reject(to_napi_error(error)),
           Ok(parcel) => match parcel.build() {
-            Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
+            Ok(asset_graph) => deferred.resolve(move |env| env.to_js_value(&asset_graph)),
             Err(error) => deferred.reject(to_napi_error(error)),
           },
         }

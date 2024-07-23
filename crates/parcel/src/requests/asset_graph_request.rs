@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use parcel_core::asset_graph::{AssetGraph, DependencyNode, DependencyState};
 use parcel_core::types::Dependency;
+use pathdiff::diff_paths;
 use petgraph::graph::NodeIndex;
 
 use crate::request_tracker::{
@@ -33,8 +34,11 @@ impl Request for AssetGraphRequest {
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     let mut graph = AssetGraph::new();
     let (tx, rx) = channel();
+    // TODO: Move this out later
+    let mut work_count = 0;
 
     for entry in request_context.options.clone().entries.iter() {
+      work_count += 1;
       let _ = request_context.queue_request(
         EntryRequest {
           entry: entry.clone(),
@@ -64,17 +68,20 @@ impl Request for AssetGraphRequest {
       };
     }
 
-    let receive_result = || {
-      if let Ok(result) = rx.recv() {
-        Some(result)
-      } else {
-        None
+    loop {
+      if work_count == 0 {
+        break;
       }
-    };
 
-    while let Some(result) = receive_result() {
+      let Ok(result) = rx.recv() else {
+        break;
+      };
+
+      work_count -= 1;
+
       match result {
         Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
+          println!("EntryRequestOutput");
           for entry in entries {
             let target_request = TargetRequest {
               default_target_options: request_context.options.default_target_options.clone(),
@@ -83,12 +90,17 @@ impl Request for AssetGraphRequest {
               mode: request_context.options.mode.clone(),
             };
 
+            work_count += 1;
             let _ = request_context.queue_request(target_request, tx.clone());
           }
         }
         Ok((RequestResult::Target(TargetRequestOutput { entry, targets }), _request_id)) => {
+          println!("TargetRequestOutput");
           for target in targets {
-            let dependency = Dependency::entry(entry.to_string_lossy().into_owned(), target);
+            let entry =
+              diff_paths(&entry, &request_context.project_root).unwrap_or_else(|| entry.clone());
+
+            let dependency = Dependency::entry(entry.to_str().unwrap().to_string(), target);
             let mut requested_symbols = HashSet::default();
 
             if dependency.env.is_library {
@@ -103,6 +115,7 @@ impl Request for AssetGraphRequest {
               named_pipelines: request_context.plugins().named_pipelines(),
             };
             request_id_to_dep_node_index.insert(request.id(), dep_node);
+            work_count += 1;
             let _ = request_context.queue_request(request, tx.clone());
           }
         }
@@ -113,6 +126,7 @@ impl Request for AssetGraphRequest {
           }),
           request_id,
         )) => {
+          println!("AssetRequestOutput: {}", asset.file_path.display());
           let incoming_dep_node_index = *request_id_to_dep_node_index
             .get(&request_id)
             .expect("Missing node index for request id {request_id}");
@@ -143,6 +157,7 @@ impl Request for AssetGraphRequest {
           }
         }
         Ok((RequestResult::Path(result), request_id)) => {
+          println!("PathRequestOutput");
           let node = *request_id_to_dep_node_index
             .get(&request_id)
             .expect("Missing node index for request id {request_id}");
@@ -190,6 +205,7 @@ impl Request for AssetGraphRequest {
           let id = asset_request.id();
           if visited.insert(id) {
             request_id_to_dep_node_index.insert(id, node);
+            work_count += 1;
             let _ = request_context.queue_request(asset_request, tx.clone());
           } else if let Some(asset_node_index) = asset_request_to_asset.get(&id) {
             // We have already completed this AssetRequest so we can connect the
@@ -209,6 +225,7 @@ impl Request for AssetGraphRequest {
           }
         }
         other => {
+          // This is an error...
           todo!("{:?}", other);
         }
       }

@@ -2176,12 +2176,14 @@ export default class BundleGraph {
           bundleGroupNode.value.entryAssetId,
         );
         invariant(entryAssetNode?.type === 'asset');
+        console.log('adding entry', entryAssetNode);
         entries.push(
           fromProjectPath(projectRoot, entryAssetNode.value.filePath),
         );
       }
     }
 
+    console.log('got entries for root', entries);
     let root = getRootDir(entries);
     this._targetEntryRoots.set(target.distDir, root);
     return root;

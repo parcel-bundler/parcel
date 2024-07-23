@@ -8,11 +8,7 @@
       "@parcel/transformer-worklet",
       "..."
     ],
-    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-babel",
-      "@parcel/transformer-js",
-      "@parcel/transformer-react-refresh-wrap"
-    ],
+    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],

@@ -49,20 +49,22 @@ export function createAssetGraphRequestRust(
     id: input.name,
     run: async input => {
       let options = input.options;
-      let result;
+      let serializedAssetGraph;
       try {
-        result = await rustParcel.build();
+        serializedAssetGraph = await rustParcel.build();
       } catch (err) {
         throw new ThrowableDiagnostic({
           diagnostic: err,
         });
       }
 
-      let serializedAssetGraph = result.Ok;
       let [assetGraph, changedAssets] = getAssetGraph(
         serializedAssetGraph,
         options,
       );
+
+      console.log('asset graph result', JSON.stringify(assetGraph, null, 2));
+
       let changedAssetsPropagation = new Set(changedAssets.keys());
       let errors = propagateSymbols({
         options,
@@ -121,17 +123,20 @@ function getAssetGraph(serializedGraph, options) {
         value: null,
       });
     } else if (node.type === 'asset') {
-      let id = node.value.id;
+      let id = String(node.value.id);
+      let asset = node.value.asset;
 
-      let asset = {
-        ...node.value,
+      asset = {
+        ...asset,
+        id,
         committed: true,
-        filePath: toProjectPath(options.projectRoot, node.value.filePath),
+        filePath: toProjectPath(options.projectRoot, asset.filePath),
+        symbols: asset.hasSymbols
+          ? new Map(
+              asset.symbols.map(({exported, ...symbol}) => [exported, symbol]),
+            )
+          : null,
         // // backward compatibility
-        // symbols:
-        //   node.value.flags & AssetFlags.HAS_SYMBOLS
-        //     ? new Map(node.value.symbols.map(s => [s.exported, s]))
-        //     : null,
       };
 
       changedAssets.set(id, asset);
@@ -144,21 +149,23 @@ function getAssetGraph(serializedGraph, options) {
         value: asset,
       });
     } else if (node.type === 'dependency') {
-      let id = node.value.id;
-      let dependency = {
-        ...node.value,
-        // specifier:
-        //   node.value.flags & DependencyFlags.ENTRY
-        //     ? toProjectPath(options.projectRoot, node.value.specifier)
-        //     : node.value.specifier,
-        sourcePath: node.value.sourcePath
-          ? toProjectPath(options.projectRoot, node.value.sourcePath)
+      let id = String(node.value.id);
+      let dependency = node.value.dependency;
+
+      dependency = {
+        ...dependency,
+        id,
+        sourcePath: dependency.sourcePath
+          ? toProjectPath(options.projectRoot, dependency.sourcePath)
           : null,
-        // flags: node.value.flags & ~DependencyFlags.HAS_SYMBOLS,
-        // symbols:
-        //   node.value.flags & DependencyFlags.HAS_SYMBOLS
-        //     ? new Map(node.value.symbols.map(s => [s.exported, s]))
-        //     : null,
+        symbols: dependency.hasSymbols
+          ? new Map(
+              dependency.symbols.map(({exported, ...symbol}) => [
+                exported,
+                symbol,
+              ]),
+            )
+          : null,
       };
       let usedSymbolsDown = new Set();
       let usedSymbolsUp = new Map();

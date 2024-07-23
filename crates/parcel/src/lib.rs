@@ -5,6 +5,7 @@ pub use parcel_plugin_rpc as rpc;
 pub mod parcel;
 pub(crate) mod request_tracker;
 
+mod cache;
 mod plugins;
 mod project_root;
 mod requests;
