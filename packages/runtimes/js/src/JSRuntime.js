@@ -475,14 +475,23 @@ function getLoaderRuntime({
     loaderCode = `(${loaderCode})`;
   }
 
+  if (mainBundle.type === 'js') {
+    let parcelRequire = bundle.env.shouldScopeHoist
+      ? 'parcelRequire'
+      : 'module.bundle.root';
+    loaderCode += `.then(() => ${parcelRequire}('${bundleGraph.getAssetPublicId(
+      bundleGraph.getAssetById(bundleGroup.entryAssetId),
+    )}'))`;
+  }
+
   if (needsEsmLoadPrelude && options.featureFlags.importRetry) {
-    const assetId = bundleGraph.getAssetById(bundleGroup.entryAssetId);
     loaderCode = `
       Object.defineProperty(module, 'exports', { get: () => {
         let load = require('./helpers/browser/esm-js-loader-retry');
-        return ${loaderCode}.then(() => parcelRequire("${bundleGraph.getAssetPublicId(
-      assetId,
-    )}"));
+        return ${loaderCode}.then((v) => {
+          Object.defineProperty(module, "exports", { value: Promise.resolve(v) })
+          return v
+        });
       }})`;
 
     return {
@@ -491,15 +500,6 @@ function getLoaderRuntime({
       dependency,
       env: {sourceType: 'module'},
     };
-  }
-
-  if (mainBundle.type === 'js') {
-    let parcelRequire = bundle.env.shouldScopeHoist
-      ? 'parcelRequire'
-      : 'module.bundle.root';
-    loaderCode += `.then(() => ${parcelRequire}('${bundleGraph.getAssetPublicId(
-      bundleGraph.getAssetById(bundleGroup.entryAssetId),
-    )}'))`;
   }
 
   let code = [];
