@@ -36,52 +36,6 @@ import {propagateSymbols} from '../SymbolPropagation';
 import {requestTypes} from '../RequestTracker';
 import {CSVLogger} from '@parcel/csv-logger';
 
-const aggregator = {
-  timerStats: new Map(),
-  start(prefix: string) {
-    let startTime = performance.now();
-
-    return (key: string) => {
-      let timerStatsKey = `[${prefix}] ${key}`;
-      let currentTime = performance.now();
-      let duration = currentTime - startTime;
-      let currentVal = aggregator.timerStats.get(timerStatsKey) ?? {
-        time: 0,
-        count: 0,
-      };
-
-      aggregator.timerStats.set(timerStatsKey, {
-        time: currentVal.time + duration,
-        count: currentVal.count + 1,
-      });
-      startTime = currentTime;
-    };
-  },
-
-  flush() {
-    if (process.env.NODE_ENV === 'test') {
-      return;
-    }
-
-    console.log('Timer Stats');
-
-    console.table(
-      Array.from(aggregator.timerStats.entries()).map(
-        ([key, {time, count}]) => ({
-          key,
-          time,
-          count,
-          avg: time / count,
-        }),
-      ),
-    );
-
-    aggregator.timerStats.clear();
-  },
-};
-
-globalThis.aggregator = aggregator;
-
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
   assetGroups?: Array<AssetGroup>,
@@ -289,7 +243,6 @@ export class AssetGraphBuilder {
     visit(rootNodeId);
     await this.queue.run();
 
-    aggregator.flush();
     logger.verbose({
       origin: '@parcel/core',
       message: 'Asset graph walked',
@@ -485,7 +438,6 @@ export class AssetGraphBuilder {
     nodeId: NodeId,
     errors: Array<Error>,
   ): Promise<mixed> {
-    let timer = aggregator.start('queueCorrespondingRequest');
     let promise;
     let node = nullthrows(this.assetGraph.getNode(nodeId));
     switch (node.type) {
@@ -508,12 +460,7 @@ export class AssetGraphBuilder {
     }
 
     return this.queue.add(() =>
-      promise.then(
-        () => {
-          timer(node.type);
-        },
-        error => errors.push(error),
-      ),
+      promise.then(null, error => errors.push(error)),
     );
   }
 
