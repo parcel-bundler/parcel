@@ -312,9 +312,11 @@ mod tests {
       let entries = Some(Entry::Single(String::from("src/a.js")));
       let fs = Arc::new(InMemoryFileSystem::default());
       let root = root();
+      let vcs = root.join(vcs);
 
       fs.set_current_working_directory(cwd());
-      fs.create_directory(&root.join(vcs));
+      fs.create_directory(&vcs)
+        .expect(format!("Expected {} directory to be created", vcs.display()).as_str());
 
       assert_eq!(
         infer_project_root(fs, entries).map_err(|e| e.to_string()),

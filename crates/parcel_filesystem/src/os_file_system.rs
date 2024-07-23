@@ -24,6 +24,10 @@ impl FileSystem for OsFileSystem {
     canonicalize(path, cache)
   }
 
+  fn create_directory(&self, path: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(path)
+  }
+
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
     std::fs::read_to_string(path)
   }
