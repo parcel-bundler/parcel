@@ -143,6 +143,10 @@ impl FileSystem for JsFileSystem {
 
     is_dir().unwrap_or(false)
   }
+
+  fn create_directory(&self, _path: &Path) -> std::io::Result<()> {
+    todo!()
+  }
 }
 
 #[napi(object)]

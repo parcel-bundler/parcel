@@ -36,12 +36,14 @@ pub trait FileSystem {
       "Not implemented",
     ))
   }
+
   fn canonicalize_base(&self, _path: &Path) -> Result<PathBuf> {
     Err(std::io::Error::new(
       std::io::ErrorKind::Other,
       "Not implemented",
     ))
   }
+
   fn canonicalize(
     &self,
     path: &Path,
@@ -49,6 +51,10 @@ pub trait FileSystem {
   ) -> Result<PathBuf> {
     self.canonicalize_base(path)
   }
+
+  /// Create a directory at the specified path
+  fn create_directory(&self, path: &Path) -> std::io::Result<()>;
+
   fn read_to_string(&self, path: &Path) -> Result<String>;
   fn is_file(&self, path: &Path) -> bool;
   fn is_dir(&self, path: &Path) -> bool;

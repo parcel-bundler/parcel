@@ -105,9 +105,13 @@ mod tests {
   fn returns_none_when_there_are_no_matching_ancestor_directories() {
     let fs = InMemoryFileSystem::default();
 
-    fs.create_directory(Path::new("srcs"));
-    fs.create_directory(Path::new("packages/parcel/srcs"));
-    fs.create_directory(Path::new("packages/parcel/descendent/src"));
+    fs.create_directory(Path::new("srcs")).unwrap();
+
+    fs.create_directory(Path::new("packages/parcel/srcs"))
+      .unwrap();
+
+    fs.create_directory(Path::new("packages/parcel/descendent/src"))
+      .unwrap();
 
     assert_eq!(
       find_ancestor_directory(
@@ -168,7 +172,8 @@ mod tests {
   fn returns_none_when_ancestor_file_is_a_directory() {
     let fs = InMemoryFileSystem::default();
 
-    fs.create_directory(Path::new("packages/parcel/package.json"));
+    fs.create_directory(Path::new("packages/parcel/package.json"))
+      .unwrap();
 
     assert_eq!(
       find_ancestor_file(
@@ -185,7 +190,7 @@ mod tests {
   fn returns_none_when_ancestor_directory_is_outside_root() {
     let fs = InMemoryFileSystem::default();
 
-    fs.create_directory(Path::new("src"));
+    fs.create_directory(Path::new("src")).unwrap();
 
     assert_eq!(
       find_ancestor_directory(
@@ -219,13 +224,15 @@ mod tests {
   fn returns_first_closest_ancestor_directory_path() {
     let fs = InMemoryFileSystem::default();
 
-    fs.create_directory(Path::new("dist"));
-    fs.create_directory(Path::new("packages/dist"));
-    fs.create_directory(Path::new("packages/parcel/dist"));
+    fs.create_directory(Path::new("dist")).unwrap();
+    fs.create_directory(Path::new("packages/dist")).unwrap();
+    fs.create_directory(Path::new("packages/parcel/dist"))
+      .unwrap();
 
-    fs.create_directory(Path::new("src"));
-    fs.create_directory(Path::new("packages/src"));
-    fs.create_directory(Path::new("packages/parcel/src"));
+    fs.create_directory(Path::new("src")).unwrap();
+    fs.create_directory(Path::new("packages/src")).unwrap();
+    fs.create_directory(Path::new("packages/parcel/src"))
+      .unwrap();
 
     assert_eq!(
       find_ancestor_directory(
@@ -272,9 +279,10 @@ mod tests {
   fn returns_first_closest_ancestor_entry_path() {
     let fs = InMemoryFileSystem::default();
 
-    fs.create_directory(Path::new("src"));
-    fs.create_directory(Path::new("packages/src"));
-    fs.create_directory(Path::new("packages/parcel/src"));
+    fs.create_directory(Path::new("src")).unwrap();
+    fs.create_directory(Path::new("packages/src")).unwrap();
+    fs.create_directory(Path::new("packages/parcel/src"))
+      .unwrap();
 
     fs.write_file(Path::new("package.json"), String::from("{}"));
     fs.write_file(Path::new("packages/package.json"), String::from("{}"));

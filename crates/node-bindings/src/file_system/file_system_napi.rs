@@ -12,6 +12,7 @@ use parcel_napi_helpers::js_callable::JsCallable;
 
 pub struct FileSystemNapi {
   canonicalize_fn: JsCallable,
+  create_directory_fn: JsCallable,
   cwd_fn: JsCallable,
   read_file_fn: JsCallable,
   is_file_fn: JsCallable,
@@ -22,6 +23,7 @@ impl FileSystemNapi {
   pub fn new(js_file_system: &JsObject) -> napi::Result<Self> {
     Ok(Self {
       canonicalize_fn: JsCallable::new_from_object_prop("canonicalize", &js_file_system)?,
+      create_directory_fn: JsCallable::new_from_object_prop("createDirectory", &js_file_system)?,
       cwd_fn: JsCallable::new_from_object_prop("cwd", &js_file_system)?,
       read_file_fn: JsCallable::new_from_object_prop("readFile", &js_file_system)?,
       is_file_fn: JsCallable::new_from_object_prop("isFile", &js_file_system)?,
@@ -34,6 +36,13 @@ impl FileSystem for FileSystemNapi {
   fn canonicalize_base(&self, path: &Path) -> io::Result<PathBuf> {
     self
       .canonicalize_fn
+      .call_with_return_serde(path.to_path_buf())
+      .map_err(|e| io::Error::other(e))
+  }
+
+  fn create_directory(&self, path: &Path) -> std::io::Result<()> {
+    self
+      .create_directory_fn
       .call_with_return_serde(path.to_path_buf())
       .map_err(|e| io::Error::other(e))
   }
