@@ -55,6 +55,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   featureFlags: {
     exampleFeature: false,
     parcelV3: false,
+    importRetry: false,
   },
 };
 

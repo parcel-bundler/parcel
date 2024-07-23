@@ -8,6 +8,7 @@ export type FeatureFlags = _FeatureFlags;
 export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   exampleFeature: false,
   parcelV3: false,
+  importRetry: false,
 };
 
 let featureFlagValues: FeatureFlags = {...DEFAULT_FEATURE_FLAGS};

@@ -484,6 +484,24 @@ function getLoaderRuntime({
     )}'))`;
   }
 
+  if (needsEsmLoadPrelude && options.featureFlags.importRetry) {
+    loaderCode = `
+      Object.defineProperty(module, 'exports', { get: () => {
+        let load = require('./helpers/browser/esm-js-loader-retry');
+        return ${loaderCode}.then((v) => {
+          Object.defineProperty(module, "exports", { value: Promise.resolve(v) })
+          return v
+        });
+      }})`;
+
+    return {
+      filePath: __filename,
+      code: loaderCode,
+      dependency,
+      env: {sourceType: 'module'},
+    };
+  }
+
   let code = [];
 
   if (needsEsmLoadPrelude) {
