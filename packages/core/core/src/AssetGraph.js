@@ -112,6 +112,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   hash: ?string;
   envCache: Map<string, Environment>;
   safeToIncrementallyBundle: boolean = true;
+  usedDependencies: Set<Dependency>;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {
@@ -128,6 +129,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         }),
       );
     }
+
+    this.usedDependencies = new Set();
     this.envCache = new Map();
   }
 
@@ -286,6 +289,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   shouldVisitChild(nodeId: NodeId, childNodeId: NodeId): boolean {
+    let timer = globalThis.aggregator.start('shouldVisitChild');
+
     let node = nullthrows(this.getNode(nodeId));
     let childNode = nullthrows(this.getNode(childNodeId));
     if (
@@ -312,6 +317,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     } else if (assetGroupPreviouslyDeferred && !defer) {
       this.unmarkParentsWithHasDeferred(childNodeId);
     }
+
+    timer('end');
 
     return !defer;
   }
@@ -376,6 +383,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     sideEffects: ?boolean,
     canDefer: boolean,
   ): boolean {
+    let timer = globalThis.aggregator.start('shouldDeferDependency');
+
     let defer = false;
     let dependencySymbols = dependency.symbols;
     if (
@@ -389,17 +398,28 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       let depNode = this.getNode(depNodeId);
       invariant(depNode);
 
+      timer('get nodes');
+
       let assets = this.getNodeIdsConnectedTo(depNodeId);
+      timer('get connected nodes');
       let symbols = new Map(
         [...dependencySymbols].map(([key, val]) => [val.local, key]),
       );
+      timer('symbols map');
       invariant(assets.length === 1);
       let firstAsset = nullthrows(this.getNode(assets[0]));
       invariant(firstAsset.type === 'asset');
       let resolvedAsset = firstAsset.value;
       let deps = this.getIncomingDependencies(resolvedAsset);
-      defer = deps.every(
-        d =>
+
+      timer('getIncomingDependencies');
+
+      for (const d of deps) {
+        // if (this.usedDependencies.has(d)) {
+        //   return false;
+        // }
+
+        let isDeferrable =
           d.symbols &&
           !(d.env.isLibrary && d.isEntry) &&
           !d.symbols.has('*') &&
@@ -407,9 +427,18 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
             if (!resolvedAsset.symbols) return true;
             let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
             return assetSymbol != null && symbols.has(assetSymbol);
-          }),
-      );
+          });
+
+        if (!isDeferrable) {
+          this.usedDependencies.add(d);
+          timer('Breaking early');
+          return false;
+        }
+      }
+      timer('Every true');
+      return true;
     }
+
     return defer;
   }
 

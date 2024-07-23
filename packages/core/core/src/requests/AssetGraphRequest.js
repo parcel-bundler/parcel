@@ -34,6 +34,53 @@ import {type ProjectPath, fromProjectPathRelative} from '../projectPath';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {propagateSymbols} from '../SymbolPropagation';
 import {requestTypes} from '../RequestTracker';
+import {CSVLogger} from '@parcel/csv-logger';
+
+const aggregator = {
+  timerStats: new Map(),
+  start(prefix: string) {
+    let startTime = performance.now();
+
+    return (key: string) => {
+      let timerStatsKey = `[${prefix}] ${key}`;
+      let currentTime = performance.now();
+      let duration = currentTime - startTime;
+      let currentVal = aggregator.timerStats.get(timerStatsKey) ?? {
+        time: 0,
+        count: 0,
+      };
+
+      aggregator.timerStats.set(timerStatsKey, {
+        time: currentVal.time + duration,
+        count: currentVal.count + 1,
+      });
+      startTime = currentTime;
+    };
+  },
+
+  flush() {
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    console.log('Timer Stats');
+
+    console.table(
+      Array.from(aggregator.timerStats.entries()).map(
+        ([key, {time, count}]) => ({
+          key,
+          time,
+          count,
+          avg: time / count,
+        }),
+      ),
+    );
+
+    aggregator.timerStats.clear();
+  },
+};
+
+globalThis.aggregator = aggregator;
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -79,10 +126,10 @@ export default function createAssetGraphRequest(
       let prevResult =
         await input.api.getPreviousResult<AssetGraphRequestResult>();
 
-      console.time(`AssetGraph ${agInput.name}`);
+      // console.time(`AssetGraph ${agInput.name}`);
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
-      console.timeEnd(`AssetGraph ${agInput.name}`);
+      // console.timeEnd(`AssetGraph ${agInput.name}`);
 
       // early break for incremental bundling if production or flag is off;
       if (
@@ -145,6 +192,7 @@ export class AssetGraphBuilder {
       entries,
       assetGroups,
     });
+    assetGraph.usedDependencies.clear();
     this.assetGroupsWithRemovedParents =
       prevResult?.assetGroupsWithRemovedParents ?? new Set();
     this.previousSymbolPropagationErrors =
@@ -241,6 +289,7 @@ export class AssetGraphBuilder {
     visit(rootNodeId);
     await this.queue.run();
 
+    aggregator.flush();
     logger.verbose({
       origin: '@parcel/core',
       message: 'Asset graph walked',
@@ -436,6 +485,7 @@ export class AssetGraphBuilder {
     nodeId: NodeId,
     errors: Array<Error>,
   ): Promise<mixed> {
+    let timer = aggregator.start('queueCorrespondingRequest');
     let promise;
     let node = nullthrows(this.assetGraph.getNode(nodeId));
     switch (node.type) {
@@ -456,8 +506,14 @@ export class AssetGraphBuilder {
           `Can not queue corresponding request of node with type ${node.type}`,
         );
     }
+
     return this.queue.add(() =>
-      promise.then(null, error => errors.push(error)),
+      promise.then(
+        () => {
+          timer(node.type);
+        },
+        error => errors.push(error),
+      ),
     );
   }
 
