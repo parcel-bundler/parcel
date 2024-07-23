@@ -112,7 +112,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   hash: ?string;
   envCache: Map<string, Environment>;
   safeToIncrementallyBundle: boolean = true;
-  usedDependencies: Set<Dependency>;
+  undeferredDependencies: Set<Dependency>;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {
@@ -130,7 +130,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
     }
 
-    this.usedDependencies = new Set();
+    this.undeferredDependencies = new Set();
     this.envCache = new Map();
   }
 
@@ -420,7 +420,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     for (const d of deps) {
       // If this dependency has already been through this process, and we
       // know it's not deferrable, then there's no need to re-check
-      if (this.usedDependencies.has(d)) {
+      if (this.undeferredDependencies.has(d)) {
         return false;
       }
 
@@ -435,7 +435,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
       if (!depIsDeferrable) {
         // Mark this dep as not deferrable so it doesn't have to be re-checked
-        this.usedDependencies.add(d);
+        this.undeferredDependencies.add(d);
         return false;
       }
     }

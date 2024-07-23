@@ -143,7 +143,7 @@ export class AssetGraphBuilder {
       entries,
       assetGroups,
     });
-    assetGraph.usedDependencies.clear();
+    assetGraph.undeferredDependencies.clear();
     this.assetGroupsWithRemovedParents =
       prevResult?.assetGroupsWithRemovedParents ?? new Set();
     this.previousSymbolPropagationErrors =
