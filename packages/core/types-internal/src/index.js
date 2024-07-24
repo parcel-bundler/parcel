@@ -100,7 +100,12 @@ export type GlobMap<T> = {[Glob]: T, ...};
 
 export type RawParcelConfigPipeline = Array<PackageName>;
 
-export type HMROptions = {port?: number, host?: string, ...};
+export type HMROptions = {
+  port?: number,
+  host?: string,
+  forcePortOverride?: boolean,
+  ...
+};
 
 /** The format of .parcelrc  */
 export type RawParcelConfig = {|

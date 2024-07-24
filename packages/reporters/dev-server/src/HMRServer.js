@@ -272,9 +272,19 @@ export default class HMRServer {
   }
 
   broadcast(msg: HMRMessage) {
-    const json = JSON.stringify(msg);
-    for (let ws of this.wss.clients) {
-      ws.send(json);
+    if (msg.type === 'update' && msg.assets.length > 10000) {
+      // Split up message if too large
+      for (let i = 0; i < msg.assets.length; i += 10000) {
+        this.broadcast({
+          ...msg,
+          assets: msg.assets.slice(i, i + 10000),
+        });
+      }
+    } else {
+      const json = JSON.stringify(msg);
+      for (let ws of this.wss.clients) {
+        ws.send(json);
+      }
     }
   }
 }

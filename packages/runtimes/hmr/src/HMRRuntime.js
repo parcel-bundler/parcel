@@ -30,7 +30,7 @@ export default (new Runtime({
       return;
     }
 
-    const {host, port} = options.hmrOptions;
+    const {host, port, forcePortOverride} = options.hmrOptions;
     return {
       filePath: FILENAME,
       code:
@@ -41,7 +41,9 @@ export default (new Runtime({
           port != null &&
             // Default to the HTTP port in the browser, only override
             // in watch mode or if hmr port != serve port
-            (!options.serveOptions || options.serveOptions.port !== port)
+            (!options.serveOptions ||
+              options.serveOptions.port !== port ||
+              forcePortOverride)
             ? port
             : null,
         )};` +
