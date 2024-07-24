@@ -32,7 +32,7 @@ pub struct ParcelNapiOptions {
   pub options: JsObject,
   pub package_manager: Option<JsObject>,
   pub threads: Option<u32>,
-  pub tracer_options: Option<TracerMode>,
+  pub tracer_options: Option<JsObject>,
 }
 
 #[napi]
@@ -50,8 +50,13 @@ impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(napi_options: ParcelNapiOptions, env: Env) -> napi::Result<Self> {
     // Debugging Instrumentation
-    let tracer_options = napi_options.tracer_options.unwrap_or_default();
-    let tracer = Tracer::new(tracer_options).map_err(anyhow_to_napi)?;
+    let tracer_mode: TracerMode = if let Some(mode) = napi_options.tracer_options {
+      env.from_js_value(mode)?
+    } else {
+      TracerMode::default()
+    };
+
+    let tracer = Tracer::new(tracer_mode).map_err(anyhow_to_napi)?;
 
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");

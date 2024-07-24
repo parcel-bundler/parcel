@@ -52,7 +52,7 @@ describe('parcel-v3', function () {
     assert.equal(output(), 3);
   });
 
-  it('should run the main-thread bootstrap function', async function () {
+  it.only('should run the main-thread bootstrap function', async function () {
     await fsFixture(overlayFS, __dirname)`
       index.js:
         console.log('hello world');
@@ -71,6 +71,13 @@ describe('parcel-v3', function () {
       fs: toFileSystemV3(overlayFS),
       nodeWorkers: 1,
       packageManager: new NodePackageManager(inputFS, __dirname),
+      // Testing:
+      // tracerOptions: {
+      //   mode: 'file',
+      //   directory: join(process.cwd(), 'logs'),
+      //   prefix: 'hello',
+      //   maxFiles: 100,
+      // }
     });
 
     await parcel.build();

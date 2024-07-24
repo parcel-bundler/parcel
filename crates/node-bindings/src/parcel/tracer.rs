@@ -2,13 +2,10 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use napi::bindgen_prelude::FromNapiValue;
-use napi::bindgen_prelude::ToNapiValue;
-use napi::JsNumber;
-use napi::JsObject;
-use napi::JsString;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
+use serde::Deserialize;
+use serde::Serialize;
 use tracing_appender::non_blocking::WorkerGuard;
 
 /// Ensures there is only ever one tracer running, initialized the first time it is needed.
@@ -16,13 +13,15 @@ use tracing_appender::non_blocking::WorkerGuard;
 /// It should be kept alive for the duration of the program or the Parcel instance.
 static GLOBAL_TRACER: Lazy<Mutex<Option<Tracer>>> = Lazy::new(|| Default::default());
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", tag = "mode")]
 pub enum TracerMode {
   /// Disable the Tracer
   Disabled,
   /// Output the Tracer logs to Stdout
   Stdout,
   /// Output the Tracer logs to a file
+  #[serde(rename_all = "camelCase")]
   File {
     /// The directory where the log files will be written.
     directory: String,
@@ -31,49 +30,6 @@ pub enum TracerMode {
     /// The maximum number of rotated files to keep.
     max_files: u32,
   },
-}
-
-/// Telling Napi how to convert from a JS type to the enum
-impl FromNapiValue for TracerMode {
-  unsafe fn from_napi_value(
-    env: napi::sys::napi_env,
-    napi_val: napi::sys::napi_value,
-  ) -> napi::Result<Self> {
-    let object = JsObject::from_napi_value(env, napi_val)?;
-    let mode = object.get_named_property::<JsString>("mode")?;
-    let v = match mode.into_utf8()?.as_str()? {
-      "disabled" => TracerMode::Disabled,
-      "stdout" => TracerMode::Stdout,
-      "file" => TracerMode::File {
-        directory: object
-          .get_named_property::<JsString>("directory")?
-          .into_utf8()?
-          .as_str()?
-          .to_string(),
-        prefix: object
-          .get_named_property::<JsString>("prefix")?
-          .into_utf8()?
-          .as_str()?
-          .to_string(),
-        max_files: object
-          .get_named_property::<JsNumber>("maxFiles")?
-          .get_uint32()?,
-      },
-      _ => return Err(napi::Error::from_reason("Invalid tracer mode")),
-    };
-    Ok(v)
-  }
-}
-
-/// Needs to exist for deserialization
-impl ToNapiValue for TracerMode {
-  unsafe fn to_napi_value(
-    _env: napi::sys::napi_env,
-    _val: Self,
-  ) -> napi::Result<napi::sys::napi_value> {
-    // we don't send this value back to JS
-    unimplemented!()
-  }
 }
 
 impl Default for TracerMode {
