@@ -103,8 +103,8 @@ pub struct Tracer {
 }
 
 impl Tracer {
-  /// The Tracer can only be initialized once per process instance,
-  /// subsequent invocations will reuse an existing instance
+  // The Tracer can only be initialized once per process instance,
+  //subsequent invocations will reuse an existing instance
   pub fn new(mode: TracerMode) -> anyhow::Result<Self> {
     let mut global_tracer = GLOBAL_TRACER.lock();
 
