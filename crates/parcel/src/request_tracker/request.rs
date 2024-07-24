@@ -3,7 +3,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
-use std::sync::Arc;
 
 use dyn_hash::DynHash;
 use parcel_core::config_loader::ConfigLoaderRef;
@@ -12,7 +11,6 @@ use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
 use parcel_core::cache::CacheRef;
 use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::ReporterPlugin;
 use parcel_core::types::Invalidation;
 use parcel_filesystem::FileSystemRef;
 
@@ -36,7 +34,6 @@ pub struct RunRequestContext {
   parent_request_id: Option<u64>,
   plugins: PluginsRef,
   pub project_root: PathBuf,
-  reporter: Arc<dyn ReporterPlugin + Send>,
   run_request_fn: RunRequestFn,
 }
 
@@ -48,7 +45,6 @@ impl RunRequestContext {
     parent_request_id: Option<u64>,
     plugins: PluginsRef,
     project_root: PathBuf,
-    reporter: Arc<dyn ReporterPlugin + Send>,
     run_request_fn: RunRequestFn,
   ) -> Self {
     Self {
@@ -58,7 +54,6 @@ impl RunRequestContext {
       parent_request_id,
       plugins,
       project_root,
-      reporter,
       run_request_fn,
     }
   }
@@ -66,7 +61,8 @@ impl RunRequestContext {
   /// Report an event
   pub fn report(&self, event: ReporterEvent) {
     self
-      .reporter
+      .plugins()
+      .reporter()
       .report(&event)
       .expect("TODO this should be handled?")
   }

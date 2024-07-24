@@ -1719,6 +1719,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dyn-hash",
+ "mockall",
  "num_cpus",
  "parcel-resolver",
  "parcel_config",

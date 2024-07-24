@@ -8,7 +8,6 @@ use parcel_core::plugin::ReporterEvent;
 use parcel_core::plugin::Resolution;
 use parcel_core::plugin::ResolveContext;
 use parcel_core::plugin::ResolvedResolution;
-use parcel_core::plugin::ResolverPlugin;
 use parcel_core::plugin::ResolvingEvent;
 use parcel_core::types::Dependency;
 use parcel_resolver::parse_scheme;
@@ -23,8 +22,6 @@ use super::RequestResult;
 #[derive(Hash, Debug)]
 pub struct PathRequest {
   pub dependency: Arc<Dependency>,
-  pub named_pipelines: Vec<String>,
-  pub resolvers: Arc<Vec<Box<dyn ResolverPlugin>>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -54,8 +51,9 @@ impl Request for PathRequest {
 
     let (parsed_pipeline, specifier) = parse_scheme(&self.dependency.specifier)
       .and_then(|(pipeline, specifier)| {
-        if self
-          .named_pipelines
+        if request_context
+          .plugins()
+          .named_pipelines()
           .contains(&String::from(pipeline.as_ref()))
         {
           Ok((Some(pipeline.to_string()), specifier))
@@ -67,7 +65,7 @@ impl Request for PathRequest {
 
     let mut invalidations = Vec::new();
 
-    for resolver in self.resolvers.iter() {
+    for resolver in request_context.plugins().resolvers()?.iter() {
       let resolved = resolver.resolve(ResolveContext {
         dependency: Arc::clone(&self.dependency),
         pipeline: parsed_pipeline.clone(),
@@ -153,11 +151,34 @@ impl Request for PathRequest {
 mod tests {
   use std::fmt::Debug;
 
-  use parcel_core::plugin::Resolved;
+  use parcel_core::plugin::{
+    composite_reporter_plugin::CompositeReporterPlugin, Resolved, ResolverPlugin,
+  };
 
-  use crate::test_utils::request_tracker;
+  use crate::{
+    plugins::{MockPlugins, PluginsRef},
+    test_utils::{request_tracker, RequestTrackerTestOptions},
+  };
 
   use super::*;
+
+  macro_rules! test_plugins {
+    ($resolvers:expr) => {{
+      let mut plugins = MockPlugins::new();
+
+      plugins.expect_named_pipelines().returning(|| Vec::new());
+
+      plugins
+        .expect_reporter()
+        .returning(|| Arc::new(CompositeReporterPlugin::default()));
+
+      plugins.expect_resolvers().returning(move || Ok($resolvers));
+
+      let plugins: PluginsRef = Arc::new(plugins);
+
+      Some(plugins)
+    }};
+  }
 
   #[derive(Debug, Hash)]
   struct ExcludedResolverPlugin {}
@@ -208,14 +229,16 @@ mod tests {
 
   #[test]
   fn returns_excluded_resolution() {
-    let mut request_tracker = request_tracker(Default::default());
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
-      named_pipelines: Vec::new(),
-      resolvers: Arc::new(vec![Box::new(ExcludedResolverPlugin {})]),
     };
 
-    let resolution = request_tracker.run_request(request);
+    let resolution = request_tracker(RequestTrackerTestOptions {
+      plugins: test_plugins!(vec![Box::new(ExcludedResolverPlugin {})]),
+      ..RequestTrackerTestOptions::default()
+    })
+    .run_request(request);
+
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
       Ok(RequestResult::Path(PathRequestOutput::Excluded))
@@ -226,16 +249,18 @@ mod tests {
   fn returns_an_error_when_resolved_file_path_is_not_absolute() {
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
-      named_pipelines: Vec::new(),
-      resolvers: Arc::new(vec![Box::new(ResolvedResolverPlugin {
+    };
+
+    let resolution = request_tracker(RequestTrackerTestOptions {
+      plugins: test_plugins!(vec![Box::new(ResolvedResolverPlugin {
         resolution: ResolvedResolution {
           file_path: PathBuf::from("./"),
           ..ResolvedResolution::default()
         },
       })]),
-    };
-
-    let resolution = request_tracker(Default::default()).run_request(request);
+      ..RequestTrackerTestOptions::default()
+    })
+    .run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
@@ -255,8 +280,12 @@ mod tests {
 
     let request = PathRequest {
       dependency: Arc::new(Dependency::default()),
-      named_pipelines: Vec::new(),
-      resolvers: Arc::new(vec![
+    };
+
+    let path = root.join("a.js");
+
+    let resolution = request_tracker(RequestTrackerTestOptions {
+      plugins: test_plugins!(vec![
         Box::new(UnresolvedResolverPlugin {}),
         Box::new(ResolvedResolverPlugin {
           resolution: ResolvedResolution {
@@ -271,16 +300,16 @@ mod tests {
           },
         }),
       ]),
-    };
-
-    let resolution = request_tracker(Default::default()).run_request(request);
+      ..RequestTrackerTestOptions::default()
+    })
+    .run_request(request);
 
     assert_eq!(
       resolution.map_err(|e| e.to_string()),
       Ok(RequestResult::Path(PathRequestOutput::Resolved {
         can_defer: false,
         code: None,
-        path: root.join("a.js"),
+        path,
         pipeline: None,
         query: None,
         side_effects: false
@@ -299,11 +328,13 @@ mod tests {
           specifier: String::from("a.js"),
           ..Default::default()
         }),
-        named_pipelines: Vec::new(),
-        resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
       };
 
-      let resolution = request_tracker(Default::default()).run_request(request);
+      let resolution = request_tracker(RequestTrackerTestOptions {
+        plugins: test_plugins!(vec![Box::new(UnresolvedResolverPlugin {})]),
+        ..RequestTrackerTestOptions::default()
+      })
+      .run_request(request);
 
       assert_eq!(
         resolution.map_err(|e| e.to_string()),
@@ -319,11 +350,13 @@ mod tests {
             is_optional: false,
             ..dependency
           }),
-          named_pipelines: Vec::new(),
-          resolvers: Arc::new(vec![Box::new(UnresolvedResolverPlugin {})]),
         };
 
-        let resolution = request_tracker(Default::default()).run_request(request);
+        let resolution = request_tracker(RequestTrackerTestOptions {
+          plugins: test_plugins!(vec![Box::new(UnresolvedResolverPlugin {})]),
+          ..RequestTrackerTestOptions::default()
+        })
+        .run_request(request);
 
         assert_eq!(
           resolution.map_err(|e| e.to_string()),

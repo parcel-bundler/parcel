@@ -9,7 +9,7 @@ type Reporter = Box<dyn ReporterPlugin>;
 type Reporter = crate::plugin::MockReporterPlugin;
 
 /// A reporter plugin that delegates to multiple other reporters.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CompositeReporterPlugin {
   reporters: Vec<Reporter>,
 }
