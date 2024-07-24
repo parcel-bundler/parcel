@@ -55,6 +55,7 @@ export type HMRMessage =
 
 const FS_CONCURRENCY = 64;
 const HMR_ENDPOINT = '/__parcel_hmr';
+const BROADCAST_MAX_ASSETS = 10000;
 
 export default class HMRServer {
   wss: WebSocket.Server;
@@ -272,12 +273,12 @@ export default class HMRServer {
   }
 
   broadcast(msg: HMRMessage) {
-    if (msg.type === 'update' && msg.assets.length > 10000) {
+    if (msg.type === 'update' && msg.assets.length > BROADCAST_MAX_ASSETS) {
       // Split up message if too large
-      for (let i = 0; i < msg.assets.length; i += 10000) {
+      for (let i = 0; i < msg.assets.length; i += BROADCAST_MAX_ASSETS) {
         this.broadcast({
           ...msg,
-          assets: msg.assets.slice(i, i + 10000),
+          assets: msg.assets.slice(i, i + BROADCAST_MAX_ASSETS),
         });
       }
     } else {
