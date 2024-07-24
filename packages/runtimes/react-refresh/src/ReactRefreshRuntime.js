@@ -2,7 +2,7 @@
 
 import {Runtime} from '@parcel/plugin';
 import {loadConfig} from '@parcel/utils';
-
+// $FlowFixMe Package json is untyped
 import {version} from 'react-refresh/package.json';
 
 const CODE = `
