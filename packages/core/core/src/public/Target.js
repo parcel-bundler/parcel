@@ -17,7 +17,6 @@ const inspect = Symbol.for('nodejs.util.inspect.custom');
 const internalTargetToTarget: WeakMap<TargetValue, Target> = new WeakMap();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
 export function targetToInternalTarget(target: ITarget): TargetValue {
-  console.log('targets contains', _targetToInternalTarget);
   return nullthrows(_targetToInternalTarget.get(target));
 }
 

@@ -296,6 +296,7 @@ export async function runBundles(
   let outputFormat = env.outputFormat;
 
   let ctx, promises;
+  console.log('target', target);
   switch (target) {
     case 'browser': {
       let prepared = prepareBrowserContext(parent, globals);
@@ -347,6 +348,7 @@ export async function runBundles(
 
   vm.createContext(ctx);
   let esmOutput;
+  console.log('outputFormat', outputFormat);
   if (outputFormat === 'esmodule') {
     let res = await runESM(
       bundles[0][1].target.distDir,

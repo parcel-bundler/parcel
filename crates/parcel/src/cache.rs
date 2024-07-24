@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 use heed::types::{Bytes, Str};
 use heed::{EnvFlags, EnvOpenOptions, RoTxn};
@@ -19,48 +19,41 @@ type Database = heed::Database<Str, Bytes>;
 /// * Entries should use binary serialization.
 /// * We don't need to allocate when returning the entries
 pub struct LMDBCache {
-  environment: heed::Env,
   database: Database,
+  environment: heed::Env,
 }
 
 impl LMDBCache {
   #[allow(unused)]
   pub fn new(options: LMDBCacheOptions) -> anyhow::Result<Self> {
-    let rust_cache_path = Path::new(".parcel-cache/rust-cache");
-    std::fs::create_dir_all(rust_cache_path)?;
     let environment = unsafe {
       let mut flags = EnvFlags::empty();
+
       flags.set(EnvFlags::MAP_ASYNC, options.async_writes);
       flags.set(EnvFlags::NO_SYNC, options.async_writes);
       flags.set(EnvFlags::NO_META_SYNC, options.async_writes);
+      flags.set(EnvFlags::NO_LOCK, true);
+
       EnvOpenOptions::new()
         // http://www.lmdb.tech/doc/group__mdb.html#gaa2506ec8dab3d969b0e609cd82e619e5
         // 10GB max DB size that will be memory mapped
         .map_size(40 * 1024 * 1024 * 1024)
         .flags(flags)
-        .open(rust_cache_path)
+        .open(options.cache_dir)
     }?;
+
     let mut write_txn = environment.write_txn()?;
     let database = environment.create_database(&mut write_txn, None)?;
     write_txn.commit()?;
 
     Ok(Self {
-      environment,
       database,
+      environment,
     })
-  }
-
-  pub fn close(self) {
-    let event = self.environment.prepare_for_closing();
-    event.wait();
   }
 }
 
 impl LMDBCache {
-  pub fn environment(&self) -> &heed::Env {
-    &self.environment
-  }
-
   pub fn database(&self) -> &Database {
     &self.database
   }
@@ -98,12 +91,7 @@ impl Cache for LMDBCache {
 pub struct LMDBCacheOptions {
   /// Non-durable writes
   pub async_writes: bool,
-}
-
-impl Default for LMDBCacheOptions {
-  fn default() -> Self {
-    LMDBCacheOptions { async_writes: true }
-  }
+  pub cache_dir: PathBuf,
 }
 
 // #[cfg(test)]

@@ -109,6 +109,8 @@ pub struct Dependency {
 
   /// Whether the symbols vector of this dependency has had symbols added to it.
   pub has_symbols: bool,
+
+  pub placeholder: Option<String>,
 }
 
 impl Dependency {

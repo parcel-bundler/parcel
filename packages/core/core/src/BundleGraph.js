@@ -2176,7 +2176,6 @@ export default class BundleGraph {
           bundleGroupNode.value.entryAssetId,
         );
         invariant(entryAssetNode?.type === 'asset');
-        console.log('adding entry', entryAssetNode);
         entries.push(
           fromProjectPath(projectRoot, entryAssetNode.value.filePath),
         );

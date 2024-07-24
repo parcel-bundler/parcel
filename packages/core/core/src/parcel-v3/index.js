@@ -13,6 +13,7 @@ export type * from './ParcelV3';
 export function toFileSystemV3(fs: ClassicFileSystem): FileSystem {
   return {
     canonicalize: (path: FilePath) => fs.realpathSync(path),
+    createDirectory: (path: FilePath) => fs.mkdirp(path),
     cwd: () => fs.cwd(),
     readFile: (path: string, encoding?: Encoding) =>
       fs.readFileSync(path, encoding ?? 'utf8'),

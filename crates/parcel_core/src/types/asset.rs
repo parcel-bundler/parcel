@@ -22,6 +22,7 @@ pub struct AssetId(pub NonZeroU32);
 #[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Code {
+  // TODO: #[serde(flatten)]
   inner: String,
 }
 

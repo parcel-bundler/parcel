@@ -58,9 +58,16 @@ export function createAssetGraphRequestRust(
         });
       }
 
-      let [assetGraph, changedAssets] = getAssetGraph(
+      let {assetGraph, cachedAssets, changedAssets} = getAssetGraph(
         serializedAssetGraph,
         options,
+      );
+
+      // TODO: Make it a bulk transaction
+      await Promise.all(
+        Array.from(cachedAssets.entries(), ([id, code]) =>
+          options.cache.setBlob(id, Buffer.from(code.inner)),
+        ),
       );
 
       console.log('asset graph result', JSON.stringify(assetGraph, null, 2));
@@ -103,6 +110,7 @@ function getAssetGraph(serializedGraph, options) {
 
   graph.safeToIncrementallyBundle = false;
 
+  let cachedAssets = new Map();
   let changedAssets = new Map();
   let entry = 0;
   for (let node of serializedGraph.nodes) {
@@ -139,7 +147,11 @@ function getAssetGraph(serializedGraph, options) {
         // // backward compatibility
       };
 
+      console.log('got an asset', asset);
+
+      cachedAssets.set(id, asset.code);
       changedAssets.set(id, asset);
+
       graph.addNodeByContentKey(id, {
         id,
         type: 'asset',
@@ -150,11 +162,15 @@ function getAssetGraph(serializedGraph, options) {
       });
     } else if (node.type === 'dependency') {
       let id = String(node.value.id);
-      let dependency = node.value.dependency;
+      let {placeholder, ...dependency} = node.value.dependency;
 
       dependency = {
         ...dependency,
         id,
+        meta: {
+          ...dependency.meta,
+          placeholder,
+        },
         sourcePath: dependency.sourcePath
           ? toProjectPath(options.projectRoot, dependency.sourcePath)
           : null,
@@ -218,5 +234,9 @@ function getAssetGraph(serializedGraph, options) {
     }
   }
 
-  return [graph, changedAssets];
+  return {
+    assetGraph: graph,
+    cachedAssets,
+    changedAssets,
+  };
 }

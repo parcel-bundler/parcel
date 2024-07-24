@@ -31,13 +31,14 @@ describe('javascript', function () {
     await removeDistDirectory();
   });
 
-  it.only('should produce a basic JS bundle with CommonJS requires', async function () {
+  it('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js'),
       {
         featureFlags: {
           parcelV3: true,
         },
+        outputFS: inputFS,
       },
     );
 

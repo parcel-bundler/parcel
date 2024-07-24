@@ -5,7 +5,6 @@ use petgraph::{
   visit::EdgeRef,
   Direction,
 };
-use serde::Serialize;
 
 use crate::types::{Asset, Dependency};
 

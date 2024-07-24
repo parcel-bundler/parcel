@@ -17,8 +17,6 @@ use parcel_package_manager::PackageManagerRef;
 use parcel_plugin_rpc::RpcHostRef;
 use parcel_plugin_rpc::RpcWorkerRef;
 
-use crate::cache::LMDBCache;
-use crate::cache::LMDBCacheOptions;
 use crate::plugins::Plugins;
 use crate::project_root::infer_project_root;
 use crate::request_tracker::RequestTracker;
@@ -101,10 +99,19 @@ impl Parcel {
     // TODO Reinstate this when we are in a full build
     // reporter.report(&ReporterEvent::BuildStart)?;
 
+    // let cache_dir = self.project_root.join(".parcel-cache");
+
+    // self.fs.create_directory(&cache_dir)?;
+
+    // let cache = Arc::new(LMDBCache::new(LMDBCacheOptions {
+    //   async_writes: true,
+    //   cache_dir,
+    // })?);
+
+    let cache = Arc::new(MockCache::new());
+
     let mut request_tracker = RequestTracker::new(
-      Arc::new(LMDBCache::new(LMDBCacheOptions {
-        async_writes: false,
-      })?),
+      cache.clone(),
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
       self.options.clone(),
