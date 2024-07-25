@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::path::PathBuf;
 use std::sync::mpsc::Sender;
-use std::sync::Arc;
 
 use dyn_hash::DynHash;
 use parcel_core::config_loader::ConfigLoaderRef;
@@ -11,7 +11,6 @@ use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
 use parcel_core::cache::CacheRef;
 use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::ReporterPlugin;
 use parcel_core::types::Invalidation;
 use parcel_filesystem::FileSystemRef;
 
@@ -29,40 +28,41 @@ type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
 /// We want to avoid exposing internals of the request tracker to the implementations so that we
 /// can change this.
 pub struct RunRequestContext {
-  parent_request_id: Option<u64>,
-  run_request_fn: RunRequestFn,
-  reporter: Arc<dyn ReporterPlugin + Send>,
   cache: CacheRef,
-  file_system: FileSystemRef,
-  plugins: PluginsRef,
   config_loader: ConfigLoaderRef,
+  file_system: FileSystemRef,
+  parent_request_id: Option<u64>,
+  plugins: PluginsRef,
+  pub project_root: PathBuf,
+  run_request_fn: RunRequestFn,
 }
 
 impl RunRequestContext {
   pub(crate) fn new(
-    parent_request_id: Option<u64>,
-    run_request_fn: RunRequestFn,
-    reporter: Arc<dyn ReporterPlugin + Send>,
     cache: CacheRef,
-    file_system: FileSystemRef,
-    plugins: PluginsRef,
     config_loader: ConfigLoaderRef,
+    file_system: FileSystemRef,
+    parent_request_id: Option<u64>,
+    plugins: PluginsRef,
+    project_root: PathBuf,
+    run_request_fn: RunRequestFn,
   ) -> Self {
     Self {
-      parent_request_id,
-      run_request_fn,
-      reporter,
       cache,
-      file_system,
-      plugins,
       config_loader,
+      file_system,
+      parent_request_id,
+      plugins,
+      project_root,
+      run_request_fn,
     }
   }
 
-  /// Report an event.
+  /// Report an event
   pub fn report(&self, event: ReporterEvent) {
     self
-      .reporter
+      .plugins()
+      .reporter()
       .report(&event)
       .expect("TODO this should be handled?")
   }

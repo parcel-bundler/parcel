@@ -16,7 +16,7 @@ use parcel_core::types::Dependency;
 use parcel_core::types::Environment;
 use parcel_core::types::FileType;
 
-use crate::plugins::Plugins;
+use crate::plugins::PluginsRef;
 use crate::plugins::TransformerPipeline;
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
@@ -56,7 +56,7 @@ impl Request for AssetRequest {
 
     let pipeline = request_context
       .plugins()
-      .transformers(&self.file_path, self.pipeline.as_deref())?;
+      .transformers(&self.file_path, self.pipeline.clone())?;
     let asset_type = FileType::from_extension(
       self
         .file_path
@@ -76,7 +76,7 @@ impl Request for AssetRequest {
         side_effects: self.side_effects,
       }),
       asset_type,
-      request_context.plugins(),
+      request_context.plugins().clone(),
       &mut transform_ctx,
     )?;
 
@@ -108,7 +108,7 @@ fn run_pipeline(
   mut pipeline: TransformerPipeline,
   input: TransformationInput,
   asset_type: FileType,
-  plugins: &Plugins,
+  plugins: PluginsRef,
   transform_ctx: &mut RunTransformContext,
 ) -> anyhow::Result<TransformResult> {
   let mut dependencies = vec![];

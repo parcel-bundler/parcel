@@ -15,7 +15,7 @@ pub struct ParcelTracingOptions {
 impl Default for ParcelTracingOptions {
   fn default() -> Self {
     Self {
-      enabled: true,
+      enabled: false,
       output_file_options: Some(ParcelTracingOutputFileOptions {
         directory: std::env::temp_dir().to_string_lossy().to_string(),
         prefix: "parcel-tracing".to_string(),

@@ -1318,7 +1318,6 @@ describe('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            configKeyInvalidation: true,
             parcelV3: false,
           },
           async setup() {
@@ -1379,7 +1378,6 @@ describe('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            configKeyInvalidation: true,
             parcelV3: false,
           },
           async setup() {
@@ -1440,7 +1438,6 @@ describe('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            configKeyInvalidation: true,
             parcelV3: false,
           },
           async setup() {

@@ -92,14 +92,12 @@ fn run_with_transformation<R>(
     let unresolved_mark = Mark::new();
     let mut module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
 
-    let result = transform(
-      RunTestContext {
-        source_map: source_map.clone(),
-        global_mark,
-        unresolved_mark,
-      },
-      &mut module,
-    );
+    let context = RunTestContext {
+      source_map: source_map.clone(),
+      global_mark,
+      unresolved_mark,
+    };
+    let result = transform(context, &mut module);
 
     let mut output_buffer = vec![];
     let writer = JsWriter::new(source_map.clone(), "\n", &mut output_buffer, None);

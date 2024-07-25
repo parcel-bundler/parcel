@@ -5,12 +5,9 @@ use parcel_config::parcel_rc_config_loader::LoadConfigOptions;
 use parcel_config::parcel_rc_config_loader::ParcelRcConfigLoader;
 use parcel_core::cache::MockCache;
 use parcel_core::config_loader::ConfigLoader;
-use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::PluginLogger;
 use parcel_core::plugin::PluginOptions;
-use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::ReporterPlugin;
 use parcel_core::types::ParcelOptions;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
@@ -19,7 +16,7 @@ use parcel_package_manager::PackageManagerRef;
 use parcel_plugin_rpc::RpcHostRef;
 use parcel_plugin_rpc::RpcWorkerRef;
 
-use crate::plugins::Plugins;
+use crate::plugins::config_plugins::ConfigPlugins;
 use crate::project_root::infer_project_root;
 use crate::request_tracker::RequestTracker;
 
@@ -80,26 +77,28 @@ impl Parcel {
       search_path: self.project_root.join("index"),
     });
 
-    let plugins = Plugins::new(
+    let plugins = ConfigPlugins::new(
       config,
       PluginContext {
         config: Arc::clone(&config_loader),
-        // TODO options and logger
-        options: Arc::new(PluginOptions::default()),
+        options: Arc::new(PluginOptions {
+          mode: self.options.mode.clone(),
+          project_root: self.project_root.clone(),
+        }),
+        // TODO Initialise actual logger
         logger: PluginLogger::default(),
       },
     );
 
-    // TODO: Revisit plugins, so that the request tracker only has access to the composite plugin
-    let reporter = CompositeReporterPlugin::new(plugins.reporters());
-
-    reporter.report(&ReporterEvent::BuildStart)?;
+    // TODO Reinstate this when we are in a full build
+    // plugins.reporter().report(&ReporterEvent::BuildStart)?;
 
     let _request_tracker = RequestTracker::new(
       Arc::new(MockCache::new()),
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
-      plugins,
+      Arc::new(plugins),
+      self.project_root.clone(),
     );
 
     // TODO: Run asset graph request
