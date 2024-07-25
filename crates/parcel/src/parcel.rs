@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use parcel_config::parcel_rc_config_loader::LoadConfigOptions;
 use parcel_config::parcel_rc_config_loader::ParcelRcConfigLoader;
-use parcel_core::cache::MockCache;
 use parcel_core::config_loader::ConfigLoader;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::PluginLogger;
@@ -94,7 +93,6 @@ impl Parcel {
     // plugins.reporter().report(&ReporterEvent::BuildStart)?;
 
     let _request_tracker = RequestTracker::new(
-      Arc::new(MockCache::new()),
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
       Arc::new(plugins),

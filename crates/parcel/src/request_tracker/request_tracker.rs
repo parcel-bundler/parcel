@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
 use anyhow::anyhow;
-use parcel_core::cache::CacheRef;
 use parcel_core::config_loader::ConfigLoaderRef;
 use parcel_core::diagnostic_error;
 use parcel_filesystem::FileSystemRef;
@@ -16,6 +15,7 @@ use crate::requests::RequestResult;
 use super::Request;
 use super::RequestEdgeType;
 use super::RequestGraph;
+use super::RequestId;
 use super::RequestNode;
 use super::ResultAndInvalidations;
 use super::RunRequestError;
@@ -33,10 +33,10 @@ use super::{RunRequestContext, RunRequestMessage};
 ///
 /// This will be used to trigger cache invalidations.
 pub struct RequestTracker {
-  cache: CacheRef,
   config_loader: ConfigLoaderRef,
   file_system: FileSystemRef,
   graph: RequestGraph<RequestResult>,
+  options: Arc<ParcelOptions>,
   plugins: PluginsRef,
   project_root: PathBuf,
   request_index: HashMap<u64, NodeIndex>,
@@ -45,7 +45,6 @@ pub struct RequestTracker {
 impl RequestTracker {
   #[allow(unused)]
   pub fn new(
-    cache: CacheRef,
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
     plugins: PluginsRef,
@@ -55,7 +54,6 @@ impl RequestTracker {
 
     graph.add_node(RequestNode::Root);
     RequestTracker {
-      cache,
       config_loader,
       file_system,
       graph,
@@ -125,9 +123,9 @@ impl RequestTracker {
             let request_id = request.id();
             if self.prepare_request(request_id)? {
               let context = RunRequestContext::new(
-                self.cache.clone(),
                 self.config_loader.clone(),
                 self.file_system.clone(),
+                self.options.clone(),
                 Some(request_id),
                 self.plugins.clone(),
                 self.project_root.clone(),
@@ -158,7 +156,7 @@ impl RequestTracker {
               // Cached request
               if let Some(response_tx) = response_tx {
                 let result = self.get_request(parent_request_id, request_id);
-                let _ = response_tx.send(result);
+                let _ = response_tx.send(result.map(|r| (r, request_id)));
               }
             };
           }
@@ -172,7 +170,7 @@ impl RequestTracker {
             self.link_request_to_parent(request_id, parent_request_id)?;
 
             if let Some(response_tx) = response_tx {
-              let _ = response_tx.send(result.map(|result| result.result));
+              let _ = response_tx.send(result.map(|result| (result.result, request_id)));
             }
           }
         }
@@ -300,9 +298,9 @@ enum RequestQueueMessage {
     message: RunRequestMessage,
   },
   RequestResult {
-    request_id: u64,
-    parent_request_id: Option<u64>,
+    request_id: RequestId,
+    parent_request_id: Option<RequestId>,
     result: Result<ResultAndInvalidations, RunRequestError>,
-    response_tx: Option<Sender<anyhow::Result<RequestResult>>>,
+    response_tx: Option<Sender<anyhow::Result<(RequestResult, RequestId)>>>,
   },
 }

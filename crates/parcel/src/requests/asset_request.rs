@@ -34,6 +34,7 @@ pub struct AssetRequest {
   pub code: Option<String>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
+  pub query: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,13 +80,6 @@ impl Request for AssetRequest {
       request_context.plugins().clone(),
       &mut transform_ctx,
     )?;
-
-    // Write the Asset source code to the cache, this is read later in packaging
-    // TODO: Clarify the correct content key
-    let content_key = result.asset.id().to_string();
-    request_context
-      .cache()
-      .set_blob(&content_key, result.asset.code.bytes())?;
 
     Ok(ResultAndInvalidations {
       result: RequestResult::Asset(AssetRequestOutput {

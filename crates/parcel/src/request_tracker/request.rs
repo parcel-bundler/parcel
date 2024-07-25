@@ -6,10 +6,10 @@ use std::sync::mpsc::Sender;
 
 use dyn_hash::DynHash;
 use parcel_core::config_loader::ConfigLoaderRef;
+use parcel_core::types::ParcelOptions;
 
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
-use parcel_core::cache::CacheRef;
 use parcel_core::plugin::ReporterEvent;
 use parcel_core::types::Invalidation;
 use parcel_filesystem::FileSystemRef;
@@ -18,7 +18,7 @@ use parcel_filesystem::FileSystemRef;
 pub struct RunRequestMessage {
   pub request: Box<dyn Request>,
   pub parent_request_id: Option<u64>,
-  pub response_tx: Option<Sender<Result<RequestResult, anyhow::Error>>>,
+  pub response_tx: Option<Sender<Result<(RequestResult, RequestId), anyhow::Error>>>,
 }
 
 type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
@@ -28,9 +28,9 @@ type RunRequestFn = Box<dyn Fn(RunRequestMessage) + Send>;
 /// We want to avoid exposing internals of the request tracker to the implementations so that we
 /// can change this.
 pub struct RunRequestContext {
-  cache: CacheRef,
   config_loader: ConfigLoaderRef,
   file_system: FileSystemRef,
+  pub options: Arc<ParcelOptions>,
   parent_request_id: Option<u64>,
   plugins: PluginsRef,
   pub project_root: PathBuf,
@@ -39,18 +39,18 @@ pub struct RunRequestContext {
 
 impl RunRequestContext {
   pub(crate) fn new(
-    cache: CacheRef,
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
+    options: Arc<ParcelOptions>,
     parent_request_id: Option<u64>,
     plugins: PluginsRef,
     project_root: PathBuf,
     run_request_fn: RunRequestFn,
   ) -> Self {
     Self {
-      cache,
       config_loader,
       file_system,
+      options,
       parent_request_id,
       plugins,
       project_root,
@@ -72,7 +72,7 @@ impl RunRequestContext {
   pub fn queue_request(
     &mut self,
     request: impl Request,
-    tx: Sender<anyhow::Result<RequestResult>>,
+    tx: Sender<anyhow::Result<(RequestResult, RequestId)>>,
   ) -> anyhow::Result<()> {
     let request: Box<dyn Request> = Box::new(request);
     let message = RunRequestMessage {
@@ -82,10 +82,6 @@ impl RunRequestContext {
     };
     (*self.run_request_fn)(message);
     Ok(())
-  }
-
-  pub fn cache(&self) -> &CacheRef {
-    &self.cache
   }
 
   pub fn file_system(&self) -> &FileSystemRef {
@@ -103,9 +99,10 @@ impl RunRequestContext {
 
 // We can type this properly
 pub type RunRequestError = anyhow::Error;
+pub type RequestId = u64;
 
 pub trait Request: DynHash + Send + Debug + 'static {
-  fn id(&self) -> u64 {
+  fn id(&self) -> RequestId {
     let mut hasher = parcel_core::hash::IdentifierHasher::default();
     std::any::type_name::<Self>().hash(&mut hasher);
     self.dyn_hash(&mut hasher);
