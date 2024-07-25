@@ -1,18 +1,15 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
-use std::sync::Arc;
 
 use anyhow::anyhow;
 use parcel_core::cache::CacheRef;
 use parcel_core::config_loader::ConfigLoaderRef;
 use parcel_core::diagnostic_error;
-use parcel_core::plugin::composite_reporter_plugin::CompositeReporterPlugin;
 use parcel_filesystem::FileSystemRef;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
 
-use crate::plugins::Plugins;
 use crate::plugins::PluginsRef;
 use crate::requests::RequestResult;
 
@@ -42,7 +39,6 @@ pub struct RequestTracker {
   graph: RequestGraph<RequestResult>,
   plugins: PluginsRef,
   project_root: PathBuf,
-  reporter: Arc<CompositeReporterPlugin>,
   request_index: HashMap<u64, NodeIndex>,
 }
 
@@ -52,11 +48,10 @@ impl RequestTracker {
     cache: CacheRef,
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
-    plugins: Plugins,
+    plugins: PluginsRef,
     project_root: PathBuf,
   ) -> Self {
     let mut graph = StableDiGraph::<RequestNode<RequestResult>, RequestEdgeType>::new();
-    let reporters = plugins.reporters();
 
     graph.add_node(RequestNode::Root);
     RequestTracker {
@@ -64,9 +59,8 @@ impl RequestTracker {
       config_loader,
       file_system,
       graph,
-      plugins: Arc::new(plugins),
+      plugins,
       project_root,
-      reporter: Arc::new(CompositeReporterPlugin::new(reporters)),
       request_index: HashMap::new(),
     }
   }
@@ -137,7 +131,6 @@ impl RequestTracker {
                 Some(request_id),
                 self.plugins.clone(),
                 self.project_root.clone(),
-                self.reporter.clone(),
                 // sub-request run
                 Box::new({
                   let tx = tx.clone();
