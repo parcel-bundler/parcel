@@ -185,7 +185,7 @@ impl Request for AssetGraphRequest {
                 file_path: path,
                 code: code.clone(),
                 pipeline: pipeline.clone(),
-                side_effects: side_effects.clone(),
+                side_effects,
                 // TODO: Dependency.env should be an Arc by default
                 env: Arc::new(dependency.env.clone()),
                 query,
