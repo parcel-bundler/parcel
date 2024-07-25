@@ -37,6 +37,7 @@ jobs:
         with:
           cache: yarn
       - run: yarn --frozen-lockfile
+      - run: yarn run build-ts
       - run: yarn flow check
 
   ts-types:

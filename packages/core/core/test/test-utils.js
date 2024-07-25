@@ -8,6 +8,7 @@ import path from 'path';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {relativePath} from '@parcel/utils';
 import {NodePackageManager} from '@parcel/package-manager';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 import {createEnvironment} from '../src/Environment';
 import {toProjectPath} from '../src/projectPath';
 
@@ -53,9 +54,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
     sourceMaps: false,
   },
   featureFlags: {
-    exampleFeature: false,
-    parcelV3: false,
-    importRetry: false,
+    ...DEFAULT_FEATURE_FLAGS,
   },
 };
 
