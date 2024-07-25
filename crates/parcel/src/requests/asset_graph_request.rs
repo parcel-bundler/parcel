@@ -62,10 +62,6 @@ impl Request for AssetGraphRequest {
           };
 
           request_id_to_dep_node_index.insert(request.id(), dep_node);
-          println!(
-            "queueing a path request from on_undeferred, {}",
-            dependency.specifier
-          );
           work_count += 1;
           let _ = request_context.queue_request(request, tx.clone());
         }
@@ -85,7 +81,6 @@ impl Request for AssetGraphRequest {
 
       match result {
         Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
-          println!("EntryRequestOutput");
           for entry in entries {
             let target_request = TargetRequest {
               default_target_options: request_context.options.default_target_options.clone(),
@@ -99,7 +94,6 @@ impl Request for AssetGraphRequest {
           }
         }
         Ok((RequestResult::Target(TargetRequestOutput { entry, targets }), _request_id)) => {
-          println!("TargetRequestOutput");
           for target in targets {
             let entry =
               diff_paths(&entry, &request_context.project_root).unwrap_or_else(|| entry.clone());
@@ -129,7 +123,6 @@ impl Request for AssetGraphRequest {
           }),
           request_id,
         )) => {
-          println!("AssetRequestOutput: {}", asset.file_path.display());
           let incoming_dep_node_index = *request_id_to_dep_node_index
             .get(&request_id)
             .expect("Missing node index for request id {request_id}");
@@ -160,7 +153,6 @@ impl Request for AssetGraphRequest {
           }
         }
         Ok((RequestResult::Path(result), request_id)) => {
-          println!("PathRequestOutput: {:?}", result);
           let node = *request_id_to_dep_node_index
             .get(&request_id)
             .expect("Missing node index for request id {request_id}");
@@ -208,21 +200,18 @@ impl Request for AssetGraphRequest {
           let id = asset_request.id();
 
           if visited.insert(id) {
-            println!("queueing asset request for {}", dependency.specifier);
             request_id_to_dep_node_index.insert(id, node);
             work_count += 1;
             let _ = request_context.queue_request(asset_request, tx.clone());
           } else if let Some(asset_node_index) = asset_request_to_asset.get(&id) {
             // We have already completed this AssetRequest so we can connect the
             // Dependency to the Asset immediately
-            println!("queueing path request for {}", dependency.specifier);
             graph.add_edge(asset_node_index, &node);
             graph.propagate_requested_symbols(*asset_node_index, node, on_undeferred!());
           } else {
             // The AssetRequest has already been kicked off but is yet to
             // complete. Register this Dependency to be connected once it
             // completes
-            println!("adding to waiting {}", dependency.specifier);
             waiting_asset_requests
               .entry(id)
               .and_modify(|nodes| {
