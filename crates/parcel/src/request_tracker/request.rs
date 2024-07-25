@@ -3,6 +3,7 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use dyn_hash::DynHash;
 use parcel_core::config_loader::ConfigLoaderRef;

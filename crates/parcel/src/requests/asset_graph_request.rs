@@ -59,7 +59,6 @@ impl Request for AssetGraphRequest {
         &mut |dep_node, dependency: Arc<Dependency>| {
           let request = PathRequest {
             dependency: dependency.clone(),
-            named_pipelines: request_context.plugins().named_pipelines(),
           };
 
           request_id_to_dep_node_index.insert(request.id(), dep_node);
@@ -117,7 +116,6 @@ impl Request for AssetGraphRequest {
 
             let request = PathRequest {
               dependency: Arc::new(dependency),
-              named_pipelines: request_context.plugins().named_pipelines(),
             };
             request_id_to_dep_node_index.insert(request.id(), dep_node);
             work_count += 1;

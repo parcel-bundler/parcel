@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use parcel_core::config_loader::ConfigLoaderRef;
 use parcel_core::diagnostic_error;
+use parcel_core::types::ParcelOptions;
 use parcel_filesystem::FileSystemRef;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
@@ -47,6 +49,7 @@ impl RequestTracker {
   pub fn new(
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
+    options: Arc<ParcelOptions>,
     plugins: PluginsRef,
     project_root: PathBuf,
   ) -> Self {
@@ -60,6 +63,7 @@ impl RequestTracker {
       plugins,
       project_root,
       request_index: HashMap::new(),
+      options,
     }
   }
 

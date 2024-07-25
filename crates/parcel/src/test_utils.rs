@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use parcel_config::parcel_config_fixtures::default_config;
 use parcel_core::{
-  cache::MockCache,
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
+  types::ParcelOptions,
 };
 use parcel_filesystem::{in_memory_file_system::InMemoryFileSystem, FileSystemRef};
 
@@ -72,10 +72,12 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     })
   });
 
+  let parcel_options = Arc::new(ParcelOptions::default());
+
   RequestTracker::new(
-    Arc::new(MockCache::new()),
     Arc::clone(&config_loader),
     fs,
+    parcel_options,
     plugins,
     project_root,
   )
