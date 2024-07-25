@@ -18,7 +18,7 @@ use super::target_request::{TargetRequest, TargetRequestOutput};
 use super::RequestResult;
 
 /// The AssetGraphRequest is in charge of building the AssetGraphRequest
-/// In doing so, it kicks of the TargetRequest, PathRequest and AssetRequests.
+/// In doing so, it kicks of the EntryRequest, TargetRequest, PathRequest and AssetRequests.
 #[derive(Debug, Hash)]
 pub struct AssetGraphRequest {}
 
@@ -34,7 +34,8 @@ impl Request for AssetGraphRequest {
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     let mut graph = AssetGraph::new();
     let (tx, rx) = channel();
-    // TODO: Move this out later
+    // TODO: Should the work count be tracked on the request_context as part of
+    // the queue_request API?
     let mut work_count = 0;
 
     for entry in request_context.options.clone().entries.iter() {
