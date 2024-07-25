@@ -46,6 +46,10 @@ export type HMRMessage =
       assets: Array<HMRAsset>,
     |}
   | {|
+      type: 'partial-update',
+      assets: Array<HMRAsset>,
+    |}
+  | {|
       type: 'error',
       diagnostics: {|
         ansi: Array<AnsiDiagnosticResult>,
@@ -73,6 +77,10 @@ export default class HMRServer {
     let server = this.options.devServer;
     if (!server) {
       let result = await createHTTPServer({
+        https: this.options.https,
+        inputFS: this.options.inputFS,
+        outputFS: this.options.outputFS,
+        cacheDir: this.options.cacheDir,
         listener: (req, res) => {
           setHeaders(res);
           if (!this.handle(req, res)) {
@@ -274,12 +282,24 @@ export default class HMRServer {
 
   broadcast(msg: HMRMessage) {
     if (msg.type === 'update' && msg.assets.length > BROADCAST_MAX_ASSETS) {
-      // Split up message if too large
-      for (let i = 0; i < msg.assets.length; i += BROADCAST_MAX_ASSETS) {
-        this.broadcast({
-          ...msg,
-          assets: msg.assets.slice(i, i + BROADCAST_MAX_ASSETS),
-        });
+      for (let i = 0; i * BROADCAST_MAX_ASSETS < msg.assets.length; i += 1) {
+        // Split up message if too large
+        const assets = msg.assets.slice(
+          i * BROADCAST_MAX_ASSETS,
+          (i + 1) * BROADCAST_MAX_ASSETS,
+        );
+        if (i * BROADCAST_MAX_ASSETS === msg.assets.length - 1) {
+          // Last group of assets
+          this.broadcast({
+            type: 'update',
+            assets,
+          });
+        } else {
+          this.broadcast({
+            type: 'partial-update',
+            assets,
+          });
+        }
       }
     } else {
       const json = JSON.stringify(msg);

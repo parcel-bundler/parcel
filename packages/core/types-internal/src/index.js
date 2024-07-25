@@ -103,7 +103,6 @@ export type RawParcelConfigPipeline = Array<PackageName>;
 export type HMROptions = {
   port?: number,
   host?: string,
-  forcePortOverride?: boolean,
   ...
 };
 

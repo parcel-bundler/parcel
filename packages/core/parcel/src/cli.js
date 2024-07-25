@@ -173,8 +173,6 @@ var hmrOptions = {
   '--key <path>': 'path to private key to use with HTTPS',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
   '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
-  '--force-hmr-port-override':
-    'force the supplied HMR port to be used in all cases',
 };
 
 function applyOptions(cmd, options) {
@@ -504,7 +502,6 @@ async function normalizeOptions(
     hmrOptions = {
       port: hmrport,
       host: hmrhost,
-      forcePortOverride: command.forceHmrPortOverride,
     };
   }
 
