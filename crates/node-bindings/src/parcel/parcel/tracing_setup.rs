@@ -44,6 +44,8 @@ pub struct ParcelTracingGuard {
 }
 
 /// Set-up tracing based on JavaScript provided options and return a guard.
+///
+/// If tracing has already been set up this will no-op.
 pub fn setup_tracing(options: &Option<ParcelTracingOptions>) -> anyhow::Result<ParcelTracingGuard> {
   let default_options = Default::default();
   let options = options.as_ref().unwrap_or(&default_options);
@@ -59,15 +61,12 @@ pub fn setup_tracing(options: &Option<ParcelTracingOptions>) -> anyhow::Result<P
       .build(&output_file_options.directory)?;
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
-    tracing_subscriber::fmt()
+    let _ = tracing_subscriber::fmt()
       .with_writer(non_blocking)
-      .try_init()
-      .map_err(|err| anyhow!(err).context("Failed to setup file tracing"))?;
+      .try_init();
     Ok(ParcelTracingGuard { guard: Some(guard) })
   } else {
-    tracing_subscriber::fmt()
-      .try_init()
-      .map_err(|err| anyhow!(err).context("Failed to setup tracing"))?;
+    let _ = tracing_subscriber::fmt().try_init();
     Ok(ParcelTracingGuard { guard: None })
   }
 }
