@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use parcel_config::parcel_config_fixtures::default_config;
+use parcel_core::types::ParcelOptions;
 use parcel_core::{
-  cache::MockCache,
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
 };
@@ -73,10 +73,10 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
   });
 
   RequestTracker::new(
-    Arc::new(MockCache::new()),
     Arc::clone(&config_loader),
     fs,
     plugins,
+    Arc::new(ParcelOptions::default()),
     project_root,
   )
 }

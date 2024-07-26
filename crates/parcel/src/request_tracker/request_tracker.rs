@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use parcel_core::config_loader::ConfigLoaderRef;
 use parcel_core::diagnostic_error;
+use parcel_core::types::ParcelOptions;
 use parcel_filesystem::FileSystemRef;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
@@ -48,6 +50,7 @@ impl RequestTracker {
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
     plugins: PluginsRef,
+    parcel_options: Arc<ParcelOptions>,
     project_root: PathBuf,
   ) -> Self {
     let mut graph = StableDiGraph::<RequestNode<RequestResult>, RequestEdgeType>::new();
@@ -57,6 +60,7 @@ impl RequestTracker {
       config_loader,
       file_system,
       graph,
+      options: parcel_options,
       plugins,
       project_root,
       request_index: HashMap::new(),

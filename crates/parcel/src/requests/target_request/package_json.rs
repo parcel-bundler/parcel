@@ -99,7 +99,9 @@ pub struct PackageJson {
 
 #[derive(Debug, Clone, Deserialize)]
 pub enum SourceField {
+  #[allow(unused)]
   Source(String),
+  #[allow(unused)]
   Sources(Vec<String>),
 }
 

@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 
 use parcel_core::asset_graph::{AssetGraph, DependencyNode, DependencyState};
@@ -54,23 +54,25 @@ impl Request for AssetGraphRequest {
 
     // This allows us to defer PathRequests that are not yet known to be used as their requested
     // symbols are not yet referenced in any discovered Assets.
-    macro_rules! on_undeferred {
-      () => {
-        &mut |dep_node, dependency: Arc<Dependency>| {
-          let request = PathRequest {
-            dependency: dependency.clone(),
-            named_pipelines: request_context.plugins().named_pipelines(),
-          };
+    fn on_undeferred<'a>(
+      request_id_to_dep_node_index: &'a mut HashMap<RequestId, NodeIndex>,
+      work_count: &'a mut i32,
+      request_context: &'a mut RunRequestContext,
+      tx: &'a Sender<anyhow::Result<(RequestResult, RequestId)>>,
+    ) -> impl FnMut(NodeIndex, Arc<Dependency>) + 'a {
+      |dependency_node_index: NodeIndex, dependency: Arc<Dependency>| {
+        let request = PathRequest {
+          dependency: dependency.clone(),
+        };
 
-          request_id_to_dep_node_index.insert(request.id(), dep_node);
-          println!(
-            "queueing a path request from on_undeferred, {}",
-            dependency.specifier
-          );
-          work_count += 1;
-          let _ = request_context.queue_request(request, tx.clone());
-        }
-      };
+        request_id_to_dep_node_index.insert(request.id(), dependency_node_index);
+        println!(
+          "queueing a path request from on_undeferred, {}",
+          dependency.specifier
+        );
+        *work_count += 1;
+        let _ = request_context.queue_request(request, tx.clone());
+      }
     }
 
     loop {
@@ -117,7 +119,6 @@ impl Request for AssetGraphRequest {
 
             let request = PathRequest {
               dependency: Arc::new(dependency),
-              named_pipelines: request_context.plugins().named_pipelines(),
             };
             request_id_to_dep_node_index.insert(request.id(), dep_node);
             work_count += 1;
@@ -149,7 +150,12 @@ impl Request for AssetGraphRequest {
           graph.propagate_requested_symbols(
             asset_node_index,
             incoming_dep_node_index,
-            on_undeferred!(),
+            &mut on_undeferred(
+              &mut request_id_to_dep_node_index,
+              &mut work_count,
+              &mut request_context,
+              &tx,
+            ),
           );
 
           // Connect any previously discovered Dependencies that were waiting
@@ -157,7 +163,16 @@ impl Request for AssetGraphRequest {
           if let Some(waiting) = waiting_asset_requests.remove(&request_id) {
             for dep in waiting {
               graph.add_edge(&dep, &asset_node_index);
-              graph.propagate_requested_symbols(asset_node_index, dep, on_undeferred!());
+              graph.propagate_requested_symbols(
+                asset_node_index,
+                dep,
+                &mut on_undeferred(
+                  &mut request_id_to_dep_node_index,
+                  &mut work_count,
+                  &mut request_context,
+                  &tx,
+                ),
+              );
             }
           }
         }
@@ -219,7 +234,16 @@ impl Request for AssetGraphRequest {
             // Dependency to the Asset immediately
             println!("queueing path request for {}", dependency.specifier);
             graph.add_edge(asset_node_index, &node);
-            graph.propagate_requested_symbols(*asset_node_index, node, on_undeferred!());
+            graph.propagate_requested_symbols(
+              *asset_node_index,
+              node,
+              &mut on_undeferred(
+                &mut request_id_to_dep_node_index,
+                &mut work_count,
+                &mut request_context,
+                &tx,
+              ),
+            );
           } else {
             // The AssetRequest has already been kicked off but is yet to
             // complete. Register this Dependency to be connected once it
@@ -233,9 +257,19 @@ impl Request for AssetGraphRequest {
               .or_insert_with(|| HashSet::from([node]));
           }
         }
-        other => {
-          // This is an error...
-          todo!("{:?}", other);
+        // A request has failed, for now we will fail the build
+        Err(err) => return Err(err),
+        // The next few branches should never happen
+        Ok((RequestResult::AssetGraph(_), _)) => {
+          todo!("The impossible has happened: {:?}", result)
+        }
+        #[cfg(test)]
+        Ok((RequestResult::TestSub(_), _)) => {
+          todo!("The impossible has happened: {:?}", result)
+        }
+        #[cfg(test)]
+        Ok((RequestResult::TestMain(_), _)) => {
+          todo!("The impossible has happened: {:?}", result)
         }
       }
     }

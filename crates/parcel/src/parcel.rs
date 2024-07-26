@@ -96,6 +96,7 @@ impl Parcel {
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
       Arc::new(plugins),
+      Arc::new(ParcelOptions::default()),
       self.project_root.clone(),
     );
 
