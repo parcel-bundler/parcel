@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
+use anyhow::anyhow;
 use parcel_core::asset_graph::{AssetGraph, DependencyNode, DependencyState};
 use parcel_core::types::Dependency;
 use pathdiff::diff_paths;
@@ -111,9 +112,13 @@ impl AssetGraphBuilder {
         Ok((RequestResult::Path(result), request_id)) => {
           self.handle_path_result(request_id, result);
         }
-        other => {
-          // This is an error...
-          todo!("{:?}", other);
+        Err(err) => return Err(err),
+        Ok((result, request_id)) => {
+          return Err(anyhow!(
+            "Unexpected request result in AssetGraphRequest ({}): {:?}",
+            request_id,
+            result
+          ))
         }
       }
     }
