@@ -95,6 +95,7 @@ impl Parcel {
     let _request_tracker = RequestTracker::new(
       Arc::clone(&config_loader),
       Arc::clone(&self.fs),
+      Arc::new(self.options.clone()),
       Arc::new(plugins),
       Arc::new(ParcelOptions::default()),
       self.project_root.clone(),

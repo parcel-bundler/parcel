@@ -49,6 +49,7 @@ impl RequestTracker {
   pub fn new(
     config_loader: ConfigLoaderRef,
     file_system: FileSystemRef,
+    options: Arc<ParcelOptions>,
     plugins: PluginsRef,
     parcel_options: Arc<ParcelOptions>,
     project_root: PathBuf,

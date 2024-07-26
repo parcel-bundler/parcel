@@ -18,7 +18,7 @@ use super::target_request::{TargetRequest, TargetRequestOutput};
 use super::RequestResult;
 
 /// The AssetGraphRequest is in charge of building the AssetGraphRequest
-/// In doing so, it kicks of the TargetRequest, PathRequest and AssetRequests.
+/// In doing so, it kicks of the EntryRequest, TargetRequest, PathRequest and AssetRequests.
 #[derive(Debug, Hash)]
 pub struct AssetGraphRequest {}
 
@@ -34,7 +34,8 @@ impl Request for AssetGraphRequest {
   ) -> Result<ResultAndInvalidations, RunRequestError> {
     let mut graph = AssetGraph::new();
     let (tx, rx) = channel();
-    // TODO: Move this out later
+    // TODO: Should the work count be tracked on the request_context as part of
+    // the queue_request API?
     let mut work_count = 0;
 
     for entry in request_context.options.clone().entries.iter() {
@@ -178,6 +179,7 @@ impl Request for AssetGraphRequest {
         }
         Ok((RequestResult::Path(result), request_id)) => {
           tracing::debug!("PathRequestOutput: {:?}", result);
+
           let node = *request_id_to_dep_node_index
             .get(&request_id)
             .expect("Missing node index for request id {request_id}");
@@ -210,7 +212,7 @@ impl Request for AssetGraphRequest {
                 file_path: path,
                 code: code.clone(),
                 pipeline: pipeline.clone(),
-                side_effects: side_effects.clone(),
+                side_effects,
                 // TODO: Dependency.env should be an Arc by default
                 env: Arc::new(dependency.env.clone()),
                 query,
@@ -226,6 +228,7 @@ impl Request for AssetGraphRequest {
 
           if visited.insert(id) {
             tracing::debug!("queueing asset request for {}", dependency.specifier);
+
             request_id_to_dep_node_index.insert(id, node);
             work_count += 1;
             let _ = request_context.queue_request(asset_request, tx.clone());
