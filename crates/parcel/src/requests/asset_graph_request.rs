@@ -95,9 +95,11 @@ impl AssetGraphBuilder {
 
       match result {
         Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
+          tracing::debug!("Handling EntryRequestOutput");
           self.handle_entry_result(entries);
         }
         Ok((RequestResult::Target(TargetRequestOutput { entry, targets }), _request_id)) => {
+          tracing::debug!("Handling TargetRequestOutput");
           self.handle_target_request_result(targets, entry);
         }
         Ok((
@@ -107,12 +109,15 @@ impl AssetGraphBuilder {
           }),
           request_id,
         )) => {
+          tracing::debug!("Handling AssetRequestOutput: {}", asset.file_path.display());
           self.handle_asset_result(request_id, asset, dependencies);
         }
         Ok((RequestResult::Path(result), request_id)) => {
+          tracing::debug!("Handling PathRequestOutput");
           self.handle_path_result(request_id, result);
         }
         Err(err) => return Err(err),
+        // This branch should never occur
         Ok((result, request_id)) => {
           return Err(anyhow!(
             "Unexpected request result in AssetGraphRequest ({}): {:?}",
