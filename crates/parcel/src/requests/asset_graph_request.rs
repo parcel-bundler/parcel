@@ -94,27 +94,24 @@ impl AssetGraphBuilder {
       self.work_count -= 1;
 
       match result {
-        Ok((RequestResult::Entry(EntryRequestOutput { entries }), _request_id)) => {
+        Ok((RequestResult::Entry(result), _request_id)) => {
           tracing::debug!("Handling EntryRequestOutput");
-          self.handle_entry_result(entries);
+          self.handle_entry_result(result);
         }
-        Ok((RequestResult::Target(TargetRequestOutput { entry, targets }), _request_id)) => {
+        Ok((RequestResult::Target(result), _request_id)) => {
           tracing::debug!("Handling TargetRequestOutput");
-          self.handle_target_request_result(targets, entry);
+          self.handle_target_request_result(result);
         }
-        Ok((
-          RequestResult::Asset(AssetRequestOutput {
-            asset,
-            dependencies,
-          }),
-          request_id,
-        )) => {
-          tracing::debug!("Handling AssetRequestOutput: {}", asset.file_path.display());
-          self.handle_asset_result(request_id, asset, dependencies);
+        Ok((RequestResult::Asset(result), request_id)) => {
+          tracing::debug!(
+            "Handling AssetRequestOutput: {}",
+            result.asset.file_path.display()
+          );
+          self.handle_asset_result(result, request_id);
         }
         Ok((RequestResult::Path(result), request_id)) => {
           tracing::debug!("Handling PathRequestOutput");
-          self.handle_path_result(request_id, result);
+          self.handle_path_result(result, request_id);
         }
         Err(err) => return Err(err),
         // This branch should never occur
@@ -134,7 +131,7 @@ impl AssetGraphBuilder {
     })
   }
 
-  fn handle_path_result(&mut self, request_id: u64, result: PathRequestOutput) {
+  fn handle_path_result(&mut self, result: PathRequestOutput, request_id: u64) {
     let node = *self
       .request_id_to_dep_node_index
       .get(&request_id)
@@ -222,7 +219,8 @@ impl AssetGraphBuilder {
     }
   }
 
-  fn handle_entry_result(&mut self, entries: Vec<super::entry_request::Entry>) {
+  fn handle_entry_result(&mut self, result: EntryRequestOutput) {
+    let EntryRequestOutput { entries } = result;
     for entry in entries {
       let target_request = TargetRequest {
         default_target_options: self.request_context.options.default_target_options.clone(),
@@ -238,12 +236,11 @@ impl AssetGraphBuilder {
     }
   }
 
-  fn handle_asset_result(
-    &mut self,
-    request_id: u64,
-    asset: parcel_core::types::Asset,
-    dependencies: Vec<Dependency>,
-  ) {
+  fn handle_asset_result(&mut self, result: AssetRequestOutput, request_id: u64) {
+    let AssetRequestOutput {
+      asset,
+      dependencies,
+    } = result;
     let incoming_dep_node_index = *self
       .request_id_to_dep_node_index
       .get(&request_id)
@@ -315,11 +312,8 @@ impl AssetGraphBuilder {
     }
   }
 
-  fn handle_target_request_result(
-    &mut self,
-    targets: Vec<parcel_core::types::Target>,
-    entry: std::path::PathBuf,
-  ) {
+  fn handle_target_request_result(&mut self, result: TargetRequestOutput) {
+    let TargetRequestOutput { entry, targets } = result;
     for target in targets {
       let entry =
         diff_paths(&entry, &self.request_context.project_root).unwrap_or_else(|| entry.clone());
