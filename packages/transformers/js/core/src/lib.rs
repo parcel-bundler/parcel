@@ -461,7 +461,7 @@ pub fn transform(
               let module = module.fold_with(
                 // Collect dependencies
                 &mut dependency_collector(
-                  &source_map,
+                  source_map.clone(),
                   &mut result.dependencies,
                   ignore_mark,
                   unresolved_mark,
