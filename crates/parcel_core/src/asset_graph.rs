@@ -254,14 +254,14 @@ impl AssetGraph {
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializedAsset {
-  id: u64,
+  id: String,
   asset: Asset,
 }
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializedDependency {
-  id: u64,
+  id: String,
   dependency: Dependency,
 }
 
@@ -281,7 +281,7 @@ impl serde::Serialize for AssetGraph {
 
           SerializedAssetGraphNode::Asset {
             value: SerializedAsset {
-              id: asset.id(),
+              id: asset.id().to_string(),
               asset,
             },
           }
@@ -290,7 +290,7 @@ impl serde::Serialize for AssetGraph {
           let dependency = self.dependencies[*idx].dependency.clone();
           SerializedAssetGraphNode::Dependency {
             value: SerializedDependency {
-              id: dependency.id(),
+              id: dependency.id().to_string(),
               dependency: dependency.as_ref().clone(),
             },
             has_deferred: self.dependencies[*idx].state == DependencyState::Deferred,
