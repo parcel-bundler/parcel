@@ -7,9 +7,7 @@ use parcel_core::types::Dependency;
 use pathdiff::diff_paths;
 use petgraph::graph::NodeIndex;
 
-use crate::request_tracker::{
-  Request, RequestId, ResultAndInvalidations, RunRequestContext, RunRequestError,
-};
+use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
 use super::asset_request::{AssetRequest, AssetRequestOutput};
 use super::entry_request::{EntryRequest, EntryRequestOutput};
@@ -35,7 +33,7 @@ impl Request for AssetGraphRequest {
     &self,
     request_context: RunRequestContext,
   ) -> Result<ResultAndInvalidations, RunRequestError> {
-    let mut builder = AssetGraphBuilder::new(request_context);
+    let builder = AssetGraphBuilder::new(request_context);
 
     builder.build()
   }
@@ -124,26 +122,6 @@ impl AssetGraphBuilder {
       result: RequestResult::AssetGraph(AssetGraphRequestOutput { graph: self.graph }),
       invalidations: vec![],
     })
-  }
-
-  // This allows us to defer PathRequests that are not yet known to be used as their requested
-  // symbols are not yet referenced in any discovered Assets.
-  fn on_undeferred(&mut self, dependency_node_index: NodeIndex, dependency: Arc<Dependency>) {
-    let request = PathRequest {
-      dependency: dependency.clone(),
-    };
-
-    self
-      .request_id_to_dep_node_index
-      .insert(request.id(), dependency_node_index);
-    tracing::debug!(
-      "queueing a path request from on_undeferred, {}",
-      dependency.specifier
-    );
-    self.work_count += 1;
-    let _ = self
-      .request_context
-      .queue_request(request, self.sender.clone());
   }
 
   fn handle_path_result(&mut self, request_id: u64, result: PathRequestOutput) {
