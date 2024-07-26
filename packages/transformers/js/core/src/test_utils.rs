@@ -138,4 +138,22 @@ mod test {
 "#
     );
   }
+
+  #[test]
+  fn test_fold() {
+    struct Folder;
+    impl Fold for Folder {
+      fn fold_lit(&mut self, _n: Lit) -> Lit {
+        Lit::Str(Str::from("replacement"))
+      }
+    }
+
+    let code = r#"console.log('test!')"#;
+    let RunVisitResult { output_code, .. } = run_fold(code, |_: RunTestContext| Folder);
+    assert_eq!(
+      output_code,
+      r#"console.log("replacement");
+"#
+    );
+  }
 }
