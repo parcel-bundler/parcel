@@ -22,24 +22,31 @@ pub mod config_plugins;
 
 #[cfg_attr(test, automock)]
 pub trait Plugins {
+  #[allow(unused)]
   fn bundler(&self) -> Result<Box<dyn BundlerPlugin>, anyhow::Error>;
+  #[allow(unused)]
   fn compressors(&self, path: &Path) -> Result<Vec<Box<dyn CompressorPlugin>>, anyhow::Error>;
   fn named_pipelines(&self) -> Vec<String>;
+  #[allow(unused)]
   fn namers(&self) -> Result<Vec<Box<dyn NamerPlugin>>, anyhow::Error>;
+  #[allow(unused)]
   fn optimizers(
     &self,
     path: &Path,
     pipeline: Option<String>,
   ) -> Result<Vec<Box<dyn OptimizerPlugin>>, anyhow::Error>;
+  #[allow(unused)]
   fn packager(&self, path: &Path) -> Result<Box<dyn PackagerPlugin>, anyhow::Error>;
   fn reporter(&self) -> Arc<dyn ReporterPlugin>;
   fn resolvers(&self) -> Result<Vec<Box<dyn ResolverPlugin>>, anyhow::Error>;
+  #[allow(unused)]
   fn runtimes(&self) -> Result<Vec<Box<dyn RuntimePlugin>>, anyhow::Error>;
   fn transformers(
     &self,
     path: &Path,
     pipeline: Option<String>,
   ) -> Result<TransformerPipeline, anyhow::Error>;
+  #[allow(unused)]
   fn validators(&self, _path: &Path) -> Result<Vec<Box<dyn ValidatorPlugin>>, anyhow::Error>;
 }
 
