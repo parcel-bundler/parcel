@@ -344,15 +344,98 @@ impl AssetGraphBuilder {
 
 #[cfg(test)]
 mod test {
-  use crate::requests::AssetGraphRequest;
+  use parcel_core::types::Code;
+  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use parcel_filesystem::FileSystem;
+  use std::path::PathBuf;
+  use std::sync::Arc;
+
+  use crate::requests::{AssetGraphRequest, RequestResult};
   use crate::test_utils::{request_tracker, RequestTrackerTestOptions};
 
   #[test]
-  fn test_asset_graph_request() {
+  fn test_asset_graph_request_with_no_entries() {
     let options = RequestTrackerTestOptions::default();
     let mut request_tracker = request_tracker(options);
 
     let asset_graph_request = AssetGraphRequest {};
-    let _ = request_tracker.run_request(asset_graph_request);
+    let RequestResult::AssetGraph(asset_graph_request_result) =
+      request_tracker.run_request(asset_graph_request).unwrap()
+    else {
+      assert!(false, "Got invalid result");
+      return;
+    };
+
+    assert_eq!(asset_graph_request_result.graph.assets.len(), 0);
+    assert_eq!(asset_graph_request_result.graph.dependencies.len(), 0);
+  }
+
+  #[test]
+  fn test_asset_graph_request_with_a_single_entry_with_no_dependencies() {
+    let _ = tracing_subscriber::fmt::try_init();
+
+    let mut options = RequestTrackerTestOptions::default();
+    let fs = InMemoryFileSystem::default();
+    let temporary_dir = PathBuf::from("/parcel_tests");
+    fs.create_directory(&temporary_dir).unwrap();
+    fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
+    options
+      .parcel_options
+      .entries
+      .push(temporary_dir.join("entry.js").to_str().unwrap().to_string());
+    options.project_root = temporary_dir.clone();
+    options.search_path = temporary_dir.clone();
+    fs.write_file(
+      &temporary_dir.join("entry.js"),
+      String::from(
+        r#"
+console.log('hello world');
+        "#,
+      ),
+    );
+    options.fs = Arc::new(fs);
+
+    let mut request_tracker = request_tracker(options);
+
+    let asset_graph_request = AssetGraphRequest {};
+    let RequestResult::AssetGraph(asset_graph_request_result) = request_tracker
+      .run_request(asset_graph_request)
+      .expect("Failed to run asset graph request")
+    else {
+      assert!(false, "Got invalid result");
+      return;
+    };
+
+    assert_eq!(asset_graph_request_result.graph.assets.len(), 1);
+    assert_eq!(asset_graph_request_result.graph.dependencies.len(), 1);
+    assert_eq!(
+      asset_graph_request_result
+        .graph
+        .assets
+        .get(0)
+        .unwrap()
+        .asset
+        .file_path,
+      PathBuf::from("/parcel_tests/entry.js")
+    );
+    assert_eq!(
+      asset_graph_request_result
+        .graph
+        .assets
+        .get(0)
+        .unwrap()
+        .asset
+        .code,
+      Arc::new(Code::from(
+        String::from(
+          r#"
+console.log('hello world');
+        "#
+        )
+        .trim_start()
+        .trim_end_matches(|p| p == ' ')
+        .to_string()
+      ))
+    );
   }
 }

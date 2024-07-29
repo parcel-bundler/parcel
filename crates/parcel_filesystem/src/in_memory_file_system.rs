@@ -22,15 +22,17 @@ pub struct InMemoryFileSystem {
 
 impl InMemoryFileSystem {
   /// Change the current working directory. Used for resolving relative paths.
-  pub fn set_current_working_directory(&self, cwd: PathBuf) {
+  pub fn set_current_working_directory(&self, cwd: &Path) {
+    let cwd = self.canonicalize_impl(cwd);
     let mut state = self.current_working_directory.write().unwrap();
     *state = cwd;
   }
 
   /// Write a file at path.
   pub fn write_file(&self, path: &Path, contents: String) {
+    let path = self.canonicalize_impl(path);
     let mut files = self.files.write().unwrap();
-    files.insert(path.into(), InMemoryFileSystemEntry::File { contents });
+    files.insert(path.clone(), InMemoryFileSystemEntry::File { contents });
 
     let mut dir = path.parent();
     while let Some(path) = dir {
@@ -38,23 +40,8 @@ impl InMemoryFileSystem {
       dir = path.parent();
     }
   }
-}
 
-impl Default for InMemoryFileSystem {
-  fn default() -> Self {
-    Self {
-      files: Default::default(),
-      current_working_directory: RwLock::new(PathBuf::from("/")),
-    }
-  }
-}
-
-impl FileSystem for InMemoryFileSystem {
-  fn cwd(&self) -> std::io::Result<PathBuf> {
-    Ok(self.current_working_directory.read().unwrap().clone())
-  }
-
-  fn canonicalize_base(&self, path: &Path) -> std::io::Result<PathBuf> {
+  fn canonicalize_impl(&self, path: &Path) -> PathBuf {
     let cwd = self.current_working_directory.read().unwrap();
     let mut result = if path.is_absolute() {
       vec![]
@@ -81,18 +68,39 @@ impl FileSystem for InMemoryFileSystem {
       }
     }
 
-    Ok(PathBuf::from_iter(result))
+    PathBuf::from_iter(result)
+  }
+}
+
+impl Default for InMemoryFileSystem {
+  fn default() -> Self {
+    Self {
+      files: Default::default(),
+      current_working_directory: RwLock::new(PathBuf::from("/")),
+    }
+  }
+}
+
+impl FileSystem for InMemoryFileSystem {
+  fn cwd(&self) -> std::io::Result<PathBuf> {
+    Ok(self.current_working_directory.read().unwrap().clone())
+  }
+
+  fn canonicalize_base(&self, path: &Path) -> std::io::Result<PathBuf> {
+    Ok(self.canonicalize_impl(path))
   }
 
   fn create_directory(&self, path: &Path) -> std::io::Result<()> {
     let mut files = self.files.write().unwrap();
+    let path = self.canonicalize_impl(path);
     files.insert(path.into(), InMemoryFileSystemEntry::Directory);
     Ok(())
   }
 
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+    let path = self.canonicalize_impl(path);
     let files = self.files.read().unwrap();
-    files.get(path).map_or_else(
+    files.get(&path).map_or_else(
       || {
         Err(std::io::Error::new(
           std::io::ErrorKind::NotFound,
@@ -110,14 +118,16 @@ impl FileSystem for InMemoryFileSystem {
   }
 
   fn is_file(&self, path: &Path) -> bool {
+    let path = self.canonicalize_impl(path);
     let files = self.files.read().unwrap();
-    let file = files.get(path);
+    let file = files.get(&path);
     matches!(file, Some(InMemoryFileSystemEntry::File { .. }))
   }
 
   fn is_dir(&self, path: &Path) -> bool {
+    let path = self.canonicalize_impl(path);
     let files = self.files.read().unwrap();
-    let file = files.get(path);
+    let file = files.get(&path);
     matches!(file, Some(InMemoryFileSystemEntry::Directory { .. }))
   }
 }
@@ -155,7 +165,7 @@ mod test {
   #[test]
   fn test_with_cwd() {
     let fs = InMemoryFileSystem::default();
-    fs.set_current_working_directory(PathBuf::from("/other"));
+    fs.set_current_working_directory(Path::new("/other"));
     let result = fs
       .canonicalize(Path::new("./foo/./bar/../baz/"), &Default::default())
       .unwrap();
@@ -202,5 +212,16 @@ mod test {
 
     assert!(fs.is_dir(Path::new("/foo")));
     assert!(!fs.is_dir(Path::new("/foo/bar")));
+  }
+
+  #[test]
+  fn test_changing_the_cwd_will_correctly_resolve_files() {
+    let cwd = PathBuf::from("/foo");
+    let fs = InMemoryFileSystem::default();
+    fs.set_current_working_directory(&cwd);
+    fs.write_file(&PathBuf::from("bar"), String::default());
+    assert!(fs.is_file(Path::new("bar")));
+    fs.set_current_working_directory(Path::new("/"));
+    assert!(fs.is_file(Path::new("/foo/bar")));
   }
 }

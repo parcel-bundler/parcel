@@ -229,7 +229,7 @@ impl RequestTracker {
 
     *request_node = match result {
       Ok(result) => RequestNode::Valid(result.result.clone()),
-      Err(error) => RequestNode::Error(error.to_string()),
+      Err(error) => RequestNode::Error(anyhow!(error.to_string())),
     };
 
     Ok(())
@@ -255,7 +255,7 @@ impl RequestTracker {
     match request_node {
       RequestNode::Root => Err(diagnostic_error!("Impossible")),
       RequestNode::Incomplete => Err(diagnostic_error!("Impossible")),
-      RequestNode::Error(error) => Err(anyhow!(error.clone())),
+      RequestNode::Error(error) => Err(anyhow!(error.to_string())),
       RequestNode::Valid(value) => Ok(value.clone()),
     }
   }

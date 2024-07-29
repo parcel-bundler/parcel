@@ -37,6 +37,7 @@ pub struct RequestTrackerTestOptions {
   pub plugins: Option<PluginsRef>,
   pub project_root: PathBuf,
   pub search_path: PathBuf,
+  pub parcel_options: ParcelOptions,
 }
 
 impl Default for RequestTrackerTestOptions {
@@ -46,6 +47,7 @@ impl Default for RequestTrackerTestOptions {
       plugins: None,
       project_root: PathBuf::default(),
       search_path: PathBuf::default(),
+      parcel_options: ParcelOptions::default(),
     }
   }
 }
@@ -56,6 +58,7 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     plugins,
     project_root,
     search_path,
+    parcel_options,
   } = options;
 
   let config_loader = Arc::new(ConfigLoader {
@@ -72,12 +75,10 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     })
   });
 
-  let parcel_options = Arc::new(ParcelOptions::default());
-
   RequestTracker::new(
     Arc::clone(&config_loader),
     fs,
-    parcel_options,
+    Arc::new(parcel_options),
     plugins,
     project_root,
   )
