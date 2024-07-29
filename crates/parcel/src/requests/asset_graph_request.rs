@@ -381,7 +381,10 @@ mod test {
 
     let mut options = RequestTrackerTestOptions::default();
     let fs = InMemoryFileSystem::default();
+    #[cfg(not(target_os = "windows"))]
     let temporary_dir = PathBuf::from("/parcel_tests");
+    #[cfg(target_os = "windows")]
+    let temporary_dir = PathBuf::from("C:\\windows\\parcel_tests");
     fs.create_directory(&temporary_dir).unwrap();
     fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
     options
@@ -452,7 +455,10 @@ console.log('hello world');
 
     let mut options = RequestTrackerTestOptions::default();
     let fs = InMemoryFileSystem::default();
+    #[cfg(not(target_os = "windows"))]
     let temporary_dir = PathBuf::from("/parcel_tests");
+    #[cfg(target_os = "windows")]
+    let temporary_dir = PathBuf::from("C:\\windows\\parcel_tests");
     fs.create_directory(&temporary_dir).unwrap();
     fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
     options
