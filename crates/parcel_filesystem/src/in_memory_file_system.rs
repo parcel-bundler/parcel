@@ -170,6 +170,7 @@ mod test {
       .canonicalize(Path::new("./foo/./bar/../baz/"), &Default::default())
       .unwrap();
     assert_eq!(result, PathBuf::from("/other/foo/baz"));
+    assert!(result.is_absolute());
   }
 
   #[test]
