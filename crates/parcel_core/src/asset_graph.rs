@@ -356,3 +356,96 @@ impl std::hash::Hash for AssetGraph {
     }
   }
 }
+
+#[cfg(test)]
+mod test {
+  use std::path::PathBuf;
+
+  use crate::types::{Symbol, Target};
+
+  use super::*;
+
+  fn symbol(value: &str) -> Symbol {
+    Symbol {
+      local: String::from(value),
+      exported: String::from(value),
+      ..Symbol::default()
+    }
+  }
+
+  fn assert_requested_symbols(graph: AssetGraph, node_index: NodeIndex, expected: Vec<&str>) {
+    // println!(
+    //   "dep requests symbols {:?}",
+    //   graph.dependencies[graph.dependency_index(dep_a_node).unwrap()].requested_symbols,
+    // );
+    assert_eq!(
+      graph.dependencies[graph.dependency_index(node_index).unwrap()].requested_symbols,
+      expected.into_iter().map(|s| s.into()).collect()
+    );
+  }
+
+  fn add_asset(graph: &mut AssetGraph, parent_node: NodeIndex, file_path: &str) -> NodeIndex {
+    let index_asset = Asset {
+      file_path: PathBuf::from(file_path),
+      ..Asset::default()
+    };
+    graph.add_asset(parent_node, index_asset)
+  }
+
+  fn add_dependency(
+    graph: &mut AssetGraph,
+    parent_node: NodeIndex,
+    symbols: Vec<&str>,
+  ) -> NodeIndex {
+    let dep = Dependency {
+      symbols: symbols.iter().map(|s| symbol(s)).collect(),
+      ..Dependency::default()
+    };
+    graph.add_dependency(parent_node, dep)
+  }
+
+  #[test]
+  fn should_request_entry_asset() {
+    let mut graph = AssetGraph::new();
+    let target = Target::default();
+    let dep = Dependency::entry(String::from("index.js"), target);
+    let entry_dep_node = graph.add_entry_dependency(dep);
+
+    let index_asset_node = add_asset(&mut graph, entry_dep_node, "index.js");
+    let dep_a_node = add_dependency(&mut graph, index_asset_node, vec!["a"]);
+
+    let mut requested = Vec::new();
+    graph.propagate_requested_symbols(
+      index_asset_node,
+      entry_dep_node,
+      &mut |dependency_node_index, _dependency| {
+        requested.push(dependency_node_index);
+      },
+    );
+
+    assert_eq!(requested, vec![dep_a_node]);
+    assert_requested_symbols(graph, dep_a_node, vec!["a"]);
+  }
+
+  // #[test]
+  // fn should_defer_unused_deps() {
+  //   let mut graph = AssetGraph::new();
+  //   let target = Target::default();
+  //   let dep = Dependency::entry(String::from("index.js"), target);
+  //   let entry_dep_node = graph.add_entry_dependency(dep);
+  //
+  //   let index_asset_node = add_asset(&mut graph, entry_dep_node, "index.js");
+  //   let dep_a_node = add_dependency(&mut graph, index_asset_node, vec!["a"]);
+  //
+  //   let mut requested = Vec::new();
+  //   graph.propagate_requested_symbols(
+  //     index_asset_node,
+  //     entry_dep_node,
+  //     &mut |dependency_node_index, _dependency| {
+  //       requested.push(dependency_node_index);
+  //     },
+  //   );
+  //
+  //   assert_eq!(requested, vec![dep_a_node]);
+  // }
+}
