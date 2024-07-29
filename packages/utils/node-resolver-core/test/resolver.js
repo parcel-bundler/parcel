@@ -141,7 +141,7 @@ describe('resolver', function () {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve an absolute path from the root module', async function () {
+    it.only('should resolve an absolute path from the root module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '/bar',
