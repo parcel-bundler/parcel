@@ -1835,6 +1835,7 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "bitflags 1.3.2",
+ "bumpalo",
  "dashmap",
  "elsa",
  "glob-match",
@@ -1849,6 +1850,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "serde_json",
+ "serde_json5 0.2.0",
  "thiserror",
  "tracing",
  "typed-arena",
@@ -1870,7 +1872,7 @@ dependencies = [
  "parcel_package_manager",
  "pathdiff",
  "serde",
- "serde_json5",
+ "serde_json5 0.1.0",
 ]
 
 [[package]]
@@ -2805,6 +2807,16 @@ name = "serde_json5"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a6b754515e1a7bd79fc2edeaecee526fc80cb3a918607e5ca149225a3a9586"
+dependencies = [
+ "pest",
+ "pest_derive",
+ "serde",
+]
+
+[[package]]
+name = "serde_json5"
+version = "0.2.0"
+source = "git+https://github.com/google/serde_json5.git#788a2cf8d61bbdc063b2c0c242e1f2fd5f141b1f"
 dependencies = [
  "pest",
  "pest_derive",
