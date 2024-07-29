@@ -141,11 +141,11 @@ impl Cache {
     fn read_package<'a>(
       fs: &'a FileSystemRef,
       realpath_cache: &'a DashMap<PathBuf, Option<PathBuf>>,
-      arena: &'a Bump,
+      arena: &'a Mutex<Bump>,
       path: &Path,
     ) -> Result<PackageJson, ResolverError> {
-      let contents: &str = read(fs, arena, &path)?;
-      let mut pkg = PackageJson::parse(PathBuf::from(path), contents).map_err(|e| {
+      let contents: String = fs.read_to_string(&path)?;
+      let mut pkg = PackageJson::parse(PathBuf::from(path), &contents).map_err(|e| {
         JsonError::new(
           File {
             path: PathBuf::from(path),
@@ -175,9 +175,8 @@ impl Cache {
     }
 
     let path = path.into_owned();
-    let arena = self.arena.lock();
     let package: Result<PackageJson, ResolverError> =
-      read_package(&self.fs, &self.realpath_cache, &arena, &path);
+      read_package(&self.fs, &self.realpath_cache, &self.arena, &path);
 
     // Since we have exclusive access to packages,
     let mut packages = self.packages.write();
@@ -196,19 +195,23 @@ impl Cache {
     path: &Path,
     process: F,
   ) -> Arc<Result<Arc<TsConfigWrapper>, ResolverError>> {
-    if let Some(tsconfig) = self.tsconfigs.read().get(path) {
-      return tsconfig.clone();
+    {
+      let tsconfigs = self.tsconfigs.read();
+      if let Some(tsconfig) = tsconfigs.get(path) {
+        return tsconfig.clone();
+      }
+      drop(tsconfigs);
     }
 
     fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
       fs: &FileSystemRef,
-      arena: &'a Bump,
+      arena: &'a Mutex<Bump>,
       path: &Path,
       process: F,
     ) -> Result<TsConfigWrapper, ResolverError> {
-      let data = read(fs, arena, path)?;
+      let data = fs.read_to_string(path)?;
       let contents = data.to_owned();
-      let mut tsconfig = TsConfig::parse(path.to_owned(), data).map_err(|e| {
+      let mut tsconfig = TsConfig::parse(path.to_owned(), &data).map_err(|e| {
         JsonError::new(
           File {
             contents,
@@ -217,34 +220,26 @@ impl Cache {
           e,
         )
       })?;
-      // Convice the borrow checker that 'a will live as long as self and not 'static.
-      // Since the data is in our arena, this is true.
       process(&mut tsconfig)?;
       Ok(tsconfig)
     }
 
     // Since we have exclusive access to tsconfigs, it should be impossible for the get to fail
     // after insert
-    let mut tsconfigs = self.tsconfigs.write();
-    let arena = self.arena.lock();
-    let _ = tsconfigs.insert(
-      PathBuf::from(path),
-      Arc::new(read_tsconfig(&self.fs, &arena, path, process).map(|t| Arc::new(t))),
-    );
-    let tsconfig = tsconfigs
-      .get(path)
-      .expect("THE IMPOSSIBLE HAPPENED, LOCK DID NOT GUARANTEE EXCLUSIVE ACCESS")
-      .clone();
-    drop(tsconfigs);
+    let entry = read_tsconfig(&self.fs, &self.arena, path, process).map(|t| Arc::new(t));
+    let tsconfig = {
+      let mut tsconfigs = self.tsconfigs.write();
+      let _ = tsconfigs.insert(PathBuf::from(path), Arc::new(entry));
+      let tsconfig = tsconfigs
+        .get(path)
+        .expect("THE IMPOSSIBLE HAPPENED, LOCK DID NOT GUARANTEE EXCLUSIVE ACCESS")
+        .clone();
+      drop(tsconfigs);
+      tsconfig
+    };
 
     tsconfig
   }
-}
-
-fn read<'a>(fs: &FileSystemRef, arena: &'a Bump, path: &Path) -> std::io::Result<&'a str> {
-  let data = arena.alloc(fs.read_to_string(path)?);
-  // The data lives as long as the arena. In public methods, we only vend temporary references.
-  Ok(data)
 }
 
 fn clone_result<T, E: Clone>(res: &Result<T, E>) -> Result<&T, E> {
