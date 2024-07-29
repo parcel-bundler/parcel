@@ -1,10 +1,9 @@
-use indexmap::IndexMap;
-use itertools::Either;
-use json_comments::strip_comments_in_place;
 use std::borrow::Cow;
 use std::path::Path;
 use std::path::PathBuf;
-use std::rc::Rc;
+
+use indexmap::IndexMap;
+use itertools::Either;
 
 use crate::path::resolve_path;
 use crate::specifier::Specifier;
@@ -51,8 +50,8 @@ pub struct TsConfigWrapper {
 }
 
 impl TsConfig {
-  pub fn parse(path: PathBuf, data: &str) -> serde_json5::Result<TsConfigWrapper> {
-    let mut wrapper: TsConfigWrapper = serde_json5::from_str(data)?;
+  pub fn parse(path: PathBuf, data: &str) -> serde_json::Result<TsConfigWrapper> {
+    let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
     wrapper.compiler_options.path = path;
     wrapper.compiler_options.validate();
     Ok(wrapper)
@@ -192,12 +191,12 @@ mod tests {
     let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
       paths: Some(indexmap! {
-        "jquery".into() => vec!["node_modules/jquery/dist/jquery"],
-        "*".into() => vec!["generated/*"],
-        "bar/*".into() => vec!["test/*"],
-        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
-        "@/components/*".into() => vec!["components/*"],
-        "url".into() => vec!["node_modules/my-url"],
+        "jquery".into() => vec![String::from("node_modules/jquery/dist/jquery")],
+        "*".into() => vec![String::from("generated/*")],
+        "bar/*".into() => vec![String::from("test/*")],
+        "bar/baz/*".into() => vec![String::from("baz/*"), String::from("yo/*")],
+        "@/components/*".into() => vec![String::from("components/*")],
+        "url".into() => vec![String::from("node_modules/my-url")],
       }),
       ..Default::default()
     };
@@ -252,10 +251,10 @@ mod tests {
       path: "/foo/tsconfig.json".into(),
       base_url: Some(Path::new("src").into()),
       paths: Some(indexmap! {
-        "*".into() => vec!["generated/*"],
-        "bar/*".into() => vec!["test/*"],
-        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
-        "@/components/*".into() => vec!["components/*"],
+        "*".into() => vec![String::from("generated/*")],
+        "bar/*".into() => vec![String::from("test/*")],
+        "bar/baz/*".into() => vec![String::from("baz/*"), String::from("yo/*")],
+        "@/components/*".into() => vec![String::from("components/*")],
       }),
       ..Default::default()
     };
