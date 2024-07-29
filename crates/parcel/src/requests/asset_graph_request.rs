@@ -526,6 +526,92 @@ export const y = 27;
     );
   }
 
+  #[test]
+  fn test_asset_graph_request_with_generated_entries() {
+    let _ = tracing_subscriber::FmtSubscriber::builder()
+      .with_max_level(Level::TRACE)
+      .try_init();
+
+    let mut options = RequestTrackerTestOptions::default();
+    let fs = InMemoryFileSystem::default();
+    let temporary_dir = PathBuf::from("/parcel_tests");
+    fs.create_directory(&temporary_dir).unwrap();
+    fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
+    options
+      .parcel_options
+      .entries
+      .push(temporary_dir.join("entry.js").to_str().unwrap().to_string());
+    options.project_root = temporary_dir.clone();
+    options.search_path = temporary_dir.clone();
+    options.parcel_options.core_path = temporary_dir.clone().join("parcel_core");
+
+    struct GeneratedFile {
+      symbol: String,
+      path: String,
+    }
+    let mut files = vec![];
+    for i in 0..1000 {
+      let symbol = format!("a{}", i);
+      files.push(GeneratedFile {
+        symbol: symbol.clone(),
+        path: format!("{}.js", symbol),
+      });
+      fs.write_file(
+        Path::new(&files[i].path),
+        format!("export const {} = {}", symbol, i),
+      );
+    }
+    let generated_imports = files
+      .iter()
+      .map(|file| format!("import {{ {} }} from './{}'", file.symbol, file.path))
+      .collect::<Vec<String>>()
+      .join("\n");
+    let generated_usage = files
+      .iter()
+      .map(|file| format!("console.log({})", file.symbol))
+      .collect::<Vec<String>>()
+      .join("\n");
+
+    fs.write_file(
+      &temporary_dir.join("entry.js"),
+      format!(
+        r#"
+{}
+{}
+        "#,
+        generated_imports, generated_usage
+      ),
+    );
+
+    setup_core_modules(&fs, &options.parcel_options.core_path);
+    options.fs = Arc::new(fs);
+
+    let mut request_tracker = request_tracker(options);
+
+    let asset_graph_request = AssetGraphRequest {};
+    let RequestResult::AssetGraph(asset_graph_request_result) = request_tracker
+      .run_request(asset_graph_request)
+      .expect("Failed to run asset graph request")
+    else {
+      assert!(false, "Got invalid result");
+      return;
+    };
+
+    // Entry, 100 assets + helpers file
+    assert_eq!(asset_graph_request_result.graph.assets.len(), 1002);
+
+    assert_eq!(
+      asset_graph_request_result
+        .graph
+        .assets
+        .get(0)
+        .unwrap()
+        .asset
+        .file_path,
+      PathBuf::from("/parcel_tests/entry.js")
+    );
+  }
+
   fn setup_core_modules(fs: &InMemoryFileSystem, core_path: &Path) {
     let transformer_path = core_path
       .join("node_modules")

@@ -1,29 +1,28 @@
-use std::borrow::Cow;
-use std::path::Path;
-use std::path::PathBuf;
-
 use indexmap::IndexMap;
 use itertools::Either;
 use json_comments::strip_comments_in_place;
+use std::borrow::Cow;
+use std::path::Path;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::path::resolve_path;
 use crate::specifier::Specifier;
 
-#[derive(serde::Deserialize, Debug, Default)]
+#[derive(serde::Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct TsConfig<'a> {
+pub struct TsConfig {
   #[serde(skip)]
   pub path: PathBuf,
-  base_url: Option<Cow<'a, Path>>,
-  #[serde(borrow)]
-  paths: Option<IndexMap<Specifier<'a>, Vec<&'a str>>>,
+  base_url: Option<PathBuf>,
+  paths: Option<IndexMap<Specifier, Vec<String>>>,
   #[serde(skip)]
   paths_base: PathBuf,
-  pub module_suffixes: Option<Vec<&'a str>>,
+  pub module_suffixes: Option<Vec<String>>,
   // rootDirs??
 }
 
-fn deserialize_extends<'a, 'de: 'a, D>(deserializer: D) -> Result<Vec<Specifier<'a>>, D::Error>
+fn deserialize_extends<'a, 'de: 'a, D>(deserializer: D) -> Result<Vec<Specifier>, D::Error>
 where
   D: serde::Deserializer<'de>,
 {
@@ -31,10 +30,9 @@ where
 
   #[derive(serde::Deserialize)]
   #[serde(untagged)]
-  enum StringOrArray<'a> {
-    #[serde(borrow)]
-    String(Specifier<'a>),
-    Array(Vec<Specifier<'a>>),
+  enum StringOrArray {
+    String(Specifier),
+    Array(Vec<Specifier>),
   }
 
   Ok(match StringOrArray::deserialize(deserializer)? {
@@ -45,17 +43,16 @@ where
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct TsConfigWrapper<'a> {
-  #[serde(borrow, default, deserialize_with = "deserialize_extends")]
-  pub extends: Vec<Specifier<'a>>,
+pub struct TsConfigWrapper {
+  #[serde(default, deserialize_with = "deserialize_extends")]
+  pub extends: Vec<Specifier>,
   #[serde(default)]
-  pub compiler_options: TsConfig<'a>,
+  pub compiler_options: TsConfig,
 }
 
-impl<'a> TsConfig<'a> {
-  pub fn parse(path: PathBuf, data: &'a mut str) -> serde_json::Result<TsConfigWrapper<'a>> {
-    let _ = strip_comments_in_place(data, Default::default(), true);
-    let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
+impl TsConfig {
+  pub fn parse(path: PathBuf, data: &str) -> serde_json5::Result<TsConfigWrapper> {
+    let mut wrapper: TsConfigWrapper = serde_json5::from_str(data)?;
     wrapper.compiler_options.path = path;
     wrapper.compiler_options.validate();
     Ok(wrapper)
@@ -63,19 +60,19 @@ impl<'a> TsConfig<'a> {
 
   fn validate(&mut self) {
     if let Some(base_url) = &mut self.base_url {
-      *base_url = Cow::Owned(resolve_path(&self.path, &base_url));
+      *base_url = resolve_path(&self.path, &base_url);
     }
 
     if self.paths.is_some() {
       self.paths_base = if let Some(base_url) = &self.base_url {
-        base_url.as_ref().to_owned()
+        base_url.to_owned()
       } else {
         self.path.parent().unwrap().to_owned()
       };
     }
   }
 
-  pub fn extend(&mut self, extended: &TsConfig<'a>) {
+  pub fn extend(&mut self, extended: &TsConfig) {
     if self.base_url.is_none() {
       self.base_url = extended.base_url.clone();
     }
@@ -90,7 +87,7 @@ impl<'a> TsConfig<'a> {
     }
   }
 
-  pub fn paths(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathBuf> + 'a {
+  pub fn paths<'a>(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathBuf> + 'a {
     if !matches!(specifier, Specifier::Package(..) | Specifier::Builtin(..)) {
       return Either::Right(Either::Right(std::iter::empty()));
     }
@@ -154,7 +151,7 @@ impl<'a> TsConfig<'a> {
 
 fn join_paths<'a>(
   base_url: &'a Path,
-  paths: &'a [&'a str],
+  paths: &'a [String],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
 ) -> impl Iterator<Item = PathBuf> + 'a {
   paths
@@ -177,8 +174,8 @@ fn base_url_iter<'a>(
   std::iter::once_with(move || {
     let mut path = base_url.to_owned();
     if let Specifier::Package(module, subpath) = specifier {
-      path.push(module.as_ref());
-      path.push(subpath.as_ref());
+      path.push(module.as_str());
+      path.push(subpath.as_str());
     }
     path
   })
