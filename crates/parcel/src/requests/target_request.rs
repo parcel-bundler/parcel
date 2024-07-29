@@ -17,9 +17,11 @@ use parcel_core::types::engines::Engines;
 use parcel_core::types::BuildMode;
 use parcel_core::types::CodeFrame;
 use parcel_core::types::DefaultTargetOptions;
+use parcel_core::types::Diagnostic;
 use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::Environment;
 use parcel_core::types::EnvironmentContext;
+use parcel_core::types::ErrorKind;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::SourceType;
 use parcel_core::types::Target;
@@ -220,9 +222,22 @@ impl TargetRequest {
     request_context: RunRequestContext,
   ) -> Result<ConfigFile<PackageJson>, anyhow::Error> {
     // TODO Invalidations
-    let mut package_json = request_context
-      .config()
-      .load_package_json::<PackageJson>()?;
+    let mut package_json = match request_context.config().load_package_json::<PackageJson>() {
+      Err(err) => {
+        let diagnostic = err.downcast_ref::<Diagnostic>();
+
+        if diagnostic.is_some_and(|d| d.kind != ErrorKind::NotFound) {
+          return Err(err);
+        }
+
+        ConfigFile {
+          contents: PackageJson::default(),
+          path: PathBuf::default(),
+          raw: String::default(),
+        }
+      }
+      Ok(pkg) => pkg,
+    };
 
     if package_json
       .contents
@@ -780,6 +795,29 @@ mod tests {
           }
         "#,
       ),
+    );
+  }
+
+  #[test]
+  fn returns_default_target_when_package_json_is_not_found() {
+    let request = TargetRequest {
+      default_target_options: DefaultTargetOptions::default(),
+      entry: Entry::default(),
+      env: None,
+      mode: BuildMode::Development,
+    };
+
+    let targets = request_tracker(RequestTrackerTestOptions::default()).run_request(request);
+
+    assert_eq!(
+      targets.map_err(|e| e.to_string()),
+      Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
+        targets: vec![Target {
+          dist_dir: default_dist_dir(&PathBuf::default()),
+          ..default_target()
+        }],
+      }))
     );
   }
 

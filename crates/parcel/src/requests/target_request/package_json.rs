@@ -66,7 +66,7 @@ impl Display for ModuleFormat {
   }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct PackageJson {
   pub name: Option<String>,
 

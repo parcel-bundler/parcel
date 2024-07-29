@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::anyhow;
-use napi::JsObject;
+use napi::{Env, JsObject};
 
 use parcel_napi_helpers::js_callable::JsCallable;
 use parcel_package_manager::{PackageManager, Resolution};
@@ -11,9 +11,10 @@ pub struct PackageManagerNapi {
 }
 
 impl PackageManagerNapi {
-  pub fn new(js_file_system: &JsObject) -> napi::Result<Self> {
+  pub fn new(env: &Env, js_file_system: &JsObject) -> napi::Result<Self> {
     Ok(Self {
-      resolve_fn: JsCallable::new_from_object_prop_bound("resolveSync", &js_file_system)?,
+      resolve_fn: JsCallable::new_from_object_prop_bound("resolveSync", &js_file_system)?
+        .into_unref(env)?,
     })
   }
 }
