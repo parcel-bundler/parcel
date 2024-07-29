@@ -69,7 +69,6 @@ impl RunRequestContext {
   }
 
   /// Run a child request to the current request
-  #[allow(unused)]
   pub fn queue_request(
     &mut self,
     request: impl Request,
