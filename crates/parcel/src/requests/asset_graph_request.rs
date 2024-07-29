@@ -3,10 +3,11 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use parcel_core::asset_graph::{AssetGraph, DependencyNode, DependencyState};
-use parcel_core::types::Dependency;
 use pathdiff::diff_paths;
 use petgraph::graph::NodeIndex;
+
+use parcel_core::asset_graph::{AssetGraph, DependencyNode, DependencyState};
+use parcel_core::types::Dependency;
 
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
@@ -188,7 +189,14 @@ impl AssetGraphBuilder {
         *asset_node_index,
         node,
         &mut |dependency_node_index: NodeIndex, dependency: Arc<Dependency>| {
-          self.on_undeferred(dependency_node_index, dependency);
+          Self::on_undeferred(
+            &mut self.request_id_to_dep_node_index,
+            &mut self.work_count,
+            &mut self.request_context,
+            &self.sender,
+            dependency_node_index,
+            dependency,
+          );
         },
       );
     } else {
@@ -250,7 +258,14 @@ impl AssetGraphBuilder {
       asset_node_index,
       incoming_dep_node_index,
       &mut |dependency_node_index: NodeIndex, dependency: Arc<Dependency>| {
-        self.on_undeferred(dependency_node_index, dependency);
+        Self::on_undeferred(
+          &mut self.request_id_to_dep_node_index,
+          &mut self.work_count,
+          &mut self.request_context,
+          &self.sender,
+          dependency_node_index,
+          dependency,
+        );
       },
     );
 
@@ -263,7 +278,14 @@ impl AssetGraphBuilder {
           asset_node_index,
           dep,
           &mut |dependency_node_index: NodeIndex, dependency: Arc<Dependency>| {
-            self.on_undeferred(dependency_node_index, dependency);
+            Self::on_undeferred(
+              &mut self.request_id_to_dep_node_index,
+              &mut self.work_count,
+              &mut self.request_context,
+              &self.sender,
+              dependency_node_index,
+              dependency,
+            );
           },
         );
       }
@@ -293,21 +315,44 @@ impl AssetGraphBuilder {
     }
   }
 
-  fn on_undeferred(&mut self, dependency_node_index: NodeIndex, dependency: Arc<Dependency>) {
+  /// When we find dependencies, we will only trigger resolution and parsing for dependencies
+  /// that have used symbols.
+  ///
+  /// Once they do have symbols in use, this callback will re-trigger resolution/transformation
+  /// for those files.
+  fn on_undeferred(
+    request_id_to_dep_node_index: &mut HashMap<u64, NodeIndex>,
+    work_count: &mut u32,
+    request_context: &mut RunRequestContext,
+    sender: &ResultSender,
+    dependency_node_index: NodeIndex,
+    dependency: Arc<Dependency>,
+  ) {
     let request = PathRequest {
       dependency: dependency.clone(),
     };
 
-    self
-      .request_id_to_dep_node_index
-      .insert(request.id(), dependency_node_index);
+    request_id_to_dep_node_index.insert(request.id(), dependency_node_index);
     tracing::debug!(
       "queueing a path request from on_undeferred, {}",
       dependency.specifier
     );
-    self.work_count += 1;
-    let _ = self
-      .request_context
-      .queue_request(request, self.sender.clone());
+    *work_count += 1;
+    let _ = request_context.queue_request(request, sender.clone());
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use crate::requests::AssetGraphRequest;
+  use crate::test_utils::{request_tracker, RequestTrackerTestOptions};
+
+  #[test]
+  fn test_asset_graph_request() {
+    let options = RequestTrackerTestOptions::default();
+    let mut request_tracker = request_tracker(options);
+
+    let asset_graph_request = AssetGraphRequest {};
+    let _ = request_tracker.run_request(asset_graph_request);
   }
 }
