@@ -11,6 +11,14 @@ use std::{
 
 use super::File;
 
+/// Represents the kind of diagnostic
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub enum ErrorKind {
+  NotFound,
+  #[default]
+  Unknown,
+}
+
 /// This is a user facing error for Parcel.
 ///
 /// Usually but not always this is linked to a source-code location.
@@ -18,6 +26,9 @@ use super::File;
 #[builder(derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
+  #[builder(default)]
+  pub kind: ErrorKind,
+
   /// A list of files with source-code highlights
   #[builder(default)]
   pub code_frames: Vec<CodeFrame>,

@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
   diagnostic_error,
-  types::{CodeFrame, CodeHighlight, DiagnosticBuilder, File},
+  types::{CodeFrame, CodeHighlight, DiagnosticBuilder, DiagnosticError, ErrorKind, File},
 };
 
 pub type ConfigLoaderRef = Arc<ConfigLoader>;
@@ -31,7 +31,7 @@ impl ConfigLoader {
   pub fn load_json_config<Config: DeserializeOwned>(
     &self,
     filename: &str,
-  ) -> Result<ConfigFile<Config>, anyhow::Error> {
+  ) -> Result<ConfigFile<Config>, DiagnosticError> {
     let path = find_ancestor_file(
       &*self.fs,
       &[filename],
@@ -39,10 +39,12 @@ impl ConfigLoader {
       &self.project_root,
     )
     .ok_or_else(|| {
-      diagnostic_error!(
-        "Unable to locate {filename} config file from {}",
-        self.search_path.display(),
-      )
+      diagnostic_error!(DiagnosticBuilder::default()
+        .kind(ErrorKind::NotFound)
+        .message(format!(
+          "Unable to locate {filename} config file from {}",
+          self.search_path.display()
+        )))
     })?;
 
     let code = self.fs.read_to_string(&path)?;
