@@ -520,31 +520,14 @@ export const y = 27;
   }
 
   fn setup_core_modules(fs: &InMemoryFileSystem, core_path: &Path) {
-    fs.create_directory(
-      &*core_path
-        .join("node_modules")
-        .join("@parcel/transformer-js"),
-    )
-    .unwrap();
+    let transformer_path = core_path
+      .join("node_modules")
+      .join("@parcel/transformer-js");
+    let source_path = transformer_path.join("src");
+    fs.create_directory(&source_path).unwrap();
+    fs.write_file(&transformer_path.join("package.json"), String::from("{}"));
     fs.write_file(
-      &*core_path
-        .join("node_modules")
-        .join("@parcel/transformer-js")
-        .join("package.json"),
-      String::from("{}"),
-    );
-    fs.create_directory(
-      &*core_path
-        .join("node_modules")
-        .join("@parcel/transformer-js")
-        .join("src"),
-    )
-    .unwrap();
-    fs.write_file(
-      &*core_path
-        .join("node_modules")
-        .join("@parcel/transformer-js/src")
-        .join("esmodule-helpers.js"),
+      &source_path.join("esmodule-helpers.js"),
       String::from("/* helpers */"),
     );
   }
