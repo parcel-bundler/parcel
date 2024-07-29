@@ -188,21 +188,7 @@ impl AssetGraphBuilder {
         *asset_node_index,
         node,
         &mut |dependency_node_index: NodeIndex, dependency: Arc<Dependency>| {
-          let request = PathRequest {
-            dependency: dependency.clone(),
-          };
-
-          self
-            .request_id_to_dep_node_index
-            .insert(request.id(), dependency_node_index);
-          tracing::debug!(
-            "queueing a path request from on_undeferred, {}",
-            dependency.specifier
-          );
-          self.work_count += 1;
-          let _ = self
-            .request_context
-            .queue_request(request, self.sender.clone());
+          self.on_undeferred(dependency_node_index, dependency);
         },
       );
     } else {
@@ -264,21 +250,7 @@ impl AssetGraphBuilder {
       asset_node_index,
       incoming_dep_node_index,
       &mut |dependency_node_index: NodeIndex, dependency: Arc<Dependency>| {
-        let request = PathRequest {
-          dependency: dependency.clone(),
-        };
-
-        self
-          .request_id_to_dep_node_index
-          .insert(request.id(), dependency_node_index);
-        tracing::debug!(
-          "queueing a path request from on_undeferred, {}",
-          dependency.specifier
-        );
-        self.work_count += 1;
-        let _ = self
-          .request_context
-          .queue_request(request, self.sender.clone());
+        self.on_undeferred(dependency_node_index, dependency);
       },
     );
 
@@ -291,21 +263,7 @@ impl AssetGraphBuilder {
           asset_node_index,
           dep,
           &mut |dependency_node_index: NodeIndex, dependency: Arc<Dependency>| {
-            let request = PathRequest {
-              dependency: dependency.clone(),
-            };
-
-            self
-              .request_id_to_dep_node_index
-              .insert(request.id(), dependency_node_index);
-            tracing::debug!(
-              "queueing a path request from on_undeferred, {}",
-              dependency.specifier
-            );
-            self.work_count += 1;
-            let _ = self
-              .request_context
-              .queue_request(request, self.sender.clone());
+            self.on_undeferred(dependency_node_index, dependency);
           },
         );
       }
@@ -341,5 +299,23 @@ impl AssetGraphBuilder {
         .request_context
         .queue_request(request, self.sender.clone());
     }
+  }
+
+  fn on_undeferred(&mut self, dependency_node_index: NodeIndex, dependency: Arc<Dependency>) {
+    let request = PathRequest {
+      dependency: dependency.clone(),
+    };
+
+    self
+      .request_id_to_dep_node_index
+      .insert(request.id(), dependency_node_index);
+    tracing::debug!(
+      "queueing a path request from on_undeferred, {}",
+      dependency.specifier
+    );
+    self.work_count += 1;
+    let _ = self
+      .request_context
+      .queue_request(request, self.sender.clone());
   }
 }
