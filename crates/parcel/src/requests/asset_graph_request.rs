@@ -243,7 +243,7 @@ impl AssetGraphBuilder {
     for dependency in &dependencies {
       let _ = self
         .graph
-        .add_dependency(asset_node_index, dependency.clone(), HashSet::default());
+        .add_dependency(asset_node_index, dependency.clone());
     }
 
     self.graph.propagate_requested_symbols(
@@ -277,16 +277,8 @@ impl AssetGraphBuilder {
         diff_paths(&entry, &self.request_context.project_root).unwrap_or_else(|| entry.clone());
 
       let dependency = Dependency::entry(entry.to_str().unwrap().to_string(), target);
-      let mut requested_symbols = HashSet::default();
 
-      if dependency.env.is_library {
-        requested_symbols.insert("*".into());
-      }
-
-      let dep_node =
-        self
-          .graph
-          .add_dependency(NodeIndex::new(0), dependency.clone(), requested_symbols);
+      let dep_node = self.graph.add_entry_dependency(dependency.clone());
 
       let request = PathRequest {
         dependency: Arc::new(dependency),

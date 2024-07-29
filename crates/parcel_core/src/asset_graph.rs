@@ -101,17 +101,30 @@ impl AssetGraph {
     asset_idx
   }
 
-  pub fn add_dependency(
-    &mut self,
-    parent_idx: NodeIndex,
-    dependency: Dependency,
-    requested_symbols: HashSet<String>,
-  ) -> NodeIndex {
+  pub fn add_entry_dependency(&mut self, dependency: Dependency) -> NodeIndex {
+    // The root node index will always be 0
+    let root_node_index = NodeIndex::new(0);
+
+    let is_library = dependency.env.is_library;
+    let node_index = self.add_dependency(root_node_index, dependency);
+
+    if is_library {
+      if let Some(dependency_index) = &self.dependency_index(node_index) {
+        self.dependencies[*dependency_index]
+          .requested_symbols
+          .insert("*".into());
+      }
+    }
+
+    node_index
+  }
+
+  pub fn add_dependency(&mut self, parent_idx: NodeIndex, dependency: Dependency) -> NodeIndex {
     let idx = self.dependencies.len();
 
     self.dependencies.push(DependencyNode {
       dependency: Arc::new(dependency),
-      requested_symbols,
+      requested_symbols: HashSet::default(),
       state: DependencyState::New,
     });
 
