@@ -58,6 +58,11 @@ impl JsCallable {
     Self::new(jsfn)
   }
 
+  pub fn into_unref(mut self, env: &Env) -> napi::Result<Self> {
+    self.threadsafe_function.unref(env)?;
+    Ok(self)
+  }
+
   /// Call JavaScript function and discard return value
   pub fn call(
     &self,
