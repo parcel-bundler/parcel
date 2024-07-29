@@ -219,7 +219,7 @@ impl Cache {
       })?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.
       // Since the data is in our arena, this is true.
-      process(unsafe { std::mem::transmute(&mut tsconfig) })?;
+      process(&mut tsconfig)?;
       Ok(tsconfig)
     }
 
