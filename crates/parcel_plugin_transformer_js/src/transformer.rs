@@ -78,7 +78,8 @@ mod test {
     RunTransformContext, TransformResult, TransformationInput, TransformerPlugin,
   };
   use parcel_core::types::{
-    Asset, Code, Dependency, FileType, Location, SourceLocation, SpecifierType, Symbol,
+    Asset, Code, Dependency, FileType, Location, ParcelOptions, SourceLocation, SpecifierType,
+    Symbol,
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
@@ -217,7 +218,8 @@ exports.hello = function() {};
 
   fn run_test(asset: Asset) -> anyhow::Result<TransformResult> {
     let file_system = Arc::new(InMemoryFileSystem::default());
-    let mut context = RunTransformContext::new(file_system);
+    let options = Arc::new(ParcelOptions::default());
+    let mut context = RunTransformContext::new(file_system, options);
     let mut transformer = ParcelJsTransformerPlugin::new();
     let input = TransformationInput::Asset(asset);
 
