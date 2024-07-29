@@ -1,5 +1,3 @@
-#![deny(unused_crate_dependencies)]
+mod parcel_resolver;
 
-mod resolver;
-
-pub use resolver::*;
+pub use parcel_resolver::*;
