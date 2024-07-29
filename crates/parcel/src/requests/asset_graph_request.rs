@@ -384,7 +384,8 @@ mod test {
     #[cfg(not(target_os = "windows"))]
     let temporary_dir = PathBuf::from("/parcel_tests");
     #[cfg(target_os = "windows")]
-    let temporary_dir = PathBuf::from("C:\\windows\\parcel_tests");
+    let temporary_dir = PathBuf::from("c:/windows/parcel_tests");
+    assert!(temporary_dir.is_absolute());
     fs.create_directory(&temporary_dir).unwrap();
     fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
     options
