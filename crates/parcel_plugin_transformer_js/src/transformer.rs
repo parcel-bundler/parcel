@@ -2,7 +2,7 @@ use anyhow::{anyhow, Error};
 
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
-use parcel_core::types::{Asset, ParcelOptions};
+use parcel_core::types::Asset;
 
 mod conversion;
 #[cfg(test)]
@@ -60,7 +60,7 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
 
     let asset = Asset::new_empty(input.file_path().to_path_buf(), source_code);
     let config = parcel_js_swc_core::Config::default();
-    let options = ParcelOptions::default();
+    let options = context.options();
     let result = conversion::convert_result(asset, &config, transformation_result, &options)
       // TODO handle errors properly
       .map_err(|_err| anyhow!("Failed to transform"))?;

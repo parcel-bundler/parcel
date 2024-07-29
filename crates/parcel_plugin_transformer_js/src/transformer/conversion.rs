@@ -339,6 +339,11 @@ fn make_esm_helpers_dependency(
   has_symbols: bool,
   asset_id: u64,
 ) -> Dependency {
+  assert!(
+    options.core_path.to_str() != Some(""),
+    "core_path can't be empty as that will cause panics in the resolver"
+  );
+
   Dependency {
     source_asset_id: Some(format!("{:016x}", asset_id)),
     specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),

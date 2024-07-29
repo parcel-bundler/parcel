@@ -103,7 +103,7 @@ impl<'a> Extensions<'a> {
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ResolveOptions {
   pub conditions: ExportsCondition,
   pub custom_conditions: Vec<String>,
@@ -188,6 +188,7 @@ impl<'a> Resolver<'a> {
     specifier_type: SpecifierType,
     options: ResolveOptions,
   ) -> ResolveResult {
+    tracing::trace!(%specifier, ?from, ?specifier_type, "Resolving specifier");
     let invalidations = Invalidations::default();
     let result =
       self.resolve_with_invalidations(specifier, from, specifier_type, &invalidations, options);

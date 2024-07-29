@@ -1850,6 +1850,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tracing",
  "typed-arena",
  "url",
  "xxhash-rust",

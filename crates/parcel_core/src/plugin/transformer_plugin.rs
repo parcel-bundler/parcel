@@ -7,7 +7,7 @@ use serde::Serialize;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
 
-use crate::types::{Asset, Code, Dependency, Environment, SpecifierType};
+use crate::types::{Asset, Code, Dependency, Environment, ParcelOptions, SpecifierType};
 
 pub struct ResolveOptions {
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
@@ -69,23 +69,32 @@ impl TransformationInput {
 /// Context parameters for the transformer, other than the input.
 pub struct RunTransformContext {
   file_system: FileSystemRef,
+  options: Arc<ParcelOptions>,
 }
 
 impl Default for RunTransformContext {
   fn default() -> Self {
     Self {
       file_system: Arc::new(OsFileSystem::default()),
+      options: Arc::new(ParcelOptions::default()),
     }
   }
 }
 
 impl RunTransformContext {
-  pub fn new(file_system: FileSystemRef) -> Self {
-    Self { file_system }
+  pub fn new(file_system: FileSystemRef, options: Arc<ParcelOptions>) -> Self {
+    Self {
+      file_system,
+      options,
+    }
   }
 
   pub fn file_system(&self) -> FileSystemRef {
     self.file_system.clone()
+  }
+
+  pub fn options(&self) -> &Arc<ParcelOptions> {
+    &self.options
   }
 }
 
