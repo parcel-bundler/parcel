@@ -37,10 +37,33 @@ export class ParcelV3 {
   }
 
   async build(): Promise<any> {
-    const workers = [];
+    const [workers, registerWorker] = this.#createWorkers();
 
     let result = await this._internal.build({
-      registerWorker: tx_worker => {
+      registerWorker,
+    });
+
+    for (const worker of workers) worker.terminate();
+    return result;
+  }
+
+  async buildAssetGraph(): Promise<any> {
+    const [workers, registerWorker] = this.#createWorkers();
+
+    let result = await this._internal.buildAssetGraph({
+      registerWorker,
+    });
+
+    for (const worker of workers) worker.terminate();
+    return result;
+  }
+
+  #createWorkers() {
+    const workers = [];
+
+    return [
+      workers,
+      tx_worker => {
         let worker = new Worker(WORKER_PATH, {
           workerData: {
             tx_worker,
@@ -48,9 +71,6 @@ export class ParcelV3 {
         });
         workers.push(worker);
       },
-    });
-
-    for (const worker of workers) worker.terminate();
-    return result;
+    ];
   }
 }

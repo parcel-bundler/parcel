@@ -110,12 +110,7 @@ impl ParcelNapi {
   pub fn build(&self, env: Env, options: ParcelNapiBuildOptions) -> napi::Result<JsObject> {
     let (deferred, promise) = env.create_deferred()?;
 
-    for _ in 0..self.node_worker_count {
-      let transferable = JsTransferable::new(self.tx_worker.clone());
-      options
-        .register_worker
-        .call1::<JsTransferable<Sender<NodejsWorker>>, JsUnknown>(transferable)?;
-    }
+    self.register_workers(&options)?;
 
     // Both the parcel initialization and build must be run a dedicated system thread so that
     // the napi threadsafe functions do not panic
@@ -131,8 +126,8 @@ impl ParcelNapi {
 
         match parcel {
           Err(error) => deferred.reject(to_napi_error(error)),
-          Ok(parcel) => match parcel.build() {
-            Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
+          Ok(mut parcel) => match parcel.build() {
+            Ok(build_result) => deferred.resolve(move |env| env.to_js_value(&build_result)),
             Err(error) => deferred.reject(to_napi_error(error)),
           },
         }
@@ -140,5 +135,52 @@ impl ParcelNapi {
     });
 
     Ok(promise)
+  }
+
+  #[napi]
+  pub fn build_asset_graph(
+    &self,
+    env: Env,
+    options: ParcelNapiBuildOptions,
+  ) -> napi::Result<JsObject> {
+    let (deferred, promise) = env.create_deferred()?;
+
+    self.register_workers(&options)?;
+
+    // Both the parcel initialisation and build must be run a dedicated system thread so that
+    // the napi threadsafe functions do not panic
+    thread::spawn({
+      let fs = self.fs.clone();
+      let options = self.options.clone();
+      let package_manager = self.package_manager.clone();
+      let rpc = self.rpc.clone();
+
+      move || {
+        let parcel = Parcel::new(fs, options, package_manager, rpc);
+        let to_napi_error = |error| napi::Error::from_reason(format!("{:?}", error));
+
+        match parcel {
+          Err(error) => deferred.reject(to_napi_error(error)),
+          Ok(mut parcel) => match parcel.build_asset_graph() {
+            Ok(asset_graph) => deferred.resolve(move |env| env.to_js_value(&asset_graph)),
+            Err(error) => deferred.reject(to_napi_error(error)),
+          },
+        }
+      }
+    });
+
+    Ok(promise)
+  }
+
+  fn register_workers(&self, options: &ParcelNapiBuildOptions) -> napi::Result<()> {
+    for _ in 0..self.node_worker_count {
+      let transferable = JsTransferable::new(self.tx_worker.clone());
+
+      options
+        .register_worker
+        .call1::<JsTransferable<Sender<NodejsWorker>>, JsUnknown>(transferable)?;
+    }
+
+    Ok(())
   }
 }
