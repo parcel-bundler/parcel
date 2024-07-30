@@ -438,6 +438,12 @@ impl<'a> ResolveRequest<'a> {
   }
 
   fn resolve(&self) -> Result<Resolution, ResolverError> {
+    println!(
+      "resolving {:?}, from {}",
+      self.specifier,
+      self.from.display()
+    );
+
     match &self.specifier {
       Specifier::Relative(specifier) => {
         // Relative path

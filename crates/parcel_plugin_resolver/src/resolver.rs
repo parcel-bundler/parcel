@@ -301,6 +301,9 @@ impl ResolverPlugin for ParcelResolver {
       .map(|p| Cow::Borrowed(p.as_path()))
       .unwrap_or_else(|| Cow::Owned(self.options.project_root.join("index")));
 
+    println!("resolve_from: {}", resolve_from.display());
+    println!("ctx.specifier: {}", ctx.specifier);
+
     let mut res = resolver.resolve_with_options(
       &ctx.specifier,
       &resolve_from,

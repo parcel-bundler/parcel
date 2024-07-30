@@ -54,5 +54,6 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
     }
   }
 
+  println!("ret {}", ret.display());
   ret
 }

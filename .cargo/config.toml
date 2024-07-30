@@ -1,3 +1,6 @@
+[env]
+RUST_BACKTRACE = "1"
+
 [target.arm-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
 
