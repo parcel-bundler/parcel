@@ -31,6 +31,10 @@ fn init_sentry() -> Result<(), Status> {
     return Ok(());
   }
 
+  println!("INIT SENTRY");
+  let _ = tracing_subscriber::FmtSubscriber::builder()
+    .with_max_level(tracing::Level::TRACE)
+    .try_init();
   log::info!("Initialising Sentry in rust...");
 
   if SENTRY_GUARD.lock().is_some() {

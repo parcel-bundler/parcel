@@ -212,7 +212,7 @@ impl Cache {
       let data = fs.read_to_string(path)?;
       let contents = data.to_owned();
       let mut tsconfig = TsConfig::parse(path.to_owned(), &data).map_err(|e| {
-        JsonError::new(
+        JsonError::json5(
           File {
             contents,
             path: path.to_owned(),

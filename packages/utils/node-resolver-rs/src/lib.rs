@@ -180,6 +180,9 @@ impl<'a> Resolver<'a> {
     from: &Path,
     specifier_type: SpecifierType,
   ) -> ResolveResult {
+    let _ = tracing_subscriber::FmtSubscriber::builder()
+      .with_max_level(tracing::Level::TRACE)
+      .try_init();
     self.resolve_with_options(specifier, from, specifier_type, Default::default())
   }
 
@@ -2574,21 +2577,21 @@ mod tests {
     );
   }
 
-  // #[test]
-  // fn test_tsconfig_parsing() {
-  //   assert_eq!(
-  //     test_resolver()
-  //       .resolve(
-  //         "foo",
-  //         &root().join("tsconfig/trailing-comma/index.js"),
-  //         SpecifierType::Esm
-  //       )
-  //       .result
-  //       .unwrap()
-  //       .0,
-  //     Resolution::Path(root().join("tsconfig/trailing-comma/bar.js"))
-  //   );
-  // }
+  #[test]
+  fn test_tsconfig_parsing() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo",
+          &root().join("tsconfig/trailing-comma/index.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("tsconfig/trailing-comma/bar.js"))
+    );
+  }
 
   #[test]
   fn test_ts_extensions() {
