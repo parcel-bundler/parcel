@@ -237,12 +237,14 @@ mod test {
   }
 
   #[cfg(target_os = "windows")]
-  #[test]
-  fn test_the_prefix_will_be_carried_onto_canonicalised_paths() {
-    let cwd = PathBuf::from("C:\\foo");
-    let fs = InMemoryFileSystem::default();
-    fs.set_current_working_directory(&cwd);
-    let result = fs.canonicalize_impl(Path::new("\\something"));
-    assert_eq!(result, PathBuf::from("C:\\something"));
+  mod windows_tests {
+    #[test]
+    fn test_the_prefix_will_be_carried_onto_canonicalize_paths() {
+      let cwd = PathBuf::from("C:\\foo");
+      let fs = InMemoryFileSystem::default();
+      fs.set_current_working_directory(&cwd);
+      let result = fs.canonicalize_impl(Path::new("\\something"));
+      assert_eq!(result, PathBuf::from("C:\\something"));
+    }
   }
 }
