@@ -105,7 +105,7 @@ pub fn infer_project_root(
 
 #[cfg(test)]
 mod tests {
-  use std::{path::MAIN_SEPARATOR_STR, sync::Arc};
+  use std::sync::Arc;
 
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_resolver::FileSystem;
