@@ -242,7 +242,7 @@ mod test {
     let cwd = PathBuf::from("C:\\foo");
     let fs = InMemoryFileSystem::default();
     fs.set_current_working_directory(&cwd);
-    let result = fs.canonicalize_impl("\\something");
+    let result = fs.canonicalize_impl(Path::new("\\something"));
     assert_eq!(result, PathBuf::from("C:\\something"));
   }
 }
