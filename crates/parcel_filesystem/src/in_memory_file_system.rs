@@ -56,7 +56,7 @@ impl InMemoryFileSystem {
           result = vec![Component::Prefix(prefix)];
         }
         Component::RootDir => {
-          result = vec![Component::RootDir];
+          result.push(Component::RootDir);
         }
         Component::CurDir => {}
         Component::ParentDir => {
