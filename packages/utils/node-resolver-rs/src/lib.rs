@@ -554,6 +554,7 @@ impl<'a> ResolveRequest<'a> {
   fn resolve_relative(&self, specifier: &Path, from: &Path) -> Result<Resolution, ResolverError> {
     // Resolve aliases from the nearest package.json.
     let path = resolve_path(from, specifier);
+    println!("resolved path {}", path.display());
     let package = if self.resolver.flags.contains(Flags::ALIASES) {
       self.find_package(path.parent().unwrap())?
     } else {
@@ -561,6 +562,7 @@ impl<'a> ResolveRequest<'a> {
     };
 
     if let Some(res) = self.load_path(&path, package)? {
+      println!("loaded path {} with {:?}", path.display(), res);
       return Ok(res);
     }
 
@@ -1036,6 +1038,11 @@ impl<'a> ResolveRequest<'a> {
 
   fn try_file_without_aliases(&self, path: &Path) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.cache.is_file(path) {
+      println!(
+        "canonicalizing path {}, got {}",
+        path.display(),
+        self.resolver.cache.canonicalize(path)?.display()
+      );
       Ok(Some(Resolution::Path(
         self.resolver.cache.canonicalize(path)?,
       )))
