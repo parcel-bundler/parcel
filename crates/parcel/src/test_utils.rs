@@ -5,7 +5,7 @@ use parcel_config::parcel_config_fixtures::default_config;
 use parcel_core::{
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
-  types::ParcelOptions,
+  types::{BuildMode, ParcelOptions},
 };
 use parcel_filesystem::{in_memory_file_system::InMemoryFileSystem, FileSystemRef};
 
@@ -70,7 +70,10 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
   let plugins = plugins.unwrap_or_else(|| {
     config_plugins(PluginContext {
       config: Arc::clone(&config_loader),
-      options: Arc::new(PluginOptions::default()),
+      options: Arc::new(PluginOptions {
+        mode: BuildMode::default(),
+        project_root: project_root.clone(),
+      }),
       logger: PluginLogger::default(),
     })
   });
