@@ -42,21 +42,25 @@ impl InMemoryFileSystem {
   }
 
   fn canonicalize_impl(&self, path: &Path) -> PathBuf {
-    let cwd = self.current_working_directory.read().unwrap();
-    let mut result = if path.is_absolute() {
-      vec![]
-    } else {
-      cwd.components().collect()
-    };
+    let mut path = path.to_path_buf();
+    if path.is_relative() {
+      path = self
+        .current_working_directory
+        .read()
+        .unwrap()
+        .to_path_buf()
+        .join(path);
+    }
 
-    let components = path.components();
-    for component in components {
+    let mut result = Vec::new();
+
+    for component in path.components() {
       match component {
         Component::Prefix(prefix) => {
-          result = vec![Component::Prefix(prefix)];
+          result.push(Component::Prefix(prefix));
         }
         Component::RootDir => {
-          result = vec![Component::RootDir];
+          result.push(Component::RootDir);
         }
         Component::CurDir => {}
         Component::ParentDir => {

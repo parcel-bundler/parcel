@@ -27,7 +27,7 @@
     "check": "flow check",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different && cargo fmt --all -- --check",
     "prepublishOnly": "yarn adjust-versions && yarn build && yarn build-ts",
-    "test:unit": "cargo test --package parcel --lib -- requests::asset_graph_request::test::test_asset_graph_request_with_a_couple_of_entries --exact --show-output",
+    "test:unit": "cargo test",
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
