@@ -235,4 +235,14 @@ mod test {
     fs.set_current_working_directory(Path::new("/"));
     assert!(fs.is_file(Path::new("/foo/bar")));
   }
+
+  #[cfg(target_os = "windows")]
+  #[test]
+  fn test_the_prefix_will_be_carried_onto_canonicalised_paths() {
+    let cwd = PathBuf::from("C:\\foo");
+    let fs = InMemoryFileSystem::default();
+    fs.set_current_working_directory(&cwd);
+    let result = fs.canonicalize_impl("\\something");
+    assert_eq!(result, PathBuf::from("C:\\something"));
+  }
 }
