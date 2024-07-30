@@ -211,8 +211,14 @@ mod tests {
     }
   }
 
+  #[cfg(target_os = "windows")]
   fn root() -> PathBuf {
-    PathBuf::from(MAIN_SEPARATOR_STR)
+    PathBuf::from("C:\\")
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  fn root() -> PathBuf {
+    PathBuf::from("/")
   }
 
   fn cwd() -> PathBuf {
