@@ -72,11 +72,21 @@ impl InMemoryFileSystem {
   }
 }
 
+#[cfg(not(target_os = "windows"))]
+fn default_cwd() -> PathBuf {
+  PathBuf::from("/")
+}
+
+#[cfg(target_os = "windows")]
+fn default_cwd() -> PathBuf {
+  PathBuf::from("C:/")
+}
+
 impl Default for InMemoryFileSystem {
   fn default() -> Self {
     Self {
       files: Default::default(),
-      current_working_directory: RwLock::new(PathBuf::from("/")),
+      current_working_directory: RwLock::new(default_cwd()),
     }
   }
 }
