@@ -1909,6 +1909,7 @@ dependencies = [
  "anyhow",
  "napi",
  "napi-build",
+ "once_cell",
  "serde",
 ]
 
