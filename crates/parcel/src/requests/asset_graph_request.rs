@@ -425,7 +425,7 @@ console.log('hello world');
         .unwrap()
         .asset
         .file_path,
-      PathBuf::from("/parcel_tests/entry.js")
+      temporary_dir.join("entry.js")
     );
     assert_eq!(
       asset_graph_request_result
@@ -522,7 +522,7 @@ export const y = 27;
         .unwrap()
         .asset
         .file_path,
-      PathBuf::from("/parcel_tests/entry.js")
+      temporary_dir.join("entry.js")
     );
   }
 
