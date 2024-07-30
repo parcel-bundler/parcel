@@ -4,8 +4,6 @@ use parcel_napi_helpers::js_callable::JsCallable;
 
 use crate::RpcWorker;
 
-use super::worker_init::register_worker;
-
 /// RpcConnectionNodejs wraps the communication with a
 /// single Nodejs worker thread
 pub struct NodejsWorker {
@@ -17,10 +15,6 @@ impl NodejsWorker {
     Ok(Self {
       ping_fn: JsCallable::new_from_object_prop_bound("ping", &delegate)?,
     })
-  }
-
-  pub fn register_worker(worker: Self) {
-    register_worker(worker)
   }
 }
 

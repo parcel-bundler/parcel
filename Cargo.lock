@@ -1719,6 +1719,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dyn-hash",
+ "mockall",
  "num_cpus",
  "parcel-resolver",
  "parcel_config",
@@ -1728,6 +1729,7 @@ dependencies = [
  "parcel_plugin_resolver",
  "parcel_plugin_rpc",
  "parcel_plugin_transformer_js",
+ "pathdiff",
  "petgraph",
  "rand",
  "rayon",
@@ -1882,6 +1884,7 @@ dependencies = [
  "mockall",
  "nodejs-semver",
  "parcel_filesystem",
+ "petgraph",
  "serde",
  "serde-value",
  "serde_json",
@@ -1906,6 +1909,7 @@ dependencies = [
  "anyhow",
  "napi",
  "napi-build",
+ "once_cell",
  "serde",
 ]
 
@@ -2050,6 +2054,8 @@ checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
  "indexmap 2.2.6",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]

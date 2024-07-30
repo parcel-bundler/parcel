@@ -16,7 +16,7 @@ use parcel_core::types::Dependency;
 use parcel_core::types::Environment;
 use parcel_core::types::FileType;
 
-use crate::plugins::Plugins;
+use crate::plugins::PluginsRef;
 use crate::plugins::TransformerPipeline;
 use crate::request_tracker::{Request, ResultAndInvalidations, RunRequestContext, RunRequestError};
 
@@ -34,6 +34,7 @@ pub struct AssetRequest {
   pub code: Option<String>,
   pub pipeline: Option<String>,
   pub side_effects: bool,
+  pub query: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,7 +57,7 @@ impl Request for AssetRequest {
 
     let pipeline = request_context
       .plugins()
-      .transformers(&self.file_path, self.pipeline.as_deref())?;
+      .transformers(&self.file_path, self.pipeline.clone())?;
     let asset_type = FileType::from_extension(
       self
         .file_path
@@ -76,16 +77,9 @@ impl Request for AssetRequest {
         side_effects: self.side_effects,
       }),
       asset_type,
-      request_context.plugins(),
+      request_context.plugins().clone(),
       &mut transform_ctx,
     )?;
-
-    // Write the Asset source code to the cache, this is read later in packaging
-    // TODO: Clarify the correct content key
-    let content_key = result.asset.id().to_string();
-    request_context
-      .cache()
-      .set_blob(&content_key, result.asset.code.bytes())?;
 
     Ok(ResultAndInvalidations {
       result: RequestResult::Asset(AssetRequestOutput {
@@ -108,7 +102,7 @@ fn run_pipeline(
   mut pipeline: TransformerPipeline,
   input: TransformationInput,
   asset_type: FileType,
-  plugins: &Plugins,
+  plugins: PluginsRef,
   transform_ctx: &mut RunTransformContext,
 ) -> anyhow::Result<TransformResult> {
   let mut dependencies = vec![];

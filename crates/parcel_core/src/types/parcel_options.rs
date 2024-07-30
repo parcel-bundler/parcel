@@ -23,7 +23,7 @@ pub struct ParcelOptions {
   #[serde(default)]
   pub default_target_options: DefaultTargetOptions,
 
-  pub entries: Option<Entry>,
+  pub entries: Vec<String>,
   pub env: Option<HashMap<String, String>>,
 
   #[serde(rename = "defaultConfig")]
@@ -34,19 +34,6 @@ pub struct ParcelOptions {
 
   #[serde(default)]
   pub mode: BuildMode,
-}
-
-#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
-#[serde(untagged)]
-pub enum Entry {
-  Single(String),
-  Multiple(Vec<String>),
-}
-
-impl Default for Entry {
-  fn default() -> Self {
-    Entry::Single(String::default())
-  }
 }
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Serialize)]
@@ -84,6 +71,7 @@ impl<'de> Deserialize<'de> for BuildMode {
 }
 
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct DefaultTargetOptions {
   pub dist_dir: Option<PathBuf>,
   pub engines: Engines,

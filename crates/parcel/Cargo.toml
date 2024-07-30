@@ -20,6 +20,7 @@ parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 anyhow = "1.0.82"
 dyn-hash = "0.x"
 num_cpus = "1.16.0"
+pathdiff = "0.2.1"
 petgraph = "0.x"
 rand = "0.8.5"
 rayon = "1.10.0"
@@ -30,3 +31,6 @@ serde_json = "1.0.116"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+
+[dev-dependencies]
+mockall = "0.12.1"

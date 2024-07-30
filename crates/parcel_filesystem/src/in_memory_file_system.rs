@@ -27,12 +27,6 @@ impl InMemoryFileSystem {
     *state = cwd;
   }
 
-  /// Create a directory at path.
-  pub fn create_directory(&self, path: &Path) {
-    let mut files = self.files.write().unwrap();
-    files.insert(path.into(), InMemoryFileSystemEntry::Directory);
-  }
-
   /// Write a file at path.
   pub fn write_file(&self, path: &Path, contents: String) {
     let mut files = self.files.write().unwrap();
@@ -88,6 +82,12 @@ impl FileSystem for InMemoryFileSystem {
     }
 
     Ok(PathBuf::from_iter(result))
+  }
+
+  fn create_directory(&self, path: &Path) -> std::io::Result<()> {
+    let mut files = self.files.write().unwrap();
+    files.insert(path.into(), InMemoryFileSystemEntry::Directory);
+    Ok(())
   }
 
   fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
@@ -196,7 +196,10 @@ mod test {
   #[test]
   fn test_is_dir() {
     let fs = InMemoryFileSystem::default();
-    fs.create_directory(&PathBuf::from("/foo"));
+
+    fs.create_directory(&PathBuf::from("/foo"))
+      .expect("Expected /foo directory to be created");
+
     assert!(fs.is_dir(Path::new("/foo")));
     assert!(!fs.is_dir(Path::new("/foo/bar")));
   }

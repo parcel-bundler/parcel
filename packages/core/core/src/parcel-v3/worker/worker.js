@@ -1,5 +1,6 @@
 // @flow
 import * as napi from '@parcel/rust';
+import {workerData} from 'worker_threads';
 import type {ResolverNapi} from '../plugins/Resolver';
 
 export class ParcelWorker {
@@ -10,4 +11,4 @@ export class ParcelWorker {
   }
 }
 
-napi.registerWorker(new ParcelWorker());
+napi.registerWorker(workerData.tx_worker, new ParcelWorker());

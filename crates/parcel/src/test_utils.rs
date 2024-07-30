@@ -3,13 +3,16 @@ use std::sync::Arc;
 
 use parcel_config::parcel_config_fixtures::default_config;
 use parcel_core::{
-  cache::MockCache,
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
+  types::ParcelOptions,
 };
 use parcel_filesystem::{in_memory_file_system::InMemoryFileSystem, FileSystemRef};
 
-use crate::{plugins::Plugins, request_tracker::RequestTracker};
+use crate::{
+  plugins::{config_plugins::ConfigPlugins, PluginsRef},
+  request_tracker::RequestTracker,
+};
 
 pub(crate) fn make_test_plugin_context() -> PluginContext {
   PluginContext {
@@ -23,14 +26,15 @@ pub(crate) fn make_test_plugin_context() -> PluginContext {
   }
 }
 
-pub(crate) fn plugins(ctx: PluginContext) -> Plugins {
+pub(crate) fn config_plugins(ctx: PluginContext) -> PluginsRef {
   let fixture = default_config(Arc::new(PathBuf::default()));
 
-  Plugins::new(fixture.parcel_config, ctx)
+  Arc::new(ConfigPlugins::new(fixture.parcel_config, ctx))
 }
 
 pub struct RequestTrackerTestOptions {
   pub fs: FileSystemRef,
+  pub plugins: Option<PluginsRef>,
   pub project_root: PathBuf,
   pub search_path: PathBuf,
 }
@@ -39,8 +43,9 @@ impl Default for RequestTrackerTestOptions {
   fn default() -> Self {
     Self {
       fs: Arc::new(InMemoryFileSystem::default()),
-      search_path: PathBuf::default(),
+      plugins: None,
       project_root: PathBuf::default(),
+      search_path: PathBuf::default(),
     }
   }
 }
@@ -48,8 +53,9 @@ impl Default for RequestTrackerTestOptions {
 pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTracker {
   let RequestTrackerTestOptions {
     fs,
-    search_path,
+    plugins,
     project_root,
+    search_path,
   } = options;
 
   let config_loader = Arc::new(ConfigLoader {
@@ -58,15 +64,21 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     search_path,
   });
 
-  RequestTracker::new(
-    Arc::new(MockCache::new()),
-    Arc::clone(&config_loader),
-    fs,
-    plugins(PluginContext {
+  let plugins = plugins.unwrap_or_else(|| {
+    config_plugins(PluginContext {
       config: Arc::clone(&config_loader),
       options: Arc::new(PluginOptions::default()),
       logger: PluginLogger::default(),
-    }),
+    })
+  });
+
+  let parcel_options = Arc::new(ParcelOptions::default());
+
+  RequestTracker::new(
+    Arc::clone(&config_loader),
+    fs,
+    parcel_options,
+    plugins,
     project_root,
   )
 }
