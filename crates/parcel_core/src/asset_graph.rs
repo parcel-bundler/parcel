@@ -457,24 +457,63 @@ mod test {
     );
     let a_dep = add_dependency(&mut graph, library_asset_node, vec![("a", true)]);
     let b_dep = add_dependency(&mut graph, library_asset_node, vec![("b", true)]);
-    graph.propagate_requested_symbols(library_asset_node, library_dep_node, &mut |_, _| {});
-
-    assert_requested_symbols(&graph, library_dep_node, vec!["a"]);
-    assert_requested_symbols(&graph, a_dep, vec!["a"]);
-    assert_requested_symbols(&graph, b_dep, vec![]);
-
-    let b_asset_node = add_asset(&mut graph, b_dep, vec![("deferred", true)], "b.js");
-    let b_child_dep = add_dependency(&mut graph, b_asset_node, vec![("deferred", true)]);
 
     let mut requested_deps = Vec::new();
     graph.propagate_requested_symbols(
-      b_asset_node,
-      b_dep,
+      library_asset_node,
+      library_dep_node,
       &mut |dependency_node_index, _dependency| {
         requested_deps.push(dependency_node_index);
       },
     );
+    assert_eq!(
+      requested_deps,
+      vec![b_dep, a_dep],
+      "Should request both new deps"
+    );
 
-    assert_eq!(requested_deps, vec![b_child_dep]);
+    // "a" should be the only requested symbol
+    assert_requested_symbols(&graph, library_dep_node, vec!["a"]);
+    assert_requested_symbols(&graph, a_dep, vec!["a"]);
+    assert_requested_symbols(&graph, b_dep, vec![]);
+  }
+
+  #[test]
+  fn should_propagate_requested_symbols_for_wildcard_reexports() {
+    let mut graph = AssetGraph::new();
+    let target = Target::default();
+    let dep = Dependency::entry(String::from("index.js"), target);
+    let entry_dep_node = graph.add_entry_dependency(dep);
+
+    // entry.js imports "a" from library.js
+    let entry_asset_node = add_asset(&mut graph, entry_dep_node, vec![], "entry.js");
+    let library_dep_node = add_dependency(&mut graph, entry_asset_node, vec![("a", false)]);
+    graph.propagate_requested_symbols(entry_asset_node, entry_dep_node, &mut |_, _| {});
+
+    // library.js re-exports "*" from a.js and "*" from b.js
+    // only "a" is used in entry.js
+    let library_asset_node = add_asset(&mut graph, library_dep_node, vec![], "library.js");
+    let a_dep = add_dependency(&mut graph, library_asset_node, vec![("*", true)]);
+    let b_dep = add_dependency(&mut graph, library_asset_node, vec![("*", true)]);
+
+    let mut requested_deps = Vec::new();
+    graph.propagate_requested_symbols(
+      library_asset_node,
+      library_dep_node,
+      &mut |dependency_node_index, _dependency| {
+        requested_deps.push(dependency_node_index);
+      },
+    );
+    assert_eq!(
+      requested_deps,
+      vec![b_dep, a_dep],
+      "Should request both new deps"
+    );
+
+    // "a" should be marked as requested on all deps as wildcards make it
+    // unclear who the owning dep is
+    assert_requested_symbols(&graph, library_dep_node, vec!["a"]);
+    assert_requested_symbols(&graph, a_dep, vec!["a"]);
+    assert_requested_symbols(&graph, b_dep, vec!["a"]);
   }
 }
