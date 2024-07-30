@@ -1853,6 +1853,7 @@ dependencies = [
  "serde_json5 0.2.0",
  "thiserror",
  "tracing",
+ "tracing-subscriber",
  "typed-arena",
  "url",
  "xxhash-rust",

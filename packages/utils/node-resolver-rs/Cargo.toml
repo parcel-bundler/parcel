@@ -27,6 +27,7 @@ bumpalo = { version = "3.16.0", features = ["collections"] }
 url = "2.3.1"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
 
 [dev-dependencies]
 assert_fs = "1.0"

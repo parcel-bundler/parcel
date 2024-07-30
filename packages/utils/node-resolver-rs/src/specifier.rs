@@ -299,10 +299,10 @@ impl<'de> serde::Deserialize<'de> for Specifier {
     D: serde::Deserializer<'de>,
   {
     use serde::Deserialize;
-    let s: &'de str = Deserialize::deserialize(deserializer)?;
+    let s: String = Deserialize::deserialize(deserializer)?;
     // Specifiers are only deserialized as part of the "alias" and "browser" fields,
     // so we assume CJS specifiers in Parcel mode.
-    Specifier::parse(s, SpecifierType::Cjs, Flags::empty())
+    Specifier::parse(&s, SpecifierType::Cjs, Flags::empty())
       .map(|s| s.0)
       .map_err(|_| serde::de::Error::custom("Invalid specifier"))
   }

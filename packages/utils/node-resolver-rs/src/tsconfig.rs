@@ -1,12 +1,12 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
-use indexmap::IndexMap;
-use itertools::Either;
-
 use crate::path::resolve_path;
 use crate::specifier::Specifier;
+use itertools::Either;
+use json_comments::StripComments;
 
 #[derive(serde::Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -14,7 +14,7 @@ pub struct TsConfig {
   #[serde(skip)]
   pub path: PathBuf,
   base_url: Option<PathBuf>,
-  paths: Option<IndexMap<Specifier, Vec<String>>>,
+  paths: Option<HashMap<Specifier, Vec<String>>>,
   #[serde(skip)]
   paths_base: PathBuf,
   pub module_suffixes: Option<Vec<String>>,
@@ -50,8 +50,9 @@ pub struct TsConfigWrapper {
 }
 
 impl TsConfig {
-  pub fn parse(path: PathBuf, data: &str) -> serde_json::Result<TsConfigWrapper> {
-    let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
+  pub fn parse(path: PathBuf, data: &str) -> serde_json5::Result<TsConfigWrapper> {
+    let stripped = StripComments::new(data.as_bytes());
+    let mut wrapper: TsConfigWrapper = serde_json5::from_reader(stripped)?;
     wrapper.compiler_options.path = path;
     wrapper.compiler_options.validate();
     Ok(wrapper)
@@ -182,22 +183,27 @@ fn base_url_iter<'a>(
 
 #[cfg(test)]
 mod tests {
-  use indexmap::indexmap;
-
   use super::*;
+  use indexmap::indexmap;
 
   #[test]
   fn test_paths() {
     let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
-      paths: Some(indexmap! {
-        "jquery".into() => vec![String::from("node_modules/jquery/dist/jquery")],
-        "*".into() => vec![String::from("generated/*")],
-        "bar/*".into() => vec![String::from("test/*")],
-        "bar/baz/*".into() => vec![String::from("baz/*"), String::from("yo/*")],
-        "@/components/*".into() => vec![String::from("components/*")],
-        "url".into() => vec![String::from("node_modules/my-url")],
-      }),
+      paths: Some(HashMap::from([
+        (
+          "jquery".into(),
+          vec![String::from("node_modules/jquery/dist/jquery")],
+        ),
+        ("*".into(), vec![String::from("generated/*")]),
+        ("bar/*".into(), vec![String::from("test/*")]),
+        (
+          "bar/baz/*".into(),
+          vec![String::from("baz/*"), String::from("yo/*")],
+        ),
+        ("@/components/*".into(), vec![String::from("components/*")]),
+        ("url".into(), vec![String::from("node_modules/my-url")]),
+      ])),
       ..Default::default()
     };
     tsconfig.validate();
@@ -250,12 +256,15 @@ mod tests {
     let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
       base_url: Some(Path::new("src").into()),
-      paths: Some(indexmap! {
-        "*".into() => vec![String::from("generated/*")],
-        "bar/*".into() => vec![String::from("test/*")],
-        "bar/baz/*".into() => vec![String::from("baz/*"), String::from("yo/*")],
-        "@/components/*".into() => vec![String::from("components/*")],
-      }),
+      paths: Some(HashMap::from([
+        ("*".into(), vec![String::from("generated/*")]),
+        ("bar/*".into(), vec![String::from("test/*")]),
+        (
+          "bar/baz/*".into(),
+          vec![String::from("baz/*"), String::from("yo/*")],
+        ),
+        ("@/components/*".into(), vec![String::from("components/*")]),
+      ])),
       ..Default::default()
     };
     tsconfig.validate();
@@ -299,5 +308,31 @@ mod tests {
       ]
     );
     assert_eq!(test("./jquery"), Vec::<PathBuf>::new());
+  }
+
+  #[test]
+  fn test_deserialize() {
+    let config = r#"
+{
+  "compilerOptions": {
+    "paths": {
+      /* some comment */
+      "foo": ["bar.js"]
+    }
+  }
+  // another comment
+}
+    "#;
+    let result: TsConfigWrapper = TsConfig::parse(PathBuf::from("stub.json"), config).unwrap();
+    assert_eq!(result.extends, vec![]);
+    assert!(result.compiler_options.paths.is_some());
+    assert_eq!(
+      result
+        .compiler_options
+        .paths
+        .unwrap()
+        .get(&Specifier::from("foo")),
+      Some(&vec![String::from("bar.js")])
+    );
   }
 }
