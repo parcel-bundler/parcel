@@ -278,8 +278,7 @@ function decorateLegacyGraph(
         );
         for (let incomingDep of incomingDeps) {
           if (
-            (incomingDep.priority === 'lazy' ||
-              incomingDep.priority === 'tier') &&
+            incomingDep.priority === 'lazy' &&
             incomingDep.specifierType !== 'url' &&
             bundle.hasDependency(incomingDep)
           ) {
@@ -296,7 +295,7 @@ function decorateLegacyGraph(
     let incomingDeps = bundleGraph.getIncomingDependencies(manualSharedAsset);
     for (let incomingDep of incomingDeps) {
       if (
-        (incomingDep.priority === 'lazy' || incomingDep.priority === 'tier') &&
+        incomingDep.priority === 'lazy' &&
         incomingDep.specifierType !== 'url'
       ) {
         let bundles = bundleGraph.getBundlesWithDependency(incomingDep);
@@ -497,7 +496,7 @@ function createIdealGraph(
 
         if (
           node.type === 'dependency' &&
-          (node.value.priority === 'lazy' || node.value.priority === 'tier') &&
+          node.value.priority === 'lazy' &&
           parentAsset
         ) {
           // Don't walk past the bundle group assets
@@ -586,7 +585,6 @@ function createIdealGraph(
             }
             if (
               dependency.priority === 'lazy' ||
-              dependency.priority === 'tier' ||
               childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
             ) {
               if (bundleId == null) {
@@ -848,6 +846,7 @@ function createIdealGraph(
 
           if (
             dependency.priority !== 'sync' &&
+            dependency.priority !== 'tier' &&
             dependencyBundleGraph.hasContentKey(dependency.id)
           ) {
             let assets = assetGraph.getDependencyAssets(dependency);
@@ -875,7 +874,10 @@ function createIdealGraph(
             }
           }
 
-          if (dependency.priority !== 'sync') {
+          if (
+            dependency.priority !== 'sync' &&
+            dependency.priority !== 'tier'
+          ) {
             actions.skipChildren();
           }
           return;

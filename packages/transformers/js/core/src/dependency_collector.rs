@@ -51,16 +51,16 @@ pub enum DependencyKind {
   /// import('./dependency').then(({x}) => {/* ... */});
   /// ```
   DynamicImport,
-  /// Corresponds to a for display (tier) import statement
+  /// Corresponds to a deferred for display import statement
   /// ```skip
-  /// const {x} = importDeferredForDisplay('./dependency');
+  /// const DependencyDeferredForDisplay = importDeferredForDisplay('./dependency');
   /// ```
-  DeferredForDisplayTierImport,
-  /// Corresponds to a deferred (tier) import statement
+  DeferredForDisplayImport,
+  /// Corresponds to a deferred import statement
   /// ```skip
-  /// const {x} = importDeferred('./dependency');
+  /// const DependencyDeferred = importDeferred('./dependency');
   /// ```
-  DeferredTierImport,
+  DeferredImport,
   /// Corresponds to CJS require statements
   /// ```skip
   /// const {x} = require('./dependency');
@@ -441,10 +441,10 @@ impl<'a> Fold for DependencyCollector<'a> {
       Callee::Expr(expr) => {
         match &**expr {
           Ident(ident) if ident.sym.to_string().as_str() == "importDeferredForDisplay" => {
-            DependencyKind::DeferredForDisplayTierImport
+            DependencyKind::DeferredForDisplayImport
           }
           Ident(ident) if ident.sym.to_string().as_str() == "importDeferred" => {
-            DependencyKind::DeferredTierImport
+            DependencyKind::DeferredImport
           }
           Ident(ident) => {
             // Bail if defined in scope
@@ -782,7 +782,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       {
         rewrite_require_specifier(node, self.unresolved_mark)
       }
-      DependencyKind::DeferredForDisplayTierImport | DependencyKind::DeferredTierImport => {
+      DependencyKind::DeferredForDisplayImport | DependencyKind::DeferredImport => {
         if !self.config.tier_imports {
           return node.fold_children_with(self);
         }

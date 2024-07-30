@@ -849,8 +849,8 @@ export default (new Transformer({
 
         let priority;
         switch (dep.kind) {
-          case 'DeferredForDisplayTierImport':
-          case 'DeferredTierImport':
+          case 'DeferredForDisplayImport':
+          case 'DeferredImport':
             priority = 'tier';
             break;
           case 'DynamicImport':

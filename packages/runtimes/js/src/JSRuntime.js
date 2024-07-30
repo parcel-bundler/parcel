@@ -315,7 +315,7 @@ function getDependencies(bundle: NamedBundle): {|
 
       let dependency = node.value;
       if (
-        (dependency.priority === 'lazy' || dependency.priority === 'tier') &&
+        dependency.priority === 'lazy' &&
         dependency.specifierType !== 'url'
       ) {
         asyncDependencies.push(dependency);
@@ -475,7 +475,6 @@ function getLoaderRuntime({
     loaderCode = `(${loaderCode})`;
   }
 
-  let needsTierPrelude = false;
   if (mainBundle.type === 'js') {
     let parcelRequire = bundle.env.shouldScopeHoist
       ? 'parcelRequire'
@@ -483,15 +482,6 @@ function getLoaderRuntime({
     loaderCode += `.then(() => ${parcelRequire}('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
     )}'))`;
-
-    if (
-      options.featureFlags.tieredImports &&
-      (dependency.meta.kind === 'DeferredForDisplayTierImport' ||
-        dependency.meta.kind === 'DeferredTierImport')
-    ) {
-      loaderCode = `tier(${loaderCode})`;
-      needsTierPrelude = true;
-    }
   }
 
   if (needsEsmLoadPrelude && options.featureFlags.importRetry) {
@@ -516,9 +506,6 @@ function getLoaderRuntime({
 
   if (needsEsmLoadPrelude) {
     code.push(`let load = require('./helpers/browser/esm-js-loader');`);
-  }
-  if (needsTierPrelude) {
-    code.push(`let tier = require('./helpers/browser/tier-loader');`);
   }
 
   code.push(`module.exports = ${loaderCode};`);

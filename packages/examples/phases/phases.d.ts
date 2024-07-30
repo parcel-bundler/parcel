@@ -1,9 +1,8 @@
 type ModuleRef<_> = string;
 type ErrorMessage = 'You must annotate type with "<typeof import(\'xyz\')>"';
 
-interface DeferredImport<T> {
-  onReady(resource: () => void): () => void;
-  mod: T | null;
+interface DeferredImport<T extends {default: any}> {
+  onReady(resource: (mod: T['default']) => void): void;
 }
 
 declare function importDeferredForDisplay<T extends any | void = void>(

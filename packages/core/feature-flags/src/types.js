@@ -17,6 +17,9 @@ export type FeatureFlags = {|
   ownedResolverStructures: boolean,
   /**
    * Tiered imports API
+   * Enable tier imports
+   *
+   * Tier imports allow developers to have control over when code is loaded
    */
   +tieredImports: boolean,
 |};

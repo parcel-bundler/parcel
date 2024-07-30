@@ -160,10 +160,37 @@ function $parcel$defineInteropFlag(a) {
 }
 `;
 
+const $parcel$tier = `
+function $parcel$tier(loader) {
+  var listeners = new Set();
+  var resolved = false;
+  if (loader instanceof Promise) {
+    loader.then((mod) => {
+      resolved = true;
+      for (let listener of listeners) {
+        listener?.(mod.default);
+      }
+    });
+  } else {
+    resolved = true;
+  }
+  return {
+    onReady: (listener) => {
+      if (resolved) {
+        listener(loader.default);
+      } else {
+        listeners.add(listener);
+      }
+    },
+  };
+}
+`;
+
 export const helpers = {
   $parcel$export,
   $parcel$exportWildcard,
   $parcel$interopDefault,
   $parcel$global,
   $parcel$defineInteropFlag,
+  $parcel$tier,
 };

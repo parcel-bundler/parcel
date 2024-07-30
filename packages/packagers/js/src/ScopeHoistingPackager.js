@@ -741,22 +741,29 @@ ${code}
         }
 
         let symbol = this.getSymbolResolution(asset, resolved, imported, dep);
-        replacements.set(
-          local,
-          // If this was an internalized async asset, wrap in a Promise.resolve.
-          asyncResolution?.type === 'asset'
-            ? `Promise.resolve(${symbol})`
-            : symbol,
-        );
+
+        if (
+          this.options.featureFlags.tieredImports &&
+          dep.priority === 'tier'
+        ) {
+          // Wrap tiered import symbols with tier helper
+          replacements.set(local, `$parcel$tier(${symbol})`);
+          this.usedHelpers.add('$parcel$tier');
+        } else {
+          replacements.set(
+            local,
+            // If this was an internalized async asset, wrap in a Promise.resolve.
+            asyncResolution?.type === 'asset'
+              ? `Promise.resolve(${symbol})`
+              : symbol,
+          );
+        }
       }
 
       // Async dependencies need a namespace object even if all used symbols were statically analyzed.
       // This is recorded in the promiseSymbol meta property set by the transformer rather than in
       // symbols so that we don't mark all symbols as used.
-      if (
-        (dep.priority === 'lazy' || dep.priority === 'tier') &&
-        dep.meta.promiseSymbol
-      ) {
+      if (dep.priority === 'lazy' && dep.meta.promiseSymbol) {
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
         let symbol = this.getSymbolResolution(asset, resolved, '*', dep);

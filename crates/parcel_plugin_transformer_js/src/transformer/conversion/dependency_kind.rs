@@ -15,8 +15,8 @@ pub(crate) fn convert_priority(
     DependencyKind::Export => Priority::Sync,
     DependencyKind::Require => Priority::Sync,
     DependencyKind::File => Priority::Sync,
-    DependencyKind::DeferredForDisplayTierImport => Priority::Tier,
-    DependencyKind::DeferredTierImport => Priority::Tier,
+    DependencyKind::DeferredForDisplayImport => Priority::Tier,
+    DependencyKind::DeferredImport => Priority::Tier,
   }
 }
 
@@ -35,8 +35,8 @@ pub(crate) fn convert_specifier_type(
     DependencyKind::Worklet => SpecifierType::Url,
     DependencyKind::Url => SpecifierType::Url,
     DependencyKind::File => SpecifierType::Custom,
-    DependencyKind::DeferredForDisplayTierImport => SpecifierType::Esm,
-    DependencyKind::DeferredTierImport => SpecifierType::Esm,
+    DependencyKind::DeferredForDisplayImport => SpecifierType::Esm,
+    DependencyKind::DeferredImport => SpecifierType::Esm,
   }
 }
 
