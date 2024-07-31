@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use parcel_config::parcel_config_fixtures::default_config;
+use parcel_core::types::BuildMode;
 use parcel_core::{
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
@@ -37,6 +38,7 @@ pub struct RequestTrackerTestOptions {
   pub plugins: Option<PluginsRef>,
   pub project_root: PathBuf,
   pub search_path: PathBuf,
+  pub parcel_options: ParcelOptions,
 }
 
 impl Default for RequestTrackerTestOptions {
@@ -46,6 +48,7 @@ impl Default for RequestTrackerTestOptions {
       plugins: None,
       project_root: PathBuf::default(),
       search_path: PathBuf::default(),
+      parcel_options: ParcelOptions::default(),
     }
   }
 }
@@ -56,6 +59,7 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
     plugins,
     project_root,
     search_path,
+    parcel_options,
   } = options;
 
   let config_loader = Arc::new(ConfigLoader {
@@ -67,17 +71,18 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
   let plugins = plugins.unwrap_or_else(|| {
     config_plugins(PluginContext {
       config: Arc::clone(&config_loader),
-      options: Arc::new(PluginOptions::default()),
+      options: Arc::new(PluginOptions {
+        mode: BuildMode::default(),
+        project_root: project_root.clone(),
+      }),
       logger: PluginLogger::default(),
     })
   });
 
-  let parcel_options = Arc::new(ParcelOptions::default());
-
   RequestTracker::new(
     Arc::clone(&config_loader),
     fs,
-    parcel_options,
+    Arc::new(parcel_options),
     plugins,
     project_root,
   )

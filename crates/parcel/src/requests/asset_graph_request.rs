@@ -344,15 +344,198 @@ impl AssetGraphBuilder {
 
 #[cfg(test)]
 mod test {
-  use crate::requests::AssetGraphRequest;
+  use std::path::{Path, PathBuf};
+  use std::sync::Arc;
+
+  use tracing::Level;
+
+  use parcel_core::types::Code;
+  use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
+  use parcel_filesystem::FileSystem;
+
+  use crate::requests::{AssetGraphRequest, RequestResult};
   use crate::test_utils::{request_tracker, RequestTrackerTestOptions};
 
   #[test]
-  fn test_asset_graph_request() {
+  fn test_asset_graph_request_with_no_entries() {
     let options = RequestTrackerTestOptions::default();
     let mut request_tracker = request_tracker(options);
 
     let asset_graph_request = AssetGraphRequest {};
-    let _ = request_tracker.run_request(asset_graph_request);
+    let RequestResult::AssetGraph(asset_graph_request_result) =
+      request_tracker.run_request(asset_graph_request).unwrap()
+    else {
+      assert!(false, "Got invalid result");
+      return;
+    };
+
+    assert_eq!(asset_graph_request_result.graph.assets.len(), 0);
+    assert_eq!(asset_graph_request_result.graph.dependencies.len(), 0);
+  }
+
+  #[test]
+  fn test_asset_graph_request_with_a_single_entry_with_no_dependencies() {
+    let _ = tracing_subscriber::FmtSubscriber::builder()
+      .with_max_level(Level::DEBUG)
+      .try_init();
+
+    let mut options = RequestTrackerTestOptions::default();
+    let fs = InMemoryFileSystem::default();
+    #[cfg(not(target_os = "windows"))]
+    let temporary_dir = PathBuf::from("/parcel_tests");
+    #[cfg(target_os = "windows")]
+    let temporary_dir = PathBuf::from("c:/windows/parcel_tests");
+    assert!(temporary_dir.is_absolute());
+    fs.create_directory(&temporary_dir).unwrap();
+    fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
+    options
+      .parcel_options
+      .entries
+      .push(temporary_dir.join("entry.js").to_str().unwrap().to_string());
+    options.project_root = temporary_dir.clone();
+    options.search_path = temporary_dir.clone();
+    fs.write_file(
+      &temporary_dir.join("entry.js"),
+      String::from(
+        r#"
+console.log('hello world');
+        "#,
+      ),
+    );
+    options.fs = Arc::new(fs);
+
+    let mut request_tracker = request_tracker(options);
+
+    let asset_graph_request = AssetGraphRequest {};
+    let RequestResult::AssetGraph(asset_graph_request_result) = request_tracker
+      .run_request(asset_graph_request)
+      .expect("Failed to run asset graph request")
+    else {
+      assert!(false, "Got invalid result");
+      return;
+    };
+
+    assert_eq!(asset_graph_request_result.graph.assets.len(), 1);
+    assert_eq!(asset_graph_request_result.graph.dependencies.len(), 1);
+    assert_eq!(
+      asset_graph_request_result
+        .graph
+        .assets
+        .get(0)
+        .unwrap()
+        .asset
+        .file_path,
+      temporary_dir.join("entry.js")
+    );
+    assert_eq!(
+      asset_graph_request_result
+        .graph
+        .assets
+        .get(0)
+        .unwrap()
+        .asset
+        .code,
+      Arc::new(Code::from(
+        String::from(
+          r#"
+console.log('hello world');
+        "#
+        )
+        .trim_start()
+        .trim_end_matches(|p| p == ' ')
+        .to_string()
+      ))
+    );
+  }
+
+  #[test]
+  fn test_asset_graph_request_with_a_couple_of_entries() {
+    let _ = tracing_subscriber::FmtSubscriber::builder()
+      .with_max_level(Level::TRACE)
+      .try_init();
+
+    let mut options = RequestTrackerTestOptions::default();
+    let fs = InMemoryFileSystem::default();
+    #[cfg(not(target_os = "windows"))]
+    let temporary_dir = PathBuf::from("/parcel_tests");
+    #[cfg(target_os = "windows")]
+    let temporary_dir = PathBuf::from("C:\\windows\\parcel_tests");
+    fs.create_directory(&temporary_dir).unwrap();
+    fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
+    options
+      .parcel_options
+      .entries
+      .push(temporary_dir.join("entry.js").to_str().unwrap().to_string());
+    options.project_root = temporary_dir.clone();
+    options.search_path = temporary_dir.clone();
+    options.parcel_options.core_path = temporary_dir.clone().join("parcel_core");
+    fs.write_file(
+      &temporary_dir.join("entry.js"),
+      String::from(
+        r#"
+import {x} from './a';
+import {y} from './b';
+console.log(x + y);
+        "#,
+      ),
+    );
+    fs.write_file(
+      &temporary_dir.join("a.js"),
+      String::from(
+        r#"
+export const x = 15;
+        "#,
+      ),
+    );
+    fs.write_file(
+      &temporary_dir.join("b.js"),
+      String::from(
+        r#"
+export const y = 27;
+        "#,
+      ),
+    );
+    setup_core_modules(&fs, &options.parcel_options.core_path);
+    options.fs = Arc::new(fs);
+
+    let mut request_tracker = request_tracker(options);
+
+    let asset_graph_request = AssetGraphRequest {};
+    let RequestResult::AssetGraph(asset_graph_request_result) = request_tracker
+      .run_request(asset_graph_request)
+      .expect("Failed to run asset graph request")
+    else {
+      assert!(false, "Got invalid result");
+      return;
+    };
+
+    // Entry, 2 assets + helpers file
+    assert_eq!(asset_graph_request_result.graph.assets.len(), 4);
+    // Entry, entry to assets (2), assets to helpers (2)
+    assert_eq!(asset_graph_request_result.graph.dependencies.len(), 5);
+
+    assert_eq!(
+      asset_graph_request_result
+        .graph
+        .assets
+        .get(0)
+        .unwrap()
+        .asset
+        .file_path,
+      temporary_dir.join("entry.js")
+    );
+  }
+
+  fn setup_core_modules(fs: &InMemoryFileSystem, core_path: &Path) {
+    let transformer_path = core_path
+      .join("node_modules")
+      .join("@parcel/transformer-js");
+    let source_path = transformer_path.join("src");
+    fs.create_directory(&source_path).unwrap();
+    fs.write_file(&transformer_path.join("package.json"), String::from("{}"));
+    fs.write_file(
+      &source_path.join("esmodule-helpers.js"),
+      String::from("/* helpers */"),
+    );
   }
 }

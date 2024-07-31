@@ -96,7 +96,12 @@ impl RequestTracker {
   #[allow(unused)]
   pub fn run_request(&mut self, request: impl Request) -> anyhow::Result<RequestResult> {
     let thread_pool = rayon::ThreadPoolBuilder::new()
+      .thread_name(|count| format!("RequestTracker-{}", count))
       .num_threads(num_cpus::get() + 4)
+      .panic_handler(|failure| {
+        tracing::error!("Lost thread from thread-pool. This is a bug in parcel. Builds may stall.");
+        std::process::exit(1);
+      })
       .build()?;
     thread_pool.in_place_scope(|scope| {
       let request_id = request.id();
@@ -229,7 +234,7 @@ impl RequestTracker {
 
     *request_node = match result {
       Ok(result) => RequestNode::Valid(result.result.clone()),
-      Err(error) => RequestNode::Error(error.to_string()),
+      Err(error) => RequestNode::Error(anyhow!(error.to_string())),
     };
 
     Ok(())
@@ -255,7 +260,7 @@ impl RequestTracker {
     match request_node {
       RequestNode::Root => Err(diagnostic_error!("Impossible")),
       RequestNode::Incomplete => Err(diagnostic_error!("Impossible")),
-      RequestNode::Error(error) => Err(anyhow!(error.clone())),
+      RequestNode::Error(error) => Err(anyhow!(error.to_string())),
       RequestNode::Valid(value) => Ok(value.clone()),
     }
   }

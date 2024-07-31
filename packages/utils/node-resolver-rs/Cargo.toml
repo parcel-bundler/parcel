@@ -24,6 +24,7 @@ thiserror = "1.0.59"
 typed-arena = "2.0.2"
 url = "2.3.1"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+tracing = "0.1.40"
 
 [dev-dependencies]
 assert_fs = "1.0"
