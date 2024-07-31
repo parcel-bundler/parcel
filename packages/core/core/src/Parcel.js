@@ -54,6 +54,7 @@ import {
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
 import {setFeatureFlags} from '@parcel/feature-flags';
+import {ParcelV3, toFileSystemV3} from './parcel-v3';
 
 registerCoreWithSerializer();
 
@@ -67,6 +68,7 @@ export default class Parcel {
   #initialized /*: boolean*/ = false;
   #disposable /*: Disposable */;
   #initialOptions /*: InitialParcelOptions */;
+  #parcelV3: ParcelV3;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
   #optionsRef /*: SharedReference */;
@@ -115,6 +117,24 @@ export default class Parcel {
       this.#initialOptions,
     );
     this.#resolvedOptions = resolvedOptions;
+
+    let rustParcel: ParcelV3;
+    if (resolvedOptions.featureFlags.parcelV3) {
+      // eslint-disable-next-line no-unused-vars
+      let {entries, inputFS, outputFS, ...options} = this.#initialOptions;
+
+      rustParcel = new ParcelV3({
+        ...options,
+        corePath: path.join(__dirname, '..'),
+        entries: Array.isArray(entries)
+          ? entries
+          : entries == null
+          ? undefined
+          : [entries],
+        fs: inputFS && toFileSystemV3(inputFS),
+      });
+    }
+
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
 
@@ -162,9 +182,11 @@ export default class Parcel {
       origin: '@parcel/core',
       message: 'Intializing request tracker...',
     });
+
     this.#requestTracker = await RequestTracker.init({
       farm: this.#farm,
       options: resolvedOptions,
+      rustParcel,
     });
 
     this.#initialized = true;

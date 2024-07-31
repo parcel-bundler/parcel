@@ -65,7 +65,10 @@ impl Request for AssetRequest {
         .and_then(|s| s.to_str())
         .unwrap_or(""),
     );
-    let mut transform_ctx = RunTransformContext::new(request_context.file_system().clone());
+    let mut transform_ctx = RunTransformContext::new(
+      request_context.file_system().clone(),
+      request_context.options.clone(),
+    );
 
     let result = run_pipeline(
       pipeline,

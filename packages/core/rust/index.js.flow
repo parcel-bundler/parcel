@@ -68,6 +68,7 @@ declare export class ParcelNapi {
   nodeWorkerCount: number;
   constructor(options: ParcelNapiOptions): ParcelNapi;
   build(options: ParcelBuildOptions): Promise<void>;
+  buildAssetGraph(options: ParcelBuildOptions): Promise<any>;
   static defaultThreadCount(): number;
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;

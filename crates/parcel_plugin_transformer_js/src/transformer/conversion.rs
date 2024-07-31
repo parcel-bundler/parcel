@@ -568,7 +568,7 @@ fn convert_dependency(
           transformer_dependency.kind,
           DependencyKind::Import | DependencyKind::Export
         ),
-        // placeholder: dep.placeholder.map(|s| s.into()),
+        placeholder: transformer_dependency.placeholder,
         // import_attributes,
         ..base_dependency
       };

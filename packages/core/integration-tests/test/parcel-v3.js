@@ -8,38 +8,70 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {bundle, fsFixture, inputFS, overlayFS, run} from '@parcel/test-utils';
 
 describe('parcel-v3', function () {
-  // Duplicated temporarily for convenience, will remove once the Rust stuff works
-  it.skip('should produce a basic JS bundle with CommonJS requires', async function () {
-    let b = await bundle(join(__dirname, '/integration/commonjs/index.js'), {
-      featureFlags: {parcelV3: true},
-    });
+  describe('ParcelV3', () => {
+    it('builds', async () => {
+      await fsFixture(overlayFS, __dirname)`
+        index.js:
+          console.log('hello world');
 
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
+        .parcelrc:
+          {
+            "extends": "@parcel/config-default",
+            "transformers": {
+              "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js"]
+            }
+          }
+
+        yarn.lock: {}
+      `;
+
+      let parcel = new ParcelV3({
+        corePath: '',
+        entries: [join(__dirname, 'index.js')],
+        fs: toFileSystemV3(overlayFS),
+        nodeWorkers: 1,
+        packageManager: new NodePackageManager(inputFS, __dirname),
+      });
+
+      await parcel.build();
+    });
   });
 
-  it('should run the main-thread bootstrap function', async function () {
-    await fsFixture(overlayFS, __dirname)`
-      index.js:
-        console.log('hello world');
+  describe('using a rust asset graph', () => {
+    it('builds commonjs', async () => {
+      await fsFixture(overlayFS, __dirname)`
+        index.js:
+          var local = require('./main');
 
-      .parcelrc:
-        {
-          "extends": "@parcel/config-default"
-        }
+          module.exports = function () {
+            return local.a + local.b;
+          };
 
-      yarn.lock: {}
-    `;
+        main.js:
+          exports.a = 1;
+          exports.b = 2;
 
-    let parcel = new ParcelV3({
-      corePath: '',
-      entries: [join(__dirname, 'index.js')],
-      fs: toFileSystemV3(overlayFS),
-      nodeWorkers: 1,
-      packageManager: new NodePackageManager(inputFS, __dirname),
+        .parcelrc:
+          {
+            "extends": "@parcel/config-default",
+            "transformers": {
+              "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js"]
+            }
+          }
+
+        yarn.lock: {}
+      `;
+
+      let b = await bundle(join(__dirname, 'index.js'), {
+        featureFlags: {
+          parcelV3: true,
+        },
+        inputFS: overlayFS,
+      });
+
+      let output = await run(b);
+      assert.equal(typeof output, 'function');
+      assert.equal(output(), 3);
     });
-
-    await parcel.build();
   });
 });

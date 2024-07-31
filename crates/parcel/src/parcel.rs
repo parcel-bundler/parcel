@@ -3,10 +3,12 @@ use std::sync::Arc;
 
 use parcel_config::parcel_rc_config_loader::LoadConfigOptions;
 use parcel_config::parcel_rc_config_loader::ParcelRcConfigLoader;
+use parcel_core::asset_graph::AssetGraph;
 use parcel_core::config_loader::ConfigLoader;
 use parcel_core::plugin::PluginContext;
 use parcel_core::plugin::PluginLogger;
 use parcel_core::plugin::PluginOptions;
+use parcel_core::plugin::ReporterEvent;
 use parcel_core::types::ParcelOptions;
 use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
@@ -16,8 +18,17 @@ use parcel_plugin_rpc::RpcHostRef;
 use parcel_plugin_rpc::RpcWorkerRef;
 
 use crate::plugins::config_plugins::ConfigPlugins;
+use crate::plugins::PluginsRef;
 use crate::project_root::infer_project_root;
 use crate::request_tracker::RequestTracker;
+use crate::requests::AssetGraphRequest;
+use crate::requests::RequestResult;
+
+#[derive(Clone)]
+struct ParcelState {
+  config: Arc<ConfigLoader>,
+  plugins: PluginsRef,
+}
 
 pub struct Parcel {
   pub fs: FileSystemRef,
@@ -25,6 +36,7 @@ pub struct Parcel {
   pub package_manager: PackageManagerRef,
   pub project_root: PathBuf,
   pub rpc: Option<RpcHostRef>,
+  state: Option<ParcelState>,
 }
 
 impl Parcel {
@@ -46,6 +58,7 @@ impl Parcel {
       package_manager,
       project_root,
       rpc,
+      state: None,
     })
   }
 }
@@ -53,7 +66,11 @@ impl Parcel {
 pub struct BuildResult;
 
 impl Parcel {
-  pub fn build(&self) -> anyhow::Result<BuildResult> {
+  fn state(&mut self) -> anyhow::Result<ParcelState> {
+    if let Some(state) = self.state.clone() {
+      return Ok(state);
+    }
+
     let mut _rpc_connection = None::<RpcWorkerRef>;
 
     if let Some(rpc_host) = &self.rpc {
@@ -76,7 +93,7 @@ impl Parcel {
       search_path: self.project_root.join("index"),
     });
 
-    let plugins = ConfigPlugins::new(
+    let plugins = Arc::new(ConfigPlugins::new(
       config,
       PluginContext {
         config: Arc::clone(&config_loader),
@@ -87,21 +104,52 @@ impl Parcel {
         // TODO Initialise actual logger
         logger: PluginLogger::default(),
       },
-    );
+    ));
 
-    // TODO Reinstate this when we are in a full build
-    // plugins.reporter().report(&ReporterEvent::BuildStart)?;
+    let state = ParcelState {
+      config: config_loader,
+      plugins,
+    };
 
-    let _request_tracker = RequestTracker::new(
-      Arc::clone(&config_loader),
-      Arc::clone(&self.fs),
+    self.state = Some(state.clone());
+
+    Ok(state)
+  }
+
+  pub fn build(&mut self) -> anyhow::Result<()> {
+    let ParcelState { config, plugins } = self.state()?;
+
+    plugins.reporter().report(&ReporterEvent::BuildStart)?;
+
+    let mut _request_tracker = RequestTracker::new(
+      config.clone(),
+      self.fs.clone(),
       Arc::new(self.options.clone()),
-      Arc::new(plugins),
+      plugins.clone(),
       self.project_root.clone(),
     );
 
-    // TODO: Run asset graph request
+    Ok(())
+  }
 
-    Ok(BuildResult {})
+  pub fn build_asset_graph(&mut self) -> anyhow::Result<AssetGraph> {
+    let ParcelState { config, plugins } = self.state()?;
+
+    let mut request_tracker = RequestTracker::new(
+      config.clone(),
+      self.fs.clone(),
+      Arc::new(self.options.clone()),
+      plugins.clone(),
+      self.project_root.clone(),
+    );
+
+    let request_result = request_tracker.run_request(AssetGraphRequest {})?;
+
+    let asset_graph = match request_result {
+      RequestResult::AssetGraph(result) => result.graph,
+      _ => panic!("TODO"),
+    };
+
+    Ok(asset_graph)
   }
 }

@@ -1,42 +1,29 @@
 // @flow strict-local
 
-import type {Async, EnvMap} from '@parcel/types';
-import type {Options as WatcherOptions, Event} from '@parcel/watcher';
-import type WorkerFarm from '@parcel/workers';
+import invariant, {AssertionError} from 'assert';
+import path from 'path';
+
+import type {Cache} from '@parcel/cache';
+import {ContentGraph} from '@parcel/graph';
 import type {
   ContentGraphOpts,
   ContentKey,
   NodeId,
   SerializedContentGraph,
 } from '@parcel/graph';
-import type {
-  ParcelOptions,
-  RequestInvalidation,
-  InternalFileCreateInvalidation,
-  InternalGlob,
-} from './types';
 import logger from '@parcel/logger';
-import {type Deferred} from '@parcel/utils';
-
-import invariant from 'assert';
-import {AssertionError} from 'assert';
-import nullthrows from 'nullthrows';
-import path from 'path';
+import {hashString} from '@parcel/rust';
+import type {Async, EnvMap} from '@parcel/types';
 import {
+  type Deferred,
   isGlobMatch,
   isDirectoryInside,
   makeDeferredWithPromise,
+  PromiseQueue,
 } from '@parcel/utils';
-import {hashString} from '@parcel/rust';
-import {ContentGraph} from '@parcel/graph';
-import {deserialize, serialize} from './serializer';
-import {BuildAbortError, assertSignalNotAborted, hashFromOption} from './utils';
-import {
-  type ProjectPath,
-  fromProjectPathRelative,
-  toProjectPathUnsafe,
-  toProjectPath,
-} from './projectPath';
+import type {Options as WatcherOptions, Event} from '@parcel/watcher';
+import type WorkerFarm from '@parcel/workers';
+import nullthrows from 'nullthrows';
 
 import {
   PARCEL_VERSION,
@@ -50,10 +37,14 @@ import {
   STARTUP,
   ERROR,
 } from './constants';
-
+import type {ParcelV3} from './parcel-v3/ParcelV3';
+import {
+  type ProjectPath,
+  fromProjectPathRelative,
+  toProjectPathUnsafe,
+  toProjectPath,
+} from './projectPath';
 import {report} from './ReporterRunner';
-import {PromiseQueue} from '@parcel/utils';
-import type {Cache} from '@parcel/cache';
 import {getConfigKeyContentHash} from './requests/ConfigRequest';
 import type {AssetGraphRequestResult} from './requests/AssetGraphRequest';
 import type {PackageRequestResult} from './requests/PackageRequest';
@@ -67,7 +58,15 @@ import type {ParcelConfigRequestResult} from './requests/ParcelConfigRequest';
 import type {ParcelBuildRequestResult} from './requests/ParcelBuildRequest';
 import type {EntryRequestResult} from './requests/EntryRequest';
 import type {BundleGraphResult} from './requests/BundleGraphRequest';
-import type {AssetRequestResult} from './types';
+import {deserialize, serialize} from './serializer';
+import type {
+  AssetRequestResult,
+  ParcelOptions,
+  RequestInvalidation,
+  InternalFileCreateInvalidation,
+  InternalGlob,
+} from './types';
+import {BuildAbortError, assertSignalNotAborted, hashFromOption} from './utils';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -239,10 +238,11 @@ type RunRequestOpts = {|
 |};
 
 export type StaticRunOpts<TResult> = {|
-  farm: WorkerFarm,
-  options: ParcelOptions,
   api: RunAPI<TResult>,
+  farm: WorkerFarm,
   invalidateReason: InvalidateReason,
+  options: ParcelOptions,
+  rustParcel: ?ParcelV3,
 |};
 
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
@@ -1073,6 +1073,7 @@ export default class RequestTracker {
   graph: RequestGraph;
   farm: WorkerFarm;
   options: ParcelOptions;
+  rustParcel: ?ParcelV3;
   signal: ?AbortSignal;
   stats: Map<RequestType, number> = new Map();
 
@@ -1080,14 +1081,17 @@ export default class RequestTracker {
     graph,
     farm,
     options,
+    rustParcel,
   }: {|
     graph?: RequestGraph,
     farm: WorkerFarm,
     options: ParcelOptions,
+    rustParcel?: ParcelV3,
   |}) {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
+    this.rustParcel = rustParcel;
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1261,8 +1265,9 @@ export default class RequestTracker {
         input: request.input,
         api,
         farm: this.farm,
-        options: this.options,
         invalidateReason: node.invalidateReason,
+        options: this.options,
+        rustParcel: this.rustParcel,
       });
 
       assertSignalNotAborted(this.signal);
@@ -1521,12 +1526,14 @@ export default class RequestTracker {
   static async init({
     farm,
     options,
+    rustParcel,
   }: {|
     farm: WorkerFarm,
     options: ParcelOptions,
+    rustParcel?: ParcelV3,
   |}): Async<RequestTracker> {
     let graph = await loadRequestGraph(options);
-    return new RequestTracker({farm, options, graph});
+    return new RequestTracker({farm, graph, options, rustParcel});
   }
 }
 
