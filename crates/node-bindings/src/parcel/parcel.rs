@@ -1,15 +1,21 @@
+use std::sync::mpsc::channel;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
 
 use napi::Env;
+use napi::JsFunction;
 use napi::JsObject;
+use napi::JsUnknown;
 use napi_derive::napi;
 
 use parcel::file_system::FileSystemRef;
+use parcel::rpc::nodejs::NodejsWorker;
 use parcel::rpc::nodejs::RpcHostNodejs;
 use parcel::rpc::RpcHostRef;
 use parcel::Parcel;
 use parcel_core::types::ParcelOptions;
+use parcel_napi_helpers::JsTransferable;
 use parcel_package_manager::PackageManagerRef;
 
 use crate::file_system::FileSystemNapi;
@@ -19,7 +25,9 @@ use super::tracer::Tracer;
 use super::tracer::TracerMode;
 
 #[napi(object)]
-pub struct ParcelNapiBuildOptions {}
+pub struct ParcelNapiBuildOptions {
+  pub register_worker: JsFunction,
+}
 
 #[napi(object)]
 pub struct ParcelNapiBuildResult {}
@@ -42,6 +50,7 @@ pub struct ParcelNapi {
   package_manager: Option<PackageManagerRef>,
   rpc: Option<RpcHostRef>,
   tracer: Tracer,
+  tx_worker: Sender<NodejsWorker>,
 }
 
 #[napi]
@@ -82,7 +91,8 @@ impl ParcelNapi {
       .map(|w| w as usize)
       .unwrap_or_else(|| threads);
 
-    let rpc_host_nodejs = RpcHostNodejs::new(node_worker_count)?;
+    let (tx_worker, rx_worker) = channel::<NodejsWorker>();
+    let rpc_host_nodejs = RpcHostNodejs::new(node_worker_count, rx_worker)?;
     let rpc = Some::<RpcHostRef>(Arc::new(rpc_host_nodejs));
 
     Ok(Self {
@@ -92,12 +102,50 @@ impl ParcelNapi {
       package_manager,
       rpc,
       tracer,
+      tx_worker,
     })
   }
 
   #[napi]
-  pub fn build(&self, env: Env, _options: ParcelNapiBuildOptions) -> napi::Result<JsObject> {
+  pub fn build(&self, env: Env, options: ParcelNapiBuildOptions) -> napi::Result<JsObject> {
     let (deferred, promise) = env.create_deferred()?;
+
+    self.register_workers(&options)?;
+
+    // Both the parcel initialization and build must be run a dedicated system thread so that
+    // the napi threadsafe functions do not panic
+    thread::spawn({
+      let fs = self.fs.clone();
+      let options = self.options.clone();
+      let package_manager = self.package_manager.clone();
+      let rpc = self.rpc.clone();
+
+      move || {
+        let parcel = Parcel::new(fs, options, package_manager, rpc);
+        let to_napi_error = |error| napi::Error::from_reason(format!("{:?}", error));
+
+        match parcel {
+          Err(error) => deferred.reject(to_napi_error(error)),
+          Ok(mut parcel) => match parcel.build() {
+            Ok(build_result) => deferred.resolve(move |env| env.to_js_value(&build_result)),
+            Err(error) => deferred.reject(to_napi_error(error)),
+          },
+        }
+      }
+    });
+
+    Ok(promise)
+  }
+
+  #[napi]
+  pub fn build_asset_graph(
+    &self,
+    env: Env,
+    options: ParcelNapiBuildOptions,
+  ) -> napi::Result<JsObject> {
+    let (deferred, promise) = env.create_deferred()?;
+
+    self.register_workers(&options)?;
 
     // Both the parcel initialisation and build must be run a dedicated system thread so that
     // the napi threadsafe functions do not panic
@@ -113,8 +161,8 @@ impl ParcelNapi {
 
         match parcel {
           Err(error) => deferred.reject(to_napi_error(error)),
-          Ok(parcel) => match parcel.build() {
-            Ok(_result) => deferred.resolve(|_env| Ok(ParcelNapiBuildResult {})),
+          Ok(mut parcel) => match parcel.build_asset_graph() {
+            Ok(asset_graph) => deferred.resolve(move |env| env.to_js_value(&asset_graph)),
             Err(error) => deferred.reject(to_napi_error(error)),
           },
         }
@@ -122,5 +170,17 @@ impl ParcelNapi {
     });
 
     Ok(promise)
+  }
+
+  fn register_workers(&self, options: &ParcelNapiBuildOptions) -> napi::Result<()> {
+    for _ in 0..self.node_worker_count {
+      let transferable = JsTransferable::new(self.tx_worker.clone());
+
+      options
+        .register_worker
+        .call1::<JsTransferable<Sender<NodejsWorker>>, JsUnknown>(transferable)?;
+    }
+
+    Ok(())
   }
 }

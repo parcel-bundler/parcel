@@ -20,7 +20,7 @@ pub struct AssetId(pub NonZeroU32);
 
 /// The source code for an asset.
 #[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", transparent)]
 pub struct Code {
   inner: String,
 }
