@@ -238,6 +238,8 @@ mod test {
 
   #[cfg(target_os = "windows")]
   mod windows_tests {
+    use super::*;
+
     #[test]
     fn test_the_prefix_will_be_carried_onto_canonicalize_paths() {
       let cwd = PathBuf::from("C:\\foo");
