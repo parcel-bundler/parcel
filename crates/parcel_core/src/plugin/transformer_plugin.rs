@@ -57,6 +57,13 @@ impl TransformationInput {
     }
   }
 
+  pub fn side_effects(&self) -> bool {
+    match self {
+      TransformationInput::InitialAsset(raw_asset) => raw_asset.side_effects,
+      TransformationInput::Asset(asset) => asset.side_effects,
+    }
+  }
+
   pub fn read_code(&self, fs: FileSystemRef) -> anyhow::Result<Arc<Code>> {
     match self {
       TransformationInput::InitialAsset(raw_asset) => {

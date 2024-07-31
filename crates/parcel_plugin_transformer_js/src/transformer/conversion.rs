@@ -398,6 +398,7 @@ fn convert_dependency(
     source_path: Some(asset.file_path.clone()),
     priority: convert_priority(&transformer_dependency),
     loc: Some(loc.clone()),
+    env: asset.env.clone(),
     ..Dependency::default()
   };
   let source_type = convert_source_type(&transformer_dependency.source_type);
@@ -482,7 +483,7 @@ fn convert_dependency(
     }
     DependencyKind::Url => {
       let dependency = Dependency {
-        env: asset.env.as_ref().clone(),
+        env: asset.env.clone(),
         bundle_behavior: BundleBehavior::Isolated,
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
@@ -499,7 +500,7 @@ fn convert_dependency(
       PathBuf::from(transformer_dependency.specifier.to_string()),
     )),
     _ => {
-      let mut env = asset.env.as_ref().clone();
+      let mut env = asset.env.clone();
       if transformer_dependency.kind == DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
         if matches!(
@@ -541,13 +542,15 @@ fn convert_dependency(
         }
 
         if env.source_type != SourceType::Module || env.output_format != output_format {
-          env = Environment {
+          env = Arc::new(Environment {
             source_type: SourceType::Module,
             output_format,
             loc: Some(loc.clone()),
-            ..env.clone()
-          }
-          .into();
+            engines: env.engines.clone(),
+            include_node_modules: env.include_node_modules.clone(),
+            source_map: env.source_map.clone(),
+            ..*env
+          });
         }
       }
 

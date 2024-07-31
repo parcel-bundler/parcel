@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,7 +25,7 @@ pub struct Target {
   ///
   /// This influences how Parcel compiles your code, including what syntax to transpile.
   ///
-  pub env: Environment,
+  pub env: Arc<Environment>,
 
   /// The location that created the target
   ///
@@ -44,7 +45,7 @@ impl Default for Target {
     Self {
       dist_dir: PathBuf::default(),
       dist_entry: None,
-      env: Environment::default(),
+      env: Arc::new(Environment::default()),
       loc: None,
       name: String::from("default"),
       public_url: String::from("/"),
