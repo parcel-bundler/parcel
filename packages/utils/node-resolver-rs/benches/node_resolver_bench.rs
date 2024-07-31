@@ -19,6 +19,19 @@ fn criterion_benchmark(c: &mut Criterion) {
       CacheCow::Owned(Cache::new(Arc::new(OsFileSystem))),
     )
   };
+  // c.bench_function("is file using stat", |b| {
+  //   let target = root().join("do-not-exist");
+  //   b.iter(|| {
+  //     black_box(target.exists())
+  //   });
+  // });
+  // c.bench_function("is file using open", |b| {
+  //   let target = root().join("do-not-exist");
+  //   b.iter(|| {
+  //     black_box(std::fs::read_to_string(&target).is_err())
+  //   });
+  // });
+
   c.bench_function("resolver simple", |b| {
     b.iter_with_setup(
       || make_resolver(),
