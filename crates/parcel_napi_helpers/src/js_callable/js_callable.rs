@@ -20,17 +20,19 @@ use super::JsValue;
 pub type MapJsParams = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static>;
 pub type MapJsReturn<Return> = Box<dyn Fn(&Env, JsUnknown) -> napi::Result<Return> + 'static>;
 
-/// JsCallable provides a Send + Sync wrapper around callable JavaScript functions.
-/// Functions can be called from threads or the main thread.
-/// Parameters and return types can be mapped by the caller.
+/// JsCallable provides a Send + Sync wrapper around callable JavaScript functions
+///
+/// Functions can be called from threads or the main thread, while parameters and return types can
+/// be mapped by the caller.
 pub struct JsCallable {
   #[cfg(debug_assertions)]
   initial_thread: ThreadId,
+  name: String,
   threadsafe_function: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal>,
 }
 
 impl JsCallable {
-  pub fn new(callback: JsFunction) -> napi::Result<Self> {
+  pub fn new(callback: JsFunction, name: String) -> napi::Result<Self> {
     // Store the threadsafe function on the struct
     let tsfn: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal> = callback
       .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<MapJsParams>| {
@@ -40,13 +42,17 @@ impl JsCallable {
     Ok(Self {
       #[cfg(debug_assertions)]
       initial_thread: std::thread::current().id(),
+      name,
       threadsafe_function: tsfn,
     })
   }
 
   /// Construct a JsCallable from an object property
   pub fn new_from_object_prop(method_name: &str, obj: &JsObject) -> napi::Result<Self> {
-    Self::new(obj.get_named_property(method_name)?)
+    Self::new(
+      obj.get_named_property(method_name)?,
+      method_name.to_string(),
+    )
   }
 
   /// Construct a JsCallable from an object property, binding it to the source object
@@ -55,7 +61,7 @@ impl JsCallable {
     let fn_obj = jsfn.coerce_to_object()?;
     let bind: JsFunction = fn_obj.get_named_property("bind")?;
     let jsfn: JsFunction = bind.call(Some(&fn_obj), &[obj])?.try_into()?;
-    Self::new(jsfn)
+    Self::new(jsfn, method_name.to_string())
   }
 
   pub fn into_unref(mut self, env: &Env) -> napi::Result<Self> {
@@ -70,9 +76,10 @@ impl JsCallable {
   ) -> napi::Result<()> {
     #[cfg(debug_assertions)]
     if self.initial_thread == std::thread::current().id() {
-      return Err(napi::Error::from_reason(
-        "Cannot run threadsafe function on main thread",
-      ));
+      return Err(napi::Error::from_reason(format!(
+        "Cannot run threadsafe function {} on main thread",
+        self.name
+      )));
     }
 
     self
@@ -100,9 +107,10 @@ impl JsCallable {
   {
     #[cfg(debug_assertions)]
     if self.initial_thread == std::thread::current().id() {
-      return Err(napi::Error::from_reason(
-        "Cannot run threadsafe function on main thread",
-      ));
+      return Err(napi::Error::from_reason(format!(
+        "Cannot run threadsafe function {} on main thread",
+        self.name
+      )));
     }
 
     let (tx, rx) = channel();

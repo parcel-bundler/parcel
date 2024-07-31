@@ -43,6 +43,13 @@ pub enum TransformationInput {
 }
 
 impl TransformationInput {
+  pub fn env(&self) -> Arc<Environment> {
+    match self {
+      TransformationInput::InitialAsset(raw_asset) => raw_asset.env.clone(),
+      TransformationInput::Asset(asset) => asset.env.clone(),
+    }
+  }
+
   pub fn file_path(&self) -> &Path {
     match self {
       TransformationInput::InitialAsset(raw_asset) => raw_asset.file_path.as_path(),

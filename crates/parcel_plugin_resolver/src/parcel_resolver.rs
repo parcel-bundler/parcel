@@ -454,7 +454,7 @@ mod test {
         kind: ErrorKind::NotFound,
         hints: Vec::new(),
         message: String::from("Cannot find module 'foo.js'"),
-        origin: Some(String::from("parcel_plugin_resolver::resolver"))
+        origin: Some(String::from("parcel_plugin_resolver::parcel_resolver"))
       }
     );
   }
@@ -487,7 +487,7 @@ mod test {
         hints: Vec::new(),
         kind: ErrorKind::Unknown,
         message: String::from("Module 'foo/bar' is not exported from the 'foo' package"),
-        origin: Some(String::from("parcel_plugin_resolver::resolver"))
+        origin: Some(String::from("parcel_plugin_resolver::parcel_resolver"))
       }
     );
   }

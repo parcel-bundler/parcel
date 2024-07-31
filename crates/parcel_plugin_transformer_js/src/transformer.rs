@@ -36,17 +36,28 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
     context: &mut RunTransformContext,
     input: TransformationInput,
   ) -> Result<TransformResult, Error> {
+    let env = input.env();
     let file_system = context.file_system();
     let source_code = input.read_code(file_system)?;
 
     let transformation_result = parcel_js_swc_core::transform(
       parcel_js_swc_core::Config {
+        code: source_code.bytes().to_vec(),
+        // TODO Lift this up into constructor?
+        env: context
+          .options()
+          .env
+          .clone()
+          .unwrap_or_default()
+          .iter()
+          .map(|(key, value)| (key.as_str().into(), value.as_str().into()))
+          .collect(),
         filename: input
           .file_path()
           .to_str()
           .ok_or_else(|| anyhow!("Invalid non UTF-8 file-path"))?
           .to_string(),
-        code: source_code.bytes().to_vec(),
+        replace_env: !env.context.is_node(),
         source_type: parcel_js_swc_core::SourceType::Module,
         ..parcel_js_swc_core::Config::default()
       },
@@ -98,7 +109,7 @@ mod test {
     let asset_1 = Asset::new_empty("mock_path".into(), source_code.clone());
     let asset_2 = Asset::new_empty("mock_path".into(), source_code);
     // This nº should not change across runs / compilation
-    assert_eq!(asset_1.id(), 5024550712560999390);
+    assert_eq!(asset_1.id(), 597396293677231496);
     assert_eq!(asset_1.id(), asset_2.id());
   }
 
@@ -152,6 +163,7 @@ exports.hello = function() {};
           column: 26,
         },
       }),
+      placeholder: Some("e83f3db3d6f57ea6".to_string()),
       source_asset_id: Some(format!("{:016x}", asset_id)),
       source_path: Some(PathBuf::from("mock_path.js")),
       specifier: String::from("other"),
