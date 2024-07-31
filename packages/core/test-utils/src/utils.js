@@ -130,6 +130,9 @@ export function getParcelOptions(
           node: '8',
         },
       },
+      featureFlags: {
+        parcelV3: true,
+      },
     },
     opts,
   );

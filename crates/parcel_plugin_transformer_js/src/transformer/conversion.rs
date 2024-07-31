@@ -392,12 +392,12 @@ fn convert_dependency(
 
   let loc = convert_loc(asset.file_path.clone(), &transformer_dependency.loc);
   let base_dependency = Dependency {
+    loc: Some(loc.clone()),
+    priority: convert_priority(&transformer_dependency),
     source_asset_id: Some(format!("{:016x}", asset_id)),
+    source_path: Some(asset.file_path.clone()),
     specifier: transformer_dependency.specifier.as_ref().into(),
     specifier_type: convert_specifier_type(&transformer_dependency),
-    source_path: Some(asset.file_path.clone()),
-    priority: convert_priority(&transformer_dependency),
-    loc: Some(loc.clone()),
     ..Dependency::default()
   };
   let source_type = convert_source_type(&transformer_dependency.source_type);

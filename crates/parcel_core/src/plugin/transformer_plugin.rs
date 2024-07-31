@@ -71,6 +71,13 @@ impl TransformationInput {
       TransformationInput::Asset(asset) => Ok(asset.code.clone()),
     }
   }
+
+  pub fn side_effects(&self) -> bool {
+    match self {
+      TransformationInput::InitialAsset(raw_asset) => raw_asset.side_effects,
+      TransformationInput::Asset(asset) => asset.side_effects,
+    }
+  }
 }
 
 /// Context parameters for the transformer, other than the input.

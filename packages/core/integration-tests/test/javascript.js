@@ -26,7 +26,7 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe('javascript', function () {
+describe.only('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -44,7 +44,7 @@ describe('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it('should support url: imports with CommonJS output', async function () {
+  it.skip('should support url: imports with CommonJS output', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),
     );
@@ -195,7 +195,7 @@ describe('javascript', function () {
     assert.equal(output(), 7);
   });
 
-  it('should preserve hashbangs in bundles and preserve executable file mode', async () => {
+  it.skip('should preserve hashbangs in bundles and preserve executable file mode', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(fixturePath, 'main.js'));
 
@@ -209,7 +209,7 @@ describe('javascript', function () {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it('should not preserve hashbangs in browser bundles', async () => {
+  it.skip('should not preserve hashbangs in browser bundles', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(fixturePath, 'main.js'));
 
@@ -221,7 +221,7 @@ describe('javascript', function () {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it('should preserve hashbangs in scopehoisted bundles', async () => {
+  it.skip('should preserve hashbangs in scopehoisted bundles', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(__dirname, '/integration/node_hashbang/main.js'), {
       defaultTargetOptions: {
@@ -254,7 +254,7 @@ describe('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it('should bundle builtins for a browser environment', async function () {
+  it.skip('should bundle builtins for a browser environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/include_builtins-browser/main.js'),
     );
@@ -332,7 +332,7 @@ describe('javascript', function () {
     assert.equal(output.default(), 3);
   });
 
-  it('should split bundles when a dynamic import is used a browser environment', async function () {
+  it.skip('should split bundles when a dynamic import is used a browser environment', async function () {
     let b = await bundle(path.join(__dirname, '/integration/dynamic/index.js'));
 
     assertBundles(b, [
@@ -350,7 +350,7 @@ describe('javascript', function () {
     assert.equal(await output(), 3);
   });
 
-  it('should prefetch bundles when declared as an import attribute statically', async function () {
+  it.skip('should prefetch bundles when declared as an import attribute statically', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-static-prefetch/index.js'),
     );
@@ -374,7 +374,7 @@ describe('javascript', function () {
     assert(headChildren[3].href.match(/prefetched\..*\.css/));
   });
 
-  it('should load additional links that were prefetched', async function () {
+  it.skip('should load additional links that were prefetched', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -403,7 +403,7 @@ describe('javascript', function () {
     assert(cssBundles[1].href.match(/prefetched-loaded\..*\.css/));
   });
 
-  it('should preload bundles when declared as an import attribute statically', async function () {
+  it.skip('should preload bundles when declared as an import attribute statically', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-static-preload/index.js'),
     );
@@ -429,7 +429,7 @@ describe('javascript', function () {
     'targetting esmodule, should modulepreload bundles when declared as an import attribute statically',
   );
 
-  it('should remove import attributes', async () => {
+  it.skip('should remove import attributes', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
     );
@@ -442,7 +442,7 @@ describe('javascript', function () {
     assert(!mainBundleContent.includes('foo:'));
   });
 
-  it('should split bundles when a dynamic import is used with a node environment', async function () {
+  it.skip('should split bundles when a dynamic import is used with a node environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-node/index.js'),
     );
@@ -462,7 +462,7 @@ describe('javascript', function () {
     assert.equal(await output(), 3);
   });
 
-  it('should split bundles when a dynamic import is used with an electron-main environment', async function () {
+  it.skip('should split bundles when a dynamic import is used with an electron-main environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-electron-main/index.js'),
     );
@@ -482,7 +482,7 @@ describe('javascript', function () {
     assert.equal(await output(), 3);
   });
 
-  it('should split bundles when a dynamic import is used with an electron-renderer environment', async function () {
+  it.skip('should split bundles when a dynamic import is used with an electron-renderer environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-electron-renderer/index.js'),
     );

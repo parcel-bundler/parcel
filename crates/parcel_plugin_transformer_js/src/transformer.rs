@@ -2,7 +2,7 @@ use anyhow::{anyhow, Error};
 
 use parcel_core::plugin::TransformerPlugin;
 use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
-use parcel_core::types::Asset;
+use parcel_core::types::{Asset, BuildMode, FileType, LogLevel, OutputFormat, SourceType};
 
 mod conversion;
 #[cfg(test)]
@@ -40,6 +40,8 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
     let file_system = context.file_system();
     let source_code = input.read_code(file_system)?;
 
+    let is_node = env.context.is_node();
+
     let transformation_result = parcel_js_swc_core::transform(
       parcel_js_swc_core::Config {
         code: source_code.bytes().to_vec(),
@@ -57,8 +59,46 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
           .to_str()
           .ok_or_else(|| anyhow!("Invalid non UTF-8 file-path"))?
           .to_string(),
-        replace_env: !env.context.is_node(),
-        source_type: parcel_js_swc_core::SourceType::Module,
+        // TODO
+        // module_id: input.id(),
+        // TODO project_root:
+        // inline_constants: config.inlineConstants,
+        insert_node_globals: !is_node && env.source_type != SourceType::Script,
+        is_browser: env.context.is_browser(),
+        is_development: context.options().mode == BuildMode::Development,
+        is_esm_output: env.output_format == OutputFormat::EsModule,
+        is_library: env.is_library,
+        // TODO
+        // is_type_script: asset.type === 'ts' || asset.type === 'tsx',
+        // is_jsx: isJSX,
+        // is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+        is_worker: env.context.is_worker(),
+        // TODO
+        // jsx_pragma: config?.pragma,
+        // jsx_pragma_frag: config?.pragmaFrag,
+        // automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
+        // jsx_import_source: config?.jsxImportSource,
+        // react_refresh:
+        //   asset.env.isBrowser() &&
+        //   !asset.env.isLibrary &&
+        //   !asset.env.isWorker() &&
+        //   !asset.env.isWorklet() &&
+        //   Boolean(config?.reactRefresh),
+        // decorators: Boolean(config?.decorators),
+        // use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
+        node_replacer: is_node,
+        replace_env: !is_node,
+        scope_hoist: env.should_scope_hoist && env.source_type != SourceType::Script,
+        source_maps: env.source_map.is_some(),
+        source_type: match env.source_type {
+          SourceType::Module => parcel_js_swc_core::SourceType::Module,
+          SourceType::Script => parcel_js_swc_core::SourceType::Script,
+        },
+        // targets: env.engines.into(),
+        // standalone: asset.query.has('standalone'),
+        trace_bailouts: context.options().log_level == LogLevel::Verbose,
+        //TODO targets,
+        // supports_module_workers: supportsModuleWorkers,
         ..parcel_js_swc_core::Config::default()
       },
       None,
@@ -69,7 +109,22 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
       return Err(anyhow!(format!("{:#?}", errors)));
     }
 
-    let asset = Asset::new_empty(input.file_path().to_path_buf(), source_code);
+    let file_path = input.file_path();
+    let asset_type = FileType::from_extension(
+      file_path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default(),
+    );
+
+    let asset = Asset {
+      asset_type,
+      code: source_code,
+      env: env.clone(),
+      file_path: file_path.to_path_buf(),
+      ..Asset::default()
+    };
+
     let config = parcel_js_swc_core::Config::default();
     let options = context.options();
     let result = conversion::convert_result(asset, &config, transformation_result, &options)
@@ -106,17 +161,32 @@ mod test {
   #[test]
   fn test_asset_id_is_stable() {
     let source_code = Arc::new(Code::from(String::from("function hello() {}")));
-    let asset_1 = Asset::new_empty("mock_path".into(), source_code.clone());
-    let asset_2 = Asset::new_empty("mock_path".into(), source_code);
+
+    let asset_1 = Asset {
+      code: source_code.clone(),
+      file_path: "mock_path".into(),
+      ..Asset::default()
+    };
+
+    let asset_2 = Asset {
+      code: source_code,
+      file_path: "mock_path".into(),
+      ..Asset::default()
+    };
+
     // This nº should not change across runs / compilation
-    assert_eq!(asset_1.id(), 597396293677231496);
+    assert_eq!(asset_1.id(), 5787511958692361102);
     assert_eq!(asset_1.id(), asset_2.id());
   }
 
   #[test]
   fn test_transformer_on_noop_asset() {
     let source_code = Arc::new(Code::from(String::from("function hello() {}")));
-    let target_asset = Asset::new_empty("mock_path".into(), source_code);
+    let target_asset = Asset {
+      code: source_code,
+      file_path: "mock_path.js".into(),
+      ..Asset::default()
+    };
     let asset_id = target_asset.id();
     let result = run_test(target_asset).unwrap();
 
@@ -124,7 +194,7 @@ mod test {
       result,
       TransformResult {
         asset: Asset {
-          file_path: "mock_path".into(),
+          file_path: "mock_path.js".into(),
           asset_type: FileType::Js,
           // SWC inserts a newline here
           code: Arc::new(Code::from(String::from("function hello() {}\n"))),
@@ -147,7 +217,11 @@ const x = require('other');
 exports.hello = function() {};
     "#,
     )));
-    let target_asset = Asset::new_empty("mock_path.js".into(), source_code);
+    let target_asset = Asset {
+      code: source_code,
+      file_path: "mock_path.js".into(),
+      ..Asset::default()
+    };
     let asset_id = target_asset.id();
     let result = run_test(target_asset).unwrap();
 

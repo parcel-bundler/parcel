@@ -131,6 +131,8 @@ function getAssetGraph(serializedGraph, options) {
           : null,
       };
 
+      console.log('got asset', asset);
+
       cachedAssets.set(id, asset.code);
       changedAssets.set(id, asset);
 
