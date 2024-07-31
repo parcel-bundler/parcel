@@ -655,18 +655,25 @@ impl<'a> ResolveRequest<'a> {
   ) -> Result<Resolution, ResolverError> {
     let package_path = package_dir.join("package.json");
     let package: Result<Arc<PackageJson>, ResolverError> =
-      self.invalidations.read(&package_path, || {
-        self
-          .resolver
-          .cache
-          .read_package(Cow::Borrowed(&package_path))
-          .deref()
-          .clone()
-      });
+      if self.resolver.cache.fs.is_file(&package_path) {
+        self.invalidations.read(&package_path, || {
+          self
+            .resolver
+            .cache
+            .read_package(Cow::Borrowed(&package_path))
+            .deref()
+            .clone()
+        })
+      } else {
+        Err(ResolverError::FileNotFound {
+          relative: PathBuf::from("package.json"),
+          from: package_dir.clone(),
+        })
+      };
 
     let package = match package {
       Ok(package) => package,
-      Err(ResolverError::IOError(_)) => {
+      Err(ResolverError::IOError(_)) | Err(ResolverError::FileNotFound { .. }) => {
         // No package.json in node_modules is probably invalid but we have tests for it...
         if self.resolver.flags.contains(Flags::DIR_INDEX) {
           if let Some(res) = self.load_file(&package_dir.join(self.resolver.index_file), None)? {
@@ -1056,15 +1063,22 @@ impl<'a> ResolveRequest<'a> {
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
     let mut res = Ok(None);
-    let package: Option<Arc<PackageJson>> = if let Ok(package) =
-      self.invalidations.read(&path, || {
-        self
-          .resolver
-          .cache
-          .read_package(Cow::Borrowed(&path))
-          .deref()
-          .clone()
-      }) {
+    let package_read_result = if self.resolver.cache.fs.is_file(&path) {
+      self
+        .invalidations
+        .read(&path, || {
+          self
+            .resolver
+            .cache
+            .read_package(Cow::Borrowed(&path))
+            .deref()
+            .clone()
+        })
+        .ok()
+    } else {
+      None
+    };
+    let package: Option<Arc<PackageJson>> = if let Some(package) = package_read_result {
       res = self.try_package_entries(&package);
       if matches!(res, Ok(Some(_))) {
         return res;
