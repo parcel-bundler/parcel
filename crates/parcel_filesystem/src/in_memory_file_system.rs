@@ -73,12 +73,12 @@ impl InMemoryFileSystem {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn default_cwd() -> PathBuf {
+fn root_dir() -> PathBuf {
   PathBuf::from("/")
 }
 
 #[cfg(target_os = "windows")]
-fn default_cwd() -> PathBuf {
+fn root_dir() -> PathBuf {
   PathBuf::from("C:/")
 }
 
@@ -86,7 +86,7 @@ impl Default for InMemoryFileSystem {
   fn default() -> Self {
     Self {
       files: Default::default(),
-      current_working_directory: RwLock::new(default_cwd()),
+      current_working_directory: RwLock::new(root_dir()),
     }
   }
 }
@@ -149,8 +149,8 @@ mod test {
   #[test]
   fn test_canonicalize_noop() {
     let fs = InMemoryFileSystem::default();
-    let path = Path::new("/foo/bar");
-    let result = fs.canonicalize(path, &Default::default()).unwrap();
+    let path = root_dir().join("foo/bar");
+    let result = fs.canonicalize(&path, &Default::default()).unwrap();
     assert_eq!(result, path);
   }
 
@@ -158,18 +158,18 @@ mod test {
   fn test_remove_relative_dots() {
     let fs = InMemoryFileSystem::default();
     let result = fs
-      .canonicalize(Path::new("/foo/./bar"), &Default::default())
+      .canonicalize(&root_dir().join("foo/./bar"), &Default::default())
       .unwrap();
-    assert_eq!(result, PathBuf::from("/foo/bar"));
+    assert_eq!(result, root_dir().join("foo/bar"));
   }
 
   #[test]
   fn test_remove_relative_parent_dots() {
     let fs = InMemoryFileSystem::default();
     let result = fs
-      .canonicalize(Path::new("/foo/./bar/../baz/"), &Default::default())
+      .canonicalize(&root_dir().join("/foo/./bar/../baz/"), &Default::default())
       .unwrap();
-    assert_eq!(result, PathBuf::from("/foo/baz"));
+    assert_eq!(result, root_dir().join("/foo/baz"));
   }
 
   #[test]
@@ -179,7 +179,7 @@ mod test {
     let result = fs
       .canonicalize(Path::new("./foo/./bar/../baz/"), &Default::default())
       .unwrap();
-    assert_eq!(result, PathBuf::from("/other/foo/baz"));
+    assert_eq!(result, root_dir().join("/other/foo/baz"));
     assert!(result.is_absolute());
   }
 
