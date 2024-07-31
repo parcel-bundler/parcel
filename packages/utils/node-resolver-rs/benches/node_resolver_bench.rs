@@ -1,11 +1,16 @@
 //! This file contains a few benchmarks which demonstrate the following insights on the resolver
 //! performance profile:
 //!
-//! 1. Stat is faster than read_to_string if files don't exist by around 2x on macOS
-//! 2. Resolution completes in micro-seconds
-//! 3. Resolution is IO bound; if we remove all IO resolution is around 4x faster, therefore we
-//!    can estimate 75% of the time is spent doing IO and not other things
-//! 4. The next bottleneck is JSON parsing
+//! 1. Resolution completes in micro-seconds
+//! 2. Resolution is IO bound; if we remove all IO resolution is around 3-4x faster, therefore we
+//!    can estimate most of the time is spent doing IO and not anything else
+//! 3. stat is faster than read_to_string if files don't exist by around 2x on macOS and 3x on Linux
+//!    therefore, we should only read files after we've checked they exist, it is worth it to check
+//!    if the file is present before reading if we will miss files a large proportion of the time
+//! 4. The next bottleneck is JSON parsing. To that we are using serde_json5, the master branch is
+//!    20-30% faster than the latest version on `crates.io` (which is 0.1 as of time of writing).
+//!    We can have much faster JSON parsing if we look into consuming SIMD-JSON.
+//!
 use std::collections::HashMap;
 use std::hint::black_box;
 use std::path::{Component, Path, PathBuf};

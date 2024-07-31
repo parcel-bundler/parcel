@@ -50,9 +50,9 @@ pub struct TsConfigWrapper {
 }
 
 impl TsConfig {
-  pub fn parse(path: PathBuf, data: &str) -> serde_json::Result<TsConfigWrapper> {
-    let stripped = StripComments::new(data.as_bytes());
-    let mut wrapper: TsConfigWrapper = serde_json::from_reader(stripped)?;
+  pub fn parse(path: PathBuf, data: &str) -> serde_json5::Result<TsConfigWrapper> {
+    let mut stripped = StripComments::new(data.as_bytes());
+    let mut wrapper: TsConfigWrapper = serde_json5::from_reader(&mut stripped)?;
     wrapper.compiler_options.path = path;
     wrapper.compiler_options.validate();
     Ok(wrapper)
