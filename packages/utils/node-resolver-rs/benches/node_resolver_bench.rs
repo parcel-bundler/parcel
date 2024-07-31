@@ -6,6 +6,7 @@ use std::sync::Arc;
 use criterion::{criterion_group, criterion_main, Criterion};
 use parking_lot::RwLock;
 
+use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystem;
 use parcel_resolver::{Cache, CacheCow, Resolver, SpecifierType};
 
