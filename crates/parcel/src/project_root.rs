@@ -105,7 +105,7 @@ pub fn infer_project_root(
 
 #[cfg(test)]
 mod tests {
-  use std::{path::MAIN_SEPARATOR_STR, sync::Arc};
+  use std::sync::Arc;
 
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_resolver::FileSystem;
@@ -211,8 +211,14 @@ mod tests {
     }
   }
 
+  #[cfg(target_os = "windows")]
   fn root() -> PathBuf {
-    PathBuf::from(MAIN_SEPARATOR_STR)
+    PathBuf::from("C:\\")
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  fn root() -> PathBuf {
+    PathBuf::from("/")
   }
 
   fn cwd() -> PathBuf {
@@ -226,7 +232,7 @@ mod tests {
       let fs = Arc::new(InMemoryFileSystem::default());
       let root = root();
 
-      fs.set_current_working_directory(cwd());
+      fs.set_current_working_directory(&cwd());
       fs.write_file(&root.join(lockfile), String::from("{}"));
 
       assert_eq!(
@@ -250,7 +256,7 @@ mod tests {
         let entries = vec![String::from("src/a.js")];
         let fs = Arc::new(InMemoryFileSystem::default());
 
-        fs.set_current_working_directory(cwd.clone());
+        fs.set_current_working_directory(&cwd);
         fs.write_file(&root().join(lockfile), String::from("{}"));
         fs.write_file(&cwd.join(lockfile), String::from("{}"));
 
@@ -277,7 +283,7 @@ mod tests {
 
         let fs = Arc::new(InMemoryFileSystem::default());
 
-        fs.set_current_working_directory(cwd.clone());
+        fs.set_current_working_directory(&cwd);
         fs.write_file(&root().join(lockfile), String::from("{}"));
         fs.write_file(
           &cwd.join("packages").join("foo").join(lockfile),
@@ -304,7 +310,7 @@ mod tests {
       let root = root();
       let vcs = root.join(vcs);
 
-      fs.set_current_working_directory(cwd());
+      fs.set_current_working_directory(&cwd());
       fs.create_directory(&vcs)
         .expect(format!("Expected {} directory to be created", vcs.display()).as_str());
 

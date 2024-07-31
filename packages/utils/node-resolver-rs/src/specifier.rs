@@ -9,7 +9,7 @@ use crate::builtins::BUILTINS;
 use crate::url_to_path::url_to_path;
 use crate::Flags;
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SpecifierType {
   Esm,
   Cjs,

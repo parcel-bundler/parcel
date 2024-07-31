@@ -524,6 +524,10 @@ mod test {
 
     let result = resolver.resolve(ctx).map_err(|err| err.to_string());
 
+    #[cfg(target_os = "windows")]
+    let file_path = PathBuf::from("C:/foo/something.js");
+    #[cfg(not(target_os = "windows"))]
+    let file_path = PathBuf::from("/foo/something.js");
     assert_eq!(
       result,
       Ok(Resolved {
@@ -531,7 +535,7 @@ mod test {
         resolution: Resolution::Resolved(ResolvedResolution {
           can_defer: false,
           code: None,
-          file_path: PathBuf::from("/foo/something.js"),
+          file_path,
           meta: None,
           pipeline: None,
           priority: None,
