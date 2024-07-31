@@ -186,13 +186,6 @@ impl Cache {
     path: &Path,
     process: F,
   ) -> Arc<Result<Arc<TsConfigWrapper>, ResolverError>> {
-    if !self.fs.is_file(path) {
-      return Arc::new(Err(ResolverError::FileNotFound {
-        relative: path.to_path_buf(),
-        from: PathBuf::from("/"),
-      }));
-    }
-
     {
       let tsconfigs = self.tsconfigs.read();
       if let Some(tsconfig) = tsconfigs.get(path) {
@@ -208,7 +201,7 @@ impl Cache {
     ) -> Result<TsConfigWrapper, ResolverError> {
       let data = fs.read_to_string(path)?;
       let mut tsconfig = TsConfig::parse(path.to_owned(), &data).map_err(|e| {
-        JsonError::json5(
+        JsonError::new(
           File {
             contents: data,
             path: path.to_owned(),
