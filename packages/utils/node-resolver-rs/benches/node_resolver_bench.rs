@@ -1,3 +1,11 @@
+//! This file contains a few benchmarks which demonstrate the following insights on the resolver
+//! performance profile:
+//!
+//! 1. Stat is faster than read_to_string if files don't exist by around 2x on macOS
+//! 2. Resolution completes in micro-seconds
+//! 3. Resolution is IO bound; if we remove all IO resolution is around 4x faster, therefore we
+//!    can estimate 75% of the time is spent doing IO and not other things
+//! 4. The next bottleneck is JSON parsing
 use std::collections::HashMap;
 use std::hint::black_box;
 use std::path::{Component, Path, PathBuf};
@@ -10,6 +18,7 @@ use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystem;
 use parcel_resolver::{Cache, CacheCow, Resolver, SpecifierType};
 
+#[derive(Clone)]
 enum FileEntry {
   Directory,
   File(String),
@@ -17,6 +26,15 @@ enum FileEntry {
 
 struct PreloadingFileSystem {
   files: RwLock<HashMap<PathBuf, FileEntry>>,
+}
+
+impl Clone for PreloadingFileSystem {
+  fn clone(&self) -> Self {
+    let files = self.files.read();
+    Self {
+      files: RwLock::new(files.clone()),
+    }
+  }
 }
 
 impl PreloadingFileSystem {
@@ -159,10 +177,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     );
   });
 
+  let preloading_fs = PreloadingFileSystem::load(&root());
   let make_resolver = || {
     Resolver::parcel(
       root().into(),
-      CacheCow::Owned(Cache::new(Arc::new(PreloadingFileSystem::load(&root())))),
+      CacheCow::Owned(Cache::new(Arc::new(preloading_fs.clone()))),
     )
   };
 
