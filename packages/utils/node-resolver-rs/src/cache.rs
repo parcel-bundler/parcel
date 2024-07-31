@@ -1,18 +1,14 @@
-use bumpalo::Bump;
 use dashmap::DashMap;
-use elsa::sync::FrozenMap;
 use parcel_core::types::File;
 use parcel_filesystem::FileSystemRef;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::Arc;
-use typed_arena::Arena;
 
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;
@@ -22,8 +18,6 @@ use crate::ResolverError;
 
 pub struct Cache {
   pub fs: FileSystemRef,
-  /// This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
-  arena: Mutex<Bump>,
   /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
   /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
   /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
@@ -92,12 +86,10 @@ impl JsonError {
 
 impl Cache {
   pub fn new(fs: FileSystemRef) -> Self {
-    let arena = Bump::new();
     let packages = HashMap::new();
     let tsconfigs = HashMap::new();
     Self {
       fs,
-      arena: Mutex::new(arena),
       packages: RwLock::new(packages),
       tsconfigs: RwLock::new(tsconfigs),
       is_file_cache: DashMap::new(),
@@ -141,7 +133,6 @@ impl Cache {
     fn read_package<'a>(
       fs: &'a FileSystemRef,
       realpath_cache: &'a DashMap<PathBuf, Option<PathBuf>>,
-      arena: &'a Mutex<Bump>,
       path: &Path,
     ) -> Result<PackageJson, ResolverError> {
       let contents: String = fs.read_to_string(&path)?;
@@ -176,7 +167,7 @@ impl Cache {
 
     let path = path.into_owned();
     let package: Result<PackageJson, ResolverError> =
-      read_package(&self.fs, &self.realpath_cache, &self.arena, &path);
+      read_package(&self.fs, &self.realpath_cache, &path);
 
     // Since we have exclusive access to packages,
     let mut packages = self.packages.write();
@@ -205,7 +196,6 @@ impl Cache {
 
     fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
       fs: &FileSystemRef,
-      arena: &'a Mutex<Bump>,
       path: &Path,
       process: F,
     ) -> Result<TsConfigWrapper, ResolverError> {
@@ -226,7 +216,7 @@ impl Cache {
 
     // Since we have exclusive access to tsconfigs, it should be impossible for the get to fail
     // after insert
-    let entry = read_tsconfig(&self.fs, &self.arena, path, process).map(|t| Arc::new(t));
+    let entry = read_tsconfig(&self.fs, path, process).map(|t| Arc::new(t));
     let tsconfig = {
       let mut tsconfigs = self.tsconfigs.write();
       let _ = tsconfigs.insert(PathBuf::from(path), Arc::new(entry));
