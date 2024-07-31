@@ -184,7 +184,6 @@ fn base_url_iter<'a>(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use indexmap::indexmap;
 
   #[test]
   fn test_paths() {

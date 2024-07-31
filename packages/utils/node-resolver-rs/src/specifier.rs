@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::path::is_separator;
-use std::path::Path;
 use std::path::PathBuf;
 
 use percent_encoding::percent_decode_str;

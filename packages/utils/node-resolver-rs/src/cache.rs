@@ -186,6 +186,13 @@ impl Cache {
     path: &Path,
     process: F,
   ) -> Arc<Result<Arc<TsConfigWrapper>, ResolverError>> {
+    if !self.fs.is_file(path) {
+      return Arc::new(Err(ResolverError::FileNotFound {
+        relative: path.to_path_buf(),
+        from: PathBuf::from("/"),
+      }));
+    }
+
     {
       let tsconfigs = self.tsconfigs.read();
       if let Some(tsconfig) = tsconfigs.get(path) {
@@ -229,12 +236,5 @@ impl Cache {
     };
 
     tsconfig
-  }
-}
-
-fn clone_result<T, E: Clone>(res: &Result<T, E>) -> Result<&T, E> {
-  match res {
-    Ok(v) => Ok(v),
-    Err(err) => Err(err.clone()),
   }
 }

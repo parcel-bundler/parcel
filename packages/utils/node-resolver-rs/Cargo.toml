@@ -4,6 +4,10 @@ name = "parcel-resolver"
 version = "0.1.0"
 edition = "2021"
 
+[[bench]]
+name = "node_resolver_bench"
+harness = false
+
 [dependencies]
 parcel_core = { path = "../../../crates/parcel_core" }
 parcel_filesystem = { path = "../../../crates/parcel_filesystem" }
@@ -31,6 +35,7 @@ tracing-subscriber = "0.3.18"
 
 [dev-dependencies]
 assert_fs = "1.0"
+criterion = "0.5.1"
 
 [target.'cfg(windows)'.dev-dependencies]
 is_elevated = "0.1.2"

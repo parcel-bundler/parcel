@@ -179,9 +179,6 @@ impl<'a> Resolver<'a> {
     from: &Path,
     specifier_type: SpecifierType,
   ) -> ResolveResult {
-    let _ = tracing_subscriber::FmtSubscriber::builder()
-      .with_max_level(tracing::Level::TRACE)
-      .try_init();
     self.resolve_with_options(specifier, from, specifier_type, Default::default())
   }
 
