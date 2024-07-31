@@ -211,10 +211,7 @@ impl AssetGraph {
         }
       }
     }
-    println!(
-      "{:?} reexports {:?} requested_symbols {:?}",
-      asset.file_path, re_exports, requested_symbols
-    );
+
     let deps: Vec<_> = self
       .graph
       .neighbors_directed(asset_node, Direction::Outgoing)
@@ -439,7 +436,7 @@ mod test {
   }
 
   #[test]
-  fn should_propagate_requested_symbols_for_named_reexports() {
+  fn should_propagate_named_reexports() {
     let mut graph = AssetGraph::new();
     let target = Target::default();
     let dep = Dependency::entry(String::from("index.js"), target);
@@ -482,7 +479,7 @@ mod test {
   }
 
   #[test]
-  fn should_propagate_requested_symbols_for_wildcard_reexports() {
+  fn should_propagate_wildcard_reexports() {
     let mut graph = AssetGraph::new();
     let target = Target::default();
     let dep = Dependency::entry(String::from("index.js"), target);
@@ -580,5 +577,34 @@ mod test {
     assert_requested_symbols(&graph, library_dep_node, vec!["a"]);
     // "b" should be marked as requested on the b dep
     assert_requested_symbols(&graph, b_dep, vec!["b"]);
+  }
+
+  #[test]
+  fn should_propagate_namespace_reexports() {
+    let mut graph = AssetGraph::new();
+    let target = Target::default();
+    let dep = Dependency::entry(String::from("index.js"), target);
+    let entry_dep_node = graph.add_entry_dependency(dep);
+
+    // entry.js imports "a" from library
+    let entry_asset_node = add_asset(&mut graph, entry_dep_node, vec![], "entry.js");
+    let library_dep_node = add_dependency(&mut graph, entry_asset_node, vec![("a", "a", false)]);
+    graph.propagate_requested_symbols(entry_asset_node, entry_dep_node, &mut |_, _| {});
+
+    // library.js re-exports "*" from stuff.js renamed as "a""
+    // export * as a from './stuff.js'
+    let library_asset_node = add_asset(
+      &mut graph,
+      library_dep_node,
+      vec![("a", "a", true)],
+      "library.js",
+    );
+    let stuff_dep = add_dependency(&mut graph, library_asset_node, vec![("a", "*", true)]);
+    graph.propagate_requested_symbols(library_asset_node, library_dep_node, &mut |_, _| {});
+
+    // "a" should be marked as requested on the library dep
+    assert_requested_symbols(&graph, library_dep_node, vec!["a"]);
+    // "*" should be marked as requested on the stuff dep
+    assert_requested_symbols(&graph, stuff_dep, vec!["*"]);
   }
 }
