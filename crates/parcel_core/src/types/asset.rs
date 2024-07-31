@@ -7,8 +7,6 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::types::EnvironmentContext;
-
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
 use super::file_type::FileType;
@@ -156,24 +154,6 @@ impl Asset {
     self.unique_key.hash(&mut hasher);
 
     hasher.finish()
-  }
-
-  /// Build a new empty asset
-  pub fn new_empty(file_path: PathBuf, source_code: Arc<Code>) -> Self {
-    let asset_type =
-      FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
-
-    // TODO: rest of this
-    Self {
-      file_path,
-      asset_type,
-      env: Arc::new(Environment {
-        context: EnvironmentContext::Browser,
-        ..Default::default()
-      }),
-      code: source_code,
-      ..Default::default()
-    }
   }
 
   pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {

@@ -71,12 +71,20 @@ impl TransformationInput {
       TransformationInput::Asset(asset) => Ok(asset.code.clone()),
     }
   }
+
+  pub fn side_effects(&self) -> bool {
+    match self {
+      TransformationInput::InitialAsset(raw_asset) => raw_asset.side_effects,
+      TransformationInput::Asset(asset) => asset.side_effects,
+    }
+  }
 }
 
 /// Context parameters for the transformer, other than the input.
 pub struct RunTransformContext {
   file_system: FileSystemRef,
   options: Arc<ParcelOptions>,
+  project_root: PathBuf,
 }
 
 impl Default for RunTransformContext {
@@ -84,15 +92,21 @@ impl Default for RunTransformContext {
     Self {
       file_system: Arc::new(OsFileSystem::default()),
       options: Arc::new(ParcelOptions::default()),
+      project_root: PathBuf::default(),
     }
   }
 }
 
 impl RunTransformContext {
-  pub fn new(file_system: FileSystemRef, options: Arc<ParcelOptions>) -> Self {
+  pub fn new(
+    file_system: FileSystemRef,
+    options: Arc<ParcelOptions>,
+    project_root: PathBuf,
+  ) -> Self {
     Self {
       file_system,
       options,
+      project_root,
     }
   }
 
@@ -102,6 +116,10 @@ impl RunTransformContext {
 
   pub fn options(&self) -> &Arc<ParcelOptions> {
     &self.options
+  }
+
+  pub fn project_root(&self) -> &Path {
+    &self.project_root
   }
 }
 
