@@ -11,4 +11,8 @@ export type FeatureFlags = {|
    * Configure runtime to enable retriable dynamic imports
    */
   importRetry: boolean,
+  /**
+   * Enable resolver refactor into owned data structures.
+   */
+  ownedResolverStructures: boolean,
 |};

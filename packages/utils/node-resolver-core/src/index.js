@@ -1,3 +1,11 @@
 // @flow
+
+import {getFeatureFlag} from '@parcel/feature-flags';
+import {Resolver as ResolverNew, ResolverOld} from '@parcel/rust';
+
+export const Resolver = getFeatureFlag('ownedResolverStructures')
+  ? ResolverNew
+  : ResolverOld;
+
 export {default} from './Wrapper';
-export {Resolver as ResolverBase, init} from '@parcel/rust';
+export {init} from '@parcel/rust';
