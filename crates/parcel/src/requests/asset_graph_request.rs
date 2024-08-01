@@ -126,8 +126,6 @@ impl AssetGraphBuilder {
       }
     }
 
-    println!("Got rust graph: {:?}", self.graph.dependencies);
-
     Ok(ResultAndInvalidations {
       result: RequestResult::AssetGraph(AssetGraphRequestOutput { graph: self.graph }),
       invalidations: vec![],
@@ -248,11 +246,6 @@ impl AssetGraphBuilder {
       .asset_request_to_asset
       .insert(request_id, asset_node_index);
 
-    println!(
-      "Found dependencies {:?} for asset {}",
-      dependencies,
-      asset.file_path.display()
-    );
     // Connect dependencies of the Asset
     for dependency in &dependencies {
       let _ = self

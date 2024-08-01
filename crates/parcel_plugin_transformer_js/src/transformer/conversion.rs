@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use parcel_core::diagnostic;
-use swc_core::atoms::Atom;
 
 use parcel_core::plugin::TransformResult;
 use parcel_core::types::engines::EnvironmentFeature;
@@ -73,14 +72,14 @@ pub(crate) fn convert_result(
 
     // Collect all imported symbols into each of the corresponding dependencies' symbols array
     for symbol in hoist_result.imported_symbols {
-      if let Some(dependency) = dependency_by_specifier.get_mut(&symbol.source) {
+      if let Some(dependency) = dependency_by_specifier.get_mut(symbol.source.as_str()) {
         let symbol = transformer_imported_symbol_to_symbol(&asset_file_path, &symbol);
         dependency.symbols.push(symbol);
       }
     }
 
     for symbol in hoist_result.re_exports {
-      if let Some(dependency) = dependency_by_specifier.get_mut(&symbol.source) {
+      if let Some(dependency) = dependency_by_specifier.get_mut(symbol.source.as_str()) {
         if is_re_export_all_symbol(&symbol) {
           let loc = Some(convert_loc(asset_file_path.clone(), &symbol.loc));
           dependency.symbols.push(make_export_all_symbol(loc));
@@ -116,7 +115,7 @@ pub(crate) fn convert_result(
     }
 
     for specifier in hoist_result.wrapped_requires {
-      if let Some(dep) = dependency_by_specifier.get_mut(&swc_core::atoms::JsWord::new(specifier)) {
+      if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
         dep.should_wrap = true;
       }
     }
@@ -173,7 +172,7 @@ pub(crate) fn convert_result(
         let (local, is_weak) = if let Some(dep) = sym
           .source
           .as_ref()
-          .and_then(|source| dependency_by_specifier.get_mut(source))
+          .and_then(|source| dependency_by_specifier.get_mut(source.as_str()))
         {
           let local = format!("${:016x}${}", dep.id(), sym.local);
           dep.symbols.push(Symbol {
@@ -198,7 +197,7 @@ pub(crate) fn convert_result(
       }
 
       for sym in symbol_result.imports {
-        if let Some(dep) = dependency_by_specifier.get_mut(&sym.source) {
+        if let Some(dep) = dependency_by_specifier.get_mut(sym.source.as_str()) {
           dep
             .symbols
             .push(transformer_collect_imported_symbol_to_symbol(
@@ -209,7 +208,7 @@ pub(crate) fn convert_result(
       }
 
       for sym in symbol_result.exports_all {
-        if let Some(dep) = dependency_by_specifier.get_mut(&sym.source) {
+        if let Some(dep) = dependency_by_specifier.get_mut(sym.source.as_str()) {
           let loc = Some(convert_loc(asset_file_path.clone(), &sym.loc));
           dep.symbols.push(make_export_all_symbol(loc));
         }
@@ -295,21 +294,16 @@ pub(crate) fn convert_dependencies(
   dependencies: Vec<parcel_js_swc_core::DependencyDescriptor>,
   asset: &Asset,
   asset_id: u64,
-) -> Result<(IndexMap<Atom, Dependency>, Vec<PathBuf>), Vec<Diagnostic>> {
+) -> Result<(IndexMap<String, Dependency>, Vec<PathBuf>), Vec<Diagnostic>> {
   let mut dependency_by_specifier = IndexMap::new();
   let mut invalidate_on_file_change = Vec::new();
   for transformer_dependency in dependencies {
-    let placeholder = transformer_dependency
-      .placeholder
-      .as_ref()
-      .map(|d| d.as_str().into())
-      .unwrap_or_else(|| transformer_dependency.specifier.clone());
-
     let result = convert_dependency(transformer_config, &asset, asset_id, transformer_dependency)?;
 
     match result {
       DependencyConversionResult::Dependency(dependency) => {
-        dependency_by_specifier.insert(placeholder, dependency);
+        // TODO Merge existing results
+        dependency_by_specifier.insert(dependency.specifier.clone(), dependency);
       }
       DependencyConversionResult::InvalidateOnFileChange(file_path) => {
         invalidate_on_file_change.push(file_path);
