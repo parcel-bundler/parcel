@@ -29,8 +29,7 @@ pub fn url_to_path(input: &str) -> Result<PathBuf, SpecifierError> {
 #[cfg(any(target_arch = "wasm32", test))]
 #[inline]
 fn os_str_from_bytes(slice: &[u8]) -> &OsStr {
-  use std::os::unix::ffi::OsStrExt;
-  OsStr::from_bytes(slice)
+  OsStr::new(slice)
 }
 
 #[cfg(test)]
