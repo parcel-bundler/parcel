@@ -254,7 +254,7 @@ describe.only('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it.skip('should bundle builtins for a browser environment', async function () {
+  it.only('should bundle builtins for a browser environment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/include_builtins-browser/main.js'),
     );

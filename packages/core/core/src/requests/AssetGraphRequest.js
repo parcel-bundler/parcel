@@ -320,6 +320,8 @@ export class AssetGraphBuilder {
     }
     await dumpGraphToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
+    console.log('v2: got asset graph', this.assetGraph.nodes.map((node) => ([node.id, node.value])));
+
     this.api.storeResult(
       {
         assetGraph: this.assetGraph,

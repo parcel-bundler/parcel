@@ -50,6 +50,8 @@ export function createAssetGraphRequestRust(
         options,
       );
 
+      console.log('v3: got asset graph', assetGraph);
+
       // TODO: Make it a bulk transaction
       await Promise.all(
         Array.from(cachedAssets.entries(), ([id, code]) =>
@@ -73,6 +75,8 @@ export function createAssetGraphRequestRust(
           diagnostic: [...errors.values()][0],
         });
       }
+
+      console.log('v3: got asset graph', assetGraph.nodes.map((node) => ([node.id, node.value])));
 
       return {
         assetGraph,
@@ -130,8 +134,6 @@ function getAssetGraph(serializedGraph, options) {
             )
           : null,
       };
-
-      console.log('got asset', asset);
 
       cachedAssets.set(id, asset.code);
       changedAssets.set(id, asset);
