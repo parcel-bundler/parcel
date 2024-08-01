@@ -31,7 +31,6 @@ fn init_sentry() -> Result<(), Status> {
     return Ok(());
   }
 
-  println!("INIT SENTRY");
   log::info!("Initialising Sentry in rust...");
 
   if SENTRY_GUARD.lock().is_some() {
