@@ -4,6 +4,8 @@ use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
+use swc_core::ecma::ast::MemberExpr;
+use swc_core::ecma::ast::Module;
 
 use path_slash::PathBufExt;
 use serde::Deserialize;
@@ -19,6 +21,7 @@ use swc_core::ecma::ast::{self};
 use swc_core::ecma::atoms::js_word;
 use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::utils::stack_size::maybe_grow_default;
+use swc_core::ecma::utils::ExprFactory;
 use swc_core::ecma::visit::Fold;
 use swc_core::ecma::visit::FoldWith;
 
@@ -133,14 +136,15 @@ pub struct DependencyDescriptor {
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
+  module: Module,
   source_map: Lrc<SourceMap>,
   items: &'a mut Vec<DependencyDescriptor>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
-) -> impl Fold + 'a {
-  DependencyCollector {
+) -> (Module, bool) {
+  let mut fold = DependencyCollector {
     source_map,
     items,
     in_try: false,
@@ -151,7 +155,12 @@ pub fn dependency_collector<'a>(
     config,
     diagnostics,
     import_meta: None,
-  }
+    needs_tier_helpers: false,
+  };
+
+  let module = module.fold_with(&mut fold);
+
+  (module, fold.needs_tier_helpers)
 }
 
 struct DependencyCollector<'a> {
@@ -165,6 +174,7 @@ struct DependencyCollector<'a> {
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
+  needs_tier_helpers: bool,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -331,6 +341,27 @@ impl<'a> Fold for DependencyCollector<'a> {
         ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(Box::new(decl)))),
       );
     }
+
+    if self.needs_tier_helpers {
+      res.body.insert(
+        0,
+        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(Box::new(ast::VarDecl {
+          span: DUMMY_SP,
+          kind: ast::VarDeclKind::Var,
+          decls: vec![ast::VarDeclarator {
+            span: DUMMY_SP,
+            name: ast::Pat::Ident(ast::Ident::new("parcel$tier$".into(), DUMMY_SP).into()),
+            init: Some(Box::new(ast::Expr::Call(crate::utils::create_require(
+              "@parcel/transformer-js/src/tier-helpers.js".into(),
+              self.unresolved_mark,
+            )))),
+            definite: false,
+          }],
+          declare: false,
+        })))),
+      );
+    }
+
     res
   }
 
@@ -801,6 +832,9 @@ impl<'a> Fold for DependencyCollector<'a> {
           });
         }
 
+        // Track that we need to add the dependency to the asset
+        self.needs_tier_helpers = true;
+
         // Convert to require without scope hoisting
         if !self.config.scope_hoist && !self.config.standalone {
           let name = match &self.config.source_type {
@@ -817,7 +851,20 @@ impl<'a> Fold for DependencyCollector<'a> {
         let rewritten_call = rewrite_require_specifier(call, self.unresolved_mark);
         self.require_node = Some(rewritten_call.clone());
 
-        rewritten_call
+        // Wrap with the parcelTiers helper
+        ast::CallExpr {
+          span: DUMMY_SP,
+          type_args: None,
+          args: vec![rewritten_call.as_arg()],
+          callee: ast::Callee::Expr(Box::new(Member(MemberExpr {
+            obj: Box::new(ast::Expr::Ident(ast::Ident::new(
+              "parcel$tier$".into(),
+              DUMMY_SP,
+            ))),
+            prop: MemberProp::Ident(ast::Ident::new("load".into(), DUMMY_SP)),
+            span: DUMMY_SP,
+          }))),
+        }
       }
       _ => node.fold_children_with(self),
     }

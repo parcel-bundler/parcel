@@ -1,31 +1,45 @@
-import React, {FC} from 'react';
+import React, {
+  ComponentType,
+  ForwardRefExoticComponent,
+  PropsWithoutRef,
+  RefAttributes,
+  forwardRef,
+} from 'react';
 
-let loaderMap = new WeakMap<DeferredImport<any>, Promise<any>>();
-let componentMap = new WeakMap<DeferredImport<any>, any>();
-
-export function deferredLoadComponent<T>(
-  resource: DeferredImport<T extends {default: any} ? T : never>,
-): FC {
-  if (!loaderMap.has(resource)) {
-    loaderMap.set(
-      resource,
-      new Promise(resolve => {
-        resource.onReady(component => {
-          componentMap.set(resource, component);
-          resolve(component);
-        });
-      }),
-    );
+export function deferredLoadComponent<P extends {[k: string]: any} | undefined>(
+  resource: DeferredImport<{default: ComponentType<P>}>,
+): ForwardRefExoticComponent<
+  PropsWithoutRef<P> & RefAttributes<ComponentType<P>>
+> {
+  // Create a deferred component map in the global context, so we can reuse the components everywhere
+  if (!globalThis.deferredComponentMap) {
+    globalThis.deferredComponentMap = new WeakMap<DeferredImport<any>, any>();
   }
 
-  return function WrappedComponent(props) {
-    const Component = componentMap.get(resource);
+  if (globalThis.deferredComponentMap.has(resource)) {
+    return globalThis.deferredComponentMap.get(resource);
+  }
+
+  let Component: ComponentType | undefined;
+  const loader = new Promise(resolve => {
+    resource.onReady(loaded => {
+      Component = loaded;
+      resolve(loaded);
+    });
+  });
+
+  const wrapper = forwardRef<ComponentType<P>, P>(function DeferredComponent(
+    props,
+    ref,
+  ) {
     if (Component) {
-      return <Component {...props} />;
+      return <Component {...props} ref={ref} />;
     } else {
-      throw (
-        loaderMap.get(resource) ?? new Error(`Loader map did not have resource`)
-      );
+      throw loader;
     }
-  };
+  });
+
+  // Store in weakmap so we only have one instance
+  globalThis.deferredComponentMap.set(resource, wrapper);
+  return wrapper;
 }

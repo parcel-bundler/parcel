@@ -415,6 +415,7 @@ export default (new Transformer({
       hoist_result,
       symbol_result,
       needs_esm_helpers,
+      needs_tier_helpers,
       diagnostics,
       used_env,
       has_node_replacements,
@@ -1068,6 +1069,19 @@ export default (new Transformer({
           },
         });
       }
+    }
+
+    if (needs_tier_helpers) {
+      asset.addDependency({
+        specifier: '@parcel/transformer-js/src/tier-helpers.js',
+        specifierType: 'esm',
+        resolveFrom: __filename,
+        env: {
+          includeNodeModules: {
+            '@parcel/transformer-js': true,
+          },
+        },
+      });
     }
 
     asset.type = 'js';
