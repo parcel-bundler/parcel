@@ -3,7 +3,9 @@
 import {getFeatureFlag} from '@parcel/feature-flags';
 import {Resolver as ResolverNew, ResolverOld} from '@parcel/rust';
 
-export const Resolver = getFeatureFlag('ownedResolverStructures')
+export const ResolverBase: typeof ResolverNew = getFeatureFlag(
+  'ownedResolverStructures',
+)
   ? ResolverNew
   : ResolverOld;
 
