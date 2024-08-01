@@ -188,6 +188,15 @@ impl Plugins for ConfigPlugins {
 
     for transformer in self.config.transformers.get(path, named_pattern).iter() {
       transformer.hash(&mut hasher);
+      if transformer.package_name == "@parcel/transformer-babel"
+        || transformer.package_name == "@parcel/transformer-react-refresh-wrap"
+      {
+        // Currently JS plugins don't work and it's easier to just skip these.
+        // We also will probably remove babel from the defaults and support
+        // react refresh in Rust before releasing native asset graph
+        continue;
+      }
+
       if transformer.package_name == "@parcel/transformer-js" {
         transformers.push(Box::new(ParcelJsTransformerPlugin::new()));
         continue;
