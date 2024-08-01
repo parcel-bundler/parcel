@@ -145,9 +145,9 @@ impl Specifier {
             } else {
               #[cfg(windows)]
               if !flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
-                let path = Path::new(specifier);
+                let path = std::path::PathBuf::from(specifier);
                 if path.is_absolute() {
-                  return Ok((Specifier::Absolute(Cow::Borrowed(path)), None));
+                  return Ok((Specifier::Absolute(path), None));
                 }
               }
 
