@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use package_json::BrowserField;
 use package_json::BrowsersList;
@@ -365,7 +366,7 @@ impl TargetRequest {
           .clone()
           .unwrap_or_else(|| default_dist_dir(&package_json.path)),
         dist_entry: None,
-        env: Environment {
+        env: Arc::new(Environment {
           context,
           engines: package_json
             .contents
@@ -387,7 +388,7 @@ impl TargetRequest {
             .source_maps
             .then(|| TargetSourceMapOptions::default()),
           source_type: SourceType::Module,
-        },
+        }),
         loc: None,
         name: String::from("default"),
         public_url: self.default_target_options.public_url.clone(),
@@ -492,7 +493,7 @@ impl TargetRequest {
         }
       },
       dist_entry,
-      env: Environment {
+      env: Arc::new(Environment {
         context,
         engines: target_descriptor
           .engines
@@ -526,7 +527,7 @@ impl TargetRequest {
           }),
         },
         ..Environment::default()
-      },
+      }),
       loc: None, // TODO
       name: String::from(target_name),
       public_url: target_descriptor
@@ -603,10 +604,10 @@ mod tests {
   fn default_target() -> Target {
     Target {
       dist_dir: PathBuf::from("packages/test/dist"),
-      env: Environment {
+      env: Arc::new(Environment {
         output_format: OutputFormat::Global,
         ..Environment::default()
-      },
+      }),
       name: String::from("default"),
       ..Target::default()
     }
@@ -872,11 +873,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("browser.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Browser,
             output_format: OutputFormat::CommonJS,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("browser"),
           ..Target::default()
         }]
@@ -895,11 +896,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("main.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             output_format: OutputFormat::CommonJS,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("main"),
           ..Target::default()
         }]
@@ -918,11 +919,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("module.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             output_format: OutputFormat::EsModule,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("module"),
           ..Target::default()
         }]
@@ -941,11 +942,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("types.d.ts")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             output_format: OutputFormat::CommonJS,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("types"),
           ..Target::default()
         }]
@@ -988,44 +989,44 @@ mod tests {
           Target {
             dist_dir: package_dir.join("build"),
             dist_entry: Some(PathBuf::from("browser.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Browser,
               output_format: OutputFormat::CommonJS,
               ..env()
-            },
+            }),
             name: String::from("browser"),
             ..Target::default()
           },
           Target {
             dist_dir: package_dir.join("build"),
             dist_entry: Some(PathBuf::from("main.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: OutputFormat::CommonJS,
               ..env()
-            },
+            }),
             name: String::from("main"),
             ..Target::default()
           },
           Target {
             dist_dir: package_dir.clone(),
             dist_entry: Some(PathBuf::from("module.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: OutputFormat::EsModule,
               ..env()
-            },
+            }),
             name: String::from("module"),
             ..Target::default()
           },
           Target {
             dist_dir: package_dir,
             dist_entry: Some(PathBuf::from("types.d.ts")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: OutputFormat::CommonJS,
               ..env()
-            },
+            }),
             name: String::from("types"),
             ..Target::default()
           },
@@ -1045,14 +1046,14 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("dist").join("custom"),
           dist_entry: None,
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Browser,
             is_library: false,
             output_format: OutputFormat::Global,
             should_optimize: false,
             should_scope_hoist: false,
             ..Environment::default()
-          },
+          }),
           name: String::from("custom"),
           ..Target::default()
         }]
@@ -1084,13 +1085,13 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             include_node_modules: IncludeNodeModules::Bool(true),
             is_library: false,
             output_format: OutputFormat::CommonJS,
             ..Environment::default()
-          },
+          }),
           name: String::from("custom"),
           ..Target::default()
         }]
@@ -1119,7 +1120,7 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Browser,
             engines: Engines {
               browsers: Browsers {
@@ -1132,7 +1133,7 @@ mod tests {
             include_node_modules: IncludeNodeModules::Bool(true),
             output_format: OutputFormat::Global,
             ..Environment::default()
-          },
+          }),
           name: String::from("custom"),
           ..Target::default()
         }]
@@ -1150,13 +1151,13 @@ mod tests {
           targets: vec![Target {
             dist_dir: package_dir().join("dist"),
             dist_entry: Some(PathBuf::from("custom.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               engines,
               include_node_modules: IncludeNodeModules::Bool(false),
               output_format: OutputFormat::CommonJS,
               ..Environment::default()
-            },
+            }),
             name: String::from("custom"),
             ..Target::default()
           }]
@@ -1230,10 +1231,10 @@ mod tests {
           targets: vec![Target {
             dist_dir: package_dir().join("dist"),
             dist_entry: Some(PathBuf::from(format!("custom.{ext}"))),
-            env: Environment {
+            env: Arc::new(Environment {
               output_format,
               ..Environment::default()
-            },
+            }),
             name: String::from("custom"),
             ..Target::default()
           }],

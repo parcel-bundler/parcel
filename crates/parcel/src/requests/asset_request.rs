@@ -68,6 +68,7 @@ impl Request for AssetRequest {
     let mut transform_ctx = RunTransformContext::new(
       request_context.file_system().clone(),
       request_context.options.clone(),
+      request_context.project_root.clone(),
     );
 
     let result = run_pipeline(

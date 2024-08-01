@@ -1,6 +1,7 @@
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -27,7 +28,7 @@ pub struct Dependency {
   pub bundle_behavior: BundleBehavior,
 
   /// The environment of the dependency
-  pub env: Environment,
+  pub env: Arc<Environment>,
 
   /// The location within the source file where the dependency was found
   #[serde(default)]
@@ -142,7 +143,7 @@ impl Dependency {
     }
   }
 
-  pub fn new(specifier: String, env: Environment) -> Dependency {
+  pub fn new(specifier: String, env: Arc<Environment>) -> Dependency {
     Dependency {
       env,
       meta: JSONObject::new(),
