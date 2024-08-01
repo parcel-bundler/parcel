@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -9,7 +10,7 @@ use parcel_core::plugin::TransformResult;
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
   Asset, BundleBehavior, Code, CodeFrame, CodeHighlight, Dependency, Diagnostic, DiagnosticBuilder,
-  Environment, EnvironmentContext, File, FileType, ImportAttribute, IncludeNodeModules,
+  Environment, EnvironmentContext, File, FileType, ImportAttribute, IncludeNodeModules, JSONObject,
   OutputFormat, ParcelOptions, SourceLocation, SourceType, SpecifierType, Symbol,
 };
 
@@ -507,6 +508,35 @@ fn convert_dependency(
     )),
     _ => {
       let mut env = asset.env.clone();
+      let mut meta = JSONObject::new();
+      meta.insert(
+        "kind".into(),
+        serde_json::Value::String(format!("{}", transformer_dependency.kind)),
+      );
+
+      if let Some(attributes) = transformer_dependency.attributes {
+        let mut map = serde_json::Map::new();
+
+        let preload: Atom = "preload".into();
+        if attributes.contains_key(&preload) {
+          map.insert("preload".into(), true.into());
+        }
+
+        let prefetch: Atom = "prefetch".into();
+        if attributes.contains_key(&prefetch) {
+          map.insert("prefetch".into(), true.into());
+        }
+
+        meta.insert(
+          String::from("ImportAttributes"),
+          serde_json::Value::Object(map),
+        );
+      }
+
+      if let Some(placeholder) = transformer_dependency.placeholder {
+        meta.insert("placeholder".into(), placeholder.into());
+      }
+
       if transformer_dependency.kind == DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
         if matches!(

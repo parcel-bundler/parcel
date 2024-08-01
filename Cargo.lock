@@ -2133,6 +2133,7 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel_core",
  "parcel_filesystem",
+ "serde_json",
  "swc_core",
 ]
 
