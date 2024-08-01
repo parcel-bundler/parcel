@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use indexmap::IndexMap;
 use itertools::Either;
+#[allow(deprecated)]
 use json_comments::strip_comments_in_place;
 
 use crate::path::resolve_path;
@@ -54,6 +55,7 @@ pub struct TsConfigWrapper<'a> {
 
 impl<'a> TsConfig<'a> {
   pub fn parse(path: PathBuf, data: &'a mut str) -> serde_json::Result<TsConfigWrapper<'a>> {
+    #[allow(deprecated)]
     let _ = strip_comments_in_place(data, Default::default(), true);
     let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
     wrapper.compiler_options.path = path;
