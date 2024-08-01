@@ -392,12 +392,13 @@ fn convert_dependency(
 
   let loc = convert_loc(asset.file_path.clone(), &transformer_dependency.loc);
   let base_dependency = Dependency {
+    env: asset.env.clone(),
+    loc: Some(loc.clone()),
+    priority: convert_priority(&transformer_dependency),
     source_asset_id: Some(format!("{:016x}", asset_id)),
+    source_path: Some(asset.file_path.clone()),
     specifier: transformer_dependency.specifier.as_ref().into(),
     specifier_type: convert_specifier_type(&transformer_dependency),
-    source_path: Some(asset.file_path.clone()),
-    priority: convert_priority(&transformer_dependency),
-    loc: Some(loc.clone()),
     ..Dependency::default()
   };
   let source_type = convert_source_type(&transformer_dependency.source_type);
@@ -432,14 +433,16 @@ fn convert_dependency(
       }
 
       let dependency = Dependency {
-        env: Environment {
+        env: Arc::new(Environment {
           context: EnvironmentContext::WebWorker,
-          source_type,
+          engines: asset.env.engines.clone(),
+          include_node_modules: asset.env.include_node_modules.clone(),
+          loc: asset.env.loc.clone(),
           output_format,
-          loc: Some(loc.clone()),
-          ..asset.env.as_ref().clone()
-        }
-        .into(),
+          source_map: asset.env.source_map.clone(),
+          source_type,
+          ..*asset.env.clone()
+        }),
         ..base_dependency
       };
 
@@ -447,14 +450,16 @@ fn convert_dependency(
     }
     DependencyKind::ServiceWorker => {
       let dependency = Dependency {
-        env: Environment {
+        env: Arc::new(Environment {
           context: EnvironmentContext::ServiceWorker,
-          source_type,
+          engines: asset.env.engines.clone(),
+          include_node_modules: asset.env.include_node_modules.clone(),
+          loc: asset.env.loc.clone(),
           output_format: OutputFormat::Global,
-          loc: Some(loc.clone()),
-          ..asset.env.as_ref().clone()
-        }
-        .into(),
+          source_map: asset.env.source_map.clone(),
+          source_type,
+          ..*asset.env.clone()
+        }),
         needs_stable_name: true,
         // placeholder: dep.placeholder.map(|s| s.into()),
         ..base_dependency
@@ -464,14 +469,16 @@ fn convert_dependency(
     }
     DependencyKind::Worklet => {
       let dependency = Dependency {
-        env: Environment {
+        env: Arc::new(Environment {
           context: EnvironmentContext::Worklet,
-          source_type: SourceType::Module,
+          engines: asset.env.engines.clone(),
+          include_node_modules: asset.env.include_node_modules.clone(),
+          loc: asset.env.loc.clone(),
           output_format: OutputFormat::EsModule,
-          loc: Some(loc.clone()),
-          ..asset.env.as_ref().clone()
-        }
-        .into(),
+          source_map: asset.env.source_map.clone(),
+          source_type: SourceType::Module,
+          ..*asset.env.clone()
+        }),
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
         // promise_symbol: None,
@@ -482,7 +489,7 @@ fn convert_dependency(
     }
     DependencyKind::Url => {
       let dependency = Dependency {
-        env: asset.env.as_ref().clone(),
+        env: asset.env.clone(),
         bundle_behavior: BundleBehavior::Isolated,
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
@@ -499,7 +506,7 @@ fn convert_dependency(
       PathBuf::from(transformer_dependency.specifier.to_string()),
     )),
     _ => {
-      let mut env = asset.env.as_ref().clone();
+      let mut env = asset.env.clone();
       if transformer_dependency.kind == DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
         if matches!(
@@ -541,13 +548,15 @@ fn convert_dependency(
         }
 
         if env.source_type != SourceType::Module || env.output_format != output_format {
-          env = Environment {
-            source_type: SourceType::Module,
+          env = Arc::new(Environment {
+            engines: env.engines.clone(),
+            include_node_modules: env.include_node_modules.clone(),
+            loc: env.loc.clone(),
             output_format,
-            loc: Some(loc.clone()),
-            ..env.clone()
-          }
-          .into();
+            source_map: env.source_map.clone(),
+            source_type: SourceType::Module,
+            ..*env
+          });
         }
       }
 
