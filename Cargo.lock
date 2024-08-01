@@ -1887,6 +1887,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel-dev-dep-resolver-old"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "es-module-lexer",
+ "glob",
+ "parcel-resolver-old",
+ "rayon",
+ "serde_json",
+]
+
+[[package]]
 name = "parcel-js-swc-core"
 version = "0.1.0"
 dependencies = [
@@ -1941,9 +1953,11 @@ dependencies = [
  "oxipng",
  "parcel",
  "parcel-dev-dep-resolver",
+ "parcel-dev-dep-resolver-old",
  "parcel-js-swc-core",
  "parcel-macros",
  "parcel-resolver",
+ "parcel-resolver-old",
  "parcel_core",
  "parcel_napi_helpers",
  "parcel_package_manager",
@@ -1977,6 +1991,7 @@ dependencies = [
  "itertools 0.10.5",
  "json_comments",
  "once_cell",
+ "parcel-resolver-old",
  "parcel_core",
  "parcel_filesystem",
  "parking_lot",
@@ -1987,6 +2002,33 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-subscriber",
+ "typed-arena",
+ "url",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "parcel-resolver-old"
+version = "0.1.0"
+dependencies = [
+ "assert_fs",
+ "bitflags 1.3.2",
+ "dashmap",
+ "elsa",
+ "glob-match",
+ "indexmap 1.9.3",
+ "is_elevated",
+ "itertools 0.10.5",
+ "json_comments",
+ "once_cell",
+ "parcel_core",
+ "parcel_filesystem",
+ "parking_lot",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
  "typed-arena",
  "url",
  "xxhash-rust",

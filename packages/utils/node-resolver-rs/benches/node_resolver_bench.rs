@@ -58,7 +58,7 @@ impl PreloadingFileSystem {
           load_directory(files, &path)
         }
       }
-    };
+    }
     load_directory(&mut files, root);
 
     let files = RwLock::new(files);
@@ -115,7 +115,8 @@ impl FileSystem for PreloadingFileSystem {
     if let Some(FileEntry::File(contents)) = file {
       Ok(contents.to_string())
     } else {
-      return Err(todo!());
+      #[allow(unreachable_code)]
+      return todo!();
     }
   }
 
@@ -146,17 +147,23 @@ fn criterion_benchmark(c: &mut Criterion) {
       CacheCow::Owned(Cache::new(Arc::new(OsFileSystem))),
     )
   };
-  c.bench_function("is file using stat", |b| {
-    let target = root().join("do-not-exist");
-    b.iter(|| black_box(target.exists()));
-  });
+  c.bench_function(
+    "FileSystem - check for non existent file using stat (exists)",
+    |b| {
+      let target = root().join("do-not-exist");
+      b.iter(|| black_box(target.exists()));
+    },
+  );
 
-  c.bench_function("is file using open", |b| {
-    let target = root().join("do-not-exist");
-    b.iter(|| black_box(std::fs::read_to_string(&target).is_err()));
-  });
+  c.bench_function(
+    "FileSystem - check for non existent file open (read_to_string)",
+    |b| {
+      let target = root().join("do-not-exist");
+      b.iter(|| black_box(std::fs::read_to_string(&target).is_err()));
+    },
+  );
 
-  c.bench_function("resolver simple", |b| {
+  c.bench_function("Run safe resolver simple OsFileSystem", |b| {
     b.iter_with_setup(
       || make_resolver(),
       |resolver| {
@@ -169,12 +176,53 @@ fn criterion_benchmark(c: &mut Criterion) {
     );
   });
 
-  c.bench_function("resolver modules", |b| {
+  c.bench_function("Run safe resolver modules OsFileSystem", |b| {
     b.iter_with_setup(
       || make_resolver(),
       |resolver| {
         let result = resolver
           .resolve("@scope/pkg", &root().join("foo.js"), SpecifierType::Cjs)
+          .result
+          .unwrap();
+        black_box(result)
+      },
+    );
+  });
+
+  let make_resolver = || {
+    parcel_resolver_old::Resolver::parcel(
+      root().into(),
+      parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(Arc::new(OsFileSystem))),
+    )
+  };
+
+  c.bench_function("Run unsafe resolver simple OsFileSystem", |b| {
+    b.iter_with_setup(
+      || make_resolver(),
+      |resolver| {
+        let result = resolver
+          .resolve(
+            "./bar.js",
+            &root().join("foo.js"),
+            parcel_resolver_old::SpecifierType::Esm,
+          )
+          .result
+          .unwrap();
+        black_box(result)
+      },
+    );
+  });
+
+  c.bench_function("Run unsafe resolver modules OsFileSystem", |b| {
+    b.iter_with_setup(
+      || make_resolver(),
+      |resolver| {
+        let result = resolver
+          .resolve(
+            "@scope/pkg",
+            &root().join("foo.js"),
+            parcel_resolver_old::SpecifierType::Cjs,
+          )
           .result
           .unwrap();
         black_box(result)
@@ -190,31 +238,86 @@ fn criterion_benchmark(c: &mut Criterion) {
     )
   };
 
-  c.bench_function("resolver preloading", |b| {
-    b.iter_with_setup(
-      || make_resolver(),
-      |resolver| {
-        let result = resolver
-          .resolve("./bar.js", &root().join("foo.js"), SpecifierType::Esm)
-          .result
-          .unwrap();
-        black_box(result)
-      },
-    );
-  });
+  c.bench_function(
+    "Run safe resolver simple - PreloadingFileSystem - No IO",
+    |b| {
+      b.iter_with_setup(
+        || make_resolver(),
+        |resolver| {
+          let result = resolver
+            .resolve("./bar.js", &root().join("foo.js"), SpecifierType::Esm)
+            .result
+            .unwrap();
+          black_box(result)
+        },
+      );
+    },
+  );
 
-  c.bench_function("resolver preloading", |b| {
-    b.iter_with_setup(
-      || make_resolver(),
-      |resolver| {
-        let result = resolver
-          .resolve("@scope/pkg", &root().join("foo.js"), SpecifierType::Cjs)
-          .result
-          .unwrap();
-        black_box(result)
-      },
-    );
-  });
+  c.bench_function(
+    "Run safe resolver modules - PreloadingFileSystem - No IO",
+    |b| {
+      b.iter_with_setup(
+        || make_resolver(),
+        |resolver| {
+          let result = resolver
+            .resolve("@scope/pkg", &root().join("foo.js"), SpecifierType::Cjs)
+            .result
+            .unwrap();
+          black_box(result)
+        },
+      );
+    },
+  );
+
+  let make_resolver = || {
+    parcel_resolver_old::Resolver::parcel(
+      root().into(),
+      parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(Arc::new(
+        preloading_fs.clone(),
+      ))),
+    )
+  };
+
+  c.bench_function(
+    "Run unsafe resolver simple - PreloadingFileSystem - No IO",
+    |b| {
+      b.iter_with_setup(
+        || make_resolver(),
+        |resolver| {
+          let result = resolver
+            .resolve(
+              "./bar.js",
+              &root().join("foo.js"),
+              parcel_resolver_old::SpecifierType::Esm,
+            )
+            .result
+            .unwrap();
+          black_box(result)
+        },
+      );
+    },
+  );
+
+  c.bench_function(
+    "Run unsafe resolver modules - PreloadingFileSystem - No IO",
+    |b| {
+      b.iter_with_setup(
+        || make_resolver(),
+        |resolver| {
+          let result = resolver
+            .resolve(
+              "@scope/pkg",
+              &root().join("foo.js"),
+              parcel_resolver_old::SpecifierType::Cjs,
+            )
+            .result
+            .unwrap();
+          black_box(result)
+        },
+      );
+    },
+  );
 }
 
 criterion_group!(benches, criterion_benchmark);
