@@ -26,8 +26,6 @@ percent-encoding = "2.2.0"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 thiserror = "1.0.59"
-typed-arena = "2.0.2"
-bumpalo = { version = "3.16.0", features = ["collections"] }
 url = "2.3.1"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 tracing = "0.1.40"
