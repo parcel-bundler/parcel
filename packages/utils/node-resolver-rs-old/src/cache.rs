@@ -1,14 +1,15 @@
-use dashmap::DashMap;
-use parcel_core::types::File;
-use parcel_filesystem::FileSystemRef;
-use parking_lot::RwLock;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
+
+use dashmap::DashMap;
+use elsa::sync::FrozenMap;
+use parcel_core::types::File;
+use parcel_filesystem::FileSystemRef;
+use parking_lot::Mutex;
+use typed_arena::Arena;
 
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;
@@ -18,18 +19,20 @@ use crate::ResolverError;
 
 pub struct Cache {
   pub fs: FileSystemRef,
+  /// This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
+  arena: Mutex<Arena<Box<str>>>,
   /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
   /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
   /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
   /// to insert into. Since each value is in a Box, it won't move and therefore references are stable.
-  packages: RwLock<HashMap<PathBuf, Arc<Result<Arc<PackageJson>, ResolverError>>>>,
-  tsconfigs: RwLock<HashMap<PathBuf, Arc<Result<Arc<TsConfigWrapper>, ResolverError>>>>,
+  packages: FrozenMap<PathBuf, Box<Result<PackageJson<'static>, ResolverError>>>,
+  tsconfigs: FrozenMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
   is_file_cache: DashMap<PathBuf, bool>,
   is_dir_cache: DashMap<PathBuf, bool>,
   realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
 }
 
-impl<'a> fmt::Debug for Cache {
+impl fmt::Debug for Cache {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Cache").finish()
   }
@@ -70,28 +73,15 @@ impl JsonError {
       message: err.to_string(),
     }
   }
-
-  fn json5(
-    file: File,
-    serde_json5::Error::Message { msg, location }: serde_json5::Error,
-  ) -> JsonError {
-    JsonError {
-      file,
-      line: location.as_ref().map(|l| l.line).unwrap_or(0),
-      column: location.as_ref().map(|l| l.column).unwrap_or(0),
-      message: msg.to_string(),
-    }
-  }
 }
 
 impl Cache {
   pub fn new(fs: FileSystemRef) -> Self {
-    let packages = HashMap::new();
-    let tsconfigs = HashMap::new();
     Self {
       fs,
-      packages: RwLock::new(packages),
-      tsconfigs: RwLock::new(tsconfigs),
+      arena: Mutex::new(Arena::new()),
+      packages: FrozenMap::new(),
+      tsconfigs: FrozenMap::new(),
       is_file_cache: DashMap::new(),
       is_dir_cache: DashMap::new(),
       realpath_cache: DashMap::new(),
@@ -122,24 +112,22 @@ impl Cache {
     Ok(self.fs.canonicalize(path, &self.realpath_cache)?)
   }
 
-  pub fn read_package(&self, path: Cow<Path>) -> Arc<Result<Arc<PackageJson>, ResolverError>> {
-    {
-      let packages = self.packages.read();
-      if let Some(pkg) = packages.get(path.as_ref()) {
-        return pkg.clone();
-      }
+  pub fn read_package<'a>(&'a self, path: Cow<Path>) -> Result<&'a PackageJson<'a>, ResolverError> {
+    if let Some(pkg) = self.packages.get(path.as_ref()) {
+      return clone_result(pkg);
     }
 
-    fn read_package<'a>(
-      fs: &'a FileSystemRef,
-      realpath_cache: &'a DashMap<PathBuf, Option<PathBuf>>,
-      path: &Path,
-    ) -> Result<PackageJson, ResolverError> {
-      let contents: String = fs.read_to_string(&path)?;
-      let mut pkg = PackageJson::parse(PathBuf::from(path), &contents).map_err(|e| {
+    fn read_package(
+      fs: &FileSystemRef,
+      realpath_cache: &DashMap<PathBuf, Option<PathBuf>>,
+      arena: &Mutex<Arena<Box<str>>>,
+      path: PathBuf,
+    ) -> Result<PackageJson<'static>, ResolverError> {
+      let contents: &str = read(fs, arena, &path)?;
+      let mut pkg = PackageJson::parse(path.clone(), contents).map_err(|e| {
         JsonError::new(
           File {
-            path: PathBuf::from(path),
+            path,
             contents: contents.into(),
           },
           e,
@@ -166,67 +154,74 @@ impl Cache {
     }
 
     let path = path.into_owned();
-    let package: Result<PackageJson, ResolverError> =
-      read_package(&self.fs, &self.realpath_cache, &path);
+    let pkg = self.packages.insert(
+      path.clone(),
+      Box::new(read_package(
+        &self.fs,
+        &self.realpath_cache,
+        &self.arena,
+        path,
+      )),
+    );
 
-    // Since we have exclusive access to packages,
-    let mut packages = self.packages.write();
-    let _ = packages.insert(path.clone(), Arc::new(package.map(|pkg| Arc::new(pkg))));
-    let entry = packages
-      .get(&path)
-      .expect("THE IMPOSSIBLE HAPPENED, LOCK DID NOT GUARANTEE EXCLUSIVE ACCESS")
-      .clone();
-    drop(packages);
-
-    entry.clone()
+    clone_result(pkg)
   }
 
-  pub fn read_tsconfig<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
-    &self,
+  pub fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
+    &'a self,
     path: &Path,
     process: F,
-  ) -> Arc<Result<Arc<TsConfigWrapper>, ResolverError>> {
-    {
-      let tsconfigs = self.tsconfigs.read();
-      if let Some(tsconfig) = tsconfigs.get(path) {
-        return tsconfig.clone();
-      }
-      drop(tsconfigs);
+  ) -> Result<&'a TsConfigWrapper<'a>, ResolverError> {
+    if let Some(tsconfig) = self.tsconfigs.get(path) {
+      return clone_result(tsconfig);
     }
 
-    fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
+    fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
       fs: &FileSystemRef,
+      arena: &Mutex<Arena<Box<str>>>,
       path: &Path,
       process: F,
-    ) -> Result<TsConfigWrapper, ResolverError> {
-      let data = fs.read_to_string(path)?;
-      let mut tsconfig = TsConfig::parse(path.to_owned(), &data).map_err(|e| {
-        JsonError::json5(
+    ) -> Result<TsConfigWrapper<'static>, ResolverError> {
+      let data = read(fs, arena, path)?;
+      let contents = data.to_owned();
+      let mut tsconfig = TsConfig::parse(path.to_owned(), data).map_err(|e| {
+        JsonError::new(
           File {
-            contents: data,
+            contents,
             path: path.to_owned(),
           },
           e,
         )
       })?;
-      process(&mut tsconfig)?;
+      // Convice the borrow checker that 'a will live as long as self and not 'static.
+      // Since the data is in our arena, this is true.
+      process(unsafe { std::mem::transmute(&mut tsconfig) })?;
       Ok(tsconfig)
     }
 
-    // Since we have exclusive access to tsconfigs, it should be impossible for the get to fail
-    // after insert
-    let entry = read_tsconfig(&self.fs, path, process).map(|t| Arc::new(t));
-    let tsconfig = {
-      let mut tsconfigs = self.tsconfigs.write();
-      let _ = tsconfigs.insert(PathBuf::from(path), Arc::new(entry));
-      let tsconfig = tsconfigs
-        .get(path)
-        .expect("THE IMPOSSIBLE HAPPENED, LOCK DID NOT GUARANTEE EXCLUSIVE ACCESS")
-        .clone();
-      drop(tsconfigs);
-      tsconfig
-    };
+    let tsconfig = self.tsconfigs.insert(
+      path.to_owned(),
+      Box::new(read_tsconfig(&self.fs, &self.arena, path, process)),
+    );
 
-    tsconfig
+    clone_result(tsconfig)
+  }
+}
+
+fn read(
+  fs: &FileSystemRef,
+  arena: &Mutex<Arena<Box<str>>>,
+  path: &Path,
+) -> std::io::Result<&'static mut str> {
+  let arena = arena.lock();
+  let data = arena.alloc(fs.read_to_string(path)?.into_boxed_str());
+  // The data lives as long as the arena. In public methods, we only vend temporary references.
+  Ok(unsafe { &mut *(&mut **data as *mut str) })
+}
+
+fn clone_result<T, E: Clone>(res: &Result<T, E>) -> Result<&T, E> {
+  match res {
+    Ok(v) => Ok(v),
+    Err(err) => Err(err.clone()),
   }
 }

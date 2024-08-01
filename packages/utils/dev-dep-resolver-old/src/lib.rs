@@ -7,16 +7,16 @@ use dashmap::DashMap;
 use dashmap::DashSet;
 use es_module_lexer::lex;
 use es_module_lexer::ImportKind;
-use parcel_resolver::CacheCow;
-use parcel_resolver::Invalidations;
-use parcel_resolver::ModuleType;
-use parcel_resolver::Resolution;
-use parcel_resolver::ResolveOptions;
-use parcel_resolver::Resolver;
-use parcel_resolver::ResolverError;
-use parcel_resolver::Specifier;
-use parcel_resolver::SpecifierError;
-use parcel_resolver::SpecifierType;
+use parcel_resolver_old::CacheCow;
+use parcel_resolver_old::Invalidations;
+use parcel_resolver_old::ModuleType;
+use parcel_resolver_old::Resolution;
+use parcel_resolver_old::ResolveOptions;
+use parcel_resolver_old::Resolver;
+use parcel_resolver_old::ResolverError;
+use parcel_resolver_old::Specifier;
+use parcel_resolver_old::SpecifierError;
+use parcel_resolver_old::SpecifierType;
 // use rayon::prelude::{ParallelBridge, ParallelIterator};
 
 #[derive(Debug)]
@@ -97,12 +97,7 @@ impl<'a> EsmGraphBuilder<'a> {
 
     if let Some(invalidations) = self.cache.entries.get(file) {
       self.invalidations.extend(&invalidations);
-      for p in invalidations
-        .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-      {
+      for p in invalidations.invalidate_on_file_change.iter() {
         self.build(&p)?;
       }
       return Ok(());
@@ -185,7 +180,7 @@ impl<'a> EsmGraphBuilder<'a> {
     let specifier = Specifier::parse(pattern, SpecifierType::Esm, resolver.flags)?;
     let pattern = match specifier {
       (Specifier::Absolute(path), _) => path,
-      (Specifier::Relative(relative), _) => resolve_path(from, relative),
+      (Specifier::Relative(relative), _) => Cow::Owned(resolve_path(from, relative)),
       (Specifier::Package(mut package, subpath), _) => {
         // Resolve the package.json file within the package rather than the package entry.
         // TODO: how should we handle package exports?
@@ -197,7 +192,7 @@ impl<'a> EsmGraphBuilder<'a> {
           invalidations,
           ResolveOptions::default(),
         ) {
-          Ok((Resolution::Path(p), _)) => p.parent().unwrap().join(&subpath),
+          Ok((Resolution::Path(p), _)) => Cow::Owned(p.parent().unwrap().join(subpath.as_ref())),
           _ => return Ok(()),
         }
       }
@@ -207,7 +202,7 @@ impl<'a> EsmGraphBuilder<'a> {
     // Invalidate when new files match the glob.
     invalidations.invalidate_on_glob_create(pattern.to_string_lossy());
 
-    if self.visited_globs.contains(&pattern) {
+    if self.visited_globs.contains(pattern.as_ref()) {
       return Ok(());
     }
 
@@ -496,7 +491,7 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
 pub fn build_esm_graph(
   file: &Path,
   project_root: &Path,
-  resolver_cache: &parcel_resolver::Cache,
+  resolver_cache: &parcel_resolver_old::Cache,
   cache: &Cache,
 ) -> Result<Invalidations, EsmGraphBuilderError> {
   let visitor = EsmGraphBuilder {

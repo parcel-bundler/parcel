@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -269,9 +268,9 @@ impl<'a> Resolver<'a> {
     &self,
     from: &Path,
     invalidations: &Invalidations,
-  ) -> Result<Option<Arc<PackageJson>>, ResolverError> {
+  ) -> Result<Option<&PackageJson>, ResolverError> {
     if let Some(path) = self.find_ancestor_file(from, "package.json", invalidations) {
-      let package = self.cache.read_package(Cow::Owned(path)).deref().clone()?;
+      let package = self.cache.read_package(Cow::Owned(path))?;
       return Ok(Some(package));
     }
 
@@ -315,12 +314,12 @@ impl<'a> Resolver<'a> {
 
 struct ResolveRequest<'a> {
   resolver: &'a Resolver<'a>,
-  specifier: &'a Specifier,
+  specifier: &'a Specifier<'a>,
   specifier_type: SpecifierType,
   from: &'a Path,
   flags: RequestFlags,
-  tsconfig: OnceCell<Option<TsConfig>>,
-  root_package: OnceCell<Option<Arc<PackageJson>>>,
+  tsconfig: OnceCell<Option<&'a TsConfig<'a>>>,
+  root_package: OnceCell<Option<&'a PackageJson<'a>>>,
   invalidations: &'a Invalidations,
   conditions: ExportsCondition,
   custom_conditions: &'a [String],
@@ -338,7 +337,7 @@ bitflags! {
 impl<'a> ResolveRequest<'a> {
   fn new(
     resolver: &'a Resolver<'a>,
-    specifier: &'a Specifier,
+    specifier: &'a Specifier<'a>,
     mut specifier_type: SpecifierType,
     from: &'a Path,
     invalidations: &'a Invalidations,
@@ -432,11 +431,10 @@ impl<'a> ResolveRequest<'a> {
     }
   }
 
-  fn root_package(&self) -> Result<Option<Arc<PackageJson>>, ResolverError> {
+  fn root_package(&self) -> Result<&Option<&PackageJson>, ResolverError> {
     self
       .root_package
       .get_or_try_init(|| self.find_package(&self.resolver.project_root))
-      .cloned()
   }
 
   fn resolve(&self) -> Result<Resolution, ResolverError> {
@@ -467,7 +465,7 @@ impl<'a> ResolveRequest<'a> {
           Ok(res)
         } else {
           Err(ResolverError::FileNotFound {
-            relative: specifier.to_owned(),
+            relative: specifier.as_ref().to_owned(),
             from: PathBuf::from("/"),
           })
         }
@@ -520,7 +518,7 @@ impl<'a> ResolveRequest<'a> {
         if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(self.specifier)? {
           return Ok(res);
         }
-        Ok(Resolution::Builtin(builtin.to_owned()))
+        Ok(Resolution::Builtin(builtin.as_ref().to_owned()))
       }
       Specifier::Url(url) => {
         if self.specifier_type == SpecifierType::Url {
@@ -543,7 +541,7 @@ impl<'a> ResolveRequest<'a> {
       .find_ancestor_file(from, filename, self.invalidations)
   }
 
-  fn find_package(&self, from: &Path) -> Result<Option<Arc<PackageJson>>, ResolverError> {
+  fn find_package(&self, from: &Path) -> Result<Option<&'a PackageJson<'a>>, ResolverError> {
     self.resolver.find_package(from, self.invalidations)
   }
 
@@ -556,7 +554,7 @@ impl<'a> ResolveRequest<'a> {
       None
     };
 
-    if let Some(res) = self.load_path(&path, package.as_deref())? {
+    if let Some(res) = self.load_path(&path, package)? {
       return Ok(res);
     }
 
@@ -578,7 +576,7 @@ impl<'a> ResolveRequest<'a> {
     }
 
     // Try aliases and tsconfig paths first.
-    let specifier = Specifier::Package(String::from(module), String::from(subpath));
+    let specifier = Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath));
     if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(&specifier)? {
       return Ok(res);
     }
@@ -593,7 +591,7 @@ impl<'a> ResolveRequest<'a> {
     if self.resolver.flags.contains(Flags::ALIASES) {
       // First, check for an alias in the root package.json.
       if let Some(package) = self.root_package()? {
-        if let Some(res) = self.resolve_aliases(&package, specifier, Fields::ALIAS)? {
+        if let Some(res) = self.resolve_aliases(package, specifier, Fields::ALIAS)? {
           return Ok(Some(res));
         }
       }
@@ -604,7 +602,7 @@ impl<'a> ResolveRequest<'a> {
         if self.resolver.entries.contains(Fields::BROWSER) {
           fields |= Fields::BROWSER;
         }
-        if let Some(res) = self.resolve_aliases(&package, specifier, fields)? {
+        if let Some(res) = self.resolve_aliases(package, specifier, fields)? {
           return Ok(Some(res));
         }
       }
@@ -654,26 +652,16 @@ impl<'a> ResolveRequest<'a> {
     subpath: &str,
   ) -> Result<Resolution, ResolverError> {
     let package_path = package_dir.join("package.json");
-    let package: Result<Arc<PackageJson>, ResolverError> =
-      if self.resolver.cache.fs.is_file(&package_path) {
-        self.invalidations.read(&package_path, || {
-          self
-            .resolver
-            .cache
-            .read_package(Cow::Borrowed(&package_path))
-            .deref()
-            .clone()
-        })
-      } else {
-        Err(ResolverError::FileNotFound {
-          relative: PathBuf::from("package.json"),
-          from: package_dir.clone(),
-        })
-      };
+    let package = self.invalidations.read(&package_path, || {
+      self
+        .resolver
+        .cache
+        .read_package(Cow::Borrowed(&package_path))
+    });
 
     let package = match package {
       Ok(package) => package,
-      Err(ResolverError::IOError(_)) | Err(ResolverError::FileNotFound { .. }) => {
+      Err(ResolverError::IOError(_)) => {
         // No package.json in node_modules is probably invalid but we have tests for it...
         if self.resolver.flags.contains(Flags::DIR_INDEX) {
           if let Some(res) = self.load_file(&package_dir.join(self.resolver.index_file), None)? {
@@ -691,7 +679,7 @@ impl<'a> ResolveRequest<'a> {
     // Try the "source" field first, if present.
     if self.resolver.entries.contains(Fields::SOURCE) && subpath.is_empty() {
       if let Some(source) = package.source() {
-        if let Some(res) = self.load_path(&source, Some(&*package))? {
+        if let Some(res) = self.load_path(&source, Some(package))? {
           return Ok(res);
         }
       }
@@ -716,7 +704,7 @@ impl<'a> ResolveRequest<'a> {
         .flags
         .contains(Flags::EXPORTS_OPTIONAL_EXTENSIONS)
       {
-        if let Some(res) = self.load_file(&path, Some(&*package))? {
+        if let Some(res) = self.load_file(&path, Some(package))? {
           return Ok(res);
         }
       } else if let Some(res) = self.try_file_without_aliases(&path)? {
@@ -731,7 +719,7 @@ impl<'a> ResolveRequest<'a> {
       })
     } else if !subpath.is_empty() {
       package_dir.push(subpath);
-      if let Some(res) = self.load_path(&package_dir, Some(&*package))? {
+      if let Some(res) = self.load_path(&package_dir, Some(package))? {
         return Ok(res);
       }
 
@@ -741,7 +729,7 @@ impl<'a> ResolveRequest<'a> {
         package_path: package.path.clone(),
       })
     } else {
-      let res = self.try_package_entries(&*package);
+      let res = self.try_package_entries(package);
       if let Ok(Some(res)) = res {
         return Ok(res);
       }
@@ -749,7 +737,7 @@ impl<'a> ResolveRequest<'a> {
       // Node ESM doesn't allow directory imports.
       if self.resolver.flags.contains(Flags::DIR_INDEX) {
         if let Some(res) =
-          self.load_file(&package_dir.join(self.resolver.index_file), Some(&*package))?
+          self.load_file(&package_dir.join(self.resolver.index_file), Some(package))?
         {
           return Ok(res);
         }
@@ -951,13 +939,10 @@ impl<'a> ResolveRequest<'a> {
   ) -> Result<Option<Resolution>, ResolverError> {
     // TypeScript supports a moduleSuffixes option in tsconfig.json which allows suffixes
     // such as ".ios" to be appended just before the last extension.
-    let empty_string = String::from("");
-    let empty_string = [empty_string];
-    let tsconfig = self.tsconfig()?;
-    let module_suffixes = tsconfig
-      .as_ref()
+    let module_suffixes = self
+      .tsconfig()?
       .and_then(|tsconfig| tsconfig.module_suffixes.as_ref())
-      .map_or(empty_string.as_slice(), |v| v.as_slice());
+      .map_or([""].as_slice(), |v| v.as_slice());
 
     for suffix in module_suffixes {
       let mut p = if !suffix.is_empty() {
@@ -1014,8 +999,8 @@ impl<'a> ResolveRequest<'a> {
       // Check the project root package.json first.
       if let Some(package) = self.root_package()? {
         if let Ok(s) = path.strip_prefix(package.path.parent().unwrap()) {
-          let specifier = Specifier::Relative(s.to_path_buf());
-          if let Some(res) = self.resolve_aliases(&package, &specifier, Fields::ALIAS)? {
+          let specifier = Specifier::Relative(Cow::Borrowed(s));
+          if let Some(res) = self.resolve_aliases(package, &specifier, Fields::ALIAS)? {
             return Ok(Some(res));
           }
         }
@@ -1024,7 +1009,7 @@ impl<'a> ResolveRequest<'a> {
       // Next try the local package.json.
       if let Some(package) = package {
         if let Ok(s) = path.strip_prefix(package.path.parent().unwrap()) {
-          let specifier = Specifier::Relative(s.to_path_buf());
+          let specifier = Specifier::Relative(Cow::Borrowed(s));
           let mut fields = Fields::ALIAS;
           if self.resolver.entries.contains(Fields::BROWSER) {
             fields |= Fields::BROWSER;
@@ -1063,23 +1048,10 @@ impl<'a> ResolveRequest<'a> {
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
     let mut res = Ok(None);
-    let package_read_result = if self.resolver.cache.fs.is_file(&path) {
-      self
-        .invalidations
-        .read(&path, || {
-          self
-            .resolver
-            .cache
-            .read_package(Cow::Borrowed(&path))
-            .deref()
-            .clone()
-        })
-        .ok()
-    } else {
-      None
-    };
-    let package: Option<Arc<PackageJson>> = if let Some(package) = package_read_result {
-      res = self.try_package_entries(&package);
+    let package = if let Ok(package) = self.invalidations.read(&path, || {
+      self.resolver.cache.read_package(Cow::Borrowed(&path))
+    }) {
+      res = self.try_package_entries(package);
       if matches!(res, Ok(Some(_))) {
         return res;
       }
@@ -1090,8 +1062,10 @@ impl<'a> ResolveRequest<'a> {
 
     // If no package.json, or no entries, try an index file with all possible extensions.
     if self.resolver.flags.contains(Flags::DIR_INDEX) && self.resolver.cache.is_dir(dir) {
-      let target = package.as_deref().or(parent_package);
-      return self.load_file(&dir.join(self.resolver.index_file), target);
+      return self.load_file(
+        &dir.join(self.resolver.index_file),
+        package.or(parent_package),
+      );
     }
 
     res
@@ -1110,7 +1084,7 @@ impl<'a> ResolveRequest<'a> {
     Ok(None)
   }
 
-  fn tsconfig(&self) -> Result<&Option<TsConfig>, ResolverError> {
+  fn tsconfig(&self) -> Result<&Option<&TsConfig>, ResolverError> {
     if self.resolver.flags.contains(Flags::TSCONFIG)
       && self
         .flags
@@ -1130,12 +1104,12 @@ impl<'a> ResolveRequest<'a> {
     }
   }
 
-  fn read_tsconfig(&self, path: PathBuf) -> Result<TsConfig, ResolverError> {
+  fn read_tsconfig(&self, path: PathBuf) -> Result<&'a TsConfig<'a>, ResolverError> {
     let tsconfig = self.invalidations.read(&path, || {
-      let tsconfig = self.resolver.cache.read_tsconfig(&path, |tsconfig| {
+      self.resolver.cache.read_tsconfig(&path, |tsconfig| {
         for i in 0..tsconfig.extends.len() {
           let path = match &tsconfig.extends[i] {
-            Specifier::Absolute(path) => path.to_owned(),
+            Specifier::Absolute(path) => path.as_ref().to_owned(),
             Specifier::Relative(path) => {
               let mut absolute_path = resolve_path(&tsconfig.compiler_options.path, path);
 
@@ -1214,15 +1188,14 @@ impl<'a> ResolveRequest<'a> {
           };
 
           let extended = self.read_tsconfig(path)?;
-          tsconfig.compiler_options.extend(&extended);
+          tsconfig.compiler_options.extend(extended);
         }
 
         Ok(())
-      });
-      tsconfig.deref().clone()
+      })
     })?;
 
-    Ok(tsconfig.compiler_options.clone())
+    Ok(&tsconfig.compiler_options)
   }
 }
 
@@ -1352,19 +1325,14 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_create
-        .read()
-        .unwrap()
-        .iter()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::new()
     );
     assert_eq!(
       invalidations
         .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
@@ -1607,10 +1575,7 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_create
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([FileCreateInvalidation::FileName {
         file_name: "node_modules/foo".into(),
@@ -1620,10 +1585,7 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([
         root().join("node_modules/foo/package.json"),
@@ -1760,10 +1722,7 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_create
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([FileCreateInvalidation::FileName {
         file_name: "node_modules/package-alias".into(),
@@ -1773,10 +1732,7 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([
         root().join("node_modules/package-alias/package.json"),
@@ -2492,20 +2448,14 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_create
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::new()
     );
     assert_eq!(
       invalidations
         .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
@@ -2705,10 +2655,7 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_create
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([
         FileCreateInvalidation::Path(root().join("ts-extensions/a.js")),
@@ -2725,10 +2672,7 @@ mod tests {
     assert_eq!(
       invalidations
         .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-        .cloned()
+        .into_iter()
         .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );

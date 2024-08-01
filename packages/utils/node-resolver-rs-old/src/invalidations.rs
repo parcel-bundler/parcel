@@ -1,9 +1,9 @@
-use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::RwLock;
+
+use dashmap::DashSet;
 
 use crate::path::normalize_path;
 use crate::ResolverError;
@@ -17,8 +17,8 @@ pub enum FileCreateInvalidation {
 
 #[derive(Default, Debug)]
 pub struct Invalidations {
-  pub invalidate_on_file_create: RwLock<HashSet<FileCreateInvalidation>>,
-  pub invalidate_on_file_change: RwLock<HashSet<PathBuf>>,
+  pub invalidate_on_file_create: DashSet<FileCreateInvalidation>,
+  pub invalidate_on_file_change: DashSet<PathBuf>,
   pub invalidate_on_startup: AtomicBool,
 }
 
@@ -26,16 +26,12 @@ impl Invalidations {
   pub fn invalidate_on_file_create(&self, path: &Path) {
     self
       .invalidate_on_file_create
-      .write()
-      .unwrap()
       .insert(FileCreateInvalidation::Path(normalize_path(path)));
   }
 
   pub fn invalidate_on_file_create_above<S: Into<String>>(&self, file_name: S, above: &Path) {
     self
       .invalidate_on_file_create
-      .write()
-      .unwrap()
       .insert(FileCreateInvalidation::FileName {
         file_name: file_name.into(),
         above: normalize_path(above),
@@ -45,16 +41,12 @@ impl Invalidations {
   pub fn invalidate_on_glob_create<S: Into<String>>(&self, glob: S) {
     self
       .invalidate_on_file_create
-      .write()
-      .unwrap()
       .insert(FileCreateInvalidation::Glob(glob.into()));
   }
 
   pub fn invalidate_on_file_change(&self, invalidation: &Path) {
     self
       .invalidate_on_file_change
-      .write()
-      .unwrap()
       .insert(normalize_path(invalidation));
   }
 
@@ -63,20 +55,12 @@ impl Invalidations {
   }
 
   pub fn extend(&self, other: &Invalidations) {
-    for f in other.invalidate_on_file_create.read().unwrap().iter() {
-      self
-        .invalidate_on_file_create
-        .write()
-        .unwrap()
-        .insert(f.clone());
+    for f in other.invalidate_on_file_create.iter() {
+      self.invalidate_on_file_create.insert(f.clone());
     }
 
-    for f in other.invalidate_on_file_change.read().unwrap().iter() {
-      self
-        .invalidate_on_file_change
-        .write()
-        .unwrap()
-        .insert(f.clone());
+    for f in other.invalidate_on_file_change.iter() {
+      self.invalidate_on_file_change.insert(f.clone());
     }
 
     if other.invalidate_on_startup.load(Ordering::Relaxed) {

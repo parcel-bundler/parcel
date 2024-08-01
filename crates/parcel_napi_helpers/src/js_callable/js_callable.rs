@@ -27,6 +27,7 @@ pub type MapJsReturn<Return> = Box<dyn Fn(&Env, JsUnknown) -> napi::Result<Retur
 pub struct JsCallable {
   #[cfg(debug_assertions)]
   initial_thread: ThreadId,
+  #[allow(unused)]
   name: String,
   threadsafe_function: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal>,
 }

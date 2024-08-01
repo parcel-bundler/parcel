@@ -29,7 +29,7 @@ pub fn url_to_path(input: &str) -> Result<PathBuf, SpecifierError> {
 #[cfg(any(target_arch = "wasm32", test))]
 #[inline]
 fn os_str_from_bytes(slice: &[u8]) -> &OsStr {
-  OsStr::new(std::str::from_utf8(slice).expect("Non UTF-8 string"))
+  unsafe { std::mem::transmute(slice) }
 }
 
 #[cfg(test)]

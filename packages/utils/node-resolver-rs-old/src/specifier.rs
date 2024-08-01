@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::path::is_separator;
+use std::path::Path;
 use std::path::PathBuf;
 
 use percent_encoding::percent_decode_str;
@@ -40,22 +41,22 @@ where
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum Specifier {
-  Relative(PathBuf),
-  Absolute(PathBuf),
-  Tilde(PathBuf),
-  Hash(String),
-  Package(String, String),
-  Builtin(String),
-  Url(String),
+pub enum Specifier<'a> {
+  Relative(Cow<'a, Path>),
+  Absolute(Cow<'a, Path>),
+  Tilde(Cow<'a, Path>),
+  Hash(Cow<'a, str>),
+  Package(Cow<'a, str>, Cow<'a, str>),
+  Builtin(Cow<'a, str>),
+  Url(&'a str),
 }
 
-impl Specifier {
+impl<'a> Specifier<'a> {
   pub fn parse(
-    specifier: &str,
+    specifier: &'a str,
     specifier_type: SpecifierType,
     flags: Flags,
-  ) -> Result<(Specifier, Option<&str>), SpecifierError> {
+  ) -> Result<(Specifier<'a>, Option<&'a str>), SpecifierError> {
     if specifier.is_empty() {
       return Err(SpecifierError::EmptySpecifier);
     }
@@ -81,13 +82,13 @@ impl Specifier {
       b'/' => {
         if specifier.starts_with("//") && specifier_type == SpecifierType::Url {
           // A protocol-relative URL, e.g `url('//example.com/foo.png')`.
-          (Specifier::Url(String::from(specifier)), None)
+          (Specifier::Url(specifier), None)
         } else {
           let (path, query) = decode_path(specifier, specifier_type);
           (Specifier::Absolute(path), query)
         }
       }
-      b'#' => (Specifier::Hash(String::from(&specifier[1..])), None),
+      b'#' => (Specifier::Hash(Cow::Borrowed(&specifier[1..])), None),
       _ => {
         // Bare specifier.
         match specifier_type {
@@ -99,7 +100,7 @@ impl Specifier {
               match scheme.as_ref() {
                 "npm" if flags.contains(Flags::NPM_SCHEME) => {
                   if BUILTINS.contains(&path) {
-                    return Ok((Specifier::Builtin(String::from(path)), None));
+                    return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
                   }
 
                   (
@@ -110,10 +111,13 @@ impl Specifier {
                 "node" => {
                   // Node does not URL decode or support query params here.
                   // See https://github.com/nodejs/node/issues/39710.
-                  (Specifier::Builtin(String::from(path)), None)
+                  (Specifier::Builtin(Cow::Borrowed(path)), None)
                 }
-                "file" => (Specifier::Absolute(url_to_path(specifier)?), query),
-                _ => (Specifier::Url(String::from(specifier)), None),
+                "file" => (
+                  Specifier::Absolute(Cow::Owned(url_to_path(specifier)?)),
+                  query,
+                ),
+                _ => (Specifier::Url(specifier), None),
               }
             } else {
               // If not, then parse as an npm package if this is an ESM specifier,
@@ -121,7 +125,7 @@ impl Specifier {
               let (path, rest) = parse_path(specifier);
               if specifier_type == SpecifierType::Esm {
                 if BUILTINS.contains(&path) {
-                  return Ok((Specifier::Builtin(String::from(path)), None));
+                  return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
                 }
 
                 let (query, _) = parse_query(rest);
@@ -137,17 +141,17 @@ impl Specifier {
           }
           SpecifierType::Cjs => {
             if let Some(node_prefixed) = specifier.strip_prefix("node:") {
-              return Ok((Specifier::Builtin(String::from(node_prefixed)), None));
+              return Ok((Specifier::Builtin(Cow::Borrowed(node_prefixed)), None));
             }
 
             if BUILTINS.contains(&specifier) {
-              (Specifier::Builtin(String::from(specifier)), None)
+              (Specifier::Builtin(Cow::Borrowed(specifier)), None)
             } else {
               #[cfg(windows)]
               if !flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
-                let path = std::path::PathBuf::from(specifier);
+                let path = Path::new(specifier);
                 if path.is_absolute() {
-                  return Ok((Specifier::Absolute(path), None));
+                  return Ok((Specifier::Absolute(Cow::Borrowed(path)), None));
                 }
               }
 
@@ -159,12 +163,12 @@ impl Specifier {
     })
   }
 
-  pub fn to_string<'a>(&'a self) -> Cow<'a, str> {
+  pub fn to_string(&'a self) -> Cow<'a, str> {
     match self {
       Specifier::Relative(path) | Specifier::Absolute(path) | Specifier::Tilde(path) => {
         path.as_os_str().to_string_lossy()
       }
-      Specifier::Hash(path) => Cow::Borrowed(path),
+      Specifier::Hash(path) => path.clone(),
       Specifier::Package(module, subpath) => {
         if subpath.is_empty() {
           Cow::Borrowed(module)
@@ -244,11 +248,17 @@ fn parse_package(specifier: Cow<'_, str>) -> Result<Specifier, SpecifierError> {
   match specifier {
     Cow::Borrowed(specifier) => {
       let (module, subpath) = parse_package_specifier(specifier)?;
-      Ok(Specifier::Package(module.to_string(), subpath.to_string()))
+      Ok(Specifier::Package(
+        Cow::Borrowed(module),
+        Cow::Borrowed(subpath),
+      ))
     }
     Cow::Owned(specifier) => {
       let (module, subpath) = parse_package_specifier(&specifier)?;
-      Ok(Specifier::Package(module.to_owned(), subpath.to_owned()))
+      Ok(Specifier::Package(
+        Cow::Owned(module.to_owned()),
+        Cow::Owned(subpath.to_owned()),
+      ))
     }
   }
 }
@@ -272,36 +282,42 @@ pub fn parse_package_specifier(specifier: &str) -> Result<(&str, &str), Specifie
   }
 }
 
-pub fn decode_path(specifier: &str, specifier_type: SpecifierType) -> (PathBuf, Option<&str>) {
+pub fn decode_path(
+  specifier: &str,
+  specifier_type: SpecifierType,
+) -> (Cow<'_, Path>, Option<&str>) {
   match specifier_type {
     SpecifierType::Url | SpecifierType::Esm => {
       let (path, rest) = parse_path(specifier);
       let (query, _) = parse_query(rest);
-      let path = PathBuf::from(percent_decode_str(path).decode_utf8_lossy().to_string());
+      let path = match percent_decode_str(path).decode_utf8_lossy() {
+        Cow::Borrowed(v) => Cow::Borrowed(Path::new(v)),
+        Cow::Owned(v) => Cow::Owned(PathBuf::from(v)),
+      };
       (path, query)
     }
-    SpecifierType::Cjs => (PathBuf::from(specifier), None),
+    SpecifierType::Cjs => (Cow::Borrowed(Path::new(specifier)), None),
   }
 }
 
-impl From<&str> for Specifier {
-  fn from(specifier: &str) -> Self {
+impl<'a> From<&'a str> for Specifier<'a> {
+  fn from(specifier: &'a str) -> Self {
     Specifier::parse(specifier, SpecifierType::Cjs, Flags::empty())
       .unwrap()
       .0
   }
 }
 
-impl<'de> serde::Deserialize<'de> for Specifier {
+impl<'a, 'de: 'a> serde::Deserialize<'de> for Specifier<'a> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
   {
     use serde::Deserialize;
-    let s: String = Deserialize::deserialize(deserializer)?;
+    let s: &'de str = Deserialize::deserialize(deserializer)?;
     // Specifiers are only deserialized as part of the "alias" and "browser" fields,
     // so we assume CJS specifiers in Parcel mode.
-    Specifier::parse(&s, SpecifierType::Cjs, Flags::empty())
+    Specifier::parse(s, SpecifierType::Cjs, Flags::empty())
       .map(|s| s.0)
       .map_err(|_| serde::de::Error::custom("Invalid specifier"))
   }

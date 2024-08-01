@@ -2,6 +2,7 @@
 
 import type {Environment, ParcelOptions, Target} from '../src/types';
 
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 import {FSCache} from '@parcel/cache';
 import tempy from 'tempy';
 import path from 'path';
@@ -53,6 +54,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
     sourceMaps: false,
   },
   featureFlags: {
+    ...DEFAULT_FEATURE_FLAGS,
     exampleFeature: false,
     parcelV3: false,
     importRetry: false,

@@ -19,25 +19,25 @@ use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
 use parcel::file_system::FileSystemRef;
-use parcel_resolver::ExportsCondition;
-use parcel_resolver::Extensions;
-use parcel_resolver::Fields;
-use parcel_resolver::FileCreateInvalidation;
-use parcel_resolver::FileSystem;
-use parcel_resolver::Flags;
-use parcel_resolver::IncludeNodeModules;
-use parcel_resolver::Invalidations;
-use parcel_resolver::ModuleType;
+use parcel_resolver_old::ExportsCondition;
+use parcel_resolver_old::Extensions;
+use parcel_resolver_old::Fields;
+use parcel_resolver_old::FileCreateInvalidation;
+use parcel_resolver_old::FileSystem;
+use parcel_resolver_old::Flags;
+use parcel_resolver_old::IncludeNodeModules;
+use parcel_resolver_old::Invalidations;
+use parcel_resolver_old::ModuleType;
 #[cfg(not(target_arch = "wasm32"))]
-use parcel_resolver::OsFileSystem;
-use parcel_resolver::Resolution;
-use parcel_resolver::ResolverError;
-use parcel_resolver::SpecifierType;
+use parcel_resolver_old::OsFileSystem;
+use parcel_resolver_old::Resolution;
+use parcel_resolver_old::ResolverError;
+use parcel_resolver_old::SpecifierType;
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
 #[napi(object)]
-pub struct JsFileSystemOptions {
+pub struct JsFileSystemOptionsOld {
   pub canonicalize: JsFunction,
   pub read: JsFunction,
   pub is_file: JsFunction,
@@ -45,9 +45,9 @@ pub struct JsFileSystemOptions {
   pub include_node_modules: Option<NapiSideEffectsVariants>,
 }
 
-#[napi(object, js_name = "FileSystem")]
-pub struct JsResolverOptions {
-  pub fs: Option<JsFileSystemOptions>,
+#[napi(object, js_name = "FileSystemOld")]
+pub struct JsResolverOptionsOld {
+  pub fs: Option<JsFileSystemOptionsOld>,
   pub include_node_modules: Option<NapiSideEffectsVariants>,
   pub conditions: Option<u16>,
   pub module_dir_resolver: Option<JsFunction>,
@@ -146,7 +146,7 @@ impl FileSystem for JsFileSystem {
 }
 
 #[napi(object)]
-pub struct ResolveOptions {
+pub struct ResolveOptionsOld {
   pub filename: String,
   pub specifier_type: String,
   pub parent: String,
@@ -154,27 +154,32 @@ pub struct ResolveOptions {
 }
 
 #[napi(object)]
-pub struct FilePathCreateInvalidation {
+pub struct FilePathCreateInvalidationOld {
   pub file_path: String,
 }
 
 #[napi(object)]
-pub struct FileNameCreateInvalidation {
+pub struct FileNameCreateInvalidationOld {
   pub file_name: String,
   pub above_file_path: String,
 }
 
 #[napi(object)]
-pub struct GlobCreateInvalidation {
+pub struct GlobCreateInvalidationOld {
   pub glob: String,
 }
 
 #[napi(object)]
-pub struct ResolveResult {
+pub struct ResolveResultOld {
   pub resolution: JsUnknown,
   pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create:
-    Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
+  pub invalidate_on_file_create: Vec<
+    Either3<
+      FilePathCreateInvalidationOld,
+      FileNameCreateInvalidationOld,
+      GlobCreateInvalidationOld,
+    >,
+  >,
   pub query: Option<String>,
   pub side_effects: bool,
   pub error: JsUnknown,
@@ -182,26 +187,31 @@ pub struct ResolveResult {
 }
 
 #[napi(object)]
-pub struct JsInvalidations {
+pub struct JsInvalidationsOld {
   pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create:
-    Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
+  pub invalidate_on_file_create: Vec<
+    Either3<
+      FilePathCreateInvalidationOld,
+      FileNameCreateInvalidationOld,
+      GlobCreateInvalidationOld,
+    >,
+  >,
   pub invalidate_on_startup: bool,
 }
 
 #[napi]
-pub struct Resolver {
+pub struct ResolverOld {
   mode: u8,
-  resolver: parcel_resolver::Resolver<'static>,
+  resolver: parcel_resolver_old::Resolver<'static>,
   #[cfg(not(target_arch = "wasm32"))]
-  invalidations_cache: parcel_dev_dep_resolver::Cache,
+  invalidations_cache: parcel_dev_dep_resolver_old::Cache,
   supports_async: bool,
 }
 
 #[napi]
-impl Resolver {
+impl ResolverOld {
   #[napi(constructor)]
-  pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
+  pub fn new(project_root: String, options: JsResolverOptionsOld, env: Env) -> Result<Self> {
     let mut supports_async = false;
     #[cfg(not(target_arch = "wasm32"))]
     let fs: FileSystemRef = if let Some(fs) = options.fs {
@@ -227,13 +237,13 @@ impl Resolver {
     };
 
     let mut resolver = match options.mode {
-      1 => parcel_resolver::Resolver::parcel(
+      1 => parcel_resolver_old::Resolver::parcel(
         Cow::Owned(project_root.into()),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+        parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(fs)),
       ),
-      2 => parcel_resolver::Resolver::node(
+      2 => parcel_resolver_old::Resolver::node(
         Cow::Owned(project_root.into()),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+        parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(fs)),
       ),
       _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
     };
@@ -294,8 +304,8 @@ impl Resolver {
 
   fn resolve_internal(
     &self,
-    options: ResolveOptions,
-  ) -> napi::Result<(parcel_resolver::ResolveResult, bool, u8)> {
+    options: ResolveOptionsOld,
+  ) -> napi::Result<(parcel_resolver_old::ResolveResult, bool, u8)> {
     let mut res = self.resolver.resolve_with_options(
       &options.filename,
       Path::new(&options.parent),
@@ -358,15 +368,15 @@ impl Resolver {
   fn resolve_result_to_js(
     &self,
     env: Env,
-    res: parcel_resolver::ResolveResult,
+    res: parcel_resolver_old::ResolveResult,
     side_effects: bool,
     module_type: u8,
-  ) -> napi::Result<ResolveResult> {
+  ) -> napi::Result<ResolveResultOld> {
     let (invalidate_on_file_change, invalidate_on_file_create) =
       convert_invalidations(res.invalidations);
 
     match res.result {
-      Ok((res, query)) => Ok(ResolveResult {
+      Ok((res, query)) => Ok(ResolveResultOld {
         resolution: env.to_js_value(&res)?,
         invalidate_on_file_change,
         invalidate_on_file_create,
@@ -375,7 +385,7 @@ impl Resolver {
         error: env.get_undefined()?.into_unknown(),
         module_type,
       }),
-      Err(err) => Ok(ResolveResult {
+      Err(err) => Ok(ResolveResultOld {
         resolution: env.get_undefined()?.into_unknown(),
         invalidate_on_file_change,
         invalidate_on_file_create,
@@ -388,7 +398,7 @@ impl Resolver {
   }
 
   #[napi]
-  pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
+  pub fn resolve(&self, options: ResolveOptionsOld, env: Env) -> Result<ResolveResultOld> {
     let (res, side_effects, module_type) = self.resolve_internal(options)?;
     self.resolve_result_to_js(env, res, side_effects, module_type)
   }
@@ -401,7 +411,7 @@ impl Resolver {
 
   #[cfg(not(target_arch = "wasm32"))]
   #[napi]
-  pub fn resolve_async(&'static self, options: ResolveOptions, env: Env) -> Result<JsObject> {
+  pub fn resolve_async(&'static self, options: ResolveOptionsOld, env: Env) -> Result<JsObject> {
     let (deferred, promise) = env.create_deferred()?;
     let resolver = &self.resolver;
 
@@ -426,15 +436,15 @@ impl Resolver {
 
   #[cfg(target_arch = "wasm32")]
   #[napi]
-  pub fn get_invalidations(&self, _path: String) -> napi::Result<JsInvalidations> {
+  pub fn get_invalidations(&self, _path: String) -> napi::Result<JsInvalidationsOld> {
     panic!("getInvalidations() is not supported in Wasm builds")
   }
 
   #[cfg(not(target_arch = "wasm32"))]
   #[napi]
-  pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
+  pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidationsOld> {
     let path = Path::new(&path);
-    match parcel_dev_dep_resolver::build_esm_graph(
+    match parcel_dev_dep_resolver_old::build_esm_graph(
       path,
       &self.resolver.project_root,
       &self.resolver.cache,
@@ -444,7 +454,7 @@ impl Resolver {
         let invalidate_on_startup = invalidations.invalidate_on_startup.load(Ordering::Relaxed);
         let (invalidate_on_file_change, invalidate_on_file_create) =
           convert_invalidations(invalidations);
-        Ok(JsInvalidations {
+        Ok(JsInvalidationsOld {
           invalidate_on_file_change,
           invalidate_on_file_create,
           invalidate_on_startup,
@@ -462,37 +472,39 @@ fn convert_invalidations(
   invalidations: Invalidations,
 ) -> (
   Vec<String>,
-  Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
+  Vec<
+    Either3<
+      FilePathCreateInvalidationOld,
+      FileNameCreateInvalidationOld,
+      GlobCreateInvalidationOld,
+    >,
+  >,
 ) {
-  let invalidate_on_file_change = invalidations.invalidate_on_file_change.read().unwrap();
-  let invalidate_on_file_change = invalidate_on_file_change
-    .iter()
+  let invalidate_on_file_change = invalidations
+    .invalidate_on_file_change
+    .into_iter()
     .map(|p| p.to_string_lossy().into_owned())
     .collect();
   let invalidate_on_file_create = invalidations
     .invalidate_on_file_create
-    .read()
-    .unwrap()
-    .iter()
+    .into_iter()
     .map(|i| match i {
-      FileCreateInvalidation::Path(p) => Either3::A(FilePathCreateInvalidation {
+      FileCreateInvalidation::Path(p) => Either3::A(FilePathCreateInvalidationOld {
         file_path: p.to_string_lossy().into_owned(),
       }),
       FileCreateInvalidation::FileName { file_name, above } => {
-        Either3::B(FileNameCreateInvalidation {
-          file_name: file_name.clone(),
+        Either3::B(FileNameCreateInvalidationOld {
+          file_name,
           above_file_path: above.to_string_lossy().into_owned(),
         })
       }
-      FileCreateInvalidation::Glob(glob) => {
-        Either3::C(GlobCreateInvalidation { glob: glob.clone() })
-      }
+      FileCreateInvalidation::Glob(glob) => Either3::C(GlobCreateInvalidationOld { glob }),
     })
     .collect();
   (invalidate_on_file_change, invalidate_on_file_create)
 }
 
-fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::ResolveOptions {
+fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver_old::ResolveOptions {
   let mut conditions = ExportsCondition::empty();
   custom_conditions.retain(|condition| {
     if let Ok(cond) = ExportsCondition::try_from(condition.as_ref()) {
@@ -503,7 +515,7 @@ fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::R
     }
   });
 
-  parcel_resolver::ResolveOptions {
+  parcel_resolver_old::ResolveOptions {
     conditions,
     custom_conditions,
   }

@@ -33,29 +33,29 @@ bitflags! {
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct PackageJson {
+pub struct PackageJson<'a> {
   #[serde(skip)]
   pub path: PathBuf,
   #[serde(default)]
-  pub name: String,
+  pub name: &'a str,
   #[serde(rename = "type", default)]
   pub module_type: ModuleType,
-  main: Option<String>,
-  module: Option<String>,
-  tsconfig: Option<String>,
-  types: Option<String>,
+  main: Option<&'a str>,
+  module: Option<&'a str>,
+  tsconfig: Option<&'a str>,
+  types: Option<&'a str>,
   #[serde(default)]
-  pub source: SourceField,
+  pub source: SourceField<'a>,
   #[serde(default)]
-  browser: BrowserField,
+  browser: BrowserField<'a>,
   #[serde(default)]
-  alias: IndexMap<Specifier, AliasValue>,
+  alias: IndexMap<Specifier<'a>, AliasValue<'a>>,
   #[serde(default)]
-  exports: ExportsField,
+  exports: ExportsField<'a>,
   #[serde(default)]
-  imports: IndexMap<ExportsKey, ExportsField>,
+  imports: IndexMap<ExportsKey<'a>, ExportsField<'a>>,
   #[serde(default)]
-  side_effects: SideEffects,
+  side_effects: SideEffects<'a>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default, PartialEq)]
@@ -70,59 +70,62 @@ pub enum ModuleType {
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(untagged)]
-pub enum BrowserField {
+pub enum BrowserField<'a> {
   #[default]
   None,
-  String(String),
-  Map(IndexMap<Specifier, AliasValue>),
+  #[serde(borrow)]
+  String(&'a str),
+  Map(IndexMap<Specifier<'a>, AliasValue<'a>>),
 }
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(untagged)]
-pub enum SourceField {
+pub enum SourceField<'a> {
   #[default]
   None,
-  String(String),
-  Map(IndexMap<Specifier, AliasValue>),
-  Array(Vec<String>),
+  #[serde(borrow)]
+  String(&'a str),
+  Map(IndexMap<Specifier<'a>, AliasValue<'a>>),
+  Array(Vec<&'a str>),
   Bool(bool),
 }
 
 #[derive(serde::Deserialize, Debug, Default, PartialEq)]
 #[serde(untagged)]
-pub enum ExportsField {
+pub enum ExportsField<'a> {
   #[default]
   None,
-  String(String),
-  Array(Vec<ExportsField>),
-  Map(IndexMap<ExportsKey, ExportsField>),
+  #[serde(borrow)]
+  String(&'a str),
+  Array(Vec<ExportsField<'a>>),
+  Map(IndexMap<ExportsKey<'a>, ExportsField<'a>>),
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub enum ExportsKey {
+pub enum ExportsKey<'a> {
   Main,
-  Pattern(String),
+  Pattern(&'a str),
   Condition(ExportsCondition),
-  CustomCondition(String),
+  CustomCondition(&'a str),
 }
 
-impl<'a> From<&'a str> for ExportsKey {
+impl<'a> From<&'a str> for ExportsKey<'a> {
   fn from(key: &'a str) -> Self {
     if key == "." {
       ExportsKey::Main
     } else if let Some(key) = key.strip_prefix("./") {
-      ExportsKey::Pattern(key.to_string())
+      ExportsKey::Pattern(key)
     } else if let Some(key) = key.strip_prefix('#') {
-      ExportsKey::Pattern(key.to_string())
+      ExportsKey::Pattern(key)
     } else if let Ok(c) = ExportsCondition::try_from(key) {
       ExportsKey::Condition(c)
     } else {
-      ExportsKey::CustomCondition(key.to_string())
+      ExportsKey::CustomCondition(key)
     }
   }
 }
 
-impl<'de> Deserialize<'de> for ExportsKey {
+impl<'a, 'de: 'a> Deserialize<'de> for ExportsKey<'a> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
@@ -134,20 +137,24 @@ impl<'de> Deserialize<'de> for ExportsKey {
 
 #[derive(serde::Deserialize, Clone, PartialEq, Debug)]
 #[serde(untagged)]
-pub enum AliasValue {
-  Specifier(Specifier),
+pub enum AliasValue<'a> {
+  #[serde(borrow)]
+  Specifier(Specifier<'a>),
   Bool(bool),
-  Global { global: String },
+  Global {
+    global: &'a str,
+  },
 }
 
 #[derive(serde::Deserialize, Clone, Default, PartialEq, Debug)]
 #[serde(untagged)]
-pub enum SideEffects {
+pub enum SideEffects<'a> {
   #[default]
   None,
   Boolean(bool),
-  String(String),
-  Array(Vec<String>),
+  #[serde(borrow)]
+  String(&'a str),
+  Array(Vec<&'a str>),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -165,8 +172,8 @@ pub enum ExportsResolution<'a> {
   Package(Cow<'a, str>),
 }
 
-impl PackageJson {
-  pub fn parse(path: PathBuf, data: &str) -> serde_json::Result<PackageJson> {
+impl<'a> PackageJson<'a> {
+  pub fn parse(path: PathBuf, data: &'a str) -> serde_json::Result<PackageJson<'a>> {
     let mut parsed: PackageJson = serde_json::from_str(data)?;
     parsed.path = path;
     Ok(parsed)
@@ -183,12 +190,13 @@ impl PackageJson {
     match &self.source {
       SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => None,
       SourceField::String(source) => Some(resolve_path(&self.path, source)),
-      SourceField::Map(map) => {
-        match map.get(&Specifier::Package(self.name.clone(), String::from(""))) {
-          Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(resolve_path(&self.path, s)),
-          _ => None,
-        }
-      }
+      SourceField::Map(map) => match map.get(&Specifier::Package(
+        Cow::Borrowed(self.name),
+        Cow::Borrowed(""),
+      )) {
+        Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(resolve_path(&self.path, s)),
+        _ => None,
+      },
     }
   }
 
@@ -198,7 +206,7 @@ impl PackageJson {
 
   pub fn resolve_package_exports(
     &self,
-    subpath: &str,
+    subpath: &'a str,
     conditions: ExportsCondition,
     custom_conditions: &[String],
   ) -> Result<PathBuf, PackageJsonError> {
@@ -259,7 +267,7 @@ impl PackageJson {
 
   pub fn resolve_package_imports(
     &self,
-    specifier: &str,
+    specifier: &'a str,
     conditions: ExportsCondition,
     custom_conditions: &[String],
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
@@ -283,7 +291,7 @@ impl PackageJson {
 
   fn resolve_package_target(
     &self,
-    target: &ExportsField,
+    target: &'a ExportsField,
     pattern_match: &str,
     is_imports: bool,
     conditions: ExportsCondition,
@@ -301,11 +309,11 @@ impl PackageJson {
             return Ok(ExportsResolution::Package(Cow::Owned(target)));
           }
 
-          return Ok(ExportsResolution::Package(Cow::Owned(target.clone())));
+          return Ok(ExportsResolution::Package(Cow::Borrowed(target)));
         }
 
         let target = if pattern_match.is_empty() {
-          Cow::Borrowed(target)
+          Cow::Borrowed(*target)
         } else {
           Cow::Owned(target.replace('*', pattern_match))
         };
@@ -380,13 +388,13 @@ impl PackageJson {
 
   fn resolve_package_imports_exports(
     &self,
-    match_key: &str,
-    match_obj: &IndexMap<ExportsKey, ExportsField>,
+    match_key: &'a str,
+    match_obj: &'a IndexMap<ExportsKey<'a>, ExportsField<'a>>,
     is_imports: bool,
     conditions: ExportsCondition,
     custom_conditions: &[String],
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
-    let pattern = ExportsKey::Pattern(match_key.to_string());
+    let pattern = ExportsKey::Pattern(match_key);
     if let Some(target) = match_obj.get(&pattern) {
       if !match_key.contains('*') {
         return self.resolve_package_target(target, "", is_imports, conditions, custom_conditions);
@@ -413,7 +421,7 @@ impl PackageJson {
 
     if !best_key.is_empty() {
       return self.resolve_package_target(
-        &match_obj[&ExportsKey::Pattern(best_key.to_string())],
+        &match_obj[&ExportsKey::Pattern(best_key)],
         best_match,
         is_imports,
         conditions,
@@ -424,11 +432,11 @@ impl PackageJson {
     Ok(ExportsResolution::None)
   }
 
-  pub fn resolve_aliases<'b>(
-    &'b self,
-    specifier: &'b Specifier,
+  pub fn resolve_aliases(
+    &self,
+    specifier: &Specifier<'a>,
     fields: Fields,
-  ) -> Option<Cow<'b, AliasValue>> {
+  ) -> Option<Cow<'_, AliasValue>> {
     if fields.contains(Fields::SOURCE) {
       if let SourceField::Map(source) = &self.source {
         match self.resolve_alias(source, specifier) {
@@ -457,18 +465,18 @@ impl PackageJson {
     None
   }
 
-  fn resolve_alias<'b>(
-    &'b self,
-    map: &'b IndexMap<Specifier, AliasValue>,
-    specifier: &'b Specifier,
-  ) -> Option<Cow<'b, AliasValue>> {
+  fn resolve_alias(
+    &self,
+    map: &'a IndexMap<Specifier<'a>, AliasValue<'a>>,
+    specifier: &Specifier<'a>,
+  ) -> Option<Cow<'_, AliasValue>> {
     if let Some(alias) = self.lookup_alias(map, specifier) {
       return Some(alias);
     }
 
     if let Specifier::Package(package, subpath) = specifier {
       if let Some(alias) =
-        self.lookup_alias(map, &Specifier::Package(package.clone(), String::from("")))
+        self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed("")))
       {
         match alias.as_ref() {
           AliasValue::Specifier(base) => {
@@ -476,7 +484,7 @@ impl PackageJson {
             match base {
               Specifier::Package(base_pkg, base_subpath) => {
                 let subpath = if !base_subpath.is_empty() && !subpath.is_empty() {
-                  format!("{}/{}", base_subpath, subpath)
+                  Cow::Owned(format!("{}/{}", base_subpath, subpath))
                 } else if !subpath.is_empty() {
                   subpath.clone()
                 } else {
@@ -492,7 +500,7 @@ impl PackageJson {
                   return Some(alias);
                 } else {
                   return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(
-                    path.join(&subpath),
+                    Cow::Owned(path.join(subpath.as_ref())),
                   ))));
                 }
               }
@@ -501,7 +509,7 @@ impl PackageJson {
                   return Some(alias);
                 } else {
                   return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(
-                    path.join(subpath),
+                    Cow::Owned(path.join(subpath.as_ref())),
                   ))));
                 }
               }
@@ -510,7 +518,7 @@ impl PackageJson {
                   return Some(alias);
                 } else {
                   return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(
-                    path.join(subpath),
+                    Cow::Owned(path.join(subpath.as_ref())),
                   ))));
                 }
               }
@@ -525,11 +533,11 @@ impl PackageJson {
     None
   }
 
-  fn lookup_alias<'b>(
+  fn lookup_alias(
     &self,
-    map: &'b IndexMap<Specifier, AliasValue>,
-    specifier: &Specifier,
-  ) -> Option<Cow<'b, AliasValue>> {
+    map: &'a IndexMap<Specifier<'a>, AliasValue<'a>>,
+    specifier: &Specifier<'a>,
+  ) -> Option<Cow<'_, AliasValue>> {
     if let Some(value) = map.get(specifier) {
       return Some(Cow::Borrowed(value));
     }
@@ -565,10 +573,9 @@ impl PackageJson {
               Specifier::Absolute(replace_path_captures(r, &path, &captures)?)
             }
             Specifier::Tilde(r) => Specifier::Tilde(replace_path_captures(r, &path, &captures)?),
-            Specifier::Package(module, subpath) => Specifier::Package(
-              module.clone(),
-              replace_captures(subpath, &path, &captures).to_string(),
-            ),
+            Specifier::Package(module, subpath) => {
+              Specifier::Package(module.clone(), replace_captures(subpath, &path, &captures))
+            }
             _ => return Some(Cow::Borrowed(value)),
           }),
           _ => return Some(Cow::Borrowed(value)),
@@ -621,18 +628,19 @@ fn replace_path_captures<'a>(
   s: &'a Path,
   path: &str,
   captures: &Vec<Range<usize>>,
-) -> Option<PathBuf> {
-  Some(PathBuf::from(replace_captures(
-    s.as_os_str().to_str()?,
-    path,
-    captures,
-  )))
+) -> Option<Cow<'a, Path>> {
+  Some(
+    match replace_captures(s.as_os_str().to_str()?, path, captures) {
+      Cow::Borrowed(b) => Cow::Borrowed(Path::new(b)),
+      Cow::Owned(b) => Cow::Owned(PathBuf::from(b)),
+    },
+  )
 }
 
 /// Inserts captures matched in a glob against `path` using a pattern string.
 /// Replacements are inserted using JS-like $N syntax, e.g. $1 for the first capture.
-fn replace_captures<'a>(s: &'a str, path: &str, captures: &Vec<Range<usize>>) -> String {
-  let mut res = s.to_string();
+fn replace_captures<'a>(s: &'a str, path: &str, captures: &Vec<Range<usize>>) -> Cow<'a, str> {
+  let mut res = Cow::Borrowed(s);
   let bytes = s.as_bytes();
   for (idx, _) in s.match_indices('$').rev() {
     let mut end = idx;
@@ -643,7 +651,9 @@ fn replace_captures<'a>(s: &'a str, path: &str, captures: &Vec<Range<usize>>) ->
     if end != idx {
       if let Ok(capture_index) = s[idx + 1..end + 1].parse::<usize>() {
         if capture_index > 0 && capture_index - 1 < captures.len() {
-          res.replace_range(idx..end + 1, &path[captures[capture_index - 1].clone()]);
+          res
+            .to_mut()
+            .replace_range(idx..end + 1, &path[captures[capture_index - 1].clone()]);
         }
       }
     }
@@ -674,7 +684,7 @@ fn pattern_key_compare(a: &str, b: &str) -> Ordering {
 }
 
 pub struct EntryIter<'a> {
-  package: &'a PackageJson,
+  package: &'a PackageJson<'a>,
   fields: Fields,
 }
 
@@ -691,7 +701,7 @@ impl<'a> Iterator for EntryIter<'a> {
 
     if self.fields.contains(Fields::TYPES) {
       self.fields.remove(Fields::TYPES);
-      if let Some(types) = &self.package.types {
+      if let Some(types) = self.package.types {
         return Some((resolve_path(&self.package.path, types), "types"));
       }
     }
@@ -705,8 +715,8 @@ impl<'a> Iterator for EntryIter<'a> {
         }
         BrowserField::Map(map) => {
           if let Some(AliasValue::Specifier(Specifier::Relative(s))) = map.get(&Specifier::Package(
-            self.package.name.clone(),
-            String::from(""),
+            Cow::Borrowed(self.package.name),
+            Cow::Borrowed(""),
           )) {
             return Some((resolve_path(&self.package.path, s), "browser"));
           }
@@ -716,21 +726,21 @@ impl<'a> Iterator for EntryIter<'a> {
 
     if self.fields.contains(Fields::MODULE) {
       self.fields.remove(Fields::MODULE);
-      if let Some(module) = &self.package.module {
+      if let Some(module) = self.package.module {
         return Some((resolve_path(&self.package.path, module), "module"));
       }
     }
 
     if self.fields.contains(Fields::MAIN) {
       self.fields.remove(Fields::MAIN);
-      if let Some(main) = &self.package.main {
+      if let Some(main) = self.package.main {
         return Some((resolve_path(&self.package.path, main), "main"));
       }
     }
 
     if self.fields.contains(Fields::TSCONFIG) {
       self.fields.remove(Fields::TSCONFIG);
-      if let Some(tsconfig) = &self.package.tsconfig {
+      if let Some(tsconfig) = self.package.tsconfig {
         return Some((resolve_path(&self.package.path, tsconfig), "tsconfig"));
       }
     }
@@ -753,8 +763,8 @@ mod tests {
   fn exports_string() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
-      exports: ExportsField::String(String::from("./exports.js")),
+      name: "foobar",
+      exports: ExportsField::String("./exports.js"),
       ..PackageJson::default()
     };
 
@@ -772,9 +782,9 @@ mod tests {
   fn exports_dot() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        ".".into() => ExportsField::String(String::from("./exports.js"))
+        ".".into() => ExportsField::String("./exports.js")
       }),
       ..PackageJson::default()
     };
@@ -796,11 +806,11 @@ mod tests {
   fn exports_dot_conditions() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
         ".".into() => ExportsField::Map(indexmap! {
-          "import".into() => ExportsField::String(String::from("./import.js")),
-          "require".into() => ExportsField::String(String::from("./require.js"))
+          "import".into() => ExportsField::String("./import.js"),
+          "require".into() => ExportsField::String("./require.js")
         })
       }),
       ..PackageJson::default()
@@ -836,12 +846,12 @@ mod tests {
   fn exports_map_string() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./foo".into() => ExportsField::String(String::from("./exports.js")),
-        "./.invisible".into() => ExportsField::String(String::from("./.invisible.js")),
-        "./".into() => ExportsField::String(String::from("./")),
-        "./*".into() => ExportsField::String(String::from("./*.js"))
+        "./foo".into() => ExportsField::String("./exports.js"),
+        "./.invisible".into() => ExportsField::String("./.invisible.js"),
+        "./".into() => ExportsField::String("./"),
+        "./*".into() => ExportsField::String("./*.js")
       }),
       ..PackageJson::default()
     };
@@ -870,11 +880,11 @@ mod tests {
   fn exports_map_conditions() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./foo".into() => ExportsField::Map(indexmap! {
-          "import".into() => ExportsField::String(String::from("./import.js")),
-          "require".into() => ExportsField::String(String::from("./require.js"))
+          "import".into() => ExportsField::String("./import.js"),
+          "require".into() => ExportsField::String("./require.js")
         })
       }),
       ..PackageJson::default()
@@ -910,13 +920,13 @@ mod tests {
   fn nested_conditions() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "node".into() => ExportsField::Map(indexmap! {
-          "import".into() => ExportsField::String(String::from("./import.js")),
-          "require".into() => ExportsField::String(String::from("./require.js"))
+          "import".into() => ExportsField::String("./import.js"),
+          "require".into() => ExportsField::String("./require.js")
         }),
-        "default".into() => ExportsField::String(String::from("./default.js"))
+        "default".into() => ExportsField::String("./default.js")
       }),
       ..PackageJson::default()
     };
@@ -957,10 +967,10 @@ mod tests {
   fn custom_conditions() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "custom".into() => ExportsField::String(String::from("./custom.js")),
-        "default".into() => ExportsField::String(String::from("./default.js"))
+        "custom".into() => ExportsField::String("./custom.js"),
+        "default".into() => ExportsField::String("./default.js")
       }),
       ..PackageJson::default()
     };
@@ -982,16 +992,16 @@ mod tests {
   fn subpath_nested_conditions() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./lite".into() => ExportsField::Map(indexmap! {
           "node".into() => ExportsField::Map(indexmap! {
-            "import".into() => ExportsField::String(String::from("./node_import.js")),
-            "require".into() => ExportsField::String(String::from("./node_require.js"))
+            "import".into() => ExportsField::String("./node_import.js"),
+            "require".into() => ExportsField::String("./node_require.js")
           }),
           "browser".into() => ExportsField::Map(indexmap! {
-            "import".into() => ExportsField::String(String::from("./browser_import.js")),
-            "require".into() => ExportsField::String(String::from("./browser_require.js"))
+            "import".into() => ExportsField::String("./browser_import.js"),
+            "require".into() => ExportsField::String("./browser_require.js")
           }),
         })
       }),
@@ -1048,12 +1058,12 @@ mod tests {
   fn subpath_star() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./*".into() => ExportsField::String(String::from("./cheese/*.mjs")),
-        "./pizza/*".into() => ExportsField::String(String::from("./pizza/*.mjs")),
-        "./burritos/*".into() => ExportsField::String(String::from("./burritos/*/*.mjs")),
-        "./literal".into() => ExportsField::String(String::from("./literal/*.js")),
+        "./*".into() => ExportsField::String("./cheese/*.mjs"),
+        "./pizza/*".into() => ExportsField::String("./pizza/*.mjs"),
+        "./burritos/*".into() => ExportsField::String("./burritos/*/*.mjs"),
+        "./literal".into() => ExportsField::String("./literal/*.js"),
       }),
       ..PackageJson::default()
     };
@@ -1097,9 +1107,9 @@ mod tests {
 
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./*".into() => ExportsField::String(String::from("./*.js")),
+        "./*".into() => ExportsField::String("./*.js"),
         "./*.js".into() => ExportsField::None,
         "./internal/*".into() => ExportsField::None,
       }),
@@ -1125,9 +1135,9 @@ mod tests {
   fn exports_null() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./features/*.js".into() => ExportsField::String(String::from("./src/features/*.js")),
+        "./features/*.js".into() => ExportsField::String("./src/features/*.js"),
         "./features/private-internal/*".into() => ExportsField::None,
       }),
       ..PackageJson::default()
@@ -1159,18 +1169,18 @@ mod tests {
   fn exports_array() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./utils/*".into() => ExportsField::Map(indexmap! {
           "browser".into() => ExportsField::Map(indexmap! {
-            "worklet".into() => ExportsField::Array(vec![ExportsField::String(String::from("./*")), ExportsField::String(String::from("./node/*"))]),
+            "worklet".into() => ExportsField::Array(vec![ExportsField::String("./*"), ExportsField::String("./node/*")]),
             "default".into() => ExportsField::Map(indexmap! {
-              "node".into() => ExportsField::String(String::from("./node/*"))
+              "node".into() => ExportsField::String("./node/*")
             })
           })
         }),
-        "./test/*".into() => ExportsField::Array(vec![ExportsField::String(String::from("lodash/*")), ExportsField::String(String::from("./bar/*"))]),
-        "./file".into() => ExportsField::Array(vec![ExportsField::String(String::from("http://a.com")), ExportsField::String(String::from("./file.js"))])
+        "./test/*".into() => ExportsField::Array(vec![ExportsField::String("lodash/*"), ExportsField::String("./bar/*")]),
+        "./file".into() => ExportsField::Array(vec![ExportsField::String("http://a.com"), ExportsField::String("./file.js")])
       }),
       ..PackageJson::default()
     };
@@ -1218,12 +1228,12 @@ mod tests {
 
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Array(vec![
         ExportsField::Map(indexmap! {
-          "node".into() => ExportsField::String(String::from("./a.js"))
+          "node".into() => ExportsField::String("./a.js")
         }),
-        ExportsField::String(String::from("./b.js")),
+        ExportsField::String("./b.js"),
       ]),
       ..PackageJson::default()
     };
@@ -1246,16 +1256,16 @@ mod tests {
   fn exports_invalid() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./invalid".into() => ExportsField::String(String::from("../invalid")),
-        "./absolute".into() => ExportsField::String(String::from("/absolute")),
-        "./package".into() => ExportsField::String(String::from("package")),
-        "./utils/index".into() => ExportsField::String(String::from("./src/../index.js")),
-        "./dist/*".into() => ExportsField::String(String::from("./src/../../*")),
-        "./modules/*".into() => ExportsField::String(String::from("./node_modules/*")),
-        "./modules2/*".into() => ExportsField::String(String::from("./NODE_MODULES/*")),
-        "./*/*".into() => ExportsField::String(String::from("./file.js"))
+        "./invalid".into() => ExportsField::String("../invalid"),
+        "./absolute".into() => ExportsField::String("/absolute"),
+        "./package".into() => ExportsField::String("package"),
+        "./utils/index".into() => ExportsField::String("./src/../index.js"),
+        "./dist/*".into() => ExportsField::String("./src/../../*"),
+        "./modules/*".into() => ExportsField::String("./node_modules/*"),
+        "./modules2/*".into() => ExportsField::String("./NODE_MODULES/*"),
+        "./*/*".into() => ExportsField::String("./file.js")
       }),
       ..PackageJson::default()
     };
@@ -1295,10 +1305,10 @@ mod tests {
 
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        ".".into() => ExportsField::String(String::from("./foo.js")),
-        "node".into() => ExportsField::String(String::from("./bar.js")),
+        ".".into() => ExportsField::String("./foo.js"),
+        "node".into() => ExportsField::String("./bar.js"),
       }),
       ..PackageJson::default()
     };
@@ -1317,11 +1327,11 @@ mod tests {
   fn imports() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       imports: indexmap! {
-        "#foo".into() => ExportsField::String(String::from("./foo.mjs")),
-        "#internal/*".into() => ExportsField::String(String::from("./src/internal/*.mjs")),
-        "#bar".into() => ExportsField::String(String::from("bar")),
+        "#foo".into() => ExportsField::String("./foo.mjs"),
+        "#internal/*".into() => ExportsField::String("./src/internal/*.mjs"),
+        "#bar".into() => ExportsField::String("bar"),
       },
       ..PackageJson::default()
     };
@@ -1350,11 +1360,11 @@ mod tests {
   fn import_conditions() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       imports: indexmap! {
         "#entry/*".into() => ExportsField::Map(indexmap! {
-          "node".into() => ExportsField::String(String::from("./node/*.js")),
-          "browser".into() => ExportsField::String(String::from("./browser/*.js"))
+          "node".into() => ExportsField::String("./node/*.js"),
+          "browser".into() => ExportsField::String("./browser/*.js")
         })
       },
       ..PackageJson::default()
@@ -1387,7 +1397,7 @@ mod tests {
   fn aliases() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       alias: indexmap! {
         "./foo.js".into() => AliasValue::Specifier("./foo-alias.js".into()),
         "bar".into()  => AliasValue::Specifier("./bar-alias.js".into()),
@@ -1498,7 +1508,7 @@ mod tests {
   fn side_effects_none() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       ..PackageJson::default()
     };
 
@@ -1511,7 +1521,7 @@ mod tests {
   fn side_effects_bool() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
+      name: "foobar",
       side_effects: SideEffects::Boolean(false),
       ..PackageJson::default()
     };
@@ -1534,8 +1544,8 @@ mod tests {
   fn side_effects_glob() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
-      side_effects: SideEffects::String(String::from("*.css")),
+      name: "foobar",
+      side_effects: SideEffects::String("*.css"),
       ..PackageJson::default()
     };
 
@@ -1547,7 +1557,7 @@ mod tests {
     assert!(pkg.has_side_effects(Path::new("/index.js")));
 
     let pkg = PackageJson {
-      side_effects: SideEffects::String(String::from("bar/*.css")),
+      side_effects: SideEffects::String("bar/*.css"),
       ..pkg
     };
 
@@ -1559,7 +1569,7 @@ mod tests {
     assert!(pkg.has_side_effects(Path::new("/index.js")));
 
     let pkg = PackageJson {
-      side_effects: SideEffects::String(String::from("./bar/*.css")),
+      side_effects: SideEffects::String("./bar/*.css"),
       ..pkg
     };
 
@@ -1575,8 +1585,8 @@ mod tests {
   fn side_effects_array() {
     let pkg = PackageJson {
       path: "/foo/package.json".into(),
-      name: String::from("foobar"),
-      side_effects: SideEffects::Array(vec![String::from("*.css"), String::from("*.html")]),
+      name: "foobar",
+      side_effects: SideEffects::Array(vec!["*.css", "*.html"]),
       ..PackageJson::default()
     };
 
