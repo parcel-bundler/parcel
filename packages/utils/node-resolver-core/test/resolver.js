@@ -39,8 +39,8 @@ const BROWSER_ENV = new Environment(
 [true, false].forEach(value => {
   beforeEach(() => {
     setFeatureFlags({
-      ownedResolverStructures: value,
       ...DEFAULT_FEATURE_FLAGS,
+      ownedResolverStructures: value,
     });
   });
   afterEach(() => {
