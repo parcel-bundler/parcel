@@ -49,7 +49,7 @@ const BROWSER_ENV = new Environment(
     });
   });
 
-  describe(`resolver with ff ${value}`, function () {
+  describe(`resolver with ff ${String(value)}`, function () {
     let resolver, prodResolver;
 
     beforeEach(async function () {
