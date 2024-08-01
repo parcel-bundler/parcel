@@ -163,8 +163,7 @@ impl AssetGraphBuilder {
           code: code.clone(),
           pipeline: pipeline.clone(),
           side_effects,
-          // TODO: Dependency.env should be an Arc by default
-          env: Arc::new(dependency.env.clone()),
+          env: dependency.env.clone(),
           query,
         }
       }
