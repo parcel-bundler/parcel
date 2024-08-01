@@ -594,7 +594,6 @@ export class NodePackageManager implements PackageManager {
     }
 
     if (res.error) {
-      console.log(res.error);
       let e = new Error(`Could not resolve module "${name}" from "${from}"`);
       // $FlowFixMe
       e.code = 'MODULE_NOT_FOUND';
