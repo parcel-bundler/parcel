@@ -3,6 +3,8 @@ import path from 'path';
 import {
   bundle,
   bundler,
+  describe,
+  it,
   run,
   assertBundles,
   distDir,
@@ -17,7 +19,7 @@ import {
   MockPackageInstaller,
 } from '@parcel/package-manager';
 
-describe('postcss', () => {
+describe.v2('postcss', () => {
   it('should build successfully with only postcss-modules config', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-modules-config/index.js'),

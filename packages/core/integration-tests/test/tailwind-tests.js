@@ -1,8 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, outputFS} from '@parcel/test-utils';
+import {bundle, describe, it, outputFS} from '@parcel/test-utils';
 
-describe('tailwind', function () {
+describe.v2('tailwind', function () {
   it('should support tailwind from SCSS', async function () {
     let fixture = path.join(__dirname, '/integration/tailwind-scss');
     let b = await bundle(path.join(fixture, 'index.html'));

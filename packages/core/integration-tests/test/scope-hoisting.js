@@ -8,10 +8,12 @@ import {
   assertBundles,
   bundle as _bundle,
   bundler as _bundler,
+  describe,
   distDir,
   findAsset,
   findDependency,
   getNextBuild,
+  it,
   mergeParcelOptions,
   outputFS,
   overlayFS,
@@ -50,7 +52,7 @@ const bundler = (name, opts = {}) => {
   );
 };
 
-describe('scope hoisting', function () {
+describe.v2('scope hoisting', function () {
   describe('es6', function () {
     it('supports default imports and exports of expressions', async function () {
       let b = await bundle(

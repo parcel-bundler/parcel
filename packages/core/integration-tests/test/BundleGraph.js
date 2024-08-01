@@ -2,10 +2,10 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, fsFixture, overlayFS} from '@parcel/test-utils';
+import {bundle, describe, fsFixture, it, overlayFS} from '@parcel/test-utils';
 import type {BundleGraph, BundleGroup, PackagedBundle} from '@parcel/types';
 
-describe('BundleGraph', () => {
+describe.v2('BundleGraph', () => {
   it('can traverse assets across bundles and contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),

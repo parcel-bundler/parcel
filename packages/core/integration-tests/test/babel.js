@@ -5,9 +5,11 @@ import path from 'path';
 import {
   bundle,
   bundler,
+  describe,
   distDir,
   getNextBuild,
   inputFS as fs,
+  it,
   outputFS,
   removeDistDirectory,
   run,
@@ -22,7 +24,7 @@ import {md} from '@parcel/diagnostic';
 const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
 
-describe('babel', function () {
+describe.v2('babel', function () {
   let subscription;
   beforeEach(async function () {
     // TODO maybe don't do this for all tests

@@ -2,14 +2,14 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundler, outputFS} from '@parcel/test-utils';
+import {bundler, describe, it, outputFS} from '@parcel/test-utils';
 
 const config = path.join(
   __dirname,
   './integration/custom-configs/.parcelrc-build-metrics',
 );
 
-describe('Build Metrics Reporter', () => {
+describe.v2('Build Metrics Reporter', () => {
   it('Should dump bundle metrics to parcel-metrics.json', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,

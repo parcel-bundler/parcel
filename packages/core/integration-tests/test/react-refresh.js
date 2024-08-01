@@ -5,7 +5,9 @@ import path from 'path';
 import {
   bundle,
   bundler,
+  describe,
   getNextBuild,
+  it,
   overlayFS as fs,
   sleep,
   run,
@@ -28,7 +30,7 @@ try {
 }
 
 if (MessageChannel) {
-  describe('react-refresh', function () {
+  describe.v2('react-refresh', function () {
     describe('synchronous (automatic runtime)', () => {
       const testDir = path.join(
         __dirname,

@@ -1,9 +1,9 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, run} from '@parcel/test-utils';
+import {bundle, describe, it, run} from '@parcel/test-utils';
 import {parse, print} from 'graphql/language';
 
-describe('graphql', function () {
+describe.v2('graphql', function () {
   it('should support requiring graphql files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/graphql/index.js'));
 

@@ -6,7 +6,9 @@ import SourceMap from '@parcel/source-map';
 import type {InitialParcelOptions} from '@parcel/types';
 import {
   bundle as _bundle,
+  describe,
   inputFS,
+  it,
   outputFS,
   overlayFS,
   shallowEqual,
@@ -148,7 +150,7 @@ function checkSourceMapping({
   );
 }
 
-describe('sourcemaps', function () {
+describe.v2('sourcemaps', function () {
   it('Should create a basic browser sourcemap', async function () {
     let sourceFilename = path.join(
       __dirname,

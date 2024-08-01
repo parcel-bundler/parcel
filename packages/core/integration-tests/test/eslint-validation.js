@@ -1,14 +1,14 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import {bundle} from '@parcel/test-utils';
+import {bundle, describe, it} from '@parcel/test-utils';
 
 const config = path.join(
   __dirname,
   './integration/custom-configs/.parcelrc-eslint',
 );
 
-describe('eslint-validator', function () {
+describe.v2('eslint-validator', function () {
   it('should throw validation error with eslint errors', async function () {
     let didThrow = false;
     let entry = path.join(__dirname, '/integration/eslint-error/index.js');

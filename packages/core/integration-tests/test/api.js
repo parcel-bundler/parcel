@@ -2,17 +2,19 @@
 import path from 'path';
 import assert from 'assert';
 import {
-  distDir,
-  bundle,
   assertBundles,
+  bundle,
+  describe,
+  distDir,
+  fsFixture,
+  it,
   outputFS,
   overlayFS,
-  fsFixture,
 } from '@parcel/test-utils';
 
 import {PARCEL_VERSION} from '../../core/src/constants';
 
-describe('JS API', function () {
+describe.v2('JS API', function () {
   it('should respect distEntry', async function () {
     const NAME = 'custom-name.js';
 
@@ -68,7 +70,7 @@ describe('JS API', function () {
       await fsFixture(overlayFS, dir)`
       index.js:
         export default 'Hi';
-      
+
       .parcelrc:
         {
           extends: "@parcel/config-default",
@@ -81,7 +83,7 @@ describe('JS API', function () {
         }
 
       yarn.lock:
-      
+
       reporter-plugin.js:
         import {Reporter} from '@parcel/plugin';
         import path from 'node:path';

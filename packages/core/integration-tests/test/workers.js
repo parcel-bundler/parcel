@@ -1,16 +1,18 @@
 import assert from 'assert';
 import path from 'path';
 import {
+  assertBundles,
   bundle,
+  describe,
+  inputFS,
+  it,
+  outputFS,
+  removeDistDirectory,
   run,
   runBundle,
-  assertBundles,
-  removeDistDirectory,
-  outputFS,
-  inputFS,
 } from '@parcel/test-utils';
 
-describe('parcel', function () {
+describe.v2('parcel', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

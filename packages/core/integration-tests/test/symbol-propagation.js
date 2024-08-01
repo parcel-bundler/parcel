@@ -1,8 +1,15 @@
 import assert from 'assert';
 import path from 'path';
-import {bundler, run, overlayFS, fsFixture} from '@parcel/test-utils';
+import {
+  bundler,
+  describe,
+  fsFixture,
+  it,
+  overlayFS,
+  run,
+} from '@parcel/test-utils';
 
-describe('symbol propagation', () => {
+describe.v2('symbol propagation', () => {
   it('should handle removed assets from previous failed builds', async () => {
     await fsFixture(overlayFS, __dirname)`
         broken.js:

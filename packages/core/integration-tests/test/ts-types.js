@@ -3,7 +3,9 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
+  describe,
   inputFS,
+  it,
   overlayFS,
   outputFS,
   ncp,
@@ -12,7 +14,7 @@ import {
 import {md} from '@parcel/diagnostic';
 import {normalizeSeparators} from '@parcel/utils';
 
-describe('typescript types', function () {
+describe.v2('typescript types', function () {
   it('should generate a typescript declaration file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts'),
@@ -473,7 +475,7 @@ describe('typescript types', function () {
         export function foo() {
           return 'foo' + baz();
         }
-      
+
       ErrorBoundaryContext.ts:
         import { createContext } from "react";
         export type ErrorBoundaryContextType = {};
@@ -482,11 +484,11 @@ describe('typescript types', function () {
       ErrorBoundary.ts:
         import { Component, createElement, PropsWithChildren } from "react";
         import { ErrorBoundaryContext } from "./ErrorBoundaryContext";
-        
+
         export class ErrorBoundary extends Component<PropsWithChildren> {
           render() {
             const { children } = this.props;
-        
+
             return createElement(
               ErrorBoundaryContext.Provider,
               {
