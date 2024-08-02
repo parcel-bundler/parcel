@@ -1,9 +1,16 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
-import {bundle, run, overlayFS, fsFixture} from '@parcel/test-utils';
+import {
+  bundle,
+  describe,
+  it,
+  run,
+  overlayFS,
+  fsFixture,
+} from '@parcel/test-utils';
 
-describe('plugins with "registered" languages', () => {
+describe.v2('plugins with "registered" languages', () => {
   it('should support plugins with esbuild-register', async () => {
     const dir = path.join(__dirname, 'esbuild-register-plugin');
     overlayFS.mkdirp(dir);
@@ -16,16 +23,16 @@ describe('plugins with "registered" languages', () => {
         }
 
       yarn.lock:
-      
+
       index.js:
         console.log("Hi, mum!");
-      
+
       .parcelrc:
         {
           extends: "@parcel/config-default",
           reporters: ["...", "./reporter-plugin.js"],
         }
-      
+
       reporter-plugin.js:
         require('esbuild-register/dist/node').register();
         const plugin = require('./reporter-plugin.ts');
@@ -42,7 +49,7 @@ describe('plugins with "registered" languages', () => {
                 }
             }
         });
-      
+
       some-string.ts:
         export const someString = 'something';
         `;

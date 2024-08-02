@@ -1,9 +1,17 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
-import {bundle, run, ncp, overlayFS, outputFS} from '@parcel/test-utils';
+import {
+  bundle,
+  describe,
+  it,
+  run,
+  ncp,
+  overlayFS,
+  outputFS,
+} from '@parcel/test-utils';
 
-describe('resolver', function () {
+describe.v2('resolver', function () {
   it('should support resolving tilde in monorepo packages', async function () {
     let b = await bundle(
       path.join(

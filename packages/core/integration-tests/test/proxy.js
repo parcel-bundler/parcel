@@ -1,7 +1,7 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
-import {bundler, getNextBuild, inputFS} from '@parcel/test-utils';
+import {bundler, describe, getNextBuild, inputFS, it} from '@parcel/test-utils';
 import http from 'http';
 import getPort from 'get-port';
 
@@ -47,7 +47,7 @@ function get(file, port, client = http) {
   });
 }
 
-describe('proxy', function () {
+describe.v2('proxy', function () {
   let subscription;
   let cwd;
   let server;

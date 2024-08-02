@@ -7,6 +7,8 @@ import path from 'path';
 import {
   assertBundles,
   bundler,
+  describe,
+  it,
   run,
   runBundle as runSingleBundle,
   overlayFS,
@@ -117,7 +119,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   return b;
 }
 
-describe('cache', function () {
+describe.v2('cache', function () {
   before(async () => {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });

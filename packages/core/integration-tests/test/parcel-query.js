@@ -1,10 +1,10 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import {overlayFS, bundle, fsFixture} from '@parcel/test-utils';
+import {bundle, describe, fsFixture, overlayFS} from '@parcel/test-utils';
 import {loadGraphs} from '../../../dev/query/src';
 
-describe('parcel-query', () => {
+describe.v2('parcel-query', () => {
   it('loadGraphs', async function () {
     let entries = 'index.js';
     let options = {

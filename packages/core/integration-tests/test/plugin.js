@@ -8,9 +8,11 @@ import {
   assertBundles,
   bundle,
   bundler,
+  describe,
   distDir,
   findAsset,
   getNextBuild,
+  it,
   outputFS as fs,
   overlayFS,
   run,
@@ -18,7 +20,7 @@ import {
 import * as wasmmap from 'wasm-sourcemap';
 import {relativePath} from '@parcel/utils';
 
-describe('plugin', function () {
+describe.v2('plugin', function () {
   it("continue transformer pipeline on type change that doesn't change the pipeline", async function () {
     await bundle(
       path.join(__dirname, '/integration/pipeline-type-change/index.ini'),

@@ -3,7 +3,7 @@
 import type {ProgramOptions} from '@parcel/link';
 
 import {createProgram as _createProgram} from '@parcel/link';
-import {overlayFS, fsFixture} from '@parcel/test-utils';
+import {describe, fsFixture, it, overlayFS} from '@parcel/test-utils';
 
 import assert from 'assert';
 import path from 'path';
@@ -19,7 +19,7 @@ function createProgram(opts: ProgramOptions) {
   return cli;
 }
 
-describe('@parcel/link', () => {
+describe.v2('@parcel/link', () => {
   let _cwd;
   let _stdout;
 

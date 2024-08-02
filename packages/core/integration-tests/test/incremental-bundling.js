@@ -1,8 +1,10 @@
 // @flow strict-local
 import {
   bundler,
+  describe,
   getNextBuildSuccess,
   inputFS,
+  it,
   overlayFS,
   run,
   fsFixture,
@@ -17,7 +19,7 @@ import {type Asset} from '@parcel/types';
 const CONFIG = Symbol.for('parcel-plugin-config');
 let packageManager = new NodePackageManager(inputFS, '/');
 
-describe('incremental bundling', function () {
+describe.v2('incremental bundling', function () {
   let defaultBundlerSpy, customBundlerSpy;
   let assertChangedAssets = (actual: number, expected: number) => {
     assert.equal(

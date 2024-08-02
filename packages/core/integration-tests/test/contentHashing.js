@@ -1,6 +1,13 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle as _bundle, overlayFS, outputFS, ncp} from '@parcel/test-utils';
+import {
+  bundle as _bundle,
+  describe,
+  it,
+  overlayFS,
+  outputFS,
+  ncp,
+} from '@parcel/test-utils';
 
 const distDir = path.join(__dirname, './dist');
 
@@ -14,7 +21,7 @@ function bundle(path) {
   });
 }
 
-describe('content hashing', function () {
+describe.v2('content hashing', function () {
   beforeEach(async () => {
     await outputFS.rimraf(path.join(__dirname, '/input'));
   });

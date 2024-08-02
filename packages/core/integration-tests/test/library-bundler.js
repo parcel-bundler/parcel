@@ -3,6 +3,8 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
+  describe,
+  it,
   run,
   runBundle,
   overlayFS,
@@ -12,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import nullthrows from 'nullthrows';
 
-describe('library bundler', function () {
+describe.v2('library bundler', function () {
   let count = 0;
   let dir;
   beforeEach(async () => {
@@ -50,7 +52,7 @@ describe('library bundler', function () {
         export function foo() {
           return 'foo' + baz();
         }
-      
+
       bar.js:
         import {baz} from './baz';
         export function bar() {
@@ -147,7 +149,7 @@ describe('library bundler', function () {
         export function bar() {
           return css('.b { color: pink }');
         }
-      
+
       macro.js:
         export function css(content) {
           this.addAsset({type: 'css', content});

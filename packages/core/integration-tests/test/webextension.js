@@ -1,8 +1,15 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, assertBundles, outputFS, distDir} from '@parcel/test-utils';
+import {
+  assertBundles,
+  bundle,
+  describe,
+  distDir,
+  it,
+  outputFS,
+} from '@parcel/test-utils';
 
-describe('webextension', function () {
+describe.v2('webextension', function () {
   it('should resolve a full webextension bundle', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/webextension/manifest.json'),

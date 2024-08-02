@@ -2,6 +2,8 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
+  describe,
+  it,
   run,
   runBundle,
   assertBundles,
@@ -12,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import postcss from 'postcss';
 
-describe('css modules', () => {
+describe.v2('css modules', () => {
   it('should support transforming css modules (require)', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-modules-cjs/index.js'),
