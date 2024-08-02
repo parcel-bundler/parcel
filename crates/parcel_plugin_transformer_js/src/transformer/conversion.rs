@@ -163,9 +163,9 @@ pub(crate) fn convert_result(
       asset.symbols.push(make_export_star_symbol(asset_id));
     }
 
-    asset.has_cjs_exports = hoist_result.has_cjs_exports;
-    asset.static_exports = hoist_result.static_cjs_exports;
-    asset.should_wrap = hoist_result.should_wrap;
+    asset.set_has_cjs_exports(hoist_result.has_cjs_exports);
+    asset.set_static_exports(hoist_result.static_cjs_exports);
+    asset.set_should_wrap(hoist_result.should_wrap);
   } else {
     if let Some(symbol_result) = result.symbol_result {
       asset.has_symbols = true;

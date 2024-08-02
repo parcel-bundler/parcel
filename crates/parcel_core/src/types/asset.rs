@@ -157,6 +157,20 @@ impl Asset {
     self.meta.insert("interpreter".into(), shebang.into());
   }
 
+  pub fn set_has_cjs_exports(&mut self, value: bool) {
+    self.meta.insert("hasCJSExports".into(), value.into());
+    self.has_cjs_exports = value;
+  }
+
+  pub fn set_static_exports(&mut self, value: bool) {
+    self.meta.insert("staticExports".into(), value.into());
+    self.static_exports = value;
+  }
+
+  pub fn set_should_wrap(&mut self, value: bool) {
+    self.meta.insert("shouldWrap".into(), value.into());
+    self.should_wrap = value;
+  }
   pub fn set_is_constant_module(&mut self, is_constant_module: bool) {
     self.is_constant_module = is_constant_module;
     if is_constant_module {
