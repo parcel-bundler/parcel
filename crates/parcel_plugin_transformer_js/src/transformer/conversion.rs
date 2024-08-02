@@ -392,7 +392,7 @@ fn convert_dependency(
   use parcel_js_swc_core::DependencyKind;
 
   let loc = convert_loc(asset.file_path.clone(), &transformer_dependency.loc);
-  let base_dependency = Dependency {
+  let mut base_dependency = Dependency {
     env: asset.env.clone(),
     loc: Some(loc.clone()),
     priority: convert_priority(&transformer_dependency),
@@ -403,9 +403,8 @@ fn convert_dependency(
     ..Dependency::default()
   };
 
-  let mut meta = JSONObject::new();
   if let Some(placeholder) = &transformer_dependency.placeholder {
-    meta.insert("placeholder".into(), placeholder.clone().into());
+    base_dependency.set_placeholder(placeholder.clone());
   }
 
   let source_type = convert_source_type(&transformer_dependency.source_type);
@@ -439,7 +438,7 @@ fn convert_dependency(
         output_format = OutputFormat::Global;
       }
 
-      meta.insert("webworker".into(), true.into());
+      base_dependency.set_is_webworker();
 
       let dependency = Dependency {
         env: Arc::new(Environment {
@@ -452,7 +451,6 @@ fn convert_dependency(
           source_type,
           ..*asset.env.clone()
         }),
-        meta,
         ..base_dependency
       };
 
@@ -471,7 +469,6 @@ fn convert_dependency(
           ..*asset.env.clone()
         }),
         needs_stable_name: true,
-        meta,
         ..base_dependency
       };
 
@@ -492,7 +489,6 @@ fn convert_dependency(
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
         // promise_symbol: None,
-        meta,
         ..base_dependency
       };
 
@@ -504,7 +500,6 @@ fn convert_dependency(
         bundle_behavior: BundleBehavior::Isolated,
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
-        meta,
         ..base_dependency
       };
 
@@ -519,26 +514,16 @@ fn convert_dependency(
     )),
     _ => {
       let mut env = asset.env.clone();
-      meta.insert(
-        "kind".into(),
-        serde_json::Value::String(format!("{}", transformer_dependency.kind)),
-      );
+      base_dependency.set_kind(format!("{}", transformer_dependency.kind));
 
       if let Some(attributes) = transformer_dependency.attributes {
-        let mut import_attributes = serde_json::Map::new();
-
-        ["preload", "prefetch"].iter().for_each(|attr| {
-          let attr_atom = Into::<Atom>::into(*attr);
+        for attr in ["preload", "prefetch"] {
+          let attr_atom = Into::<Atom>::into(attr);
           if attributes.contains_key(&attr_atom) {
-            let attr_key = Into::<String>::into(*attr);
-            import_attributes.insert(attr_key, true.into());
+            let attr_key = Into::<String>::into(attr);
+            base_dependency.set_add_import_attibute(attr_key);
           }
-        });
-
-        meta.insert(
-          String::from("ImportAttributes"),
-          serde_json::Value::Object(import_attributes),
-        );
+        }
       }
 
       if transformer_dependency.kind == DependencyKind::DynamicImport {
@@ -602,7 +587,6 @@ fn convert_dependency(
           DependencyKind::Import | DependencyKind::Export
         ),
         placeholder: transformer_dependency.placeholder.clone(),
-        meta,
         ..base_dependency
       };
 
