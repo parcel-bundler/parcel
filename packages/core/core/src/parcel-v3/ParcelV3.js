@@ -11,7 +11,6 @@ export type ParcelV3Options = {|
   nodeWorkers?: number,
   packageManager?: ParcelNapiOptions['packageManager'],
   threads?: number,
-  tracerOptions?: ParcelNapiOptions['tracerOptions'],
   ...ParcelNapiOptions['options'],
 |};
 
@@ -23,7 +22,6 @@ export class ParcelV3 {
     nodeWorkers,
     packageManager,
     threads,
-    tracerOptions,
     ...options
   }: ParcelV3Options) {
     this._internal = new ParcelNapi({
@@ -32,7 +30,6 @@ export class ParcelV3 {
       packageManager,
       threads,
       options,
-      tracerOptions,
     });
   }
 

@@ -46,7 +46,11 @@ import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initRust, initSentry, closeSentry} from '@parcel/rust';
+import {
+  init as initRust,
+  initializeMonitoring,
+  closeMonitoring,
+} from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
@@ -104,9 +108,9 @@ export default class Parcel {
     await initSourcemaps;
     await initRust?.();
     try {
-      initSentry?.();
+      initializeMonitoring?.();
       process.on('exit', () => {
-        closeSentry?.();
+        closeMonitoring?.();
       });
     } catch (e) {
       // Fallthrough

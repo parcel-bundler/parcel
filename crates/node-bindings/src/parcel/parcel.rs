@@ -21,8 +21,6 @@ use parcel_package_manager::PackageManagerRef;
 use crate::file_system::FileSystemNapi;
 
 use super::package_manager_napi::PackageManagerNapi;
-use super::tracer::Tracer;
-use super::tracer::TracerMode;
 
 #[napi(object)]
 pub struct ParcelNapiBuildOptions {
@@ -39,7 +37,6 @@ pub struct ParcelNapiOptions {
   pub options: JsObject,
   pub package_manager: Option<JsObject>,
   pub threads: Option<u32>,
-  pub tracer_options: Option<JsObject>,
 }
 
 #[napi]
@@ -49,7 +46,6 @@ pub struct ParcelNapi {
   options: ParcelOptions,
   package_manager: Option<PackageManagerRef>,
   rpc: Option<RpcHostRef>,
-  tracer: Tracer,
   tx_worker: Sender<NodejsWorker>,
 }
 
@@ -57,11 +53,6 @@ pub struct ParcelNapi {
 impl ParcelNapi {
   #[napi(constructor)]
   pub fn new(napi_options: ParcelNapiOptions, env: Env) -> napi::Result<Self> {
-    // Debugging Instrumentation
-    let tracer_mode = TracerMode::from_js_value(&env, napi_options.tracer_options)?;
-    // Tracer can fail to initialize when Parcel is constructed multiple times, ignore subsequent failures
-    let tracer = Tracer::new(tracer_mode).unwrap_or_else(|_| Tracer::dummy());
-
     let thread_id = std::thread::current().id();
     tracing::trace!(?thread_id, "parcel-napi initialize");
 
@@ -101,7 +92,6 @@ impl ParcelNapi {
       options: env.from_js_value(napi_options.options)?,
       package_manager,
       rpc,
-      tracer,
       tx_worker,
     })
   }

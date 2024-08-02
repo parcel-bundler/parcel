@@ -49,15 +49,6 @@ export type ParcelNapiOptions = {|
   |},
   packageManager?: PackageManager,
   threads?: number,
-  tracerOptions?:
-    | {|mode: 'disabled'|}
-    | {|mode: 'stdout'|}
-    | {|
-        mode: 'file',
-        directory: string,
-        prefix: string,
-        maxFiles: number,
-      |},
 |};
 
 export type ParcelBuildOptions = {|
@@ -81,8 +72,8 @@ declare export function registerWorker(
   worker: any,
 ): void;
 
-declare export function initSentry(): void;
-declare export function closeSentry(): void;
+declare export function initializeMonitoring(): void;
+declare export function closeMonitoring(): void;
 declare export function napiRunConfigRequest(
   configRequest: ConfigRequest,
   api: any,

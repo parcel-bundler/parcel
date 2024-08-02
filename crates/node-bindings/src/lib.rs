@@ -5,7 +5,7 @@ use std::alloc::alloc;
 #[cfg(target_arch = "wasm32")]
 use std::alloc::Layout;
 
-mod init_sentry;
+mod error_monitoring;
 
 #[cfg(all(target_os = "macos", not(miri)))]
 #[global_allocator]
