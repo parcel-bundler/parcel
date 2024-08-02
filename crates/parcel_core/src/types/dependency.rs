@@ -1,3 +1,4 @@
+use core::panic;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::PathBuf;
@@ -156,6 +157,40 @@ impl Dependency {
     let mut hasher = crate::hash::IdentifierHasher::default();
     self.hash(&mut hasher);
     hasher.finish()
+  }
+
+  pub fn set_placeholder(&mut self, placeholder: impl Into<serde_json::Value>) {
+    self.meta.insert("placeholder".into(), placeholder.into());
+  }
+
+  pub fn set_is_webworker(&mut self) {
+    self.meta.insert("webworker".into(), true.into());
+  }
+
+  pub fn set_kind(&mut self, kind: impl Into<serde_json::Value>) {
+    self.meta.insert("kind".into(), kind.into());
+  }
+
+  pub fn set_should_wrap(&mut self, should_wrap: bool) {
+    self.meta.insert("shouldWrap".into(), should_wrap.into());
+    self.should_wrap = should_wrap;
+  }
+
+  pub fn set_promise_symbol(&mut self, name: impl Into<serde_json::Value>) {
+    self.meta.insert("promiseSymbol".into(), name.into());
+  }
+
+  pub fn set_add_import_attibute(&mut self, attribute: impl Into<String>) {
+    let object = self
+      .meta
+      .entry(String::from("importAttributes"))
+      .or_insert(serde_json::Map::new().into());
+
+    if let serde_json::Value::Object(import_attributes) = object {
+      import_attributes.insert(attribute.into(), true.into());
+    } else {
+      panic!("Dependency import attributes invalid. This should never happen");
+    }
   }
 }
 

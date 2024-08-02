@@ -133,7 +133,7 @@ pub struct Asset {
   /// An example of a 'constant module' would be:
   ///
   /// ```skip
-  /// export const styles = { margin: 10 };
+  /// export const MY_CONSTANT = 'some-value';
   /// ```
   pub is_constant_module: bool,
 
@@ -158,6 +158,37 @@ impl Asset {
 
   pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {
     self.meta.insert("interpreter".into(), shebang.into());
+  }
+
+  pub fn set_has_cjs_exports(&mut self, value: bool) {
+    self.meta.insert("hasCJSExports".into(), value.into());
+    self.has_cjs_exports = value;
+  }
+
+  pub fn set_static_exports(&mut self, value: bool) {
+    self.meta.insert("staticExports".into(), value.into());
+    self.static_exports = value;
+  }
+
+  pub fn set_should_wrap(&mut self, value: bool) {
+    self.meta.insert("shouldWrap".into(), value.into());
+    self.should_wrap = value;
+  }
+  pub fn set_is_constant_module(&mut self, is_constant_module: bool) {
+    self.is_constant_module = is_constant_module;
+    if is_constant_module {
+      self.meta.insert("isConstantModule".into(), true.into());
+    }
+  }
+
+  pub fn set_has_node_replacements(&mut self, has_node_replacements: bool) {
+    self.has_node_replacements = has_node_replacements;
+    if has_node_replacements {
+      self
+        .meta
+        // This is intentionally snake_case as that's what it was originally.
+        .insert("has_node_replacements".into(), true.into());
+    }
   }
 }
 

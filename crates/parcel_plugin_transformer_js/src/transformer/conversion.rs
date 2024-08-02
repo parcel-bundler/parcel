@@ -9,8 +9,8 @@ use parcel_core::plugin::TransformResult;
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
   Asset, BundleBehavior, Code, CodeFrame, CodeHighlight, Dependency, Diagnostic, DiagnosticBuilder,
-  Environment, EnvironmentContext, File, FileType, ImportAttribute, IncludeNodeModules,
-  OutputFormat, ParcelOptions, SourceLocation, SourceType, SpecifierType, Symbol,
+  Environment, EnvironmentContext, File, FileType, IncludeNodeModules, OutputFormat, ParcelOptions,
+  SourceLocation, SourceType, SpecifierType, Symbol,
 };
 
 use crate::transformer::conversion::dependency_kind::{convert_priority, convert_specifier_type};
@@ -117,15 +117,15 @@ pub(crate) fn convert_result(
 
     for specifier in hoist_result.wrapped_requires {
       if let Some(dep) = dependency_by_specifier.get_mut(&swc_core::atoms::JsWord::new(specifier)) {
-        dep.should_wrap = true;
+        dep.set_should_wrap(true);
       }
     }
 
-    // for (name, specifier) in hoist_result.dynamic_imports {
-    //   if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
-    //     dep.promise_symbol = Some((&*name).into());
-    //   }
-    // }
+    for (name, specifier) in hoist_result.dynamic_imports {
+      if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
+        dep.set_promise_symbol(&*name);
+      }
+    }
 
     for name in hoist_result.self_references {
       // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
@@ -162,9 +162,9 @@ pub(crate) fn convert_result(
       asset.symbols.push(make_export_star_symbol(asset_id));
     }
 
-    asset.has_cjs_exports = hoist_result.has_cjs_exports;
-    asset.static_exports = hoist_result.static_cjs_exports;
-    asset.should_wrap = hoist_result.should_wrap;
+    asset.set_has_cjs_exports(hoist_result.has_cjs_exports);
+    asset.set_static_exports(hoist_result.static_cjs_exports);
+    asset.set_should_wrap(hoist_result.should_wrap);
   } else {
     if let Some(symbol_result) = result.symbol_result {
       asset.has_symbols = true;
@@ -246,8 +246,8 @@ pub(crate) fn convert_result(
     }
   }
 
-  asset.has_node_replacements = result.has_node_replacements;
-  asset.is_constant_module = result.is_constant_module;
+  asset.set_has_node_replacements(result.has_node_replacements);
+  asset.set_is_constant_module(result.is_constant_module);
 
   if asset.unique_key.is_none() {
     asset.unique_key = Some(format!("{:016x}", asset_id));
@@ -391,7 +391,7 @@ fn convert_dependency(
   use parcel_js_swc_core::DependencyKind;
 
   let loc = convert_loc(asset.file_path.clone(), &transformer_dependency.loc);
-  let base_dependency = Dependency {
+  let mut base_dependency = Dependency {
     env: asset.env.clone(),
     loc: Some(loc.clone()),
     priority: convert_priority(&transformer_dependency),
@@ -401,6 +401,11 @@ fn convert_dependency(
     specifier_type: convert_specifier_type(&transformer_dependency),
     ..Dependency::default()
   };
+
+  if let Some(placeholder) = &transformer_dependency.placeholder {
+    base_dependency.set_placeholder(placeholder.clone());
+  }
+
   let source_type = convert_source_type(&transformer_dependency.source_type);
   match transformer_dependency.kind {
     // For all of web-worker, service-worker, worklet and URL we should probably set BundleBehaviour
@@ -431,6 +436,8 @@ fn convert_dependency(
       } else if output_format != OutputFormat::CommonJS {
         output_format = OutputFormat::Global;
       }
+
+      base_dependency.set_is_webworker();
 
       let dependency = Dependency {
         env: Arc::new(Environment {
@@ -507,6 +514,18 @@ fn convert_dependency(
     )),
     _ => {
       let mut env = asset.env.clone();
+      base_dependency.set_kind(format!("{}", transformer_dependency.kind));
+
+      if let Some(attributes) = transformer_dependency.attributes {
+        for attr in ["preload", "prefetch"] {
+          let attr_atom = Into::<Atom>::into(attr);
+          if attributes.contains_key(&attr_atom) {
+            let attr_key = Into::<String>::into(attr);
+            base_dependency.set_add_import_attibute(attr_key);
+          }
+        }
+      }
+
       if transformer_dependency.kind == DependencyKind::DynamicImport {
         // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
         if matches!(
@@ -560,16 +579,6 @@ fn convert_dependency(
         }
       }
 
-      let mut import_attributes = Vec::new();
-      if let Some(attrs) = transformer_dependency.attributes {
-        for (key, value) in attrs {
-          import_attributes.push(ImportAttribute {
-            key: String::from(&*key),
-            value,
-          });
-        }
-      }
-
       let dependency = Dependency {
         env,
         is_optional: transformer_dependency.is_optional,
@@ -577,8 +586,7 @@ fn convert_dependency(
           transformer_dependency.kind,
           DependencyKind::Import | DependencyKind::Export
         ),
-        placeholder: transformer_dependency.placeholder,
-        // import_attributes,
+        placeholder: transformer_dependency.placeholder.clone(),
         ..base_dependency
       };
 

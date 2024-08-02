@@ -203,7 +203,7 @@ exports.hello = function() {};
     let asset_id = target_asset.id();
     let result = run_test(target_asset).unwrap();
 
-    let expected_dependencies = vec![Dependency {
+    let mut expected_dependencies = vec![Dependency {
       loc: Some(SourceLocation {
         file_path: PathBuf::from("mock_path.js"),
         start: Location {
@@ -228,6 +228,9 @@ exports.hello = function() {};
       }],
       ..Default::default()
     }];
+    expected_dependencies[0].set_placeholder("e83f3db3d6f57ea6");
+    expected_dependencies[0].set_kind("Require");
+
     assert_eq!(result.dependencies, expected_dependencies);
     assert_eq!(
       result,
