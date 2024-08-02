@@ -5,7 +5,7 @@ use std::time::Duration;
 pub use crash_reporter::CrashReporterOptions;
 #[cfg(feature = "canary")]
 pub use sentry_integration::SentryOptions;
-pub use tracer::TracingOptions;
+pub use tracer::TracerMode;
 
 #[cfg(feature = "canary")]
 mod crash_reporter;
@@ -34,7 +34,7 @@ impl MonitoringGuard {
 
 #[derive(Debug)]
 pub struct MonitoringOptions {
-  pub tracing_options: Option<TracingOptions>,
+  pub tracing_options: Option<TracerMode>,
   #[cfg(feature = "canary")]
   pub sentry_options: Option<SentryOptions>,
   #[cfg(feature = "canary")]
@@ -44,7 +44,7 @@ pub struct MonitoringOptions {
 impl MonitoringOptions {
   pub fn from_env() -> Result<Self, from_env::FromEnvError> {
     Ok(Self {
-      tracing_options: TracingOptions::from_env()?,
+      tracing_options: TracerMode::from_env()?,
       #[cfg(feature = "canary")]
       sentry_options: SentryOptions::from_env()?,
       #[cfg(feature = "canary")]

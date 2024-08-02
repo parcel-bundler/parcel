@@ -9,7 +9,7 @@ use crate::from_env::{optional_var, FromEnvError};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", tag = "mode")]
-pub enum TracingOptions {
+pub enum TracerMode {
   /// Output the Tracer logs to Stdout
   Stdout,
   /// Output the Tracer logs to a file
@@ -24,7 +24,7 @@ pub enum TracingOptions {
   },
 }
 
-impl TracingOptions {
+impl TracerMode {
   pub fn from_env() -> Result<Option<Self>, FromEnvError> {
     let Some(mode) = optional_var("PARCEL_TRACING_MODE") else {
       return Ok(None);
@@ -64,15 +64,15 @@ pub struct Tracer {
 }
 
 impl Tracer {
-  pub fn new(options: TracingOptions) -> anyhow::Result<Self> {
+  pub fn new(options: TracerMode) -> anyhow::Result<Self> {
     let worker_guard = match options {
-      TracingOptions::Stdout => {
+      TracerMode::Stdout => {
         tracing_subscriber::fmt().try_init().map_err(|err| {
           anyhow::anyhow!(err).context("Failed to setup stdout tracing, is another tracer running?")
         })?;
         None
       }
-      TracingOptions::File {
+      TracerMode::File {
         directory,
         prefix,
         max_files,
@@ -115,7 +115,7 @@ mod test {
   fn test_tracing_options_sets_to_none_if_no_mode_is_set() {
     let _guard = TEST_LOCK.lock();
     std::env::remove_var("PARCEL_TRACING_MODE");
-    let options = TracingOptions::from_env().unwrap();
+    let options = TracerMode::from_env().unwrap();
     assert!(options.is_none());
   }
 
@@ -123,15 +123,15 @@ mod test {
   fn test_tracing_options_sets_to_file() {
     let _guard = TEST_LOCK.lock();
     std::env::set_var("PARCEL_TRACING_MODE", "stdout");
-    let options = TracingOptions::from_env().unwrap().unwrap();
-    assert!(matches!(options, TracingOptions::Stdout));
+    let options = TracerMode::from_env().unwrap().unwrap();
+    assert!(matches!(options, TracerMode::Stdout));
   }
 
   #[test]
   fn test_tracing_options_sets_to_stdout() {
     let _guard = TEST_LOCK.lock();
     std::env::set_var("PARCEL_TRACING_MODE", "file");
-    let options = TracingOptions::from_env().unwrap().unwrap();
-    assert!(matches!(options, TracingOptions::File { .. }));
+    let options = TracerMode::from_env().unwrap().unwrap();
+    assert!(matches!(options, TracerMode::File { .. }));
   }
 }
