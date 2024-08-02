@@ -1,3 +1,6 @@
+//! This module configures `tracing_subscriber` to either write to a log file or standard output.
+//!
+//! Tracing is disabled by default.
 use std::sync::Arc;
 
 use anyhow::anyhow;

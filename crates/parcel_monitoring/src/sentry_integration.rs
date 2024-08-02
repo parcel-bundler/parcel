@@ -1,3 +1,6 @@
+//! This module configures `sentry` to report panics.
+//!
+//! Sentry is disabled by default.
 use std::collections::HashMap;
 
 use anyhow::anyhow;

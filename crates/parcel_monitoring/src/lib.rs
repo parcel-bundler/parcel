@@ -1,3 +1,8 @@
+//! This module configures tracing/sentry/crash-reporting.
+//!
+//! They are all disabled by default.
+//!
+//! Reporting should only be initialized once.
 use std::sync::Mutex;
 use std::time::Duration;
 

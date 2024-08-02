@@ -1,3 +1,6 @@
+//! This module crash reporting with [`minidumper`].
+//!
+//! This is disabled by default.
 use std::time::Duration;
 
 use anyhow::anyhow;
