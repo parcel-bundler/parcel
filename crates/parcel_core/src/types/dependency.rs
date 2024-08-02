@@ -171,6 +171,11 @@ impl Dependency {
     self.meta.insert("kind".into(), kind.into());
   }
 
+  pub fn set_should_wrap(&mut self, should_wrap: bool) {
+    self.meta.insert("shouldWrap".into(), should_wrap.into());
+    self.should_wrap = should_wrap;
+  }
+
   pub fn set_add_import_attibute(&mut self, attribute: impl Into<String>) {
     let object = self
       .meta

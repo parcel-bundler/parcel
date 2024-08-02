@@ -118,7 +118,7 @@ pub(crate) fn convert_result(
 
     for specifier in hoist_result.wrapped_requires {
       if let Some(dep) = dependency_by_specifier.get_mut(&swc_core::atoms::JsWord::new(specifier)) {
-        dep.should_wrap = true;
+        dep.set_should_wrap(true);
       }
     }
 
