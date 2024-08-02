@@ -144,15 +144,11 @@ function getAssetGraph(serializedGraph, options) {
       });
     } else if (node.type === 'dependency') {
       let id = node.value.id;
-      let {placeholder, ...dependency} = node.value.dependency;
+      let dependency = node.value.dependency;
 
       dependency = {
         ...dependency,
         id,
-        meta: {
-          ...dependency.meta,
-          placeholder,
-        },
         sourcePath: dependency.sourcePath
           ? toProjectPath(options.projectRoot, dependency.sourcePath)
           : null,
