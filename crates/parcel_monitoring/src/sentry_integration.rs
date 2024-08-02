@@ -81,9 +81,7 @@ pub fn init_sentry(options: SentryOptions) -> anyhow::Result<ClientInitGuard> {
       username: Some(username()),
       ..Default::default()
     }));
-  });
 
-  configure_scope(|scope| {
     for (key, val) in options.sentry_tags {
       scope.set_tag(&key, val);
     }
