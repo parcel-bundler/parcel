@@ -123,6 +123,9 @@ pub struct Asset {
   /// TODO: MISSING DOCUMENTATION
   pub should_wrap: bool,
 
+  /// TODO: MISSING DOCUMENTATION
+  pub has_node_replacements: bool,
+
   /// True if this is a 'constant module', meaning it only exports constant assignment statements,
   /// on this case this module may be inlined on its usage depending on whether it is only used
   /// once and the parcel configuration.
@@ -179,6 +182,7 @@ impl Asset {
   }
 
   pub fn set_has_node_replacements(&mut self, has_node_replacements: bool) {
+    self.has_node_replacements = has_node_replacements;
     if has_node_replacements {
       self
         .meta
