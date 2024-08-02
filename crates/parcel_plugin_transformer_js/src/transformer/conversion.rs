@@ -468,6 +468,7 @@ fn convert_dependency(
           ..*asset.env.clone()
         }),
         needs_stable_name: true,
+        // placeholder: dep.placeholder.map(|s| s.into()),
         ..base_dependency
       };
 
