@@ -402,6 +402,12 @@ fn convert_dependency(
     specifier_type: convert_specifier_type(&transformer_dependency),
     ..Dependency::default()
   };
+
+  let mut meta = JSONObject::new();
+  if let Some(placeholder) = &transformer_dependency.placeholder {
+    meta.insert("placeholder".into(), placeholder.clone().into());
+  }
+
   let source_type = convert_source_type(&transformer_dependency.source_type);
   match transformer_dependency.kind {
     // For all of web-worker, service-worker, worklet and URL we should probably set BundleBehaviour
@@ -433,6 +439,8 @@ fn convert_dependency(
         output_format = OutputFormat::Global;
       }
 
+      meta.insert("webworker".into(), true.into());
+
       let dependency = Dependency {
         env: Arc::new(Environment {
           context: EnvironmentContext::WebWorker,
@@ -444,6 +452,7 @@ fn convert_dependency(
           source_type,
           ..*asset.env.clone()
         }),
+        meta,
         ..base_dependency
       };
 
@@ -462,7 +471,7 @@ fn convert_dependency(
           ..*asset.env.clone()
         }),
         needs_stable_name: true,
-        // placeholder: dep.placeholder.map(|s| s.into()),
+        meta,
         ..base_dependency
       };
 
@@ -483,6 +492,7 @@ fn convert_dependency(
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
         // promise_symbol: None,
+        meta,
         ..base_dependency
       };
 
@@ -494,6 +504,7 @@ fn convert_dependency(
         bundle_behavior: BundleBehavior::Isolated,
         // flags: dep_flags,
         // placeholder: dep.placeholder.map(|s| s.into()),
+        meta,
         ..base_dependency
       };
 
@@ -508,33 +519,26 @@ fn convert_dependency(
     )),
     _ => {
       let mut env = asset.env.clone();
-      let mut meta = JSONObject::new();
       meta.insert(
         "kind".into(),
         serde_json::Value::String(format!("{}", transformer_dependency.kind)),
       );
 
       if let Some(attributes) = transformer_dependency.attributes {
-        let mut map = serde_json::Map::new();
+        let mut import_attributes = serde_json::Map::new();
 
-        let preload: Atom = "preload".into();
-        if attributes.contains_key(&preload) {
-          map.insert("preload".into(), true.into());
-        }
-
-        let prefetch: Atom = "prefetch".into();
-        if attributes.contains_key(&prefetch) {
-          map.insert("prefetch".into(), true.into());
-        }
+        ["preload", "prefetch"].iter().for_each(|attr| {
+          let attr_atom = Into::<Atom>::into(*attr);
+          if attributes.contains_key(&attr_atom) {
+            let attr_key = Into::<String>::into(*attr);
+            import_attributes.insert(attr_key, true.into());
+          }
+        });
 
         meta.insert(
           String::from("ImportAttributes"),
-          serde_json::Value::Object(map),
+          serde_json::Value::Object(import_attributes),
         );
-      }
-
-      if let Some(placeholder) = transformer_dependency.placeholder {
-        meta.insert("placeholder".into(), placeholder.into());
       }
 
       if transformer_dependency.kind == DependencyKind::DynamicImport {
@@ -590,16 +594,6 @@ fn convert_dependency(
         }
       }
 
-      let mut import_attributes = Vec::new();
-      if let Some(attrs) = transformer_dependency.attributes {
-        for (key, value) in attrs {
-          import_attributes.push(ImportAttribute {
-            key: String::from(&*key),
-            value,
-          });
-        }
-      }
-
       let dependency = Dependency {
         env,
         is_optional: transformer_dependency.is_optional,
@@ -607,8 +601,8 @@ fn convert_dependency(
           transformer_dependency.kind,
           DependencyKind::Import | DependencyKind::Export
         ),
-        placeholder: transformer_dependency.placeholder,
-        // import_attributes,
+        placeholder: transformer_dependency.placeholder.clone(),
+        meta,
         ..base_dependency
       };
 
