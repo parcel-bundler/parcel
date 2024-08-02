@@ -1286,18 +1286,14 @@ describe.skip = function (...args: mixed[]) {
 
 describe.v2 = function (...args: mixed[]) {
   parcelVersion = 'v2';
-  if (isParcelV3) {
-    origDescribe.skip.apply(this, args);
-  } else {
+  if (!isParcelV3) {
     origDescribe.apply(this, args);
   }
 };
 
 describe.v2.only = function (...args: mixed[]) {
   parcelVersion = 'v2';
-  if (isParcelV3) {
-    origDescribe.skip.apply(this, args);
-  } else {
+  if (!isParcelV3) {
     origDescribe.only.apply(this, args);
   }
 };
@@ -1306,8 +1302,6 @@ describe.v3 = function (...args: mixed[]) {
   parcelVersion = 'v3';
   if (isParcelV3) {
     origDescribe.apply(this, args);
-  } else {
-    origDescribe.skip.apply(this, args);
   }
 };
 
@@ -1315,8 +1309,6 @@ describe.v3.only = function (...args: mixed[]) {
   parcelVersion = 'v3';
   if (isParcelV3) {
     origDescribe.only.apply(this, args);
-  } else {
-    origDescribe.skip.apply(this, args);
   }
 };
 
@@ -1328,8 +1320,6 @@ export function it(...args: mixed[]) {
     (parcelVersion == 'v3' && isParcelV3)
   ) {
     origIt.apply(this, args);
-  } else {
-    origIt.skip.apply(this, args);
   }
 }
 
@@ -1342,17 +1332,13 @@ it.skip = function (...args: mixed[]) {
 };
 
 it.v2 = function (...args: mixed[]) {
-  if (isParcelV3) {
-    origIt.skip.apply(this, args);
-  } else {
+  if (!isParcelV3) {
     origIt.apply(this, args);
   }
 };
 
 it.v2.only = function (...args: mixed[]) {
-  if (isParcelV3) {
-    origIt.skip.apply(this, args);
-  } else {
+  if (!isParcelV3) {
     origIt.only.apply(this, args);
   }
 };
@@ -1360,15 +1346,11 @@ it.v2.only = function (...args: mixed[]) {
 it.v3 = function (...args: mixed[]) {
   if (isParcelV3) {
     origIt.apply(this, args);
-  } else {
-    origIt.skip.apply(this, args);
   }
 };
 
 it.v3.only = function (...args: mixed[]) {
   if (isParcelV3) {
     origIt.only.apply(this, args);
-  } else {
-    origIt.skip.apply(this, args);
   }
 };
