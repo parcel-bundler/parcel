@@ -123,9 +123,6 @@ pub struct Asset {
   /// TODO: MISSING DOCUMENTATION
   pub should_wrap: bool,
 
-  /// TODO: MISSING DOCUMENTATION
-  pub has_node_replacements: bool,
-
   /// True if this is a 'constant module', meaning it only exports constant assignment statements,
   /// on this case this module may be inlined on its usage depending on whether it is only used
   /// once and the parcel configuration.
@@ -133,7 +130,7 @@ pub struct Asset {
   /// An example of a 'constant module' would be:
   ///
   /// ```skip
-  /// export const styles = { margin: 10 };
+  /// export const MY_CONSTANT = 'some-value';
   /// ```
   pub is_constant_module: bool,
 
@@ -161,8 +158,18 @@ impl Asset {
   }
 
   pub fn set_is_constant_module(&mut self, is_constant_module: bool) {
+    self.is_constant_module = is_constant_module;
     if is_constant_module {
-      self.meta.insert("isConstandModule".into(), true.into());
+      self.meta.insert("isConstantModule".into(), true.into());
+    }
+  }
+
+  pub fn set_has_node_replacements(&mut self, has_node_replacements: bool) {
+    if has_node_replacements {
+      self
+        .meta
+        // This is intentionally snake_case as that's what it was originally.
+        .insert("has_node_replacements".into(), true.into());
     }
   }
 }
