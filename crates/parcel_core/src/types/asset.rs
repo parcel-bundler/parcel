@@ -159,6 +159,12 @@ impl Asset {
   pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {
     self.meta.insert("interpreter".into(), shebang.into());
   }
+
+  pub fn set_is_constant_module(&mut self, is_constant_module: bool) {
+    if is_constant_module {
+      self.meta.insert("isConstandModule".into(), true.into());
+    }
+  }
 }
 
 /// Statistics that pertain to an asset

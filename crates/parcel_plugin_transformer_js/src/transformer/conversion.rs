@@ -248,7 +248,7 @@ pub(crate) fn convert_result(
   }
 
   asset.has_node_replacements = result.has_node_replacements;
-  asset.is_constant_module = result.is_constant_module;
+  asset.set_is_constant_module(result.is_constant_module);
 
   if asset.unique_key.is_none() {
     asset.unique_key = Some(format!("{:016x}", asset_id));
