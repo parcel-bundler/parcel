@@ -122,11 +122,11 @@ pub(crate) fn convert_result(
       }
     }
 
-    // for (name, specifier) in hoist_result.dynamic_imports {
-    //   if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
-    //     dep.promise_symbol = Some((&*name).into());
-    //   }
-    // }
+    for (name, specifier) in hoist_result.dynamic_imports {
+      if let Some(dep) = dependency_by_specifier.get_mut(&specifier) {
+        dep.set_promise_symbol(&*name);
+      }
+    }
 
     for name in hoist_result.self_references {
       // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.

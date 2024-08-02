@@ -176,6 +176,10 @@ impl Dependency {
     self.should_wrap = should_wrap;
   }
 
+  pub fn set_promise_symbol(&mut self, name: impl Into<serde_json::Value>) {
+    self.meta.insert("promiseSymbol".into(), name.into());
+  }
+
   pub fn set_add_import_attibute(&mut self, attribute: impl Into<String>) {
     let object = self
       .meta
