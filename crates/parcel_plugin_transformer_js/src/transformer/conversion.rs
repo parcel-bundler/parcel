@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,8 +9,8 @@ use parcel_core::plugin::TransformResult;
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
   Asset, BundleBehavior, Code, CodeFrame, CodeHighlight, Dependency, Diagnostic, DiagnosticBuilder,
-  Environment, EnvironmentContext, File, FileType, ImportAttribute, IncludeNodeModules, JSONObject,
-  OutputFormat, ParcelOptions, SourceLocation, SourceType, SpecifierType, Symbol,
+  Environment, EnvironmentContext, File, FileType, IncludeNodeModules, OutputFormat, ParcelOptions,
+  SourceLocation, SourceType, SpecifierType, Symbol,
 };
 
 use crate::transformer::conversion::dependency_kind::{convert_priority, convert_specifier_type};
