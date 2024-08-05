@@ -107,6 +107,8 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
   );
 }
 
+export const isParcelV3 = process.env.PARCEL_V3 === 'true';
+
 export function getParcelOptions(
   entries: FilePath | Array<FilePath>,
   opts?: $Shape<InitialParcelOptions>,
@@ -129,6 +131,9 @@ export function getParcelOptions(
           browsers: ['last 1 Chrome version'],
           node: '8',
         },
+      },
+      featureFlags: {
+        parcelV3: isParcelV3,
       },
     },
     opts,
@@ -202,6 +207,12 @@ export function mergeParcelOptions(
       ...optsOne?.defaultTargetOptions,
       // $FlowFixMe
       ...optsTwo?.defaultTargetOptions,
+    },
+    featureFlags: {
+      // $FlowFixMe
+      ...optsOne?.featureFlags,
+      // $FlowFixMe
+      ...optsTwo?.featureFlags,
     },
   };
 }
@@ -1254,3 +1265,92 @@ export function request(
     );
   });
 }
+
+// $FlowFixMe
+let origDescribe = globalThis.describe;
+let parcelVersion: string | void;
+export function describe(...args: mixed[]) {
+  parcelVersion = undefined;
+  origDescribe.apply(this, args);
+}
+
+describe.only = function (...args: mixed[]) {
+  parcelVersion = undefined;
+  origDescribe.only.apply(this, args);
+};
+
+describe.skip = function (...args: mixed[]) {
+  parcelVersion = undefined;
+  origDescribe.skip.apply(this, args);
+};
+
+describe.v2 = function (...args: mixed[]) {
+  parcelVersion = 'v2';
+  if (!isParcelV3) {
+    origDescribe.apply(this, args);
+  }
+};
+
+describe.v2.only = function (...args: mixed[]) {
+  parcelVersion = 'v2';
+  if (!isParcelV3) {
+    origDescribe.only.apply(this, args);
+  }
+};
+
+describe.v3 = function (...args: mixed[]) {
+  parcelVersion = 'v3';
+  if (isParcelV3) {
+    origDescribe.apply(this, args);
+  }
+};
+
+describe.v3.only = function (...args: mixed[]) {
+  parcelVersion = 'v3';
+  if (isParcelV3) {
+    origDescribe.only.apply(this, args);
+  }
+};
+
+let origIt = globalThis.it;
+export function it(...args: mixed[]) {
+  if (
+    parcelVersion == null ||
+    (parcelVersion == 'v2' && !isParcelV3) ||
+    (parcelVersion == 'v3' && isParcelV3)
+  ) {
+    origIt.apply(this, args);
+  }
+}
+
+it.only = function (...args: mixed[]) {
+  origIt.only.apply(this, args);
+};
+
+it.skip = function (...args: mixed[]) {
+  origIt.skip.apply(this, args);
+};
+
+it.v2 = function (...args: mixed[]) {
+  if (!isParcelV3) {
+    origIt.apply(this, args);
+  }
+};
+
+it.v2.only = function (...args: mixed[]) {
+  if (!isParcelV3) {
+    origIt.only.apply(this, args);
+  }
+};
+
+it.v3 = function (...args: mixed[]) {
+  if (isParcelV3) {
+    origIt.apply(this, args);
+  }
+};
+
+it.v3.only = function (...args: mixed[]) {
+  if (isParcelV3) {
+    origIt.only.apply(this, args);
+  }
+};

@@ -5,13 +5,15 @@ import path from 'path';
 import {
   bundle,
   bundler,
+  describe,
+  it,
   run,
   overlayFS,
   fsFixture,
   getNextBuild,
 } from '@parcel/test-utils';
 
-describe('macros', function () {
+describe.v2('macros', function () {
   let count = 0;
   let dir;
   beforeEach(async () => {
@@ -227,7 +229,7 @@ describe('macros', function () {
     await fsFixture(overlayFS, dir)`
       index.js:
         import { test } from "./macro.js" with { type: "macro" };
-        
+
         if (test()) {
           console.log('bad');
         } else {

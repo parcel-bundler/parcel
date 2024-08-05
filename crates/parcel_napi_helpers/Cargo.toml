@@ -10,6 +10,7 @@ edition = "2021"
 serde = "1"
 anyhow = "1"
 napi = { version = "2", features = ["serde-json", "napi4", "napi5", "async"] }
+once_cell = { version = "1" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 napi = { version = "2", features = ["serde-json"] }

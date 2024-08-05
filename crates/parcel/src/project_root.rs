@@ -1,6 +1,5 @@
 use std::path::{Component, Components, Path, PathBuf};
 
-use parcel_core::types::Entry;
 use parcel_filesystem::{
   search::{find_ancestor_directory, find_ancestor_file},
   FileSystemRef,
@@ -67,20 +66,15 @@ fn common_path(paths: &[PathBuf]) -> Option<PathBuf> {
 
 pub fn infer_project_root(
   fs: FileSystemRef,
-  entries: Option<Entry>,
+  entries: Vec<String>,
 ) -> Result<PathBuf, anyhow::Error> {
   let cwd = fs.cwd()?;
 
   // TODO Handle globs
-  let entries = entries
-    .map(|entry| match entry {
-      Entry::Single(e) => vec![absolute(&cwd, Path::new(&e))],
-      Entry::Multiple(entries) => entries
-        .iter()
-        .map(|e| absolute(&cwd, Path::new(&e)))
-        .collect(),
-    })
-    .unwrap_or_default();
+  let entries: Vec<PathBuf> = entries
+    .iter()
+    .map(|entry| absolute(&cwd, Path::new(&entry)))
+    .collect();
 
   let common_entry_path = common_path(&entries).unwrap_or_else(|| cwd.clone());
 
@@ -111,7 +105,7 @@ pub fn infer_project_root(
 
 #[cfg(test)]
 mod tests {
-  use std::{path::MAIN_SEPARATOR_STR, sync::Arc};
+  use std::sync::Arc;
 
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_resolver::FileSystem;
@@ -186,7 +180,7 @@ mod tests {
       let fs = Arc::new(InMemoryFileSystem::default());
 
       assert_eq!(
-        infer_project_root(fs.clone(), None).map_err(|e| e.to_string()),
+        infer_project_root(fs.clone(), Vec::new()).map_err(|e| e.to_string()),
         Ok(fs.cwd().unwrap())
       );
     }
@@ -194,8 +188,7 @@ mod tests {
     #[test]
     fn with_a_single_entry() {
       let fs = Arc::new(InMemoryFileSystem::default());
-      let project_root =
-        infer_project_root(fs.clone(), Some(Entry::Single(String::from("src/a.js"))));
+      let project_root = infer_project_root(fs.clone(), vec![String::from("src/a.js")]);
 
       assert_eq!(
         project_root.map_err(|e| e.to_string()),
@@ -208,10 +201,7 @@ mod tests {
       let fs = Arc::new(InMemoryFileSystem::default());
       let project_root = infer_project_root(
         fs.clone(),
-        Some(Entry::Multiple(vec![
-          String::from("src/a.js"),
-          String::from("src/b.js"),
-        ])),
+        vec![String::from("src/a.js"), String::from("src/b.js")],
       );
 
       assert_eq!(
@@ -221,8 +211,14 @@ mod tests {
     }
   }
 
+  #[cfg(target_os = "windows")]
   fn root() -> PathBuf {
-    PathBuf::from(MAIN_SEPARATOR_STR)
+    PathBuf::from("C:\\")
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  fn root() -> PathBuf {
+    PathBuf::from("/")
   }
 
   fn cwd() -> PathBuf {
@@ -232,11 +228,11 @@ mod tests {
   #[test]
   fn returns_the_root_lockfile_directory() {
     let assert_project_root = |lockfile: &str| {
-      let entries = Some(Entry::Single(String::from("src/a.js")));
+      let entries = vec![String::from("src/a.js")];
       let fs = Arc::new(InMemoryFileSystem::default());
       let root = root();
 
-      fs.set_current_working_directory(cwd());
+      fs.set_current_working_directory(&cwd());
       fs.write_file(&root.join(lockfile), String::from("{}"));
 
       assert_eq!(
@@ -257,10 +253,10 @@ mod tests {
     fn given_a_single_entry() {
       let assert_project_root = |lockfile| {
         let cwd = cwd();
-        let entries = Some(Entry::Single(String::from("src/a.js")));
+        let entries = vec![String::from("src/a.js")];
         let fs = Arc::new(InMemoryFileSystem::default());
 
-        fs.set_current_working_directory(cwd.clone());
+        fs.set_current_working_directory(&cwd);
         fs.write_file(&root().join(lockfile), String::from("{}"));
         fs.write_file(&cwd.join(lockfile), String::from("{}"));
 
@@ -279,15 +275,15 @@ mod tests {
     fn given_multiple_entries() {
       let assert_project_root = |lockfile| {
         let cwd = cwd();
-        let entries = Some(Entry::Multiple(vec![
+        let entries = vec![
           String::from("packages/foo/a.js"),
           String::from("packages/bar/b.js"),
           String::from("packages/baz/c.js"),
-        ]));
+        ];
 
         let fs = Arc::new(InMemoryFileSystem::default());
 
-        fs.set_current_working_directory(cwd.clone());
+        fs.set_current_working_directory(&cwd);
         fs.write_file(&root().join(lockfile), String::from("{}"));
         fs.write_file(
           &cwd.join("packages").join("foo").join(lockfile),
@@ -309,12 +305,12 @@ mod tests {
   #[test]
   fn returns_the_vcs_parent_directory() {
     let assert_project_root = |vcs| {
-      let entries = Some(Entry::Single(String::from("src/a.js")));
+      let entries = vec![String::from("src/a.js")];
       let fs = Arc::new(InMemoryFileSystem::default());
       let root = root();
       let vcs = root.join(vcs);
 
-      fs.set_current_working_directory(cwd());
+      fs.set_current_working_directory(&cwd());
       fs.create_directory(&vcs)
         .expect(format!("Expected {} directory to be created", vcs.display()).as_str());
 

@@ -66,7 +66,7 @@ impl Display for ModuleFormat {
   }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct PackageJson {
   pub name: Option<String>,
 
@@ -99,7 +99,9 @@ pub struct PackageJson {
 
 #[derive(Debug, Clone, Deserialize)]
 pub enum SourceField {
+  #[allow(unused)]
   Source(String),
+  #[allow(unused)]
   Sources(Vec<String>),
 }
 

@@ -18,6 +18,7 @@ use parcel_core::types::CodeFrame;
 use parcel_core::types::CodeHighlight;
 use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::EnvironmentContext;
+use parcel_core::types::ErrorKind;
 use parcel_core::types::SpecifierType;
 use parcel_resolver::Cache;
 use parcel_resolver::CacheCow;
@@ -60,7 +61,9 @@ impl ParcelResolver {
           .unwrap_or(&from)
           .display();
 
-        diagnostic_error!(diagnostic.message(format!("Cannot load file '{file}' in '{from}'")))
+        diagnostic_error!(diagnostic
+          .kind(ErrorKind::NotFound)
+          .message(format!("Cannot load file '{file}' in '{from}'")))
       }
       ResolverError::InvalidSpecifier(specifier_error) => {
         diagnostic_error!(diagnostic.message(match specifier_error {
@@ -91,13 +94,15 @@ impl ParcelResolver {
         let specifier = specifier.display();
 
         // TODO: Add alternative files
-        diagnostic_error!(diagnostic.message(format!(
+        diagnostic_error!(diagnostic.kind(ErrorKind::NotFound).message(format!(
           "Could not load '{specifier}' from module '{module}' found in package.json#{field}"
         )))
       }
       ResolverError::ModuleNotFound { module } => {
         // TODO: Add alternative modules
-        diagnostic_error!(diagnostic.message(format!("Cannot find module '{module}'")))
+        diagnostic_error!(diagnostic
+          .kind(ErrorKind::NotFound)
+          .message(format!("Cannot find module '{module}'")))
       }
       ResolverError::ModuleSubpathNotFound {
         module,
@@ -108,9 +113,9 @@ impl ParcelResolver {
         let package_dir = package_path.parent().unwrap_or(&package_path);
         let path = path.strip_prefix(package_dir).unwrap_or(&path).display();
 
-        diagnostic_error!(
-          diagnostic.message(format!("Cannot load file '{path}' from module {module}"))
-        )
+        diagnostic_error!(diagnostic
+          .kind(ErrorKind::NotFound)
+          .message(format!("Cannot load file '{path}' from module {module}")))
       }
       ResolverError::PackageJsonError {
         error,
@@ -401,7 +406,7 @@ mod test {
   use parcel_core::{
     config_loader::ConfigLoader,
     plugin::PluginLogger,
-    types::{Dependency, Diagnostic},
+    types::{Dependency, Diagnostic, ErrorKind},
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use std::path::PathBuf;
@@ -446,9 +451,10 @@ mod test {
       Diagnostic {
         code_frames: Vec::new(),
         documentation_url: None,
+        kind: ErrorKind::NotFound,
         hints: Vec::new(),
         message: String::from("Cannot find module 'foo.js'"),
-        origin: Some(String::from("parcel_plugin_resolver::resolver"))
+        origin: Some(String::from("parcel_plugin_resolver::parcel_resolver"))
       }
     );
   }
@@ -479,8 +485,9 @@ mod test {
         code_frames: vec![CodeFrame::from(package_path)],
         documentation_url: None,
         hints: Vec::new(),
+        kind: ErrorKind::Unknown,
         message: String::from("Module 'foo/bar' is not exported from the 'foo' package"),
-        origin: Some(String::from("parcel_plugin_resolver::resolver"))
+        origin: Some(String::from("parcel_plugin_resolver::parcel_resolver"))
       }
     );
   }
@@ -517,6 +524,10 @@ mod test {
 
     let result = resolver.resolve(ctx).map_err(|err| err.to_string());
 
+    #[cfg(target_os = "windows")]
+    let file_path = PathBuf::from("C:/foo/something.js");
+    #[cfg(not(target_os = "windows"))]
+    let file_path = PathBuf::from("/foo/something.js");
     assert_eq!(
       result,
       Ok(Resolved {
@@ -524,7 +535,7 @@ mod test {
         resolution: Resolution::Resolved(ResolvedResolution {
           can_defer: false,
           code: None,
-          file_path: PathBuf::from("/foo/something.js"),
+          file_path,
           meta: None,
           pipeline: None,
           priority: None,

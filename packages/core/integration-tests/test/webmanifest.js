@@ -1,9 +1,16 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, assertBundles, inputFS, outputFS} from '@parcel/test-utils';
+import {
+  assertBundles,
+  bundle,
+  describe,
+  inputFS,
+  it,
+  outputFS,
+} from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 
-describe('webmanifest', function () {
+describe.v2('webmanifest', function () {
   it('should support .webmanifest', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/webmanifest/index.html'),

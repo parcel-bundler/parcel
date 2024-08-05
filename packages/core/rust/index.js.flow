@@ -5,10 +5,11 @@ import type {
   FilePath,
   InitialParcelOptions,
   PackageManager,
-  FileSystem as ParcelFileSystem,
 } from '@parcel/types';
 
 declare export var init: void | (() => void);
+
+export type Transferable = {||};
 
 export type ProjectPath = any;
 export interface ConfigRequest {
@@ -50,10 +51,15 @@ export type ParcelNapiOptions = {|
   threads?: number,
 |};
 
+export type ParcelBuildOptions = {|
+  registerWorker: (channel: Transferable) => void | Promise<void>,
+|};
+
 declare export class ParcelNapi {
   nodeWorkerCount: number;
   constructor(options: ParcelNapiOptions): ParcelNapi;
-  build(): Promise<void>;
+  build(options: ParcelBuildOptions): Promise<void>;
+  buildAssetGraph(options: ParcelBuildOptions): Promise<any>;
   static defaultThreadCount(): number;
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;
@@ -61,10 +67,13 @@ declare export class ParcelNapi {
   testingRpcPing(): void;
 }
 
-declare export function registerWorker(worker: any): void;
+declare export function registerWorker(
+  channel: Transferable,
+  worker: any,
+): void;
 
-declare export function initSentry(): void;
-declare export function closeSentry(): void;
+declare export function initializeMonitoring(): void;
+declare export function closeMonitoring(): void;
 declare export function napiRunConfigRequest(
   configRequest: ConfigRequest,
   api: any,
@@ -134,6 +143,12 @@ export interface ResolverOptions {
   extensions?: Array<string>;
 }
 declare export class Resolver {
+  constructor(projectRoot: string, options: ResolverOptions): Resolver;
+  resolve(options: ResolveOptions): ResolveResult;
+  resolveAsync(options: ResolveOptions): Promise<ResolveResult>;
+  getInvalidations(path: string): JsInvalidations;
+}
+declare export class ResolverOld {
   constructor(projectRoot: string, options: ResolverOptions): Resolver;
   resolve(options: ResolveOptions): ResolveResult;
   resolveAsync(options: ResolveOptions): Promise<ResolveResult>;

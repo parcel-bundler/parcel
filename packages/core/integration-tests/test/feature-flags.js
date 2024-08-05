@@ -1,9 +1,16 @@
 import assert from 'assert';
 import path from 'node:path';
 import {rimraf} from 'rimraf';
-import {bundle, run, overlayFS, fsFixture} from '@parcel/test-utils';
+import {
+  bundle,
+  describe,
+  it,
+  run,
+  overlayFS,
+  fsFixture,
+} from '@parcel/test-utils';
 
-describe('feature flags', () => {
+describe.v2('feature flags', () => {
   let dir = path.join(__dirname, 'feature-flags-fixture');
   beforeEach(async () => {
     await rimraf(dir);
@@ -20,7 +27,7 @@ describe('feature flags', () => {
 
     index.js:
         module.exports = "MARKER";
-    
+
     .parcelrc:
         {
             extends: "@parcel/config-default",
@@ -35,7 +42,7 @@ describe('feature flags', () => {
           transformers: {
               '*.js': ['./transformer-client.js', '...']
           },
-      }        
+      }
 
     transformer.js:
         const {Transformer} = require('@parcel/plugin');

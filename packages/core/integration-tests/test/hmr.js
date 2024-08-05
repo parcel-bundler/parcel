@@ -3,8 +3,10 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
+  describe,
   getNextBuild,
   getNextBuildSuccess,
+  it,
   ncp,
   outputFS,
   overlayFS,
@@ -46,7 +48,7 @@ async function nextWSMessage(ws: WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 
-describe('hmr', function () {
+describe.v2('hmr', function () {
   let subscription, ws;
 
   async function testHMRClient(

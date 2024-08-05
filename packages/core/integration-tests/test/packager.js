@@ -3,6 +3,8 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {
   bundle as _bundle,
+  describe,
+  it,
   mergeParcelOptions,
   overlayFS,
 } from '@parcel/test-utils';
@@ -21,7 +23,7 @@ function hasPolyfill(code) {
   return code.includes(polyfill) && !code.includes(noPolyfill);
 }
 
-describe('packager', function () {
+describe.v2('packager', function () {
   describe('globalThis polyfill', function () {
     it('should exclude globalThis polyfill in modern builds', async function () {
       const entryPoint = path.join(

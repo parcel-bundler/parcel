@@ -11,9 +11,10 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
+import {getFeatureFlag} from '@parcel/feature-flags';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
-import {init, Resolver} from '@parcel/rust';
+import {init, Resolver as ResolverNew, ResolverOld} from '@parcel/rust';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
@@ -82,6 +83,9 @@ export default class NodeResolver {
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
       await init?.();
+      const Resolver = getFeatureFlag('ownedResolverStructures')
+        ? ResolverNew
+        : ResolverOld;
       resolver = new Resolver(this.options.projectRoot, {
         fs:
           this.options.fs instanceof NodeFS &&

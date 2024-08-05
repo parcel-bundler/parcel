@@ -17,6 +17,7 @@ derive_builder = "0.20.0"
 dyn-hash = "0.x"
 nodejs-semver = "4.0.0"
 mockall = "0.12.1"
+petgraph = { version = "0.6.5", features = ["serde-1"] }
 serde = { version = "1.0.200", features = ["derive", "rc"] }
 serde_json = { version = "1.0.116", features = ["preserve_order"] }
 serde_repr = "0.1.19"

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use package_json::BrowserField;
 use package_json::BrowsersList;
@@ -17,9 +18,11 @@ use parcel_core::types::engines::Engines;
 use parcel_core::types::BuildMode;
 use parcel_core::types::CodeFrame;
 use parcel_core::types::DefaultTargetOptions;
+use parcel_core::types::Diagnostic;
 use parcel_core::types::DiagnosticBuilder;
 use parcel_core::types::Environment;
 use parcel_core::types::EnvironmentContext;
+use parcel_core::types::ErrorKind;
 use parcel_core::types::OutputFormat;
 use parcel_core::types::SourceType;
 use parcel_core::types::Target;
@@ -220,9 +223,22 @@ impl TargetRequest {
     request_context: RunRequestContext,
   ) -> Result<ConfigFile<PackageJson>, anyhow::Error> {
     // TODO Invalidations
-    let mut package_json = request_context
-      .config()
-      .load_package_json::<PackageJson>()?;
+    let mut package_json = match request_context.config().load_package_json::<PackageJson>() {
+      Err(err) => {
+        let diagnostic = err.downcast_ref::<Diagnostic>();
+
+        if diagnostic.is_some_and(|d| d.kind != ErrorKind::NotFound) {
+          return Err(err);
+        }
+
+        ConfigFile {
+          contents: PackageJson::default(),
+          path: PathBuf::default(),
+          raw: String::default(),
+        }
+      }
+      Ok(pkg) => pkg,
+    };
 
     if package_json
       .contents
@@ -350,7 +366,7 @@ impl TargetRequest {
           .clone()
           .unwrap_or_else(|| default_dist_dir(&package_json.path)),
         dist_entry: None,
-        env: Environment {
+        env: Arc::new(Environment {
           context,
           engines: package_json
             .contents
@@ -372,7 +388,7 @@ impl TargetRequest {
             .source_maps
             .then(|| TargetSourceMapOptions::default()),
           source_type: SourceType::Module,
-        },
+        }),
         loc: None,
         name: String::from("default"),
         public_url: self.default_target_options.public_url.clone(),
@@ -477,7 +493,7 @@ impl TargetRequest {
         }
       },
       dist_entry,
-      env: Environment {
+      env: Arc::new(Environment {
         context,
         engines: target_descriptor
           .engines
@@ -511,7 +527,7 @@ impl TargetRequest {
           }),
         },
         ..Environment::default()
-      },
+      }),
       loc: None, // TODO
       name: String::from(target_name),
       public_url: target_descriptor
@@ -588,10 +604,10 @@ mod tests {
   fn default_target() -> Target {
     Target {
       dist_dir: PathBuf::from("packages/test/dist"),
-      env: Environment {
+      env: Arc::new(Environment {
         output_format: OutputFormat::Global,
         ..Environment::default()
-      },
+      }),
       name: String::from("default"),
       ..Target::default()
     }
@@ -784,6 +800,29 @@ mod tests {
   }
 
   #[test]
+  fn returns_default_target_when_package_json_is_not_found() {
+    let request = TargetRequest {
+      default_target_options: DefaultTargetOptions::default(),
+      entry: Entry::default(),
+      env: None,
+      mode: BuildMode::Development,
+    };
+
+    let targets = request_tracker(RequestTrackerTestOptions::default()).run_request(request);
+
+    assert_eq!(
+      targets.map_err(|e| e.to_string()),
+      Ok(RequestResult::Target(TargetRequestOutput {
+        entry: PathBuf::default(),
+        targets: vec![Target {
+          dist_dir: default_dist_dir(&PathBuf::default()),
+          ..default_target()
+        }],
+      }))
+    );
+  }
+
+  #[test]
   fn returns_default_target_when_builtin_targets_are_disabled() {
     for builtin_target in BUILT_IN_TARGETS {
       let targets = targets_from_package_json(format!(
@@ -834,11 +873,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("browser.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Browser,
             output_format: OutputFormat::CommonJS,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("browser"),
           ..Target::default()
         }]
@@ -857,11 +896,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("build"),
           dist_entry: Some(PathBuf::from("main.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             output_format: OutputFormat::CommonJS,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("main"),
           ..Target::default()
         }]
@@ -880,11 +919,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("module.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             output_format: OutputFormat::EsModule,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("module"),
           ..Target::default()
         }]
@@ -903,11 +942,11 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir(),
           dist_entry: Some(PathBuf::from("types.d.ts")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             output_format: OutputFormat::CommonJS,
             ..builtin_default_env()
-          },
+          }),
           name: String::from("types"),
           ..Target::default()
         }]
@@ -950,44 +989,44 @@ mod tests {
           Target {
             dist_dir: package_dir.join("build"),
             dist_entry: Some(PathBuf::from("browser.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Browser,
               output_format: OutputFormat::CommonJS,
               ..env()
-            },
+            }),
             name: String::from("browser"),
             ..Target::default()
           },
           Target {
             dist_dir: package_dir.join("build"),
             dist_entry: Some(PathBuf::from("main.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: OutputFormat::CommonJS,
               ..env()
-            },
+            }),
             name: String::from("main"),
             ..Target::default()
           },
           Target {
             dist_dir: package_dir.clone(),
             dist_entry: Some(PathBuf::from("module.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: OutputFormat::EsModule,
               ..env()
-            },
+            }),
             name: String::from("module"),
             ..Target::default()
           },
           Target {
             dist_dir: package_dir,
             dist_entry: Some(PathBuf::from("types.d.ts")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: OutputFormat::CommonJS,
               ..env()
-            },
+            }),
             name: String::from("types"),
             ..Target::default()
           },
@@ -1007,14 +1046,14 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("dist").join("custom"),
           dist_entry: None,
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Browser,
             is_library: false,
             output_format: OutputFormat::Global,
             should_optimize: false,
             should_scope_hoist: false,
             ..Environment::default()
-          },
+          }),
           name: String::from("custom"),
           ..Target::default()
         }]
@@ -1046,13 +1085,13 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             include_node_modules: IncludeNodeModules::Bool(true),
             is_library: false,
             output_format: OutputFormat::CommonJS,
             ..Environment::default()
-          },
+          }),
           name: String::from("custom"),
           ..Target::default()
         }]
@@ -1081,7 +1120,7 @@ mod tests {
         targets: vec![Target {
           dist_dir: package_dir().join("dist"),
           dist_entry: Some(PathBuf::from("custom.js")),
-          env: Environment {
+          env: Arc::new(Environment {
             context: EnvironmentContext::Browser,
             engines: Engines {
               browsers: Browsers {
@@ -1094,7 +1133,7 @@ mod tests {
             include_node_modules: IncludeNodeModules::Bool(true),
             output_format: OutputFormat::Global,
             ..Environment::default()
-          },
+          }),
           name: String::from("custom"),
           ..Target::default()
         }]
@@ -1112,13 +1151,13 @@ mod tests {
           targets: vec![Target {
             dist_dir: package_dir().join("dist"),
             dist_entry: Some(PathBuf::from("custom.js")),
-            env: Environment {
+            env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               engines,
               include_node_modules: IncludeNodeModules::Bool(false),
               output_format: OutputFormat::CommonJS,
               ..Environment::default()
-            },
+            }),
             name: String::from("custom"),
             ..Target::default()
           }]
@@ -1192,10 +1231,10 @@ mod tests {
           targets: vec![Target {
             dist_dir: package_dir().join("dist"),
             dist_entry: Some(PathBuf::from(format!("custom.{ext}"))),
-            env: Environment {
+            env: Arc::new(Environment {
               output_format,
               ..Environment::default()
-            },
+            }),
             name: String::from("custom"),
             ..Target::default()
           }],

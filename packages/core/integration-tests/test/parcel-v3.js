@@ -1,32 +1,23 @@
 // @flow
 
-import assert from 'assert';
 import {join} from 'path';
 
 import {ParcelV3, toFileSystemV3} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
-import {bundle, fsFixture, inputFS, overlayFS, run} from '@parcel/test-utils';
+import {describe, fsFixture, inputFS, it, overlayFS} from '@parcel/test-utils';
 
-describe('parcel-v3', function () {
-  // Duplicated temporarily for convenience, will remove once the Rust stuff works
-  it.skip('should produce a basic JS bundle with CommonJS requires', async function () {
-    let b = await bundle(join(__dirname, '/integration/commonjs/index.js'), {
-      featureFlags: {parcelV3: true},
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
-  });
-
-  it('should run the main-thread bootstrap function', async function () {
+describe('ParcelV3', function () {
+  it('builds', async () => {
     await fsFixture(overlayFS, __dirname)`
       index.js:
         console.log('hello world');
 
       .parcelrc:
         {
-          "extends": "@parcel/config-default"
+          "extends": "@parcel/config-default",
+          "transformers": {
+            "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js"]
+          }
         }
 
       yarn.lock: {}

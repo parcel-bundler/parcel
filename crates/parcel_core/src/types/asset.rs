@@ -7,8 +7,6 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::types::EnvironmentContext;
-
 use super::bundle::BundleBehavior;
 use super::environment::Environment;
 use super::file_type::FileType;
@@ -20,7 +18,7 @@ pub struct AssetId(pub NonZeroU32);
 
 /// The source code for an asset.
 #[derive(PartialEq, Default, Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", transparent)]
 pub struct Code {
   inner: String,
 }
@@ -135,7 +133,7 @@ pub struct Asset {
   /// An example of a 'constant module' would be:
   ///
   /// ```skip
-  /// export const styles = { margin: 10 };
+  /// export const MY_CONSTANT = 'some-value';
   /// ```
   pub is_constant_module: bool,
 
@@ -158,26 +156,39 @@ impl Asset {
     hasher.finish()
   }
 
-  /// Build a new empty asset
-  pub fn new_empty(file_path: PathBuf, source_code: Arc<Code>) -> Self {
-    let asset_type =
-      FileType::from_extension(file_path.extension().and_then(|s| s.to_str()).unwrap_or(""));
+  pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {
+    self.meta.insert("interpreter".into(), shebang.into());
+  }
 
-    // TODO: rest of this
-    Self {
-      file_path,
-      asset_type,
-      env: Arc::new(Environment {
-        context: EnvironmentContext::Browser,
-        ..Default::default()
-      }),
-      code: source_code,
-      ..Default::default()
+  pub fn set_has_cjs_exports(&mut self, value: bool) {
+    self.meta.insert("hasCJSExports".into(), value.into());
+    self.has_cjs_exports = value;
+  }
+
+  pub fn set_static_exports(&mut self, value: bool) {
+    self.meta.insert("staticExports".into(), value.into());
+    self.static_exports = value;
+  }
+
+  pub fn set_should_wrap(&mut self, value: bool) {
+    self.meta.insert("shouldWrap".into(), value.into());
+    self.should_wrap = value;
+  }
+  pub fn set_is_constant_module(&mut self, is_constant_module: bool) {
+    self.is_constant_module = is_constant_module;
+    if is_constant_module {
+      self.meta.insert("isConstantModule".into(), true.into());
     }
   }
 
-  pub fn set_interpreter(&mut self, shebang: impl Into<serde_json::Value>) {
-    self.meta.insert("interpreter".into(), shebang.into());
+  pub fn set_has_node_replacements(&mut self, has_node_replacements: bool) {
+    self.has_node_replacements = has_node_replacements;
+    if has_node_replacements {
+      self
+        .meta
+        // This is intentionally snake_case as that's what it was originally.
+        .insert("has_node_replacements".into(), true.into());
+    }
   }
 }
 

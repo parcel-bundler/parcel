@@ -5,7 +5,7 @@
 import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
-import {bundle} from '@parcel/test-utils';
+import {bundle, describe, it} from '@parcel/test-utils';
 import sinon from 'sinon';
 
 const config = path.join(
@@ -13,7 +13,7 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-json-reporter',
 );
 
-describe('json reporter', () => {
+describe.v2('json reporter', () => {
   it('logs bundling a commonjs bundle to stdout as json', async () => {
     let consoleStub = sinon.stub(console, 'log');
     try {

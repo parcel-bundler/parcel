@@ -16,13 +16,13 @@ pub enum OutputFormat {
   ///
   /// ES Modules are often loaded using a <script type="module"> tag in the browser.
   ///
-  #[default]
   EsModule,
 
   /// A classic script that can be loaded in a <script> tag in the browser
   ///
   /// This is unsupported for library targets.
   ///
+  #[default]
   Global,
 }
 

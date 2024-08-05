@@ -415,7 +415,7 @@ mod tests {
       let default_config = default_config(Arc::new(project_root.join(".parcelrc")));
       let files = vec![default_config.path.clone()];
 
-      fs.set_current_working_directory(PathBuf::from("/cwd"));
+      fs.set_current_working_directory(Path::new("/cwd"));
       fs.write_file(&default_config.path, default_config.parcel_rc);
 
       let parcel_config = ParcelRcConfigLoader::new(fs, Arc::new(MockPackageManager::default()))
