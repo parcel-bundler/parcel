@@ -1,22 +1,40 @@
+// @flow
 import * as fs from 'fs';
 import * as path from 'path';
 import * as watchman from 'fb-watchman';
+import {isGlob} from '@parcel/utils';
 import type {
   Options,
-  getEventsSince,
-  subscribe,
-  unsubscribe,
-  writeSnapshot,
   Event,
   SubscribeCallback,
   AsyncSubscription,
 } from '@parcel/watcher';
 
+type FilePath = string;
+type GlobPattern = string;
+
+// Matches the Watcher API from "@parcel/watcher"
 export interface Watcher {
-  getEventsSince: typeof getEventsSince;
-  subscribe: typeof subscribe;
-  unsubscribe: typeof unsubscribe;
-  writeSnapshot: typeof writeSnapshot;
+  getEventsSince(
+    dir: FilePath,
+    snapshot: FilePath,
+    opts?: Options,
+  ): Promise<Array<Event>>;
+  subscribe(
+    dir: FilePath,
+    fn: SubscribeCallback,
+    opts?: Options,
+  ): Promise<AsyncSubscription>;
+  unsubscribe(
+    dir: FilePath,
+    fn: SubscribeCallback,
+    opts?: Options,
+  ): Promise<void>;
+  writeSnapshot(
+    dir: FilePath,
+    snapshot: FilePath,
+    opts?: Options,
+  ): Promise<FilePath>;
 }
 
 let client: watchman.Client | null = null;
@@ -25,7 +43,7 @@ function getClient() {
     client = new watchman.Client();
     client.capabilityCheck(
       {optional: [], required: ['relative_root']},
-      function (error, resp) {
+      function (error) {
         if (error) {
           throw error;
         }
@@ -38,6 +56,7 @@ function getClient() {
 function commandAsync(args: any[]): Promise<any> {
   return new Promise((resolve, reject) => {
     const client = getClient();
+    // $FlowFixMe
     client.command(args, (err: Error | null | undefined, response: any) => {
       if (err) reject(err);
       else resolve(response);
@@ -53,11 +72,7 @@ class ParcelWatcherWatchmanJS implements Watcher {
   }
 
   // Types should match @parcel/watcher/index.js.flow
-  async writeSnapshot(
-    dir: string,
-    snapshot: string,
-    opts?: Options,
-  ): Promise<string> {
+  async writeSnapshot(dir: string, snapshot: FilePath): Promise<string> {
     const response = await commandAsync(['clock', dir]);
     fs.writeFileSync(path.resolve(snapshot), response.clock, {
       encoding: 'utf-8',
@@ -67,10 +82,9 @@ class ParcelWatcherWatchmanJS implements Watcher {
 
   async getEventsSince(
     dir: string,
-    snapshot: string,
+    snapshot: FilePath,
     opts?: Options,
   ): Promise<Event[]> {
-    // TODO: Handle ignore patterns here
     const clock = fs.readFileSync(path.resolve(snapshot), {
       encoding: 'utf-8',
     });
@@ -79,16 +93,7 @@ class ParcelWatcherWatchmanJS implements Watcher {
       'query',
       dir,
       {
-        expression: [
-          'not',
-          [
-            'anyof',
-            ['dirname', '.hg'],
-            ['dirname', '.git'],
-            ['dirname', '.parcel-cache'],
-            ['match', 'node_modules/**/*'],
-          ],
-        ],
+        expression: this._createIgnoreExpression(opts?.ignore),
         fields: ['name', 'mode', 'exists', 'new'],
         since: clock,
       },
@@ -98,6 +103,22 @@ class ParcelWatcherWatchmanJS implements Watcher {
       path: file.name,
       type: file.new ? 'create' : file.exists ? 'update' : 'delete',
     }));
+  }
+
+  _createIgnoreExpression(ignore?: Array<FilePath | GlobPattern>) {
+    if (!ignore) {
+      return [];
+    }
+
+    // Only globs and directories are currently supported
+    const customIgnores = ignore.map(filePathOrGlob => [
+      isGlob(filePathOrGlob) ? 'match' : 'dirname',
+      filePathOrGlob,
+    ]);
+
+    const result = ['not', ['anyof', ...customIgnores]];
+
+    return result;
   }
 
   async subscribe(
@@ -118,16 +139,7 @@ class ParcelWatcherWatchmanJS implements Watcher {
         //
         // https://facebook.github.io/watchman/docs/cmd/subscribe#defer
         // defer: ['my-company-example'],
-        expression: [
-          'not',
-          [
-            'anyof',
-            ['dirname', '.hg'],
-            ['dirname', '.git'],
-            ['dirname', '.parcel-cache'],
-            ['match', 'node_modules/**/*'],
-          ],
-        ],
+        expression: this._createIgnoreExpression(opts?.ignore),
         fields: ['name', 'mode', 'exists', 'new'],
         since: clock,
       },
@@ -151,16 +163,12 @@ class ParcelWatcherWatchmanJS implements Watcher {
 
     return {
       async unsubscribe() {
-        return await commandAsync(['unsubscribe', dir, subscriptionName]);
+        await commandAsync(['unsubscribe', dir, subscriptionName]);
       },
     };
   }
 
-  async unsubscribe(
-    dir: string,
-    _fn: SubscribeCallback,
-    _opts?: Options,
-  ): Promise<void> {
+  async unsubscribe(dir: string): Promise<void> {
     await commandAsync(['unsubscribe', dir, this.subscriptionName]);
   }
 }
