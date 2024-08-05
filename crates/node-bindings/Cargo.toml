@@ -8,6 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
+canary = []
 #canary = ["parcel_monitoring/canary"]
 
 [dependencies]
