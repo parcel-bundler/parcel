@@ -1,16 +1,18 @@
+//! This module configures `tracing_subscriber` to either write to a log file or standard output.
+//!
+//! Tracing is disabled by default.
 use std::sync::Arc;
 
-use napi::Env;
-use napi::JsObject;
+use anyhow::anyhow;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing_appender::non_blocking::WorkerGuard;
 
+use crate::from_env::{optional_var, FromEnvError};
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", tag = "mode")]
 pub enum TracerMode {
-  /// Disable the Tracer
-  Disabled,
   /// Output the Tracer logs to Stdout
   Stdout,
   /// Output the Tracer logs to a file
@@ -25,9 +27,29 @@ pub enum TracerMode {
   },
 }
 
-impl Default for TracerMode {
-  #[cfg(not(debug_assertions))]
-  fn default() -> Self {
+impl TracerMode {
+  pub fn from_env() -> Result<Option<Self>, FromEnvError> {
+    let Some(mode) = optional_var("PARCEL_TRACING_MODE") else {
+      return Ok(None);
+    };
+
+    match &*mode {
+      "file" => Ok(Some(Self::file())),
+      "stdout" => Ok(Some(Self::stdout())),
+      value => Err(FromEnvError::InvalidKey(
+        String::from("PARCEL_TRACING_MODE"),
+        anyhow!("Invalid value: {}", value),
+      )),
+    }
+  }
+
+  /// Default STDOUT configuration
+  pub fn stdout() -> Self {
+    Self::Stdout
+  }
+
+  /// Default file configuration
+  pub fn file() -> Self {
     Self::File {
       directory: std::env::temp_dir()
         .join("parcel_trace")
@@ -37,31 +59,16 @@ impl Default for TracerMode {
       max_files: 4,
     }
   }
-
-  #[cfg(debug_assertions)]
-  fn default() -> Self {
-    Self::Stdout
-  }
-}
-
-impl TracerMode {
-  pub fn from_js_value(env: &Env, js_object: Option<JsObject>) -> napi::Result<Self> {
-    if let Some(mode) = js_object {
-      env.from_js_value(mode)
-    } else {
-      Ok(TracerMode::default())
-    }
-  }
 }
 
 pub struct Tracer {
+  #[allow(unused)]
   worker_guard: Arc<Option<WorkerGuard>>,
 }
 
 impl Tracer {
-  pub fn new(mode: TracerMode) -> anyhow::Result<Self> {
-    let worker_guard = match mode {
-      TracerMode::Disabled => None,
+  pub fn new(options: TracerMode) -> anyhow::Result<Self> {
+    let worker_guard = match options {
       TracerMode::Stdout => {
         tracing_subscriber::fmt().try_init().map_err(|err| {
           anyhow::anyhow!(err).context("Failed to setup stdout tracing, is another tracer running?")
@@ -99,10 +106,35 @@ impl Tracer {
 
     Ok(tracer)
   }
+}
 
-  pub fn dummy() -> Self {
-    Self {
-      worker_guard: Default::default(),
-    }
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+  #[test]
+  fn test_tracing_options_sets_to_none_if_no_mode_is_set() {
+    let _guard = TEST_LOCK.lock();
+    std::env::remove_var("PARCEL_TRACING_MODE");
+    let options = TracerMode::from_env().unwrap();
+    assert!(options.is_none());
+  }
+
+  #[test]
+  fn test_tracing_options_sets_to_file() {
+    let _guard = TEST_LOCK.lock();
+    std::env::set_var("PARCEL_TRACING_MODE", "stdout");
+    let options = TracerMode::from_env().unwrap().unwrap();
+    assert!(matches!(options, TracerMode::Stdout));
+  }
+
+  #[test]
+  fn test_tracing_options_sets_to_stdout() {
+    let _guard = TEST_LOCK.lock();
+    std::env::set_var("PARCEL_TRACING_MODE", "file");
+    let options = TracerMode::from_env().unwrap().unwrap();
+    assert!(matches!(options, TracerMode::File { .. }));
   }
 }

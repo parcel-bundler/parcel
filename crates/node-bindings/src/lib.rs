@@ -5,8 +5,6 @@ use std::alloc::alloc;
 #[cfg(target_arch = "wasm32")]
 use std::alloc::Layout;
 
-mod init_sentry;
-
 #[cfg(all(target_os = "macos", not(miri)))]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
