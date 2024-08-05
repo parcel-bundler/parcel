@@ -443,10 +443,15 @@ impl<'a> Fold for DependencyCollector<'a> {
       Callee::Import(_) => DependencyKind::DynamicImport,
       Callee::Expr(expr) => {
         match &**expr {
-          Ident(ident) if ident.sym.to_string().as_str() == "importDeferredForDisplay" => {
+          Ident(ident)
+            if self.config.tier_imports
+              && ident.sym.to_string().as_str() == "importDeferredForDisplay" =>
+          {
             DependencyKind::DeferredForDisplayImport
           }
-          Ident(ident) if ident.sym.to_string().as_str() == "importDeferred" => {
+          Ident(ident)
+            if self.config.tier_imports && ident.sym.to_string().as_str() == "importDeferred" =>
+          {
             DependencyKind::DeferredImport
           }
           Ident(ident) => {
@@ -795,7 +800,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             message: format!("{} requires 1 argument", kind),
             code_highlights: Some(vec![CodeHighlight {
               message: None,
-              loc: SourceLocation::from(self.source_map, call.span),
+              loc: SourceLocation::from(&self.source_map, call.span),
             }]),
             hints: None,
             show_environment: false,

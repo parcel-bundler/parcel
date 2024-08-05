@@ -42,8 +42,10 @@ pub(crate) fn convert_specifier_type(
 
 #[cfg(test)]
 mod test {
-  use crate::transformer::test_helpers::run_swc_core_transform;
-  use parcel_js_swc_core::DependencyKind;
+  use crate::transformer::test_helpers::{
+    make_test_swc_config, run_swc_core_transform, run_swc_core_transform_with_config,
+  };
+  use parcel_js_swc_core::{Config, DependencyKind};
 
   use super::*;
 
@@ -56,6 +58,36 @@ mod test {
     );
     assert_eq!(dependency.kind, DependencyKind::Import);
     assert_eq!(convert_priority(&dependency), Priority::Sync);
+    assert_eq!(convert_specifier_type(&dependency), SpecifierType::Esm);
+  }
+
+  #[test]
+  fn test_deferred_for_display_dependency_kind() {
+    let dependency = get_last_dependency_with_config(Config {
+      tier_imports: true,
+      ..make_test_swc_config(
+        r#"
+        const x = importDeferredForDisplay('other');
+        "#,
+      )
+    });
+    assert_eq!(dependency.kind, DependencyKind::DeferredForDisplayImport);
+    assert_eq!(convert_priority(&dependency), Priority::Tier);
+    assert_eq!(convert_specifier_type(&dependency), SpecifierType::Esm);
+  }
+
+  #[test]
+  fn test_deferred_dependency_kind() {
+    let dependency = get_last_dependency_with_config(Config {
+      tier_imports: true,
+      ..make_test_swc_config(
+        r#"
+        const x = importDeferred('other');
+        "#,
+      )
+    });
+    assert_eq!(dependency.kind, DependencyKind::DeferredImport);
+    assert_eq!(convert_priority(&dependency), Priority::Tier);
     assert_eq!(convert_specifier_type(&dependency), SpecifierType::Esm);
   }
 
@@ -169,6 +201,12 @@ mod test {
   /// Run the SWC transformer and return the last dependency descriptor listed.
   fn get_last_dependency(source: &str) -> parcel_js_swc_core::DependencyDescriptor {
     let swc_output = run_swc_core_transform(source);
+    swc_output.dependencies.last().unwrap().clone()
+  }
+
+  /// Run the SWC transformer with a config and return the last dependency descriptor listed
+  fn get_last_dependency_with_config(config: Config) -> parcel_js_swc_core::DependencyDescriptor {
+    let swc_output = run_swc_core_transform_with_config(config);
     swc_output.dependencies.last().unwrap().clone()
   }
 }

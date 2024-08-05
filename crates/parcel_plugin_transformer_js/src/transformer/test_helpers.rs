@@ -6,6 +6,12 @@ pub(crate) fn run_swc_core_transform(source: &str) -> TransformResult {
   swc_output
 }
 
+/// Parse a file with the `parcel_js_swc_core` parser for testing and specify a config
+pub(crate) fn run_swc_core_transform_with_config(config: Config) -> TransformResult {
+  let swc_output = parcel_js_swc_core::transform(config, None).unwrap();
+  swc_output
+}
+
 /// SWC configuration for testing
 pub(crate) fn make_test_swc_config(source: &str) -> Config {
   Config {
