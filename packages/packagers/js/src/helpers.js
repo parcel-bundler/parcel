@@ -165,17 +165,17 @@ function $parcel$tier(loader) {
   var listeners = new Set();
   var resolved = false;
   if (loader instanceof Promise) {
-    loader.then(mod => {
+    loader.then(function (mod) {
       resolved = true;
-      for (let listener of listeners) {
-        listener?.(mod.default);
-      }
+      listeners.forEach(function (listener) {
+        if (listener) listener(mod.default);
+      });
     });
   } else {
     resolved = true;
   }
   return {
-    onReady: listener => {
+    onReady: function (listener) {
       if (resolved) {
         listener(loader.default);
       } else {
