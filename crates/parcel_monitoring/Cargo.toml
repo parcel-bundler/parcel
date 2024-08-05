@@ -5,7 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-canary = ["sentry", "whoami", "rustls", "minidumper", "crash-handler", "libc"]
+canary = ["sentry", "whoami", "rustls", "minidumper", "crash-handler"]
 
 rustls = ["sentry/rustls"]
 openssl = ["sentry/native-tls"]
