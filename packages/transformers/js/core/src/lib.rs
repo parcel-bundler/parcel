@@ -145,7 +145,6 @@ pub struct TransformResult {
   pub used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   pub has_node_replacements: bool,
   pub is_constant_module: bool,
-  pub needs_tier_helpers: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -460,16 +459,17 @@ pub fn transform(
               };
 
               let ignore_mark = Mark::fresh(Mark::root());
-              let (module, needs_tier_helpers) = dependency_collector(
-                module,
-                source_map.clone(),
-                &mut result.dependencies,
-                ignore_mark,
-                unresolved_mark,
-                &config,
-                &mut diagnostics,
+              let module = module.fold_with(
+                // Collect dependencies
+                &mut dependency_collector(
+                  source_map.clone(),
+                  &mut result.dependencies,
+                  ignore_mark,
+                  unresolved_mark,
+                  &config,
+                  &mut diagnostics,
+                ),
               );
-              result.needs_tier_helpers = needs_tier_helpers;
 
               diagnostics.extend(error_buffer_to_diagnostics(&error_buffer, &source_map));
 
