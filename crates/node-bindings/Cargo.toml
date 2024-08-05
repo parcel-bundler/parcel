@@ -8,14 +8,13 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-canary = []
-#canary = ["parcel_monitoring/canary"]
+canary = ["parcel_monitoring/canary"]
 
 [dependencies]
 parcel = { path = "../parcel" }
 parcel_core = { path = "../parcel_core" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-#parcel_monitoring = { path = "../parcel_monitoring" }
+parcel_monitoring = { path = "../parcel_monitoring" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 parcel-resolver-old = { path = "../../packages/utils/node-resolver-rs-old" }
 parcel_package_manager = { path = "../parcel_package_manager" }

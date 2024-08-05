@@ -5,7 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-canary = ["sentry", "whoami", "rustls", "minidumper", "crash-handler"]
+canary = ["sentry", "whoami", "rustls", "minidumper", "crash-handler", "libc"]
 
 rustls = ["sentry/rustls"]
 openssl = ["sentry/native-tls"]
@@ -16,7 +16,6 @@ required-features = ["canary"]
 
 [dependencies]
 anyhow = "1.0.86"
-parking_lot = "0.12.3"
 thiserror = "1.0.63"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
