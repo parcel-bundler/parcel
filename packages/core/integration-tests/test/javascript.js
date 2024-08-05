@@ -3104,6 +3104,9 @@ describe('javascript', function () {
         path.join(__dirname, '/integration/bundle-text/javascript.js'),
         {
           mode: 'production',
+          featureFlags: {
+            panicOnEmptyFileImport: false,
+          },
         },
       );
 
@@ -5548,7 +5551,12 @@ describe('javascript', function () {
               __dirname,
               '/integration/scope-hoisting/es6/side-effects-re-exports-all-empty/a.js',
             ),
-            options,
+            {
+              ...options,
+              featureFlags: {
+                panicOnEmptyFileImport: false,
+              },
+            },
           );
 
           if (usesSymbolPropagation) {
@@ -5556,6 +5564,26 @@ describe('javascript', function () {
           }
 
           assert.deepEqual((await run(b, null, {require: false})).output, 123);
+        },
+      );
+
+      it.v2(
+        'throws when deferring an unused ES6 re-export (wildcard, empty, unused)',
+        async function () {
+          await assert.rejects(
+            () =>
+              bundle(
+                path.join(
+                  __dirname,
+                  '/integration/scope-hoisting/es6/side-effects-re-exports-all-empty/a.js',
+                ),
+                options,
+              ),
+            {
+              message:
+                'integration/scope-hoisting/es6/side-effects-re-exports-all-empty/library/empty.js must export a value',
+            },
+          );
         },
       );
 
@@ -6117,6 +6145,44 @@ describe('javascript', function () {
       );
 
       it.v2(
+        'missing exports should throw when panicOnEmptyFileImport is enabled',
+        async function () {
+          await fsFixture(overlayFS, __dirname)`
+            empty.js:
+              // intentionally empty
+
+            index.js:
+              import {a} from './empty.js';
+
+            package.json:
+              {
+                "sideEffects": false
+              }
+
+            yarn.lock: {}
+          `;
+
+          await assert.rejects(
+            () =>
+              bundle(
+                path.join(
+                  __dirname,
+                  '/integration/scope-hoisting/es6/empty-module/a.js',
+                ),
+                {
+                  ...options,
+                  inputFS: overlayFS,
+                },
+              ),
+            {
+              message:
+                'integration/scope-hoisting/es6/empty-module/b.js must export a value',
+            },
+          );
+        },
+      );
+
+      it.v2(
         'supports namespace imports of theoretically excluded reexporting assets',
         async function () {
           let b = await bundle(
@@ -6545,7 +6611,10 @@ describe('javascript', function () {
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-commonjs/a.js',
           ),
-          options,
+          {
+            ...options,
+            outputFS: inputFS,
+          },
         );
 
         if (usesSymbolPropagation) {

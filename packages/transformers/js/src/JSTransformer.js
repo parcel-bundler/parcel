@@ -6,7 +6,6 @@ import type {
   FilePath,
   FileCreateInvalidation,
 } from '@parcel/types';
-import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
@@ -18,7 +17,13 @@ import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
+import {
+  globMatch,
+  relativePath,
+  remapSourceLocation,
+  type SchemaEntity,
+  validateSchema,
+} from '@parcel/utils';
 import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
@@ -862,6 +867,23 @@ export default (new Transformer({
 
     asset.meta.id = asset.id;
     if (hoist_result) {
+      if (
+        options.featureFlags.panicOnEmptyFileImport &&
+        !asset.pipeline &&
+        !asset.sideEffects &&
+        !hoist_result.exported_symbols.length &&
+        !hoist_result.imported_symbols.length &&
+        !hoist_result.re_exports.length
+      ) {
+        throw new Error(
+          `${relativePath(
+            options.projectRoot,
+            asset.filePath,
+            false,
+          )} must export a value`,
+        );
+      }
+
       asset.symbols.ensure();
       for (let {
         exported,
@@ -974,6 +996,23 @@ export default (new Transformer({
       asset.meta.shouldWrap = hoist_result.should_wrap;
     } else {
       if (symbol_result) {
+        if (
+          options.featureFlags.panicOnEmptyFileImport &&
+          !asset.pipeline &&
+          !asset.sideEffects &&
+          !symbol_result.exports.length &&
+          !symbol_result.exports_all.length &&
+          !symbol_result.imports.length
+        ) {
+          throw new Error(
+            `${relativePath(
+              options.projectRoot,
+              asset.filePath,
+              false,
+            )} must export a value`,
+          );
+        }
+
         let deps = new Map(
           asset
             .getDependencies()

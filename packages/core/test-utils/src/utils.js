@@ -133,6 +133,7 @@ export function getParcelOptions(
         },
       },
       featureFlags: {
+        panicOnEmptyFileImport: true,
         parcelV3: isParcelV3,
       },
     },

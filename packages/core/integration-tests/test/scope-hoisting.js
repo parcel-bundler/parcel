@@ -366,9 +366,62 @@ describe.v2('scope hoisting', function () {
           __dirname,
           'integration/scope-hoisting/es6/re-export-all-fallback-3/entry.js',
         ),
+        {
+          featureFlags: {
+            panicOnEmptyFileImport: false,
+          },
+        },
       );
       let output = await run(b);
       assert.strictEqual(output, 'FOOBAR!');
+    });
+
+    it('produces an invalid bundle when there is an empty file with export *', async () => {
+      await fsFixture(overlayFS, __dirname)`
+        empty.js:
+          // intentionally empty
+
+        a.js:
+          export * from './b.js';
+          export * from './c.js';
+
+        b.js:
+          export * from './empty.js';
+          export * from './test.js';
+
+        c.js:
+          export * from './empty.js';
+
+        index.js:
+          import {test} from './a.js';
+          output(test);
+
+        package.json:
+          {
+            "sideEffects": false
+          }
+
+        test.js:
+          export const test = 'should not fail';
+
+        yarn.lock: {}
+      `;
+
+      let result = await bundle(path.join(__dirname, 'index.js'), {
+        featureFlags: {
+          panicOnEmptyFileImport: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      let output;
+      await run(result, {
+        output(v) {
+          output = v;
+        },
+      });
+
+      assert.equal(output, undefined);
     });
 
     it('supports nested re-exporting all when falling back to namespace at runtime', async function () {
@@ -390,6 +443,9 @@ describe.v2('scope hoisting', function () {
           '/integration/scope-hoisting/es6/re-export-all-empty-no-side-effects/index.js',
         ),
         {
+          featureFlags: {
+            panicOnEmptyFileImport: false,
+          },
           mode: 'production',
         },
       );
@@ -403,6 +459,25 @@ describe.v2('scope hoisting', function () {
         'utf8',
       );
       assert.match(contents, /output="foo bar"/);
+    });
+
+    it('panics when re-exporting all from an empty module without side effects and panicOnEmptyFileImport is enabled', async function () {
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/re-export-all-empty-no-side-effects/index.js',
+            ),
+            {
+              mode: 'production',
+            },
+          ),
+        {
+          message:
+            'integration/scope-hoisting/es6/re-export-all-empty-no-side-effects/node\\_modules/lib/empty.js must export a value',
+        },
+      );
     });
 
     it('supports re-exporting all with ambiguous CJS and non-renaming and renaming dependency retargeting', async function () {
@@ -6001,6 +6076,9 @@ describe.v2('scope hoisting', function () {
 
     try {
       let b = await bundle(path.join(testDir, 'index.html'), {
+        featureFlags: {
+          panicOnEmptyFileImport: false,
+        },
         inputFS: slowFooFS,
         outputFS: slowFooFS,
         shouldDisableCache: true,
@@ -6015,6 +6093,9 @@ describe.v2('scope hoisting', function () {
       let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
 
       let b2 = await bundle(path.join(testDir, 'index.html'), {
+        featureFlags: {
+          panicOnEmptyFileImport: false,
+        },
         inputFS: slowBarFS,
         outputFS: slowBarFS,
         shouldDisableCache: true,

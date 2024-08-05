@@ -15,4 +15,9 @@ export type FeatureFlags = {|
    * Enable resolver refactor into owned data structures.
    */
   ownedResolverStructures: boolean,
+
+  /**
+   * Makes Parcel panic when an empty file is imported
+   */
+  panicOnEmptyFileImport: boolean,
 |};
