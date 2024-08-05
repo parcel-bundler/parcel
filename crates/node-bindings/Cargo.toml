@@ -8,16 +8,13 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-canary = ["sentry", "whoami", "rustls", "minidumper", "crash-handler", "parcel_monitoring/canary"]
-
-rustls = ["sentry/rustls"]
-openssl = ["sentry/native-tls"]
+#canary = ["parcel_monitoring/canary"]
 
 [dependencies]
 parcel = { path = "../parcel" }
 parcel_core = { path = "../parcel_core" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-parcel_monitoring = { path = "../parcel_monitoring" }
+#parcel_monitoring = { path = "../parcel_monitoring" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
 parcel-resolver-old = { path = "../../packages/utils/node-resolver-rs-old" }
 parcel_package_manager = { path = "../parcel_package_manager" }
@@ -56,10 +53,6 @@ oxipng = "8.0.0"
 rayon = "1.7.0"
 
 # Crash reporting dependencies
-sentry = { version = "0.32.2", optional = true, default-features = false, features = ["anyhow", "backtrace", "contexts", "debug-images", "panic", "reqwest"] }
-minidumper = { version = "0.8.3", optional = true }
-crash-handler = { version = "0.6.2", optional = true }
-whoami = { version = "1.5.1", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["custom"], default-features = false }

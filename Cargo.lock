@@ -2097,7 +2097,6 @@ name = "parcel-node-bindings"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "crash-handler",
  "crossbeam-channel",
  "dashmap",
  "getrandom",
@@ -2107,7 +2106,6 @@ dependencies = [
  "libc",
  "log",
  "mimalloc",
- "minidumper",
  "mockall",
  "mozjpeg-sys",
  "napi",
@@ -2124,20 +2122,17 @@ dependencies = [
  "parcel-resolver",
  "parcel-resolver-old",
  "parcel_core",
- "parcel_monitoring",
  "parcel_napi_helpers",
  "parcel_package_manager",
  "parcel_plugin_transformer_js",
  "parking_lot",
  "rayon",
- "sentry",
  "serde",
  "serde_json",
  "toml",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "whoami",
  "xxhash-rust",
 ]
 
