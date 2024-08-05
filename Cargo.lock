@@ -2247,7 +2247,6 @@ dependencies = [
  "anyhow",
  "cfg-if",
  "crash-handler",
- "libc",
  "minidumper",
  "sentry",
  "serde",
