@@ -198,3 +198,13 @@ jobs:
           status: ${{ job.status }}
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           env_url: ${{ steps.vercel-action.outputs.preview-url }}
+
+  run-release-builds:
+    name: Build for all architectures and smoke-test
+    uses: ./.github/workflows/release.yml
+    with:
+      profile: canary
+      release-command: |
+        echo "Skipping release as this is a CI build"
+        node scripts/tag-release.mjs --tag nightly
+      type: canary
