@@ -251,9 +251,7 @@ jobs:
           name: bindings-linux-musl-${{ matrix.arch }}
           path: packages/*/*/*.node
       - name: debug
-        run: |
-          ls -l packages/*/*/*.node
-          ldd packages/*/*/*.node
+        run: ls -l packages/*/*/*.node
       - name: Smoke test
         if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
         run: node -e 'require("@parcel/rust")'
