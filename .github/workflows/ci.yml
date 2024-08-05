@@ -207,5 +207,4 @@ jobs:
       profile: canary
       release-command: |
         echo "Skipping release as this is a CI build"
-        node scripts/tag-release.mjs --tag nightly
       type: canary
