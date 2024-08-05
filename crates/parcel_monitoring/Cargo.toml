@@ -16,7 +16,6 @@ required-features = ["canary"]
 
 [dependencies]
 anyhow = "1.0.86"
-parking_lot = "0.12.3"
 thiserror = "1.0.63"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
@@ -26,9 +25,10 @@ serde_json = "1.0.122"
 
 whoami = { version = "1.5.1", optional = true }
 sentry = { version = "0.32.2", optional = true, default-features = false, features = ["anyhow", "backtrace", "contexts", "debug-images", "panic", "reqwest"] }
+
+[target.'cfg(not(target_env = "musl"))'.dependencies]
 crash-handler = { version = "0.6.2", optional = true }
 minidumper = { version = "0.8.3", optional = true }
 
 [dev-dependencies]
 cfg-if = "1.0.0"
-libc = "0.2.155"

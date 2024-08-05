@@ -6,13 +6,13 @@
 use std::sync::Mutex;
 use std::time::Duration;
 
-#[cfg(feature = "canary")]
+#[cfg(all(feature = "canary", not(target_env = "musl")))]
 pub use crash_reporter::CrashReporterOptions;
 #[cfg(feature = "canary")]
 pub use sentry_integration::SentryOptions;
 pub use tracer::TracerMode;
 
-#[cfg(feature = "canary")]
+#[cfg(all(feature = "canary", not(target_env = "musl")))]
 mod crash_reporter;
 mod from_env;
 #[cfg(feature = "canary")]
@@ -25,13 +25,13 @@ pub static MONITORING_GUARD: Mutex<Option<MonitoringGuard>> = Mutex::new(None);
 pub struct MonitoringGuard {
   #[cfg(feature = "canary")]
   sentry: Option<sentry::ClientInitGuard>,
-  #[cfg(feature = "canary")]
+  #[cfg(all(feature = "canary", not(target_env = "musl")))]
   crash_handler: Option<crash_handler::CrashHandler>,
   tracer: Option<tracer::Tracer>,
 }
 
 impl MonitoringGuard {
-  #[cfg(feature = "canary")]
+  #[cfg(all(feature = "canary", not(target_env = "musl")))]
   pub fn crash_handler(&self) -> Option<&crash_handler::CrashHandler> {
     self.crash_handler.as_ref()
   }
@@ -42,7 +42,7 @@ pub struct MonitoringOptions {
   pub tracing_options: Option<TracerMode>,
   #[cfg(feature = "canary")]
   pub sentry_options: Option<SentryOptions>,
-  #[cfg(feature = "canary")]
+  #[cfg(all(feature = "canary", not(target_env = "musl")))]
   pub crash_reporter_options: Option<CrashReporterOptions>,
 }
 
@@ -52,7 +52,7 @@ impl MonitoringOptions {
       tracing_options: TracerMode::from_env()?,
       #[cfg(feature = "canary")]
       sentry_options: SentryOptions::from_env()?,
-      #[cfg(feature = "canary")]
+      #[cfg(all(feature = "canary", not(target_env = "musl")))]
       crash_reporter_options: CrashReporterOptions::from_env()?,
     })
   }
@@ -74,7 +74,7 @@ pub fn initialize_monitoring(options: MonitoringOptions) -> anyhow::Result<()> {
   if let Some(sentry_options) = options.sentry_options {
     guard.sentry = Some(sentry_integration::init_sentry(sentry_options)?);
   }
-  #[cfg(feature = "canary")]
+  #[cfg(all(feature = "canary", not(target_env = "musl")))]
   if let Some(crash_reporter_options) = options.crash_reporter_options {
     guard.crash_handler = Some(crash_reporter::init_crash_reporter(crash_reporter_options)?);
   }

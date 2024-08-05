@@ -98,7 +98,7 @@ fn main() {
   tracing::info!(%pid, "Simulating crash");
   cfg_if::cfg_if! {
       if #[cfg(any(target_os = "linux", target_os = "android"))] {
-          handler.simulate_signal(libc::SIGALRM as _);
+          handler.simulate_signal(14 /* SIGALRM */);
       } else if #[cfg(windows)] {
           handler.simulate_exception(None);
       } else if #[cfg(target_os = "macos")] {
