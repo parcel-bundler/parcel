@@ -8,6 +8,10 @@ export type FeatureFlags = {|
    */
   +parcelV3: boolean,
   /**
+   * Use node.js implementation of @parcel/watcher watchman backend
+   */
+  +useWatchmanWatcher: boolean,
+  /**
    * Configure runtime to enable retriable dynamic imports
    */
   importRetry: boolean,

@@ -21,6 +21,7 @@ import {tmpdir} from 'os';
 import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
 import {hashFile} from '@parcel/utils';
+import {getFeatureFlag} from '@parcel/feature-flags';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
@@ -34,6 +35,14 @@ const realpath = promisify(
   process.platform === 'win32' ? fs.realpath : fs.realpath.native,
 );
 const isPnP = process.versions.pnp != null;
+
+function getWatchmanWatcher(): typeof watcher {
+  // This is here to trick parcel into ignoring this require...
+  const packageName = ['@parcel', 'watcher-watchman-js'].join('/');
+
+  // $FlowFixMe
+  return require(packageName);
+}
 
 export class NodeFS implements FileSystem {
   readFile: any = promisify(fs.readFile);
@@ -63,6 +72,12 @@ export class NodeFS implements FileSystem {
   findFirstFile: any = isPnP
     ? (...args) => searchJS.findFirstFile(this, ...args)
     : searchNative.findFirstFile;
+
+  watcher(): typeof watcher {
+    return getFeatureFlag('useWatchmanWatcher')
+      ? getWatchmanWatcher()
+      : watcher;
+  }
 
   createWriteStream(filePath: string, options: any): Writable {
     // Make createWriteStream atomic
@@ -163,7 +178,7 @@ export class NodeFS implements FileSystem {
     fn: (err: ?Error, events: Array<Event>) => mixed,
     opts: WatcherOptions,
   ): Promise<AsyncSubscription> {
-    return watcher.subscribe(dir, fn, opts);
+    return this.watcher().subscribe(dir, fn, opts);
   }
 
   getEventsSince(
@@ -171,7 +186,7 @@ export class NodeFS implements FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<Array<Event>> {
-    return watcher.getEventsSince(dir, snapshot, opts);
+    return this.watcher().getEventsSince(dir, snapshot, opts);
   }
 
   async writeSnapshot(
@@ -179,7 +194,7 @@ export class NodeFS implements FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<void> {
-    await watcher.writeSnapshot(dir, snapshot, opts);
+    await this.watcher().writeSnapshot(dir, snapshot, opts);
   }
 
   static deserialize(): NodeFS {
@@ -229,6 +244,7 @@ try {
 }
 
 let useOsTmpDir;
+
 function shouldUseOsTmpDir(filePath) {
   if (useOsTmpDir != null) {
     return useOsTmpDir;
