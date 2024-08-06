@@ -4,8 +4,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "parcel serve src/index.html --no-cache --https --feature-flag tieredImports=true",
-    "start:prod": "yarn build && npx http-server -p 1234 dist/",
+    "start": "parcel serve src/index.html --no-cache --no-hmr --https --feature-flag tieredImports=true",
+    "start:prod": "yarn build && npx http-server -p 1234 --ssl --key ../.parcel-cache/private.pem --cert ../.parcel-cache/primary.crt dist/",
     "build": "PARCEL_WORKERS=0 parcel build src/index.html --no-cache --feature-flag tieredImports=true",
     "debug": "PARCEL_WORKERS=0 node --inspect-brk $(yarn bin parcel) serve src/index.html --no-cache --https --feature-flag tieredImports=true --no-hmr",
     "debug:prod": "PARCEL_WORKERS=0 node --inspect-brk $(yarn bin parcel) build src/index.html --no-cache --feature-flag tieredImports=true"

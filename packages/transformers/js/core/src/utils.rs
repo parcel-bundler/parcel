@@ -180,7 +180,7 @@ pub fn match_import_tier(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> 
         {
           if !is_marked(ident.span, ignore_mark) && call.args.len() == 1 {
             if let Some(arg) = call.args.first() {
-              match_str(&arg.expr).map(|(name, _)| name);
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
         }
