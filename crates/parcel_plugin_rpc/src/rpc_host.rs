@@ -9,5 +9,5 @@ pub trait RpcHost: Send + Sync {
 
 pub trait RpcWorker: Send + Sync {
   fn ping(&self) -> anyhow::Result<()>;
-  fn load_resolver(&self, resolve_from: PathBuf, specifier: String) -> anyhow::Result<()>;
+  fn load_resolver(&self, resolve_from: PathBuf, specifier: String) -> anyhow::Result<String>;
 }

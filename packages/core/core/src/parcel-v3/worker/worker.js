@@ -21,11 +21,13 @@ export class ParcelWorker {
     return 'pong';
   });
 
-  loadResolver: (options: LoadResolverOptions) => Error | void = jsCallable(
+  loadResolver: (options: LoadResolverOptions) => Error | string = jsCallable(
     ({specifier, resolveFrom}) => {
       const nodejs_require = nodejs_module.createRequire(resolveFrom);
       const filepath = nodejs_require.resolve(specifier);
       this.#resolvers.set(filepath, new ResolverNapi());
+      console.log({filepath});
+      return filepath;
     },
   );
 }

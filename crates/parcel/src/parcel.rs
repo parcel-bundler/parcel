@@ -125,8 +125,6 @@ impl Parcel {
       rpc_worker: _,
     } = self.state()?;
 
-    println!("hello");
-
     plugins.reporter().report(&ReporterEvent::BuildStart)?;
 
     let mut _request_tracker = RequestTracker::new(

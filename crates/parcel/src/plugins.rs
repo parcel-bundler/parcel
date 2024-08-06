@@ -38,7 +38,7 @@ pub trait Plugins {
   #[allow(unused)]
   fn packager(&self, path: &Path) -> Result<Box<dyn PackagerPlugin>, anyhow::Error>;
   fn reporter(&self) -> Arc<dyn ReporterPlugin>;
-  fn resolvers(&self) -> Result<Vec<Box<dyn ResolverPlugin>>, anyhow::Error>;
+  fn resolvers(&self) -> Result<Vec<Arc<dyn ResolverPlugin>>, anyhow::Error>;
   #[allow(unused)]
   fn runtimes(&self) -> Result<Vec<Box<dyn RuntimePlugin>>, anyhow::Error>;
   fn transformers(

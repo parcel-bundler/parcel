@@ -47,6 +47,8 @@ pub struct ConfigPlugins {
 
   /// Connection to the RPC worker context
   rpc_worker: Option<RpcWorkerRef>,
+
+  resolvers: Vec<Arc<dyn ResolverPlugin>>,
 }
 
 impl ConfigPlugins {
@@ -63,10 +65,13 @@ impl ConfigPlugins {
 
     let reporter = Arc::new(CompositeReporterPlugin::new(reporters));
 
+    // Load the resolver plugins
+    let mut resolvers = vec![];
     if let Some(rpc_worker) = &rpc_worker {
       for resolver in config.resolvers.iter() {
-        let resolve_from = (*resolver.resolve_from).clone();
-        rpc_worker.load_resolver(resolve_from, resolver.package_name.clone())?;
+        resolvers.push(
+          Arc::new(RpcResolverPlugin::new(&*rpc_worker, resolver)?) as Arc<dyn ResolverPlugin>
+        );
       }
     }
 
@@ -75,6 +80,7 @@ impl ConfigPlugins {
       ctx,
       reporter,
       rpc_worker,
+      resolvers,
     })
   }
 
@@ -162,19 +168,8 @@ impl Plugins for ConfigPlugins {
     self.reporter.clone()
   }
 
-  fn resolvers(&self) -> Result<Vec<Box<dyn ResolverPlugin>>, anyhow::Error> {
-    let mut resolvers: Vec<Box<dyn ResolverPlugin>> = Vec::new();
-
-    for resolver in self.config.resolvers.iter() {
-      if resolver.package_name == "@parcel/resolver-default" {
-        resolvers.push(Box::new(ParcelResolver::new(&self.ctx)));
-        continue;
-      }
-
-      resolvers.push(Box::new(RpcResolverPlugin::new(&self.ctx, resolver)?));
-    }
-
-    Ok(resolvers)
+  fn resolvers(&self) -> Result<Vec<Arc<dyn ResolverPlugin>>, anyhow::Error> {
+    Ok(self.resolvers.clone())
   }
 
   #[allow(unused)]

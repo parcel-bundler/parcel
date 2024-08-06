@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use napi::{JsObject, JsUnknown};
+use napi::bindgen_prelude::FromNapiValue;
+use napi::{JsObject, JsString, JsUnknown};
 use parcel_napi_helpers::js_callable::JsCallable;
 use parcel_napi_helpers::{anyhow_from_napi, option_to_napi};
 
@@ -34,7 +35,7 @@ impl RpcWorker for NodejsWorker {
     Ok(())
   }
 
-  fn load_resolver(&self, resolve_from: PathBuf, specifier: String) -> anyhow::Result<()> {
+  fn load_resolver(&self, resolve_from: PathBuf, specifier: String) -> anyhow::Result<String> {
     let resolve_from = resolve_from
       .to_str()
       .ok_or_else(option_to_napi)?
@@ -50,8 +51,10 @@ impl RpcWorker for NodejsWorker {
 
           Ok(vec![options.into_unknown()])
         },
-        |_env, _val| {
-          return Ok(());
+        |_env, val| {
+          let val = JsString::from_unknown(val)?;
+          let val = val.into_utf8()?.as_str()?.to_string();
+          return Ok(val);
         },
       )
       .map_err(anyhow_from_napi)

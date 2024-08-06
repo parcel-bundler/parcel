@@ -40,12 +40,19 @@ impl RpcWorker for NodejsWorkerFarm {
     Ok(())
   }
 
-  fn load_resolver(&self, root_dir: PathBuf, specifier: String) -> anyhow::Result<()> {
+  fn load_resolver(&self, root_dir: PathBuf, specifier: String) -> anyhow::Result<String> {
     // Send to all workers
+
+    let mut id = None::<String>;
+
     for conn in &self.conns {
-      conn.load_resolver(root_dir.clone(), specifier.clone())?;
+      id.replace(conn.load_resolver(root_dir.clone(), specifier.clone())?);
     }
 
-    Ok(())
+    let Some(id) = id else {
+      return Err(anyhow::anyhow!("No identifier set"));
+    };
+
+    Ok(id)
   }
 }
