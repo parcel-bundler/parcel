@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - v2
+      - molejniczak/empty-files-import-2
 
 permissions:
   contents: read
