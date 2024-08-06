@@ -10,6 +10,7 @@ import type {
   AsyncSubscription,
 } from '@parcel/watcher';
 
+type WatchmanArgs = any;
 type FilePath = string;
 type GlobPattern = string;
 
@@ -37,36 +38,30 @@ export interface Watcher {
   ): Promise<FilePath>;
 }
 
-let client: watchman.Client | null = null;
-function getClient() {
-  if (!client) {
-    client = new watchman.Client();
-  }
-  return client;
-}
-
-function commandAsync(args: any[]): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const client = getClient();
-    // $FlowFixMe
-    client.command(args, (err: Error | null | undefined, response: any) => {
-      if (err) reject(err);
-      else resolve(response);
-    });
-  });
-}
-
-class ParcelWatcherWatchmanJS implements Watcher {
+export class ParcelWatcherWatchmanJS implements Watcher {
   subscriptionName: string;
+  client: watchman.Client;
 
   constructor() {
     this.subscriptionName = 'parcel-watcher-subscription-' + Date.now();
+    this.client = new watchman.Client();
+  }
+
+  commandAsync(args: any[]): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const client = this.client;
+      // $FlowFixMe
+      client.command(args, (err: Error | null | undefined, response: any) => {
+        if (err) reject(err);
+        else resolve(response);
+      });
+    });
   }
 
   // Types should match @parcel/watcher/index.js.flow
   async writeSnapshot(dir: string, snapshot: FilePath): Promise<string> {
-    const response = await commandAsync(['clock', dir]);
-    fs.writeFileSync(path.resolve(snapshot), response.clock, {
+    const response = await this.commandAsync(['clock', dir]);
+    fs.writeFileSync(snapshot, response.clock, {
       encoding: 'utf-8',
     });
     return response.clock;
@@ -77,11 +72,11 @@ class ParcelWatcherWatchmanJS implements Watcher {
     snapshot: FilePath,
     opts?: Options,
   ): Promise<Event[]> {
-    const clock = fs.readFileSync(path.resolve(snapshot), {
+    const clock = fs.readFileSync(snapshot, {
       encoding: 'utf-8',
     });
 
-    const response = await commandAsync([
+    const response = await this.commandAsync([
       'query',
       dir,
       {
@@ -97,7 +92,10 @@ class ParcelWatcherWatchmanJS implements Watcher {
     }));
   }
 
-  _createExpression(dir: string, ignore?: Array<FilePath | GlobPattern>) {
+  _createExpression(
+    dir: string,
+    ignore?: Array<FilePath | GlobPattern>,
+  ): WatchmanArgs {
     const ignores = [
       // Ignore the watchman cookie
       ['match', '.watchman-cookie-*'],
@@ -130,9 +128,9 @@ class ParcelWatcherWatchmanJS implements Watcher {
     opts?: Options,
   ): Promise<AsyncSubscription> {
     const {subscriptionName} = this;
-    const {clock} = await commandAsync(['clock', dir]);
+    const {clock} = await this.commandAsync(['clock', dir]);
 
-    await commandAsync([
+    await this.commandAsync([
       'subscribe',
       dir,
       subscriptionName,
@@ -148,7 +146,7 @@ class ParcelWatcherWatchmanJS implements Watcher {
       },
     ]);
 
-    getClient().on('subscription', function (resp) {
+    this.client.on('subscription', function (resp) {
       if (!resp.files || resp.subscription !== subscriptionName) {
         return;
       }
@@ -164,18 +162,16 @@ class ParcelWatcherWatchmanJS implements Watcher {
       );
     });
 
+    const unsubscribe = async () => {
+      await this.commandAsync(['unsubscribe', dir, subscriptionName]);
+    };
+
     return {
-      async unsubscribe() {
-        await commandAsync(['unsubscribe', dir, subscriptionName]);
-      },
+      unsubscribe,
     };
   }
 
   async unsubscribe(dir: string): Promise<void> {
-    await commandAsync(['unsubscribe', dir, this.subscriptionName]);
+    await this.commandAsync(['unsubscribe', dir, this.subscriptionName]);
   }
-}
-
-export function createWrapper(): Watcher {
-  return new ParcelWatcherWatchmanJS();
 }

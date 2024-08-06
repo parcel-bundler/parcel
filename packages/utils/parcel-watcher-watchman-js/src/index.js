@@ -1,6 +1,6 @@
-import {createWrapper} from './wrapper';
+import {ParcelWatcherWatchmanJS} from './wrapper';
 
-const wrapper = createWrapper();
+const wrapper = new ParcelWatcherWatchmanJS();
 
 export const writeSnapshot = wrapper.writeSnapshot.bind(wrapper);
 export const getEventsSince = wrapper.getEventsSince.bind(wrapper);
