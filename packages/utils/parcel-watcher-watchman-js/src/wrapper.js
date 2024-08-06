@@ -110,15 +110,14 @@ class ParcelWatcherWatchmanJS implements Watcher {
       return [];
     }
 
-    // Only globs and directories are currently supported
+    // If pattern is not a glob, then assume it's a directory.
+    // Ignoring single files is not currently supported
     const customIgnores = ignore.map(filePathOrGlob => [
       isGlob(filePathOrGlob) ? 'match' : 'dirname',
       filePathOrGlob,
     ]);
 
-    const result = ['not', ['anyof', ...customIgnores]];
-
-    return result;
+    return ['not', ['anyof', ...customIgnores]];
   }
 
   async subscribe(
