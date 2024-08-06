@@ -165,7 +165,7 @@ export class NodeFS implements FileSystem {
     fn: (err: ?Error, events: Array<Event>) => mixed,
     opts: WatcherOptions,
   ): Promise<AsyncSubscription> {
-    return getFeatureFlag('useNodeWatcher')
+    return getFeatureFlag('useWatchmanWatcher')
       ? nodeWatcher.subscribe(dir, fn, opts)
       : watcher.subscribe(dir, fn, opts);
   }
@@ -175,7 +175,7 @@ export class NodeFS implements FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<Array<Event>> {
-    return getFeatureFlag('useNodeWatcher')
+    return getFeatureFlag('useWatchmanWatcher')
       ? nodeWatcher.getEventsSince(dir, snapshot, opts)
       : watcher.getEventsSince(dir, snapshot, opts);
   }
@@ -185,7 +185,7 @@ export class NodeFS implements FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<void> {
-    (await getFeatureFlag('useNodeWatcher'))
+    (await getFeatureFlag('useWatchmanWatcher'))
       ? nodeWatcher.writeSnapshot(dir, snapshot, opts)
       : watcher.writeSnapshot(dir, snapshot, opts);
   }
