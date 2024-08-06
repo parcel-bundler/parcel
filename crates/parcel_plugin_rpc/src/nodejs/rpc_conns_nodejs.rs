@@ -1,4 +1,6 @@
-use parking_lot::Mutex;
+use std::path::PathBuf;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 use super::NodejsWorker;
 
@@ -7,7 +9,7 @@ use crate::RpcWorker;
 /// Connection to multiple Nodejs Workers
 /// Implements round robin messaging
 pub struct NodejsWorkerFarm {
-  current_index: Mutex<usize>, // TODO use AtomicUsize
+  current_index: AtomicUsize,
   conns: Vec<NodejsWorker>,
 }
 
@@ -21,13 +23,12 @@ impl NodejsWorkerFarm {
 
   #[allow(unused)]
   fn next_index(&self) -> usize {
-    let mut current_index = self.current_index.lock();
-    if *current_index >= self.conns.len() - 1 {
-      *current_index = 0;
-    } else {
-      *current_index = *current_index + 1;
-    }
-    current_index.clone()
+    self
+      .current_index
+      .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+        Some((value + 1) % self.conns.len())
+      })
+      .expect("Unable to pick next worker")
   }
 }
 
@@ -36,6 +37,15 @@ impl RpcWorker for NodejsWorkerFarm {
     for conn in &self.conns {
       conn.ping()?;
     }
+    Ok(())
+  }
+
+  fn load_resolver(&self, root_dir: PathBuf, specifier: String) -> anyhow::Result<()> {
+    // Send to all workers
+    for conn in &self.conns {
+      conn.load_resolver(root_dir.clone(), specifier.clone())?;
+    }
+
     Ok(())
   }
 }

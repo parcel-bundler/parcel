@@ -15,6 +15,11 @@
   },
   "main": "lib/DefaultResolver.js",
   "source": "src/DefaultResolver.js",
+  "exports": {
+    "development": "./src/DefaultResolver.js",
+    "require": "./lib/DefaultResolver.js",
+    "default": "./lib/DefaultResolver.js"
+  },
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.12.0"

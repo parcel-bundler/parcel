@@ -27,6 +27,7 @@ use crate::requests::RequestResult;
 #[derive(Clone)]
 struct ParcelState {
   config: Arc<ConfigLoader>,
+  rpc_worker: Option<RpcWorkerRef>,
   plugins: PluginsRef,
 }
 
@@ -35,7 +36,7 @@ pub struct Parcel {
   pub options: ParcelOptions,
   pub package_manager: PackageManagerRef,
   pub project_root: PathBuf,
-  pub rpc: Option<RpcHostRef>,
+  pub rpc_host: Option<RpcHostRef>,
   state: Option<ParcelState>,
 }
 
@@ -44,7 +45,7 @@ impl Parcel {
     fs: Option<FileSystemRef>,
     options: ParcelOptions,
     package_manager: Option<PackageManagerRef>,
-    rpc: Option<RpcHostRef>,
+    rpc_host: Option<RpcHostRef>,
   ) -> Result<Self, anyhow::Error> {
     let fs = fs.unwrap_or_else(|| Arc::new(OsFileSystem::default()));
     let project_root = infer_project_root(Arc::clone(&fs), options.entries.clone())?;
@@ -57,7 +58,7 @@ impl Parcel {
       options,
       package_manager,
       project_root,
-      rpc,
+      rpc_host,
       state: None,
     })
   }
@@ -71,10 +72,9 @@ impl Parcel {
       return Ok(state);
     }
 
-    let mut _rpc_connection = None::<RpcWorkerRef>;
-
-    if let Some(rpc_host) = &self.rpc {
-      _rpc_connection = Some(rpc_host.start()?);
+    let mut rpc_worker = None;
+    if let Some(rpc_host) = &self.rpc_host {
+      rpc_worker = Some(rpc_host.start()?)
     }
 
     let (config, _files) =
@@ -104,11 +104,13 @@ impl Parcel {
         // TODO Initialise actual logger
         logger: PluginLogger::default(),
       },
-    ));
+      rpc_worker.clone(),
+    )?);
 
     let state = ParcelState {
       config: config_loader,
       plugins,
+      rpc_worker,
     };
 
     self.state = Some(state.clone());
@@ -117,7 +119,13 @@ impl Parcel {
   }
 
   pub fn build(&mut self) -> anyhow::Result<()> {
-    let ParcelState { config, plugins } = self.state()?;
+    let ParcelState {
+      config,
+      plugins,
+      rpc_worker: _,
+    } = self.state()?;
+
+    println!("hello");
 
     plugins.reporter().report(&ReporterEvent::BuildStart)?;
 
@@ -133,7 +141,11 @@ impl Parcel {
   }
 
   pub fn build_asset_graph(&mut self) -> anyhow::Result<AssetGraph> {
-    let ParcelState { config, plugins } = self.state()?;
+    let ParcelState {
+      config,
+      plugins,
+      rpc_worker: _,
+    } = self.state()?;
 
     let mut request_tracker = RequestTracker::new(
       config.clone(),

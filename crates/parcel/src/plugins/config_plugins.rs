@@ -28,6 +28,7 @@ use parcel_plugin_rpc::plugin::RpcReporterPlugin;
 use parcel_plugin_rpc::plugin::RpcResolverPlugin;
 use parcel_plugin_rpc::plugin::RpcRuntimePlugin;
 use parcel_plugin_rpc::plugin::RpcTransformerPlugin;
+use parcel_plugin_rpc::RpcWorkerRef;
 use parcel_plugin_transformer_js::ParcelJsTransformerPlugin;
 
 use super::Plugins;
@@ -43,10 +44,17 @@ pub struct ConfigPlugins {
 
   /// A reporter that runs all reporter plugins
   reporter: Arc<dyn ReporterPlugin>,
+
+  /// Connection to the RPC worker context
+  rpc_worker: Option<RpcWorkerRef>,
 }
 
 impl ConfigPlugins {
-  pub fn new(config: ParcelConfig, ctx: PluginContext) -> Self {
+  pub fn new(
+    config: ParcelConfig,
+    ctx: PluginContext,
+    rpc_worker: Option<RpcWorkerRef>,
+  ) -> anyhow::Result<Self> {
     let mut reporters: Vec<Box<dyn ReporterPlugin>> = Vec::new();
 
     for reporter in config.reporters.iter() {
@@ -55,11 +63,19 @@ impl ConfigPlugins {
 
     let reporter = Arc::new(CompositeReporterPlugin::new(reporters));
 
-    ConfigPlugins {
+    if let Some(rpc_worker) = &rpc_worker {
+      for resolver in config.resolvers.iter() {
+        let resolve_from = (*resolver.resolve_from).clone();
+        rpc_worker.load_resolver(resolve_from, resolver.package_name.clone())?;
+      }
+    }
+
+    Ok(ConfigPlugins {
       config,
       ctx,
       reporter,
-    }
+      rpc_worker,
+    })
   }
 
   fn missing_plugin(&self, path: &Path, phase: &str) -> anyhow::Error {

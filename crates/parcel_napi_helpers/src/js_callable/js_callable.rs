@@ -17,8 +17,8 @@ use super::map_params_serde;
 use super::map_return_serde;
 use super::JsValue;
 
-pub type MapJsParams = Box<dyn FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static>;
-pub type MapJsReturn<Return> = Box<dyn Fn(&Env, JsUnknown) -> napi::Result<Return> + 'static>;
+pub type MapJsParams = Box<dyn FnOnce(Env) -> napi::Result<Vec<JsUnknown>> + 'static>;
+pub type MapJsReturn<Return> = Box<dyn Fn(Env, JsUnknown) -> napi::Result<Return> + 'static>;
 
 /// JsCallable provides a Send + Sync wrapper around callable JavaScript functions
 ///
@@ -37,7 +37,7 @@ impl JsCallable {
     // Store the threadsafe function on the struct
     let tsfn: ThreadsafeFunction<MapJsParams, ErrorStrategy::Fatal> = callback
       .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<MapJsParams>| {
-        (ctx.value)(&ctx.env)
+        (ctx.value)(ctx.env.clone())
       })?;
 
     Ok(Self {
@@ -73,7 +73,7 @@ impl JsCallable {
   /// Call JavaScript function and discard return value
   pub fn call(
     &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static,
+    map_params: impl FnOnce(Env) -> napi::Result<Vec<JsUnknown>> + 'static,
   ) -> napi::Result<()> {
     #[cfg(debug_assertions)]
     if self.initial_thread == std::thread::current().id() {
@@ -100,8 +100,8 @@ impl JsCallable {
   /// Call JavaScript function and handle the return value
   pub fn call_with_return<Return>(
     &self,
-    map_params: impl FnOnce(&Env) -> napi::Result<Vec<JsUnknown>> + 'static,
-    map_return: impl Fn(&Env, JsUnknown) -> napi::Result<Return> + 'static,
+    map_params: impl FnOnce(Env) -> napi::Result<Vec<JsUnknown>> + 'static,
+    map_return: impl Fn(Env, JsUnknown) -> napi::Result<Return> + 'static,
   ) -> napi::Result<Return>
   where
     Return: Send + 'static,
@@ -126,7 +126,8 @@ impl JsCallable {
 
           let tx2 = tx.clone();
           let cb = env.create_function_from_closure("callback", move |ctx| {
-            tx.send(map_return(&env, ctx.get::<JsUnknown>(0)?)).unwrap();
+            tx.send(map_return(env.clone(), ctx.get::<JsUnknown>(0)?))
+              .unwrap();
             ctx.env.get_undefined()
           })?;
 
@@ -140,7 +141,7 @@ impl JsCallable {
         } else if value.is_error()? {
           tx.send(Err(napi::Error::from(value))).unwrap();
         } else {
-          tx.send(map_return(&env, value)).unwrap();
+          tx.send(map_return(env.clone(), value)).unwrap();
         }
         Ok(())
       },
