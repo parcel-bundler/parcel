@@ -41,14 +41,6 @@ let client: watchman.Client | null = null;
 function getClient() {
   if (!client) {
     client = new watchman.Client();
-    client.capabilityCheck(
-      {optional: [], required: ['relative_root']},
-      function (error) {
-        if (error) {
-          throw error;
-        }
-      },
-    );
   }
   return client;
 }
@@ -93,7 +85,7 @@ class ParcelWatcherWatchmanJS implements Watcher {
       'query',
       dir,
       {
-        expression: this._createIgnoreExpression(opts?.ignore),
+        expression: this._createExpression(dir, opts?.ignore),
         fields: ['name', 'mode', 'exists', 'new'],
         since: clock,
       },
@@ -105,19 +97,31 @@ class ParcelWatcherWatchmanJS implements Watcher {
     }));
   }
 
-  _createIgnoreExpression(ignore?: Array<FilePath | GlobPattern>) {
-    if (!ignore) {
-      return [];
+  _createExpression(dir: string, ignore?: Array<FilePath | GlobPattern>) {
+    const ignores = [
+      // Ignore the wathcman cookie
+      ['match', '.watchman-cookie-*'],
+      // Ignore directory changes as they are just noise
+      ['type', 'd'],
+    ];
+
+    if (ignore) {
+      const customIgnores = ignore?.map(filePathOrGlob => {
+        const relative = path.relative(dir, filePathOrGlob);
+
+        if (isGlob(filePathOrGlob)) {
+          return ['match', relative, 'wholename'];
+        }
+
+        // If pattern is not a glob, then assume it's a directory.
+        // Ignoring single files is not currently supported
+        return ['dirname', relative];
+      });
+
+      ignores.push(...customIgnores);
     }
 
-    // If pattern is not a glob, then assume it's a directory.
-    // Ignoring single files is not currently supported
-    const customIgnores = ignore.map(filePathOrGlob => [
-      isGlob(filePathOrGlob) ? 'match' : 'dirname',
-      filePathOrGlob,
-    ]);
-
-    return ['not', ['anyof', ...customIgnores]];
+    return ['not', ['anyof', ...ignores]];
   }
 
   async subscribe(
@@ -138,7 +142,7 @@ class ParcelWatcherWatchmanJS implements Watcher {
         //
         // https://facebook.github.io/watchman/docs/cmd/subscribe#defer
         // defer: ['my-company-example'],
-        expression: this._createIgnoreExpression(opts?.ignore),
+        expression: this._createExpression(dir, opts?.ignore),
         fields: ['name', 'mode', 'exists', 'new'],
         since: clock,
       },
