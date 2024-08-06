@@ -55,12 +55,12 @@ pub enum DependencyKind {
   DynamicImport,
   /// Corresponds to a deferred for display import statement
   /// ```skip
-  /// const DependencyDeferredForDisplay = importDeferredForDisplay('./dependency');
+  /// const DependencyDeferredForDisplay = unsafe_importDeferredForDisplay('./dependency');
   /// ```
   DeferredForDisplayImport,
   /// Corresponds to a deferred import statement
   /// ```skip
-  /// const DependencyDeferred = importDeferred('./dependency');
+  /// const DependencyDeferred = unsafe_importDeferred('./dependency');
   /// ```
   DeferredImport,
   /// Corresponds to CJS require statements
@@ -445,12 +445,13 @@ impl<'a> Fold for DependencyCollector<'a> {
         match &**expr {
           Ident(ident)
             if self.config.tier_imports
-              && ident.sym.to_string().as_str() == "importDeferredForDisplay" =>
+              && ident.sym.to_string().as_str() == "unsafe_importDeferredForDisplay" =>
           {
             DependencyKind::DeferredForDisplayImport
           }
           Ident(ident)
-            if self.config.tier_imports && ident.sym.to_string().as_str() == "importDeferred" =>
+            if self.config.tier_imports
+              && ident.sym.to_string().as_str() == "unsafe_importDeferred" =>
           {
             DependencyKind::DeferredImport
           }

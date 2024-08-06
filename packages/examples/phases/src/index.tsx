@@ -3,8 +3,9 @@ import ReactDOM from 'react-dom';
 
 import Tier1 from './tier1';
 const DeferredTier2 =
-  importDeferredForDisplay<typeof import('./tier2')>('./tier2');
-const DeferredTier3 = importDeferred<typeof import('./tier3')>('./tier3');
+  unsafe_importDeferredForDisplay<typeof import('./tier2')>('./tier2');
+const DeferredTier3 =
+  unsafe_importDeferred<typeof import('./tier3')>('./tier3');
 
 import {deferredLoadComponent} from './utils';
 

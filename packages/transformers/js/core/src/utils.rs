@@ -168,15 +168,15 @@ pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark)
   }
 }
 
-/// This matches an expression like `importDeferredForDisplay('id')` or `importDeferred('id')` and returns the dependency id.
+/// This matches an expression like `unsafe_importDeferredForDisplay('id')` or `unsafe_importDeferred('id')` and returns the dependency id.
 pub fn match_import_tier(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
   use ast::*;
 
   if let Expr::Call(call) = node {
     if let Callee::Expr(expr) = &call.callee {
       if let Expr::Ident(ident) = &**expr {
-        if ident.sym == js_word!("importDeferredForDisplay")
-          || ident.sym == js_word!("importDeferred")
+        if ident.sym == js_word!("unsafe_importDeferredForDisplay")
+          || ident.sym == js_word!("unsafe_importDeferred")
         {
           if !is_marked(ident.span, ignore_mark) && call.args.len() == 1 {
             if let Some(arg) = call.args.first() {

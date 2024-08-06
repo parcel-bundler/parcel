@@ -67,7 +67,7 @@ mod test {
       tier_imports: true,
       ..make_test_swc_config(
         r#"
-        const x = importDeferredForDisplay('other');
+        const x = unsafe_importDeferredForDisplay('other');
         "#,
       )
     });
@@ -82,7 +82,7 @@ mod test {
       tier_imports: true,
       ..make_test_swc_config(
         r#"
-        const x = importDeferred('other');
+        const x = unsafe_importDeferred('other');
         "#,
       )
     });
