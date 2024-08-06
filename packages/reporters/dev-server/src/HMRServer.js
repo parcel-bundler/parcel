@@ -1,5 +1,4 @@
 // @flow
-
 import type {
   Asset,
   BundleGraph,
@@ -46,8 +45,7 @@ export type HMRMessage =
       assets: Array<HMRAsset>,
     |}
   | {|
-      type: 'partial-update',
-      assets: Array<HMRAsset>,
+      type: 'reload',
     |}
   | {|
       type: 'error',
@@ -226,10 +224,16 @@ export default class HMRServer {
     }
 
     let assets = await queue.run();
-    this.broadcast({
-      type: 'update',
-      assets: assets,
-    });
+
+    if (assets.length >= BROADCAST_MAX_ASSETS) {
+      // Too many assets to send via an update without errors, just reload instead
+      this.broadcast({type: 'reload'});
+    } else {
+      this.broadcast({
+        type: 'update',
+        assets,
+      });
+    }
   }
 
   async getHotAssetContents(asset: Asset): Promise<string> {
@@ -281,31 +285,9 @@ export default class HMRServer {
   }
 
   broadcast(msg: HMRMessage) {
-    if (msg.type === 'update' && msg.assets.length > BROADCAST_MAX_ASSETS) {
-      for (let i = 0; i * BROADCAST_MAX_ASSETS < msg.assets.length; i += 1) {
-        // Split up message if too large
-        const assets = msg.assets.slice(
-          i * BROADCAST_MAX_ASSETS,
-          (i + 1) * BROADCAST_MAX_ASSETS,
-        );
-        if (i * BROADCAST_MAX_ASSETS === msg.assets.length - 1) {
-          // Last group of assets
-          this.broadcast({
-            type: 'update',
-            assets,
-          });
-        } else {
-          this.broadcast({
-            type: 'partial-update',
-            assets,
-          });
-        }
-      }
-    } else {
-      const json = JSON.stringify(msg);
-      for (let ws of this.wss.clients) {
-        ws.send(json);
-      }
+    const json = JSON.stringify(msg);
+    for (let ws of this.wss.clients) {
+      ws.send(json);
     }
   }
 }

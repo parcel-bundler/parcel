@@ -88,7 +88,7 @@ function getPort() {
 
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
-var partialAssets = [];
+var collectedAssets = [];
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = getHostname();
   var port = getPort();
@@ -140,18 +140,13 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     var data /*: HMRMessage */ = JSON.parse(event.data);
 
-    if (data.type === 'partial-update') {
-      // Received a partial update, store it until the update event comes through
-      partialAssets.push(...data.assets);
+    if (data.type === 'reload') {
+      fullReload();
     } else if (data.type === 'update') {
       // Remove error overlay if there is one
       if (typeof document !== 'undefined') {
         removeErrorOverlay();
       }
-
-      let allAssets = [...partialAssets, ...data.assets];
-      // Clean up partial assets so we don't leak memory
-      partialAssets = [];
 
       let assets = data.assets.filter(asset => asset.envHash === HMR_ENV_HASH);
 
