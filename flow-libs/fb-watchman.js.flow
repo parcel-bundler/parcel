@@ -13,7 +13,7 @@ declare module 'fb-watchman' {
       * If not provided, the Client locates the binary using the PATH specified
       * by the node child_process's default env.
       */
-      watchmanBinaryPath?: string | undefined;
+      watchmanBinaryPath?: string | void;
   }
 
   declare interface Capabilities {

@@ -1,4 +1,3 @@
-// @flow
 import {createWrapper} from './wrapper';
 
 const wrapper = createWrapper();
