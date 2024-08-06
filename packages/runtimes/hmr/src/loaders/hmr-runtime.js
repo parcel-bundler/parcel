@@ -88,7 +88,6 @@ function getPort() {
 
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
-var collectedAssets = [];
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = getHostname();
   var port = getPort();
