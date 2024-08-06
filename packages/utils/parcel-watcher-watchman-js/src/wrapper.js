@@ -99,7 +99,7 @@ class ParcelWatcherWatchmanJS implements Watcher {
 
   _createExpression(dir: string, ignore?: Array<FilePath | GlobPattern>) {
     const ignores = [
-      // Ignore the wathcman cookie
+      // Ignore the watchman cookie
       ['match', '.watchman-cookie-*'],
       // Ignore directory changes as they are just noise
       ['type', 'd'],
