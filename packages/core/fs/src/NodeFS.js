@@ -185,9 +185,9 @@ export class NodeFS implements FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<void> {
-    (await getFeatureFlag('useWatchmanWatcher'))
-      ? nodeWatcher.writeSnapshot(dir, snapshot, opts)
-      : watcher.writeSnapshot(dir, snapshot, opts);
+    getFeatureFlag('useWatchmanWatcher')
+      ? await nodeWatcher.writeSnapshot(dir, snapshot, opts)
+      : await watcher.writeSnapshot(dir, snapshot, opts);
   }
 
   static deserialize(): NodeFS {
