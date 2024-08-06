@@ -9,7 +9,6 @@ import path from 'path';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {relativePath} from '@parcel/utils';
 import {NodePackageManager} from '@parcel/package-manager';
-import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 import {createEnvironment} from '../src/Environment';
 import {toProjectPath} from '../src/projectPath';
 
