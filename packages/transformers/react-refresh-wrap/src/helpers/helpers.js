@@ -1,4 +1,5 @@
 var Refresh = require('react-refresh/runtime');
+var {version} = require('react-refresh/package.json');
 
 function debounce(func, delay) {
   if (process.env.NODE_ENV === 'test') {
@@ -37,7 +38,16 @@ var enqueueUpdate = debounce(function () {
 // MIT License - Copyright (c) Facebook, Inc. and its affiliates.
 
 module.exports.prelude = function (module) {
+  window.__REACT_REFRESH_VERSION_TRANSFORMER = version;
   window.$RefreshReg$ = function (type, id) {
+    if (
+      window.__REACT_REFRESH_VERSION_TRANSFORMER !==
+      window.__REACT_REFRESH_VERSION_RUNTIME
+    ) {
+      throw new Error(
+        `react-refresh versions did not match between transformer and runtime. Please check your dependencies. Transformer: ${window.__REACT_REFRESH_VERSION_TRANSFORMER}, Runtime: ${window.__REACT_REFRESH_VERSION_RUNTIME}`,
+      );
+    }
     Refresh.register(type, module.id + ' ' + id);
   };
   window.$RefreshSig$ = Refresh.createSignatureFunctionForTransform;
