@@ -25,6 +25,7 @@
     "main": {
       "includeNodeModules": {
         "@parcel/core": false,
+        "@parcel/feature-flags": false,
         "@parcel/rust": false,
         "@parcel/types-internal": false,
         "@parcel/utils": false,
@@ -36,6 +37,7 @@
     "browser": {
       "includeNodeModules": {
         "@parcel/core": false,
+        "@parcel/feature-flags": false,
         "@parcel/rust": false,
         "@parcel/types-internal": false,
         "@parcel/utils": false,
