@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use napi::bindgen_prelude::Either3;
 use napi::Env;
 use napi::JsBoolean;
@@ -18,7 +17,8 @@ use napi::JsUnknown;
 use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
-use parcel::file_system::FileSystemRef;
+
+use parcel::file_system::{FileSystemRealPathCache, FileSystemRef};
 use parcel_resolver::ExportsCondition;
 use parcel_resolver::Extensions;
 use parcel_resolver::Fields;
@@ -97,7 +97,7 @@ impl FileSystem for JsFileSystem {
   fn canonicalize(
     &self,
     path: &Path,
-    _cache: &DashMap<PathBuf, Option<PathBuf>>,
+    _cache: &FileSystemRealPathCache,
   ) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
       let path = path.to_string_lossy();
