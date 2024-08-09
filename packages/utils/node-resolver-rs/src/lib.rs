@@ -6,11 +6,30 @@ use std::sync::Arc;
 
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
+
+pub use cache::Cache;
+pub use cache::CacheCow;
+pub use error::ResolverError;
+pub use invalidations::*;
 use package_json::AliasValue;
+pub use package_json::ExportsCondition;
 use package_json::ExportsResolution;
+pub use package_json::Fields;
+pub use package_json::ModuleType;
 use package_json::PackageJson;
+pub use package_json::PackageJsonError;
 pub use parcel_core::types::IncludeNodeModules;
+#[cfg(not(target_arch = "wasm32"))]
+pub use parcel_filesystem::os_file_system::OsFileSystem;
+pub use parcel_filesystem::FileSystem;
+pub use specifier::parse_package_specifier;
+pub use specifier::parse_scheme;
+pub use specifier::Specifier;
+pub use specifier::SpecifierError;
+pub use specifier::SpecifierType;
 use tsconfig::TsConfig;
+
+use crate::path::resolve_path;
 
 mod builtins;
 mod cache;
@@ -21,25 +40,6 @@ mod path;
 mod specifier;
 mod tsconfig;
 mod url_to_path;
-
-pub use cache::Cache;
-pub use cache::CacheCow;
-pub use error::ResolverError;
-pub use invalidations::*;
-pub use package_json::ExportsCondition;
-pub use package_json::Fields;
-pub use package_json::ModuleType;
-pub use package_json::PackageJsonError;
-#[cfg(not(target_arch = "wasm32"))]
-pub use parcel_filesystem::os_file_system::OsFileSystem;
-pub use parcel_filesystem::FileSystem;
-pub use specifier::parse_package_specifier;
-pub use specifier::parse_scheme;
-pub use specifier::Specifier;
-pub use specifier::SpecifierError;
-pub use specifier::SpecifierType;
-
-use crate::path::resolve_path;
 
 bitflags! {
   pub struct Flags: u16 {
@@ -654,22 +654,14 @@ impl<'a> ResolveRequest<'a> {
     subpath: &str,
   ) -> Result<Resolution, ResolverError> {
     let package_path = package_dir.join("package.json");
-    let package: Result<Arc<PackageJson>, ResolverError> =
-      if self.resolver.cache.fs.is_file(&package_path) {
-        self.invalidations.read(&package_path, || {
-          self
-            .resolver
-            .cache
-            .read_package(Cow::Borrowed(&package_path))
-            .deref()
-            .clone()
-        })
-      } else {
-        Err(ResolverError::FileNotFound {
-          relative: PathBuf::from("package.json"),
-          from: package_dir.clone(),
-        })
-      };
+    let package = self.invalidations.read(&package_path, || {
+      self
+        .resolver
+        .cache
+        .read_package(Cow::Borrowed(&package_path))
+        .deref()
+        .clone()
+    });
 
     let package = match package {
       Ok(package) => package,
@@ -1063,22 +1055,14 @@ impl<'a> ResolveRequest<'a> {
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
     let mut res = Ok(None);
-    let package_read_result = if self.resolver.cache.fs.is_file(&path) {
+    let package = if let Ok(package) = self.invalidations.read(&path, || {
       self
-        .invalidations
-        .read(&path, || {
-          self
-            .resolver
-            .cache
-            .read_package(Cow::Borrowed(&path))
-            .deref()
-            .clone()
-        })
-        .ok()
-    } else {
-      None
-    };
-    let package: Option<Arc<PackageJson>> = if let Some(package) = package_read_result {
+        .resolver
+        .cache
+        .read_package(Cow::Borrowed(&path))
+        .deref()
+        .clone()
+    }) {
       res = self.try_package_entries(&package);
       if matches!(res, Ok(Some(_))) {
         return res;

@@ -2,9 +2,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use canonicalize::canonicalize;
-use dashmap::DashMap;
 
-use crate::FileSystem;
+use crate::{FileSystem, FileSystemRealPathCache};
 
 mod canonicalize;
 
@@ -16,11 +15,7 @@ impl FileSystem for OsFileSystem {
     std::env::current_dir()
   }
 
-  fn canonicalize(
-    &self,
-    path: &Path,
-    cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> std::io::Result<PathBuf> {
+  fn canonicalize(&self, path: &Path, cache: &FileSystemRealPathCache) -> std::io::Result<PathBuf> {
     canonicalize(path, cache)
   }
 

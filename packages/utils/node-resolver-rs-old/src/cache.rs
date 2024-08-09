@@ -6,10 +6,11 @@ use std::path::PathBuf;
 
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
-use parcel_core::types::File;
-use parcel_filesystem::FileSystemRef;
 use parking_lot::Mutex;
 use typed_arena::Arena;
+
+use parcel_core::types::File;
+use parcel_filesystem::{FileSystemRealPathCache, FileSystemRef};
 
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;
@@ -29,7 +30,7 @@ pub struct Cache {
   tsconfigs: FrozenMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
   is_file_cache: DashMap<PathBuf, bool>,
   is_dir_cache: DashMap<PathBuf, bool>,
-  realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
+  realpath_cache: FileSystemRealPathCache,
 }
 
 impl fmt::Debug for Cache {
@@ -84,7 +85,7 @@ impl Cache {
       tsconfigs: FrozenMap::new(),
       is_file_cache: DashMap::new(),
       is_dir_cache: DashMap::new(),
-      realpath_cache: DashMap::new(),
+      realpath_cache: FileSystemRealPathCache::default(),
     }
   }
 
@@ -119,7 +120,7 @@ impl Cache {
 
     fn read_package(
       fs: &FileSystemRef,
-      realpath_cache: &DashMap<PathBuf, Option<PathBuf>>,
+      realpath_cache: &FileSystemRealPathCache,
       arena: &Mutex<Arena<Box<str>>>,
       path: PathBuf,
     ) -> Result<PackageJson<'static>, ResolverError> {

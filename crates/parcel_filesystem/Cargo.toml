@@ -7,6 +7,8 @@ description = "FileSystem wrapper trait for use in Parcel codebase."
 [dependencies]
 dashmap = "5.5.3"
 mockall = "0.12.1"
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+anyhow = "1.0.86"
 
 [dev-dependencies]
 assert_fs = "1.1.1"

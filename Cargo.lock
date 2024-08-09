@@ -2234,10 +2234,12 @@ dependencies = [
 name = "parcel_filesystem"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "assert_fs",
  "dashmap",
  "is_elevated",
  "mockall",
+ "xxhash-rust",
 ]
 
 [[package]]

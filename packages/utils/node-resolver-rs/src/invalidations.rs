@@ -17,8 +17,9 @@ pub enum FileCreateInvalidation {
 
 #[derive(Default, Debug)]
 pub struct Invalidations {
-  pub invalidate_on_file_create: RwLock<HashSet<FileCreateInvalidation>>,
-  pub invalidate_on_file_change: RwLock<HashSet<PathBuf>>,
+  pub invalidate_on_file_create:
+    RwLock<HashSet<FileCreateInvalidation, xxhash_rust::xxh3::Xxh3Builder>>,
+  pub invalidate_on_file_change: RwLock<HashSet<PathBuf, xxhash_rust::xxh3::Xxh3Builder>>,
   pub invalidate_on_startup: AtomicBool,
 }
 
@@ -63,20 +64,14 @@ impl Invalidations {
   }
 
   pub fn extend(&self, other: &Invalidations) {
+    let mut invalidate_on_file_create = self.invalidate_on_file_create.write().unwrap();
     for f in other.invalidate_on_file_create.read().unwrap().iter() {
-      self
-        .invalidate_on_file_create
-        .write()
-        .unwrap()
-        .insert(f.clone());
+      invalidate_on_file_create.insert(f.clone());
     }
 
+    let mut invalidate_on_file_change = self.invalidate_on_file_change.write().unwrap();
     for f in other.invalidate_on_file_change.read().unwrap().iter() {
-      self
-        .invalidate_on_file_change
-        .write()
-        .unwrap()
-        .insert(f.clone());
+      invalidate_on_file_change.insert(f.clone());
     }
 
     if other.invalidate_on_startup.load(Ordering::Relaxed) {
