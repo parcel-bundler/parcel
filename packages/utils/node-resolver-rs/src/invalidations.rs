@@ -1,10 +1,9 @@
+use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-
-use gxhash::HashSet;
 
 use crate::path::normalize_path;
 use crate::ResolverError;
@@ -18,8 +17,9 @@ pub enum FileCreateInvalidation {
 
 #[derive(Default, Debug)]
 pub struct Invalidations {
-  pub invalidate_on_file_create: RwLock<HashSet<FileCreateInvalidation>>,
-  pub invalidate_on_file_change: RwLock<HashSet<PathBuf>>,
+  pub invalidate_on_file_create:
+    RwLock<HashSet<FileCreateInvalidation, xxhash_rust::xxh3::Xxh3Builder>>,
+  pub invalidate_on_file_change: RwLock<HashSet<PathBuf, xxhash_rust::xxh3::Xxh3Builder>>,
   pub invalidate_on_startup: AtomicBool,
 }
 

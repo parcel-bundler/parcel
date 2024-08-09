@@ -17,7 +17,8 @@ pub mod os_file_system;
 /// This should be `OsFileSystem` for non-testing environments and `InMemoryFileSystem` for testing.
 pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 
-pub type FileSystemRealPathCache = DashMap<PathBuf, Option<PathBuf>, gxhash::GxBuildHasher>;
+pub type FileSystemRealPathCache =
+  DashMap<PathBuf, Option<PathBuf>, xxhash_rust::xxh3::Xxh3Builder>;
 
 /// Trait abstracting file-system operations
 /// .

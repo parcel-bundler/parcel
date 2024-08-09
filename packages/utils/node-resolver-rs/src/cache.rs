@@ -16,19 +16,20 @@ use crate::tsconfig::TsConfig;
 use crate::tsconfig::TsConfigWrapper;
 use crate::ResolverError;
 
+type DefaultHasher = xxhash_rust::xxh3::Xxh3Builder;
+
 pub struct Cache {
   pub fs: FileSystemRef,
   /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
   /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
   /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
   /// to insert into. Since each value is in a Box, it won't move and therefore references are stable.
-  packages: DashMap<PathBuf, Arc<Result<Arc<PackageJson>, ResolverError>>, gxhash::GxBuildHasher>,
-  tsconfigs:
-    DashMap<PathBuf, Arc<Result<Arc<TsConfigWrapper>, ResolverError>>, gxhash::GxBuildHasher>,
+  packages: DashMap<PathBuf, Arc<Result<Arc<PackageJson>, ResolverError>>, DefaultHasher>,
+  tsconfigs: DashMap<PathBuf, Arc<Result<Arc<TsConfigWrapper>, ResolverError>>, DefaultHasher>,
   // In particular just the is_dir_cache spends around 8% of the time on a large project resolution
   // hashing paths. Instead of using a hashmap we should try a trie here.
-  is_dir_cache: DashMap<PathBuf, bool, gxhash::GxBuildHasher>,
-  is_file_cache: DashMap<PathBuf, bool, gxhash::GxBuildHasher>,
+  is_dir_cache: DashMap<PathBuf, bool, DefaultHasher>,
+  is_file_cache: DashMap<PathBuf, bool, DefaultHasher>,
   realpath_cache: FileSystemRealPathCache,
 }
 
@@ -91,10 +92,10 @@ impl Cache {
   pub fn new(fs: FileSystemRef) -> Self {
     Self {
       fs,
-      packages: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
-      tsconfigs: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
-      is_file_cache: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
-      is_dir_cache: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
+      packages: DashMap::with_hasher(DefaultHasher::default()),
+      tsconfigs: DashMap::with_hasher(DefaultHasher::default()),
+      is_file_cache: DashMap::with_hasher(DefaultHasher::default()),
+      is_dir_cache: DashMap::with_hasher(DefaultHasher::default()),
       realpath_cache: FileSystemRealPathCache::default(),
     }
   }

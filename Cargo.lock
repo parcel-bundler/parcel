@@ -2155,7 +2155,6 @@ dependencies = [
  "criterion",
  "dashmap",
  "glob-match",
- "gxhash",
  "indexmap 1.9.3",
  "is_elevated",
  "itertools 0.10.5",
@@ -2250,6 +2249,7 @@ dependencies = [
  "gxhash",
  "is_elevated",
  "mockall",
+ "xxhash-rust",
 ]
 
 [[package]]
