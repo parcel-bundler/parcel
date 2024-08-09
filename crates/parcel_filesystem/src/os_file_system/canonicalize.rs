@@ -117,7 +117,7 @@ mod test {
       .child("a/link")
       .symlink_to_file(dir.child("a/b").path())?;
 
-    let cache = DashMap::new();
+    let cache = FileSystemRealPathCache::new();
 
     assert_eq!(
       canonicalize(dir.child("symlink").path(), &cache)?,
