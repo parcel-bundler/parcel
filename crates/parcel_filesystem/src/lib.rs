@@ -1,5 +1,3 @@
-#![deny(unused_crate_dependencies)]
-use std::io::Result;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -19,6 +17,8 @@ pub mod os_file_system;
 /// This should be `OsFileSystem` for non-testing environments and `InMemoryFileSystem` for testing.
 pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 
+pub type FileSystemRealPathCache = DashMap<PathBuf, Option<PathBuf>, gxhash::GxBuildHasher>;
+
 /// Trait abstracting file-system operations
 /// .
 ///
@@ -30,14 +30,14 @@ pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 ///
 #[mockall::automock]
 pub trait FileSystem {
-  fn cwd(&self) -> Result<PathBuf> {
+  fn cwd(&self) -> std::io::Result<PathBuf> {
     Err(std::io::Error::new(
       std::io::ErrorKind::Other,
       "Not implemented",
     ))
   }
 
-  fn canonicalize_base(&self, _path: &Path) -> Result<PathBuf> {
+  fn canonicalize_base(&self, _path: &Path) -> std::io::Result<PathBuf> {
     Err(std::io::Error::new(
       std::io::ErrorKind::Other,
       "Not implemented",
@@ -47,8 +47,8 @@ pub trait FileSystem {
   fn canonicalize(
     &self,
     path: &Path,
-    _cache: &DashMap<PathBuf, Option<PathBuf>>,
-  ) -> Result<PathBuf> {
+    _cache: &FileSystemRealPathCache,
+  ) -> std::io::Result<PathBuf> {
     self.canonicalize_base(path)
   }
 
@@ -60,7 +60,7 @@ pub trait FileSystem {
     ))
   }
 
-  fn read_to_string(&self, path: &Path) -> Result<String>;
+  fn read_to_string(&self, path: &Path) -> std::io::Result<String>;
   fn is_file(&self, path: &Path) -> bool;
   fn is_dir(&self, path: &Path) -> bool;
 }

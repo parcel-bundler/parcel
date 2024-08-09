@@ -1021,6 +1021,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gxhash"
+version = "3.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a197c9b654827513cf53842c5c6d3da2b4b35a785f8e0eff78bdf8e445aba1bb"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "half"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2146,6 +2155,7 @@ dependencies = [
  "criterion",
  "dashmap",
  "glob-match",
+ "gxhash",
  "indexmap 1.9.3",
  "is_elevated",
  "itertools 0.10.5",
@@ -2234,8 +2244,10 @@ dependencies = [
 name = "parcel_filesystem"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "assert_fs",
  "dashmap",
+ "gxhash",
  "is_elevated",
  "mockall",
 ]

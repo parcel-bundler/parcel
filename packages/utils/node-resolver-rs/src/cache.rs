@@ -1,14 +1,14 @@
-use dashmap::DashMap;
-use parcel_core::types::File;
-use parcel_filesystem::FileSystemRef;
-use parking_lot::RwLock;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use dashmap::DashMap;
+
+use parcel_core::types::File;
+use parcel_filesystem::{FileSystemRealPathCache, FileSystemRef};
 
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;
@@ -22,11 +22,14 @@ pub struct Cache {
   /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
   /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
   /// to insert into. Since each value is in a Box, it won't move and therefore references are stable.
-  packages: RwLock<HashMap<PathBuf, Arc<Result<Arc<PackageJson>, ResolverError>>>>,
-  tsconfigs: RwLock<HashMap<PathBuf, Arc<Result<Arc<TsConfigWrapper>, ResolverError>>>>,
-  is_file_cache: DashMap<PathBuf, bool>,
-  is_dir_cache: DashMap<PathBuf, bool>,
-  realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
+  packages: DashMap<PathBuf, Arc<Result<Arc<PackageJson>, ResolverError>>, gxhash::GxBuildHasher>,
+  tsconfigs:
+    DashMap<PathBuf, Arc<Result<Arc<TsConfigWrapper>, ResolverError>>, gxhash::GxBuildHasher>,
+  // In particular just the is_dir_cache spends around 8% of the time on a large project resolution
+  // hashing paths. Instead of using a hashmap we should try a trie here.
+  is_dir_cache: DashMap<PathBuf, bool, gxhash::GxBuildHasher>,
+  is_file_cache: DashMap<PathBuf, bool, gxhash::GxBuildHasher>,
+  realpath_cache: FileSystemRealPathCache,
 }
 
 impl<'a> fmt::Debug for Cache {
@@ -86,15 +89,13 @@ impl JsonError {
 
 impl Cache {
   pub fn new(fs: FileSystemRef) -> Self {
-    let packages = HashMap::new();
-    let tsconfigs = HashMap::new();
     Self {
       fs,
-      packages: RwLock::new(packages),
-      tsconfigs: RwLock::new(tsconfigs),
-      is_file_cache: DashMap::new(),
-      is_dir_cache: DashMap::new(),
-      realpath_cache: DashMap::new(),
+      packages: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
+      tsconfigs: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
+      is_file_cache: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
+      is_dir_cache: DashMap::with_hasher(gxhash::GxBuildHasher::default()),
+      realpath_cache: FileSystemRealPathCache::default(),
     }
   }
 
@@ -123,16 +124,13 @@ impl Cache {
   }
 
   pub fn read_package(&self, path: Cow<Path>) -> Arc<Result<Arc<PackageJson>, ResolverError>> {
-    {
-      let packages = self.packages.read();
-      if let Some(pkg) = packages.get(path.as_ref()) {
-        return pkg.clone();
-      }
+    if let Some(pkg) = self.packages.get(path.as_ref()) {
+      return pkg.clone();
     }
 
     fn read_package<'a>(
       fs: &'a FileSystemRef,
-      realpath_cache: &'a DashMap<PathBuf, Option<PathBuf>>,
+      realpath_cache: &'a FileSystemRealPathCache,
       path: &Path,
     ) -> Result<PackageJson, ResolverError> {
       let contents: String = fs.read_to_string(&path)?;
@@ -170,13 +168,8 @@ impl Cache {
       read_package(&self.fs, &self.realpath_cache, &path);
 
     // Since we have exclusive access to packages,
-    let mut packages = self.packages.write();
-    let _ = packages.insert(path.clone(), Arc::new(package.map(|pkg| Arc::new(pkg))));
-    let entry = packages
-      .get(&path)
-      .expect("THE IMPOSSIBLE HAPPENED, LOCK DID NOT GUARANTEE EXCLUSIVE ACCESS")
-      .clone();
-    drop(packages);
+    let entry = Arc::new(package.map(|pkg| Arc::new(pkg)));
+    let _ = self.packages.insert(path.clone(), entry.clone());
 
     entry.clone()
   }
@@ -186,12 +179,8 @@ impl Cache {
     path: &Path,
     process: F,
   ) -> Arc<Result<Arc<TsConfigWrapper>, ResolverError>> {
-    {
-      let tsconfigs = self.tsconfigs.read();
-      if let Some(tsconfig) = tsconfigs.get(path) {
-        return tsconfig.clone();
-      }
-      drop(tsconfigs);
+    if let Some(tsconfig) = self.tsconfigs.get(path) {
+      return tsconfig.clone();
     }
 
     fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
@@ -215,17 +204,9 @@ impl Cache {
 
     // Since we have exclusive access to tsconfigs, it should be impossible for the get to fail
     // after insert
-    let entry = read_tsconfig(&self.fs, path, process).map(|t| Arc::new(t));
-    let tsconfig = {
-      let mut tsconfigs = self.tsconfigs.write();
-      let _ = tsconfigs.insert(PathBuf::from(path), Arc::new(entry));
-      let tsconfig = tsconfigs
-        .get(path)
-        .expect("THE IMPOSSIBLE HAPPENED, LOCK DID NOT GUARANTEE EXCLUSIVE ACCESS")
-        .clone();
-      drop(tsconfigs);
-      tsconfig
-    };
+    let tsconfig = read_tsconfig(&self.fs, path, process).map(|t| Arc::new(t));
+    let tsconfig = Arc::new(tsconfig);
+    let _ = self.tsconfigs.insert(PathBuf::from(path), tsconfig.clone());
 
     tsconfig
   }

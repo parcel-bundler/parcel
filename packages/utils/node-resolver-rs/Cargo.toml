@@ -26,6 +26,7 @@ serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 thiserror = "1.0.59"
 url = "2.3.1"
+gxhash = "3.4.1"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
