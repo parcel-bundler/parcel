@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as watchman from 'fb-watchman';
 import {isGlob} from '@parcel/utils';
+import logger from '@parcel/logger';
 import type {
   Options,
   Event,
@@ -41,26 +42,73 @@ export interface Watcher {
 export class ParcelWatcherWatchmanJS implements Watcher {
   subscriptionName: string;
   client: watchman.Client;
+  initPromise: Promise<void> | void;
 
   constructor() {
     this.subscriptionName = 'parcel-watcher-subscription-' + Date.now();
     this.client = new watchman.Client();
   }
 
-  commandAsync(args: any[]): Promise<any> {
+  init(watchDir: string): Promise<void> {
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    const client = this.client;
+
+    this.initPromise = new Promise((resolve, reject) => {
+      client.capabilityCheck({optional: [], required: []}, error => {
+        if (error) {
+          client.end();
+          reject(error);
+          return;
+        }
+
+        // Initiate the watch
+        client.command(['watch-project', watchDir], (error, resp) => {
+          if (error) {
+            client.end();
+            reject(error);
+            return;
+          }
+
+          // $FlowFixMe This code is straight from the watchman docs: https://facebook.github.io/watchman/docs/nodejs#initiating-a-watch
+          if ('warning' in resp) {
+            // $FlowFixMe
+            logger.warn({message: resp.warning});
+          }
+
+          resolve();
+        });
+      });
+    });
+
+    return this.initPromise;
+  }
+
+  async commandAsync(
+    command: string,
+    watchDir: string,
+    ...args: any[]
+  ): Promise<any> {
+    await this.init(watchDir);
+
     return new Promise((resolve, reject) => {
       const client = this.client;
-      // $FlowFixMe
-      client.command(args, (err: Error | null | undefined, response: any) => {
-        if (err) reject(err);
-        else resolve(response);
-      });
+      client.command(
+        [command, watchDir, ...args],
+        // $FlowFixMe
+        (err: Error | null | undefined, response: any) => {
+          if (err) reject(err);
+          else resolve(response);
+        },
+      );
     });
   }
 
   // Types should match @parcel/watcher/index.js.flow
   async writeSnapshot(dir: string, snapshot: FilePath): Promise<string> {
-    const response = await this.commandAsync(['clock', dir]);
+    const response = await this.commandAsync('clock', dir);
     fs.writeFileSync(snapshot, response.clock, {
       encoding: 'utf-8',
     });
@@ -76,15 +124,11 @@ export class ParcelWatcherWatchmanJS implements Watcher {
       encoding: 'utf-8',
     });
 
-    const response = await this.commandAsync([
-      'query',
-      dir,
-      {
-        expression: this._createExpression(dir, opts?.ignore),
-        fields: ['name', 'mode', 'exists', 'new'],
-        since: clock,
-      },
-    ]);
+    const response = await this.commandAsync('query', dir, {
+      expression: this._createExpression(dir, opts?.ignore),
+      fields: ['name', 'mode', 'exists', 'new'],
+      since: clock,
+    });
 
     return (response.files || []).map((file: any) => ({
       path: file.name,
@@ -128,23 +172,18 @@ export class ParcelWatcherWatchmanJS implements Watcher {
     opts?: Options,
   ): Promise<AsyncSubscription> {
     const {subscriptionName} = this;
-    const {clock} = await this.commandAsync(['clock', dir]);
+    const {clock} = await this.commandAsync('clock', dir);
 
-    await this.commandAsync([
-      'subscribe',
-      dir,
-      subscriptionName,
-      {
-        // `defer` can be used here if you want to pause the
-        // notification stream until something has finished.
-        //
-        // https://facebook.github.io/watchman/docs/cmd/subscribe#defer
-        // defer: ['my-company-example'],
-        expression: this._createExpression(dir, opts?.ignore),
-        fields: ['name', 'mode', 'exists', 'new'],
-        since: clock,
-      },
-    ]);
+    await this.commandAsync('subscribe', dir, subscriptionName, {
+      // `defer` can be used here if you want to pause the
+      // notification stream until something has finished.
+      //
+      // https://facebook.github.io/watchman/docs/cmd/subscribe#defer
+      // defer: ['my-company-example'],
+      expression: this._createExpression(dir, opts?.ignore),
+      fields: ['name', 'mode', 'exists', 'new'],
+      since: clock,
+    });
 
     this.client.on('subscription', function (resp) {
       if (!resp.files || resp.subscription !== subscriptionName) {
@@ -163,7 +202,7 @@ export class ParcelWatcherWatchmanJS implements Watcher {
     });
 
     const unsubscribe = async () => {
-      await this.commandAsync(['unsubscribe', dir, subscriptionName]);
+      await this.commandAsync('unsubscribe', dir, subscriptionName);
     };
 
     return {
@@ -172,6 +211,6 @@ export class ParcelWatcherWatchmanJS implements Watcher {
   }
 
   async unsubscribe(dir: string): Promise<void> {
-    await this.commandAsync(['unsubscribe', dir, this.subscriptionName]);
+    await this.commandAsync('unsubscribe', dir, this.subscriptionName);
   }
 }
