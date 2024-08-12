@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as watchman from 'fb-watchman';
 import {isGlob} from '@parcel/utils';
+import logger from '@parcel/logger';
 import type {
   Options,
   Event,
@@ -41,6 +42,7 @@ export interface Watcher {
 export class ParcelWatcherWatchmanJS implements Watcher {
   subscriptionName: string;
   client: watchman.Client;
+  initPromise: Promise<void> | void;
 
   constructor() {
     this.subscriptionName = 'parcel-watcher-subscription-' + Date.now();
@@ -50,16 +52,53 @@ export class ParcelWatcherWatchmanJS implements Watcher {
   commandAsync(args: any[]): Promise<any> {
     return new Promise((resolve, reject) => {
       const client = this.client;
-      // $FlowFixMe
-      client.command(args, (err: Error | null | undefined, response: any) => {
-        if (err) reject(err);
-        else resolve(response);
-      });
+      client.command(
+        args,
+        // $FlowFixMe
+        (err: Error | null | undefined, response: any) => {
+          if (err) reject(err);
+          else resolve(response);
+        },
+      );
     });
+  }
+
+  capabilityCheckAsync(args: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const client = this.client;
+      client.capabilityCheck(
+        args,
+        // $FlowFixMe
+        (err: Error | null | undefined, response: any) => {
+          if (err) reject(err);
+          else resolve(response);
+        },
+      );
+    });
+  }
+  async _init(watchDir: string): Promise<void> {
+    await this.capabilityCheckAsync({optional: [], required: []});
+    const resp = await this.commandAsync(['watch-project', watchDir]);
+
+    if ('warning' in resp) {
+      logger.warn({message: resp.warning});
+    }
+  }
+
+  init(watchDir: string): Promise<void> {
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    this.initPromise = this._init(watchDir);
+
+    return this.initPromise;
   }
 
   // Types should match @parcel/watcher/index.js.flow
   async writeSnapshot(dir: string, snapshot: FilePath): Promise<string> {
+    await this.init(dir);
+
     const response = await this.commandAsync(['clock', dir]);
     fs.writeFileSync(snapshot, response.clock, {
       encoding: 'utf-8',
@@ -72,6 +111,8 @@ export class ParcelWatcherWatchmanJS implements Watcher {
     snapshot: FilePath,
     opts?: Options,
   ): Promise<Event[]> {
+    await this.init(dir);
+
     const clock = fs.readFileSync(snapshot, {
       encoding: 'utf-8',
     });
@@ -127,6 +168,8 @@ export class ParcelWatcherWatchmanJS implements Watcher {
     fn: SubscribeCallback,
     opts?: Options,
   ): Promise<AsyncSubscription> {
+    await this.init(dir);
+
     const {subscriptionName} = this;
     const {clock} = await this.commandAsync(['clock', dir]);
 

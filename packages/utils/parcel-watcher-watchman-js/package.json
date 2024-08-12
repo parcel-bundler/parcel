@@ -8,6 +8,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@parcel/logger": "2.12.0",
     "@parcel/utils": "2.12.0",
     "fb-watchman": "^2.0.2"
   },
