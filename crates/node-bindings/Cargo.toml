@@ -58,7 +58,9 @@ rayon = "1.7.0"
 getrandom = { version = "0.2", features = ["custom"], default-features = false }
 napi = { version = "2.16.4", features = ["serde-json"] }
 
-[target.'cfg(target_os = "macos")'.dependencies]
+[target.'cfg(all(target_os = "macos", not(feature = "canary")))'.dependencies]
+# jemallocator is disabled on canary builds to experiment with its performance
+# and reliability
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
 [target.'cfg(windows)'.dependencies]
