@@ -4,10 +4,9 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use parcel_filesystem::os_file_system::OsFileSystem;
 use parcel_filesystem::FileSystemRef;
 
-use crate::types::{Asset, Code, Dependency, Environment, ParcelOptions, SpecifierType};
+use crate::types::{Asset, Code, Dependency, Environment, FileType, SpecifierType};
 
 pub struct ResolveOptions {
   /// A list of custom conditions to use when resolving package.json "exports" and "imports"
@@ -43,6 +42,19 @@ pub enum TransformationInput {
 }
 
 impl TransformationInput {
+  pub fn file_type(&self) -> FileType {
+    match self {
+      TransformationInput::InitialAsset(raw_asset) => FileType::from_extension(
+        raw_asset
+          .file_path
+          .extension()
+          .and_then(|s| s.to_str())
+          .unwrap_or_default(),
+      ),
+      TransformationInput::Asset(asset) => asset.file_type.clone(),
+    }
+  }
+
   pub fn env(&self) -> Arc<Environment> {
     match self {
       TransformationInput::InitialAsset(raw_asset) => raw_asset.env.clone(),
@@ -80,49 +92,6 @@ impl TransformationInput {
   }
 }
 
-/// Context parameters for the transformer, other than the input.
-pub struct RunTransformContext {
-  file_system: FileSystemRef,
-  options: Arc<ParcelOptions>,
-  project_root: PathBuf,
-}
-
-impl Default for RunTransformContext {
-  fn default() -> Self {
-    Self {
-      file_system: Arc::new(OsFileSystem::default()),
-      options: Arc::new(ParcelOptions::default()),
-      project_root: PathBuf::default(),
-    }
-  }
-}
-
-impl RunTransformContext {
-  pub fn new(
-    file_system: FileSystemRef,
-    options: Arc<ParcelOptions>,
-    project_root: PathBuf,
-  ) -> Self {
-    Self {
-      file_system,
-      options,
-      project_root,
-    }
-  }
-
-  pub fn file_system(&self) -> FileSystemRef {
-    self.file_system.clone()
-  }
-
-  pub fn options(&self) -> &Arc<ParcelOptions> {
-    &self.options
-  }
-
-  pub fn project_root(&self) -> &Path {
-    &self.project_root
-  }
-}
-
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TransformResult {
   pub asset: Asset,
@@ -139,9 +108,5 @@ pub struct TransformResult {
 ///
 pub trait TransformerPlugin: Debug + Send + Sync {
   /// Transform the asset and/or add new assets
-  fn transform(
-    &mut self,
-    context: &mut RunTransformContext,
-    input: TransformationInput,
-  ) -> Result<TransformResult, anyhow::Error>;
+  fn transform(&mut self, input: TransformationInput) -> Result<TransformResult, anyhow::Error>;
 }

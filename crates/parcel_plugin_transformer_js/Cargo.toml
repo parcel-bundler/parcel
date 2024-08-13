@@ -6,10 +6,10 @@ description = "JavaScript Transformer Plugin for the Parcel Bundler"
 
 [dependencies]
 parcel_core = { path = "../parcel_core" }
-anyhow = "1"
-parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-swc_core = { version = "0.96", features = ["ecma_ast"] }
-indexmap = "2.2.6"
-
-[dev-dependencies]
 parcel_filesystem = { path = "../parcel_filesystem" }
+
+anyhow = "1"
+indexmap = "2.2.6"
+parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
+serde = { version = "1.0.200", features = ["derive"] }
+swc_core = { version = "0.96", features = ["ecma_ast"] }

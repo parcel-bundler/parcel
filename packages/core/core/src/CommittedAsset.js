@@ -6,7 +6,6 @@ import type {Asset, Dependency, ParcelOptions} from './types';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
-import {getFeatureFlag} from '@parcel/feature-flags';
 import {generateFromAST} from './assetUtils';
 import {deserializeRaw} from './serializer';
 
@@ -23,9 +22,7 @@ export default class CommittedAsset {
 
   constructor(value: Asset, options: ParcelOptions) {
     this.value = value;
-    this.key = getFeatureFlag('parcelV3')
-      ? this.value.id
-      : this.value.contentKey;
+    this.key = this.value.contentKey;
     this.options = options;
   }
 

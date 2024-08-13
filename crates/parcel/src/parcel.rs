@@ -97,7 +97,11 @@ impl Parcel {
       config,
       PluginContext {
         config: Arc::clone(&config_loader),
+        file_system: self.fs.clone(),
         options: Arc::new(PluginOptions {
+          core_path: self.options.core_path.clone(),
+          env: self.options.env.clone(),
+          log_level: self.options.log_level.clone(),
           mode: self.options.mode.clone(),
           project_root: self.project_root.clone(),
         }),

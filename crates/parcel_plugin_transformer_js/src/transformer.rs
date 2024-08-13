@@ -1,9 +1,18 @@
+use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
+
 use anyhow::{anyhow, Error};
 
-use parcel_core::plugin::TransformerPlugin;
-use parcel_core::plugin::{RunTransformContext, TransformResult, TransformationInput};
+use parcel_core::plugin::{PluginContext, PluginOptions, TransformerPlugin};
+use parcel_core::plugin::{TransformResult, TransformationInput};
 use parcel_core::types::engines::EnvironmentFeature;
-use parcel_core::types::{Asset, BuildMode, FileType, LogLevel, OutputFormat, SourceType};
+use parcel_core::types::{
+  Asset, BuildMode, Diagnostic, ErrorKind, FileType, LogLevel, OutputFormat, SourceType,
+};
+use parcel_filesystem::FileSystemRef;
+
+use crate::ts_config::{Jsx, Target, TsConfig};
 
 mod conversion;
 #[cfg(test)]
@@ -20,34 +29,106 @@ mod test_helpers;
 ///  `Dependency` as well as exported, imported and re-exported symbols (as `Symbol`, usually
 ///   mapping to a mangled name that the SWC transformer replaced in the source file + the source
 ///   module and the source name that has been imported)
-#[derive(Debug)]
-pub struct ParcelJsTransformerPlugin {}
+pub struct ParcelJsTransformerPlugin {
+  file_system: FileSystemRef,
+  options: Arc<PluginOptions>,
+  ts_config: Option<TsConfig>,
+}
 
 impl ParcelJsTransformerPlugin {
-  pub fn new() -> Self {
-    Self {}
+  pub fn new(ctx: &PluginContext) -> Result<Self, Error> {
+    let ts_config = ctx
+      .config
+      .load_json_config::<TsConfig>("tsconfig.json")
+      .map(|config| config.contents)
+      .map_err(|err| {
+        let diagnostic = err.downcast_ref::<Diagnostic>();
+
+        if diagnostic.is_some_and(|d| d.kind != ErrorKind::NotFound) {
+          return Err(err);
+        }
+
+        Ok(None::<TsConfig>)
+      })
+      .ok();
+
+    Ok(Self {
+      file_system: ctx.file_system.clone(),
+      options: ctx.options.clone(),
+      ts_config,
+    })
+  }
+}
+
+impl fmt::Debug for ParcelJsTransformerPlugin {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("ParcelJsTransformerPlugin")
+      .field("options", &self.options)
+      .finish()
   }
 }
 
 impl TransformerPlugin for ParcelJsTransformerPlugin {
   /// This does a lot of equivalent work to `JSTransformer::transform` in
   /// `packages/transformers/js`
-  fn transform(
-    &mut self,
-    context: &mut RunTransformContext,
-    input: TransformationInput,
-  ) -> Result<TransformResult, Error> {
+  fn transform(&mut self, input: TransformationInput) -> Result<TransformResult, Error> {
+    let compiler_options = self
+      .ts_config
+      .as_ref()
+      .and_then(|ts| ts.compiler_options.as_ref());
+
     let env = input.env();
-    let file_system = context.file_system();
+    let file_type = input.file_type();
     let is_node = env.context.is_node();
-    let source_code = input.read_code(file_system)?;
+    let source_code = input.read_code(self.file_system.clone())?;
+
+    let mut targets: HashMap<String, String> = HashMap::new();
+    if env.context.is_browser() {
+      for (name, version) in env.engines.browsers.iter() {
+        if let Some(version) = version {
+          targets.insert(
+            String::from(name),
+            format!("{}.{}", version.major(), version.minor()),
+          );
+        }
+      }
+    }
+
+    if env.context.is_electron() {
+      if let Some(version) = env.engines.electron {
+        targets.insert(
+          String::from("electron"),
+          format!("{}.{}", version.major(), version.minor()),
+        );
+      }
+    }
+
+    if env.context.is_node() {
+      if let Some(version) = env.engines.node {
+        targets.insert(
+          String::from("node"),
+          format!("{}.{}", version.major(), version.minor()),
+        );
+      }
+    }
 
     let transformation_result = parcel_js_swc_core::transform(
       parcel_js_swc_core::Config {
+        // TODO: Infer from package.json
+        automatic_jsx_runtime: compiler_options
+          .map(|co| {
+            co.jsx
+              .as_ref()
+              .is_some_and(|jsx| matches!(jsx, Jsx::ReactJsx | Jsx::ReactJsxDev))
+              || co.jsx_import_source.is_some()
+          })
+          .unwrap_or_default(),
         code: source_code.bytes().to_vec(),
-        // TODO Lift context up into constructor to improve performance?
-        env: context
-          .options()
+        decorators: compiler_options
+          .and_then(|co| co.experimental_decorators)
+          .unwrap_or_default(),
+        env: self
+          .options
           .env
           .clone()
           .unwrap_or_default()
@@ -61,12 +142,29 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
           .to_string(),
         insert_node_globals: !is_node && env.source_type != SourceType::Script,
         is_browser: env.context.is_browser(),
-        is_development: context.options().mode == BuildMode::Development,
+        is_development: self.options.mode == BuildMode::Development,
         is_esm_output: env.output_format == OutputFormat::EsModule,
+        is_jsx: matches!(file_type, FileType::Jsx | FileType::Tsx),
         is_library: env.is_library,
+        is_type_script: matches!(file_type, FileType::Ts | FileType::Tsx),
         is_worker: env.context.is_worker(),
+        // TODO Infer from package.json
+        jsx_import_source: compiler_options.and_then(|co| co.jsx_import_source.clone()),
+        jsx_pragma: compiler_options.and_then(|co| co.jsx_factory.clone()),
+        jsx_pragma_frag: compiler_options.and_then(|co| co.jsx_fragment_factory.clone()),
         node_replacer: is_node,
-        project_root: context.project_root().to_string_lossy().into_owned(),
+        project_root: self.options.project_root.to_string_lossy().into_owned(),
+        // TODO: Boolean(
+        //   pkg?.dependencies?.react ||
+        //     pkg?.devDependencies?.react ||
+        //     pkg?.peerDependencies?.react,
+        // );
+        react_refresh: self.options.mode == BuildMode::Development
+          // && TODO: self.options.hmr_options
+          && env.context.is_browser()
+          && !env.is_library
+          && !env.context.is_worker()
+          && !env.context.is_worklet(),
         replace_env: !is_node,
         scope_hoist: env.should_scope_hoist && env.source_type != SourceType::Script,
         source_maps: env.source_map.is_some(),
@@ -76,7 +174,19 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
         },
         supports_module_workers: env.should_scope_hoist
           && env.engines.supports(EnvironmentFeature::WorkerModule),
-        trace_bailouts: context.options().log_level == LogLevel::Verbose,
+        // TODO: Update transformer to use engines directly
+        targets: Some(targets),
+        trace_bailouts: self.options.log_level == LogLevel::Verbose,
+        use_define_for_class_fields: compiler_options
+          .map(|co| {
+            co.use_define_for_class_fields.unwrap_or_else(|| {
+              // Default useDefineForClassFields to true if target is ES2022 or higher (including ESNext)
+              co.target.as_ref().is_some_and(|target| {
+                matches!(target, Target::ES2022 | Target::ES2023 | Target::ESNext)
+              })
+            })
+          })
+          .unwrap_or_default(),
         ..parcel_js_swc_core::Config::default()
       },
       None,
@@ -88,7 +198,7 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
     }
 
     let file_path = input.file_path();
-    let asset_type = FileType::from_extension(
+    let file_type = FileType::from_extension(
       file_path
         .extension()
         .and_then(|s| s.to_str())
@@ -96,16 +206,15 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
     );
 
     let asset = Asset {
-      asset_type,
       code: source_code,
       env: env.clone(),
       file_path: file_path.to_path_buf(),
+      file_type,
       ..Asset::default()
     };
 
     let config = parcel_js_swc_core::Config::default();
-    let options = context.options();
-    let result = conversion::convert_result(asset, &config, transformation_result, &options)
+    let result = conversion::convert_result(asset, &config, transformation_result, &self.options)
       // TODO handle errors properly
       .map_err(|_err| anyhow!("Failed to transform"))?;
 
@@ -116,22 +225,19 @@ impl TransformerPlugin for ParcelJsTransformerPlugin {
 #[cfg(test)]
 mod test {
   use std::path::PathBuf;
-  use std::sync::Arc;
 
-  use parcel_core::plugin::{
-    RunTransformContext, TransformResult, TransformationInput, TransformerPlugin,
-  };
-  use parcel_core::types::{
-    Asset, Code, Dependency, FileType, Location, ParcelOptions, SourceLocation, SpecifierType,
-    Symbol,
+  use parcel_core::{
+    config_loader::ConfigLoader,
+    plugin::PluginLogger,
+    types::{Code, Dependency, Location, SourceLocation, SpecifierType, Symbol},
   };
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
 
-  use crate::ParcelJsTransformerPlugin;
+  use super::*;
 
   fn empty_asset() -> Asset {
     Asset {
-      asset_type: FileType::Js,
+      file_type: FileType::Js,
       ..Default::default()
     }
   }
@@ -153,7 +259,7 @@ mod test {
     };
 
     // This nº should not change across runs / compilation
-    assert_eq!(asset_1.id(), 5787511958692361102);
+    assert_eq!(asset_1.id(), 12098957784286304761);
     assert_eq!(asset_1.id(), asset_2.id());
   }
 
@@ -173,7 +279,7 @@ mod test {
       TransformResult {
         asset: Asset {
           file_path: "mock_path.js".into(),
-          asset_type: FileType::Js,
+          file_type: FileType::Js,
           // SWC inserts a newline here
           code: Arc::new(Code::from(String::from("function hello() {}\n"))),
           symbols: vec![],
@@ -237,10 +343,10 @@ exports.hello = function() {};
       TransformResult {
         asset: Asset {
           file_path: "mock_path.js".into(),
-          asset_type: FileType::Js,
+          file_type: FileType::Js,
           // SWC inserts a newline here
           code: Arc::new(Code::from(String::from(
-            "const x = require(\"e83f3db3d6f57ea6\");\nexports.hello = function() {};\n"
+            "var x = require(\"e83f3db3d6f57ea6\");\nexports.hello = function() {};\n"
           ))),
           symbols: vec![
             Symbol {
@@ -285,12 +391,21 @@ exports.hello = function() {};
 
   fn run_test(asset: Asset) -> anyhow::Result<TransformResult> {
     let file_system = Arc::new(InMemoryFileSystem::default());
-    let options = Arc::new(ParcelOptions::default());
-    let mut context = RunTransformContext::new(file_system, options, PathBuf::default());
-    let mut transformer = ParcelJsTransformerPlugin::new();
-    let input = TransformationInput::Asset(asset);
 
-    let result = transformer.transform(&mut context, input)?;
+    let ctx = PluginContext {
+      config: Arc::new(ConfigLoader {
+        fs: file_system.clone(),
+        project_root: PathBuf::default(),
+        search_path: PathBuf::default(),
+      }),
+      file_system,
+      logger: PluginLogger::default(),
+      options: Arc::new(PluginOptions::default()),
+    };
+
+    let mut transformer = ParcelJsTransformerPlugin::new(&ctx).expect("Expected transformer");
+
+    let result = transformer.transform(TransformationInput::Asset(asset))?;
     Ok(result)
   }
 }

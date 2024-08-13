@@ -21,15 +21,44 @@ pub struct Browsers {
 
 impl Browsers {
   pub fn is_empty(&self) -> bool {
-    self.android.is_none()
-      && self.chrome.is_none()
-      && self.edge.is_none()
-      && self.firefox.is_none()
-      && self.ie.is_none()
-      && self.ios_saf.is_none()
-      && self.opera.is_none()
-      && self.safari.is_none()
-      && self.samsung.is_none()
+    self.iter().all(|(_browser, version)| version.is_none())
+  }
+
+  pub fn iter(&self) -> BrowsersIterator {
+    BrowsersIterator {
+      browsers: self,
+      index: 0,
+    }
+  }
+}
+
+pub struct BrowsersIterator<'a> {
+  browsers: &'a Browsers,
+  index: usize,
+}
+
+impl<'a> Iterator for BrowsersIterator<'a> {
+  type Item = (&'a str, Option<Version>);
+
+  fn next(&mut self) -> Option<Self::Item> {
+    let browser = match self.index {
+      0 => Some(("android", self.browsers.android)),
+      1 => Some(("chrome", self.browsers.chrome)),
+      2 => Some(("edge", self.browsers.edge)),
+      3 => Some(("firefox", self.browsers.firefox)),
+      4 => Some(("ie", self.browsers.ie)),
+      5 => Some(("ios_saf", self.browsers.ios_saf)),
+      6 => Some(("opera", self.browsers.opera)),
+      7 => Some(("safari", self.browsers.safari)),
+      8 => Some(("samsung", self.browsers.samsung)),
+      _ => None,
+    };
+
+    if self.index < 9 {
+      self.index += 1;
+    }
+
+    browser
   }
 }
 

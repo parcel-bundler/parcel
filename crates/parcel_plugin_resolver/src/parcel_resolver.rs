@@ -418,6 +418,7 @@ mod test {
         project_root: PathBuf::default(),
         search_path: PathBuf::default(),
       }),
+      file_system: Arc::new(InMemoryFileSystem::default()),
       logger: PluginLogger::default(),
       options: Arc::new(PluginOptions::default()),
     }
@@ -505,6 +506,7 @@ mod test {
         project_root: PathBuf::default(),
         search_path: PathBuf::from("/foo"),
       }),
+      file_system: Arc::new(InMemoryFileSystem::default()),
       logger: PluginLogger::default(),
       options: Arc::new(PluginOptions::default()),
     };

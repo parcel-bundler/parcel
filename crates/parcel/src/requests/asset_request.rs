@@ -7,7 +7,6 @@ use parcel_core::plugin::AssetBuildEvent;
 use parcel_core::plugin::BuildProgressEvent;
 use parcel_core::plugin::InitialAsset;
 use parcel_core::plugin::ReporterEvent;
-use parcel_core::plugin::RunTransformContext;
 use parcel_core::plugin::TransformResult;
 use parcel_core::plugin::TransformationInput;
 use parcel_core::types::Asset;
@@ -65,11 +64,6 @@ impl Request for AssetRequest {
         .and_then(|s| s.to_str())
         .unwrap_or(""),
     );
-    let mut transform_ctx = RunTransformContext::new(
-      request_context.file_system().clone(),
-      request_context.options.clone(),
-      request_context.project_root.clone(),
-    );
 
     let result = run_pipeline(
       pipeline,
@@ -82,7 +76,6 @@ impl Request for AssetRequest {
       }),
       asset_type,
       request_context.plugins().clone(),
-      &mut transform_ctx,
     )?;
 
     Ok(ResultAndInvalidations {
@@ -105,9 +98,8 @@ impl Request for AssetRequest {
 fn run_pipeline(
   mut pipeline: TransformerPipeline,
   input: TransformationInput,
-  asset_type: FileType,
+  file_type: FileType,
   plugins: PluginsRef,
-  transform_ctx: &mut RunTransformContext,
 ) -> anyhow::Result<TransformResult> {
   let mut dependencies = vec![];
   let mut invalidations = vec![];
@@ -116,8 +108,8 @@ fn run_pipeline(
 
   let pipeline_hash = pipeline.hash();
   for transformer in &mut pipeline.transformers {
-    let transform_result = transformer.transform(transform_ctx, transform_input)?;
-    let is_different_asset_type = transform_result.asset.asset_type != asset_type;
+    let transform_result = transformer.transform(transform_input)?;
+    let is_different_asset_type = transform_result.asset.file_type != file_type;
 
     transform_input = TransformationInput::Asset(transform_result.asset);
 
@@ -126,13 +118,7 @@ fn run_pipeline(
       let next_pipeline = plugins.transformers(transform_input.file_path(), None)?;
 
       if next_pipeline.hash() != pipeline_hash {
-        return run_pipeline(
-          next_pipeline,
-          transform_input,
-          asset_type,
-          plugins,
-          transform_ctx,
-        );
+        return run_pipeline(next_pipeline, transform_input, file_type, plugins);
       };
     }
 

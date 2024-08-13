@@ -3,3 +3,4 @@
 pub use transformer::ParcelJsTransformerPlugin;
 
 mod transformer;
+mod ts_config;

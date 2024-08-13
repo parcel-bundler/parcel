@@ -52,10 +52,6 @@ impl From<String> for Code {
 #[derive(Default, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
-  /// The file type of the asset, which may change during transformation
-  #[serde(rename = "type")]
-  pub asset_type: FileType,
-
   /// Controls which bundle the asset is placed into
   pub bundle_behavior: BundleBehavior,
 
@@ -64,6 +60,10 @@ pub struct Asset {
 
   /// The file path to the asset
   pub file_path: PathBuf,
+
+  /// The file type of the asset, which may change during transformation
+  #[serde(rename = "type")]
+  pub file_type: FileType,
 
   /// The code of this asset, initially read from disk, then becoming the
   /// transformed output
@@ -146,9 +146,9 @@ impl Asset {
   pub fn id(&self) -> u64 {
     let mut hasher = crate::hash::IdentifierHasher::default();
 
-    self.asset_type.hash(&mut hasher);
     self.env.hash(&mut hasher);
     self.file_path.hash(&mut hasher);
+    self.file_type.hash(&mut hasher);
     self.pipeline.hash(&mut hasher);
     self.query.hash(&mut hasher);
     self.unique_key.hash(&mut hasher);

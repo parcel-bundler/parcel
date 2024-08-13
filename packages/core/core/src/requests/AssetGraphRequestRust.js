@@ -123,6 +123,7 @@ function getAssetGraph(serializedGraph, options) {
         ...asset,
         id,
         committed: true,
+        contentKey: id,
         filePath: toProjectPath(options.projectRoot, asset.filePath),
         symbols: asset.hasSymbols
           ? new Map(
@@ -149,6 +150,7 @@ function getAssetGraph(serializedGraph, options) {
       dependency = {
         ...dependency,
         id,
+        contentKey: id,
         sourcePath: dependency.sourcePath
           ? toProjectPath(options.projectRoot, dependency.sourcePath)
           : null,

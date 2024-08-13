@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use parcel_config::parcel_config_fixtures::default_config;
-use parcel_core::types::BuildMode;
 use parcel_core::{
   config_loader::ConfigLoader,
   plugin::{PluginContext, PluginLogger, PluginOptions},
@@ -16,12 +15,15 @@ use crate::{
 };
 
 pub(crate) fn make_test_plugin_context() -> PluginContext {
+  let fs = Arc::new(InMemoryFileSystem::default());
+
   PluginContext {
     config: Arc::new(ConfigLoader {
-      fs: Arc::new(InMemoryFileSystem::default()),
+      fs: fs.clone(),
       project_root: PathBuf::default(),
       search_path: PathBuf::default(),
     }),
+    file_system: fs.clone(),
     options: Arc::new(PluginOptions::default()),
     logger: PluginLogger::default(),
   }
@@ -71,8 +73,12 @@ pub(crate) fn request_tracker(options: RequestTrackerTestOptions) -> RequestTrac
   let plugins = plugins.unwrap_or_else(|| {
     config_plugins(PluginContext {
       config: Arc::clone(&config_loader),
+      file_system: fs.clone(),
       options: Arc::new(PluginOptions {
-        mode: BuildMode::default(),
+        core_path: parcel_options.core_path.clone(),
+        env: parcel_options.env.clone(),
+        log_level: parcel_options.log_level.clone(),
+        mode: parcel_options.mode.clone(),
         project_root: project_root.clone(),
       }),
       logger: PluginLogger::default(),

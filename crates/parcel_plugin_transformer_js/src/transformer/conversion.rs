@@ -5,11 +5,11 @@ use indexmap::IndexMap;
 use parcel_core::diagnostic;
 use swc_core::atoms::Atom;
 
-use parcel_core::plugin::TransformResult;
+use parcel_core::plugin::{PluginOptions, TransformResult};
 use parcel_core::types::engines::EnvironmentFeature;
 use parcel_core::types::{
   Asset, BundleBehavior, Code, CodeFrame, CodeHighlight, Dependency, Diagnostic, DiagnosticBuilder,
-  Environment, EnvironmentContext, File, FileType, IncludeNodeModules, OutputFormat, ParcelOptions,
+  Environment, EnvironmentContext, File, FileType, IncludeNodeModules, OutputFormat,
   SourceLocation, SourceType, SpecifierType, Symbol,
 };
 
@@ -29,7 +29,7 @@ pub(crate) fn convert_result(
   mut asset: Asset,
   transformer_config: &parcel_js_swc_core::Config,
   result: parcel_js_swc_core::TransformResult,
-  options: &ParcelOptions,
+  options: &PluginOptions,
 ) -> Result<TransformResult, Vec<Diagnostic>> {
   let asset_file_path = asset.file_path.to_path_buf();
   let asset_environment = asset.env.clone();
@@ -252,7 +252,7 @@ pub(crate) fn convert_result(
   if asset.unique_key.is_none() {
     asset.unique_key = Some(format!("{:016x}", asset_id));
   }
-  asset.asset_type = FileType::Js;
+  asset.file_type = FileType::Js;
 
   // Overwrite the source-code with SWC output
   let result_source_code_string = String::from_utf8(result.code)
@@ -333,7 +333,7 @@ fn make_export_star_symbol(asset_id: u64) -> Symbol {
 }
 
 fn make_esm_helpers_dependency(
-  options: &ParcelOptions,
+  options: &PluginOptions,
   asset_file_path: &PathBuf,
   asset_environment: Environment,
   has_symbols: bool,
