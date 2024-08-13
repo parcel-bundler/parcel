@@ -198,7 +198,7 @@ impl Plugins for ConfigPlugins {
       }
 
       if transformer.package_name == "@parcel/transformer-js" {
-        transformers.push(Box::new(ParcelJsTransformerPlugin::new()));
+        transformers.push(Box::new(ParcelJsTransformerPlugin::new(&self.ctx)?));
         continue;
       }
 
@@ -305,13 +305,21 @@ mod tests {
 
   #[test]
   fn returns_transformers() {
-    let transformers = config_plugins(make_test_plugin_context())
+    let pipeline = config_plugins(make_test_plugin_context())
       .transformers(Path::new("a.ts"), None)
       .expect("Not to panic");
 
     assert_eq!(
-      format!("{:?}", transformers),
-      r"TransformerPipeline { transformers: [ParcelJsTransformerPlugin] }"
-    )
+      format!("{:?}", pipeline),
+      format!(
+        "{:?}",
+        TransformerPipeline {
+          transformers: vec![Box::new(
+            ParcelJsTransformerPlugin::new(&make_test_plugin_context()).unwrap()
+          )],
+          hash: 1
+        }
+      )
+    );
   }
 }

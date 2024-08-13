@@ -136,6 +136,11 @@ impl EnvironmentContext {
     matches!(self, WebWorker | ServiceWorker)
   }
 
+  pub fn is_worklet(&self) -> bool {
+    use EnvironmentContext::*;
+    matches!(self, Worklet)
+  }
+
   pub fn is_electron(&self) -> bool {
     use EnvironmentContext::*;
     matches!(self, ElectronMain | ElectronRenderer)

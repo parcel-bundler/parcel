@@ -481,74 +481,65 @@ describe('javascript', function () {
     assert(!mainBundleContent.includes('foo:'));
   });
 
-  it.v2(
-    'should split bundles when a dynamic import is used with a node environment',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/dynamic-node/index.js'),
-      );
+  it('should split bundles when a dynamic import is used with a node environment', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-node/index.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: ['index.js'],
-        },
-        {
-          assets: ['local.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'function');
-      assert.equal(await output(), 3);
-    },
-  );
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
 
-  it.v2(
-    'should split bundles when a dynamic import is used with an electron-main environment',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/dynamic-electron-main/index.js'),
-      );
+  it('should split bundles when a dynamic import is used with an electron-main environment', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-electron-main/index.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: ['index.js'],
-        },
-        {
-          assets: ['local.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'function');
-      assert.equal(await output(), 3);
-    },
-  );
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
 
-  it.v2(
-    'should split bundles when a dynamic import is used with an electron-renderer environment',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/dynamic-electron-renderer/index.js'),
-      );
+  it('should split bundles when a dynamic import is used with an electron-renderer environment', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-electron-renderer/index.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: ['index.js'],
-        },
-        {
-          assets: ['local.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'function');
-      assert.equal(await output(), 3);
-    },
-  );
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
 
   it.skip('should load dynamic bundle when entry is in a subdirectory', async function () {
     let bu = await bundler(
@@ -1183,7 +1174,7 @@ describe('javascript', function () {
     assert(!js.includes('local.a'));
   });
 
-  it.v2('should use terser config', async function () {
+  it('should use terser config', async function () {
     await bundle(path.join(__dirname, '/integration/terser-config/index.js'), {
       defaultTargetOptions: {
         shouldOptimize: true,
@@ -1389,35 +1380,29 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should not insert global variables in dead branches',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/globals-unused/a.js'),
-      );
+  it('should not insert global variables in dead branches', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals-unused/a.js'),
+    );
 
-      assertBundles(b, [
-        {
-          assets: ['a.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.deepEqual(output, 'foo');
-    },
-  );
+    let output = await run(b);
+    assert.deepEqual(output, 'foo');
+  });
 
-  it.v2(
-    'should handle re-declaration of the global constant',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/global-redeclare/index.js'),
-      );
+  it('should handle re-declaration of the global constant', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/global-redeclare/index.js'),
+    );
 
-      let output = await run(b);
-      assert.deepEqual(output(), false);
-    },
-  );
+    let output = await run(b);
+    assert.deepEqual(output(), false);
+  });
 
   it.v2(
     'should insert environment variables inserted by a prior transform',
@@ -1434,18 +1419,15 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should not insert environment variables in node environment',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/env-node/index.js'),
-      );
+  it('should not insert environment variables in node environment', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-node/index.js'),
+    );
 
-      let output = await run(b);
-      assert.ok(output.toString().includes('process.env'));
-      assert.equal(output(), 'test:test');
-    },
-  );
+    let output = await run(b);
+    assert.ok(output.toString().includes('process.env'));
+    assert.equal(output(), 'test:test');
+  });
 
   it.v2(
     'should not replace process.env.hasOwnProperty with undefined',

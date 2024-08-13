@@ -348,7 +348,7 @@ mod test {
 
   use tracing::Level;
 
-  use parcel_core::types::Code;
+  use parcel_core::types::{Code, ParcelOptions};
   use parcel_filesystem::in_memory_file_system::InMemoryFileSystem;
   use parcel_filesystem::FileSystem;
 
@@ -449,55 +449,59 @@ console.log('hello world');
 
   #[test]
   fn test_asset_graph_request_with_a_couple_of_entries() {
-    let _ = tracing_subscriber::FmtSubscriber::builder()
-      .with_max_level(Level::TRACE)
-      .try_init();
-
-    let mut options = RequestTrackerTestOptions::default();
-    let fs = InMemoryFileSystem::default();
     #[cfg(not(target_os = "windows"))]
     let temporary_dir = PathBuf::from("/parcel_tests");
     #[cfg(target_os = "windows")]
     let temporary_dir = PathBuf::from("C:\\windows\\parcel_tests");
+
+    let core_path = temporary_dir.join("parcel_core");
+    let fs = InMemoryFileSystem::default();
+
     fs.create_directory(&temporary_dir).unwrap();
-    fs.set_current_working_directory(&temporary_dir); // <- resolver is broken without this
-    options
-      .parcel_options
-      .entries
-      .push(temporary_dir.join("entry.js").to_str().unwrap().to_string());
-    options.project_root = temporary_dir.clone();
-    options.search_path = temporary_dir.clone();
-    options.parcel_options.core_path = temporary_dir.clone().join("parcel_core");
+    fs.set_current_working_directory(&temporary_dir);
+
     fs.write_file(
       &temporary_dir.join("entry.js"),
       String::from(
         r#"
-import {x} from './a';
-import {y} from './b';
-console.log(x + y);
+          import {x} from './a';
+          import {y} from './b';
+          console.log(x + y);
         "#,
       ),
     );
+
     fs.write_file(
       &temporary_dir.join("a.js"),
       String::from(
         r#"
-export const x = 15;
+          export const x = 15;
         "#,
       ),
     );
+
     fs.write_file(
       &temporary_dir.join("b.js"),
       String::from(
         r#"
-export const y = 27;
+          export const y = 27;
         "#,
       ),
     );
-    setup_core_modules(&fs, &options.parcel_options.core_path);
-    options.fs = Arc::new(fs);
 
-    let mut request_tracker = request_tracker(options);
+    setup_core_modules(&fs, &core_path);
+
+    let mut request_tracker = request_tracker(RequestTrackerTestOptions {
+      fs: Arc::new(fs),
+      parcel_options: ParcelOptions {
+        core_path,
+        entries: vec![temporary_dir.join("entry.js").to_str().unwrap().to_string()],
+        ..ParcelOptions::default()
+      },
+      project_root: temporary_dir.clone(),
+      search_path: temporary_dir.clone(),
+      ..RequestTrackerTestOptions::default()
+    });
 
     let asset_graph_request = AssetGraphRequest {};
     let RequestResult::AssetGraph(asset_graph_request_result) = request_tracker
@@ -529,11 +533,10 @@ export const y = 27;
     let transformer_path = core_path
       .join("node_modules")
       .join("@parcel/transformer-js");
-    let source_path = transformer_path.join("src");
-    fs.create_directory(&source_path).unwrap();
+
     fs.write_file(&transformer_path.join("package.json"), String::from("{}"));
     fs.write_file(
-      &source_path.join("esmodule-helpers.js"),
+      &transformer_path.join("src").join("esmodule-helpers.js"),
       String::from("/* helpers */"),
     );
   }
