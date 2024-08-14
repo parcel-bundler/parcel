@@ -29,7 +29,7 @@ import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
-import {ResolverBase} from '@parcel/node-resolver-core';
+import {type ResolverBase, getResolverBase} from '@parcel/node-resolver-core';
 import {pathToFileURL} from 'url';
 import {transformSync} from '@swc/core';
 
@@ -79,6 +79,7 @@ export class NodePackageManager implements PackageManager {
   }
 
   _createResolver(): ResolverBase {
+    const ResolverBase = getResolverBase();
     return new ResolverBase(this.projectRoot, {
       fs:
         this.fs instanceof NodeFS && process.versions.pnp == null

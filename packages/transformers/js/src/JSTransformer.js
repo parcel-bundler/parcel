@@ -460,7 +460,7 @@ export default (new Transformer({
       standalone: asset.query.has('standalone'),
       inline_constants: config.inlineConstants,
       callMacro: asset.isSource
-        ? async (err, src, exportName, args, loc) => {
+        ? async function callMacro(err, src, exportName, args, loc) {
             let mod;
             try {
               mod = await options.packageManager.require(src, asset.filePath);

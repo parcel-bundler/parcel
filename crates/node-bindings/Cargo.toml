@@ -11,6 +11,8 @@ crate-type = ["cdylib"]
 canary = ["parcel_monitoring/canary"]
 
 [dependencies]
+console_log = "*"
+
 parcel = { path = "../parcel" }
 parcel_core = { path = "../parcel_core" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }

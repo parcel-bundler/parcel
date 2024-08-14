@@ -5,7 +5,12 @@ use napi_derive::napi;
 
 #[napi]
 pub fn transform(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
+  #[cfg(target_arch = "wasm32")]
+  console_log::init_with_level(Level::Debug);
+
+  log::info!("transform called");
   let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;
+  log::info!("transform called");
 
   let result = parcel_js_swc_core::transform(config, None)?;
   env.to_js_value(&result)

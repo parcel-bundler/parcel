@@ -12,7 +12,11 @@ import packageJson from '../../package.json';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {ResolverBase, init} from '@parcel/node-resolver-core';
+import {
+  type ResolverBase,
+  getResolverBase,
+  init,
+} from '@parcel/node-resolver-core';
 
 import bundlerDefault from '@parcel/bundler-default';
 import compressorRaw from '@parcel/compressor-raw';
@@ -94,6 +98,7 @@ export class BrowserPackageManager implements PackageManager {
   async getResolver(): Promise<ResolverBase> {
     if (this.resolver != null) return this.resolver;
     await init?.();
+    const ResolverBase = getResolverBase();
     this.resolver = new ResolverBase(this.projectRoot, {
       fs: {
         canonicalize: path => this.fs.realpathSync(path),
