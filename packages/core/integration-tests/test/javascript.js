@@ -68,8 +68,10 @@ describe('javascript', function () {
     assert.strictEqual(path.basename(output), path.basename(txtBundle));
   });
 
-  it.v2('should produce a basic JS bundle with ES6 imports', async function () {
-    let b = await bundle(path.join(__dirname, '/integration/es6/index.js'));
+  it('should produce a basic JS bundle with ES6 imports', async function () {
+    let b = await bundle(path.join(__dirname, '/integration/es6/index.js'), {
+      outputFS: inputFS,
+    });
 
     // assert.equal(b.assets.size, 8);
     // assert.equal(b.childBundles.size, 1);
@@ -80,22 +82,16 @@ describe('javascript', function () {
     assert.equal(output.default(), 3);
   });
 
-  it.v2(
-    'should detect dependencies inserted by a prior transform',
-    async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/dependency-prior-transform/index.js',
-        ),
-      );
+  it('should detect dependencies inserted by a prior transform', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dependency-prior-transform/index.js'),
+    );
 
-      let jsBundle = b.getBundles()[0];
-      let contents = await outputFS.readFile(jsBundle.filePath);
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath);
 
-      assert(!contents.includes('import'));
-    },
-  );
+    assert(!contents.includes('import'));
+  });
 
   it('should ignore unused requires after process.env inlining', async function () {
     let b = await bundle(
@@ -119,28 +115,25 @@ describe('javascript', function () {
     assert.strictEqual(output(), 'ok');
   });
 
-  it.v2(
-    'should produce a basic JS bundle with object rest spread support',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/object-rest-spread/object-rest-spread.js',
-        ),
-      );
+  it('should produce a basic JS bundle with object rest spread support', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/object-rest-spread/object-rest-spread.js',
+      ),
+    );
 
-      // assert.equal(b.assets.size, 1);
+    // assert.equal(b.assets.size, 1);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'object');
-      assert.equal(typeof output.default, 'function');
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
 
-      let res = output.default();
-      assert.equal(res.y, 'a');
-      assert.deepEqual(res.z, {y: 'a', b: 'b'});
-      assert.deepEqual(res.ys, {b: 'b'});
-    },
-  );
+    let res = output.default();
+    assert.equal(res.y, 'a');
+    assert.deepEqual(res.z, {y: 'a', b: 'b'});
+    assert.deepEqual(res.ys, {b: 'b'});
+  });
 
   it('should bundle node_modules for a browser environment', async function () {
     let b = await bundle(
@@ -251,25 +244,22 @@ describe('javascript', function () {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it.v2(
-    'should bundle node_modules for a node environment if includeNodeModules is specified',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/include_node_modules/main.js'),
-      );
+  it('should bundle node_modules for a node environment if includeNodeModules is specified', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/include_node_modules/main.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'main.js',
-          assets: ['main.js', 'local.js', 'index.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'main.js',
+        assets: ['main.js', 'local.js', 'index.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'function');
-      assert.equal(output(), 3);
-    },
-  );
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
 
   it.v2('should bundle builtins for a browser environment', async function () {
     let b = await bundle(
@@ -338,50 +328,37 @@ describe('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it.v2(
-    'should produce a JS bundle with default exports and no imports',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/es6-default-only/index.js'),
-      );
+  it('should produce a JS bundle with default exports and no imports', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/es6-default-only/index.js'),
+    );
 
-      // assert.equal(b.assets.size, 1);
-      // assert.equal(b.childBundles.size, 1);
+    // assert.equal(b.assets.size, 1);
+    // assert.equal(b.childBundles.size, 1);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'object');
-      assert.equal(typeof output.default, 'function');
-      assert.equal(output.default(), 3);
-    },
-  );
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+  });
 
-  it.v2(
-    'should split bundles when a dynamic import is used a browser environment',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/dynamic/index.js'),
-      );
+  it('should split bundles when a dynamic import is used a browser environment', async function () {
+    let b = await bundle(path.join(__dirname, '/integration/dynamic/index.js'));
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: [
-            'index.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'js-loader.js',
-          ],
-        },
-        {
-          assets: ['local.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'function');
-      assert.equal(await output(), 3);
-    },
-  );
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
 
   it.v2(
     'should prefetch bundles when declared as an import attribute statically',
@@ -576,33 +553,30 @@ describe('javascript', function () {
     ]);
   });
 
-  it.v2(
-    'dynamic imports loaded as high-priority scripts when not all engines support esmodules natively',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/dynamic-imports-high-prio/index.js'),
-        {
-          defaultTargetOptions: {
-            engines: {
-              browsers: 'IE 11',
-            },
+  it('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-imports-high-prio/index.js'),
+      {
+        defaultTargetOptions: {
+          engines: {
+            browsers: 'IE 11',
           },
         },
-      );
+      },
+    );
 
-      let output = await run(b);
-      let headChildren = await output.default;
+    let output = await run(b);
+    let headChildren = await output.default;
 
-      assert(headChildren[0].tag === 'link');
-      assert(headChildren[0].rel === 'preload');
-      assert(headChildren[0].as === 'script');
+    assert(headChildren[0].tag === 'link');
+    assert(headChildren[0].rel === 'preload');
+    assert(headChildren[0].as === 'script');
 
-      assert(headChildren[1].tag === 'script');
-      assert(headChildren[1].src.match(/async\..*\.js/));
+    assert(headChildren[1].tag === 'script');
+    assert(headChildren[1].src.match(/async\..*\.js/));
 
-      assert(headChildren[0].href === headChildren[1].src);
-    },
-  );
+    assert(headChildren[0].href === headChildren[1].src);
+  });
 
   it.v2(
     'should deduplicate and remove an unnecessary async bundle when it contains a cyclic reference to its entry',
@@ -636,26 +610,20 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'does not create bundles for dynamic imports when assets are available up the graph',
-    async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/internalize-no-bundle-split/index.js',
-        ),
-      );
+  it('does not create bundles for dynamic imports when assets are available up the graph', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/internalize-no-bundle-split/index.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: ['index.js', 'bar.js', 'foo.js', 'esmodule-helpers.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'bar.js', 'foo.js', 'esmodule-helpers.js'],
+      },
+    ]);
 
-      assert.deepEqual(await (await run(b)).default, [3, 3]);
-    },
-  );
+    assert.deepEqual(await (await run(b)).default, [3, 3]);
+  });
 
   it.v2(
     'should dynamic import files which import raw files',
@@ -717,36 +685,28 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should duplicate small modules across multiple bundles',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/dynamic-common-small/index.js'),
-      );
+  it('should duplicate small modules across multiple bundles', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-common-small/index.js'),
+    );
 
-      assertBundles(b, [
-        {
-          assets: ['a.js', 'common.js', 'common-dep.js'],
-        },
-        {
-          assets: ['b.js', 'common.js', 'common-dep.js'],
-        },
-        {
-          name: 'index.js',
-          assets: [
-            'index.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'js-loader.js',
-          ],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        assets: ['a.js', 'common.js', 'common-dep.js'],
+      },
+      {
+        assets: ['b.js', 'common.js', 'common-dep.js'],
+      },
+      {
+        name: 'index.js',
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.equal(typeof output, 'function');
-      assert.equal(await output(), 7);
-    },
-  );
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 7);
+  });
 
   it.v2(
     'should create a separate bundle for large modules shared between bundles',
@@ -819,36 +779,33 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should duplicate an asset if it is not present in every parent bundle',
-    async function () {
-      let b = await bundle(
-        ['a.js', 'b.js'].map(entry =>
-          path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry),
-        ),
-      );
-      assertBundles(b, [
-        {
-          assets: ['c.js', 'common.js', 'esmodule-helpers.js'],
-        },
-        {
-          name: 'b.js',
-          assets: ['b.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
-        },
-        {
-          name: 'a.js',
-          assets: [
-            'a.js',
-            'bundle-url.js',
-            'common.js',
-            'cacheLoader.js',
-            'esmodule-helpers.js',
-            'js-loader.js',
-          ],
-        },
-      ]);
-    },
-  );
+  it('should duplicate an asset if it is not present in every parent bundle', async function () {
+    let b = await bundle(
+      ['a.js', 'b.js'].map(entry =>
+        path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry),
+      ),
+    );
+    assertBundles(b, [
+      {
+        assets: ['c.js', 'common.js', 'esmodule-helpers.js'],
+      },
+      {
+        name: 'b.js',
+        assets: ['b.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+      {
+        name: 'a.js',
+        assets: [
+          'a.js',
+          'bundle-url.js',
+          'common.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
 
   it.v2(
     'should duplicate an asset if it is not available in all possible ancestries',
@@ -1045,30 +1002,24 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should ignore new URL and import.meta.url with local binding',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/import-raw-import-meta-url/local-url.js',
-        ),
-      );
+  it('should ignore new URL and import.meta.url with local binding', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/import-raw-import-meta-url/local-url.js',
+      ),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'local-url.js',
-          assets: ['esmodule-helpers.js', 'local-url.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'local-url.js',
+        assets: ['esmodule-helpers.js', 'local-url.js'],
+      },
+    ]);
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(contents.includes('"file:///local-url.js"'));
-    },
-  );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('"file:///local-url.js"'));
+  });
 
   it.v2(
     'should throw a codeframe for a missing raw asset with static URL and import.meta.url',
@@ -1158,7 +1109,7 @@ describe('javascript', function () {
     },
   );
 
-  it.v2('should minify JS in production mode', async function () {
+  it('should minify JS in production mode', async function () {
     let b = await bundle(path.join(__dirname, '/integration/uglify/index.js'), {
       defaultTargetOptions: {
         shouldOptimize: true,
@@ -1362,23 +1313,20 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should not insert global variables when used in a module specifier',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/globals-module-specifier/a.js'),
-      );
+  it('should not insert global variables when used in a module specifier', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals-module-specifier/a.js'),
+    );
 
-      assertBundles(b, [
-        {
-          assets: ['a.js', 'b.js', 'c.js', 'esmodule-helpers.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        assets: ['a.js', 'b.js', 'c.js', 'esmodule-helpers.js'],
+      },
+    ]);
 
-      let output = await run(b);
-      assert.deepEqual(output, 1234);
-    },
-  );
+    let output = await run(b);
+    assert.deepEqual(output, 1234);
+  });
 
   it('should not insert global variables in dead branches', async function () {
     let b = await bundle(
@@ -2121,7 +2069,7 @@ describe('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it.v2('should resolve the browser field before main', async function () {
+  it('should resolve the browser field before main', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/browser.js'),
     );
@@ -2299,7 +2247,7 @@ describe('javascript', function () {
     assert.equal(output.test(), 'pkg-es6-module');
   });
 
-  it.v2('should resolve the main field', async function () {
+  it('should resolve the main field', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/main-field.js'),
     );
@@ -2467,33 +2415,30 @@ describe('javascript', function () {
     assert.equal(error.code, 'MODULE_NOT_FOUND');
   });
 
-  it.v2(
-    'should ignore require if it is defined in the scope',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/require-scope/index.js'),
-      );
+  it('should ignore require if it is defined in the scope', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-scope/index.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: ['index.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+    ]);
 
-      let output = await run(b);
+    let output = await run(b);
 
-      assert.equal(typeof output.test, 'object');
+    assert.equal(typeof output.test, 'object');
 
-      let failed = Object.keys(output.test).some(
-        key => output.test[key] !== 'test passed',
-      );
+    let failed = Object.keys(output.test).some(
+      key => output.test[key] !== 'test passed',
+    );
 
-      assert.equal(failed, false);
-    },
-  );
+    assert.equal(failed, false);
+  });
 
-  it.v2('should expose to CommonJS entry point', async function () {
+  it('should expose to CommonJS entry point', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/entry-point/index.js'),
     );
@@ -2503,7 +2448,7 @@ describe('javascript', function () {
     assert.equal(module.exports(), 'Test!');
   });
 
-  it.v2('should expose to RequireJS entry point', async function () {
+  it('should expose to RequireJS entry point', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/entry-point/index.js'),
     );
@@ -2543,138 +2488,112 @@ describe('javascript', function () {
     assert.equal(test, 2);
   });
 
-  it.v2(
-    'should package successfully with comments on last line',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, `/integration/js-comment/index.js`),
-      );
+  it('should package successfully with comments on last line', async function () {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`),
+    );
 
-      let output = await run(b);
-      assert.equal(output, 'Hello World!');
-    },
-  );
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
 
-  it.v2(
-    'should package successfully with comments on last line and minification',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, `/integration/js-comment/index.js`),
-      );
+  it('should package successfully with comments on last line and minification', async function () {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`),
+    );
 
-      let output = await run(b);
-      assert.equal(output, 'Hello World!');
-    },
-  );
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
 
-  it.v2(
-    'should package successfully with comments on last line and scope hoisting',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, `/integration/js-comment/index.js`),
-        {
-          defaultTargetOptions: {
-            shouldScopeHoist: true,
-          },
+  it('should package successfully with comments on last line and scope hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
         },
-      );
+      },
+    );
 
-      let output = await run(b);
-      assert.equal(output, 'Hello World!');
-    },
-  );
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
 
-  it.v2(
-    'should package successfully with comments on last line, scope hoisting and minification',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, `/integration/js-comment/index.js`),
-        {
-          defaultTargetOptions: {
-            shouldScopeHoist: true,
-            shouldOptimize: true,
-          },
+  it('should package successfully with comments on last line, scope hoisting and minification', async function () {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: true,
         },
-      );
+      },
+    );
 
-      let output = await run(b);
-      assert.equal(output, 'Hello World!');
-    },
-  );
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
 
-  it.v2(
-    'should not replace toplevel this with undefined in CommonJS without scope-hoisting',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/js-this-commonjs/a.js'),
-      );
+  it('should not replace toplevel this with undefined in CommonJS without scope-hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-this-commonjs/a.js'),
+    );
 
-      let output;
-      function result(v) {
-        output = v;
-      }
-      await run(b, {result});
-      assert.deepEqual(output, [{foo: 2}, 1234]);
-    },
-  );
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [{foo: 2}, 1234]);
+  });
 
-  it.v2(
-    'should not replace toplevel this with undefined in CommonJS when scope-hoisting',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/js-this-commonjs/a.js'),
-        {
-          defaultTargetOptions: {
-            shouldScopeHoist: true,
-          },
+  it('should not replace toplevel this with undefined in CommonJS when scope-hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-this-commonjs/a.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
         },
-      );
+      },
+    );
 
-      let output;
-      function result(v) {
-        output = v;
-      }
-      await run(b, {result});
-      assert.deepEqual(output, [{foo: 2}, 1234]);
-    },
-  );
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [{foo: 2}, 1234]);
+  });
 
-  it.v2(
-    'should replace toplevel this with undefined in ESM without scope-hoisting',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/js-this-es6/a.js'),
-      );
+  it('should replace toplevel this with undefined in ESM without scope-hoisting', async function () {
+    let b = await bundle(path.join(__dirname, '/integration/js-this-es6/a.js'));
 
-      let output;
-      function result(v) {
-        output = v;
-      }
-      await run(b, {result});
-      assert.deepEqual(output, [undefined, 1234]);
-    },
-  );
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [undefined, 1234]);
+  });
 
-  it.v2(
-    'should replace toplevel this with undefined in ESM when scope-hoisting',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, '/integration/js-this-es6/a.js'),
-        {
-          defaultTargetOptions: {
-            shouldScopeHoist: true,
-          },
+  it('should replace toplevel this with undefined in ESM when scope-hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-this-es6/a.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
         },
-      );
+      },
+    );
 
-      let output;
-      function result(v) {
-        output = v;
-      }
-      await run(b, {result});
-      assert.deepEqual(output, [undefined, 1234]);
-    },
-  );
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [undefined, 1234]);
+  });
 
   it.skip('should not dedupe imports with different contents', async function () {
     let b = await bundle(
@@ -2915,45 +2834,36 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should not create shared bundles from contents of entries',
-    async () => {
-      let b = await bundle(
-        ['a.js', 'b.js'].map(entry =>
-          path.join(
-            __dirname,
-            '/integration/no-shared-bundles-from-entries/',
-            entry,
-          ),
-        ),
-      );
-
-      assertBundles(b, [
-        {
-          name: 'a.js',
-          assets: ['a.js', 'esmodule-helpers.js', 'lodash.js'],
-        },
-        {
-          name: 'b.js',
-          assets: ['b.js', 'esmodule-helpers.js', 'lodash.js'],
-        },
-      ]);
-    },
-  );
-
-  it.v2(
-    'should import the same dependency multiple times in the same bundle',
-    async () => {
-      let b = await bundle(
+  it('should not create shared bundles from contents of entries', async () => {
+    let b = await bundle(
+      ['a.js', 'b.js'].map(entry =>
         path.join(
           __dirname,
-          '/integration/same-dependency-multiple-times/a1.js',
+          '/integration/no-shared-bundles-from-entries/',
+          entry,
         ),
-      );
+      ),
+    );
 
-      await run(b);
-    },
-  );
+    assertBundles(b, [
+      {
+        name: 'a.js',
+        assets: ['a.js', 'esmodule-helpers.js', 'lodash.js'],
+      },
+      {
+        name: 'b.js',
+        assets: ['b.js', 'esmodule-helpers.js', 'lodash.js'],
+      },
+    ]);
+  });
+
+  it('should import the same dependency multiple times in the same bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/same-dependency-multiple-times/a1.js'),
+    );
+
+    await run(b);
+  });
 
   it.v2(
     "should inline a bundle's compiled text with `bundle-text`",
@@ -3180,90 +3090,81 @@ describe('javascript', function () {
     assert((await run(b)).default.startsWith('.test'));
   });
 
-  it.v2(
-    'should detect typescript style async requires in commonjs',
-    async () => {
-      let b = await bundle(
-        path.join(__dirname, '/integration/require-async/ts.js'),
-      );
+  it('should detect typescript style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'ts.js',
-          assets: ['ts.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
-        },
-        {
-          assets: ['async.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'ts.js',
+        assets: ['ts.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
 
-      assert.equal(await run(b), 2);
-    },
-  );
+    assert.equal(await run(b), 2);
+  });
 
-  it.v2(
-    'should detect typescript style async requires in commonjs with esModuleInterop flag',
-    async () => {
-      let b = await bundle(
-        path.join(__dirname, '/integration/require-async/ts-interop.js'),
-      );
+  it('should detect typescript style async requires in commonjs with esModuleInterop flag', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts-interop.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'ts-interop.js',
-          assets: [
-            'ts-interop.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'js-loader.js',
-          ],
-        },
-        {
-          assets: ['async.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'ts-interop.js',
+        assets: [
+          'ts-interop.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
 
-      assert.deepEqual(await run(b), {default: 2});
+    assert.deepEqual(await run(b), {default: 2});
 
-      let jsBundle = b.getBundles()[0];
-      let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
-      assert(
-        /.then\(function\(res\) {\n.*return __importStar\(res\)/.test(contents),
-      );
-    },
-  );
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
+    assert(
+      /.then\(function\(res\) {\n.*return __importStar\(res\)/.test(contents),
+    );
+  });
 
-  it.v2(
-    'should detect typescript style async requires in commonjs with esModuleInterop flag and arrow functions',
-    async () => {
-      let b = await bundle(
-        path.join(__dirname, '/integration/require-async/ts-interop-arrow.js'),
-      );
+  it('should detect typescript style async requires in commonjs with esModuleInterop flag and arrow functions', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts-interop-arrow.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'ts-interop-arrow.js',
-          assets: [
-            'ts-interop-arrow.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'js-loader.js',
-          ],
-        },
-        {
-          assets: ['async.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'ts-interop-arrow.js',
+        assets: [
+          'ts-interop-arrow.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
 
-      assert.deepEqual(await run(b), {default: 2});
+    assert.deepEqual(await run(b), {default: 2});
 
-      let jsBundle = b.getBundles()[0];
-      let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
-      assert(/.then\(\(res\)=>__importStar\(res\)/.test(contents));
-    },
-  );
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
+    assert(/.then\(\(res\)=>__importStar\(res\)/.test(contents));
+  });
 
-  it.v2('should detect rollup style async requires in commonjs', async () => {
+  it('should detect rollup style async requires in commonjs', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/require-async/rollup.js'),
     );
@@ -3286,51 +3187,45 @@ describe('javascript', function () {
     assert.equal(await run(b), 2);
   });
 
-  it.v2(
-    'should only detect requires that are returned from the promise',
-    async () => {
-      let b = await bundle(
-        path.join(__dirname, '/integration/require-async/sync.js'),
-      );
+  it('should only detect requires that are returned from the promise', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/sync.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'sync.js',
-          assets: ['sync.js', 'async.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'sync.js',
+        assets: ['sync.js', 'async.js'],
+      },
+    ]);
 
-      assert.equal(await run(b), 5);
-    },
-  );
+    assert.equal(await run(b), 5);
+  });
 
-  it.v2(
-    'should properly chain a dynamic import wrapped in a Promise.resolve()',
-    async () => {
-      let b = await bundle(
-        path.join(__dirname, '/integration/require-async/resolve-chain.js'),
-      );
+  it('should properly chain a dynamic import wrapped in a Promise.resolve()', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/resolve-chain.js'),
+    );
 
-      assertBundles(b, [
-        {
-          name: 'resolve-chain.js',
-          assets: [
-            'resolve-chain.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'js-loader.js',
-          ],
-        },
-        {
-          assets: ['async.js'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'resolve-chain.js',
+        assets: [
+          'resolve-chain.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
 
-      assert.equal(await run(b), 1337);
-    },
-  );
+    assert.equal(await run(b), 1337);
+  });
 
-  it.v2('should detect parcel style async requires in commonjs', async () => {
+  it('should detect parcel style async requires in commonjs', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/require-async/parcel.js'),
     );
@@ -3398,49 +3293,46 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'only updates bundle names of changed bundles for browsers',
-    async () => {
-      let fixtureDir = path.join(__dirname, '/integration/name-invalidation');
-      let _bundle = () =>
-        bundle(path.join(fixtureDir, 'index.js'), {
-          inputFS: overlayFS,
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldScopeHoist: false,
-            shouldOptimize: false,
-          },
-        });
+  it('only updates bundle names of changed bundles for browsers', async () => {
+    let fixtureDir = path.join(__dirname, '/integration/name-invalidation');
+    let _bundle = () =>
+      bundle(path.join(fixtureDir, 'index.js'), {
+        inputFS: overlayFS,
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+        },
+      });
 
-      let first = await _bundle();
-      assert.equal(await (await run(first)).default, 42);
+    let first = await _bundle();
+    assert.equal(await (await run(first)).default, 42);
 
-      let bPath = path.join(fixtureDir, 'b.js');
-      await overlayFS.mkdirp(fixtureDir);
-      overlayFS.writeFile(
-        bPath,
-        (await overlayFS.readFile(bPath, 'utf8')).replace('42', '43'),
-      );
+    let bPath = path.join(fixtureDir, 'b.js');
+    await overlayFS.mkdirp(fixtureDir);
+    overlayFS.writeFile(
+      bPath,
+      (await overlayFS.readFile(bPath, 'utf8')).replace('42', '43'),
+    );
 
-      let second = await _bundle();
-      assert.equal(await (await run(second)).default, 43);
+    let second = await _bundle();
+    assert.equal(await (await run(second)).default, 43);
 
-      let getBundleNameWithPrefix = (b, prefix) =>
-        b
-          .getBundles()
-          .map(bundle => path.basename(bundle.filePath))
-          .find(name => name.startsWith(prefix));
+    let getBundleNameWithPrefix = (b, prefix) =>
+      b
+        .getBundles()
+        .map(bundle => path.basename(bundle.filePath))
+        .find(name => name.startsWith(prefix));
 
-      assert.equal(
-        getBundleNameWithPrefix(first, 'a'),
-        getBundleNameWithPrefix(second, 'a'),
-      );
-      assert.notEqual(
-        getBundleNameWithPrefix(first, 'b'),
-        getBundleNameWithPrefix(second, 'b'),
-      );
-    },
-  );
+    assert.equal(
+      getBundleNameWithPrefix(first, 'a'),
+      getBundleNameWithPrefix(second, 'a'),
+    );
+    assert.notEqual(
+      getBundleNameWithPrefix(first, 'b'),
+      getBundleNameWithPrefix(second, 'b'),
+    );
+  });
 
   it.v2(
     'can load the same resource when referenced in multiple bundles',
@@ -3457,30 +3349,27 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'can static import and dynamic import in the same bundle without creating a new bundle',
-    async () => {
-      let b = await bundle(
-        path.join(__dirname, '/integration/sync-async/same-bundle.js'),
-        {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
-      );
+  it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sync-async/same-bundle.js'),
+      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
+    );
 
-      assertBundles(b, [
-        {
-          name: 'same-bundle.js',
-          assets: [
-            'same-bundle.js',
-            'get-dep.js',
-            'get-dep-2.js',
-            'dep.js',
-            'esmodule-helpers.js',
-          ],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'same-bundle.js',
+        assets: [
+          'same-bundle.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'esmodule-helpers.js',
+        ],
+      },
+    ]);
 
-      assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
-    },
-  );
+    assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
+  });
 
   it.v2(
     'async dependency can be resolved internally and externally from two different bundles',
@@ -3889,59 +3778,47 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should support duplicate re-exports without scope hoisting',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-duplicate-re-exports/index.js'),
-      );
-      let res = await run(b);
-      assert.equal(res.a, 'a');
-      assert.equal(res.b, 'b');
-      assert.equal(typeof res.c, 'function');
-    },
-  );
+  it('should support duplicate re-exports without scope hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-duplicate-re-exports/index.js'),
+    );
+    let res = await run(b);
+    assert.equal(res.a, 'a');
+    assert.equal(res.b, 'b');
+    assert.equal(typeof res.c, 'function');
+  });
 
-  it.v2(
-    'should prioritize named exports before re-exports withput scope hoisting (before)',
-    async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
-        ),
-      );
+  it('should prioritize named exports before re-exports withput scope hoisting (before)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
+      ),
+    );
 
-      let res = await run(b, null, {require: false});
-      assert.equal(res.output, 2);
-    },
-  );
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
+  });
 
-  it.v2(
-    'should prioritize named exports before re-exports without scope hoisting (after)',
-    async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
-        ),
-      );
+  it('should prioritize named exports before re-exports without scope hoisting (after)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
+      ),
+    );
 
-      let res = await run(b, null, {require: false});
-      assert.equal(res.output, 2);
-    },
-  );
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
+  });
 
-  it.v2(
-    'should exclude default from export all declaration',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-export-all/index.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res, {a: 4});
-    },
-  );
+  it('should exclude default from export all declaration', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-all/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {a: 4});
+  });
 
   it.v2(
     'should not use arrow functions for reexport declarations unless supported',
@@ -3960,40 +3837,31 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should support import namespace declarations of other ES modules',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-import-namespace/a.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res, {a: 4, default: 1});
-    },
-  );
+  it('should support import namespace declarations of other ES modules', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-namespace/a.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {a: 4, default: 1});
+  });
 
-  it.v2(
-    'should support import namespace declarations of class from CJS',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-import-namespace/b.js'),
-      );
-      let res = await run(b);
-      assert.equal(typeof res, 'function');
-    },
-  );
+  it('should support import namespace declarations of class from CJS', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-namespace/b.js'),
+    );
+    let res = await run(b);
+    assert.equal(typeof res, 'function');
+  });
 
-  it.v2(
-    'should support import namespace declarations of object from CJS',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-import-namespace/c.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res, {foo: 2, default: 3});
-    },
-  );
+  it('should support import namespace declarations of object from CJS', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-namespace/c.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {foo: 2, default: 3});
+  });
 
-  it.v2('should support export namespace declarations', async function () {
+  it('should support export namespace declarations', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-namespace/index.js'),
     );
@@ -4001,18 +3869,15 @@ describe('javascript', function () {
     assert.deepEqual(res, {ns: {a: 4, default: 1}});
   });
 
-  it.v2(
-    'should support export declarations with destructuring',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-export-destructuring/index.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res, {foo: 1, bar: 2});
-    },
-  );
+  it('should support export declarations with destructuring', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-destructuring/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {foo: 1, bar: 2});
+  });
 
-  it.v2('should support export default declarations', async function () {
+  it('should support export default declarations', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-default/index.js'),
     );
@@ -4020,45 +3885,39 @@ describe('javascript', function () {
     assert.deepEqual(res, {other: 1});
   });
 
-  it.v2(
-    'should hoist function default exports to allow circular imports',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/js-export-default-fn-circular-named/a.mjs',
-        ),
-      );
+  it('should hoist function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-named/a.mjs',
+      ),
+    );
 
-      let output;
-      function result(v) {
-        output = v;
-      }
-      await run(b, {result});
-      assert.deepEqual(output, 'b1');
-    },
-  );
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
+  });
 
-  it.v2(
-    'should hoist anonymous function default exports to allow circular imports',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/js-export-default-fn-circular-anonymous/a.mjs',
-        ),
-      );
+  it('should hoist anonymous function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-anonymous/a.mjs',
+      ),
+    );
 
-      let output;
-      function result(v) {
-        output = v;
-      }
-      await run(b, {result});
-      assert.deepEqual(output, 'b1');
-    },
-  );
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
+  });
 
-  it.v2('should work with many different types of exports', async function () {
+  it('should work with many different types of exports', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-many/index.js'),
     );
@@ -4074,7 +3933,7 @@ describe('javascript', function () {
     });
   });
 
-  it.v2('should correctly export functions', async function () {
+  it('should correctly export functions', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-functions/index.js'),
     );
@@ -4084,7 +3943,7 @@ describe('javascript', function () {
     assert.strictEqual(res.bar('test'), 'bar:test');
   });
 
-  it.v2('should handle exports of imports', async function () {
+  it('should handle exports of imports', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-import/index.js'),
     );
@@ -4092,82 +3951,61 @@ describe('javascript', function () {
     assert.deepEqual(res, {other: 2});
   });
 
-  it.v2(
-    'should handle simultaneous import and reexports of the same identifier',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-export-import-same/index.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res, {foo: '123', bar: '1234'});
-    },
-  );
+  it('should handle simultaneous import and reexports of the same identifier', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-import-same/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {foo: '123', bar: '1234'});
+  });
 
-  it.v2(
-    'should generate a unique variable name for imports',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-import-shadow/index.js'),
-      );
-      let res = await run(b);
-      assert.strictEqual(res.baz(), 'foo');
-    },
-  );
+  it('should generate a unique variable name for imports', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow/index.js'),
+    );
+    let res = await run(b);
+    assert.strictEqual(res.baz(), 'foo');
+  });
 
-  it.v2(
-    'should not replace identifier with a var declaration inside a for loop',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-import-shadow-for-var/index.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res.baz(), [0, 1, 2, 3]);
-    },
-  );
+  it('should not replace identifier with a var declaration inside a for loop', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow-for-var/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.baz(), [0, 1, 2, 3]);
+  });
 
-  it.v2(
-    'should replace an imported identifier with function locals of the same name',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-import-shadow-func-var/index.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res.default, 123);
-    },
-  );
+  it('should replace an imported identifier with function locals of the same name', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow-func-var/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, 123);
+  });
 
-  it.v2(
-    'should replace imported values in member expressions',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-import-member/index.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res.default, ['a', 'b', 'bar']);
-    },
-  );
+  it('should replace imported values in member expressions', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-member/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, ['a', 'b', 'bar']);
+  });
 
-  it.v2(
-    'should retain the correct dependency order between import and reexports',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/js-import-reexport-dep-order/index.js',
-        ),
-      );
+  it('should retain the correct dependency order between import and reexports', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-reexport-dep-order/index.js'),
+    );
 
-      let calls = [];
-      await run(b, {
-        sideEffect(v) {
-          calls.push(v);
-        },
-      });
-      assert.deepEqual(calls, ['a', 'b', 'c']);
-    },
-  );
+    let calls = [];
+    await run(b, {
+      sideEffect(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepEqual(calls, ['a', 'b', 'c']);
+  });
 
-  it.v2('should not freeze live default imports', async function () {
+  it('should not freeze live default imports', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-import-default-live/index.js'),
     );
@@ -4175,18 +4013,15 @@ describe('javascript', function () {
     assert.deepEqual(res.default, [123, 789]);
   });
 
-  it.v2(
-    'should not rewrite this in arrow function class properties',
-    async function () {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-class-this-esm/a.js'),
-      );
-      let res = await run(b);
-      assert.deepEqual(res.default, 'x: 123');
-    },
-  );
+  it('should not rewrite this in arrow function class properties', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-class-this-esm/a.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, 'x: 123');
+  });
 
-  it.v2('should call named imports without this context', async function () {
+  it('should call named imports without this context', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-import-this/index.js'),
     );
@@ -4201,7 +4036,7 @@ describe('javascript', function () {
     });
   });
 
-  it.v2('should only replace free references to require', async () => {
+  it('should only replace free references to require', async () => {
     let b = await bundle(
       path.join(__dirname, 'integration/js-require-free/index.js'),
     );
@@ -4214,57 +4049,42 @@ describe('javascript', function () {
     assert.strictEqual(output, 'a');
   });
 
-  it.v2(
-    'should only replace free references to require with scope hoisting',
-    async () => {
-      let b = await bundle(
-        path.join(__dirname, 'integration/js-require-free/index.js'),
-        {
-          mode: 'production',
-        },
-      );
-      let output;
-      await run(b, {
-        output(v) {
-          output = v;
-        },
-      });
-      assert.strictEqual(output, 'a');
-    },
-  );
+  it('should only replace free references to require with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-free/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let output;
+    await run(b, {
+      output(v) {
+        output = v;
+      },
+    });
+    assert.strictEqual(output, 'a');
+  });
 
-  it.v2(
-    'should support import and non-top-level require of same asset from different assets',
-    async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/js-require-import-different/index.js',
-        ),
-      );
-      let {output} = await run(b, null, {require: false});
-      assert.deepEqual(output, [123, {HooksContext: 123}]);
-    },
-  );
+  it('should support import and non-top-level require of same asset from different assets', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
 
-  it.v2(
-    'should support import and non-top-level require of same asset from different assets with scope hoisting',
-    async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/js-require-import-different/index.js',
-        ),
-        {
-          mode: 'production',
-        },
-      );
-      let {output} = await run(b, null, {require: false});
-      assert.deepEqual(output, [123, {HooksContext: 123}]);
-    },
-  );
+  it('should support import and non-top-level require of same asset from different assets with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
 
-  it.v2('should support runtime module deduplication', async function () {
+  it('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
     );
@@ -4371,6 +4191,7 @@ describe('javascript', function () {
       );
     },
   );
+
   it.v2(
     'should reuse a bundle when its main asset (aka bundleroot) is imported sychronously',
     async function () {
@@ -4667,29 +4488,26 @@ describe('javascript', function () {
   );
 
   describe('multiple import types', function () {
-    it.v2(
-      'supports both static and dynamic imports to the same specifier in the same file',
-      async function () {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            'integration/multiple-import-types/static-dynamic.js',
-          ),
-        );
+    it('supports both static and dynamic imports to the same specifier in the same file', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-dynamic.js',
+        ),
+      );
 
-        assertBundles(b, [
-          {
-            type: 'js',
-            assets: ['static-dynamic.js', 'other.js', 'esmodule-helpers.js'],
-          },
-        ]);
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['static-dynamic.js', 'other.js', 'esmodule-helpers.js'],
+        },
+      ]);
 
-        let res = await run(b);
-        assert.equal(typeof res.Foo, 'function');
-        assert.equal(typeof res.LazyFoo, 'object');
-        assert.equal(res.Foo, await res.LazyFoo);
-      },
-    );
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.LazyFoo, 'object');
+      assert.equal(res.Foo, await res.LazyFoo);
+    });
 
     it.v2(
       'supports both static and dynamic imports to the same specifier in the same file with scope hoisting',
@@ -4722,44 +4540,41 @@ describe('javascript', function () {
       },
     );
 
-    it.v2(
-      'supports static, dynamic, and url to the same specifier in the same file',
-      async function () {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            'integration/multiple-import-types/static-dynamic-url.js',
-          ),
-        );
+    it('supports static, dynamic, and url to the same specifier in the same file', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-dynamic-url.js',
+        ),
+      );
 
-        assertBundles(b, [
-          {
-            type: 'js',
-            assets: [
-              'static-dynamic-url.js',
-              'other.js',
-              'esmodule-helpers.js',
-              'bundle-url.js',
-              'cacheLoader.js',
-              'js-loader.js',
-            ],
-          },
-          {
-            type: 'js',
-            assets: ['other.js', 'esmodule-helpers.js'],
-          },
-        ]);
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'static-dynamic-url.js',
+            'other.js',
+            'esmodule-helpers.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['other.js', 'esmodule-helpers.js'],
+        },
+      ]);
 
-        let res = await run(b);
-        assert.equal(typeof res.Foo, 'function');
-        assert.equal(typeof res.LazyFoo, 'object');
-        assert.equal(res.Foo, await res.LazyFoo);
-        assert.equal(
-          res.url,
-          'http://localhost/' + path.basename(b.getBundles()[1].filePath),
-        );
-      },
-    );
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.LazyFoo, 'object');
+      assert.equal(res.Foo, await res.LazyFoo);
+      assert.equal(
+        res.url,
+        'http://localhost/' + path.basename(b.getBundles()[1].filePath),
+      );
+    });
 
     it.v2(
       'supports static, dynamic, and url to the same specifier in the same file with scope hoisting',
@@ -4800,41 +4615,38 @@ describe('javascript', function () {
       },
     );
 
-    it.v2(
-      'supports dynamic import and url to the same specifier in the same file',
-      async function () {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            'integration/multiple-import-types/dynamic-url.js',
-          ),
-        );
+    it('supports dynamic import and url to the same specifier in the same file', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/dynamic-url.js',
+        ),
+      );
 
-        assertBundles(b, [
-          {
-            type: 'js',
-            assets: [
-              'dynamic-url.js',
-              'esmodule-helpers.js',
-              'bundle-url.js',
-              'cacheLoader.js',
-              'js-loader.js',
-            ],
-          },
-          {
-            type: 'js',
-            assets: ['other.js', 'esmodule-helpers.js'],
-          },
-        ]);
-        let res = await run(b);
-        assert.equal(typeof res.lazy, 'object');
-        assert.equal(typeof (await res.lazy), 'function');
-        assert.equal(
-          res.url,
-          'http://localhost/' + path.basename(b.getBundles()[1].filePath),
-        );
-      },
-    );
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'dynamic-url.js',
+            'esmodule-helpers.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['other.js', 'esmodule-helpers.js'],
+        },
+      ]);
+      let res = await run(b);
+      assert.equal(typeof res.lazy, 'object');
+      assert.equal(typeof (await res.lazy), 'function');
+      assert.equal(
+        res.url,
+        'http://localhost/' + path.basename(b.getBundles()[1].filePath),
+      );
+    });
 
     it.v2(
       'supports dynamic import and url to the same specifier in the same file with scope hoisting',
@@ -5013,27 +4825,24 @@ describe('javascript', function () {
     );
   });
 
-  it.v2(
-    'should avoid creating a bundle for lazy dependencies already available in a shared bundle',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/shared-bundle-internalization/index.mjs',
-        ),
-        {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldScopeHoist: false,
-          },
+  it('should avoid creating a bundle for lazy dependencies already available in a shared bundle', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/shared-bundle-internalization/index.mjs',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
         },
-      );
+      },
+    );
 
-      assert.deepEqual(await (await run(b)).default, [42, 42]);
-    },
-  );
+    assert.deepEqual(await (await run(b)).default, [42, 42]);
+  });
 
-  it.v2('should support standalone import.meta', async function () {
+  it('should support standalone import.meta', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/import-meta/index.js'),
     );
@@ -5136,25 +4945,19 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'supports ESM imports and requires with sideEffects: false',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/side-effects-false/import-require.js',
-        ),
-      );
+  it('supports ESM imports and requires with sideEffects: false', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/side-effects-false/import-require.js'),
+    );
 
-      let output = await run(b, {
-        sideEffect() {},
-      });
+    let output = await run(b, {
+      sideEffect() {},
+    });
 
-      assert.strictEqual(output.default, '4returned from bar');
-    },
-  );
+    assert.strictEqual(output.default, '4returned from bar');
+  });
 
-  it.v2('should not affect ESM import order', async function () {
+  it('should not affect ESM import order', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
     );
@@ -5165,24 +4968,21 @@ describe('javascript', function () {
     );
   });
 
-  it.v2(
-    'should not affect ESM import order with scope hoisting',
-    async function () {
-      const b = await bundle(
-        path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
-        {
-          defaultTargetOptions: {
-            shouldScopeHoist: true,
-          },
+  it('should not affect ESM import order with scope hoisting', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
         },
-      );
+      },
+    );
 
-      await assert.rejects(
-        run(b),
-        /^ReferenceError: Cannot access '(.+)' before initialization$/,
-      );
-    },
-  );
+    await assert.rejects(
+      run(b),
+      /^ReferenceError: Cannot access '(.+)' before initialization$/,
+    );
+  });
 
   it.v2(
     'should produce working output with both scope hoisting and non scope hoisting targets',
@@ -5211,27 +5011,24 @@ describe('javascript', function () {
     },
   );
 
-  it.v2(
-    'should not deduplicate an asset if it will become unreachable',
-    async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/sibling-deduplicate-unreachable/index.js',
-        ),
-        {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldScopeHoist: false,
-          },
+  it('should not deduplicate an asset if it will become unreachable', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sibling-deduplicate-unreachable/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
         },
-      );
-      let res = await run(b);
-      assert.equal(await res.default, 'target');
-    },
-  );
+      },
+    );
+    let res = await run(b);
+    assert.equal(await res.default, 'target');
+  });
 
-  it.v2('should detect shorthand identifier imports', async function () {
+  it('should detect shorthand identifier imports', async function () {
     const dir = path.join(__dirname, 'js-import-shorthand-identifier');
     overlayFS.mkdirp(dir);
 
@@ -5269,7 +5066,7 @@ describe('javascript', function () {
     assert.deepEqual(output.default, {color: 'blue'});
   });
 
-  it.v2('should retain unicode escape sequences', async function () {
+  it('should retain unicode escape sequences', async function () {
     // See issue #8877
     await fsFixture(overlayFS, __dirname)`
         src/index.js:

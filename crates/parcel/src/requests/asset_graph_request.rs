@@ -183,7 +183,7 @@ impl AssetGraphBuilder {
     } else if let Some(asset_node_index) = self.asset_request_to_asset.get(&id) {
       // We have already completed this AssetRequest so we can connect the
       // Dependency to the Asset immediately
-      self.graph.add_edge(asset_node_index, &node);
+      self.graph.add_edge(&node, asset_node_index);
       self.graph.propagate_requested_symbols(
         *asset_node_index,
         node,
