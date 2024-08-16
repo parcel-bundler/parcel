@@ -1,7 +1,7 @@
 # This workflow builds and releases all packages with a dev dist tag. Once published,
 # the packages can be installed to streamline the testing and validation of changes, both
 # locally and within CI, that have not yet been approved or merged into the main branch.
-name: dev-release
+name: Development Release
 
 on:
   workflow_dispatch:
