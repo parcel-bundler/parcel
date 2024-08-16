@@ -1,26 +1,13 @@
-<!---
-Thanks for filing a pull request 😄 ! Before you submit, please read the following:
+<!-- Provide a summary of your changes in the title field above -->
 
-Search open/closed issues before submitting since someone might have pushed the same thing before!
--->
+## Motivation
 
-# ↪️ Pull Request
+Provide relevant context and motivation behind the change, if any
 
-<!---
-Provide a general summary of the pull request here
-Please look for any issues that this PR resolves and tag them in the PR.
--->
+## Changes
 
-## 💻 Examples
+Describe the solution and changes you have made
 
-<!-- Examples help us understand the requested feature better -->
+## Checklist
 
-## 🚨 Test instructions
-
-<!-- In case it is impossible (or too hard) to reliably test this feature/fix with unit tests, please provide test instructions! -->
-
-## ✔️ PR Todo
-
-- [ ] Added/updated unit tests for this change
-- [ ] Filled out test instructions (In case there aren't any unit tests)
-- [ ] Included links to related issues/PRs
+- [ ] Existing or new tests cover this change
