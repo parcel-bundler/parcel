@@ -28,21 +28,27 @@ pub fn canonicalize(path: &Path, cache: &FileSystemRealPathCache) -> std::io::Re
           ret.push(c);
 
           // First, check the cache for the path up to this point.
-          let link = if let Some(cached) = cache.get(&ret) {
-            if let Some(link) = &*cached {
-              link.clone()
+          let read = cache.read().unwrap();
+          let cached = read.get(&ret).cloned();
+          drop(read);
+          let link = if let Some(cached) = cached {
+            if let Some(link) = cached {
+              link
             } else {
               continue;
             }
           } else {
             let stat = std::fs::symlink_metadata(&ret)?;
             if !stat.is_symlink() {
-              cache.insert(ret.clone(), None);
+              cache.write().unwrap().insert(ret.clone(), None);
               continue;
             }
 
             let link = std::fs::read_link(&ret)?;
-            cache.insert(ret.clone(), Some(link.clone()));
+            cache
+              .write()
+              .unwrap()
+              .insert(ret.clone(), Some(link.clone()));
             link
           };
 

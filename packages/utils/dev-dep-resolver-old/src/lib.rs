@@ -7,6 +7,7 @@ use dashmap::DashMap;
 use dashmap::DashSet;
 use es_module_lexer::lex;
 use es_module_lexer::ImportKind;
+
 use parcel_resolver_old::CacheCow;
 use parcel_resolver_old::Invalidations;
 use parcel_resolver_old::ModuleType;
@@ -17,6 +18,7 @@ use parcel_resolver_old::ResolverError;
 use parcel_resolver_old::Specifier;
 use parcel_resolver_old::SpecifierError;
 use parcel_resolver_old::SpecifierType;
+
 // use rayon::prelude::{ParallelBridge, ParallelIterator};
 
 #[derive(Debug)]

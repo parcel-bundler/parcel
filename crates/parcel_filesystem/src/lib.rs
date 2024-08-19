@@ -1,8 +1,7 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
-
-use dashmap::DashMap;
+use std::sync::{Arc, RwLock};
 
 /// In-memory file-system for testing
 pub mod in_memory_file_system;
@@ -18,7 +17,7 @@ pub mod os_file_system;
 pub type FileSystemRef = Arc<dyn FileSystem + Send + Sync>;
 
 pub type FileSystemRealPathCache =
-  DashMap<PathBuf, Option<PathBuf>, xxhash_rust::xxh3::Xxh3Builder>;
+  RwLock<HashMap<PathBuf, Option<PathBuf>, xxhash_rust::xxh3::Xxh3Builder>>;
 
 /// Trait abstracting file-system operations
 /// .

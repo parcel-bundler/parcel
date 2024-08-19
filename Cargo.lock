@@ -2041,12 +2041,12 @@ dependencies = [
 name = "parcel-dev-dep-resolver"
 version = "0.1.0"
 dependencies = [
- "dashmap",
  "es-module-lexer",
  "glob",
  "parcel-resolver",
  "rayon",
  "serde_json",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -2098,7 +2098,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
- "dashmap",
  "getrandom",
  "glob",
  "indexmap 1.9.3",
@@ -2144,7 +2143,6 @@ dependencies = [
  "assert_fs",
  "bitflags 1.3.2",
  "criterion",
- "dashmap",
  "glob-match",
  "indexmap 1.9.3",
  "is_elevated",
@@ -2236,7 +2234,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_fs",
- "dashmap",
  "is_elevated",
  "mockall",
  "xxhash-rust",
@@ -5034,9 +5031,9 @@ dependencies = [
 
 [[package]]
 name = "xxhash-rust"
-version = "0.8.10"
+version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "927da81e25be1e1a2901d59b81b37dd2efd1fc9c9345a55007f09bf5a2d3ee03"
+checksum = "6a5cbf750400958819fb6178eaa83bee5cd9c29a26a40cc241df8c70fdd46984"
 
 [[package]]
 name = "zerocopy"

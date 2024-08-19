@@ -22,7 +22,6 @@ parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
 parcel_napi_helpers = { path = "../parcel_napi_helpers" }
 
 anyhow = "1.0.82"
-dashmap = "5.4.0"
 glob = "0.3.1"
 log = "0.4.21"
 mockall = "0.12.1"

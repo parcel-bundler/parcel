@@ -9,5 +9,5 @@ parcel-resolver = { path = "../node-resolver-rs" }
 es-module-lexer = { git = "https://github.com/devongovett/es-module-lexer" }
 serde_json = "1.0.91"
 rayon = "1.7.0"
-dashmap = "5.4.0"
 glob = "0.3.1"
+xxhash-rust = "0.8.12"

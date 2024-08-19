@@ -1,12 +1,13 @@
 use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
-use dashmap::DashMap;
-use dashmap::DashSet;
 use es_module_lexer::lex;
 use es_module_lexer::ImportKind;
+
 use parcel_resolver::CacheCow;
 use parcel_resolver::Invalidations;
 use parcel_resolver::ModuleType;
@@ -17,6 +18,7 @@ use parcel_resolver::ResolverError;
 use parcel_resolver::Specifier;
 use parcel_resolver::SpecifierError;
 use parcel_resolver::SpecifierType;
+
 // use rayon::prelude::{ParallelBridge, ParallelIterator};
 
 #[derive(Debug)]
@@ -68,12 +70,12 @@ impl From<SpecifierError> for EsmGraphBuilderError {
 
 #[derive(Default)]
 pub struct Cache {
-  entries: DashMap<PathBuf, Invalidations>,
+  entries: RwLock<HashMap<PathBuf, Arc<Invalidations>, xxhash_rust::xxh3::Xxh3Builder>>,
 }
 
 struct EsmGraphBuilder<'a> {
-  visited: DashSet<PathBuf>,
-  visited_globs: DashSet<PathBuf>,
+  visited: RwLock<HashSet<PathBuf>>,
+  visited_globs: RwLock<HashSet<PathBuf>>,
   invalidations: Invalidations,
   cjs_resolver: Resolver<'a>,
   esm_resolver: Resolver<'a>,
@@ -82,11 +84,11 @@ struct EsmGraphBuilder<'a> {
 
 impl<'a> EsmGraphBuilder<'a> {
   pub fn build(&self, file: &Path) -> Result<(), EsmGraphBuilderError> {
-    if self.visited.contains(file) {
+    if self.visited.read().unwrap().contains(file) {
       return Ok(());
     }
 
-    self.visited.insert(file.to_owned());
+    self.visited.write().unwrap().insert(file.to_owned());
 
     if let Some(ext) = file.extension() {
       if ext != "js" && ext != "cjs" && ext != "mjs" {
@@ -95,14 +97,15 @@ impl<'a> EsmGraphBuilder<'a> {
       }
     }
 
-    if let Some(invalidations) = self.cache.entries.get(file) {
+    let read = self.cache.entries.read().unwrap();
+    let value = read.get(file).cloned();
+    drop(read);
+    if let Some(invalidations) = value {
       self.invalidations.extend(&invalidations);
-      for p in invalidations
-        .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-      {
+      let read = invalidations.invalidate_on_file_change.read().unwrap();
+      let paths: Vec<PathBuf> = read.iter().cloned().collect();
+      drop(read);
+      for p in paths {
         self.build(&p)?;
       }
       return Ok(());
@@ -168,7 +171,12 @@ impl<'a> EsmGraphBuilder<'a> {
       .collect::<Result<_, _>>()?;
 
     self.invalidations.extend(&invalidations);
-    self.cache.entries.insert(file.to_owned(), invalidations);
+    self
+      .cache
+      .entries
+      .write()
+      .unwrap()
+      .insert(file.to_owned(), Arc::new(invalidations));
     Ok(())
   }
 
@@ -207,11 +215,15 @@ impl<'a> EsmGraphBuilder<'a> {
     // Invalidate when new files match the glob.
     invalidations.invalidate_on_glob_create(pattern.to_string_lossy());
 
-    if self.visited_globs.contains(&pattern) {
+    if self.visited_globs.read().unwrap().contains(&pattern) {
       return Ok(());
     }
 
-    self.visited_globs.insert(pattern.to_path_buf());
+    self
+      .visited_globs
+      .write()
+      .unwrap()
+      .insert(pattern.to_path_buf());
 
     for path in glob::glob(pattern.to_string_lossy().as_ref())? {
       let path = path?;
@@ -500,8 +512,8 @@ pub fn build_esm_graph(
   cache: &Cache,
 ) -> Result<Invalidations, EsmGraphBuilderError> {
   let visitor = EsmGraphBuilder {
-    visited: DashSet::new(),
-    visited_globs: DashSet::new(),
+    visited: RwLock::new(HashSet::new()),
+    visited_globs: RwLock::new(HashSet::new()),
     invalidations: Invalidations::default(),
     cjs_resolver: Resolver::node(
       Cow::Borrowed(project_root),
