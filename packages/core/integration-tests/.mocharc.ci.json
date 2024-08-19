@@ -1,0 +1,5 @@
+{
+  "extends": ".mocharc.json",
+  "retries": 2,
+  "timeout": 50000
+}

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test ATLASPACK_BUILD_ENV=test mocha --experimental-vm-modules",
-    "test-ci": "yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
+    "test-ci": "yarn test --config .mocharc.ci.json --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
