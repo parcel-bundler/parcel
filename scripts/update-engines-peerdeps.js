@@ -15,7 +15,7 @@ let packageVersions = new Map(
 );
 let coreVersion = packageVersions.get('@atlaspack/core').version;
 let coreRange =
-  coreVersion.includes('nightly') || process.argv.includes('--exact')
+  coreVersion.includes('canary') || process.argv.includes('--exact')
     ? coreVersion
     : `^${coreVersion}`;
 

@@ -100,7 +100,7 @@ async function createApp(packageName: string, tempPath: string) {
   ]);
 
   log(emoji.progress, 'Installing packages...');
-  await installPackages(['atlaspack@nightly', 'postcss', '@babel/core'], {
+  await installPackages(['atlaspack@canary', 'postcss', '@babel/core'], {
     cwd: tempPath,
     isDevDependency: true,
   });

@@ -29,7 +29,7 @@ fixing.
 
 Sentry integration is turned off by default.
 
-Atlaspack uses [sentry](https://sentry.io/) only on `canary` nightly releases for error monitoring.
+Atlaspack uses [sentry](https://sentry.io/) only on `canary` releases for error monitoring.
 
 - `ATLASPACK_ENABLE_SENTRY` will enable sentry integration
 - `ATLASPACK_SENTRY_TAGS` should contain a JSON string with a dictionary of tags to add to sentry
