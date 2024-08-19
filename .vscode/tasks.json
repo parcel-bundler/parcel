@@ -2,8 +2,8 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "path": "packages/utils/parcel-lsp/",
-      "label": "npm: watch - packages/utils/parcel-lsp",
+      "path": "packages/utils/atlaspack-lsp/",
+      "label": "npm: watch - packages/utils/atlaspack-lsp",
       "type": "npm",
       "script": "watch",
       "problemMatcher": "$tsc-watch",
@@ -17,8 +17,8 @@
       }
     },
     {
-      "path": "packages/utils/parcel-lsp-protocol/",
-      "label": "npm: watch - packages/utils/parcel-lsp-protocol",
+      "path": "packages/utils/atlaspack-lsp-protocol/",
+      "label": "npm: watch - packages/utils/atlaspack-lsp-protocol",
       "type": "npm",
       "script": "watch",
       "problemMatcher": "$tsc-watch",
@@ -32,8 +32,8 @@
       }
     },
     {
-      "path": "packages/utils/parcelforvscode/",
-      "label": "npm: watch - packages/utils/parcelforvscode",
+      "path": "packages/utils/atlaspackforvscode/",
+      "label": "npm: watch - packages/utils/atlaspackforvscode",
       "type": "npm",
       "script": "watch",
       "problemMatcher": "$tsc-watch",
@@ -49,9 +49,9 @@
     {
       "label": "Watch VSCode Extension",
       "dependsOn": [
-        "npm: watch - packages/utils/parcel-lsp",
-        "npm: watch - packages/utils/parcel-lsp-protocol",
-        "npm: watch - packages/utils/parcelforvscode"
+        "npm: watch - packages/utils/atlaspack-lsp",
+        "npm: watch - packages/utils/atlaspack-lsp-protocol",
+        "npm: watch - packages/utils/atlaspackforvscode"
       ]
     }
   ]

@@ -1,1 +1,1 @@
-./packages/core/parcel/README.md
+./packages/core/atlaspack/README.md
