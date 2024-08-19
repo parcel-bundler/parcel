@@ -76,6 +76,9 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 Copyright (c) 2024 Atlassian US., Inc.
 Apache 2.0 licensed, see [LICENSE](LICENSE) file.
 
+Prior to `096a255d54474b58b80c659274c4604ed67c9039` contributions were released
+under the MIT license, see [OLD_LICENSE](OLD_LICENSE).
+
 <br/>
 
 [![With â¤ï¸ from Atlassian](https://raw.githubusercontent.com/atlassian-internal/oss-assets/master/banner-cheers-light.png)](https://www.atlassian.com)
