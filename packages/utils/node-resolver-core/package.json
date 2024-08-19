@@ -1,17 +1,13 @@
 {
-  "name": "@parcel/node-resolver-core",
+  "name": "@atlaspack/node-resolver-core",
   "version": "3.3.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/index.js",
   "source": "src/index.js",
@@ -26,11 +22,11 @@
   ],
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
-    "@parcel/diagnostic": "2.12.0",
-    "@parcel/feature-flags": "2.12.0",
-    "@parcel/fs": "2.12.0",
-    "@parcel/rust": "2.12.0",
-    "@parcel/utils": "2.12.0",
+    "@atlaspack/diagnostic": "2.12.0",
+    "@atlaspack/feature-flags": "2.12.0",
+    "@atlaspack/fs": "2.12.0",
+    "@atlaspack/rust": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
     "nullthrows": "^1.1.1",
     "semver": "^7.5.2"
   },

@@ -22,7 +22,7 @@ import './Foo/foo.css';
    will be named `index.css` as expected, but there will be no name collision
    because this file did not generate an `index.css` asset itself.
 
-   Also, if parcel is run with a cache, on the first execution the
+   Also, if atlaspack is run with a cache, on the first execution the
    AssertionError for the bundle group will be raised.  However, on a second
    execution, the AssertError will not occur, but the generated `index.css` will
    only contain the content of `foo.css` and be missing the content of

@@ -1,8 +1,8 @@
 // @flow
 
-import type {ConfigResult, File, FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import type {ConfigResult, File, FilePath} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
 import path from 'path';
 import clone from 'clone';
 import json5 from 'json5';
@@ -134,7 +134,7 @@ export async function readConfig(
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: `Failed to parse ${path.basename(configFile)}`,
-            origin: '@parcel/utils',
+            origin: '@atlaspack/utils',
             codeFrames: [
               {
                 language: 'json5',

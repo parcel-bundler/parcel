@@ -1,6 +1,6 @@
 // @flow
-import {Validator} from '@parcel/plugin';
-import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
+import {Validator} from '@atlaspack/plugin';
+import {type DiagnosticCodeFrame, escapeMarkdown} from '@atlaspack/diagnostic';
 import eslint from 'eslint';
 import invariant from 'assert';
 
@@ -61,7 +61,7 @@ export default (new Validator({
       };
 
       let diagnostic = {
-        origin: '@parcel/validator-eslint',
+        origin: '@atlaspack/validator-eslint',
         message: `ESLint found **${result.errorCount}** __errors__ and **${result.warningCount}** __warnings__.`,
         codeFrames: [codeframe],
       };

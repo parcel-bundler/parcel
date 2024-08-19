@@ -5,15 +5,15 @@ use napi_derive::napi;
 
 #[napi]
 pub fn transform(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
-  let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;
+  let config: atlaspack_js_swc_core::Config = env.from_js_value(opts)?;
 
-  let result = parcel_js_swc_core::transform(config, None)?;
+  let result = atlaspack_js_swc_core::transform(config, None)?;
   env.to_js_value(&result)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native_only {
-  use parcel_macros::napi::create_macro_callback;
+  use atlaspack_macros::napi::create_macro_callback;
 
   use super::*;
 
@@ -30,11 +30,11 @@ mod native_only {
       None
     };
 
-    let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;
+    let config: atlaspack_js_swc_core::Config = env.from_js_value(opts)?;
     let (deferred, promise) = env.create_deferred()?;
 
     rayon::spawn(move || {
-      let res = parcel_js_swc_core::transform(config, call_macro);
+      let res = atlaspack_js_swc_core::transform(config, call_macro);
       match res {
         Ok(result) => deferred.resolve(move |env| env.to_js_value(&result)),
         Err(err) => deferred.reject(err.into()),

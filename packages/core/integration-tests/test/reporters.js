@@ -4,7 +4,7 @@ import assert from 'assert';
 import {execSync} from 'child_process';
 import path from 'path';
 
-import {bundler, describe, it} from '@parcel/test-utils';
+import {bundler, describe, it} from '@atlaspack/test-utils';
 
 describe.v2('reporters', () => {
   let successfulEntry = path.join(
@@ -31,7 +31,7 @@ describe.v2('reporters', () => {
   describe('running on the cli', () => {
     it('exit successfully when no errors are emitted', () => {
       assert.doesNotThrow(() =>
-        execSync(`parcel build --no-cache ${successfulEntry}`, {
+        execSync(`atlaspack build --no-cache ${successfulEntry}`, {
           stdio: 'ignore',
         }),
       );
@@ -39,7 +39,7 @@ describe.v2('reporters', () => {
 
     it('exit with an error code when a reporter fails to load', () => {
       assert.throws(() =>
-        execSync(`parcel build --no-cache ${loadReporterFailureEntry}`, {
+        execSync(`atlaspack build --no-cache ${loadReporterFailureEntry}`, {
           stdio: 'ignore',
         }),
       );
@@ -47,7 +47,7 @@ describe.v2('reporters', () => {
 
     it('exit with an error code when a reporter emits an error', () => {
       assert.throws(() =>
-        execSync(`parcel build --no-cache ${failingReporterEntry}`, {
+        execSync(`atlaspack build --no-cache ${failingReporterEntry}`, {
           stdio: 'ignore',
         }),
       );
@@ -70,7 +70,7 @@ describe.v2('reporters', () => {
         assert.equal(err.name, 'Error');
         assert.deepEqual(
           err.diagnostics.map(d => d.message),
-          ['Cannot find Parcel plugin "./test-reporter"'],
+          ['Cannot find Atlaspack plugin "./test-reporter"'],
         );
       }
     });

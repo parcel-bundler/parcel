@@ -10,7 +10,7 @@ import {
   outputFS,
   overlayFS,
   fsFixture,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('sass', function () {
   it('should support requiring sass files', async function () {

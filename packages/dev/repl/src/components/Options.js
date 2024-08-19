@@ -137,7 +137,7 @@ export function Options({
         />
       </label>
       <hr />
-      <label title="env variable PARCEL_DUMP_GRAPHVIZ">
+      <label title="env variable ATLASPACK_DUMP_GRAPHVIZ">
         <span>Render Graphs</span>
         <select
           onChange={e => onChange('renderGraphs', e.target.value || null)}
@@ -211,7 +211,7 @@ export function Options({
         </ul>
       </div>
       <hr />
-      <label title="env variable PARCEL_WORKERS">
+      <label title="env variable ATLASPACK_WORKERS">
         <span>Workers</span>
         <select
           onChange={e => onChange('numWorkers', JSON.parse(e.target.value))}

@@ -8,8 +8,8 @@ import {
   it,
   outputFS,
   run,
-} from '@parcel/test-utils';
-import {md} from '@parcel/diagnostic';
+} from '@atlaspack/test-utils';
+import {md} from '@atlaspack/diagnostic';
 
 describe.v2('less', function () {
   it('should support requiring less files', async function () {
@@ -220,7 +220,7 @@ describe.v2('less', function () {
           ),
         ),
       {
-        message: md`The @import path "${'~library/style.less'}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from ${'node_modules'}, use "${'library/style.less'}"`,
+        message: md`The @import path "${'~library/style.less'}" is using webpack specific syntax, which isn't supported by Atlaspack.\n\nTo @import files from ${'node_modules'}, use "${'library/style.less'}"`,
       },
     );
   });

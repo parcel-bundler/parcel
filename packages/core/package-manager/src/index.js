@@ -1,13 +1,13 @@
 // @flow
 
-import type {PackageManagerResolveResult} from '@parcel/types';
+import type {PackageManagerResolveResult} from '@atlaspack/types';
 
 export type {
   PackageManager,
   Invalidations,
   PackageInstaller,
   ModuleRequest,
-} from '@parcel/types';
+} from '@atlaspack/types';
 export * from './Npm';
 export * from './Pnpm';
 export * from './Yarn';

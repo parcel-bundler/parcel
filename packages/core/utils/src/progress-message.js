@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {BuildProgressEvent} from '@parcel/types';
+import type {BuildProgressEvent} from '@atlaspack/types';
 
 import path from 'path';
 

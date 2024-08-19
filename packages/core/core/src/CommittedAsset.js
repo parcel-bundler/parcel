@@ -1,18 +1,18 @@
 // @flow strict-local
 
-import type {AST, Blob} from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions} from './types';
+import type {AST, Blob} from '@atlaspack/types';
+import type {Asset, Dependency, AtlaspackOptions} from './types';
 
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
-import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
+import {bufferStream, blobToStream, streamFromPromise} from '@atlaspack/utils';
 import {generateFromAST} from './assetUtils';
 import {deserializeRaw} from './serializer';
 
 export default class CommittedAsset {
   key: ?string;
   value: Asset;
-  options: ParcelOptions;
+  options: AtlaspackOptions;
   content: ?Promise<Buffer | string>;
   mapBuffer: ?Promise<?Buffer>;
   map: ?Promise<?SourceMap>;
@@ -20,7 +20,7 @@ export default class CommittedAsset {
   idBase: ?string;
   generatingPromise: ?Promise<void>;
 
-  constructor(value: Asset, options: ParcelOptions) {
+  constructor(value: Asset, options: AtlaspackOptions) {
     this.value = value;
     this.key = this.value.contentKey;
     this.options = options;

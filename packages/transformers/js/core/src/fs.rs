@@ -149,7 +149,7 @@ impl<'a> InlineFS<'a> {
           None => "buffer",
         };
 
-        // TODO: this should probably happen in JS so we use Parcel's file system
+        // TODO: this should probably happen in JS so we use Atlaspack's file system
         // rather than only the real FS. Will need when we convert to WASM.
         let contents = match encoding {
           "base64" | "buffer" => {

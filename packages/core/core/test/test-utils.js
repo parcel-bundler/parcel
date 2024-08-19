@@ -1,14 +1,14 @@
 // @flow strict-local
 
-import type {Environment, ParcelOptions, Target} from '../src/types';
+import type {Environment, AtlaspackOptions, Target} from '../src/types';
 
-import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
-import {FSCache} from '@parcel/cache';
+import {DEFAULT_FEATURE_FLAGS} from '@atlaspack/feature-flags';
+import {FSCache} from '@atlaspack/cache';
 import tempy from 'tempy';
 import path from 'path';
-import {inputFS, outputFS} from '@parcel/test-utils';
-import {relativePath} from '@parcel/utils';
-import {NodePackageManager} from '@parcel/package-manager';
+import {inputFS, outputFS} from '@atlaspack/test-utils';
+import {relativePath} from '@atlaspack/utils';
+import {NodePackageManager} from '@atlaspack/package-manager';
 import {createEnvironment} from '../src/Environment';
 import {toProjectPath} from '../src/projectPath';
 
@@ -16,9 +16,9 @@ let cacheDir = tempy.directory();
 export let cache: FSCache = new FSCache(outputFS, cacheDir);
 cache.ensure();
 
-export const DEFAULT_OPTIONS: ParcelOptions = {
-  cacheDir: path.join(__dirname, '.parcel-cache'),
-  parcelVersion: '',
+export const DEFAULT_OPTIONS: AtlaspackOptions = {
+  cacheDir: path.join(__dirname, '.atlaspack-cache'),
+  atlaspackVersion: '',
   watchDir: __dirname,
   watchIgnore: undefined,
   watchBackend: undefined,

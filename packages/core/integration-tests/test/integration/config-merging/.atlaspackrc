@@ -1,0 +1,3 @@
+{
+  "extends": ["@atlaspack/config-default", "atlaspack-config-test1", "atlaspack-config-test2"]
+}

@@ -1,0 +1,19 @@
+[package]
+name = "atlaspack_plugin_rpc"
+version = "0.1.0"
+edition = "2021"
+description = "Atlaspack Bundler"
+
+[features]
+nodejs = ["dep:napi", "dep:serde", "dep:parking_lot", "dep:once_cell", "dep:atlaspack_napi_helpers"]
+
+[dependencies]
+atlaspack_config = { path = "../atlaspack_config" }
+atlaspack_core = { path = "../atlaspack_core" }
+atlaspack_napi_helpers = { path = "../atlaspack_napi_helpers", optional = true }
+
+anyhow = "1.0.82"
+napi = { version = "2.16.4", features = ["serde"], optional = true }
+serde = { version = "1.0.198", optional = true }
+parking_lot = { version = "0.12", optional = true }
+once_cell = { version = "1.19.0", optional = true }

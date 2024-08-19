@@ -1,6 +1,6 @@
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
-name = "parcel-js-swc-core"
+name = "atlaspack-js-swc-core"
 version = "0.1.0"
 edition = "2021"
 
@@ -36,5 +36,5 @@ dunce = "1.0.1"
 pathdiff = "0.2.0"
 path-slash = "0.1.4"
 indexmap = "1.9.2"
-parcel-macros = { path = "../../../../crates/macros" }
+atlaspack-macros = { path = "../../../../crates/macros" }
 parking_lot = "0.12"

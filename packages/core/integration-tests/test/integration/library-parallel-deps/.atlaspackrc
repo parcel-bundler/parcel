@@ -1,0 +1,4 @@
+{
+  "extends": "@atlaspack/config-default",
+  "resolvers": ["./ParallelResolver", "..."]
+}

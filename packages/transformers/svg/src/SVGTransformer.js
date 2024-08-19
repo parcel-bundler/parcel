@@ -1,13 +1,13 @@
 // @flow
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
 import {parser as parse} from 'posthtml-parser';
 import {render} from 'posthtml-render';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
 
 export default (new Transformer({
   canReuseAST({ast}) {
@@ -43,7 +43,7 @@ export default (new Transformer({
       throw new ThrowableDiagnostic({
         diagnostic: errors.map(error => ({
           message: error.message,
-          origin: '@parcel/transformer-svg',
+          origin: '@atlaspack/transformer-svg',
           codeFrames: [
             {
               filePath: error.filePath,

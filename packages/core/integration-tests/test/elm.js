@@ -8,7 +8,7 @@ import {
   it,
   run,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('elm', function () {
   it('should produce a basic Elm bundle', async function () {
@@ -58,9 +58,9 @@ describe.v2('elm', function () {
     assert(!js.includes('elm$browser$Debugger'));
   });
 
-  it('should remove debugger when environment variable `PARCEL_ELM_NO_DEBUG` is set to true', async function () {
+  it('should remove debugger when environment variable `ATLASPACK_ELM_NO_DEBUG` is set to true', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
-      env: {PARCEL_ELM_NO_DEBUG: true},
+      env: {ATLASPACK_ELM_NO_DEBUG: true},
     });
 
     await run(b);
@@ -115,7 +115,7 @@ describe.v2('elm', function () {
               '    **String**\n' +
               '\n' +
               '__Hint__: Try using **String.fromInt** to convert it to a string?',
-            origin: '@parcel/elm-transformer',
+            origin: '@atlaspack/elm-transformer',
             stack: '',
           },
           {
@@ -128,7 +128,7 @@ describe.v2('elm', function () {
               '7|     Html.text 5 "Hello, world!"\n' +
               '       **^^^^^^^^^**\n' +
               'Are there any missing commas? Or missing parentheses?',
-            origin: '@parcel/elm-transformer',
+            origin: '@atlaspack/elm-transformer',
             stack: '',
           },
         ],

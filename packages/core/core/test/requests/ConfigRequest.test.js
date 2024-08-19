@@ -1,11 +1,11 @@
 // @flow strict-local
 
-import WorkerFarm from '@parcel/workers';
+import WorkerFarm from '@atlaspack/workers';
 import path from 'path';
 import assert from 'assert';
 import sinon from 'sinon';
-import {MemoryFS} from '@parcel/fs';
-import {hashString} from '@parcel/rust';
+import {MemoryFS} from '@atlaspack/fs';
+import {hashString} from '@atlaspack/rust';
 
 import type {
   ConfigRequest,

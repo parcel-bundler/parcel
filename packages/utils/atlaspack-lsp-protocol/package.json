@@ -1,0 +1,30 @@
+{
+  "name": "@atlaspack/lsp-protocol",
+  "version": "2.12.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
+  },
+  "main": "lib/index.js",
+  "source": "src/index.js",
+  "types": "src/index.js",
+  "scripts": {
+    "watch": "tsc -watch -p ./"
+  },
+  "engines": {
+    "node": ">= 16.0.0"
+  },
+  "devDependencies": {
+    "typescript": ">=3.0.0"
+  },
+  "dependencies": {
+    "vscode-jsonrpc": "^8.0.2"
+  },
+  "targets": {
+    "types": false
+  }
+}

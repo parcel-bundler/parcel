@@ -13,11 +13,11 @@ import {
   overlayFS,
   ncp,
   getNextBuild,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import {
   NodePackageManager,
   MockPackageInstaller,
-} from '@parcel/package-manager';
+} from '@atlaspack/package-manager';
 
 describe.v2('postcss', () => {
   it('should build successfully with only postcss-modules config', async () => {
@@ -341,7 +341,7 @@ describe.v2('postcss', () => {
               },
             ],
             message: 'Failed to parse .postcssrc',
-            origin: '@parcel/utils',
+            origin: '@atlaspack/utils',
           },
         ],
       },

@@ -11,7 +11,7 @@ import {
   overlayFS,
   run,
   ncp,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import {symlinkSync} from 'fs';
 import nullthrows from 'nullthrows';
 
@@ -343,7 +343,7 @@ describe.v2('transpilation', function () {
     assert(!file.includes('es.array.concat'));
   });
 
-  it('should resolve @swc/helpers and regenerator-runtime relative to parcel', async function () {
+  it('should resolve @swc/helpers and regenerator-runtime relative to atlaspack', async function () {
     let dir = path.join('/tmp/' + Math.random().toString(36).slice(2));
     await outputFS.mkdirp(dir);
     await ncp(path.join(__dirname, '/integration/swc-helpers'), dir);
@@ -427,7 +427,7 @@ describe.v2('transpilation', function () {
           ],
           hints: null,
           message: 'pragma cannot be set when runtime is automatic',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
         },
         {
           codeFrames: [
@@ -450,7 +450,7 @@ describe.v2('transpilation', function () {
           ],
           hints: null,
           message: 'duplicate private name #x.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
         },
       ],
     });

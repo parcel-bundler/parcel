@@ -1,8 +1,8 @@
 // @flow strict-local
 
 import {babelErrorEnhancer} from './babelErrorUtils';
-import {Transformer} from '@parcel/plugin';
-import {relativeUrl} from '@parcel/utils';
+import {Transformer} from '@atlaspack/plugin';
+import {relativeUrl} from '@atlaspack/utils';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
 import babel7 from './babel7';

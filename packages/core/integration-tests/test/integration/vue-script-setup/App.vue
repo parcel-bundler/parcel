@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 
-const name = ref("parcel");
+const name = ref("atlaspack");
 </script>
 
 <template>

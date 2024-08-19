@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {bundle, describe, it, outputFS} from '@parcel/test-utils';
+import {bundle, describe, it, outputFS} from '@atlaspack/test-utils';
 import path from 'path';
 
 describe.v2('svg-react', function () {
@@ -9,7 +9,7 @@ describe.v2('svg-react', function () {
       {
         defaultConfig: path.join(
           __dirname,
-          'integration/custom-configs/.parcelrc-svg-react',
+          'integration/custom-configs/.atlaspackrc-svg-react',
         ),
       },
     );
@@ -26,7 +26,7 @@ describe.v2('svg-react', function () {
       {
         defaultConfig: path.join(
           __dirname,
-          'integration/custom-configs/.parcelrc-svg-react',
+          'integration/custom-configs/.atlaspackrc-svg-react',
         ),
       },
     );
@@ -44,7 +44,7 @@ describe.v2('svg-react', function () {
       {
         defaultConfig: path.join(
           __dirname,
-          'integration/custom-configs/.parcelrc-svg-react',
+          'integration/custom-configs/.atlaspackrc-svg-react',
         ),
       },
     );

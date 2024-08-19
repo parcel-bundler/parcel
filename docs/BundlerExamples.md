@@ -249,12 +249,12 @@ _The full test case can be found in the `shared-bundle-single-source/` case in `
 
 ## Manual Bundles
 
-Manual Bundles override Parcel's automatic code splitting. Consider the code below, with the following config in `package.json`.
+Manual Bundles override Atlaspack's automatic code splitting. Consider the code below, with the following config in `package.json`.
 
 ```json
 package.json:
     {
-      "@parcel/bundler-default": {
+      "@atlaspack/bundler-default": {
         "manualSharedBundles": [{
           "name": "vendor",
           "root": "math/math.js",
@@ -329,7 +329,7 @@ After **Step Create Bundles**, we are left with two bundles, one bundle group. T
 
 ![image info](./BundlerGraphs/manual-bundles/msb_step1.png)
 
-The remaining assets left to place during asset placement are, `math.js`, `add.js`, `subtract.js`, and `divide.js`. From `reachable` you can infer what Parcel would/should do. Simply place all remaining assets into `index.js`, right?
+The remaining assets left to place during asset placement are, `math.js`, `add.js`, `subtract.js`, and `divide.js`. From `reachable` you can infer what Atlaspack would/should do. Simply place all remaining assets into `index.js`, right?
 
 However, we've specified via config that we want `math` and its imports which match the glob `!(divide)` in one bundle with nothing else.
 
@@ -349,7 +349,7 @@ _The full test case can be found in the `bundler.js` test suite._
 
 ## Debugging Notes
 
-There are many more intricate and complex cases than what I've discussed above within Parcel's test suite. To understand the algorithm fully, debugging and visualizing the idealGraph structure is extremely beneficial. To do so, you may add the following in between steps within `DefaultBundler.js`,
+There are many more intricate and complex cases than what I've discussed above within Atlaspack's test suite. To understand the algorithm fully, debugging and visualizing the idealGraph structure is extremely beneficial. To do so, you may add the following in between steps within `DefaultBundler.js`,
 
 ```
 dumpGraphToGraphViz(
@@ -361,4 +361,4 @@ dumpGraphToGraphViz(
 
 and run your example test case with the command below.
 
-` PARCEL_DUMP_GRAPHVIZ=1yarn test test/<testsuite>`
+` ATLASPACK_DUMP_GRAPHVIZ=1yarn test test/<testsuite>`

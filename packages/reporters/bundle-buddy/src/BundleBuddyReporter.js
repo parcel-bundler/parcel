@@ -1,6 +1,6 @@
 // @flow strict-local
-import type {PackagedBundle} from '@parcel/types';
-import {Reporter} from '@parcel/plugin';
+import type {PackagedBundle} from '@atlaspack/types';
+import {Reporter} from '@atlaspack/plugin';
 import path from 'path';
 
 export default (new Reporter({

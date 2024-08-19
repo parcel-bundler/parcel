@@ -65,7 +65,7 @@ function setupMacBuild() {
 
   if (process.env.RUST_TARGET === 'aarch64-apple-darwin') {
     // Prevents the "<jemalloc>: Unsupported system page size" error when
-    // requiring parcel-node-bindings.darwin-arm64.node
+    // requiring atlaspack-node-bindings.darwin-arm64.node
     process.env.JEMALLOC_SYS_WITH_LG_PAGE = 14;
   }
 }

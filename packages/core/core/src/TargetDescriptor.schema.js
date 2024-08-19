@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {SchemaEntity, SchemaObject} from '@parcel/utils';
+import type {SchemaEntity, SchemaObject} from '@atlaspack/utils';
 
 export const ENGINES_SCHEMA: SchemaEntity = {
   type: 'object',

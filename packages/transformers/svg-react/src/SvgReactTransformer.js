@@ -1,6 +1,6 @@
 // @flow
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 
 import svgoPlugin from '@svgr/plugin-svgo';
 import jsxPlugin from '@svgr/plugin-jsx';
@@ -36,7 +36,7 @@ export default (new Transformer({
       {svgoConfig: config.svgo, ...config.svgr, runtimeConfig: false},
       {
         caller: {
-          name: '@parcel/transformer-svg-react',
+          name: '@atlaspack/transformer-svg-react',
           defaultPlugins: [svgoPlugin, jsxPlugin],
         },
         filePath: asset.filePath,

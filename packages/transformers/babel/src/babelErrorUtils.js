@@ -1,5 +1,5 @@
 // @flow
-import type {BaseAsset} from '@parcel/types';
+import type {BaseAsset} from '@atlaspack/types';
 
 export type BabelError = Error & {
   loc?: {

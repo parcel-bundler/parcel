@@ -90,7 +90,7 @@ export function collect(
       ts.isLiteralTypeNode(node.argument) &&
       ts.isStringLiteral(node.argument.literal)
     ) {
-      let local = `$$parcel$import$${moduleGraph.syntheticImportCount++}`;
+      let local = `$$atlaspack$import$${moduleGraph.syntheticImportCount++}`;
       let [specifier, entity] = getImportName(node.qualifier, local, factory);
       currentModule.addImport(local, node.argument.literal.text, specifier);
       return factory.createTypeReferenceNode(entity, node.typeArguments);

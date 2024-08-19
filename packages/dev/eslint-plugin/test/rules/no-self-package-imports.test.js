@@ -14,37 +14,37 @@ new RuleTester({
 }).run('no-self-package-imports', rule, {
   valid: [
     {code: "require('path');", filename},
-    {code: "require('@parcel/logger');", filename},
-    {code: "require.resolve('@parcel/logger');", filename},
-    {code: "import logger from '@parcel/logger';", filename},
+    {code: "require('@atlaspack/logger');", filename},
+    {code: "require.resolve('@atlaspack/logger');", filename},
+    {code: "import logger from '@atlaspack/logger';", filename},
   ],
   invalid: [
     {
-      code: "require('@parcel/eslint-plugin/lib/rules/no-self-package-imports');",
+      code: "require('@atlaspack/eslint-plugin/lib/rules/no-self-package-imports');",
       errors: [{message}],
       filename,
       output: "require('../../lib/rules/no-self-package-imports');",
     },
     {
-      code: "require('@parcel/eslint-plugin');",
+      code: "require('@atlaspack/eslint-plugin');",
       filename,
       errors: [{message}],
       output: "require('../../');",
     },
     {
-      code: "require.resolve('@parcel/eslint-plugin/lib/rules/no-self-package-imports');",
+      code: "require.resolve('@atlaspack/eslint-plugin/lib/rules/no-self-package-imports');",
       filename,
       errors: [{message}],
       output: "require.resolve('../../lib/rules/no-self-package-imports');",
     },
     {
-      code: "import rule from '@parcel/eslint-plugin';",
+      code: "import rule from '@atlaspack/eslint-plugin';",
       filename,
       errors: [{message}],
       output: "import rule from '../../';",
     },
     {
-      code: "import rule from '@parcel/eslint-plugin/lib/rules/no-self-package-imports';",
+      code: "import rule from '@atlaspack/eslint-plugin/lib/rules/no-self-package-imports';",
       filename,
       errors: [{message}],
       output: "import rule from '../../lib/rules/no-self-package-imports';",

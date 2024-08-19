@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 /* eslint-disable no-console */
 
-require('@parcel/babel-register');
+require('@atlaspack/babel-register');
 
 const fs = require('node:fs').promises;
 const path = require('node:path');
@@ -14,8 +14,8 @@ const chalk = require('chalk');
 const diff = require('diff');
 const nullthrows = require('nullthrows');
 
-const {toFixture} = require('@parcel/test-utils/src/fsFixture');
-const {isGlobMatch} = require('@parcel/utils/src/glob');
+const {toFixture} = require('@atlaspack/test-utils/src/fsFixture');
+const {isGlobMatch} = require('@atlaspack/utils/src/glob');
 /* eslint-enable import/no-extraneous-dependencies */
 
 /**
@@ -543,12 +543,12 @@ function insertFsFixtureImport(root, api) {
   let j = api.jscodeshift;
   // Insert import for fsFixture
   let testUtils = root.find(j.ImportDeclaration, {
-    source: {value: '@parcel/test-utils'},
+    source: {value: '@atlaspack/test-utils'},
   });
 
   if (testUtils.length === 0) {
     root.find(j.ImportDeclaration).at(-1).insertAfter(`
-        import {fsFixture, overlayFS} from '@parcel/test-utils';
+        import {fsFixture, overlayFS} from '@atlaspack/test-utils';
       `);
   } else {
     let specifiers = testUtils.find(j.Specifier);

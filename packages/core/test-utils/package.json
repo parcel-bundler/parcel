@@ -1,23 +1,23 @@
 {
-  "name": "@parcel/test-utils",
+  "name": "@atlaspack/test-utils",
   "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "src/utils.js",
   "engines": {
     "node": ">= 16.0.0"
   },
   "dependencies": {
-    "@parcel/config-default": "2.12.0",
-    "@parcel/core": "2.12.0",
-    "@parcel/fs": "2.12.0",
-    "@parcel/package-manager": "2.12.0",
-    "@parcel/utils": "2.12.0",
+    "@atlaspack/config-default": "2.12.0",
+    "@atlaspack/core": "2.12.0",
+    "@atlaspack/fs": "2.12.0",
+    "@atlaspack/package-manager": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
     "chalk": "^4.1.0",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",

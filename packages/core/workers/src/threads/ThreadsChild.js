@@ -10,7 +10,10 @@ import {isMainThread, parentPort} from 'worker_threads';
 import nullthrows from 'nullthrows';
 import {setChild} from '../childState';
 import {Child} from '../child';
-import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';
+import {
+  prepareForSerialization,
+  restoreDeserializedObject,
+} from '@atlaspack/core';
 
 export default class ThreadsChild implements ChildImpl {
   onMessage: MessageHandler;

@@ -1,5 +1,5 @@
 // @flow
-import type {Config, PluginOptions} from '@parcel/types';
+import type {Config, PluginOptions} from '@atlaspack/types';
 import {ParseConfigHost} from './ParseConfigHost';
 import path from 'path';
 import nullthrows from 'nullthrows';

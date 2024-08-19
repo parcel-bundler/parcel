@@ -83,7 +83,7 @@ export type Diagnostic = {|
   meta?: JSONObject,
 |};
 
-// This type should represent all error formats Parcel can encounter...
+// This type should represent all error formats Atlaspack can encounter...
 export interface PrintableError extends Error {
   fileName?: string;
   filePath?: string;

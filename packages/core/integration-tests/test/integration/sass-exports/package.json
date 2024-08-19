@@ -1,6 +1,6 @@
 {
   "private": true,
-  "@parcel/resolver-default": {
+  "@atlaspack/resolver-default": {
     "packageExports": true
   }
 }

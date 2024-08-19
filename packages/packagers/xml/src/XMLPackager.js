@@ -1,13 +1,13 @@
 // @flow
 
-import type {Bundle, BundleGraph, NamedBundle} from '@parcel/types';
+import type {Bundle, BundleGraph, NamedBundle} from '@atlaspack/types';
 import assert from 'assert';
-import {Packager} from '@parcel/plugin';
+import {Packager} from '@atlaspack/plugin';
 import {
   blobToString,
   replaceInlineReferences,
   replaceURLReferences,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 
 export default (new Packager({

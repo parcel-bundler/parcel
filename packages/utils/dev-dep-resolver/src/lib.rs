@@ -7,16 +7,16 @@ use dashmap::DashMap;
 use dashmap::DashSet;
 use es_module_lexer::lex;
 use es_module_lexer::ImportKind;
-use parcel_resolver::CacheCow;
-use parcel_resolver::Invalidations;
-use parcel_resolver::ModuleType;
-use parcel_resolver::Resolution;
-use parcel_resolver::ResolveOptions;
-use parcel_resolver::Resolver;
-use parcel_resolver::ResolverError;
-use parcel_resolver::Specifier;
-use parcel_resolver::SpecifierError;
-use parcel_resolver::SpecifierType;
+use atlaspack_resolver::CacheCow;
+use atlaspack_resolver::Invalidations;
+use atlaspack_resolver::ModuleType;
+use atlaspack_resolver::Resolution;
+use atlaspack_resolver::ResolveOptions;
+use atlaspack_resolver::Resolver;
+use atlaspack_resolver::ResolverError;
+use atlaspack_resolver::Specifier;
+use atlaspack_resolver::SpecifierError;
+use atlaspack_resolver::SpecifierType;
 // use rayon::prelude::{ParallelBridge, ParallelIterator};
 
 #[derive(Debug)]
@@ -496,7 +496,7 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
 pub fn build_esm_graph(
   file: &Path,
   project_root: &Path,
-  resolver_cache: &parcel_resolver::Cache,
+  resolver_cache: &atlaspack_resolver::Cache,
   cache: &Cache,
 ) -> Result<Invalidations, EsmGraphBuilderError> {
   let visitor = EsmGraphBuilder {

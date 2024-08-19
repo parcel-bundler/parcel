@@ -1,14 +1,14 @@
 // @flow strict-local
 
-import type {PackageInstaller, InstallerOptions} from '@parcel/types';
+import type {PackageInstaller, InstallerOptions} from '@atlaspack/types';
 
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 import split from 'split2';
 import JSONParseStream from './JSONParseStream';
 import promiseFromProcess from './promiseFromProcess';
-import {registerSerializableClass} from '@parcel/core';
+import {registerSerializableClass} from '@atlaspack/core';
 import {exec, npmSpecifierFromModuleRequest} from './utils';
 
 // $FlowFixMe
@@ -73,8 +73,8 @@ export class Yarn implements PackageInstaller {
       }
     }
 
-    // When Parcel is run by Yarn (e.g. via package.json scripts), several environment variables are
-    // added. When parcel in turn calls Yarn again, these can cause Yarn to behave stragely, so we
+    // When Atlaspack is run by Yarn (e.g. via package.json scripts), several environment variables are
+    // added. When atlaspack in turn calls Yarn again, these can cause Yarn to behave stragely, so we
     // filter them out when installing packages.
     let env = {};
     for (let key in process.env) {
@@ -94,7 +94,7 @@ export class Yarn implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        logger.error(e, '@parcel/package-manager');
+        logger.error(e, '@atlaspack/package-manager');
       })
       .on('data', (message: YarnStdOutMessage) => {
         switch (message.type) {
@@ -108,7 +108,7 @@ export class Yarn implements PackageInstaller {
           case 'success':
           case 'info':
             logger.info({
-              origin: '@parcel/package-manager',
+              origin: '@atlaspack/package-manager',
               message: prefix(message.data),
             });
             return;
@@ -121,19 +121,19 @@ export class Yarn implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        logger.error(e, '@parcel/package-manager');
+        logger.error(e, '@atlaspack/package-manager');
       })
       .on('data', (message: YarnStdErrMessage) => {
         switch (message.type) {
           case 'warning':
             logger.warn({
-              origin: '@parcel/package-manager',
+              origin: '@atlaspack/package-manager',
               message: prefix(message.data),
             });
             return;
           case 'error':
             logger.error({
-              origin: '@parcel/package-manager',
+              origin: '@atlaspack/package-manager',
               message: prefix(message.data),
             });
             return;

@@ -6,7 +6,7 @@ import {
   describe,
   it,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('xml', function () {
   it('should transform an atom feed', async function () {

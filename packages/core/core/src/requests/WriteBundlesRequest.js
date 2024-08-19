@@ -1,8 +1,8 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
-import type {Async} from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
+import type {ContentKey} from '@atlaspack/graph';
+import type {Async} from '@atlaspack/types';
+import type {SharedReference} from '@atlaspack/workers';
 import type {StaticRunOpts} from '../RequestTracker';
 import {requestTypes} from '../RequestTracker';
 import type {PackagedBundleInfo} from '../types';
@@ -12,7 +12,7 @@ import type {BundleInfo} from '../PackagerRunner';
 import {HASH_REF_PREFIX} from '../constants';
 import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/rust';
+import {hashString} from '@atlaspack/rust';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
 

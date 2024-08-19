@@ -7,7 +7,7 @@
       "default": "./default.js"
     }
   },
-  "@parcel/resolver-default": {
+  "@atlaspack/resolver-default": {
     "packageExports": true
   }
 }

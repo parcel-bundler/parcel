@@ -1,8 +1,8 @@
 // @flow
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import SourceMap from '@parcel/source-map';
 import coffee from 'coffeescript';
-import {relativeUrl} from '@parcel/utils';
+import {relativeUrl} from '@atlaspack/utils';
 
 export default (new Transformer({
   async transform({asset, options}) {

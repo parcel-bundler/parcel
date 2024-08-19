@@ -1,16 +1,16 @@
 // @flow strict-local
 
-import type {IDisposable, InitialParcelOptions} from '@parcel/types';
+import type {IDisposable, InitialAtlaspackOptions} from '@atlaspack/types';
 
-import {NodePackageManager} from '@parcel/package-manager';
-import {NodeFS} from '@parcel/fs';
+import {NodePackageManager} from '@atlaspack/package-manager';
+import {NodeFS} from '@atlaspack/fs';
 // flowlint-next-line untyped-import:off
-import defaultConfigContents from '@parcel/config-default';
+import defaultConfigContents from '@atlaspack/config-default';
 // $FlowFixMe Flow can't resolve this
 import Module from 'module';
 import path from 'path';
 import {addHook} from 'pirates';
-import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@parcel/core';
+import Atlaspack, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@atlaspack/core';
 
 import syncPromise from './syncPromise';
 
@@ -19,12 +19,12 @@ let lastDisposable;
 let packageManager = new NodePackageManager(new NodeFS(), '/');
 let defaultConfig = {
   ...defaultConfigContents,
-  filePath: packageManager.resolveSync('@parcel/config-default', __filename)
+  filePath: packageManager.resolveSync('@atlaspack/config-default', __filename)
     .resolved,
 };
 
-function register(inputOpts?: InitialParcelOptions): IDisposable {
-  let opts: InitialParcelOptions = {
+function register(inputOpts?: InitialAtlaspackOptions): IDisposable {
+  let opts: InitialAtlaspackOptions = {
     ...defaultConfig,
     ...(inputOpts || {}),
   };
@@ -34,7 +34,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     lastDisposable.dispose();
   }
 
-  let parcel = new Parcel({
+  let atlaspack = new Atlaspack({
     logLevel: 'error',
     ...opts,
   });
@@ -46,11 +46,11 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     },
   };
 
-  syncPromise(parcel._init());
+  syncPromise(atlaspack._init());
 
   let isProcessing = false;
 
-  // As Parcel is pretty much fully asynchronous, create an async function and wrap it in a syncPromise later...
+  // As Atlaspack is pretty much fully asynchronous, create an async function and wrap it in a syncPromise later...
   async function fileProcessor(code, filePath) {
     if (isProcessing) {
       return code;
@@ -59,7 +59,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     try {
       isProcessing = true;
       // $FlowFixMe
-      let result = await parcel[INTERNAL_TRANSFORM]({
+      let result = await atlaspack[INTERNAL_TRANSFORM]({
         filePath,
         env,
       });
@@ -74,7 +74,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
       }
     } catch (e) {
       /* eslint-disable no-console */
-      console.error('@parcel/register failed to process: ', filePath);
+      console.error('@atlaspack/register failed to process: ', filePath);
       console.error(e);
       /* eslint-enable */
     } finally {
@@ -92,7 +92,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
 
       let resolved = syncPromise(
         // $FlowFixMe
-        parcel[INTERNAL_RESOLVE]({
+        atlaspack[INTERNAL_RESOLVE]({
           specifier: targetFile,
           sourcePath: currFile,
           env,
@@ -126,7 +126,11 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
   // $FlowFixMe[prop-missing]
   const originalResolveFilename = Module._resolveFilename;
   // $FlowFixMe[prop-missing]
-  Module._resolveFilename = function parcelResolveFilename(to, from, ...rest) {
+  Module._resolveFilename = function atlaspackResolveFilename(
+    to,
+    from,
+    ...rest
+  ) {
     return isProcessing || disposed
       ? originalResolveFilename(to, from, ...rest)
       : resolveFile(from?.filename, to);

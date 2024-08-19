@@ -2,8 +2,14 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, fsFixture, it, overlayFS} from '@parcel/test-utils';
-import type {BundleGraph, BundleGroup, PackagedBundle} from '@parcel/types';
+import {
+  bundle,
+  describe,
+  fsFixture,
+  it,
+  overlayFS,
+} from '@atlaspack/test-utils';
+import type {BundleGraph, BundleGroup, PackagedBundle} from '@atlaspack/types';
 
 describe.v2('BundleGraph', () => {
   it('can traverse assets across bundles and contexts', async () => {

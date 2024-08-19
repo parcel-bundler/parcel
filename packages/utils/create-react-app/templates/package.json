@@ -2,7 +2,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "parcel src/index.html",
-    "build": "parcel build src/index.html"
+    "start": "atlaspack src/index.html",
+    "build": "atlaspack build src/index.html"
   }
 }

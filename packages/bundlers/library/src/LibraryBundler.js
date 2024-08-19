@@ -1,5 +1,5 @@
 // @flow strict-local
-import {Bundler} from '@parcel/plugin';
+import {Bundler} from '@atlaspack/plugin';
 import nullthrows from 'nullthrows';
 
 // This bundler plugin is designed specifically for library builds. It outputs a bundle for

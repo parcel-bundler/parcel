@@ -6,9 +6,9 @@ import type {
   NamedBundle,
   PackagedBundle,
   PluginOptions,
-} from '@parcel/types';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {AnsiDiagnosticResult} from '@parcel/utils';
+} from '@atlaspack/types';
+import type {Diagnostic} from '@atlaspack/diagnostic';
+import type {AnsiDiagnosticResult} from '@atlaspack/utils';
 import type {
   ServerError,
   HMRServerOptions,
@@ -27,7 +27,7 @@ import {
   createHTTPServer,
   prettyDiagnostic,
   PromiseQueue,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 
 export type HMRAsset = {|
   id: string,
@@ -56,7 +56,7 @@ export type HMRMessage =
     |};
 
 const FS_CONCURRENCY = 64;
-const HMR_ENDPOINT = '/__parcel_hmr';
+const HMR_ENDPOINT = '/__atlaspack_hmr';
 const BROADCAST_MAX_ASSETS = 10000;
 
 export default class HMRServer {
@@ -241,7 +241,7 @@ export default class HMRServer {
     let bundleGraph = nullthrows(this.bundleGraph);
     if (asset.type === 'js') {
       let publicId = bundleGraph.getAssetPublicId(asset);
-      output = `parcelHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
+      output = `atlaspackHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
     }
 
     let sourcemap = await asset.getMap();
@@ -278,7 +278,7 @@ export default class HMRServer {
     }
 
     this.options.logger.warn({
-      origin: '@parcel/reporter-dev-server',
+      origin: '@atlaspack/reporter-dev-server',
       message: `[${err.code}]: ${err.message}`,
       stack: err.stack,
     });

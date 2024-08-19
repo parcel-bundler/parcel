@@ -1,10 +1,15 @@
 // @flow
 
-import type {FilePath, Asset, MutableAsset, PluginOptions} from '@parcel/types';
+import type {
+  FilePath,
+  Asset,
+  MutableAsset,
+  PluginOptions,
+} from '@atlaspack/types';
 
-import {hashString} from '@parcel/rust';
-import {glob} from '@parcel/utils';
-import {Transformer} from '@parcel/plugin';
+import {hashString} from '@atlaspack/rust';
+import {glob} from '@atlaspack/utils';
+import {Transformer} from '@atlaspack/plugin';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import semver from 'semver';
@@ -13,7 +18,7 @@ import typeof * as Postcss from 'postcss';
 
 import {load} from './loadConfig';
 import {POSTCSS_RANGE} from './constants';
-import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {md, generateJSONCodeHighlights} from '@atlaspack/diagnostic';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
@@ -93,11 +98,11 @@ export default (new Transformer({
         let configKey;
         let hint;
         if (config.raw.modules) {
-          message = md`The "modules" option in __${filename}__ can be replaced with configuration for @parcel/transformer-css to improve build performance.`;
+          message = md`The "modules" option in __${filename}__ can be replaced with configuration for @atlaspack/transformer-css to improve build performance.`;
           configKey = '/modules';
           hint = md`Remove the "modules" option from __${filename}__`;
         } else {
-          message = md`The "postcss-modules" plugin in __${filename}__ can be replaced with configuration for @parcel/transformer-css to improve build performance.`;
+          message = md`The "postcss-modules" plugin in __${filename}__ can be replaced with configuration for @atlaspack/transformer-css to improve build performance.`;
           configKey = '/plugins/postcss-modules';
           hint = md`Remove the "postcss-modules" plugin from __${filename}__`;
         }
@@ -106,7 +111,7 @@ export default (new Transformer({
         }
 
         let hints = [
-          'Enable the "cssModules" option for "@parcel/transformer-css" in your package.json',
+          'Enable the "cssModules" option for "@atlaspack/transformer-css" in your package.json',
         ];
         if (plugins.length === 0) {
           message += md` Since there are no other plugins, __${filename}__ can be deleted safely.`;
@@ -290,7 +295,7 @@ async function createLoader(
     'postcss-modules/build/css-loader-core/loader',
     asset.filePath,
   );
-  return class ParcelFileSystemLoader extends FileSystemLoader {
+  return class AtlaspackFileSystemLoader extends FileSystemLoader {
     async fetch(composesPath, relativeTo) {
       let importPath = composesPath.replace(/^["']|["']$/g, '');
       let resolved = await resolve(relativeTo, importPath);

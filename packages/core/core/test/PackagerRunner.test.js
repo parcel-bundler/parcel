@@ -5,7 +5,7 @@
 // const assert = require('assert');
 // const path = require('path');
 
-// const config = require('@parcel/config-default');
+// const config = require('@atlaspack/config-default');
 
 // describe('PackagerRunner', () => {
 //   it('works', async () => {
@@ -18,7 +18,7 @@
 //     };
 
 //     let packagerRunner = new PackagerRunner({
-//       parcelConfig: config,
+//       atlaspackConfig: config,
 //       options: {}
 //     });
 

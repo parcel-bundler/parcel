@@ -85,7 +85,7 @@ export class ESMOutputFormat implements OutputFormat {
       exportAs,
     } of this.packager.exportedSymbols.values()) {
       if (this.packager.wrappedAssets.has(asset.id)) {
-        let obj = `parcelRequire("${this.packager.bundleGraph.getAssetPublicId(
+        let obj = `atlaspackRequire("${this.packager.bundleGraph.getAssetPublicId(
           asset,
         )}")`;
         res += `\nvar ${local} = ${this.packager.getPropertyAccess(
@@ -118,7 +118,7 @@ export class ESMOutputFormat implements OutputFormat {
       this.packager.shouldBundleQueue(this.packager.bundle)
     ) {
       // Should be last thing the bundle executes on intial eval
-      res += `\n$parcel$global.rlb(${JSON.stringify(
+      res += `\n$atlaspack$global.rlb(${JSON.stringify(
         this.packager.bundle.publicId,
       )})`;
       lines++;

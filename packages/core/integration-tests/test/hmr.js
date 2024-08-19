@@ -13,7 +13,7 @@ import {
   sleep,
   run,
   request,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import WebSocket from 'ws';
 import json5 from 'json5';
 import getPort from 'get-port';
@@ -23,7 +23,7 @@ import nullthrows from 'nullthrows';
 
 const config = path.join(
   __dirname,
-  './integration/custom-configs/.parcelrc-dev-server',
+  './integration/custom-configs/.atlaspackrc-dev-server',
 );
 
 async function closeSocket(ws: WebSocket) {
@@ -352,11 +352,11 @@ describe.v2('hmr', function () {
 
       let bundleGraph = nullthrows(event.bundleGraph);
       let asset = nullthrows(bundleGraph.getBundles()[0].getMainEntry());
-      let contents = await request('/__parcel_hmr/' + asset.id, port);
+      let contents = await request('/__atlaspack_hmr/' + asset.id, port);
       let publicId = nullthrows(bundleGraph).getAssetPublicId(asset);
       assert(
         contents.startsWith(
-          `parcelHotUpdate['${publicId}'] = function (require, module, exports) {`,
+          `atlaspackHotUpdate['${publicId}'] = function (require, module, exports) {`,
         ),
       );
       assert(contents.includes('//# sourceMappingURL'));
@@ -599,7 +599,7 @@ module.hot.dispose((data) => {
         });
 
       let stack = outputs.pop();
-      assert(stack.includes('/__parcel_hmr/' + nullthrows(asset).id));
+      assert(stack.includes('/__atlaspack_hmr/' + nullthrows(asset).id));
     });
 
     /*
@@ -785,7 +785,7 @@ module.hot.dispose((data) => {
       await sleep(50);
 
       assert.equal(logs.length, 1);
-      assert(logs[0].trim().startsWith('[parcel] 🚨'));
+      assert(logs[0].trim().startsWith('[atlaspack] 🚨'));
       assert(spy.calledOnce);
     });
 
@@ -853,8 +853,8 @@ module.hot.dispose((data) => {
       assert(removeSpy.called);
 
       // assert.equal(logs.length, 2);
-      assert(logs[0].trim().startsWith('[parcel] 🚨'));
-      assert(logs[1].trim().startsWith('[parcel] ✨'));
+      assert(logs[0].trim().startsWith('[atlaspack] 🚨'));
+      assert(logs[1].trim().startsWith('[atlaspack] ✨'));
     });*/
 
     it('should update CSS link tags when a CSS asset is changed', async () => {

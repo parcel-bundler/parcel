@@ -8,16 +8,16 @@ import type {
   Dependency as IDependency,
   MutableBundleGraph as IMutableBundleGraph,
   Target,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {
-  ParcelOptions,
+  AtlaspackOptions,
   BundleGroup as InternalBundleGroup,
   BundleNode,
 } from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/rust';
+import {hashString} from '@atlaspack/rust';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
@@ -36,10 +36,10 @@ export default class MutableBundleGraph
   implements IMutableBundleGraph
 {
   #graph /*: InternalBundleGraph */;
-  #options /*: ParcelOptions */;
+  #options /*: AtlaspackOptions */;
   #bundlePublicIds /*: Set<string> */ = new Set<string>();
 
-  constructor(graph: InternalBundleGraph, options: ParcelOptions) {
+  constructor(graph: InternalBundleGraph, options: AtlaspackOptions) {
     super(graph, Bundle.get.bind(Bundle), options);
     this.#graph = graph;
     this.#options = options;

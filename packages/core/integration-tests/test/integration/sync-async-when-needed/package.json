@@ -1,5 +1,5 @@
 {
-  "@parcel/bundler-default": {
+  "@atlaspack/bundler-default": {
     "maxParallelRequests": 1
   }
 }

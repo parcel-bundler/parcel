@@ -1,8 +1,8 @@
 // @flow
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem} from '@atlaspack/fs';
 import forge from 'node-forge';
 import path from 'path';
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 
 export default async function generateCertificate(
   fs: FileSystem,
@@ -40,7 +40,7 @@ export default async function generateCertificate(
   const attrs = [
     {
       name: 'commonName',
-      value: 'parceljs.org',
+      value: 'atlaspackjs.org',
     },
     {
       name: 'countryName',
@@ -56,7 +56,7 @@ export default async function generateCertificate(
     },
     {
       name: 'organizationName',
-      value: 'parcelBundler',
+      value: 'atlaspackBundler',
     },
     {
       shortName: 'OU',

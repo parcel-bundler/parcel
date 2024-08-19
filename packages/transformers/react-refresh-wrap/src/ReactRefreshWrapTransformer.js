@@ -1,7 +1,7 @@
 // @flow
 
 import path from 'path';
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 
 function shouldExclude(asset, options) {
   return (
@@ -32,13 +32,13 @@ export default (new Transformer({
       return [asset];
     }
 
-    let wrapperPath = `@parcel/transformer-react-refresh-wrap/${path.basename(
+    let wrapperPath = `@atlaspack/transformer-react-refresh-wrap/${path.basename(
       __dirname,
     )}/helpers/helpers.js`;
 
     let code = await asset.getCode();
     let map = await asset.getMap();
-    let name = `$parcel$ReactRefreshHelpers$${asset.id.slice(-4)}`;
+    let name = `$atlaspack$ReactRefreshHelpers$${asset.id.slice(-4)}`;
 
     code = `var ${name} = require(${JSON.stringify(wrapperPath)});
 var prevRefreshReg = window.$RefreshReg$;

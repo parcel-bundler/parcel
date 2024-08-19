@@ -1,7 +1,7 @@
 // @flow
 
-import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
-import {hashString} from '@parcel/rust';
+import type {AST, MutableAsset, TransformerResult} from '@atlaspack/types';
+import {hashString} from '@atlaspack/rust';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
@@ -73,27 +73,27 @@ export default function extractInlineAssets(
       // Inform packager to remove type, since CSS and JS are the defaults.
       delete attrs.type;
 
-      let parcelKey;
+      let atlaspackKey;
       // allow a script/style tag to declare its key
-      if (attrs['data-parcel-key']) {
-        parcelKey = attrs['data-parcel-key'];
+      if (attrs['data-atlaspack-key']) {
+        atlaspackKey = attrs['data-atlaspack-key'];
       } else {
-        parcelKey = hashString(`${asset.id}:${key++}`);
+        atlaspackKey = hashString(`${asset.id}:${key++}`);
       }
 
-      // insert parcelId to allow us to retrieve node during packaging
-      attrs['data-parcel-key'] = parcelKey;
+      // insert atlaspackId to allow us to retrieve node during packaging
+      attrs['data-atlaspack-key'] = atlaspackKey;
       asset.setAST(ast); // mark dirty
 
       asset.addDependency({
-        specifier: parcelKey,
+        specifier: atlaspackKey,
         specifierType: 'esm',
       });
 
       parts.push({
         type,
         content: value,
-        uniqueKey: parcelKey,
+        uniqueKey: atlaspackKey,
         bundleBehavior: 'inline',
         env,
         meta: {
@@ -109,9 +109,9 @@ export default function extractInlineAssets(
     let attrs = node.attrs;
     let style = attrs?.style;
     if (attrs != null && style != null) {
-      let parcelKey = hashString(`${asset.id}:${key++}`);
+      let atlaspackKey = hashString(`${asset.id}:${key++}`);
       attrs.style = asset.addDependency({
-        specifier: parcelKey,
+        specifier: atlaspackKey,
         specifierType: 'esm',
       });
       asset.setAST(ast); // mark dirty
@@ -119,7 +119,7 @@ export default function extractInlineAssets(
       parts.push({
         type: 'css',
         content: style,
-        uniqueKey: parcelKey,
+        uniqueKey: atlaspackKey,
         bundleBehavior: 'inline',
         meta: {
           type: 'attr',

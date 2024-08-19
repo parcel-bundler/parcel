@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "Parcel WebExt",
+  "name": "Atlaspack WebExt",
   "version": "0.1.2.65535",
   "default_locale": "en_US",
   "icons": {

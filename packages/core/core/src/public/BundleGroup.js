@@ -2,8 +2,11 @@
 import type {
   BundleGroup as IBundleGroup,
   Target as ITarget,
-} from '@parcel/types';
-import type {BundleGroup as InternalBundleGroup, ParcelOptions} from '../types';
+} from '@atlaspack/types';
+import type {
+  BundleGroup as InternalBundleGroup,
+  AtlaspackOptions,
+} from '../types';
 
 import nullthrows from 'nullthrows';
 import Target from './Target';
@@ -24,11 +27,11 @@ export function bundleGroupToInternalBundleGroup(
 
 export default class BundleGroup implements IBundleGroup {
   #bundleGroup /*: InternalBundleGroup */;
-  #options /*: ParcelOptions */;
+  #options /*: AtlaspackOptions */;
 
   constructor(
     bundleGroup: InternalBundleGroup,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ): BundleGroup {
     let existing = internalBundleGroupToBundleGroup.get(bundleGroup);
     if (existing != null) {

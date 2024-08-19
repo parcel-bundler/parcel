@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset, TransformerResult} from '@parcel/types';
+import type {MutableAsset, TransformerResult} from '@atlaspack/types';
 import {XMLSerializer} from '@xmldom/xmldom';
 import {urlHandler} from './utils';
 
@@ -47,17 +47,17 @@ export function content(
   }
 
   if (contents) {
-    let parcelKey = `${asset.id}:${parts.length}`;
+    let atlaspackKey = `${asset.id}:${parts.length}`;
     let el = element.ownerDocument.createElementNS(
       'https://parceljs.org',
       'inline',
     );
-    el.setAttribute('key', parcelKey);
+    el.setAttribute('key', atlaspackKey);
     el.setAttribute('type', type);
     element.appendChild(el);
 
     asset.addDependency({
-      specifier: parcelKey,
+      specifier: atlaspackKey,
       specifierType: 'esm',
       bundleBehavior: 'inline',
     });
@@ -65,7 +65,7 @@ export function content(
     parts.push({
       type,
       content: contents,
-      uniqueKey: parcelKey,
+      uniqueKey: atlaspackKey,
       bundleBehavior: 'inline',
     });
   }

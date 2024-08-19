@@ -1,18 +1,14 @@
 {
-  "name": "@parcel/package-manager",
+  "name": "@atlaspack/package-manager",
   "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/index.js",
   "source": "src/index.js",
@@ -29,27 +25,27 @@
     "types": false,
     "main": {
       "includeNodeModules": {
-        "@parcel/core": false,
-        "@parcel/diagnostic": false,
-        "@parcel/fs": false,
-        "@parcel/logger": false,
-        "@parcel/node-resolver-core": false,
-        "@parcel/types": false,
-        "@parcel/utils": false,
-        "@parcel/workers": false,
+        "@atlaspack/core": false,
+        "@atlaspack/diagnostic": false,
+        "@atlaspack/fs": false,
+        "@atlaspack/logger": false,
+        "@atlaspack/node-resolver-core": false,
+        "@atlaspack/types": false,
+        "@atlaspack/utils": false,
+        "@atlaspack/workers": false,
         "@swc/core": false,
         "semver": false
       }
     }
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.12.0",
-    "@parcel/fs": "2.12.0",
-    "@parcel/logger": "2.12.0",
-    "@parcel/node-resolver-core": "3.3.0",
-    "@parcel/types": "2.12.0",
-    "@parcel/utils": "2.12.0",
-    "@parcel/workers": "2.12.0",
+    "@atlaspack/diagnostic": "2.12.0",
+    "@atlaspack/fs": "2.12.0",
+    "@atlaspack/logger": "2.12.0",
+    "@atlaspack/node-resolver-core": "3.3.0",
+    "@atlaspack/types": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
+    "@atlaspack/workers": "2.12.0",
     "@swc/core": "^1.3.36",
     "semver": "^7.5.2"
   },
@@ -60,7 +56,7 @@
     "split2": "^3.1.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.12.0"
+    "@atlaspack/core": "^2.12.0"
   },
   "browser": {
     "./src/NodePackageManager.js": false,

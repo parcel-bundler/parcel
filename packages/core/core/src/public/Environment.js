@@ -10,8 +10,11 @@ import type {
   SourceLocation,
   SourceType,
   TargetSourceMapOptions,
-} from '@parcel/types';
-import type {Environment as InternalEnvironment, ParcelOptions} from '../types';
+} from '@atlaspack/types';
+import type {
+  Environment as InternalEnvironment,
+  AtlaspackOptions,
+} from '../types';
 import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -154,9 +157,12 @@ export function environmentToInternalEnvironment(
 
 export default class Environment implements IEnvironment {
   #environment /*: InternalEnvironment */;
-  #options /*: ParcelOptions */;
+  #options /*: AtlaspackOptions */;
 
-  constructor(env: InternalEnvironment, options: ParcelOptions): Environment {
+  constructor(
+    env: InternalEnvironment,
+    options: AtlaspackOptions,
+  ): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
     if (existing != null) {
       return existing;

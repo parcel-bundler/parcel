@@ -1,7 +1,7 @@
 // @flow
 import path from 'path';
 import {promisify} from 'util';
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import glslifyDeps from 'glslify-deps';
 import glslifyBundle from 'glslify-bundle';
 

@@ -1,15 +1,15 @@
 {
-  "name": "@parcel/react-refresh-example",
+  "name": "@atlaspack/react-refresh-example",
   "version": "2.12.0",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "parcel src/index.html"
+    "start": "atlaspack src/index.html"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
-    "@parcel/core": "2.12.0"
+    "@atlaspack/babel-register": "2.12.0",
+    "@atlaspack/core": "2.12.0"
   },
   "dependencies": {
     "react": "^17.0.2",

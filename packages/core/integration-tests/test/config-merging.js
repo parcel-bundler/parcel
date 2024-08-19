@@ -1,4 +1,4 @@
-import {bundle, describe, it, run, outputFS} from '@parcel/test-utils';
+import {bundle, describe, it, run, outputFS} from '@atlaspack/test-utils';
 import assert from 'assert';
 import path from 'path';
 

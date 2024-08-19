@@ -1,21 +1,21 @@
 // @flow
 
-import type {ContentKey, NodeId} from '@parcel/graph';
-import type {Meta, Symbol} from '@parcel/types';
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {ContentKey, NodeId} from '@atlaspack/graph';
+import type {Meta, Symbol} from '@atlaspack/types';
+import type {Diagnostic} from '@atlaspack/diagnostic';
 import type {
   AssetNode,
   DependencyNode,
   InternalSourceLocation,
-  ParcelOptions,
+  AtlaspackOptions,
 } from './types';
 import {type default as AssetGraph} from './AssetGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {setEqual} from '@parcel/utils';
-import logger from '@parcel/logger';
-import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
+import {setEqual} from '@atlaspack/utils';
+import logger from '@atlaspack/logger';
+import {md, convertSourceLocationToHighlight} from '@atlaspack/diagnostic';
 import {BundleBehavior} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
@@ -26,7 +26,7 @@ export function propagateSymbols({
   assetGroupsWithRemovedParents,
   previousErrors,
 }: {|
-  options: ParcelOptions,
+  options: AtlaspackOptions,
   assetGraph: AssetGraph,
   changedAssetsPropagation: Set<string>,
   assetGroupsWithRemovedParents: Set<NodeId>,
@@ -242,7 +242,7 @@ export function propagateSymbols({
         }" or "${
           depNode2.value.specifier
         }" at runtime. Adding a namespace object to fall back on.`,
-        origin: '@parcel/core',
+        origin: '@atlaspack/core',
       });
     }
   };
@@ -436,7 +436,7 @@ export function propagateSymbols({
               message: md`${fromProjectPathRelative(
                 resolution.value.filePath,
               )} does not export '${s}'`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: loc
                 ? [
                     {

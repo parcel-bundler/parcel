@@ -1,0 +1,27 @@
+.atlaspack-container {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+}
+
+.atlaspack-heading {
+  font-family: system-ui;
+  color: #e6daca;
+  margin: auto;
+}
+
+.atlaspack-logo {
+  margin-bottom: 60px;
+}
+
+.atlaspack-box {
+  position: relative;
+  height: 474px;
+  width: 600px;
+}
+
+.atlaspack-box-front {
+  position: absolute;
+  top: 0;
+  left: 0;
+}

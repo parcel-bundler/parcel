@@ -1,12 +1,12 @@
 // @flow strict-local
-import type {BundleGraph, PluginOptions, NamedBundle} from '@parcel/types';
+import type {BundleGraph, PluginOptions, NamedBundle} from '@atlaspack/types';
 
 import {
   PromiseQueue,
   relativeBundlePath,
   countLines,
   normalizeSeparators,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
@@ -22,18 +22,18 @@ export class DevPackager {
   options: PluginOptions;
   bundleGraph: BundleGraph<NamedBundle>;
   bundle: NamedBundle;
-  parcelRequireName: string;
+  atlaspackRequireName: string;
 
   constructor(
     options: PluginOptions,
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
-    parcelRequireName: string,
+    atlaspackRequireName: string,
   ) {
     this.options = options;
     this.bundleGraph = bundleGraph;
     this.bundle = bundle;
-    this.parcelRequireName = parcelRequireName;
+    this.atlaspackRequireName = atlaspackRequireName;
   }
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
@@ -132,8 +132,8 @@ export class DevPackager {
               path.dirname(asset.filePath),
             ),
           );
-          wrapped = wrapped.replace('$parcel$dirnameReplace', relPath);
-          wrapped = wrapped.replace('$parcel$filenameReplace', relPath);
+          wrapped = wrapped.replace('$atlaspack$dirnameReplace', relPath);
+          wrapped = wrapped.replace('$atlaspack$filenameReplace', relPath);
         }
 
         if (this.bundle.env.sourceMap) {
@@ -183,13 +183,13 @@ export class DevPackager {
         mainEntry ? this.bundleGraph.getAssetPublicId(mainEntry) : null,
       ) +
       ', ' +
-      JSON.stringify(this.parcelRequireName) +
+      JSON.stringify(this.atlaspackRequireName) +
       ')' +
       '\n';
 
     // The entry asset of a script bundle gets hoisted outside the bundle wrapper function
     // so that its variables become globals. We need to replace any require calls for
-    // runtimes with a parcelRequire call.
+    // runtimes with a atlaspackRequire call.
     if (this.bundle.env.sourceType === 'script' && script) {
       let entryMap;
       let mapBuffer = script.mapBuffer;
@@ -201,7 +201,7 @@ export class DevPackager {
         this.bundle,
         script.code,
         entryMap,
-        this.parcelRequireName,
+        this.atlaspackRequireName,
       );
       if (this.bundle.env.sourceMap && entryMap) {
         map.addSourceMap(entryMap, lineOffset);

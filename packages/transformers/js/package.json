@@ -1,17 +1,13 @@
 {
-  "name": "@parcel/transformer-js",
+  "name": "@atlaspack/transformer-js",
   "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/JSTransformer.js",
   "source": "src/JSTransformer.js",
@@ -19,7 +15,7 @@
     "test": "mocha"
   },
   "engines": {
-    "parcel": "^2.12.0",
+    "atlaspack": "^2.12.0",
     "node": ">= 16.0.0"
   },
   "files": [
@@ -27,12 +23,12 @@
     "src"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.12.0",
-    "@parcel/plugin": "2.12.0",
-    "@parcel/rust": "2.12.0",
+    "@atlaspack/diagnostic": "2.12.0",
+    "@atlaspack/plugin": "2.12.0",
+    "@atlaspack/rust": "2.12.0",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.12.0",
-    "@parcel/workers": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
+    "@atlaspack/workers": "2.12.0",
     "@swc/helpers": "^0.5.0",
     "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1",
@@ -40,6 +36,6 @@
     "semver": "^7.5.2"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.12.0"
+    "@atlaspack/core": "^2.12.0"
   }
 }

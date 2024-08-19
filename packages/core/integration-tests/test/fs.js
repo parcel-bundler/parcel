@@ -13,7 +13,7 @@ import {
   overlayFS,
   outputFS,
   distDir,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('fs', function () {
   beforeEach(async () => {

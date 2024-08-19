@@ -14,15 +14,15 @@ import {
   ncp,
   request as get,
   requestRaw as getRaw,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import https from 'https';
 import getPort from 'get-port';
-import type {BuildEvent} from '@parcel/types';
+import type {BuildEvent} from '@atlaspack/types';
 
-const distDir = path.resolve(__dirname, '.parcel-cache/dist');
+const distDir = path.resolve(__dirname, '.atlaspack-cache/dist');
 const config = path.join(
   __dirname,
-  './integration/custom-configs/.parcelrc-dev-server',
+  './integration/custom-configs/.atlaspackrc-dev-server',
 );
 
 describe.v2('server', function () {
@@ -106,7 +106,7 @@ describe.v2('server', function () {
     await getNextBuild(b);
 
     let data = await get(
-      '/__parcel_source_root/integration/commonjs/index.js',
+      '/__atlaspack_source_root/integration/commonjs/index.js',
       port,
     );
     let inputFile = await inputFS.readFile(inputPath, 'utf8');

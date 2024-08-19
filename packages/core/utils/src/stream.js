@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import {Readable, PassThrough} from 'stream';
-import type {Blob} from '@parcel/types';
+import type {Blob} from '@atlaspack/types';
 
 export function measureStreamLength(stream: Readable): Promise<number> {
   return new Promise((resolve, reject) => {

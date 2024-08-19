@@ -1,20 +1,20 @@
-# `parcel-query`
+# `atlaspack-query`
 
-A REPL to investigate the Parcel graphs in the cache ("offline", after the build).
+A REPL to investigate the Atlaspack graphs in the cache ("offline", after the build).
 
 ## Installation
 
-Clone and run `yarn`, then `cd packages/dev/query && yarn link` to make the `parcel-query` binary
+Clone and run `yarn`, then `cd packages/dev/query && yarn link` to make the `atlaspack-query` binary
 globally available.
 
 ## Usage
 
 Call `.help` to view a list of commands.
 
-In a project root containing a `.parcel-cache` folder:
+In a project root containing a `.atlaspack-cache` folder:
 
 ```sh
-$ parcel-query
+$ atlaspack-query
 > .findBundleReason 27494aebac508bd8 TJbGI
 # Asset is main entry of bundle: false
 # Asset is an entry of bundle: false
@@ -38,5 +38,5 @@ disadvantage here is that the graphs have to be loaded on every call as opposed 
 starting the REPL):
 
 ```sh
-$ parcel-query 'findBundleReason("b0696febf20b57ce", "bNAUZ")'
+$ atlaspack-query 'findBundleReason("b0696febf20b57ce", "bNAUZ")'
 ```

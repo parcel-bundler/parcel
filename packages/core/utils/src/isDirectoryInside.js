@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {FilePath} from '@parcel/types';
+import type {FilePath} from '@atlaspack/types';
 import path from 'path';
 
 export default function isDirectoryInside(

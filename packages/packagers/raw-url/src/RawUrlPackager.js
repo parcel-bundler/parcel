@@ -1,8 +1,8 @@
 // @flow strict-local
 
 import assert from 'assert';
-import {Packager} from '@parcel/plugin';
-import {replaceURLReferences} from '@parcel/utils';
+import {Packager} from '@atlaspack/plugin';
+import {replaceURLReferences} from '@atlaspack/utils';
 
 export default (new Packager({
   async package({bundle, bundleGraph}) {

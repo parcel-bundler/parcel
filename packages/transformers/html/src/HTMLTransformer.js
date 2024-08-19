@@ -1,7 +1,7 @@
 // @flow
 
-import {Transformer} from '@parcel/plugin';
-import type {AST} from '@parcel/types';
+import {Transformer} from '@atlaspack/plugin';
+import type {AST} from '@atlaspack/types';
 import {parser as parse} from 'posthtml-parser';
 import nullthrows from 'nullthrows';
 import type {PostHTMLExpression, PostHTMLNode} from 'posthtml';
@@ -10,7 +10,7 @@ import {render} from 'posthtml-render';
 import semver from 'semver';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
 
 export default (new Transformer({
   canReuseAST({ast}) {
@@ -45,7 +45,7 @@ export default (new Transformer({
         throw new ThrowableDiagnostic({
           diagnostic: errors.map(error => ({
             message: error.message,
-            origin: '@parcel/transformer-html',
+            origin: '@atlaspack/transformer-html',
             codeFrames: [
               {
                 filePath: error.filePath,

@@ -10,9 +10,9 @@ import {
   outputFS,
   ncp,
   fsFixture,
-} from '@parcel/test-utils';
-import {md} from '@parcel/diagnostic';
-import {normalizeSeparators} from '@parcel/utils';
+} from '@atlaspack/test-utils';
+import {md} from '@atlaspack/diagnostic';
+import {normalizeSeparators} from '@atlaspack/utils';
 
 describe.v2('typescript types', function () {
   it('should generate a typescript declaration file', async function () {
@@ -360,7 +360,7 @@ describe.v2('typescript types', function () {
                 ],
               },
             ],
-            origin: '@parcel/transformer-typescript-types',
+            origin: '@atlaspack/transformer-typescript-types',
           },
         ],
       },

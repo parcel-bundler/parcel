@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, FileSystem} from '@parcel/types-internal';
+import type {FilePath, FileSystem} from '@atlaspack/types-internal';
 import path from 'path';
 
 export function findNodeModule(

@@ -11,7 +11,7 @@ import {
   outputFS,
   overlayFS,
   fsFixture,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import postcss from 'postcss';
 
 describe.v2('css modules', () => {
@@ -429,7 +429,7 @@ describe.v2('css modules', () => {
             ],
             message:
               "integration/no-export-error-with-correct-filetype/src/app.module.css does not export 'notExisting'",
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
           },
         ],
       },
@@ -796,7 +796,7 @@ describe.v2('css modules', () => {
 
         package.json:
           {
-            "@parcel/transformer-css": {
+            "@atlaspack/transformer-css": {
               "cssModules": {
                 "include": "modules/*.css",
                 "exclude": "modules/_*.css"

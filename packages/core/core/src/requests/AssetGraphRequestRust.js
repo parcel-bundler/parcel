@@ -2,11 +2,11 @@
 
 import invariant from 'assert';
 
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import type {Async} from '@parcel/types';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
+import type {Async} from '@atlaspack/types';
 
 import AssetGraph, {nodeFromAssetGroup} from '../AssetGraph';
-import type {ParcelV3} from '../parcel-v3';
+import type {AtlaspackV3} from '../atlaspack-v3';
 import {toProjectPath} from '../projectPath';
 import {requestTypes, type StaticRunOpts} from '../RequestTracker';
 import {propagateSymbols} from '../SymbolPropagation';
@@ -29,7 +29,7 @@ type AssetGraphRequest = {|
 |};
 
 export function createAssetGraphRequestRust(
-  rustParcel: ParcelV3,
+  rustAtlaspack: AtlaspackV3,
 ): (input: AssetGraphRequestInput) => AssetGraphRequest {
   return input => ({
     type: requestTypes.asset_graph_request,
@@ -38,7 +38,7 @@ export function createAssetGraphRequestRust(
       let options = input.options;
       let serializedAssetGraph;
       try {
-        serializedAssetGraph = await rustParcel.buildAssetGraph();
+        serializedAssetGraph = await rustAtlaspack.buildAssetGraph();
       } catch (err) {
         throw new ThrowableDiagnostic({
           diagnostic: err,

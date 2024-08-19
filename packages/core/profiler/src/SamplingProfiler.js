@@ -1,7 +1,7 @@
 // @flow
 import type {Session} from 'inspector';
 import invariant from 'assert';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-Profile
 export type Profile = {|
@@ -48,7 +48,7 @@ export default class SamplingProfiler {
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: `The inspector module isn't available`,
-          origin: '@parcel/workers',
+          origin: '@atlaspack/workers',
           hints: ['Disable build profiling'],
         },
       });

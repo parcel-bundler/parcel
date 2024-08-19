@@ -8,7 +8,7 @@ import {
   it,
   overlayFS,
   run,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import sinon from 'sinon';
 
 describe.v2('globals', function () {
@@ -75,7 +75,7 @@ describe.v2('globals', function () {
 
       assert(bundles.some(b => b.includes('var global = arguments[3]')));
       assert(
-        bundles.every(b => !b.includes('var $parcel$global = globalThis')),
+        bundles.every(b => !b.includes('var $atlaspack$global = globalThis')),
       );
       assert.equal(onGlobal.callCount, 1);
       assert.deepEqual(onGlobal.firstCall.args, ['global']);
@@ -99,7 +99,9 @@ describe.v2('globals', function () {
       let onGlobal = sinon.spy();
       await run(bundleGraph, {globalThis: 'global', onGlobal});
 
-      assert(bundles.some(b => b.includes('var $parcel$global = globalThis')));
+      assert(
+        bundles.some(b => b.includes('var $atlaspack$global = globalThis')),
+      );
       assert(bundles.every(b => !b.includes('var global = arguments[3]')));
       assert.equal(onGlobal.callCount, 1);
       assert.deepEqual(onGlobal.firstCall.args, ['global']);

@@ -1,10 +1,10 @@
 {
-  "name": "@parcel/eslint-example",
+  "name": "@atlaspack/eslint-example",
   "version": "2.12.0",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.js --no-cache"
+    "demo": "atlaspack build src/index.js --no-cache"
   },
   "browser": "dist/legacy/index.js",
   "targets": {
@@ -18,9 +18,9 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
-    "@parcel/core": "2.12.0",
-    "@parcel/validator-eslint": "2.12.0",
-    "parcel": "2.12.0"
+    "@atlaspack/babel-register": "2.12.0",
+    "@atlaspack/core": "2.12.0",
+    "@atlaspack/validator-eslint": "2.12.0",
+    "atlaspack": "2.12.0"
   }
 }

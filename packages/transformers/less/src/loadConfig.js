@@ -1,5 +1,5 @@
 // @flow
-import type {Config} from '@parcel/types';
+import type {Config} from '@atlaspack/types';
 import path from 'path';
 
 type ConfigResult = {|

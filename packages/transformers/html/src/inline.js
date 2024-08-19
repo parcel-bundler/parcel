@@ -1,7 +1,7 @@
 // @flow strict-local
 
-import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
-import {hashString} from '@parcel/rust';
+import type {AST, MutableAsset, TransformerResult} from '@atlaspack/types';
+import {hashString} from '@atlaspack/rust';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
@@ -31,7 +31,7 @@ export default function extractInlineAssets(
   let parts: Array<TransformerResult> = [];
   let hasModuleScripts = false;
   PostHTML().walk.call(program, (node: PostHTMLNode) => {
-    let parcelKey = hashString(`${asset.id}:${key++}`);
+    let atlaspackKey = hashString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('');
       if (value != null) {
@@ -108,8 +108,8 @@ export default function extractInlineAssets(
         }
 
         // allow a script/style tag to declare its key
-        if (node.attrs['data-parcel-key']) {
-          parcelKey = node.attrs['data-parcel-key'];
+        if (node.attrs['data-atlaspack-key']) {
+          atlaspackKey = node.attrs['data-atlaspack-key'];
         }
 
         // Inform packager to remove type, since CSS and JS are the defaults.
@@ -117,19 +117,19 @@ export default function extractInlineAssets(
           delete node.attrs.type;
         }
 
-        // insert parcelId to allow us to retrieve node during packaging
-        node.attrs['data-parcel-key'] = parcelKey;
+        // insert atlaspackId to allow us to retrieve node during packaging
+        node.attrs['data-atlaspack-key'] = atlaspackKey;
         asset.setAST(ast); // mark dirty
 
         asset.addDependency({
-          specifier: parcelKey,
+          specifier: atlaspackKey,
           specifierType: 'esm',
         });
 
         parts.push({
           type,
           content: value,
-          uniqueKey: parcelKey,
+          uniqueKey: atlaspackKey,
           bundleBehavior: 'inline',
           env,
           meta: {
@@ -151,7 +151,7 @@ export default function extractInlineAssets(
     let style = attrs?.style;
     if (attrs != null && style != null) {
       attrs.style = asset.addDependency({
-        specifier: parcelKey,
+        specifier: atlaspackKey,
         specifierType: 'esm',
       });
       asset.setAST(ast); // mark dirty
@@ -159,7 +159,7 @@ export default function extractInlineAssets(
       parts.push({
         type: 'css',
         content: style,
-        uniqueKey: parcelKey,
+        uniqueKey: atlaspackKey,
         bundleBehavior: 'inline',
         meta: {
           type: 'attr',

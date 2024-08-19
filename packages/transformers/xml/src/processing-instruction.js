@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+import type {MutableAsset} from '@atlaspack/types';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 
 // Flow doesn't define ProcessingInstruction by default.

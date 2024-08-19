@@ -1,6 +1,6 @@
 // @flow
 
-import {Reporter} from '@parcel/plugin';
+import {Reporter} from '@atlaspack/plugin';
 import HMRServer from './HMRServer';
 import Server from './Server';
 

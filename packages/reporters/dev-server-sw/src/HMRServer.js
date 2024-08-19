@@ -7,14 +7,14 @@ import type {
   BundleGraph,
   PackagedBundle,
   Asset,
-} from '@parcel/types';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {AnsiDiagnosticResult} from '@parcel/utils';
+} from '@atlaspack/types';
+import type {Diagnostic} from '@atlaspack/diagnostic';
+import type {AnsiDiagnosticResult} from '@atlaspack/utils';
 
 import invariant from 'assert';
-import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
+import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@atlaspack/utils';
 
-const HMR_ENDPOINT = '/__parcel_hmr/';
+const HMR_ENDPOINT = '/__atlaspack_hmr/';
 
 type HMRAsset = {|
   id: string,
@@ -162,14 +162,14 @@ export async function getHotAssetContents(
   let output = await asset.getCode();
   if (asset.type === 'js') {
     let publicId = bundleGraph.getAssetPublicId(asset);
-    output = `parcelHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
+    output = `atlaspackHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
   }
 
   let sourcemap = await asset.getMap();
   if (sourcemap) {
     let sourcemapStringified = await sourcemap.stringify({
       format: 'inline',
-      sourceRoot: '/__parcel_source_root/',
+      sourceRoot: '/__atlaspack_source_root/',
       // $FlowFixMe
       fs: asset.fs,
     });

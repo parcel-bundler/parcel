@@ -3,9 +3,9 @@ import type {
   Encoding,
   FileCreateInvalidation,
   FilePath,
-  InitialParcelOptions,
+  InitialAtlaspackOptions,
   PackageManager,
-} from '@parcel/types';
+} from '@atlaspack/types';
 
 declare export var init: void | (() => void);
 
@@ -32,18 +32,18 @@ export interface FileSystem {
   readFile(path: FilePath, encoding?: Encoding): string;
 }
 
-export type ParcelNapiOptions = {|
+export type AtlaspackNapiOptions = {|
   fs?: FileSystem,
   nodeWorkers?: number,
   options: {|
     corePath?: string,
     // TODO Use Omit when available in flow >0.210.0
     ...$Diff<
-      InitialParcelOptions,
+      InitialAtlaspackOptions,
       {|
-        inputFS: InitialParcelOptions['inputFS'],
-        outputFS: InitialParcelOptions['outputFS'],
-        packageManager: InitialParcelOptions['packageManager'],
+        inputFS: InitialAtlaspackOptions['inputFS'],
+        outputFS: InitialAtlaspackOptions['outputFS'],
+        packageManager: InitialAtlaspackOptions['packageManager'],
       |},
     >,
   |},
@@ -51,15 +51,15 @@ export type ParcelNapiOptions = {|
   threads?: number,
 |};
 
-export type ParcelBuildOptions = {|
+export type AtlaspackBuildOptions = {|
   registerWorker: (channel: Transferable) => void | Promise<void>,
 |};
 
-declare export class ParcelNapi {
+declare export class AtlaspackNapi {
   nodeWorkerCount: number;
-  constructor(options: ParcelNapiOptions): ParcelNapi;
-  build(options: ParcelBuildOptions): Promise<void>;
-  buildAssetGraph(options: ParcelBuildOptions): Promise<any>;
+  constructor(options: AtlaspackNapiOptions): AtlaspackNapi;
+  build(options: AtlaspackBuildOptions): Promise<void>;
+  buildAssetGraph(options: AtlaspackBuildOptions): Promise<any>;
   static defaultThreadCount(): number;
   testingTempFsReadToString(path: string): string;
   testingTempFsIsDir(path: string): boolean;

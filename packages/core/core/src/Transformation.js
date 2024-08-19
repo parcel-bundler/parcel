@@ -8,35 +8,35 @@ import type {
   PackageName,
   ResolveOptions,
   SemverRange,
-} from '@parcel/types';
-import type {WorkerApi} from '@parcel/workers';
+} from '@atlaspack/types';
+import type {WorkerApi} from '@atlaspack/workers';
 import type {
   Asset as AssetValue,
   TransformationRequest,
   Config,
   DevDepRequest,
-  ParcelOptions,
+  AtlaspackOptions,
   InternalDevDepOptions,
   Invalidations,
 } from './types';
-import type {LoadedPlugin} from './ParcelConfig';
+import type {LoadedPlugin} from './AtlaspackConfig';
 
 import path from 'path';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
-import logger, {PluginLogger} from '@parcel/logger';
+import logger, {PluginLogger} from '@atlaspack/logger';
 import ThrowableDiagnostic, {
   anyToDiagnostic,
   errorToDiagnostic,
   escapeMarkdown,
   md,
   type Diagnostic,
-} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
-import {hashString} from '@parcel/rust';
+} from '@atlaspack/diagnostic';
+import {SOURCEMAP_EXTENSIONS} from '@atlaspack/utils';
+import {hashString} from '@atlaspack/rust';
 
 import {createDependency} from './Dependency';
-import ParcelConfig from './ParcelConfig';
+import AtlaspackConfig from './AtlaspackConfig';
 // TODO: eventually call path request as sub requests
 import {ResolverRunner} from './requests/PathRequest';
 import {
@@ -69,7 +69,7 @@ import {
 } from './projectPath';
 import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
 import invariant from 'assert';
-import {tracer, PluginTracer} from '@parcel/profiler';
+import {tracer, PluginTracer} from '@atlaspack/profiler';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -78,8 +78,8 @@ type PostProcessFunc = (
 ) => Promise<Array<UncommittedAsset> | null>;
 
 export type TransformationOpts = {|
-  options: ParcelOptions,
-  config: ParcelConfig,
+  options: AtlaspackOptions,
+  config: AtlaspackConfig,
   request: TransformationRequest,
   workerApi: WorkerApi,
 |};
@@ -97,16 +97,16 @@ export default class Transformation {
   configs: Map<string, Config>;
   devDepRequests: Map<string, DevDepRequest>;
   pluginDevDeps: Array<InternalDevDepOptions>;
-  options: ParcelOptions;
+  options: AtlaspackOptions;
   pluginOptions: PluginOptions;
   workerApi: WorkerApi;
-  parcelConfig: ParcelConfig;
+  atlaspackConfig: AtlaspackConfig;
   invalidations: Invalidations;
   resolverRunner: ResolverRunner;
 
   constructor({request, options, config, workerApi}: TransformationOpts) {
     this.configs = new Map();
-    this.parcelConfig = config;
+    this.atlaspackConfig = config;
     this.options = options;
     this.request = request;
     this.workerApi = workerApi;
@@ -143,13 +143,13 @@ export default class Transformation {
       } catch (err) {
         logger.verbose([
           {
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             message: md`Could not load existing source map for ${fromProjectPathRelative(
               asset.value.filePath,
             )}`,
           },
           {
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             message: escapeMarkdown(err.message),
           },
         ]);
@@ -171,7 +171,7 @@ export default class Transformation {
     invalidateDevDeps(
       this.request.invalidDevDeps,
       this.options,
-      this.parcelConfig,
+      this.atlaspackConfig,
     );
 
     let pipeline = await this.loadPipeline(
@@ -387,7 +387,7 @@ export default class Transformation {
             transformer.name,
             transformer.config,
             transformer.configKeyPath,
-            this.parcelConfig,
+            this.atlaspackConfig,
           );
 
           measurement && measurement.end();
@@ -401,7 +401,7 @@ export default class Transformation {
               asset.createChildAsset(
                 result,
                 transformer.name,
-                this.parcelConfig.filePath,
+                this.atlaspackConfig.filePath,
                 transformer.configKeyPath,
               ),
             );
@@ -475,7 +475,7 @@ export default class Transformation {
     isSource: boolean,
     pipeline: ?string,
   ): Promise<Pipeline> {
-    let transformers = await this.parcelConfig.getTransformers(
+    let transformers = await this.atlaspackConfig.getTransformers(
       filePath,
       pipeline,
       this.request.isURL,
@@ -567,7 +567,7 @@ export default class Transformation {
     transformerName: string,
     preloadedConfig: ?Config,
     configKeyPath?: string,
-    parcelConfig: ParcelConfig,
+    atlaspackConfig: AtlaspackConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
     const tracer = new PluginTracer({
@@ -707,7 +707,7 @@ export default class Transformation {
             asset.createChildAsset(
               result,
               transformerName,
-              parcelConfig.filePath,
+              atlaspackConfig.filePath,
               // configKeyPath,
             ),
           ),
@@ -722,7 +722,7 @@ export default class Transformation {
 type Pipeline = {|
   id: string,
   transformers: Array<TransformerWithNameAndConfig>,
-  options: ParcelOptions,
+  options: AtlaspackOptions,
   pluginOptions: PluginOptions,
   workerApi: WorkerApi,
   postProcess?: PostProcessFunc,

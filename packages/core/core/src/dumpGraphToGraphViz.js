@@ -1,13 +1,13 @@
 // @flow
 
-import type {Asset, BundleBehavior} from '@parcel/types';
-import type {Graph} from '@parcel/graph';
+import type {Asset, BundleBehavior} from '@atlaspack/types';
+import type {Graph} from '@atlaspack/graph';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
 
 import path from 'path';
-import {fromNodeId} from '@parcel/graph';
+import {fromNodeId} from '@atlaspack/graph';
 import {fromProjectPathRelative} from './projectPath';
 import {SpecifierType, Priority} from './types';
 
@@ -48,16 +48,16 @@ export default async function dumpGraphToGraphViz(
   edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
 ): Promise<void> {
   if (
-    process.env.PARCEL_BUILD_ENV === 'production' &&
-    !process.env.PARCEL_BUILD_REPL
+    process.env.ATLASPACK_BUILD_ENV === 'production' &&
+    !process.env.ATLASPACK_BUILD_REPL
   ) {
     return;
   }
 
-  let mode: ?string = process.env.PARCEL_BUILD_REPL
+  let mode: ?string = process.env.ATLASPACK_BUILD_REPL
     ? // $FlowFixMe
-      globalThis.PARCEL_DUMP_GRAPHVIZ?.mode
-    : process.env.PARCEL_DUMP_GRAPHVIZ;
+      globalThis.ATLASPACK_DUMP_GRAPHVIZ?.mode
+    : process.env.ATLASPACK_DUMP_GRAPHVIZ;
 
   // $FlowFixMe[invalid-compare]
   if (mode == null || mode == false) {
@@ -211,12 +211,12 @@ export default async function dumpGraphToGraphViz(
     }
   }
 
-  if (process.env.PARCEL_BUILD_REPL) {
+  if (process.env.ATLASPACK_BUILD_REPL) {
     // $FlowFixMe
-    globalThis.PARCEL_DUMP_GRAPHVIZ?.(name, g.to_dot());
+    globalThis.ATLASPACK_DUMP_GRAPHVIZ?.(name, g.to_dot());
   } else {
     const tempy = require('tempy');
-    let tmp = tempy.file({name: `parcel-${name}.png`});
+    let tmp = tempy.file({name: `atlaspack-${name}.png`});
     await g.output('png', tmp);
     // eslint-disable-next-line no-console
     console.log('Dumped', tmp);

@@ -1,6 +1,6 @@
 // @flow
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import postcss from 'postcss';
 import sugarss from 'sugarss';
 

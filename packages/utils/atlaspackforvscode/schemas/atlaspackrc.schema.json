@@ -1,0 +1,94 @@
+{
+  "title": "JSON schema for .atlaspackrc files",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "allowTrailingCommas": true,
+  "$defs": {
+    "plugin": {
+      "type": "string"
+    },
+    "plugins": {
+      "defaultSnippets": [
+        {
+          "body": ["$1", "..."]
+        }
+      ],
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/plugin"
+      }
+    },
+    "pluginGlobMap": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {
+        "$ref": "#/$defs/plugin"
+      }
+    },
+    "pluginsGlobMap": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {
+        "$ref": "#/$defs/plugins"
+      }
+    }
+  },
+  "properties": {
+    "extends": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/plugin"
+        },
+        {
+          "$ref": "#/$defs/plugins"
+        }
+      ],
+      "default": "@atlaspack/extends-default"
+    },
+    "bundler": {
+      "description": "Transform the entire asset graph by grouping the assets into the output bundles.",
+      "$ref": "#/$defs/plugin"
+    },
+    "resolvers": {
+      "description": "Resolve a dependency to a file path or virtual module.",
+      "$ref": "#/$defs/plugins"
+    },
+    "transformers": {
+      "description": "Compile individual source files and extract dependencies.",
+      "$ref": "#/$defs/pluginsGlobMap"
+    },
+    "validators": {
+      "description": "Validates individual assets and can throw errors or log warnings with diagnostics to validate the input.",
+      "$ref": "#/$defs/pluginsGlobMap"
+    },
+    "namers": {
+      "description": "Determine the name of an output bundle.",
+      "$ref": "#/$defs/plugins"
+    },
+    "packagers": {
+      "description": "Combine multiple assets together into a single output bundle.",
+      "$ref": "#/$defs/pluginGlobMap"
+    },
+    "optimizers": {
+      "description": "Minify, optimize, and transform output bundles.",
+      "$ref": "#/$defs/pluginsGlobMap"
+    },
+    "compressors": {
+      "description": "Compress and encode output bundles in multiple formats.",
+      "$ref": "#/$defs/pluginsGlobMap"
+    },
+    "reporters": {
+      "description": "Receive events on build progress and completion.",
+      "$ref": "#/$defs/plugins"
+    },
+    "runtimes": {
+      "description": "Return additional assets to be inserted into a bundle.",
+      "$ref": "#/$defs/plugins"
+    }
+  },
+  "additionalProperties": false,
+  "default": {
+    "extends": "@atlaspack/config-default"
+  }
+}

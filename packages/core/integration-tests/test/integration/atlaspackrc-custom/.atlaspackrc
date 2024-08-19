@@ -1,0 +1,6 @@
+{
+  "extends": "@atlaspack/config-default",
+  "transformers": {
+    "*.js": ["atlaspack-transformer-do-nothing"]
+  }
+}

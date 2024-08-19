@@ -1,5 +1,8 @@
 {
-  "require": ["@parcel/babel-register", "@parcel/test-utils/src/mochaSetup.js"],
+  "require": [
+    "@atlaspack/babel-register",
+    "@atlaspack/test-utils/src/mochaSetup.js"
+  ],
   "timeout": 50000,
   // TODO: Remove this when https://github.com/nodejs/node/pull/28788 is resolved
   "exit": true,

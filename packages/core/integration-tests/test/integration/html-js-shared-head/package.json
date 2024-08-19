@@ -1,5 +1,5 @@
 {
-    "@parcel/runtime-js": {
+    "@atlaspack/runtime-js": {
         "splitManifestThreshold": 99999999
     }
 }

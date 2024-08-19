@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
+import type {ContentKey} from '@atlaspack/graph';
 import type {
   ASTGenerator,
   BuildMode,
@@ -25,38 +25,38 @@ import type {
   TargetDescriptor,
   HMROptions,
   DetailedReportOptions,
-} from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
-import type {FileSystem} from '@parcel/fs';
-import type {Cache} from '@parcel/cache';
-import type {PackageManager} from '@parcel/package-manager';
+} from '@atlaspack/types';
+import type {SharedReference} from '@atlaspack/workers';
+import type {FileSystem} from '@atlaspack/fs';
+import type {Cache} from '@atlaspack/cache';
+import type {PackageManager} from '@atlaspack/package-manager';
 import type {ProjectPath} from './projectPath';
 import type {Event} from '@parcel/watcher';
-import type {FeatureFlags} from '@parcel/feature-flags';
+import type {FeatureFlags} from '@atlaspack/feature-flags';
 import type {BackendType} from '@parcel/watcher';
 
-export type ParcelPluginNode = {|
+export type AtlaspackPluginNode = {|
   packageName: PackageName,
   resolveFrom: ProjectPath,
   keyPath?: string,
 |};
 
-export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
-export type ExtendableParcelConfigPipeline = $ReadOnlyArray<
-  ParcelPluginNode | '...',
+export type PureAtlaspackConfigPipeline = $ReadOnlyArray<AtlaspackPluginNode>;
+export type ExtendableAtlaspackConfigPipeline = $ReadOnlyArray<
+  AtlaspackPluginNode | '...',
 >;
 
-export type ProcessedParcelConfig = {|
-  resolvers?: PureParcelConfigPipeline,
-  transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
-  bundler: ?ParcelPluginNode,
-  namers?: PureParcelConfigPipeline,
-  runtimes?: PureParcelConfigPipeline,
-  packagers?: {[Glob]: ParcelPluginNode, ...},
-  optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
-  compressors?: {[Glob]: ExtendableParcelConfigPipeline, ...},
-  reporters?: PureParcelConfigPipeline,
-  validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+export type ProcessedAtlaspackConfig = {|
+  resolvers?: PureAtlaspackConfigPipeline,
+  transformers?: {[Glob]: ExtendableAtlaspackConfigPipeline, ...},
+  bundler: ?AtlaspackPluginNode,
+  namers?: PureAtlaspackConfigPipeline,
+  runtimes?: PureAtlaspackConfigPipeline,
+  packagers?: {[Glob]: AtlaspackPluginNode, ...},
+  optimizers?: {[Glob]: ExtendableAtlaspackConfigPipeline, ...},
+  compressors?: {[Glob]: ExtendableAtlaspackConfigPipeline, ...},
+  reporters?: PureAtlaspackConfigPipeline,
+  validators?: {[Glob]: ExtendableAtlaspackConfigPipeline, ...},
   filePath: ProjectPath,
   resolveFrom?: ProjectPath,
 |};
@@ -269,12 +269,12 @@ export type DevDepRequest = {|
 
 declare type GlobPattern = string;
 
-export type ParcelOptions = {|
+export type AtlaspackOptions = {|
   entries: Array<ProjectPath>,
   config?: DependencySpecifier,
   defaultConfig?: DependencySpecifier,
   env: EnvMap,
-  parcelVersion: string,
+  atlaspackVersion: string,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   shouldDisableCache: boolean,
   cacheDir: FilePath,

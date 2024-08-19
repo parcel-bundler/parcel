@@ -1,22 +1,18 @@
 {
-  "name": "@parcel/resolver-repl-runtimes",
+  "name": "@atlaspack/resolver-repl-runtimes",
   "version": "2.12.0",
   "license": "MIT",
   "private": true,
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "source": "src/REPLRuntimesResolver.js",
   "engines": {
-    "parcel": "^2.11.0"
+    "atlaspack": "^2.11.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.12.0",
+    "@atlaspack/plugin": "2.12.0",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {

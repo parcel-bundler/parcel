@@ -2,10 +2,10 @@
 
 import nullthrows from 'nullthrows';
 import {transform} from '@swc/core';
-import {Optimizer} from '@parcel/plugin';
-import {blobToString, stripAnsi} from '@parcel/utils';
+import {Optimizer} from '@atlaspack/plugin';
+import {blobToString, stripAnsi} from '@atlaspack/utils';
 import SourceMap from '@parcel/source-map';
-import ThrowableDiagnostic, {escapeMarkdown} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {escapeMarkdown} from '@atlaspack/diagnostic';
 import path from 'path';
 
 export default (new Optimizer({
@@ -72,7 +72,7 @@ export default (new Optimizer({
           throw new ThrowableDiagnostic({
             diagnostic: {
               message,
-              origin: '@parcel/optimizer-swc',
+              origin: '@atlaspack/optimizer-swc',
               codeFrames: [
                 {
                   language: 'js',
@@ -92,7 +92,7 @@ export default (new Optimizer({
         throw new ThrowableDiagnostic({
           diagnostic: {
             message,
-            origin: '@parcel/optimizer-swc',
+            origin: '@atlaspack/optimizer-swc',
             codeFrames: [
               {
                 language: 'js',

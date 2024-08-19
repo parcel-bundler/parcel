@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import assert from 'assert';
-import {Packager} from '@parcel/plugin';
+import {Packager} from '@atlaspack/plugin';
 
 export default (new Packager({
   async package({bundle, getSourceMapReference}) {

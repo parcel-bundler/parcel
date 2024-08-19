@@ -8,7 +8,7 @@ import {
   run,
   overlayFS,
   fsFixture,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('feature flags', () => {
   let dir = path.join(__dirname, 'feature-flags-fixture');
@@ -17,7 +17,7 @@ describe.v2('feature flags', () => {
     await overlayFS.mkdirp(dir);
     await fsFixture(overlayFS, dir)`
     yarn.lock:
-        // required for .parcelrc to work
+        // required for .atlaspackrc to work
 
     package.json:
         {
@@ -28,24 +28,24 @@ describe.v2('feature flags', () => {
     index.js:
         module.exports = "MARKER";
 
-    .parcelrc:
+    .atlaspackrc:
         {
-            extends: "@parcel/config-default",
+            extends: "@atlaspack/config-default",
             transformers: {
                 '*.js': ['./transformer.js', '...']
             },
         }
 
-    .parcelrc-2:
+    .atlaspackrc-2:
       {
-          extends: "@parcel/config-default",
+          extends: "@atlaspack/config-default",
           transformers: {
               '*.js': ['./transformer-client.js', '...']
           },
       }
 
     transformer.js:
-        const {Transformer} = require('@parcel/plugin');
+        const {Transformer} = require('@atlaspack/plugin');
         module.exports = new Transformer({
             async transform({asset, options}) {
                 const code = await asset.getCode();
@@ -57,8 +57,8 @@ describe.v2('feature flags', () => {
         });
 
     transformer-client.js:
-        const {Transformer} = require('@parcel/plugin');
-        const {getFeatureFlag} = require('@parcel/feature-flags');
+        const {Transformer} = require('@atlaspack/plugin');
+        const {getFeatureFlag} = require('@atlaspack/feature-flags');
         module.exports = new Transformer({
             async transform({asset, options}) {
                 const code = await asset.getCode();
@@ -133,7 +133,7 @@ describe.v2('feature flags', () => {
     const b = await bundle(path.join(dir, 'index.js'), {
       inputFS: overlayFS,
       featureFlags: {exampleFeature: true},
-      config: path.join(dir, '.parcelrc-2'),
+      config: path.join(dir, '.atlaspackrc-2'),
     });
     const output = await run(b);
 

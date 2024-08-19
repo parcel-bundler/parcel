@@ -1,12 +1,12 @@
 {
-  "name": "@parcel/types",
+  "name": "@atlaspack/types",
   "version": "2.12.0",
   "license": "MIT",
   "main": "src/index.js",
   "types": "lib/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "publishConfig": {
     "access": "public"
@@ -16,7 +16,7 @@
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {
-    "@parcel/types-internal": "2.12.0",
-    "@parcel/workers": "2.12.0"
+    "@atlaspack/types-internal": "2.12.0",
+    "@atlaspack/workers": "2.12.0"
   }
 }

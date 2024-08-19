@@ -1,7 +1,13 @@
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
-import {bundle, describe, it, run, normaliseNewlines} from '@parcel/test-utils';
+import {
+  bundle,
+  describe,
+  it,
+  run,
+  normaliseNewlines,
+} from '@atlaspack/test-utils';
 
 describe.v2('glsl', function () {
   it('should support requiring GLSL files via glslify', async function () {

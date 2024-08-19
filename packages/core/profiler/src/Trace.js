@@ -31,7 +31,7 @@ export default class Trace {
           frames: [
             {
               frame: '0xfff',
-              url: 'parcel',
+              url: 'atlaspack',
               name: '',
             },
           ],
@@ -84,7 +84,7 @@ export default class Trace {
       dur: cpuEndTime - cpuStartTime,
       args: {
         data: {
-          url: 'parcel',
+          url: 'atlaspack',
           lineNumber: 1,
           columnNumber: 1,
           frame: '0xFFF',

@@ -6,13 +6,13 @@ import type {
   PluginOptions,
   PluginTracer,
   PluginLogger,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import typeof * as BabelCore from '@babel/core';
 
 import invariant from 'assert';
 import path from 'path';
-import {md} from '@parcel/diagnostic';
-import {relativeUrl} from '@parcel/utils';
+import {md} from '@atlaspack/diagnostic';
+import {relativeUrl} from '@atlaspack/utils';
 import {remapAstLocations} from './remapAstLocations';
 
 import packageJson from '../package.json';
@@ -69,7 +69,7 @@ export default async function babel7(
       ],
     },
     caller: {
-      name: 'parcel',
+      name: 'atlaspack',
       version: transformerVersion,
       targets: JSON.stringify(babelOptions.targets),
       outputFormat: asset.env.outputFormat,
@@ -120,7 +120,7 @@ export default async function babel7(
           opts.logger.warn({
             message: md`Ignoring non-absolute Babel external dependency: ${f}`,
             hints: [
-              'Please report this to the corresponding Babel plugin and/or to Parcel.',
+              'Please report this to the corresponding Babel plugin and/or to Atlaspack.',
             ],
           });
         } else {

@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 
 export default (new Transformer({
   transform({asset}) {

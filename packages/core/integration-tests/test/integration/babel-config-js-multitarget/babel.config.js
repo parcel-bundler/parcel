@@ -1,3 +1,3 @@
 module.exports = {
-  "presets": ["@parcel/babel-preset-env"]
+  "presets": ["@atlaspack/babel-preset-env"]
 }

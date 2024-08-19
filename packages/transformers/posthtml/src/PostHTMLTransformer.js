@@ -1,6 +1,6 @@
 // @flow
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 
 import path from 'path';
 import posthtml from 'posthtml';
@@ -38,7 +38,7 @@ export default (new Transformer({
         // e.g. using unknown environment variables, reading from the filesystem, etc.
         logger.warn({
           message:
-            'WARNING: Using a JavaScript PostHTML config file means losing out on caching features of Parcel. Use a .posthtmlrc (JSON) file whenever possible.',
+            'WARNING: Using a JavaScript PostHTML config file means losing out on caching features of Atlaspack. Use a .posthtmlrc (JSON) file whenever possible.',
         });
       }
 

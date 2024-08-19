@@ -1,4 +1,4 @@
-const parcelBabelPreset = require('@parcel/babel-preset');
+const atlaspackBabelPreset = require('@atlaspack/babel-preset');
 const path = require('path');
 
 require('@babel/register')({
@@ -11,7 +11,7 @@ require('@babel/register')({
     path.resolve(__dirname, '../../core/integration-tests/test/integration'),
   ],
   only: [path.join(__dirname, '../../..')],
-  presets: [parcelBabelPreset],
+  presets: [atlaspackBabelPreset],
   plugins: [require('./babel-plugin-module-translate')],
 });
 

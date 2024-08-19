@@ -384,17 +384,17 @@ document.body.innerHTML = greeter(user);`,
       ]),
     },
   ],
-  //   parcelrc: [
+  //  .atlaspackrc: [
   //     {
   //       name: 'src/index.js',
   //       content: `const x = 1;\nconsole.log(x);`,
   //       isEntry: true,
   //     },
   //     {
-  //       name: '.parcelrc',
+  //       name: '.atlaspackrc',
   //       content: JSON.stringify(
   //         {
-  //           extends: '@parcel/config-repl',
+  //           extends: '@atlaspack/config-repl',
   //           optimizers: {
   //             '*.js': [],
   //           },

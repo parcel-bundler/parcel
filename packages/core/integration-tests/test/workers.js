@@ -10,9 +10,9 @@ import {
   removeDistDirectory,
   run,
   runBundle,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
-describe.v2('parcel', function () {
+describe.v2('atlaspack', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -482,7 +482,7 @@ describe.v2('parcel', function () {
         {
           message:
             'Web workers cannot have imports or exports without the `type: "module"` option.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(
@@ -583,7 +583,7 @@ describe.v2('parcel', function () {
           {
             message:
               'Argument to importScripts() must be a fully qualified URL.',
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             codeFrames: [
               {
                 filePath: path.join(
@@ -805,7 +805,7 @@ describe.v2('parcel', function () {
         {
           message:
             'Service workers cannot have imports or exports without the `type: "module"` option.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(
@@ -943,12 +943,12 @@ describe.v2('parcel', function () {
             },
           ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
         },
         {
           hints: ["Did you mean '__./index.js__'?"],
           message: "Cannot load file './invalid.js' in './'.",
-          origin: '@parcel/resolver-default',
+          origin: '@atlaspack/resolver-default',
         },
       ],
     });
@@ -969,7 +969,7 @@ describe.v2('parcel', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in service workers.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(
@@ -1115,7 +1115,7 @@ describe.v2('parcel', function () {
             },
           ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
         },
         {
           hints: [
@@ -1123,7 +1123,7 @@ describe.v2('parcel', function () {
             "Did you mean '__./index.js__'?",
           ],
           message: "Cannot load file './invalid.js' in './'.",
-          origin: '@parcel/resolver-default',
+          origin: '@atlaspack/resolver-default',
         },
       ],
     });

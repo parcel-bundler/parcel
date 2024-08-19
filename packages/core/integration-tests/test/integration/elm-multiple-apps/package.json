@@ -1,5 +1,5 @@
 {
-  "@parcel/transformer-elm": {
+  "@atlaspack/transformer-elm": {
     "extraSources": {
       "./src/Main.elm": [
         "./src/MainB.elm",

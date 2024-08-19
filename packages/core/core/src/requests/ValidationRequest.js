@@ -1,15 +1,15 @@
 // @flow strict-local
-import type {Async} from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
+import type {Async} from '@atlaspack/types';
+import type {SharedReference} from '@atlaspack/workers';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup} from '../types';
-import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {ConfigAndCachePath} from './AtlaspackConfigRequest';
 
 import nullthrows from 'nullthrows';
-import ParcelConfig from '../ParcelConfig';
+import AtlaspackConfig from '../AtlaspackConfig';
 import {report} from '../ReporterRunner';
 import Validation from '../Validation';
-import createParcelConfigRequest from './ParcelConfigRequest';
+import createAtlaspackConfigRequest from './AtlaspackConfigRequest';
 import {requestTypes} from '../RequestTracker';
 
 type ValidationRequest = {|
@@ -38,11 +38,11 @@ export default function createValidationRequest(
     run: async ({input: {assetRequests, optionsRef}, api, options, farm}) => {
       let {config: processedConfig, cachePath} = nullthrows(
         await api.runRequest<null, ConfigAndCachePath>(
-          createParcelConfigRequest(),
+          createAtlaspackConfigRequest(),
         ),
       );
 
-      let config = new ParcelConfig(processedConfig, options);
+      let config = new AtlaspackConfig(processedConfig, options);
       let trackedRequestsDesc = assetRequests.filter(request => {
         return config.getValidatorNames(request.filePath).length > 0;
       });

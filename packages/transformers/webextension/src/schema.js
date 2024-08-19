@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {SchemaEntity} from '@parcel/utils';
+import type {SchemaEntity} from '@atlaspack/utils';
 
 const validateVersion = (ver: string): ?string => {
   const parts = ver.split('.', 5);

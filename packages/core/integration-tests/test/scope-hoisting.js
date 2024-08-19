@@ -1,9 +1,9 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {normalizePath} from '@parcel/utils';
-import {createWorkerFarm} from '@parcel/core';
-import {md} from '@parcel/diagnostic';
+import {normalizePath} from '@atlaspack/utils';
+import {createWorkerFarm} from '@atlaspack/core';
+import {md} from '@atlaspack/diagnostic';
 import {
   assertBundles,
   bundle as _bundle,
@@ -14,19 +14,19 @@ import {
   findDependency,
   getNextBuild,
   it,
-  mergeParcelOptions,
+  mergeAtlaspackOptions,
   outputFS,
   overlayFS,
   run,
   runBundle,
   fsFixture,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 const bundle = (name, opts = {}) => {
   return _bundle(
     name,
     // $FlowFixMe
-    mergeParcelOptions(
+    mergeAtlaspackOptions(
       {
         defaultTargetOptions: {
           shouldScopeHoist: true,
@@ -41,7 +41,7 @@ const bundler = (name, opts = {}) => {
   return _bundler(
     name,
     // $FlowFixMe
-    mergeParcelOptions(
+    mergeAtlaspackOptions(
       {
         defaultTargetOptions: {
           shouldScopeHoist: true,
@@ -548,7 +548,9 @@ describe.v2('scope hoisting', function () {
         [
           ...contents.matchAll(
             new RegExp(
-              'parcelRequires*\\(s*"' + b.getAssetPublicId(assetB) + '"s*\\)',
+              'atlaspackRequires*\\(s*"' +
+                b.getAssetPublicId(assetB) +
+                '"s*\\)',
               'g',
             ),
           ),
@@ -657,7 +659,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message,
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: path.join(__dirname, source),
@@ -697,7 +699,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message,
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: path.join(
@@ -737,7 +739,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message,
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: path.join(__dirname, entry),
@@ -1058,7 +1060,7 @@ describe.v2('scope hoisting', function () {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('$parcel$interopDefault'));
+      assert(dist.includes('$atlaspack$interopDefault'));
 
       let output = await run(b);
       assert.deepEqual(output, 'foobar:foo:bar');
@@ -1168,7 +1170,7 @@ describe.v2('scope hoisting', function () {
         'utf8',
       );
       assert.strictEqual(
-        contents.match(/parcelRegister\(/g).length,
+        contents.match(/atlaspackRegister\(/g).length,
         2 /* once for parent asset, once for child wrapped asset */,
       );
 
@@ -1383,7 +1385,7 @@ describe.v2('scope hoisting', function () {
         b.getBundles()[0].filePath,
         'utf8',
       );
-      assert(!contents.includes('$parcel$exportWildcard'));
+      assert(!contents.includes('$atlaspack$exportWildcard'));
 
       let output = await run(b);
       assert.deepEqual(output, 1);
@@ -1868,7 +1870,7 @@ describe.v2('scope hoisting', function () {
             diagnostics: [
               {
                 message,
-                origin: '@parcel/core',
+                origin: '@atlaspack/core',
                 codeFrames: [
                   {
                     filePath: source,
@@ -1915,7 +1917,7 @@ describe.v2('scope hoisting', function () {
             diagnostics: [
               {
                 message,
-                origin: '@parcel/core',
+                origin: '@atlaspack/core',
                 codeFrames: [
                   {
                     filePath: source,
@@ -1963,7 +1965,7 @@ describe.v2('scope hoisting', function () {
             diagnostics: [
               {
                 message,
-                origin: '@parcel/core',
+                origin: '@atlaspack/core',
                 codeFrames: [
                   {
                     filePath: source,
@@ -2011,7 +2013,7 @@ describe.v2('scope hoisting', function () {
             diagnostics: [
               {
                 message,
-                origin: '@parcel/core',
+                origin: '@atlaspack/core',
                 codeFrames: [
                   {
                     filePath: source,
@@ -2059,7 +2061,7 @@ describe.v2('scope hoisting', function () {
             diagnostics: [
               {
                 message,
-                origin: '@parcel/core',
+                origin: '@atlaspack/core',
                 codeFrames: [
                   {
                     filePath: source,
@@ -2616,7 +2618,7 @@ describe.v2('scope hoisting', function () {
           assert.deepEqual(bundleEvent.diagnostics, [
             {
               message,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   filePath: path.join(testDir, 'a.js'),
@@ -3194,7 +3196,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             codeFrames: [
               {
                 filePath: source,
@@ -3242,7 +3244,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             codeFrames: [
               {
                 filePath: source,
@@ -3290,7 +3292,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             codeFrames: [
               {
                 filePath: source,
@@ -3338,7 +3340,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             codeFrames: [
               {
                 filePath: source,
@@ -3386,7 +3388,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             codeFrames: [
               {
                 filePath: source,
@@ -3480,7 +3482,7 @@ describe.v2('scope hoisting', function () {
       assert.equal(test({foo: 2}), 2);
     });
 
-    it('should not include default when reexporting * without $parcel$exportWildcard', async () => {
+    it('should not include default when reexporting * without $atlaspack$exportWildcard', async () => {
       let b = await bundle(
         path.join(
           __dirname,
@@ -3491,7 +3493,7 @@ describe.v2('scope hoisting', function () {
       assert.equal(await run(b), 42);
     });
 
-    it('should not include __esModule when reexporting * without $parcel$exportWildcard', async () => {
+    it('should not include __esModule when reexporting * without $atlaspack$exportWildcard', async () => {
       let b = await bundle(
         path.join(
           __dirname,
@@ -4031,7 +4033,7 @@ describe.v2('scope hoisting', function () {
       assert.equal(output.foo, 'b');
     });
 
-    it("doesn't insert parcelRequire for missing non-js assets", async function () {
+    it("doesn't insert atlaspackRequire for missing non-js assets", async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -4356,7 +4358,7 @@ describe.v2('scope hoisting', function () {
         diagnostics: [
           {
             message,
-            origin: '@parcel/packager-js',
+            origin: '@atlaspack/packager-js',
             codeFrames: [
               {
                 filePath: source,
@@ -5437,7 +5439,7 @@ describe.v2('scope hoisting', function () {
       .getBundles()
       .sort((a, b) => b.stats.size - a.stats.size)[0];
     let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-    assert(contents.includes(`if (parcelRequire == null) {`));
+    assert(contents.includes(`if (atlaspackRequire == null) {`));
   });
 
   it.skip('does not include prelude if child bundles are isolated', async function () {
@@ -5448,7 +5450,7 @@ describe.v2('scope hoisting', function () {
     let mainBundle = b.getBundles().find(b => b.name === 'index.js');
     let contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
     // We wrap for other reasons now, so this is broken
-    assert(!contents.includes(`if (parcelRequire == null) {`));
+    assert(!contents.includes(`if (atlaspackRequire == null) {`));
   });
 
   it('should include prelude in shared worker bundles', async function () {
@@ -5467,7 +5469,7 @@ describe.v2('scope hoisting', function () {
       .sort((a, b) => b.stats.size - a.stats.size)
       .find(b => b.name !== 'index.js');
     let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-    assert(contents.includes(`if (parcelRequire == null) {`));
+    assert(contents.includes(`if (atlaspackRequire == null) {`));
 
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
@@ -6069,10 +6071,10 @@ describe.v2('scope hoisting', function () {
 
         package.json:
           {
-              "@parcel/bundler-default": {
+              "@atlaspack/bundler-default": {
                   "minBundleSize": 0
               },
-              "@parcel/packager-js": {
+              "@atlaspack/packager-js": {
                   "unstable_asyncBundleRuntime": true
               }
           }
@@ -6098,7 +6100,7 @@ describe.v2('scope hoisting', function () {
       b.getBundles().find(b => /index.*\.js/.test(b.filePath)).filePath,
       'utf8',
     );
-    assert(contents.includes('$parcel$global.rwr('));
+    assert(contents.includes('$atlaspack$global.rwr('));
 
     let result;
     await run(b, {
@@ -6123,7 +6125,7 @@ describe.v2('scope hoisting', function () {
 
         package.json:
           {
-              "@parcel/bundler-default": {
+              "@atlaspack/bundler-default": {
                   "minBundleSize": 0,
                   "manualSharedBundles": [{
                     "name": "shared",
@@ -6131,7 +6133,7 @@ describe.v2('scope hoisting', function () {
                     "assets": ["shared.js"]
                   }]
               },
-              "@parcel/packager-js": {
+              "@atlaspack/packager-js": {
                   "unstable_asyncBundleRuntime": true
               }
           }
@@ -6176,12 +6178,12 @@ describe.v2('scope hoisting', function () {
     );
 
     assert(
-      sharedBundleContents.includes('$parcel$global.rlb('),
+      sharedBundleContents.includes('$atlaspack$global.rlb('),
       'Shared bundle should include register loaded bundle runtime',
     );
 
     assert(
-      entryContents.includes('$parcel$global.rwr('),
+      entryContents.includes('$atlaspack$global.rwr('),
       'Entry should include run when ready runtime',
     );
 
@@ -6202,7 +6204,7 @@ describe.v2('scope hoisting', function () {
           // Just a comment
         package.json:
           {
-             "@parcel/packager-js": {
+             "@atlaspack/packager-js": {
                   "unstable_asyncBundleRuntime": true
               }
           }
@@ -6228,7 +6230,7 @@ describe.v2('scope hoisting', function () {
     );
 
     assert(
-      !contents.includes('$parcel$global.rlb('),
+      !contents.includes('$atlaspack$global.rlb('),
       "Empty bundle should not include 'runLoadedBundle' code",
     );
 

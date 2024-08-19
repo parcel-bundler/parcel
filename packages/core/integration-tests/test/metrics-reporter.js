@@ -2,32 +2,32 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundler, describe, it, outputFS} from '@parcel/test-utils';
+import {bundler, describe, it, outputFS} from '@atlaspack/test-utils';
 
 const config = path.join(
   __dirname,
-  './integration/custom-configs/.parcelrc-build-metrics',
+  './integration/custom-configs/.atlaspackrc-build-metrics',
 );
 
 describe.v2('Build Metrics Reporter', () => {
-  it('Should dump bundle metrics to parcel-metrics.json', async () => {
+  it('Should dump bundle metrics to atlaspack-metrics.json', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       logLevel: 'info',
     });
     await b.run();
 
-    let projectRoot: string = b._getResolvedParcelOptions().projectRoot;
+    let projectRoot: string = b._getResolvedAtlaspackOptions().projectRoot;
     let dirContent = await outputFS.readdir(projectRoot);
 
     assert(
-      dirContent.includes('parcel-metrics.json'),
-      'Should create a parcel-metrics.json file',
+      dirContent.includes('atlaspack-metrics.json'),
+      'Should create a atlaspack-metrics.json file',
     );
 
     let metrics = JSON.parse(
       await outputFS.readFile(
-        path.join(projectRoot, 'parcel-metrics.json'),
+        path.join(projectRoot, 'atlaspack-metrics.json'),
         'utf8',
       ),
     );

@@ -1,15 +1,15 @@
 // @flow strict-local
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
-import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
+import type {DiagnosticCodeFrame} from '@atlaspack/diagnostic';
 import type {CompilerOptions} from 'typescript';
 
 import ts from 'typescript';
-import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
-import {normalizeSeparators} from '@parcel/utils';
-import ThrowableDiagnostic, {escapeMarkdown} from '@parcel/diagnostic';
+import {CompilerHost, loadTSConfig} from '@atlaspack/ts-utils';
+import {normalizeSeparators} from '@atlaspack/utils';
+import ThrowableDiagnostic, {escapeMarkdown} from '@atlaspack/diagnostic';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
 import {collect} from './collect';
@@ -93,7 +93,7 @@ export default (new Transformer({
       }
     }
 
-    let parcelDiagnostics = deduplicatedDiagnostics.map(diagnostic => {
+    let atlaspackDiagnostics = deduplicatedDiagnostics.map(diagnostic => {
       let filename = asset.filePath;
       let {file} = diagnostic;
 
@@ -156,9 +156,9 @@ export default (new Transformer({
     });
 
     if (host.outputCode == null) {
-      throw new ThrowableDiagnostic({diagnostic: parcelDiagnostics});
+      throw new ThrowableDiagnostic({diagnostic: atlaspackDiagnostics});
     } else {
-      for (let d of parcelDiagnostics) {
+      for (let d of atlaspackDiagnostics) {
         logger.warn(d);
       }
     }

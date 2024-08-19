@@ -6,8 +6,8 @@ import type {
   MutableDependencySymbols as IMutableDependencySymbols,
   SourceLocation,
   Meta,
-} from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions} from '../types';
+} from '@atlaspack/types';
+import type {Asset, Dependency, AtlaspackOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import {fromInternalSourceLocation, toInternalSourceLocation} from '../utils';
@@ -32,9 +32,9 @@ export class AssetSymbols implements IAssetSymbols {
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Asset;
-  #options: ParcelOptions;
+  #options: AtlaspackOptions;
 
-  constructor(options: ParcelOptions, asset: Asset): AssetSymbols {
+  constructor(options: AtlaspackOptions, asset: Asset): AssetSymbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
       return existing;
@@ -102,9 +102,9 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Asset;
-  #options: ParcelOptions;
+  #options: AtlaspackOptions;
 
-  constructor(options: ParcelOptions, asset: Asset): MutableAssetSymbols {
+  constructor(options: AtlaspackOptions, asset: Asset): MutableAssetSymbols {
     let existing = valueToMutableAssetSymbols.get(asset);
     if (existing != null) {
       return existing;
@@ -200,10 +200,10 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Dependency;
-  #options: ParcelOptions;
+  #options: AtlaspackOptions;
 
   constructor(
-    options: ParcelOptions,
+    options: AtlaspackOptions,
     dep: Dependency,
   ): MutableDependencySymbols {
     let existing = valueToMutableDependencySymbols.get(dep);

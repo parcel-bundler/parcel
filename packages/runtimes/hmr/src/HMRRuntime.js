@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import {Runtime} from '@parcel/plugin';
+import {Runtime} from '@atlaspack/plugin';
 import fs from 'fs';
 import path from 'path';
 
@@ -9,7 +9,7 @@ import path from 'path';
 // user's package.json, and hmr-runtime.js is transpiled as a JSX asset.
 const FILENAME =
   // $FlowFixMe
-  process.env.PARCEL_BUILD_REPL && process.browser
+  process.env.ATLASPACK_BUILD_REPL && process.browser
     ? '/' + __filename
     : __filename;
 
@@ -51,7 +51,9 @@ export default (new Runtime({
         `var HMR_ENV_HASH = "${bundle.env.id}";` +
         `var HMR_USE_SSE = ${
           // $FlowFixMe
-          JSON.stringify(!!(process.env.PARCEL_BUILD_REPL && process.browser))
+          JSON.stringify(
+            !!(process.env.ATLASPACK_BUILD_REPL && process.browser),
+          )
         };` +
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,

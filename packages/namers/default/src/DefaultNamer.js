@@ -1,12 +1,12 @@
 // @flow strict-local
 
-import type {Bundle, FilePath} from '@parcel/types';
+import type {Bundle, FilePath} from '@atlaspack/types';
 
-import {Namer} from '@parcel/plugin';
+import {Namer} from '@atlaspack/plugin';
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
   md,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';

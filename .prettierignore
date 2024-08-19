@@ -5,12 +5,12 @@ packages/*/*/test/input
 packages/*/*/test/dist
 packages/*/*/test/mochareporters.json
 packages/*/*/test/fixtures
-packages/*/*/test/.parcel-cache
+packages/*/*/test/.atlaspack-cache
 vendor
 tmp
-.parcel-cache
+.atlaspack-cache
 
 # Ignoring main README for now because generated Table of Contents adds a line that prettier removes
 # in precommit hook, causing `yarn lint:readme` to fail
 /README.md
-/packages/core/parcel/README.md
+/packages/core/atlaspack/README.md

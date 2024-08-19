@@ -3,30 +3,30 @@
 import invariant, {AssertionError} from 'assert';
 import path from 'path';
 
-import type {Cache} from '@parcel/cache';
-import {ContentGraph} from '@parcel/graph';
+import type {Cache} from '@atlaspack/cache';
+import {ContentGraph} from '@atlaspack/graph';
 import type {
   ContentGraphOpts,
   ContentKey,
   NodeId,
   SerializedContentGraph,
-} from '@parcel/graph';
-import logger from '@parcel/logger';
-import {hashString} from '@parcel/rust';
-import type {Async, EnvMap} from '@parcel/types';
+} from '@atlaspack/graph';
+import logger from '@atlaspack/logger';
+import {hashString} from '@atlaspack/rust';
+import type {Async, EnvMap} from '@atlaspack/types';
 import {
   type Deferred,
   isGlobMatch,
   isDirectoryInside,
   makeDeferredWithPromise,
   PromiseQueue,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import type {Options as WatcherOptions, Event} from '@parcel/watcher';
-import type WorkerFarm from '@parcel/workers';
+import type WorkerFarm from '@atlaspack/workers';
 import nullthrows from 'nullthrows';
 
 import {
-  PARCEL_VERSION,
+  ATLASPACK_VERSION,
   VALID,
   INITIAL_BUILD,
   FILE_CREATE,
@@ -37,7 +37,7 @@ import {
   STARTUP,
   ERROR,
 } from './constants';
-import type {ParcelV3} from './parcel-v3/ParcelV3';
+import type {AtlaspackV3} from './atlaspack-v3/AtlaspackV3';
 import {
   type ProjectPath,
   fromProjectPathRelative,
@@ -54,14 +54,14 @@ import type {WriteBundlesRequestResult} from './requests/WriteBundlesRequest';
 import type {WriteBundleRequestResult} from './requests/WriteBundleRequest';
 import type {TargetRequestResult} from './requests/TargetRequest';
 import type {PathRequestResult} from './requests/PathRequest';
-import type {ParcelConfigRequestResult} from './requests/ParcelConfigRequest';
-import type {ParcelBuildRequestResult} from './requests/ParcelBuildRequest';
+import type {AtlaspackConfigRequestResult} from './requests/AtlaspackConfigRequest';
+import type {AtlaspackBuildRequestResult} from './requests/AtlaspackBuildRequest';
 import type {EntryRequestResult} from './requests/EntryRequest';
 import type {BundleGraphResult} from './requests/BundleGraphRequest';
 import {deserialize, serialize} from './serializer';
 import type {
   AssetRequestResult,
-  ParcelOptions,
+  AtlaspackOptions,
   RequestInvalidation,
   InternalFileCreateInvalidation,
   InternalGlob,
@@ -161,8 +161,8 @@ export type RequestResult =
   | WriteBundleRequestResult
   | TargetRequestResult
   | PathRequestResult
-  | ParcelConfigRequestResult
-  | ParcelBuildRequestResult
+  | AtlaspackConfigRequestResult
+  | AtlaspackBuildRequestResult
   | EntryRequestResult
   | BundleGraphResult
   | AssetRequestResult;
@@ -179,12 +179,12 @@ type RequestNode = {|
 |};
 
 export const requestTypes = {
-  parcel_build_request: 1,
+  atlaspack_build_request: 1,
   bundle_graph_request: 2,
   asset_graph_request: 3,
   entry_request: 4,
   target_request: 5,
-  parcel_config_request: 6,
+  atlaspack_config_request: 6,
   path_request: 7,
   dev_dep_request: 8,
   asset_request: 9,
@@ -241,8 +241,8 @@ export type StaticRunOpts<TResult> = {|
   api: RunAPI<TResult>,
   farm: WorkerFarm,
   invalidateReason: InvalidateReason,
-  options: ParcelOptions,
-  rustParcel: ?ParcelV3,
+  options: AtlaspackOptions,
+  rustAtlaspack: ?AtlaspackV3,
 |};
 
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
@@ -310,7 +310,7 @@ export class RequestGraph extends ContentGraph<
   envNodeIds: Set<NodeId> = new Set();
   optionNodeIds: Set<NodeId> = new Set();
   // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
-  // filesystem changes alone. They should rerun on each startup of Parcel.
+  // filesystem changes alone. They should rerun on each startup of Atlaspack.
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
   cachedRequestChunks: Set<number> = new Set();
@@ -476,7 +476,7 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidateOptionNodes(options: ParcelOptions) {
+  invalidateOptionNodes(options: AtlaspackOptions) {
     for (let nodeId of this.optionNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === OPTION);
@@ -871,7 +871,7 @@ export class RequestGraph extends ContentGraph<
 
   async respondToFSEvents(
     events: Array<Event>,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
     threshold: number,
   ): Async<boolean> {
     let didInvalidate = false;
@@ -885,7 +885,7 @@ export class RequestGraph extends ContentGraph<
         predictedTime = duration * (events.length >> 8);
         if (predictedTime > threshold) {
           logger.warn({
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             message:
               'Building with clean cache. Cache invalidation took too long.',
             meta: {
@@ -909,7 +909,7 @@ export class RequestGraph extends ContentGraph<
       // re-run all requests.
       if (type === 'create' && filePath === '') {
         logger.verbose({
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           message:
             'Watcher reported project root create event. Invalidate all nodes.',
           meta: {
@@ -1044,7 +1044,7 @@ export class RequestGraph extends ContentGraph<
 
     let duration = Date.now() - startTime;
     logger.verbose({
-      origin: '@parcel/core',
+      origin: '@atlaspack/core',
       message: `RequestGraph.respondToFSEvents duration: ${duration}`,
       meta: {
         trackableEvent: 'fsevent_response_time',
@@ -1072,8 +1072,8 @@ export class RequestGraph extends ContentGraph<
 export default class RequestTracker {
   graph: RequestGraph;
   farm: WorkerFarm;
-  options: ParcelOptions;
-  rustParcel: ?ParcelV3;
+  options: AtlaspackOptions;
+  rustAtlaspack: ?AtlaspackV3;
   signal: ?AbortSignal;
   stats: Map<RequestType, number> = new Map();
 
@@ -1081,17 +1081,17 @@ export default class RequestTracker {
     graph,
     farm,
     options,
-    rustParcel,
+    rustAtlaspack,
   }: {|
     graph?: RequestGraph,
     farm: WorkerFarm,
-    options: ParcelOptions,
-    rustParcel?: ParcelV3,
+    options: AtlaspackOptions,
+    rustAtlaspack?: AtlaspackV3,
   |}) {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
-    this.rustParcel = rustParcel;
+    this.rustAtlaspack = rustAtlaspack;
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1267,7 +1267,7 @@ export default class RequestTracker {
         farm: this.farm,
         invalidateReason: node.invalidateReason,
         options: this.options,
-        rustParcel: this.rustParcel,
+        rustAtlaspack: this.rustAtlaspack,
       });
 
       assertSignalNotAborted(this.signal);
@@ -1281,7 +1281,7 @@ export default class RequestTracker {
         request.type === requestTypes.dev_dep_request
       ) {
         logger.verbose({
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           message: `Failed DevDepRequest`,
           meta: {
             trackableEvent: 'failed_dev_dep_request',
@@ -1526,14 +1526,14 @@ export default class RequestTracker {
   static async init({
     farm,
     options,
-    rustParcel,
+    rustAtlaspack,
   }: {|
     farm: WorkerFarm,
-    options: ParcelOptions,
-    rustParcel?: ParcelV3,
+    options: AtlaspackOptions,
+    rustAtlaspack?: AtlaspackV3,
   |}): Async<RequestTracker> {
     let graph = await loadRequestGraph(options);
-    return new RequestTracker({farm, graph, options, rustParcel});
+    return new RequestTracker({farm, graph, options, rustAtlaspack});
   }
 }
 
@@ -1542,7 +1542,7 @@ export function getWatcherOptions({
   cacheDir,
   watchDir,
   watchBackend,
-}: ParcelOptions): WatcherOptions {
+}: AtlaspackOptions): WatcherOptions {
   const vcsDirs = ['.git', '.hg'];
   const uniqueDirs = [...new Set([...watchIgnore, ...vcsDirs, cacheDir])];
   const ignore = uniqueDirs.map(dir => path.resolve(watchDir, dir));
@@ -1552,7 +1552,7 @@ export function getWatcherOptions({
 
 function getCacheKey(options) {
   return hashString(
-    `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
+    `${ATLASPACK_VERSION}:${JSON.stringify(options.entries)}:${options.mode}:${
       options.shouldBuildLazily ? 'lazy' : 'eager'
     }:${options.watchBackend ?? ''}`,
   );
@@ -1593,7 +1593,7 @@ export async function readAndDeserializeRequestGraph(
       ...serializedRequestGraph,
       nodes: (await Promise.all(nodePromises)).flat(),
     }),
-    // This is used inside parcel query for `.inspectCache`
+    // This is used inside atlaspack query for `.inspectCache`
     bufferLength,
   };
 }
@@ -1620,7 +1620,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
 
       timeout = setTimeout(() => {
         logger.warn({
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           message: `Retrieving file system events since last build...\nThis can take upto a minute after branch changes or npm/yarn installs.`,
         });
       }, 5000);
@@ -1633,7 +1633,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       clearTimeout(timeout);
 
       logger.verbose({
-        origin: '@parcel/core',
+        origin: '@atlaspack/core',
         message: `File system event count: ${events.length}`,
         meta: {
           trackableEvent: 'watcher_events_count',
@@ -1666,7 +1666,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   return new RequestGraph();
 }
 function logErrorOnBailout(
-  options: ParcelOptions,
+  options: AtlaspackOptions,
   snapshotPath: string,
   e: Error,
 ): void {
@@ -1676,7 +1676,7 @@ function logErrorOnBailout(
       'utf-8',
     );
     logger.warn({
-      origin: '@parcel/core',
+      origin: '@atlaspack/core',
       message: `Error reading clockspec from snapshot, building with clean cache.`,
       meta: {
         snapshotContents: snapshotContents,
@@ -1685,7 +1685,7 @@ function logErrorOnBailout(
     });
   } else if (!(e instanceof FSBailoutError)) {
     logger.warn({
-      origin: '@parcel/core',
+      origin: '@atlaspack/core',
       message: `Unexpected error loading cache from disk, building with clean cache.`,
       meta: {
         errorMessage: e.message,

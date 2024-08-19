@@ -1,11 +1,11 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, it} from '@parcel/test-utils';
+import {bundle, describe, it} from '@atlaspack/test-utils';
 
 const config = path.join(
   __dirname,
-  './integration/custom-configs/.parcelrc-eslint',
+  './integration/custom-configs/.atlaspackrc-eslint',
 );
 
 describe.v2('eslint-validator', function () {
@@ -20,7 +20,7 @@ describe.v2('eslint-validator', function () {
       assert.equal(e.name, 'BuildError');
       assert(Array.isArray(e.diagnostics));
       assert(e.diagnostics[0].codeFrames);
-      assert.equal(e.diagnostics[0].origin, '@parcel/validator-eslint');
+      assert.equal(e.diagnostics[0].origin, '@atlaspack/validator-eslint');
       assert.equal(
         e.diagnostics[0].message,
         'ESLint found **1** __errors__ and **1** __warnings__.',
@@ -60,7 +60,7 @@ describe.v2('eslint-validator', function () {
     } catch (e) {
       assert.equal(e.name, 'BuildError');
       assert(Array.isArray(e.diagnostics));
-      assert.equal(e.diagnostics[0].origin, '@parcel/validator-eslint');
+      assert.equal(e.diagnostics[0].origin, '@atlaspack/validator-eslint');
       assert.equal(
         e.diagnostics[0].message,
         'ESLint found **1** __errors__ and **0** __warnings__.',

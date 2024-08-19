@@ -1,0 +1,6 @@
+{
+  "extends": "@atlaspack/config-default",
+  "validators": {
+    "*.{js,jsx,ts,tsx}": ["@atlaspack/validator-eslint"]
+  }
+}

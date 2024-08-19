@@ -1,5 +1,5 @@
 {
-  "name": "parcel-test-global-redeclare",
+  "name": "atlaspack-test-global-redeclare",
   "private": true,
   "browserslist": ["last 2 Chrome versions"]
 }

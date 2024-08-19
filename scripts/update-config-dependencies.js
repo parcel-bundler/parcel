@@ -14,14 +14,14 @@ let configs = fs.readdirSync(configsDir);
 for (let config of configs) {
   let configPkgPath = path.join(configsDir, config, 'package.json');
   let pkg = JSON.parse(fs.readFileSync(configPkgPath, 'utf8'));
-  if (pkg.parcelDependencies) {
-    for (let dep in pkg.parcelDependencies) {
+  if (pkg.atlaspackDependencies) {
+    for (let dep in pkg.atlaspackDependencies) {
       let version = packageVersions.get(dep);
       if (!version) {
-        throw new Error(`Unknown parcel dependency ${dep}`);
+        throw new Error(`Unknown atlaspack dependency ${dep}`);
       }
 
-      pkg.parcelDependencies[dep] = version;
+      pkg.atlaspackDependencies[dep] = version;
     }
 
     fs.writeFileSync(configPkgPath, JSON.stringify(pkg, null, 2) + '\n');

@@ -3,7 +3,7 @@
 // $FlowFixMe
 import {version} from '../package.json';
 
-export const PARCEL_VERSION = version;
+export const ATLASPACK_VERSION = version;
 export const HASH_REF_PREFIX = 'HASH_REF_';
 export const HASH_REF_HASH_LEN = 16;
 export const HASH_REF_REGEX: RegExp = new RegExp(

@@ -1,7 +1,7 @@
 {
   "name": "shared-many",
   "private": true,
-  "@parcel/bundler-default": {
+  "@atlaspack/bundler-default": {
     "http": 1
   }
 }

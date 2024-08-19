@@ -6,7 +6,7 @@ import type {
   Encoding,
   FileOptions,
   FileSystem,
-} from '@parcel/types-internal';
+} from '@atlaspack/types-internal';
 import type {
   Event,
   Options as WatcherOptions,
@@ -19,13 +19,13 @@ import ncp from 'ncp';
 import path from 'path';
 import {tmpdir} from 'os';
 import {promisify} from 'util';
-import {registerSerializableClass} from '@parcel/core';
-import {hashFile} from '@parcel/utils';
-import {getFeatureFlag} from '@parcel/feature-flags';
+import {registerSerializableClass} from '@atlaspack/core';
+import {hashFile} from '@atlaspack/utils';
+import {getFeatureFlag} from '@atlaspack/feature-flags';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
-import * as searchNative from '@parcel/rust';
+import * as searchNative from '@atlaspack/rust';
 import * as searchJS from './find';
 
 // Most of this can go away once we only support Node 10+, which includes
@@ -37,8 +37,8 @@ const realpath = promisify(
 const isPnP = process.versions.pnp != null;
 
 function getWatchmanWatcher(): typeof watcher {
-  // This is here to trick parcel into ignoring this require...
-  const packageName = ['@parcel', 'watcher-watchman-js'].join('/');
+  // This is here to trick atlaspack into ignoring this require...
+  const packageName = ['@atlaspack', 'watcher-watchman-js'].join('/');
 
   // $FlowFixMe
   return require(packageName);

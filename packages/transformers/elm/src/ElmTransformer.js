@@ -1,10 +1,10 @@
 // @flow strict-local
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import spawn from 'cross-spawn';
 import path from 'path';
 import {minify} from 'terser';
-import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {md} from '@atlaspack/diagnostic';
 // $FlowFixMe
 import elm from 'node-elm-compiler';
 // $FlowFixMe
@@ -31,11 +31,12 @@ export default (new Transformer({
       spawn,
       cwd: path.dirname(asset.filePath),
       // $FlowFixMe[sketchy-null-string]
-      debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
+      debug:
+        !options.env.ATLASPACK_ELM_NO_DEBUG && options.mode !== 'production',
       optimize: asset.env.shouldOptimize,
       report: 'json',
     };
-    asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
+    asset.invalidateOnEnvChange('ATLASPACK_ELM_NO_DEBUG');
 
     const extraSources = resolveExtraSources({asset, logger});
 
@@ -65,7 +66,7 @@ export default (new Transformer({
       if (compilerDiagnostics.type === 'compile-errors') {
         throw new ThrowableDiagnostic({
           diagnostic: compilerDiagnostics.errors.flatMap(
-            elmCompileErrorToParcelDiagnostics,
+            elmCompileErrorToAtlaspackDiagnostics,
           ),
         });
       }
@@ -161,7 +162,7 @@ function formatMessagePiece(piece) {
   return md`${piece}`;
 }
 
-function elmCompileErrorToParcelDiagnostics(error) {
+function elmCompileErrorToAtlaspackDiagnostics(error) {
   const relativePath = path.relative(process.cwd(), error.path);
   return error.problems.map(problem => formatElmError(problem, relativePath));
 }
@@ -181,7 +182,7 @@ function formatElmError(problem, relativePath) {
 
   return {
     message,
-    origin: '@parcel/elm-transformer',
+    origin: '@atlaspack/elm-transformer',
     stack: '', // set stack to empty since it is not useful
   };
 }

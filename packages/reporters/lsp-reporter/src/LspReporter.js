@@ -1,18 +1,18 @@
 // @flow strict-local
 
-import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
-import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
+import type {Diagnostic as AtlaspackDiagnostic} from '@atlaspack/diagnostic';
+import type {BundleGraph, FilePath, PackagedBundle} from '@atlaspack/types';
 import type {Program, Query} from 'ps-node';
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
-import type {ParcelSeverity} from './utils';
+import type {AtlaspackSeverity} from './utils';
 
 import {
   DefaultMap,
   getProgressMessage,
   makeDeferredWithPromise,
-} from '@parcel/utils';
-import {Reporter} from '@parcel/plugin';
+} from '@atlaspack/utils';
+import {Reporter} from '@atlaspack/plugin';
 import path from 'path';
 import os from 'os';
 import url from 'url';
@@ -28,13 +28,13 @@ import {
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
   RequestImporters,
-} from '@parcel/lsp-protocol';
+} from '@atlaspack/lsp-protocol';
 
 import {
   DiagnosticSeverity,
   DiagnosticTag,
   normalizeFilePath,
-  parcelSeverityToLspSeverity,
+  atlaspackSeverityToLspSeverity,
 } from './utils';
 import type {FSWatcher} from 'fs';
 
@@ -48,9 +48,9 @@ const ignoreFail = func => {
   }
 };
 
-const BASEDIR = fs.realpathSync(path.join(os.tmpdir(), 'parcel-lsp'));
-const SOCKET_FILE = path.join(BASEDIR, `parcel-${process.pid}`);
-const META_FILE = path.join(BASEDIR, `parcel-${process.pid}.json`);
+const BASEDIR = fs.realpathSync(path.join(os.tmpdir(), 'atlaspack-lsp'));
+const SOCKET_FILE = path.join(BASEDIR, `atlaspack-${process.pid}`);
+const META_FILE = path.join(BASEDIR, `atlaspack-${process.pid}.json`);
 
 let workspaceDiagnostics: DefaultMap<
   string,
@@ -108,7 +108,7 @@ async function doWatchStart(options) {
   // by a process that quit unexpectedly.
   for (let filename of fs.readdirSync(BASEDIR)) {
     if (filename.endsWith('.json')) continue;
-    let pid = parseInt(filename.slice('parcel-'.length), 10);
+    let pid = parseInt(filename.slice('atlaspack-'.length), 10);
     let resultList = await lookupPid({pid});
     if (resultList.length > 0) continue;
     fs.unlinkSync(path.join(BASEDIR, filename));
@@ -241,11 +241,11 @@ function sendDiagnostics() {
 }
 
 function updateDiagnostics(
-  parcelDiagnostics: Array<ParcelDiagnostic>,
-  parcelSeverity: ParcelSeverity,
+  atlaspackDiagnostics: Array<AtlaspackDiagnostic>,
+  atlaspackSeverity: AtlaspackSeverity,
   projectRoot: FilePath,
 ): void {
-  for (let diagnostic of parcelDiagnostics) {
+  for (let diagnostic of atlaspackDiagnostics) {
     const codeFrames = diagnostic.codeFrames;
     if (codeFrames == null) {
       continue;
@@ -258,7 +258,7 @@ function updateDiagnostics(
     }
 
     // We use the first highlight of the first codeFrame as the main Diagnostic,
-    // and we place everything else in the current Parcel diagnostic
+    // and we place everything else in the current Atlaspack diagnostic
     // in relatedInformation
     // https://code.visualstudio.com/api/references/vscode-api#DiagnosticRelatedInformation
     const firstFrameHighlight = codeFrames[0].codeHighlights[0];
@@ -307,7 +307,7 @@ function updateDiagnostics(
           },
         },
         source: diagnostic.origin,
-        severity: parcelSeverityToLspSeverity(parcelSeverity),
+        severity: atlaspackSeverityToLspSeverity(atlaspackSeverity),
         message:
           diagnostic.message +
           (firstFrameHighlight.message == null
@@ -344,7 +344,7 @@ function getDiagnosticsUnusedExports(
           character: loc.end.column,
         },
       },
-      source: '@parcel/core',
+      source: '@atlaspack/core',
       severity: DiagnosticSeverity.Hint,
       message: `Unused ${type}.`,
       tags: [DiagnosticTag.Unnecessary],
@@ -371,7 +371,7 @@ function getDiagnosticsUnusedExports(
       //         character: 1,
       //       },
       //     },
-      //     source: '@parcel/core',
+      //     source: '@atlaspack/core',
       //     severity: DiagnosticSeverity.Warning,
       //     message: `Asset has no used exports, but is not marked as sideEffect-free so it cannot be excluded automatically.`,
       //   });

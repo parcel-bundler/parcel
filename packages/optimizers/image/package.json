@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/optimizer-image",
+  "name": "@atlaspack/optimizer-image",
   "version": "2.12.0",
   "license": "MIT",
   "main": "lib/ImageOptimizer.js",
@@ -7,29 +7,25 @@
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.12.0"
+    "atlaspack": "^2.12.0"
   },
   "files": [
     "lib"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.12.0",
-    "@parcel/plugin": "2.12.0",
-    "@parcel/rust": "2.12.0",
-    "@parcel/utils": "2.12.0",
-    "@parcel/workers": "2.12.0"
+    "@atlaspack/diagnostic": "2.12.0",
+    "@atlaspack/plugin": "2.12.0",
+    "@atlaspack/rust": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
+    "@atlaspack/workers": "2.12.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.12.0"
+    "@atlaspack/core": "^2.12.0"
   }
 }

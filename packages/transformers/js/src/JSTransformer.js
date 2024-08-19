@@ -5,20 +5,20 @@ import type {
   SourceLocation,
   FilePath,
   FileCreateInvalidation,
-} from '@parcel/types';
-import type {SchemaEntity} from '@parcel/utils';
-import type {Diagnostic} from '@parcel/diagnostic';
+} from '@atlaspack/types';
+import type {SchemaEntity} from '@atlaspack/utils';
+import type {Diagnostic} from '@atlaspack/diagnostic';
 import SourceMap from '@parcel/source-map';
-import {Transformer} from '@parcel/plugin';
-import {transform, transformAsync} from '@parcel/rust';
+import {Transformer} from '@atlaspack/plugin';
+import {transform, transformAsync} from '@atlaspack/rust';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
-} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
+} from '@atlaspack/diagnostic';
+import {validateSchema, remapSourceLocation, globMatch} from '@atlaspack/utils';
 import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
@@ -156,7 +156,7 @@ type MacroAsset = {|
   content: string,
 |};
 
-// NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
+// NOTE: Make sure this is in sync with the TypeScript definition in the @atlaspack/macros package.
 type MacroContext = {|
   addAsset(asset: MacroAsset): void,
   invalidateOnFileChange(FilePath): void,
@@ -279,7 +279,7 @@ export default (new Transformer({
       pkg.browser.fs === false;
 
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
-      packageKey: '@parcel/transformer-js',
+      packageKey: '@atlaspack/transformer-js',
     });
 
     let inlineEnvironment = config.isSource;
@@ -293,11 +293,11 @@ export default (new Transformer({
           // FIXME
           source: await options.inputFS.readFile(conf.filePath, 'utf8'),
           filePath: conf.filePath,
-          prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
+          prependKey: `/${encodeJSONKeyComponent('@atlaspack/transformer-js')}`,
         },
         // FIXME
-        '@parcel/transformer-js',
-        'Invalid config for @parcel/transformer-js',
+        '@atlaspack/transformer-js',
+        'Invalid config for @atlaspack/transformer-js',
       );
 
       inlineEnvironment = conf.contents?.inlineEnvironment ?? inlineEnvironment;
@@ -377,8 +377,8 @@ export default (new Transformer({
         env.NODE_ENV = options.env.NODE_ENV;
       }
 
-      if (process.env.PARCEL_BUILD_ENV === 'test') {
-        env.PARCEL_BUILD_ENV = 'test';
+      if (process.env.ATLASPACK_BUILD_ENV === 'test') {
+        env.ATLASPACK_BUILD_ENV = 'test';
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
       for (let match of globMatch(
@@ -558,7 +558,7 @@ export default (new Transformer({
                 );
               }
             } catch (err) {
-              // Remove parcel core from stack and build string so Rust can process errors more easily.
+              // Remove atlaspack core from stack and build string so Rust can process errors more easily.
               let stack = (err.stack || '').split('\n').slice(1);
               let message = err.message;
               for (let line of stack) {
@@ -1042,12 +1042,12 @@ export default (new Transformer({
 
       if (needs_esm_helpers) {
         asset.addDependency({
-          specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
+          specifier: '@atlaspack/transformer-js/src/esmodule-helpers.js',
           specifierType: 'esm',
           resolveFrom: __filename,
           env: {
             includeNodeModules: {
-              '@parcel/transformer-js': true,
+              '@atlaspack/transformer-js': true,
             },
           },
         });

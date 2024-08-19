@@ -1,13 +1,13 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use parcel_dev_dep_resolver_old::build_esm_graph;
-use parcel_resolver_old::Cache;
-use parcel_resolver_old::CacheCow;
-use parcel_resolver_old::OsFileSystem;
-use parcel_resolver_old::Resolution;
-use parcel_resolver_old::Resolver;
-use parcel_resolver_old::SpecifierType;
+use atlaspack_dev_dep_resolver_old::build_esm_graph;
+use atlaspack_resolver_old::Cache;
+use atlaspack_resolver_old::CacheCow;
+use atlaspack_resolver_old::OsFileSystem;
+use atlaspack_resolver_old::Resolution;
+use atlaspack_resolver_old::Resolver;
+use atlaspack_resolver_old::SpecifierType;
 
 fn main() {
   let contents = std::fs::read_to_string("package.json").unwrap();
@@ -17,7 +17,7 @@ fn main() {
 
   let cache = Cache::new(Arc::new(OsFileSystem));
   let cjs_resolver = Resolver::node(Cow::Borrowed(&cwd), CacheCow::Borrowed(&cache));
-  let esm_graph_cache = parcel_dev_dep_resolver_old::Cache::default();
+  let esm_graph_cache = atlaspack_dev_dep_resolver_old::Cache::default();
 
   deps.keys().for_each(|dep| {
     #[cfg(debug_assertions)]

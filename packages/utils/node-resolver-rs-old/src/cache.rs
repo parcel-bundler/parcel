@@ -9,8 +9,8 @@ use elsa::sync::FrozenMap;
 use parking_lot::Mutex;
 use typed_arena::Arena;
 
-use parcel_core::types::File;
-use parcel_filesystem::{FileSystemRealPathCache, FileSystemRef};
+use atlaspack_core::types::File;
+use atlaspack_filesystem::{FileSystemRealPathCache, FileSystemRef};
 
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;

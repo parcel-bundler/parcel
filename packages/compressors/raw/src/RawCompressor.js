@@ -1,5 +1,5 @@
 // @flow
-import {Compressor} from '@parcel/plugin';
+import {Compressor} from '@atlaspack/plugin';
 
 export default (new Compressor({
   compress({stream}) {

@@ -6,16 +6,16 @@ import {Panel, PanelGroup, PanelResizeHandle} from 'react-resizable-panels';
 import {useMedia} from 'react-use';
 
 // $FlowFixMe
-import parcelLogo from 'url:./assets/logo.svg';
+import atlaspackLogo from 'url:./assets/logo.svg';
 // $FlowFixMe
-import parcelText from 'url:./assets/parcel.png';
+import atlaspackText from 'url:./assets/atlaspack.png';
 
 import {
   Editor,
   FileBrowser,
   Notes,
   Options,
-  ParcelError,
+  AtlaspackError,
   PresetSelector,
   Preview,
   Tabs,
@@ -37,7 +37,7 @@ import {
   workerReady,
   waitForFS,
   clientID as clientIDPromise,
-} from './parcel/';
+} from './atlaspack/';
 
 const STATUS_LOADING = Symbol('STATUS_LOADING');
 const STATUS_RUNNING = Symbol('STATUS_RUNNING');
@@ -250,7 +250,7 @@ function Output({state, dispatch}: {|state: State, dispatch: Function|}) {
           </Tabs>
         )}
         {buildOutput?.type === 'failure' && (
-          <ParcelError output={buildOutput} />
+          <AtlaspackError output={buildOutput} />
         )}
       </div>
     </div>
@@ -351,15 +351,15 @@ function App() {
       <header>
         <a href="/">
           <img
-            className="parcel"
-            src={parcelText}
+            className="atlaspack"
+            src={atlaspackText}
             height="30"
             style={{marginTop: '5px'}}
             alt=""
           />
           <img
             className="type"
-            src={parcelLogo}
+            src={atlaspackLogo}
             style={{width: '120px'}}
             alt=""
           />

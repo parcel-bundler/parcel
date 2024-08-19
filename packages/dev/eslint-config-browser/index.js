@@ -1,5 +1,5 @@
 module.exports = {
-  extends: '@parcel/eslint-config',
+  extends: '@atlaspack/eslint-config',
   parser: '@babel/eslint-parser',
   parserOptions: {
     ecmaVersion: 5,

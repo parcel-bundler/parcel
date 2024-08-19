@@ -6,7 +6,7 @@ addEventListener('beforeunload', function () {
   if (!blockReload) return;
   try {
     env.runtime.sendMessage({
-      __parcel_hmr_reload__: true,
+      __atlaspack_hmr_reload__: true,
     });
     // spinlock for 500ms to let background reload
     let end = Date.now() + 500;
@@ -17,7 +17,7 @@ addEventListener('beforeunload', function () {
 });
 
 env.runtime.onMessage.addListener(function (msg) {
-  if (msg.__parcel_hmr_reload__) {
+  if (msg.__atlaspack_hmr_reload__) {
     blockReload = false;
     setTimeout(function () {
       location.reload();

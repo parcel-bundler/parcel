@@ -1,0 +1,6 @@
+{
+  "extends": "@atlaspack/config-default",
+  "runtimes": [
+    "atlaspack-runtime-mock",
+  ]
+}

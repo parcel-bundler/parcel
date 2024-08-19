@@ -1,16 +1,16 @@
 {
-  "name": "@parcel/babel-register",
+  "name": "@atlaspack/babel-register",
   "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "dependencies": {
     "@babel/register": "^7.22.5",
-    "@parcel/babel-preset": "2.12.0",
+    "@atlaspack/babel-preset": "2.12.0",
     "resolve": "^1.12.0"
   },
   "peerDependencies": {

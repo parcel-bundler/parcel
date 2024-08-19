@@ -7,6 +7,10 @@ use std::sync::Arc;
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
 
+pub use atlaspack_core::types::IncludeNodeModules;
+#[cfg(not(target_arch = "wasm32"))]
+pub use atlaspack_filesystem::os_file_system::OsFileSystem;
+pub use atlaspack_filesystem::FileSystem;
 pub use cache::Cache;
 pub use cache::CacheCow;
 pub use error::ResolverError;
@@ -18,10 +22,6 @@ pub use package_json::Fields;
 pub use package_json::ModuleType;
 use package_json::PackageJson;
 pub use package_json::PackageJsonError;
-pub use parcel_core::types::IncludeNodeModules;
-#[cfg(not(target_arch = "wasm32"))]
-pub use parcel_filesystem::os_file_system::OsFileSystem;
-pub use parcel_filesystem::FileSystem;
 pub use specifier::parse_package_specifier;
 pub use specifier::parse_scheme;
 pub use specifier::Specifier;
@@ -43,9 +43,9 @@ mod url_to_path;
 
 bitflags! {
   pub struct Flags: u16 {
-    /// Parcel-style absolute paths resolved relative to project root.
+    /// Atlaspack-style absolute paths resolved relative to project root.
     const ABSOLUTE_SPECIFIERS = 1 << 0;
-    /// Parcel-style tilde specifiers resolved relative to nearest module root.
+    /// Atlaspack-style tilde specifiers resolved relative to nearest module root.
     const TILDE_SPECIFIERS = 1 << 1;
     /// The `npm:` scheme.
     const NPM_SCHEME = 1 << 2;
@@ -159,7 +159,7 @@ impl<'a> Resolver<'a> {
     }
   }
 
-  pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
+  pub fn atlaspack(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
     Self {
       project_root,
       extensions: Extensions::Borrowed(&["mjs", "js", "jsx", "cjs", "json"]),
@@ -457,7 +457,7 @@ impl<'a> ResolveRequest<'a> {
         })
       }
       Specifier::Absolute(specifier) => {
-        // In Parcel mode, absolute paths are actually relative to the project root.
+        // In Atlaspack mode, absolute paths are actually relative to the project root.
         if self.resolver.flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
           self.resolve_relative(
             specifier.strip_prefix("/").unwrap(),
@@ -868,7 +868,7 @@ impl<'a> ResolveRequest<'a> {
     // Try adding the same extension as in the parent file first.
     if let Some(ext) = self.priority_extension {
       // Use try_suffixes here to skip the specifier_type check.
-      // This is reproducing a bug in the old version of the Parcel resolver
+      // This is reproducing a bug in the old version of the Atlaspack resolver
       // where URL dependencies could omit the extension if it was the same as the parent.
       // TODO: Revert this in the next major version.
       if let Some(res) = self.try_suffixes(path, ext, package, false)? {
@@ -1224,7 +1224,7 @@ mod tests {
   }
 
   fn test_resolver<'a>() -> Resolver<'a> {
-    Resolver::parcel(
+    Resolver::atlaspack(
       root().into(),
       CacheCow::Owned(Cache::new(Arc::new(OsFileSystem))),
     )

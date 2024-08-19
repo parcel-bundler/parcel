@@ -3,9 +3,9 @@
 import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
-import {inputFS as fs} from '@parcel/test-utils';
-import {md} from '@parcel/diagnostic';
-import {normalizeSeparators} from '@parcel/utils';
+import {inputFS as fs} from '@atlaspack/test-utils';
+import {md} from '@atlaspack/diagnostic';
+import {normalizeSeparators} from '@atlaspack/utils';
 import {TargetResolver} from '../src/requests/TargetRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS, relative} from './test-utils';
 
@@ -736,7 +736,7 @@ describe('TargetResolver', () => {
       diagnostics: [
         {
           message: 'Unexpected output file type .html in target "main"',
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),
@@ -778,7 +778,7 @@ describe('TargetResolver', () => {
         {
           message:
             'The "global" output format is not supported in the "main" target.',
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),
@@ -820,7 +820,7 @@ describe('TargetResolver', () => {
         {
           message:
             'Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.',
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),
@@ -873,7 +873,7 @@ describe('TargetResolver', () => {
         {
           message:
             'Declared output format "esmodule" does not match expected output format "commonjs".',
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),
@@ -926,7 +926,7 @@ describe('TargetResolver', () => {
         {
           message:
             'Declared output format "commonjs" does not match expected output format "esmodule".',
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),
@@ -978,7 +978,7 @@ describe('TargetResolver', () => {
       diagnostics: [
         {
           message: 'Scope hoisting cannot be disabled for library targets.',
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),
@@ -1019,7 +1019,7 @@ describe('TargetResolver', () => {
       diagnostics: [
         {
           message: 'Scope hoisting cannot be disabled for library targets.',
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),
@@ -1243,7 +1243,7 @@ describe('TargetResolver', () => {
       [
         {
           name: 'default',
-          distDir: '.parcel-cache/dist',
+          distDir: '.atlaspack-cache/dist',
           publicUrl: '/',
           env: {
             id: 'd6ea1d42532a7575',
@@ -1474,7 +1474,7 @@ describe('TargetResolver', () => {
         diagnostics: [
           {
             message: 'Invalid target descriptor for target "main"',
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: undefined,
@@ -1533,7 +1533,7 @@ describe('TargetResolver', () => {
         diagnostics: [
           {
             message: 'Invalid target descriptor for target "module"',
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: path.join(
@@ -1575,7 +1575,7 @@ describe('TargetResolver', () => {
         diagnostics: [
           {
             message: 'Invalid engines in package.json',
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: path.join(
@@ -1629,7 +1629,7 @@ describe('TargetResolver', () => {
         diagnostics: [
           {
             message: 'Invalid distPath for target "legacy"',
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: path.join(
@@ -1673,7 +1673,7 @@ describe('TargetResolver', () => {
           message: md`Multiple targets have the same destination path "${path.normalize(
             'dist/index.js',
           )}"`,
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: path.join(fixture, 'package.json'),

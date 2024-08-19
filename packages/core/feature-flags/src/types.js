@@ -6,7 +6,7 @@ export type FeatureFlags = {|
   /**
    * Rust backed requests
    */
-  +parcelV3: boolean,
+  +atlaspackV3: boolean,
   /**
    * Use node.js implementation of @parcel/watcher watchman backend
    */

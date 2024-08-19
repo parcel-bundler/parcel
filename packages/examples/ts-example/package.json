@@ -1,15 +1,15 @@
 {
-  "name": "@parcel/ts-example",
+  "name": "@atlaspack/ts-example",
   "version": "2.12.0",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.ts --no-cache"
+    "demo": "atlaspack build src/index.ts --no-cache"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
-    "@parcel/core": "2.12.0"
+    "@atlaspack/babel-register": "2.12.0",
+    "@atlaspack/core": "2.12.0"
   },
   "main": "dist/main.js",
   "module": "dist/module.js",

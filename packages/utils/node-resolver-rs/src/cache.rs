@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use parcel_core::types::File;
-use parcel_filesystem::{FileSystemRealPathCache, FileSystemRef};
+use atlaspack_core::types::File;
+use atlaspack_filesystem::{FileSystemRealPathCache, FileSystemRef};
 
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;

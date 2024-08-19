@@ -1,28 +1,28 @@
 // @flow strict-local
 
-import type {SourceLocation} from '@parcel/types';
+import type {SourceLocation} from '@atlaspack/types';
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import {
   remapSourceLocation,
   relativePath,
   globToRegex,
   normalizeSeparators,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import {type SourceLocation as LightningSourceLocation} from 'lightningcss';
 import * as native from 'lightningcss';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@atlaspack/diagnostic';
 
 const {transform, transformStyleAttribute, browserslistToTargets} = native;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
-      packageKey: '@parcel/transformer-css',
+      packageKey: '@atlaspack/transformer-css',
     });
     let contents = conf?.contents;
     if (typeof contents?.cssModules?.include === 'string') {
@@ -135,7 +135,7 @@ export default (new Transformer({
     } catch (err) {
       err.filePath = asset.filePath;
       let diagnostic = errorToDiagnostic(err, {
-        origin: '@parcel/transformer-css',
+        origin: '@atlaspack/transformer-css',
       });
       if (err.data?.type === 'AmbiguousUrlInCustomProperty' && err.data.url) {
         let p =

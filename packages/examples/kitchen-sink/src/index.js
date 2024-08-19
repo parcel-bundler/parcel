@@ -1,5 +1,5 @@
 import styles from './styles.css';
-import parcel from 'url:./parcel.webp';
+import atlaspack from 'url:./atlaspack.webp';
 import {message} from './message';
 
 import('./async');

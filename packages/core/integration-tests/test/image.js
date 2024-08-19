@@ -6,7 +6,7 @@ import {
   inputFS,
   it,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import exifReader from 'exif-reader';
 import path from 'path';
 import sharp from 'sharp';

@@ -1,5 +1,5 @@
 {
-  "name": "parcel-test-browser-browserslist",
+  "name": "atlaspack-test-browser-browserslist",
   "private": true,
   "browserslist": ["last 2 Chrome versions", "IE >= 11"]
 }

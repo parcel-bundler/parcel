@@ -1,7 +1,7 @@
 /* eslint-disable no-console, monorepo/no-internal-import */
 // @flow strict-local
-import type {PackagedBundle} from '@parcel/types';
-import type {ParcelOptions} from '@parcel/core/src/types';
+import type {PackagedBundle} from '@atlaspack/types';
+import type {AtlaspackOptions} from '@atlaspack/core/src/types';
 import type {commander$Command} from 'commander';
 
 // $FlowFixMe[untyped-import]
@@ -10,7 +10,7 @@ import {version} from '../package.json';
 import commander from 'commander';
 import fs from 'fs';
 import path from 'path';
-import {DefaultMap} from '@parcel/utils';
+import {DefaultMap} from '@atlaspack/utils';
 
 const {
   loadGraphs,
@@ -19,7 +19,7 @@ const {
 } = require('./deep-imports.js');
 
 async function run({cacheDir, outDir}) {
-  // 1. load bundle graph and info via parcel~query
+  // 1. load bundle graph and info via atlaspack~query
   let {bundleGraph, bundleInfo} = await loadGraphs(cacheDir);
 
   if (bundleGraph == null) {
@@ -40,7 +40,7 @@ async function run({cacheDir, outDir}) {
   let projectRoot = process.cwd();
 
   // $FlowFixMe[unclear-type]
-  let parcelOptions: ParcelOptions = ({projectRoot}: any);
+  let atlaspackOptions: AtlaspackOptions = ({projectRoot}: any);
 
   let bundlesByTarget: DefaultMap<
     string /* target name */,
@@ -53,7 +53,7 @@ async function run({cacheDir, outDir}) {
         PackagedBundleClass.getWithInfo(
           bundle,
           bundleGraph,
-          parcelOptions,
+          atlaspackOptions,
           bundleInfo.get(bundle.id),
         ),
       );
@@ -62,23 +62,23 @@ async function run({cacheDir, outDir}) {
   for (let [targetName, bundles] of bundlesByTarget) {
     fs.writeFileSync(
       path.join(outDir, `${targetName}-stats.json`),
-      JSON.stringify(getBundleStats(bundles, parcelOptions), null, 2),
+      JSON.stringify(getBundleStats(bundles, atlaspackOptions), null, 2),
     );
   }
 }
 
 export const command: commander$Command = new commander.Command()
   .version(version, '-V, --version')
-  .description('Generate a stats report for a Parcel build')
+  .description('Generate a stats report for a Atlaspack build')
   .option('-v, --verbose', 'Print verbose output')
   .option(
     '-c, --cache-dir <path>',
-    'Directory to the parcel cache',
-    '.parcel-cache',
+    'Directory to the atlaspack cache',
+    '.atlaspack-cache',
   )
   .option(
     '-o, --out-dir <path>',
     'Directory to write the stats to',
-    'parcel-bundle-reports',
+    'atlaspack-bundle-reports',
   )
   .action(run);

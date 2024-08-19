@@ -1,6 +1,6 @@
 // @flow
-import type {FileSystem} from '@parcel/fs';
-import type {FilePath, PackageJSON, PluginLogger} from '@parcel/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type {FilePath, PackageJSON, PluginLogger} from '@atlaspack/types';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions, SourceFile} from 'typescript';
 import typeof {ScriptTarget} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies

@@ -1,80 +1,83 @@
 {
-  "bundler": "@parcel/bundler-default",
+  "bundler": "@atlaspack/bundler-default",
   "transformers": {
-    "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
-    "bundle-text:*": ["...", "@parcel/transformer-inline-string"],
-    "data-url:*": ["...", "@parcel/transformer-inline-string"],
+    "types:*.{ts,tsx}": ["@atlaspack/transformer-typescript-types"],
+    "bundle-text:*": ["...", "@atlaspack/transformer-inline-string"],
+    "data-url:*": ["...", "@atlaspack/transformer-inline-string"],
     "worklet:*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-worklet",
+      "@atlaspack/transformer-worklet",
       "..."
     ],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-babel",
-      "@parcel/transformer-js",
-      "@parcel/transformer-react-refresh-wrap"
+      "@atlaspack/transformer-babel",
+      "@atlaspack/transformer-js",
+      "@atlaspack/transformer-react-refresh-wrap"
     ],
-    "*.{json,json5}": ["@parcel/transformer-json"],
-    "*.jsonld": ["@parcel/transformer-jsonld"],
-    "*.toml": ["@parcel/transformer-toml"],
-    "*.webmanifest": ["@parcel/transformer-webmanifest"],
-    "webmanifest:*.{json,webmanifest}": ["@parcel/transformer-webmanifest"],
-    "*.{yaml,yml}": ["@parcel/transformer-yaml"],
-    "*.{glsl,vert,frag}": ["@parcel/transformer-glsl"],
-    "*.{gql,graphql}": ["@parcel/transformer-graphql"],
-    "*.{styl,stylus}": ["@parcel/transformer-stylus"],
-    "*.{sass,scss}": ["@parcel/transformer-sass"],
-    "*.less": ["@parcel/transformer-less"],
-    "*.{css,pcss}": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
-    "*.sss": ["@parcel/transformer-sugarss"],
+    "*.{json,json5}": ["@atlaspack/transformer-json"],
+    "*.jsonld": ["@atlaspack/transformer-jsonld"],
+    "*.toml": ["@atlaspack/transformer-toml"],
+    "*.webmanifest": ["@atlaspack/transformer-webmanifest"],
+    "webmanifest:*.{json,webmanifest}": ["@atlaspack/transformer-webmanifest"],
+    "*.{yaml,yml}": ["@atlaspack/transformer-yaml"],
+    "*.{glsl,vert,frag}": ["@atlaspack/transformer-glsl"],
+    "*.{gql,graphql}": ["@atlaspack/transformer-graphql"],
+    "*.{styl,stylus}": ["@atlaspack/transformer-stylus"],
+    "*.{sass,scss}": ["@atlaspack/transformer-sass"],
+    "*.less": ["@atlaspack/transformer-less"],
+    "*.{css,pcss}": [
+      "@atlaspack/transformer-postcss",
+      "@atlaspack/transformer-css"
+    ],
+    "*.sss": ["@atlaspack/transformer-sugarss"],
     "*.{htm,html,xhtml}": [
-      "@parcel/transformer-posthtml",
-      "@parcel/transformer-html"
+      "@atlaspack/transformer-posthtml",
+      "@atlaspack/transformer-html"
     ],
-    "*.pug": ["@parcel/transformer-pug"],
-    "*.coffee": ["@parcel/transformer-coffeescript"],
-    "*.elm": ["@parcel/transformer-elm"],
-    "*.mdx": ["@parcel/transformer-mdx"],
-    "*.vue": ["@parcel/transformer-vue"],
-    "template:*.vue": ["@parcel/transformer-vue"],
-    "script:*.vue": ["@parcel/transformer-vue"],
-    "style:*.vue": ["@parcel/transformer-vue"],
-    "custom:*.vue": ["@parcel/transformer-vue"],
+    "*.pug": ["@atlaspack/transformer-pug"],
+    "*.coffee": ["@atlaspack/transformer-coffeescript"],
+    "*.elm": ["@atlaspack/transformer-elm"],
+    "*.mdx": ["@atlaspack/transformer-mdx"],
+    "*.vue": ["@atlaspack/transformer-vue"],
+    "template:*.vue": ["@atlaspack/transformer-vue"],
+    "script:*.vue": ["@atlaspack/transformer-vue"],
+    "style:*.vue": ["@atlaspack/transformer-vue"],
+    "custom:*.vue": ["@atlaspack/transformer-vue"],
     "*.{png,jpg,jpeg,webp,gif,tiff,avif,heic,heif}": [
-      "@parcel/transformer-image"
+      "@atlaspack/transformer-image"
     ],
-    "*.svg": ["@parcel/transformer-svg"],
-    "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
-    "url:*": ["...", "@parcel/transformer-raw"]
+    "*.svg": ["@atlaspack/transformer-svg"],
+    "*.{xml,rss,atom}": ["@atlaspack/transformer-xml"],
+    "url:*": ["...", "@atlaspack/transformer-raw"]
   },
-  "namers": ["@parcel/namer-default"],
+  "namers": ["@atlaspack/namer-default"],
   "runtimes": [
-    "@parcel/runtime-js",
-    "@parcel/runtime-browser-hmr",
-    "@parcel/runtime-react-refresh",
-    "@parcel/runtime-service-worker"
+    "@atlaspack/runtime-js",
+    "@atlaspack/runtime-browser-hmr",
+    "@atlaspack/runtime-react-refresh",
+    "@atlaspack/runtime-service-worker"
   ],
   "optimizers": {
-    "data-url:*": ["...", "@parcel/optimizer-data-url"],
-    "*.css": ["@parcel/optimizer-css"],
-    "*.{html,xhtml}": ["@parcel/optimizer-htmlnano"],
-    "*.{js,mjs,cjs}": ["@parcel/optimizer-swc"],
-    "*.svg": ["@parcel/optimizer-svgo"],
-    "*.{jpg,jpeg,png}": ["@parcel/optimizer-image"]
+    "data-url:*": ["...", "@atlaspack/optimizer-data-url"],
+    "*.css": ["@atlaspack/optimizer-css"],
+    "*.{html,xhtml}": ["@atlaspack/optimizer-htmlnano"],
+    "*.{js,mjs,cjs}": ["@atlaspack/optimizer-swc"],
+    "*.svg": ["@atlaspack/optimizer-svgo"],
+    "*.{jpg,jpeg,png}": ["@atlaspack/optimizer-image"]
   },
   "packagers": {
-    "*.{html,xhtml}": "@parcel/packager-html",
-    "*.css": "@parcel/packager-css",
-    "*.{js,mjs,cjs}": "@parcel/packager-js",
-    "*.svg": "@parcel/packager-svg",
-    "*.{xml,rss,atom}": "@parcel/packager-xml",
-    "*.ts": "@parcel/packager-ts",
-    "*.wasm": "@parcel/packager-wasm",
-    "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
-    "*": "@parcel/packager-raw"
+    "*.{html,xhtml}": "@atlaspack/packager-html",
+    "*.css": "@atlaspack/packager-css",
+    "*.{js,mjs,cjs}": "@atlaspack/packager-js",
+    "*.svg": "@atlaspack/packager-svg",
+    "*.{xml,rss,atom}": "@atlaspack/packager-xml",
+    "*.ts": "@atlaspack/packager-ts",
+    "*.wasm": "@atlaspack/packager-wasm",
+    "*.{jsonld,svg,webmanifest}": "@atlaspack/packager-raw-url",
+    "*": "@atlaspack/packager-raw"
   },
   "compressors": {
-    "*": ["@parcel/compressor-raw"]
+    "*": ["@atlaspack/compressor-raw"]
   },
-  "resolvers": ["@parcel/resolver-default"],
-  "reporters": ["@parcel/reporter-dev-server"]
+  "resolvers": ["@atlaspack/resolver-default"],
+  "reporters": ["@atlaspack/reporter-dev-server"]
 }

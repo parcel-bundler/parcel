@@ -15,11 +15,11 @@
     },
     {
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/packages/utils/parcelforvscode"
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/utils/atlaspackforvscode"
       ],
-      "name": "Launch Parcel for VSCode Extension",
+      "name": "Launch atlaspack for VSCode Extension",
       "outFiles": [
-        "${workspaceFolder}/packages/utils/parcelforvscode/out/**/*.js"
+        "${workspaceFolder}/packages/utils/atlaspackforvscode/out/**/*.js"
       ],
       "preLaunchTask": "Watch VSCode Extension",
       "request": "launch",

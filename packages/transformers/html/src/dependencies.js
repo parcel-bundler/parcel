@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, MutableAsset, FilePath} from '@parcel/types';
+import type {AST, MutableAsset, FilePath} from '@atlaspack/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
 import {parse, stringify} from 'srcset';
@@ -156,7 +156,7 @@ export default function collectDependencies(
       let href = attrs.href;
       if (attrs.rel === 'manifest') {
         // A hack to allow manifest.json rather than manifest.webmanifest.
-        // If a custom pipeline is used, it is responsible for running @parcel/transformer-webmanifest.
+        // If a custom pipeline is used, it is responsible for running @atlaspack/transformer-webmanifest.
         if (!href.includes(':')) {
           href = 'webmanifest:' + href;
         }

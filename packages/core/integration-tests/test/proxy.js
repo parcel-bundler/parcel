@@ -1,13 +1,19 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
-import {bundler, describe, getNextBuild, inputFS, it} from '@parcel/test-utils';
+import {
+  bundler,
+  describe,
+  getNextBuild,
+  inputFS,
+  it,
+} from '@atlaspack/test-utils';
 import http from 'http';
 import getPort from 'get-port';
 
 const config = path.join(
   __dirname,
-  './integration/custom-configs/.parcelrc-dev-server',
+  './integration/custom-configs/.atlaspackrc-dev-server',
 );
 
 function apiServer() {

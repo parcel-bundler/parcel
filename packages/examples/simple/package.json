@@ -1,16 +1,16 @@
 {
-  "name": "@parcel/simple-example",
+  "name": "@atlaspack/simple-example",
   "version": "2.12.0",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "PARCEL_WORKERS=0 parcel src/index.js --no-cache",
-    "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
+    "build": "ATLASPACK_WORKERS=0 atlaspack src/index.js --no-cache",
+    "clean-demo": "rm -rf .atlaspack-cache dist && yarn demo"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
-    "@parcel/core": "2.12.0"
+    "@atlaspack/babel-register": "2.12.0",
+    "@atlaspack/core": "2.12.0"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",

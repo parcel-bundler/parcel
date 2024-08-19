@@ -2,37 +2,37 @@
 
 import type {
   FilePath,
-  InitialParcelOptions,
+  InitialAtlaspackOptions,
   DependencySpecifier,
   InitialServerOptions,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {ParcelOptions} from './types';
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type {AtlaspackOptions} from './types';
 
 import path from 'path';
-import {hashString} from '@parcel/rust';
-import {NodeFS} from '@parcel/fs';
-import {LMDBCache, FSCache} from '@parcel/cache';
-import {NodePackageManager} from '@parcel/package-manager';
+import {hashString} from '@atlaspack/rust';
+import {NodeFS} from '@atlaspack/fs';
+import {LMDBCache, FSCache} from '@atlaspack/cache';
+import {NodePackageManager} from '@atlaspack/package-manager';
 import {
   getRootDir,
   relativePath,
   resolveConfig,
   isGlob,
   globToRegex,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
-import {getResolveFrom} from './requests/ParcelConfigRequest';
+import {getResolveFrom} from './requests/AtlaspackConfigRequest';
 
-import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
-import {PARCEL_VERSION} from './constants';
+import {DEFAULT_FEATURE_FLAGS} from '@atlaspack/feature-flags';
+import {ATLASPACK_VERSION} from './constants';
 
 // Default cache directory name
-const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
+const DEFAULT_CACHE_DIRNAME = '.atlaspack-cache';
 const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
-// Generate a unique instanceId, will change on every run of parcel
+// Generate a unique instanceId, will change on every run of atlaspack
 function generateInstanceId(entries: Array<FilePath>): string {
   return hashString(
     `${entries.join(',')}-${Date.now()}-${Math.round(Math.random() * 100)}`,
@@ -45,8 +45,8 @@ function compileGlobs(globs: string[]): RegExp[] {
 }
 
 export default async function resolveOptions(
-  initialOptions: InitialParcelOptions,
-): Promise<ParcelOptions> {
+  initialOptions: InitialAtlaspackOptions,
+): Promise<AtlaspackOptions> {
   let inputFS = initialOptions.inputFS || new NodeFS();
   let outputFS = initialOptions.outputFS || new NodeFS();
 
@@ -224,7 +224,7 @@ export default async function resolveOptions(
       isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
     featureFlags: {...DEFAULT_FEATURE_FLAGS, ...initialOptions?.featureFlags},
-    parcelVersion: PARCEL_VERSION,
+    atlaspackVersion: ATLASPACK_VERSION,
   };
 }
 

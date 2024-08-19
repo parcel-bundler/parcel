@@ -1,6 +1,6 @@
 // @flow strict-local
-import type {Blob, FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {Blob, FilePath} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
 
 import path from 'path';
 

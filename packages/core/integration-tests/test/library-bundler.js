@@ -11,7 +11,7 @@ import {
   outputFS,
   fsFixture,
   assertBundles,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import nullthrows from 'nullthrows';
 
 describe.v2('library bundler', function () {
@@ -30,10 +30,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       package.json:
@@ -113,7 +113,7 @@ describe.v2('library bundler', function () {
 
     for (let bundle of b.getBundles()) {
       let contents = await outputFS.readFile(bundle.filePath, 'utf8');
-      assert(!contents.includes('parcelRequire'));
+      assert(!contents.includes('atlaspackRequire'));
       if (bundle.env.outputFormat === 'esmodule') {
         assert(contents.includes('export {'));
       } else if (bundle.env.outputFormat === 'commonjs') {
@@ -126,10 +126,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       package.json:
@@ -178,7 +178,7 @@ describe.v2('library bundler', function () {
 
     for (let bundle of b.getBundles()) {
       let contents = await outputFS.readFile(bundle.filePath, 'utf8');
-      assert(!contents.includes('parcelRequire'));
+      assert(!contents.includes('atlaspackRequire'));
       if (bundle.type === 'css') {
         assert(contents.includes('.a'));
         assert(contents.includes('.b'));
@@ -196,10 +196,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       package.json:
@@ -249,7 +249,7 @@ describe.v2('library bundler', function () {
 
     for (let bundle of b.getBundles()) {
       let contents = await outputFS.readFile(bundle.filePath, 'utf8');
-      assert(!contents.includes('parcelRequire'));
+      assert(!contents.includes('atlaspackRequire'));
       if (bundle.type === 'css') {
         assert(contents.includes('.Qe6WCq_bar'));
       } else if (bundle.env.outputFormat === 'esmodule') {
@@ -276,10 +276,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       package.json:
@@ -334,7 +334,7 @@ describe.v2('library bundler', function () {
 
     for (let bundle of b.getBundles()) {
       let contents = await outputFS.readFile(bundle.filePath, 'utf8');
-      assert(!contents.includes('parcelRequire'));
+      assert(!contents.includes('atlaspackRequire'));
       if (bundle.env.outputFormat === 'esmodule') {
         assert(contents.includes('export {'));
       } else if (bundle.env.outputFormat === 'commonjs') {
@@ -375,10 +375,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       package.json:
@@ -425,10 +425,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       package.json:
@@ -498,10 +498,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       packages/a/package.json:
@@ -585,10 +585,10 @@ describe.v2('library bundler', function () {
     await fsFixture(overlayFS, dir)`
       yarn.lock:
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
-          "bundler": "@parcel/bundler-library"
+          "extends": "@atlaspack/config-default",
+          "bundler": "@atlaspack/bundler-library"
         }
 
       package.json:

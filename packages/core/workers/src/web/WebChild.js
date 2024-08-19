@@ -9,7 +9,10 @@ import type {
 } from '../types';
 import {setChild} from '../childState';
 import {Child} from '../child';
-import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';
+import {
+  prepareForSerialization,
+  restoreDeserializedObject,
+} from '@atlaspack/core';
 
 export default class WebChild implements ChildImpl {
   onMessage: MessageHandler;

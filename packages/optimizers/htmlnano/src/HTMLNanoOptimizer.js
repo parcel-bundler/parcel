@@ -2,7 +2,7 @@
 import type {PostHTMLNode} from 'posthtml';
 
 import htmlnano from 'htmlnano';
-import {Optimizer} from '@parcel/plugin';
+import {Optimizer} from '@atlaspack/plugin';
 import posthtml from 'posthtml';
 import path from 'path';
 import {SVG_ATTRS, SVG_TAG_NAMES} from './svgMappings';

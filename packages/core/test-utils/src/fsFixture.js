@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem} from '@atlaspack/fs';
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
@@ -89,7 +89,7 @@ export async function toFixture(
     let filepath = path.join(dir, name);
     if (dirent.isSymbolicLink()) {
       // FIXME: `realpath` is not the correct behavior here,
-      // but Parcel fs doesn't define `readlink.
+      // but Atlaspack fs doesn't define `readlink.
       let target = await fs.realpath(filepath);
       fixture.children.push(new FixtureLink(name, toPosixPath(target)));
     } else if (dirent.isFile()) {

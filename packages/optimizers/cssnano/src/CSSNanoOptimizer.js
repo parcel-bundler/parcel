@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import SourceMap from '@parcel/source-map';
-import {Optimizer} from '@parcel/plugin';
+import {Optimizer} from '@atlaspack/plugin';
 import postcss from 'postcss';
 import cssnano from 'cssnano';
 import type {CSSNanoOptions} from 'cssnano'; // TODO the type is based on cssnano 4

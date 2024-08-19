@@ -1,13 +1,13 @@
-import {MemoryFS} from '@parcel/fs';
+import {MemoryFS} from '@atlaspack/fs';
 import assert from 'assert';
 import path from 'path';
 
 const runESM = require('./runESM');
-const parcel = require('./parcel');
+const atlaspack = require('./atlaspack');
 const generateExample = require('./generateExample');
 
 async function run(example) {
-  let inputFS = new MemoryFS(parcel.workerFarm);
+  let inputFS = new MemoryFS(atlaspack.workerFarm);
 
   let nativeOutput = {output: [], error: null};
   try {
@@ -42,9 +42,9 @@ async function run(example) {
     await inputFS.writeFile(`${__dirname}/src/${name}`, code);
   }
 
-  let parcelBundles = {output: null, error: null};
+  let atlaspackBundles = {output: null, error: null};
   try {
-    parcelBundles.output = await parcel({
+    atlaspackBundles.output = await atlaspack({
       inputFS,
       entries: example.entries.map(f => `${__dirname}/src/${f}`),
     });
@@ -53,7 +53,7 @@ async function run(example) {
     if (match) {
       let [, file, symbol] = match;
       let relative = path.relative('packages/dev/fuzzer/src/', file);
-      parcelBundles.error = {
+      atlaspackBundles.error = {
         file: relative.startsWith('.') ? relative : `./${relative}`,
         symbol,
       };
@@ -62,13 +62,13 @@ async function run(example) {
     }
   }
 
-  if ((nativeOutput.error == null) != (parcelBundles.error == null)) {
+  if ((nativeOutput.error == null) != (atlaspackBundles.error == null)) {
     console.error('Native error:', nativeOutput.error);
-    console.error('Parcel error:', parcelBundles.error);
+    console.error('Atlaspack error:', atlaspackBundles.error);
     throw new Error();
   } else {
     if (nativeOutput.error != null) {
-      assert.deepEqual(nativeOutput.error, parcelBundles.error);
+      assert.deepEqual(nativeOutput.error, atlaspackBundles.error);
     } else {
       let output = [];
       await runESM({
@@ -82,7 +82,7 @@ async function run(example) {
         },
         fs: {
           readFileSync(f) {
-            return parcelBundles.output.output.get(f);
+            return atlaspackBundles.output.output.get(f);
           },
         },
       });
@@ -100,7 +100,7 @@ async function run(example) {
 
 (async () => {
   try {
-    parcel.start();
+    atlaspack.start();
 
     // await run(fixture);
 
@@ -132,6 +132,6 @@ async function run(example) {
   } catch (e) {
     console.error(e);
   } finally {
-    await parcel.stop();
+    await atlaspack.stop();
   }
 })();

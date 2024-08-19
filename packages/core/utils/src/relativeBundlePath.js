@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FilePath, NamedBundle} from '@parcel/types';
+import type {FilePath, NamedBundle} from '@atlaspack/types';
 
 import path from 'path';
 import {relativePath} from './path';

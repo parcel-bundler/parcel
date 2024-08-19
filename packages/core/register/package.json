@@ -1,18 +1,14 @@
 {
-  "name": "@parcel/register",
+  "name": "@atlaspack/register",
   "version": "2.12.0",
   "private": true,
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/register.js",
   "source": "src/register.js",
@@ -21,13 +17,13 @@
   },
   "scripts": {
     "run-example": "node ./example/index.js",
-    "clean": "rimraf .parcel-cache"
+    "clean": "rimraf .atlaspack-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "2.12.0",
-    "@parcel/core": "2.12.0",
-    "@parcel/fs": "2.12.0",
-    "@parcel/package-manager": "2.12.0",
+    "@atlaspack/config-default": "2.12.0",
+    "@atlaspack/core": "2.12.0",
+    "@atlaspack/fs": "2.12.0",
+    "@atlaspack/package-manager": "2.12.0",
     "pirates": "^4.0.0"
   }
 }

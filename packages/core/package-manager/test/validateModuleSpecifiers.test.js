@@ -6,7 +6,7 @@ import validateModuleSpecifier from '../src/validateModuleSpecifier';
 describe('Validate Module Specifiers', () => {
   it('Validate Module Specifiers', () => {
     let modules = [
-      '@parcel/transformer-posthtml/package.json',
+      '@atlaspack/transformer-posthtml/package.json',
       '@some-org/package@v1.0.0',
       '@org/some-package@v1.0.0-alpha.1',
       'something.js/something/index.js',
@@ -17,7 +17,7 @@ describe('Validate Module Specifiers', () => {
     assert.deepEqual(
       modules.map(module => validateModuleSpecifier(module)),
       [
-        '@parcel/transformer-posthtml',
+        '@atlaspack/transformer-posthtml',
         '@some-org/package@v1.0.0',
         '@org/some-package@v1.0.0-alpha.1',
         'something.js',

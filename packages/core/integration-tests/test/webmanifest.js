@@ -7,8 +7,8 @@ import {
   inputFS,
   it,
   outputFS,
-} from '@parcel/test-utils';
-import {md} from '@parcel/diagnostic';
+} from '@atlaspack/test-utils';
+import {md} from '@atlaspack/diagnostic';
 
 describe.v2('webmanifest', function () {
   it('should support .webmanifest', async function () {
@@ -199,7 +199,7 @@ describe.v2('webmanifest', function () {
               },
             ],
             message: 'Invalid webmanifest',
-            origin: '@parcel/transformer-webmanifest',
+            origin: '@atlaspack/transformer-webmanifest',
           },
         ],
       },
@@ -244,14 +244,14 @@ describe.v2('webmanifest', function () {
               },
             ],
             message,
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
           },
           {
             hints: [],
             message: `Cannot load file './icon.png' in '${path.dirname(
               manifestPathRelative,
             )}'.`,
-            origin: '@parcel/resolver-default',
+            origin: '@atlaspack/resolver-default',
           },
         ],
       },

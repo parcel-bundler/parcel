@@ -1,12 +1,12 @@
 // @flow
 
-import type {FilePath} from '@parcel/types-internal';
+import type {FilePath} from '@atlaspack/types-internal';
 import type {BackendType, WorkerImpl, WorkerMessage} from './types';
 import type {SharedReference} from './WorkerFarm';
 
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
 import {getWorkerBackend} from './backend';
 
 export type WorkerCall = {|
@@ -61,7 +61,7 @@ export default class Worker extends EventEmitter {
         let arg = filteredArgs[i];
         let isArgWithParam =
           ((arg === '-r' || arg === '--require') &&
-            filteredArgs[i + 1] === '@parcel/register') ||
+            filteredArgs[i + 1] === '@atlaspack/register') ||
           arg === '--title';
         if (isArgWithParam) {
           filteredArgs.splice(i, 2);

@@ -1,5 +1,5 @@
 const WorkerFarm = require('../../../src/WorkerFarm').default;
-const Logger = require('@parcel/logger').default;
+const Logger = require('@atlaspack/logger').default;
 
 function run() {
   if (WorkerFarm.isWorker()) {

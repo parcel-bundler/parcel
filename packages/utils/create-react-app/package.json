@@ -1,13 +1,13 @@
 {
-  "name": "@parcel/create-react-app",
+  "name": "@atlaspack/create-react-app",
   "version": "2.12.0",
   "bin": {
-    "parcel-create-react-app": "lib/bin.js"
+    "atlaspack-create-react-app": "lib/bin.js"
   },
   "main": "src/bin.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git",
+    "url": "https://github.com/atlassian-labs/atlaspack.git",
     "directory": "packages/utils/create-react-app"
   },
   "source": "src/bin.js",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
+    "@atlaspack/babel-register": "2.12.0",
     "rimraf": "^5.0.5"
   }
 }

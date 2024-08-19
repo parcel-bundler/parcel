@@ -1,18 +1,18 @@
 // @flow
-import {Resolver} from '@parcel/plugin';
+import {Resolver} from '@atlaspack/plugin';
 import {
   isGlob,
   glob,
   globToRegex,
   relativePath,
   normalizeSeparators,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
-} from '@parcel/diagnostic';
-import NodeResolver from '@parcel/node-resolver-core';
+} from '@atlaspack/diagnostic';
+import NodeResolver from '@atlaspack/node-resolver-core';
 import invariant from 'assert';
 
 function errorToThrowableDiagnostic(error, dependency): ThrowableDiagnostic {

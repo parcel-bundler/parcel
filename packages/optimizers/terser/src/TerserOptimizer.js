@@ -2,10 +2,10 @@
 
 import nullthrows from 'nullthrows';
 import {minify} from 'terser';
-import {Optimizer} from '@parcel/plugin';
-import {blobToString} from '@parcel/utils';
+import {Optimizer} from '@atlaspack/plugin';
+import {blobToString} from '@atlaspack/utils';
 import SourceMap from '@parcel/source-map';
-import ThrowableDiagnostic, {escapeMarkdown} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {escapeMarkdown} from '@atlaspack/diagnostic';
 
 import path from 'path';
 
@@ -66,7 +66,7 @@ export default (new Optimizer({
           let filePath = path.resolve(options.projectRoot, source);
           diagnostics.push({
             message,
-            origin: '@parcel/optimizer-terser',
+            origin: '@atlaspack/optimizer-terser',
             codeFrames: [
               {
                 language: 'js',
@@ -86,7 +86,7 @@ export default (new Optimizer({
           };
           diagnostics.push({
             message,
-            origin: '@parcel/optimizer-terser',
+            origin: '@atlaspack/optimizer-terser',
             codeFrames: [
               {
                 language: 'js',

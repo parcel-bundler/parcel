@@ -6,7 +6,7 @@ import type {
   Dependency,
   PluginOptions,
   NamedBundle,
-} from '@parcel/types';
+} from '@atlaspack/types';
 
 import {
   DefaultMap,
@@ -14,13 +14,13 @@ import {
   relativeBundlePath,
   countLines,
   normalizeSeparators,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 import invariant, {AssertionError} from 'assert';
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 import globals from 'globals';
 import path from 'path';
 
@@ -72,7 +72,7 @@ export class ScopeHoistingPackager {
   options: PluginOptions;
   bundleGraph: BundleGraph<NamedBundle>;
   bundle: NamedBundle;
-  parcelRequireName: string;
+  atlaspackRequireName: string;
   useAsyncBundleRuntime: boolean;
   outputFormat: OutputFormat;
   isAsyncBundle: boolean;
@@ -100,13 +100,13 @@ export class ScopeHoistingPackager {
     options: PluginOptions,
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
-    parcelRequireName: string,
+    atlaspackRequireName: string,
     useAsyncBundleRuntime: boolean,
   ) {
     this.options = options;
     this.bundleGraph = bundleGraph;
     this.bundle = bundle;
-    this.parcelRequireName = parcelRequireName;
+    this.atlaspackRequireName = atlaspackRequireName;
     this.useAsyncBundleRuntime = useAsyncBundleRuntime;
 
     let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
@@ -191,10 +191,10 @@ export class ScopeHoistingPackager {
 
     let needsBundleQueue = this.shouldBundleQueue(this.bundle);
 
-    // If any of the entry assets are wrapped, call parcelRequire so they are executed.
+    // If any of the entry assets are wrapped, call atlaspackRequire so they are executed.
     for (let entry of entries) {
       if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
-        let parcelRequire = `parcelRequire(${JSON.stringify(
+        let atlaspackRequire = `atlaspackRequire(${JSON.stringify(
           this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
 
@@ -209,13 +209,13 @@ export class ScopeHoistingPackager {
             !needsBundleQueue,
             'Entry exports are not yet compaitble with async bundles',
           );
-          res += `\nvar ${entryExports} = ${parcelRequire}`;
+          res += `\nvar ${entryExports} = ${atlaspackRequire}`;
         } else {
           if (needsBundleQueue) {
-            parcelRequire = this.runWhenReady(this.bundle, parcelRequire);
+            atlaspackRequire = this.runWhenReady(this.bundle, atlaspackRequire);
           }
 
-          res += `\n${parcelRequire}`;
+          res += `\n${atlaspackRequire}`;
         }
 
         lineCount += 2;
@@ -228,7 +228,7 @@ export class ScopeHoistingPackager {
 
     // The entry asset of a script bundle gets hoisted outside the bundle wrapper so that
     // its top-level variables become globals like a real browser script. We need to replace
-    // all dependency references for runtimes with a parcelRequire call.
+    // all dependency references for runtimes with a atlaspackRequire call.
     if (
       this.bundle.env.outputFormat === 'global' &&
       this.bundle.env.sourceType === 'script'
@@ -249,7 +249,7 @@ export class ScopeHoistingPackager {
         this.bundle,
         code,
         map,
-        this.parcelRequireName,
+        this.atlaspackRequireName,
       );
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
@@ -294,7 +294,7 @@ export class ScopeHoistingPackager {
       JSON.stringify(deps),
     ];
 
-    return `$parcel$global.rwr(${params.join(', ')});`;
+    return `$atlaspack$global.rwr(${params.join(', ')});`;
   }
 
   async loadAssets(): Promise<Array<Asset>> {
@@ -498,16 +498,16 @@ export class ScopeHoistingPackager {
     }
 
     // TODO: maybe a meta prop?
-    if (code.includes('$parcel$global')) {
-      this.usedHelpers.add('$parcel$global');
+    if (code.includes('$atlaspack$global')) {
+      this.usedHelpers.add('$atlaspack$global');
     }
 
     if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
       const relPath = normalizeSeparators(
         path.relative(this.bundle.target.distDir, path.dirname(asset.filePath)),
       );
-      code = code.replace('$parcel$dirnameReplace', relPath);
-      code = code.replace('$parcel$filenameReplace', relPath);
+      code = code.replace('$atlaspack$dirnameReplace', relPath);
+      code = code.replace('$atlaspack$filenameReplace', relPath);
     }
 
     let [depMap, replacements] = this.buildReplacements(asset, deps);
@@ -558,11 +558,11 @@ export class ScopeHoistingPackager {
             let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
             let skipped = this.bundleGraph.isDependencySkipped(dep);
             if (resolved && !skipped) {
-              // Hoist variable declarations for the referenced parcelRequire dependencies
+              // Hoist variable declarations for the referenced atlaspackRequire dependencies
               // after the dependency is declared. This handles the case where the resulting asset
               // is wrapped, but the dependency in this asset is not marked as wrapped. This means
               // that it was imported/required at the top-level, so its side effects should run immediately.
-              let [res, lines] = this.getHoistedParcelRequires(
+              let [res, lines] = this.getHoistedAtlaspackRequires(
                 asset,
                 dep,
                 resolved,
@@ -573,7 +573,7 @@ export class ScopeHoistingPackager {
                 !this.seenAssets.has(resolved.id)
               ) {
                 // If this asset is wrapped, we need to hoist the code for the dependency
-                // outside our parcelRequire.register wrapper. This is safe because all
+                // outside our atlaspackRequire.register wrapper. This is safe because all
                 // assets referenced by this asset will also be wrapped. Otherwise, inline the
                 // asset content where the import statement was.
                 if (shouldWrap) {
@@ -587,7 +587,7 @@ export class ScopeHoistingPackager {
               }
 
               // Push this asset's source mappings down by the number of lines in the dependency
-              // plus the number of hoisted parcelRequires. Then insert the source map for the dependency.
+              // plus the number of hoisted atlaspackRequires. Then insert the source map for the dependency.
               if (sourceMap) {
                 if (lines > 0) {
                   sourceMap.offsetLines(lineCount + 1, lines);
@@ -624,14 +624,14 @@ export class ScopeHoistingPackager {
       });
     }
 
-    // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
+    // If the asset is wrapped, we need to insert the dependency code outside the atlaspackRequire.register
     // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
     if (shouldWrap) {
-      // Offset by one line for the parcelRequire.register wrapper.
+      // Offset by one line for the atlaspackRequire.register wrapper.
       sourceMap?.offsetLines(1, 1);
       lineCount++;
 
-      code = `parcelRegister(${JSON.stringify(
+      code = `atlaspackRegister(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(asset),
       )}, function(module, exports) {
 ${code}
@@ -842,8 +842,8 @@ ${code}
               needsDefaultInterop = this.needsDefaultInterop(entry);
             }
             if (needsDefaultInterop) {
-              replacement = `($parcel$interopDefault(${renamed}))`;
-              this.usedHelpers.add('$parcel$interopDefault');
+              replacement = `($atlaspack$interopDefault(${renamed}))`;
+              this.usedHelpers.add('$atlaspack$interopDefault');
             } else {
               replacement = `${renamed}.default`;
             }
@@ -909,8 +909,8 @@ ${code}
           if (property === '*') {
             replacement = renamed;
           } else if (property === 'default') {
-            replacement = `($parcel$interopDefault(${renamed}))`;
-            this.usedHelpers.add('$parcel$interopDefault');
+            replacement = `($atlaspack$interopDefault(${renamed}))`;
+            this.usedHelpers.add('$atlaspack$interopDefault');
           } else if (property) {
             replacement = this.getPropertyAccess(renamed, property);
           }
@@ -976,14 +976,14 @@ ${code}
       !this.bundle.hasAsset(resolvedAsset);
 
     // If the resolved asset is wrapped, but imported at the top-level by this asset,
-    // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
+    // then we hoist atlaspackRequire calls to the top of this asset so side effects run immediately.
     if (
       isWrapped &&
       dep &&
       !dep?.meta.shouldWrap &&
       symbol !== false &&
       // Only do this if the asset is part of a different bundle (so it was definitely
-      // parcelRequire.register'ed there), or if it is indeed registered in this bundle.
+      // atlaspackRequire.register'ed there), or if it is indeed registered in this bundle.
       (!this.bundle.hasAsset(resolvedAsset) ||
         !this.shouldSkipAsset(resolvedAsset))
     ) {
@@ -995,7 +995,7 @@ ${code}
 
       hoisted.set(
         resolvedAsset.id,
-        `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
+        `var $${publicId} = atlaspackRequire(${JSON.stringify(publicId)});`,
       );
     }
 
@@ -1015,15 +1015,15 @@ ${code}
       !resolvedAsset.symbols.hasExportSymbol('__esModule');
 
     // Find the namespace object for the resolved module. If wrapped and this
-    // is an inline require (not top-level), use a parcelRequire call, otherwise
+    // is an inline require (not top-level), use a atlaspackRequire call, otherwise
     // the hoisted variable declared above. Otherwise, if not wrapped, use the
     // namespace export symbol.
     let assetId = resolvedAsset.meta.id;
     invariant(typeof assetId === 'string');
     let obj;
     if (isWrapped && (!dep || dep?.meta.shouldWrap)) {
-      // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
-      obj = `(parcelRequire(${JSON.stringify(publicId)}))`;
+      // Wrap in extra parenthesis to not change semantics, e.g.`new (atlaspackRequire("..."))()`.
+      obj = `(atlaspackRequire(${JSON.stringify(publicId)}))`;
     } else if (isWrapped && dep) {
       obj = `$${publicId}`;
     } else {
@@ -1057,8 +1057,8 @@ ${code}
         resolvedAsset.symbols.hasExportSymbol('*') &&
         this.needsDefaultInterop(resolvedAsset)
       ) {
-        this.usedHelpers.add('$parcel$interopDefault');
-        return `(/*@__PURE__*/$parcel$interopDefault(${obj}))`;
+        this.usedHelpers.add('$atlaspack$interopDefault');
+        return `(/*@__PURE__*/$atlaspack$interopDefault(${obj}))`;
       } else {
         return this.getPropertyAccess(obj, exportSymbol);
       }
@@ -1069,7 +1069,7 @@ ${code}
     }
   }
 
-  getHoistedParcelRequires(
+  getHoistedAtlaspackRequires(
     parentAsset: Asset,
     dep: Dependency,
     resolved: Asset,
@@ -1085,7 +1085,7 @@ ${code}
 
     // If the resolved asset is wrapped and is imported in the top-level by this asset,
     // we need to run side effects when this asset runs. If the resolved asset is not
-    // the first one in the hoisted requires, we need to insert a parcelRequire here
+    // the first one in the hoisted requires, we need to insert a atlaspackRequire here
     // so it runs first.
     if (
       isWrapped &&
@@ -1095,7 +1095,7 @@ ${code}
       !this.shouldSkipAsset(resolved)
     ) {
       this.needsPrelude = true;
-      res += `parcelRequire(${JSON.stringify(
+      res += `atlaspackRequire(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(resolved),
       )});`;
     }
@@ -1186,9 +1186,9 @@ ${code}
       // and the namespace symbol is used.
       // TODO: only if required by CJS?
       if (asset.symbols.hasExportSymbol('default') && usedSymbols.has('*')) {
-        prepend += `\n$parcel$defineInteropFlag($${assetId}$exports);\n`;
+        prepend += `\n$atlaspack$defineInteropFlag($${assetId}$exports);\n`;
         prependLineCount += 2;
-        this.usedHelpers.add('$parcel$defineInteropFlag');
+        this.usedHelpers.add('$atlaspack$defineInteropFlag');
       }
 
       // Find wildcard re-export dependencies, and make sure their exports are also included in
@@ -1209,14 +1209,14 @@ ${code}
               let external = nullthrows(
                 nullthrows(this.externals.get(dep.specifier)).get('*'),
               );
-              append += `$parcel$exportWildcard($${assetId}$exports, ${external});\n`;
-              this.usedHelpers.add('$parcel$exportWildcard');
+              append += `$atlaspack$exportWildcard($${assetId}$exports, ${external});\n`;
+              this.usedHelpers.add('$atlaspack$exportWildcard');
               continue;
             }
 
-            // If the resolved asset has an exports object, use the $parcel$exportWildcard helper
+            // If the resolved asset has an exports object, use the $atlaspack$exportWildcard helper
             // to re-export all symbols. Otherwise, if there's no namespace object available, add
-            // $parcel$export calls for each used symbol of the dependency.
+            // $atlaspack$export calls for each used symbol of the dependency.
             if (
               isWrapped ||
               resolved.meta.staticExports === false ||
@@ -1232,8 +1232,8 @@ ${code}
                 dep,
                 replacements,
               );
-              append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
-              this.usedHelpers.add('$parcel$exportWildcard');
+              append += `$atlaspack$exportWildcard($${assetId}$exports, ${obj});\n`;
+              this.usedHelpers.add('$atlaspack$exportWildcard');
             } else {
               for (let symbol of nullthrows(
                 this.bundleGraph.getUsedSymbols(dep),
@@ -1257,10 +1257,10 @@ ${code}
                   ? ', ' +
                     this.buildFunctionExpression(['v'], `${resolvedSymbol} = v`)
                   : '';
-                prepend += `$parcel$export($${assetId}$exports, ${JSON.stringify(
+                prepend += `$atlaspack$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
                 )}, ${get}${set});\n`;
-                this.usedHelpers.add('$parcel$export');
+                this.usedHelpers.add('$atlaspack$export');
                 prependLineCount++;
               }
             }
@@ -1291,7 +1291,7 @@ ${code}
       });
 
       if (usedExports.length > 0) {
-        // Insert $parcel$export calls for each of the used exports. This creates a getter/setter
+        // Insert $atlaspack$export calls for each of the used exports. This creates a getter/setter
         // for the symbol so that when the value changes the object property also changes. This is
         // required to simulate ESM live bindings. It's easier to do it this way rather than inserting
         // additional assignments after each mutation of the original binding.
@@ -1310,12 +1310,12 @@ ${code}
               !isEsmExport && asset.meta.hasCJSExports
                 ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
                 : '';
-            return `$parcel$export($${assetId}$exports, ${JSON.stringify(
+            return `$atlaspack$export($${assetId}$exports, ${JSON.stringify(
               exp,
             )}, ${get}${set});`;
           })
           .join('\n')}\n`;
-        this.usedHelpers.add('$parcel$export');
+        this.usedHelpers.add('$atlaspack$export');
         prependLineCount += 1 + usedExports.length;
       }
     }
@@ -1351,7 +1351,7 @@ ${code}
 
     // Add used helpers.
     if (this.needsPrelude) {
-      this.usedHelpers.add('$parcel$global');
+      this.usedHelpers.add('$atlaspack$global');
     }
 
     for (let helper of this.usedHelpers) {
@@ -1379,7 +1379,7 @@ ${code}
         this.bundle.bundleBehavior === 'isolated';
 
       if (mightBeFirstJS) {
-        let preludeCode = prelude(this.parcelRequireName);
+        let preludeCode = prelude(this.atlaspackRequireName);
         res += preludeCode;
         if (enableSourceMaps) {
           lines += countLines(preludeCode) - 1;
@@ -1393,11 +1393,11 @@ ${code}
           }
         }
       } else {
-        // Otherwise, get the current parcelRequire global.
-        const escaped = JSON.stringify(this.parcelRequireName);
-        res += `var parcelRequire = $parcel$global[${escaped}];\n`;
+        // Otherwise, get the current atlaspackRequire global.
+        const escaped = JSON.stringify(this.atlaspackRequireName);
+        res += `var atlaspackRequire = $atlaspack$global[${escaped}];\n`;
         lines++;
-        res += `var parcelRegister = parcelRequire.register;\n`;
+        res += `var atlaspackRegister = atlaspackRequire.register;\n`;
         lines++;
       }
     }

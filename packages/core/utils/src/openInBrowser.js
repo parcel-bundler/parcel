@@ -2,7 +2,7 @@
 
 import open from 'open';
 import {execSync} from 'child_process';
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 
 // Chrome app name is platform dependent. we should not hard code it.
 // https://github.com/react-native-community/cli/blob/e2be8a905285d9b37512fc78c9755b9635ecf805/packages/cli/src/commands/server/launchDebugger.ts#L28
@@ -57,8 +57,8 @@ export default async function openInBrowser(url: string, browser: string) {
   } catch (err) {
     logger.error(
       `Unexpected error while opening in browser: ${browser}`,
-      '@parcel/utils',
+      '@atlaspack/utils',
     );
-    logger.error(err, '@parcel/utils');
+    logger.error(err, '@atlaspack/utils');
   }
 }

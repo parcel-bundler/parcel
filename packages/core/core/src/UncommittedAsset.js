@@ -8,8 +8,8 @@ import type {
   GenerateOutput,
   PackageName,
   TransformerResult,
-} from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions, Invalidations} from './types';
+} from '@atlaspack/types';
+import type {Asset, Dependency, AtlaspackOptions, Invalidations} from './types';
 
 import invariant from 'assert';
 import {Readable} from 'stream';
@@ -21,12 +21,12 @@ import {
   TapStream,
   loadSourceMap,
   SOURCEMAP_RE,
-} from '@parcel/utils';
-import {hashString, hashBuffer, Hash} from '@parcel/rust';
+} from '@atlaspack/utils';
+import {hashString, hashBuffer, Hash} from '@atlaspack/rust';
 import {serializeRaw} from './serializer';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
-import {PARCEL_VERSION} from './constants';
+import {ATLASPACK_VERSION} from './constants';
 import {createAsset, createAssetIdFromOptions} from './assetUtils';
 import {BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal, createInvalidations} from './utils';
@@ -34,7 +34,7 @@ import {type ProjectPath, fromProjectPath} from './projectPath';
 
 type UncommittedAssetOptions = {|
   value: Asset,
-  options: ParcelOptions,
+  options: AtlaspackOptions,
   content?: ?Blob,
   mapBuffer?: ?Buffer,
   ast?: ?AST,
@@ -45,7 +45,7 @@ type UncommittedAssetOptions = {|
 
 export default class UncommittedAsset {
   value: Asset;
-  options: ParcelOptions;
+  options: AtlaspackOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
   sourceContent: ?string;
@@ -296,7 +296,7 @@ export default class UncommittedAsset {
   }
 
   getCacheKey(key: string): string {
-    return hashString(PARCEL_VERSION + key + this.value.id);
+    return hashString(ATLASPACK_VERSION + key + this.value.id);
   }
 
   addDependency(opts: DependencyOptions): string {

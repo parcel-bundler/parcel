@@ -1,0 +1,7 @@
+{
+  "extends": "@atlaspack/config-default",
+  "transformers": {
+    "*.svg": ["...", "@atlaspack/transformer-svg-react"]
+  },
+  "reporters": []
+}

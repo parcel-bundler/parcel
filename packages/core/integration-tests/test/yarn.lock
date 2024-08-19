@@ -1,1 +1,1 @@
-# Fake yarn.lock so that Parcel looks no further for a project root
+# Fake yarn.lock so that Atlaspack looks no further for a project root

@@ -1,5 +1,5 @@
 {
-  "@parcel/transformer-js": {
+  "@atlaspack/transformer-js": {
     "inlineEnvironment": false
   }
 }

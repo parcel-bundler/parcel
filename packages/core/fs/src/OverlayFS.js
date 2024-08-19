@@ -8,15 +8,15 @@ import type {
   FileSystem,
   ReaddirOptions,
   FileStats,
-} from '@parcel/types-internal';
+} from '@atlaspack/types-internal';
 import type {
   Event,
   Options as WatcherOptions,
   AsyncSubscription,
 } from '@parcel/watcher';
 
-import {registerSerializableClass} from '@parcel/core';
-import WorkerFarm from '@parcel/workers';
+import {registerSerializableClass} from '@atlaspack/core';
+import WorkerFarm from '@atlaspack/workers';
 import packageJSON from '../package.json';
 import {findAncestorFile, findNodeModule, findFirstFile} from './find';
 import {MemoryFS} from './MemoryFS';
@@ -92,7 +92,7 @@ export class OverlayFS implements FileSystem {
       ) {
         return true;
       } else {
-        // HACK: Parcel fs does not provide `lstatSync`,
+        // HACK: Atlaspack fs does not provide `lstatSync`,
         // so we use `readdirSync` to check if the path is a symlink.
         let parent = path.resolve(filePath, '..');
         if (parent === filePath) {

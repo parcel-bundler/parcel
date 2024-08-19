@@ -6,7 +6,7 @@ import {
   describe,
   inputFS as fs,
   it,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.skip('parser', function () {
   it('should support case-insensitive file extension', async function () {

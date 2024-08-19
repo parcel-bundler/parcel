@@ -1,5 +1,5 @@
 // @flow
-import type {BundleOutputError} from '../parcel/ParcelWorker';
+import type {BundleOutputError} from '../atlaspack/AtlaspackWorker';
 import {useCallback, useState, useEffect, useRef, memo} from 'react';
 import {ctrlKey} from '../utils';
 import renderGraph from '../graphs/index.js';
@@ -7,7 +7,7 @@ import {ASSET_PRESETS, extractZIP} from '../utils';
 import {type FSMap} from '../utils/assets';
 /* eslint-disable react/jsx-no-bind */
 
-export function ParcelError({
+export function AtlaspackError({
   output: {error},
 }: {|
   output: BundleOutputError,

@@ -21,12 +21,12 @@ import {
   outputFS,
   inputFS,
   fsFixture,
-} from '@parcel/test-utils';
-import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
+} from '@atlaspack/test-utils';
+import {makeDeferredWithPromise, normalizePath} from '@atlaspack/utils';
 import vm from 'vm';
-import Logger from '@parcel/logger';
+import Logger from '@atlaspack/logger';
 import nullthrows from 'nullthrows';
-import {md} from '@parcel/diagnostic';
+import {md} from '@atlaspack/diagnostic';
 
 describe('javascript', function () {
   beforeEach(async () => {
@@ -540,7 +540,7 @@ describe('javascript', function () {
   });
 
   // TODO: re-enable when this actually works
-  it.skip('Should not run parcel over external modules', async function () {
+  it.skip('Should not run atlaspack over external modules', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-external/index.js'),
     );
@@ -1053,12 +1053,12 @@ describe('javascript', function () {
               },
             ],
             message: "Failed to resolve 'invalid.txt' from './missing.js'",
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
           },
           {
             hints: [],
             message: "Cannot load file './invalid.txt' in './'.",
-            origin: '@parcel/resolver-default',
+            origin: '@atlaspack/resolver-default',
           },
         ],
       });
@@ -1697,7 +1697,7 @@ describe('javascript', function () {
     await assert.rejects(bundle(filePath), {
       diagnostics: [
         {
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           message: 'Mutating process.env is not supported',
           hints: null,
           codeFrames: [
@@ -1720,7 +1720,7 @@ describe('javascript', function () {
           ],
         },
         {
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           message: 'Mutating process.env is not supported',
           hints: null,
           codeFrames: [
@@ -1743,7 +1743,7 @@ describe('javascript', function () {
           ],
         },
         {
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           message: 'Mutating process.env is not supported',
           hints: null,
           codeFrames: [
@@ -1766,7 +1766,7 @@ describe('javascript', function () {
           ],
         },
         {
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           message: 'Mutating process.env is not supported',
           hints: null,
           codeFrames: [
@@ -1812,7 +1812,7 @@ describe('javascript', function () {
           level: 'warn',
           diagnostics: [
             {
-              origin: '@parcel/transformer-js',
+              origin: '@atlaspack/transformer-js',
               message: 'Mutating process.env is not supported',
               hints: null,
               codeFrames: [
@@ -1838,7 +1838,7 @@ describe('javascript', function () {
               ],
             },
             {
-              origin: '@parcel/transformer-js',
+              origin: '@atlaspack/transformer-js',
               message: 'Mutating process.env is not supported',
               hints: null,
               codeFrames: [
@@ -1864,7 +1864,7 @@ describe('javascript', function () {
               ],
             },
             {
-              origin: '@parcel/transformer-js',
+              origin: '@atlaspack/transformer-js',
               message: 'Mutating process.env is not supported',
               hints: null,
               codeFrames: [
@@ -3225,16 +3225,16 @@ describe('javascript', function () {
     assert.equal(await run(b), 1337);
   });
 
-  it('should detect parcel style async requires in commonjs', async () => {
+  it('should detect atlaspack style async requires in commonjs', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/require-async/parcel.js'),
+      path.join(__dirname, '/integration/require-async/atlaspack.js'),
     );
 
     assertBundles(b, [
       {
-        name: 'parcel.js',
+        name: 'atlaspack.js',
         assets: [
-          'parcel.js',
+          'atlaspack.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
@@ -3617,7 +3617,7 @@ describe('javascript', function () {
         diagnostics: [
           {
             message: '`let` cannot be used as an identifier in strict mode',
-            origin: '@parcel/optimizer-swc',
+            origin: '@atlaspack/optimizer-swc',
             codeFrames: [
               {
                 filePath: undefined,
@@ -3718,7 +3718,7 @@ describe('javascript', function () {
       diagnostics: [
         {
           message: "Failed to resolve 'strange-pipeline:./b.js' from './a.js'",
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath: fixture,
@@ -3741,7 +3741,7 @@ describe('javascript', function () {
         },
         {
           message: "Unknown url scheme or pipeline 'strange-pipeline:'",
-          origin: '@parcel/resolver-default',
+          origin: '@atlaspack/resolver-default',
         },
       ],
     });
@@ -4160,7 +4160,7 @@ describe('javascript', function () {
           diagnostics: [
             {
               message: "Failed to resolve 'foo' from './index.js'",
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   filePath: fixture,
@@ -4183,7 +4183,7 @@ describe('javascript', function () {
             },
             {
               message: "Cannot find module 'foo'",
-              origin: '@parcel/resolver-default',
+              origin: '@atlaspack/resolver-default',
               hints: [],
             },
           ],
@@ -4261,7 +4261,7 @@ describe('javascript', function () {
           diagnostics: [
             {
               message: "Failed to resolve 'lodash' from './index.js'",
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   code: await inputFS.readFile(fixture, 'utf8'),
@@ -4285,7 +4285,7 @@ describe('javascript', function () {
             {
               message:
                 'External dependency "lodash" is not declared in package.json.',
-              origin: '@parcel/resolver-default',
+              origin: '@atlaspack/resolver-default',
               codeFrames: [
                 {
                   code: await inputFS.readFile(pkg, 'utf8'),
@@ -4338,9 +4338,11 @@ describe('javascript', function () {
           diagnostics: [
             {
               message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
-                require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+                require.resolve(
+                  '@atlaspack/transformer-js/src/JSTransformer.js',
+                ),
               )}'`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   code: await inputFS.readFile(fixture, 'utf8'),
@@ -4364,7 +4366,7 @@ describe('javascript', function () {
             {
               message:
                 'External dependency "@swc/helpers" is not declared in package.json.',
-              origin: '@parcel/resolver-default',
+              origin: '@atlaspack/resolver-default',
               codeFrames: [
                 {
                   code: await inputFS.readFile(pkg, 'utf8'),
@@ -4430,9 +4432,11 @@ describe('javascript', function () {
           diagnostics: [
             {
               message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
-                require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+                require.resolve(
+                  '@atlaspack/transformer-js/src/JSTransformer.js',
+                ),
               )}'`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   code: await inputFS.readFile(fixture, 'utf8'),
@@ -4456,7 +4460,7 @@ describe('javascript', function () {
             {
               message:
                 'External dependency "@swc/helpers" does not satisfy required semver range "^0.5.0".',
-              origin: '@parcel/resolver-default',
+              origin: '@atlaspack/resolver-default',
               codeFrames: [
                 {
                   code: pkgContents,
@@ -5125,8 +5129,8 @@ describe('javascript', function () {
       for (let bundle of b.getBundles()) {
         let contents = await outputFS.readFile(bundle.filePath, 'utf8');
         assert(
-          !contents.includes('parcelRequire'),
-          'should not include parcelRequire',
+          !contents.includes('atlaspackRequire'),
+          'should not include atlaspackRequire',
         );
       }
     },
@@ -5152,7 +5156,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             message: 'Unexpected token `}`. Expected identifier',
             hints: null,
             codeFrames: [

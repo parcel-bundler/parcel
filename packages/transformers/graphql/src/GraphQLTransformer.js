@@ -1,5 +1,5 @@
 // @flow
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import {parse, print, Source, stripIgnoredCharacters} from 'graphql';
 import {processDocumentImports} from 'graphql-import-macro';
 

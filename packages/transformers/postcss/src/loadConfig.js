@@ -4,9 +4,9 @@ import type {
   FilePath,
   PluginOptions,
   PluginLogger,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import path from 'path';
-import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {md, generateJSONCodeHighlights} from '@atlaspack/diagnostic';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import {POSTCSS_RANGE} from './constants';
@@ -82,10 +82,10 @@ async function configHydrator(
     let message;
     let hints = [];
     if (!isPackageJson && redundantPlugins.length === pluginArray.length) {
-      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains only redundant plugins. Deleting it may significantly improve build performance.`;
+      message = md`Atlaspack includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains only redundant plugins. Deleting it may significantly improve build performance.`;
       hints.push(md`Delete __${filename}__`);
     } else {
-      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains the following redundant plugins: ${[
+      message = md`Atlaspack includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains the following redundant plugins: ${[
         ...redundantPlugins,
       ].map(p =>
         md.underline(p),
@@ -188,7 +188,7 @@ export async function load({
       // e.g. using unknown environment variables, reading from the filesystem, etc.
       logger.warn({
         message:
-          'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
+          'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Atlaspack. Use a .postcssrc(.json) file whenever possible.',
       });
     }
 

@@ -1,6 +1,6 @@
 // @flow
 
-import type {Environment} from '@parcel/types';
+import type {Environment} from '@atlaspack/types';
 import type {Targets as BabelTargets} from '@babel/preset-env';
 
 import invariant from 'assert';
@@ -47,9 +47,9 @@ const ESMODULE_BROWSERS = [
 ];
 
 export function enginesToBabelTargets(env: Environment): BabelTargets {
-  // "Targets" is the name @babel/preset-env uses for what Parcel calls engines.
-  // This should not be confused with Parcel's own targets.
-  // Unlike Parcel's engines, @babel/preset-env expects to work with minimum
+  // "Targets" is the name @babel/preset-env uses for what Atlaspack calls engines.
+  // This should not be confused with Atlaspack's own targets.
+  // Unlike Atlaspack's engines, @babel/preset-env expects to work with minimum
   // versions, not semver ranges, of its targets.
   let targets = {};
   for (let engineName of Object.keys(env.engines)) {

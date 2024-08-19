@@ -1,6 +1,6 @@
 // @flow
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {FilePath} from '@parcel/types-internal';
+import type {Diagnostic} from '@atlaspack/diagnostic';
+import type {FilePath} from '@atlaspack/types-internal';
 
 export type LocationCallRequest = {|
   args: $ReadOnlyArray<mixed>,

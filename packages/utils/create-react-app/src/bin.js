@@ -2,8 +2,8 @@
 
 'use strict';
 
-if (process.env.PARCEL_BUILD_ENV !== 'production') {
-  require('@parcel/babel-register');
+if (process.env.ATLASPACK_BUILD_ENV !== 'production') {
+  require('@atlaspack/babel-register');
 }
 
 require('v8-compile-cache');

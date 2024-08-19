@@ -1,20 +1,20 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
-import type {Async} from '@parcel/types';
+import type {ContentKey} from '@atlaspack/graph';
+import type {Async} from '@atlaspack/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
   TransformationRequest,
 } from '../types';
-import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {ConfigAndCachePath} from './AtlaspackConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import {hashString} from '@parcel/rust';
-import createParcelConfigRequest from './ParcelConfigRequest';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
+import {hashString} from '@atlaspack/rust';
+import createAtlaspackConfigRequest from './AtlaspackConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
@@ -75,7 +75,9 @@ async function run({input, api, farm, invalidateReason, options}) {
   let start = Date.now();
   let {optionsRef, ...rest} = input;
   let {cachePath} = nullthrows(
-    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+    await api.runRequest<null, ConfigAndCachePath>(
+      createAtlaspackConfigRequest(),
+    ),
   );
 
   let previousDevDepRequests: Map<string, DevDepRequestResult> = new Map(

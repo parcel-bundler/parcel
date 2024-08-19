@@ -12,9 +12,9 @@ import {
   sleep,
   run,
   getNextBuildSuccess,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import getPort from 'get-port';
-import type {BuildEvent, Asset} from '@parcel/types';
+import type {BuildEvent, Asset} from '@atlaspack/types';
 // flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
@@ -268,7 +268,7 @@ if (MessageChannel) {
 
     it('does not apply to library targets', async () => {
       let port = await getPort();
-      let parcel = await bundler(
+      let atlaspack = await bundler(
         path.join(
           __dirname,
           '/integration/react-refresh-library-target/index.js',
@@ -279,7 +279,7 @@ if (MessageChannel) {
           },
         },
       );
-      let result = await getNextBuildSuccess(parcel);
+      let result = await getNextBuildSuccess(atlaspack);
       let bundle = nullthrows(
         result.bundleGraph.getBundles().find(b => b.type === 'js'),
       );
@@ -293,7 +293,7 @@ if (MessageChannel) {
           assert(
             !node.value.specifier.startsWith('react-refresh/runtime') &&
               !node.value.specifier.startsWith(
-                '@parcel/transformer-react-refresh-wrap',
+                '@atlaspack/transformer-react-refresh-wrap',
               ),
           );
         }
@@ -329,7 +329,7 @@ async function setup(entry) {
     },
     defaultConfig: path.join(
       __dirname,
-      'integration/custom-configs/.parcelrc-dev-server',
+      'integration/custom-configs/.atlaspackrc-dev-server',
     ),
   });
 
@@ -356,11 +356,11 @@ async function setup(entry) {
   root = window.document.getElementById('root');
 
   let bundle = nullthrows(bundleGraph.getBundles().find(b => b.type === 'js'));
-  let parcelRequire = Object.keys(window).find(k =>
-    k.startsWith('parcelRequire'),
+  let atlaspackRequire = Object.keys(window).find(k =>
+    k.startsWith('atlaspackRequire'),
   );
   // ReactDOM.render
-  await window[parcelRequire](
+  await window[atlaspackRequire](
     bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
   ).default();
   await sleep(100);

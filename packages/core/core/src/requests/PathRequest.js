@@ -1,37 +1,37 @@
 // @flow strict-local
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {Diagnostic} from '@atlaspack/diagnostic';
 import type {
   Async,
   FileCreateInvalidation,
   FilePath,
   Resolver,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetGroup,
   Config,
   Dependency,
   DevDepRequest,
-  ParcelOptions,
+  AtlaspackOptions,
 } from '../types';
-import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {ConfigAndCachePath} from './AtlaspackConfigRequest';
 
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
   errorToDiagnostic,
   md,
-} from '@parcel/diagnostic';
-import {PluginLogger} from '@parcel/logger';
+} from '@atlaspack/diagnostic';
+import {PluginLogger} from '@atlaspack/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {normalizePath} from '@parcel/utils';
+import {normalizePath} from '@atlaspack/utils';
 import {report} from '../ReporterRunner';
 import {getPublicDependency} from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
-import ParcelConfig from '../ParcelConfig';
-import createParcelConfigRequest, {
-  getCachedParcelConfig,
-} from './ParcelConfigRequest';
+import AtlaspackConfig from '../AtlaspackConfig';
+import createAtlaspackConfigRequest, {
+  getCachedAtlaspackConfig,
+} from './AtlaspackConfigRequest';
 import {invalidateOnFileCreateToInternal} from '../utils';
 import {
   fromProjectPath,
@@ -41,7 +41,7 @@ import {
 } from '../projectPath';
 import {Priority} from '../types';
 import {createBuildCache} from '../buildCache';
-import type {LoadedPlugin} from '../ParcelConfig';
+import type {LoadedPlugin} from '../AtlaspackConfig';
 import {createConfig} from '../InternalConfig';
 import {loadPluginConfig, runConfigRequest} from './ConfigRequest';
 import {
@@ -50,7 +50,7 @@ import {
   invalidateDevDeps,
   runDevDepRequest,
 } from './DevDepRequest';
-import {tracer, PluginTracer} from '@parcel/profiler';
+import {tracer, PluginTracer} from '@atlaspack/profiler';
 import {requestTypes} from '../RequestTracker';
 
 export type PathRequest = {|
@@ -87,9 +87,11 @@ export default function createPathRequest(
 
 async function run({input, api, options}): Promise<PathRequestResult> {
   let configResult = nullthrows(
-    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+    await api.runRequest<null, ConfigAndCachePath>(
+      createAtlaspackConfigRequest(),
+    ),
   );
-  let config = getCachedParcelConfig(configResult, options);
+  let config = getCachedAtlaspackConfig(configResult, options);
   let {devDeps, invalidDevDeps} = await getDevDepRequests(api);
   invalidateDevDeps(invalidDevDeps, options, config);
   let resolverRunner = new ResolverRunner({
@@ -143,8 +145,8 @@ async function run({input, api, options}): Promise<PathRequestResult> {
 }
 
 type ResolverRunnerOpts = {|
-  config: ParcelConfig,
-  options: ParcelOptions,
+  config: AtlaspackConfig,
+  options: AtlaspackOptions,
   previousDevDeps: Map<string, string>,
 |};
 
@@ -159,8 +161,8 @@ type ResolverResult = {|
 const configCache = createBuildCache();
 
 export class ResolverRunner {
-  config: ParcelConfig;
-  options: ParcelOptions;
+  config: AtlaspackConfig;
+  options: AtlaspackOptions;
   pluginOptions: PluginOptions;
   previousDevDeps: Map<string, string>;
   devDepRequests: Map<string, DevDepRequest>;
@@ -181,7 +183,7 @@ export class ResolverRunner {
   ): Async<Diagnostic> {
     let diagnostic: Diagnostic = {
       message,
-      origin: '@parcel/core',
+      origin: '@atlaspack/core',
     };
 
     if (dependency.loc && dependency.sourcePath != null) {

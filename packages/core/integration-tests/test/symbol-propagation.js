@@ -7,7 +7,7 @@ import {
   it,
   overlayFS,
   run,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('symbol propagation', () => {
   it('should handle removed assets from previous failed builds', async () => {

@@ -9,7 +9,7 @@ import type {
 import nullthrows from 'nullthrows';
 import {setChild} from '../childState';
 import {Child} from '../child';
-import {serialize, deserialize} from '@parcel/core';
+import {serialize, deserialize} from '@atlaspack/core';
 
 export default class ProcessChild implements ChildImpl {
   onMessage: MessageHandler;

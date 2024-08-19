@@ -1,13 +1,13 @@
 // @flow strict-local
 
-import {MemoryFS, NodeFS, OverlayFS} from '@parcel/fs';
+import {MemoryFS, NodeFS, OverlayFS} from '@atlaspack/fs';
 import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
 import sinon from 'sinon';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import {loadConfig} from '@parcel/utils';
-import WorkerFarm from '@parcel/workers';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
+import {loadConfig} from '@atlaspack/utils';
+import WorkerFarm from '@atlaspack/workers';
 import {MockPackageInstaller, NodePackageManager} from '../src';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
@@ -49,7 +49,7 @@ describe('NodePackageManager', function () {
 
   beforeEach(() => {
     workerFarm = new WorkerFarm({
-      workerPath: require.resolve('@parcel/core/src/worker.js'),
+      workerPath: require.resolve('@atlaspack/core/src/worker.js'),
     });
     fs = new OverlayFS(new MemoryFS(workerFarm), new NodeFS());
     packageInstaller = new MockPackageInstaller();

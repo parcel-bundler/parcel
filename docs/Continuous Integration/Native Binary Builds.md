@@ -1,6 +1,6 @@
-# Parcel • Continuous Integration • Native Binary Builds
+# Atlaspack • Continuous Integration • Native Binary Builds
 
-Parcel relies on a few native artifacts that need to be built for multiple target platforms and architectures.
+Atlaspack relies on a few native artifacts that need to be built for multiple target platforms and architectures.
 
 To support this, there are a number of different runner jobs running on different images/os:
 

@@ -1,7 +1,7 @@
 // @flow strict-local
 
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {FileSystem} from '@parcel/fs';
+import type {Diagnostic} from '@atlaspack/diagnostic';
+import type {FileSystem} from '@atlaspack/fs';
 import type {
   Async,
   Engines,
@@ -10,10 +10,10 @@ import type {
   PackageTargetDescriptor,
   TargetDescriptor,
   OutputFormat,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
-import type {Entry, ParcelOptions, Target} from '../types';
-import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {Entry, AtlaspackOptions, Target} from '../types';
+import type {ConfigAndCachePath} from './AtlaspackConfigRequest';
 
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
@@ -21,19 +21,19 @@ import ThrowableDiagnostic, {
   getJSONSourceLocation,
   encodeJSONKeyComponent,
   md,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 import path from 'path';
 import {
   loadConfig,
   resolveConfig,
   hashObject,
   validateSchema,
-} from '@parcel/utils';
-import logger from '@parcel/logger';
+} from '@atlaspack/utils';
+import logger from '@atlaspack/logger';
 import {createEnvironment} from '../Environment';
-import createParcelConfigRequest, {
-  getCachedParcelConfig,
-} from './ParcelConfigRequest';
+import createAtlaspackConfigRequest, {
+  getCachedAtlaspackConfig,
+} from './AtlaspackConfigRequest';
 // $FlowFixMe
 import browserslist from 'browserslist';
 import {parse} from '@mischnic/json-sourcemap';
@@ -135,12 +135,14 @@ async function run({input, api, options}) {
   assertTargetsAreNotEntries(targets, input, options);
 
   let configResult = nullthrows(
-    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+    await api.runRequest<null, ConfigAndCachePath>(
+      createAtlaspackConfigRequest(),
+    ),
   );
-  let parcelConfig = getCachedParcelConfig(configResult, options);
+  let atlaspackConfig = getCachedAtlaspackConfig(configResult, options);
 
   // Find named pipelines for each target.
-  let pipelineNames = new Set(parcelConfig.getNamedPipelines());
+  let pipelineNames = new Set(atlaspackConfig.getNamedPipelines());
   for (let target of targets) {
     if (pipelineNames.has(target.name)) {
       target.pipeline = target.name;
@@ -187,10 +189,10 @@ type TargetKeyInfo =
 export class TargetResolver {
   fs: FileSystem;
   api: RunAPI<Array<Target>>;
-  options: ParcelOptions;
+  options: AtlaspackOptions;
   targetInfo: Map<string, TargetInfo>;
 
-  constructor(api: RunAPI<Array<Target>>, options: ParcelOptions) {
+  constructor(api: RunAPI<Array<Target>>, options: AtlaspackOptions) {
     this.api = api;
     this.fs = options.inputFS;
     this.options = options;
@@ -215,7 +217,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Targets option is an empty array`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
             },
           });
         }
@@ -236,7 +238,7 @@ export class TargetResolver {
               throw new ThrowableDiagnostic({
                 diagnostic: {
                   message: md`Could not find target with name "${target}"`,
-                  origin: '@parcel/core',
+                  origin: '@atlaspack/core',
                 },
               });
             }
@@ -263,7 +265,7 @@ export class TargetResolver {
               throw new ThrowableDiagnostic({
                 diagnostic: {
                   message: md`Missing distDir for target "${name}"`,
-                  origin: '@parcel/core',
+                  origin: '@atlaspack/core',
                   codeFrames: [
                     {
                       code: optionTargetsString,
@@ -336,7 +338,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `More than one target is not supported in serve mode`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
             },
           });
         }
@@ -344,7 +346,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
             },
           });
         }
@@ -429,7 +431,7 @@ export class TargetResolver {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: md`Expected package.json file in ${rootDir}`,
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
           },
         });
       }
@@ -701,7 +703,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Unexpected output file type ${ext} in target "${targetName}"`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   language: 'json',
@@ -734,7 +736,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`The "global" output format is not supported in the "${targetName}" target.`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   language: 'json',
@@ -788,7 +790,7 @@ export class TargetResolver {
             diagnostic: {
               // prettier-ignore
               message: md`Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   language: 'json',
@@ -826,7 +828,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: 'Scope hoisting cannot be disabled for library targets.',
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   language: 'json',
@@ -956,7 +958,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Invalid distPath for target "${targetName}"`,
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   language: 'json',
@@ -1018,7 +1020,7 @@ export class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: 'Scope hoisting cannot be disabled for library targets.',
-              origin: '@parcel/core',
+              origin: '@atlaspack/core',
               codeFrames: [
                 {
                   language: 'json',
@@ -1214,7 +1216,7 @@ export class TargetResolver {
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: md`Declared output format "${descriptor.outputFormat}" does not match expected output format "${inferredOutputFormat}".`,
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               language: 'json',
@@ -1264,7 +1266,7 @@ function parseEngines(
     validateSchema.diagnostic(
       ENGINES_SCHEMA,
       {data: engines, source: pkgContents, filePath: pkgPath, prependKey},
-      '@parcel/core',
+      '@atlaspack/core',
       message,
     );
     // $FlowFixMe we just verified this
@@ -1286,7 +1288,7 @@ function parseDescriptor(
       filePath: pkgPath,
       prependKey: `/targets/${targetName}`,
     },
-    '@parcel/core',
+    '@atlaspack/core',
     `Invalid target descriptor for target "${targetName}"`,
   );
 
@@ -1308,7 +1310,7 @@ function parsePackageDescriptor(
       filePath: pkgPath,
       prependKey: `/targets/${targetName}`,
     },
-    '@parcel/core',
+    '@atlaspack/core',
     `Invalid target descriptor for target "${targetName}"`,
   );
   // $FlowFixMe we just verified this
@@ -1329,7 +1331,7 @@ function parseCommonTargetDescriptor(
       filePath: pkgPath,
       prependKey: `/targets/${targetName}`,
     },
-    '@parcel/core',
+    '@atlaspack/core',
     `Invalid target descriptor for target "${targetName}"`,
   );
 
@@ -1367,7 +1369,7 @@ function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
           path.dirname(pkgFilePath),
           targetPath,
         )}"`,
-        origin: '@parcel/core',
+        origin: '@atlaspack/core',
         codeFrames: [
           {
             language: 'json',
@@ -1398,7 +1400,7 @@ function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
   }
 }
 
-function normalizeSourceMap(options: ParcelOptions, sourceMap) {
+function normalizeSourceMap(options: AtlaspackOptions, sourceMap) {
   if (options.defaultTargetOptions.sourceMaps) {
     if (typeof sourceMap === 'boolean') {
       return sourceMap ? {} : undefined;
@@ -1413,7 +1415,7 @@ function normalizeSourceMap(options: ParcelOptions, sourceMap) {
 function assertTargetsAreNotEntries(
   targets: Array<Target>,
   input: Entry,
-  options: ParcelOptions,
+  options: AtlaspackOptions,
 ) {
   for (const target of targets) {
     if (
@@ -1454,7 +1456,7 @@ function assertTargetsAreNotEntries(
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           message: `Target "${target.name}" is configured to overwrite entry "${relativeEntry}".`,
           codeFrames,
           hints: [
@@ -1595,7 +1597,7 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
     let format = v => (v.message != null ? md.italic(v.message) : '');
     logger.verbose({
-      origin: '@parcel/core',
+      origin: '@atlaspack/core',
       message: md`**Target** "${target.name}"
 
                **Entry**: ${path.relative(

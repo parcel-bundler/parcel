@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {PackageName, ConfigResult} from '@parcel/types';
+import type {PackageName, ConfigResult} from '@atlaspack/types';
 import type {
   Config,
   Environment,
@@ -11,7 +11,7 @@ import type {ProjectPath} from './projectPath';
 
 import {fromProjectPathRelative} from './projectPath';
 import {createEnvironment} from './Environment';
-import {hashString} from '@parcel/rust';
+import {hashString} from '@atlaspack/rust';
 
 type ConfigOpts = {|
   plugin: PackageName,

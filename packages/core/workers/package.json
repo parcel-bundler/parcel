@@ -1,18 +1,14 @@
 {
-  "name": "@parcel/workers",
+  "name": "@atlaspack/workers",
   "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/index.js",
   "source": "src/index.js",
@@ -21,15 +17,15 @@
     "node": ">= 16.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.12.0",
-    "@parcel/logger": "2.12.0",
-    "@parcel/profiler": "2.12.0",
-    "@parcel/types-internal": "2.12.0",
-    "@parcel/utils": "2.12.0",
+    "@atlaspack/diagnostic": "2.12.0",
+    "@atlaspack/logger": "2.12.0",
+    "@atlaspack/profiler": "2.12.0",
+    "@atlaspack/types-internal": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
     "nullthrows": "^1.1.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.12.0"
+    "@atlaspack/core": "^2.12.0"
   },
   "browser": {
     "./src/process/ProcessWorker.js": false,

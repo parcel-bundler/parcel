@@ -1,12 +1,12 @@
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
-name = "parcel-resolver-old"
+name = "atlaspack-resolver-old"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-parcel_core = { path = "../../../crates/parcel_core" }
-parcel_filesystem = { path = "../../../crates/parcel_filesystem" }
+atlaspack_core = { path = "../../../crates/atlaspack_core" }
+atlaspack_filesystem = { path = "../../../crates/atlaspack_filesystem" }
 
 bitflags = "1.3.2"
 dashmap = "5.4.0"

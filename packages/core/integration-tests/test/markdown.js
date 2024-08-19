@@ -6,7 +6,7 @@ import {
   describe,
   it,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.skip('markdown', function () {
   it('should support bundling Markdown', async function () {

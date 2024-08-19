@@ -5,10 +5,10 @@ export function detectBackend(): BackendType {
   // $FlowFixMe
   if (process.browser) return 'web';
 
-  switch (process.env.PARCEL_WORKER_BACKEND) {
+  switch (process.env.ATLASPACK_WORKER_BACKEND) {
     case 'threads':
     case 'process':
-      return process.env.PARCEL_WORKER_BACKEND;
+      return process.env.ATLASPACK_WORKER_BACKEND;
   }
 
   try {

@@ -1,10 +1,10 @@
 // @flow
 import path from 'path';
 import process from 'process';
-import {Optimizer} from '@parcel/plugin';
-import {blobToBuffer} from '@parcel/utils';
-import {md} from '@parcel/diagnostic';
-import {optimizeImage} from '@parcel/rust';
+import {Optimizer} from '@atlaspack/plugin';
+import {blobToBuffer} from '@atlaspack/utils';
+import {md} from '@atlaspack/diagnostic';
+import {optimizeImage} from '@atlaspack/rust';
 
 export default (new Optimizer({
   async optimize({bundle, contents, logger}) {

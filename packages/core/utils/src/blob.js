@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Blob} from '@parcel/types';
+import type {Blob} from '@atlaspack/types';
 
 import {Buffer} from 'buffer';
 import {bufferStream} from './';

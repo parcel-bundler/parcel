@@ -1,4 +1,4 @@
-import {FilePath} from '@parcel/types';
+import {FilePath} from '@atlaspack/types';
 
 type BackendType = 'process' | 'threads';
 

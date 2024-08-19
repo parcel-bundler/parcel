@@ -1,5 +1,5 @@
 // @flow
-import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
+import type {DiagnosticCodeHighlight} from '@atlaspack/diagnostic';
 
 import chalk from 'chalk';
 import emphasize from 'emphasize';

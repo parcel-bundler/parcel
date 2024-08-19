@@ -7,26 +7,26 @@ import type {
   PluginTracer as IPluginTracer,
   NamedBundle as INamedBundle,
   BundleGraph as IBundleGraph,
-} from '@parcel/types';
-import {readConfig, hashObject} from '@parcel/utils';
+} from '@atlaspack/types';
+import {readConfig, hashObject} from '@atlaspack/utils';
 import type {
   Config,
-  ParcelOptions,
+  AtlaspackOptions,
   InternalFileCreateInvalidation,
 } from '../types';
-import type {LoadedPlugin} from '../ParcelConfig';
+import type {LoadedPlugin} from '../AtlaspackConfig';
 import type {RequestResult, RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
 
 import {serializeRaw} from '../serializer.js';
-import {PluginLogger} from '@parcel/logger';
+import {PluginLogger} from '@atlaspack/logger';
 import PluginOptions from '../public/PluginOptions';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@atlaspack/diagnostic';
 import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
-import {hashString, Hash} from '@parcel/rust';
-import {PluginTracer} from '@parcel/profiler';
+import {hashString, Hash} from '@atlaspack/rust';
+import {PluginTracer} from '@atlaspack/profiler';
 import {requestTypes} from '../RequestTracker';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {createBuildCache} from '../buildCache';
@@ -79,7 +79,7 @@ export type ConfigRequestResult = void;
 export async function loadPluginConfig<T: PluginWithLoadConfig>(
   loadedPlugin: LoadedPlugin<T>,
   config: Config,
-  options: ParcelOptions,
+  options: AtlaspackOptions,
 ): Promise<void> {
   let loadConfig = loadedPlugin.plugin.loadConfig;
   if (!loadConfig) {
@@ -114,7 +114,7 @@ const configKeyCache = createBuildCache();
 export async function getConfigKeyContentHash(
   filePath: ProjectPath,
   configKey: string,
-  options: ParcelOptions,
+  options: AtlaspackOptions,
 ): Async<string> {
   let cacheKey = `${fromProjectPathRelative(filePath)}:${configKey}`;
   let cachedValue = configKeyCache.get(cacheKey);
@@ -216,7 +216,7 @@ export async function runConfigRequest<TResult: RequestResult>(
 export async function getConfigHash(
   config: Config,
   pluginName: string,
-  options: ParcelOptions,
+  options: AtlaspackOptions,
 ): Promise<string> {
   if (config.result == null) {
     return '';

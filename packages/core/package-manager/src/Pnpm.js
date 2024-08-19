@@ -1,16 +1,16 @@
 // @flow strict-local
 
-import type {PackageInstaller, InstallerOptions} from '@parcel/types';
+import type {PackageInstaller, InstallerOptions} from '@atlaspack/types';
 
 import path from 'path';
 import fs from 'fs';
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 import split from 'split2';
 import JSONParseStream from './JSONParseStream';
 import promiseFromProcess from './promiseFromProcess';
-import {registerSerializableClass} from '@parcel/core';
+import {registerSerializableClass} from '@atlaspack/core';
 import {exec, npmSpecifierFromModuleRequest} from './utils';
 
 // $FlowFixMe
@@ -125,7 +125,7 @@ export class Pnpm implements PackageInstaller {
       .pipe(new JSONParseStream())
       .on('error', e => {
         logger.warn({
-          origin: '@parcel/package-manager',
+          origin: '@atlaspack/package-manager',
           message: e.chunk,
           stack: e.stack,
         });
@@ -133,13 +133,13 @@ export class Pnpm implements PackageInstaller {
       .on('data', (json: PNPMResults) => {
         if (json.level === 'error') {
           logger.error({
-            origin: '@parcel/package-manager',
+            origin: '@atlaspack/package-manager',
             message: json.err.message,
             stack: json.err.stack,
           });
         } else if (json.level === 'info' && typeof json.message === 'string') {
           logger.info({
-            origin: '@parcel/package-manager',
+            origin: '@atlaspack/package-manager',
             message: prefix(json.message),
           });
         } else if (json.name === 'pnpm:stats') {
@@ -155,7 +155,7 @@ export class Pnpm implements PackageInstaller {
       })
       .on('error', e => {
         logger.warn({
-          origin: '@parcel/package-manager',
+          origin: '@atlaspack/package-manager',
           message: e.message,
         });
       });
@@ -165,7 +165,7 @@ export class Pnpm implements PackageInstaller {
 
       if (addedCount > 0 || removedCount > 0) {
         logger.log({
-          origin: '@parcel/package-manager',
+          origin: '@atlaspack/package-manager',
           message: `Added ${addedCount} ${
             removedCount > 0 ? `and removed ${removedCount} ` : ''
           }packages via pnpm`,
@@ -177,7 +177,7 @@ export class Pnpm implements PackageInstaller {
       // errors as they often aren't.
       for (let message of stderr) {
         logger.log({
-          origin: '@parcel/package-manager',
+          origin: '@atlaspack/package-manager',
           message,
         });
       }

@@ -123,19 +123,19 @@
     {
       "fileName": "babel",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/babel.js",
-      "title": "should support multitarget builds using a custom babel config with @parcel/babel-preset-env",
+      "title": "should support multitarget builds using a custom babel config with @atlaspack/babel-preset-env",
       "status": "passing"
     },
     {
       "fileName": "babel",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/babel.js",
-      "title": "should support building with default babel config when running parcel globally",
+      "title": "should support building with default babel config when running atlaspack globally",
       "status": "passing"
     },
     {
       "fileName": "babel",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/babel.js",
-      "title": "should support building with custom babel config when running parcel globally",
+      "title": "should support building with custom babel config when running atlaspack globally",
       "status": "passing"
     },
     {
@@ -831,7 +831,7 @@
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/javascript.js",
-      "title": "Should not run parcel over external modules",
+      "title": "Should not run atlaspack over external modules",
       "status": "passing"
     },
     {
@@ -1269,7 +1269,7 @@
     {
       "fileName": "metrics-reporter",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/metrics-reporter.js",
-      "title": "Should dump bundle metrics to parcel-metrics.json",
+      "title": "Should dump bundle metrics to atlaspack-metrics.json",
       "status": "passing"
     },
     {
@@ -1507,31 +1507,31 @@
       "status": "passing"
     },
     {
-      "fileName": "parcel-register",
+      "fileName": "atlaspack-register",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/parcel-register.js",
       "title": "can be required at an entry script and transform following requires",
       "status": "pending"
     },
     {
-      "fileName": "parcel-register",
+      "fileName": "atlaspack-register",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/parcel-register.js",
       "title": "can transform with --r and --require",
       "status": "pending"
     },
     {
-      "fileName": "parcel-register",
+      "fileName": "atlaspack-register",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/parcel-register.js",
-      "title": "enables Parcel's resolver in node",
+      "title": "enables Atlaspack's resolver in node",
       "status": "pending"
     },
     {
-      "fileName": "parcel-register",
+      "fileName": "atlaspack-register",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/parcel-register.js",
       "title": "can be disposed of, which reverts resolving",
       "status": "pending"
     },
     {
-      "fileName": "parcel-register",
+      "fileName": "atlaspack-register",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/parcel-register.js",
       "title": "can be disposed of, which reverts transforming",
       "status": "pending"
@@ -2211,7 +2211,7 @@
     {
       "fileName": "scope-hoisting",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/scope-hoisting.js",
-      "title": "doesn't insert parcelRequire for missing non-js assets",
+      "title": "doesn't insert atlaspackRequire for missing non-js assets",
       "status": "passing"
     },
     {

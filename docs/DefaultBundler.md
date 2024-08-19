@@ -1,6 +1,6 @@
 ## `bundle()`
 
-During the bundling phase, we hand over control to the bundler plugin via `bundle()`. This mutative function is called in the `BundleGraphRequest`, and is passed in a stripped version of the AssetGraph, called the `mutableBundleGraph`. Users can specify custom bundler plugins in their `.parcelrc`. In this document we will go through the default bundler plugin.
+During the bundling phase, we hand over control to the bundler plugin via `bundle()`. This mutative function is called in the `BundleGraphRequest`, and is passed in a stripped version of the AssetGraph, called the `mutableBundleGraph`. Users can specify custom bundler plugins in their `.atlaspackrc`. In this document we will go through the default bundler plugin.
 
 ```
 await bundler.bundle({
@@ -323,9 +323,9 @@ That's it! The next few steps only kick in if your bundler config specifies.
 
 ## Step: Merge Shared Bundles
 
-Users of Parcel can specify a bundler config, which sets `minbundleSize`, `maxParallelRequests`, and `minBundles`. In this step we merge back and shared bundles that are smaller than `minBundleSize`.
+Users of Atlaspack can specify a bundler config, which sets `minbundleSize`, `maxParallelRequests`, and `minBundles`. In this step we merge back and shared bundles that are smaller than `minBundleSize`.
 
-These config options only affect shared bundles. For more on the config options, visit the [Parcel Docs on Shared Bundles](https://parceljs.org/features/code-splitting/#shared-bundles).
+These config options only affect shared bundles. For more on the config options, visit the [Atlaspack Docs on Shared Bundles](https://parceljs.org/features/code-splitting/#shared-bundles).
 
 ## Step: Remove Shared Bundles
 
@@ -335,7 +335,7 @@ One difference between the previous implementation and the current is here, wher
 
 # BundleGraph Decoration
 
-BundleGraph decoration takes an idealGraph and mutates the passed-in assetGraph aka Mutable bundleGraph, in order to back port our idealGraph to what Parcel expects.
+BundleGraph decoration takes an idealGraph and mutates the passed-in assetGraph aka Mutable bundleGraph, in order to back port our idealGraph to what Atlaspack expects.
 
 ## Definitions
 
@@ -353,7 +353,7 @@ BundleGraph decoration takes an idealGraph and mutates the passed-in assetGraph 
 
 - **local BundleGraph:** Within `CreateIdealGraph()`, we maintain a local BundleGraph which represents only bundles that load in parallel, represented by being attached to the root dummy node.
 
-- **Default:** The Default BundleGraph (which you will most commonly see throughout Parcel) maintains the nodes mentioned above and is a modified version of the AssetGraph.
+- **Default:** The Default BundleGraph (which you will most commonly see throughout Atlaspack) maintains the nodes mentioned above and is a modified version of the AssetGraph.
 
 - **IdealGraph:** Structure which contains the local bundleGraph, dependencyBundleGraph, BundleGroupIds, and a mapping of asset references. This stores all info needed to back-port our structures to the “standard” bundleGraph
 
@@ -367,7 +367,7 @@ BundleGraph decoration takes an idealGraph and mutates the passed-in assetGraph 
 
 - **Entries**
 
-  - **Entry to Project:** A file the user points Parcel at, in the bundler, this is a set of assets
+  - **Entry to Project:** A file the user points Atlaspack at, in the bundler, this is a set of assets
 
   - **Entry to A Bundle:** The main or first asset in a bundle
 

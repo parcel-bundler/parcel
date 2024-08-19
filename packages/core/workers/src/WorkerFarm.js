@@ -1,6 +1,6 @@
 // @flow
 
-import type {ErrorWithCode, FilePath} from '@parcel/types-internal';
+import type {ErrorWithCode, FilePath} from '@atlaspack/types-internal';
 import type {
   CallRequest,
   HandleCallRequest,
@@ -21,16 +21,16 @@ import {
   prepareForSerialization,
   restoreDeserializedObject,
   serialize,
-} from '@parcel/core';
-import ThrowableDiagnostic, {anyToDiagnostic, md} from '@parcel/diagnostic';
+} from '@atlaspack/core';
+import ThrowableDiagnostic, {anyToDiagnostic, md} from '@atlaspack/diagnostic';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
 import {detectBackend} from './backend';
-import {SamplingProfiler, Trace} from '@parcel/profiler';
+import {SamplingProfiler, Trace} from '@atlaspack/profiler';
 import fs from 'fs';
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 
 let referenceId = 1;
 
@@ -105,7 +105,7 @@ export default class WorkerFarm extends EventEmitter {
 
     // $FlowFixMe
     if (process.browser) {
-      if (this.options.workerPath === '@parcel/core/src/worker.js') {
+      if (this.options.workerPath === '@atlaspack/core/src/worker.js') {
         this.localWorker = coreWorker;
       } else {
         throw new Error(
@@ -251,7 +251,7 @@ export default class WorkerFarm extends EventEmitter {
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
       return this.stopWorker(worker);
     } else {
-      logger.error(error, '@parcel/workers');
+      logger.error(error, '@atlaspack/workers');
     }
   }
 
@@ -357,7 +357,7 @@ export default class WorkerFarm extends EventEmitter {
     } else if (location) {
       // $FlowFixMe
       if (process.browser) {
-        if (location === '@parcel/workers/src/bus.js') {
+        if (location === '@atlaspack/workers/src/bus.js') {
           mod = (bus: any);
         } else {
           throw new Error('No dynamic require possible: ' + location);
@@ -598,7 +598,7 @@ export default class WorkerFarm extends EventEmitter {
     });
 
     logger.info({
-      origin: '@parcel/workers',
+      origin: '@atlaspack/workers',
       message: md`Wrote profile to ${filename}`,
     });
   }
@@ -644,22 +644,22 @@ export default class WorkerFarm extends EventEmitter {
       );
 
       logger.info({
-        origin: '@parcel/workers',
+        origin: '@atlaspack/workers',
         message: md`Wrote heap snapshots to the following paths:\n${snapshotPaths.join(
           '\n',
         )}`,
       });
     } catch {
       logger.error({
-        origin: '@parcel/workers',
+        origin: '@atlaspack/workers',
         message: 'Unable to take heap snapshots. Note: requires Node 11.13.0+',
       });
     }
   }
 
   static getNumWorkers(): number {
-    return process.env.PARCEL_WORKERS
-      ? parseInt(process.env.PARCEL_WORKERS, 10)
+    return process.env.ATLASPACK_WORKERS
+      ? parseInt(process.env.ATLASPACK_WORKERS, 10)
       : Math.min(4, Math.ceil(cpuCount() / 2));
   }
 
@@ -688,7 +688,7 @@ export default class WorkerFarm extends EventEmitter {
     defaultValue?: number = DEFAULT_MAX_CONCURRENT_CALLS,
   ): number {
     return (
-      parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || defaultValue
+      parseInt(process.env.ATLASPACK_MAX_CONCURRENT_CALLS, 10) || defaultValue
     );
   }
 }

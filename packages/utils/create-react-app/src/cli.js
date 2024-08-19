@@ -38,7 +38,7 @@ program
 
 async function run(packagePath: string) {
   log(
-    chalk`${emoji.progress} {green Creating Parcel app at}`,
+    chalk`${emoji.progress} {green Creating Atlaspack app at}`,
     chalk.bold.underline(packagePath),
   );
   if (await fsExists(packagePath)) {
@@ -56,14 +56,14 @@ async function run(packagePath: string) {
   await fs.promises.rename(tempPath, packagePath);
 
   log(
-    chalk`{green ${emoji.success} Successfully created a new Parcel app at {bold.underline ${packagePath}}.}`,
+    chalk`{green ${emoji.success} Successfully created a new Atlaspack app at {bold.underline ${packagePath}}.}`,
   );
   log(
     chalk`${
       emoji.info
     }  {dim Run} {bold cd ${packagePath}} {dim and then} {bold ${
       usesYarn ? 'yarn' : 'npm run'
-    } start} {dim to start developing with Parcel.}`,
+    } start} {dim to start developing with Atlaspack.}`,
   );
 }
 
@@ -100,7 +100,7 @@ async function createApp(packageName: string, tempPath: string) {
   ]);
 
   log(emoji.progress, 'Installing packages...');
-  await installPackages(['parcel@nightly', 'postcss', '@babel/core'], {
+  await installPackages(['atlaspack@nightly', 'postcss', '@babel/core'], {
     cwd: tempPath,
     isDevDependency: true,
   });
@@ -108,7 +108,7 @@ async function createApp(packageName: string, tempPath: string) {
 
   log(chalk.green(emoji.progress, 'Creating initial commit...'));
   await git.add('.');
-  await git.commit('Initial commit created with @parcel/create-react-app');
+  await git.commit('Initial commit created with @atlaspack/create-react-app');
 }
 
 async function fsExists(filePath: string): Promise<boolean> {

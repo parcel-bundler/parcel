@@ -1,9 +1,9 @@
 // @flow strict-local
-import type {BuildProgressEvent, LogEvent} from '@parcel/types';
-import type {BuildMetrics} from '@parcel/utils';
+import type {BuildProgressEvent, LogEvent} from '@atlaspack/types';
+import type {BuildMetrics} from '@atlaspack/utils';
 
-import {Reporter} from '@parcel/plugin';
-import {generateBuildMetrics} from '@parcel/utils';
+import {Reporter} from '@atlaspack/plugin';
+import {generateBuildMetrics} from '@atlaspack/utils';
 
 /* eslint-disable no-console */
 const writeToStdout = makeWriter(console.log);
@@ -89,7 +89,7 @@ function makeWriter(
             level: 'error',
             diagnostics: [
               {
-                origin: '@parcel/reporter-json',
+                origin: '@atlaspack/reporter-json',
                 message: err.message,
                 stack: err.stack,
               },

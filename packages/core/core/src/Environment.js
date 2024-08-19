@@ -3,9 +3,9 @@ import type {
   EnvironmentOptions,
   Environment as IEnvironment,
   FilePath,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {Environment, InternalSourceLocation} from './types';
-import {hashString} from '@parcel/rust';
+import {hashString} from '@atlaspack/rust';
 import {toInternalSourceLocation} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';

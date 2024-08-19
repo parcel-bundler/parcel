@@ -5,7 +5,7 @@ function resolveSource(specifier, from) {
   return resolve.sync(specifier, {
     basedir: path.dirname(from),
     packageFilter(pkg) {
-      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+      if (pkg.name.startsWith('@atlaspack/')) {
         if (pkg.source) {
           pkg.main = pkg.source;
         }
@@ -32,7 +32,7 @@ module.exports = ({types: t}) => ({
   visitor: {
     ImportDeclaration({node}, state) {
       let source = node.source;
-      if (t.isStringLiteral(source) && source.value.startsWith('@parcel/')) {
+      if (t.isStringLiteral(source) && source.value.startsWith('@atlaspack/')) {
         source.value = getSourceField(
           source.value,
           state.file.opts.filename || process.cwd(),
@@ -46,7 +46,7 @@ module.exports = ({types: t}) => ({
         !path.scope.hasBinding(node.callee.value) &&
         node.arguments.length === 1 &&
         t.isStringLiteral(node.arguments[0]) &&
-        node.arguments[0].value.startsWith('@parcel/')
+        node.arguments[0].value.startsWith('@atlaspack/')
       ) {
         try {
           node.arguments[0].value = getSourceField(

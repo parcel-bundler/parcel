@@ -5,10 +5,10 @@ import type {
   HMROptions,
   HTTPSOptions,
   FilePath,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {HTTPServer} from '@parcel/utils';
-import type {PackageManager} from '@parcel/package-manager';
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type {HTTPServer} from '@atlaspack/utils';
+import type {PackageManager} from '@atlaspack/package-manager';
 import {
   IncomingMessage as HTTPIncomingMessage,
   ServerResponse as HTTPServerResponse,

@@ -1,13 +1,17 @@
 // @flow strict-local
-import type {FilePath} from '@parcel/types';
+import type {FilePath} from '@atlaspack/types';
 import type {Cache} from './types';
 import type {Readable, Writable} from 'stream';
 
 import stream from 'stream';
 import path from 'path';
 import {promisify} from 'util';
-import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
-import {NodeFS} from '@parcel/fs';
+import {
+  serialize,
+  deserialize,
+  registerSerializableClass,
+} from '@atlaspack/core';
+import {NodeFS} from '@atlaspack/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 // $FlowFixMe
@@ -32,7 +36,7 @@ export class LMDBCache implements Cache {
     this.fsCache = new FSCache(this.fs, cacheDir);
 
     this.store = lmdb.open(cacheDir, {
-      name: 'parcel-cache',
+      name: 'atlaspack-cache',
       encoding: 'binary',
       compression: true,
     });

@@ -5,12 +5,12 @@
 import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
-import {bundle, describe, it} from '@parcel/test-utils';
+import {bundle, describe, it} from '@atlaspack/test-utils';
 import sinon from 'sinon';
 
 const config = path.join(
   __dirname,
-  './integration/custom-configs/.parcelrc-json-reporter',
+  './integration/custom-configs/.atlaspackrc-json-reporter',
 );
 
 describe.v2('json reporter', () => {

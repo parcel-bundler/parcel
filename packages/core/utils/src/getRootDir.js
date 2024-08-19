@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FilePath} from '@parcel/types';
+import type {FilePath} from '@atlaspack/types';
 import {isGlob} from './glob';
 import path from 'path';
 

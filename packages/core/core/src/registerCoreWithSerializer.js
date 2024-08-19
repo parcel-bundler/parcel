@@ -1,9 +1,9 @@
 // @flow
-import {Graph} from '@parcel/graph';
+import {Graph} from '@atlaspack/graph';
 import {registerSerializableClass} from './serializer';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
-import ParcelConfig from './ParcelConfig';
+import AtlaspackConfig from './AtlaspackConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
 import packageJson from '../package.json';
@@ -24,7 +24,7 @@ export function registerCoreWithSerializer() {
     Config,
     BundleGraph,
     Graph,
-    ParcelConfig,
+    AtlaspackConfig,
     RequestGraph,
     // $FlowFixMe[unclear-type]
   }): Array<[string, Class<any>]>)) {

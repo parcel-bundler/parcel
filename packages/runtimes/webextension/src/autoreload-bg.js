@@ -26,7 +26,7 @@ env.runtime.reload = () => {
         tabs.map(tab => {
           if (tab.id === avoidID) return;
           return messageTab(tab.id, {
-            __parcel_hmr_reload__: true,
+            __atlaspack_hmr_reload__: true,
           }).catch(() => {});
         }),
       );
@@ -37,7 +37,7 @@ env.runtime.reload = () => {
 };
 
 env.runtime.onMessage.addListener((msg, sender) => {
-  if (msg.__parcel_hmr_reload__) {
+  if (msg.__atlaspack_hmr_reload__) {
     avoidID = sender.tab.id;
     env.runtime.reload();
   }

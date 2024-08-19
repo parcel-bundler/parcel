@@ -1,6 +1,6 @@
 # swc Visitors
 
-> If you're reading this and want to use swc for something other than the existing Parcel transformer, then you might find this template useful which contains all of the boilerplate to parse some input, give you the AST to work with, and finally also stringify it again: https://github.com/mischnic/swc-example
+> If you're reading this and want to use swc for something other than the existing Atlaspack transformer, then you might find this template useful which contains all of the boilerplate to parse some input, give you the AST to work with, and finally also stringify it again: https://github.com/mischnic/swc-example
 
 An swc visitor is a Rust struct that implements the Visit/Fold/VisitMut trait. Then you can take some AST node (e.g. the top-level `module`) and call `visit_with`:
 
@@ -35,7 +35,7 @@ If a function for some node type isn't declared, the default implementation uses
 
 Similarly, overriding such a function but not calling `visit_*` on some child nodes explicitly will then not visit the subtree at all (this really is a straight-forward recursive traversal).
 
-These are all of the types of visitors (at least the ones used by Parcel):
+These are all of the types of visitors (at least the ones used by Atlaspack):
 
 - `Visit` (and then `visit_with`/`visit_children_with`):
 

@@ -2,8 +2,8 @@
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {Packager} from '@parcel/plugin';
-import {replaceURLReferences, relativeBundlePath} from '@parcel/utils';
+import {Packager} from '@atlaspack/plugin';
+import {replaceURLReferences, relativeBundlePath} from '@atlaspack/utils';
 
 export default (new Packager({
   async package({bundle, bundleGraph}) {

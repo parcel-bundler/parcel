@@ -1,5 +1,5 @@
 {
-  "name": "parcel-test-babel-polyfill-browserslist",
+  "name": "atlaspack-test-babel-polyfill-browserslist",
   "private": true,
   "browserslist": [
     "Chrome 70"

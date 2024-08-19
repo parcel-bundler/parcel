@@ -24,7 +24,7 @@ mod hash;
 mod image;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod parcel;
+mod atlaspack;
 mod resolver;
 mod resolver_old;
 mod transformer;

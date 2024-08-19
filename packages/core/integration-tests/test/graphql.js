@@ -1,6 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, it, run} from '@parcel/test-utils';
+import {bundle, describe, it, run} from '@atlaspack/test-utils';
 import {parse, print} from 'graphql/language';
 
 describe.v2('graphql', function () {

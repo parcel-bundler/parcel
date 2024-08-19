@@ -1,5 +1,5 @@
 {
 	"browserslist": "Chrome 80",
-	"@parcel/bundler-default": {"minBundleSizes": 0
+	"@atlaspack/bundler-default": {"minBundleSizes": 0
 	}
 }

@@ -8,26 +8,26 @@ import type {
   ServerOptions,
   HMROptions,
   DetailedReportOptions,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {PackageManager} from '@parcel/package-manager';
-import type {ParcelOptions} from '../types';
-import {type FeatureFlags} from '@parcel/feature-flags';
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type {PackageManager} from '@atlaspack/package-manager';
+import type {AtlaspackOptions} from '../types';
+import {type FeatureFlags} from '@atlaspack/feature-flags';
 
-let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
+let atlaspackOptionsToPluginOptions: WeakMap<AtlaspackOptions, PluginOptions> =
   new WeakMap();
 
 export default class PluginOptions implements IPluginOptions {
-  #options /*: ParcelOptions */;
+  #options /*: AtlaspackOptions */;
 
-  constructor(options: ParcelOptions): PluginOptions {
-    let existing = parcelOptionsToPluginOptions.get(options);
+  constructor(options: AtlaspackOptions): PluginOptions {
+    let existing = atlaspackOptionsToPluginOptions.get(options);
     if (existing != null) {
       return existing;
     }
 
     this.#options = options;
-    parcelOptionsToPluginOptions.set(options, this);
+    atlaspackOptionsToPluginOptions.set(options, this);
     return this;
   }
 
@@ -43,8 +43,8 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.env;
   }
 
-  get parcelVersion(): string {
-    return this.#options.parcelVersion;
+  get atlaspackVersion(): string {
+    return this.#options.atlaspackVersion;
   }
 
   get hmrOptions(): ?HMROptions {

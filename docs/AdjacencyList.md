@@ -1,6 +1,6 @@
 # AdjacencyList
 
-The `AdjacencyList` in Parcel is a complex implementation of
+The `AdjacencyList` in Atlaspack is a complex implementation of
 an otherwise [straightforward data structure](https://en.wikipedia.org/wiki/Adjacency_list).
 The core ideas behind the `AdjacencyList` are:
 
@@ -11,7 +11,7 @@ The core ideas behind the `AdjacencyList` are:
 Conceptually, this is achieved by associating each edge that is added
 _to or from_ a node with a previous edge that was added to or from that node.
 
-Where Parcel's `AdjacencyList` gets complex is in its _data layer_, which is
+Where Atlaspack's `AdjacencyList` gets complex is in its _data layer_, which is
 designed for:
 
 - shared access in a multithreaded runtime
@@ -85,7 +85,7 @@ a straightforward process of following the links.
 
 Under the hood, things are less straightforward.
 
-Since Parcel is multi-threaded, its implementation of `AdjacencyList`
+Since Atlaspack is multi-threaded, its implementation of `AdjacencyList`
 features another core idea:
 
 - The data stored in the `AdjacencyList` should be accessible
@@ -108,7 +108,7 @@ a hash function to produce stable key for storing and retrieving that data.
 
 ### Why _Type_, though?
 
-Two nodes in a Parcel graph may be related to in each other in more than one way.
+Two nodes in a Atlaspack graph may be related to in each other in more than one way.
 In order to represent multiple relationships between the same two nodes,
 each _edge_ that connects the nodes has a _type_.
 

@@ -7,7 +7,7 @@ import {
   overlayFS,
   outputFS,
   ncp,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 const distDir = path.join(__dirname, './dist');
 

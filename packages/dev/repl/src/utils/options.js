@@ -1,5 +1,5 @@
 // @flow
-import type {PackageJSON} from '@parcel/types';
+import type {PackageJSON} from '@atlaspack/types';
 
 export type REPLOptions = {|
   entries: [],

@@ -18,21 +18,21 @@ use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
 
-use parcel::file_system::{FileSystemRealPathCache, FileSystemRef};
-use parcel_resolver_old::ExportsCondition;
-use parcel_resolver_old::Extensions;
-use parcel_resolver_old::Fields;
-use parcel_resolver_old::FileCreateInvalidation;
-use parcel_resolver_old::FileSystem;
-use parcel_resolver_old::Flags;
-use parcel_resolver_old::IncludeNodeModules;
-use parcel_resolver_old::Invalidations;
-use parcel_resolver_old::ModuleType;
+use atlaspack::file_system::{FileSystemRealPathCache, FileSystemRef};
+use atlaspack_resolver_old::ExportsCondition;
+use atlaspack_resolver_old::Extensions;
+use atlaspack_resolver_old::Fields;
+use atlaspack_resolver_old::FileCreateInvalidation;
+use atlaspack_resolver_old::FileSystem;
+use atlaspack_resolver_old::Flags;
+use atlaspack_resolver_old::IncludeNodeModules;
+use atlaspack_resolver_old::Invalidations;
+use atlaspack_resolver_old::ModuleType;
 #[cfg(not(target_arch = "wasm32"))]
-use parcel_resolver_old::OsFileSystem;
-use parcel_resolver_old::Resolution;
-use parcel_resolver_old::ResolverError;
-use parcel_resolver_old::SpecifierType;
+use atlaspack_resolver_old::OsFileSystem;
+use atlaspack_resolver_old::Resolution;
+use atlaspack_resolver_old::ResolverError;
+use atlaspack_resolver_old::SpecifierType;
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
@@ -202,9 +202,9 @@ pub struct JsInvalidationsOld {
 #[napi]
 pub struct ResolverOld {
   mode: u8,
-  resolver: parcel_resolver_old::Resolver<'static>,
+  resolver: atlaspack_resolver_old::Resolver<'static>,
   #[cfg(not(target_arch = "wasm32"))]
-  invalidations_cache: parcel_dev_dep_resolver_old::Cache,
+  invalidations_cache: atlaspack_dev_dep_resolver_old::Cache,
   supports_async: bool,
 }
 
@@ -237,13 +237,13 @@ impl ResolverOld {
     };
 
     let mut resolver = match options.mode {
-      1 => parcel_resolver_old::Resolver::parcel(
+      1 => atlaspack_resolver_old::Resolver::atlaspack(
         Cow::Owned(project_root.into()),
-        parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(fs)),
+        atlaspack_resolver_old::CacheCow::Owned(atlaspack_resolver_old::Cache::new(fs)),
       ),
-      2 => parcel_resolver_old::Resolver::node(
+      2 => atlaspack_resolver_old::Resolver::node(
         Cow::Owned(project_root.into()),
-        parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(fs)),
+        atlaspack_resolver_old::CacheCow::Owned(atlaspack_resolver_old::Cache::new(fs)),
       ),
       _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
     };
@@ -305,7 +305,7 @@ impl ResolverOld {
   fn resolve_internal(
     &self,
     options: ResolveOptionsOld,
-  ) -> napi::Result<(parcel_resolver_old::ResolveResult, bool, u8)> {
+  ) -> napi::Result<(atlaspack_resolver_old::ResolveResult, bool, u8)> {
     let mut res = self.resolver.resolve_with_options(
       &options.filename,
       Path::new(&options.parent),
@@ -368,7 +368,7 @@ impl ResolverOld {
   fn resolve_result_to_js(
     &self,
     env: Env,
-    res: parcel_resolver_old::ResolveResult,
+    res: atlaspack_resolver_old::ResolveResult,
     side_effects: bool,
     module_type: u8,
   ) -> napi::Result<ResolveResultOld> {
@@ -444,7 +444,7 @@ impl ResolverOld {
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidationsOld> {
     let path = Path::new(&path);
-    match parcel_dev_dep_resolver_old::build_esm_graph(
+    match atlaspack_dev_dep_resolver_old::build_esm_graph(
       path,
       &self.resolver.project_root,
       &self.resolver.cache,
@@ -504,7 +504,7 @@ fn convert_invalidations(
   (invalidate_on_file_change, invalidate_on_file_create)
 }
 
-fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver_old::ResolveOptions {
+fn get_resolve_options(mut custom_conditions: Vec<String>) -> atlaspack_resolver_old::ResolveOptions {
   let mut conditions = ExportsCondition::empty();
   custom_conditions.retain(|condition| {
     if let Ok(cond) = ExportsCondition::try_from(condition.as_ref()) {
@@ -515,7 +515,7 @@ fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver_ol
     }
   });
 
-  parcel_resolver_old::ResolveOptions {
+  atlaspack_resolver_old::ResolveOptions {
     conditions,
     custom_conditions,
   }

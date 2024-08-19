@@ -1,15 +1,15 @@
 // @flow
-import type {ReporterEvent, PluginOptions} from '@parcel/types';
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {ReporterEvent, PluginOptions} from '@atlaspack/types';
+import type {Diagnostic} from '@atlaspack/diagnostic';
 import type {Color} from 'chalk';
 
-import {Reporter} from '@parcel/plugin';
+import {Reporter} from '@atlaspack/plugin';
 import {
   getProgressMessage,
   prettifyTime,
   prettyDiagnostic,
   throttle,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import chalk from 'chalk';
 
 import {getTerminalWidth} from './utils';
@@ -138,7 +138,7 @@ export async function _report(
         pendingIncrementalBuild = true;
       }
 
-      if (process.env.PARCEL_SHOW_PHASE_TIMES) {
+      if (process.env.ATLASPACK_SHOW_PHASE_TIMES) {
         phaseReport(phaseStartTimes);
       }
       break;

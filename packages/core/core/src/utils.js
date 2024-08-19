@@ -4,20 +4,20 @@ import type {
   FilePath,
   FileCreateInvalidation,
   SourceLocation,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {
   BundleGroup,
-  ParcelOptions,
+  AtlaspackOptions,
   InternalFileCreateInvalidation,
   InternalSourceLocation,
   InternalDevDepOptions,
   Invalidations,
 } from './types';
-import type {PackageManager} from '@parcel/package-manager';
+import type {PackageManager} from '@atlaspack/package-manager';
 
 import invariant from 'assert';
 import baseX from 'base-x';
-import {hashObject} from '@parcel/utils';
+import {hashObject} from '@atlaspack/utils';
 import {fromProjectPath, toProjectPath} from './projectPath';
 
 const base62 = baseX(
@@ -73,10 +73,10 @@ const ignoreOptions = new Set([
 ]);
 
 export function optionsProxy(
-  options: ParcelOptions,
+  options: AtlaspackOptions,
   invalidateOnOptionChange: string => void,
   addDevDependency?: (devDep: InternalDevDepOptions) => void,
-): ParcelOptions {
+): AtlaspackOptions {
   let packageManager = addDevDependency
     ? proxyPackageManager(
         options.projectRoot,

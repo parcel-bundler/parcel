@@ -6,7 +6,7 @@ import type {
   FileOptions,
   ReaddirOptions,
   Encoding,
-} from '@parcel/types-internal';
+} from '@atlaspack/types-internal';
 import type {
   Event,
   Options as WatcherOptions,
@@ -15,10 +15,10 @@ import type {
 
 import path from 'path';
 import {Readable, Writable} from 'stream';
-import {registerSerializableClass} from '@parcel/core';
-import {SharedBuffer} from '@parcel/utils';
+import {registerSerializableClass} from '@atlaspack/core';
+import {SharedBuffer} from '@atlaspack/utils';
 import packageJSON from '../package.json';
-import WorkerFarm, {Handle} from '@parcel/workers';
+import WorkerFarm, {Handle} from '@atlaspack/workers';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {findAncestorFile, findNodeModule, findFirstFile} from './find';

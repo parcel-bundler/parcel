@@ -1,15 +1,19 @@
 // @flow strict-local
 
 import type {Readable, Writable} from 'stream';
-import type {FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FilePath} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
 import type {Cache} from './types';
 
 import stream from 'stream';
 import path from 'path';
 import {promisify} from 'util';
-import logger from '@parcel/logger';
-import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
+import logger from '@atlaspack/logger';
+import {
+  serialize,
+  deserialize,
+  registerSerializableClass,
+} from '@atlaspack/core';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 import {WRITE_LIMIT_CHUNK} from './constants';
@@ -186,7 +190,7 @@ export class FSCache implements Cache {
 
       await this.fs.writeFile(blobPath, data);
     } catch (err) {
-      logger.error(err, '@parcel/cache');
+      logger.error(err, '@atlaspack/cache');
     }
   }
 

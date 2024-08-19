@@ -9,7 +9,7 @@ import {
   run,
   assertBundles,
   inputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 const ZIPFS = `${path.sep}zipfs`;
 

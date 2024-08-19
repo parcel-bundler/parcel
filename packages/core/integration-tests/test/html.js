@@ -13,7 +13,7 @@ import {
   outputFS,
   overlayFS,
   ncp,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import path from 'path';
 
 describe.v2('html', function () {
@@ -1433,7 +1433,7 @@ describe.v2('html', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'Browser scripts cannot have imports or exports.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(
@@ -1725,7 +1725,7 @@ describe.v2('html', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'Browser scripts cannot have imports or exports.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(__dirname, '/integration/html-js/index.js'),
@@ -2770,8 +2770,8 @@ describe.v2('html', function () {
       name: 'BuildError',
       diagnostics: [
         {
-          message: 'Invalid config for @parcel/bundler-default',
-          origin: '@parcel/bundler-default',
+          message: 'Invalid config for @atlaspack/bundler-default',
+          origin: '@atlaspack/bundler-default',
           codeFrames: [
             {
               filePath: pkg,
@@ -2781,11 +2781,11 @@ describe.v2('html', function () {
                 {
                   message: 'Did you mean "minBundleSize", "minBundles"?',
                   start: {
-                    column: 30,
+                    column: 33,
                     line: 3,
                   },
                   end: {
-                    column: 45,
+                    column: 48,
                     line: 3,
                   },
                 },
@@ -2948,7 +2948,7 @@ describe.v2('html', function () {
         diagnostics: [
           {
             message: "'src' should not be empty string",
-            origin: '@parcel/transformer-html',
+            origin: '@atlaspack/transformer-html',
             codeFrames: [
               {
                 filePath: path.join(
@@ -2974,7 +2974,7 @@ describe.v2('html', function () {
 
           {
             message: "'src' should not be empty string",
-            origin: '@parcel/transformer-html',
+            origin: '@atlaspack/transformer-html',
             codeFrames: [
               {
                 filePath: path.join(
@@ -3000,7 +3000,7 @@ describe.v2('html', function () {
 
           {
             message: "'href' should not be empty string",
-            origin: '@parcel/transformer-html',
+            origin: '@atlaspack/transformer-html',
             codeFrames: [
               {
                 filePath: path.join(

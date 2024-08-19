@@ -3,8 +3,8 @@ import type {
   PackageInstaller,
   PackageManager,
   PackageManagerResolveResult,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
 
 export type {PackageManagerResolveResult};
 export type {PackageManagerResolveResult as ResolveResult};
@@ -16,7 +16,7 @@ export type {
   PackageInstaller,
   Invalidations,
   ModuleRequest,
-} from '@parcel/types';
+} from '@atlaspack/types';
 
 export const Npm: {
   new (): PackageInstaller;

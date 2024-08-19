@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import sinon from 'sinon';
-import type {TraversalActions} from '@parcel/types-internal';
+import type {TraversalActions} from '@atlaspack/types-internal';
 
 import Graph from '../src/Graph';
 import {toNodeId, type NodeId} from '../src/types';

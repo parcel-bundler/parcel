@@ -1,6 +1,6 @@
 // @flow
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import json5 from 'json5';
 
 // A list of all attributes in a schema that may produce a dependency

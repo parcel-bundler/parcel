@@ -1,6 +1,6 @@
 [package]
 authors = ["Devon Govett <devongovett@gmail.com>"]
-name = "parcel-node-bindings"
+name = "atlaspack-node-bindings"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,18 +8,18 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [features]
-canary = ["parcel_monitoring/canary"]
+canary = ["atlaspack_monitoring/canary"]
 
 [dependencies]
-parcel = { path = "../parcel" }
-parcel_core = { path = "../parcel_core" }
-parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-parcel_monitoring = { path = "../parcel_monitoring" }
-parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parcel-resolver-old = { path = "../../packages/utils/node-resolver-rs-old" }
-parcel_package_manager = { path = "../parcel_package_manager" }
-parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
-parcel_napi_helpers = { path = "../parcel_napi_helpers" }
+atlaspack = { path = "../atlaspack" }
+atlaspack_core = { path = "../atlaspack_core" }
+atlaspack-js-swc-core = { path = "../../packages/transformers/js/core" }
+atlaspack_monitoring = { path = "../atlaspack_monitoring" }
+atlaspack-resolver = { path = "../../packages/utils/node-resolver-rs" }
+atlaspack-resolver-old = { path = "../../packages/utils/node-resolver-rs-old" }
+atlaspack_package_manager = { path = "../atlaspack_package_manager" }
+atlaspack_plugin_transformer_js = { path = "../atlaspack_plugin_transformer_js" }
+atlaspack_napi_helpers = { path = "../atlaspack_napi_helpers" }
 
 anyhow = "1.0.82"
 dashmap = "5.4.0"
@@ -38,10 +38,10 @@ tracing-subscriber = "0.3.18"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-parcel = { path = "../parcel", features = ["nodejs"] }
-parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
-parcel-dev-dep-resolver-old = { path = "../../packages/utils/dev-dep-resolver-old" }
-parcel-macros = { path = "../macros", features = ["napi"] }
+atlaspack = { path = "../atlaspack", features = ["nodejs"] }
+atlaspack-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
+atlaspack-dev-dep-resolver-old = { path = "../../packages/utils/dev-dep-resolver-old" }
+atlaspack-macros = { path = "../macros", features = ["napi"] }
 
 crossbeam-channel = "0.5.6"
 indexmap = "1.9.2"

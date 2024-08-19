@@ -3,7 +3,7 @@
     "removeComments": true,
     "baseUrl": ".",
     "paths": {
-      "@parcel/*": ["../../*"]
+      "@atlaspack/*": ["../../*"]
     }
   }
 }

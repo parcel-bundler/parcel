@@ -8,7 +8,7 @@ import {
   run,
   overlayFS,
   fsFixture,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('plugins with "registered" languages', () => {
   it('should support plugins with esbuild-register', async () => {
@@ -27,9 +27,9 @@ describe.v2('plugins with "registered" languages', () => {
       index.js:
         console.log("Hi, mum!");
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          extends: "@parcel/config-default",
+          extends: "@atlaspack/config-default",
           reporters: ["...", "./reporter-plugin.js"],
         }
 
@@ -40,7 +40,7 @@ describe.v2('plugins with "registered" languages', () => {
 
       reporter-plugin.ts:
         import fs from 'fs';
-        import { Reporter } from '@parcel/plugin';
+        import { Reporter } from '@atlaspack/plugin';
         import { someString } from './some-string';
         export default new Reporter({
             async report({ event, options }) {
@@ -58,7 +58,7 @@ describe.v2('plugins with "registered" languages', () => {
       inputFS: overlayFS,
       outputFS: overlayFS,
       additionalReporters: [
-        {packageName: '@parcel/reporter-json', resolveFrom: __filename},
+        {packageName: '@atlaspack/reporter-json', resolveFrom: __filename},
       ],
     });
 

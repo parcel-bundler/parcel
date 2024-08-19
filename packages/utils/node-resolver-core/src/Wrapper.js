@@ -8,13 +8,13 @@ import type {
   BuildMode,
   ResolveResult,
   PluginLogger,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {PackageManager} from '@parcel/package-manager';
-import {getFeatureFlag} from '@parcel/feature-flags';
-import type {Diagnostic} from '@parcel/diagnostic';
-import {NodeFS} from '@parcel/fs';
-import {init, Resolver as ResolverNew, ResolverOld} from '@parcel/rust';
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type {PackageManager} from '@atlaspack/package-manager';
+import {getFeatureFlag} from '@atlaspack/feature-flags';
+import type {Diagnostic} from '@atlaspack/diagnostic';
+import {NodeFS} from '@atlaspack/fs';
+import {init, Resolver as ResolverNew, ResolverOld} from '@atlaspack/rust';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
@@ -23,14 +23,14 @@ import {
   findAlternativeFiles,
   loadConfig,
   getModuleParts,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
   encodeJSONKeyComponent,
   errorToDiagnostic,
   generateJSONCodeHighlights,
   md,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 import semver from 'semver';
 import {parse} from '@mischnic/json-sourcemap';
 import _Module from 'module';
@@ -329,7 +329,7 @@ export default class NodeResolver {
               documentationURL:
                 'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
               hints: [
-                md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
+                md`Install the "${packageName}" package with your package manager, and run Atlaspack again.`,
               ],
             },
           });

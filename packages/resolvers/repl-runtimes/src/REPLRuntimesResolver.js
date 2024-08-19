@@ -1,6 +1,6 @@
 // @flow
 
-import {Resolver} from '@parcel/plugin';
+import {Resolver} from '@atlaspack/plugin';
 import fs from 'fs';
 import path from 'path';
 
@@ -141,7 +141,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/transformer-js/src/esmodule-helpers.js',
+    '@atlaspack/transformer-js/src/esmodule-helpers.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/transformers/js/src/esmodule-helpers.js',
@@ -149,7 +149,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js',
+    '@atlaspack/transformer-react-refresh-wrap/src/helpers/helpers.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/transformers/react-refresh-wrap/src/helpers/helpers.js',

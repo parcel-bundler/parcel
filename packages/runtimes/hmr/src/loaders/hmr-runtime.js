@@ -1,23 +1,23 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, HMR_USE_SSE, chrome, browser, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, HMR_USE_SSE, chrome, browser, __atlaspack__import__, __atlaspack__importScripts__, ServiceWorkerGlobalScope */
 
 /*::
 import type {
   HMRAsset,
   HMRMessage,
-} from '@parcel/reporter-dev-server/src/HMRServer.js';
-interface ParcelRequire {
+} from '@atlaspack/reporter-dev-server/src/HMRServer.js';
+interface AtlaspackRequire {
   (string): mixed;
-  cache: {|[string]: ParcelModule|};
+  cache: {|[string]: AtlaspackModule|};
   hotData: {|[string]: mixed|};
   Module: any;
-  parent: ?ParcelRequire;
-  isParcelRequire: true;
+  parent: ?AtlaspackRequire;
+  isAtlaspackRequire: true;
   modules: {|[string]: [Function, {|[string]: string|}]|};
   HMR_BUNDLE_ID: string;
-  root: ParcelRequire;
+  root: AtlaspackRequire;
 }
-interface ParcelModule {
+interface AtlaspackModule {
   hot: {|
     data: mixed,
     accept(cb: (Function) => void): void,
@@ -35,7 +35,7 @@ interface ExtensionContext {
     getManifest(): {manifest_version: number, ...};
   |};
 }
-declare var module: {bundle: ParcelRequire, ...};
+declare var module: {bundle: AtlaspackRequire, ...};
 declare var HMR_HOST: string;
 declare var HMR_PORT: string;
 declare var HMR_ENV_HASH: string;
@@ -43,13 +43,13 @@ declare var HMR_SECURE: boolean;
 declare var HMR_USE_SSE: boolean;
 declare var chrome: ExtensionContext;
 declare var browser: ExtensionContext;
-declare var __parcel__import__: (string) => Promise<void>;
-declare var __parcel__importScripts__: (string) => Promise<void>;
+declare var __atlaspack__import__: (string) => Promise<void>;
+declare var __atlaspack__importScripts__: (string) => Promise<void>;
 declare var globalThis: typeof self;
 declare var ServiceWorkerGlobalScope: Object;
 */
 
-var OVERLAY_ID = '__parcel__error__overlay__';
+var OVERLAY_ID = '__atlaspack__error__overlay__';
 
 var OldModule = module.bundle.Module;
 
@@ -72,8 +72,8 @@ module.bundle.Module = Module;
 module.bundle.hotData = {};
 
 var checkedAssets /*: {|[string]: boolean|} */,
-  assetsToDispose /*: Array<[ParcelRequire, string]> */,
-  assetsToAccept /*: Array<[ParcelRequire, string]> */;
+  assetsToDispose /*: Array<[AtlaspackRequire, string]> */,
+  assetsToAccept /*: Array<[AtlaspackRequire, string]> */;
 
 function getHostname() {
   return (
@@ -88,7 +88,10 @@ function getPort() {
 
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
-if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
+if (
+  (!parent || !parent.isAtlaspackRequire) &&
+  typeof WebSocket !== 'undefined'
+) {
   var hostname = getHostname();
   var port = getPort();
   var protocol =
@@ -100,7 +103,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
   var ws;
   if (HMR_USE_SSE) {
-    ws = new EventSource('/__parcel_hmr');
+    ws = new EventSource('/__atlaspack_hmr');
   } else {
     try {
       ws = new WebSocket(
@@ -166,7 +169,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
           typeof window !== 'undefined' &&
           typeof CustomEvent !== 'undefined'
         ) {
-          window.dispatchEvent(new CustomEvent('parcelhmraccept'));
+          window.dispatchEvent(new CustomEvent('atlaspackhmraccept'));
         }
 
         await hmrApplyUpdates(assets);
@@ -196,14 +199,14 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     }
 
     if (data.type === 'error') {
-      // Log parcel errors to console
+      // Log atlaspack errors to console
       for (let ansiDiagnostic of data.diagnostics.ansi) {
         let stack = ansiDiagnostic.codeframe
           ? ansiDiagnostic.codeframe
           : ansiDiagnostic.stack;
 
         console.error(
-          '🚨 [parcel]: ' +
+          '🚨 [atlaspack]: ' +
             ansiDiagnostic.message +
             '\n' +
             stack +
@@ -228,8 +231,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       }
     };
     ws.onclose = function (e) {
-      if (process.env.PARCEL_BUILD_ENV !== 'test') {
-        console.warn('[parcel] 🚨 Connection to the HMR server was lost');
+      if (process.env.ATLASPACK_BUILD_ENV !== 'test') {
+        console.warn('[atlaspack] 🚨 Connection to the HMR server was lost');
       }
     };
   }
@@ -239,7 +242,7 @@ function removeErrorOverlay() {
   var overlay = document.getElementById(OVERLAY_ID);
   if (overlay) {
     overlay.remove();
-    console.log('[parcel] ✨ Error resolved');
+    console.log('[atlaspack] ✨ Error resolved');
   }
 }
 
@@ -254,7 +257,7 @@ function createErrorOverlay(diagnostics) {
     let stack = diagnostic.frames.length
       ? diagnostic.frames.reduce((p, frame) => {
           return `${p}
-<a href="/__parcel_launch_editor?file=${encodeURIComponent(
+<a href="/__atlaspack_launch_editor?file=${encodeURIComponent(
             frame.location,
           )}" style="text-decoration: underline; color: #888" onclick="fetch(this.href); return false">${
             frame.location
@@ -296,7 +299,7 @@ function fullReload() {
   }
 }
 
-function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
+function getParents(bundle, id) /*: Array<[AtlaspackRequire, string]> */ {
   var modules = bundle.modules;
   if (!modules) {
     return [];
@@ -391,11 +394,11 @@ function hmrDownload(asset) {
     } else if (typeof importScripts === 'function') {
       // Worker scripts
       if (asset.outputFormat === 'esmodule') {
-        return __parcel__import__(asset.url + '?t=' + Date.now());
+        return __atlaspack__import__(asset.url + '?t=' + Date.now());
       } else {
         return new Promise((resolve, reject) => {
           try {
-            __parcel__importScripts__(asset.url + '?t=' + Date.now());
+            __atlaspack__importScripts__(asset.url + '?t=' + Date.now());
             resolve();
           } catch (err) {
             reject(err);
@@ -407,7 +410,7 @@ function hmrDownload(asset) {
 }
 
 async function hmrApplyUpdates(assets) {
-  global.parcelHotUpdate = Object.create(null);
+  global.atlaspackHotUpdate = Object.create(null);
 
   let scriptsToRemove;
   try {
@@ -442,7 +445,7 @@ async function hmrApplyUpdates(assets) {
       hmrApply(module.bundle.root, asset);
     });
   } finally {
-    delete global.parcelHotUpdate;
+    delete global.atlaspackHotUpdate;
 
     if (scriptsToRemove) {
       scriptsToRemove.forEach(script => {
@@ -454,7 +457,7 @@ async function hmrApplyUpdates(assets) {
   }
 }
 
-function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
+function hmrApply(bundle /*: AtlaspackRequire */, asset /*:  HMRAsset */) {
   var modules = bundle.modules;
   if (!modules) {
     return;
@@ -487,7 +490,7 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
       }
 
       // $FlowFixMe
-      let fn = global.parcelHotUpdate[asset.id];
+      let fn = global.atlaspackHotUpdate[asset.id];
       modules[asset.id] = [fn, deps];
     } else if (bundle.parent) {
       hmrApply(bundle.parent, asset);
@@ -526,7 +529,7 @@ function hmrDelete(bundle, id) {
 }
 
 function hmrAcceptCheck(
-  bundle /*: ParcelRequire */,
+  bundle /*: AtlaspackRequire */,
   id /*: string */,
   depsByBundle /*: ?{ [string]: { [string]: string } }*/,
 ) {
@@ -559,7 +562,7 @@ function hmrAcceptCheck(
 }
 
 function hmrAcceptCheckOne(
-  bundle /*: ParcelRequire */,
+  bundle /*: AtlaspackRequire */,
   id /*: string */,
   depsByBundle /*: ?{ [string]: { [string]: string } }*/,
 ) {
@@ -593,7 +596,7 @@ function hmrAcceptCheckOne(
   }
 }
 
-function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
+function hmrDispose(bundle /*: AtlaspackRequire */, id /*: string */) {
   var cached = bundle.cache[id];
   bundle.hotData[id] = {};
   if (cached && cached.hot) {
@@ -609,7 +612,7 @@ function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
   delete bundle.cache[id];
 }
 
-function hmrAccept(bundle /*: ParcelRequire */, id /*: string */) {
+function hmrAccept(bundle /*: AtlaspackRequire */, id /*: string */) {
   // Execute the module.
   bundle(id);
 

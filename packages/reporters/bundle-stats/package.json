@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/reporter-bundle-stats",
+  "name": "@atlaspack/reporter-bundle-stats",
   "version": "2.12.0",
   "publishConfig": {
     "access": "public"
@@ -7,18 +7,18 @@
   "main": "lib/BundleStatsReporter.js",
   "source": "src/BundleStatsReporter.js",
   "bin": {
-    "parcel-bundle-stats": "bin.js"
+    "atlaspack-bundle-stats": "bin.js"
   },
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.12.0"
+    "atlaspack": "^2.12.0"
   },
   "dependencies": {
-    "@parcel/core": "2.12.0",
-    "@parcel/plugin": "2.12.0",
-    "@parcel/utils": "2.12.0"
+    "@atlaspack/core": "2.12.0",
+    "@atlaspack/plugin": "2.12.0",
+    "@atlaspack/utils": "2.12.0"
   },
   "devDependencies": {
-    "@parcel/types": "2.12.0"
+    "@atlaspack/types": "2.12.0"
   }
 }

@@ -2,8 +2,12 @@
 import type {Cache} from './types';
 
 import {Readable} from 'stream';
-import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
-import {bufferStream} from '@parcel/utils';
+import {
+  serialize,
+  deserialize,
+  registerSerializableClass,
+} from '@atlaspack/core';
+import {bufferStream} from '@atlaspack/utils';
 // $FlowFixMe[untyped-import]
 import packageJson from '../package.json';
 // $FlowFixMe[untyped-import]
@@ -16,7 +20,7 @@ export class IDBCache implements Cache {
   store: any;
 
   constructor() {
-    this.store = openDB('REPL-parcel-cache', 1, {
+    this.store = openDB('REPL-atlaspack-cache', 1, {
       upgrade(db) {
         db.createObjectStore(STORE_NAME);
       },

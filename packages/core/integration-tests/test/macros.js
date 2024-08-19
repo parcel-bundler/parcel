@@ -11,7 +11,7 @@ import {
   overlayFS,
   fsFixture,
   getNextBuild,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('macros', function () {
   let count = 0;
@@ -32,7 +32,7 @@ describe.v2('macros', function () {
         output = hash('hi');
 
       macro.js:
-        import {hashString} from '@parcel/rust';
+        import {hashString} from '@atlaspack/rust';
         export function hash(s) {
           return hashString(s);
         }
@@ -50,7 +50,7 @@ describe.v2('macros', function () {
   it('should support renamed imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import { hashString as foo } from "@parcel/rust" with { type: "macro" };
+        import { hashString as foo } from "@atlaspack/rust" with { type: "macro" };
         output = foo('hi');
     `;
 
@@ -70,7 +70,7 @@ describe.v2('macros', function () {
         output = test('hi');
 
       macro.js:
-        import {hashString} from '@parcel/rust';
+        import {hashString} from '@atlaspack/rust';
         export default function test(s) {
           return hashString(s);
         }
@@ -92,7 +92,7 @@ describe.v2('macros', function () {
         output = test('hi');
 
       macro.js:
-        import {hashString} from '@parcel/rust';
+        import {hashString} from '@atlaspack/rust';
         module.exports = function(s) {
           return hashString(s);
         }
@@ -110,7 +110,7 @@ describe.v2('macros', function () {
   it('should support namespace imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import * as ns from "@parcel/rust" with { type: "macro" };
+        import * as ns from "@atlaspack/rust" with { type: "macro" };
         output = ns.hashString('hi');
     `;
 
@@ -318,7 +318,7 @@ describe.v2('macros', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'Could not statically evaluate macro argument',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(dir, 'index.js'),
@@ -410,7 +410,7 @@ describe.v2('macros', function () {
               dir,
               'index.js',
             )}"`,
-            origin: '@parcel/transformer-js',
+            origin: '@atlaspack/transformer-js',
             codeFrames: [
               {
                 filePath: path.join(dir, 'index.js'),
@@ -672,7 +672,7 @@ describe.v2('macros', function () {
   it('should support evaluating constants', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import { hashString } from "@parcel/rust" with { type: "macro" };
+        import { hashString } from "@atlaspack/rust" with { type: "macro" };
         import { test, test2 } from './macro' with { type: "macro" };
         const hi = "hi";
         const ref = hi;
@@ -698,7 +698,7 @@ describe.v2('macros', function () {
         output14 = test2(obj)();
 
       macro.js:
-        import { hashString } from "@parcel/rust";
+        import { hashString } from "@atlaspack/rust";
         export function test() {
           return "hi";
         }
@@ -722,7 +722,7 @@ describe.v2('macros', function () {
   it('should throw a diagnostic when a constant is mutated', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import { hashString } from "@parcel/rust" with { type: "macro" };
+        import { hashString } from "@atlaspack/rust" with { type: "macro" };
         const object = {foo: 'bar'};
         object.foo = 'test';
         output = hashString(object.foo);
@@ -741,7 +741,7 @@ describe.v2('macros', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'Could not statically evaluate macro argument',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(dir, 'index.js'),
@@ -764,7 +764,7 @@ describe.v2('macros', function () {
         },
         {
           message: 'Could not statically evaluate macro argument',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(dir, 'index.js'),
@@ -792,7 +792,7 @@ describe.v2('macros', function () {
   it('should throw a diagnostic when a constant object is passed to a function', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
-        import { hashString } from "@parcel/rust" with { type: "macro" };
+        import { hashString } from "@atlaspack/rust" with { type: "macro" };
         const bar = 'bar';
         const object = {foo: bar};
         doSomething(bar); // ok (string)
@@ -822,7 +822,7 @@ describe.v2('macros', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'Could not statically evaluate macro argument',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(dir, 'index.js'),
@@ -845,7 +845,7 @@ describe.v2('macros', function () {
         },
         {
           message: 'Could not statically evaluate macro argument',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(dir, 'index.js'),
@@ -868,7 +868,7 @@ describe.v2('macros', function () {
         },
         {
           message: 'Could not statically evaluate macro argument',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(dir, 'index.js'),
@@ -891,7 +891,7 @@ describe.v2('macros', function () {
         },
         {
           message: 'Could not statically evaluate macro argument',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(dir, 'index.js'),

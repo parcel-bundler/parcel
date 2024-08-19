@@ -1,6 +1,6 @@
 // @flow
-import {Runtime} from '@parcel/plugin';
-import {urlJoin} from '@parcel/utils';
+import {Runtime} from '@atlaspack/plugin';
+import {urlJoin} from '@atlaspack/utils';
 
 export default (new Runtime({
   apply({bundle, bundleGraph}) {
@@ -11,7 +11,7 @@ export default (new Runtime({
     let asset = bundle.traverse((node, _, actions) => {
       if (
         node.type === 'dependency' &&
-        node.value.specifier === '@parcel/service-worker' &&
+        node.value.specifier === '@atlaspack/service-worker' &&
         !bundleGraph.isDependencySkipped(node.value)
       ) {
         actions.stop();
@@ -32,7 +32,7 @@ export default (new Runtime({
       manifest.push(urlJoin(b.target.publicUrl, b.name));
     });
 
-    let code = `import {_register} from '@parcel/service-worker';
+    let code = `import {_register} from '@atlaspack/service-worker';
 const manifest = ${JSON.stringify(manifest)};
 const version = ${JSON.stringify(bundle.hashReference)};
 _register(manifest, version);

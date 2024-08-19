@@ -12,7 +12,7 @@ let tooltip;
 
 // Foam Tree docs:
 // https://get.carrotsearch.com/foamtree/demo/api/index.html
-// Some options from Parcel 1 Visualizer:
+// Some options from Atlaspack 1 Visualizer:
 // https://github.com/gregtillbrook/parcel-plugin-bundle-visualiser/blob/ca5440fc61c85e40e7abc220ad99e274c7c104c6/src/buildReportAssets/init.js#L4
 // and Webpack Bundle Analyzer:
 // https://github.com/webpack-contrib/webpack-bundle-analyzer/blob/4a232f0cf7bbfed907a5c554879edd5d6f4b48ce/client/components/Treemap.jsx
@@ -86,7 +86,7 @@ window.addEventListener(
 function debounce(fn, delay) {
   let timeout;
 
-  return function(...args) {
+  return function (...args) {
     if (timeout) {
       clearTimeout(timeout);
     }
@@ -103,9 +103,10 @@ function translate3d(x, y, z) {
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 function formatSize(x) {
-  let l = 0, n = parseInt(x, 10) || 0;
-  while(n >= 1000 && ++l){
-      n /= 1000;
+  let l = 0,
+    n = parseInt(x, 10) || 0;
+  while (n >= 1000 && ++l) {
+    n /= 1000;
   }
-  return(`${n.toFixed(l > 0 ? 2 : 0)} ${UNITS[l]}`);
+  return `${n.toFixed(l > 0 ? 2 : 0)} ${UNITS[l]}`;
 }

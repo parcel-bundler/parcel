@@ -1,4 +1,4 @@
-require('@parcel/babel-register');
+require('@atlaspack/babel-register');
 const {parentPort} = require('worker_threads');
 const {
   default: AdjacencyList,

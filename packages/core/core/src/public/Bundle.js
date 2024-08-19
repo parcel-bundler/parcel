@@ -2,7 +2,7 @@
 
 import type {
   Bundle as InternalBundle,
-  ParcelOptions,
+  AtlaspackOptions,
   PackagedBundleInfo,
 } from '../types';
 import type {
@@ -17,15 +17,15 @@ import type {
   Stats,
   Target as ITarget,
   BundleBehavior,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type BundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {DefaultWeakMap} from '@parcel/utils';
+import {DefaultWeakMap} from '@atlaspack/utils';
 
 import {assetToAssetValue, assetFromValue} from './Asset';
-import {mapVisitor} from '@parcel/graph';
+import {mapVisitor} from '@atlaspack/graph';
 import Environment from './Environment';
 import {
   dependencyToInternalDependency,
@@ -36,15 +36,15 @@ import {BundleBehaviorNames} from '../types';
 import {fromProjectPath} from '../projectPath';
 
 const internalBundleToBundle: DefaultWeakMap<
-  ParcelOptions,
+  AtlaspackOptions,
   DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, Bundle>>,
 > = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
 const internalBundleToNamedBundle: DefaultWeakMap<
-  ParcelOptions,
+  AtlaspackOptions,
   DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, NamedBundle>>,
 > = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
 const internalBundleToPackagedBundle: DefaultWeakMap<
-  ParcelOptions,
+  AtlaspackOptions,
   DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, PackagedBundle>>,
 > = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
 
@@ -67,13 +67,13 @@ let _private = {};
 export class Bundle implements IBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
-  #options /*: ParcelOptions */;
+  #options /*: AtlaspackOptions */;
 
   constructor(
     sentinel: mixed,
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ) {
     if (sentinel !== _private) {
       throw new Error('Unexpected public usage');
@@ -87,7 +87,7 @@ export class Bundle implements IBundle {
   static get(
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ): Bundle {
     let existingMap = internalBundleToBundle.get(options).get(bundleGraph);
     let existing = existingMap.get(internalBundle);
@@ -208,13 +208,13 @@ export class Bundle implements IBundle {
 export class NamedBundle extends Bundle implements INamedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
-  #options /*: ParcelOptions */;
+  #options /*: AtlaspackOptions */;
 
   constructor(
     sentinel: mixed,
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ) {
     super(sentinel, bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
@@ -225,7 +225,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
   static get(
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ): NamedBundle {
     let existingMap = internalBundleToNamedBundle.get(options).get(bundleGraph);
     let existing = existingMap.get(internalBundle);
@@ -262,14 +262,14 @@ export class NamedBundle extends Bundle implements INamedBundle {
 export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
-  #options /*: ParcelOptions */;
+  #options /*: AtlaspackOptions */;
   #bundleInfo /*: ?PackagedBundleInfo */;
 
   constructor(
     sentinel: mixed,
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ) {
     super(sentinel, bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
@@ -280,7 +280,7 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   static get(
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ): PackagedBundle {
     let existingMap = internalBundleToPackagedBundle
       .get(options)
@@ -306,7 +306,7 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   static getWithInfo(
     internalBundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
     bundleInfo: ?PackagedBundleInfo,
   ): PackagedBundle {
     let packagedBundle = PackagedBundle.get(

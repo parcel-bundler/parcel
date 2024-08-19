@@ -8,30 +8,30 @@ import type {
   BundleGraph as BundleGraphType,
   NamedBundle as NamedBundleType,
   Async,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type SourceMap from '@parcel/source-map';
 import type {
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
-  ParcelOptions,
+  AtlaspackOptions,
   ReportFn,
   RequestInvalidation,
 } from './types';
-import type ParcelConfig, {LoadedPlugin} from './ParcelConfig';
+import type AtlaspackConfig, {LoadedPlugin} from './AtlaspackConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {ConfigRequest} from './requests/ConfigRequest';
 import type {DevDepSpecifier} from './requests/DevDepRequest';
 
 import invariant from 'assert';
-import {blobToStream, TapStream} from '@parcel/utils';
-import {PluginLogger} from '@parcel/logger';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {blobToStream, TapStream} from '@atlaspack/utils';
+import {PluginLogger} from '@atlaspack/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@atlaspack/diagnostic';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
-import {hashString, hashBuffer, Hash} from '@parcel/rust';
+import {hashString, hashBuffer, Hash} from '@atlaspack/rust';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
@@ -39,7 +39,7 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import PublicConfig from './public/Config';
-import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
+import {ATLASPACK_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 import {
   fromProjectPath,
   toProjectPathUnsafe,
@@ -61,11 +61,11 @@ import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
 import {invalidateDevDeps} from './requests/DevDepRequest';
-import {tracer, PluginTracer} from '@parcel/profiler';
+import {tracer, PluginTracer} from '@atlaspack/profiler';
 
 type Opts = {|
-  config: ParcelConfig,
-  options: ParcelOptions,
+  config: AtlaspackConfig,
+  options: AtlaspackOptions,
   report: ReportFn,
   previousDevDeps: Map<string, string>,
   previousInvalidations: Array<RequestInvalidation>,
@@ -101,8 +101,8 @@ const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 const pluginConfigs = createBuildCache();
 
 export default class PackagerRunner {
-  config: ParcelConfig;
-  options: ParcelOptions;
+  config: AtlaspackConfig;
+  options: AtlaspackOptions;
   pluginOptions: PluginOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;
@@ -586,7 +586,7 @@ export default class PackagerRunner {
         this.options.serveOptions &&
         bundle.target.env.context === 'browser'
       ) {
-        sourceRoot = '/__parcel_source_root';
+        sourceRoot = '/__atlaspack_source_root';
       }
 
       if (
@@ -658,7 +658,7 @@ export default class PackagerRunner {
     );
 
     return hashString(
-      PARCEL_VERSION +
+      ATLASPACK_VERSION +
         devDepHashes +
         invalidationHash +
         bundle.target.publicUrl +

@@ -1,7 +1,7 @@
 // @flow
 
-import type {FilePath, PluginOptions} from '@parcel/types';
-import type {PackageManager} from '@parcel/package-manager';
+import type {FilePath, PluginOptions} from '@atlaspack/types';
+import type {PackageManager} from '@atlaspack/package-manager';
 
 export default async function loadExternalPlugins(
   plugins: Array<string> | {|+[pluginName: string]: mixed|},

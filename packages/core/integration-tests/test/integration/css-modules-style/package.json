@@ -1,6 +1,6 @@
 {
   "private": true,
-  "@parcel/transformer-css": {
+  "@atlaspack/transformer-css": {
     "cssModules": true
   }
 }

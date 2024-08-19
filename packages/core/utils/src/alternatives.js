@@ -1,6 +1,6 @@
 // @flow
 import path from 'path';
-import type {FileSystem} from '@parcel/types';
+import type {FileSystem} from '@atlaspack/types';
 import {fuzzySearch} from './schema';
 import {relativePath} from './path';
 import {resolveConfig} from './config';

@@ -3,10 +3,10 @@
 'use strict';
 
 if (
-  process.env.PARCEL_BUILD_ENV !== 'production' ||
-  process.env.PARCEL_SELF_BUILD
+  process.env.ATLASPACK_BUILD_ENV !== 'production' ||
+  process.env.ATLASPACK_SELF_BUILD
 ) {
-  require('@parcel/babel-register');
+  require('@atlaspack/babel-register');
 }
 
 const cli = require('./cli');

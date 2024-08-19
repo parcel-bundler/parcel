@@ -1,12 +1,12 @@
 // @flow strict-local
 
-import type {PackageInstaller, InstallerOptions} from '@parcel/types';
+import type {PackageInstaller, InstallerOptions} from '@atlaspack/types';
 
 import path from 'path';
 import spawn from 'cross-spawn';
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 import promiseFromProcess from './promiseFromProcess';
-import {registerSerializableClass} from '@parcel/core';
+import {registerSerializableClass} from '@atlaspack/core';
 import {npmSpecifierFromModuleRequest} from './utils';
 
 // $FlowFixMe
@@ -32,8 +32,8 @@ export class Npm implements PackageInstaller {
       modules.map(npmSpecifierFromModuleRequest),
     );
 
-    // When Parcel is run by npm (e.g. via package.json scripts), several environment variables are
-    // added. When parcel in turn calls npm again, these can cause npm to behave stragely, so we
+    // When Atlaspack is run by npm (e.g. via package.json scripts), several environment variables are
+    // added. When atlaspack in turn calls npm again, these can cause npm to behave stragely, so we
     // filter them out when installing packages.
     let env = {};
     for (let key in process.env) {
@@ -60,7 +60,7 @@ export class Npm implements PackageInstaller {
       let addedCount = results.added.length;
       if (addedCount > 0) {
         logger.log({
-          origin: '@parcel/package-manager',
+          origin: '@atlaspack/package-manager',
           message: `Added ${addedCount} packages via npm`,
         });
       }
@@ -71,7 +71,7 @@ export class Npm implements PackageInstaller {
       for (let message of stderr) {
         if (message.length > 0) {
           logger.log({
-            origin: '@parcel/package-manager',
+            origin: '@atlaspack/package-manager',
             message,
           });
         }

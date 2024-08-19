@@ -1,5 +1,9 @@
 // @flow strict-local
-import type {FilePath, FileSystem, FileOptions} from '@parcel/types-internal';
+import type {
+  FilePath,
+  FileSystem,
+  FileOptions,
+} from '@atlaspack/types-internal';
 import type {Readable, Writable} from 'stream';
 
 import path from 'path';

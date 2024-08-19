@@ -6,7 +6,7 @@ let env;
 module.exports.init = async function init(input) {
   if (env) return;
 
-  input = input ?? new URL('parcel_node_bindings.wasm', import.meta.url);
+  input = input ?? new URL('atlaspack_node_bindings.wasm', import.meta.url);
   const {instance} = await WebAssembly.instantiateStreaming(fetch(input), {
     env: {
       ...napi,
@@ -22,7 +22,7 @@ module.exports.init = async function init(input) {
   });
 
   // input =
-  //   input ?? require('path').join(__dirname, 'parcel_node_bindings.wasm');
+  //   input ?? require('path').join(__dirname, 'atlaspack_node_bindings.wasm');
   // const {instance} = await WebAssembly.instantiate(
   //   require('fs').readFileSync(input),
   //   {

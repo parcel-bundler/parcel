@@ -62,7 +62,7 @@ pub fn hoist(
 
 /// An exported identifier with its original name and new mangled name.
 ///
-/// When a file exports a symbol, parcel will rewrite it as a mangled
+/// When a file exports a symbol, atlaspack will rewrite it as a mangled
 /// export identifier.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExportedSymbol {
@@ -222,7 +222,7 @@ pub struct HoistResult {
   pub exported_symbols: Vec<ExportedSymbol>,
   /// Symbols re-exported from other modules.
   ///
-  /// If a symbol is re-exported from another module, parcel will remove the export statement
+  /// If a symbol is re-exported from another module, atlaspack will remove the export statement
   /// from the asset.
   ///
   /// For example, if an input file is:
@@ -990,7 +990,7 @@ impl<'a> Fold for Hoist<'a> {
   fn fold_seq_expr(&mut self, node: SeqExpr) -> SeqExpr {
     // This is a hack to work around the SWC fixer pass removing identifiers in sequence expressions
     // that aren't at the end. In general this makes sense, but we need to preserve these so that they
-    // can be replaced with a parcelRequire call in the linker. We just wrap with a unary expression to
+    // can be replaced with a atlaspackRequire call in the linker. We just wrap with a unary expression to
     // get around this for now.
     let len = node.exprs.len();
     let exprs = node
@@ -1099,7 +1099,7 @@ impl<'a> Fold for Hoist<'a> {
     }
 
     if node.sym == js_word!("global") && is_unresolved(&node, self.unresolved_mark) {
-      return Ident::new("$parcel$global".into(), node.span);
+      return Ident::new("$atlaspack$global".into(), node.span);
     }
 
     if node.span.has_mark(self.collect.global_mark)

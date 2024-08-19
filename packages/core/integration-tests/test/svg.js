@@ -6,7 +6,7 @@ import {
   distDir,
   it,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import path from 'path';
 
 describe.v2('svg', function () {

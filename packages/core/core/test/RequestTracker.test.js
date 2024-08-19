@@ -3,10 +3,10 @@
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 import RequestTracker, {type RunAPI} from '../src/RequestTracker';
-import WorkerFarm from '@parcel/workers';
+import WorkerFarm from '@atlaspack/workers';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {INITIAL_BUILD} from '../src/constants';
-import {makeDeferredWithPromise} from '@parcel/utils';
+import {makeDeferredWithPromise} from '@atlaspack/utils';
 
 const options = DEFAULT_OPTIONS;
 const farm = new WorkerFarm({workerPath: require.resolve('../src/worker.js')});

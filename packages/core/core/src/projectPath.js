@@ -1,7 +1,7 @@
 // @flow strict-local
-import type {FilePath} from '@parcel/types';
+import type {FilePath} from '@atlaspack/types';
 import path from 'path';
-import {relativePath, normalizeSeparators} from '@parcel/utils';
+import {relativePath, normalizeSeparators} from '@atlaspack/utils';
 
 /**
  * A path that's relative to the project root.

@@ -4,15 +4,15 @@ import type {
   ConfigResult,
   PluginOptions,
   ValidateResult,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 
 import path from 'path';
 import ts from 'typescript';
-import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
-import {hashObject, loadConfig} from '@parcel/utils';
-import {Validator} from '@parcel/plugin';
-import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
+import {type DiagnosticCodeFrame, escapeMarkdown} from '@atlaspack/diagnostic';
+import {hashObject, loadConfig} from '@atlaspack/utils';
+import {Validator} from '@atlaspack/plugin';
+import {LanguageServiceHost, ParseConfigHost} from '@atlaspack/ts-utils';
 
 let langServiceCache: {
   [configHash: string]: {|
@@ -138,7 +138,7 @@ function tryCreateLanguageService(
   }
 }
 
-/** Translates semantic diagnostics (from TypeScript) into a ValidateResult that Parcel understands. */
+/** Translates semantic diagnostics (from TypeScript) into a ValidateResult that Atlaspack understands. */
 function getValidateResultFromDiagnostics(
   filePath: string,
   diagnostics: $ReadOnlyArray<Diagnostic>,
@@ -206,7 +206,7 @@ function getValidateResultFromDiagnostics(
       }
 
       validatorResult.errors.push({
-        origin: '@parcel/validator-typescript',
+        origin: '@atlaspack/validator-typescript',
         message: diagnosticMessage,
         codeFrames: codeframe ? [codeframe] : undefined,
       });

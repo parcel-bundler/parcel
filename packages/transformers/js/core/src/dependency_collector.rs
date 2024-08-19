@@ -121,7 +121,7 @@ pub struct DependencyDescriptor {
   pub placeholder: Option<String>,
 }
 
-/// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
+/// This pass collects dependencies in a module and compiles references as needed to work with Atlaspack's JSRuntime.
 pub fn dependency_collector<'a>(
   source_map: Lrc<SourceMap>,
   items: &'a mut Vec<DependencyDescriptor>,
@@ -242,7 +242,7 @@ impl<'a> DependencyCollector<'a> {
       format!(
         "{:x}",
         hash!(format!(
-          "parcel_url:{}:{}:{}",
+          "atlaspack_url:{}:{}:{}",
           self.config.filename, specifier, kind
         ))
       )
@@ -267,11 +267,11 @@ impl<'a> DependencyCollector<'a> {
   fn create_require(&mut self, specifier: JsWord) -> ast::CallExpr {
     let mut res = create_require(specifier, self.unresolved_mark);
 
-    // For scripts, we replace with __parcel__require__, which is later replaced
-    // by a real parcelRequire of the resolved asset in the packager.
+    // For scripts, we replace with __atlaspack__require__, which is later replaced
+    // by a real atlaspackRequire of the resolved asset in the packager.
     if self.config.source_type == SourceType::Script {
       res.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-        "__parcel__require__".into(),
+        "__atlaspack__require__".into(),
         DUMMY_SP,
       ))));
     }
@@ -497,7 +497,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
                 return node.fold_children_with(self);
               }
-              "__parcel__require__" => {
+              "__atlaspack__require__" => {
                 let mut call = node.fold_children_with(self);
                 call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
                   "require".into(),
@@ -505,7 +505,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ))));
                 return call;
               }
-              "__parcel__import__" => {
+              "__atlaspack__import__" => {
                 let mut call = node.fold_children_with(self);
                 call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
                   "import".into(),
@@ -513,7 +513,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ))));
                 return call;
               }
-              "__parcel__importScripts__" => {
+              "__atlaspack__importScripts__" => {
                 let mut call = node.fold_children_with(self);
                 call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
                   "importScripts".into(),
@@ -546,7 +546,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             } else {
               let was_in_promise = self.in_promise;
 
-              // Match compiled dynamic imports (Parcel)
+              // Match compiled dynamic imports (Atlaspack)
               // Promise.resolve(require('foo'))
               if match_member_expr(member, vec!["Promise", "resolve"], self.unresolved_mark) {
                 if let Some(expr) = node.args.first() {
@@ -744,7 +744,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       if !self.config.scope_hoist && !self.config.standalone {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
-          SourceType::Script => "__parcel__require__",
+          SourceType::Script => "__atlaspack__require__",
         };
         call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
           name.into(),
@@ -800,8 +800,8 @@ impl<'a> Fold for DependencyCollector<'a> {
           // new Promise(function (resolve) { resolve(require('foo')) })
           return self.fold_new_promise(node);
         } else {
-          if id.sym == "__parcel__URL__" {
-            // new __parcel__URL__(url) -> new URL(url, import.meta.url)
+          if id.sym == "__atlaspack__URL__" {
+            // new __atlaspack__URL__(url) -> new URL(url, import.meta.url)
             if let Some(args) = &node.args {
               if let ast::Expr::New(new) = create_url_constructor(
                 *args[0].expr.clone().fold_with(self),

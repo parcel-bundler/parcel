@@ -1,39 +1,42 @@
 {
-  "bundler": "@parcel/bundler-default",
+  "bundler": "@atlaspack/bundler-default",
   "transformers": {
-    "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
+    "bundle-text:*": ["@atlaspack/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
-      "@parcel/transformer-babel",
-      "@parcel/transformer-js",
-      "@parcel/transformer-react-refresh-wrap"
+      "@atlaspack/transformer-babel",
+      "@atlaspack/transformer-js",
+      "@atlaspack/transformer-react-refresh-wrap"
     ],
-    "*.{json,json5}": ["@parcel/transformer-json"],
-    "*.css": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
+    "*.{json,json5}": ["@atlaspack/transformer-json"],
+    "*.css": ["@atlaspack/transformer-postcss", "@atlaspack/transformer-css"],
     "*.{htm,html}": [
-      "@parcel/transformer-posthtml",
-      "@parcel/transformer-html"
+      "@atlaspack/transformer-posthtml",
+      "@atlaspack/transformer-html"
     ],
-    "url:*": ["@parcel/transformer-raw"]
+    "url:*": ["@atlaspack/transformer-raw"]
   },
-  "namers": ["@parcel/namer-default"],
+  "namers": ["@atlaspack/namer-default"],
   "runtimes": [
-    "@parcel/runtime-js",
-    "@parcel/runtime-browser-hmr",
-    "@parcel/runtime-react-refresh"
+    "@atlaspack/runtime-js",
+    "@atlaspack/runtime-browser-hmr",
+    "@atlaspack/runtime-react-refresh"
   ],
   "optimizers": {
-    "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
-    "*.css": ["@parcel/optimizer-css"]
+    "*.{js,mjs,cjs}": ["@atlaspack/optimizer-terser"],
+    "*.css": ["@atlaspack/optimizer-css"]
   },
   "packagers": {
-    "*.{html,xhtml}": "@parcel/packager-html",
-    "*.css": "@parcel/packager-css",
-    "*.{js,mjs,cjs}": "@parcel/packager-js",
-    "*": "@parcel/packager-raw"
+    "*.{html,xhtml}": "@atlaspack/packager-html",
+    "*.css": "@atlaspack/packager-css",
+    "*.{js,mjs,cjs}": "@atlaspack/packager-js",
+    "*": "@atlaspack/packager-raw"
   },
   "compressors": {
-    "*": ["@parcel/compressor-raw"]
+    "*": ["@atlaspack/compressor-raw"]
   },
-  "resolvers": ["@parcel/resolver-repl-runtimes", "@parcel/resolver-default"],
-  "reporters": ["@parcel/reporter-dev-server-sw"]
+  "resolvers": [
+    "@atlaspack/resolver-repl-runtimes",
+    "@atlaspack/resolver-default"
+  ],
+  "reporters": ["@atlaspack/reporter-dev-server-sw"]
 }

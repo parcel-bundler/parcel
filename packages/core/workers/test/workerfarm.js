@@ -1,4 +1,4 @@
-import Logger from '@parcel/logger';
+import Logger from '@atlaspack/logger';
 import assert from 'assert';
 import WorkerFarm from '../src';
 

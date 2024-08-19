@@ -23,7 +23,7 @@ function FileBrowserEntry({
     <li
       draggable="true"
       onDragStart={e => {
-        e.dataTransfer.setData('application/x-parcel-repl-file', p);
+        e.dataTransfer.setData('application/x-atlaspack-repl-file', p);
         e.stopPropagation();
       }}
       {...rest}
@@ -126,7 +126,7 @@ function FileBrowserFolder({
               collapsed={isCollapsed}
               onDrop={e => {
                 const data = e.dataTransfer.getData(
-                  'application/x-parcel-repl-file',
+                  'application/x-atlaspack-repl-file',
                 );
                 if (data !== p) {
                   dispatch({
@@ -201,7 +201,7 @@ export function FileBrowser({
           dispatch={dispatch}
           onDrop={e => {
             const data = e.dataTransfer.getData(
-              'application/x-parcel-repl-file',
+              'application/x-atlaspack-repl-file',
             );
             dispatch({type: 'file.move', name: data, dir: ''});
             e.preventDefault();

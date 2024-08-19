@@ -1,10 +1,10 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem} from '@atlaspack/fs';
 
 import {objectSortedEntriesDeep} from './collection';
-import {hashString, Hash} from '@parcel/rust';
+import {hashString, Hash} from '@atlaspack/rust';
 
 export function hashStream(stream: Readable): Promise<string> {
   let hash = new Hash();
@@ -33,10 +33,10 @@ let testCache: {|[string]: Promise<string>|} = {
   /*:: ...null */
 };
 export function hashFile(fs: FileSystem, filePath: string): Promise<string> {
-  if (process.env.PARCEL_BUILD_ENV === 'test') {
+  if (process.env.ATLASPACK_BUILD_ENV === 'test') {
     // Development builds of these native modules are especially big and slow to hash.
     if (
-      /parcel-swc\.[^\\/]+\.node$|lightningcss.[^\\/]+.node$/.test(filePath)
+      /atlaspack-swc\.[^\\/]+\.node$|lightningcss.[^\\/]+.node$/.test(filePath)
     ) {
       let cacheEntry = testCache[filePath];
       if (cacheEntry) return cacheEntry;

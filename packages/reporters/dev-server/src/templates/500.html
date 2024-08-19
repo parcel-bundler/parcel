@@ -70,11 +70,11 @@
     </style>
   </head>
   <body>
-    <h1 class="title-heading">🚨 Parcel encountered errors</h1>
+    <h1 class="title-heading">🚨 Atlaspack encountered errors</h1>
     <% errors.forEach(function(error){ %>
     <h2 class="error-message"><%- error.message %></h2>
 
-    <div class="error-stack-trace"><% if (error.frames?.length) { %><% error.frames.forEach(function(frame){ %><a href="/__parcel_launch_editor?file=<%- encodeURIComponent(frame.location) %>" style="text-decoration: underline; color: #888" onclick="fetch(this.href); return false"><%- frame.location %></a>
+    <div class="error-stack-trace"><% if (error.frames?.length) { %><% error.frames.forEach(function(frame){ %><a href="/__atlaspack_launch_editor?file=<%- encodeURIComponent(frame.location) %>" style="text-decoration: underline; color: #888" onclick="fetch(this.href); return false"><%- frame.location %></a>
 <%- frame.code %><% }); %><% } else { %><%- error.stack %><% } %></div>
     <ul class="error-hints-container">
       <% error.hints.forEach(function(hint){ %>

@@ -9,7 +9,7 @@ import {
   assertBundles,
   outputFS,
   inputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import nullthrows from 'nullthrows';
 
 describe.v2('glob', function () {
@@ -143,11 +143,11 @@ describe.v2('glob', function () {
       diagnostics: [
         {
           message: "Failed to resolve 'foo/\\*.js' from './index.html'",
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
         },
         {
           message: 'Glob imports are not supported in html files.',
-          origin: '@parcel/resolver-glob',
+          origin: '@atlaspack/resolver-glob',
           codeFrames: undefined,
         },
       ],
@@ -162,7 +162,7 @@ describe.v2('glob', function () {
       diagnostics: [
         {
           message: "Failed to resolve 'images/\\*.jpg' from './index.css'",
-          origin: '@parcel/core',
+          origin: '@atlaspack/core',
           codeFrames: [
             {
               filePath,
@@ -185,7 +185,7 @@ describe.v2('glob', function () {
         },
         {
           message: 'Glob imports are not supported in URL dependencies.',
-          origin: '@parcel/resolver-glob',
+          origin: '@atlaspack/resolver-glob',
           codeFrames: [
             {
               codeHighlights: [

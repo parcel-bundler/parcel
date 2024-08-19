@@ -10,12 +10,12 @@ import {
   outputFS,
   overlayFS,
   ncp,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import path from 'path';
 import {
   NodePackageManager,
   MockPackageInstaller,
-} from '@parcel/package-manager';
+} from '@atlaspack/package-manager';
 
 describe.v2('posthtml', function () {
   afterEach(async () => {

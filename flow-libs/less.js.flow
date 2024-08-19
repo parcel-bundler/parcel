@@ -1,10 +1,10 @@
 // @flow
 
-// These types are much more than what Parcel is currently using, and much less
+// These types are much more than what Atlaspack is currently using, and much less
 // than a complete typing of Less. The cutoff was pretty arbitrary; I tried to
 // err on the side of inclusion for class members and exclusion for everything
 // else, but ultimately there's no principle for what's in and what's out of the
-// bits that Parcel doesn't need.
+// bits that Atlaspack doesn't need.
 
 declare module 'less' {
   declare type FileInfo = {|
@@ -69,7 +69,7 @@ declare module 'less' {
     isEvald: boolean;
   }
 
-  // This is very ad-hoc, based on current Parcel usage instead of the actual
+  // This is very ad-hoc, based on current Atlaspack usage instead of the actual
   // class in Less.
   declare class visitors$Visitor {
     constructor({

@@ -19,7 +19,9 @@ describe('utils', () => {
   describe('isRequire', () => {
     it('identifies requires', () => {
       assert.equal(
-        isStaticRequire(getFirstExpression(parse("require('@parcel/core')"))),
+        isStaticRequire(
+          getFirstExpression(parse("require('@atlaspack/core')")),
+        ),
         true,
       );
     });
@@ -36,7 +38,7 @@ describe('utils', () => {
     it('identifies built-in require.resolve', () => {
       assert.equal(
         isStaticResolve(
-          getFirstExpression(parse("require.resolve('@parcel/core')")),
+          getFirstExpression(parse("require.resolve('@atlaspack/core')")),
         ),
         true,
       );
@@ -50,7 +52,7 @@ describe('utils', () => {
       assert.equal(
         relativePathForRequire({
           origin: __filename,
-          request: '@parcel/eslint-plugin/',
+          request: '@atlaspack/eslint-plugin/',
           pkgName,
           pkgPath,
         }),
@@ -65,7 +67,7 @@ describe('utils', () => {
       assert.equal(
         relativePathForRequire({
           origin: __filename,
-          request: '@parcel/eslint-plugin/',
+          request: '@atlaspack/eslint-plugin/',
           pkgName,
           pkgPath,
         }),
@@ -90,7 +92,7 @@ describe('utils', () => {
       assert.equal(
         relativePathForRequire({
           origin: __filename,
-          request: '@parcel/eslint-plugin/test/baz',
+          request: '@atlaspack/eslint-plugin/test/baz',
           pkgName,
           pkgPath,
         }),

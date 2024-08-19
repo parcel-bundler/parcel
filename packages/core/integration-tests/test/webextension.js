@@ -7,7 +7,7 @@ import {
   distDir,
   it,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('webextension', function () {
   it('should resolve a full webextension bundle', async function () {
@@ -66,7 +66,7 @@ describe.v2('webextension', function () {
     assert(
       (
         await outputFS.readFile(path.join(distDir, scripts[0]), 'utf-8')
-      ).includes('Hello Parcel!'),
+      ).includes('Hello Atlaspack!'),
     );
   });
 

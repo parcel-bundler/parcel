@@ -1,5 +1,5 @@
 // @flow
-import {Reporter} from '@parcel/plugin';
+import {Reporter} from '@atlaspack/plugin';
 import HMRServer, {getHotAssetContents} from './HMRServer';
 
 let hmrServer;
@@ -13,7 +13,7 @@ export default (new Reporter({
         if (hmrOptions) {
           hmrServer = new HMRServer(data =>
             // $FlowFixMe
-            globalThis.PARCEL_SERVICE_WORKER('hmrUpdate', data),
+            globalThis.ATLASPACK_SERVICE_WORKER('hmrUpdate', data),
           );
         }
         break;
@@ -32,11 +32,11 @@ export default (new Reporter({
             );
           }
           // $FlowFixMe
-          await globalThis.PARCEL_SERVICE_WORKER('setFS', files);
+          await globalThis.ATLASPACK_SERVICE_WORKER('setFS', files);
 
           hmrAssetSourceCleanup?.();
           // $FlowFixMe
-          hmrAssetSourceCleanup = globalThis.PARCEL_SERVICE_WORKER_REGISTER(
+          hmrAssetSourceCleanup = globalThis.ATLASPACK_SERVICE_WORKER_REGISTER(
             'hmrAssetSource',
             async id => {
               let bundleGraph = event.bundleGraph;

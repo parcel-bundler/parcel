@@ -1,4 +1,4 @@
-import type {FilePath} from '@parcel/types';
+import type {FilePath} from '@atlaspack/types';
 import type {Cache} from './lib/types';
 
 export type {Cache} from './lib/types';

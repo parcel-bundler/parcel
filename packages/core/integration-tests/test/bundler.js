@@ -1,6 +1,6 @@
 import path from 'path';
 import assert from 'assert';
-import Logger from '@parcel/logger';
+import Logger from '@atlaspack/logger';
 import {
   assertBundles,
   bundle,
@@ -10,9 +10,9 @@ import {
   overlayFS,
   fsFixture,
   run,
-} from '@parcel/test-utils';
-import {hashString} from '@parcel/rust';
-import {normalizePath} from '@parcel/utils';
+} from '@atlaspack/test-utils';
+import {hashString} from '@atlaspack/rust';
+import {normalizePath} from '@atlaspack/utils';
 
 describe.v2('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
@@ -42,7 +42,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundles": 0,
               "minBundleSize": 200,
               "maxParallelRequests": 100,
@@ -109,7 +109,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "maxParallelRequests": 100,
               "disableSharedBundles": true
             }
@@ -141,7 +141,7 @@ describe.v2('bundler', function () {
         level: 'warn',
         diagnostics: [
           {
-            origin: '@parcel/bundler-default',
+            origin: '@atlaspack/bundler-default',
             message:
               'The value of "100" set for maxParallelRequests will not be used as shared bundles have been disabled',
           },
@@ -194,7 +194,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundleSize": 200,
               "disableSharedBundles": true
             }
@@ -229,7 +229,7 @@ describe.v2('bundler', function () {
         level: 'warn',
         diagnostics: [
           {
-            origin: '@parcel/bundler-default',
+            origin: '@atlaspack/bundler-default',
             message:
               'The value of "200" set for minBundleSize will not be used as shared bundles have been disabled',
           },
@@ -282,7 +282,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundles": 0,
               "disableSharedBundles": true
             }
@@ -314,7 +314,7 @@ describe.v2('bundler', function () {
         level: 'warn',
         diagnostics: [
           {
-            origin: '@parcel/bundler-default',
+            origin: '@atlaspack/bundler-default',
             message:
               'The value of "0" set for minBundles will not be used as shared bundles have been disabled',
           },
@@ -367,7 +367,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundles": 0,
               "minBundleSize": 200,
               "maxParallelRequests": 100,
@@ -404,7 +404,7 @@ describe.v2('bundler', function () {
         level: 'warn',
         diagnostics: [
           {
-            origin: '@parcel/bundler-default',
+            origin: '@atlaspack/bundler-default',
             message:
               'The value of "0" set for minBundles will not be used as shared bundles have been disabled',
           },
@@ -415,7 +415,7 @@ describe.v2('bundler', function () {
         level: 'warn',
         diagnostics: [
           {
-            origin: '@parcel/bundler-default',
+            origin: '@atlaspack/bundler-default',
             message:
               'The value of "200" set for minBundleSize will not be used as shared bundles have been disabled',
           },
@@ -426,7 +426,7 @@ describe.v2('bundler', function () {
         level: 'warn',
         diagnostics: [
           {
-            origin: '@parcel/bundler-default',
+            origin: '@atlaspack/bundler-default',
             message:
               'The value of "100" set for maxParallelRequests will not be used as shared bundles have been disabled',
           },
@@ -479,7 +479,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundles": 0,
               "minBundleSize": 200,
               "maxParallelRequests": 100,
@@ -553,7 +553,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundles": 1,
               "minBundleSize": 200,
               "maxParallelRequests": 2
@@ -975,7 +975,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundles": 0,
               "minBundleSize": 200,
               "production": {
@@ -1050,10 +1050,10 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/transformer-js": {
+            "@atlaspack/transformer-js": {
               "unstable_inlineConstants": true
             },
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundleSize": 0,
               "minBundles": 3
             }
@@ -1124,10 +1124,10 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/transformer-js": {
+            "@atlaspack/transformer-js": {
               "unstable_inlineConstants": true
             },
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundleSize": 0
             }
           }
@@ -1189,7 +1189,7 @@ describe.v2('bundler', function () {
 
         package.json:
           {
-            "@parcel/transformer-js": {
+            "@atlaspack/transformer-js": {
               "unstable_inlineConstants": true
             }
           }
@@ -1227,7 +1227,7 @@ describe.v2('bundler', function () {
 
       package.json:
         {
-          "@parcel/transformer-js": {
+          "@atlaspack/transformer-js": {
             "unstable_inlineConstants": true
           }
         }
@@ -1275,7 +1275,7 @@ describe.v2('bundler', function () {
         // Required for config loading
       package.json:
         {
-          "@parcel/bundler-default": {
+          "@atlaspack/bundler-default": {
             "minBundleSize": 0,
             "manualSharedBundles": [{
               "name": "vendor",
@@ -1358,7 +1358,7 @@ describe.v2('bundler', function () {
         // Required for config loading
       package.json:
         {
-          "@parcel/bundler-default": {
+          "@atlaspack/bundler-default": {
             "manualSharedBundles": [{
               "name": "manual-inline",
               "assets": ["shared.js"]
@@ -1366,16 +1366,16 @@ describe.v2('bundler', function () {
           }
         }
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          "extends": "@parcel/config-default",
+          "extends": "@atlaspack/config-default",
           "transformers": {
             "*.js": ["./transformer.js", "..."],
           }
         }
 
       transformer.js:
-        import { Transformer } from '@parcel/plugin';
+        import { Transformer } from '@atlaspack/plugin';
 
         export default new Transformer({
           transform({asset}) {
@@ -1438,7 +1438,7 @@ describe.v2('bundler', function () {
         // Required for config loading
       package.json:
         {
-          "@parcel/bundler-default": {
+          "@atlaspack/bundler-default": {
             "minBundleSize": 0,
             "manualSharedBundles": [{
               "name": "vendor",
@@ -1523,7 +1523,7 @@ describe.v2('bundler', function () {
         // Required for config loading
       package.json:
         {
-          "@parcel/bundler-default": {
+          "@atlaspack/bundler-default": {
             "minBundleSize": 0,
             "manualSharedBundles": [{
               "name": "vendor",
@@ -1591,10 +1591,10 @@ describe.v2('bundler', function () {
         // Required for config loading
       package.json:
         {
-          "@parcel/transformer-js" : {
+          "@atlaspack/transformer-js" : {
             "unstable_inlineConstants": true
           },
-          "@parcel/bundler-default": {
+          "@atlaspack/bundler-default": {
             "minBundleSize": 0,
             "manualSharedBundles": [{
               "name": "vendor",
@@ -1663,10 +1663,10 @@ describe.v2('bundler', function () {
         // Required for config loading
       package.json:
         {
-          "@parcel/transformer-js" : {
+          "@atlaspack/transformer-js" : {
             "unstable_inlineConstants": true
           },
-          "@parcel/bundler-default": {
+          "@atlaspack/bundler-default": {
             "minBundleSize": 0,
             "manualSharedBundles": [{
               "name": "vendor",
@@ -1734,7 +1734,7 @@ describe.v2('bundler', function () {
           // Required for config loading
         package.json:
           {
-            "@parcel/bundler-default": {
+            "@atlaspack/bundler-default": {
               "minBundleSize": 0,
               "manualSharedBundles": [{
                 "name": "vendor",
@@ -1823,7 +1823,7 @@ describe.v2('bundler', function () {
 
       package.json:
         {
-          "@parcel/bundler-default": {
+          "@atlaspack/bundler-default": {
             "minBundleSize": 0,
             "manualSharedBundles": [{
               "name": "vendor",

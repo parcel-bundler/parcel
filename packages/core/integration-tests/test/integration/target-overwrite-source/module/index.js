@@ -1,1 +1,1 @@
-console.log('I hope Parcel does not overwrite me.');
+console.log('I hope Atlaspack does not overwrite me.');

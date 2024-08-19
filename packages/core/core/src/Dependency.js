@@ -7,9 +7,9 @@ import type {
   Symbol,
   BundleBehavior as IBundleBehavior,
   SemverRange,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {Dependency, Environment, Target} from './types';
-import {hashString} from '@parcel/rust';
+import {hashString} from '@atlaspack/rust';
 import {
   SpecifierType,
   Priority,

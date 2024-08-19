@@ -1,6 +1,0 @@
-{
-  "extends": ["@parcel/config-default"],
-  "compressors": {
-    "*": ["...", "@parcel/compressor-gzip", "@parcel/compressor-brotli"]
-  }
-}

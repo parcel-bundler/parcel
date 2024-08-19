@@ -1,15 +1,15 @@
 // @flow strict-local
-import type {TransformerResult} from '@parcel/types';
+import type {TransformerResult} from '@atlaspack/types';
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import nullthrows from 'nullthrows';
-import {hashObject} from '@parcel/utils';
+import {hashObject} from '@atlaspack/utils';
 import ThrowableDiagnostic, {
   type Diagnostic,
   convertSourceLocationToHighlight,
   escapeMarkdown,
   md,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
 import {basename, extname, relative, dirname} from 'path';
@@ -45,7 +45,7 @@ export default (new Transformer({
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: 'Vue config should be an object.',
-            origin: '@parcel/transformer-vue',
+            origin: '@atlaspack/transformer-vue',
           },
         });
       }
@@ -177,14 +177,14 @@ function createDiagnostic(err, filePath) {
   if (typeof err === 'string') {
     return {
       message: err,
-      origin: '@parcel/transformer-vue',
+      origin: '@atlaspack/transformer-vue',
       filePath,
     };
   }
   // TODO: codeframe
   let diagnostic: Diagnostic = {
     message: escapeMarkdown(err.message),
-    origin: '@parcel/transformer-vue',
+    origin: '@atlaspack/transformer-vue',
     name: err.name,
     stack: err.stack,
     codeFrames: err.loc
@@ -238,7 +238,7 @@ async function processPipeline({
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Unknown template language: "${template.lang}"`,
-              origin: '@parcel/transformer-vue',
+              origin: '@atlaspack/transformer-vue',
             },
           });
         }
@@ -320,7 +320,7 @@ ${
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Unknown script language: "${script.lang}"`,
-              origin: '@parcel/transformer-vue',
+              origin: '@atlaspack/transformer-vue',
             },
           });
       }
@@ -365,7 +365,7 @@ ${
               throw new ThrowableDiagnostic({
                 diagnostic: {
                   message: md`Unknown style language: "${style.lang}"`,
-                  origin: '@parcel/transformer-vue',
+                  origin: '@atlaspack/transformer-vue',
                 },
               });
           }
@@ -439,7 +439,7 @@ export default cssModules;`,
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`No preprocessor found for block type ${type}`,
-              origin: '@parcel/transformer-vue',
+              origin: '@atlaspack/transformer-vue',
             },
           });
         }

@@ -120,6 +120,317 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlaspack"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack-resolver",
+ "atlaspack_config",
+ "atlaspack_core",
+ "atlaspack_filesystem",
+ "atlaspack_package_manager",
+ "atlaspack_plugin_resolver",
+ "atlaspack_plugin_rpc",
+ "atlaspack_plugin_transformer_js",
+ "dyn-hash",
+ "mockall",
+ "num_cpus",
+ "pathdiff",
+ "petgraph",
+ "rand",
+ "rayon",
+ "regex",
+ "serde",
+ "serde-bool",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "atlaspack-dev-dep-resolver"
+version = "0.1.0"
+dependencies = [
+ "atlaspack-resolver",
+ "dashmap",
+ "es-module-lexer",
+ "glob",
+ "rayon",
+ "serde_json",
+]
+
+[[package]]
+name = "atlaspack-dev-dep-resolver-old"
+version = "0.1.0"
+dependencies = [
+ "atlaspack-resolver-old",
+ "dashmap",
+ "es-module-lexer",
+ "glob",
+ "rayon",
+ "serde_json",
+]
+
+[[package]]
+name = "atlaspack-js-swc-core"
+version = "0.1.0"
+dependencies = [
+ "Inflector",
+ "atlaspack-macros",
+ "data-encoding",
+ "dunce",
+ "indexmap 1.9.3",
+ "indoc",
+ "parking_lot",
+ "path-slash",
+ "pathdiff",
+ "serde",
+ "serde_bytes",
+ "sha-1",
+ "swc_core",
+]
+
+[[package]]
+name = "atlaspack-macros"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
+ "indexmap 1.9.3",
+ "napi",
+ "napi-derive",
+ "serde",
+ "swc_core",
+]
+
+[[package]]
+name = "atlaspack-node-bindings"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack",
+ "atlaspack-dev-dep-resolver",
+ "atlaspack-dev-dep-resolver-old",
+ "atlaspack-js-swc-core",
+ "atlaspack-macros",
+ "atlaspack-resolver",
+ "atlaspack-resolver-old",
+ "atlaspack_core",
+ "atlaspack_monitoring",
+ "atlaspack_napi_helpers",
+ "atlaspack_package_manager",
+ "atlaspack_plugin_transformer_js",
+ "crossbeam-channel",
+ "dashmap",
+ "getrandom",
+ "glob",
+ "indexmap 1.9.3",
+ "jemallocator",
+ "libc",
+ "log",
+ "mimalloc",
+ "mockall",
+ "mozjpeg-sys",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "num_cpus",
+ "once_cell",
+ "oxipng",
+ "parking_lot",
+ "rayon",
+ "serde",
+ "serde_json",
+ "toml",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "atlaspack-resolver"
+version = "0.1.0"
+dependencies = [
+ "assert_fs",
+ "atlaspack-resolver-old",
+ "atlaspack_core",
+ "atlaspack_filesystem",
+ "bitflags 1.3.2",
+ "criterion",
+ "dashmap",
+ "glob-match",
+ "indexmap 1.9.3",
+ "is_elevated",
+ "itertools 0.10.5",
+ "json_comments",
+ "once_cell",
+ "parking_lot",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "serde_json5",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "atlaspack-resolver-old"
+version = "0.1.0"
+dependencies = [
+ "assert_fs",
+ "atlaspack_core",
+ "atlaspack_filesystem",
+ "bitflags 1.3.2",
+ "dashmap",
+ "elsa",
+ "glob-match",
+ "indexmap 1.9.3",
+ "is_elevated",
+ "itertools 0.10.5",
+ "json_comments",
+ "once_cell",
+ "parking_lot",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "typed-arena",
+ "url",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "atlaspack_config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack_core",
+ "atlaspack_filesystem",
+ "atlaspack_package_manager",
+ "derive_builder",
+ "glob-match",
+ "indexmap 2.2.6",
+ "mockall",
+ "pathdiff",
+ "serde",
+ "serde_json5",
+]
+
+[[package]]
+name = "atlaspack_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack_filesystem",
+ "bitflags 2.6.0",
+ "browserslist-rs",
+ "derive_builder",
+ "dyn-hash",
+ "mockall",
+ "nodejs-semver",
+ "petgraph",
+ "serde",
+ "serde-value",
+ "serde_json",
+ "serde_repr",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "atlaspack_filesystem"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_fs",
+ "dashmap",
+ "is_elevated",
+ "mockall",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "atlaspack_monitoring"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cfg-if",
+ "crash-handler",
+ "minidumper",
+ "sentry",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "whoami",
+]
+
+[[package]]
+name = "atlaspack_napi_helpers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "napi",
+ "napi-build",
+ "once_cell",
+ "serde",
+]
+
+[[package]]
+name = "atlaspack_package_manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack-resolver",
+ "atlaspack_filesystem",
+ "mockall",
+ "serde",
+]
+
+[[package]]
+name = "atlaspack_plugin_resolver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack-resolver",
+ "atlaspack_core",
+ "atlaspack_filesystem",
+]
+
+[[package]]
+name = "atlaspack_plugin_rpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack_config",
+ "atlaspack_core",
+ "atlaspack_napi_helpers",
+ "napi",
+ "once_cell",
+ "parking_lot",
+ "serde",
+]
+
+[[package]]
+name = "atlaspack_plugin_transformer_js"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atlaspack-js-swc-core",
+ "atlaspack_core",
+ "atlaspack_filesystem",
+ "indexmap 2.2.6",
+ "serde",
+ "swc_core",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2006,317 +2317,6 @@ dependencies = [
  "stderrlog",
  "wild",
  "zopfli",
-]
-
-[[package]]
-name = "parcel"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dyn-hash",
- "mockall",
- "num_cpus",
- "parcel-resolver",
- "parcel_config",
- "parcel_core",
- "parcel_filesystem",
- "parcel_package_manager",
- "parcel_plugin_resolver",
- "parcel_plugin_rpc",
- "parcel_plugin_transformer_js",
- "pathdiff",
- "petgraph",
- "rand",
- "rayon",
- "regex",
- "serde",
- "serde-bool",
- "serde_json",
- "tracing",
- "tracing-subscriber",
- "xxhash-rust",
-]
-
-[[package]]
-name = "parcel-dev-dep-resolver"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "es-module-lexer",
- "glob",
- "parcel-resolver",
- "rayon",
- "serde_json",
-]
-
-[[package]]
-name = "parcel-dev-dep-resolver-old"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "es-module-lexer",
- "glob",
- "parcel-resolver-old",
- "rayon",
- "serde_json",
-]
-
-[[package]]
-name = "parcel-js-swc-core"
-version = "0.1.0"
-dependencies = [
- "Inflector",
- "data-encoding",
- "dunce",
- "indexmap 1.9.3",
- "indoc",
- "parcel-macros",
- "parking_lot",
- "path-slash",
- "pathdiff",
- "serde",
- "serde_bytes",
- "sha-1",
- "swc_core",
-]
-
-[[package]]
-name = "parcel-macros"
-version = "0.1.0"
-dependencies = [
- "crossbeam-channel",
- "indexmap 1.9.3",
- "napi",
- "napi-derive",
- "serde",
- "swc_core",
-]
-
-[[package]]
-name = "parcel-node-bindings"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossbeam-channel",
- "dashmap",
- "getrandom",
- "glob",
- "indexmap 1.9.3",
- "jemallocator",
- "libc",
- "log",
- "mimalloc",
- "mockall",
- "mozjpeg-sys",
- "napi",
- "napi-build",
- "napi-derive",
- "num_cpus",
- "once_cell",
- "oxipng",
- "parcel",
- "parcel-dev-dep-resolver",
- "parcel-dev-dep-resolver-old",
- "parcel-js-swc-core",
- "parcel-macros",
- "parcel-resolver",
- "parcel-resolver-old",
- "parcel_core",
- "parcel_monitoring",
- "parcel_napi_helpers",
- "parcel_package_manager",
- "parcel_plugin_transformer_js",
- "parking_lot",
- "rayon",
- "serde",
- "serde_json",
- "toml",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "xxhash-rust",
-]
-
-[[package]]
-name = "parcel-resolver"
-version = "0.1.0"
-dependencies = [
- "assert_fs",
- "bitflags 1.3.2",
- "criterion",
- "dashmap",
- "glob-match",
- "indexmap 1.9.3",
- "is_elevated",
- "itertools 0.10.5",
- "json_comments",
- "once_cell",
- "parcel-resolver-old",
- "parcel_core",
- "parcel_filesystem",
- "parking_lot",
- "percent-encoding",
- "serde",
- "serde_json",
- "serde_json5",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "url",
- "xxhash-rust",
-]
-
-[[package]]
-name = "parcel-resolver-old"
-version = "0.1.0"
-dependencies = [
- "assert_fs",
- "bitflags 1.3.2",
- "dashmap",
- "elsa",
- "glob-match",
- "indexmap 1.9.3",
- "is_elevated",
- "itertools 0.10.5",
- "json_comments",
- "once_cell",
- "parcel_core",
- "parcel_filesystem",
- "parking_lot",
- "percent-encoding",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
- "typed-arena",
- "url",
- "xxhash-rust",
-]
-
-[[package]]
-name = "parcel_config"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "derive_builder",
- "glob-match",
- "indexmap 2.2.6",
- "mockall",
- "parcel_core",
- "parcel_filesystem",
- "parcel_package_manager",
- "pathdiff",
- "serde",
- "serde_json5",
-]
-
-[[package]]
-name = "parcel_core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bitflags 2.6.0",
- "browserslist-rs",
- "derive_builder",
- "dyn-hash",
- "mockall",
- "nodejs-semver",
- "parcel_filesystem",
- "petgraph",
- "serde",
- "serde-value",
- "serde_json",
- "serde_repr",
- "xxhash-rust",
-]
-
-[[package]]
-name = "parcel_filesystem"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_fs",
- "dashmap",
- "is_elevated",
- "mockall",
- "xxhash-rust",
-]
-
-[[package]]
-name = "parcel_monitoring"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cfg-if",
- "crash-handler",
- "minidumper",
- "sentry",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "whoami",
-]
-
-[[package]]
-name = "parcel_napi_helpers"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "napi",
- "napi-build",
- "once_cell",
- "serde",
-]
-
-[[package]]
-name = "parcel_package_manager"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "mockall",
- "parcel-resolver",
- "parcel_filesystem",
- "serde",
-]
-
-[[package]]
-name = "parcel_plugin_resolver"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "parcel-resolver",
- "parcel_core",
- "parcel_filesystem",
-]
-
-[[package]]
-name = "parcel_plugin_rpc"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "napi",
- "once_cell",
- "parcel_config",
- "parcel_core",
- "parcel_napi_helpers",
- "parking_lot",
- "serde",
-]
-
-[[package]]
-name = "parcel_plugin_transformer_js"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "indexmap 2.2.6",
- "parcel-js-swc-core",
- "parcel_core",
- "parcel_filesystem",
- "serde",
- "swc_core",
 ]
 
 [[package]]

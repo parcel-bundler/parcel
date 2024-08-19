@@ -3,15 +3,15 @@
   "version": "2.12.0",
   "private": true,
   "scripts": {
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules -r @parcel/babel-register index.js"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules -r @atlaspack/babel-register index.js"
   },
   "dependencies": {
     "@babel/core": "^7.22.11",
     "@babel/generator": "^7.22.10",
     "@babel/template": "^7.22.5",
     "@babel/types": "^7.22.11",
-    "@parcel/core": "^2.12.0",
-    "@parcel/fs": "^2.12.0",
+    "@atlaspack/core": "^2.12.0",
+    "@atlaspack/fs": "^2.12.0",
     "nanoid": "^3.1.12",
     "nullthrows": "^1.1.1"
   }

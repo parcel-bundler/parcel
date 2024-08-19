@@ -147,7 +147,7 @@ impl ESMFold {
 
   fn create_helper_call(&mut self, name: JsWord, args: Vec<Expr>, span: Span) -> Expr {
     self.needs_helpers = true;
-    let ident = Ident::new("parcelHelpers".into(), DUMMY_SP.apply_mark(self.mark));
+    let ident = Ident::new("atlaspackHelpers".into(), DUMMY_SP.apply_mark(self.mark));
     Expr::Call(CallExpr {
       callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
         obj: Box::new(Expr::Ident(ident)),
@@ -566,10 +566,10 @@ impl Fold for ESMFold {
           decls: vec![VarDeclarator {
             span: DUMMY_SP,
             name: Pat::Ident(
-              Ident::new("parcelHelpers".into(), DUMMY_SP.apply_mark(self.mark)).into(),
+              Ident::new("atlaspackHelpers".into(), DUMMY_SP.apply_mark(self.mark)).into(),
             ),
             init: Some(Box::new(Expr::Call(crate::utils::create_require(
-              "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+              "@atlaspack/transformer-js/src/esmodule-helpers.js".into(),
               self.unresolved_mark,
             )))),
             definite: false,

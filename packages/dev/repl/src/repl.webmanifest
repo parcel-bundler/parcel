@@ -1,7 +1,7 @@
 {
-  "name": "Parcel REPL",
-  "short_name": "Parcel REPL",
-  "description": "A playground for Parcel in the browser",
+  "name": "Atlaspack REPL",
+  "short_name": "Atlaspack REPL",
+  "description": "A playground for Atlaspack in the browser",
   "start_url": "/",
   "display": "standalone",
   "lang": "en-US",

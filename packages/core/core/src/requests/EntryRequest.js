@@ -1,21 +1,21 @@
 // @flow strict-local
 
-import type {Async, FilePath, PackageJSON, Glob} from '@parcel/types';
+import type {Async, FilePath, PackageJSON, Glob} from '@atlaspack/types';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {Entry, InternalFile, ParcelOptions} from '../types';
-import type {FileSystem} from '@parcel/fs';
+import type {Entry, InternalFile, AtlaspackOptions} from '../types';
+import type {FileSystem} from '@atlaspack/fs';
 
 import {
   isDirectoryInside,
   isGlob,
   glob,
   findAlternativeFiles,
-} from '@parcel/utils';
+} from '@atlaspack/utils';
 import ThrowableDiagnostic, {
   md,
   generateJSONCodeHighlights,
   getJSONSourceLocation,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 import path from 'path';
 import {parse, type Mapping} from '@mischnic/json-sourcemap';
 import {requestTypes} from '../RequestTracker';
@@ -91,7 +91,7 @@ async function assertFile(
   relativeSource: FilePath,
   pkgFilePath: FilePath,
   keyPath: string,
-  options: ParcelOptions,
+  options: AtlaspackOptions,
 ) {
   let source = path.join(entry, relativeSource);
   let stat;
@@ -108,7 +108,7 @@ async function assertFile(
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
-        origin: '@parcel/core',
+        origin: '@atlaspack/core',
         message: md`${path.relative(process.cwd(), source)} does not exist.`,
         codeFrames: [
           {
@@ -132,7 +132,7 @@ async function assertFile(
     let contents = await fs.readFile(pkgFilePath, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
-        origin: '@parcel/core',
+        origin: '@atlaspack/core',
         message: md`${path.relative(process.cwd(), source)} is not a file.`,
         codeFrames: [
           {
@@ -151,9 +151,9 @@ async function assertFile(
 }
 
 export class EntryResolver {
-  options: ParcelOptions;
+  options: AtlaspackOptions;
 
-  constructor(options: ParcelOptions) {
+  constructor(options: AtlaspackOptions) {
     this.options = options;
   }
 

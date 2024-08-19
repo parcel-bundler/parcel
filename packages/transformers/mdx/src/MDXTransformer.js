@@ -1,5 +1,5 @@
 // @flow
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import mdx from '@mdx-js/mdx';
 
 export default (new Transformer({

@@ -1,7 +1,7 @@
 // @flow strict-local
 
-import {Optimizer} from '@parcel/plugin';
-import {blobToBuffer} from '@parcel/utils';
+import {Optimizer} from '@atlaspack/plugin';
+import {blobToBuffer} from '@atlaspack/utils';
 import mime from 'mime';
 import {isBinaryFile} from 'isbinaryfile';
 

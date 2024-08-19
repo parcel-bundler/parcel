@@ -1,28 +1,24 @@
 {
-  "name": "@parcel/transformer-webextension",
+  "name": "@atlaspack/transformer-webextension",
   "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/WebExtensionTransformer.js",
   "source": "src/WebExtensionTransformer.js",
   "engines": {
-    "parcel": "^2.12.0"
+    "atlaspack": "^2.12.0"
   },
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
-    "@parcel/diagnostic": "2.12.0",
-    "@parcel/plugin": "2.12.0",
-    "@parcel/utils": "2.12.0",
+    "@atlaspack/diagnostic": "2.12.0",
+    "@atlaspack/plugin": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
     "content-security-policy-parser": "^0.3.0"
   }
 }

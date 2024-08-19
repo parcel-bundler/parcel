@@ -11,16 +11,16 @@ import {
   it,
   outputFS,
   run,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 const tscConfig = path.join(
   __dirname,
-  '/integration/typescript-config/.parcelrc',
+  '/integration/typescript-config/.atlaspackrc',
 );
 
 describe.v2('typescript', function () {
   // This tests both the SWC transformer implementation of typescript (which
-  // powers typescript by default in Parcel) as well as through the Typescript
+  // powers typescript by default in Atlaspack) as well as through the Typescript
   // tsc transformer. Use a `undefined` config to indicate the default config, and the
   // tsc config to use the tsc transformer instead.
   //

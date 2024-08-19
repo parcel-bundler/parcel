@@ -1,14 +1,14 @@
 // @flow
 
-import type {Config, PluginOptions, PluginLogger} from '@parcel/types';
+import type {Config, PluginOptions, PluginLogger} from '@atlaspack/types';
 import typeof * as BabelCore from '@babel/core';
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {Diagnostic} from '@atlaspack/diagnostic';
 import type {BabelConfig} from './types';
 
 import json5 from 'json5';
 import path from 'path';
-import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
-import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {hashObject, relativePath, resolveConfig} from '@atlaspack/utils';
+import {md, generateJSONCodeHighlights} from '@atlaspack/diagnostic';
 import {BABEL_CORE_RANGE} from './constants';
 
 import isJSX from './jsx';
@@ -107,7 +107,7 @@ export async function load(
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
       logger.warn({
-        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${
+        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Atlaspack for changes to this config to take effect. Try using a ${
           path.basename(file, path.extname(file)) + '.json'
         } file instead.`,
       });
@@ -135,7 +135,7 @@ export async function load(
   let warnOldVersion = () => {
     logger.warn({
       message:
-        'You are using an old version of @babel/core which does not support the necessary features for Parcel to cache and watch babel config files safely. You may need to restart Parcel for config changes to take effect. Please upgrade to @babel/core 7.12.0 or later to resolve this issue.',
+        'You are using an old version of @babel/core which does not support the necessary features for Atlaspack to cache and watch babel config files safely. You may need to restart Atlaspack for config changes to take effect. Please upgrade to @babel/core 7.12.0 or later to resolve this issue.',
     });
     config.invalidateOnStartup();
   };
@@ -277,7 +277,7 @@ const redundantPresets = new Set([
   '@babel/preset-env',
   '@babel/preset-react',
   '@babel/preset-typescript',
-  '@parcel/babel-preset-env',
+  '@atlaspack/babel-preset-env',
 ]);
 
 async function warnOnRedundantPlugins(fs, babelConfig, logger) {
@@ -312,7 +312,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
     plugins.length === 0
   ) {
     diagnostics.push({
-      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ contains only redundant presets. Deleting it may significantly improve build performance.`,
+      message: md`Atlaspack includes transpilation by default. Babel config __${filePath}__ contains only redundant presets. Deleting it may significantly improve build performance.`,
       codeFrames: [
         {
           filePath: configPath,
@@ -329,7 +329,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
     });
   } else if (foundRedundantPresets.size > 0) {
     diagnostics.push({
-      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ includes the following redundant presets: ${[
+      message: md`Atlaspack includes transpilation by default. Babel config __${filePath}__ includes the following redundant presets: ${[
         ...foundRedundantPresets,
       ].map(p =>
         md.underline(p),
@@ -353,7 +353,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
   if (foundRedundantPresets.has('@babel/preset-env')) {
     diagnostics.push({
       message:
-        "@babel/preset-env does not support Parcel's targets, which will likely result in unnecessary transpilation and larger bundle sizes.",
+        "@babel/preset-env does not support Atlaspack's targets, which will likely result in unnecessary transpilation and larger bundle sizes.",
       codeFrames: [
         {
           filePath: babelConfig.config ?? babelConfig.babelrc,
@@ -365,7 +365,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
         },
       ],
       hints: [
-        `Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__`,
+        `Either remove __@babel/preset-env__ to use Atlaspack's builtin transpilation, or replace with __@atlaspack/babel-preset-env__`,
       ],
       documentationURL:
         'https://parceljs.org/languages/javascript/#custom-plugins',

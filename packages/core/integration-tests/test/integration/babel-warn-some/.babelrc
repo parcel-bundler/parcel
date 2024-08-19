@@ -1,4 +1,4 @@
 {
-  "presets": ["@parcel/babel-preset-env"],
+  "presets": ["@atlaspack/babel-preset-env"],
   "plugins": ["../babelrc-custom/babel-plugin-dummy"]
 }

@@ -12,17 +12,17 @@ import type {
   Target,
   BuildMode,
   PluginLogger,
-} from '@parcel/types';
-import type {NodeId} from '@parcel/graph';
-import type {SchemaEntity} from '@parcel/utils';
-import {ContentGraph, Graph, BitSet, ALL_EDGE_TYPES} from '@parcel/graph';
+} from '@atlaspack/types';
+import type {NodeId} from '@atlaspack/graph';
+import type {SchemaEntity} from '@atlaspack/utils';
+import {ContentGraph, Graph, BitSet, ALL_EDGE_TYPES} from '@atlaspack/graph';
 
 import invariant from 'assert';
-import {Bundler} from '@parcel/plugin';
-import {validateSchema, DefaultMap, globToRegex} from '@parcel/utils';
+import {Bundler} from '@atlaspack/plugin';
+import {validateSchema, DefaultMap, globToRegex} from '@atlaspack/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import {encodeJSONKeyComponent} from '@atlaspack/diagnostic';
 
 type Glob = string;
 
@@ -128,7 +128,7 @@ type IdealGraph = {|
  * First, we enter `bundle({bundleGraph, config})`. Here, "bundleGraph" is actually just the
  * assetGraph turned into a type `MutableBundleGraph`, which will then be mutated in decorate,
  * and turned into what we expect the bundleGraph to be as per the old (default) bundler structure
- *  & what the rest of Parcel expects a BundleGraph to be.
+ *  & what the rest of Atlaspack expects a BundleGraph to be.
  *
  * `bundle({bundleGraph, config})` First gets a Mapping of target to entries, In most cases there is
  *  only one target, and one or more entries. (Targets are pertinent in monorepos or projects where you
@@ -462,7 +462,7 @@ function createIdealGraph(
     for (let c of config.manualSharedBundles.reverse()) {
       if (c.root != null && !configToParentAsset.has(c)) {
         logger.warn({
-          origin: '@parcel/bundler-default',
+          origin: '@atlaspack/bundler-default',
           message: `Manual shared bundle "${c.name}" skipped, no root asset found`,
         });
         continue;
@@ -1726,7 +1726,7 @@ async function loadBundlerConfig(
   logger: PluginLogger,
 ): Promise<ResolvedBundlerConfig> {
   let conf = await config.getConfig<BundlerConfig>([], {
-    packageKey: '@parcel/bundler-default',
+    packageKey: '@atlaspack/bundler-default',
   });
 
   if (!conf) {
@@ -1747,7 +1747,7 @@ async function loadBundlerConfig(
     modeConfig.disableSharedBundles === true
   ) {
     logger.warn({
-      origin: '@parcel/bundler-default',
+      origin: '@atlaspack/bundler-default',
       message: `The value of "${modeConfig.minBundles}" set for minBundles will not be used as shared bundles have been disabled`,
     });
   }
@@ -1758,7 +1758,7 @@ async function loadBundlerConfig(
     modeConfig.disableSharedBundles === true
   ) {
     logger.warn({
-      origin: '@parcel/bundler-default',
+      origin: '@atlaspack/bundler-default',
       message: `The value of "${modeConfig.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
     });
   }
@@ -1769,7 +1769,7 @@ async function loadBundlerConfig(
     modeConfig.disableSharedBundles === true
   ) {
     logger.warn({
-      origin: '@parcel/bundler-default',
+      origin: '@atlaspack/bundler-default',
       message: `The value of "${modeConfig.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
     });
   }
@@ -1789,10 +1789,10 @@ async function loadBundlerConfig(
       data: modeConfig,
       source: await options.inputFS.readFile(conf.filePath, 'utf8'),
       filePath: conf.filePath,
-      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
+      prependKey: `/${encodeJSONKeyComponent('@atlaspack/bundler-default')}`,
     },
-    '@parcel/bundler-default',
-    'Invalid config for @parcel/bundler-default',
+    '@atlaspack/bundler-default',
+    'Invalid config for @atlaspack/bundler-default',
   );
 
   let http = modeConfig.http ?? 2;

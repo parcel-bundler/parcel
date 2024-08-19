@@ -1,7 +1,7 @@
 // @flow
 
-import type {FilePath, Glob} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FilePath, Glob} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
 
 import _isGlob from 'is-glob';
 import fastGlob, {type FastGlobOptions} from 'fast-glob';

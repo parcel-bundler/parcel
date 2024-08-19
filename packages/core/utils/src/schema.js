@@ -3,7 +3,7 @@ import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   escapeMarkdown,
   encodeJSONKeyComponent,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 import type {Mapping} from '@mischnic/json-sourcemap';
 import nullthrows from 'nullthrows';
 import * as levenshtein from 'fastest-levenshtein';

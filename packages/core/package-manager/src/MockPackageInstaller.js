@@ -4,13 +4,13 @@ import type {
   ModuleRequest,
   PackageInstaller,
   InstallerOptions,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {FilePath} from '@parcel/types';
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type {FilePath} from '@atlaspack/types';
 
 import path from 'path';
-import {ncp} from '@parcel/fs';
-import {registerSerializableClass} from '@parcel/core';
+import {ncp} from '@atlaspack/fs';
+import {registerSerializableClass} from '@atlaspack/core';
 import pkg from '../package.json';
 import {moduleRequestsFromDependencyMap} from './utils';
 

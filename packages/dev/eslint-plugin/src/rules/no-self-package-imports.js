@@ -1,6 +1,6 @@
 /*
  * Prevents requiring/importing modules by package name within the same package.
- * e.g. `require('@parcel/core/foo')` while in `@parcel/core/bar` should be
+ * e.g. `require('@atlaspack/core/foo')` while in `@atlaspack/core/bar` should be
  *       `require('./foo')`.
  *
  * This can easily happen accidentally while refactoring across the monorepo.

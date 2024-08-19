@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {NamedBundle, Dependency} from '@parcel/types';
+import type {NamedBundle, Dependency} from '@atlaspack/types';
 
 import assert from 'assert';
 import {getURLReplacement} from '../src/replaceBundleReferences';

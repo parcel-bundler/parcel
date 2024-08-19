@@ -1,17 +1,17 @@
 // @flow
-import type {MutableAsset, HMROptions} from '@parcel/types';
+import type {MutableAsset, HMROptions} from '@atlaspack/types';
 
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import path from 'path';
 import {parse} from '@mischnic/json-sourcemap';
 import parseCSP from 'content-security-policy-parser';
-import {validateSchema} from '@parcel/utils';
+import {validateSchema} from '@atlaspack/utils';
 import ThrowableDiagnostic, {
   getJSONHighlightLocation,
   getJSONSourceLocation,
   md,
-} from '@parcel/diagnostic';
-import {glob} from '@parcel/utils';
+} from '@atlaspack/diagnostic';
+import {glob} from '@atlaspack/utils';
 import {MV3Schema, MV2Schema, VersionSchema} from './schema';
 
 const DEP_LOCS = [
@@ -62,7 +62,7 @@ async function collectDependencies(
         diagnostic: [
           {
             message: 'Invalid Web Extension manifest',
-            origin: '@parcel/transformer-webextension',
+            origin: '@atlaspack/transformer-webextension',
             codeFrames: [
               {
                 filePath,
@@ -129,7 +129,7 @@ async function collectDependencies(
           diagnostic: [
             {
               message: 'Invalid Web Extension manifest',
-              origin: '@parcel/transformer-webextension',
+              origin: '@atlaspack/transformer-webextension',
               codeFrames: [
                 {
                   filePath,
@@ -183,7 +183,7 @@ async function collectDependencies(
   if (program.web_accessible_resources) {
     let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
-      // TODO: this doesn't support Parcel resolution
+      // TODO: this doesn't support Atlaspack resolution
       const currentEntry = program.web_accessible_resources[i];
       const files = isMV2 ? [currentEntry] : currentEntry.resources;
       let currentFiles = [];
@@ -425,7 +425,7 @@ export default (new Transformer({
         source: code,
         filePath: asset.filePath,
       },
-      '@parcel/transformer-webextension',
+      '@atlaspack/transformer-webextension',
       'Invalid Web Extension manifest',
     );
     await collectDependencies(asset, data, parsed.pointers, options.hmrOptions);

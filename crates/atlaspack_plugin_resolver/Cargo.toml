@@ -1,0 +1,13 @@
+[package]
+name = "atlaspack_plugin_resolver"
+version = "0.1.0"
+edition = "2021"
+description = "Resolver Plugin for the Atlaspack Bundler"
+
+[dependencies]
+atlaspack_core = { path = "../atlaspack_core" }
+atlaspack-resolver = { path = "../../packages/utils/node-resolver-rs" }
+anyhow = "1"
+
+[dev-dependencies]
+atlaspack_filesystem = { path = "../atlaspack_filesystem" }

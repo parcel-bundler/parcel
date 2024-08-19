@@ -2,7 +2,7 @@
 import type {Bundle as InternalBundle} from '../src/types';
 
 import assert from 'assert';
-import {ContentGraph} from '@parcel/graph';
+import {ContentGraph} from '@atlaspack/graph';
 
 import {Bundle, NamedBundle, PackagedBundle} from '../src/public/Bundle';
 import BundleGraph from '../src/BundleGraph';

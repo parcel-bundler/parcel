@@ -1,5 +1,5 @@
 // @flow
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 import * as atom from './atom';
 import * as processingInstruction from './processing-instruction';

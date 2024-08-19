@@ -1,9 +1,9 @@
 // @flow strict-local
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {PluginOptions} from '@parcel/types';
+import type {Diagnostic} from '@atlaspack/diagnostic';
+import type {PluginOptions} from '@atlaspack/types';
 
-import formatCodeFrame from '@parcel/codeframe';
-import _mdAnsi from '@parcel/markdown-ansi';
+import formatCodeFrame from '@atlaspack/codeframe';
+import _mdAnsi from '@atlaspack/markdown-ansi';
 import _chalk from 'chalk';
 import path from 'path';
 // $FlowFixMe

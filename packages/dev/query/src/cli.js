@@ -1,8 +1,8 @@
 // @flow strict-local
 /* eslint-disable no-console, monorepo/no-internal-import */
-import type {ContentGraph, ContentKey, NodeId} from '@parcel/graph';
-import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph';
-import type {AssetGraphNode, BundleGraphNode} from '@parcel/core/src/types';
+import type {ContentGraph, ContentKey, NodeId} from '@atlaspack/graph';
+import type {BundleGraphEdgeType} from '@atlaspack/core/src/BundleGraph';
+import type {AssetGraphNode, BundleGraphNode} from '@atlaspack/core/src/types';
 
 import path from 'path';
 import fs from 'fs';
@@ -24,7 +24,7 @@ const {
 
 export async function run(input: string[]) {
   let args = input;
-  let cacheDir = path.join(process.cwd(), '.parcel-cache');
+  let cacheDir = path.join(process.cwd(), '.atlaspack-cache');
   if (args[0] === '--cache') {
     cacheDir = path.resolve(process.cwd(), args[1]);
     args = args.slice(2);
@@ -931,7 +931,7 @@ export async function run(input: string[]) {
     const server = repl.start({useColors: true, useGlobal: true});
     // $FlowFixMe[prop-missing]
     server.setupHistory(
-      path.join(os.homedir(), '.parcel_query_history'),
+      path.join(os.homedir(), '.atlaspack_query_history'),
       () => {},
     );
 

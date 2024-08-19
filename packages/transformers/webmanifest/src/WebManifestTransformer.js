@@ -1,12 +1,12 @@
 // @flow
 // https://developer.mozilla.org/en-US/docs/Web/Manifest
-import type {SchemaEntity} from '@parcel/utils';
+import type {SchemaEntity} from '@atlaspack/utils';
 
 import invariant from 'assert';
 import {parse} from '@mischnic/json-sourcemap';
-import {getJSONSourceLocation} from '@parcel/diagnostic';
-import {Transformer} from '@parcel/plugin';
-import {validateSchema} from '@parcel/utils';
+import {getJSONSourceLocation} from '@atlaspack/diagnostic';
+import {Transformer} from '@atlaspack/plugin';
+import {validateSchema} from '@atlaspack/utils';
 
 const RESOURCES_SCHEMA = {
   type: 'array',
@@ -59,7 +59,7 @@ export default (new Transformer({
     validateSchema.diagnostic(
       MANIFEST_SCHEMA,
       {source, map: {data, pointers}, filePath: asset.filePath},
-      '@parcel/transformer-webmanifest',
+      '@atlaspack/transformer-webmanifest',
       'Invalid webmanifest',
     );
 

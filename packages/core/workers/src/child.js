@@ -9,17 +9,17 @@ import type {
   WorkerResponse,
   ChildImpl,
 } from './types';
-import type {Async, IDisposable} from '@parcel/types-internal';
+import type {Async, IDisposable} from '@atlaspack/types-internal';
 import type {SharedReference} from './WorkerFarm';
 
 import * as coreWorker from './core-worker';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
-import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {deserialize} from '@parcel/core';
+import Logger, {patchConsole, unpatchConsole} from '@atlaspack/logger';
+import ThrowableDiagnostic, {anyToDiagnostic} from '@atlaspack/diagnostic';
+import {deserialize} from '@atlaspack/core';
 import bus from './bus';
-import {SamplingProfiler, tracer} from '@parcel/profiler';
+import {SamplingProfiler, tracer} from '@atlaspack/profiler';
 import _Handle from './Handle';
 
 // The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
@@ -103,7 +103,7 @@ export class Child {
   async childInit(module: string, childId: number): Promise<void> {
     // $FlowFixMe
     if (process.browser) {
-      if (module === '@parcel/core/src/worker.js') {
+      if (module === '@atlaspack/core/src/worker.js') {
         this.module = coreWorker;
       } else {
         throw new Error('No dynamic require possible: ' + module);

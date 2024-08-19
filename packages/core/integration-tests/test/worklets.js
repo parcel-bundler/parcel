@@ -8,9 +8,9 @@ import {
   removeDistDirectory,
   run,
   runBundle,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
-describe.v2('parcel', function () {
+describe.v2('atlaspack', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -176,7 +176,7 @@ describe.v2('parcel', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(
@@ -274,7 +274,7 @@ describe.v2('parcel', function () {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          origin: '@parcel/transformer-js',
+          origin: '@atlaspack/transformer-js',
           codeFrames: [
             {
               filePath: path.join(

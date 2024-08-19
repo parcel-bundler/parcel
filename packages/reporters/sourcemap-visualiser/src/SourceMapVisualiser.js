@@ -1,8 +1,8 @@
 // @flow
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {Reporter} from '@parcel/plugin';
-import {relativePath} from '@parcel/utils';
+import {Reporter} from '@atlaspack/plugin';
+import {relativePath} from '@atlaspack/utils';
 
 export default (new Reporter({
   async report({event, options, logger}) {

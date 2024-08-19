@@ -1,15 +1,15 @@
 const semver = require('semver');
 
-const COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER = '^2.0.0-beta.1';
+const COMPATIBLE_ATLASPACK_BABEL_TRANSFORMER_SEMVER = '^2.0.0-beta.1';
 
-module.exports = function parcelBabelPresetEnv(api, opts) {
+module.exports = function atlaspackBabelPresetEnv(api, opts) {
   let name = api.caller(caller => caller && caller.name);
   let version = api.caller(caller => caller && caller.version);
 
   if (
-    name === 'parcel' &&
+    name === 'atlaspack' &&
     typeof version === 'string' &&
-    semver.satisfies(version, COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER)
+    semver.satisfies(version, COMPATIBLE_ATLASPACK_BABEL_TRANSFORMER_SEMVER)
   ) {
     let targets = api.caller(caller => caller && caller.targets);
     if (typeof targets !== 'string') {

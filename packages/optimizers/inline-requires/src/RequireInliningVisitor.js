@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {NamedBundle, PluginLogger} from '@parcel/types';
+import type {NamedBundle, PluginLogger} from '@atlaspack/types';
 
 import type {
   CallExpression,
@@ -41,7 +41,7 @@ export class RequireInliningVisitor extends Visitor {
   visitFunctionExpression(n: FunctionExpression): FunctionExpression {
     // This visitor tries to find module definition functions, these are of the form:
     //
-    // parcelRequire.register("moduleId", function (require, module, exports) { ... });
+    // atlaspackRequire.register("moduleId", function (require, module, exports) { ... });
     //
     // We do this to set the vistior variable `inModuleDefinition` for subsequent visits,
     // and also reset the module variable tracking data structures.
@@ -87,8 +87,8 @@ export class RequireInliningVisitor extends Visitor {
       if (
         ((init.callee.type === 'Identifier' &&
           init.callee.value === 'require') ||
-          init.callee.value === 'parcelRequire') &&
-        decl.id.value !== 'parcelHelpers' && // ignore var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+          init.callee.value === 'atlaspackRequire') &&
+        decl.id.value !== 'atlaspackHelpers' && // ignore var atlaspackHelpers = require("@atlaspack/transformer-js/src/esmodule-helpers.js");
         init.arguments[0].expression.type === 'StringLiteral' &&
         typeof decl.id.value === 'string' &&
         decl.id.value.startsWith('$')
@@ -132,7 +132,7 @@ export class RequireInliningVisitor extends Visitor {
         // Handle modules with default values, these look like this in the source:
         // ```
         // var _app = require("./App");
-        // var _appDefault = parcelHelpers.interopDefault(_app);
+        // var _appDefault = atlaspackHelpers.interopDefault(_app);
         // ```
         //
         // In this case we want to also put `_appDefault` into the `moduleVariableMap` with the initializer node,
@@ -143,7 +143,7 @@ export class RequireInliningVisitor extends Visitor {
         // var _appDefault = null;
         // ```
         //
-        // .. and where `_appDefault` is used we replace that with `parcelHelpers.interopDefault(require('./App'))`
+        // .. and where `_appDefault` is used we replace that with `atlaspackHelpers.interopDefault(require('./App'))`
         const variable = decl.id.value;
         const baseId = variable.substring(
           0,

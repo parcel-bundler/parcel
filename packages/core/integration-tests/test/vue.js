@@ -1,6 +1,13 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, distDir, it, outputFS, run} from '@parcel/test-utils';
+import {
+  bundle,
+  describe,
+  distDir,
+  it,
+  outputFS,
+  run,
+} from '@atlaspack/test-utils';
 
 describe.v2('vue', function () {
   it('should produce a basic vue bundle', async function () {

@@ -1,25 +1,21 @@
 {
-  "name": "@parcel/transformer-inline-string",
+  "name": "@atlaspack/transformer-inline-string",
   "version": "2.12.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/InlineStringTransformer.js",
   "source": "src/InlineStringTransformer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.12.0"
+    "atlaspack": "^2.12.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.12.0"
+    "@atlaspack/plugin": "2.12.0"
   }
 }

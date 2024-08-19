@@ -1,11 +1,11 @@
 // @flow strict-local
 
-import type {FilePath, ModuleRequest} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FilePath, ModuleRequest} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
 
 import invariant from 'assert';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import {resolveConfig} from '@parcel/utils';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
+import {resolveConfig} from '@atlaspack/utils';
 import {exec as _exec} from 'child_process';
 import {promisify} from 'util';
 
@@ -57,7 +57,7 @@ export async function getConflictingLocalDependencies(
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: 'Failed to parse package.json',
-        origin: '@parcel/package-manager',
+        origin: '@atlaspack/package-manager',
       },
     });
   }
@@ -67,7 +67,7 @@ export async function getConflictingLocalDependencies(
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: 'Expected package.json contents to be an object.',
-        origin: '@parcel/package-manager',
+        origin: '@atlaspack/package-manager',
       },
     });
   }

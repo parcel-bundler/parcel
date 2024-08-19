@@ -1,8 +1,8 @@
 // @flow
 
-import {Optimizer} from '@parcel/plugin';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import {blobToString} from '@parcel/utils';
+import {Optimizer} from '@atlaspack/plugin';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
+import {blobToString} from '@atlaspack/utils';
 
 import * as svgo from 'svgo';
 

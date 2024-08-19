@@ -1,28 +1,24 @@
 {
-  "name": "@parcel/reporter-dev-server-sw",
+  "name": "@atlaspack/reporter-dev-server-sw",
   "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "private": true,
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/ServerReporter.js",
   "source": "src/ServerReporter.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.11.0"
+    "atlaspack": "^2.11.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.12.0",
-    "@parcel/utils": "2.12.0"
+    "@atlaspack/plugin": "2.12.0",
+    "@atlaspack/utils": "2.12.0"
   },
   "devDependencies": {
-    "@parcel/types": "2.12.0"
+    "@atlaspack/types": "2.12.0"
   }
 }

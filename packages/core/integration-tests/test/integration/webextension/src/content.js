@@ -1,1 +1,1 @@
-console.log('Hello Parcel! CONTENT EDITION')
+console.log('Hello Atlaspack! CONTENT EDITION')

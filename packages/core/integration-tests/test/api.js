@@ -10,9 +10,9 @@ import {
   it,
   outputFS,
   overlayFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
-import {PARCEL_VERSION} from '../../core/src/constants';
+import {ATLASPACK_VERSION} from '../../core/src/constants';
 
 describe.v2('JS API', function () {
   it('should respect distEntry', async function () {
@@ -44,7 +44,7 @@ describe.v2('JS API', function () {
       {
         additionalReporters: [
           {
-            packageName: '@parcel/reporter-bundle-buddy',
+            packageName: '@atlaspack/reporter-bundle-buddy',
             resolveFrom: __dirname,
           },
         ],
@@ -62,8 +62,8 @@ describe.v2('JS API', function () {
   });
 
   describe('Reporter API', () => {
-    it('should pass the parcel version to plugins', async () => {
-      const dir = path.join(__dirname, 'plugin-parcel-version');
+    it('should pass the atlaspack version to plugins', async () => {
+      const dir = path.join(__dirname, 'plugin-atlaspack-version');
 
       overlayFS.mkdirp(dir);
 
@@ -71,9 +71,9 @@ describe.v2('JS API', function () {
       index.js:
         export default 'Hi';
 
-      .parcelrc:
+      .atlaspackrc:
         {
-          extends: "@parcel/config-default",
+          extends: "@atlaspack/config-default",
           reporters: ["./reporter-plugin.js", "..."],
         }
 
@@ -85,13 +85,13 @@ describe.v2('JS API', function () {
       yarn.lock:
 
       reporter-plugin.js:
-        import {Reporter} from '@parcel/plugin';
+        import {Reporter} from '@atlaspack/plugin';
         import path from 'node:path';
 
         export default new Reporter({
           async report({event, options}) {
             if (event.type === 'buildSuccess') {
-              await options.outputFS.writeFile(path.join(options.projectRoot, 'parcel-version.txt'), options.parcelVersion);
+              await options.outputFS.writeFile(path.join(options.projectRoot, 'atlaspack-version.txt'), options.atlaspackVersion);
             }
           }
         })
@@ -103,8 +103,8 @@ describe.v2('JS API', function () {
       });
 
       assert.equal(
-        await overlayFS.readFile(path.join(dir, 'parcel-version.txt')),
-        PARCEL_VERSION,
+        await overlayFS.readFile(path.join(dir, 'atlaspack-version.txt')),
+        ATLASPACK_VERSION,
       );
     });
   });

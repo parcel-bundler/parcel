@@ -6,10 +6,10 @@ This document describes how the SWC-based scope hoisting implementation works, i
 
 Scope hoisting is the process of combining multiple JavaScript modules together into a single scope. This enables dead code elimination (aka tree shaking) to be more effective, and improves runtime performance by making cross-module references static rather than dynamic property lookups.
 
-Parcel has historically implemented scope hoisting in JavaScript on top of Babel ASTs. It operated in 3 phases:
+Atlaspack has historically implemented scope hoisting in JavaScript on top of Babel ASTs. It operated in 3 phases:
 
 1. Hoist - on an individual module, rename all top-level variables to be unique, and perform static analysis on imports and exports to produce symbol data. This prepares the module to be concatenated safely with other modules.
-2. Concat - concatenate all modules together into a single scope, following the order of `$parcel$require` calls inserted by the hoist phase. This also handled wrapping modules that were required from a non-top-level statement to preserve side effect ordering. Operates on module ASTs.
+2. Concat - concatenate all modules together into a single scope, following the order of `$atlaspack$require` calls inserted by the hoist phase. This also handled wrapping modules that were required from a non-top-level statement to preserve side effect ordering. Operates on module ASTs.
 3. Link - replace temporary imported variable names with the resolved exported variable names from the imported module. In addition, output formats are handled here along with some dead code elimination. Operates on a single concatenated AST.
 
 The new scope hoisting implementation operates in just two phases.
@@ -35,13 +35,13 @@ In the first pass, we collect:
 In the second pass, we transform:
 
 1. For each import statement, a new import like `import "module_id:dep_specifier";` is hoisted to the top of the module. This indicates where the dependency code should be inserted by the packager later.
-2. For `require` calls, an import like above is inserted before the current top-level statement. This is new in this version, and prevents us needing to search for `$parcel$require` calls in statements to find where to insert the code in the packager. If the require is anywhere except a top-level variable declaration, it is marked as wrapped to preserve side effect ordering (also more conservative than before). The require is replaced by an identifier referencing the `*` symbol in the dependency, or the relevant symbol if in a statically resolvable member expression.
+2. For `require` calls, an import like above is inserted before the current top-level statement. This is new in this version, and prevents us needing to search for `$atlaspack$require` calls in statements to find where to insert the code in the packager. If the require is anywhere except a top-level variable declaration, it is marked as wrapped to preserve side effect ordering (also more conservative than before). The require is replaced by an identifier referencing the `*` symbol in the dependency, or the relevant symbol if in a statically resolvable member expression.
 3. Each export statement is replaced by its declaration/expression, if any, and renamed.
 4. CommonJS exports are replaced with variable assignments. If the CJS exports object is accessed non-statically, as determined in the previous phase, then an assignment to an object is emitted, otherwise each export is an individual variable.
 5. References to imports/requires are replaced with a renamed variable, and added to the symbols. If we previously determined in the first phase that the import was accessed non-statically, a member expression is used for all references to that dependency.
 6. All top-level variables are renamed to include the module id so that they can be concatenated together safely. This is skipped if the module needs to be wrapped, e.g. used `eval`.
 
-The output from Rust is an object which is used by the JSTransformer Parcel plugin to add symbols to dependencies and the asset itself, along with some metadata that is used by the packager.
+The output from Rust is an object which is used by the JSTransformer Atlaspack plugin to add symbols to dependencies and the asset itself, along with some metadata that is used by the packager.
 
 ## Packaging
 
@@ -49,20 +49,20 @@ The packager operates purely on strings now rather than ASTs. This makes it much
 
 The packager visits dependencies recursively, starting from the bundle entries, and following the `import` statements left by the hoist transform. It resolves the import specifiers to dependencies, follows the dependency to a resolved asset, and then recursively processes that asset. The `import` statement is replaced by the processed code of the dependency.
 
-For each asset, we look at the symbols used by each dependency and resolve them to their final location, following re-exports. This is done by Parcel core in the bundle graph. We perform a string replacement for each temporary import name to the final resolved symbol. If the resolved asset is wrapped, we use `parcelRequire` to load it, and if it has non-static exports, we use a member expression on the namespace object.
+For each asset, we look at the symbols used by each dependency and resolve them to their final location, following re-exports. This is done by Atlaspack core in the bundle graph. We perform a string replacement for each temporary import name to the final resolved symbol. If the resolved asset is wrapped, we use `atlaspackRequire` to load it, and if it has non-static exports, we use a member expression on the namespace object.
 
-The packager also synthesizes the exports object when needed. If the namespace is used, the asset has non-static exports, or it is wrapped, a namespace is declared, and each used symbol is added to the namespace using the `$parcel$export` helper. This is different from the previous implemetation, which added the exports object in the link phase, and then _removed_ it if unnecessary in the link phase. Now we do the opposite, which makes it possible to operate on strings rather than ASTs.
+The packager also synthesizes the exports object when needed. If the namespace is used, the asset has non-static exports, or it is wrapped, a namespace is declared, and each used symbol is added to the namespace using the `$atlaspack$export` helper. This is different from the previous implemetation, which added the exports object in the link phase, and then _removed_ it if unnecessary in the link phase. Now we do the opposite, which makes it possible to operate on strings rather than ASTs.
 
-If the asset is wrapped, we use the `parcelRequire.register` function to register it in a module map. This is used both when the asset is required in a non top-level context, and also when the asset has non-statically analyzable code (e.g. `eval`). Previously we wrapped in hoist for the latter. In this case, a `module` and `exports` object are passed in, and we use those instead of the locally declared exports object, which makes circular dependencies work.
+If the asset is wrapped, we use the `atlaspackRequire.register` function to register it in a module map. This is used both when the asset is required in a non top-level context, and also when the asset has non-statically analyzable code (e.g. `eval`). Previously we wrapped in hoist for the latter. In this case, a `module` and `exports` object are passed in, and we use those instead of the locally declared exports object, which makes circular dependencies work.
 
 ## Summary of differences
 
-- requires and imports are now replaced with top-level `import "module_id:specifier"` statements rather than inline `$parcel$require` calls. This indicates where to insert the dependent code, and no longer requires the packager to search for requires inside statements.
+- requires and imports are now replaced with top-level `import "module_id:specifier"` statements rather than inline `$atlaspack$require` calls. This indicates where to insert the dependent code, and no longer requires the packager to search for requires inside statements.
 - THe hoist transform is much more conservative. Only top-level variable declarations pointing to a `require` or a member expression with a `require` are handled without wrapping. This should solve cases like [#5606](https://github.com/parcel-bundler/parcel/issues/5606). In addition, if any non-static access of an import occurs, we always use the namespace object rather than using static references for some imports and dynamic references for others. Same goes for exports.
 - Hoist no longer performs any wrapping. All wrapping is now handled in the packager.
 - The packager operates only on strings and does not require any ASTs.
 - The export namespace object is not generated in the hoist phases and instead is synthesized only when needed during packaging (e.g. if the module is accessed non-statically). This applies to both ESM and fully statically analyzable CJS. For CJS with exports that are non-static, the hoist phase still performs assignments to a namespace object.
-- We use `parcelRequire.register` for wrapping rather than `$init` calls. This should allow us to share a module map between bundles and solve some side effect ordering/circular dependency issues.
+- We use `atlaspackRequire.register` for wrapping rather than `$init` calls. This should allow us to share a module map between bundles and solve some side effect ordering/circular dependency issues.
 
 ## Examples
 
@@ -283,7 +283,7 @@ exported symbols:
 ```js
 let $id$export$foo = 2;
 let $id$exports = {};
-$parcel$export($id$exports, 'foo', () => $id$export$foo);
+$atlaspack$export($id$exports, 'foo', () => $id$export$foo);
 $id$exports[something]();
 ```
 
@@ -421,13 +421,13 @@ wrapped dependencies:
 #### Packaged output
 
 ```js
-parcelRequire.register('b', module => {
+atlaspackRequire.register('b', module => {
   let $id$export$foo = 2;
-  $parcel$export(module.exports, 'foo', () => $id$export$foo);
+  $atlaspack$export(module.exports, 'foo', () => $id$export$foo);
 });
 
 function test() {
-  return parcelRequire('b').foo;
+  return atlaspackRequire('b').foo;
 }
 ```
 

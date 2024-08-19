@@ -2,7 +2,14 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, distDir, it, outputFS, run} from '@parcel/test-utils';
+import {
+  bundle,
+  describe,
+  distDir,
+  it,
+  outputFS,
+  run,
+} from '@atlaspack/test-utils';
 
 class Blob {
   data;

@@ -1,8 +1,8 @@
 // @flow strict-local
 
-import type {JSONObject} from '@parcel/types';
+import type {JSONObject} from '@atlaspack/types';
 
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 import {Transform} from 'stream';
 
 // Transforms chunks of json strings to parsed objects.
@@ -27,7 +27,7 @@ export default class JSONParseStream extends Transform {
         // a non-JSON line in the package manager's stdout.
         logger.verbose({
           message: 'Ignored invalid JSON message: ' + chunk.toString(),
-          origin: '@parcel/package-manager',
+          origin: '@atlaspack/package-manager',
         });
         return;
       }

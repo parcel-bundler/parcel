@@ -2,7 +2,7 @@
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {Reporter} from '@parcel/plugin';
+import {Reporter} from '@atlaspack/plugin';
 import {Tracer} from 'chrome-trace-event';
 
 // We need to maintain some state here to ensure we write to the same output, there should only be one
@@ -36,7 +36,7 @@ export default (new Reporter({
       case 'buildStart':
         invariant(tracer == null, 'Tracer multiple initialisation');
         tracer = new Tracer();
-        filename = `parcel-trace-${getTimeId()}.json`;
+        filename = `atlaspack-trace-${getTimeId()}.json`;
         filePath = path.join(options.projectRoot, filename);
         invariant(
           writeStream == null,
@@ -69,7 +69,7 @@ export default (new Reporter({
         tracer = null;
         // We explicitly trigger `end` on the writeStream for the trace, then we need to wait for
         // the `close` event before resolving the promise this report function returns to ensure
-        // that the file has been properly closed and moved from it's temp location before Parcel
+        // that the file has been properly closed and moved from it's temp location before Atlaspack
         // shuts down.
         return new Promise((resolve, reject) => {
           nullthrows(writeStream).once('close', err => {

@@ -1,16 +1,16 @@
 {
-  "bundler": "@parcel/bundler-default",
+  "bundler": "@atlaspack/bundler-default",
   "transformers": {
-    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js"]
+    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@atlaspack/transformer-js"]
   },
-  "namers": ["@parcel/namer-default"],
-  "runtimes": ["@parcel/runtime-js"],
+  "namers": ["@atlaspack/namer-default"],
+  "runtimes": ["@atlaspack/runtime-js"],
   "optimizers": {},
   "packagers": {
-    "*.js": "@parcel/packager-js"
+    "*.js": "@atlaspack/packager-js"
   },
-  "resolvers": ["@parcel/resolver-default"],
+  "resolvers": ["@atlaspack/resolver-default"],
   "reporters": [
-    // "@parcel/reporter-cli"
+    // "@atlaspack/reporter-cli"
   ]
 }

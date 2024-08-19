@@ -1,1 +1,1 @@
-console.log("Parcel might overwrite index.html");
+console.log("Atlaspack might overwrite index.html");

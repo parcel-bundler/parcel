@@ -1,9 +1,9 @@
 // @flow strict-local
 
-import type {FileSystem} from '@parcel/fs';
-import type {EnvMap, FilePath} from '@parcel/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type {EnvMap, FilePath} from '@atlaspack/types';
 
-import {resolveConfig} from '@parcel/utils';
+import {resolveConfig} from '@atlaspack/utils';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
 

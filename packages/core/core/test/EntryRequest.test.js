@@ -1,8 +1,8 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
-import {md} from '@parcel/diagnostic';
-import {inputFS as fs} from '@parcel/test-utils';
+import {md} from '@atlaspack/diagnostic';
+import {inputFS as fs} from '@atlaspack/test-utils';
 import {EntryResolver} from '../src/requests/EntryRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
@@ -50,7 +50,7 @@ describe('EntryResolver', function () {
       {
         diagnostics: [
           {
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             message: md`${path.join(
               path.relative(fs.cwd(), INVALID_SOURCE_MISSING_FIXTURE_PATH),
               'missing.js',
@@ -90,7 +90,7 @@ describe('EntryResolver', function () {
       {
         diagnostics: [
           {
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             message: md`${path.join(
               path.relative(fs.cwd(), INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
               'src',
@@ -130,7 +130,7 @@ describe('EntryResolver', function () {
       {
         diagnostics: [
           {
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             message: md`${path.join(
               path.relative(
                 fs.cwd(),
@@ -174,7 +174,7 @@ describe('EntryResolver', function () {
       {
         diagnostics: [
           {
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             message: md`${path.join(
               path.relative(
                 fs.cwd(),

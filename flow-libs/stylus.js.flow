@@ -1,7 +1,7 @@
 // @flow
 
 // This doesn't cover most of the API; it only defines some node types that are
-// useful for Parcel.
+// useful for Atlaspack.
 
 declare module 'stylus' {
   // Derived manually from

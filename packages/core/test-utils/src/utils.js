@@ -7,20 +7,20 @@ import type {
   BundleGraph,
   Dependency,
   FilePath,
-  InitialParcelOptions,
+  InitialAtlaspackOptions,
   PackagedBundle,
-} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type WorkerFarm from '@parcel/workers';
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
+import type WorkerFarm from '@atlaspack/workers';
 import type {IncomingMessage} from 'http';
 
 import invariant from 'assert';
 import util from 'util';
-import Parcel, {createWorkerFarm} from '@parcel/core';
+import Atlaspack, {createWorkerFarm} from '@atlaspack/core';
 import assert from 'assert';
 import vm from 'vm';
 import v8 from 'v8';
-import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
+import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@atlaspack/fs';
 import path from 'path';
 import url from 'url';
 import WebSocket from 'ws';
@@ -31,7 +31,7 @@ import EventEmitter from 'events';
 import http from 'http';
 import https from 'https';
 
-import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
+import {makeDeferredWithPromise, normalizeSeparators} from '@atlaspack/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
@@ -107,20 +107,20 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
   );
 }
 
-export const isParcelV3 = process.env.PARCEL_V3 === 'true';
+export const isAtlaspackV3 = process.env.ATLASPACK_V3 === 'true';
 
-export function getParcelOptions(
+export function getAtlaspackOptions(
   entries: FilePath | Array<FilePath>,
-  opts?: $Shape<InitialParcelOptions>,
-): InitialParcelOptions {
-  return mergeParcelOptions(
+  opts?: $Shape<InitialAtlaspackOptions>,
+): InitialAtlaspackOptions {
+  return mergeAtlaspackOptions(
     {
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
       shouldBundleIncrementally:
         process.env.NO_INCREMENTAL == null ? true : false,
-      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
+      defaultConfig: path.join(__dirname, '.atlaspackrc-no-reporters'),
       inputFS,
       outputFS,
       workerFarm,
@@ -133,7 +133,7 @@ export function getParcelOptions(
         },
       },
       featureFlags: {
-        parcelV3: isParcelV3,
+        atlaspackV3: isAtlaspackV3,
       },
     },
     opts,
@@ -142,9 +142,9 @@ export function getParcelOptions(
 
 export function bundler(
   entries: FilePath | Array<FilePath>,
-  opts?: $Shape<InitialParcelOptions>,
-): Parcel {
-  return new Parcel(getParcelOptions(entries, opts));
+  opts?: $Shape<InitialAtlaspackOptions>,
+): Atlaspack {
+  return new Atlaspack(getAtlaspackOptions(entries, opts));
 }
 
 export function findAsset(
@@ -191,10 +191,10 @@ export function findDependency(
   return dependency;
 }
 
-export function mergeParcelOptions(
-  optsOne: InitialParcelOptions,
-  optsTwo?: InitialParcelOptions | null,
-): InitialParcelOptions {
+export function mergeAtlaspackOptions(
+  optsOne: InitialAtlaspackOptions,
+  optsTwo?: InitialAtlaspackOptions | null,
+): InitialAtlaspackOptions {
   if (!optsTwo) {
     return optsOne;
   }
@@ -231,12 +231,12 @@ export function assertDependencyWasExcluded(
 
 export async function bundle(
   entries: FilePath | Array<FilePath>,
-  opts?: InitialParcelOptions,
+  opts?: InitialAtlaspackOptions,
 ): Promise<BundleGraph<PackagedBundle>> {
   return (await bundler(entries, opts).run()).bundleGraph;
 }
 
-export function getNextBuild(b: Parcel): Promise<BuildEvent> {
+export function getNextBuild(b: Atlaspack): Promise<BuildEvent> {
   return new Promise((resolve, reject) => {
     let subscriptionPromise = b
       .watch((err, buildEvent) => {
@@ -263,7 +263,7 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 }
 
 export async function getNextBuildSuccess(
-  b: Parcel,
+  b: Atlaspack,
 ): Promise<BuildSuccessEvent> {
   let evt = await getNextBuild(b);
   invariant(evt.type === 'buildSuccess');
@@ -371,7 +371,7 @@ export async function runBundles(
     esmOutput = bundles.length === 1 ? res[0] : res;
   } else {
     for (let [code, b] of bundles) {
-      // require, parcelRequire was set up in prepare*Context
+      // require, atlaspackRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
         filename:
           b.bundleBehavior === 'inline'
@@ -405,7 +405,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else {
           for (let key in ctx) {
-            if (key.startsWith('parcelRequire')) {
+            if (key.startsWith('atlaspackRequire')) {
               // $FlowFixMe[incompatible-use]
               return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
             }
@@ -657,7 +657,7 @@ function prepareBrowserContext(
     },
 
     getElementById(id) {
-      if (id !== '__parcel__error__overlay__') return fakeElement;
+      if (id !== '__atlaspack__error__overlay__') return fakeElement;
     },
 
     body: {
@@ -1113,7 +1113,7 @@ export async function assertESMExports(
   // $FlowFixMe[unclear-type]
   evaluate: ?({|[string]: any|}) => mixed,
 ) {
-  let parcelResult = await run(b, undefined, undefined, externalModules);
+  let atlaspackResult = await run(b, undefined, undefined, externalModules);
 
   let entry = nullthrows(
     b
@@ -1131,19 +1131,19 @@ export async function assertESMExports(
   );
 
   if (evaluate) {
-    parcelResult = await evaluate(parcelResult);
+    atlaspackResult = await evaluate(atlaspackResult);
     nodeResult = await evaluate(nodeResult);
   }
   assert.deepEqual(
-    parcelResult,
+    atlaspackResult,
     nodeResult,
     "Bundle exports don't match Node's native behaviour",
   );
 
   if (!evaluate) {
-    parcelResult = {...parcelResult};
+    atlaspackResult = {...atlaspackResult};
   }
-  assert.deepEqual(parcelResult, expected);
+  assert.deepEqual(atlaspackResult, expected);
 }
 
 export async function assertNoFilePathInCache(
@@ -1167,7 +1167,7 @@ export async function assertNoFilePathInCache(
 
       // For debugging purposes, log all instances of the projectRoot in the cache.
       // Otherwise, fail the test if one is found.
-      if (process.env.PARCEL_DEBUG_CACHE_FILEPATH != null) {
+      if (process.env.ATLASPACK_DEBUG_CACHE_FILEPATH != null) {
         if (contents.includes(projectRoot)) {
           let deserialized;
           try {
@@ -1268,46 +1268,46 @@ export function request(
 
 // $FlowFixMe
 let origDescribe = globalThis.describe;
-let parcelVersion: string | void;
+let atlaspackVersion: string | void;
 export function describe(...args: mixed[]) {
-  parcelVersion = undefined;
+  atlaspackVersion = undefined;
   origDescribe.apply(this, args);
 }
 
 describe.only = function (...args: mixed[]) {
-  parcelVersion = undefined;
+  atlaspackVersion = undefined;
   origDescribe.only.apply(this, args);
 };
 
 describe.skip = function (...args: mixed[]) {
-  parcelVersion = undefined;
+  atlaspackVersion = undefined;
   origDescribe.skip.apply(this, args);
 };
 
 describe.v2 = function (...args: mixed[]) {
-  parcelVersion = 'v2';
-  if (!isParcelV3) {
+  atlaspackVersion = 'v2';
+  if (!isAtlaspackV3) {
     origDescribe.apply(this, args);
   }
 };
 
 describe.v2.only = function (...args: mixed[]) {
-  parcelVersion = 'v2';
-  if (!isParcelV3) {
+  atlaspackVersion = 'v2';
+  if (!isAtlaspackV3) {
     origDescribe.only.apply(this, args);
   }
 };
 
 describe.v3 = function (...args: mixed[]) {
-  parcelVersion = 'v3';
-  if (isParcelV3) {
+  atlaspackVersion = 'v3';
+  if (isAtlaspackV3) {
     origDescribe.apply(this, args);
   }
 };
 
 describe.v3.only = function (...args: mixed[]) {
-  parcelVersion = 'v3';
-  if (isParcelV3) {
+  atlaspackVersion = 'v3';
+  if (isAtlaspackV3) {
     origDescribe.only.apply(this, args);
   }
 };
@@ -1315,9 +1315,9 @@ describe.v3.only = function (...args: mixed[]) {
 let origIt = globalThis.it;
 export function it(...args: mixed[]) {
   if (
-    parcelVersion == null ||
-    (parcelVersion == 'v2' && !isParcelV3) ||
-    (parcelVersion == 'v3' && isParcelV3)
+    atlaspackVersion == null ||
+    (atlaspackVersion == 'v2' && !isAtlaspackV3) ||
+    (atlaspackVersion == 'v3' && isAtlaspackV3)
   ) {
     origIt.apply(this, args);
   }
@@ -1332,25 +1332,25 @@ it.skip = function (...args: mixed[]) {
 };
 
 it.v2 = function (...args: mixed[]) {
-  if (!isParcelV3) {
+  if (!isAtlaspackV3) {
     origIt.apply(this, args);
   }
 };
 
 it.v2.only = function (...args: mixed[]) {
-  if (!isParcelV3) {
+  if (!isAtlaspackV3) {
     origIt.only.apply(this, args);
   }
 };
 
 it.v3 = function (...args: mixed[]) {
-  if (isParcelV3) {
+  if (isAtlaspackV3) {
     origIt.apply(this, args);
   }
 };
 
 it.v3.only = function (...args: mixed[]) {
-  if (isParcelV3) {
+  if (isAtlaspackV3) {
     origIt.only.apply(this, args);
   }
 };

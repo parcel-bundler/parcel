@@ -8,7 +8,7 @@ import {
   assertBundles,
   distDir,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('stylus', function () {
   it('should support requiring stylus files', async function () {

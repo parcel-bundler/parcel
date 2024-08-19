@@ -1,0 +1,10 @@
+
+{
+  "extends": "@atlaspack/config-default",
+  "transformers": {
+    "blob-url:*": ["@atlaspack/transformer-inline", "..."]
+  },
+  "optimizers": {
+    "blob-url:*": ["...", "@atlaspack/optimizer-blob-url"]
+  }
+}

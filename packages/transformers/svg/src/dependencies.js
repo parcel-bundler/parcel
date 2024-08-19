@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@atlaspack/types';
 import PostHTML from 'posthtml';
 
 // A list of all attributes that may produce a dependency

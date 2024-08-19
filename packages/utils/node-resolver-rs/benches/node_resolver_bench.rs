@@ -19,9 +19,9 @@ use std::sync::Arc;
 use criterion::{criterion_group, criterion_main, Criterion};
 use parking_lot::RwLock;
 
-use parcel_filesystem::os_file_system::OsFileSystem;
-use parcel_filesystem::FileSystem;
-use parcel_resolver::{Cache, CacheCow, Resolver, SpecifierType};
+use atlaspack_filesystem::os_file_system::OsFileSystem;
+use atlaspack_filesystem::FileSystem;
+use atlaspack_resolver::{Cache, CacheCow, Resolver, SpecifierType};
 
 #[derive(Clone)]
 enum FileEntry {
@@ -142,7 +142,7 @@ fn root() -> PathBuf {
 
 fn criterion_benchmark(c: &mut Criterion) {
   let make_resolver = || {
-    Resolver::parcel(
+    Resolver::atlaspack(
       root().into(),
       CacheCow::Owned(Cache::new(Arc::new(OsFileSystem))),
     )
@@ -190,9 +190,9 @@ fn criterion_benchmark(c: &mut Criterion) {
   });
 
   let make_resolver = || {
-    parcel_resolver_old::Resolver::parcel(
+    atlaspack_resolver_old::Resolver::atlaspack(
       root().into(),
-      parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(Arc::new(OsFileSystem))),
+      atlaspack_resolver_old::CacheCow::Owned(atlaspack_resolver_old::Cache::new(Arc::new(OsFileSystem))),
     )
   };
 
@@ -204,7 +204,7 @@ fn criterion_benchmark(c: &mut Criterion) {
           .resolve(
             "./bar.js",
             &root().join("foo.js"),
-            parcel_resolver_old::SpecifierType::Esm,
+            atlaspack_resolver_old::SpecifierType::Esm,
           )
           .result
           .unwrap();
@@ -221,7 +221,7 @@ fn criterion_benchmark(c: &mut Criterion) {
           .resolve(
             "@scope/pkg",
             &root().join("foo.js"),
-            parcel_resolver_old::SpecifierType::Cjs,
+            atlaspack_resolver_old::SpecifierType::Cjs,
           )
           .result
           .unwrap();
@@ -232,7 +232,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
   let preloading_fs = PreloadingFileSystem::load(&root());
   let make_resolver = || {
-    Resolver::parcel(
+    Resolver::atlaspack(
       root().into(),
       CacheCow::Owned(Cache::new(Arc::new(preloading_fs.clone()))),
     )
@@ -271,9 +271,9 @@ fn criterion_benchmark(c: &mut Criterion) {
   );
 
   let make_resolver = || {
-    parcel_resolver_old::Resolver::parcel(
+    atlaspack_resolver_old::Resolver::atlaspack(
       root().into(),
-      parcel_resolver_old::CacheCow::Owned(parcel_resolver_old::Cache::new(Arc::new(
+      atlaspack_resolver_old::CacheCow::Owned(atlaspack_resolver_old::Cache::new(Arc::new(
         preloading_fs.clone(),
       ))),
     )
@@ -289,7 +289,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             .resolve(
               "./bar.js",
               &root().join("foo.js"),
-              parcel_resolver_old::SpecifierType::Esm,
+              atlaspack_resolver_old::SpecifierType::Esm,
             )
             .result
             .unwrap();
@@ -309,7 +309,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             .resolve(
               "@scope/pkg",
               &root().join("foo.js"),
-              parcel_resolver_old::SpecifierType::Cjs,
+              atlaspack_resolver_old::SpecifierType::Cjs,
             )
             .result
             .unwrap();

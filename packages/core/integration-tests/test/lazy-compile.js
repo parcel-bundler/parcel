@@ -12,7 +12,7 @@ import {
   run,
   fsFixture,
   overlayFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 const findBundle = (bundleGraph, nameRegex) => {
   const result = bundleGraph.getBundles().find(b => nameRegex.test(b.name));

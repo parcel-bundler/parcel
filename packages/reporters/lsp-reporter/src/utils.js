@@ -1,15 +1,15 @@
 // @flow
-import type {DiagnosticLogEvent, FilePath} from '@parcel/types';
+import type {DiagnosticLogEvent, FilePath} from '@atlaspack/types';
 import type {ODiagnosticSeverity} from 'vscode-languageserver';
 
 import path from 'path';
 
-export type ParcelSeverity = DiagnosticLogEvent['level'];
+export type AtlaspackSeverity = DiagnosticLogEvent['level'];
 
-export function parcelSeverityToLspSeverity(
-  parcelSeverity: ParcelSeverity,
+export function atlaspackSeverityToLspSeverity(
+  atlaspackSeverity: AtlaspackSeverity,
 ): ODiagnosticSeverity {
-  switch (parcelSeverity) {
+  switch (atlaspackSeverity) {
     case 'error':
       return DiagnosticSeverity.Error;
     case 'warn':

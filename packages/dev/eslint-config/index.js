@@ -7,7 +7,7 @@ module.exports = {
     'prettier',
   ],
   parser: '@babel/eslint-parser',
-  plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react', 'mocha'],
+  plugins: ['@atlaspack', 'flowtype', 'import', 'monorepo', 'react', 'mocha'],
   parserOptions: {
     ecmaVersion: 2018,
     ecmaFeatures: {
@@ -20,7 +20,7 @@ module.exports = {
     node: true,
   },
   globals: {
-    parcelRequire: true,
+    atlaspackRequire: true,
     define: true,
     SharedArrayBuffer: true,
   },
@@ -40,7 +40,7 @@ module.exports = {
     },
   ],
   rules: {
-    '@parcel/no-self-package-imports': 'error',
+    '@atlaspack/no-self-package-imports': 'error',
     'import/first': 'error',
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',

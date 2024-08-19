@@ -1,6 +1,6 @@
 // @flow
 
-import type {Config, PluginOptions, PackageJSON} from '@parcel/types';
+import type {Config, PluginOptions, PackageJSON} from '@atlaspack/types';
 import type {BabelConfig} from './types';
 import typeof * as BabelCore from '@babel/core';
 

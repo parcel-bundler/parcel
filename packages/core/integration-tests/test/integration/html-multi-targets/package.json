@@ -14,7 +14,7 @@
       "publicUrl": "./"
     }
   },
-  "@parcel/bundler-default": {
+  "@atlaspack/bundler-default": {
     "minBundleSize": 0
   }
 }

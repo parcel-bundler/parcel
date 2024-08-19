@@ -1,6 +1,6 @@
 // @flow
-import type {SchemaEntity} from '@parcel/utils';
-import {validateSchema} from '@parcel/utils';
+import type {SchemaEntity} from '@atlaspack/utils';
+import {validateSchema} from '@atlaspack/utils';
 
 // https://sharp.pixelplumbing.com/api-output#jpeg
 const JPEG_OUTPUT_SCHEMA: SchemaEntity = {
@@ -254,7 +254,7 @@ export function validateConfig(data: any, filePath: string) {
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
     {data, filePath},
-    '@parcel/transformer-image',
+    '@atlaspack/transformer-image',
     'Invalid sharp config',
   );
 }

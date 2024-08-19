@@ -632,7 +632,7 @@ const version = process.env.hasOwnProperty('version');
 
     env.insert("IS_TEST".into(), "true".into());
     env.insert("VERSION".into(), "1.2.3".into());
-    env.insert("package".into(), "parcel".into());
+    env.insert("package".into(), "atlaspack".into());
 
     let RunVisitResult { output_code, .. } = run_visit(
       r#"
@@ -650,7 +650,7 @@ const { package, IS_TEST: isTest2 } = process.env;
       output_code,
       r#"const isTest = "true" === "true";
 const version = "1.2.3";
-const package = "parcel", isTest2 = "true";
+const package = "atlaspack", isTest2 = "true";
 "#
     );
     // tracks that the variable was used
@@ -670,7 +670,7 @@ const package = "parcel", isTest2 = "true";
     let mut used_env = HashSet::new();
     let mut diagnostics = Vec::new();
 
-    env.insert("package".into(), "parcel".into());
+    env.insert("package".into(), "atlaspack".into());
 
     let RunVisitResult { output_code, .. } = run_visit(
       r#"
@@ -684,7 +684,7 @@ const { package, ...other } = process.env;
     // transforms the inline value
     assert_eq!(
       output_code,
-      r#"const package = "parcel", other = {};
+      r#"const package = "atlaspack", other = {};
 "#
     );
     // tracks that the variable was used

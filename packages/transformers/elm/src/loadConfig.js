@@ -1,8 +1,8 @@
 // @flow strict-local
 
-import type {Config} from '@parcel/types';
+import type {Config} from '@atlaspack/types';
 import path from 'path';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
 import commandExists from 'command-exists';
 import nullthrows from 'nullthrows';
 
@@ -12,7 +12,7 @@ async function load({config}: {|config: Config|}): Promise<null> {
     elmBinaryPath(); // Check if elm is even installed
     throw new ThrowableDiagnostic({
       diagnostic: {
-        origin: '@parcel/elm-transformer',
+        origin: '@atlaspack/elm-transformer',
         message: "The 'elm.json' file is missing.",
         hints: [
           "Initialize your elm project by running 'elm init'",
@@ -36,7 +36,7 @@ function elmBinaryPath(): ?string {
           "You can add it as an dependency for your project by running 'yarn add -D elm' or 'npm add -D elm'",
           'If you want to install it globally then follow instructions on https://elm-lang.org/',
         ],
-        origin: '@parcel/elm-transformer',
+        origin: '@atlaspack/elm-transformer',
       },
     });
   }

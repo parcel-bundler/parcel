@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Dependency} from '@parcel/types';
+import type {Dependency} from '@atlaspack/types';
 
 import assert from 'assert';
 import invariant from 'assert';

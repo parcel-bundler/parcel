@@ -7,7 +7,7 @@ import {
   it,
   outputFS,
   distDir,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('pug', function () {
   it('should support bundling HTML', async function () {
@@ -102,7 +102,7 @@ describe.v2('pug', function () {
     ]);
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
-    assert(html.includes('Greetings, Parcel'));
+    assert(html.includes('Greetings, Atlaspack'));
   });
 
   it('should support filters', async function () {

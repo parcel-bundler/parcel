@@ -11,7 +11,7 @@ import {
   removeDistDirectory,
   inputFS,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.v2('css', () => {
   afterEach(async () => {
@@ -346,7 +346,7 @@ describe.v2('css', () => {
           {
             message:
               "Ambiguous url('foo.png') in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead",
-            origin: '@parcel/transformer-css',
+            origin: '@atlaspack/transformer-css',
             name: 'SyntaxError',
             stack: undefined,
             codeFrames: [
@@ -465,7 +465,7 @@ describe.v2('css', () => {
         diagnostics: [
           {
             message: "Failed to resolve 'x.png' from './index.scss'",
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: [
               {
                 filePath: fixture,
@@ -488,7 +488,7 @@ describe.v2('css', () => {
           },
           {
             message: "Cannot load file './x.png' in './'.",
-            origin: '@parcel/resolver-default',
+            origin: '@atlaspack/resolver-default',
             hints: [],
           },
         ],

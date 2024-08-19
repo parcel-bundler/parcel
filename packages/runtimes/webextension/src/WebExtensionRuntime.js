@@ -1,7 +1,7 @@
 // @flow strict-local
 
-import {Runtime} from '@parcel/plugin';
-import {replaceURLReferences} from '@parcel/utils';
+import {Runtime} from '@atlaspack/plugin';
+import {replaceURLReferences} from '@atlaspack/utils';
 import nullthrows from 'nullthrows';
 import fs from 'fs';
 import path from 'path';

@@ -25,7 +25,7 @@ use crate::utils::SourceType;
 ///
 /// This is coupled with the packager implementations in `ScopeHoistingPackager.js` and
 /// `DevPackager.js` which handle inserting paths into this file through string replacement of
-/// the `"$parcel$filenameReplace"` and `"$parcel$dirnameReplace"` string literals.
+/// the `"$atlaspack$filenameReplace"` and `"$atlaspack$dirnameReplace"` string literals.
 pub struct NodeReplacer<'a> {
   pub source_map: Lrc<SourceMap>,
   pub global_mark: Mark,
@@ -52,7 +52,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
         match id.sym.to_string().as_str() {
           "__filename" => {
             let path_module_specifier = swc_core::ecma::atoms::JsWord::from("path");
-            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$filenameReplace");
+            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$atlaspack$filenameReplace");
 
             let unresolved_mark = self.unresolved_mark;
             let expr = |this: &NodeReplacer| {
@@ -102,7 +102,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                 }))),
               })
             };
-            if self.update_binding(id, "$parcel$__filename".into(), expr) {
+            if self.update_binding(id, "$atlaspack$__filename".into(), expr) {
               self.items.push(DependencyDescriptor {
                 kind: DependencyKind::Require,
                 loc: SourceLocation::from(&self.source_map, id.span),
@@ -119,10 +119,10 @@ impl<'a> VisitMut for NodeReplacer<'a> {
           }
           "__dirname" => {
             let path_module_specifier = swc_core::ecma::atoms::JsWord::from("path");
-            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$dirnameReplace");
+            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$atlaspack$dirnameReplace");
 
             let unresolved_mark = self.unresolved_mark;
-            if self.update_binding(id, "$parcel$__dirname".into(), |_| {
+            if self.update_binding(id, "$atlaspack$__dirname".into(), |_| {
               Call(ast::CallExpr {
                 span: DUMMY_SP,
                 type_args: None,
@@ -248,9 +248,9 @@ console.log(__filename);
     .output_code;
 
     let expected_code = r#"
-var $parcel$__filename = require("path").resolve(__dirname, "$parcel$filenameReplace", "random.js");
-const filename = $parcel$__filename;
-console.log($parcel$__filename);
+var $atlaspack$__filename = require("path").resolve(__dirname, "$atlaspack$filenameReplace", "random.js");
+const filename = $atlaspack$__filename;
+console.log($atlaspack$__filename);
 "#
     .trim_start();
     assert_eq!(output_code, expected_code);
@@ -282,9 +282,9 @@ console.log(__dirname);
     .output_code;
 
     let expected_code = r#"
-var $parcel$__dirname = require("path").resolve(__dirname, "$parcel$dirnameReplace");
-const dirname = $parcel$__dirname;
-console.log($parcel$__dirname);
+var $atlaspack$__dirname = require("path").resolve(__dirname, "$atlaspack$dirnameReplace");
+const dirname = $atlaspack$__dirname;
+console.log($atlaspack$__dirname);
 "#
     .trim_start();
     assert_eq!(output_code, expected_code);
@@ -379,8 +379,8 @@ const filename = obj[__filename];
     .output_code;
 
     let expected_code = r#"
-var $parcel$__filename = require("path").resolve(__dirname, "$parcel$filenameReplace", "random.js");
-const filename = obj[$parcel$__filename];
+var $atlaspack$__filename = require("path").resolve(__dirname, "$atlaspack$filenameReplace", "random.js");
+const filename = obj[$atlaspack$__filename];
 "#
     .trim_start();
     assert_eq!(output_code, expected_code);

@@ -1,18 +1,14 @@
 {
-  "name": "@parcel/fs",
+  "name": "@atlaspack/fs",
   "version": "2.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/parcel"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git"
+    "url": "https://github.com/atlassian-labs/atlaspack.git"
   },
   "main": "lib/index.js",
   "source": "src/index.js",
@@ -24,26 +20,26 @@
     "types": false,
     "main": {
       "includeNodeModules": {
-        "@parcel/core": false,
-        "@parcel/feature-flags": false,
-        "@parcel/rust": false,
-        "@parcel/types-internal": false,
-        "@parcel/utils": false,
+        "@atlaspack/core": false,
+        "@atlaspack/feature-flags": false,
+        "@atlaspack/rust": false,
+        "@atlaspack/types-internal": false,
+        "@atlaspack/utils": false,
+        "@atlaspack/watcher-watchman-js": false,
         "@parcel/watcher": false,
-        "@parcel/watcher-watchman-js": false,
-        "@parcel/workers": false
+        "@atlaspack/workers": false
       }
     },
     "browser": {
       "includeNodeModules": {
-        "@parcel/core": false,
-        "@parcel/feature-flags": false,
-        "@parcel/rust": false,
-        "@parcel/types-internal": false,
-        "@parcel/utils": false,
+        "@atlaspack/core": false,
+        "@atlaspack/feature-flags": false,
+        "@atlaspack/rust": false,
+        "@atlaspack/types-internal": false,
+        "@atlaspack/utils": false,
+        "@atlaspack/watcher-watchman-js": false,
         "@parcel/watcher": false,
-        "@parcel/watcher-watchman-js": false,
-        "@parcel/workers": false
+        "@atlaspack/workers": false
       }
     }
   },
@@ -52,25 +48,25 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/feature-flags": "2.12.0",
-    "@parcel/rust": "2.12.0",
-    "@parcel/types-internal": "2.12.0",
-    "@parcel/utils": "2.12.0",
+    "@atlaspack/feature-flags": "2.12.0",
+    "@atlaspack/rust": "2.12.0",
+    "@atlaspack/types-internal": "2.12.0",
+    "@atlaspack/utils": "2.12.0",
     "@parcel/watcher": "^2.0.7",
-    "@parcel/workers": "2.12.0"
+    "@atlaspack/workers": "2.12.0"
   },
   "devDependencies": {
-    "@parcel/watcher-watchman-js": "2.12.0",
+    "@atlaspack/watcher-watchman-js": "2.12.0",
     "graceful-fs": "^4.2.4",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
     "utility-types": "^3.10.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.12.0"
+    "@atlaspack/core": "^2.12.0"
   },
   "browser": {
-    "@parcel/fs": "./lib/browser.js",
+    "@atlaspack/fs": "./lib/browser.js",
     "./src/NodeFS.js": "./src/NodeFS.browser.js"
   }
 }

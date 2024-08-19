@@ -1,8 +1,8 @@
 // @flow
 
 import {transform} from 'esbuild';
-import {Optimizer} from '@parcel/plugin';
-import {blobToString, normalizePath} from '@parcel/utils';
+import {Optimizer} from '@atlaspack/plugin';
+import {blobToString, normalizePath} from '@atlaspack/utils';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
 import invariant from 'assert';

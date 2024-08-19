@@ -1,0 +1,6 @@
+{
+  "extends": "../.atlaspackrc",
+  "transformers": {
+    "*.js": ["atlaspack-transformer-sub", "..."]
+  }
+}

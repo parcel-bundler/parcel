@@ -1,7 +1,7 @@
 // @flow strict-local
 
-import {Optimizer} from '@parcel/plugin';
-import {blobToString} from '@parcel/utils';
+import {Optimizer} from '@atlaspack/plugin';
+import {blobToString} from '@atlaspack/utils';
 
 export default (new Optimizer({
   async optimize({contents}) {

@@ -9,7 +9,7 @@ import type {
   Compressor as CompressorOpts,
   Reporter as ReporterOpts,
   Validator as ValidatorOpts,
-} from '@parcel/types';
+} from '@atlaspack/types';
 
 export declare class Transformer<T> {
   constructor(opts: TransformerOpts<T>);

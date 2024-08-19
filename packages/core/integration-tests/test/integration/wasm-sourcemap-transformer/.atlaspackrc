@@ -1,0 +1,6 @@
+{
+  "extends": "@atlaspack/config-default",
+  "transformers": {
+    "*.wasm": ["atlaspack-transformer-test"]
+  }
+}

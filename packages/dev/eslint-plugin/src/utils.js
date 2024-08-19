@@ -56,7 +56,7 @@ function getRequiredPath(node) {
  * a module it requests in a `require`.
  * @param {Object} opts
  * @param {string} opts.origin - Originating file. Must be an absolute path.
- * @param {string} opts.request - Requested module in the require. e.g. @parcel/core
+ * @param {string} opts.request - Requested module in the require. e.g. @atlaspack/core
  * @param {string} opts.pkgName - name of the package in the package json
  * @param {string} opts.pkgPath - path to the package.json
  */

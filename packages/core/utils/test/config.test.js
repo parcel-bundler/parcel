@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import {loadConfig} from '../src/config';
-import {inputFS as fs} from '@parcel/test-utils';
+import {inputFS as fs} from '@atlaspack/test-utils';
 import path from 'path';
 
 describe('loadConfig', () => {

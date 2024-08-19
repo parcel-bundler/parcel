@@ -1,0 +1,6 @@
+{
+  "extends": ["@atlaspack/config-default"],
+  "transformers": {
+      "*.svg": ["@atlaspack/transformer-inline-string"]
+  }
+}

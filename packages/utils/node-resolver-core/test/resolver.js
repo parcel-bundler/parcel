@@ -3,12 +3,12 @@ import NodeResolver from '../src/Wrapper';
 import path from 'path';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
-import {loadConfig as configCache} from '@parcel/utils';
-import {createEnvironment} from '@parcel/core/src/Environment';
-import Environment from '@parcel/core/src/public/Environment';
-import {DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
-import {setFeatureFlags, DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
+import {ncp, overlayFS, outputFS} from '@atlaspack/test-utils';
+import {loadConfig as configCache} from '@atlaspack/utils';
+import {createEnvironment} from '@atlaspack/core/src/Environment';
+import Environment from '@atlaspack/core/src/public/Environment';
+import {DEFAULT_OPTIONS} from '@atlaspack/core/test/test-utils';
+import {setFeatureFlags, DEFAULT_FEATURE_FLAGS} from '@atlaspack/feature-flags';
 
 const rootDir = path.join(__dirname, 'fixture');
 

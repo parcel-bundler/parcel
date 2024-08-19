@@ -300,7 +300,7 @@ impl<'de> serde::Deserialize<'de> for Specifier {
     use serde::Deserialize;
     let s: String = Deserialize::deserialize(deserializer)?;
     // Specifiers are only deserialized as part of the "alias" and "browser" fields,
-    // so we assume CJS specifiers in Parcel mode.
+    // so we assume CJS specifiers in Atlaspack mode.
     Specifier::parse(&s, SpecifierType::Cjs, Flags::empty())
       .map(|s| s.0)
       .map_err(|_| serde::de::Error::custom("Invalid specifier"))

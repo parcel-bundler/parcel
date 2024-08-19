@@ -2,9 +2,9 @@
 
 _Note: This feature is EXPERIMENTAL, meaning it may act strange in unusual cases, and may not have full test coverage._
 
-Parcel automatically code splits for certain import types, and automatically generates shared bundles based on a deduplication approach. Manual Bundles allow the user to specify their own custom bundles and their contents.
+Atlaspack automatically code splits for certain import types, and automatically generates shared bundles based on a deduplication approach. Manual Bundles allow the user to specify their own custom bundles and their contents.
 
-This document aims to explain the current implementation of Manual Bundling, for information on using the feature visit the Parcel Docs.
+This document aims to explain the current implementation of Manual Bundling, for information on using the feature visit the Atlaspack Docs.
 
 ### Generate Asset Lookups
 
@@ -12,7 +12,7 @@ First, we generate a look up, `manualAssetToConfig`, which contains an Asset Nod
 
 ```json
 {
-  "@parcel/bundler-default": {
+  "@atlaspack/bundler-default": {
     "unstable_manualSharedBundles": [
       {
         "name": "",
@@ -152,4 +152,4 @@ The `manualSharedBundle` property and the `uniqueKey` property both store the na
 
 ### More Info
 
-For config information visit the Parcel documentation's section on MSBs. For a more detailed example, check out the Manual Bundles Example in [Bundler Examples](BundlerExamples.md)
+For config information visit the Atlaspack documentation's section on MSBs. For a more detailed example, check out the Manual Bundles Example in [Bundler Examples](BundlerExamples.md)

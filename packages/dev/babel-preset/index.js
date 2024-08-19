@@ -1,14 +1,14 @@
 module.exports = api => {
   let name = api.caller(caller => caller && caller.name);
-  if (name === 'parcel') {
+  if (name === 'atlaspack') {
     return {
       presets: [require('@babel/preset-flow')],
       plugins: [
-        // Inline the value of PARCEL_BUILD_ENV during self builds.
-        // Parcel does not do this itself for node targets...
+        // Inline the value of ATLASPACK_BUILD_ENV during self builds.
+        // Atlaspack does not do this itself for node targets...
         [
           'babel-plugin-transform-inline-environment-variables',
-          {include: ['PARCEL_BUILD_ENV']},
+          {include: ['ATLASPACK_BUILD_ENV']},
         ],
         'babel-plugin-minify-dead-code-elimination',
       ],
@@ -40,18 +40,18 @@ module.exports = api => {
     env: {
       production: {
         plugins: [
-          // Inline the value of PARCEL_BUILD_ENV during production builds so that
+          // Inline the value of ATLASPACK_BUILD_ENV during production builds so that
           // it can be removed through dead code elimination below
           [
             'babel-plugin-transform-inline-environment-variables',
             {
               include: [
-                'PARCEL_BUILD_ENV',
+                'ATLASPACK_BUILD_ENV',
                 'SKIP_PLUGIN_COMPATIBILITY_CHECK',
-                // Eliminate the PARCEL_SELF_BUILD environment variable to get
+                // Eliminate the ATLASPACK_SELF_BUILD environment variable to get
                 //  rid of @babel/register in bin.js, when compiling with gulp.
-                ...(!process.env.PARCEL_SELF_BUILD
-                  ? ['PARCEL_SELF_BUILD']
+                ...(!process.env.ATLASPACK_SELF_BUILD
+                  ? ['ATLASPACK_SELF_BUILD']
                   : []),
               ],
             },

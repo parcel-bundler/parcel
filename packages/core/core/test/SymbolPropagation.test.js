@@ -2,11 +2,11 @@
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import type {FilePath, SourceLocation, Meta, Symbol} from '@parcel/types';
-import type {ContentKey, NodeId} from '@parcel/graph';
-import type {Diagnostic} from '@parcel/diagnostic';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import {setEqual} from '@parcel/utils';
+import type {FilePath, SourceLocation, Meta, Symbol} from '@atlaspack/types';
+import type {ContentKey, NodeId} from '@atlaspack/graph';
+import type {Diagnostic} from '@atlaspack/diagnostic';
+import ThrowableDiagnostic from '@atlaspack/diagnostic';
+import {setEqual} from '@atlaspack/utils';
 import AssetGraph, {
   nodeFromAssetGroup,
   nodeFromDep,
@@ -405,8 +405,8 @@ function changeAsset(
   return [[node.id, node.value]];
 }
 
-// process.env.PARCEL_DUMP_GRAPHVIZ = '';
-// process.env.PARCEL_DUMP_GRAPHVIZ = 'symbols';
+// process.env.ATLASPACK_DUMP_GRAPHVIZ = '';
+// process.env.ATLASPACK_DUMP_GRAPHVIZ = 'symbols';
 
 describe('SymbolPropagation', () => {
   it('basic tree', async () => {
@@ -501,7 +501,7 @@ describe('SymbolPropagation', () => {
         [
           {
             message: "lib.js does not export 'f2'",
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: undefined,
           },
         ],
@@ -544,7 +544,7 @@ describe('SymbolPropagation', () => {
         [
           {
             message: "lib.js does not export 'f'",
-            origin: '@parcel/core',
+            origin: '@atlaspack/core',
             codeFrames: undefined,
           },
         ],

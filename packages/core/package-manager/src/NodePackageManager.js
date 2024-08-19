@@ -1,6 +1,10 @@
 // @flow
-import type {FilePath, DependencySpecifier, SemverRange} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {
+  FilePath,
+  DependencySpecifier,
+  SemverRange,
+} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
 import type {
   ModuleRequest,
   PackageManager,
@@ -8,28 +12,28 @@ import type {
   InstallOptions,
   Invalidations,
   PackageManagerResolveResult,
-} from '@parcel/types';
+} from '@atlaspack/types';
 
-import {registerSerializableClass} from '@parcel/core';
+import {registerSerializableClass} from '@atlaspack/core';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   escapeMarkdown,
   generateJSONCodeHighlights,
   md,
-} from '@parcel/diagnostic';
-import {NodeFS} from '@parcel/fs';
+} from '@atlaspack/diagnostic';
+import {NodeFS} from '@atlaspack/fs';
 import nativeFS from 'fs';
 import Module from 'module';
 import path from 'path';
 import semver from 'semver';
-import logger from '@parcel/logger';
+import logger from '@atlaspack/logger';
 import nullthrows from 'nullthrows';
 
-import {getModuleParts} from '@parcel/utils';
+import {getModuleParts} from '@atlaspack/utils';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
-import {ResolverBase} from '@parcel/node-resolver-core';
+import {ResolverBase} from '@atlaspack/node-resolver-core';
 import {pathToFileURL} from 'url';
 import {transformSync} from '@swc/core';
 
@@ -38,8 +42,8 @@ const MAIN = 1 << 0;
 const SOURCE = 1 << 2;
 const ENTRIES =
   MAIN |
-  (process.env.PARCEL_BUILD_ENV !== 'production' ||
-  process.env.PARCEL_SELF_BUILD
+  (process.env.ATLASPACK_BUILD_ENV !== 'production' ||
+  process.env.ATLASPACK_SELF_BUILD
     ? SOURCE
     : 0);
 
@@ -141,7 +145,7 @@ export class NodePackageManager implements PackageManager {
     if (type === 2) {
       logger.warn({
         message: 'ES module dependencies are experimental.',
-        origin: '@parcel/package-manager',
+        origin: '@atlaspack/package-manager',
         codeFrames: [
           {
             filePath: resolved,
@@ -284,11 +288,11 @@ export class NodePackageManager implements PackageManager {
               diagnostic: {
                 message: escapeMarkdown(e.message),
                 hints: [
-                  'Autoinstall is disabled, please install this package manually and restart Parcel.',
+                  'Autoinstall is disabled, please install this package manually and restart Atlaspack.',
                 ],
               },
             });
-            // $FlowFixMe - needed for loadParcelPlugin
+            // $FlowFixMe - needed for loadAtlaspackPlugin
             err.code = 'MODULE_NOT_FOUND';
             throw err;
           } else {
@@ -318,7 +322,7 @@ export class NodePackageManager implements PackageManager {
         throw new ThrowableDiagnostic({
           diagnostic: conflicts.fields.map(field => ({
             message: md`Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
-            origin: '@parcel/package-manager',
+            origin: '@atlaspack/package-manager',
             codeFrames: [
               {
                 filePath: conflicts.filePath,
@@ -359,7 +363,7 @@ export class NodePackageManager implements PackageManager {
             throw new ThrowableDiagnostic({
               diagnostic: {
                 message: md`Could not find module "${name}" satisfying ${range}.`,
-                origin: '@parcel/package-manager',
+                origin: '@atlaspack/package-manager',
                 codeFrames: [
                   {
                     filePath: conflicts.filePath,
@@ -517,8 +521,8 @@ export class NodePackageManager implements PackageManager {
             message: md`${path.relative(
               this.projectRoot,
               resolved.resolved,
-            )} contains non-statically analyzable dependencies in its module graph. This causes Parcel to invalidate the cache on startup.`,
-            origin: '@parcel/package-manager',
+            )} contains non-statically analyzable dependencies in its module graph. This causes Atlaspack to invalidate the cache on startup.`,
+            origin: '@atlaspack/package-manager',
           });
         }
       }

@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Config, PluginOptions} from '@parcel/types';
+import type {Config, PluginOptions} from '@atlaspack/types';
 
 import path from 'path';
 

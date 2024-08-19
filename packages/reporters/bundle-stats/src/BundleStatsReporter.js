@@ -1,9 +1,9 @@
 // @flow strict-local
 
-import type {PackagedBundle, PluginOptions} from '@parcel/types';
+import type {PackagedBundle, PluginOptions} from '@atlaspack/types';
 
-import {Reporter} from '@parcel/plugin';
-import {DefaultMap} from '@parcel/utils';
+import {Reporter} from '@atlaspack/plugin';
+import {DefaultMap} from '@atlaspack/utils';
 
 import assert from 'assert';
 import path from 'path';
@@ -39,7 +39,7 @@ export default (new Reporter({
       bundlesByTarget.get(bundle.target.name).push(bundle);
     }
 
-    let reportsDir = path.join(options.projectRoot, 'parcel-bundle-reports');
+    let reportsDir = path.join(options.projectRoot, 'atlaspack-bundle-reports');
     await options.outputFS.mkdirp(reportsDir);
 
     await Promise.all(

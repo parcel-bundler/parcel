@@ -4,14 +4,14 @@ import {
   loadSourceMapUrl,
   loadSourceMap,
 } from '../src/sourcemap';
-import {NodeFS} from '@parcel/fs';
+import {NodeFS} from '@atlaspack/fs';
 import path from 'path';
 
 const fs = new NodeFS();
 
 describe('loadSourceMap', () => {
   it('should not match sourceMappingURL when not at the end of the bundle', () => {
-    // Code example taken from livescript.js (issue #2408 in parcel-bundler)
+    // Code example taken from livescript.js (issue #2408 in atlaspack-bundler)
     // This snippet lead to JSAsset.js being mislead and incorrectly trying to
     // load (due to false-positive match) sourcemap before fix was introduced
     let code = fs.readFileSync(

@@ -1,4 +1,4 @@
-const {Resolver} = require('@parcel/plugin');
+const {Resolver} = require('@atlaspack/plugin');
 
 module.exports = new Resolver({
   resolve({specifier}) {

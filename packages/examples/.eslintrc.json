@@ -1,5 +1,5 @@
 {
-  "extends": "@parcel/eslint-config",
+  "extends": "@atlaspack/eslint-config",
   "env": {
     "browser": true
   },

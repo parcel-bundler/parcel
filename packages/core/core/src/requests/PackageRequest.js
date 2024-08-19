@@ -1,20 +1,20 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
-import type {Async} from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
+import type {ContentKey} from '@atlaspack/graph';
+import type {Async} from '@atlaspack/types';
+import type {SharedReference} from '@atlaspack/workers';
 
 import type {StaticRunOpts} from '../RequestTracker';
 import {requestTypes} from '../RequestTracker';
 import type {Bundle} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo, RunPackagerRunnerResult} from '../PackagerRunner';
-import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {ConfigAndCachePath} from './AtlaspackConfigRequest';
 
 import nullthrows from 'nullthrows';
 import {runConfigRequest} from './ConfigRequest';
 import {getDevDepRequests, runDevDepRequest} from './DevDepRequest';
-import createParcelConfigRequest from './ParcelConfigRequest';
+import createAtlaspackConfigRequest from './AtlaspackConfigRequest';
 
 type PackageRequestInput = {|
   bundleGraph: BundleGraph,
@@ -56,7 +56,9 @@ async function run({input, api, farm}) {
   let start = Date.now();
   let {devDeps, invalidDevDeps} = await getDevDepRequests(api);
   let {cachePath} = nullthrows(
-    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+    await api.runRequest<null, ConfigAndCachePath>(
+      createAtlaspackConfigRequest(),
+    ),
   );
 
   let {devDepRequests, configRequests, bundleInfo, invalidations} =

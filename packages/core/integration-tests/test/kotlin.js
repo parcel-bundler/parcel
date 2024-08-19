@@ -1,5 +1,11 @@
 import assert from 'assert';
-import {assertBundleTree, bundle, describe, it, run} from '@parcel/test-utils';
+import {
+  assertBundleTree,
+  bundle,
+  describe,
+  it,
+  run,
+} from '@atlaspack/test-utils';
 import commandExists from 'command-exists';
 
 describe.skip('kotlin', function () {

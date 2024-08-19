@@ -4,16 +4,16 @@ import type {
   IDisposable,
   LogEvent,
   PluginLogger as IPluginLogger,
-} from '@parcel/types';
+} from '@atlaspack/types';
 import type {
   Diagnostic,
   Diagnostifiable,
   DiagnosticWithoutOrigin,
-} from '@parcel/diagnostic';
+} from '@atlaspack/diagnostic';
 
-import {ValueEmitter} from '@parcel/events';
+import {ValueEmitter} from '@atlaspack/events';
 import {inspect} from 'util';
-import {errorToDiagnostic, anyToDiagnostic} from '@parcel/diagnostic';
+import {errorToDiagnostic, anyToDiagnostic} from '@atlaspack/diagnostic';
 
 class Logger {
   #logEmitter /*: ValueEmitter<LogEvent> */ = new ValueEmitter();

@@ -11,4 +11,4 @@ for (let [name, code] of Object.entries(EXAMPLE.files)) {
   fs.writeFileSync(path.join(BASEDIR, 'src', name), code);
 }
 
-console.log(`parcel2 build ${EXAMPLE.entries.join(' ')}`);
+console.log(`atlaspack2 build ${EXAMPLE.entries.join(' ')}`);

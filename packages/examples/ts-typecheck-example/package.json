@@ -1,10 +1,10 @@
 {
-  "name": "@parcel/ts-typecheck-example",
+  "name": "@atlaspack/ts-typecheck-example",
   "version": "2.12.0",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.ts --no-cache"
+    "demo": "atlaspack build src/index.ts --no-cache"
   },
   "browserModern": "dist/modern/index.js",
   "targets": {
@@ -18,8 +18,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
-    "@parcel/core": "2.12.0",
-    "@parcel/validator-typescript": "2.12.0"
+    "@atlaspack/babel-register": "2.12.0",
+    "@atlaspack/core": "2.12.0",
+    "@atlaspack/validator-typescript": "2.12.0"
   }
 }

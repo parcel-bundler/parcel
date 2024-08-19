@@ -1,10 +1,10 @@
 // @flow strict-local
 
-import type {FilePath, PackagedBundle, PluginOptions} from '@parcel/types';
+import type {FilePath, PackagedBundle, PluginOptions} from '@atlaspack/types';
 
 import invariant from 'assert';
-import {Reporter} from '@parcel/plugin';
-import {DefaultMap, generateBuildMetrics} from '@parcel/utils';
+import {Reporter} from '@atlaspack/plugin';
+import {DefaultMap, generateBuildMetrics} from '@atlaspack/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -22,7 +22,7 @@ export default (new Reporter({
       bundlesByTarget.get(bundle.target.name).push(bundle);
     }
 
-    let reportsDir = path.join(options.projectRoot, 'parcel-bundle-reports');
+    let reportsDir = path.join(options.projectRoot, 'atlaspack-bundle-reports');
     await options.outputFS.mkdirp(reportsDir);
 
     await Promise.all(
@@ -33,7 +33,7 @@ export default (new Reporter({
           <html>
             <head>
               <meta charset="utf-8">
-              <title>📦Parcel Bundle Analyzer | ${targetName}</title>
+              <title>📦Atlaspack Bundle Analyzer | ${targetName}</title>
               <style>
                 body {
                   margin: 0;

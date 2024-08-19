@@ -121,7 +121,7 @@ self.addEventListener('fetch', evt => {
   if (parentId != null) {
     if (
       evt.request.headers.get('Accept') === 'text/event-stream' &&
-      url.pathname === '/__parcel_hmr'
+      url.pathname === '/__atlaspack_hmr'
     ) {
       let stream = new ReadableStream({
         start: controller => {
@@ -144,7 +144,7 @@ self.addEventListener('fetch', evt => {
           },
         }),
       );
-    } else if (url.pathname.startsWith('/__parcel_hmr/')) {
+    } else if (url.pathname.startsWith('/__atlaspack_hmr/')) {
       evt.respondWith(
         (async () => {
           let port = parentId != null ? parentPorts.get(parentId) : null;
@@ -156,7 +156,7 @@ self.addEventListener('fetch', evt => {
           let [type, content] = await sendMsg(
             port,
             'hmrAssetSource',
-            url.pathname.slice('/__parcel_hmr/'.length),
+            url.pathname.slice('/__atlaspack_hmr/'.length),
           );
           return new Response(content, {
             headers: {

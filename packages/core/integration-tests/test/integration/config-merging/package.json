@@ -6,6 +6,6 @@
     "node": "8"
   },
   "dependencies": {
-    "parcel-transformer-string": "*"
+    "atlaspack-transformer-string": "*"
   }
 }

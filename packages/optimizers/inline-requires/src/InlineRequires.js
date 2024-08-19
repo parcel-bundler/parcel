@@ -1,5 +1,5 @@
 // @flow strict-local
-import {Optimizer} from '@parcel/plugin';
+import {Optimizer} from '@atlaspack/plugin';
 import {parse, print} from '@swc/core';
 import {RequireInliningVisitor} from './RequireInliningVisitor';
 import nullthrows from 'nullthrows';
@@ -25,7 +25,7 @@ module.exports = new Optimizer<empty, BundleConfig>({
     }
 
     const measurement = tracer.createMeasurement(
-      '@parcel/optimizer-inline-requires',
+      '@atlaspack/optimizer-inline-requires',
       'generatePublicIdToAssetSideEffects',
       bundle.name,
     );
@@ -58,7 +58,7 @@ module.exports = new Optimizer<empty, BundleConfig>({
 
     try {
       let measurement = tracer.createMeasurement(
-        '@parcel/optimizer-inline-requires',
+        '@atlaspack/optimizer-inline-requires',
         'parse',
         bundle.name,
       );
@@ -73,7 +73,7 @@ module.exports = new Optimizer<empty, BundleConfig>({
       });
 
       measurement = tracer.createMeasurement(
-        '@parcel/optimizer-inline-requires',
+        '@atlaspack/optimizer-inline-requires',
         'visit',
         bundle.name,
       );
@@ -82,7 +82,7 @@ module.exports = new Optimizer<empty, BundleConfig>({
 
       if (visitor.dirty) {
         const measurement = tracer.createMeasurement(
-          '@parcel/optimizer-inline-requires',
+          '@atlaspack/optimizer-inline-requires',
           'print',
           bundle.name,
         );
@@ -105,7 +105,7 @@ module.exports = new Optimizer<empty, BundleConfig>({
       }
     } catch (err) {
       logger.warn({
-        origin: 'parcel-optimizer-experimental-inline-requires',
+        origin: 'atlaspack-optimizer-experimental-inline-requires',
         message: `Unable to optimise requires for ${bundle.name}: ${err.message}`,
         stack: err.stack,
       });

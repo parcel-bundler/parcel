@@ -4,9 +4,9 @@ use std::{
 };
 
 use napi::{Env, JsObject};
-use parcel::file_system::FileSystem;
+use atlaspack::file_system::FileSystem;
 
-use parcel_napi_helpers::js_callable::JsCallable;
+use atlaspack_napi_helpers::js_callable::JsCallable;
 
 // TODO error handling
 

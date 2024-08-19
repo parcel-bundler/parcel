@@ -13,14 +13,14 @@ import type {
   Symbol,
   SymbolResolution,
   Target,
-} from '@parcel/types';
-import type {Bundle as InternalBundle, ParcelOptions} from '../types';
+} from '@atlaspack/types';
+import type {Bundle as InternalBundle, AtlaspackOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
-import {mapVisitor} from '@parcel/graph';
+import {mapVisitor} from '@atlaspack/graph';
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
 import Dependency, {
@@ -46,20 +46,20 @@ export function bundleGraphToInternalBundleGraph(
 type BundleFactory<TBundle: IBundle> = (
   InternalBundle,
   InternalBundleGraph,
-  ParcelOptions,
+  AtlaspackOptions,
 ) => TBundle;
 
 export default class BundleGraph<TBundle: IBundle>
   implements IBundleGraph<TBundle>
 {
   #graph: InternalBundleGraph;
-  #options: ParcelOptions;
+  #options: AtlaspackOptions;
   #createBundle: BundleFactory<TBundle>;
 
   constructor(
     graph: InternalBundleGraph,
     createBundle: BundleFactory<TBundle>,
-    options: ParcelOptions,
+    options: AtlaspackOptions,
   ) {
     this.#graph = graph;
     this.#options = options;

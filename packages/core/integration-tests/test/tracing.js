@@ -1,7 +1,7 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, distDir, it, outputFS} from '@parcel/test-utils';
+import {bundle, describe, distDir, it, outputFS} from '@atlaspack/test-utils';
 
 describe.v2('tracing', function () {
   it('should produce a trace', async function () {
@@ -14,7 +14,7 @@ describe.v2('tracing', function () {
         },
         additionalReporters: [
           {
-            packageName: '@parcel/reporter-tracer',
+            packageName: '@atlaspack/reporter-tracer',
             resolveFrom: __dirname,
           },
         ],
@@ -23,7 +23,7 @@ describe.v2('tracing', function () {
     );
 
     const files = outputFS.readdirSync(__dirname);
-    const profileFile = files.find(file => file.startsWith('parcel-trace'));
+    const profileFile = files.find(file => file.startsWith('atlaspack-trace'));
     assert(profileFile !== null);
     const content = await outputFS.readFile(
       path.join(__dirname, profileFile),

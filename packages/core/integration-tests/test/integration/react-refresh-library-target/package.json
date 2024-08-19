@@ -2,7 +2,7 @@
   "source": "index.js",
   "main": "dist/main.js",
   "dependencies": {
-    "@parcel/transformer-react-refresh-wrap": "*",
+    "@atlaspack/transformer-react-refresh-wrap": "*",
     "react": "*",
     "react-dom": "*"
   }

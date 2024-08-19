@@ -1,10 +1,10 @@
 {
-  "name": "@parcel/html-example",
+  "name": "@atlaspack/html-example",
   "version": "2.12.0",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.html"
+    "demo": "atlaspack build src/index.html"
   },
   "browserslist": [
     "last 2 versions",
@@ -13,8 +13,8 @@
   ],
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
-    "parcel": "2.12.0"
+    "@atlaspack/babel-register": "2.12.0",
+    "atlaspack": "2.12.0"
   },
   "dependencies": {
     "lodash": "^4.17.11",

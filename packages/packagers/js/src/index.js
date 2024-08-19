@@ -1,21 +1,21 @@
 // @flow strict-local
-import type {Async} from '@parcel/types';
+import type {Async} from '@atlaspack/types';
 import type SourceMap from '@parcel/source-map';
-import {Packager} from '@parcel/plugin';
+import {Packager} from '@atlaspack/plugin';
 import {
   replaceInlineReferences,
   replaceURLReferences,
   validateSchema,
   type SchemaEntity,
-} from '@parcel/utils';
-import {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {hashString} from '@parcel/rust';
+} from '@atlaspack/utils';
+import {encodeJSONKeyComponent} from '@atlaspack/diagnostic';
+import {hashString} from '@atlaspack/rust';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
 import {ScopeHoistingPackager} from './ScopeHoistingPackager';
 
 type JSPackagerConfig = {|
-  parcelRequireName: string,
+  atlaspackRequireName: string,
   unstable_asyncBundleRuntime: boolean,
 |};
 
@@ -31,7 +31,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
 
 export default (new Packager({
   async loadConfig({config, options}): Promise<JSPackagerConfig> {
-    let packageKey = '@parcel/packager-js';
+    let packageKey = '@atlaspack/packager-js';
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
       packageKey,
     });
@@ -50,8 +50,8 @@ export default (new Packager({
       );
     }
 
-    // Generate a name for the global parcelRequire function that is unique to this project.
-    // This allows multiple parcel builds to coexist on the same page.
+    // Generate a name for the global atlaspackRequire function that is unique to this project.
+    // This allows multiple atlaspack builds to coexist on the same page.
     let packageName = await config.getConfigFrom(
       options.projectRoot + '/index',
       [],
@@ -62,7 +62,7 @@ export default (new Packager({
 
     let name = packageName?.contents?.name ?? '';
     return {
-      parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
+      atlaspackRequireName: 'atlaspackRequire' + hashString(name).slice(-4),
       unstable_asyncBundleRuntime: Boolean(
         conf?.contents?.unstable_asyncBundleRuntime,
       ),
@@ -96,14 +96,14 @@ export default (new Packager({
             options,
             bundleGraph,
             bundle,
-            nullthrows(config).parcelRequireName,
+            nullthrows(config).atlaspackRequireName,
             nullthrows(config).unstable_asyncBundleRuntime,
           )
         : new DevPackager(
             options,
             bundleGraph,
             bundle,
-            nullthrows(config).parcelRequireName,
+            nullthrows(config).atlaspackRequireName,
           );
 
       ({contents, map} = await packager.package());

@@ -7,7 +7,7 @@ export interface MacroContext {
   invalidateOnFileCreate(options: FileCreateInvalidation): void;
   /** Invalidate the macro whenever the given environment variable changes. */
   invalidateOnEnvChange(env: string): void;
-  /** Invalidate the macro whenever Parcel restarts. */
+  /** Invalidate the macro whenever Atlaspack restarts. */
   invalidateOnStartup(): void;
   /** Invalidate the macro on every build. */
   invalidateOnBuild(): void;

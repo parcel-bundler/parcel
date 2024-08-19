@@ -14,7 +14,7 @@ import {
   overlayFS,
   getNextBuild,
   runBundle,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 const distDir = path.join(__dirname, '/integration/monorepo/dist/default');
 
@@ -206,7 +206,7 @@ describe.v2('monorepos', function () {
         path.join(distDir, '/pkg-a/src/index.js'),
         'utf8',
       );
-      assert(contents.includes('$parcel$export(module.exports, "default"'));
+      assert(contents.includes('$atlaspack$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(distDir, '/pkg-b/src/index.js'),
@@ -271,7 +271,7 @@ describe.v2('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('$parcel$export(module.exports, "default"'));
+    assert(contents.includes('$atlaspack$export(module.exports, "default"'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -342,7 +342,7 @@ describe.v2('monorepos', function () {
         path.join(distDir, '/pkg-a/src/index.js'),
         'utf8',
       );
-      assert(contents.includes('$parcel$export(module.exports, "default"'));
+      assert(contents.includes('$atlaspack$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(distDir, '/pkg-b/src/index.js'),
@@ -394,7 +394,7 @@ describe.v2('monorepos', function () {
         path.join(distDir, '/pkg-a/src/index.js'),
         'utf8',
       );
-      assert(contents.includes('$parcel$export(module.exports, "default"'));
+      assert(contents.includes('$atlaspack$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(distDir, '/pkg-b/src/index.js'),
@@ -443,7 +443,7 @@ describe.v2('monorepos', function () {
         ),
         'utf8',
       );
-      assert(contents.includes('$parcel$export(module.exports, "default"'));
+      assert(contents.includes('$atlaspack$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(
@@ -492,7 +492,7 @@ describe.v2('monorepos', function () {
         ),
         'utf8',
       );
-      assert(contents.includes('$parcel$export(module.exports, "default"'));
+      assert(contents.includes('$atlaspack$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(
@@ -551,7 +551,7 @@ describe.v2('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('$parcel$export(module.exports, "default"'));
+    assert(contents.includes('$atlaspack$export(module.exports, "default"'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -832,7 +832,7 @@ describe.v2('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('$parcel$export(module.exports, "default"'));
+    assert(contents.includes('$atlaspack$export(module.exports, "default"'));
     assert(contents.includes('require("./pkg-a.cjs.css")'));
 
     contents = await outputFS.readFile(
@@ -882,10 +882,10 @@ describe.v2('monorepos', function () {
     assert(contents.includes('import "./pkg-b.module.css"'));
   });
 
-  it('should search for .parcelrc at cwd in monorepos', async () => {
+  it('should search for .atlaspackrc at cwd in monorepos', async () => {
     let fixture = path.join(
       __dirname,
-      '/integration/parcelrc-monorepo/app/index.js',
+      '/integration/atlaspackrc-monorepo/app/index.js',
     );
 
     let oldcwd = inputFS.cwd();

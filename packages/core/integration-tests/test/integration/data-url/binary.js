@@ -1,2 +1,2 @@
-import webp from 'data-url:./parcel.webp';
+import webp from 'data-url:./atlaspack.webp';
 export default webp;

@@ -1,12 +1,12 @@
 // @flow strict-local
 
-import type {GraphVisitor} from '@parcel/types';
+import type {GraphVisitor} from '@atlaspack/types';
 import type {
   ContentGraphOpts,
   ContentKey,
   NodeId,
   SerializedContentGraph,
-} from '@parcel/graph';
+} from '@atlaspack/graph';
 import type {
   Asset,
   AssetGraphNode,
@@ -23,10 +23,10 @@ import type {
 } from './types';
 
 import invariant from 'assert';
-import {hashString, Hash} from '@parcel/rust';
-import {hashObject} from '@parcel/utils';
+import {hashString, Hash} from '@atlaspack/rust';
+import {hashObject} from '@atlaspack/utils';
 import nullthrows from 'nullthrows';
-import {ContentGraph} from '@parcel/graph';
+import {ContentGraph} from '@atlaspack/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 

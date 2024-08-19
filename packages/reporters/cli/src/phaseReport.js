@@ -1,5 +1,5 @@
 // @flow
-import {prettifyTime} from '@parcel/utils';
+import {prettifyTime} from '@atlaspack/utils';
 import chalk from 'chalk';
 import {writeOut} from './render';
 import invariant from 'assert';

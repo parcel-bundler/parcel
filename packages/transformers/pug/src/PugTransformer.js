@@ -1,7 +1,7 @@
 // @flow
 
 import path from 'path';
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import pug from 'pug';
 
 export default (new Transformer({

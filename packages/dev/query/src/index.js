@@ -1,7 +1,7 @@
 // @flow strict-local
 /* eslint-disable no-console, monorepo/no-internal-import */
-import type {ContentKey, NodeId} from '@parcel/graph';
-import type {PackagedBundleInfo} from '@parcel/core/src/types';
+import type {ContentKey, NodeId} from '@atlaspack/graph';
+import type {PackagedBundleInfo} from '@atlaspack/core/src/types';
 
 import fs from 'fs';
 import path from 'path';
@@ -156,7 +156,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   try {
     invariant(requestTracker);
     let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
-      'parcel_build_request',
+      'atlaspack_build_request',
     );
     let buildRequestNode = nullthrows(
       requestTracker.graph.getNode(buildRequestId),

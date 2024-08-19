@@ -3,7 +3,7 @@ const RESTRICTED_CONFIG = [
   {
     paths: [
       {
-        name: '@parcel/workers',
+        name: '@atlaspack/workers',
         message:
           'Do not import workers inside utils. Instead, create a separate package.',
       },
@@ -12,7 +12,7 @@ const RESTRICTED_CONFIG = [
 ];
 
 module.exports = {
-  extends: '@parcel/eslint-config',
+  extends: '@atlaspack/eslint-config',
   rules: {
     'no-restricted-imports': RESTRICTED_CONFIG,
     'no-restricted-modules': RESTRICTED_CONFIG,

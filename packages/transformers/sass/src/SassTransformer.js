@@ -1,5 +1,5 @@
 // @flow
-import {Transformer} from '@parcel/plugin';
+import {Transformer} from '@atlaspack/plugin';
 import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
@@ -105,7 +105,7 @@ export default (new Transformer({
 }): Transformer);
 
 function resolvePathImporter({asset, resolve, includePaths, options}) {
-  // This is a reimplementation of the Sass resolution algorithm that uses Parcel's
+  // This is a reimplementation of the Sass resolution algorithm that uses Atlaspack's
   // FS and tracks all tried files so they are watched for creation.
   async function resolvePath(
     url,
@@ -115,7 +115,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
       Imports are resolved by trying, in order:
         * Loading a file relative to the file in which the `@import` appeared.
         * Each custom importer.
-        * Loading a file relative to the current working directory (This rule doesn't really make sense for Parcel).
+        * Loading a file relative to the current working directory (This rule doesn't really make sense for Atlaspack).
         * Each load path in `includePaths`
         * Each load path specified in the `SASS_PATH` environment variable, which should be semicolon-separated on Windows and colon-separated elsewhere.
 
@@ -160,7 +160,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
       }
     }
 
-    // If none of the default sass rules apply, try Parcel's resolver.
+    // If none of the default sass rules apply, try Atlaspack's resolver.
     for (let u of urls) {
       if (NODE_MODULE_ALIAS_RE.test(u)) {
         u = u.slice(1);

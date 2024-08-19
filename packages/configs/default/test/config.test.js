@@ -5,14 +5,14 @@ import assert from 'assert';
 import config from '../';
 import packageJson from '../package.json';
 
-describe('@parcel/config-default', () => {
+describe('@atlaspack/config-default', () => {
   let packageJsonDependencyNames: Set<string>;
   let configPackageReferences: Set<string>;
 
   before(() => {
     packageJsonDependencyNames = new Set([
       ...Object.keys(packageJson.dependencies || {}),
-      ...Object.keys(packageJson.parcelDependencies || {}),
+      ...Object.keys(packageJson.atlaspackDependencies || {}),
     ]);
     configPackageReferences = collectConfigPackageReferences(config);
   });
@@ -63,7 +63,7 @@ function collectConfigPackageReferences(
       collectConfigPackageReferences(value, references);
     } else {
       throw new Error(
-        'Parcel configs must contain only strings, arrays, or objects in value positions',
+        'Atlaspack configs must contain only strings, arrays, or objects in value positions',
       );
     }
   }

@@ -1,6 +1,6 @@
 // @flow
-import type {HTTPSOptions} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {HTTPSOptions} from '@atlaspack/types';
+import type {FileSystem} from '@atlaspack/fs';
 
 export default async function getCertificate(
   fs: FileSystem,

@@ -1,5 +1,5 @@
-import type {FileSystem} from '@parcel/types-internal';
-import type WorkerFarm from '@parcel/workers';
+import type {FileSystem} from '@atlaspack/types-internal';
+import type WorkerFarm from '@atlaspack/workers';
 
 export type {
   FileSystem,
@@ -8,7 +8,7 @@ export type {
   Stats,
   Encoding,
   Dirent,
-} from '@parcel/types-internal';
+} from '@atlaspack/types-internal';
 
 export const NodeFS: {
   new (): FileSystem;

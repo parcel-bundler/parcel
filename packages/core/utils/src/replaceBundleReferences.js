@@ -8,7 +8,7 @@ import type {
   BundleGraph,
   Dependency,
   NamedBundle,
-} from '@parcel/types';
+} from '@atlaspack/types';
 
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
@@ -24,7 +24,7 @@ type ReplacementMap = Map<
 /*
  * Replaces references to dependency ids for URL dependencies with:
  *   - in the case of an unresolvable url dependency, the original specifier.
- *     These are external requests that Parcel did not bundle.
+ *     These are external requests that Atlaspack did not bundle.
  *   - in the case of a reference to another bundle, the relative url to that
  *     bundle from the current bundle.
  */

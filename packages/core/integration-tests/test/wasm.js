@@ -7,7 +7,7 @@ import {
   describe,
   it,
   run,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 
 describe.skip('wasm', function () {
   if (typeof WebAssembly === 'undefined') {

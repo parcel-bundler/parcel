@@ -1,8 +1,8 @@
 {
-    "@parcel/transformer-js": {
+    "@atlaspack/transformer-js": {
         "unstable_inlineConstants": true
     },
-    "@parcel/bundler-default": {
+    "@atlaspack/bundler-default": {
         "minBundleSize": 0
     }
 }

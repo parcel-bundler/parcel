@@ -1,3 +1,3 @@
-import {manifest, version} from '@parcel/service-worker';
+import {manifest, version} from '@atlaspack/service-worker';
 
 output(manifest, version);

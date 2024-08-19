@@ -6,7 +6,7 @@ import {
   run,
   assertBundleTree,
   outputFS,
-} from '@parcel/test-utils';
+} from '@atlaspack/test-utils';
 import commandExists from 'command-exists';
 
 describe.skip('rust', function () {

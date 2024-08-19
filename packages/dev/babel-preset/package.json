@@ -1,11 +1,11 @@
 {
-  "name": "@parcel/babel-preset",
+  "name": "@atlaspack/babel-preset",
   "version": "2.12.0",
   "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/parcel-bundler/parcel.git",
+    "url": "https://github.com/atlassian-labs/atlaspack.git",
     "directory": "packages/dev/babel-preset"
   },
   "dependencies": {
