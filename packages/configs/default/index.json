@@ -35,7 +35,6 @@
     ],
     "*.pug": ["@atlaspack/transformer-pug"],
     "*.coffee": ["@atlaspack/transformer-coffeescript"],
-    "*.elm": ["@atlaspack/transformer-elm"],
     "*.mdx": ["@atlaspack/transformer-mdx"],
     "*.vue": ["@atlaspack/transformer-vue"],
     "template:*.vue": ["@atlaspack/transformer-vue"],

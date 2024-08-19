@@ -3,7 +3,6 @@ test/dist
 test/input
 !test/**/node_modules
 !test/**/node_modules/lib
-test/integration/**/elm-stuff
 test/integration/**/target
 test/integration/**/Cargo.lock
 test/**/package-lock.json

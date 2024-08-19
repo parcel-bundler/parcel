@@ -52,7 +52,6 @@
     "@atlaspack/packager-ts": "2.12.0",
     "@atlaspack/packager-xml": "2.12.0",
     "@atlaspack/transformer-coffeescript": "2.12.0",
-    "@atlaspack/transformer-elm": "2.12.0",
     "@atlaspack/transformer-glsl": "2.12.0",
     "@atlaspack/transformer-graphql": "2.12.0",
     "@atlaspack/transformer-inline-string": "2.12.0",
