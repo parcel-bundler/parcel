@@ -2,7 +2,6 @@
 .idea/
 .nyc_output/
 .atlaspack-cache/
-.verdaccio_storage/
 .vscode/*
 !.vscode/extensions.json
 coverage/
