@@ -1196,7 +1196,9 @@ export default class BundleGraph {
     // If the asset is available in multiple bundles in the same target, it's referenced.
     if (
       this.getBundlesWithAsset(asset).filter(
-        b => b.target.distDir === bundle.target.distDir,
+        b =>
+          b.target.name === bundle.target.name &&
+          b.target.distDir === bundle.target.distDir,
       ).length > 1
     ) {
       return true;

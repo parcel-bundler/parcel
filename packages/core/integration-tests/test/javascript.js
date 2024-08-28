@@ -5132,6 +5132,60 @@ describe('javascript', function () {
     },
   );
 
+  it.v2(
+    `should not wrap assets that are duplicated in different targets in the same dist dir`,
+    async function () {
+      const dir = path.join(__dirname, 'multi-target-duplicates-dist');
+      overlayFS.mkdirp(dir);
+
+      await fsFixture(overlayFS, dir)`
+      package.json:
+        {
+          "main": "dist/main.cjs",
+          "browser": "dist/browser.cjs",
+          "targets": {
+            "main": {
+              "source": "node.js",
+              "context": "browser",
+              "engines": {
+                "browsers": "chrome >= 70"
+              }
+            },
+            "browser": {
+              "source": "browser.js",
+              "engines": {
+                "browsers": "chrome >= 70"
+              }
+            }
+          }
+        }
+
+      node.js:
+        import shared from './shared';
+        export default shared + 2;
+
+      browser.js:
+        import shared from './shared';
+        export default shared + 2;
+
+      shared.js:
+        export default 2;
+    `;
+
+      let b = await bundle(dir, {
+        inputFS: overlayFS,
+      });
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+        assert(
+          !contents.includes('parcelRequire'),
+          'should not include parcelRequire',
+        );
+      }
+    },
+  );
+
   it.v2(`should also fail on recoverable parse errors`, async () => {
     await fsFixture(overlayFS, __dirname)`
       js-recoverable-parse-errors
