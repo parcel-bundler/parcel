@@ -18,12 +18,10 @@ use napi::Ref;
 use napi::Result;
 use napi_derive::napi;
 
-use parcel::file_system::{FileSystemRealPathCache, FileSystemRef};
 use parcel_resolver::ExportsCondition;
 use parcel_resolver::Extensions;
 use parcel_resolver::Fields;
 use parcel_resolver::FileCreateInvalidation;
-use parcel_resolver::FileSystem;
 use parcel_resolver::Flags;
 use parcel_resolver::IncludeNodeModules;
 use parcel_resolver::Invalidations;
@@ -33,6 +31,7 @@ use parcel_resolver::OsFileSystem;
 use parcel_resolver::Resolution;
 use parcel_resolver::ResolverError;
 use parcel_resolver::SpecifierType;
+use parcel_resolver::{FileSystem, FileSystemRealPathCache};
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
@@ -204,7 +203,7 @@ impl Resolver {
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
     let mut supports_async = false;
     #[cfg(not(target_arch = "wasm32"))]
-    let fs: FileSystemRef = if let Some(fs) = options.fs {
+    let fs: Arc<dyn FileSystem> = if let Some(fs) = options.fs {
       Arc::new(JsFileSystem {
         canonicalize: FunctionRef::new(env, fs.canonicalize)?,
         read: FunctionRef::new(env, fs.read)?,

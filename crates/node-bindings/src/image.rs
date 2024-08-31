@@ -121,7 +121,7 @@ unsafe fn create_error_handler() -> jpeg_error_mgr {
   err
 }
 
-extern "C" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
+extern "C-unwind" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
   let message = unsafe {
     let err = cinfo.err.as_ref().unwrap();
     match err.format_message {
@@ -137,4 +137,4 @@ extern "C" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
   std::panic::resume_unwind(Box::new(message))
 }
 
-extern "C" fn silence_message(_cinfo: &mut jpeg_common_struct, _level: c_int) {}
+extern "C-unwind" fn silence_message(_cinfo: &mut jpeg_common_struct, _level: c_int) {}

@@ -3,15 +3,14 @@ use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
-use parcel_core::types::File;
-use parcel_filesystem::FileSystemRealPathCache;
-use parcel_filesystem::FileSystemRef;
 use parking_lot::Mutex;
 use typed_arena::Arena;
 
+use crate::fs::{FileSystem, FileSystemRealPathCache};
 use crate::package_json::PackageJson;
 use crate::package_json::SourceField;
 use crate::tsconfig::TsConfig;
@@ -19,7 +18,7 @@ use crate::tsconfig::TsConfigWrapper;
 use crate::ResolverError;
 
 pub struct Cache {
-  pub fs: FileSystemRef,
+  pub fs: Arc<dyn FileSystem>,
   /// This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
   arena: Mutex<Arena<Box<str>>>,
   /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
@@ -59,16 +58,16 @@ impl<'a> Deref for CacheCow<'a> {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct JsonError {
-  pub file: File,
+  pub path: PathBuf,
   pub line: usize,
   pub column: usize,
   pub message: String,
 }
 
 impl JsonError {
-  fn new(file: File, err: serde_json::Error) -> JsonError {
+  fn new(path: PathBuf, err: serde_json::Error) -> JsonError {
     JsonError {
-      file,
+      path,
       line: err.line(),
       column: err.column(),
       message: err.to_string(),
@@ -77,7 +76,7 @@ impl JsonError {
 }
 
 impl Cache {
-  pub fn new(fs: FileSystemRef) -> Self {
+  pub fn new(fs: Arc<dyn FileSystem>) -> Self {
     Self {
       fs,
       arena: Mutex::new(Arena::new()),
@@ -118,22 +117,15 @@ impl Cache {
       return clone_result(pkg);
     }
 
-    fn read_package(
-      fs: &FileSystemRef,
+    fn read_package<'fs>(
+      fs: &'fs dyn FileSystem,
       realpath_cache: &FileSystemRealPathCache,
       arena: &Mutex<Arena<Box<str>>>,
       path: PathBuf,
     ) -> Result<PackageJson<'static>, ResolverError> {
       let contents: &str = read(fs, arena, &path)?;
-      let mut pkg = PackageJson::parse(path.clone(), contents).map_err(|e| {
-        JsonError::new(
-          File {
-            path,
-            contents: contents.into(),
-          },
-          e,
-        )
-      })?;
+      let mut pkg =
+        PackageJson::parse(path.clone(), contents).map_err(|e| JsonError::new(path, e))?;
 
       // If the package has a `source` field, make sure
       // - the package is behind symlinks
@@ -158,7 +150,7 @@ impl Cache {
     let pkg = self.packages.insert(
       path.clone(),
       Box::new(read_package(
-        &self.fs,
+        &*self.fs,
         &self.realpath_cache,
         &self.arena,
         path,
@@ -177,23 +169,15 @@ impl Cache {
       return clone_result(tsconfig);
     }
 
-    fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
-      fs: &FileSystemRef,
+    fn read_tsconfig<'fs, 'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
+      fs: &'fs dyn FileSystem,
       arena: &Mutex<Arena<Box<str>>>,
       path: &Path,
       process: F,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
       let data = read(fs, arena, path)?;
-      let contents = data.to_owned();
-      let mut tsconfig = TsConfig::parse(path.to_owned(), data).map_err(|e| {
-        JsonError::new(
-          File {
-            contents,
-            path: path.to_owned(),
-          },
-          e,
-        )
-      })?;
+      let mut tsconfig =
+        TsConfig::parse(path.to_owned(), data).map_err(|e| JsonError::new(path.to_owned(), e))?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.
       // Since the data is in our arena, this is true.
       process(unsafe { std::mem::transmute(&mut tsconfig) })?;
@@ -202,15 +186,15 @@ impl Cache {
 
     let tsconfig = self.tsconfigs.insert(
       path.to_owned(),
-      Box::new(read_tsconfig(&self.fs, &self.arena, path, process)),
+      Box::new(read_tsconfig(&*self.fs, &self.arena, path, process)),
     );
 
     clone_result(tsconfig)
   }
 }
 
-fn read(
-  fs: &FileSystemRef,
+fn read<'fs>(
+  fs: &'fs dyn FileSystem,
   arena: &Mutex<Arena<Box<str>>>,
   path: &Path,
 ) -> std::io::Result<&'static mut str> {

@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,6 +10,9 @@ use once_cell::unsync::OnceCell;
 pub use cache::Cache;
 pub use cache::CacheCow;
 pub use error::ResolverError;
+#[cfg(not(target_arch = "wasm32"))]
+pub use fs::OsFileSystem;
+pub use fs::{FileSystem, FileSystemRealPathCache};
 pub use invalidations::*;
 use package_json::AliasValue;
 pub use package_json::ExportsCondition;
@@ -17,10 +21,6 @@ pub use package_json::Fields;
 pub use package_json::ModuleType;
 use package_json::PackageJson;
 pub use package_json::PackageJsonError;
-pub use parcel_core::types::IncludeNodeModules;
-#[cfg(not(target_arch = "wasm32"))]
-pub use parcel_filesystem::os_file_system::OsFileSystem;
-pub use parcel_filesystem::FileSystem;
 pub use specifier::parse_package_specifier;
 pub use specifier::parse_scheme;
 pub use specifier::Specifier;
@@ -33,6 +33,7 @@ use crate::path::resolve_path;
 mod builtins;
 mod cache;
 mod error;
+mod fs;
 mod invalidations;
 mod package_json;
 mod path;
@@ -72,6 +73,19 @@ bitflags! {
     const NODE_ESM = Self::EXPORTS.bits;
     /// Default TypeScript settings.
     const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits;
+  }
+}
+
+#[derive(Clone)]
+pub enum IncludeNodeModules {
+  Bool(bool),
+  Array(Vec<String>),
+  Map(HashMap<String, bool>),
+}
+
+impl Default for IncludeNodeModules {
+  fn default() -> Self {
+    IncludeNodeModules::Bool(true)
   }
 }
 
