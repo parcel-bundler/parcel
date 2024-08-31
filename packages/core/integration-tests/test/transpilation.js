@@ -3,10 +3,8 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  describe,
   distDir,
   inputFS as fs,
-  it,
   outputFS,
   overlayFS,
   run,
@@ -17,7 +15,7 @@ import nullthrows from 'nullthrows';
 
 const inputDir = path.join(__dirname, '/input');
 
-describe.v2('transpilation', function () {
+describe('transpilation', function () {
   it('should not transpile if no targets are defined', async function () {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
       defaultTargetOptions: {

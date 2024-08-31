@@ -4,9 +4,7 @@ import {
   bundle,
   bundler,
   assertBundles,
-  describe,
   inputFS,
-  it,
   outputFS,
   fsFixture,
   ncp,
@@ -18,7 +16,7 @@ import {
 
 const distDir = path.join(__dirname, '/integration/monorepo/dist/default');
 
-describe.v2('monorepos', function () {
+describe('monorepos', function () {
   beforeEach(async () => {
     await outputFS.rimraf(path.join(__dirname, '/monorepo'));
   });

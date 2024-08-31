@@ -1,14 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  assertBundles,
-  bundle,
-  describe,
-  it,
-  outputFS,
-} from '@parcel/test-utils';
+import {assertBundles, bundle, outputFS} from '@parcel/test-utils';
 
-describe.v2('xml', function () {
+describe('xml', function () {
   it('should transform an atom feed', async function () {
     let b = await bundle(path.join(__dirname, '/integration/xml/atom.xml'), {
       defaultTargetOptions: {

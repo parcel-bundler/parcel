@@ -3,14 +3,12 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  describe,
-  it,
   removeDistDirectory,
   run,
   runBundle,
 } from '@parcel/test-utils';
 
-describe.v2('parcel', function () {
+describe('parcel', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

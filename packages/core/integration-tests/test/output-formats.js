@@ -6,8 +6,6 @@ import {
   assertBundles,
   assertESMExports,
   bundle as _bundle,
-  describe,
-  it,
   mergeParcelOptions,
   outputFS,
   run,
@@ -31,7 +29,7 @@ const bundle = (name, opts = {}) => {
   );
 };
 
-describe.v2('output formats', function () {
+describe('output formats', function () {
   describe('commonjs', function () {
     it('should support commonjs output (exports)', async function () {
       let b = await bundle(

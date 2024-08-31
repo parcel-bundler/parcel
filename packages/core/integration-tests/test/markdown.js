@@ -1,12 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  assertBundleTree,
-  bundle,
-  describe,
-  it,
-  outputFS,
-} from '@parcel/test-utils';
+import {assertBundleTree, bundle, outputFS} from '@parcel/test-utils';
 
 describe.skip('markdown', function () {
   it('should support bundling Markdown', async function () {

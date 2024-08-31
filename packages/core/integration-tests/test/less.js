@@ -3,15 +3,13 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  describe,
   distDir,
-  it,
   outputFS,
   run,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 
-describe.v2('less', function () {
+describe('less', function () {
   it('should support requiring less files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/less/index.js'));
 

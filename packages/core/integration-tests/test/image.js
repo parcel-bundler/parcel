@@ -1,17 +1,10 @@
 import assert from 'assert';
-import {
-  bundle,
-  describe,
-  distDir,
-  inputFS,
-  it,
-  outputFS,
-} from '@parcel/test-utils';
+import {bundle, distDir, inputFS, outputFS} from '@parcel/test-utils';
 import exifReader from 'exif-reader';
 import path from 'path';
 import sharp from 'sharp';
 
-describe.v2('image', function () {
+describe('image', function () {
   this.timeout(10000);
 
   it('Should be able to resize images', async () => {

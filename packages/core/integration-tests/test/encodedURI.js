@@ -1,8 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, it, outputFS, distDir} from '@parcel/test-utils';
+import {bundle, outputFS, distDir} from '@parcel/test-utils';
 
-describe.v2('encodedURI', function () {
+describe('encodedURI', function () {
   it('should support bundling files which names in encoded URI', async function () {
     await bundle(path.join(__dirname, '/integration/encodedURI/index.html'));
 

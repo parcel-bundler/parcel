@@ -1,15 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  assertBundles,
-  bundle,
-  describe,
-  it,
-  outputFS,
-  distDir,
-} from '@parcel/test-utils';
+import {assertBundles, bundle, outputFS, distDir} from '@parcel/test-utils';
 
-describe.v2('pug', function () {
+describe('pug', function () {
   it('should support bundling HTML', async function () {
     const b = await bundle(path.join(__dirname, '/integration/pug/index.pug'));
 

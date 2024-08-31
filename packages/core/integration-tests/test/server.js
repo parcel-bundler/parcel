@@ -5,10 +5,8 @@ import path from 'path';
 import {
   assertBundles,
   bundler,
-  describe,
   getNextBuild,
   inputFS,
-  it,
   outputFS,
   overlayFS,
   ncp,
@@ -25,7 +23,7 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-dev-server',
 );
 
-describe.v2('server', function () {
+describe('server', function () {
   let subscription;
 
   afterEach(async () => {

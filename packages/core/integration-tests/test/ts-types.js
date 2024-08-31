@@ -3,9 +3,7 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  describe,
   inputFS,
-  it,
   overlayFS,
   outputFS,
   ncp,
@@ -14,7 +12,7 @@ import {
 import {md} from '@parcel/diagnostic';
 import {normalizeSeparators} from '@parcel/utils';
 
-describe.v2('typescript types', function () {
+describe('typescript types', function () {
   it('should generate a typescript declaration file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts'),

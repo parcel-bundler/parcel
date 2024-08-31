@@ -3,8 +3,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  describe,
-  it,
   run,
   assertBundles,
   outputFS,
@@ -12,7 +10,7 @@ import {
 } from '@parcel/test-utils';
 import nullthrows from 'nullthrows';
 
-describe.v2('glob', function () {
+describe('glob', function () {
   it('should require a glob of files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/glob/index.js'));
 

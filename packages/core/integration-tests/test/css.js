@@ -3,8 +3,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  describe,
-  it,
   run,
   assertBundles,
   distDir,
@@ -13,7 +11,7 @@ import {
   outputFS,
 } from '@parcel/test-utils';
 
-describe.v2('css', () => {
+describe('css', () => {
   afterEach(async () => {
     await removeDistDirectory();
   });

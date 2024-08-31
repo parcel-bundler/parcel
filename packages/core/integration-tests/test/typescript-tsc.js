@@ -4,16 +4,14 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  describe,
   distDir,
-  it,
   outputFS,
   run,
 } from '@parcel/test-utils';
 
 const config = path.join(__dirname, '/integration/typescript-config/.parcelrc');
 
-describe.v2('typescript tsc', function () {
+describe('typescript tsc', function () {
   it('should support loading tsconfig.json', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/typescript-config/index.ts'),

@@ -1,9 +1,9 @@
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
-import {bundle, describe, it, run, normaliseNewlines} from '@parcel/test-utils';
+import {bundle, run, normaliseNewlines} from '@parcel/test-utils';
 
-describe.v2('glsl', function () {
+describe('glsl', function () {
   it('should support requiring GLSL files via glslify', async function () {
     let b = await bundle(path.join(__dirname, '/integration/glsl/index.js'));
 

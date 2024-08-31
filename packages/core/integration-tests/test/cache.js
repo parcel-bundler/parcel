@@ -7,8 +7,6 @@ import path from 'path';
 import {
   assertBundles,
   bundler,
-  describe,
-  it,
   run,
   runBundle as runSingleBundle,
   overlayFS,
@@ -119,7 +117,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   return b;
 }
 
-describe.v2('cache', function () {
+describe('cache', function () {
   before(async () => {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });
@@ -1320,7 +1318,6 @@ describe.v2('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            parcelV3: false,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');
@@ -1380,7 +1377,6 @@ describe.v2('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            parcelV3: false,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');
@@ -1440,7 +1436,6 @@ describe.v2('cache', function () {
         let b = await testCache({
           featureFlags: {
             exampleFeature: false,
-            parcelV3: false,
           },
           async setup() {
             let pkgFile = path.join(inputDir, 'package.json');

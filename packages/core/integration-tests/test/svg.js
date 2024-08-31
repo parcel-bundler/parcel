@@ -1,15 +1,8 @@
 import assert from 'assert';
-import {
-  assertBundles,
-  bundle,
-  describe,
-  distDir,
-  it,
-  outputFS,
-} from '@parcel/test-utils';
+import {assertBundles, bundle, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
-describe.v2('svg', function () {
+describe('svg', function () {
   it('should support bundling SVG', async () => {
     let b = await bundle(path.join(__dirname, '/integration/svg/circle.svg'));
 

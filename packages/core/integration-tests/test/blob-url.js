@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, describe, distDir, it, outputFS, run} from '@parcel/test-utils';
+import {bundle, distDir, outputFS, run} from '@parcel/test-utils';
 
 class Blob {
   data;
@@ -18,7 +18,7 @@ const URL = {
   },
 };
 
-describe.v2('blob urls', () => {
+describe('blob urls', () => {
   it('should inline compiled content as a blob url with `blob-url:*` imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/blob-url/index.js'),

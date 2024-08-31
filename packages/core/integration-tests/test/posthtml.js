@@ -2,8 +2,6 @@ import assert from 'assert';
 import {
   bundle,
   assertBundles,
-  describe,
-  it,
   removeDistDirectory,
   distDir,
   inputFS,
@@ -17,7 +15,7 @@ import {
   MockPackageInstaller,
 } from '@parcel/package-manager';
 
-describe.v2('posthtml', function () {
+describe('posthtml', function () {
   afterEach(async () => {
     await removeDistDirectory();
   });
