@@ -464,29 +464,25 @@ fn convert_invalidations(
   Vec<String>,
   Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
 ) {
-  let invalidate_on_file_change = invalidations.invalidate_on_file_change.read().unwrap();
-  let invalidate_on_file_change = invalidate_on_file_change
-    .iter()
+  let invalidate_on_file_change = invalidations
+    .invalidate_on_file_change
+    .into_iter()
     .map(|p| p.to_string_lossy().into_owned())
     .collect();
   let invalidate_on_file_create = invalidations
     .invalidate_on_file_create
-    .read()
-    .unwrap()
-    .iter()
+    .into_iter()
     .map(|i| match i {
       FileCreateInvalidation::Path(p) => Either3::A(FilePathCreateInvalidation {
         file_path: p.to_string_lossy().into_owned(),
       }),
       FileCreateInvalidation::FileName { file_name, above } => {
         Either3::B(FileNameCreateInvalidation {
-          file_name: file_name.clone(),
+          file_name,
           above_file_path: above.to_string_lossy().into_owned(),
         })
       }
-      FileCreateInvalidation::Glob(glob) => {
-        Either3::C(GlobCreateInvalidation { glob: glob.clone() })
-      }
+      FileCreateInvalidation::Glob(glob) => Either3::C(GlobCreateInvalidation { glob }),
     })
     .collect();
   (invalidate_on_file_change, invalidate_on_file_create)

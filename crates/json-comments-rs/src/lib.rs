@@ -215,7 +215,6 @@ fn strip_buf(
 ///                     \n}           ");
 ///
 /// ```
-#[deprecated]
 pub fn strip_comments_in_place(
   s: &mut str,
   settings: CommentSettings,

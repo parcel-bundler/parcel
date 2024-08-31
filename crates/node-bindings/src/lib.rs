@@ -26,7 +26,6 @@ mod image;
 #[cfg(not(target_arch = "wasm32"))]
 mod parcel;
 mod resolver;
-mod resolver_old;
 mod transformer;
 
 #[cfg(target_arch = "wasm32")]

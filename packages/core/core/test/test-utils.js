@@ -2,7 +2,6 @@
 
 import type {Environment, ParcelOptions, Target} from '../src/types';
 
-import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 import {FSCache} from '@parcel/cache';
 import tempy from 'tempy';
 import path from 'path';

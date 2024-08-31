@@ -148,9 +148,3 @@ declare export class Resolver {
   resolveAsync(options: ResolveOptions): Promise<ResolveResult>;
   getInvalidations(path: string): JsInvalidations;
 }
-declare export class ResolverOld {
-  constructor(projectRoot: string, options: ResolverOptions): Resolver;
-  resolve(options: ResolveOptions): ResolveResult;
-  resolveAsync(options: ResolveOptions): Promise<ResolveResult>;
-  getInvalidations(path: string): JsInvalidations;
-}

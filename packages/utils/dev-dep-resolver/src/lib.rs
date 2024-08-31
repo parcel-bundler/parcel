@@ -97,12 +97,7 @@ impl<'a> EsmGraphBuilder<'a> {
 
     if let Some(invalidations) = self.cache.entries.get(file) {
       self.invalidations.extend(&invalidations);
-      for p in invalidations
-        .invalidate_on_file_change
-        .read()
-        .unwrap()
-        .iter()
-      {
+      for p in invalidations.invalidate_on_file_change.iter() {
         self.build(&p)?;
       }
       return Ok(());
@@ -185,7 +180,7 @@ impl<'a> EsmGraphBuilder<'a> {
     let specifier = Specifier::parse(pattern, SpecifierType::Esm, resolver.flags)?;
     let pattern = match specifier {
       (Specifier::Absolute(path), _) => path,
-      (Specifier::Relative(relative), _) => resolve_path(from, relative),
+      (Specifier::Relative(relative), _) => Cow::Owned(resolve_path(from, relative)),
       (Specifier::Package(mut package, subpath), _) => {
         // Resolve the package.json file within the package rather than the package entry.
         // TODO: how should we handle package exports?
@@ -197,7 +192,7 @@ impl<'a> EsmGraphBuilder<'a> {
           invalidations,
           ResolveOptions::default(),
         ) {
-          Ok((Resolution::Path(p), _)) => p.parent().unwrap().join(&subpath),
+          Ok((Resolution::Path(p), _)) => Cow::Owned(p.parent().unwrap().join(subpath.as_ref())),
           _ => return Ok(()),
         }
       }
@@ -207,7 +202,7 @@ impl<'a> EsmGraphBuilder<'a> {
     // Invalidate when new files match the glob.
     invalidations.invalidate_on_glob_create(pattern.to_string_lossy());
 
-    if self.visited_globs.contains(&pattern) {
+    if self.visited_globs.contains(pattern.as_ref()) {
       return Ok(());
     }
 

@@ -27,7 +27,6 @@
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
     "@parcel/diagnostic": "2.12.0",
-    "@parcel/feature-flags": "2.12.0",
     "@parcel/fs": "2.12.0",
     "@parcel/rust": "2.12.0",
     "@parcel/utils": "2.12.0",

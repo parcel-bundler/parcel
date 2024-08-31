@@ -16,7 +16,6 @@ parcel_core = { path = "../parcel_core" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel_monitoring = { path = "../parcel_monitoring" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-parcel-resolver-old = { path = "../../packages/utils/node-resolver-rs-old" }
 parcel_package_manager = { path = "../parcel_package_manager" }
 parcel_plugin_transformer_js = { path = "../parcel_plugin_transformer_js" }
 parcel_napi_helpers = { path = "../parcel_napi_helpers" }
@@ -40,7 +39,6 @@ xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 parcel = { path = "../parcel", features = ["nodejs"] }
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
-parcel-dev-dep-resolver-old = { path = "../../packages/utils/dev-dep-resolver-old" }
 parcel-macros = { path = "../macros", features = ["napi"] }
 
 crossbeam-channel = "0.5.6"
