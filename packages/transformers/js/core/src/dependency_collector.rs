@@ -1,30 +1,25 @@
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
-use std::fmt;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::path::Path;
+use std::{
+  collections::{hash_map::DefaultHasher, HashMap},
+  fmt,
+  hash::{Hash, Hasher},
+  path::Path,
+};
 
 use path_slash::PathBufExt;
-use serde::Deserialize;
-use serde::Serialize;
-use swc_core::common::sync::Lrc;
-use swc_core::common::Mark;
-use swc_core::common::SourceMap;
-use swc_core::common::Span;
-use swc_core::common::DUMMY_SP;
-use swc_core::ecma::ast::Callee;
-use swc_core::ecma::ast::MemberProp;
-use swc_core::ecma::ast::{self};
-use swc_core::ecma::atoms::js_word;
-use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::utils::stack_size::maybe_grow_default;
-use swc_core::ecma::visit::Fold;
-use swc_core::ecma::visit::FoldWith;
+use serde::{Deserialize, Serialize};
+use swc_core::{
+  common::{sync::Lrc, Mark, SourceMap, Span, DUMMY_SP},
+  ecma::{
+    ast::{
+      Callee, MemberProp, {self},
+    },
+    atoms::{js_word, JsWord},
+    utils::stack_size::maybe_grow_default,
+    visit::{Fold, FoldWith},
+  },
+};
 
-use crate::fold_member_expr_skip_prop;
-use crate::utils::*;
-use crate::Config;
+use crate::{fold_member_expr_skip_prop, utils::*, Config};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -423,8 +418,7 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_call_expr(&mut self, node: ast::CallExpr) -> ast::CallExpr {
-    use ast::Expr::*;
-    use ast::Ident;
+    use ast::{Expr::*, Ident};
 
     let kind = match &node.callee {
       Callee::Import(_) => DependencyKind::DynamicImport,
@@ -1471,8 +1465,10 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::test_utils::{run_fold, RunTestContext, RunVisitResult};
-  use crate::DependencyDescriptor;
+  use crate::{
+    test_utils::{run_fold, RunTestContext, RunVisitResult},
+    DependencyDescriptor,
+  };
 
   fn make_dependency_collector<'a>(
     context: RunTestContext,

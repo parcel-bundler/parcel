@@ -1,13 +1,15 @@
-use swc_core::common::input::StringInput;
-use swc_core::common::sync::Lrc;
-use swc_core::common::util::take::Take;
-use swc_core::common::{FileName, Globals, Mark, SourceMap, GLOBALS};
-use swc_core::ecma::ast::Module;
-use swc_core::ecma::codegen::text_writer::JsWriter;
-use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::parser::Parser;
-use swc_core::ecma::transforms::base::resolver;
-use swc_core::ecma::visit::{Fold, FoldWith, VisitMut, VisitMutWith};
+use swc_core::{
+  common::{
+    input::StringInput, sync::Lrc, util::take::Take, FileName, Globals, Mark, SourceMap, GLOBALS,
+  },
+  ecma::{
+    ast::Module,
+    codegen::text_writer::JsWriter,
+    parser::{lexer::Lexer, Parser},
+    transforms::base::resolver,
+    visit::{Fold, FoldWith, VisitMut, VisitMutWith},
+  },
+};
 
 pub(crate) struct RunTestContext {
   /// Source-map in use
@@ -116,8 +118,10 @@ fn run_with_transformation<R>(
 
 #[cfg(test)]
 mod test {
-  use swc_core::ecma::ast::{Lit, Str};
-  use swc_core::ecma::visit::VisitMut;
+  use swc_core::ecma::{
+    ast::{Lit, Str},
+    visit::VisitMut,
+  };
 
   use super::*;
 

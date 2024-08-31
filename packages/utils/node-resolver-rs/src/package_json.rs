@@ -1,20 +1,19 @@
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::ops::Range;
-use std::path::Component;
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+  borrow::Cow,
+  cmp::Ordering,
+  ops::Range,
+  path::{Component, Path, PathBuf},
+};
 
 use bitflags::bitflags;
-use glob_match::glob_match;
-use glob_match::glob_match_with_captures;
+use glob_match::{glob_match, glob_match_with_captures};
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::path::resolve_path;
-use crate::specifier::decode_path;
-use crate::specifier::Specifier;
-use crate::specifier::SpecifierType;
+use crate::{
+  path::resolve_path,
+  specifier::{decode_path, Specifier, SpecifierType},
+};
 
 bitflags! {
   #[derive(serde::Serialize)]

@@ -1,37 +1,25 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  path::{Path, PathBuf},
+  sync::Arc,
+};
 
-use napi::bindgen_prelude::Either3;
-use napi::Env;
-use napi::JsBoolean;
-use napi::JsBuffer;
-use napi::JsFunction;
-use napi::JsObject;
-use napi::JsString;
-use napi::JsUnknown;
-use napi::Ref;
-use napi::Result;
+use napi::{
+  bindgen_prelude::Either3, Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown,
+  Ref, Result,
+};
 use napi_derive::napi;
 
-use parcel_resolver::ExportsCondition;
-use parcel_resolver::Extensions;
-use parcel_resolver::Fields;
-use parcel_resolver::FileCreateInvalidation;
-use parcel_resolver::Flags;
-use parcel_resolver::IncludeNodeModules;
-use parcel_resolver::Invalidations;
-use parcel_resolver::ModuleType;
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
-use parcel_resolver::Resolution;
-use parcel_resolver::ResolverError;
-use parcel_resolver::SpecifierType;
-use parcel_resolver::{FileSystem, FileSystemRealPathCache};
+use parcel_resolver::{
+  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem,
+  FileSystemRealPathCache, Flags, IncludeNodeModules, Invalidations, ModuleType, Resolution,
+  ResolverError, SpecifierType,
+};
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 

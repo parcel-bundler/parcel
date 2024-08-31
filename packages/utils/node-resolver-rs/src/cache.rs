@@ -1,21 +1,22 @@
-use std::borrow::Cow;
-use std::fmt;
-use std::ops::Deref;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{
+  borrow::Cow,
+  fmt,
+  ops::Deref,
+  path::{Path, PathBuf},
+  sync::Arc,
+};
 
 use dashmap::DashMap;
 use elsa::sync::FrozenMap;
 use parking_lot::Mutex;
 use typed_arena::Arena;
 
-use crate::fs::{FileSystem, FileSystemRealPathCache};
-use crate::package_json::PackageJson;
-use crate::package_json::SourceField;
-use crate::tsconfig::TsConfig;
-use crate::tsconfig::TsConfigWrapper;
-use crate::ResolverError;
+use crate::{
+  fs::{FileSystem, FileSystemRealPathCache},
+  package_json::{PackageJson, SourceField},
+  tsconfig::{TsConfig, TsConfigWrapper},
+  ResolverError,
+};
 
 pub struct Cache {
   pub fs: Arc<dyn FileSystem>,

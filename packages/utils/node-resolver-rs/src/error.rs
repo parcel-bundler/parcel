@@ -1,12 +1,12 @@
-use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{
+  fmt::{Display, Formatter},
+  path::PathBuf,
+  sync::Arc,
+};
 
 use thiserror::Error;
 
-use crate::cache::JsonError;
-use crate::specifier::SpecifierError;
-use crate::PackageJsonError;
+use crate::{cache::JsonError, specifier::SpecifierError, PackageJsonError};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, Error)]
 #[serde(tag = "type")]

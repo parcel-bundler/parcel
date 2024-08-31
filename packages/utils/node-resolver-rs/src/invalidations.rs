@@ -1,12 +1,11 @@
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use std::{
+  path::{Path, PathBuf},
+  sync::atomic::{AtomicBool, Ordering},
+};
 
 use dashmap::DashSet;
 
-use crate::path::normalize_path;
-use crate::ResolverError;
+use crate::{path::normalize_path, ResolverError};
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum FileCreateInvalidation {

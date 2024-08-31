@@ -1,31 +1,24 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  path::{Path, PathBuf},
+  sync::Arc,
+};
 
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
 
-pub use cache::Cache;
-pub use cache::CacheCow;
+pub use cache::{Cache, CacheCow};
 pub use error::ResolverError;
 #[cfg(not(target_arch = "wasm32"))]
 pub use fs::OsFileSystem;
 pub use fs::{FileSystem, FileSystemRealPathCache};
 pub use invalidations::*;
-use package_json::AliasValue;
-pub use package_json::ExportsCondition;
-use package_json::ExportsResolution;
-pub use package_json::Fields;
-pub use package_json::ModuleType;
-use package_json::PackageJson;
-pub use package_json::PackageJsonError;
-pub use specifier::parse_package_specifier;
-pub use specifier::parse_scheme;
-pub use specifier::Specifier;
-pub use specifier::SpecifierError;
-pub use specifier::SpecifierType;
+use package_json::{AliasValue, ExportsResolution, PackageJson};
+pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
+pub use specifier::{
+  parse_package_specifier, parse_scheme, Specifier, SpecifierError, SpecifierType,
+};
 use tsconfig::TsConfig;
 
 use crate::path::resolve_path;
