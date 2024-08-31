@@ -140,6 +140,7 @@ pub fn canonicalize(path: &Path, cache: &FileSystemRealPathCache) -> std::io::Re
 mod test {
   use super::*;
   use assert_fs::prelude::*;
+  use dashmap::DashMap;
 
   #[test]
   fn test_canonicalize() -> Result<(), Box<dyn std::error::Error>> {
@@ -175,7 +176,7 @@ mod test {
       .child("a/link")
       .symlink_to_file(dir.child("a/b").path())?;
 
-    let cache = DashMap::new();
+    let cache = DashMap::default();
 
     assert_eq!(
       canonicalize(dir.child("symlink").path(), &cache)?,
