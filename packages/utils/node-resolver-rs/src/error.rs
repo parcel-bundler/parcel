@@ -1,52 +1,44 @@
-use std::{
-  fmt::{Display, Formatter},
-  path::PathBuf,
-  sync::Arc,
-};
+use crate::PackageJsonError;
+use crate::{cache::JsonError, specifier::SpecifierError};
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use thiserror::Error;
-
-use crate::{cache::JsonError, specifier::SpecifierError, PackageJsonError};
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, Error)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum ResolverError {
-  #[error("Unknown scheme {scheme}")]
-  UnknownScheme { scheme: String },
-  #[error("Unknown error")]
+  UnknownScheme {
+    scheme: String,
+  },
   UnknownError,
-  #[error("File {relative} not found from {from}")]
-  FileNotFound { relative: PathBuf, from: PathBuf },
-  #[error("Module {module} not found")]
-  ModuleNotFound { module: String },
-  #[error("Module {module} entry not found in path {entry_path} with package {package_path} and field {field}")]
+  FileNotFound {
+    relative: PathBuf,
+    from: PathBuf,
+  },
+  ModuleNotFound {
+    module: String,
+  },
   ModuleEntryNotFound {
     module: String,
     entry_path: PathBuf,
     package_path: PathBuf,
     field: &'static str,
   },
-  #[error("Module {module} subpath {path} with package {package_path}")]
   ModuleSubpathNotFound {
     module: String,
     path: PathBuf,
     package_path: PathBuf,
   },
-  #[error("JSON error")]
   JsonError(JsonError),
-  #[error("IO error")]
   IOError(IOError),
-  #[error("Package JSON error. Module {module} at path {path}")]
   PackageJsonError {
-    error: PackageJsonError,
     module: String,
     path: PathBuf,
+    error: PackageJsonError,
   },
-  #[error("Package JSON not found from {from}")]
-  PackageJsonNotFound { from: PathBuf },
-  #[error("Invalid specifier")]
+  PackageJsonNotFound {
+    from: PathBuf,
+  },
   InvalidSpecifier(SpecifierError),
-  #[error("TS config extends not found for {tsconfig}. Error {error}")]
   TsConfigExtendsNotFound {
     tsconfig: PathBuf,
     error: Box<ResolverError>,
@@ -71,12 +63,6 @@ impl serde::Serialize for IOError {
     };
 
     msg.serialize(serializer)
-  }
-}
-
-impl Display for IOError {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.0.to_string())
   }
 }
 
