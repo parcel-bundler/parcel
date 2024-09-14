@@ -1,0 +1,10 @@
+{
+  "name": "parcel-test-swc",
+  "private": true,
+  "dependencies": {
+    "@swc/plugin-remove-console": "*"
+  },
+  "browserslist": [
+    "Chrome 70"
+  ]
+}
