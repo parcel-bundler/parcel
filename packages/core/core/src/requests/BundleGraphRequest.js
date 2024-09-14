@@ -52,8 +52,7 @@ import {
   fromProjectPathRelative,
   toProjectPathUnsafe,
 } from '../projectPath';
-import createAssetGraphRequestJS from './AssetGraphRequest';
-import {createAssetGraphRequestRust} from './AssetGraphRequestRust';
+import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
 
@@ -96,10 +95,6 @@ export default function createBundleGraphRequest(
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
       let measurement = tracer.createMeasurement('building');
-
-      let createAssetGraphRequest = input.rustParcel
-        ? createAssetGraphRequestRust(input.rustParcel)
-        : createAssetGraphRequestJS;
 
       let request = createAssetGraphRequest({
         name: 'Main',

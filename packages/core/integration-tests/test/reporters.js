@@ -4,9 +4,9 @@ import assert from 'assert';
 import {execSync} from 'child_process';
 import path from 'path';
 
-import {bundler, describe, it} from '@parcel/test-utils';
+import {bundler} from '@parcel/test-utils';
 
-describe.v2('reporters', () => {
+describe('reporters', () => {
   let successfulEntry = path.join(
     __dirname,
     'integration',

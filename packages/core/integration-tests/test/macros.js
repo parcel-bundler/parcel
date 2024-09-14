@@ -5,15 +5,13 @@ import path from 'path';
 import {
   bundle,
   bundler,
-  describe,
-  it,
   run,
   overlayFS,
   fsFixture,
   getNextBuild,
 } from '@parcel/test-utils';
 
-describe.v2('macros', function () {
+describe('macros', function () {
   let count = 0;
   let dir;
   beforeEach(async () => {

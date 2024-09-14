@@ -2,8 +2,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  describe,
-  it,
   outputFS,
   distDir,
   getNextBuild,
@@ -49,7 +47,7 @@ const distDirIncludes = async matches => {
   return true;
 };
 
-describe.v2('lazy compile', function () {
+describe('lazy compile', function () {
   it('should lazy compile', async function () {
     const b = await bundler(
       path.join(__dirname, '/integration/lazy-compile/index.js'),

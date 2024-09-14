@@ -1,14 +1,17 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::vec;
+use std::{
+  collections::{HashMap, HashSet},
+  vec,
+};
 
 use ast::*;
-use swc_core::common::sync::Lrc;
-use swc_core::common::Mark;
-use swc_core::common::DUMMY_SP;
-use swc_core::ecma::ast;
-use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::visit::{VisitMut, VisitMutWith};
+use swc_core::{
+  common::{sync::Lrc, Mark, DUMMY_SP},
+  ecma::{
+    ast,
+    atoms::JsWord,
+    visit::{VisitMut, VisitMutWith},
+  },
+};
 
 use crate::utils::*;
 

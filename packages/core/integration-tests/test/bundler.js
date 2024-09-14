@@ -4,9 +4,7 @@ import Logger from '@parcel/logger';
 import {
   assertBundles,
   bundle,
-  describe,
   findAsset,
-  it,
   overlayFS,
   fsFixture,
   run,
@@ -14,7 +12,7 @@ import {
 import {hashString} from '@parcel/rust';
 import {normalizePath} from '@parcel/utils';
 
-describe.v2('bundler', function () {
+describe('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
     await fsFixture(overlayFS, __dirname)`
       disable-shared-bundle-single-source

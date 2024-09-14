@@ -4,9 +4,7 @@ import path from 'path';
 import {
   assertBundles,
   bundler,
-  describe,
   getNextBuild,
-  it,
   run,
   assertBundleTree,
   nextBundle,
@@ -22,7 +20,7 @@ import {symlinkSync} from 'fs';
 const inputDir = path.join(__dirname, '/watcher');
 const distDir = path.join(inputDir, 'dist');
 
-describe.v2('watcher', function () {
+describe('watcher', function () {
   let subscription;
   afterEach(async () => {
     if (subscription) {

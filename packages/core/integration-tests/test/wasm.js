@@ -1,13 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  assertBundleTree,
-  bundle,
-  deferred,
-  describe,
-  it,
-  run,
-} from '@parcel/test-utils';
+import {assertBundleTree, bundle, deferred, run} from '@parcel/test-utils';
 
 describe.skip('wasm', function () {
   if (typeof WebAssembly === 'undefined') {

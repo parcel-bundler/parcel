@@ -1,39 +1,29 @@
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::hash::Hasher;
+use std::{
+  collections::{hash_map::DefaultHasher, HashMap, HashSet},
+  hash::Hasher,
+};
 
 use indexmap::IndexMap;
-use serde::Deserialize;
-use serde::Serialize;
-use swc_core::common::Mark;
-use swc_core::common::Span;
-use swc_core::common::SyntaxContext;
-use swc_core::common::DUMMY_SP;
-use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::js_word;
-use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::utils::stack_size::maybe_grow_default;
-use swc_core::ecma::visit::Fold;
-use swc_core::ecma::visit::FoldWith;
+use serde::{Deserialize, Serialize};
+use swc_core::{
+  common::{Mark, Span, SyntaxContext, DUMMY_SP},
+  ecma::{
+    ast::*,
+    atoms::{js_word, JsWord},
+    utils::stack_size::maybe_grow_default,
+    visit::{Fold, FoldWith},
+  },
+};
 
-use crate::collect::Collect;
-use crate::collect::Export;
-use crate::collect::Import;
-use crate::collect::ImportKind;
-use crate::id;
-use crate::utils::get_undefined_ident;
-use crate::utils::is_unresolved;
-use crate::utils::match_export_name;
-use crate::utils::match_export_name_ident;
-use crate::utils::match_import;
-use crate::utils::match_member_expr;
-use crate::utils::match_property_name;
-use crate::utils::match_require;
-use crate::utils::CodeHighlight;
-use crate::utils::Diagnostic;
-use crate::utils::DiagnosticSeverity;
-use crate::utils::SourceLocation;
+use crate::{
+  collect::{Collect, Export, Import, ImportKind},
+  id,
+  utils::{
+    get_undefined_ident, is_unresolved, match_export_name, match_export_name_ident, match_import,
+    match_member_expr, match_property_name, match_require, CodeHighlight, Diagnostic,
+    DiagnosticSeverity, SourceLocation,
+  },
+};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -1357,20 +1347,15 @@ impl<'a> Hoist<'a> {
 
 #[cfg(test)]
 mod tests {
-  use swc_core::common::chain;
-  use swc_core::common::comments::SingleThreadedComments;
-  use swc_core::common::sync::Lrc;
-  use swc_core::common::FileName;
-  use swc_core::common::Globals;
-  use swc_core::common::SourceMap;
-  use swc_core::ecma::codegen::text_writer::JsWriter;
-  use swc_core::ecma::parser::lexer::Lexer;
-  use swc_core::ecma::parser::Parser;
-  use swc_core::ecma::parser::StringInput;
-  use swc_core::ecma::transforms::base::fixer::fixer;
-  use swc_core::ecma::transforms::base::hygiene::hygiene;
-  use swc_core::ecma::transforms::base::resolver;
-  use swc_core::ecma::visit::VisitWith;
+  use swc_core::{
+    common::{chain, comments::SingleThreadedComments, sync::Lrc, FileName, Globals, SourceMap},
+    ecma::{
+      codegen::text_writer::JsWriter,
+      parser::{lexer::Lexer, Parser, StringInput},
+      transforms::base::{fixer::fixer, hygiene::hygiene, resolver},
+      visit::VisitWith,
+    },
+  };
 
   use super::*;
   use crate::utils::BailoutReason;

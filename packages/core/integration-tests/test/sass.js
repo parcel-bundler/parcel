@@ -2,8 +2,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  describe,
-  it,
   run,
   assertBundles,
   distDir,
@@ -12,7 +10,7 @@ import {
   fsFixture,
 } from '@parcel/test-utils';
 
-describe.v2('sass', function () {
+describe('sass', function () {
   it('should support requiring sass files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/sass/index.js'));
 

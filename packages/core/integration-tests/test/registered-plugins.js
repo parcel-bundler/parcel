@@ -1,16 +1,9 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
-import {
-  bundle,
-  describe,
-  it,
-  run,
-  overlayFS,
-  fsFixture,
-} from '@parcel/test-utils';
+import {bundle, run, overlayFS, fsFixture} from '@parcel/test-utils';
 
-describe.v2('plugins with "registered" languages', () => {
+describe('plugins with "registered" languages', () => {
   it('should support plugins with esbuild-register', async () => {
     const dir = path.join(__dirname, 'esbuild-register-plugin');
     overlayFS.mkdirp(dir);

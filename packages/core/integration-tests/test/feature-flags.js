@@ -1,16 +1,9 @@
 import assert from 'assert';
 import path from 'node:path';
 import {rimraf} from 'rimraf';
-import {
-  bundle,
-  describe,
-  it,
-  run,
-  overlayFS,
-  fsFixture,
-} from '@parcel/test-utils';
+import {bundle, run, overlayFS, fsFixture} from '@parcel/test-utils';
 
-describe.v2('feature flags', () => {
+describe('feature flags', () => {
   let dir = path.join(__dirname, 'feature-flags-fixture');
   beforeEach(async () => {
     await rimraf(dir);

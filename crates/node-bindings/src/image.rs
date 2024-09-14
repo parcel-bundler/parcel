@@ -1,17 +1,9 @@
-use std::mem;
-use std::ptr;
-use std::slice;
+use std::{mem, ptr, slice};
 
 use mozjpeg_sys::*;
-use napi::bindgen_prelude::*;
-use napi::Env;
-use napi::Error;
-use napi::JsBuffer;
-use napi::Result;
+use napi::{bindgen_prelude::*, Env, Error, JsBuffer, Result};
 use napi_derive::napi;
-use oxipng::optimize_from_memory;
-use oxipng::Headers;
-use oxipng::Options;
+use oxipng::{optimize_from_memory, Headers, Options};
 
 #[napi]
 pub fn optimize_image(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
@@ -121,7 +113,7 @@ unsafe fn create_error_handler() -> jpeg_error_mgr {
   err
 }
 
-extern "C" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
+extern "C-unwind" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
   let message = unsafe {
     let err = cinfo.err.as_ref().unwrap();
     match err.format_message {
@@ -137,4 +129,4 @@ extern "C" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
   std::panic::resume_unwind(Box::new(message))
 }
 
-extern "C" fn silence_message(_cinfo: &mut jpeg_common_struct, _level: c_int) {}
+extern "C-unwind" fn silence_message(_cinfo: &mut jpeg_common_struct, _level: c_int) {}

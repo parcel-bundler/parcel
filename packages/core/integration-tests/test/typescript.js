@@ -6,9 +6,7 @@ import nullthrows from 'nullthrows';
 import {
   assertBundles,
   bundle,
-  describe,
   distDir,
-  it,
   outputFS,
   run,
 } from '@parcel/test-utils';
@@ -18,7 +16,7 @@ const tscConfig = path.join(
   '/integration/typescript-config/.parcelrc',
 );
 
-describe.v2('typescript', function () {
+describe('typescript', function () {
   // This tests both the SWC transformer implementation of typescript (which
   // powers typescript by default in Parcel) as well as through the Typescript
   // tsc transformer. Use a `undefined` config to indicate the default config, and the

@@ -6,8 +6,6 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  describe,
-  it,
   removeDistDirectory,
   run,
   overlayFS,
@@ -15,7 +13,7 @@ import {
   distDir,
 } from '@parcel/test-utils';
 
-describe.v2('fs', function () {
+describe('fs', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

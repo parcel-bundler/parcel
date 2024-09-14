@@ -14,19 +14,12 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod file_system;
-
-/// napi versions of `crate::core::requests`
-#[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
 mod hash;
 #[cfg(not(target_arch = "wasm32"))]
 mod image;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod parcel;
 mod resolver;
-mod resolver_old;
 mod transformer;
 
 #[cfg(target_arch = "wasm32")]

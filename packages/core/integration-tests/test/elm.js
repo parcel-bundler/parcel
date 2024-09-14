@@ -3,14 +3,12 @@ import path from 'path';
 import {
   assertBundles,
   bundle,
-  describe,
   distDir,
-  it,
   run,
   outputFS,
 } from '@parcel/test-utils';
 
-describe.v2('elm', function () {
+describe('elm', function () {
   it('should produce a basic Elm bundle', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'));
 

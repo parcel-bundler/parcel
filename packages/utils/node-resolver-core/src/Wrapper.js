@@ -11,10 +11,9 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
-import {getFeatureFlag} from '@parcel/feature-flags';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
-import {init, Resolver as ResolverNew, ResolverOld} from '@parcel/rust';
+import {init, Resolver} from '@parcel/rust';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
@@ -83,9 +82,6 @@ export default class NodeResolver {
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
       await init?.();
-      const Resolver = getFeatureFlag('ownedResolverStructures')
-        ? ResolverNew
-        : ResolverOld;
       resolver = new Resolver(this.options.projectRoot, {
         fs:
           this.options.fs instanceof NodeFS &&
@@ -493,13 +489,14 @@ export default class NodeResolver {
         };
       }
       case 'JsonError': {
+        let pkgContent = await this.options.fs.readFile(error.path, 'utf8');
         return {
           message: 'Error parsing JSON',
           codeFrames: [
             {
-              filePath: error.file.path,
+              filePath: error.path,
               language: 'json',
-              code: error.file.contents,
+              code: pkgContent,
               // TODO
               codeHighlights: [
                 {

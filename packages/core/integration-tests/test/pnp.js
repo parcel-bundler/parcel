@@ -2,18 +2,11 @@ import assert from 'assert';
 import Module from 'module';
 import path from 'path';
 import fs from 'fs';
-import {
-  bundle,
-  describe,
-  it,
-  run,
-  assertBundles,
-  inputFS,
-} from '@parcel/test-utils';
+import {bundle, run, assertBundles, inputFS} from '@parcel/test-utils';
 
 const ZIPFS = `${path.sep}zipfs`;
 
-describe.v2('pnp', function () {
+describe('pnp', function () {
   it('should defer to the pnp resolution when needed', async function () {
     let dir = path.join(__dirname, 'integration/pnp-require');
 

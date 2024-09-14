@@ -37,7 +37,6 @@ import {
   STARTUP,
   ERROR,
 } from './constants';
-import type {ParcelV3} from './parcel-v3/ParcelV3';
 import {
   type ProjectPath,
   fromProjectPathRelative,
@@ -242,7 +241,6 @@ export type StaticRunOpts<TResult> = {|
   farm: WorkerFarm,
   invalidateReason: InvalidateReason,
   options: ParcelOptions,
-  rustParcel: ?ParcelV3,
 |};
 
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
@@ -1073,7 +1071,6 @@ export default class RequestTracker {
   graph: RequestGraph;
   farm: WorkerFarm;
   options: ParcelOptions;
-  rustParcel: ?ParcelV3;
   signal: ?AbortSignal;
   stats: Map<RequestType, number> = new Map();
 
@@ -1081,17 +1078,14 @@ export default class RequestTracker {
     graph,
     farm,
     options,
-    rustParcel,
   }: {|
     graph?: RequestGraph,
     farm: WorkerFarm,
     options: ParcelOptions,
-    rustParcel?: ParcelV3,
   |}) {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
-    this.rustParcel = rustParcel;
   }
 
   // TODO: refactor (abortcontroller should be created by RequestTracker)
@@ -1267,7 +1261,6 @@ export default class RequestTracker {
         farm: this.farm,
         invalidateReason: node.invalidateReason,
         options: this.options,
-        rustParcel: this.rustParcel,
       });
 
       assertSignalNotAborted(this.signal);
@@ -1526,14 +1519,12 @@ export default class RequestTracker {
   static async init({
     farm,
     options,
-    rustParcel,
   }: {|
     farm: WorkerFarm,
     options: ParcelOptions,
-    rustParcel?: ParcelV3,
   |}): Async<RequestTracker> {
     let graph = await loadRequestGraph(options);
-    return new RequestTracker({farm, graph, options, rustParcel});
+    return new RequestTracker({farm, graph, options});
   }
 }
 

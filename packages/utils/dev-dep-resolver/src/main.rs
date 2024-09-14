@@ -1,13 +1,7 @@
-use std::borrow::Cow;
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use parcel_dev_dep_resolver::build_esm_graph;
-use parcel_resolver::Cache;
-use parcel_resolver::CacheCow;
-use parcel_resolver::OsFileSystem;
-use parcel_resolver::Resolution;
-use parcel_resolver::Resolver;
-use parcel_resolver::SpecifierType;
+use parcel_resolver::{Cache, CacheCow, OsFileSystem, Resolution, Resolver, SpecifierType};
 
 fn main() {
   let contents = std::fs::read_to_string("package.json").unwrap();

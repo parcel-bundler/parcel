@@ -1,38 +1,25 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  path::{Path, PathBuf},
+  sync::Arc,
+};
 
-use napi::bindgen_prelude::Either3;
-use napi::Env;
-use napi::JsBoolean;
-use napi::JsBuffer;
-use napi::JsFunction;
-use napi::JsObject;
-use napi::JsString;
-use napi::JsUnknown;
-use napi::Ref;
-use napi::Result;
+use napi::{
+  bindgen_prelude::Either3, Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown,
+  Ref, Result,
+};
 use napi_derive::napi;
 
-use parcel::file_system::{FileSystemRealPathCache, FileSystemRef};
-use parcel_resolver::ExportsCondition;
-use parcel_resolver::Extensions;
-use parcel_resolver::Fields;
-use parcel_resolver::FileCreateInvalidation;
-use parcel_resolver::FileSystem;
-use parcel_resolver::Flags;
-use parcel_resolver::IncludeNodeModules;
-use parcel_resolver::Invalidations;
-use parcel_resolver::ModuleType;
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
-use parcel_resolver::Resolution;
-use parcel_resolver::ResolverError;
-use parcel_resolver::SpecifierType;
+use parcel_resolver::{
+  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem,
+  FileSystemRealPathCache, Flags, IncludeNodeModules, Invalidations, ModuleType, Resolution,
+  ResolverError, SpecifierType,
+};
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
 
@@ -204,7 +191,7 @@ impl Resolver {
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
     let mut supports_async = false;
     #[cfg(not(target_arch = "wasm32"))]
-    let fs: FileSystemRef = if let Some(fs) = options.fs {
+    let fs: Arc<dyn FileSystem> = if let Some(fs) = options.fs {
       Arc::new(JsFileSystem {
         canonicalize: FunctionRef::new(env, fs.canonicalize)?,
         read: FunctionRef::new(env, fs.read)?,
@@ -464,29 +451,25 @@ fn convert_invalidations(
   Vec<String>,
   Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
 ) {
-  let invalidate_on_file_change = invalidations.invalidate_on_file_change.read().unwrap();
-  let invalidate_on_file_change = invalidate_on_file_change
-    .iter()
+  let invalidate_on_file_change = invalidations
+    .invalidate_on_file_change
+    .into_iter()
     .map(|p| p.to_string_lossy().into_owned())
     .collect();
   let invalidate_on_file_create = invalidations
     .invalidate_on_file_create
-    .read()
-    .unwrap()
-    .iter()
+    .into_iter()
     .map(|i| match i {
       FileCreateInvalidation::Path(p) => Either3::A(FilePathCreateInvalidation {
         file_path: p.to_string_lossy().into_owned(),
       }),
       FileCreateInvalidation::FileName { file_name, above } => {
         Either3::B(FileNameCreateInvalidation {
-          file_name: file_name.clone(),
+          file_name,
           above_file_path: above.to_string_lossy().into_owned(),
         })
       }
-      FileCreateInvalidation::Glob(glob) => {
-        Either3::C(GlobCreateInvalidation { glob: glob.clone() })
-      }
+      FileCreateInvalidation::Glob(glob) => Either3::C(GlobCreateInvalidation { glob }),
     })
     .collect();
   (invalidate_on_file_change, invalidate_on_file_create)

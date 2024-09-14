@@ -2,15 +2,13 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  describe,
-  it,
   run,
   assertBundles,
   distDir,
   outputFS,
 } from '@parcel/test-utils';
 
-describe.v2('stylus', function () {
+describe('stylus', function () {
   it('should support requiring stylus files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/stylus/index.js'));
 

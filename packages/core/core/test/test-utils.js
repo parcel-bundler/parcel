@@ -2,7 +2,6 @@
 
 import type {Environment, ParcelOptions, Target} from '../src/types';
 
-import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 import {FSCache} from '@parcel/cache';
 import tempy from 'tempy';
 import path from 'path';
@@ -11,6 +10,7 @@ import {relativePath} from '@parcel/utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createEnvironment} from '../src/Environment';
 import {toProjectPath} from '../src/projectPath';
+import {DEFAULT_FEATURE_FLAGS} from '@parcel/feature-flags';
 
 let cacheDir = tempy.directory();
 export let cache: FSCache = new FSCache(outputFS, cacheDir);

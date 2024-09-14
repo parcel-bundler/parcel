@@ -3,8 +3,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  describe,
-  it,
   run,
   runBundle,
   overlayFS,
@@ -14,7 +12,7 @@ import {
 } from '@parcel/test-utils';
 import nullthrows from 'nullthrows';
 
-describe.v2('library bundler', function () {
+describe('library bundler', function () {
   let count = 0;
   let dir;
   beforeEach(async () => {

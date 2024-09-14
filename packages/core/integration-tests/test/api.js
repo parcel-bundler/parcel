@@ -4,17 +4,15 @@ import assert from 'assert';
 import {
   assertBundles,
   bundle,
-  describe,
   distDir,
   fsFixture,
-  it,
   outputFS,
   overlayFS,
 } from '@parcel/test-utils';
 
 import {PARCEL_VERSION} from '../../core/src/constants';
 
-describe.v2('JS API', function () {
+describe('JS API', function () {
   it('should respect distEntry', async function () {
     const NAME = 'custom-name.js';
 
