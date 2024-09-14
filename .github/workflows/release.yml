@@ -76,6 +76,7 @@ jobs:
         run: strip -x packages/*/*/*.node # Must use -x on macOS. This produces larger results on linux.
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
+        if: ${{github.repository == 'parcel-bundler/parcel' && success()}}
         with:
           name: bindings-${{ matrix.name }}
           path: packages/*/*/*.node

@@ -6,9 +6,33 @@ on:
   push:
     branches:
       - v2
+    paths:
+      - yarn.lock
+      - verdaccioPublish.js
+      - verdaccio.yml
+      - rustfmt.toml
+      - rust-toolchain
+      - README.md
+      - package.json
+      - lerna.json
+      - gulpfile.js
+      - Cargo.toml
+      - Cargo.lock
+      - babel.config.json
+      - scripts/**
+      - patches/**
+      - packages/**
+      - flow-typed/**
+      - flow-libs/**
+      - docs/**
+      - crates/**
 
 permissions:
   contents: read
+
+concurrency: 
+  group: ${{ github.workflow }} - ${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
