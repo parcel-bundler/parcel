@@ -5,7 +5,6 @@ import type {
   FilePath,
   Symbol,
   TraversalActions,
-  BundleBehavior as IBundleBehavior,
 } from '@parcel/types';
 import type {
   ContentKey,
@@ -20,10 +19,8 @@ import type {
   Bundle,
   BundleGraphNode,
   BundleGroup,
-  BundleNode,
   Dependency,
   DependencyNode,
-  Environment,
   InternalSourceLocation,
   Target,
 } from './types';
@@ -40,8 +37,7 @@ import {DefaultMap, objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
-import {fromProjectPath, fromProjectPathRelative} from './projectPath';
-import {HASH_REF_PREFIX} from './constants';
+import {fromProjectPath} from './projectPath';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing

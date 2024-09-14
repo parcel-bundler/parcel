@@ -99,7 +99,6 @@ export default async function applyRuntimes<TResult: RequestResult>({
             filePath,
             isEntry,
             env,
-            priority,
           } of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),

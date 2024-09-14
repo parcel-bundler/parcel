@@ -13,10 +13,7 @@ import type {
 import {Runtime} from '@parcel/plugin';
 import {
   relativeBundlePath,
-  validateSchema,
-  type SchemaEntity,
 } from '@parcel/utils';
-import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -71,7 +68,7 @@ let bundleDependencies = new WeakMap<
 >();
 
 export default (new Runtime({
-  apply({bundle, bundleGraph, options, config}) {
+  apply({bundle, bundleGraph, options}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
