@@ -11,6 +11,7 @@ import {
   outputFS,
   overlayFS,
   ncp,
+  fsFixture,
 } from '@parcel/test-utils';
 import path from 'path';
 
@@ -3054,5 +3055,34 @@ describe('html', function () {
     );
 
     await run(b, {output: null}, {require: false});
+  });
+
+  it('should insert bundle manifest into the correct bundle with multiple script tags', async function () {
+    const dir = path.join(__dirname, 'manifest-multi-script');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+        index.html:
+          <body>
+            <script src="./polyfills.js" type="module"></script>
+            <script src="./main.js" type="module"></script>
+          </body>
+
+        polyfills.js:
+          import('./polyfills-async');
+        polyfills-async.js:
+          export const foo = 2;
+        main.js:
+          import('./main-async');
+        main-async.js:
+          export const bar = 3;
+        `;
+
+    let b = await bundle(path.join(dir, '/index.html'), {
+      inputFS: overlayFS,
+    });
+
+    // Should not error with "Cannot find module" error at runtime.
+    await run(b);
   });
 });
