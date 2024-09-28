@@ -2,7 +2,7 @@
   "name": "@parcel/create-react-app",
   "version": "2.12.0",
   "bin": {
-    "parcel-create-react-app": "lib/bin.js"
+    "parcel-create-react-app": "src/bin.js"
   },
   "main": "src/bin.js",
   "repository": {
@@ -13,13 +13,8 @@
   "source": "src/bin.js",
   "files": [
     "templates",
-    "lib",
-    "bin"
+    "lib"
   ],
-  "scripts": {
-    "prepack": "./ensure-no-dev-lib.sh",
-    "dev:prepare": "rimraf ./lib/ && mkdir -p lib && cp ./bin/dev-bin.js ./lib/bin.js"
-  },
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -37,7 +32,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.12.0",
-    "rimraf": "^5.0.5"
+    "@parcel/babel-register": "2.12.0"
   }
 }
