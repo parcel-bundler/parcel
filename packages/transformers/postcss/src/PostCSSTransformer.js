@@ -159,7 +159,7 @@ export default (new Transformer({
         'postcss-modules',
         asset.filePath,
         {
-          range: '^4.3.0',
+          range: '^6.0.0',
           saveDev: true,
           shouldAutoInstall: options.shouldAutoInstall,
         },
