@@ -20,7 +20,7 @@
     "access": "public"
   },
   "dependencies": {
-    "chalk": "^2.4.2",
+    "chalk": "^4.1.2",
     "command-exists": "^1.2.6",
     "commander": "^7.0.0",
     "cross-spawn": "^7.0.3",

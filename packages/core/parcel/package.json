@@ -33,7 +33,7 @@
     "@parcel/reporter-dev-server": "2.12.0",
     "@parcel/reporter-tracer": "2.12.0",
     "@parcel/utils": "2.12.0",
-    "chalk": "^4.1.0",
+    "chalk": "^4.1.2",
     "commander": "^7.0.0",
     "get-port": "^4.2.0"
   },
