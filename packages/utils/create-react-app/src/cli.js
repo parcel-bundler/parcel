@@ -142,26 +142,30 @@ async function installPackages(
   }
 
   if (usesYarn) {
-    return promiseFromProcess(spawn(
-      'yarn',
+    return promiseFromProcess(
+      spawn(
+        'yarn',
+        [
+          'add',
+          opts.isDevDependency ? '--dev' : null,
+          ...packageExpressions,
+        ].filter(Boolean),
+        {cwd: opts.cwd},
+      ),
+    );
+  }
+
+  return promiseFromProcess(
+    spawn(
+      'npm',
       [
-        'add',
-        opts.isDevDependency ? '--dev' : null,
+        'install',
+        opts.isDevDependency ? '--save-dev' : null,
         ...packageExpressions,
       ].filter(Boolean),
       {cwd: opts.cwd},
-    ));
-  }
-
-  return promiseFromProcess(spawn(
-    'npm',
-    [
-      'install',
-      opts.isDevDependency ? '--save-dev' : null,
-      ...packageExpressions,
-    ].filter(Boolean),
-    {cwd: opts.cwd},
-  ));
+    ),
+  );
 }
 
 export default function promiseFromProcess(

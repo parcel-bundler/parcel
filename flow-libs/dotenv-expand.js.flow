@@ -12,6 +12,7 @@ declare module 'dotenv-expand' {
 
   // See: https://github.com/motdotla/dotenv-expand/blob/ddb73d02322fe8522b4e05b73e1c1ad24ea7c14a/lib/main.js
   declare module.exports: {
-    expand: (config: DotenvConfig) => void
+    expand: (config: DotenvConfig) => void,
+    ...
   };
 }

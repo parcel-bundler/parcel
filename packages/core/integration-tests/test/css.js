@@ -550,7 +550,7 @@ describe('css', () => {
       {
         defaultTargetOptions: {
           engines: {
-            browsers: 'chrome 80'
+            browsers: 'chrome 80',
           },
         },
       },
