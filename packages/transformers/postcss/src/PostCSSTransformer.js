@@ -287,7 +287,7 @@ async function createLoader(
   options: PluginOptions,
 ) {
   let {default: FileSystemLoader} = await options.packageManager.require(
-    'postcss-modules/build/css-loader-core/loader',
+    'postcss-modules/build/FileSystemLoader',
     asset.filePath,
   );
   return class ParcelFileSystemLoader extends FileSystemLoader {
