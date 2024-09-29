@@ -2863,10 +2863,10 @@
   resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.2.47.tgz#e597ef75086c6e896ff5478a6bfc0a7aa4bbd14c"
   integrity sha512-BHGyyGN3Q97EZx0taMQ+OLNuZcW3d37ZEVmEAyeoA9ERdGvm9Irc/0Fua8SNyOtV1w6BS4q25wbMzJujO9HIfQ==
 
-"@xmldom/xmldom@^0.7.9":
-  version "0.7.13"
-  resolved "https://registry.yarnpkg.com/@xmldom/xmldom/-/xmldom-0.7.13.tgz#ff34942667a4e19a9f4a0996a76814daac364cf3"
-  integrity sha512-lm2GW5PkosIzccsaZIz7tp8cPADSIlIHWDFTR1N0SzfinhhYgeIQjFMz4rYzanCScr3DqQLeomUDArp6MWKm+g==
+"@xmldom/xmldom@^0.9.3":
+  version "0.9.3"
+  resolved "https://registry.yarnpkg.com/@xmldom/xmldom/-/xmldom-0.9.3.tgz#a5d5362050767d8823b2b74e36cb2f059f58e797"
+  integrity sha512-W7fOe0N+t2eyL9sjDE+7bBNo/NZg6U6aU0Rp8wwQV8TRkzLnX13SvROoyJMAH0Kcm9G1DX9b1XI4LxwKxowsXw==
 
 "@xobotyi/scrollbar-width@^1.9.5":
   version "1.9.5"
