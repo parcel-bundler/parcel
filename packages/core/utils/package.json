@@ -51,12 +51,11 @@
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "json5": "^2.2.0",
-    "lru-cache": "^6.0.0",
+    "lru-cache": "^10.0.0",
     "micromatch": "^4.0.4",
     "node-forge": "^1.2.1",
     "nullthrows": "^1.1.1",
     "open": "^7.0.3",
-    "random-int": "^1.0.0",
     "snarkdown": "^2.0.0",
     "strip-ansi": "^6.0.0",
     "terminal-link": "^2.1.1"

@@ -22,8 +22,8 @@
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.16.5",
-    "posthtml-parser": "^0.10.1",
+    "posthtml-parser": "^0.12.1",
     "resolve": "^1.12.0",
-    "ws": "^7.0.0"
+    "ws": "^8.18.0"
   }
 }

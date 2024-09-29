@@ -1,5 +1,5 @@
 module.exports = (opts = {}) => {
-  const glob = require('glob');
+  const glob = require('fast-glob');
   const fs = require('fs');
 
   return {

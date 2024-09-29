@@ -22,7 +22,7 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "command-exists": "^1.2.6",
-    "commander": "^7.0.0",
+    "commander": "^12.1.0",
     "cross-spawn": "^7.0.3",
     "ncp": "^2.0.0",
     "rimraf": "^5.0.5",
