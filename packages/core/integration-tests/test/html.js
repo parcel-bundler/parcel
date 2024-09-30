@@ -14,6 +14,7 @@ import {
   fsFixture,
 } from '@parcel/test-utils';
 import path from 'path';
+import Logger from '@parcel/logger';
 
 describe('html', function () {
   beforeEach(async () => {
@@ -677,6 +678,77 @@ describe('html', function () {
         '<svg version=1.1 baseprofile=full width=300 height=200 xmlns=http://www.w3.org/2000/svg><rect width=100% height=100% fill=red></rect><circle cx=150 cy=100 r=80 fill=green></circle><text x=150 y=125 font-size=60 text-anchor=middle fill=white>SVG</text></svg>',
       ),
     );
+  });
+
+  it('should detect the version of SVGO to use', async function () {
+    // Test is outside parcel so that svgo is not already installed.
+    await fsFixture(overlayFS, '/')`
+      htmlnano-svgo-version
+        index.html:
+          <!DOCTYPE html>
+          <html>
+            <body>
+              <svg><rect id="test" /></svg>
+            </body>
+          </html>
+
+        .htmlnanorc:
+          {
+            "minifySvg": {
+              "full": true
+            }
+          }
+
+        yarn.lock:
+    `;
+
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      if (message.level !== 'verbose') {
+        messages.push(message);
+      }
+    });
+
+    try {
+      await bundle(path.join('/htmlnano-svgo-version/index.html'), {
+        inputFS: overlayFS,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+        shouldAutoinstall: false,
+      });
+    } catch (err) {
+      // autoinstall is disabled
+      assert.equal(
+        err.diagnostics[0].message,
+        'Could not resolve module "svgo" from "/htmlnano-svgo-version/index"',
+      );
+    }
+
+    loggerDisposable.dispose();
+    assert(
+      messages[0].diagnostics[0].message.startsWith(
+        'Detected deprecated SVGO v2 options in',
+      ),
+    );
+    assert.deepEqual(messages[0].diagnostics[0].codeFrames, [
+      {
+        filePath: path.normalize('/htmlnano-svgo-version/.htmlnanorc'),
+        codeHighlights: [
+          {
+            message: undefined,
+            start: {
+              line: 3,
+              column: 5,
+            },
+            end: {
+              line: 3,
+              column: 16,
+            },
+          },
+        ],
+      },
+    ]);
   });
 
   it('should not minify default values inside HTML in production mode', async function () {
