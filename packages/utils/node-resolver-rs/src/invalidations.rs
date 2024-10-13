@@ -1,52 +1,67 @@
 use std::{
+  collections::{HashMap, HashSet},
+  hash::BuildHasherDefault,
   path::{Path, PathBuf},
   sync::atomic::{AtomicBool, Ordering},
 };
 
-use dashmap::DashSet;
+use gxhash::GxHasher;
+use parking_lot::RwLock;
 
-use crate::{path::normalize_path, ResolverError};
+use crate::{
+  path::{normalize_path, IdentityHasher, InternedPath},
+  ResolverError,
+};
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum FileCreateInvalidation {
-  Path(PathBuf),
-  FileName { file_name: String, above: PathBuf },
+  Path(InternedPath),
+  FileName {
+    file_name: String,
+    above: InternedPath,
+  },
   Glob(String),
 }
 
 #[derive(Default, Debug)]
 pub struct Invalidations {
-  pub invalidate_on_file_create: DashSet<FileCreateInvalidation>,
-  pub invalidate_on_file_change: DashSet<PathBuf>,
+  pub invalidate_on_file_create:
+    RwLock<HashSet<FileCreateInvalidation, BuildHasherDefault<GxHasher>>>,
+  pub invalidate_on_file_change: RwLock<HashSet<InternedPath, BuildHasherDefault<IdentityHasher>>>,
   pub invalidate_on_startup: AtomicBool,
 }
 
 impl Invalidations {
-  pub fn invalidate_on_file_create(&self, path: &Path) {
+  pub fn invalidate_on_file_create(&self, path: InternedPath) {
     self
       .invalidate_on_file_create
-      .insert(FileCreateInvalidation::Path(normalize_path(path)));
+      .write()
+      .insert(FileCreateInvalidation::Path(path));
   }
 
-  pub fn invalidate_on_file_create_above<S: Into<String>>(&self, file_name: S, above: &Path) {
+  pub fn invalidate_on_file_create_above<S: Into<String>>(
+    &self,
+    file_name: S,
+    above: InternedPath,
+  ) {
     self
       .invalidate_on_file_create
+      .write()
       .insert(FileCreateInvalidation::FileName {
         file_name: file_name.into(),
-        above: normalize_path(above),
+        above,
       });
   }
 
   pub fn invalidate_on_glob_create<S: Into<String>>(&self, glob: S) {
     self
       .invalidate_on_file_create
+      .write()
       .insert(FileCreateInvalidation::Glob(glob.into()));
   }
 
-  pub fn invalidate_on_file_change(&self, invalidation: &Path) {
-    self
-      .invalidate_on_file_change
-      .insert(normalize_path(invalidation));
+  pub fn invalidate_on_file_change(&self, invalidation: InternedPath) {
+    self.invalidate_on_file_change.write().insert(invalidation);
   }
 
   pub fn invalidate_on_startup(&self) {
@@ -54,12 +69,12 @@ impl Invalidations {
   }
 
   pub fn extend(&self, other: &Invalidations) {
-    for f in other.invalidate_on_file_create.iter() {
-      self.invalidate_on_file_create.insert(f.clone());
+    for f in other.invalidate_on_file_create.read().iter() {
+      self.invalidate_on_file_create.write().insert(f.clone());
     }
 
-    for f in other.invalidate_on_file_change.iter() {
-      self.invalidate_on_file_change.insert(f.clone());
+    for f in other.invalidate_on_file_change.read().iter() {
+      self.invalidate_on_file_change.write().insert(f.clone());
     }
 
     if other.invalidate_on_startup.load(Ordering::Relaxed) {
@@ -69,17 +84,17 @@ impl Invalidations {
 
   pub fn read<V, F: FnOnce() -> Result<V, ResolverError>>(
     &self,
-    path: &Path,
+    path: &InternedPath,
     f: F,
   ) -> Result<V, ResolverError> {
     match f() {
       Ok(v) => {
-        self.invalidate_on_file_change(path);
+        self.invalidate_on_file_change(path.clone());
         Ok(v)
       }
       Err(e) => {
         if matches!(e, ResolverError::IOError(..)) {
-          self.invalidate_on_file_create(path);
+          self.invalidate_on_file_create(path.clone());
         }
         Err(e)
       }

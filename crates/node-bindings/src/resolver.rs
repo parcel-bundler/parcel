@@ -16,7 +16,7 @@ use napi_derive::napi;
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
-  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem,
+  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileKind, FileSystem,
   FileSystemRealPathCache, Flags, IncludeNodeModules, Invalidations, ModuleType, Resolution,
   ResolverError, SpecifierType,
 };
@@ -129,6 +129,10 @@ impl FileSystem for JsFileSystem {
     };
 
     is_dir().unwrap_or(false)
+  }
+
+  fn kind(&self, path: &Path) -> FileKind {
+    todo!()
   }
 }
 

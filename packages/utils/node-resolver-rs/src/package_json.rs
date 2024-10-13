@@ -11,7 +11,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 
 use crate::{
-  path::resolve_path,
+  path::{resolve_path, InternedPath, PathInterner},
   specifier::{decode_path, Specifier, SpecifierType},
 };
 
@@ -30,9 +30,7 @@ bitflags! {
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct PackageJson<'a> {
-  #[serde(skip)]
-  pub path: PathBuf,
+struct SerializedPackageJson<'a> {
   #[serde(default)]
   pub name: &'a str,
   #[serde(rename = "type", default)]
@@ -52,6 +50,23 @@ pub struct PackageJson<'a> {
   #[serde(default)]
   imports: IndexMap<ExportsKey<'a>, ExportsField<'a>>,
   #[serde(default)]
+  side_effects: SideEffects<'a>,
+}
+
+#[derive(Debug, Default)]
+pub struct PackageJson<'a> {
+  pub path: InternedPath,
+  pub name: &'a str,
+  pub module_type: ModuleType,
+  main: Option<InternedPath>,
+  module: Option<InternedPath>,
+  tsconfig: Option<InternedPath>,
+  types: Option<InternedPath>,
+  pub source: SourceField<'a>,
+  browser: BrowserField<'a>,
+  alias: IndexMap<Specifier<'a>, AliasValue<'a>>,
+  exports: ExportsField<'a>,
+  imports: IndexMap<ExportsKey<'a>, ExportsField<'a>>,
   side_effects: SideEffects<'a>,
 }
 
@@ -94,8 +109,50 @@ pub enum ExportsField<'a> {
   None,
   #[serde(borrow)]
   String(&'a str),
+  #[serde(skip)]
+  Path(InternedPath),
   Array(Vec<ExportsField<'a>>),
   Map(IndexMap<ExportsKey<'a>, ExportsField<'a>>),
+}
+
+impl<'a> ExportsField<'a> {
+  fn convert_paths(&mut self, base: &InternedPath, interner: &PathInterner) {
+    match self {
+      ExportsField::String(target) => {
+        if target.starts_with("./") && !target.contains('*') {
+          // If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after
+          // the first "." segment, case insensitive and including percent encoded variants,
+          // throw an Invalid Package Target error.
+          let target_path = decode_path(target.as_ref(), SpecifierType::Esm).0;
+          if target_path
+            .components()
+            .enumerate()
+            .any(|(index, c)| match c {
+              Component::ParentDir => true,
+              Component::CurDir => index > 0,
+              Component::Normal(c) => c.eq_ignore_ascii_case("node_modules"),
+              _ => false,
+            })
+          {
+            return;
+          }
+
+          *self = ExportsField::Path(base.resolve(&target_path, interner));
+        }
+      }
+      ExportsField::Array(arr) => {
+        for item in arr {
+          item.convert_paths(base, interner);
+        }
+      }
+      ExportsField::Map(map) => {
+        for val in map.values_mut() {
+          val.convert_paths(base, interner);
+        }
+      }
+      _ => {}
+    }
+  }
 }
 
 bitflags! {
@@ -217,33 +274,61 @@ pub enum PackageJsonError {
 #[derive(Debug, PartialEq)]
 pub enum ExportsResolution<'a> {
   None,
-  Path(PathBuf),
+  Path(InternedPath),
   Package(Cow<'a, str>),
 }
 
 impl<'a> PackageJson<'a> {
-  pub fn parse(path: PathBuf, data: &'a str) -> serde_json::Result<PackageJson<'a>> {
-    let mut parsed: PackageJson = serde_json::from_str(data)?;
-    parsed.path = path;
-    Ok(parsed)
+  pub fn parse(
+    path: InternedPath,
+    data: &'a str,
+    interner: &PathInterner,
+  ) -> serde_json::Result<PackageJson<'a>> {
+    let mut parsed: SerializedPackageJson = serde_json::from_str(data)?;
+    parsed.exports.convert_paths(&path, interner);
+
+    Ok(PackageJson {
+      name: parsed.name,
+      module_type: parsed.module_type,
+      main: parsed
+        .main
+        .map(|main| path.resolve(Path::new(main), interner)),
+      module: parsed
+        .module
+        .map(|module| path.resolve(Path::new(module), interner)),
+      tsconfig: parsed
+        .tsconfig
+        .map(|tsconfig| path.resolve(Path::new(tsconfig), interner)),
+      types: parsed
+        .types
+        .map(|types| path.resolve(Path::new(types), interner)),
+      source: parsed.source,
+      browser: parsed.browser,
+      alias: parsed.alias,
+      exports: parsed.exports,
+      imports: parsed.imports,
+      side_effects: parsed.side_effects,
+      path,
+    })
   }
 
-  pub fn entries(&self, fields: Fields) -> EntryIter {
+  pub fn entries(&'a self, fields: Fields, interner: &'a PathInterner) -> EntryIter {
     EntryIter {
       package: self,
       fields,
+      interner,
     }
   }
 
-  pub fn source(&self) -> Option<PathBuf> {
+  pub fn source(&self, interner: &PathInterner) -> Option<InternedPath> {
     match &self.source {
       SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => None,
-      SourceField::String(source) => Some(resolve_path(&self.path, source)),
+      SourceField::String(source) => Some(self.path.resolve(Path::new(source), interner)),
       SourceField::Map(map) => match map.get(&Specifier::Package(
         Cow::Borrowed(self.name),
         Cow::Borrowed(""),
       )) {
-        Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(resolve_path(&self.path, s)),
+        Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(self.path.resolve(s, interner)),
         _ => None,
       },
     }
@@ -258,7 +343,8 @@ impl<'a> PackageJson<'a> {
     subpath: &'a str,
     conditions: ExportsCondition,
     custom_conditions: &[String],
-  ) -> Result<PathBuf, PackageJsonError> {
+    paths: &PathInterner,
+  ) -> Result<InternedPath, PackageJsonError> {
     // If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
     if let ExportsField::Map(map) = &self.exports {
       let mut has_conditions = false;
@@ -279,7 +365,10 @@ impl<'a> PackageJson<'a> {
     if subpath.is_empty() {
       let mut main_export = &ExportsField::None;
       match &self.exports {
-        ExportsField::None | ExportsField::String(_) | ExportsField::Array(_) => {
+        ExportsField::None
+        | ExportsField::String(_)
+        | ExportsField::Path(_)
+        | ExportsField::Array(_) => {
           main_export = &self.exports;
         }
         ExportsField::Map(map) => {
@@ -292,7 +381,14 @@ impl<'a> PackageJson<'a> {
       }
 
       if main_export != &ExportsField::None {
-        match self.resolve_package_target(main_export, "", false, conditions, custom_conditions)? {
+        match self.resolve_package_target(
+          main_export,
+          "",
+          false,
+          conditions,
+          custom_conditions,
+          paths,
+        )? {
           ExportsResolution::Path(path) => return Ok(path),
           ExportsResolution::None | ExportsResolution::Package(..) => {}
         }
@@ -305,6 +401,7 @@ impl<'a> PackageJson<'a> {
         false,
         conditions,
         custom_conditions,
+        paths,
       )? {
         ExportsResolution::Path(path) => return Ok(path),
         ExportsResolution::None | ExportsResolution::Package(..) => {}
@@ -319,6 +416,7 @@ impl<'a> PackageJson<'a> {
     specifier: &'a str,
     conditions: ExportsCondition,
     custom_conditions: &[String],
+    paths: &PathInterner,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     if specifier == "#" || specifier.starts_with("#/") {
       return Err(PackageJsonError::InvalidSpecifier);
@@ -330,6 +428,7 @@ impl<'a> PackageJson<'a> {
       true,
       conditions,
       custom_conditions,
+      paths,
     )? {
       ExportsResolution::None => {}
       res => return Ok(res),
@@ -345,6 +444,7 @@ impl<'a> PackageJson<'a> {
     is_imports: bool,
     conditions: ExportsCondition,
     custom_conditions: &[String],
+    paths: &PathInterner,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     match target {
       ExportsField::String(target) => {
@@ -384,9 +484,10 @@ impl<'a> PackageJson<'a> {
           return Err(PackageJsonError::InvalidPackageTarget);
         }
 
-        let resolved_target = resolve_path(&self.path, &target_path);
+        let resolved_target = self.path.resolve(&target_path, paths);
         return Ok(ExportsResolution::Path(resolved_target));
       }
+      ExportsField::Path(target) => return Ok(ExportsResolution::Path(target.clone())),
       ExportsField::Map(target) => {
         // We must iterate in object insertion order.
         for (key, value) in target {
@@ -404,6 +505,7 @@ impl<'a> PackageJson<'a> {
               is_imports,
               conditions,
               custom_conditions,
+              paths,
             )? {
               ExportsResolution::None => continue,
               res => return Ok(res),
@@ -423,6 +525,7 @@ impl<'a> PackageJson<'a> {
             is_imports,
             conditions,
             custom_conditions,
+            paths,
           ) {
             Err(_) | Ok(ExportsResolution::None) => continue,
             Ok(res) => return Ok(res),
@@ -442,11 +545,19 @@ impl<'a> PackageJson<'a> {
     is_imports: bool,
     conditions: ExportsCondition,
     custom_conditions: &[String],
+    paths: &PathInterner,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     let pattern = ExportsKey::Pattern(match_key);
     if let Some(target) = match_obj.get(&pattern) {
       if !match_key.contains('*') {
-        return self.resolve_package_target(target, "", is_imports, conditions, custom_conditions);
+        return self.resolve_package_target(
+          target,
+          "",
+          is_imports,
+          conditions,
+          custom_conditions,
+          paths,
+        );
       }
     }
 
@@ -475,6 +586,7 @@ impl<'a> PackageJson<'a> {
         is_imports,
         conditions,
         custom_conditions,
+        paths,
       );
     }
 
@@ -533,7 +645,12 @@ impl<'a> PackageJson<'a> {
             match base {
               Specifier::Package(base_pkg, base_subpath) => {
                 let subpath = if !base_subpath.is_empty() && !subpath.is_empty() {
-                  Cow::Owned(format!("{}/{}", base_subpath, subpath))
+                  let mut full_subpath =
+                    String::with_capacity(base_subpath.len() + subpath.len() + 1);
+                  full_subpath.push_str(base_subpath);
+                  full_subpath.push('/');
+                  full_subpath.push_str(subpath);
+                  Cow::Owned(full_subpath)
                 } else if !subpath.is_empty() {
                   subpath.clone()
                 } else {
@@ -639,7 +756,7 @@ impl<'a> PackageJson<'a> {
 
   pub fn has_side_effects(&self, path: &Path) -> bool {
     let path = path
-      .strip_prefix(self.path.parent().unwrap())
+      .strip_prefix(self.path.as_path().parent().unwrap())
       .ok()
       .and_then(|path| path.as_os_str().to_str());
 
@@ -735,23 +852,24 @@ fn pattern_key_compare(a: &str, b: &str) -> Ordering {
 pub struct EntryIter<'a> {
   package: &'a PackageJson<'a>,
   fields: Fields,
+  interner: &'a PathInterner,
 }
 
 impl<'a> Iterator for EntryIter<'a> {
-  type Item = (PathBuf, &'static str);
+  type Item = (InternedPath, &'static str);
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.fields.contains(Fields::SOURCE) {
       self.fields.remove(Fields::SOURCE);
-      if let Some(source) = self.package.source() {
+      if let Some(source) = self.package.source(&self.interner) {
         return Some((source, "source"));
       }
     }
 
     if self.fields.contains(Fields::TYPES) {
       self.fields.remove(Fields::TYPES);
-      if let Some(types) = self.package.types {
-        return Some((resolve_path(&self.package.path, types), "types"));
+      if let Some(types) = &self.package.types {
+        return Some((types.clone(), "types"));
       }
     }
 
@@ -760,14 +878,17 @@ impl<'a> Iterator for EntryIter<'a> {
       match &self.package.browser {
         BrowserField::None => {}
         BrowserField::String(browser) => {
-          return Some((resolve_path(&self.package.path, browser), "browser"))
+          return Some((
+            self.package.path.resolve(Path::new(browser), self.interner),
+            "browser",
+          ))
         }
         BrowserField::Map(map) => {
           if let Some(AliasValue::Specifier(Specifier::Relative(s))) = map.get(&Specifier::Package(
             Cow::Borrowed(self.package.name),
             Cow::Borrowed(""),
           )) {
-            return Some((resolve_path(&self.package.path, s), "browser"));
+            return Some((self.package.path.resolve(s, self.interner), "browser"));
           }
         }
       }
@@ -775,22 +896,22 @@ impl<'a> Iterator for EntryIter<'a> {
 
     if self.fields.contains(Fields::MODULE) {
       self.fields.remove(Fields::MODULE);
-      if let Some(module) = self.package.module {
-        return Some((resolve_path(&self.package.path, module), "module"));
+      if let Some(module) = &self.package.module {
+        return Some((module.clone(), "module"));
       }
     }
 
     if self.fields.contains(Fields::MAIN) {
       self.fields.remove(Fields::MAIN);
-      if let Some(main) = self.package.main {
-        return Some((resolve_path(&self.package.path, main), "main"));
+      if let Some(main) = &self.package.main {
+        return Some((main.clone(), "main"));
       }
     }
 
     if self.fields.contains(Fields::TSCONFIG) {
       self.fields.remove(Fields::TSCONFIG);
-      if let Some(tsconfig) = self.package.tsconfig {
-        return Some((resolve_path(&self.package.path, tsconfig), "tsconfig"));
+      if let Some(tsconfig) = &self.package.tsconfig {
+        return Some((tsconfig.clone(), "tsconfig"));
       }
     }
 

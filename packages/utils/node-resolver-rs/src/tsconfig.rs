@@ -7,18 +7,21 @@ use indexmap::IndexMap;
 use itertools::Either;
 use json_comments::strip_comments_in_place;
 
-use crate::{path::resolve_path, specifier::Specifier};
+use crate::{
+  path::{resolve_path, InternedPath, PathInterner},
+  specifier::Specifier,
+};
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig<'a> {
   #[serde(skip)]
-  pub path: PathBuf,
+  pub path: InternedPath,
   base_url: Option<Cow<'a, Path>>,
   #[serde(borrow)]
   paths: Option<IndexMap<Specifier<'a>, Vec<&'a str>>>,
   #[serde(skip)]
-  paths_base: PathBuf,
+  paths_base: InternedPath,
   pub module_suffixes: Option<Vec<&'a str>>,
   // rootDirs??
 }
@@ -53,22 +56,26 @@ pub struct TsConfigWrapper<'a> {
 }
 
 impl<'a> TsConfig<'a> {
-  pub fn parse(path: PathBuf, data: &'a mut str) -> serde_json::Result<TsConfigWrapper<'a>> {
+  pub fn parse(
+    path: InternedPath,
+    data: &'a mut str,
+    interner: &PathInterner,
+  ) -> serde_json::Result<TsConfigWrapper<'a>> {
     let _ = strip_comments_in_place(data, Default::default(), true);
     let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
     wrapper.compiler_options.path = path;
-    wrapper.compiler_options.validate();
+    wrapper.compiler_options.validate(interner);
     Ok(wrapper)
   }
 
-  fn validate(&mut self) {
+  fn validate(&mut self, interner: &PathInterner) {
     if let Some(base_url) = &mut self.base_url {
-      *base_url = Cow::Owned(resolve_path(&self.path, &base_url));
+      *base_url = Cow::Owned(resolve_path(self.path.as_path(), &base_url));
     }
 
     if self.paths.is_some() {
       self.paths_base = if let Some(base_url) = &self.base_url {
-        base_url.as_ref().to_owned()
+        interner.get(&base_url)
       } else {
         self.path.parent().unwrap().to_owned()
       };
@@ -90,7 +97,11 @@ impl<'a> TsConfig<'a> {
     }
   }
 
-  pub fn paths(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathBuf> + 'a {
+  pub fn paths(
+    &'a self,
+    specifier: &'a Specifier,
+    interner: &'a PathInterner,
+  ) -> impl Iterator<Item = InternedPath> + 'a {
     if !matches!(specifier, Specifier::Package(..) | Specifier::Builtin(..)) {
       return Either::Right(Either::Right(std::iter::empty()));
     }
@@ -98,7 +109,7 @@ impl<'a> TsConfig<'a> {
     // If there is a base url setting, resolve it relative to the tsconfig.json file.
     // Otherwise, the base for paths is implicitly the directory containing the tsconfig.
     let base_url_iter = if let Some(base_url) = &self.base_url {
-      Either::Left(base_url_iter(base_url, specifier))
+      Either::Left(base_url_iter(base_url, specifier, interner))
     } else {
       Either::Right(std::iter::empty())
     };
@@ -106,7 +117,9 @@ impl<'a> TsConfig<'a> {
     if let Some(paths) = &self.paths {
       // Check exact match first.
       if let Some(paths) = paths.get(specifier) {
-        return Either::Left(join_paths(&self.paths_base, paths, None).chain(base_url_iter));
+        return Either::Left(
+          join_paths(&self.paths_base, paths, None, interner).chain(base_url_iter),
+        );
       }
 
       // Check patterns
@@ -136,6 +149,7 @@ impl<'a> TsConfig<'a> {
             &self.paths_base,
             paths,
             Some((full_specifier, longest_prefix_length, longest_suffix_length)),
+            interner,
           )
           .chain(base_url_iter),
         );
@@ -153,19 +167,20 @@ impl<'a> TsConfig<'a> {
 }
 
 fn join_paths<'a>(
-  base_url: &'a Path,
+  base_url: &'a InternedPath,
   paths: &'a [&'a str],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
-) -> impl Iterator<Item = PathBuf> + 'a {
+  interner: &'a PathInterner,
+) -> impl Iterator<Item = InternedPath> + 'a {
   paths
     .iter()
     .filter(|p| !p.ends_with(".d.ts"))
     .map(move |path| {
       if let Some((replacement, start, end)) = &replacement {
         let path = path.replace('*', &replacement[*start..replacement.len() - *end]);
-        base_url.join(path)
+        base_url.join(&path, interner)
       } else {
-        base_url.join(path)
+        base_url.join(path, interner)
       }
     })
 }
@@ -173,14 +188,15 @@ fn join_paths<'a>(
 fn base_url_iter<'a>(
   base_url: &'a Path,
   specifier: &'a Specifier,
-) -> impl Iterator<Item = PathBuf> + 'a {
+  interner: &'a PathInterner,
+) -> impl Iterator<Item = InternedPath> + 'a {
   std::iter::once_with(move || {
     let mut path = base_url.to_owned();
     if let Specifier::Package(module, subpath) = specifier {
       path.push(module.as_ref());
       path.push(subpath.as_ref());
     }
-    path
+    interner.get(&path)
   })
 }
 

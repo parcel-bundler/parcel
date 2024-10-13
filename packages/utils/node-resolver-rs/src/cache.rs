@@ -1,5 +1,6 @@
 use std::{
   borrow::Cow,
+  ffi::OsString,
   fmt,
   ops::Deref,
   path::{Path, PathBuf},
@@ -14,6 +15,7 @@ use typed_arena::Arena;
 use crate::{
   fs::{FileSystem, FileSystemRealPathCache},
   package_json::{PackageJson, SourceField},
+  path::{InternedPath, PathInterner},
   tsconfig::{TsConfig, TsConfigWrapper},
   ResolverError,
 };
@@ -26,11 +28,12 @@ pub struct Cache {
   /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
   /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
   /// to insert into. Since each value is in a Box, it won't move and therefore references are stable.
-  packages: FrozenMap<PathBuf, Box<Result<PackageJson<'static>, ResolverError>>>,
-  tsconfigs: FrozenMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
-  is_file_cache: DashMap<PathBuf, bool, xxhash_rust::xxh3::Xxh3Builder>,
-  is_dir_cache: DashMap<PathBuf, bool, xxhash_rust::xxh3::Xxh3Builder>,
-  realpath_cache: FileSystemRealPathCache,
+  packages: FrozenMap<InternedPath, Box<Result<PackageJson<'static>, ResolverError>>>,
+  tsconfigs: FrozenMap<InternedPath, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
+  // is_file_cache: DashMap<OsString, bool, xxhash_rust::xxh3::Xxh3Builder>,
+  // is_dir_cache: DashMap<OsString, bool, xxhash_rust::xxh3::Xxh3Builder>,
+  // realpath_cache: FileSystemRealPathCache,
+  pub paths: PathInterner,
 }
 
 impl fmt::Debug for Cache {
@@ -83,50 +86,62 @@ impl Cache {
       arena: Mutex::new(Arena::new()),
       packages: FrozenMap::new(),
       tsconfigs: FrozenMap::new(),
-      is_file_cache: DashMap::default(),
-      is_dir_cache: DashMap::default(),
-      realpath_cache: DashMap::default(),
+      // is_file_cache: DashMap::default(),
+      // is_dir_cache: DashMap::default(),
+      // realpath_cache: DashMap::default(),
+      paths: PathInterner::new(),
     }
   }
 
-  pub fn is_file(&self, path: &Path) -> bool {
-    if let Some(is_file) = self.is_file_cache.get(path) {
-      return *is_file;
-    }
-
-    let is_file = self.fs.is_file(path);
-    self.is_file_cache.insert(path.to_path_buf(), is_file);
-    is_file
+  pub fn path(&self, path: &Path) -> InternedPath {
+    self.paths.get(path)
   }
 
-  pub fn is_dir(&self, path: &Path) -> bool {
-    if let Some(is_file) = self.is_dir_cache.get(path) {
-      return *is_file;
-    }
+  // pub fn is_file(&self, path: &Path) -> bool {
+  //   if let Some(is_file) = self.is_file_cache.get(path.as_os_str()) {
+  //     return *is_file;
+  //   }
 
-    let is_file = self.fs.is_dir(path);
-    self.is_dir_cache.insert(path.to_path_buf(), is_file);
-    is_file
-  }
+  //   let is_file = self.fs.is_file(path);
+  //   self
+  //     .is_file_cache
+  //     .insert(path.as_os_str().to_os_string(), is_file);
+  //   is_file
+  // }
 
-  pub fn canonicalize(&self, path: &Path) -> Result<PathBuf, ResolverError> {
-    Ok(self.fs.canonicalize(path, &self.realpath_cache)?)
-  }
+  // pub fn is_dir(&self, path: &Path) -> bool {
+  //   if let Some(is_file) = self.is_dir_cache.get(path.as_os_str()) {
+  //     return *is_file;
+  //   }
 
-  pub fn read_package<'a>(&'a self, path: Cow<Path>) -> Result<&'a PackageJson<'a>, ResolverError> {
-    if let Some(pkg) = self.packages.get(path.as_ref()) {
+  //   let is_file = self.fs.is_dir(path);
+  //   self
+  //     .is_dir_cache
+  //     .insert(path.as_os_str().to_os_string(), is_file);
+  //   is_file
+  // }
+
+  // pub fn canonicalize(&self, path: &Path) -> Result<PathBuf, ResolverError> {
+  //   Ok(self.fs.canonicalize(path, &self.realpath_cache)?)
+  // }
+
+  pub fn read_package<'a>(
+    &'a self,
+    path: &InternedPath,
+  ) -> Result<&'a PackageJson<'a>, ResolverError> {
+    if let Some(pkg) = self.packages.get(path) {
       return clone_result(pkg);
     }
 
     fn read_package<'fs>(
       fs: &'fs dyn FileSystem,
-      realpath_cache: &FileSystemRealPathCache,
       arena: &Mutex<Arena<Box<str>>>,
-      path: PathBuf,
+      path: &InternedPath,
+      interner: &PathInterner,
     ) -> Result<PackageJson<'static>, ResolverError> {
-      let contents: &str = read(fs, arena, &path)?;
-      let mut pkg =
-        PackageJson::parse(path.clone(), contents).map_err(|e| JsonError::new(path, e))?;
+      let contents: &str = read(fs, arena, path.as_path())?;
+      let mut pkg = PackageJson::parse(path.clone(), contents, interner)
+        .map_err(|e| JsonError::new(path.as_path().into(), e))?;
 
       // If the package has a `source` field, make sure
       // - the package is behind symlinks
@@ -134,8 +149,8 @@ impl Cache {
       // Since such package is likely a pre-compiled module
       // installed with package managers, rather than including a source code.
       if !matches!(pkg.source, SourceField::None) {
-        let realpath = fs.canonicalize(&pkg.path, realpath_cache)?;
-        if realpath == pkg.path
+        let realpath = pkg.path.canonicalize(fs);
+        if realpath == pkg.path.as_path()
           || realpath
             .components()
             .any(|c| c.as_os_str() == "node_modules")
@@ -147,15 +162,9 @@ impl Cache {
       Ok(pkg)
     }
 
-    let path = path.into_owned();
     let pkg = self.packages.insert(
       path.clone(),
-      Box::new(read_package(
-        &*self.fs,
-        &self.realpath_cache,
-        &self.arena,
-        path,
-      )),
+      Box::new(read_package(&*self.fs, &self.arena, path, &self.paths)),
     );
 
     clone_result(pkg)
@@ -163,7 +172,7 @@ impl Cache {
 
   pub fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
     &'a self,
-    path: &Path,
+    path: &InternedPath,
     process: F,
   ) -> Result<&'a TsConfigWrapper<'a>, ResolverError> {
     if let Some(tsconfig) = self.tsconfigs.get(path) {
@@ -173,12 +182,13 @@ impl Cache {
     fn read_tsconfig<'fs, 'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
       fs: &'fs dyn FileSystem,
       arena: &Mutex<Arena<Box<str>>>,
-      path: &Path,
+      path: &InternedPath,
       process: F,
+      interner: &PathInterner,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
-      let data = read(fs, arena, path)?;
-      let mut tsconfig =
-        TsConfig::parse(path.to_owned(), data).map_err(|e| JsonError::new(path.to_owned(), e))?;
+      let data = read(fs, arena, path.as_path())?;
+      let mut tsconfig = TsConfig::parse(path.clone(), data, &interner)
+        .map_err(|e| JsonError::new(path.as_path().to_owned(), e))?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.
       // Since the data is in our arena, this is true.
       process(unsafe { std::mem::transmute(&mut tsconfig) })?;
@@ -186,8 +196,14 @@ impl Cache {
     }
 
     let tsconfig = self.tsconfigs.insert(
-      path.to_owned(),
-      Box::new(read_tsconfig(&*self.fs, &self.arena, path, process)),
+      path.clone(),
+      Box::new(read_tsconfig(
+        &*self.fs,
+        &self.arena,
+        path,
+        process,
+        &self.paths,
+      )),
     );
 
     clone_result(tsconfig)

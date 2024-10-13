@@ -171,7 +171,11 @@ impl<'a> Specifier<'a> {
         if subpath.is_empty() {
           Cow::Borrowed(module)
         } else {
-          Cow::Owned(format!("{}/{}", module, subpath))
+          let mut res = String::with_capacity(module.len() + subpath.len() + 1);
+          res.push_str(module);
+          res.push('/');
+          res.push_str(subpath);
+          Cow::Owned(res)
         }
       }
       Specifier::Builtin(builtin) => Cow::Borrowed(builtin),

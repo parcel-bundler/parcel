@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 bitflags = "1.3.2"
-dashmap = "5.4.0"
+dashmap = { version = "6.1.0", features = ["raw-api"] }
 elsa = "1.7.0"
 glob-match = "0.2.1"
 indexmap = { version = "1.9.2", features = ["serde"] }
@@ -20,6 +20,7 @@ serde_json = "1.0.91"
 typed-arena = "2.0.2"
 url = "2.3.1"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+gxhash = "*"
 
 [dev-dependencies]
 assert_fs = "1.0"
