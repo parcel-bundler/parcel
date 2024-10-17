@@ -35,6 +35,8 @@ export default (new Optimizer({
               // <style> elements and attributes are already minified before they
               // are re-inserted by the packager.
               minifyStyles: false,
+              // viewBox removal breaks SVG automatic scaling 
+              removeViewBox: false,
             },
           },
         },
