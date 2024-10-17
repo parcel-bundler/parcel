@@ -10,22 +10,27 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Core
+
   - Add REPL playground for Parcel to the website – [Details](https://github.com/parcel-bundler/parcel/pull/9365)
   - Improve package manager detection for auto install – [Details](https://github.com/parcel-bundler/parcel/pull/9505)
 
 - JavaScript
+
   - Add support for JS macros – [Details](https://github.com/parcel-bundler/parcel/pull/9299)
   - Statically evaluate constants referenced by macros – [Details](https://github.com/parcel-bundler/parcel/pull/9487)
   - Upgrade to ESLint 8 – [Details](https://github.com/parcel-bundler/parcel/pull/8580)
   - Bump swc – [Details](https://github.com/parcel-bundler/parcel/pull/9498)
 
 - CSS
+
   - Use lightningcss to implement CSS packager – [Details](https://github.com/parcel-bundler/parcel/pull/8492)
 
 - Bundler
+
   - Rename "parentAsset" to "root" for Manual Shared Bundle config and remove unstable prefix – [Details](https://github.com/parcel-bundler/parcel/pull/9486)
 
 - Web Extensions
+
   - Add content script world property to manifest schema validation – [Details](https://github.com/parcel-bundler/parcel/pull/9510)
 
 - Performance
@@ -35,11 +40,13 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Core
+
   - Drop per-pipeline transformation cache – [Details](https://github.com/parcel-bundler/parcel/pull/9459)
   - Clippy and use napi's Either3 – [Details](https://github.com/parcel-bundler/parcel/pull/9047)
   - Add lazy/eager cache key to avoid invalid change when switching modes – [Details](https://github.com/parcel-bundler/parcel/pull/9518)
 
 - JavaScript
+
   - Remove decl_collector pass and use SWC's unresolved_mark instead – [Details](https://github.com/parcel-bundler/parcel/pull/9520)
 
 - Bundler
