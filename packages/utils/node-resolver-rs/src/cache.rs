@@ -252,7 +252,7 @@ impl CachedPath {
       let path = unsafe { &mut *path.get() };
       path.clear();
       path.as_mut_os_string().push(self.as_path().as_os_str());
-      path.push(segment.as_ref());
+      push_normalized(path, segment.as_ref());
       cache.get(path)
     })
   }
@@ -263,7 +263,7 @@ impl CachedPath {
       path.clear();
       path.as_mut_os_string().push(self.as_path().as_os_str());
       path.push("node_modules");
-      path.push(module);
+      push_normalized(path, module);
       cache.get(path)
     })
   }
@@ -332,6 +332,23 @@ static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
 thread_local! {
   pub static SCRATCH_PATH: UnsafeCell<PathBuf> = UnsafeCell::new(PathBuf::with_capacity(256));
   pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+}
+
+#[cfg(windows)]
+#[inline]
+fn push_normalized<S: AsRef<OsStr>>(path: &mut PathBuf, s: S) {
+  // PathBuf::push does not normalize separators, so on Windows, push each part separately.
+  // Note that this does not use Path::components because that also strips the trailing separator.
+  let bytes = s.as_ref().as_encoded_bytes();
+  for part in bytes.split(|b| *b == b'/') {
+    path.push(unsafe { OsStr::from_encoded_bytes_unchecked(part) });
+  }
+}
+
+#[cfg(not(windows))]
+#[inline]
+fn push_normalized<S: AsRef<OsStr>>(path: &mut PathBuf, s: S) {
+  path.push(s.as_ref());
 }
 
 impl Hash for CachedPath {
