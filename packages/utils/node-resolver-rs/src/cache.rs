@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 use dashmap::DashSet;
-use gxhash::GxHasher;
+use rustc_hash::FxHasher;
 
 use crate::{
   fs::FileKind,
@@ -74,7 +74,7 @@ impl Cache {
   }
 
   fn get_path(&self, path: &Path) -> CachedPath {
-    let mut hasher = GxHasher::default();
+    let mut hasher = FxHasher::default();
     path.as_os_str().hash(&mut hasher);
     let hash = hasher.finish();
 

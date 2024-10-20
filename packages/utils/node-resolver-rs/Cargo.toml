@@ -16,7 +16,7 @@ percent-encoding = "2.2.0"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 url = "2.3.1"
-gxhash = "*"
+rustc-hash = "2.0.0"
 
 [dev-dependencies]
 assert_fs = "1.0"

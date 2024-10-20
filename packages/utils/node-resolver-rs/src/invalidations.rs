@@ -5,7 +5,7 @@ use std::{
   sync::Arc,
 };
 
-use gxhash::GxHasher;
+use rustc_hash::FxHasher;
 
 use crate::{
   cache::{CachedPath, IdentityHasher},
@@ -25,7 +25,7 @@ pub enum FileCreateInvalidation {
 #[derive(Default, Debug)]
 pub struct Invalidations {
   pub invalidate_on_file_create:
-    RefCell<HashSet<FileCreateInvalidation, BuildHasherDefault<GxHasher>>>,
+    RefCell<HashSet<FileCreateInvalidation, BuildHasherDefault<FxHasher>>>,
   pub invalidate_on_file_change: RefCell<HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>>,
   pub invalidate_on_startup: Cell<bool>,
 }
