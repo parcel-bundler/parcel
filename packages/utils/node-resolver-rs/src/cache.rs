@@ -55,7 +55,7 @@ impl<'a> PartialEq for PathEntry<'a> {
       PathEntry::Owned(info) => &info.path,
       PathEntry::Borrowed { path, .. } => *path,
     };
-    self_path == other_path
+    self_path.as_os_str() == other_path.as_os_str()
   }
 }
 
