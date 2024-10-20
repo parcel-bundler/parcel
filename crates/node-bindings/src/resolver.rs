@@ -188,10 +188,9 @@ impl Resolver {
     let fs = {
       let fsjs = options.fs.unwrap();
       Arc::new(JsFileSystem {
-        canonicalize: FunctionRef::new(env, fsjs.canonicalize)?,
         read: FunctionRef::new(env, fsjs.read)?,
-        is_file: FunctionRef::new(env, fsjs.is_file)?,
-        is_dir: FunctionRef::new(env, fsjs.is_dir)?,
+        kind: FunctionRef::new(env, fsjs.kind)?,
+        read_link: FunctionRef::new(env, fsjs.read_link)?,
       })
     };
 
