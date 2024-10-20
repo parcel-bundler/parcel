@@ -8,25 +8,30 @@ use itertools::Either;
 use json_comments::strip_comments_in_place;
 
 use crate::{
-  path::{resolve_path, InternedPath, PathInterner},
+  cache::{Cache, CachedPath},
+  error::JsonError,
   specifier::Specifier,
+  ResolverError,
 };
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct TsConfig<'a> {
-  #[serde(skip)]
-  pub path: InternedPath,
-  base_url: Option<Cow<'a, Path>>,
-  #[serde(borrow)]
-  paths: Option<IndexMap<Specifier<'a>, Vec<&'a str>>>,
-  #[serde(skip)]
-  paths_base: InternedPath,
-  pub module_suffixes: Option<Vec<&'a str>>,
+struct SerializedTsConfig {
+  base_url: Option<PathBuf>,
+  paths: Option<IndexMap<Specifier<'static>, Vec<String>>>,
+  pub module_suffixes: Option<Vec<String>>,
   // rootDirs??
 }
 
-fn deserialize_extends<'a, 'de: 'a, D>(deserializer: D) -> Result<Vec<Specifier<'a>>, D::Error>
+pub struct TsConfig {
+  pub path: CachedPath,
+  base_url: Option<CachedPath>,
+  paths: Option<IndexMap<Specifier<'static>, Vec<String>>>,
+  paths_base: CachedPath,
+  pub module_suffixes: Option<Vec<String>>,
+}
+
+fn deserialize_extends<'de, D>(deserializer: D) -> Result<Vec<Specifier<'static>>, D::Error>
 where
   D: serde::Deserializer<'de>,
 {
@@ -34,10 +39,9 @@ where
 
   #[derive(serde::Deserialize)]
   #[serde(untagged)]
-  enum StringOrArray<'a> {
-    #[serde(borrow)]
-    String(Specifier<'a>),
-    Array(Vec<Specifier<'a>>),
+  enum StringOrArray {
+    String(Specifier<'static>),
+    Array(Vec<Specifier<'static>>),
   }
 
   Ok(match StringOrArray::deserialize(deserializer)? {
@@ -48,41 +52,65 @@ where
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct TsConfigWrapper<'a> {
-  #[serde(borrow, default, deserialize_with = "deserialize_extends")]
-  pub extends: Vec<Specifier<'a>>,
+struct SerializedTsConfigWrapper {
+  #[serde(default, deserialize_with = "deserialize_extends")]
+  pub extends: Vec<Specifier<'static>>,
   #[serde(default)]
-  pub compiler_options: TsConfig<'a>,
+  pub compiler_options: SerializedTsConfig,
 }
 
-impl<'a> TsConfig<'a> {
+pub struct TsConfigWrapper {
+  pub extends: Vec<Specifier<'static>>,
+  pub compiler_options: TsConfig,
+}
+
+impl TsConfig {
+  pub fn read<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
+    path: &CachedPath,
+    process: F,
+    cache: &Cache,
+  ) -> Result<TsConfigWrapper, ResolverError> {
+    let data = cache.fs.read_to_string(path.as_path())?;
+    let mut tsconfig = TsConfig::parse(path.clone(), data, &cache)
+      .map_err(|e| JsonError::new(path.as_path().to_owned(), e))?;
+    process(&mut tsconfig)?;
+    Ok(tsconfig)
+  }
+
   pub fn parse(
-    path: InternedPath,
-    data: &'a mut str,
-    interner: &PathInterner,
-  ) -> serde_json::Result<TsConfigWrapper<'a>> {
-    let _ = strip_comments_in_place(data, Default::default(), true);
-    let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
-    wrapper.compiler_options.path = path;
-    wrapper.compiler_options.validate(interner);
-    Ok(wrapper)
+    path: CachedPath,
+    mut data: String,
+    cache: &Cache,
+  ) -> serde_json::Result<TsConfigWrapper> {
+    let _ = strip_comments_in_place(data.as_mut_str(), Default::default(), true);
+    let wrapper: SerializedTsConfigWrapper = serde_json::from_str(&data)?;
+    Ok(TsConfigWrapper {
+      extends: wrapper.extends,
+      compiler_options: TsConfig::from_serialized(path, wrapper.compiler_options, cache),
+    })
   }
 
-  fn validate(&mut self, interner: &PathInterner) {
-    if let Some(base_url) = &mut self.base_url {
-      *base_url = Cow::Owned(resolve_path(self.path.as_path(), &base_url));
-    }
+  fn from_serialized(path: CachedPath, serialized: SerializedTsConfig, cache: &Cache) -> TsConfig {
+    let base_url = serialized
+      .base_url
+      .map(|base_url| path.resolve(&base_url, cache));
 
-    if self.paths.is_some() {
-      self.paths_base = if let Some(base_url) = &self.base_url {
-        interner.get(&base_url)
+    TsConfig {
+      paths_base: if serialized.paths.is_some() {
+        base_url
+          .clone()
+          .unwrap_or_else(|| path.parent().unwrap().clone())
       } else {
-        self.path.parent().unwrap().to_owned()
-      };
+        cache.get(Path::new(""))
+      },
+      path,
+      base_url,
+      paths: serialized.paths,
+      module_suffixes: serialized.module_suffixes,
     }
   }
 
-  pub fn extend(&mut self, extended: &TsConfig<'a>) {
+  pub fn extend(&mut self, extended: &TsConfig) {
     if self.base_url.is_none() {
       self.base_url = extended.base_url.clone();
     }
@@ -97,11 +125,11 @@ impl<'a> TsConfig<'a> {
     }
   }
 
-  pub fn paths(
+  pub fn paths<'a>(
     &'a self,
     specifier: &'a Specifier,
-    interner: &'a PathInterner,
-  ) -> impl Iterator<Item = InternedPath> + 'a {
+    cache: &'a Cache,
+  ) -> impl Iterator<Item = CachedPath> + 'a {
     if !matches!(specifier, Specifier::Package(..) | Specifier::Builtin(..)) {
       return Either::Right(Either::Right(std::iter::empty()));
     }
@@ -109,7 +137,7 @@ impl<'a> TsConfig<'a> {
     // If there is a base url setting, resolve it relative to the tsconfig.json file.
     // Otherwise, the base for paths is implicitly the directory containing the tsconfig.
     let base_url_iter = if let Some(base_url) = &self.base_url {
-      Either::Left(base_url_iter(base_url, specifier, interner))
+      Either::Left(base_url_iter(base_url, specifier, cache))
     } else {
       Either::Right(std::iter::empty())
     };
@@ -117,9 +145,7 @@ impl<'a> TsConfig<'a> {
     if let Some(paths) = &self.paths {
       // Check exact match first.
       if let Some(paths) = paths.get(specifier) {
-        return Either::Left(
-          join_paths(&self.paths_base, paths, None, interner).chain(base_url_iter),
-        );
+        return Either::Left(join_paths(&self.paths_base, paths, None, cache).chain(base_url_iter));
       }
 
       // Check patterns
@@ -149,7 +175,7 @@ impl<'a> TsConfig<'a> {
             &self.paths_base,
             paths,
             Some((full_specifier, longest_prefix_length, longest_suffix_length)),
-            interner,
+            cache,
           )
           .chain(base_url_iter),
         );
@@ -167,157 +193,180 @@ impl<'a> TsConfig<'a> {
 }
 
 fn join_paths<'a>(
-  base_url: &'a InternedPath,
-  paths: &'a [&'a str],
+  base_url: &'a CachedPath,
+  paths: &'a [String],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
-  interner: &'a PathInterner,
-) -> impl Iterator<Item = InternedPath> + 'a {
+  cache: &'a Cache,
+) -> impl Iterator<Item = CachedPath> + 'a {
   paths
     .iter()
     .filter(|p| !p.ends_with(".d.ts"))
     .map(move |path| {
       if let Some((replacement, start, end)) = &replacement {
         let path = path.replace('*', &replacement[*start..replacement.len() - *end]);
-        base_url.join(&path, interner)
+        base_url.join(&path, cache)
       } else {
-        base_url.join(path, interner)
+        base_url.join(path, cache)
       }
     })
 }
 
 fn base_url_iter<'a>(
-  base_url: &'a Path,
+  base_url: &'a CachedPath,
   specifier: &'a Specifier,
-  interner: &'a PathInterner,
-) -> impl Iterator<Item = InternedPath> + 'a {
+  cache: &'a Cache,
+) -> impl Iterator<Item = CachedPath> + 'a {
   std::iter::once_with(move || {
-    let mut path = base_url.to_owned();
     if let Specifier::Package(module, subpath) = specifier {
+      let mut path = base_url.as_path().to_owned();
       path.push(module.as_ref());
       path.push(subpath.as_ref());
+      cache.get(&path)
+    } else {
+      base_url.clone()
     }
-    interner.get(&path)
   })
 }
 
 #[cfg(test)]
 mod tests {
-  use indexmap::indexmap;
-
   use super::*;
+  use crate::OsFileSystem;
+  use indexmap::indexmap;
+  use std::sync::Arc;
 
   #[test]
   fn test_paths() {
-    let mut tsconfig = TsConfig {
-      path: "/foo/tsconfig.json".into(),
-      paths: Some(indexmap! {
-        "jquery".into() => vec!["node_modules/jquery/dist/jquery"],
-        "*".into() => vec!["generated/*"],
-        "bar/*".into() => vec!["test/*"],
-        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
-        "@/components/*".into() => vec!["components/*"],
-        "url".into() => vec!["node_modules/my-url"],
-      }),
-      ..Default::default()
-    };
-    tsconfig.validate();
+    let cache = Cache::new(Arc::new(OsFileSystem::default()));
+    let tsconfig = TsConfig::from_serialized(
+      cache.get("/foo/tsconfig.json"),
+      SerializedTsConfig {
+        base_url: None,
+        paths: Some(indexmap! {
+          "jquery".into() => vec!["node_modules/jquery/dist/jquery".into()],
+          "*".into() => vec!["generated/*".into()],
+          "bar/*".into() => vec!["test/*".into()],
+          "bar/baz/*".into() => vec!["baz/*".into(), "yo/*".into()],
+          "@/components/*".into() => vec!["components/*".into()],
+          "url".into() => vec!["node_modules/my-url".into()],
+        }),
+        module_suffixes: None,
+      },
+      &cache,
+    );
 
-    let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathBuf>>();
+    let test = |specifier: &str| {
+      tsconfig
+        .paths(&specifier.into(), &cache)
+        .collect::<Vec<CachedPath>>()
+    };
 
     assert_eq!(
       test("jquery"),
-      vec![PathBuf::from("/foo/node_modules/jquery/dist/jquery")]
+      vec![cache.get("/foo/node_modules/jquery/dist/jquery")]
     );
-    assert_eq!(test("test"), vec![PathBuf::from("/foo/generated/test")]);
+    assert_eq!(test("test"), vec![cache.get("/foo/generated/test")]);
     assert_eq!(
       test("test/hello"),
-      vec![PathBuf::from("/foo/generated/test/hello")]
+      vec![cache.get("/foo/generated/test/hello")]
     );
-    assert_eq!(test("bar/hi"), vec![PathBuf::from("/foo/test/hi")]);
+    assert_eq!(test("bar/hi"), vec![cache.get("/foo/test/hi")]);
     assert_eq!(
       test("bar/baz/hi"),
-      vec![PathBuf::from("/foo/baz/hi"), PathBuf::from("/foo/yo/hi")]
+      vec![cache.get("/foo/baz/hi"), cache.get("/foo/yo/hi")]
     );
     assert_eq!(
       test("@/components/button"),
-      vec![PathBuf::from("/foo/components/button")]
+      vec![cache.get("/foo/components/button")]
     );
-    assert_eq!(test("./jquery"), Vec::<PathBuf>::new());
-    assert_eq!(test("url"), vec![PathBuf::from("/foo/node_modules/my-url")]);
+    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
+    assert_eq!(test("url"), vec![cache.get("/foo/node_modules/my-url")]);
   }
 
   #[test]
   fn test_base_url() {
-    let mut tsconfig = TsConfig {
-      path: "/foo/tsconfig.json".into(),
-      base_url: Some(Path::new("src").into()),
-      ..Default::default()
+    let cache = Cache::new(Arc::new(OsFileSystem::default()));
+    let tsconfig = TsConfig::from_serialized(
+      cache.get("/foo/tsconfig.json"),
+      SerializedTsConfig {
+        base_url: Some(PathBuf::from("src")),
+        paths: None,
+        module_suffixes: None,
+      },
+      &cache,
+    );
+
+    let test = |specifier: &str| {
+      tsconfig
+        .paths(&specifier.into(), &cache)
+        .collect::<Vec<CachedPath>>()
     };
-    tsconfig.validate();
 
-    let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathBuf>>();
-
-    assert_eq!(test("foo"), vec![PathBuf::from("/foo/src/foo")]);
+    assert_eq!(test("foo"), vec![cache.get("/foo/src/foo/")]);
     assert_eq!(
       test("components/button"),
-      vec![PathBuf::from("/foo/src/components/button")]
+      vec![cache.get("/foo/src/components/button")]
     );
-    assert_eq!(test("./jquery"), Vec::<PathBuf>::new());
+    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
   }
 
   #[test]
   fn test_paths_and_base_url() {
-    let mut tsconfig = TsConfig {
-      path: "/foo/tsconfig.json".into(),
-      base_url: Some(Path::new("src").into()),
-      paths: Some(indexmap! {
-        "*".into() => vec!["generated/*"],
-        "bar/*".into() => vec!["test/*"],
-        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
-        "@/components/*".into() => vec!["components/*"],
-      }),
-      ..Default::default()
-    };
-    tsconfig.validate();
+    let cache = Cache::new(Arc::new(OsFileSystem::default()));
+    let tsconfig = TsConfig::from_serialized(
+      cache.get("/foo/tsconfig.json"),
+      SerializedTsConfig {
+        base_url: Some(Path::new("src").into()),
+        paths: Some(indexmap! {
+          "*".into() => vec!["generated/*".into()],
+          "bar/*".into() => vec!["test/*".into()],
+          "bar/baz/*".into() => vec!["baz/*".into(), "yo/*".into()],
+          "@/components/*".into() => vec!["components/*".into()],
+        }),
+        module_suffixes: None,
+      },
+      &cache,
+    );
 
-    let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathBuf>>();
+    let test = |specifier: &str| {
+      tsconfig
+        .paths(&specifier.into(), &cache)
+        .collect::<Vec<CachedPath>>()
+    };
 
     assert_eq!(
       test("test"),
       vec![
-        PathBuf::from("/foo/src/generated/test"),
-        PathBuf::from("/foo/src/test")
+        cache.get("/foo/src/generated/test"),
+        cache.get("/foo/src/test/")
       ]
     );
     assert_eq!(
       test("test/hello"),
       vec![
-        PathBuf::from("/foo/src/generated/test/hello"),
-        PathBuf::from("/foo/src/test/hello")
+        cache.get("/foo/src/generated/test/hello"),
+        cache.get("/foo/src/test/hello")
       ]
     );
     assert_eq!(
       test("bar/hi"),
-      vec![
-        PathBuf::from("/foo/src/test/hi"),
-        PathBuf::from("/foo/src/bar/hi")
-      ]
+      vec![cache.get("/foo/src/test/hi"), cache.get("/foo/src/bar/hi")]
     );
     assert_eq!(
       test("bar/baz/hi"),
       vec![
-        PathBuf::from("/foo/src/baz/hi"),
-        PathBuf::from("/foo/src/yo/hi"),
-        PathBuf::from("/foo/src/bar/baz/hi")
+        cache.get("/foo/src/baz/hi"),
+        cache.get("/foo/src/yo/hi"),
+        cache.get("/foo/src/bar/baz/hi")
       ]
     );
     assert_eq!(
       test("@/components/button"),
       vec![
-        PathBuf::from("/foo/src/components/button"),
-        PathBuf::from("/foo/src/@/components/button")
+        cache.get("/foo/src/components/button"),
+        cache.get("/foo/src/@/components/button")
       ]
     );
-    assert_eq!(test("./jquery"), Vec::<PathBuf>::new());
+    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
   }
 }

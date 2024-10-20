@@ -310,17 +310,27 @@ impl<'a> From<&'a str> for Specifier<'a> {
   }
 }
 
-impl<'a, 'de: 'a> serde::Deserialize<'de> for Specifier<'a> {
+impl<'de> serde::Deserialize<'de> for Specifier<'static> {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: serde::Deserializer<'de>,
   {
     use serde::Deserialize;
-    let s: &'de str = Deserialize::deserialize(deserializer)?;
+    let s: String = Deserialize::deserialize(deserializer)?;
     // Specifiers are only deserialized as part of the "alias" and "browser" fields,
     // so we assume CJS specifiers in Parcel mode.
-    Specifier::parse(s, SpecifierType::Cjs, Flags::empty())
-      .map(|s| s.0)
+    Specifier::parse(&s, SpecifierType::Cjs, Flags::empty())
+      .map(|s| match s.0 {
+        Specifier::Relative(a) => Specifier::Relative(Cow::Owned(a.into_owned())),
+        Specifier::Absolute(a) => Specifier::Absolute(Cow::Owned(a.into_owned())),
+        Specifier::Tilde(a) => Specifier::Tilde(Cow::Owned(a.into_owned())),
+        Specifier::Hash(a) => Specifier::Hash(Cow::Owned(a.into_owned())),
+        Specifier::Package(a, b) => {
+          Specifier::Package(Cow::Owned(a.into_owned()), Cow::Owned(b.into_owned()))
+        }
+        Specifier::Builtin(a) => Specifier::Builtin(Cow::Owned(a.into_owned())),
+        Specifier::Url(_) => todo!(),
+      })
       .map_err(|_| serde::de::Error::custom("Invalid specifier"))
   }
 }

@@ -1,24 +1,23 @@
 use std::{
-  collections::{HashMap, HashSet},
+  cell::{Cell, RefCell},
+  collections::HashSet,
   hash::BuildHasherDefault,
-  path::{Path, PathBuf},
-  sync::atomic::{AtomicBool, Ordering},
+  sync::Arc,
 };
 
 use gxhash::GxHasher;
-use parking_lot::RwLock;
 
 use crate::{
-  path::{normalize_path, IdentityHasher, InternedPath},
+  cache::{CachedPath, IdentityHasher},
   ResolverError,
 };
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum FileCreateInvalidation {
-  Path(InternedPath),
+  Path(CachedPath),
   FileName {
     file_name: String,
-    above: InternedPath,
+    above: CachedPath,
   },
   Glob(String),
 }
@@ -26,27 +25,23 @@ pub enum FileCreateInvalidation {
 #[derive(Default, Debug)]
 pub struct Invalidations {
   pub invalidate_on_file_create:
-    RwLock<HashSet<FileCreateInvalidation, BuildHasherDefault<GxHasher>>>,
-  pub invalidate_on_file_change: RwLock<HashSet<InternedPath, BuildHasherDefault<IdentityHasher>>>,
-  pub invalidate_on_startup: AtomicBool,
+    RefCell<HashSet<FileCreateInvalidation, BuildHasherDefault<GxHasher>>>,
+  pub invalidate_on_file_change: RefCell<HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>>,
+  pub invalidate_on_startup: Cell<bool>,
 }
 
 impl Invalidations {
-  pub fn invalidate_on_file_create(&self, path: InternedPath) {
+  pub fn invalidate_on_file_create(&self, path: CachedPath) {
     self
       .invalidate_on_file_create
-      .write()
+      .borrow_mut()
       .insert(FileCreateInvalidation::Path(path));
   }
 
-  pub fn invalidate_on_file_create_above<S: Into<String>>(
-    &self,
-    file_name: S,
-    above: InternedPath,
-  ) {
+  pub fn invalidate_on_file_create_above<S: Into<String>>(&self, file_name: S, above: CachedPath) {
     self
       .invalidate_on_file_create
-      .write()
+      .borrow_mut()
       .insert(FileCreateInvalidation::FileName {
         file_name: file_name.into(),
         above,
@@ -56,48 +51,57 @@ impl Invalidations {
   pub fn invalidate_on_glob_create<S: Into<String>>(&self, glob: S) {
     self
       .invalidate_on_file_create
-      .write()
+      .borrow_mut()
       .insert(FileCreateInvalidation::Glob(glob.into()));
   }
 
-  pub fn invalidate_on_file_change(&self, invalidation: InternedPath) {
-    self.invalidate_on_file_change.write().insert(invalidation);
+  pub fn invalidate_on_file_change(&self, invalidation: CachedPath) {
+    self
+      .invalidate_on_file_change
+      .borrow_mut()
+      .insert(invalidation);
   }
 
   pub fn invalidate_on_startup(&self) {
-    self.invalidate_on_startup.store(true, Ordering::Relaxed)
+    self.invalidate_on_startup.set(true)
   }
 
   pub fn extend(&self, other: &Invalidations) {
-    for f in other.invalidate_on_file_create.read().iter() {
-      self.invalidate_on_file_create.write().insert(f.clone());
+    for f in other.invalidate_on_file_create.borrow().iter() {
+      self
+        .invalidate_on_file_create
+        .borrow_mut()
+        .insert(f.clone());
     }
 
-    for f in other.invalidate_on_file_change.read().iter() {
-      self.invalidate_on_file_change.write().insert(f.clone());
+    for f in other.invalidate_on_file_change.borrow().iter() {
+      self
+        .invalidate_on_file_change
+        .borrow_mut()
+        .insert(f.clone());
     }
 
-    if other.invalidate_on_startup.load(Ordering::Relaxed) {
+    if other.invalidate_on_startup.get() {
       self.invalidate_on_startup();
     }
   }
 
-  pub fn read<V, F: FnOnce() -> Result<V, ResolverError>>(
+  pub fn read<V, F: FnOnce() -> Arc<Result<V, ResolverError>>>(
     &self,
-    path: &InternedPath,
+    path: &CachedPath,
     f: F,
-  ) -> Result<V, ResolverError> {
-    match f() {
-      Ok(v) => {
+  ) -> Arc<Result<V, ResolverError>> {
+    let res = f();
+    match &*res {
+      Ok(_) => {
         self.invalidate_on_file_change(path.clone());
-        Ok(v)
       }
       Err(e) => {
         if matches!(e, ResolverError::IOError(..)) {
           self.invalidate_on_file_create(path.clone());
         }
-        Err(e)
       }
     }
+    res
   }
 }

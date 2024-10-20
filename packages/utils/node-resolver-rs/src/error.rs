@@ -1,5 +1,5 @@
+use crate::specifier::SpecifierError;
 use crate::PackageJsonError;
-use crate::{cache::JsonError, specifier::SpecifierError};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -43,6 +43,25 @@ pub enum ResolverError {
     tsconfig: PathBuf,
     error: Box<ResolverError>,
   },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct JsonError {
+  pub path: PathBuf,
+  pub line: usize,
+  pub column: usize,
+  pub message: String,
+}
+
+impl JsonError {
+  pub fn new(path: PathBuf, err: serde_json::Error) -> JsonError {
+    JsonError {
+      path,
+      line: err.line(),
+      column: err.column(),
+      message: err.to_string(),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -101,3 +120,11 @@ impl From<SpecifierError> for ResolverError {
     ResolverError::InvalidSpecifier(value)
   }
 }
+
+impl std::fmt::Display for ResolverError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{:?}", self)
+  }
+}
+
+impl std::error::Error for ResolverError {}

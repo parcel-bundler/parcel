@@ -17,10 +17,9 @@ declare export function hashString(s: string): string;
 declare export function hashBuffer(buf: Buffer): string;
 declare export function optimizeImage(kind: string, buf: Buffer): Buffer;
 export interface JsFileSystemOptions {
-  canonicalize: string => string;
+  readLink: string => string;
   read: string => Buffer;
-  isFile: string => boolean;
-  isDir: string => boolean;
+  kind: string => number;
   includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
 }
 export interface FileSystem {

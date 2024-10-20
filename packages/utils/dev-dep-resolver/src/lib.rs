@@ -89,8 +89,8 @@ impl<'a> EsmGraphBuilder<'a> {
 
     if let Some(invalidations) = self.cache.entries.get(file) {
       self.invalidations.extend(&invalidations);
-      for p in invalidations.invalidate_on_file_change.iter() {
-        self.build(&p)?;
+      for p in invalidations.invalidate_on_file_change.borrow().iter() {
+        self.build(p.as_path())?;
       }
       return Ok(());
     }
@@ -140,7 +140,7 @@ impl<'a> EsmGraphBuilder<'a> {
               //   file,
               //   p
               // );
-              invalidations.invalidate_on_file_change(&p);
+              invalidations.invalidate_on_file_change(resolver.cache.get(&p));
               self.build(&p)?;
             } else {
               // Ignore dependencies that don't resolve to anything.
@@ -202,7 +202,7 @@ impl<'a> EsmGraphBuilder<'a> {
 
     for path in glob::glob(pattern.to_string_lossy().as_ref())? {
       let path = path?;
-      invalidations.invalidate_on_file_change(&path);
+      invalidations.invalidate_on_file_change(resolver.cache.get(&path));
       self.build(&path)?;
     }
 

@@ -48,8 +48,10 @@ export class NodeFS implements FileSystem {
   readFile: any = promisify(fs.readFile);
   copyFile: any = promisify(fs.copyFile);
   stat: any = promisify(fs.stat);
+  lstat: any = promisify(fs.lstat);
   readdir: any = promisify(fs.readdir);
   symlink: any = promisify(fs.symlink);
+  readlink: any = promisify(fs.readlink);
   unlink: any = promisify(fs.unlink);
   utimes: any = promisify(fs.utimes);
   ncp: any = promisify(ncp);
@@ -59,8 +61,10 @@ export class NodeFS implements FileSystem {
   chdir: (directory: string) => void = directory => process.chdir(directory);
 
   statSync: (path: string) => Stats = path => fs.statSync(path);
+  lstatSync: (path: string) => Stats = path => fs.lstatSync(path);
   realpathSync: (path: string, cache?: any) => string =
     process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
+  readlinkSync: any = (fs.readlinkSync: any);
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
   findAncestorFile: any = isPnP
