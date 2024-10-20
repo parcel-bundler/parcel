@@ -299,15 +299,16 @@ mod tests {
     let test = |specifier: &str| {
       tsconfig
         .paths(&specifier.into(), &cache)
-        .collect::<Vec<CachedPath>>()
+        .map(|p| p.as_path().to_path_buf())
+        .collect::<Vec<PathBuf>>()
     };
 
-    assert_eq!(test("foo"), vec![cache.get("/foo/src/foo/")]);
+    assert_eq!(test("foo"), vec![PathBuf::from("/foo/src/foo/")]);
     assert_eq!(
       test("components/button"),
-      vec![cache.get("/foo/src/components/button")]
+      vec![PathBuf::from("/foo/src/components/button")]
     );
-    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
+    assert_eq!(test("./jquery"), Vec::<PathBuf>::new());
   }
 
   #[test]
@@ -331,42 +332,46 @@ mod tests {
     let test = |specifier: &str| {
       tsconfig
         .paths(&specifier.into(), &cache)
-        .collect::<Vec<CachedPath>>()
+        .map(|p| p.as_path().to_path_buf())
+        .collect::<Vec<PathBuf>>()
     };
 
     assert_eq!(
       test("test"),
       vec![
-        cache.get("/foo/src/generated/test"),
-        cache.get("/foo/src/test/")
+        PathBuf::from("/foo/src/generated/test"),
+        PathBuf::from("/foo/src/test/")
       ]
     );
     assert_eq!(
       test("test/hello"),
       vec![
-        cache.get("/foo/src/generated/test/hello"),
-        cache.get("/foo/src/test/hello")
+        PathBuf::from("/foo/src/generated/test/hello"),
+        PathBuf::from("/foo/src/test/hello")
       ]
     );
     assert_eq!(
       test("bar/hi"),
-      vec![cache.get("/foo/src/test/hi"), cache.get("/foo/src/bar/hi")]
+      vec![
+        PathBuf::from("/foo/src/test/hi"),
+        PathBuf::from("/foo/src/bar/hi")
+      ]
     );
     assert_eq!(
       test("bar/baz/hi"),
       vec![
-        cache.get("/foo/src/baz/hi"),
-        cache.get("/foo/src/yo/hi"),
-        cache.get("/foo/src/bar/baz/hi")
+        PathBuf::from("/foo/src/baz/hi"),
+        PathBuf::from("/foo/src/yo/hi"),
+        PathBuf::from("/foo/src/bar/baz/hi")
       ]
     );
     assert_eq!(
       test("@/components/button"),
       vec![
-        cache.get("/foo/src/components/button"),
-        cache.get("/foo/src/@/components/button")
+        PathBuf::from("/foo/src/components/button"),
+        PathBuf::from("/foo/src/@/components/button")
       ]
     );
-    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
+    assert_eq!(test("./jquery"), Vec::<PathBuf>::new());
   }
 }

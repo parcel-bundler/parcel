@@ -961,8 +961,9 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/exports.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/exports.js")
     );
     // assert_eq!(pkg.resolve_package_exports("./exports.js", &[]).unwrap(), cache.get("/foo/exports.js"), &cache);
     // assert_eq!(pkg.resolve_package_exports("foobar", &[]).unwrap(), cache.get("/foo/exports.js"), &cache);
@@ -986,8 +987,9 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/exports.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/exports.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports(".", ExportsCondition::empty(), &[], &cache),
@@ -1022,14 +1024,16 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/import.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/import.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::REQUIRE, &[], &cache)
-        .unwrap(),
-      cache.get("/foo/require.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/require.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("", ExportsCondition::empty(), &[], &cache),
@@ -1062,20 +1066,23 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("foo", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/exports.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/exports.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports(".invisible", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/.invisible.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/.invisible.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("file", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/file.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/file.js")
     );
   }
 
@@ -1105,14 +1112,16 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/import.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/import.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("foo", ExportsCondition::REQUIRE, &[], &cache)
-        .unwrap(),
-      cache.get("/foo/require.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/require.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("foo", ExportsCondition::empty(), &[], &cache),
@@ -1151,8 +1160,9 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/import.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/import.js")
     );
     assert_eq!(
       pkg
@@ -1162,26 +1172,30 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/require.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/require.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::IMPORT, &[], &cache)
-        .unwrap(),
-      cache.get("/foo/default.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/default.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/default.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/default.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &[], &cache)
-        .unwrap(),
-      cache.get("/foo/default.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/default.js")
     );
   }
 
@@ -1203,14 +1217,16 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &["custom".into()], &cache)
-        .unwrap(),
-      cache.get("/foo/custom.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/custom.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &[], &cache)
-        .unwrap(),
-      cache.get("/foo/default.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/default.js")
     );
   }
 
@@ -1246,8 +1262,9 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/node_import.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/node_import.js")
     );
     assert_eq!(
       pkg
@@ -1257,8 +1274,9 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/node_require.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/node_require.js")
     );
     assert_eq!(
       pkg
@@ -1268,8 +1286,9 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/browser_import.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/browser_import.js")
     );
     assert_eq!(
       pkg
@@ -1279,8 +1298,9 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/browser_require.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/browser_require.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("lite", ExportsCondition::empty(), &[], &cache),
@@ -1309,38 +1329,44 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("hello", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/cheese/hello.mjs")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/cheese/hello.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("hello/world", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/cheese/hello/world.mjs")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/cheese/hello/world.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("hello.js", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/cheese/hello.js.mjs")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/cheese/hello.js.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("pizza/test", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/pizza/test.mjs")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/pizza/test.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("burritos/test", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/burritos/test/test.mjs")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/burritos/test/test.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("literal", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/literal/*.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/literal/*.js")
     );
 
     let pkg = PackageJson::from_serialized(
@@ -1359,8 +1385,9 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("file", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/file.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/file.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("file.js", ExportsCondition::empty(), &[], &cache),
@@ -1391,8 +1418,9 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("features/foo.js", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/src/features/foo.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/src/features/foo.js")
     );
     assert_eq!(
       pkg
@@ -1402,8 +1430,9 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/src/features/foo/bar.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/src/features/foo/bar.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports(
@@ -1448,8 +1477,9 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/index.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/index.js")
     );
     assert_eq!(
       pkg
@@ -1459,20 +1489,23 @@ mod tests {
           &[],
           &cache
         )
-        .unwrap(),
-      cache.get("/foo/node/index.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/node/index.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("test/index.js", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/bar/index.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/bar/index.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("file", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/file.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/file.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("utils/index.js", ExportsCondition::BROWSER, &[], &cache),
@@ -1501,14 +1534,16 @@ mod tests {
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
-        .unwrap(),
-      cache.get("/foo/b.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/b.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &[], &cache)
-        .unwrap(),
-      cache.get("/foo/a.js")
+        .unwrap()
+        .as_path(),
+      Path::new("/foo/a.js")
     );
   }
 
