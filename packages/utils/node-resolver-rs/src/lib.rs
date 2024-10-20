@@ -2,7 +2,7 @@ use std::{
   borrow::Cow,
   cell::OnceCell,
   collections::HashMap,
-  path::{Path, PathBuf},
+  path::{is_separator, Path, PathBuf},
   sync::Arc,
 };
 
@@ -828,7 +828,7 @@ impl<'a> ResolveRequest<'a> {
         .as_path()
         .as_os_str()
         .to_str()
-        .map(|s| s.ends_with('/'))
+        .map(|s| s.ends_with(is_separator))
         .unwrap_or(false);
 
     if !is_directory {
