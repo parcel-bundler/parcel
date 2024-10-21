@@ -1,41 +1,126 @@
-use std::{
-  borrow::Cow,
-  fmt,
-  ops::Deref,
-  path::{Path, PathBuf},
-  sync::Arc,
-};
-
-use dashmap::DashMap;
-use elsa::sync::FrozenMap;
-use parking_lot::Mutex;
-use typed_arena::Arena;
+use bitflags::bitflags;
+use dashmap::DashSet;
+use rustc_hash::FxHasher;
 
 use crate::{
-  fs::{FileSystem, FileSystemRealPathCache},
-  package_json::{PackageJson, SourceField},
+  fs::FileKind,
+  package_json::PackageJson,
   tsconfig::{TsConfig, TsConfigWrapper},
-  ResolverError,
+  FileSystem, ResolverError,
+};
+use std::{
+  cell::UnsafeCell,
+  ffi::OsStr,
+  hash::{BuildHasherDefault, Hash, Hasher},
+  ops::Deref,
+  path::{is_separator, Component, Path, PathBuf},
+  sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, OnceLock,
+  },
 };
 
+/// Stores various cached info about file paths.
 pub struct Cache {
   pub fs: Arc<dyn FileSystem>,
-  /// This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
-  arena: Mutex<Arena<Box<str>>>,
-  /// These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
-  /// way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
-  /// from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
-  /// to insert into. Since each value is in a Box, it won't move and therefore references are stable.
-  packages: FrozenMap<PathBuf, Box<Result<PackageJson<'static>, ResolverError>>>,
-  tsconfigs: FrozenMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
-  is_file_cache: DashMap<PathBuf, bool, xxhash_rust::xxh3::Xxh3Builder>,
-  is_dir_cache: DashMap<PathBuf, bool, xxhash_rust::xxh3::Xxh3Builder>,
-  realpath_cache: FileSystemRealPathCache,
+  paths: DashSet<PathEntry<'static>, BuildHasherDefault<IdentityHasher>>,
 }
 
-impl fmt::Debug for Cache {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Cache").finish()
+/// An entry in the path cache. Can also be borrowed for lookups without allocations.
+enum PathEntry<'a> {
+  Owned(Arc<PathInfo>),
+  Borrowed { hash: u64, path: &'a Path },
+}
+
+impl<'a> Hash for PathEntry<'a> {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    match self {
+      PathEntry::Owned(info) => {
+        info.hash.hash(state);
+      }
+      PathEntry::Borrowed { hash, .. } => {
+        hash.hash(state);
+      }
+    }
+  }
+}
+
+impl<'a> PartialEq for PathEntry<'a> {
+  fn eq(&self, other: &Self) -> bool {
+    let self_path = match self {
+      PathEntry::Owned(info) => &info.path,
+      PathEntry::Borrowed { path, .. } => *path,
+    };
+    let other_path = match other {
+      PathEntry::Owned(info) => &info.path,
+      PathEntry::Borrowed { path, .. } => *path,
+    };
+    self_path.as_os_str() == other_path.as_os_str()
+  }
+}
+
+impl<'a> Eq for PathEntry<'a> {}
+
+impl Cache {
+  pub fn new(fs: Arc<dyn FileSystem>) -> Cache {
+    Cache {
+      fs,
+      paths: DashSet::default(),
+    }
+  }
+
+  pub fn get<P: AsRef<Path>>(&self, path: P) -> CachedPath {
+    self.get_path(path.as_ref())
+  }
+
+  pub fn get_normalized<P: AsRef<Path>>(&self, path: P) -> CachedPath {
+    self.get_path(&normalize_path(path.as_ref()))
+  }
+
+  fn get_path(&self, path: &Path) -> CachedPath {
+    let mut hasher = FxHasher::default();
+    path.as_os_str().hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let key = PathEntry::Borrowed { hash, path };
+
+    // A DashMap is just an array of RwLock<HashSet>, sharded by hash to reduce lock contention.
+    // This uses the low level raw API to avoid cloning the value when using the `entry` method.
+    // First, find which shard the value is in, and check to see if we already have a value in the map.
+    let shard = self.paths.determine_shard(hash as usize);
+    {
+      // Scope the read lock.
+      let map = self.paths.shards()[shard].read();
+      if let Some((PathEntry::Owned(entry), _)) = map.get(hash, |v| v.0 == key) {
+        return CachedPath(Arc::clone(entry));
+      }
+    }
+
+    // If that wasn't found, we need to create a new entry.
+    let parent = path
+      .parent()
+      .map(|p| CachedPath(Arc::clone(&self.get(p).0)));
+    let mut flags = parent.as_ref().map_or(PathFlags::empty(), |p| {
+      p.0.flags & PathFlags::IN_NODE_MODULES
+    });
+    if matches!(path.file_name(), Some(f) if f == "node_modules") {
+      flags |= PathFlags::IS_NODE_MODULES | PathFlags::IN_NODE_MODULES;
+    }
+
+    let info = Arc::new(PathInfo {
+      hash,
+      path: path.to_path_buf(),
+      parent,
+      flags,
+      kind: OnceLock::new(),
+      canonical: OnceLock::new(),
+      canonicalizing: AtomicU64::new(0),
+      package_json: OnceLock::new(),
+      tsconfig: OnceLock::new(),
+    });
+
+    self.paths.insert(PathEntry::Owned(Arc::clone(&info)));
+    CachedPath(info)
   }
 }
 
@@ -57,157 +142,420 @@ impl<'a> Deref for CacheCow<'a> {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-pub struct JsonError {
-  pub path: PathBuf,
-  pub line: usize,
-  pub column: usize,
-  pub message: String,
-}
-
-impl JsonError {
-  fn new(path: PathBuf, err: serde_json::Error) -> JsonError {
-    JsonError {
-      path,
-      line: err.line(),
-      column: err.column(),
-      message: err.to_string(),
-    }
+bitflags! {
+  struct PathFlags: u8 {
+    /// Whether this path is inside a node_modules directory.
+    const IN_NODE_MODULES = 1 << 0;
+    /// Whether this path is a node_modules directory.
+    const IS_NODE_MODULES = 1 << 1;
   }
 }
 
-impl Cache {
-  pub fn new(fs: Arc<dyn FileSystem>) -> Self {
-    Self {
-      fs,
-      arena: Mutex::new(Arena::new()),
-      packages: FrozenMap::new(),
-      tsconfigs: FrozenMap::new(),
-      is_file_cache: DashMap::default(),
-      is_dir_cache: DashMap::default(),
-      realpath_cache: DashMap::default(),
-    }
+/// Cached info about a file path.
+struct PathInfo {
+  hash: u64,
+  path: PathBuf,
+  flags: PathFlags,
+  parent: Option<CachedPath>,
+  kind: OnceLock<FileKind>,
+  canonical: OnceLock<Result<CachedPath, ResolverError>>,
+  canonicalizing: AtomicU64,
+  package_json: OnceLock<Arc<Result<PackageJson, ResolverError>>>,
+  tsconfig: OnceLock<Arc<Result<TsConfigWrapper, ResolverError>>>,
+}
+
+#[derive(Clone)]
+pub struct CachedPath(Arc<PathInfo>);
+
+impl CachedPath {
+  pub fn as_path(&self) -> &Path {
+    self.0.path.as_path()
   }
 
-  pub fn is_file(&self, path: &Path) -> bool {
-    if let Some(is_file) = self.is_file_cache.get(path) {
-      return *is_file;
-    }
-
-    let is_file = self.fs.is_file(path);
-    self.is_file_cache.insert(path.to_path_buf(), is_file);
-    is_file
+  pub fn parent(&self) -> Option<&CachedPath> {
+    self.0.parent.as_ref()
   }
 
-  pub fn is_dir(&self, path: &Path) -> bool {
-    if let Some(is_file) = self.is_dir_cache.get(path) {
-      return *is_file;
-    }
-
-    let is_file = self.fs.is_dir(path);
-    self.is_dir_cache.insert(path.to_path_buf(), is_file);
-    is_file
+  fn kind(&self, fs: &dyn FileSystem) -> FileKind {
+    *self.0.kind.get_or_init(|| fs.kind(self.as_path()))
   }
 
-  pub fn canonicalize(&self, path: &Path) -> Result<PathBuf, ResolverError> {
-    Ok(self.fs.canonicalize(path, &self.realpath_cache)?)
+  pub fn is_file(&self, fs: &dyn FileSystem) -> bool {
+    self.kind(fs).contains(FileKind::IS_FILE)
   }
 
-  pub fn read_package<'a>(&'a self, path: Cow<Path>) -> Result<&'a PackageJson<'a>, ResolverError> {
-    if let Some(pkg) = self.packages.get(path.as_ref()) {
-      return clone_result(pkg);
+  pub fn is_dir(&self, fs: &dyn FileSystem) -> bool {
+    self.kind(fs).contains(FileKind::IS_DIR)
+  }
+
+  pub fn is_node_modules(&self) -> bool {
+    self.0.flags.contains(PathFlags::IS_NODE_MODULES)
+  }
+
+  pub fn in_node_modules(&self) -> bool {
+    self.0.flags.contains(PathFlags::IN_NODE_MODULES)
+  }
+
+  pub fn canonicalize(&self, cache: &Cache) -> Result<CachedPath, ResolverError> {
+    // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
+    // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
+    let tid = THREAD_ID.with(|t| *t);
+    if self.0.canonicalizing.load(Ordering::Acquire) == tid {
+      return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Circular symlink").into());
     }
 
-    fn read_package<'fs>(
-      fs: &'fs dyn FileSystem,
-      realpath_cache: &FileSystemRealPathCache,
-      arena: &Mutex<Arena<Box<str>>>,
-      path: PathBuf,
-    ) -> Result<PackageJson<'static>, ResolverError> {
-      let contents: &str = read(fs, arena, &path)?;
-      let mut pkg =
-        PackageJson::parse(path.clone(), contents).map_err(|e| JsonError::new(path, e))?;
+    self
+      .0
+      .canonical
+      .get_or_init(|| {
+        self.0.canonicalizing.store(tid, Ordering::Release);
 
-      // If the package has a `source` field, make sure
-      // - the package is behind symlinks
-      // - and the realpath to the packages does not includes `node_modules`.
-      // Since such package is likely a pre-compiled module
-      // installed with package managers, rather than including a source code.
-      if !matches!(pkg.source, SourceField::None) {
-        let realpath = fs.canonicalize(&pkg.path, realpath_cache)?;
-        if realpath == pkg.path
-          || realpath
-            .components()
-            .any(|c| c.as_os_str() == "node_modules")
-        {
-          pkg.source = SourceField::None;
+        let res = self
+          .parent()
+          .map(|parent| {
+            parent.canonicalize(cache).and_then(|parent_canonical| {
+              if self.as_path().strip_prefix(parent.as_path()).is_err() {
+                println!(
+                  "UNEXPECTED PATH: {:?}, parent: {:?}",
+                  self.as_path(),
+                  parent.as_path()
+                );
+              }
+              let path = parent_canonical.join(
+                self.as_path().strip_prefix(parent.as_path()).unwrap(),
+                cache,
+              );
+
+              if self.kind(&*cache.fs).contains(FileKind::IS_SYMLINK) {
+                let link = cache.fs.read_link(path.as_path())?;
+                if link.is_absolute() {
+                  return cache.get(&normalize_path(&link)).canonicalize(cache);
+                } else {
+                  return path.resolve(&link, cache).canonicalize(cache);
+                }
+              }
+
+              Ok(path)
+            })
+          })
+          .unwrap_or_else(|| Ok(self.clone()));
+
+        self.0.canonicalizing.store(0, Ordering::Release);
+        res
+      })
+      .clone()
+  }
+
+  pub fn ancestors<'a>(&'a self) -> impl Iterator<Item = &'a CachedPath> {
+    std::iter::successors(Some(self), |p| p.parent())
+  }
+
+  pub fn file_name(&self) -> Option<&OsStr> {
+    self.as_path().file_name()
+  }
+
+  pub fn extension(&self) -> Option<&OsStr> {
+    self.as_path().extension()
+  }
+
+  pub fn join<P: AsRef<OsStr>>(&self, segment: P, cache: &Cache) -> CachedPath {
+    SCRATCH_PATH.with(|path| {
+      let path = unsafe { &mut *path.get() };
+      path.clear();
+      path.as_mut_os_string().push(self.as_path().as_os_str());
+      push_normalized(path, segment.as_ref());
+      cache.get(path)
+    })
+  }
+
+  pub fn join_module(&self, module: &str, cache: &Cache) -> CachedPath {
+    SCRATCH_PATH.with(|path| {
+      let path = unsafe { &mut *path.get() };
+      path.clear();
+      path.as_mut_os_string().push(self.as_path().as_os_str());
+      path.push("node_modules");
+      push_normalized(path, module);
+      cache.get(path)
+    })
+  }
+
+  pub fn join_package(&self, module: &str, subpath: &str, cache: &Cache) -> CachedPath {
+    SCRATCH_PATH.with(|path| {
+      let path = unsafe { &mut *path.get() };
+      path.clear();
+      path.as_mut_os_string().push(self.as_path().as_os_str());
+      push_normalized(path, module);
+      push_normalized(path, subpath);
+      cache.get(path)
+    })
+  }
+
+  pub fn resolve(&self, subpath: &Path, cache: &Cache) -> CachedPath {
+    SCRATCH_PATH.with(|path| {
+      let path = unsafe { &mut *path.get() };
+      path.clear();
+      if let Some(parent) = self.0.parent.as_ref() {
+        path.as_mut_os_string().push(parent.0.path.as_os_str());
+      }
+
+      for component in subpath.components() {
+        match component {
+          Component::Prefix(..) | Component::RootDir => unreachable!(),
+          Component::CurDir => {}
+          Component::ParentDir => {
+            path.pop();
+          }
+          Component::Normal(c) => {
+            path.push(c);
+          }
         }
       }
 
-      Ok(pkg)
-    }
-
-    let path = path.into_owned();
-    let pkg = self.packages.insert(
-      path.clone(),
-      Box::new(read_package(
-        &*self.fs,
-        &self.realpath_cache,
-        &self.arena,
-        path,
-      )),
-    );
-
-    clone_result(pkg)
+      cache.get(path)
+    })
   }
 
-  pub fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
-    &'a self,
-    path: &Path,
+  pub fn add_extension(&self, ext: &str, cache: &Cache) -> CachedPath {
+    SCRATCH_PATH.with(|path| {
+      let path = unsafe { &mut *path.get() };
+      path.clear();
+      let s = path.as_mut_os_string();
+      s.push(self.as_path().as_os_str());
+      s.push(".");
+      s.push(ext);
+      cache.get(path)
+    })
+  }
+
+  pub fn package_json(&self, cache: &Cache) -> Arc<Result<PackageJson, ResolverError>> {
+    self
+      .0
+      .package_json
+      .get_or_init(|| Arc::new(PackageJson::read(self, cache)))
+      .clone()
+  }
+
+  pub fn tsconfig<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
+    &self,
+    cache: &Cache,
     process: F,
-  ) -> Result<&'a TsConfigWrapper<'a>, ResolverError> {
-    if let Some(tsconfig) = self.tsconfigs.get(path) {
-      return clone_result(tsconfig);
-    }
-
-    fn read_tsconfig<'fs, 'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
-      fs: &'fs dyn FileSystem,
-      arena: &Mutex<Arena<Box<str>>>,
-      path: &Path,
-      process: F,
-    ) -> Result<TsConfigWrapper<'static>, ResolverError> {
-      let data = read(fs, arena, path)?;
-      let mut tsconfig =
-        TsConfig::parse(path.to_owned(), data).map_err(|e| JsonError::new(path.to_owned(), e))?;
-      // Convice the borrow checker that 'a will live as long as self and not 'static.
-      // Since the data is in our arena, this is true.
-      process(unsafe { std::mem::transmute(&mut tsconfig) })?;
-      Ok(tsconfig)
-    }
-
-    let tsconfig = self.tsconfigs.insert(
-      path.to_owned(),
-      Box::new(read_tsconfig(&*self.fs, &self.arena, path, process)),
-    );
-
-    clone_result(tsconfig)
+  ) -> Arc<Result<TsConfigWrapper, ResolverError>> {
+    self
+      .0
+      .tsconfig
+      .get_or_init(|| Arc::new(TsConfig::read(self, process, cache)))
+      .clone()
   }
 }
 
-fn read<'fs>(
-  fs: &'fs dyn FileSystem,
-  arena: &Mutex<Arena<Box<str>>>,
-  path: &Path,
-) -> std::io::Result<&'static mut str> {
-  let arena = arena.lock();
-  let data = arena.alloc(fs.read_to_string(path)?.into_boxed_str());
-  // The data lives as long as the arena. In public methods, we only vend temporary references.
-  Ok(unsafe { &mut *(&mut **data as *mut str) })
+static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
+
+// Per-thread pre-allocated path that is used to perform operations on paths more quickly.
+thread_local! {
+  pub static SCRATCH_PATH: UnsafeCell<PathBuf> = UnsafeCell::new(PathBuf::with_capacity(256));
+  pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
-fn clone_result<T, E: Clone>(res: &Result<T, E>) -> Result<&T, E> {
-  match res {
-    Ok(v) => Ok(v),
-    Err(err) => Err(err.clone()),
+#[cfg(windows)]
+#[inline]
+fn push_normalized<S: AsRef<OsStr>>(path: &mut PathBuf, s: S) {
+  // PathBuf::push does not normalize separators, so on Windows, push each part separately.
+  // Note that this does not use Path::components because that also strips the trailing separator.
+  let bytes = s.as_ref().as_encoded_bytes();
+  for part in bytes.split(|b| *b == b'/') {
+    path.push(unsafe { OsStr::from_encoded_bytes_unchecked(part) });
+  }
+}
+
+#[cfg(not(windows))]
+#[inline]
+fn push_normalized<S: AsRef<OsStr>>(path: &mut PathBuf, s: S) {
+  path.push(s.as_ref());
+}
+
+impl Hash for CachedPath {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.0.hash.hash(state);
+  }
+}
+
+impl PartialEq for CachedPath {
+  fn eq(&self, other: &Self) -> bool {
+    // Cached paths always point to unique values, so we only need to compare the pointers.
+    std::ptr::eq(Arc::as_ptr(&self.0), Arc::as_ptr(&other.0))
+  }
+}
+
+impl Eq for CachedPath {}
+
+impl std::fmt::Debug for CachedPath {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    self.0.path.fmt(f)
+  }
+}
+
+/// A hasher that just passes through a value that is already a hash.
+#[derive(Default)]
+pub struct IdentityHasher {
+  hash: u64,
+}
+
+impl Hasher for IdentityHasher {
+  fn write(&mut self, bytes: &[u8]) {
+    if bytes.len() == 8 {
+      self.hash = u64::from_ne_bytes([
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+      ])
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn finish(&self) -> u64 {
+    self.hash
+  }
+}
+
+pub fn normalize_path(path: &Path) -> PathBuf {
+  // Normalize path components to resolve ".." and "." segments.
+  // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+  let mut components = path.components().peekable();
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    components.next();
+    PathBuf::from(c.as_os_str())
+  } else {
+    PathBuf::new()
+  };
+
+  for component in components {
+    match component {
+      Component::Prefix(..) => unreachable!(),
+      Component::RootDir => {
+        ret.push(component.as_os_str());
+      }
+      Component::CurDir => {}
+      Component::ParentDir => {
+        ret.pop();
+      }
+      Component::Normal(c) => {
+        ret.push(c);
+      }
+    }
+  }
+
+  // If the path ends with a separator, add an additional empty component.
+  if matches!(path.as_os_str().as_encoded_bytes().last(), Some(b) if is_separator(*b as char)) {
+    ret.push("");
+  }
+
+  ret
+}
+
+#[cfg(test)]
+mod test {
+  use crate::OsFileSystem;
+
+  use super::*;
+  use assert_fs::prelude::*;
+
+  #[test]
+  fn test_canonicalize() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(windows)]
+    if !is_elevated::is_elevated() {
+      println!("skipping symlink tests due to missing permissions");
+      return Ok(());
+    }
+
+    let dir = assert_fs::TempDir::new()?;
+    dir.child("foo/bar.js").write_str("")?;
+    dir.child("root.js").write_str("")?;
+
+    dir
+      .child("symlink")
+      .symlink_to_file(Path::new("foo").join("bar.js"))?;
+    dir
+      .child("foo/symlink")
+      .symlink_to_file(Path::new("..").join("root.js"))?;
+    dir
+      .child("absolute")
+      .symlink_to_file(dir.child("root.js").path())?;
+    dir
+      .child("recursive")
+      .symlink_to_file(Path::new("foo").join("symlink"))?;
+    dir.child("cycle").symlink_to_file("cycle1")?;
+    dir.child("cycle1").symlink_to_file("cycle")?;
+    dir
+      .child("absolute_cycle")
+      .symlink_to_file(dir.child("absolute_cycle1").path())?;
+    dir
+      .child("absolute_cycle1")
+      .symlink_to_file(dir.child("absolute_cycle").path())?;
+    dir.child("a/b/c").create_dir_all()?;
+    dir.child("a/b/e").symlink_to_file("..")?;
+    dir.child("a/d").symlink_to_file("..")?;
+    dir.child("a/b/c/x.txt").write_str("")?;
+    dir
+      .child("a/link")
+      .symlink_to_file(dir.child("a/b").path())?;
+
+    let fs = OsFileSystem::default();
+    let cache = Cache::new(Arc::new(fs));
+
+    assert_eq!(
+      cache
+        .get(dir.child("symlink").path())
+        .canonicalize(&cache)?,
+      cache
+        .get(dir.child("foo/bar.js").path())
+        .canonicalize(&cache)?
+    );
+    assert_eq!(
+      cache
+        .get(dir.child("foo/symlink").path())
+        .canonicalize(&cache)?,
+      cache
+        .get(dir.child("root.js").path())
+        .canonicalize(&cache)?
+    );
+    assert_eq!(
+      cache
+        .get(dir.child("absolute").path())
+        .canonicalize(&cache)?,
+      cache
+        .get(dir.child("root.js").path())
+        .canonicalize(&cache)?
+    );
+    assert_eq!(
+      cache
+        .get(dir.child("recursive").path())
+        .canonicalize(&cache)?,
+      cache
+        .get(dir.child("root.js").path())
+        .canonicalize(&cache)?
+    );
+    assert!(cache
+      .get(dir.child("cycle").path())
+      .canonicalize(&cache)
+      .is_err());
+    assert!(cache
+      .get(dir.child("absolute_cycle").path())
+      .canonicalize(&cache)
+      .is_err());
+    assert_eq!(
+      cache
+        .get(dir.child("a/b/e/d/a/b/e/d/a").path())
+        .canonicalize(&cache)?,
+      cache.get(dir.child("a").path()).canonicalize(&cache)?
+    );
+    assert_eq!(
+      cache
+        .get(dir.child("a/link/c/x.txt").path())
+        .canonicalize(&cache)?,
+      cache
+        .get(dir.child("a/b/c/x.txt").path())
+        .canonicalize(&cache)?
+    );
+
+    Ok(())
   }
 }

@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 napi-derive = "2.16.3"
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../../packages/utils/node-resolver-rs" }
-dashmap = "5.4.0"
+dashmap = "6.1.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -1,88 +1,107 @@
 use std::{
-  path::{Path, PathBuf},
-  sync::atomic::{AtomicBool, Ordering},
+  cell::{Cell, RefCell},
+  collections::HashSet,
+  hash::BuildHasherDefault,
+  sync::Arc,
 };
 
-use dashmap::DashSet;
+use rustc_hash::FxHasher;
 
-use crate::{path::normalize_path, ResolverError};
+use crate::{
+  cache::{CachedPath, IdentityHasher},
+  ResolverError,
+};
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum FileCreateInvalidation {
-  Path(PathBuf),
-  FileName { file_name: String, above: PathBuf },
+  Path(CachedPath),
+  FileName {
+    file_name: String,
+    above: CachedPath,
+  },
   Glob(String),
 }
 
 #[derive(Default, Debug)]
 pub struct Invalidations {
-  pub invalidate_on_file_create: DashSet<FileCreateInvalidation>,
-  pub invalidate_on_file_change: DashSet<PathBuf>,
-  pub invalidate_on_startup: AtomicBool,
+  pub invalidate_on_file_create:
+    RefCell<HashSet<FileCreateInvalidation, BuildHasherDefault<FxHasher>>>,
+  pub invalidate_on_file_change: RefCell<HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>>,
+  pub invalidate_on_startup: Cell<bool>,
 }
 
 impl Invalidations {
-  pub fn invalidate_on_file_create(&self, path: &Path) {
+  pub fn invalidate_on_file_create(&self, path: CachedPath) {
     self
       .invalidate_on_file_create
-      .insert(FileCreateInvalidation::Path(normalize_path(path)));
+      .borrow_mut()
+      .insert(FileCreateInvalidation::Path(path));
   }
 
-  pub fn invalidate_on_file_create_above<S: Into<String>>(&self, file_name: S, above: &Path) {
+  pub fn invalidate_on_file_create_above<S: Into<String>>(&self, file_name: S, above: CachedPath) {
     self
       .invalidate_on_file_create
+      .borrow_mut()
       .insert(FileCreateInvalidation::FileName {
         file_name: file_name.into(),
-        above: normalize_path(above),
+        above,
       });
   }
 
   pub fn invalidate_on_glob_create<S: Into<String>>(&self, glob: S) {
     self
       .invalidate_on_file_create
+      .borrow_mut()
       .insert(FileCreateInvalidation::Glob(glob.into()));
   }
 
-  pub fn invalidate_on_file_change(&self, invalidation: &Path) {
+  pub fn invalidate_on_file_change(&self, invalidation: CachedPath) {
     self
       .invalidate_on_file_change
-      .insert(normalize_path(invalidation));
+      .borrow_mut()
+      .insert(invalidation);
   }
 
   pub fn invalidate_on_startup(&self) {
-    self.invalidate_on_startup.store(true, Ordering::Relaxed)
+    self.invalidate_on_startup.set(true)
   }
 
   pub fn extend(&self, other: &Invalidations) {
-    for f in other.invalidate_on_file_create.iter() {
-      self.invalidate_on_file_create.insert(f.clone());
+    for f in other.invalidate_on_file_create.borrow().iter() {
+      self
+        .invalidate_on_file_create
+        .borrow_mut()
+        .insert(f.clone());
     }
 
-    for f in other.invalidate_on_file_change.iter() {
-      self.invalidate_on_file_change.insert(f.clone());
+    for f in other.invalidate_on_file_change.borrow().iter() {
+      self
+        .invalidate_on_file_change
+        .borrow_mut()
+        .insert(f.clone());
     }
 
-    if other.invalidate_on_startup.load(Ordering::Relaxed) {
+    if other.invalidate_on_startup.get() {
       self.invalidate_on_startup();
     }
   }
 
-  pub fn read<V, F: FnOnce() -> Result<V, ResolverError>>(
+  pub fn read<V, F: FnOnce() -> Arc<Result<V, ResolverError>>>(
     &self,
-    path: &Path,
+    path: &CachedPath,
     f: F,
-  ) -> Result<V, ResolverError> {
-    match f() {
-      Ok(v) => {
-        self.invalidate_on_file_change(path);
-        Ok(v)
+  ) -> Arc<Result<V, ResolverError>> {
+    let res = f();
+    match &*res {
+      Ok(_) => {
+        self.invalidate_on_file_change(path.clone());
       }
       Err(e) => {
         if matches!(e, ResolverError::IOError(..)) {
-          self.invalidate_on_file_create(path);
+          self.invalidate_on_file_create(path.clone());
         }
-        Err(e)
       }
     }
+    res
   }
 }
