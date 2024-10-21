@@ -274,7 +274,18 @@ impl CachedPath {
       path.clear();
       path.as_mut_os_string().push(self.as_path().as_os_str());
       path.push("node_modules");
-      push_normalized(path, module);
+      path.push(module);
+      cache.get(path)
+    })
+  }
+
+  pub fn join_package(&self, module: &str, subpath: &str, cache: &Cache) -> CachedPath {
+    SCRATCH_PATH.with(|path| {
+      let path = unsafe { &mut *path.get() };
+      path.clear();
+      path.as_mut_os_string().push(self.as_path().as_os_str());
+      path.push(module);
+      push_normalized(path, subpath);
       cache.get(path)
     })
   }

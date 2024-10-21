@@ -218,10 +218,7 @@ fn base_url_iter<'a>(
 ) -> impl Iterator<Item = CachedPath> + 'a {
   std::iter::once_with(move || {
     if let Specifier::Package(module, subpath) = specifier {
-      let mut path = base_url.as_path().to_owned();
-      path.push(module.as_ref());
-      path.push(subpath.as_ref());
-      cache.get(&path)
+      base_url.join_package(module, subpath, cache)
     } else {
       base_url.clone()
     }
