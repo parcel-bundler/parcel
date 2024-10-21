@@ -274,7 +274,7 @@ impl CachedPath {
       path.clear();
       path.as_mut_os_string().push(self.as_path().as_os_str());
       path.push("node_modules");
-      path.push(module);
+      push_normalized(path, module);
       cache.get(path)
     })
   }
@@ -284,7 +284,7 @@ impl CachedPath {
       let path = unsafe { &mut *path.get() };
       path.clear();
       path.as_mut_os_string().push(self.as_path().as_os_str());
-      path.push(module);
+      push_normalized(path, module);
       push_normalized(path, subpath);
       cache.get(path)
     })
