@@ -13,7 +13,7 @@ use std::{
   ffi::OsStr,
   hash::{BuildHasherDefault, Hash, Hasher},
   ops::Deref,
-  path::{Component, Path, PathBuf},
+  path::{is_separator, Component, Path, PathBuf},
   sync::{
     atomic::{AtomicU64, Ordering},
     Arc, OnceLock,
@@ -71,6 +71,10 @@ impl Cache {
 
   pub fn get<P: AsRef<Path>>(&self, path: P) -> CachedPath {
     self.get_path(path.as_ref())
+  }
+
+  pub fn get_normalized<P: AsRef<Path>>(&self, path: P) -> CachedPath {
+    self.get_path(&normalize_path(path.as_ref()))
   }
 
   fn get_path(&self, path: &Path) -> CachedPath {
@@ -210,6 +214,13 @@ impl CachedPath {
           .parent()
           .map(|parent| {
             parent.canonicalize(cache).and_then(|parent_canonical| {
+              if self.as_path().strip_prefix(parent.as_path()).is_err() {
+                println!(
+                  "UNEXPECTED PATH: {:?}, parent: {:?}",
+                  self.as_path(),
+                  parent.as_path()
+                );
+              }
               let path = parent_canonical.join(
                 self.as_path().strip_prefix(parent.as_path()).unwrap(),
                 cache,
@@ -419,6 +430,11 @@ pub fn normalize_path(path: &Path) -> PathBuf {
         ret.push(c);
       }
     }
+  }
+
+  // If the path ends with a separator, add an additional empty component.
+  if matches!(path.as_os_str().as_encoded_bytes().last(), Some(b) if is_separator(*b as char)) {
+    ret.push("");
   }
 
   ret
