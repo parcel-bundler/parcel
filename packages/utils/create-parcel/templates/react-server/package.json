@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "server": "dist/server.js",
-  "source": "src/server.tsx",
   "targets": {
     "server": {
+      "source": "src/server.tsx",
       "context": "react-server",
       "includeNodeModules": {
         "express": false
@@ -19,8 +19,8 @@
   "dependencies": {
     "@parcel/rsc": "canary",
     "express": "^4.21.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "canary",
+    "react-dom": "canary"
   },
   "devDependencies": {
     "@types/express": "^4",

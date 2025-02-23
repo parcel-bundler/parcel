@@ -4,13 +4,12 @@
   "private": true,
   "source": "pages/*.tsx",
   "targets": {
-    "default": {
-      "context": "react-server",
-      "scopeHoist": false
+    "react-static": {
+      "context": "react-server"
     }
   },
   "scripts": {
-    "start": "parcel --config .parcelrc",
+    "start": "parcel",
     "build": "parcel build"
   },
   "dependencies": {

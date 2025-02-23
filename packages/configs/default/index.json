@@ -8,6 +8,7 @@
       "@parcel/transformer-worklet",
       "..."
     ],
+    "react-static:*": ["@parcel/transformer-react-static", "..."],
     "*.mdx": [
       // For backward compatibility, include the old transformer
       // so it is used if already installed in the project.
@@ -69,6 +70,7 @@
     "*.{jpg,jpeg,png}": ["@parcel/optimizer-image"]
   },
   "packagers": {
+    "react-static:*.html": "@parcel/packager-react-static",
     "*.{html,xhtml}": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.{js,mjs,cjs}": "@parcel/packager-js",

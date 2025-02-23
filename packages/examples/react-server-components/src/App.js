@@ -33,6 +33,7 @@ export default async function App() {
           <Files />
         </Suspense>
         <Dynamic />
+        <a href="/static">Static</a>
       </body>
     </html>
   );

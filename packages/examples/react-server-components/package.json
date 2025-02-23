@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "server": "dist/server.js",
-  "source": "src/server.js",
   "targets": {
     "server": {
-      "context": "react-server",
-      "includeNodeModules": {
-        "express": false
-      }
+      "source": "src/server.js",
+      "context": "react-server"
+    },
+    "react-static": {
+      "source": "static/*.js",
+      "distDir": "dist/static",
+      "context": "react-server"
     }
   },
   "scripts": {

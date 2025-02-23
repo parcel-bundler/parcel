@@ -7,7 +7,21 @@ import FilePage from './FilePage';
 
 const app = express();
 
-app.use(express.static('dist'));
+app.use('/client', express.static('dist/client'));
+
+function sendFile(path, res, next) {
+  res.sendFile(path, {root: 'dist/static'}, err => {
+    if (err) next();
+  });
+}
+
+app.get('/*', (req, res, next) => {
+  res.format({
+    'text/html': () => sendFile(req.url + '.html', res, next),
+    'text/x-component': () => sendFile(req.url + '.rsc', res, next),
+    default: next
+  });
+});
 
 app.get('/', async (req, res) => {
   await renderRequest(req, res, <App />, {component: App});

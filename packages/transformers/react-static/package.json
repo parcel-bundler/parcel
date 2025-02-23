@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/namer-static",
+  "name": "@parcel/transformer-react-static",
   "version": "2.13.3",
   "license": "MIT",
   "publishConfig": {
@@ -13,15 +13,13 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/StaticNamer.js",
-  "source": "src/StaticNamer.js",
+  "main": "lib/ReactStaticTransformer.js",
+  "source": "src/ReactStaticTransformer.js",
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.13.3"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.13.3",
-    "@parcel/plugin": "2.13.3",
-    "nullthrows": "^1.1.1"
+    "@parcel/plugin": "2.13.3"
   }
 }
