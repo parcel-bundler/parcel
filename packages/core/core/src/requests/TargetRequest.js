@@ -329,7 +329,11 @@ export class TargetResolver {
       }
 
       let serve = this.options.serveOptions;
-      if (serve && targets.length > 0) {
+      if (
+        serve &&
+        targets.length > 0 &&
+        targets.every(t => BROWSER_ENVS.has(t.env.context))
+      ) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -357,7 +361,10 @@ export class TargetResolver {
 
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (this.options.serveOptions) {
+      if (
+        this.options.serveOptions &&
+        targets.every(t => BROWSER_ENVS.has(t.env.context))
+      ) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
         let distDir = toProjectPath(

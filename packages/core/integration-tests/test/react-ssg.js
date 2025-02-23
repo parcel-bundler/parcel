@@ -17,18 +17,10 @@ describe('react static', function () {
           react: '^19',
         },
         targets: {
-          default: {
+          'react-static': {
             context: 'react-server',
-            scopeHoist: false,
           },
         },
-      }),
-    );
-
-    await overlayFS.writeFile(
-      path.join(dir, '.parcelrc'),
-      JSON.stringify({
-        extends: '@parcel/config-react-static',
       }),
     );
 
@@ -71,7 +63,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/index.jsx'), {
       inputFS: overlayFS,
-      targets: ['default'],
       mode: 'production',
       env: {
         NODE_ENV: 'production',
@@ -155,7 +146,6 @@ describe('react static', function () {
       [path.join(dir, '/index.jsx'), path.join(dir, '/other.jsx')],
       {
         inputFS: overlayFS,
-        targets: ['default'],
       },
     );
 
@@ -244,7 +234,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/*.mdx'), {
       inputFS: overlayFS,
-      targets: ['default'],
     });
 
     let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -294,7 +283,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/index.jsx'), {
       inputFS: overlayFS,
-      targets: ['default'],
     });
 
     let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -328,7 +316,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/index.jsx'), {
       inputFS: overlayFS,
-      targets: ['default'],
     });
 
     // CSS is injected via JSX. Scripts are injected by React's prepareDestinationForModule.
@@ -365,7 +352,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/index.jsx'), {
       inputFS: overlayFS,
-      targets: ['default'],
     });
 
     // CSS is injected via JSX. Scripts are injected by React's prepareDestinationForModule.
@@ -408,7 +394,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/index.jsx'), {
       inputFS: overlayFS,
-      targets: ['default'],
     });
 
     let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -443,7 +428,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/index.jsx'), {
       inputFS: overlayFS,
-      targets: ['default'],
     });
 
     let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -477,7 +461,6 @@ describe('react static', function () {
 
     let b = await bundle(path.join(dir, '/index.jsx'), {
       inputFS: overlayFS,
-      targets: ['default'],
     });
 
     let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');

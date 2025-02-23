@@ -373,7 +373,9 @@ describe('html', function () {
       'utf8',
     );
     assert(
-      /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css">/.test(html),
+      /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
+        html,
+      ),
     );
   });
 
@@ -402,7 +404,7 @@ describe('html', function () {
       'utf8',
     );
     assert(
-      /<html>\s*<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css">\s*<body>/.test(
+      /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
         html,
       ),
     );
@@ -502,7 +504,7 @@ describe('html', function () {
     );
 
     assert(
-      /^<link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script type="module" src="[/\\]index\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
+      /^<link rel="stylesheet" href="[/\\]html-css-optional-elements\.[a-f0-9]+\.css">\s*<script type="module" src="[/\\]html-css-optional-elements\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
         html,
       ),
     );
@@ -539,14 +541,15 @@ describe('html', function () {
 
     assert.equal(
       html.match(
-        /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+?\.css">/g,
+        /<link rel="stylesheet" href="[/\\]{1}html-css-multi\.[a-f0-9]+?\.css">/g,
       ).length,
       1,
     );
 
     assert.equal(
-      html.match(/<script type="module" src="[/\\]{1}index\.[a-f0-9]+?\.js">/g)
-        .length,
+      html.match(
+        /<script type="module" src="[/\\]{1}html-css-multi\.[a-f0-9]+?\.js">/g,
+      ).length,
       2,
     );
   });
@@ -2136,10 +2139,6 @@ describe('html', function () {
       {
         type: 'js',
         assets: ['index.js'],
-      },
-      {
-        type: 'js',
-        assets: ['esmodule-helpers.js', 'shared.js'],
       },
       {
         type: 'js',

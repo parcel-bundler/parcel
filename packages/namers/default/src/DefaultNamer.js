@@ -92,6 +92,7 @@ export default (new Namer({
     //      `index.css`.
     let name = nameFromContent(
       mainBundle,
+      bundle,
       isEntry,
       bundleGroup.entryAssetId,
       bundleGraph.getEntryRoot(bundle.target),
@@ -100,18 +101,39 @@ export default (new Namer({
       name += '.' + bundle.hashReference;
     }
 
-    return name + '.' + bundle.type;
+    // Allow bundle extension to be overridden.
+    let extension = bundle.type;
+    let entry = bundle.getMainEntry();
+    if (entry && typeof entry.meta.bundleExtension === 'string') {
+      extension = entry.meta.bundleExtension;
+    }
+
+    // Group server and client bundles into separate folders.
+    // This allows users to easily upload to different places, and avoid exposing
+    // server code on public servers.
+    // If bundleExtension is set, assume everything is static (rendering at build time).
+    if (
+      (bundle.env.context === 'react-server' &&
+        entry?.meta?.bundleExtension == null) ||
+      (bundle.env.context === 'react-client' &&
+        hasReactServerEntries(bundleGraph))
+    ) {
+      name = bundle.env.context.slice(6) + '/' + name;
+    }
+
+    return name + '.' + extension;
   },
 }): Namer);
 
 function nameFromContent(
+  mainBundle: Bundle,
   bundle: Bundle,
   isEntry: boolean,
   entryAssetId: string,
   entryRoot: FilePath,
 ): string {
   let entryFilePath = nullthrows(
-    bundle.getEntryAssets().find(a => a.id === entryAssetId),
+    mainBundle.getEntryAssets().find(a => a.id === entryAssetId),
   ).filePath;
   let name = basenameWithoutExtension(entryFilePath);
 
@@ -142,4 +164,20 @@ function nameFromContent(
 
 function basenameWithoutExtension(file) {
   return path.basename(file, path.extname(file));
+}
+
+let rscEntryCache = new WeakMap();
+function hasReactServerEntries(bundleGraph) {
+  let res = rscEntryCache.get(bundleGraph);
+  if (res == null) {
+    res = bundleGraph
+      .getEntryBundles()
+      .some(
+        b =>
+          b.env.context === 'react-server' &&
+          b.getMainEntry()?.meta?.bundleExtension == null,
+      );
+    rscEntryCache.set(bundleGraph, res);
+  }
+  return res;
 }

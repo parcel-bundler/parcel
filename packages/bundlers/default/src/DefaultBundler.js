@@ -1856,7 +1856,9 @@ function getEntryByTarget(
           context.value.isEntry &&
           context.value.target != null,
       );
-      targets.get(context.value.target.distDir).set(node.value, context.value);
+      targets
+        .get(context.value.target.loc?.filePath ?? context.value.target.distDir)
+        .set(node.value, context.value);
       actions.skipChildren();
       return node;
     },
