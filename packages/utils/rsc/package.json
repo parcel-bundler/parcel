@@ -15,6 +15,9 @@
   },
   "sideEffects": false,
   "exports": {
+    ".": {
+      "types": "./src/ssg.d.ts"
+    },
     "./client": {
       "types": "./lib/client.d.ts",
       "default": "./src/client.tsx"

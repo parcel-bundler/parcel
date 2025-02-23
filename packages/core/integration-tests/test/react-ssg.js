@@ -212,16 +212,16 @@ describe('react static', function () {
         return (
           <html>
             <head>
-              <title>{currentPage.meta.exports.title ?? currentPage.meta.tableOfContents?.[0].title}</title>
+              <title>{currentPage.exports.title ?? currentPage.tableOfContents?.[0].title}</title>
             </head>
             <body>
               <nav>
                 {pages.map(page => <a key={page.url} href={page.url}>
-                  {page.meta.exports.title ?? page.meta.tableOfContents?.[0].title}
+                  {page.exports.title ?? page.tableOfContents?.[0].title}
                 </a>)}
               </nav>
               <aside>
-                <Toc toc={currentPage.meta.tableOfContents} />
+                <Toc toc={currentPage.tableOfContents} />
               </aside>
               <main>
                 {children}

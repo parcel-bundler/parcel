@@ -7,7 +7,6 @@ import type {
   Dependency,
   NamedBundle,
   Meta,
-  JSONObject,
 } from '@parcel/types';
 import {blobToString, PromiseQueue, urlJoin} from '@parcel/utils';
 import fs from 'fs';
@@ -25,7 +24,6 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 export interface Page {
   url: string;
   name: string;
-  meta: any;
 }
 
 export interface PageProps {
@@ -115,20 +113,22 @@ export default (new Packager({
     for (let b of bundleGraph.getEntryBundles()) {
       let main = b.getMainEntry();
       if (main && b.type === 'js' && b.needsStableName) {
+        let meta = pageMeta(main.meta);
         pages.push({
           url: urlJoin(b.target.publicUrl, b.name),
           name: b.name,
-          meta: pageMeta(main.meta),
+          ...meta,
         });
       }
     }
 
+    let meta = pageMeta(nullthrows(bundle.getMainEntry()).meta);
     let props: PageProps = {
       pages,
       currentPage: {
         url: urlJoin(bundle.target.publicUrl, bundle.name),
         name: bundle.name,
-        meta: pageMeta(nullthrows(bundle.getMainEntry()).meta),
+        ...meta,
       },
     };
 
@@ -504,7 +504,7 @@ function getSpecifier(dep: Dependency) {
   return dep.specifier;
 }
 
-function pageMeta(meta: Meta): JSONObject {
+function pageMeta(meta: Meta): any {
   if (
     meta.ssgMeta &&
     typeof meta?.ssgMeta === 'object' &&

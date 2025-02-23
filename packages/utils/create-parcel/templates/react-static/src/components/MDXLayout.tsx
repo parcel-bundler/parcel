@@ -1,4 +1,4 @@
-import type { PageProps } from '../types';
+import type { PageProps } from '@parcel/rsc';
 import type { ReactNode } from 'react';
 import { Nav } from '../components/Nav';
 import '../page.css';
