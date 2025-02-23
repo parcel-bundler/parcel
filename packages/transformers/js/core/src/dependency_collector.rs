@@ -566,11 +566,19 @@ impl<'a> Fold for DependencyCollector<'a> {
               }
               "__parcel__require__" => {
                 let mut call = node.fold_children_with(self);
-                call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-                  "require".into(),
-                  DUMMY_SP,
-                  SyntaxContext::empty().apply_mark(self.ignore_mark),
-                ))));
+                if self.config.scope_hoist {
+                  call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+                    "require".into(),
+                    DUMMY_SP,
+                    SyntaxContext::empty().apply_mark(self.ignore_mark),
+                  ))));
+                } else {
+                  call.callee = ast::Callee::Expr(Box::new(ast::Expr::Member(member_expr!(
+                    Default::default(),
+                    call.span,
+                    module.require
+                  ))));
+                }
                 return call;
               }
               "__parcel__import__" => {
