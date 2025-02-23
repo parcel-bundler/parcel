@@ -2,9 +2,16 @@
 /* eslint-disable react/react-in-jsx-scope */
 /* @jsxRuntime automatic */
 
-export function createResourcesProxy(module, resources, bootstrapScript) {
+export function createResourcesProxy(module, esModule, resources, bootstrapScript) {
+  if (typeof module === 'function') {
+    return createResourcesValueProxy(module, resources, bootstrapScript);
+  }
+  
   return new Proxy(module, {
     get(target, prop, receiver) {
+      if (prop === '__esModule' && esModule) {
+        return true;
+      }
       let value = Reflect.get(target, prop, receiver);
       return createResourcesValueProxy(value, resources, bootstrapScript);
     },

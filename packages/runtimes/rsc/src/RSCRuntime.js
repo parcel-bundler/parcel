@@ -288,7 +288,10 @@ export default (new Runtime({
               }
             }
 
-            if (resources) {
+            if (
+              resources.length > 0 ||
+              (node.value.priority !== 'lazy' && entry)
+            ) {
               // Use a proxy to attach resources to all exports.
               // This will be used by the JSX runtime to automatically render CSS at bundle group boundaries.
               let code = `import {createResourcesProxy, waitForCSS} from '@parcel/runtime-rsc/rsc-helpers';\n`;
@@ -343,7 +346,11 @@ export default (new Runtime({
                   ? '<>\n  ' + resources.join('\n  ') + '\n</>'
                   : resources[0]
               };\n`;
-              code += `let res = createResourcesProxy(originalModule, resources ${
+              let esModule =
+                resolvedAsset.symbols.get('default')?.meta?.isEsm === true;
+              code += `let res = createResourcesProxy(originalModule, ${String(
+                esModule,
+              )}, resources ${
                 node.value.priority !== 'lazy' && entry
                   ? ', bootstrapScript'
                   : ''
