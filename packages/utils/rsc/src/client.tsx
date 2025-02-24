@@ -16,13 +16,13 @@ function RSCRoot({value, cb}: {value?: ReactNode, cb?: () => void}) {
 
 export type CallServerCallback = <T>(id: string, args: any[]) => Promise<T>;
 export interface HydrateOptions extends HydrationOptions {
-  handleServerAction?: CallServerCallback,
+  callServer?: CallServerCallback,
   onHmrReload?: () => void
 }
 
 export function hydrate(options?: HydrateOptions): (value: ReactNode, cb?: () => void) => void {
-  if (options?.handleServerAction) {
-    setServerCallback(options.handleServerAction);
+  if (options?.callServer) {
+    setServerCallback(options.callServer);
   }
 
   if (options?.onHmrReload) {
