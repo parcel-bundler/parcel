@@ -1,0 +1,30 @@
+{
+  "name": "parcel-rsc-client",
+  "version": "0.0.0",
+  "private": true,
+  "client": "dist/index.html",
+  "server": "dist/server.js",
+  "targets": {
+    "client": {
+      "source": "client/index.html",
+      "context": "react-client"
+    },
+    "server": {
+      "source": "server/server.tsx",
+      "context": "react-server",
+      "includeNodeModules": {
+        "express": false
+      }
+    }
+  },
+  "scripts": {
+    "start": "parcel",
+    "build": "parcel build"
+  },
+  "dependencies": {
+    "@parcel/rsc": "*",
+    "express": "^4.18.2",
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}

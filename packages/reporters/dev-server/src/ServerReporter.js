@@ -69,7 +69,7 @@ export default (new Reporter({
             logger,
             event.bundleGraph
               .getEntryBundles()
-              .every(b => b.env.isBrowser() || b.type === 'html'),
+              .some(b => b.env.isBrowser() || b.type === 'html'),
           );
         }
 

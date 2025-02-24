@@ -113,7 +113,7 @@ export async function _report(
         options.serveOptions &&
         event.bundleGraph
           .getEntryBundles()
-          .every(b => b.env.isBrowser() || b.type === 'html')
+          .some(b => b.env.isBrowser() || b.type === 'html')
       ) {
         persistMessage(
           chalk.blue.bold(
