@@ -93,7 +93,7 @@ describe('react server components', function () {
           assert.equal(result.type.$$name, 'Client');
           assert.equal(typeof result.type.$$id, 'string');
           assert.deepEqual(result.type.$$bundles, [
-            path.relative(bundles[1].target.distDir, bundles[1].filePath),
+            path.posix.relative(bundles[1].target.distDir, bundles[1].filePath),
           ]);
         });
 
@@ -668,7 +668,8 @@ describe('react server components', function () {
           );
           assert.equal(
             link.props.href,
-            '/' + path.relative(cssBundle.target.distDir, cssBundle.filePath),
+            '/' +
+              path.posix.relative(cssBundle.target.distDir, cssBundle.filePath),
           );
         });
 
@@ -730,7 +731,8 @@ describe('react server components', function () {
           );
           assert.equal(
             link.props.href,
-            '/' + path.relative(cssBundle.target.distDir, cssBundle.filePath),
+            '/' +
+              path.posix.relative(cssBundle.target.distDir, cssBundle.filePath),
           );
         });
 
@@ -792,7 +794,8 @@ describe('react server components', function () {
           );
           assert.equal(
             link.props.href,
-            '/' + path.relative(cssBundle.target.distDir, cssBundle.filePath),
+            '/' +
+              path.posix.relative(cssBundle.target.distDir, cssBundle.filePath),
           );
         });
 
@@ -862,7 +865,7 @@ describe('react server components', function () {
           let entryBundle = b.getBundles()[2];
           assert.equal(
             res.output.Server.bootstrapScript,
-            `Promise.all([import("/${path.relative(
+            `Promise.all([import("/${path.posix.relative(
               entryBundle.target.distDir,
               entryBundle.filePath,
             )}")]).then(()=>${parcelRequireName}("${b.getAssetPublicId(
@@ -934,7 +937,7 @@ describe('react server components', function () {
           assert.equal(typeof result.props.children[1].type.$$id, 'string');
           let jsBundle = b.getBundles()[1];
           assert.deepEqual(result.props.children[1].type.$$bundles, [
-            path.relative(jsBundle.target.distDir, jsBundle.filePath),
+            path.posix.relative(jsBundle.target.distDir, jsBundle.filePath),
           ]);
 
           let link = result.props.children[0];
@@ -948,7 +951,8 @@ describe('react server components', function () {
           );
           assert.equal(
             link.props.href,
-            '/' + path.relative(cssBundle.target.distDir, cssBundle.filePath),
+            '/' +
+              path.posix.relative(cssBundle.target.distDir, cssBundle.filePath),
           );
         });
 
@@ -1011,7 +1015,8 @@ describe('react server components', function () {
           );
           assert.equal(
             link.props.href,
-            '/' + path.relative(cssBundle.target.distDir, cssBundle.filePath),
+            '/' +
+              path.posix.relative(cssBundle.target.distDir, cssBundle.filePath),
           );
         });
       },
