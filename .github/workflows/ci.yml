@@ -122,9 +122,9 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
-      - run: yarn build
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
+      - run: yarn build
       - run: yarn test:integration-ci
 
   # Deployment steps taken from https://github.com/colinwilson/static-site-to-vercel/blob/master/.github/workflows/deploy-preview.yml
