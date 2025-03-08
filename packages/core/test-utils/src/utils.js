@@ -788,6 +788,13 @@ function prepareBrowserContext(
     globals,
   );
 
+  if (bundle.env.isLibrary) {
+    ctx.process = {
+      browser: true,
+      env: {},
+    };
+  }
+
   ctx.window = ctx.self = ctx;
   return {ctx, promises};
 }
