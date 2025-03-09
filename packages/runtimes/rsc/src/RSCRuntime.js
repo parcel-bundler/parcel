@@ -52,9 +52,13 @@ export default (new Runtime({
           let bundles;
           let async = bundleGraph.resolveAsyncDependency(node.value, bundle);
           if (async?.type === 'bundle_group') {
-            bundles = bundleGraph.getBundlesInBundleGroup(async.value);
+            bundles = bundleGraph.getBundlesInBundleGroup(async.value, {
+              includeIsolated: false,
+            });
           } else {
-            bundles = bundleGraph.getReferencedBundles(bundle);
+            bundles = bundleGraph.getReferencedBundles(bundle, {
+              includeIsolated: false,
+            });
           }
 
           let importMap = {};
@@ -208,6 +212,7 @@ export default (new Runtime({
           if (asyncResolution?.type === 'bundle_group') {
             let bundles = bundleGraph.getBundlesInBundleGroup(
               asyncResolution.value,
+              {includeIsolated: false},
             );
             let resources = [];
             let js = [];

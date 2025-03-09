@@ -2,6 +2,7 @@
 import assert from 'assert';
 import path from 'path';
 import {bundle, overlayFS, fsFixture, assertBundles} from '@parcel/test-utils';
+import nullthrows from 'nullthrows';
 
 describe('react static', function () {
   let count = 0;
@@ -465,5 +466,102 @@ describe('react static', function () {
 
     let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(output.includes('<link rel="stylesheet"'));
+  });
+
+  it('should support nested server entries', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.jsx:
+        import {A} from './a';
+        import {B} from './b';
+        import './bootstrap';
+        export default async function Index() {
+          return (
+            <html>
+              <body>
+                <Switch>
+                  <A />
+                  <B />
+                </Switch>
+              </body>
+            </html>
+          );
+        }
+
+        function Switch({children}) {
+          return children[0];
+        }
+
+      a.jsx:
+        "use server-entry";
+        import {Client1} from './client1';
+        export function A() {
+          return <Client1 />;
+        }
+
+      b.jsx:
+        "use server-entry";
+        import {Client2} from './client2';
+        export function B() {
+          return <Client2 />;
+        }
+
+      client1.jsx:
+        "use client";
+        export function Client1() {
+          return <span>Client 1</span>;
+        }
+
+      client2.jsx:
+        "use client";
+        export function Client2() {
+          return <span>Client 2</span>;
+        }
+
+      bootstrap.js:
+        "use client-entry";
+    `;
+
+    let b = await bundle(path.join(dir, '/index.jsx'), {
+      inputFS: overlayFS,
+    });
+
+    let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    let clientBundles = b
+      .getBundles()
+      .filter(b => b.env.isBrowser() && b.type === 'js');
+    let client1, client2, bootstrap;
+    b.traverse(node => {
+      if (
+        node.type === 'asset' &&
+        node.value.filePath.endsWith('client1.jsx')
+      ) {
+        client1 = node.value;
+      } else if (
+        node.type === 'asset' &&
+        node.value.filePath.endsWith('client2.jsx')
+      ) {
+        client2 = node.value;
+      } else if (
+        node.type === 'asset' &&
+        node.value.filePath.endsWith('bootstrap.js')
+      ) {
+        bootstrap = node.value;
+      }
+    });
+    let client1Bundle = nullthrows(
+      clientBundles.find(b => b.hasAsset(client1)),
+    );
+    let client2Bundle = nullthrows(
+      clientBundles.find(b => b.hasAsset(client2)),
+    );
+    let bootstrapBundle = nullthrows(
+      clientBundles.find(b => b.hasAsset(bootstrap)),
+    );
+    let scripts = Array.from(output.matchAll(/<script.*?src="(.*?)"/g)).map(
+      b => b[1],
+    );
+    assert(scripts.includes('/' + path.basename(client1Bundle.filePath)));
+    assert(scripts.includes('/' + path.basename(bootstrapBundle.filePath)));
+    assert(!scripts.includes('/' + path.basename(client2Bundle.filePath)));
   });
 });

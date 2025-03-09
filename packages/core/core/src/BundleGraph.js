@@ -1503,8 +1503,15 @@ export default class BundleGraph {
 
   getBundlesInBundleGroup(
     bundleGroup: BundleGroup,
-    opts?: {|includeInline: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<Bundle> {
+    let recursive = opts?.recursive ?? true;
+    let includeInline = opts?.includeInline ?? false;
+    let includeIsolated = opts?.includeIsolated ?? true;
     let bundles: Set<Bundle> = new Set();
     for (let bundleNodeId of this._graph.getNodeIdsConnectedFrom(
       this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
@@ -1514,16 +1521,17 @@ export default class BundleGraph {
       invariant(bundleNode.type === 'bundle');
       let bundle = bundleNode.value;
       if (
-        opts?.includeInline ||
-        bundle.bundleBehavior !== BundleBehavior.inline
+        bundle.bundleBehavior == null ||
+        (includeInline && bundle.bundleBehavior === BundleBehavior.inline) ||
+        (includeIsolated && bundle.bundleBehavior === BundleBehavior.isolated)
       ) {
         bundles.add(bundle);
       }
 
-      for (let referencedBundle of this.getReferencedBundles(bundle, {
-        includeInline: opts?.includeInline,
-      })) {
-        bundles.add(referencedBundle);
+      if (recursive) {
+        for (let referencedBundle of this.getReferencedBundles(bundle, opts)) {
+          bundles.add(referencedBundle);
+        }
       }
     }
 
@@ -1532,10 +1540,15 @@ export default class BundleGraph {
 
   getReferencedBundles(
     bundle: Bundle,
-    opts?: {|recursive?: boolean, includeInline?: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<Bundle> {
     let recursive = opts?.recursive ?? true;
     let includeInline = opts?.includeInline ?? false;
+    let includeIsolated = opts?.includeIsolated ?? true;
     let referencedBundles = new Set();
     this._graph.dfs({
       visit: (nodeId, _, actions) => {
@@ -1549,10 +1562,15 @@ export default class BundleGraph {
         }
 
         if (
-          includeInline ||
-          node.value.bundleBehavior !== BundleBehavior.inline
+          node.value.bundleBehavior == null ||
+          (includeInline &&
+            node.value.bundleBehavior === BundleBehavior.inline) ||
+          (includeIsolated &&
+            node.value.bundleBehavior === BundleBehavior.isolated)
         ) {
           referencedBundles.add(node.value);
+        } else if (node.value.bundleBehavior === BundleBehavior.isolated) {
+          actions.skipChildren();
         }
 
         if (!recursive) {
