@@ -507,15 +507,23 @@ describe('react static', function () {
 
       client1.jsx:
         "use client";
+        import './client1.css';
         export function Client1() {
           return <span>Client 1</span>;
         }
 
+      client1.css:
+        body { color: red }
+
       client2.jsx:
         "use client";
+        import './client2.css';
         export function Client2() {
           return <span>Client 2</span>;
         }
+
+      client2.css:
+        body { color: green }
 
       bootstrap.js:
         "use client-entry";
@@ -526,36 +534,27 @@ describe('react static', function () {
     });
 
     let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    let clientBundles = b
-      .getBundles()
-      .filter(b => b.env.isBrowser() && b.type === 'js');
-    let client1, client2, bootstrap;
+    let bundles = b.getBundles();
+    let assets = {};
     b.traverse(node => {
-      if (
-        node.type === 'asset' &&
-        node.value.filePath.endsWith('client1.jsx')
-      ) {
-        client1 = node.value;
-      } else if (
-        node.type === 'asset' &&
-        node.value.filePath.endsWith('client2.jsx')
-      ) {
-        client2 = node.value;
-      } else if (
-        node.type === 'asset' &&
-        node.value.filePath.endsWith('bootstrap.js')
-      ) {
-        bootstrap = node.value;
+      if (node.type === 'asset') {
+        assets[path.basename(node.value.filePath)] = node.value;
       }
     });
     let client1Bundle = nullthrows(
-      clientBundles.find(b => b.hasAsset(client1)),
+      bundles.find(b => b.hasAsset(assets['client1.jsx'])),
+    );
+    let client1CSS = nullthrows(
+      bundles.find(b => b.hasAsset(assets['client1.css'])),
     );
     let client2Bundle = nullthrows(
-      clientBundles.find(b => b.hasAsset(client2)),
+      bundles.find(b => b.hasAsset(assets['client2.jsx'])),
+    );
+    let client2CSS = nullthrows(
+      bundles.find(b => b.hasAsset(assets['client2.css'])),
     );
     let bootstrapBundle = nullthrows(
-      clientBundles.find(b => b.hasAsset(bootstrap)),
+      bundles.find(b => b.hasAsset(assets['bootstrap.js'])),
     );
     let scripts = Array.from(output.matchAll(/<script.*?src="(.*?)"/g)).map(
       b => b[1],
@@ -563,5 +562,11 @@ describe('react static', function () {
     assert(scripts.includes('/' + path.basename(client1Bundle.filePath)));
     assert(scripts.includes('/' + path.basename(bootstrapBundle.filePath)));
     assert(!scripts.includes('/' + path.basename(client2Bundle.filePath)));
+
+    let links = Array.from(output.matchAll(/<link.*?href="(.*?)"/g)).map(
+      b => b[1],
+    );
+    assert(links.includes('/' + path.basename(client1CSS.filePath)));
+    assert(!links.includes('/' + path.basename(client2CSS.filePath)));
   });
 });
