@@ -33,6 +33,14 @@
     "@napi-rs/cli": "^2.15.2",
     "napi-wasm": "^1.1.2"
   },
+  "peerDependencies": {
+    "napi-wasm": "^1.1.2"
+  },
+  "peerDependenciesMeta": {
+    "napi-wasm": {
+      "optional": true
+    }
+  },
   "scripts": {
     "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",
     "build-canary": "napi build --platform --profile canary --cargo-cwd ../../../crates/node-bindings",
