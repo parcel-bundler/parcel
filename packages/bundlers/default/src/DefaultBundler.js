@@ -1575,7 +1575,6 @@ function createIdealGraph(
             asset.env.context !== bundle.env.context
               ? false
               : bundle.needsStableName,
-          bundleBehavior: bundle.bundleBehavior,
           type: asset.type,
           target: bundle.target,
           env: asset.env,

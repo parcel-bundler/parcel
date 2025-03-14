@@ -1547,7 +1547,11 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Returns a list of bundles that load together in the given bundle group. */
   getBundlesInBundleGroup(
     bundleGroup: BundleGroup,
-    opts?: {|includeInline: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<TBundle>;
   /** Returns a list of bundles that this bundle loads asynchronously. */
   getChildBundles(bundle: Bundle): Array<TBundle>;
@@ -1558,7 +1562,11 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Returns a list of bundles that are referenced by this bundle. By default, inline bundles are excluded. */
   getReferencedBundles(
     bundle: Bundle,
-    opts?: {|recursive?: boolean, includeInline?: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<TBundle>;
   /** Returns a list of bundles that reference this bundle. */
   getReferencingBundles(bundle: Bundle): Array<TBundle>;
