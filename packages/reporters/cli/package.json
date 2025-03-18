@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-cli",
-  "version": "2.13.3",
+  "version": "2.14.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,7 +17,7 @@
   "source": "src/CLIReporter.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.13.3"
+    "parcel": "^2.14.0"
   },
   "targets": {
     "main": {
@@ -31,14 +31,14 @@
     }
   },
   "dependencies": {
-    "@parcel/plugin": "2.13.3",
-    "@parcel/types": "2.13.3",
-    "@parcel/utils": "2.13.3",
+    "@parcel/plugin": "2.14.0",
+    "@parcel/types": "2.14.0",
+    "@parcel/utils": "2.14.0",
     "chalk": "^4.1.2",
     "term-size": "^2.2.1"
   },
   "devDependencies": {
-    "@parcel/feature-flags": "2.13.3",
+    "@parcel/feature-flags": "2.14.0",
     "filesize": "^10.1.6",
     "nullthrows": "^1.1.1",
     "ora": "^5.2.0",

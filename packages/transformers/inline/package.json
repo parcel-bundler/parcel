@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-inline",
-  "version": "2.13.3",
+  "version": "2.14.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,9 +17,9 @@
   "source": "src/InlineTransformer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.13.3"
+    "parcel": "^2.14.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.13.3"
+    "@parcel/plugin": "2.14.0"
   }
 }
