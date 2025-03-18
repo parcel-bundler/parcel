@@ -5,6 +5,32 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] - 2025-03-18
+
+### Added
+
+- Core
+  - Add a CLI to create new Parcel apps – [Details](https://github.com/parcel-bundler/parcel/pull/10069)
+
+- JavaScript
+  - React Server Components – [Details](https://github.com/parcel-bundler/parcel/pull/10043), [Details](https://github.com/parcel-bundler/parcel/pull/10067), [Details](https://github.com/parcel-bundler/parcel/pull/10074), [Details](https://github.com/parcel-bundler/parcel/pull/10093), [Details](https://github.com/parcel-bundler/parcel/pull/10104)
+  - Add RSC-based static site generator – [Details](https://github.com/parcel-bundler/parcel/pull/10057)
+  - First-class MDX support – [Details](https://github.com/parcel-bundler/parcel/pull/10064)
+  - Merge React Refresh runtime and transformer – [Details](https://github.com/parcel-bundler/parcel/pull/10056)
+  - Modernize React error overlay – [Details](https://github.com/parcel-bundler/parcel/pull/10082)
+  - Support bundling node native modules – [Details](https://github.com/parcel-bundler/parcel/pull/10066)
+  - Use import maps for bundle manifest – [Details](https://github.com/parcel-bundler/parcel/pull/10073)
+
+- Dev Server
+  - Support running node bundles in dev server – [Details](https://github.com/parcel-bundler/parcel/pull/10055)
+  - Apply HMR updates via node worker thread – [Details](https://github.com/parcel-bundler/parcel/pull/10071)
+
+### Fixed
+
+- Core
+  - Fix dev dep request missing 'invalidateOnCreate' – [Details](https://github.com/parcel-bundler/parcel/commit/d6a4df3700bc2364eca18c25c42aa5f220c4b8db)
+  - Add napi-wasm as optional peer dependency in @parcel/rust – [Details](https://github.com/parcel-bundler/parcel/pull/10101)
+
 ## [2.13.3] - 2024-12-16
 
 ### Fixed
