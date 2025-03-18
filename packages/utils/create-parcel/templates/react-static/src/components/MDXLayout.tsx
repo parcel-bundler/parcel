@@ -12,7 +12,7 @@ export default function Layout({children, pages, currentPage}: LayoutProps) {
   return (
     <html lang="en">
       <head>
-        <title>{currentPage.meta.tableOfContents?.[0].title}</title>
+        <title>{currentPage.tableOfContents?.[0].title}</title>
       </head>
       <body>
         {children}
