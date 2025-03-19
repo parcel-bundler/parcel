@@ -699,6 +699,11 @@ impl<'a> ResolveRequest<'a> {
       return Ok(res);
     }
 
+    // Check for self references to the current package.
+    if let Some(res) = self.resolve_package_self(&specifier)? {
+      return Ok(res);
+    }
+
     self.resolve_node_module(module, subpath)
   }
 
@@ -728,6 +733,24 @@ impl<'a> ResolveRequest<'a> {
 
     // Next, check tsconfig.json for the paths and baseUrl options.
     self.resolve_tsconfig_paths()
+  }
+
+  fn resolve_package_self(
+    &self,
+    specifier: &Specifier,
+  ) -> Result<Option<Resolution>, ResolverError> {
+    if self.resolver.flags.contains(Flags::EXPORTS) {
+      if let Specifier::Package(pkg_name, subpath) = specifier {
+        if let Some(package) = self.find_package(self.from.parent().unwrap_or_else(|| self.from)) {
+          let package = unwrap_arc(&package)?;
+          if package.has_exports() && package.name.as_str() == pkg_name {
+            return self.resolve_package_exports(package, subpath).map(Some);
+          }
+        }
+      }
+    }
+
+    Ok(None)
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
@@ -811,40 +834,7 @@ impl<'a> ResolveRequest<'a> {
     // If the exports field is present, use the Node ESM algorithm.
     // Otherwise, fall back to classic CJS resolution.
     if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
-      let path = package
-        .resolve_package_exports(
-          subpath,
-          self.conditions,
-          self.custom_conditions,
-          &self.resolver.cache,
-        )
-        .map_err(|e| ResolverError::PackageJsonError {
-          module: package.name.to_owned(),
-          path: package.path.as_path().to_path_buf(),
-          error: e,
-        })?;
-
-      // Extensionless specifiers are not supported in the exports field
-      // according to the Node spec (for both ESM and CJS). However, webpack
-      // didn't follow this, so there are many packages that rely on it (e.g. underscore).
-      if self
-        .resolver
-        .flags
-        .contains(Flags::EXPORTS_OPTIONAL_EXTENSIONS)
-      {
-        if let Some(res) = self.load_file(&path, Some(&*package))? {
-          return Ok(res);
-        }
-      } else if let Some(res) = self.try_file_without_aliases(&path)? {
-        return Ok(res);
-      }
-
-      // TODO: track location of resolved field
-      Err(ResolverError::ModuleSubpathNotFound {
-        module: module.to_owned(),
-        path: path.as_path().to_path_buf(),
-        package_path: package.path.as_path().to_path_buf(),
-      })
+      return self.resolve_package_exports(package, subpath);
     } else if !subpath.is_empty() {
       let package_dir = package_dir.join(subpath, &self.resolver.cache);
       if let Some(res) = self.load_path(&package_dir, Some(&*package))? {
@@ -880,6 +870,47 @@ impl<'a> ResolveRequest<'a> {
         package_path: package.path.as_path().to_path_buf(),
       })
     }
+  }
+
+  fn resolve_package_exports(
+    &self,
+    package: &PackageJson,
+    subpath: &str,
+  ) -> Result<Resolution, ResolverError> {
+    let path = package
+      .resolve_package_exports(
+        subpath,
+        self.conditions,
+        self.custom_conditions,
+        &self.resolver.cache,
+      )
+      .map_err(|e| ResolverError::PackageJsonError {
+        module: package.name.to_owned(),
+        path: package.path.as_path().to_path_buf(),
+        error: e,
+      })?;
+
+    // Extensionless specifiers are not supported in the exports field
+    // according to the Node spec (for both ESM and CJS). However, webpack
+    // didn't follow this, so there are many packages that rely on it (e.g. underscore).
+    if self
+      .resolver
+      .flags
+      .contains(Flags::EXPORTS_OPTIONAL_EXTENSIONS)
+    {
+      if let Some(res) = self.load_file(&path, Some(&*package))? {
+        return Ok(res);
+      }
+    } else if let Some(res) = self.try_file_without_aliases(&path)? {
+      return Ok(res);
+    }
+
+    // TODO: track location of resolved field
+    Err(ResolverError::ModuleSubpathNotFound {
+      module: package.name.to_owned(),
+      path: path.as_path().to_path_buf(),
+      package_path: package.path.as_path().to_path_buf(),
+    })
   }
 
   fn try_package_entries(
