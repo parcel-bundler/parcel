@@ -5,6 +5,13 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.14.1] - 2025-03-19
+
+### Fixed
+
+- Resolver
+  - Fix resolving package self references – [Details](https://github.com/parcel-bundler/parcel/pull/10114)
+
 ## [2.14.0] - 2025-03-18
 
 ### Added
