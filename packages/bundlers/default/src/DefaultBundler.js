@@ -1658,6 +1658,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
           },
           split: {
             type: 'number',
+            min: 1,
           },
         },
         required: ['name', 'assets'],
@@ -1666,12 +1667,15 @@ const CONFIG_SCHEMA: SchemaEntity = {
     },
     minBundles: {
       type: 'number',
+      min: 1,
     },
     minBundleSize: {
       type: 'number',
+      min: 1,
     },
     maxParallelRequests: {
       type: 'number',
+      min: 1,
     },
     disableSharedBundles: {
       type: 'boolean',

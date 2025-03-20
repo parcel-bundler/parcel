@@ -47,6 +47,9 @@ export type SchemaString = {|
 export type SchemaNumber = {|
   type: 'number',
   enum?: Array<number>,
+  min?: number,
+  max?: number,
+  integer?: boolean,
   __type?: string,
 |};
 export type SchemaEnum = {|
@@ -76,6 +79,26 @@ export type SchemaError =
       expectedValues: Array<mixed>,
       dataType: 'key' | 'value',
       actualValue: mixed,
+
+      dataPath: string,
+      ancestors: Array<SchemaEntity>,
+      prettyType?: string,
+    |}
+  | {|
+      type: 'range',
+      min?: number,
+      max?: number,
+      dataType: 'key',
+      actualValue: number,
+
+      dataPath: string,
+      ancestors: Array<SchemaEntity>,
+      prettyType?: string,
+    |}
+  | {|
+      type: 'integer',
+      dataType: 'key',
+      actualValue: number,
 
       dataPath: string,
       ancestors: Array<SchemaEntity>,
@@ -193,6 +216,38 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   actualValue: value,
                   ancestors: schemaAncestors,
                 };
+              }
+            } else if (schemaNode.min) {
+              if (value < schemaNode.min) {
+                return {
+                  type: 'range',
+                  dataType: 'value',
+                  dataPath,
+                  min: schemaNode.min,
+                  actualValue: value,
+                  ancestors: schemaAncestors,
+                };
+              }
+            } else if (schemaNode.max) {
+              if (value > schemaNode.max) {
+                return {
+                  type: 'range',
+                  dataType: 'value',
+                  dataPath,
+                  max: schemaNode.max,
+                  actualValue: value,
+                  ancestors: schemaAncestors,
+                };
+              } else if (schemaNode.integer) {
+                if (!Number.isInteger(value)) {
+                  return {
+                    type: 'integer',
+                    dataType: 'value',
+                    dataPath,
+                    actualValue: value,
+                    ancestors: schemaAncestors,
+                  };
+                }
               }
             }
             break;
@@ -435,6 +490,16 @@ validateSchema.diagnostic = function (
         } else {
           message = 'Unexpected value';
         }
+      } else if (e.type === 'range') {
+        if (e.min && e.max) {
+          message = `Expected to be in range [${e.min}, ${e.max}]`;
+        } else if (e.min) {
+          message = `Expected to be at least ${e.min}`;
+        } else if (e.max) {
+          message = `Expected to be at most ${e.max}`;
+        }
+      } else if (e.type === 'integer') {
+        message = `Expected to be an integer`;
       } else if (e.type === 'forbidden-prop') {
         let {prop, expectedProps, actualProps} = e;
         let likely = fuzzySearch(expectedProps, prop).filter(

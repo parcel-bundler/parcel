@@ -55,7 +55,11 @@ const browserAction = {
         properties: {
           light: string,
           dark: string,
-          size: {type: 'number'},
+          size: {
+            type: 'number',
+            min: 0,
+            integer: true,
+          },
         },
         additionalProperties: false,
         required: ['light', 'dark', 'size'],
