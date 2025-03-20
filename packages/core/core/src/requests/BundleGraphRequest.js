@@ -56,6 +56,7 @@ import {
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
+import type {ProjectPath} from '../projectPath';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -476,17 +477,25 @@ class BundlerRunner {
 
   validateBundles(bundleGraph: InternalBundleGraph): void {
     let bundles = bundleGraph.getBundles();
-
     let bundleNames = bundles.map(b =>
       joinProjectPath(b.target.distDir, nullthrows(b.name)),
     );
-    assert.deepEqual(
-      bundleNames,
-      unique(bundleNames),
+
+    let seenNames = new Set<ProjectPath>();
+    let duplicatesNames = new Set<ProjectPath>();
+
+    for (let b of bundleNames) {
+      if (seenNames.has(b)) {
+        duplicatesNames.add(b);
+      } else {
+        seenNames.add(b);
+      }
+    }
+
+    assert(
+      duplicatesNames.size === 0,
       'Bundles must have unique name. Conflicting names: ' +
-        [
-          ...setDifference(new Set(bundleNames), new Set(unique(bundleNames))),
-        ].join(),
+        [...duplicatesNames].join(),
     );
   }
 
