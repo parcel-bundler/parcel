@@ -23,7 +23,7 @@
     "@parcel/diagnostic": "2.14.1",
     "@parcel/plugin": "2.14.1",
     "command-exists": "^1.2.8",
-    "cross-spawn": "^7.0.3",
+    "cross-spawn": "^7.0.5",
     "elm-hot": "^1.1.5",
     "node-elm-compiler": "^5.0.5",
     "nullthrows": "^1.1.1",
@@ -31,5 +31,8 @@
   },
   "peerDependencies": {
     "elm": "^0.19.1-5"
+  },
+  "resolutions": {
+    "**/cross-spawn": "^7.0.5"
   }
 }
