@@ -196,6 +196,10 @@ describe('react static', function () {
 
       Yo.
 
+      ~~~tsx render
+      <div>Hello</div>
+      ~~~
+
     another.mdx:
       import {Layout} from './Layout';
       export default Layout;
@@ -247,6 +251,7 @@ describe('react static', function () {
     assert(
       output.includes('<ul><li>Testing<ul><li>Sub title</li></ul></li></ul>'),
     );
+    assert(output.includes('<div>Hello</div'));
 
     output = await overlayFS.readFile(b.getBundles()[1].filePath, 'utf8');
     assert(output.includes('<title>Another page</title>'));
@@ -382,7 +387,7 @@ describe('react static', function () {
         export function Client() {
           return <Dynamic />;
         }
-          
+
       dynamic.jsx:
         import './client.css';
         export default function Dynamic() {

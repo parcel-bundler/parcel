@@ -509,7 +509,12 @@ function runModule(
 }
 
 function getCacheKey(asset: Asset) {
-  return asset.filePath + '#' + asset.env.context;
+  return (
+    asset.filePath +
+    '#' +
+    asset.env.context +
+    (asset.uniqueKey ? '-' + asset.uniqueKey : '')
+  );
 }
 
 function getSpecifier(dep: Dependency) {
