@@ -132,7 +132,7 @@ async function install(template: string, name: string) {
 
 function spawn(cmd, args, opts) {
   return new Promise((resolve, reject) => {
-    let p = _spawn(cmd, args, opts);
+    let p = _spawn(cmd, args, {...opts, shell: process.platform === 'win32'});
     p.on('close', (code, signal) => {
       if (code || signal) {
         reject(new Error(`${cmd} failed with exit code ${code}`));
