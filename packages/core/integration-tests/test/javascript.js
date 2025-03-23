@@ -6143,6 +6143,25 @@ describe('javascript', function () {
       await res.output;
       assert.equal(res.result, 2);
     });
+
+    it(`can bundle date-fns ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        date-fns
+          a.ts:
+            import {format} from 'date-fns';
+            output = format(new Date(2025, 1, 3), "yyyy-MM-dd");`;
+
+      let b = await bundle(path.join(__dirname, 'date-fns/a.ts'), {
+        ...options,
+        mode: 'development',
+        inputFS: overlayFS,
+      });
+      let res = await run(b, null, {require: false});
+      let result = await res.output;
+      assert.equal(result, '2025-02-03');
+    });
   }
 
   for (let defaultTargetOptions of [

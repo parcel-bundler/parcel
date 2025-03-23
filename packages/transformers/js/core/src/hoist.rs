@@ -1593,6 +1593,17 @@ mod tests {
         w!("y") => (w!("other"), w!("*"), false)
       }
     );
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+    import { formatters } from "other";
+    
+    export function format() {
+      return formatters[something]();
+    }
+    "#,
+    );
+    assert_eq_set!(collect.used_imports, set! { w!("formatters") });
   }
 
   #[test]
@@ -2868,6 +2879,23 @@ mod tests {
       hoist.re_exports,
       map! {
         w!("siteSettings") => (w!("./settings"), w!("settings"))
+      }
+    );
+
+    let (_collect, _code, hoist) = parse(
+      r#"
+      export { format as formatDate };
+      export function format() {}
+    export default format;
+    "#,
+    );
+
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("formatDate") => (w!("$abc$export$d9468344d3651243"), true),
+        w!("format") => (w!("$abc$export$d9468344d3651243"), true),
+        w!("default") => (w!("$abc$export$2e2bcd8739ae039"), true)
       }
     );
   }
