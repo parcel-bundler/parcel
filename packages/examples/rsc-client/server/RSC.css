@@ -1,0 +1,8 @@
+.rsc {
+  padding: 32px;
+  border: 1px solid gray;
+
+  h2 {
+    margin-top: 0;
+  }
+}

@@ -457,8 +457,7 @@ impl Visit for Collect {
         );
         self
           .exports_locals
-          .entry(id!(class.ident))
-          .or_insert_with(|| class.ident.sym.clone());
+          .insert(id!(class.ident), class.ident.sym.clone());
       }
       Decl::Fn(func) => {
         self.exports.insert(
@@ -472,8 +471,7 @@ impl Visit for Collect {
         );
         self
           .exports_locals
-          .entry(id!(func.ident))
-          .or_insert_with(|| func.ident.sym.clone());
+          .insert(id!(func.ident), func.ident.sym.clone());
       }
       Decl::Var(var) => {
         for decl in &var.decls {
@@ -503,10 +501,7 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          self
-            .exports_locals
-            .entry(id!(ident))
-            .or_insert_with(|| js_word!("default"));
+          self.exports_locals.insert(id!(ident), js_word!("default"));
         } else {
           self.exports.insert(
             js_word!("default"),
@@ -530,10 +525,7 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          self
-            .exports_locals
-            .entry(id!(ident))
-            .or_insert_with(|| js_word!("default"));
+          self.exports_locals.insert(id!(ident), js_word!("default"));
         } else {
           self.exports.insert(
             js_word!("default"),
@@ -597,8 +589,7 @@ impl Visit for Collect {
       );
       self
         .exports_locals
-        .entry(id!(node.id))
-        .or_insert_with(|| node.id.sym.clone());
+        .insert(id!(node.id), node.id.sym.clone());
     }
 
     if self.in_assign && node.id.ctxt.has_mark(self.global_mark) {
@@ -623,8 +614,7 @@ impl Visit for Collect {
       );
       self
         .exports_locals
-        .entry(id!(node.key))
-        .or_insert_with(|| node.key.sym.clone());
+        .insert(id!(node.key), node.key.sym.clone());
     }
 
     if self.in_assign && node.key.ctxt.has_mark(self.global_mark) {
@@ -700,7 +690,8 @@ impl Visit for Collect {
             .entry(id!(ident))
             .or_default()
             .push(node.span);
-        } else if self.imports.contains_key(&id!(ident)) {
+        }
+        if self.imports.contains_key(&id!(ident)) {
           self.used_imports.insert(id!(ident));
         }
         return;

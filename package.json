@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
-    "build-bundles": "rimraf --glob packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build --no-cache packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol,parcel-watcher-watchman-js}",
+    "build-bundles": "rimraf --glob packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build --no-cache packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol,parcel-watcher-watchman-js,error-overlay}",
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
@@ -45,7 +45,7 @@
     "@khanacademy/flow-to-ts": "^0.5.2",
     "@napi-rs/cli": "^2.18.3",
     "@parcel/babel-register": "*",
-    "@swc/core": "^1.10.7",
+    "@swc/core": "^1.11.5",
     "@types/node": ">= 18",
     "buffer": "mischnic/buffer#b8a4fa94",
     "cross-env": "^7.0.0",

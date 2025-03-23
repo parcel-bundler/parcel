@@ -6,10 +6,8 @@
  */
 
 /* @flow */
-import React, {useState} from 'react';
+import {useState} from 'preact/hooks';
 import {theme} from '../styles';
-
-import type {Element as ReactElement} from 'react';
 
 const _collapsibleStyle = {
   cursor: 'pointer',
@@ -38,7 +36,7 @@ const collapsibleExpandedStyle = {
 };
 
 type CollapsiblePropsType = {|
-  children: ReactElement<any>[],
+  children: React$Element<any>[],
 |};
 
 function Collapsible(props: CollapsiblePropsType): React$Element<'details'> {

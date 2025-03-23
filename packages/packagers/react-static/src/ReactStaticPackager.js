@@ -7,7 +7,6 @@ import type {
   Dependency,
   NamedBundle,
   Meta,
-  JSONObject,
 } from '@parcel/types';
 import {blobToString, PromiseQueue, urlJoin} from '@parcel/utils';
 import fs from 'fs';
@@ -25,7 +24,6 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 export interface Page {
   url: string;
   name: string;
-  meta: any;
 }
 
 export interface PageProps {
@@ -115,20 +113,23 @@ export default (new Packager({
     for (let b of bundleGraph.getEntryBundles()) {
       let main = b.getMainEntry();
       if (main && b.type === 'js' && b.needsStableName) {
+        let meta = pageMeta(main.meta);
         pages.push({
           url: urlJoin(b.target.publicUrl, b.name),
           name: b.name,
-          meta: pageMeta(main.meta),
+          ...meta,
         });
       }
     }
 
+    let meta = pageMeta(nullthrows(bundle.getMainEntry()).meta);
     let props: PageProps = {
+      key: 'page',
       pages,
       currentPage: {
         url: urlJoin(bundle.target.publicUrl, bundle.name),
         name: bundle.name,
-        meta: pageMeta(nullthrows(bundle.getMainEntry()).meta),
+        ...meta,
       },
     };
 
@@ -137,10 +138,12 @@ export default (new Packager({
     let entry;
     for (let b of bundleGraph.getReferencedBundles(bundle, {
       includeInline: false,
+      includeIsolated: false,
     })) {
       if (b.type === 'css') {
         resources.push(
           React.createElement('link', {
+            key: b.id,
             rel: 'stylesheet',
             href: urlJoin(b.target.publicUrl, b.name),
             precedence: 'default',
@@ -150,6 +153,7 @@ export default (new Packager({
         bootstrapModules.push(urlJoin(b.target.publicUrl, b.name));
         resources.push(
           React.createElement('script', {
+            key: b.id,
             type: 'module',
             async: true,
             src: urlJoin(b.target.publicUrl, b.name),
@@ -235,7 +239,7 @@ async function loadBundleUncached(
   ) => Async<{|contents: Blob|}>,
 ) {
   // Load all asset contents.
-  let queue = new PromiseQueue<Array<[string, [Asset, string]]>>({
+  let queue = new PromiseQueue<Array<[string, [NamedBundle, Asset, string]]>>({
     maxConcurrent: 32,
   });
   bundle.traverse(node => {
@@ -259,7 +263,7 @@ async function loadBundleUncached(
           return [
             [
               entryBundle.id,
-              [nullthrows(entryBundle.getMainEntry()), contents],
+              [entryBundle, nullthrows(entryBundle.getMainEntry()), contents],
             ],
           ];
         });
@@ -275,23 +279,36 @@ async function loadBundleUncached(
       }
     } else if (node.type === 'asset') {
       let asset = node.value;
-      queue.add(async () => [[asset.id, [asset, await asset.getCode()]]]);
+      queue.add(async () => [
+        [asset.id, [bundle, asset, await asset.getCode()]],
+      ]);
     }
   });
 
-  let assets = new Map<string, [Asset, string]>(
+  for (let b of bundleGraph.getReferencedBundles(bundle)) {
+    queue.add(async () => {
+      let {assets: subAssets} = await loadBundle(
+        b,
+        bundleGraph,
+        getInlineBundleContents,
+      );
+      return Array.from(subAssets);
+    });
+  }
+
+  let assets = new Map<string, [NamedBundle, Asset, string]>(
     (await queue.run()).flatMap(v => v),
   );
   let assetsByFilePath = new Map<string, string>();
   let assetsByPublicId = new Map<string, string>();
-  for (let [asset] of assets.values()) {
+  for (let [, asset] of assets.values()) {
     assetsByFilePath.set(getCacheKey(asset), asset.id);
     assetsByPublicId.set(bundleGraph.getAssetPublicId(asset), asset.id);
   }
 
   // Load an asset into the module system by id.
   let loadAsset = (id: string) => {
-    let [asset, code] = nullthrows(assets.get(id));
+    let [bundle, asset, code] = nullthrows(assets.get(id));
     let cacheKey = getCacheKey(asset);
     let cachedModule = moduleCache.get(cacheKey);
     if (cachedModule) {
@@ -373,9 +390,9 @@ async function loadBundleUncached(
         bundleGraph,
         getInlineBundleContents,
       );
-      for (let [id, [asset, code]] of subAssets) {
+      for (let [id, [bundle, asset, code]] of subAssets) {
         if (!assets.has(id)) {
-          assets.set(id, [asset, code]);
+          assets.set(id, [bundle, asset, code]);
           assetsByFilePath.set(getCacheKey(asset), asset.id);
           assetsByPublicId.set(bundleGraph.getAssetPublicId(asset), asset.id);
         }
@@ -453,7 +470,6 @@ function runModule(
   require: (id: string) => any,
   parcelRequire: (id: string) => any,
 ) {
-  // code = code.replace(/import\((['"].*?['"])\)/g, (_, m) => `parcelRequire.load(${m[0] + m.slice(3)})`);
   let moduleFunction = vm.compileFunction(
     code,
     [
@@ -493,7 +509,12 @@ function runModule(
 }
 
 function getCacheKey(asset: Asset) {
-  return asset.filePath + '#' + asset.env.context;
+  return (
+    asset.filePath +
+    '#' +
+    asset.env.context +
+    (asset.uniqueKey ? '-' + asset.uniqueKey : '')
+  );
 }
 
 function getSpecifier(dep: Dependency) {
@@ -504,7 +525,7 @@ function getSpecifier(dep: Dependency) {
   return dep.specifier;
 }
 
-function pageMeta(meta: Meta): JSONObject {
+function pageMeta(meta: Meta): any {
   if (
     meta.ssgMeta &&
     typeof meta?.ssgMeta === 'object' &&

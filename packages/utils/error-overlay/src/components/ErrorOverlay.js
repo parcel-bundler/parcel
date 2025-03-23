@@ -7,10 +7,8 @@
 
 /* eslint-env browser */
 /* @flow */
-import React, {useEffect} from 'react';
+import {useEffect} from 'preact/hooks';
 import {theme} from '../styles';
-
-import type {Node as ReactNode} from 'react';
 
 const overlayStyle = {
   position: 'relative',
@@ -33,7 +31,7 @@ const overlayStyle = {
 };
 
 type ErrorOverlayPropsType = {|
-  children: ReactNode,
+  children: React$Node,
   shortcutHandler?: (eventKey: string) => void,
 |};
 

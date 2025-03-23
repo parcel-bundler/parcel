@@ -10,6 +10,7 @@ import {
   runBundle,
 } from '@parcel/test-utils';
 import nullthrows from 'nullthrows';
+import {relativePath} from '@parcel/utils';
 
 describe('react server components', function () {
   for (let shouldScopeHoist of [false, true]) {
@@ -93,7 +94,7 @@ describe('react server components', function () {
           assert.equal(result.type.$$name, 'Client');
           assert.equal(typeof result.type.$$id, 'string');
           assert.deepEqual(result.type.$$bundles, [
-            path.basename(bundles[1].filePath),
+            relativePath(bundles[1].target.distDir, bundles[1].filePath, false),
           ]);
         });
 
@@ -133,7 +134,7 @@ describe('react server components', function () {
           assert.equal(bundles.length, 3);
           assert.equal(bundles[0].env.context, 'react-server');
           assert.equal(bundles[1].env.context, 'react-client');
-          assert.equal(bundles[2].env.context, 'browser');
+          assert.equal(bundles[2].env.context, 'react-client');
         });
 
         it('should support server references from client components', async function () {
@@ -663,12 +664,139 @@ describe('react server components', function () {
           assert.equal(link.type, 'link');
           assert.equal(link.props.rel, 'stylesheet');
           assert.equal(link.props.precedence, 'default');
+          let cssBundle = nullthrows(
+            b.getBundles().find(b => b.type === 'css'),
+          );
           assert.equal(
             link.props.href,
             '/' +
-              path.basename(
-                nullthrows(b.getBundles().find(b => b.type === 'css')).filePath,
-              ),
+              relativePath(cssBundle.target.distDir, cssBundle.filePath, false),
+          );
+        });
+
+        it('should support inject CSS resources with default exports', async function () {
+          await fsFixture(overlayFS, dir)`
+          index.jsx:
+            import Server from './Page.jsx';
+            function render() {
+              return <Server />;
+            }
+            output = {render};
+
+          Page.jsx:
+            "use server-entry";
+            import './server.css';
+            export default function Server() {
+              return <h1>Server</h1>;
+            }
+
+          server.css:
+            .server { color: red }
+        `;
+
+          let b = await bundle(path.join(dir, '/index.jsx'), {
+            inputFS: overlayFS,
+            targets: ['default'],
+            defaultTargetOptions: {
+              shouldScopeHoist,
+            },
+          });
+
+          assertBundles(
+            b,
+            [
+              {
+                assets: ['index.jsx'],
+              },
+              {
+                assets: ['Page.jsx'],
+              },
+              {
+                assets: ['server.css'],
+              },
+            ],
+            {skipNodeModules: true},
+          );
+
+          let res = (await run(b, {output: null}, {require: false})).output;
+          let output = res.render();
+
+          output.type.$$typeof;
+          let rendered = output.type();
+          let link = rendered.props.children[0];
+          assert.equal(link.type, 'link');
+          assert.equal(link.props.rel, 'stylesheet');
+          assert.equal(link.props.precedence, 'default');
+          let cssBundle = nullthrows(
+            b.getBundles().find(b => b.type === 'css'),
+          );
+          assert.equal(
+            link.props.href,
+            '/' +
+              relativePath(cssBundle.target.distDir, cssBundle.filePath, false),
+          );
+        });
+
+        it('should support inject CSS resources with CommonJS', async function () {
+          await fsFixture(overlayFS, dir)`
+          index.jsx:
+            import Server from './Page.jsx';
+            function render() {
+              return <Server />;
+            }
+            output = {render};
+
+          Page.jsx:
+            "use server-entry";
+            import './server.css';
+            module.exports = function Server() {
+              return <h1>Server</h1>;
+            }
+
+          server.css:
+            .server { color: red }
+        `;
+
+          let b = await bundle(path.join(dir, '/index.jsx'), {
+            inputFS: overlayFS,
+            targets: ['default'],
+            defaultTargetOptions: {
+              shouldScopeHoist,
+            },
+          });
+
+          assertBundles(
+            b,
+            [
+              {
+                assets: ['index.jsx'],
+              },
+              {
+                assets: ['Page.jsx'],
+              },
+              {
+                assets: ['server.css'],
+              },
+            ],
+            {skipNodeModules: true},
+          );
+
+          let res = (await run(b, {output: null}, {require: false})).output;
+          let output = res.render();
+
+          output.type.$$typeof;
+          let rendered = output.type();
+          let link = rendered.props.children[0];
+          assert.equal(link.type, 'link');
+          assert.equal(link.props.rel, 'stylesheet');
+          assert.equal(link.props.precedence, 'default');
+          let cssBundle = nullthrows(
+            b.getBundles().find(b => b.type === 'css'),
+          );
+          assert.equal(
+            link.props.href,
+            '/' +
+              relativePath(cssBundle.target.distDir, cssBundle.filePath, false),
           );
         });
 
@@ -735,10 +863,13 @@ describe('react server components', function () {
             }
           });
 
+          let entryBundle = b.getBundles()[2];
           assert.equal(
             res.output.Server.bootstrapScript,
-            `Promise.all([import("/${path.basename(
-              b.getBundles()[2].filePath,
+            `Promise.all([import("/${relativePath(
+              entryBundle.target.distDir,
+              entryBundle.filePath,
+              false,
             )}")]).then(()=>${parcelRequireName}("${b.getAssetPublicId(
               nullthrows(clientEntry),
             )}"))`,
@@ -806,24 +937,24 @@ describe('react server components', function () {
           );
           assert.equal(result.props.children[1].type.$$name, 'Client');
           assert.equal(typeof result.props.children[1].type.$$id, 'string');
+          let jsBundle = b.getBundles()[1];
           assert.deepEqual(result.props.children[1].type.$$bundles, [
-            path.basename(b.getBundles()[1].filePath),
+            relativePath(jsBundle.target.distDir, jsBundle.filePath, false),
           ]);
 
           let link = result.props.children[0];
           assert.equal(link.type, 'link');
           assert.equal(link.props.rel, 'stylesheet');
           assert.equal(link.props.precedence, 'default');
+          let cssBundle = nullthrows(
+            b
+              .getBundles()
+              .find(b => b.type === 'css' && b.name.includes('Client')),
+          );
           assert.equal(
             link.props.href,
             '/' +
-              path.basename(
-                nullthrows(
-                  b
-                    .getBundles()
-                    .find(b => b.type === 'css' && b.name.startsWith('Client')),
-                ).filePath,
-              ),
+              relativePath(cssBundle.target.distDir, cssBundle.filePath, false),
           );
         });
 
@@ -879,18 +1010,15 @@ describe('react server components', function () {
           assert.equal(link.type, 'link');
           assert.equal(link.props.rel, 'stylesheet');
           assert.equal(link.props.precedence, 'default');
+          let cssBundle = nullthrows(
+            b
+              .getBundles()
+              .find(b => b.type === 'css' && b.name.includes('Dynamic')),
+          );
           assert.equal(
             link.props.href,
             '/' +
-              path.basename(
-                nullthrows(
-                  b
-                    .getBundles()
-                    .find(
-                      b => b.type === 'css' && b.name.startsWith('Dynamic'),
-                    ),
-                ).filePath,
-              ),
+              relativePath(cssBundle.target.distDir, cssBundle.filePath, false),
           );
         });
       },

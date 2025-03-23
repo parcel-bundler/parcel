@@ -17,78 +17,6 @@ export default (new Reporter({
     let hmrServer = hmrPort ? hmrServers.get(hmrPort) : undefined;
     let nodeRunner = nodeRunners.get(options.instanceId);
     switch (event.type) {
-      case 'watchStart': {
-        if (serveOptions) {
-          // If there's already a server when watching has just started, something
-          // is wrong.
-          if (server) {
-            return logger.warn({
-              message: 'Trying to create the devserver but it already exists.',
-            });
-          }
-
-          let serverOptions = {
-            ...serveOptions,
-            projectRoot: options.projectRoot,
-            cacheDir: options.cacheDir,
-            // Override the target's publicUrl as that is likely meant for production.
-            // This could be configurable in the future.
-            publicUrl: serveOptions.publicUrl ?? '/',
-            inputFS: options.inputFS,
-            outputFS: options.outputFS,
-            packageManager: options.packageManager,
-            logger,
-            hmrOptions,
-          };
-
-          server = new Server(serverOptions);
-          servers.set(serveOptions.port, server);
-          const devServer = await server.start();
-
-          if (hmrOptions && hmrOptions.port === serveOptions.port) {
-            let hmrServerOptions = {
-              port: serveOptions.port,
-              host: hmrOptions.host,
-              devServer,
-              addMiddleware: handler => {
-                server?.middleware.push(handler);
-              },
-              logger,
-              https: options.serveOptions ? options.serveOptions.https : false,
-              cacheDir: options.cacheDir,
-              inputFS: options.inputFS,
-              outputFS: options.outputFS,
-              projectRoot: options.projectRoot,
-              distDir: serveOptions.distDir,
-              publicUrl: serveOptions.publicUrl ?? '/',
-            };
-            hmrServer = new HMRServer(hmrServerOptions);
-            hmrServers.set(serveOptions.port, hmrServer);
-            await hmrServer.start();
-            return;
-          }
-        }
-
-        let port = hmrOptions?.port;
-        if (typeof port === 'number') {
-          let hmrServerOptions = {
-            port,
-            host: hmrOptions?.host,
-            logger,
-            https: options.serveOptions ? options.serveOptions.https : false,
-            cacheDir: options.cacheDir,
-            inputFS: options.inputFS,
-            outputFS: options.outputFS,
-            projectRoot: options.projectRoot,
-            distDir: serveOptions ? serveOptions.distDir : null,
-            publicUrl: serveOptions ? serveOptions.publicUrl ?? '/' : '/',
-          };
-          hmrServer = new HMRServer(hmrServerOptions);
-          hmrServers.set(port, hmrServer);
-          await hmrServer.start();
-        }
-        break;
-      }
       case 'watchEnd':
         if (serveOptions) {
           if (!server) {
@@ -135,14 +63,17 @@ export default (new Reporter({
         }
         break;
       case 'buildSuccess': {
-        if (serveOptions) {
-          if (!server) {
-            return logger.warn({
-              message:
-                'Could not send success event to devserver because it does not exist.',
-            });
-          }
+        if (!server && !hmrServer && (serveOptions || hmrOptions)) {
+          [server, hmrServer] = await startDevServer(
+            options,
+            logger,
+            event.bundleGraph
+              .getEntryBundles()
+              .some(b => b.env.isBrowser() || b.type === 'html'),
+          );
+        }
 
+        if (serveOptions && server) {
           server.buildSuccess(event.bundleGraph, event.requestBundle);
         }
         if (hmrServer && options.serveOptions === false) {
@@ -173,3 +104,75 @@ export default (new Reporter({
     }
   },
 }): Reporter);
+
+async function startDevServer(options, logger, isBrowser) {
+  let {serveOptions, hmrOptions} = options;
+  let server = serveOptions ? servers.get(serveOptions.port) : undefined;
+  let hmrPort =
+    (hmrOptions && hmrOptions.port) || (serveOptions && serveOptions.port);
+  let hmrServer = hmrPort ? hmrServers.get(hmrPort) : undefined;
+
+  if (serveOptions && !server && isBrowser) {
+    let serverOptions = {
+      ...serveOptions,
+      projectRoot: options.projectRoot,
+      cacheDir: options.cacheDir,
+      // Override the target's publicUrl as that is likely meant for production.
+      // This could be configurable in the future.
+      publicUrl: serveOptions.publicUrl ?? '/',
+      inputFS: options.inputFS,
+      outputFS: options.outputFS,
+      packageManager: options.packageManager,
+      logger,
+      hmrOptions,
+    };
+
+    server = new Server(serverOptions);
+    servers.set(serveOptions.port, server);
+    const devServer = await server.start();
+
+    if (hmrOptions && hmrOptions.port === serveOptions.port) {
+      let hmrServerOptions = {
+        port: serveOptions.port,
+        host: hmrOptions.host,
+        devServer,
+        addMiddleware: handler => {
+          server?.middleware.push(handler);
+        },
+        logger,
+        https: options.serveOptions ? options.serveOptions.https : false,
+        cacheDir: options.cacheDir,
+        inputFS: options.inputFS,
+        outputFS: options.outputFS,
+        projectRoot: options.projectRoot,
+        distDir: serveOptions.distDir,
+        publicUrl: serveOptions.publicUrl ?? '/',
+      };
+      hmrServer = new HMRServer(hmrServerOptions);
+      hmrServers.set(serveOptions.port, hmrServer);
+      await hmrServer.start();
+      return [server, hmrServer];
+    }
+  }
+
+  let port = hmrOptions?.port;
+  if (typeof port === 'number' && !hmrServer) {
+    let hmrServerOptions = {
+      port,
+      host: hmrOptions?.host,
+      logger,
+      https: options.serveOptions ? options.serveOptions.https : false,
+      cacheDir: options.cacheDir,
+      inputFS: options.inputFS,
+      outputFS: options.outputFS,
+      projectRoot: options.projectRoot,
+      distDir: serveOptions ? serveOptions.distDir : null,
+      publicUrl: serveOptions ? serveOptions.publicUrl ?? '/' : '/',
+    };
+    hmrServer = new HMRServer(hmrServerOptions);
+    hmrServers.set(port, hmrServer);
+    await hmrServer.start();
+  }
+
+  return [server, hmrServer];
+}

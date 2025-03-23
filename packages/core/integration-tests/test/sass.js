@@ -98,12 +98,6 @@ describe('sass', function () {
         assets: ['target2.html'],
       },
       {
-        assets: ['style.scss'],
-      },
-      {
-        assets: ['fa-regular-400.ttf'],
-      },
-      {
         assets: ['fa-regular-400.ttf'],
       },
     ]);

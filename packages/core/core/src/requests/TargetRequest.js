@@ -329,7 +329,11 @@ export class TargetResolver {
       }
 
       let serve = this.options.serveOptions;
-      if (serve && targets.length > 0) {
+      if (
+        serve &&
+        targets.length > 0 &&
+        targets.every(t => BROWSER_ENVS.has(t.env.context))
+      ) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -357,7 +361,10 @@ export class TargetResolver {
 
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (this.options.serveOptions) {
+      if (
+        this.options.serveOptions &&
+        targets.every(t => BROWSER_ENVS.has(t.env.context))
+      ) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
         let distDir = toProjectPath(
@@ -365,6 +372,40 @@ export class TargetResolver {
           this.options.serveOptions.distDir,
         );
         let mainTarget = targets.length === 1 ? targets[0] : null;
+
+        if (mainTarget?.env.isLibrary) {
+          let loc = mainTarget.loc;
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              origin: '@parcel/core',
+              message: md`
+Library targets are not supported in serve mode.
+              `,
+              codeFrames: loc
+                ? [
+                    {
+                      filePath: fromProjectPath(
+                        this.options.projectRoot,
+                        loc.filePath,
+                      ),
+                      codeHighlights: [
+                        convertSourceLocationToHighlight(
+                          loc,
+                          'Target declared here',
+                        ),
+                      ],
+                    },
+                  ]
+                : [],
+              hints: [
+                `The "${mainTarget.name}" field is meant for libraries, not applications. Either remove the "${mainTarget.name}" field or choose a different target name.`,
+              ],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
+            },
+          });
+        }
+
         let context = mainTarget?.env.context ?? 'browser';
         let engines = BROWSER_ENVS.has(context)
           ? {browsers: DEFAULT_ENGINES.browsers}

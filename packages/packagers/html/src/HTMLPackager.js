@@ -151,7 +151,7 @@ function getBundleReferences(bundleGraph, htmlBundle) {
 
   if (useImportMap && Object.keys(importMap).length > 0) {
     for (let id in importMap) {
-      importMap[id] = urlJoin(htmlBundle.target.publicUrl, importMap[id]);
+      importMap[id] = urlJoin(htmlBundle.target.publicUrl, importMap[id], true);
     }
   }
 

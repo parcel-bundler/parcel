@@ -58,7 +58,11 @@ export default (new Transformer({
     };
 
     asset.setEnvironment({
-      context: 'browser',
+      context:
+        asset.env.context === 'react-server' ||
+        asset.env.context === 'react-client'
+          ? 'react-client'
+          : 'browser',
       engines: {
         browsers: asset.env.engines.browsers,
       },

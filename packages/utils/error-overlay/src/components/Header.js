@@ -6,7 +6,6 @@
  */
 
 /* @flow */
-import React from 'react';
 import {theme} from '../styles';
 
 const headerStyle = {

@@ -2,11 +2,10 @@
   "name": "parcel-react-static-starter",
   "private": true,
   "version": "0.0.0",
-  "source": "src/pages/*",
   "targets": {
-    "default": {
-      "context": "react-server",
-      "scopeHoist": false
+    "react-static": {
+      "source": "src/pages/*",
+      "context": "react-server"
     }
   },
   "scripts": {
@@ -14,14 +13,13 @@
     "build": "parcel build"
   },
   "dependencies": {
-    "@parcel/rsc": "canary",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@parcel/rsc": "^2.14.0",
+    "react": "canary",
+    "react-dom": "canary"
   },
   "devDependencies": {
-    "@parcel/config-react-static": "canary",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "parcel": "canary"
+    "parcel": "^2.14.0"
   }
 }

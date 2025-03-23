@@ -6,7 +6,6 @@
  */
 
 /* @flow */
-import React from 'react';
 import StackFrame from './StackFrame';
 import Collapsible from '../components/Collapsible';
 import {isInternalFile} from '../utils/isInternalFile';

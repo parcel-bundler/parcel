@@ -6,7 +6,6 @@
  */
 
 /* @flow */
-import React from 'react';
 import ErrorOverlay from '../components/ErrorOverlay';
 import CloseButton from '../components/CloseButton';
 import NavigationBar from '../components/NavigationBar';
@@ -15,7 +14,7 @@ import Footer from '../components/Footer';
 
 import type {ErrorRecord} from './RuntimeError';
 import type {ErrorLocation} from '..';
-import {useState} from 'react';
+import {useState} from 'preact/hooks';
 
 type Props = {|
   errorRecords: ErrorRecord[],

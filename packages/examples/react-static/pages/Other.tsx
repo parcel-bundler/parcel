@@ -1,4 +1,4 @@
-import type { PageProps } from "../types";
+import type { PageProps } from "@parcel/rsc";
 import {Nav} from '../components/Nav';
 import '../components/style.css';
 import '../components/client';

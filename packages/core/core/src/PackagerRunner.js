@@ -203,7 +203,7 @@ export default class PackagerRunner {
     bundleConfigs: Map<string, Config>,
   ): Promise<void> {
     let name = nullthrows(bundle.name);
-    let plugin = await this.config.getPackager(name);
+    let plugin = await this.config.getPackager(name, bundle.pipeline);
     await this.loadPluginConfig(
       bundleGraph,
       bundle,
@@ -405,7 +405,10 @@ export default class PackagerRunner {
       bundle,
     });
 
-    let packager = await this.config.getPackager(bundle.name);
+    let packager = await this.config.getPackager(
+      bundle.name,
+      internalBundle.pipeline,
+    );
     let {name, resolveFrom, plugin} = packager;
     let measurement;
     try {
@@ -691,8 +694,8 @@ export default class PackagerRunner {
 
   async getDevDepHashes(bundle: InternalBundle): Promise<string> {
     let name = nullthrows(bundle.name);
-    let packager = await this.config.getPackager(name);
-    let optimizers = await this.config.getOptimizers(name);
+    let packager = await this.config.getPackager(name, bundle.pipeline);
+    let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
 
     let key = `${packager.name}:${fromProjectPathRelative(
       packager.resolveFrom,

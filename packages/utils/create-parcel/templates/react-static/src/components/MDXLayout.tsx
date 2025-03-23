@@ -1,4 +1,4 @@
-import type { PageProps } from '../types';
+import type { PageProps } from '@parcel/rsc';
 import type { ReactNode } from 'react';
 import { Nav } from '../components/Nav';
 import '../page.css';
@@ -12,7 +12,7 @@ export default function Layout({children, pages, currentPage}: LayoutProps) {
   return (
     <html lang="en">
       <head>
-        <title>{currentPage.meta.tableOfContents?.[0].title}</title>
+        <title>{currentPage.tableOfContents?.[0].title}</title>
       </head>
       <body>
         {children}

@@ -182,7 +182,7 @@ impl Config {
   }
 
   fn insert_node_globals(&self) -> bool {
-    !self.is_node() && self.source_type != SourceType::Script
+    !self.is_node() && self.source_type != SourceType::Script && !self.is_library
   }
 
   fn replace_env(&self) -> bool {
@@ -502,7 +502,7 @@ pub fn transform(
                 diagnostics: &mut diagnostics,
                 unresolved_mark,
               },
-              config.source_type != SourceType::Script,
+              config.source_type != SourceType::Script && !config.is_library,
             ),
             paren_remover(Some(&comments)),
             // Simplify expressions and remove dead branches so that we

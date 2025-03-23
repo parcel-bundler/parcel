@@ -373,7 +373,9 @@ describe('html', function () {
       'utf8',
     );
     assert(
-      /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css">/.test(html),
+      /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
+        html,
+      ),
     );
   });
 
@@ -402,7 +404,7 @@ describe('html', function () {
       'utf8',
     );
     assert(
-      /<html><head>\s*<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css"><\/head><body>/.test(
+      /<html><head>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css"></head><body>/.test(
         html,
       ),
     );
@@ -502,7 +504,7 @@ describe('html', function () {
     );
 
     assert(
-      /^<html><head><link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script type="module" src="[/\\]index\.[a-f0-9]+\.js"><\/script>\s*<\/head><body><h1>Hello/m.test(
+      /^<html><head><link rel="stylesheet" href="[/\\]html-css-optional-elements\.[a-f0-9]+\.css">\s*<script type="module" src="[/\\]html-css-optional-elements\.[a-f0-9]+\.js"><\/script>\s*<\/head><body><h1>Hello/m.test(
         html,
       ),
     );
@@ -539,14 +541,15 @@ describe('html', function () {
 
     assert.equal(
       html.match(
-        /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+?\.css">/g,
+        /<link rel="stylesheet" href="[/\\]{1}html-css-multi\.[a-f0-9]+?\.css">/g,
       ).length,
       1,
     );
 
     assert.equal(
-      html.match(/<script type="module" src="[/\\]{1}index\.[a-f0-9]+?\.js">/g)
-        .length,
+      html.match(
+        /<script type="module" src="[/\\]{1}html-css-multi\.[a-f0-9]+?\.js">/g,
+      ).length,
       2,
     );
   });
@@ -2142,10 +2145,6 @@ describe('html', function () {
         assets: ['esmodule-helpers.js', 'shared.js'],
       },
       {
-        type: 'js',
-        assets: ['esmodule-helpers.js', 'shared.js'],
-      },
-      {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
@@ -3140,6 +3139,60 @@ describe('html', function () {
 
       assert(
         html.indexOf('<script type=importmap>') < html.indexOf('<script src'),
+      );
+
+      let res = await run(b, null, {require: false});
+      let value = await res.output();
+      assert.equal(value, 7);
+    });
+
+    it('should generate an import map with relative public url', async function () {
+      await fsFixture(overlayFS, dir)`
+        index.html:
+          <body>
+            <script src="./main.js" type="module"></script>
+          </body>
+        main.js:
+          globalThis.output = async () => (await import('./main-async')).bar();
+        main-async.js:
+          import './main-async.css';
+          export const bar = async () => (await import('./nested-async')).bar + 3;
+        main-async.css:
+          .foo { color: red }
+        nested-async.js:
+          import './nested-async.css';
+          export const bar = 4;
+        nested-async.css:
+          .bar { color: green }
+        `;
+
+      let b = await bundle(path.join(dir, '/index.html'), {
+        inputFS: overlayFS,
+        mode: 'production',
+        defaultTargetOptions: {
+          publicUrl: '.',
+        },
+      });
+
+      let html = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      let importMap = JSON.parse(
+        html.match(/<script type="importmap">(.*?)<\/script>/)[1],
+      );
+      assert.deepEqual(importMap, {
+        imports: {
+          [b.getBundles()[2].publicId]:
+            './' + path.basename(b.getBundles()[2].filePath),
+          [b.getBundles()[3].publicId]:
+            './' + path.basename(b.getBundles()[3].filePath),
+          [b.getBundles()[4].publicId]:
+            './' + path.basename(b.getBundles()[4].filePath),
+          [b.getBundles()[5].publicId]:
+            './' + path.basename(b.getBundles()[5].filePath),
+        },
+      });
+
+      assert(
+        html.indexOf('<script type="importmap">') < html.indexOf('<script src'),
       );
 
       let res = await run(b, null, {require: false});

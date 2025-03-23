@@ -1,6 +1,6 @@
 {
   "name": "@parcel/error-overlay",
-  "version": "2.13.3",
+  "version": "2.14.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -13,14 +13,21 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/index.js",
+  "module": "lib/index.js",
   "source": "src/index.js",
   "engines": {
     "node": ">= 16.0.0"
   },
-  "dependencies": {
+  "devDependencies": {
     "ansi-html-community": "0.0.8",
-    "react": "^18 || ^19",
-    "react-dom": "^18 || ^19"
+    "preact": "^10.26.4"
+  },
+  "alias": {
+    "preact/jsx-dev-runtime": "preact/jsx-runtime"
+  },
+  "targets": {
+    "module": {
+      "includeNodeModules": true
+    }
   }
 }

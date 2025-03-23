@@ -6,7 +6,7 @@
  */
 
 /* @flow */
-import React, {useState} from 'react';
+import {useState} from 'preact/hooks';
 import {theme} from '../styles';
 import CodeBlock from '../components/CodeBlock';
 import {getPrettyURL} from '../utils/getPrettyURL';

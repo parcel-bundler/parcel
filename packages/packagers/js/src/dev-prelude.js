@@ -102,6 +102,7 @@
   function Module(moduleName) {
     this.id = moduleName;
     this.bundle = newRequire;
+    this.require = nodeRequire;
     this.exports = {};
   }
 

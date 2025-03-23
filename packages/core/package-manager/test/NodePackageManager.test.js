@@ -74,6 +74,7 @@ describe('NodePackageManager', function () {
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/index.js'),
         type: 1,
         invalidateOnFileChange: new Set([
+          path.join(FIXTURES_DIR, 'has-foo/package.json'),
           path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/package.json'),
         ]),
         invalidateOnFileCreate: [
@@ -128,6 +129,7 @@ describe('NodePackageManager', function () {
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/a/index.js'),
         type: 1,
         invalidateOnFileChange: new Set([
+          path.join(FIXTURES_DIR, 'has-foo/package.json'),
           path.join(FIXTURES_DIR, 'has-foo/node_modules/a/package.json'),
         ]),
         invalidateOnFileCreate: [
@@ -297,6 +299,7 @@ describe('NodePackageManager', function () {
           ),
           type: 1,
           invalidateOnFileChange: new Set([
+            path.join(FIXTURES_DIR, 'has-foo/subpackage/package.json'),
             path.join(
               FIXTURES_DIR,
               'has-foo/subpackage/node_modules/foo/package.json',

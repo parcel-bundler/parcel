@@ -1007,7 +1007,7 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
+      assert(html.includes('<script type="module" src="/esm-browser'));
 
       let entry = await outputFS.readFile(
         b
@@ -1049,7 +1049,7 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
+      assert(html.includes('<script type="module" src="/esm-browser'));
 
       let entry = await outputFS.readFile(
         b
@@ -1081,8 +1081,8 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
-      assert(html.includes('<link rel="stylesheet" href="/index'));
+      assert(html.includes('<script type="module" src="/esm-browser-css'));
+      assert(html.includes('<link rel="stylesheet" href="/esm-browser-css'));
 
       let entry = await outputFS.readFile(
         b
@@ -1137,7 +1137,9 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
+      assert(
+        html.includes('<script type="module" src="/esm-browser-split-bundle'),
+      );
       assert(html.includes('<script type="importmap"'));
 
       let bundles = b.getBundles();

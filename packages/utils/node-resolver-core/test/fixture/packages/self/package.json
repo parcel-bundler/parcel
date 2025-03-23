@@ -1,0 +1,7 @@
+{
+  "name": "self",
+  "exports": {
+    ".": "./foo.js",
+    "./bar": "./bar.js"
+  }
+}

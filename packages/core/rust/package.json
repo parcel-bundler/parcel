@@ -1,6 +1,6 @@
 {
   "name": "@parcel/rust",
-  "version": "2.13.3",
+  "version": "2.14.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -32,6 +32,14 @@
   "devDependencies": {
     "@napi-rs/cli": "^2.15.2",
     "napi-wasm": "^1.1.2"
+  },
+  "peerDependencies": {
+    "napi-wasm": "^1.1.2"
+  },
+  "peerDependenciesMeta": {
+    "napi-wasm": {
+      "optional": true
+    }
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",

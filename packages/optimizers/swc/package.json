@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-swc",
-  "version": "2.13.3",
+  "version": "2.14.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,14 +17,14 @@
   "source": "src/SwcOptimizer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.13.3"
+    "parcel": "^2.14.2"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.13.3",
-    "@parcel/plugin": "2.13.3",
+    "@parcel/diagnostic": "2.14.2",
+    "@parcel/plugin": "2.14.2",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.13.3",
-    "@swc/core": "^1.10.7",
+    "@parcel/utils": "2.14.2",
+    "@swc/core": "^1.11.5",
     "nullthrows": "^1.1.1"
   }
 }

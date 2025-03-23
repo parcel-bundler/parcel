@@ -21,7 +21,6 @@ import {
 } from './effects/stackTraceLimit';
 import getStackFrames from './utils/getStackFrames';
 import type {StackFrame} from './utils/stack-frame';
-import React from 'react';
 
 const CONTEXT_SIZE: number = 3;
 
@@ -108,24 +107,27 @@ function patchConsole(method: string, onError: (err: Error) => void) {
       error = args.find(arg => arg instanceof Error);
     }
 
-    if (error && !error.message.includes('[parcel]')) {
+    if (
+      error &&
+      !error.message.includes('[parcel]') &&
+      typeof window !== 'undefined' &&
+      window.__REACT_DEVTOOLS_GLOBAL_HOOK__
+    ) {
       // Attempt to append the React component stack
-      // $FlowFixMe
-      if (typeof React.captureOwnerStack === 'function') {
-        // $FlowFixMe
-        let stack = React.captureOwnerStack();
-        error.stack += stack;
-      } else {
-        const ReactSharedInternals =
-          // $FlowFixMe
-          React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-          // $FlowFixMe
-          React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-
-        if (typeof ReactSharedInternals?.getCurrentStack === 'function') {
-          // $FlowFixMe
-          let stack = ReactSharedInternals.getCurrentStack();
-          error.stack += stack;
+      // TODO: use React.captureOwnerStack once stable.
+      let hook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+      if (hook.renderers instanceof Map) {
+        for (let renderer of hook.renderers.values()) {
+          if (
+            typeof renderer?.currentDispatcherRef?.getCurrentStack ===
+            'function'
+          ) {
+            let stack = renderer.currentDispatcherRef.getCurrentStack();
+            if (stack) {
+              error.stack += stack;
+              break;
+            }
+          }
         }
       }
 

@@ -536,6 +536,7 @@ export default (new Transformer({
                       content: a.content,
                       map,
                       uniqueKey: k,
+                      bundleBehavior: null,
                     });
 
                     asset.addDependency({
@@ -738,6 +739,7 @@ export default (new Transformer({
           content: mdxAsset.code,
           map,
           uniqueKey: 'mdx-' + i,
+          bundleBehavior: null,
         });
       }
     }
@@ -776,7 +778,7 @@ export default (new Transformer({
         sourceType: 'module',
         outputFormat: 'commonjs',
         engines: asset.env.engines,
-        includeNodeModules: false,
+        includeNodeModules: true,
         isLibrary: false,
         sourceMap: asset.env.sourceMap,
         shouldOptimize: asset.env.shouldOptimize,

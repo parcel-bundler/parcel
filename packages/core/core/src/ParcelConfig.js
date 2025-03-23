@@ -259,10 +259,21 @@ export default class ParcelConfig {
 
   async getPackager(
     filePath: FilePath,
+    pipeline: ?string,
   ): Promise<LoadedPlugin<Packager<mixed, mixed>>> {
+    // If a pipeline is specified, but it doesn't exist in the optimizers config, ignore it.
+    // Pipelines for bundles come from their entry assets, so the pipeline likely exists in transformers.
+    if (pipeline) {
+      let prefix = pipeline + ':';
+      if (!Object.keys(this.packagers).some(glob => glob.startsWith(prefix))) {
+        pipeline = null;
+      }
+    }
+
     let packager = this.matchGlobMap(
       toProjectPathUnsafe(filePath),
       this.packagers,
+      pipeline,
     );
     if (!packager) {
       throw await this.missingPluginError(
@@ -363,9 +374,13 @@ export default class ParcelConfig {
     );
   }
 
-  matchGlobMap<T>(filePath: ProjectPath, globMap: {|[Glob]: T|}): ?T {
+  matchGlobMap<T>(
+    filePath: ProjectPath,
+    globMap: {|[Glob]: T|},
+    pipeline?: ?string,
+  ): ?T {
     for (let pattern in globMap) {
-      if (this.isGlobMatch(filePath, pattern)) {
+      if (this.isGlobMatch(filePath, pattern, pipeline)) {
         return globMap[pattern];
       }
     }

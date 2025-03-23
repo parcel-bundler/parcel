@@ -1,15 +1,17 @@
 {
   "name": "parcel-react-server-components-example",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "private": true,
   "server": "dist/server.js",
-  "source": "src/server.js",
   "targets": {
     "server": {
-      "context": "react-server",
-      "includeNodeModules": {
-        "express": false
-      }
+      "source": "src/server.js",
+      "context": "react-server"
+    },
+    "react-static": {
+      "source": "static/*.js",
+      "distDir": "dist/static",
+      "context": "react-server"
     }
   },
   "scripts": {
@@ -18,7 +20,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "@parcel/rsc": "*",
+    "@parcel/rsc": "2.14.2",
     "express": "^4.18.2",
     "react": "^19",
     "react-dom": "^19"

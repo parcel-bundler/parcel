@@ -6,7 +6,7 @@ import {hydrate, fetchRSC} from '@parcel/rsc/client';
 let updateRoot = hydrate({
   // Setup a callback to perform server actions.
   // This sends a POST request to the server, and updates the page with the response.
-  async handleServerAction(id, args) {
+  async callServer(id, args) {
     let {result, root} = await fetchRSC<{root: ReactNode, result: any}>(location.pathname, {
       method: 'POST',
       headers: {

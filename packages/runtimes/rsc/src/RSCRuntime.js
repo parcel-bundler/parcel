@@ -52,9 +52,13 @@ export default (new Runtime({
           let bundles;
           let async = bundleGraph.resolveAsyncDependency(node.value, bundle);
           if (async?.type === 'bundle_group') {
-            bundles = bundleGraph.getBundlesInBundleGroup(async.value);
+            bundles = bundleGraph.getBundlesInBundleGroup(async.value, {
+              includeIsolated: false,
+            });
           } else {
-            bundles = bundleGraph.getReferencedBundles(bundle);
+            bundles = bundleGraph.getReferencedBundles(bundle, {
+              includeIsolated: false,
+            });
           }
 
           let importMap = {};
@@ -208,6 +212,7 @@ export default (new Runtime({
           if (asyncResolution?.type === 'bundle_group') {
             let bundles = bundleGraph.getBundlesInBundleGroup(
               asyncResolution.value,
+              {includeIsolated: false},
             );
             let resources = [];
             let js = [];
@@ -288,7 +293,10 @@ export default (new Runtime({
               }
             }
 
-            if (resources) {
+            if (
+              resources.length > 0 ||
+              (node.value.priority !== 'lazy' && entry)
+            ) {
               // Use a proxy to attach resources to all exports.
               // This will be used by the JSX runtime to automatically render CSS at bundle group boundaries.
               let code = `import {createResourcesProxy, waitForCSS} from '@parcel/runtime-rsc/rsc-helpers';\n`;
@@ -343,7 +351,11 @@ export default (new Runtime({
                   ? '<>\n  ' + resources.join('\n  ') + '\n</>'
                   : resources[0]
               };\n`;
-              code += `let res = createResourcesProxy(originalModule, resources ${
+              let esModule =
+                resolvedAsset.symbols.get('default')?.meta?.isEsm === true;
+              code += `let res = createResourcesProxy(originalModule, ${String(
+                esModule,
+              )}, resources ${
                 node.value.priority !== 'lazy' && entry
                   ? ', bootstrapScript'
                   : ''

@@ -1,8 +1,13 @@
 /* @jsxRuntime automatic */
-import { ReactNode, startTransition, useInsertionEffect } from 'react';
-import {createFromReadableStream, createFromFetch, encodeReply, setServerCallback, createTemporaryReferenceSet} from 'react-server-dom-parcel/client';
+import {ReactNode, startTransition, useInsertionEffect} from 'react';
+import {createFromReadableStream, createFromFetch, encodeReply, setServerCallback as setReactServerCallback, createTemporaryReferenceSet} from 'react-server-dom-parcel/client';
 import {rscStream} from 'rsc-html-stream/client';
-import { hydrateRoot, HydrationOptions, Root } from 'react-dom/client';
+import {hydrateRoot, HydrationOptions, Root} from 'react-dom/client';
+
+type CallServerCallback = <T>(id: string, args: any[]) => Promise<T>;
+export function setServerCallback(cb: CallServerCallback): void {
+  return setReactServerCallback(cb);
+}
 
 // Stream in initial RSC payload embedded in the HTML.
 let initialRSCPayload: Promise<ReactNode>;
@@ -16,13 +21,13 @@ function RSCRoot({value, cb}: {value?: ReactNode, cb?: () => void}) {
 
 export type CallServerCallback = <T>(id: string, args: any[]) => Promise<T>;
 export interface HydrateOptions extends HydrationOptions {
-  handleServerAction?: CallServerCallback,
+  callServer?: CallServerCallback,
   onHmrReload?: () => void
 }
 
 export function hydrate(options?: HydrateOptions): (value: ReactNode, cb?: () => void) => void {
-  if (options?.handleServerAction) {
-    setServerCallback(options.handleServerAction);
+  if (options?.callServer) {
+    setServerCallback(options.callServer);
   }
 
   if (options?.onHmrReload) {

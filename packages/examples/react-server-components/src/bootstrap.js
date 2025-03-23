@@ -3,7 +3,7 @@
 import {hydrate, fetchRSC} from '@parcel/rsc/client';
 
 let updateRoot = hydrate({
-  async handleServerAction(id, args) {
+  async callServer(id, args) {
     console.log(id, args);
     const {result, root} = await fetchRSC('/', {
       method: 'POST',

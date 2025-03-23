@@ -1,6 +1,6 @@
 {
   "name": "@parcel/rsc",
-  "version": "2.13.0",
+  "version": "2.14.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,6 +15,9 @@
   },
   "sideEffects": false,
   "exports": {
+    ".": {
+      "types": "./src/ssg.d.ts"
+    },
     "./client": {
       "types": "./lib/client.d.ts",
       "default": "./src/client.tsx"

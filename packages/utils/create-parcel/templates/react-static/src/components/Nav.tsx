@@ -1,4 +1,4 @@
-import type { PageProps } from "../types";
+import type { PageProps } from "@parcel/rsc";
 import './Nav.css';
 
 export function Nav({pages, currentPage}: PageProps) {

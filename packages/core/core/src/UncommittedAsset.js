@@ -364,10 +364,11 @@ export default class UncommittedAsset {
         filePath: this.value.filePath,
         type: result.type,
         bundleBehavior:
-          result.bundleBehavior ??
-          (this.value.bundleBehavior == null
-            ? null
-            : BundleBehaviorNames[this.value.bundleBehavior]),
+          result.bundleBehavior === undefined
+            ? this.value.bundleBehavior == null
+              ? null
+              : BundleBehaviorNames[this.value.bundleBehavior]
+            : result.bundleBehavior,
         isBundleSplittable:
           result.isBundleSplittable ?? this.value.isBundleSplittable,
         isSource: this.value.isSource,

@@ -5970,7 +5970,11 @@ describe('scope hoisting', function () {
 
       let bundleHashDelayFoo = b
         .getBundles()
-        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .find(
+          b =>
+            b.filePath.endsWith('.js') &&
+            b.filePath.includes('non-deterministic-bundle-hashes'),
+        )
         .filePath.split('.')[1];
 
       let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
@@ -5984,7 +5988,11 @@ describe('scope hoisting', function () {
 
       let bundleHashDelayBar = b2
         .getBundles()
-        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .find(
+          b =>
+            b.filePath.endsWith('.js') &&
+            b.filePath.includes('non-deterministic-bundle-hashes'),
+        )
         .filePath.split('.')[1];
 
       assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
@@ -6056,7 +6064,8 @@ describe('scope hoisting', function () {
     );
 
     let contents = await outputFS.readFile(
-      b.getBundles().find(b => /index.*\.js/.test(b.filePath)).filePath,
+      b.getBundles().find(b => /bundle-queue-runtime.*\.js/.test(b.filePath))
+        .filePath,
       'utf8',
     );
     assert(contents.includes('$parcel$global.rwr('));

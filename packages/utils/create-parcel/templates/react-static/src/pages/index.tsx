@@ -1,4 +1,4 @@
-import type { PageProps } from '../types';
+import type { PageProps } from '@parcel/rsc';
 import { Nav } from '../components/Nav';
 import { Counter } from '../components/Counter';
 import '../page.css';

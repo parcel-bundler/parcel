@@ -1241,7 +1241,9 @@ describe('TargetResolver', () => {
     });
 
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      await targetResolver.resolve(
+        path.join(__dirname, 'fixtures/default-serve'),
+      ),
       [
         {
           name: 'default',

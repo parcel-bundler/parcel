@@ -10,7 +10,7 @@
 /* @flow */
 import type {ErrorRecord} from './listenToRuntimeErrors';
 import {listenToRuntimeErrors, crashWithFrames} from './listenToRuntimeErrors';
-import {createRoot} from 'react-dom/client';
+import {render} from 'preact';
 import RuntimeErrorContainer from './containers/RuntimeErrorContainer';
 import {overlayStyle} from './styles';
 
@@ -96,21 +96,19 @@ export function stopReportingRuntimeErrors() {
   }
 }
 
-let rootNode;
-let root;
+let rootNode, shadow;
 
 function update() {
-  if (!root) {
+  if (!rootNode) {
     rootNode = document.createElement('parcel-error-overlay');
-    let shadow = rootNode.attachShadow({mode: 'open'});
+    shadow = rootNode.attachShadow({mode: 'open'});
     if (rootNode) {
       document.body?.appendChild(rootNode);
-      root = createRoot(shadow);
     }
   }
 
-  if (currentRuntimeErrorRecords.length > 0 && root) {
-    root.render(
+  if (currentRuntimeErrorRecords.length > 0 && shadow) {
+    render(
       <dialog
         ref={d => (d: any)?.showModal()}
         style={overlayStyle}
@@ -118,11 +116,10 @@ function update() {
       >
         <ErrorOverlay />
       </dialog>,
+      shadow,
     );
   } else {
-    root?.unmount();
     rootNode?.remove();
-    root = null;
     rootNode = null;
   }
 }
