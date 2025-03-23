@@ -89,6 +89,8 @@ async function install(template: string, name: string) {
     recursive: true,
   });
 
+  await fs.rename(path.join(name, 'gitignore'), path.join(name, '.gitignore'));
+
   let packageManager = getCurrentPackageManager()?.name;
   switch (packageManager) {
     case 'yarn':
