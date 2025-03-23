@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "license": "MIT",
   "private": true,
-  "browser": "dist/index.js",
+  "default": "dist/index.js",
   "targets": {
-    "browser": {
+    "default": {
+      "context": "browser",
       "engines": {
         "browsers": [
           "> 0.25%"

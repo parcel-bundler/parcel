@@ -372,6 +372,40 @@ export class TargetResolver {
           this.options.serveOptions.distDir,
         );
         let mainTarget = targets.length === 1 ? targets[0] : null;
+
+        if (mainTarget?.env.isLibrary) {
+          let loc = mainTarget.loc;
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              origin: '@parcel/core',
+              message: md`
+Library targets are not supported in serve mode.
+              `,
+              codeFrames: loc
+                ? [
+                    {
+                      filePath: fromProjectPath(
+                        this.options.projectRoot,
+                        loc.filePath,
+                      ),
+                      codeHighlights: [
+                        convertSourceLocationToHighlight(
+                          loc,
+                          'Target declared here',
+                        ),
+                      ],
+                    },
+                  ]
+                : [],
+              hints: [
+                `The "${mainTarget.name}" field is meant for libraries, not applications. Either remove the "${mainTarget.name}" field or choose a different target name.`,
+              ],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
+            },
+          });
+        }
+
         let context = mainTarget?.env.context ?? 'browser';
         let engines = BROWSER_ENVS.has(context)
           ? {browsers: DEFAULT_ENGINES.browsers}
