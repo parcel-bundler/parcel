@@ -3,7 +3,6 @@ use std::{
   collections::VecDeque,
   fmt::Debug,
   hash::{DefaultHasher, Hash, Hasher},
-  ops::Deref,
 };
 
 use crate::arena::{NodeData, Ref};
@@ -746,15 +745,14 @@ impl<'arena> Element for OxvgNode<'arena> {
   fn get_attribute_node<'a>(
     &'a self,
     attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-  ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+  ) -> Option<std::cell::Ref<'a, html5ever::Attribute>> {
     self.attributes().get_named_item(attr_name)
   }
 
   fn get_attribute_node_mut<'a>(
     &'a self,
     attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-  ) -> Option<impl std::ops::DerefMut<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>
-  {
+  ) -> Option<std::cell::RefMut<'a, html5ever::Attribute>> {
     self.attributes().get_named_item_mut(attr_name)
   }
 
@@ -762,7 +760,7 @@ impl<'arena> Element for OxvgNode<'arena> {
     &'a self,
     namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
     name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-  ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+  ) -> Option<std::cell::Ref<'a, html5ever::Attribute>> {
     self.attributes().get_named_item_ns(namespace, name)
   }
 
