@@ -48,3 +48,56 @@ export function detectSVGOVersion(
 
   return {version: 3};
 }
+
+export function convertSVGOConfig(config: any): any {
+  if (typeof config === 'boolean') {
+    return {default: config};
+  }
+
+  if (!config || typeof config !== 'object') {
+    return {default: true};
+  }
+
+  let result = {
+    default: false,
+  };
+
+  if (Array.isArray(config.plugins)) {
+    for (let plugin of config.plugins) {
+      let name: string,
+        params = true;
+      if (typeof plugin === 'string') {
+        name = plugin;
+      } else if (
+        typeof plugin === 'object' &&
+        typeof plugin?.name === 'string'
+      ) {
+        name = plugin.name;
+        params = plugin.params ?? true;
+      } else {
+        continue;
+      }
+
+      if (name === 'cleanupIDs') {
+        name = 'cleanupIds';
+      }
+
+      if (name === 'preset-default') {
+        result.default = true;
+        if (
+          typeof params === 'object' &&
+          typeof params?.overrides === 'object' &&
+          params.overrides
+        ) {
+          for (let key in params.overrides) {
+            result[key] = params.overrides[key];
+          }
+        }
+      } else if (typeof name === 'string') {
+        result[(name: any)] = params || false;
+      }
+    }
+  }
+
+  return result;
+}

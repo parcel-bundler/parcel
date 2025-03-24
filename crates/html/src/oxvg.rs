@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::arena::{NodeData, Ref};
+use serde::Deserialize;
 use xml5ever::{local_name, tendril::StrTendril, Attribute, Namespace, QualName};
 
 use oxvg_ast::{
@@ -1125,5 +1126,400 @@ impl<'arena> Document for OxvgNode<'arena> {
       node,
       arena: self.arena,
     }
+  }
+}
+
+#[derive(Deserialize, Default, Debug)]
+struct PrefixIdsOptions {
+  pub delim: Option<String>,
+  #[serde(default)]
+  pub prefix: Option<String>,
+  #[serde(default)]
+  pub prefix_ids: Option<bool>,
+  #[serde(default)]
+  pub prefix_class_names: Option<bool>,
+}
+
+#[derive(Deserialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct OxvgConfig {
+  #[serde(deserialize_with = "ok_or_default")]
+  default: DefaultTrue,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  add_attributes_to_svg_element: ConfigItem<oxvg_optimiser::AddAttributesToSVGElement>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  add_classes_to_svg: ConfigItem<oxvg_optimiser::AddClassesToSVG>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  cleanup_list_of_values: ConfigItem<oxvg_optimiser::CleanupListOfValues>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  prefix_ids: ConfigItem<PrefixIdsOptions>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_attributes_by_selector: ConfigItem<oxvg_optimiser::RemoveAttributesBySelector>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_attrs: ConfigItem<oxvg_optimiser::RemoveAttrs>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_dimensions: ConfigItem<oxvg_optimiser::RemoveDimensions>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_elements_by_attr: ConfigItem<oxvg_optimiser::RemoveElementsByAttr>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_off_canvas_paths: ConfigItem<oxvg_optimiser::RemoveOffCanvasPaths>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_raster_images: ConfigItem<oxvg_optimiser::RemoveRasterImages>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_scripts: ConfigItem<oxvg_optimiser::RemoveScripts>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_style_element: ConfigItem<oxvg_optimiser::RemoveStyleElement>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_title: ConfigItem<oxvg_optimiser::RemoveTitle>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_view_box: ConfigItem<oxvg_optimiser::RemoveViewBox>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  reuse_paths: ConfigItem<()>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_doctype: ConfigItem<oxvg_optimiser::RemoveDoctype>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_xml_proc_inst: ConfigItem<oxvg_optimiser::RemoveXMLProcInst>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_comments: ConfigItem<oxvg_optimiser::RemoveComments>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_deprecated_attrs: ConfigItem<oxvg_optimiser::RemoveDeprecatedAttrs>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_metadata: ConfigItem<oxvg_optimiser::RemoveMetadata>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  cleanup_attributes: ConfigItem<oxvg_optimiser::CleanupAttributes>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  merge_styles: ConfigItem<()>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  inline_styles: ConfigItem<oxvg_optimiser::inline_styles::Options>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  minify_styles: ConfigItem<oxvg_optimiser::MinifyStyles>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  cleanup_ids: ConfigItem<oxvg_optimiser::cleanup_ids::Options>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_useless_defs: ConfigItem<oxvg_optimiser::RemoveUselessDefs>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  cleanup_numeric_values: ConfigItem<oxvg_optimiser::CleanupNumericValues>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  convert_colors: ConfigItem<oxvg_optimiser::ConvertColors>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_unknowns_and_defaults: ConfigItem<oxvg_optimiser::RemoveUnknownsAndDefaults>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_non_inheritable_group_attrs: ConfigItem<oxvg_optimiser::RemoveNonInheritableGroupAttrs>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_useless_stroke_and_fill: ConfigItem<oxvg_optimiser::RemoveUselessStrokeAndFill>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  cleanup_enable_background: ConfigItem<oxvg_optimiser::CleanupEnableBackground>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_hidden_elems: ConfigItem<oxvg_optimiser::remove_hidden_elems::Options>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_empty_text: ConfigItem<oxvg_optimiser::RemoveEmptyText>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  convert_shape_to_path: ConfigItem<oxvg_optimiser::ConvertShapeToPath>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  convert_ellipse_to_circle: ConfigItem<oxvg_optimiser::ConvertEllipseToCircle>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  move_elems_attrs_to_group: ConfigItem<oxvg_optimiser::MoveElemsAttrsToGroup>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  move_group_attrs_to_elems: ConfigItem<oxvg_optimiser::MoveGroupAttrsToElems>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  collapse_groups: ConfigItem<oxvg_optimiser::CollapseGroups>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  apply_transforms: ConfigItem<oxvg_optimiser::ApplyTransforms>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  convert_path_data: ConfigItem<oxvg_optimiser::ConvertPathData>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  convert_transform: ConfigItem<oxvg_optimiser::ConvertTransform>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_empty_attrs: ConfigItem<oxvg_optimiser::RemoveEmptyAttrs>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_empty_containers: ConfigItem<oxvg_optimiser::RemoveEmptyContainers>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  merge_paths: ConfigItem<oxvg_optimiser::MergePaths>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  sort_attrs: ConfigItem<oxvg_optimiser::SortAttrs>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  sort_defs_children: ConfigItem<oxvg_optimiser::SortDefsChildren>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  remove_desc: ConfigItem<oxvg_optimiser::RemoveDesc>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(transparent)]
+struct DefaultTrue(bool);
+
+impl Default for DefaultTrue {
+  fn default() -> Self {
+    DefaultTrue(true)
+  }
+}
+
+#[derive(Deserialize, Default, Debug)]
+#[serde(untagged)]
+enum ConfigItem<C> {
+  #[serde(skip)]
+  #[default]
+  None,
+  Bool(bool),
+  Config(C),
+}
+
+impl<C> ConfigItem<C> {
+  fn is_some(&self) -> bool {
+    match self {
+      ConfigItem::Bool(true) => true,
+      ConfigItem::Config(_) => true,
+      _ => false,
+    }
+  }
+}
+
+fn ok_or_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+  T: serde::Deserialize<'de> + Default,
+  D: serde::Deserializer<'de>,
+{
+  Ok(T::deserialize(deserializer).unwrap_or_default())
+}
+
+pub enum OxvgKind {
+  Html,
+  Svg,
+}
+
+impl OxvgConfig {
+  pub fn into_jobs<'arena>(&self, kind: OxvgKind) -> oxvg_optimiser::Jobs<OxvgNode<'arena>> {
+    let mut jobs = if self.default.0 {
+      match kind {
+        OxvgKind::Html => {
+          oxvg_optimiser::Jobs {
+            // These defaults can break CSS selectors.
+            convert_shape_to_path: None,
+            // Additional defaults to preserve accessibility information.
+            remove_title: None,
+            remove_desc: None,
+            remove_unknowns_and_defaults: Some(oxvg_optimiser::RemoveUnknownsAndDefaults {
+              keep_aria_attrs: true,
+              keep_role_attr: true,
+              ..Default::default()
+            }),
+            // Do not minify ids or remove unreferenced elements in
+            // inline SVGs because they could actually be referenced
+            // by a separate inline SVG.
+            cleanup_ids: None,
+            remove_hidden_elems: None,
+            ..Default::default()
+          }
+        }
+        OxvgKind::Svg => {
+          oxvg_optimiser::Jobs {
+            // Removing ids could break SVG sprites.
+            cleanup_ids: None,
+            ..Default::default()
+          }
+        }
+      }
+    } else {
+      oxvg_optimiser::Jobs {
+        add_attributes_to_svg_element: None,
+        add_classes_to_svg: None,
+        cleanup_list_of_values: None,
+        prefix_ids: None,
+        remove_attributes_by_selector: None,
+        remove_attrs: None,
+        remove_dimensions: None,
+        remove_elements_by_attr: None,
+        remove_off_canvas_paths: None,
+        remove_raster_images: None,
+        remove_scripts: None,
+        remove_style_element: None,
+        remove_title: None,
+        remove_view_box: None,
+        reuse_paths: None,
+        remove_doctype: None,
+        remove_xml_proc_inst: None,
+        remove_comments: None,
+        remove_deprecated_attrs: None,
+        remove_metadata: None,
+        cleanup_attributes: None,
+        merge_styles: None,
+        inline_styles: None,
+        minify_styles: None,
+        cleanup_ids: None,
+        remove_useless_defs: None,
+        cleanup_numeric_values: None,
+        convert_colors: None,
+        remove_unknowns_and_defaults: None,
+        remove_non_inheritable_group_attrs: None,
+        remove_useless_stroke_and_fill: None,
+        cleanup_enable_background: None,
+        remove_hidden_elems: None,
+        remove_empty_text: None,
+        convert_shape_to_path: None,
+        convert_ellipse_to_circle: None,
+        move_elems_attrs_to_group: None,
+        move_group_attrs_to_elems: None,
+        collapse_groups: None,
+        apply_transforms: None,
+        convert_path_data: None,
+        convert_transform: None,
+        remove_empty_attrs: None,
+        remove_empty_containers: None,
+        merge_paths: None,
+        sort_attrs: None,
+        sort_defs_children: None,
+        remove_desc: None,
+      }
+    };
+
+    macro_rules! job {
+      ($name: ident) => {
+        jobs.$name = match &self.$name {
+          ConfigItem::None => jobs.$name,
+          ConfigItem::Bool(true) => Some(Default::default()),
+          ConfigItem::Bool(false) => None,
+          ConfigItem::Config(c) => Some(c.clone().into()),
+        };
+      };
+    }
+
+    job!(add_attributes_to_svg_element);
+    job!(add_classes_to_svg);
+    job!(cleanup_list_of_values);
+
+    jobs.prefix_ids = match &self.prefix_ids {
+      ConfigItem::None => jobs.prefix_ids,
+      ConfigItem::Bool(true) => Some(Default::default()),
+      ConfigItem::Bool(false) => None,
+      ConfigItem::Config(c) => Some(oxvg_optimiser::PrefixIds {
+        delim: c
+          .delim
+          .as_ref()
+          .map(|c| c.clone())
+          .unwrap_or_else(|| oxvg_optimiser::PrefixIds::<OxvgNode>::default().delim),
+        prefix: match &c.prefix {
+          None => Default::default(),
+          Some(c) => oxvg_optimiser::prefix_ids::PrefixGenerator::Prefix(c.clone()),
+        },
+        prefix_ids: c
+          .prefix_ids
+          .unwrap_or_else(|| oxvg_optimiser::PrefixIds::<OxvgNode>::default().prefix_ids),
+        prefix_class_names: c
+          .prefix_class_names
+          .unwrap_or_else(|| oxvg_optimiser::PrefixIds::<OxvgNode>::default().prefix_class_names),
+      }),
+    };
+
+    job!(remove_attributes_by_selector);
+    job!(remove_attrs);
+    job!(remove_dimensions);
+    job!(remove_elements_by_attr);
+    job!(remove_off_canvas_paths);
+    job!(remove_raster_images);
+    job!(remove_scripts);
+    job!(remove_style_element);
+    job!(remove_title);
+    job!(remove_view_box);
+
+    jobs.reuse_paths = match self.reuse_paths {
+      ConfigItem::None => jobs.reuse_paths,
+      ConfigItem::Bool(true) => Some(Default::default()),
+      ConfigItem::Bool(false) => None,
+      ConfigItem::Config(()) => unreachable!(),
+    };
+
+    job!(remove_doctype);
+    job!(remove_xml_proc_inst);
+    job!(remove_comments);
+    job!(remove_deprecated_attrs);
+    job!(remove_metadata);
+    job!(cleanup_attributes);
+
+    jobs.merge_styles = match self.merge_styles {
+      ConfigItem::None => jobs.merge_styles,
+      ConfigItem::Bool(true) => Some(Default::default()),
+      ConfigItem::Bool(false) => None,
+      ConfigItem::Config(()) => unreachable!(),
+    };
+
+    job!(inline_styles);
+    job!(minify_styles);
+    job!(cleanup_ids);
+    job!(remove_useless_defs);
+    job!(cleanup_numeric_values);
+    job!(convert_colors);
+    job!(remove_unknowns_and_defaults);
+    job!(remove_non_inheritable_group_attrs);
+    job!(remove_useless_stroke_and_fill);
+    job!(cleanup_enable_background);
+    job!(remove_hidden_elems);
+    job!(remove_empty_text);
+    job!(convert_shape_to_path);
+    job!(convert_ellipse_to_circle);
+    job!(move_elems_attrs_to_group);
+    job!(move_group_attrs_to_elems);
+    job!(collapse_groups);
+    job!(apply_transforms);
+    job!(convert_path_data);
+    job!(convert_transform);
+    job!(remove_empty_attrs);
+    job!(remove_empty_containers);
+    job!(merge_paths);
+    job!(sort_attrs);
+    job!(sort_defs_children);
+    job!(remove_desc);
+
+    jobs
+  }
+
+  pub fn has_any_jobs(&self) -> bool {
+    return self.default.0
+      || self.add_attributes_to_svg_element.is_some()
+      || self.add_classes_to_svg.is_some()
+      || self.cleanup_list_of_values.is_some()
+      || self.prefix_ids.is_some()
+      || self.remove_attributes_by_selector.is_some()
+      || self.remove_attrs.is_some()
+      || self.remove_dimensions.is_some()
+      || self.remove_elements_by_attr.is_some()
+      || self.remove_off_canvas_paths.is_some()
+      || self.remove_raster_images.is_some()
+      || self.remove_scripts.is_some()
+      || self.remove_style_element.is_some()
+      || self.remove_title.is_some()
+      || self.remove_view_box.is_some()
+      || self.reuse_paths.is_some()
+      || self.remove_doctype.is_some()
+      || self.remove_xml_proc_inst.is_some()
+      || self.remove_comments.is_some()
+      || self.remove_deprecated_attrs.is_some()
+      || self.remove_metadata.is_some()
+      || self.cleanup_attributes.is_some()
+      || self.merge_styles.is_some()
+      || self.inline_styles.is_some()
+      || self.minify_styles.is_some()
+      || self.cleanup_ids.is_some()
+      || self.remove_useless_defs.is_some()
+      || self.cleanup_numeric_values.is_some()
+      || self.convert_colors.is_some()
+      || self.remove_unknowns_and_defaults.is_some()
+      || self.remove_non_inheritable_group_attrs.is_some()
+      || self.remove_useless_stroke_and_fill.is_some()
+      || self.cleanup_enable_background.is_some()
+      || self.remove_hidden_elems.is_some()
+      || self.remove_empty_text.is_some()
+      || self.convert_shape_to_path.is_some()
+      || self.convert_ellipse_to_circle.is_some()
+      || self.move_elems_attrs_to_group.is_some()
+      || self.move_group_attrs_to_elems.is_some()
+      || self.collapse_groups.is_some()
+      || self.apply_transforms.is_some()
+      || self.convert_path_data.is_some()
+      || self.convert_transform.is_some()
+      || self.remove_empty_attrs.is_some()
+      || self.remove_empty_containers.is_some()
+      || self.merge_paths.is_some()
+      || self.sort_attrs.is_some()
+      || self.sort_defs_children.is_some()
+      || self.remove_desc.is_some();
   }
 }

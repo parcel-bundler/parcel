@@ -1,11 +1,13 @@
 use std::collections::HashSet;
 
 use html5ever::{expanded_name, local_name, namespace_url, ns, ExpandedName};
-use oxvg_optimiser::RemoveUnknownsAndDefaults;
 use typed_arena::Arena;
 use xml5ever::tendril::StrTendril;
 
-use crate::arena::{Node, NodeData, Ref};
+use crate::{
+  arena::{Node, NodeData, Ref},
+  oxvg::{OxvgConfig, OxvgKind},
+};
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,8 +24,8 @@ pub struct OptimizeOptions {
   remove_empty_attributes: bool,
   #[serde(default = "default_true", deserialize_with = "ok_or_default")]
   minify_json: bool,
-  #[serde(default = "default_true", deserialize_with = "ok_or_default")]
-  minify_svg: bool,
+  #[serde(default)]
+  minify_svg: OxvgConfig,
   #[serde(default = "default_true", deserialize_with = "ok_or_default")]
   remove_redundant_attributes: bool,
   #[serde(default = "default_true", deserialize_with = "ok_or_default")]
@@ -54,7 +56,7 @@ impl Default for OptimizeOptions {
       remove_comments: true,
       remove_empty_attributes: true,
       minify_json: true,
-      minify_svg: true,
+      minify_svg: Default::default(),
       remove_redundant_attributes: true,
       collapse_boolean_attributes: true,
       normalize_attribute_values: true,
@@ -68,6 +70,8 @@ pub fn optimize<'arena>(
   dom: &'arena Node<'arena>,
   options: OptimizeOptions,
 ) {
+  let should_optimize_svg = options.minify_svg.has_any_jobs();
+
   dom.walk(&mut |node| match &node.data {
     NodeData::Element { name, .. } => {
       // https://html.spec.whatwg.org/#elements-3
@@ -385,7 +389,7 @@ pub fn optimize<'arena>(
         expanded_name!(svg "svg") => {
           remove_whitespace(node, &options);
 
-          if options.minify_svg {
+          if should_optimize_svg {
             // Synthesize a fake document node to act as the root of the SVG.
             let document = arena.alloc(Node::new(NodeData::Document, 0));
             document.first_child.set(Some(node));
@@ -395,25 +399,11 @@ pub fn optimize<'arena>(
               arena,
             };
 
-            let jobs = oxvg_optimiser::Jobs::<crate::oxvg::OxvgNode> {
-              // These defaults can break CSS selectors.
-              convert_shape_to_path: None,
-              // Additional defaults to preserve accessibility information.
-              remove_title: None,
-              remove_desc: None,
-              remove_unknowns_and_defaults: Some(RemoveUnknownsAndDefaults {
-                keep_aria_attrs: true,
-                keep_role_attr: true,
-                ..Default::default()
-              }),
-              // Do not minify ids or remove unreferenced elements in
-              // inline SVGs because they could actually be referenced
-              // by a separate inline SVG.
-              cleanup_ids: None,
-              remove_hidden_elems: None,
-              ..Default::default()
-            };
-            match jobs.run(&node, &oxvg_ast::visitor::Info::default()) {
+            match options
+              .minify_svg
+              .into_jobs(OxvgKind::Html)
+              .run(&node, &oxvg_ast::visitor::Info::default())
+            {
               Err(_err) => {}
               Ok(()) => {}
             }
@@ -467,16 +457,18 @@ pub fn optimize<'arena>(
   });
 }
 
-pub fn optimize_svg<'arena>(arena: &'arena Arena<Node<'arena>>, dom: &'arena Node<'arena>) {
-  let node = crate::oxvg::OxvgNode { node: dom, arena };
-  let jobs = oxvg_optimiser::Jobs::<crate::oxvg::OxvgNode> {
-    // Removing ids could break SVG sprites.
-    cleanup_ids: None,
-    ..Default::default()
-  };
-  match jobs.run(&node, &oxvg_ast::visitor::Info::default()) {
-    Err(_err) => {}
-    Ok(()) => {}
+pub fn optimize_svg<'arena>(
+  arena: &'arena Arena<Node<'arena>>,
+  dom: &'arena Node<'arena>,
+  options: OxvgConfig,
+) {
+  if options.has_any_jobs() {
+    let node = crate::oxvg::OxvgNode { node: dom, arena };
+    let jobs = options.into_jobs(OxvgKind::Svg);
+    match jobs.run(&node, &oxvg_ast::visitor::Info::default()) {
+      Err(_err) => {}
+      Ok(()) => {}
+    }
   }
 
   dom.walk(&mut |node| match &node.data {

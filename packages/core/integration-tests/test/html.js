@@ -404,7 +404,7 @@ describe('html', function () {
       'utf8',
     );
     assert(
-      /<html><head>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css"></head><body>/.test(
+      /<html><head>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css"><\/head><body>/.test(
         html,
       ),
     );
@@ -3176,7 +3176,7 @@ describe('html', function () {
 
       let html = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
       let importMap = JSON.parse(
-        html.match(/<script type="importmap">(.*?)<\/script>/)[1],
+        html.match(/<script type=importmap>(.*?)<\/script>/)[1],
       );
       assert.deepEqual(importMap, {
         imports: {

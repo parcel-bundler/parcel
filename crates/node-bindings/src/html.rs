@@ -18,7 +18,7 @@ pub fn package_html(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
 
 #[napi]
 pub fn optimize_html(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
-  let options: parcel_html::OptimizeOptions = env.from_js_value(opts)?;
+  let options: parcel_html::OptimizeHtmlOptions = env.from_js_value(opts)?;
   let result = parcel_html::optimize_html(options)
     .map_err(|_| napi::Error::new(napi::Status::GenericFailure, "An unexpected error occurred"))?;
   env.to_js_value(&result)
@@ -41,7 +41,7 @@ pub fn package_svg(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
 
 #[napi]
 pub fn optimize_svg(opts: JsObject, env: Env) -> napi::Result<JsUnknown> {
-  let options: parcel_html::OptimizeOptions = env.from_js_value(opts)?;
+  let options: parcel_html::OptimizeSvgOptions = env.from_js_value(opts)?;
   let result = parcel_html::optimize_svg(options)
     .map_err(|_| napi::Error::new(napi::Status::GenericFailure, "An unexpected error occurred"))?;
   env.to_js_value(&result)

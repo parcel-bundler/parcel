@@ -194,7 +194,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OptimizeOptions {
+pub struct OptimizeHtmlOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   #[serde(default, deserialize_with = "ok_or_default")]
@@ -209,7 +209,7 @@ where
   Ok(T::deserialize(deserializer).unwrap_or_default())
 }
 
-pub fn optimize_html(options: OptimizeOptions) -> Result<PackageResult, ()> {
+pub fn optimize_html(options: OptimizeHtmlOptions) -> Result<PackageResult, ()> {
   let arena = Arena::new();
   let dom = html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
     .from_utf8()
@@ -223,14 +223,23 @@ pub fn optimize_html(options: OptimizeOptions) -> Result<PackageResult, ()> {
   Ok(PackageResult { code: vec })
 }
 
-pub fn optimize_svg(options: OptimizeOptions) -> Result<PackageResult, ()> {
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OptimizeSvgOptions {
+  #[serde(with = "serde_bytes")]
+  pub code: Vec<u8>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  pub config: oxvg::OxvgConfig,
+}
+
+pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
   let arena = Arena::new();
   let dom =
     xml5ever::driver::parse_document(Sink::new(&arena), xml5ever::driver::XmlParseOpts::default())
       .from_utf8()
       .one(options.code.as_slice());
 
-  optimize::optimize_svg(&arena, dom);
+  optimize::optimize_svg(&arena, dom, options.config);
 
   let mut vec = Vec::new();
   let handle: SerializableHandle = dom.into();

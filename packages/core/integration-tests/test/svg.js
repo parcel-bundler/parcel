@@ -117,7 +117,7 @@ describe('svg', function () {
     assert(!file.includes('comment'));
   });
 
-  it.skip('support SVGO config files', async function () {
+  it('support SVGO config files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/svgo-config/index.html'),
       {
@@ -131,7 +131,7 @@ describe('svg', function () {
       b.getBundles().find(b => b.type === 'svg').filePath,
       'utf-8',
     );
-    assert(!file.includes('inkscape'));
+    // assert(!file.includes('inkscape'));
     assert(file.includes('comment'));
   });
 

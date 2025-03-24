@@ -1,6 +1,6 @@
 // @flow strict-local
 import {Optimizer} from '@parcel/plugin';
-import {blobToBuffer} from '@parcel/utils';
+import {blobToBuffer, convertSVGOConfig} from '@parcel/utils';
 import {optimizeHtml} from '@parcel/rust';
 import path from 'path';
 
@@ -24,6 +24,11 @@ export default (new Optimizer({
     );
 
     let contents = userConfig?.contents;
+
+    if (contents && typeof contents === 'object') {
+      contents.minifySvg = convertSVGOConfig(contents.minifySvg);
+    }
+
     return contents;
   },
   async optimize({bundle, contents, map, config}) {

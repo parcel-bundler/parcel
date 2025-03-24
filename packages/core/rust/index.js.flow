@@ -151,4 +151,5 @@ export interface PackageHtmlResult {
 
 export interface OptimizeHtmlOpts {
   code: Buffer,
+  config: any,
 }
