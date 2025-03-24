@@ -372,10 +372,9 @@ impl<'arena> DependencyCollector<'arena> {
           let key = if let Some(key) = node.get_attribute(data_parcel_key.clone()) {
             key
           } else {
-            let mut hash = DefaultHasher::new();
-            code.hash(&mut hash);
-            let key: StrTendril = format!("{:x}", hash.finish()).into();
+            let key: StrTendril = format_tendril!("asset-{}", self.key);
             node.set_attribute(data_parcel_key, &key);
+            self.key += 1;
             key
           };
 
@@ -401,10 +400,9 @@ impl<'arena> DependencyCollector<'arena> {
         let key = if let Some(key) = node.get_attribute(data_parcel_key.clone()) {
           key
         } else {
-          let mut hash = DefaultHasher::new();
-          code.hash(&mut hash);
-          let key: StrTendril = format!("{:x}", hash.finish()).into();
+          let key: StrTendril = format_tendril!("asset-{}", self.key);
           node.set_attribute(data_parcel_key, &key);
+          self.key += 1;
           key
         };
 
