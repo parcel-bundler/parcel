@@ -39,6 +39,7 @@ export default (new Optimizer({
     let code = await blobToBuffer(contents);
     let res = optimizeHtml({
       code,
+      xml: bundle.type === 'xhtml',
       config,
     });
 

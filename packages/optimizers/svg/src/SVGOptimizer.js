@@ -22,6 +22,7 @@ export default (new Optimizer({
     let code = await blobToBuffer(contents);
     let res = optimizeSvg({
       code,
+      xml: true,
       config,
     });
 

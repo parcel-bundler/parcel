@@ -101,6 +101,9 @@ describe('svg', function () {
         )}"?>`,
       ),
     );
+    assert(
+      file.includes('<circle id="circle" cx="5" cy="5" r="4" stroke="blue"/>'),
+    );
   });
 
   it('should minify SVG bundles', async function () {

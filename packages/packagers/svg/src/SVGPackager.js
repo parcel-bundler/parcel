@@ -36,6 +36,7 @@ export default (new Packager({
 
     let res = packageSvg({
       code,
+      xml: true,
       bundles,
       inlineBundles,
       importMap,

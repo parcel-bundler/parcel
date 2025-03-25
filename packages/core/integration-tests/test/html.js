@@ -2753,7 +2753,7 @@ describe('html', function () {
     );
     assert(
       contents.includes(
-        `<img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%22120%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E">`,
+        `<img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%22120%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%2F%3E%0A%3C%2Fsvg%3E">`,
       ),
     );
   });
@@ -3085,6 +3085,37 @@ describe('html', function () {
 
     // Should not error with "Cannot find module" error at runtime.
     await run(b);
+  });
+
+  it('should correctly serialize xhtml', async function () {
+    const dir = path.join(__dirname, 'xhtml');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      index.xhtml:
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US">
+          <head>
+            <title>XHTML</title>
+          </head>
+          <body>
+            <p>I am a XHTML document</p>
+            <img src="http://www.w3.org/Icons/valid-xhtml10" />
+          </body>
+        </html>
+    `;
+
+    let b = await bundle(path.join(dir, '/index.xhtml'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('<?xml version="1.0" encoding="UTF-8"?>'));
+    assert(output.includes('<html xmlns="http://www.w3.org/1999/xhtml"'));
+    assert(
+      output.includes('<img src="http://www.w3.org/Icons/valid-xhtml10"/>'),
+    );
   });
 
   describe('import maps', function () {

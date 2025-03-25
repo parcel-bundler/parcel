@@ -17,7 +17,8 @@ mod jsx;
 mod optimize;
 mod oxvg;
 mod package;
-mod serialize;
+mod serialize_html;
+mod serialize_xml;
 mod srcset;
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Default, Clone)]
@@ -46,6 +47,7 @@ impl<'de> serde::Deserialize<'de> for SerializableTendril {
 pub struct TransformOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
+  pub xml: bool,
   pub scope_hoist: bool,
   pub supports_esm: bool,
   pub hmr: bool,
@@ -62,9 +64,16 @@ pub struct TransformResult {
 
 pub fn transform_html(options: TransformOptions) -> TransformResult {
   let arena = Arena::new();
-  let dom = html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
-    .from_utf8()
-    .one(options.code.as_slice());
+  let dom = if options.xml {
+    xml5ever::driver::parse_document(Sink::new(&arena), xml5ever::driver::XmlParseOpts::default())
+      .from_utf8()
+      .one(options.code.as_slice())
+  } else {
+    html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
+      .from_utf8()
+      .one(options.code.as_slice())
+  };
+
   let (deps, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
@@ -74,12 +83,17 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
   );
 
   let mut vec = Vec::new();
-  // TODO: handle xhtml
-  if let Err(err) = html5ever::serialize::serialize(
-    &mut vec,
-    &SerializableHandle(dom),
-    html5ever::serialize::SerializeOpts::default(),
-  ) {
+  let res = if options.xml {
+    serialize_xml::serialize(&mut vec, dom)
+  } else {
+    let handle: SerializableHandle = dom.into();
+    html5ever::serialize::serialize(
+      &mut vec,
+      &handle,
+      html5ever::serialize::SerializeOpts::default(),
+    )
+  };
+  if let Err(err) = res {
     errors.push(Error {
       message: err.to_string(),
       line: 0,
@@ -109,12 +123,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
   );
 
   let mut vec = Vec::new();
-  let handle: SerializableHandle = dom.into();
-  if let Err(err) = xml5ever::serialize::serialize(
-    &mut vec,
-    &handle,
-    xml5ever::serialize::SerializeOpts::default(),
-  ) {
+  if let Err(err) = serialize_xml::serialize(&mut vec, dom) {
     errors.push(Error {
       message: err.to_string(),
       line: 0,
@@ -134,6 +143,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
 pub struct PackageOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
+  pub xml: bool,
   pub bundles: Vec<BundleReference>,
   pub inline_bundles: HashMap<SerializableTendril, InlineBundle>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
@@ -147,9 +157,15 @@ pub struct PackageResult {
 
 pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
   let arena = Arena::new();
-  let dom = html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
-    .from_utf8()
-    .one(options.code.as_slice());
+  let dom = if options.xml {
+    xml5ever::driver::parse_document(Sink::new(&arena), xml5ever::driver::XmlParseOpts::default())
+      .from_utf8()
+      .one(options.code.as_slice())
+  } else {
+    html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
+      .from_utf8()
+      .one(options.code.as_slice())
+  };
 
   insert_bundle_references(
     &arena,
@@ -160,12 +176,16 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
   );
 
   let mut vec = Vec::new();
-  html5ever::serialize::serialize(
-    &mut vec,
-    &SerializableHandle(dom),
-    html5ever::serialize::SerializeOpts::default(),
-  )
-  .map_err(|_| ())?;
+  if options.xml {
+    serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
+  } else {
+    html5ever::serialize::serialize(
+      &mut vec,
+      &SerializableHandle(dom),
+      html5ever::serialize::SerializeOpts::default(),
+    )
+    .map_err(|_| ())?;
+  }
 
   Ok(PackageResult { code: vec })
 }
@@ -186,13 +206,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
   );
 
   let mut vec = Vec::new();
-  let handle: SerializableHandle = dom.into();
-  xml5ever::serialize::serialize(
-    &mut vec,
-    &handle,
-    xml5ever::serialize::SerializeOpts::default(),
-  )
-  .map_err(|_| ())?;
+  serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
 
   Ok(PackageResult { code: vec })
 }
@@ -202,6 +216,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
 pub struct OptimizeHtmlOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
+  pub xml: bool,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub config: optimize::OptimizeOptions,
 }
@@ -216,14 +231,25 @@ where
 
 pub fn optimize_html(options: OptimizeHtmlOptions) -> Result<PackageResult, ()> {
   let arena = Arena::new();
-  let dom = html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
-    .from_utf8()
-    .one(options.code.as_slice());
+  let dom = if options.xml {
+    xml5ever::driver::parse_document(Sink::new(&arena), xml5ever::driver::XmlParseOpts::default())
+      .from_utf8()
+      .one(options.code.as_slice())
+  } else {
+    html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
+      .from_utf8()
+      .one(options.code.as_slice())
+  };
 
   optimize(&arena, dom, options.config);
 
   let mut vec: Vec<u8> = Vec::new();
-  serialize::serialize(&mut vec, dom, serialize::SerializeOpts::default()).map_err(|_| ())?;
+  if options.xml {
+    serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
+  } else {
+    serialize_html::serialize(&mut vec, dom, serialize_html::SerializeOpts::default())
+      .map_err(|_| ())?;
+  }
 
   Ok(PackageResult { code: vec })
 }
@@ -247,13 +273,7 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
   optimize::optimize_svg(&arena, dom, &options.config);
 
   let mut vec = Vec::new();
-  let handle: SerializableHandle = dom.into();
-  xml5ever::serialize::serialize(
-    &mut vec,
-    &handle,
-    xml5ever::serialize::SerializeOpts::default(),
-  )
-  .map_err(|_| ())?;
+  serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
 
   Ok(PackageResult { code: vec })
 }

@@ -37,6 +37,7 @@ export default (new Packager({
 
     let res = packageHtml({
       code,
+      xml: bundle.type === 'xhtml',
       bundles,
       inlineBundles,
       importMap,

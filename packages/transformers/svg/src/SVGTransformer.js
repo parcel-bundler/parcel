@@ -20,6 +20,7 @@ export default (new Transformer({
 
     let res = transformSvg({
       code: await asset.getBuffer(),
+      xml: true,
       scope_hoist: asset.env.shouldScopeHoist,
       supports_esm: false,
       hmr: false,

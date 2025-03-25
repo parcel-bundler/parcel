@@ -22,6 +22,7 @@ export default (new Transformer({
 
     let res = transformHtml({
       code: await asset.getBuffer(),
+      xml: asset.type === 'xhtml',
       scope_hoist: asset.env.shouldScopeHoist,
       supports_esm: asset.env.supports('esmodules', true),
       hmr: !!options.hmrOptions,
