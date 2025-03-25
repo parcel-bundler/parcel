@@ -16,3 +16,15 @@ oxvg_ast = { git = "https://github.com/devongovett/oxvg.git", branch = "parcel" 
 oxvg_optimiser = { git = "https://github.com/devongovett/oxvg.git", branch = "parcel" }
 anyhow = "*"
 selectors = "0.26"
+swc_core = { version = "9", features = [
+  "common",
+  "ecma_parser",
+  "ecma_ast",
+  "ecma_codegen",
+] }
+lightningcss = "1.0.0-alpha.63"
+convert_case = "0.6.0"
+indexmap = { version = "1.9.2", features = ["serde"] }
+
+[dev-dependencies]
+indoc = "1.0.3"

@@ -74,6 +74,12 @@ export function convertSVGOConfig(config: any): any {
       ) {
         name = plugin.name;
         params = plugin.params ?? true;
+
+        if (typeof plugin.fn === 'function') {
+          throw new Error('Unsupported custom SVGO plugin.');
+        }
+      } else if (typeof plugin === 'function') {
+        throw new Error('Unsupported custom SVGO plugin.');
       } else {
         continue;
       }

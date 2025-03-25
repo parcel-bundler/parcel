@@ -460,7 +460,7 @@ pub fn optimize<'arena>(
 pub fn optimize_svg<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
-  options: OxvgConfig,
+  options: &OxvgConfig,
 ) {
   if options.has_any_jobs() {
     let node = crate::oxvg::OxvgNode { node: dom, arena };

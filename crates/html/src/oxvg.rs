@@ -1130,7 +1130,8 @@ impl<'arena> Document for OxvgNode<'arena> {
 }
 
 #[derive(Deserialize, Default, Debug)]
-struct PrefixIdsOptions {
+#[serde(rename_all = "camelCase")]
+pub struct PrefixIdsOptions {
   pub delim: Option<String>,
   #[serde(default)]
   pub prefix: Option<String>,
@@ -1144,108 +1145,109 @@ struct PrefixIdsOptions {
 #[serde(rename_all = "camelCase")]
 pub struct OxvgConfig {
   #[serde(deserialize_with = "ok_or_default")]
-  default: DefaultTrue,
+  pub default: DefaultTrue,
   #[serde(default, deserialize_with = "ok_or_default")]
-  add_attributes_to_svg_element: ConfigItem<oxvg_optimiser::AddAttributesToSVGElement>,
+  pub add_attributes_to_svg_element: ConfigItem<oxvg_optimiser::AddAttributesToSVGElement>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  add_classes_to_svg: ConfigItem<oxvg_optimiser::AddClassesToSVG>,
+  pub add_classes_to_svg: ConfigItem<oxvg_optimiser::AddClassesToSVG>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  cleanup_list_of_values: ConfigItem<oxvg_optimiser::CleanupListOfValues>,
+  pub cleanup_list_of_values: ConfigItem<oxvg_optimiser::CleanupListOfValues>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  prefix_ids: ConfigItem<PrefixIdsOptions>,
+  pub prefix_ids: ConfigItem<PrefixIdsOptions>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_attributes_by_selector: ConfigItem<oxvg_optimiser::RemoveAttributesBySelector>,
+  pub remove_attributes_by_selector: ConfigItem<oxvg_optimiser::RemoveAttributesBySelector>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_attrs: ConfigItem<oxvg_optimiser::RemoveAttrs>,
+  pub remove_attrs: ConfigItem<oxvg_optimiser::RemoveAttrs>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_dimensions: ConfigItem<oxvg_optimiser::RemoveDimensions>,
+  pub remove_dimensions: ConfigItem<oxvg_optimiser::RemoveDimensions>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_elements_by_attr: ConfigItem<oxvg_optimiser::RemoveElementsByAttr>,
+  pub remove_elements_by_attr: ConfigItem<oxvg_optimiser::RemoveElementsByAttr>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_off_canvas_paths: ConfigItem<oxvg_optimiser::RemoveOffCanvasPaths>,
+  pub remove_off_canvas_paths: ConfigItem<oxvg_optimiser::RemoveOffCanvasPaths>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_raster_images: ConfigItem<oxvg_optimiser::RemoveRasterImages>,
+  pub remove_raster_images: ConfigItem<oxvg_optimiser::RemoveRasterImages>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_scripts: ConfigItem<oxvg_optimiser::RemoveScripts>,
+  pub remove_scripts: ConfigItem<oxvg_optimiser::RemoveScripts>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_style_element: ConfigItem<oxvg_optimiser::RemoveStyleElement>,
+  pub remove_style_element: ConfigItem<oxvg_optimiser::RemoveStyleElement>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_title: ConfigItem<oxvg_optimiser::RemoveTitle>,
+  pub remove_title: ConfigItem<oxvg_optimiser::RemoveTitle>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_view_box: ConfigItem<oxvg_optimiser::RemoveViewBox>,
+  pub remove_view_box: ConfigItem<oxvg_optimiser::RemoveViewBox>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  reuse_paths: ConfigItem<()>,
+  pub reuse_paths: ConfigItem<()>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_doctype: ConfigItem<oxvg_optimiser::RemoveDoctype>,
+  pub remove_doctype: ConfigItem<oxvg_optimiser::RemoveDoctype>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_xml_proc_inst: ConfigItem<oxvg_optimiser::RemoveXMLProcInst>,
+  pub remove_xml_proc_inst: ConfigItem<oxvg_optimiser::RemoveXMLProcInst>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_comments: ConfigItem<oxvg_optimiser::RemoveComments>,
+  pub remove_comments: ConfigItem<oxvg_optimiser::RemoveComments>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_deprecated_attrs: ConfigItem<oxvg_optimiser::RemoveDeprecatedAttrs>,
+  pub remove_deprecated_attrs: ConfigItem<oxvg_optimiser::RemoveDeprecatedAttrs>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_metadata: ConfigItem<oxvg_optimiser::RemoveMetadata>,
+  pub remove_metadata: ConfigItem<oxvg_optimiser::RemoveMetadata>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  cleanup_attributes: ConfigItem<oxvg_optimiser::CleanupAttributes>,
+  pub cleanup_attributes: ConfigItem<oxvg_optimiser::CleanupAttributes>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  merge_styles: ConfigItem<()>,
+  pub merge_styles: ConfigItem<()>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  inline_styles: ConfigItem<oxvg_optimiser::inline_styles::Options>,
+  pub inline_styles: ConfigItem<oxvg_optimiser::inline_styles::Options>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  minify_styles: ConfigItem<oxvg_optimiser::MinifyStyles>,
+  pub minify_styles: ConfigItem<oxvg_optimiser::MinifyStyles>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  cleanup_ids: ConfigItem<oxvg_optimiser::cleanup_ids::Options>,
+  pub cleanup_ids: ConfigItem<oxvg_optimiser::cleanup_ids::Options>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_useless_defs: ConfigItem<oxvg_optimiser::RemoveUselessDefs>,
+  pub remove_useless_defs: ConfigItem<oxvg_optimiser::RemoveUselessDefs>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  cleanup_numeric_values: ConfigItem<oxvg_optimiser::CleanupNumericValues>,
+  pub cleanup_numeric_values: ConfigItem<oxvg_optimiser::CleanupNumericValues>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  convert_colors: ConfigItem<oxvg_optimiser::ConvertColors>,
+  pub convert_colors: ConfigItem<oxvg_optimiser::ConvertColors>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_unknowns_and_defaults: ConfigItem<oxvg_optimiser::RemoveUnknownsAndDefaults>,
+  pub remove_unknowns_and_defaults: ConfigItem<oxvg_optimiser::RemoveUnknownsAndDefaults>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_non_inheritable_group_attrs: ConfigItem<oxvg_optimiser::RemoveNonInheritableGroupAttrs>,
+  pub remove_non_inheritable_group_attrs:
+    ConfigItem<oxvg_optimiser::RemoveNonInheritableGroupAttrs>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_useless_stroke_and_fill: ConfigItem<oxvg_optimiser::RemoveUselessStrokeAndFill>,
+  pub remove_useless_stroke_and_fill: ConfigItem<oxvg_optimiser::RemoveUselessStrokeAndFill>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  cleanup_enable_background: ConfigItem<oxvg_optimiser::CleanupEnableBackground>,
+  pub cleanup_enable_background: ConfigItem<oxvg_optimiser::CleanupEnableBackground>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_hidden_elems: ConfigItem<oxvg_optimiser::remove_hidden_elems::Options>,
+  pub remove_hidden_elems: ConfigItem<oxvg_optimiser::remove_hidden_elems::Options>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_empty_text: ConfigItem<oxvg_optimiser::RemoveEmptyText>,
+  pub remove_empty_text: ConfigItem<oxvg_optimiser::RemoveEmptyText>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  convert_shape_to_path: ConfigItem<oxvg_optimiser::ConvertShapeToPath>,
+  pub convert_shape_to_path: ConfigItem<oxvg_optimiser::ConvertShapeToPath>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  convert_ellipse_to_circle: ConfigItem<oxvg_optimiser::ConvertEllipseToCircle>,
+  pub convert_ellipse_to_circle: ConfigItem<oxvg_optimiser::ConvertEllipseToCircle>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  move_elems_attrs_to_group: ConfigItem<oxvg_optimiser::MoveElemsAttrsToGroup>,
+  pub move_elems_attrs_to_group: ConfigItem<oxvg_optimiser::MoveElemsAttrsToGroup>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  move_group_attrs_to_elems: ConfigItem<oxvg_optimiser::MoveGroupAttrsToElems>,
+  pub move_group_attrs_to_elems: ConfigItem<oxvg_optimiser::MoveGroupAttrsToElems>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  collapse_groups: ConfigItem<oxvg_optimiser::CollapseGroups>,
+  pub collapse_groups: ConfigItem<oxvg_optimiser::CollapseGroups>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  apply_transforms: ConfigItem<oxvg_optimiser::ApplyTransforms>,
+  pub apply_transforms: ConfigItem<oxvg_optimiser::ApplyTransforms>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  convert_path_data: ConfigItem<oxvg_optimiser::ConvertPathData>,
+  pub convert_path_data: ConfigItem<oxvg_optimiser::ConvertPathData>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  convert_transform: ConfigItem<oxvg_optimiser::ConvertTransform>,
+  pub convert_transform: ConfigItem<oxvg_optimiser::ConvertTransform>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_empty_attrs: ConfigItem<oxvg_optimiser::RemoveEmptyAttrs>,
+  pub remove_empty_attrs: ConfigItem<oxvg_optimiser::RemoveEmptyAttrs>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_empty_containers: ConfigItem<oxvg_optimiser::RemoveEmptyContainers>,
+  pub remove_empty_containers: ConfigItem<oxvg_optimiser::RemoveEmptyContainers>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  merge_paths: ConfigItem<oxvg_optimiser::MergePaths>,
+  pub merge_paths: ConfigItem<oxvg_optimiser::MergePaths>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  sort_attrs: ConfigItem<oxvg_optimiser::SortAttrs>,
+  pub sort_attrs: ConfigItem<oxvg_optimiser::SortAttrs>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  sort_defs_children: ConfigItem<oxvg_optimiser::SortDefsChildren>,
+  pub sort_defs_children: ConfigItem<oxvg_optimiser::SortDefsChildren>,
   #[serde(default, deserialize_with = "ok_or_default")]
-  remove_desc: ConfigItem<oxvg_optimiser::RemoveDesc>,
+  pub remove_desc: ConfigItem<oxvg_optimiser::RemoveDesc>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(transparent)]
-struct DefaultTrue(bool);
+pub struct DefaultTrue(bool);
 
 impl Default for DefaultTrue {
   fn default() -> Self {
@@ -1255,7 +1257,7 @@ impl Default for DefaultTrue {
 
 #[derive(Deserialize, Default, Debug)]
 #[serde(untagged)]
-enum ConfigItem<C> {
+pub enum ConfigItem<C> {
   #[serde(skip)]
   #[default]
   None,

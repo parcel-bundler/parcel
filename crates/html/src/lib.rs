@@ -3,13 +3,17 @@ use std::collections::HashMap;
 use arena::{SerializableHandle, Sink};
 use dependencies::{collect_dependencies, Asset, Dependency, Error};
 use html5ever::tendril::{StrTendril, TendrilSink};
+use jsx::{to_component, JsxOptions};
 use optimize::optimize;
+use oxvg::ConfigItem;
 use package::{insert_bundle_references, BundleReference, InlineBundle};
 use serde::{Deserialize, Serialize, Serializer};
+use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
 
 mod arena;
 mod dependencies;
+mod jsx;
 mod optimize;
 mod oxvg;
 mod package;
@@ -70,6 +74,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
   );
 
   let mut vec = Vec::new();
+  // TODO: handle xhtml
   if let Err(err) = html5ever::serialize::serialize(
     &mut vec,
     &SerializableHandle(dom),
@@ -239,7 +244,7 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
       .from_utf8()
       .one(options.code.as_slice());
 
-  optimize::optimize_svg(&arena, dom, options.config);
+  optimize::optimize_svg(&arena, dom, &options.config);
 
   let mut vec = Vec::new();
   let handle: SerializableHandle = dom.into();
@@ -251,4 +256,37 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
   .map_err(|_| ())?;
 
   Ok(PackageResult { code: vec })
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SvgReactOptions {
+  #[serde(with = "serde_bytes")]
+  pub code: Vec<u8>,
+  pub config: JsxOptions,
+}
+
+pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
+  let arena = Arena::new();
+  let dom =
+    xml5ever::driver::parse_document(Sink::new(&arena), xml5ever::driver::XmlParseOpts::default())
+      .from_utf8()
+      .one(options.code.as_slice());
+
+  if options.config.svgo {
+    if options.config.icon.is_some() || !options.config.dimensions {
+      options.config.svgo_config.remove_view_box = ConfigItem::Bool(false);
+    }
+
+    optimize::optimize_svg(&arena, dom, &options.config.svgo_config);
+  }
+
+  swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
+    let program = to_component(dom, options.config);
+    let code = to_code(&program);
+
+    Ok(PackageResult {
+      code: code.into_bytes(),
+    })
+  })
 }
