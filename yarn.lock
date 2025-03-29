@@ -11983,12 +11983,12 @@ react-dom@^18.2.0:
     loose-envify "^1.1.0"
     scheduler "^0.23.2"
 
-react-dom@^19:
-  version "19.0.0"
-  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-19.0.0.tgz#43446f1f01c65a4cd7f7588083e686a6726cfb57"
-  integrity sha512-4GV5sHFG0e/0AD4X+ySy6UJd3jVl1iNsNHdpad0qhABJ11twS3TTBnseqsKurKcsNqCEFeGL3uLpVChpIO3QfQ==
+react-dom@^19, react-dom@^19.1.0:
+  version "19.1.0"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-19.1.0.tgz#133558deca37fa1d682708df8904b25186793623"
+  integrity sha512-Xs1hdnE+DyKgeHJeJznQmYMIBG3TKIHJJT95Q58nHLSrElKlGQqDTR2HQ9fx5CN/Gk6Vh/kupBTDLU11/nDk/g==
   dependencies:
-    scheduler "^0.25.0"
+    scheduler "^0.26.0"
 
 react-is@^16.13.1:
   version "16.13.1"
@@ -12010,10 +12010,10 @@ react-resizable-panels@^0.0.61:
   resolved "https://registry.yarnpkg.com/react-resizable-panels/-/react-resizable-panels-0.0.61.tgz#2260ec8ca591431d367d172bced49733cc3308aa"
   integrity sha512-Vk2a4LEHWkI6hGPnPmXxa/2twLYMAMMUTyA2PtR1ijvH2Nkg/AhGqrPsIi/eI85uVWtYCFNZKEsbR3uGuJl/yg==
 
-react-server-dom-parcel@canary:
-  version "19.1.0-canary-d46b04a2-20250117"
-  resolved "https://registry.yarnpkg.com/react-server-dom-parcel/-/react-server-dom-parcel-19.1.0-canary-d46b04a2-20250117.tgz#f20191e2a427e6e2d4db90a6f394b640e2031875"
-  integrity sha512-oT13B+tKwi8efVXsG6rUhVB9/zZS8Sl4+tUqCM4DMmbfcV9T3Ig3V1xDVw9ZozSKhYTb7jveBVRGLswH4E2Mtw==
+react-server-dom-parcel@^19.1.0:
+  version "19.1.0"
+  resolved "https://registry.yarnpkg.com/react-server-dom-parcel/-/react-server-dom-parcel-19.1.0.tgz#775ff6eb18b8da02af58c5ea7df06cedab7c0729"
+  integrity sha512-JkfPt/yV1ru8J1CTM0PD74HZZRQTjdoTU5eg2r6Xjn/TmFRS2J/4QsKdwu2X8NsA+ADnPHI8wKCgBh1HCmRr/A==
 
 react-universal-interface@^0.6.2:
   version "0.6.2"
@@ -12047,10 +12047,10 @@ react@^18.2.0:
   dependencies:
     loose-envify "^1.1.0"
 
-react@^19:
-  version "19.0.0"
-  resolved "https://registry.yarnpkg.com/react/-/react-19.0.0.tgz#6e1969251b9f108870aa4bff37a0ce9ddfaaabdd"
-  integrity sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==
+react@^19, react@^19.1.0:
+  version "19.1.0"
+  resolved "https://registry.yarnpkg.com/react/-/react-19.1.0.tgz#926864b6c48da7627f004795d6cce50e90793b75"
+  integrity sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==
 
 read-cache@^1.0.0:
   version "1.0.0"
@@ -12552,10 +12552,10 @@ rrweb-cssom@^0.7.1:
   resolved "https://registry.yarnpkg.com/rrweb-cssom/-/rrweb-cssom-0.7.1.tgz#c73451a484b86dd7cfb1e0b2898df4b703183e4b"
   integrity sha512-TrEMa7JGdVm0UThDJSx7ddw5nVm3UJS9o9CCIZ72B1vSyEZoziDqBYP3XIoi/12lKrJR8rE3jeFHMok2F/Mnsg==
 
-rsc-html-stream@^0.0.4:
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/rsc-html-stream/-/rsc-html-stream-0.0.4.tgz#0ae70518eeac305852533b9ad60aefacce72ed95"
-  integrity sha512-1isiXIrlTI/vRLTvS3O4fMrO9qIHje1FSphufrIV5QfzHUgBDCZFwP9b8+rH63nbhxtcKTqfyziwM+2khfX0Uw==
+rsc-html-stream@^0.0.5:
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/rsc-html-stream/-/rsc-html-stream-0.0.5.tgz#3bf1ba2181c2f269b3541310ac83d7deef56d3c9"
+  integrity sha512-UhLsi8XLAu1NIBcFZjykoPiSLEAxfkGxkmr/Tnv4KnqhG18A65dVTCWovRvFdpzng6IyVW2f6nTAKz7lw+QhgQ==
 
 rtl-css-js@^1.16.1:
   version "1.16.1"
@@ -12659,10 +12659,10 @@ scheduler@^0.23.2:
   dependencies:
     loose-envify "^1.1.0"
 
-scheduler@^0.25.0:
-  version "0.25.0"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.25.0.tgz#336cd9768e8cceebf52d3c80e3dcf5de23e7e015"
-  integrity sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA==
+scheduler@^0.26.0:
+  version "0.26.0"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.26.0.tgz#4ce8a8c2a2095f13ea11bf9a445be50c555d6337"
+  integrity sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==
 
 screenfull@^5.1.0:
   version "5.2.0"

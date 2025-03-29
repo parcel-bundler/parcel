@@ -32,8 +32,8 @@
     }
   },
   "dependencies": {
-    "react-server-dom-parcel": "canary",
-    "rsc-html-stream": "^0.0.4"
+    "react-server-dom-parcel": "^19.1.0",
+    "rsc-html-stream": "^0.0.5"
   },
   "devDependencies": {
     "@types/node": ">= 18",
@@ -41,7 +41,7 @@
     "@types/react-dom": "^19"
   },
   "peerDependencies": {
-    "react": "^19",
-    "react-dom": "^19"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   }
 }

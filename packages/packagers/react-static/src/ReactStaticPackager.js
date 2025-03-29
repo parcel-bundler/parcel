@@ -76,7 +76,13 @@ export default (new Packager({
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
-  async package({bundle, bundleGraph, getInlineBundleContents, config}) {
+  async package({
+    bundle,
+    bundleGraph,
+    getInlineBundleContents,
+    config,
+    options,
+  }) {
     if (bundle.env.shouldScopeHoist) {
       throw new Error('Scope hoisting is not supported with SSG');
     }
@@ -90,6 +96,8 @@ export default (new Packager({
       getInlineBundleContents,
     );
 
+    let env = process.env.NODE_ENV;
+    process.env.NODE_ENV = options.env.NODE_ENV;
     let Component = load(nullthrows(bundle.getMainEntry()).id).default;
     let {renderToReadableStream} = loadModule(
       'react-server-dom-parcel/server.edge',
@@ -107,6 +115,7 @@ export default (new Packager({
       __filename,
       'react-client',
     );
+    process.env.NODE_ENV = env;
     let {injectRSCPayload} = await import('rsc-html-stream/server');
 
     let pages: Page[] = [];
