@@ -1,0 +1,47 @@
+{
+  "name": "@parcel/rsc",
+  "version": "2.14.3",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/ssg.d.ts"
+    },
+    "./client": {
+      "types": "./lib/client.d.ts",
+      "default": "./src/client.tsx"
+    },
+    "./server": {
+      "types": "./lib/server.d.ts",
+      "default": "./src/server.tsx"
+    },
+    "./node": {
+      "types": "./lib/node.d.ts",
+      "default": "./src/node.tsx"
+    }
+  },
+  "dependencies": {
+    "react-server-dom-parcel": "^19.1.0",
+    "rsc-html-stream": "^0.0.5"
+  },
+  "devDependencies": {
+    "@types/node": ">= 18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

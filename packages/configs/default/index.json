@@ -8,6 +8,14 @@
       "@parcel/transformer-worklet",
       "..."
     ],
+    "react-static:*": ["@parcel/transformer-react-static", "..."],
+    "*.mdx": [
+      // For backward compatibility, include the old transformer
+      // so it is used if already installed in the project.
+      // Otherwise, the JS transformer will handle MDX.
+      "@parcel/transformer-mdx",
+      "@parcel/transformer-js"
+    ],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
@@ -33,7 +41,6 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.elm": ["@parcel/transformer-elm"],
-    "*.mdx": ["@parcel/transformer-mdx"],
     "*.vue": ["@parcel/transformer-vue"],
     "template:*.vue": ["@parcel/transformer-vue"],
     "script:*.vue": ["@parcel/transformer-vue"],
@@ -44,13 +51,14 @@
     ],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
+    "*.node": ["@parcel/transformer-node"],
     "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": [
+    "@parcel/runtime-rsc",
     "@parcel/runtime-js",
     "@parcel/runtime-browser-hmr",
-    "@parcel/runtime-react-refresh",
     "@parcel/runtime-service-worker"
   ],
   "optimizers": {
@@ -62,6 +70,7 @@
     "*.{jpg,jpeg,png}": ["@parcel/optimizer-image"]
   },
   "packagers": {
+    "react-static:*.html": "@parcel/packager-react-static",
     "*.{html,xhtml}": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.{js,mjs,cjs}": "@parcel/packager-js",

@@ -15,6 +15,7 @@ import type {
   TransformationRequest,
   Config,
   DevDepRequest,
+  DevDepRequestRef,
   ParcelOptions,
   InternalDevDepOptions,
   Invalidations,
@@ -89,13 +90,13 @@ export type TransformationResult = {|
   error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Invalidations,
-  devDepRequests: Array<DevDepRequest>,
+  devDepRequests: Array<DevDepRequest | DevDepRequestRef>,
 |};
 
 export default class Transformation {
   request: TransformationRequest;
   configs: Map<string, Config>;
-  devDepRequests: Map<string, DevDepRequest>;
+  devDepRequests: Map<string, DevDepRequest | DevDepRequestRef>;
   pluginDevDeps: Array<InternalDevDepOptions>;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
@@ -569,6 +570,11 @@ export default class Transformation {
     configKeyPath?: string,
     parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
+    if (asset.transformers.has(transformerName)) {
+      return [asset];
+    }
+    asset.transformers.add(transformerName);
+
     const logger = new PluginLogger({origin: transformerName});
     const tracer = new PluginTracer({
       origin: transformerName,

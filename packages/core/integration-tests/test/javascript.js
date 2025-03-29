@@ -86,9 +86,9 @@ describe('javascript', function () {
     );
 
     let jsBundle = b.getBundles()[0];
-    let contents = await outputFS.readFile(jsBundle.filePath);
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
 
-    assert(!contents.includes('import'));
+    assert(!contents.includes('import('));
   });
 
   it('should ignore unused requires after process.env inlining', async function () {
@@ -340,7 +340,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['local.js'],
@@ -578,7 +578,6 @@ describe('javascript', function () {
         assets: [
           'index.js',
           'bar.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'esmodule-helpers.js',
           'foo.js',
@@ -616,7 +615,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['local.js', 'esmodule-helpers.js'],
@@ -641,7 +640,6 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
@@ -671,7 +669,7 @@ describe('javascript', function () {
       },
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js'],
       },
     ]);
 
@@ -700,14 +698,7 @@ describe('javascript', function () {
       },
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'c.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'bundle-manifest.js',
-        ],
+        assets: ['index.js', 'c.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['common.js', 'lodash.js'],
@@ -727,13 +718,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'common.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['index.js', 'common.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['a.js'],
@@ -757,13 +742,12 @@ describe('javascript', function () {
       },
       {
         name: 'b.js',
-        assets: ['b.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['b.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         name: 'a.js',
         assets: [
           'a.js',
-          'bundle-url.js',
           'common.js',
           'cacheLoader.js',
           'esmodule-helpers.js',
@@ -786,7 +770,6 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'esmodule-helpers.js',
@@ -820,7 +803,6 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
@@ -879,7 +861,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js'],
+        assets: ['index.js'],
       },
       {
         type: 'txt',
@@ -904,7 +886,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'esmodule-helpers.js'],
+        assets: ['index.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -931,7 +913,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'cjs.js',
-        assets: ['cjs.js', 'bundle-url.js', 'esmodule-helpers.js'],
+        assets: ['cjs.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -1034,7 +1016,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js'],
+        assets: ['index.js'],
       },
       {
         type: 'txt',
@@ -2650,7 +2632,6 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
@@ -2906,7 +2887,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'ts.js',
-        assets: ['ts.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['ts.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async.js'],
@@ -2924,12 +2905,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'ts-interop.js',
-        assets: [
-          'ts-interop.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['ts-interop.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async.js'],
@@ -2953,12 +2929,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'ts-interop-arrow.js',
-        assets: [
-          'ts-interop-arrow.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['ts-interop-arrow.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async.js'],
@@ -2980,12 +2951,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'rollup.js',
-        assets: [
-          'rollup.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['rollup.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async.js'],
@@ -3018,12 +2984,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'resolve-chain.js',
-        assets: [
-          'resolve-chain.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['resolve-chain.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async.js'],
@@ -3041,12 +3002,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'parcel.js',
-        assets: [
-          'parcel.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['parcel.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async.js'],
@@ -3067,7 +3023,7 @@ describe('javascript', function () {
       b.getBundles().find(b => b.type === 'js').filePath,
       'utf8',
     );
-    assert(dist.includes('$cPUKg$lodash = require("lodash");'));
+    assert(dist.includes('$eyi1T$lodash = require("lodash");'));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);
@@ -3087,7 +3043,7 @@ describe('javascript', function () {
 
     assert(
       dist.includes(
-        'const add = require(`lodash/${$8cad8166811e0063$var$fn}`);',
+        'const add = require(`lodash/${$5044e5062b06e481$var$fn}`);',
       ),
     );
 
@@ -3197,14 +3153,7 @@ describe('javascript', function () {
       },
       {
         name: 'entry2.js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'child.js',
-          'entry2.js',
-          'js-loader.js',
-        ],
+        assets: ['cacheLoader.js', 'child.js', 'entry2.js', 'js-loader.js'],
       },
     ]);
   });
@@ -3219,8 +3168,6 @@ describe('javascript', function () {
       {
         name: 'same-ancestry.js',
         assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
@@ -3266,8 +3213,6 @@ describe('javascript', function () {
       {
         name: 'get-dep.js',
         assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'get-dep.js',
           'js-loader.js',
@@ -3322,8 +3267,6 @@ describe('javascript', function () {
       {
         name: 'index.js',
         assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'index.js',
           'js-loader.js',
@@ -3347,7 +3290,6 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'esmodule-helpers.js',
@@ -3370,7 +3312,6 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'esmodule-helpers.js',
@@ -3390,6 +3331,7 @@ describe('javascript', function () {
       () =>
         bundle(fixture, {
           defaultTargetOptions: {
+            outputFormat: 'esmodule',
             shouldOptimize: true,
           },
         }),
@@ -3440,7 +3382,6 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'esmodule-helpers.js',
@@ -3448,12 +3389,7 @@ describe('javascript', function () {
       },
       {
         name: 'other-entry.js',
-        assets: [
-          'other-entry.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['other-entry.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {assets: ['a.js', 'value.js', 'esmodule-helpers.js']},
       {assets: ['b.js']},
@@ -3861,7 +3797,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async1.js', 'shared.js', 'esmodule-helpers.js'],
@@ -3886,13 +3822,7 @@ describe('javascript', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'bundle-manifest.js',
-        ],
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async1.js', 'shared.js'],
@@ -3971,12 +3901,10 @@ describe('javascript', function () {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'css-loader.js',
           'esmodule-helpers.js',
           'js-loader.js',
-          'bundle-manifest.js',
         ],
       },
       {
@@ -4300,7 +4228,6 @@ describe('javascript', function () {
             'static-dynamic-url.js',
             'other.js',
             'esmodule-helpers.js',
-            'bundle-url.js',
             'cacheLoader.js',
             'js-loader.js',
           ],
@@ -4371,7 +4298,6 @@ describe('javascript', function () {
           assets: [
             'dynamic-url.js',
             'esmodule-helpers.js',
-            'bundle-url.js',
             'cacheLoader.js',
             'js-loader.js',
           ],
@@ -4494,7 +4420,6 @@ describe('javascript', function () {
           assets: [
             'dynamic-inline.js',
             'esmodule-helpers.js',
-            'bundle-url.js',
             'cacheLoader.js',
             'js-loader.js',
           ],
@@ -4607,23 +4532,11 @@ describe('javascript', function () {
     assertBundles(bundleGraph, [
       {
         name: 'entry-a.js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'entry-a.js',
-          'js-loader.js',
-        ],
+        assets: ['cacheLoader.js', 'entry-a.js', 'js-loader.js'],
       },
       {
         name: 'entry-b.js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'entry-b.js',
-          'js-loader.js',
-        ],
+        assets: ['cacheLoader.js', 'entry-b.js', 'js-loader.js'],
       },
       {name: /deep\.[a-f0-9]+\.js/, assets: ['deep.js']},
       {name: /common\.[a-f0-9]+\.js/, assets: ['index.js']},
@@ -6143,5 +6056,197 @@ describe('javascript', function () {
       let res = await run(b, null, {require: false});
       assert.equal(res.output, 123);
     });
+
+    it(`supports import.meta properties ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        import-meta-properties
+          a.js:
+            output = [import.meta.distDir, import.meta.publicUrl]
+          b/c/d.js:
+            output = [import.meta.distDir, import.meta.publicUrl]`;
+
+      let b = await bundle(
+        [
+          path.join(__dirname, 'import-meta-properties/a.js'),
+          path.join(__dirname, 'import-meta-properties/b/c/d.js'),
+        ],
+        {
+          ...options,
+          inputFS: overlayFS,
+          defaultTargetOptions: {
+            ...options.defaultTargetOptions,
+            publicUrl: 'https://example.com',
+          },
+        },
+      );
+      let res = await runBundle(b, b.getBundles()[0], null, {require: false});
+      assert.deepEqual(res.output, ['./', 'https://example.com/']);
+
+      res = await runBundle(b, b.getBundles()[1], null, {require: false});
+      assert.deepEqual(res.output, ['../../', 'https://example.com/']);
+    });
+
+    it(`supports parcelRequire.meta properties ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        parcelRequire-meta-properties
+          a.js:
+            output = [parcelRequire.meta.distDir, parcelRequire.meta.publicUrl]
+          b/c/d.js:
+            output = [parcelRequire.meta.distDir, parcelRequire.meta.publicUrl]`;
+
+      let b = await bundle(
+        [
+          path.join(__dirname, 'parcelRequire-meta-properties/a.js'),
+          path.join(__dirname, 'parcelRequire-meta-properties/b/c/d.js'),
+        ],
+        {
+          ...options,
+          inputFS: overlayFS,
+          defaultTargetOptions: {
+            ...options.defaultTargetOptions,
+            publicUrl: 'https://example.com',
+          },
+        },
+      );
+      let res = await runBundle(b, b.getBundles()[0], null, {require: false});
+      assert.deepEqual(res.output, ['./', 'https://example.com/']);
+
+      res = await runBundle(b, b.getBundles()[1], null, {require: false});
+      assert.deepEqual(res.output, ['../../', 'https://example.com/']);
+    });
+
+    it(`supports parcelRequire.load ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        parcelRequire-meta-properties
+          x/y/z/a.js:
+            output = parcelRequire.load('b.js');
+          b.js:
+            globalThis.result = 2;`;
+
+      let b = await bundle(
+        [
+          path.join(__dirname, 'parcelRequire-meta-properties/x/y/z/a.js'),
+          path.join(__dirname, 'parcelRequire-meta-properties/b.js'),
+        ],
+        {
+          ...options,
+          inputFS: overlayFS,
+        },
+      );
+      let res = await runBundle(b, b.getBundles()[0], null, {require: false});
+      await res.output;
+      assert.equal(res.result, 2);
+    });
+
+    it(`can bundle date-fns ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        date-fns
+          a.ts:
+            import {format} from 'date-fns';
+            output = format(new Date(2025, 1, 3), "yyyy-MM-dd");`;
+
+      let b = await bundle(path.join(__dirname, 'date-fns/a.ts'), {
+        ...options,
+        mode: 'development',
+        inputFS: overlayFS,
+      });
+      let res = await run(b, null, {require: false});
+      let result = await res.output;
+      assert.equal(result, '2025-02-03');
+    });
   }
+
+  for (let defaultTargetOptions of [
+    {shouldScopeHoist: false},
+    {shouldScopeHoist: true, outputFormat: 'commonjs'},
+    {shouldScopeHoist: true, outputFormat: 'esmodule'},
+  ]) {
+    it(
+      'supports native .node modules with options: ' +
+        JSON.stringify(defaultTargetOptions),
+      async function () {
+        await fsFixture(overlayFS, __dirname)`
+        native-node
+          index.js:
+            output = require('@parcel/rust');
+            
+          package.json:
+            {
+              "targets": {
+                "default": {
+                  "context": "node",
+                  "includeNodeModules": true
+                }
+              }
+            }
+            
+          yarn.lock:`;
+
+        let b = await bundle(path.join(__dirname, 'native-node/index.js'), {
+          defaultTargetOptions,
+          inputFS: overlayFS,
+          outputFS: inputFS,
+        });
+
+        let res = await run(
+          b,
+          {output: null},
+          {require: false},
+          {
+            fs: () => require('fs'),
+            path: () => require('path'),
+            module: () => require('module'),
+            url: () => require('url'),
+          },
+        );
+        assert.equal(typeof res.output.hashString, 'function');
+      },
+    );
+  }
+
+  it('should support ESM externals and exports in development mode', async () => {
+    await fsFixture(overlayFS, __dirname)`
+    esm-externals
+      index.js:
+        import {createHash} from 'crypto';
+        let hash = createHash('md5');
+        hash.update('testing');
+        export const hashed = hash.digest('hex');
+        export default "Test";
+        
+      package.json:
+        {
+          "targets": {
+            "default": {
+              "context": "node",
+              "outputFormat": "esmodule"
+            }
+          }
+        }
+        
+      yarn.lock:`;
+
+    let b = await bundle(path.join(__dirname, 'esm-externals/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let res = await run(
+      b,
+      {},
+      {},
+      {
+        crypto: () => require('crypto'),
+      },
+    );
+    assert.equal(res.hashed, 'ae2b1fca515949e5d54fb22b8ed95575');
+    assert.equal(res.default, 'Test');
+  });
 });

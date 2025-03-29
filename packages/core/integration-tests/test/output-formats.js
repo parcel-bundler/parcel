@@ -552,12 +552,18 @@ describe('output formats', function () {
       };
 
       let out = [];
-      await run(b, {
-        require: () => external,
-        output(o) {
-          out.push(o);
+      await run(
+        b,
+        {
+          output(o) {
+            out.push(o);
+          },
         },
-      });
+        {},
+        {
+          external: () => external,
+        },
+      );
 
       assert.deepEqual(out, [1, 2]);
     });
@@ -1001,7 +1007,7 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
+      assert(html.includes('<script type="module" src="/esm-browser'));
 
       let entry = await outputFS.readFile(
         b
@@ -1043,7 +1049,7 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
+      assert(html.includes('<script type="module" src="/esm-browser'));
 
       let entry = await outputFS.readFile(
         b
@@ -1059,11 +1065,9 @@ describe('output formats', function () {
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
       assert(
-        new RegExp(
-          `getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ "` +
-            path.basename(asyncBundle.filePath) +
-            '"',
-        ).test(entry),
+        entry.includes(
+          `$parcel$resolve("${path.basename(asyncBundle.filePath)}")`,
+        ),
       );
     });
 
@@ -1077,8 +1081,8 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
-      assert(html.includes('<link rel="stylesheet" href="/index'));
+      assert(html.includes('<script type="module" src="/esm-browser-css'));
+      assert(html.includes('<link rel="stylesheet" href="/esm-browser-css'));
 
       let entry = await outputFS.readFile(
         b
@@ -1098,9 +1102,9 @@ describe('output formats', function () {
       );
       assert(
         new RegExp(
-          'Promise.all\\(\\[\\n.+?new URL\\("' +
+          'Promise.all\\(\\[\\n.+?\\$parcel\\$resolve\\("' +
             path.basename(asyncCssBundle.filePath) +
-            '", import.meta.url\\).toString\\(\\)\\),\\n\\s*import\\("\\.\\/' +
+            '"\\)\\),\\n\\s*import\\("\\.\\/' +
             path.basename(asyncJsBundle.filePath) +
             '"\\)\\n\\s*\\]\\)',
         ).test(entry),
@@ -1133,7 +1137,10 @@ describe('output formats', function () {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/index'));
+      assert(
+        html.includes('<script type="module" src="/esm-browser-split-bundle'),
+      );
+      assert(html.includes('<script type="importmap"'));
 
       let bundles = b.getBundles();
       let entry = await outputFS.readFile(
@@ -1149,24 +1156,11 @@ describe('output formats', function () {
       );
       let async2Bundle = bundles.find(b => b.name.startsWith('async2'));
 
-      let esmLoaderPublicId;
-      b.traverse((node, _, actions) => {
-        if (
-          node.type === 'asset' &&
-          node.value.filePath.endsWith('esm-js-loader.js')
-        ) {
-          esmLoaderPublicId = b.getAssetPublicId(node.value);
-          actions.stop();
-        }
-      });
-
-      assert(esmLoaderPublicId != null, 'Could not find esm loader public id');
-
       for (let bundle of [async1Bundle, async2Bundle]) {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `\\$${esmLoaderPublicId}\\("${sharedBundle.publicId}"\\),\\n\\s*\\$${esmLoaderPublicId}\\("${bundle.publicId}"\\)`,
+            `import\\("${sharedBundle.publicId}"\\),\\n\\s*import\\("${bundle.publicId}"\\)`,
           ).test(entry),
         );
       }
@@ -1523,7 +1517,7 @@ describe('output formats', function () {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
+          assets: ['get-worker-url.js', 'index.js'],
         },
         {type: 'html', assets: ['index.html']},
         {type: 'js', assets: ['lodash.js']},

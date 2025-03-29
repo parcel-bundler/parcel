@@ -10,6 +10,7 @@ import type {
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
+  DevDepRequestRef,
   ParcelOptions,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -173,7 +174,7 @@ class BundlerRunner {
   pluginOptions: PluginOptions;
   api: RunAPI<BundleGraphResult>;
   previousDevDeps: Map<string, string>;
-  devDepRequests: Map<string, DevDepRequest>;
+  devDepRequests: Map<string, DevDepRequest | DevDepRequestRef>;
   configs: Map<string, Config>;
   cacheKey: string;
 
@@ -236,7 +237,7 @@ class BundlerRunner {
     this.configs.set(plugin.name, config);
   }
 
-  async runDevDepRequest(devDepRequest: DevDepRequest) {
+  async runDevDepRequest(devDepRequest: DevDepRequest | DevDepRequestRef) {
     let {specifier, resolveFrom} = devDepRequest;
     let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     this.devDepRequests.set(key, devDepRequest);

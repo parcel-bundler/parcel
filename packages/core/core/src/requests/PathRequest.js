@@ -12,6 +12,7 @@ import type {
   Config,
   Dependency,
   DevDepRequest,
+  DevDepRequestRef,
   ParcelOptions,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -163,7 +164,7 @@ export class ResolverRunner {
   options: ParcelOptions;
   pluginOptions: PluginOptions;
   previousDevDeps: Map<string, string>;
-  devDepRequests: Map<string, DevDepRequest>;
+  devDepRequests: Map<string, DevDepRequest | DevDepRequestRef>;
   configs: Map<string, Config>;
 
   constructor({config, options, previousDevDeps}: ResolverRunnerOpts) {
@@ -237,7 +238,7 @@ export class ResolverRunner {
     }
   }
 
-  runDevDepRequest(devDepRequest: DevDepRequest) {
+  runDevDepRequest(devDepRequest: DevDepRequest | DevDepRequestRef) {
     let {specifier, resolveFrom} = devDepRequest;
     let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     this.devDepRequests.set(key, devDepRequest);

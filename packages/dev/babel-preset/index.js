@@ -26,7 +26,12 @@ module.exports = api => {
           },
         },
       ],
-      require('@babel/preset-react'),
+      [
+        require('@babel/preset-react'),
+        {
+          runtime: 'automatic',
+        },
+      ],
       require('@babel/preset-flow'),
     ],
     plugins: [

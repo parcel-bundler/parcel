@@ -14,6 +14,7 @@ import type {
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
+  DevDepRequestRef,
   ParcelOptions,
   ReportFn,
   RequestInvalidation,
@@ -72,9 +73,9 @@ type Opts = {|
 |};
 
 export type RunPackagerRunnerResult = {|
-  bundleInfo: BundleInfo,
+  bundleInfo: BundleInfo[],
   configRequests: Array<ConfigRequest>,
-  devDepRequests: Array<DevDepRequest>,
+  devDepRequests: Array<DevDepRequest | DevDepRequestRef>,
   invalidations: Array<RequestInvalidation>,
 |};
 
@@ -91,7 +92,6 @@ export type BundleInfo = {|
 type CacheKeyMap = {|
   content: string,
   map: string,
-  info: string,
 |};
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
@@ -108,7 +108,7 @@ export default class PackagerRunner {
   distExists: Set<FilePath>;
   report: ReportFn;
   previousDevDeps: Map<string, string>;
-  devDepRequests: Map<string, DevDepRequest>;
+  devDepRequests: Map<string, DevDepRequest | DevDepRequestRef>;
   invalidations: Map<string, RequestInvalidation>;
   previousInvalidations: Array<RequestInvalidation>;
 
@@ -146,14 +146,21 @@ export default class PackagerRunner {
     invalidateDevDeps(invalidDevDeps, this.options, this.config);
 
     let {configs, bundleConfigs} = await this.loadConfigs(bundleGraph, bundle);
-    let bundleInfo =
-      (await this.getBundleInfoFromCache(
-        bundleGraph,
+    let bundleInfo = await this.getBundleInfoFromCache(
+      bundleGraph,
+      bundle,
+      configs,
+      bundleConfigs,
+    );
+
+    if (bundleInfo.length === 0) {
+      bundleInfo = await this.getBundleInfo(
         bundle,
+        bundleGraph,
         configs,
         bundleConfigs,
-      )) ??
-      (await this.getBundleInfo(bundle, bundleGraph, configs, bundleConfigs));
+      );
+    }
 
     let configRequests = getConfigRequests([
       ...configs.values(),
@@ -196,7 +203,7 @@ export default class PackagerRunner {
     bundleConfigs: Map<string, Config>,
   ): Promise<void> {
     let name = nullthrows(bundle.name);
-    let plugin = await this.config.getPackager(name);
+    let plugin = await this.config.getPackager(name, bundle.pipeline);
     await this.loadPluginConfig(
       bundleGraph,
       bundle,
@@ -287,9 +294,9 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
-  ): Async<?BundleInfo> {
+  ): Promise<BundleInfo[]> {
     if (this.options.shouldDisableCache) {
-      return;
+      return [];
     }
 
     let cacheKey = await this.getCacheKey(
@@ -300,7 +307,8 @@ export default class PackagerRunner {
       this.previousInvalidations,
     );
     let infoKey = PackagerRunner.getInfoKey(cacheKey);
-    return this.options.cache.get<BundleInfo>(infoKey);
+    let res = await this.options.cache.get<BundleInfo[]>(infoKey);
+    return res ?? [];
   }
 
   async getBundleInfo(
@@ -308,8 +316,8 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
-  ): Promise<BundleInfo> {
-    let {type, contents, map} = await this.getBundleResult(
+  ): Promise<BundleInfo[]> {
+    let results = await this.getBundleResult(
       bundle,
       bundleGraph,
       configs,
@@ -324,13 +332,8 @@ export default class PackagerRunner {
       bundleConfigs,
       [...this.invalidations.values()],
     );
-    let cacheKeys = {
-      content: PackagerRunner.getContentKey(cacheKey),
-      map: PackagerRunner.getMapKey(cacheKey),
-      info: PackagerRunner.getInfoKey(cacheKey),
-    };
 
-    return this.writeToCache(cacheKeys, type, contents, map);
+    return this.writeToCache(cacheKey, results);
   }
 
   async getBundleResult(
@@ -338,35 +341,43 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
-  ): Promise<{|
-    type: string,
-    contents: Blob,
-    map: ?string,
-  |}> {
-    let packaged = await this.package(
+  ): Promise<
+    {|
+      type: string,
+      contents: Blob,
+      map: ?string,
+    |}[],
+  > {
+    let packagedResults = await this.package(
       bundle,
       bundleGraph,
       configs,
       bundleConfigs,
     );
-    let type = packaged.type ?? bundle.type;
-    let res = await this.optimize(
-      bundle,
-      bundleGraph,
-      type,
-      packaged.contents,
-      packaged.map,
-      configs,
-      bundleConfigs,
-    );
+    return Promise.all(
+      packagedResults.map(async packaged => {
+        let type = packaged.type ?? bundle.type;
+        let res = await this.optimize(
+          bundle,
+          bundleGraph,
+          type,
+          packaged.contents,
+          packaged.map,
+          configs,
+          bundleConfigs,
+        );
 
-    let map =
-      res.map != null ? await this.generateSourceMap(bundle, res.map) : null;
-    return {
-      type: res.type ?? type,
-      contents: res.contents,
-      map,
-    };
+        let map =
+          res.map != null
+            ? await this.generateSourceMap(bundle, res.map)
+            : null;
+        return {
+          type: res.type ?? type,
+          contents: res.contents,
+          map,
+        };
+      }),
+    );
   }
 
   getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
@@ -386,7 +397,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
-  ): Promise<BundleResult> {
+  ): Promise<BundleResult[]> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
@@ -394,14 +405,17 @@ export default class PackagerRunner {
       bundle,
     });
 
-    let packager = await this.config.getPackager(bundle.name);
+    let packager = await this.config.getPackager(
+      bundle.name,
+      internalBundle.pipeline,
+    );
     let {name, resolveFrom, plugin} = packager;
     let measurement;
     try {
       measurement = tracer.createMeasurement(name, 'packaging', bundle.name, {
         type: bundle.type,
       });
-      return await plugin.package({
+      let res = await plugin.package({
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
         bundle,
@@ -434,9 +448,13 @@ export default class PackagerRunner {
             bundleConfigs,
           );
 
-          return {contents: res.contents};
+          return {contents: res[0].contents};
         },
       });
+      if (Array.isArray(res)) {
+        return res;
+      }
+      return [res];
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
@@ -482,12 +500,16 @@ export default class PackagerRunner {
       NamedBundle.get.bind(NamedBundle),
       this.options,
     );
+    let name = bundle.name;
+    if (type !== bundle.type) {
+      name = name.slice(0, -path.extname(name).length) + '.' + type;
+    }
     let optimizers = await this.config.getOptimizers(
-      bundle.name,
+      name,
       internalBundle.pipeline,
     );
     if (!optimizers.length) {
-      return {type: bundle.type, contents, map};
+      return {type, contents, map};
     }
 
     this.report({
@@ -672,8 +694,8 @@ export default class PackagerRunner {
 
   async getDevDepHashes(bundle: InternalBundle): Promise<string> {
     let name = nullthrows(bundle.name);
-    let packager = await this.config.getPackager(name);
-    let optimizers = await this.config.getOptimizers(name);
+    let packager = await this.config.getPackager(name, bundle.pipeline);
+    let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
 
     let key = `${packager.name}:${fromProjectPathRelative(
       packager.resolveFrom,
@@ -691,97 +713,82 @@ export default class PackagerRunner {
     return devDepHashes;
   }
 
-  async readFromCache(cacheKey: string): Promise<?{|
-    contents: Readable,
-    map: ?Readable,
-  |}> {
-    let contentKey = PackagerRunner.getContentKey(cacheKey);
-    let mapKey = PackagerRunner.getMapKey(cacheKey);
-
-    let isLargeBlob = await this.options.cache.hasLargeBlob(contentKey);
-    let contentExists =
-      isLargeBlob || (await this.options.cache.has(contentKey));
-    if (!contentExists) {
-      return null;
-    }
-
-    let mapExists = await this.options.cache.has(mapKey);
-
-    return {
-      contents: isLargeBlob
-        ? this.options.cache.getStream(contentKey)
-        : blobToStream(await this.options.cache.getBlob(contentKey)),
-      map: mapExists
-        ? blobToStream(await this.options.cache.getBlob(mapKey))
-        : null,
-    };
-  }
-
   async writeToCache(
-    cacheKeys: CacheKeyMap,
-    type: string,
-    contents: Blob,
-    map: ?string,
-  ): Promise<BundleInfo> {
-    let size = 0;
-    let hash;
-    let hashReferences = [];
-    let isLargeBlob = false;
+    cacheKey: string,
+    results: Array<{|
+      contents: Blob,
+      map: ?string,
+      type: string,
+    |}>,
+  ): Promise<BundleInfo[]> {
+    let info = await Promise.all(
+      results.map(async ({contents, map, type}, index) => {
+        let size = 0;
+        let hash;
+        let hashReferences = [];
+        let isLargeBlob = false;
+        let cacheKeys = {
+          content: PackagerRunner.getContentKey(cacheKey, index),
+          map: PackagerRunner.getMapKey(cacheKey, index),
+        };
 
-    // TODO: don't replace hash references in binary files??
-    if (contents instanceof Readable) {
-      isLargeBlob = true;
-      let boundaryStr = '';
-      let h = new Hash();
-      await this.options.cache.setStream(
-        cacheKeys.content,
-        blobToStream(contents).pipe(
-          new TapStream(buf => {
-            let str = boundaryStr + buf.toString();
-            hashReferences = hashReferences.concat(
-              str.match(HASH_REF_REGEX) ?? [],
-            );
-            size += buf.length;
-            h.writeBuffer(buf);
-            boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
-          }),
-        ),
-      );
-      hash = h.finish();
-    } else if (typeof contents === 'string') {
-      let buffer = Buffer.from(contents);
-      size = buffer.byteLength;
-      hash = hashBuffer(buffer);
-      hashReferences = contents.match(HASH_REF_REGEX) ?? [];
-      await this.options.cache.setBlob(cacheKeys.content, buffer);
-    } else {
-      size = contents.length;
-      hash = hashBuffer(contents);
-      hashReferences = contents.toString().match(HASH_REF_REGEX) ?? [];
-      await this.options.cache.setBlob(cacheKeys.content, contents);
-    }
+        // TODO: don't replace hash references in binary files??
+        if (contents instanceof Readable) {
+          isLargeBlob = true;
+          let boundaryStr = '';
+          let h = new Hash();
+          await this.options.cache.setStream(
+            cacheKeys.content,
+            blobToStream(contents).pipe(
+              new TapStream(buf => {
+                let str = boundaryStr + buf.toString();
+                hashReferences = hashReferences.concat(
+                  str.match(HASH_REF_REGEX) ?? [],
+                );
+                size += buf.length;
+                h.writeBuffer(buf);
+                boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
+              }),
+            ),
+          );
+          hash = h.finish();
+        } else if (typeof contents === 'string') {
+          let buffer = Buffer.from(contents);
+          size = buffer.byteLength;
+          hash = hashBuffer(buffer);
+          hashReferences = contents.match(HASH_REF_REGEX) ?? [];
+          await this.options.cache.setBlob(cacheKeys.content, buffer);
+        } else {
+          size = contents.length;
+          hash = hashBuffer(contents);
+          hashReferences = contents.toString().match(HASH_REF_REGEX) ?? [];
+          await this.options.cache.setBlob(cacheKeys.content, contents);
+        }
 
-    if (map != null) {
-      await this.options.cache.setBlob(cacheKeys.map, map);
-    }
-    let info = {
-      type,
-      size,
-      hash,
-      hashReferences,
-      cacheKeys,
-      isLargeBlob,
-    };
-    await this.options.cache.set(cacheKeys.info, info);
+        if (map != null) {
+          await this.options.cache.setBlob(cacheKeys.map, map);
+        }
+        let info: BundleInfo = {
+          type,
+          size,
+          hash,
+          hashReferences,
+          cacheKeys,
+          isLargeBlob,
+        };
+        return info;
+      }),
+    );
+    await this.options.cache.set(PackagerRunner.getInfoKey(cacheKey), info);
     return info;
   }
 
-  static getContentKey(cacheKey: string): string {
-    return hashString(`${cacheKey}:content`);
+  static getContentKey(cacheKey: string, index: number): string {
+    return hashString(`${cacheKey}:${index}:content`);
   }
 
-  static getMapKey(cacheKey: string): string {
-    return hashString(`${cacheKey}:map`);
+  static getMapKey(cacheKey: string, index: number): string {
+    return hashString(`${cacheKey}:${index}:map`);
   }
 
   static getInfoKey(cacheKey: string): string {

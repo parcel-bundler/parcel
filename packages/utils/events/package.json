@@ -1,6 +1,6 @@
 {
   "name": "@parcel/events",
-  "version": "2.13.3",
+  "version": "2.14.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"

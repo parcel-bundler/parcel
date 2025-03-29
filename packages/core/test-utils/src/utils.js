@@ -31,7 +31,11 @@ import EventEmitter from 'events';
 import http from 'http';
 import https from 'https';
 
-import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
+import {
+  makeDeferredWithPromise,
+  normalizeSeparators,
+  loadConfig,
+} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
@@ -127,7 +131,7 @@ export function getParcelOptions(
         distDir,
         engines: {
           browsers: ['last 1 Chrome version'],
-          node: '8',
+          node: '18',
         },
       },
     },
@@ -282,7 +286,7 @@ export function shallowEqual(
   return true;
 }
 
-type RunOpts = {require?: boolean, strict?: boolean, ...};
+type RunOpts = {require?: boolean, strict?: boolean, entryAsset?: Asset, ...};
 
 export async function runBundles(
   bundleGraph: BundleGraph<PackagedBundle>,
@@ -291,19 +295,25 @@ export async function runBundles(
   globals: mixed,
   opts: RunOpts = {},
   externalModules?: ExternalModules,
+  importMap?: ?ImportMap,
 ): Promise<mixed> {
-  let entryAsset = nullthrows(
-    bundles
-      .map(([, b]) => b.getMainEntry() || b.getEntryAssets()[0])
-      .filter(Boolean)[0],
-  );
+  let entryAsset =
+    opts.entryAsset ??
+    nullthrows(
+      bundles
+        .map(([, b]) => b.getMainEntry() || b.getEntryAssets()[0])
+        .filter(Boolean)[0],
+    );
   let env = entryAsset.env;
   let target = env.context;
   let outputFormat = env.outputFormat;
 
+  nodeCache.clear();
+
   let ctx, promises;
   switch (target) {
-    case 'browser': {
+    case 'browser':
+    case 'react-client': {
       let prepared = prepareBrowserContext(parent, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -311,23 +321,12 @@ export async function runBundles(
     }
     case 'node':
     case 'electron-main':
-      nodeCache.clear();
-      ctx = prepareNodeContext(
-        outputFormat === 'commonjs' && parent.filePath,
-        globals,
-        undefined,
-        externalModules,
-      );
+    case 'react-server':
+      ctx = prepareNodeContext(globals);
       break;
     case 'electron-renderer': {
-      nodeCache.clear();
       let prepared = prepareBrowserContext(parent, globals);
-      prepareNodeContext(
-        outputFormat === 'commonjs' && parent.filePath,
-        globals,
-        prepared.ctx,
-        externalModules,
-      );
+      prepareNodeContext(globals, prepared.ctx);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
@@ -353,6 +352,7 @@ export async function runBundles(
 
   vm.createContext(ctx);
   let esmOutput;
+  let cjsOutput;
   if (outputFormat === 'esmodule') {
     let res = await runESM(
       bundles[0][1].target.distDir,
@@ -361,12 +361,28 @@ export async function runBundles(
       overlayFS,
       externalModules,
       true,
+      target === 'node' ||
+        target === 'electron-main' ||
+        target === 'react-server',
+      importMap,
     );
 
     esmOutput = bundles.length === 1 ? res[0] : res;
+  } else if (outputFormat === 'commonjs' || env.isNode()) {
+    for (let [code, b] of bundles) {
+      let res = runModule(
+        b.target.distDir,
+        ctx,
+        b.filePath,
+        code,
+        externalModules,
+        opts.strict ?? false,
+      );
+      cjsOutput ??= res;
+    }
   } else {
     for (let [code, b] of bundles) {
-      // require, parcelRequire was set up in prepare*Context
+      // parcelRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
         filename:
           b.bundleBehavior === 'inline'
@@ -382,34 +398,36 @@ export async function runBundles(
             overlayFS,
             externalModules,
             true,
+            target === 'node' ||
+              target === 'electron-main' ||
+              target === 'react-server',
+            importMap,
           );
           return modules[0];
         },
       }).runInContext(ctx);
     }
   }
+
   if (promises) {
     // await any ongoing dynamic imports during the run
     await Promise.all(promises);
   }
 
   if (opts.require !== false) {
+    if (!env.shouldScopeHoist) {
+      for (let key in ctx) {
+        if (key.startsWith('parcelRequire')) {
+          // $FlowFixMe[incompatible-use]
+          return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
+        }
+      }
+    }
     switch (outputFormat) {
       case 'global':
-        if (env.shouldScopeHoist) {
-          return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
-        } else {
-          for (let key in ctx) {
-            if (key.startsWith('parcelRequire')) {
-              // $FlowFixMe[incompatible-use]
-              return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
-            }
-          }
-        }
-        return;
+        return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
       case 'commonjs':
-        invariant(typeof ctx.module === 'object' && ctx.module != null);
-        return ctx.module.exports;
+        return nullthrows(cjsOutput);
       case 'esmodule':
         return esmOutput;
       default:
@@ -437,6 +455,7 @@ export async function runBundle(
 
     let bundles = bundleGraph.getBundles({includeInline: true});
     let scripts = [];
+    let importMap: ?ImportMap = null;
     postHtml().walk.call(ast, node => {
       if (node.attrs?.nomodule != null) {
         return node;
@@ -448,6 +467,12 @@ export async function runBundle(
           let b = nullthrows(bundles.find(b => b.filePath === p));
           scripts.push([overlayFS.readFileSync(b.filePath, 'utf8'), b]);
         }
+      } else if (
+        node.tag === 'script' &&
+        node.content &&
+        node.attrs?.type === 'importmap'
+      ) {
+        importMap = JSON.parse(node.content.join(''));
       } else if (node.tag === 'script' && node.content && !node.attrs?.src) {
         let content = node.content.join('');
         let inline = bundles.filter(
@@ -465,6 +490,7 @@ export async function runBundle(
       globals,
       opts,
       externalModules,
+      importMap,
     );
   } else {
     return runBundles(
@@ -498,6 +524,7 @@ export function assertBundles(
     type?: string,
     assets: Array<string>,
   |}>,
+  opts?: {|skipNodeModules?: boolean, skipHelpers?: boolean|},
 ) {
   let actualBundles = [];
   const byAlphabet = (a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1);
@@ -516,6 +543,19 @@ export function assertBundles(
 
       if (/runtime-[a-z0-9]{16}\.js/.test(asset.filePath)) {
         // Skip runtime assets, which have hashed filenames for source maps.
+        return;
+      }
+
+      if (opts?.skipNodeModules && /node_modules/.test(asset.filePath)) {
+        return;
+      }
+
+      if (
+        (opts?.skipHelpers || opts?.skipNodeModules) &&
+        /esmodule-helpers.js|jsx-dev-runtime.js|jsx-runtime.js|rsc-helpers.js/.test(
+          asset.filePath,
+        )
+      ) {
         return;
       }
 
@@ -546,7 +586,9 @@ export function assertBundles(
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
-    'expected number of bundles mismatched',
+    `expected number of bundles mismatched\n\nActual bundles: \n\n${util.inspect(
+      actualBundles,
+    )}`,
   );
 
   for (let bundle of expectedBundles) {
@@ -639,7 +681,7 @@ function prepareBrowserContext(
   const fakeDocument = {
     head,
     createElement(tag) {
-      return {tag};
+      return {tag, setAttribute() {}, style: {}};
     },
 
     getElementsByTagName() {
@@ -663,8 +705,6 @@ function prepareBrowserContext(
 
     currentScript: null,
   };
-
-  var exports = {};
 
   function PatchedError(message) {
     const patchedError = new Error(message);
@@ -702,8 +742,6 @@ function prepareBrowserContext(
   var ctx = Object.assign(
     {
       Error: PatchedError,
-      exports,
-      module: {exports},
       document: fakeDocument,
       WebSocket,
       TextEncoder,
@@ -749,6 +787,13 @@ function prepareBrowserContext(
     },
     globals,
   );
+
+  if (bundle.env.isLibrary) {
+    ctx.process = {
+      browser: true,
+      env: {},
+    };
+  }
 
   ctx.window = ctx.self = ctx;
   return {ctx, promises};
@@ -800,11 +845,8 @@ function prepareWorkerContext(
 |} {
   let promises = [];
 
-  var exports = {};
   var ctx = Object.assign(
     {
-      exports,
-      module: {exports},
       WebSocket,
       console,
       TextEncoder,
@@ -859,15 +901,83 @@ function prepareWorkerContext(
 }
 
 const nodeCache = new Map();
-// no filepath = ESM
 function prepareNodeContext(
-  filePath,
   globals,
   // $FlowFixMe
   ctx: any = {},
-  externalModules?: ExternalModules,
 ) {
-  let exports = {};
+  ctx.console = console;
+  ctx.process = process;
+  ctx.setTimeout = setTimeout;
+  ctx.setImmediate = setImmediate;
+  ctx.global = ctx;
+  ctx.URL = URL;
+  ctx.TextEncoder = TextEncoder;
+  ctx.TextDecoder = TextDecoder;
+  Object.assign(ctx, globals);
+  return ctx;
+}
+
+function runModule(
+  distDir: string,
+  // $FlowFixMe
+  ctx: any,
+  filePath: string,
+  code: string,
+  externalModules?: ExternalModules,
+  strict: boolean,
+) {
+  let cached = nodeCache.get(filePath);
+  if (cached) {
+    return cached.exports;
+  }
+
+  let f = vm.compileFunction(
+    (strict ? '"use strict";\n' : '') + code,
+    ['module', 'exports', '__filename', '__dirname', 'require'],
+    {
+      filename: path.basename(filePath),
+      parsingContext: ctx,
+      async importModuleDynamically(specifier) {
+        let resolved = path.resolve(path.dirname(filePath), specifier);
+        let code = await overlayFS.readFile(resolved, 'utf8');
+        if (path.extname(resolved) === '.mjs' || (await isESM(resolved))) {
+          let modules = await runESM(
+            distDir,
+            [[code, filePath]],
+            ctx,
+            overlayFS,
+            externalModules,
+            true,
+          );
+          return modules[0];
+        } else {
+          let mod = runModule(
+            distDir,
+            ctx,
+            resolved,
+            code,
+            externalModules,
+            strict,
+          );
+          // $FlowFixMe Experimental
+          let m = new vm.SyntheticModule(
+            Object.keys(mod),
+            function () {
+              for (let [k, v] of Object.entries(mod)) {
+                this.setExport(k, v);
+              }
+            },
+            {identifier: resolved, context: ctx},
+          );
+          await m.link(() => {});
+          await m.evaluate();
+          return m;
+        }
+      },
+    },
+  );
+
   let req =
     filePath &&
     (specifier => {
@@ -911,6 +1021,9 @@ function prepareNodeContext(
           readFileSync: (file, encoding) => {
             return overlayFS.readFileSync(file, encoding);
           },
+          existsSync: file => {
+            return overlayFS.existsSync(file);
+          },
         };
       }
 
@@ -923,60 +1036,36 @@ function prepareNodeContext(
         return {};
       }
 
-      let cached = nodeCache.get(res);
-      if (cached) {
-        return cached.module.exports;
+      if (path.extname(res) === '.node') {
+        // $FlowFixMe[unsupported-syntax]
+        return require(res);
       }
 
-      let g = {
-        ...globals,
-      };
-
-      for (let key in ctx) {
-        if (
-          key !== 'module' &&
-          key !== 'exports' &&
-          key !== '__filename' &&
-          key !== '__dirname' &&
-          key !== 'require'
-        ) {
-          g[key] = ctx[key];
-        }
-      }
-
-      let childCtx = prepareNodeContext(res, g);
-      nodeCache.set(res, childCtx);
-
-      vm.createContext(childCtx);
-      new vm.Script(
-        //'"use strict";\n' +
+      return runModule(
+        distDir,
+        ctx,
+        res,
         overlayFS.readFileSync(res, 'utf8'),
-        {
-          filename: path.basename(res),
-        },
-      ).runInContext(childCtx);
-      return childCtx.module.exports;
+        externalModules,
+        strict,
+      );
     });
 
-  if (filePath) {
-    ctx.module = {exports, require: req};
-    ctx.exports = exports;
-    ctx.__filename = filePath;
-    ctx.__dirname = path.dirname(filePath);
-    ctx.require = req;
-  }
-
-  ctx.console = console;
-  ctx.process = process;
-  ctx.setTimeout = setTimeout;
-  ctx.setImmediate = setImmediate;
-  ctx.global = ctx;
-  ctx.URL = URL;
-  ctx.TextEncoder = TextEncoder;
-  ctx.TextDecoder = TextDecoder;
-  Object.assign(ctx, globals);
-  return ctx;
+  let exports = {};
+  let module = {exports, require: req};
+  nodeCache.set(filePath, module);
+  f(module, exports, filePath, path.dirname(filePath), req);
+  return module.exports;
 }
+
+async function isESM(filePath: string) {
+  let pkg = await loadConfig(overlayFS, filePath, ['package.json'], '/');
+  return pkg?.config?.type === 'module';
+}
+
+type ImportMap = {|
+  imports: {[string]: string},
+|};
 
 let instanceId = 0;
 export async function runESM(
@@ -986,12 +1075,24 @@ export async function runESM(
   fs: FileSystem,
   externalModules: ExternalModules = {},
   requireExtensions: boolean = false,
+  isNode: boolean = false,
+  importMap?: ?ImportMap,
 ): Promise<Array<{|[string]: mixed|}>> {
   let id = instanceId++;
   let cache = new Map();
   function load(inputSpecifier, referrer, code = null) {
+    let specifier = inputSpecifier;
+    if (importMap) {
+      if (importMap.imports[inputSpecifier]) {
+        specifier = importMap.imports[inputSpecifier];
+      }
+    }
+
     // ESM can request bundles with an absolute URL. Normalize this to the baseDir.
-    let specifier = inputSpecifier.replace('http://localhost', baseDir);
+    if (specifier.startsWith('/')) {
+      specifier = path.join(baseDir, specifier);
+    }
+    specifier = specifier.replace('http://localhost', baseDir);
 
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
@@ -1032,7 +1133,21 @@ export async function runESM(
           entry(specifier, referrer),
         context,
         initializeImportMeta(meta) {
-          meta.url = `http://localhost/${path.basename(filename)}`;
+          if (isNode) {
+            meta.url = url.pathToFileURL(filename).toString();
+          } else {
+            meta.url = `http://localhost/${path.basename(filename)}`;
+          }
+
+          meta.resolve = inputSpecifier => {
+            let specifier = inputSpecifier;
+            if (importMap) {
+              if (importMap.imports[inputSpecifier]) {
+                specifier = importMap.imports[inputSpecifier];
+              }
+            }
+            return new URL(specifier, 'http://localhost').toString();
+          };
         },
       });
       cache.set(filename, m);
@@ -1089,7 +1204,9 @@ export async function runESM(
 
   let modules = [];
   for (let [code, f] of entries) {
-    modules.push(await entry(f, {identifier: ''}, code));
+    modules.push(
+      await entry('/' + path.relative(baseDir, f), {identifier: ''}, code),
+    );
   }
 
   for (let m of modules) {
@@ -1120,7 +1237,7 @@ export async function assertESMExports(
   let [nodeResult] = await runESM(
     b.getBundles()[0].target.distDir,
     [[await inputFS.readFile(entry.filePath, 'utf8'), entry.filePath]],
-    vm.createContext(prepareNodeContext(false, {})),
+    vm.createContext(prepareNodeContext({})),
     inputFS,
     externalModules,
   );

@@ -131,6 +131,11 @@ const SCRIPT_ERRORS = {
   },
 };
 
+const OPTIONAL = 1 << 0;
+const HELPER = 1 << 1;
+const NEEDS_STABLE_NAME = 1 << 2;
+const REACT_LAZY = 1 << 3;
+
 type TSConfig = {
   compilerOptions?: {
     // https://www.typescriptlang.org/tsconfig#jsx
@@ -228,26 +233,30 @@ export default (new Transformer({
           pkg?.alias && pkg.alias['react'] === 'preact/compat'
             ? 'preact'
             : reactLib;
-        let automaticVersion = JSX_PRAGMA[effectiveReactLib]?.automatic;
         let reactLibVersion =
           pkg?.dependencies?.[effectiveReactLib] ||
           pkg?.devDependencies?.[effectiveReactLib] ||
           pkg?.peerDependencies?.[effectiveReactLib];
-        reactLibVersion = reactLibVersion
-          ? semver.validRange(reactLibVersion)
-          : null;
-        let minReactLibVersion =
-          reactLibVersion !== null && reactLibVersion !== '*'
-            ? semver.minVersion(reactLibVersion)?.toString()
+        if (effectiveReactLib === 'react' && reactLibVersion === 'canary') {
+          automaticJSXRuntime = true;
+        } else {
+          let automaticVersion = JSX_PRAGMA[effectiveReactLib]?.automatic;
+          reactLibVersion = reactLibVersion
+            ? semver.validRange(reactLibVersion)
             : null;
+          let minReactLibVersion =
+            reactLibVersion !== null && reactLibVersion !== '*'
+              ? semver.minVersion(reactLibVersion)?.toString()
+              : null;
 
-        automaticJSXRuntime =
-          automaticVersion &&
-          !compilerOptions?.jsxFactory &&
-          minReactLibVersion != null &&
-          semver.satisfies(minReactLibVersion, automaticVersion, {
-            includePrerelease: true,
-          });
+          automaticJSXRuntime =
+            automaticVersion &&
+            !compilerOptions?.jsxFactory &&
+            minReactLibVersion != null &&
+            semver.satisfies(minReactLibVersion, automaticVersion, {
+              includePrerelease: true,
+            });
+        }
 
         if (automaticJSXRuntime) {
           jsxImportSource = reactLib;
@@ -399,12 +408,17 @@ export default (new Transformer({
     let supportsModuleWorkers =
       asset.env.shouldScopeHoist && asset.env.supports('worker-module', true);
     let isJSX = Boolean(config?.isJSX);
-    if (asset.isSource) {
-      if (asset.type === 'ts') {
-        isJSX = false;
-      } else if (!isJSX) {
-        isJSX = Boolean(JSX_EXTENSIONS[asset.type]);
-      }
+    if (asset.type === 'ts') {
+      isJSX = false;
+    } else if (!isJSX) {
+      isJSX = Boolean(JSX_EXTENSIONS[asset.type]);
+    }
+
+    let type = 'js';
+    if (asset.type === 'ts' || asset.type === 'tsx' || asset.type === 'mdx') {
+      type = asset.type;
+    } else if (isJSX) {
+      type = 'jsx';
     }
 
     let macroAssets = [];
@@ -420,32 +434,26 @@ export default (new Transformer({
       used_env,
       has_node_replacements,
       is_constant_module,
+      directives,
+      helpers,
+      mdx_exports,
+      mdx_toc,
+      mdx_assets,
     } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
       module_id: asset.id,
       project_root: options.projectRoot,
-      replace_env: !asset.env.isNode(),
-      inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
-      insert_node_globals:
-        !asset.env.isNode() && asset.env.sourceType !== 'script',
-      node_replacer: asset.env.isNode(),
-      is_browser: asset.env.isBrowser(),
-      is_worker: asset.env.isWorker(),
+      inline_fs: Boolean(config?.inlineFS),
+      context: asset.env.context,
       env,
-      is_type_script: asset.type === 'ts' || asset.type === 'tsx',
-      is_jsx: isJSX,
+      type,
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
       jsx_import_source: config?.jsxImportSource,
       is_development: options.mode === 'development',
-      react_refresh:
-        asset.env.isBrowser() &&
-        !asset.env.isLibrary &&
-        !asset.env.isWorker() &&
-        !asset.env.isWorklet() &&
-        Boolean(config?.reactRefresh),
+      react_refresh: Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
       use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
       targets,
@@ -528,6 +536,7 @@ export default (new Transformer({
                       content: a.content,
                       map,
                       uniqueKey: k,
+                      bundleBehavior: null,
                     });
 
                     asset.addDependency({
@@ -683,8 +692,110 @@ export default (new Transformer({
       asset.meta.has_node_replacements = has_node_replacements;
     }
 
+    if (asset.type === 'mdx') {
+      asset.meta.ssgMeta = {
+        exports: mdx_exports,
+        tableOfContents: mdx_toc,
+      };
+
+      for (let [i, mdxAsset] of mdx_assets.entries()) {
+        let map;
+        if (asset.env.sourceMap && mdxAsset.position) {
+          // Generate a source map that maps each line of the asset to the original code block.
+          map = new SourceMap(options.projectRoot);
+          let mappings = [];
+          let line = 1;
+          let column = mdxAsset.position.start.column;
+          for (
+            let i = mdxAsset.position.start.line + 1;
+            i < mdxAsset.position.end.line;
+            i++
+          ) {
+            mappings.push({
+              generated: {
+                line,
+                column: 0,
+              },
+              source: asset.filePath,
+              original: {
+                line: i,
+                column,
+              },
+            });
+            line++;
+            column = 0;
+          }
+
+          map.addIndexedMappings(mappings);
+          if (originalMap) {
+            map.extends(originalMap);
+          } else {
+            map.setSourceContent(asset.filePath, code.toString());
+          }
+        }
+
+        macroAssets.push({
+          type: mdxAsset.lang,
+          content: mdxAsset.code,
+          map,
+          uniqueKey: 'mdx-' + i,
+          bundleBehavior: null,
+        });
+      }
+    }
+
     for (let env of used_env) {
       asset.invalidateOnEnvChange(env);
+    }
+
+    asset.meta.id = asset.id;
+    asset.meta.directives = directives;
+    asset.meta.usedHelpers = helpers;
+    if (
+      asset.env.isServer() &&
+      !asset.env.isLibrary &&
+      (directives.includes('use client') ||
+        directives.includes('use client-entry'))
+    ) {
+      asset.setEnvironment({
+        context: 'react-client',
+        sourceType: 'module',
+        outputFormat: 'esmodule',
+        engines: asset.env.engines,
+        includeNodeModules: true,
+        isLibrary: false,
+        sourceMap: asset.env.sourceMap,
+        shouldOptimize: asset.env.shouldOptimize,
+        shouldScopeHoist: asset.env.shouldScopeHoist,
+      });
+    } else if (
+      !asset.env.isServer() &&
+      !asset.env.isLibrary &&
+      directives.includes('use server')
+    ) {
+      asset.setEnvironment({
+        context: 'react-server',
+        sourceType: 'module',
+        outputFormat: 'commonjs',
+        engines: asset.env.engines,
+        includeNodeModules: true,
+        isLibrary: false,
+        sourceMap: asset.env.sourceMap,
+        shouldOptimize: asset.env.shouldOptimize,
+        shouldScopeHoist: asset.env.shouldScopeHoist,
+      });
+    } else if (directives.includes('use server-entry')) {
+      if (!asset.env.isServer()) {
+        throw new Error(
+          'use server-entry must be imported in a server environment',
+        );
+      }
+      asset.bundleBehavior = 'isolated';
+    }
+
+    // Server actions must always be wrapped so they can be parcelRequired.
+    if (directives.includes('use server')) {
+      asset.meta.shouldWrap = true;
     }
 
     for (let dep of dependencies) {
@@ -751,6 +862,7 @@ export default (new Transformer({
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
+          needsStableName: Boolean(dep.flags & NEEDS_STABLE_NAME),
           meta: {
             placeholder: dep.placeholder,
           },
@@ -772,6 +884,10 @@ export default (new Transformer({
 
         if (dep.placeholder) {
           meta.placeholder = dep.placeholder;
+        }
+
+        if (dep.flags & REACT_LAZY) {
+          meta.isReactLazy = true;
         }
 
         let env;
@@ -831,7 +947,7 @@ export default (new Transformer({
 
         // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
         let isHelper =
-          dep.is_helper &&
+          dep.flags & HELPER &&
           !(
             dep.specifier.endsWith('/jsx-runtime') ||
             dep.specifier.endsWith('/jsx-dev-runtime')
@@ -854,12 +970,31 @@ export default (new Transformer({
           range = pkg.dependencies[module];
         }
 
+        if (dep.attributes?.env === 'react-server') {
+          env = {
+            ...env,
+            context: 'react-server',
+            outputFormat: 'commonjs',
+          };
+        } else if (dep.attributes?.env === 'react-client') {
+          env = {
+            ...env,
+            context: 'react-client',
+            outputFormat: 'esmodule',
+            includeNodeModules: true,
+          };
+
+          // This is a hack to prevent creating unnecessary shared bundles between actual client code
+          // and server code that runs in the client environment (e.g. react).
+          asset.isBundleSplittable = false;
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
-          isOptional: dep.is_optional,
+          isOptional: Boolean(dep.flags & OPTIONAL),
           meta,
           resolveFrom: isHelper ? __filename : undefined,
           range,
@@ -868,7 +1003,6 @@ export default (new Transformer({
       }
     }
 
-    asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
       for (let {
@@ -979,7 +1113,7 @@ export default (new Transformer({
 
       asset.meta.hasCJSExports = hoist_result.has_cjs_exports;
       asset.meta.staticExports = hoist_result.static_cjs_exports;
-      asset.meta.shouldWrap = hoist_result.should_wrap;
+      asset.meta.shouldWrap ||= hoist_result.should_wrap;
     } else {
       if (symbol_result) {
         let deps = new Map(

@@ -1115,13 +1115,20 @@ export default class BundleGraph {
     if (
       this._graph
         .getNodeIdsConnectedTo(assetNodeId, bundleGraphEdgeTypes.references)
-        .map(id => this._graph.getNode(id))
-        .some(
-          node =>
+        .some(id => {
+          let node = this._graph.getNode(id);
+          return (
             node?.type === 'dependency' &&
-            node.value.priority === Priority.lazy &&
-            node.value.specifierType !== SpecifierType.url,
-        )
+            !node.value.isEntry &&
+            (this._graph
+              .getNodeIdsConnectedFrom(id)
+              .some(id => this._graph.getNode(id)?.type === 'bundle_group') ||
+              this._graph.getNodeIdsConnectedTo(
+                id,
+                bundleGraphEdgeTypes.internal_async,
+              ).length > 0)
+          );
+        })
     ) {
       // If this asset is referenced by any async dependency, it's referenced.
       return true;
@@ -1172,7 +1179,7 @@ export default class BundleGraph {
 
         if (
           descendant.type !== bundle.type ||
-          descendant.env.context !== bundle.env.context
+          ISOLATED_ENVS.has(descendant.env.context)
         ) {
           actions.skipChildren();
           return;
@@ -1191,7 +1198,13 @@ export default class BundleGraph {
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {
     let parents = this.getParentBundles(bundle);
-    return parents.length > 0 && parents.every(parent => parent.type === type);
+    return (
+      parents.length > 0 &&
+      parents.every(
+        parent =>
+          parent.type === type && parent.env.context === bundle.env.context,
+      )
+    );
   }
 
   getParentBundles(bundle: Bundle): Array<Bundle> {
@@ -1265,7 +1278,7 @@ export default class BundleGraph {
               node.type === 'root' ||
               (node.type === 'bundle' &&
                 (node.value.id === bundle.id ||
-                  node.value.env.context !== bundle.env.context))
+                  ISOLATED_ENVS.has(node.value.env.context)))
             ) {
               isReachable = false;
               actions.stop();
@@ -1490,8 +1503,15 @@ export default class BundleGraph {
 
   getBundlesInBundleGroup(
     bundleGroup: BundleGroup,
-    opts?: {|includeInline: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<Bundle> {
+    let recursive = opts?.recursive ?? true;
+    let includeInline = opts?.includeInline ?? false;
+    let includeIsolated = opts?.includeIsolated ?? true;
     let bundles: Set<Bundle> = new Set();
     for (let bundleNodeId of this._graph.getNodeIdsConnectedFrom(
       this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
@@ -1501,16 +1521,17 @@ export default class BundleGraph {
       invariant(bundleNode.type === 'bundle');
       let bundle = bundleNode.value;
       if (
-        opts?.includeInline ||
-        bundle.bundleBehavior !== BundleBehavior.inline
+        bundle.bundleBehavior == null ||
+        (includeInline && bundle.bundleBehavior === BundleBehavior.inline) ||
+        (includeIsolated && bundle.bundleBehavior === BundleBehavior.isolated)
       ) {
         bundles.add(bundle);
       }
 
-      for (let referencedBundle of this.getReferencedBundles(bundle, {
-        includeInline: opts?.includeInline,
-      })) {
-        bundles.add(referencedBundle);
+      if (recursive) {
+        for (let referencedBundle of this.getReferencedBundles(bundle, opts)) {
+          bundles.add(referencedBundle);
+        }
       }
     }
 
@@ -1519,10 +1540,15 @@ export default class BundleGraph {
 
   getReferencedBundles(
     bundle: Bundle,
-    opts?: {|recursive?: boolean, includeInline?: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<Bundle> {
     let recursive = opts?.recursive ?? true;
     let includeInline = opts?.includeInline ?? false;
+    let includeIsolated = opts?.includeIsolated ?? true;
     let referencedBundles = new Set();
     this._graph.dfs({
       visit: (nodeId, _, actions) => {
@@ -1536,10 +1562,15 @@ export default class BundleGraph {
         }
 
         if (
-          includeInline ||
-          node.value.bundleBehavior !== BundleBehavior.inline
+          node.value.bundleBehavior == null ||
+          (includeInline &&
+            node.value.bundleBehavior === BundleBehavior.inline) ||
+          (includeIsolated &&
+            node.value.bundleBehavior === BundleBehavior.isolated)
         ) {
           referencedBundles.add(node.value);
+        } else if (node.value.bundleBehavior === BundleBehavior.isolated) {
+          actions.skipChildren();
         }
 
         if (!recursive) {
@@ -2093,5 +2124,34 @@ export default class BundleGraph {
     let root = getRootDir(entries);
     this._targetEntryRoots.set(target.distDir, root);
     return root;
+  }
+
+  getEntryBundles(): Array<Bundle> {
+    let entryBundleGroupIds = this._graph.getNodeIdsConnectedFrom(
+      nullthrows(this._graph.rootNodeId),
+      bundleGraphEdgeTypes.bundle,
+    );
+
+    let entries = [];
+    for (let bundleGroupId of entryBundleGroupIds) {
+      let bundleGroupNode = this._graph.getNode(bundleGroupId);
+      invariant(bundleGroupNode?.type === 'bundle_group');
+
+      let entryBundle = this.getBundlesInBundleGroup(
+        bundleGroupNode.value,
+      ).find(b => {
+        let mainEntryId = b.entryAssetIds[b.entryAssetIds.length - 1];
+        return (
+          mainEntryId != null &&
+          bundleGroupNode.value.entryAssetId === mainEntryId
+        );
+      });
+
+      if (entryBundle) {
+        entries.push(entryBundle);
+      }
+    }
+
+    return entries;
   }
 }

@@ -113,7 +113,11 @@ export default class BundleGraph<TBundle: IBundle>
 
   getReferencedBundles(
     bundle: IBundle,
-    opts?: {|recursive?: boolean, includeInline?: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<TBundle> {
     return this.#graph
       .getReferencedBundles(bundleToInternalBundle(bundle), opts)
@@ -193,7 +197,11 @@ export default class BundleGraph<TBundle: IBundle>
 
   getBundlesInBundleGroup(
     bundleGroup: IBundleGroup,
-    opts?: {|includeInline: boolean|},
+    opts?: {|
+      recursive?: boolean,
+      includeInline?: boolean,
+      includeIsolated?: boolean,
+    |},
   ): Array<TBundle> {
     return this.#graph
       .getBundlesInBundleGroup(
@@ -331,5 +339,11 @@ export default class BundleGraph<TBundle: IBundle>
       this.#options.projectRoot,
       targetToInternalTarget(target),
     );
+  }
+
+  getEntryBundles(): Array<TBundle> {
+    return this.#graph
+      .getEntryBundles()
+      .map(b => this.#createBundle(b, this.#graph, this.#options));
   }
 }

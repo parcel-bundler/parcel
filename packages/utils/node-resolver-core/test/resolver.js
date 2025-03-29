@@ -2370,6 +2370,32 @@ describe('resolver', function () {
         path.join(rootDir, 'node_modules/package-conditions/node-require.cjs'),
       );
     });
+
+    it('should support resolving package self', async function () {
+      let resolved = await resolver.resolve({
+        env: NODE_INCLUDE_ENV,
+        filename: 'self',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'packages/self/foo.js'),
+      });
+      assert.equal(
+        resolved?.filePath,
+        path.join(rootDir, 'packages/self/foo.js'),
+      );
+    });
+
+    it('should support resolving package self with subpath', async function () {
+      let resolved = await resolver.resolve({
+        env: NODE_INCLUDE_ENV,
+        filename: 'self/bar',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'packages/self/foo.js'),
+      });
+      assert.equal(
+        resolved?.filePath,
+        path.join(rootDir, 'packages/self/bar.js'),
+      );
+    });
   });
 
   describe('symlinks', function () {

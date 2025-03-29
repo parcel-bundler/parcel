@@ -41,21 +41,22 @@ export default (new Transformer({
     let name = `$parcel$ReactRefreshHelpers$${asset.id.slice(-4)}`;
 
     code = `var ${name} = require(${JSON.stringify(wrapperPath)});
-var prevRefreshReg = window.$RefreshReg$;
-var prevRefreshSig = window.$RefreshSig$;
+${name}.init();
+var prevRefreshReg = globalThis.$RefreshReg$;
+var prevRefreshSig = globalThis.$RefreshSig$;
 ${name}.prelude(module);
 
 try {
 ${code}
   ${name}.postlude(module);
 } finally {
-  window.$RefreshReg$ = prevRefreshReg;
-  window.$RefreshSig$ = prevRefreshSig;
+  globalThis.$RefreshReg$ = prevRefreshReg;
+  globalThis.$RefreshSig$ = prevRefreshSig;
 }`;
 
     asset.setCode(code);
     if (map) {
-      map.offsetLines(1, 6);
+      map.offsetLines(1, 7);
       asset.setMap(map);
     }
 

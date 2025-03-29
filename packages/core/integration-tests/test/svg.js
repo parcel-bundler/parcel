@@ -278,7 +278,7 @@ describe('svg', function () {
     );
     assert(svg.includes('<script>'));
     assert(svg.includes(`console.log('script')`));
-    assert(!svg.includes('import '));
+    assert(!svg.includes('@import '));
   });
 
   it('should process inline styles using lang', async function () {
@@ -314,7 +314,7 @@ describe('svg', function () {
 
     assertBundles(b, [
       {
-        assets: ['index.js', 'bundle-url.js'],
+        assets: ['index.js'],
       },
       {
         assets: ['circle.svg'],

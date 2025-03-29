@@ -6,21 +6,6 @@ import path from 'path';
 
 const FILES = new Map([
   [
-    '/app/packages/runtimes/js/src/helpers/bundle-manifest.js',
-    fs.readFileSync(
-      __dirname +
-        '/../../../../packages/runtimes/js/src/helpers/bundle-manifest.js',
-      'utf8',
-    ),
-  ],
-  [
-    '/app/packages/runtimes/js/src/helpers/bundle-url.js',
-    fs.readFileSync(
-      __dirname + '/../../../../packages/runtimes/js/src/helpers/bundle-url.js',
-      'utf8',
-    ),
-  ],
-  [
     '/app/packages/runtimes/js/src/helpers/cacheLoader.js',
     fs.readFileSync(
       __dirname +
@@ -159,7 +144,7 @@ const FILES = new Map([
 ]);
 
 const REACT_ERROR_OVERLAY = fs.readFileSync(
-  __dirname + '/../../../../node_modules/react-error-overlay/lib/index.js',
+  __dirname + '/../../../../node_modules/@parcel/error-overlay/lib/index.js',
   'utf8',
 );
 
@@ -169,11 +154,11 @@ export default (new Resolver({
 
     if (resolveFrom && resolveFrom.startsWith('/app/packages/')) {
       if (
-        specifier === 'react-error-overlay' &&
+        specifier === '@parcel/error-overlay' &&
         resolveFrom.startsWith('/app/packages/runtimes/react-refresh/src/')
       ) {
         return {
-          filePath: `/react-error-overlay/lib/index.js`,
+          filePath: `/@parcel/error-overlay/lib/index.js`,
           code: REACT_ERROR_OVERLAY,
         };
       }

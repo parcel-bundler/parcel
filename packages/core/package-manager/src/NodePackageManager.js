@@ -36,12 +36,10 @@ import {transformSync} from '@swc/core';
 // Package.json fields. Must match package_json.rs.
 const MAIN = 1 << 0;
 const SOURCE = 1 << 2;
-const ENTRIES =
-  MAIN |
-  (process.env.PARCEL_BUILD_ENV !== 'production' ||
-  process.env.PARCEL_SELF_BUILD
-    ? SOURCE
-    : 0);
+const NODE_CONDITION = 1 << 3;
+const SOURCE_CONDITION = 1 << 17;
+const ENTRIES = MAIN | SOURCE;
+const CONDITIONS = NODE_CONDITION | SOURCE_CONDITION;
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
@@ -111,6 +109,7 @@ export class NodePackageManager implements PackageManager {
             },
       mode: 2,
       entries: ENTRIES,
+      conditions: CONDITIONS,
       packageExports: true,
       moduleDirResolver:
         process.versions.pnp != null
@@ -244,7 +243,10 @@ export class NodePackageManager implements PackageManager {
       ) {
         let compile = m._compile;
         m._compile = (code, filename) => {
-          let out = transformSync(code, {filename, module: {type: 'commonjs'}});
+          let out = transformSync(code, {
+            filename,
+            module: {type: 'commonjs', ignoreDynamic: true},
+          });
           compile.call(m, out.code, filename);
         };
 

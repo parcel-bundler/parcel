@@ -7,6 +7,7 @@ import type {
 import type ParcelConfig from '../ParcelConfig';
 import type {
   DevDepRequest,
+  DevDepRequestRef,
   ParcelOptions,
   InternalDevDepOptions,
 } from '../types';
@@ -34,7 +35,7 @@ export async function createDevDependency(
   opts: InternalDevDepOptions,
   requestDevDeps: Map<string, string>,
   options: ParcelOptions,
-): Promise<DevDepRequest> {
+): Promise<DevDepRequest | DevDepRequestRef> {
   let {specifier, resolveFrom, additionalInvalidations} = opts;
   let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
 
@@ -44,6 +45,7 @@ export async function createDevDependency(
   let hash = requestDevDeps.get(key);
   if (hash != null) {
     return {
+      type: 'ref',
       specifier,
       resolveFrom,
       hash,
@@ -189,12 +191,17 @@ export type DevDepRequestResult = {|
 
 export async function runDevDepRequest<TResult: RequestResult>(
   api: RunAPI<TResult>,
-  devDepRequest: DevDepRequest,
+  devDepRequestRef: DevDepRequest | DevDepRequestRef,
 ) {
   await api.runRequest<null, DevDepRequestResult | void>({
-    id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
+    id:
+      'dev_dep_request:' +
+      devDepRequestRef.specifier +
+      ':' +
+      devDepRequestRef.hash,
     type: requestTypes.dev_dep_request,
     run: ({api}) => {
+      let devDepRequest = resolveDevDepRequestRef(devDepRequestRef);
       for (let filePath of nullthrows(
         devDepRequest.invalidateOnFileChange,
         'DevDepRequest missing invalidateOnFileChange',
@@ -225,19 +232,43 @@ export async function runDevDepRequest<TResult: RequestResult>(
   });
 }
 
+const devDepRequests: Map<string, DevDepRequest> = createBuildCache();
+export function resolveDevDepRequestRef(
+  devDepRequestRef: DevDepRequest | DevDepRequestRef,
+): DevDepRequest {
+  const devDepRequest =
+    devDepRequestRef.type === 'ref'
+      ? devDepRequests.get(devDepRequestRef.hash)
+      : devDepRequestRef;
+  if (devDepRequest == null) {
+    throw new Error(
+      `Worker send back a reference to a missing dev dep request.
+This might happen due to internal in-memory build caches not being cleared
+between builds or due a race condition.
+This is a bug in Parcel.`,
+    );
+  }
+
+  if (devDepRequestRef.type !== 'ref') {
+    devDepRequests.set(devDepRequest.hash, devDepRequest);
+  }
+
+  return devDepRequest;
+}
+
 // A cache of plugin dependency hashes that we've already sent to the main thread.
 // Automatically cleared before each build.
 const pluginCache = createBuildCache();
 
 export function getWorkerDevDepRequests(
-  devDepRequests: Array<DevDepRequest>,
-): Array<DevDepRequest> {
+  devDepRequests: Array<DevDepRequest | DevDepRequestRef>,
+): Array<DevDepRequest | DevDepRequestRef> {
   return devDepRequests.map(devDepRequest => {
     // If we've already sent a matching transformer + hash to the main thread during this build,
     // there's no need to repeat ourselves.
     let {specifier, resolveFrom, hash} = devDepRequest;
     if (hash === pluginCache.get(specifier)) {
-      return {specifier, resolveFrom, hash};
+      return {type: 'ref', specifier, resolveFrom, hash};
     } else {
       pluginCache.set(specifier, hash);
       return devDepRequest;

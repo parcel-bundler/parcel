@@ -44,9 +44,25 @@ export default (new Transformer({
   async transform({asset, config, options, logger}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
     // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
-    let env = asset.env;
+    let env = {
+      context: asset.env.context,
+      outputFormat: asset.env.outputFormat,
+      engines: asset.env.engines,
+      includeNodeModules: asset.env.includeNodeModules,
+      sourceType: asset.env.sourceType,
+      isLibrary: asset.env.isLibrary,
+      shouldOptimize: asset.env.shouldOptimize,
+      shouldScopeHoist: asset.env.shouldScopeHoist,
+      sourceMap: asset.env.sourceMap,
+      loc: asset.env.loc,
+    };
+
     asset.setEnvironment({
-      context: 'browser',
+      context:
+        asset.env.context === 'react-server' ||
+        asset.env.context === 'react-client'
+          ? 'react-client'
+          : 'browser',
       engines: {
         browsers: asset.env.engines.browsers,
       },
@@ -268,6 +284,7 @@ export default (new Transformer({
               symbols: new Map([
                 [exported, {local: ref.name, isWeak: false, loc: null}],
               ]),
+              env,
             });
           } else if (ref.type === 'global') {
             s += ref.name;
@@ -284,6 +301,7 @@ export default (new Transformer({
                 specifier: ref.specifier,
                 specifierType: 'esm',
                 packageConditions: ['style'],
+                env,
               });
             }
             s += '${' + `${d}[${JSON.stringify(ref.name)}]` + '}';
@@ -302,6 +320,7 @@ export default (new Transformer({
             symbols: new Map([
               [key, {local: exports[key].name, isWeak: false, loc: null}],
             ]),
+            env,
           });
         }
 
@@ -338,6 +357,7 @@ export default (new Transformer({
             symbols: new Map([
               [reference.name, {local: symbol, isWeak: false, loc: null}],
             ]),
+            env,
           });
 
           asset.meta.hasReferences = true;

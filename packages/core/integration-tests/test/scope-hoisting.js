@@ -2349,8 +2349,6 @@ describe('scope hoisting', function () {
             'entry.js',
             'foo.js',
             'bar.js',
-            'bundle-manifest.js',
-            'bundle-url.js',
             'cacheLoader.js',
             'js-loader.js',
           ],
@@ -4307,7 +4305,7 @@ describe('scope hoisting', function () {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['a.js', 'b.js', 'bundle-url.js'],
+          assets: ['a.js', 'b.js'],
         },
         {
           type: 'txt',
@@ -5573,8 +5571,6 @@ describe('scope hoisting', function () {
       {
         name: 'same-ancestry-scope-hoisting.js',
         assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
@@ -5598,13 +5594,7 @@ describe('scope hoisting', function () {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {assets: ['dep.js']},
       {
@@ -5639,13 +5629,7 @@ describe('scope hoisting', function () {
       },
       {
         name: 'get-dep-scope-hoisting.js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'get-dep-scope-hoisting.js',
-          'js-loader.js',
-        ],
+        assets: ['cacheLoader.js', 'get-dep-scope-hoisting.js', 'js-loader.js'],
       },
     ]);
 
@@ -5686,13 +5670,7 @@ describe('scope hoisting', function () {
       },
       {
         name: 'scope-hoisting.js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'scope-hoisting.js',
-          'js-loader.js',
-        ],
+        assets: ['cacheLoader.js', 'scope-hoisting.js', 'js-loader.js'],
       },
     ]);
 
@@ -5735,12 +5713,7 @@ describe('scope hoisting', function () {
     assertBundles(b, [
       {
         name: 'scope-hoisting.js',
-        assets: [
-          'scope-hoisting.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['scope-hoisting.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {assets: ['value.js']},
       {assets: ['async.js']},
@@ -5763,21 +5736,11 @@ describe('scope hoisting', function () {
     assertBundles(b, [
       {
         name: 'scope-hoisting.js',
-        assets: [
-          'scope-hoisting.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['scope-hoisting.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         name: 'other-entry.js',
-        assets: [
-          'other-entry.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-        ],
+        assets: ['other-entry.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {assets: ['a.js', 'value.js']},
       {assets: ['b.js']},
@@ -6007,7 +5970,11 @@ describe('scope hoisting', function () {
 
       let bundleHashDelayFoo = b
         .getBundles()
-        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .find(
+          b =>
+            b.filePath.endsWith('.js') &&
+            b.filePath.includes('non-deterministic-bundle-hashes'),
+        )
         .filePath.split('.')[1];
 
       let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
@@ -6021,7 +5988,11 @@ describe('scope hoisting', function () {
 
       let bundleHashDelayBar = b2
         .getBundles()
-        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .find(
+          b =>
+            b.filePath.endsWith('.js') &&
+            b.filePath.includes('non-deterministic-bundle-hashes'),
+        )
         .filePath.split('.')[1];
 
       assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
@@ -6093,7 +6064,8 @@ describe('scope hoisting', function () {
     );
 
     let contents = await outputFS.readFile(
-      b.getBundles().find(b => /index.*\.js/.test(b.filePath)).filePath,
+      b.getBundles().find(b => /bundle-queue-runtime.*\.js/.test(b.filePath))
+        .filePath,
       'utf8',
     );
     assert(contents.includes('$parcel$global.rwr('));

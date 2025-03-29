@@ -45,10 +45,10 @@ import {
   PACKAGE_DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
-import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 import {requestTypes} from '../RequestTracker';
+import {BROWSER_ENVS} from '../public/Environment';
 
 type RunOpts<TResult> = {|
   input: Entry,
@@ -79,7 +79,7 @@ const COMMON_TARGETS = {
 };
 
 const DEFAULT_ENGINES = {
-  node: 'current',
+  node: process.versions.node,
   browsers: [
     'last 1 Chrome version',
     'last 1 Safari version',
@@ -329,7 +329,11 @@ export class TargetResolver {
       }
 
       let serve = this.options.serveOptions;
-      if (serve && targets.length > 0) {
+      if (
+        serve &&
+        targets.length > 0 &&
+        targets.every(t => BROWSER_ENVS.has(t.env.context))
+      ) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -340,40 +344,85 @@ export class TargetResolver {
             },
           });
         }
-        if (!BROWSER_ENVS.has(targets[0].env.context)) {
-          throw new ThrowableDiagnostic({
-            diagnostic: {
-              message: `Only browser targets are supported in serve mode`,
-              origin: '@parcel/core',
-            },
-          });
-        }
         targets[0].distDir = toProjectPath(
           this.options.projectRoot,
           serve.distDir,
         );
       }
     } else {
+      targets = Array.from(packageTargets.values())
+        .filter(Boolean)
+        .filter(descriptor => {
+          return (
+            descriptor &&
+            !skipTarget(descriptor.name, exclusiveTarget, descriptor.source)
+          );
+        });
+
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (this.options.serveOptions) {
+      if (
+        this.options.serveOptions &&
+        targets.every(t => BROWSER_ENVS.has(t.env.context))
+      ) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
+        let distDir = toProjectPath(
+          this.options.projectRoot,
+          this.options.serveOptions.distDir,
+        );
+        let mainTarget = targets.length === 1 ? targets[0] : null;
+
+        if (mainTarget?.env.isLibrary) {
+          let loc = mainTarget.loc;
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              origin: '@parcel/core',
+              message: md`
+Library targets are not supported in serve mode.
+              `,
+              codeFrames: loc
+                ? [
+                    {
+                      filePath: fromProjectPath(
+                        this.options.projectRoot,
+                        loc.filePath,
+                      ),
+                      codeHighlights: [
+                        convertSourceLocationToHighlight(
+                          loc,
+                          'Target declared here',
+                        ),
+                      ],
+                    },
+                  ]
+                : [],
+              hints: [
+                `The "${mainTarget.name}" field is meant for libraries, not applications. Either remove the "${mainTarget.name}" field or choose a different target name.`,
+              ],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
+            },
+          });
+        }
+
+        let context = mainTarget?.env.context ?? 'browser';
+        let engines = BROWSER_ENVS.has(context)
+          ? {browsers: DEFAULT_ENGINES.browsers}
+          : {node: DEFAULT_ENGINES.node};
         targets = [
           {
             name: 'default',
-            distDir: toProjectPath(
-              this.options.projectRoot,
-              this.options.serveOptions.distDir,
-            ),
+            distDir,
             publicUrl: this.options.defaultTargetOptions.publicUrl ?? '/',
             env: createEnvironment({
-              context: 'browser',
-              engines: {
-                browsers: DEFAULT_ENGINES.browsers,
-              },
+              context,
+              engines,
+              includeNodeModules: mainTarget?.env.includeNodeModules,
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
-              outputFormat: this.options.defaultTargetOptions.outputFormat,
+              outputFormat:
+                mainTarget?.env.outputFormat ??
+                this.options.defaultTargetOptions.outputFormat,
               shouldScopeHoist:
                 this.options.defaultTargetOptions.shouldScopeHoist,
               sourceMap: this.options.defaultTargetOptions.sourceMaps
@@ -382,15 +431,6 @@ export class TargetResolver {
             }),
           },
         ];
-      } else {
-        targets = Array.from(packageTargets.values())
-          .filter(Boolean)
-          .filter(descriptor => {
-            return (
-              descriptor &&
-              !skipTarget(descriptor.name, exclusiveTarget, descriptor.source)
-            );
-          });
       }
     }
 
@@ -857,6 +897,19 @@ export class TargetResolver {
             ? moduleContext
             : mainContext);
 
+        let engines = descriptor.engines ?? pkgEngines;
+        if (context === 'browser' && engines.browsers == null) {
+          engines = {
+            ...engines,
+            browsers: defaultEngines?.browsers ?? DEFAULT_ENGINES.browsers,
+          };
+        } else if (context === 'node' && engines.node == null) {
+          engines = {
+            ...engines,
+            node: defaultEngines?.node ?? DEFAULT_ENGINES.node,
+          };
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -864,7 +917,7 @@ export class TargetResolver {
           publicUrl:
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
           env: createEnvironment({
-            engines: descriptor.engines ?? pkgEngines,
+            engines,
             context,
             includeNodeModules: descriptor.includeNodeModules ?? false,
             outputFormat,
@@ -1051,6 +1104,19 @@ export class TargetResolver {
           ? true
           : this.options.defaultTargetOptions.shouldScopeHoist;
 
+        let engines = descriptor.engines ?? pkgEngines;
+        if (descriptor.context === 'browser' && engines.browsers == null) {
+          engines = {
+            ...engines,
+            browsers: defaultEngines?.browsers ?? DEFAULT_ENGINES.browsers,
+          };
+        } else if (descriptor.context === 'node' && engines.node == null) {
+          engines = {
+            ...engines,
+            node: defaultEngines?.node ?? DEFAULT_ENGINES.node,
+          };
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir: toProjectPath(
@@ -1063,7 +1129,7 @@ export class TargetResolver {
           publicUrl:
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
           env: createEnvironment({
-            engines: descriptor.engines ?? pkgEngines,
+            engines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat:
