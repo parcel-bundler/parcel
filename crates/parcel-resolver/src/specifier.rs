@@ -126,7 +126,8 @@ impl<'a> Specifier<'a> {
                     query,
                   )
                 }
-                "node" => {
+                // Treat Deno's "jsr:" dependencies as builtins so they get marked as external.
+                "node" | "jsr" => {
                   // Node does not URL decode or support query params here.
                   // See https://github.com/nodejs/node/issues/39710.
                   (Specifier::Builtin(Cow::Borrowed(path)), None)

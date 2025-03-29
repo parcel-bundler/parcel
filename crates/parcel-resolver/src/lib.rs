@@ -2543,6 +2543,18 @@ mod tests {
         .resolution,
       Resolution::Builtin("fs/promises".into())
     );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "jsr:@std/http/file-server",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .resolution,
+      Resolution::Builtin("@std/http/file-server".into())
+    );
   }
 
   #[test]
