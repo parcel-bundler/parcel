@@ -27,7 +27,6 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique, setDifference} from '@parcel/utils';
 import {hashString} from '@parcel/rust';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
@@ -482,20 +481,16 @@ class BundlerRunner {
     );
 
     let seenNames = new Set<ProjectPath>();
-    let duplicatesNames = new Set<ProjectPath>();
-
-    for (let b of bundleNames) {
-      if (seenNames.has(b)) {
-        duplicatesNames.add(b);
-      } else {
-        seenNames.add(b);
-      }
-    }
+    let duplicateNames = bundleNames.filter(name => {
+      let isDuplicate = seenNames.has(name);
+      seenNames.add(name);
+      return isDuplicate;
+    });
 
     assert(
-      duplicatesNames.size === 0,
-      'Bundles must have unique name. Conflicting names: ' +
-        [...duplicatesNames].join(),
+      duplicateNames.length === 0,
+      'Bundles must have unique names. Conflicting names: ' +
+        duplicateNames.join(', '),
     );
   }
 
