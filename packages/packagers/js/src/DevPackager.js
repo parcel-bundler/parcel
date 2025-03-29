@@ -12,7 +12,12 @@ import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
-import {replaceScriptDependencies, getSpecifier} from './utils';
+import {
+  replaceScriptDependencies,
+  getSpecifier,
+  makeValidIdentifier,
+  isValidIdentifier,
+} from './utils';
 import {helpers} from './helpers';
 
 const PRELUDE = fs
@@ -61,6 +66,7 @@ export class DevPackager {
     let prefix = this.getPrefix();
     let lineOffset = countLines(prefix);
     let script: ?{|code: string, mapBuffer: ?Buffer|} = null;
+    let externals = new Set();
 
     let usedHelpers = 0;
     this.bundle.traverse(node => {
@@ -116,6 +122,9 @@ export class DevPackager {
           } else {
             // An external module - map placeholder to original specifier.
             deps[specifier] = dep.specifier;
+            if (this.bundle.env.outputFormat === 'esmodule') {
+              externals.add(dep.specifier);
+            }
           }
         }
 
@@ -209,7 +218,20 @@ export class DevPackager {
       prefix = prefix.replace('// INSERT_LOAD_HERE', load.replace(/\n/g, ''));
     }
 
+    let externalImports = '';
+    let externalMap = '{';
+    let e = 0;
+    for (let external of externals) {
+      let name = `__parcelExternal${e++}`;
+      externalImports += `import * as ${name} from ${JSON.stringify(
+        external,
+      )};\n`;
+      externalMap += `${JSON.stringify(external)}: ${name},`;
+    }
+    externalMap += '}';
+
     let contents =
+      externalImports +
       prefix +
       '({' +
       assets +
@@ -222,7 +244,9 @@ export class DevPackager {
         mainEntry ? this.bundleGraph.getAssetPublicId(mainEntry) : null,
       ) +
       ', ' +
-      JSON.stringify(this.parcelRequireName);
+      JSON.stringify(this.parcelRequireName) +
+      ', ' +
+      externalMap;
 
     if (usedHelpers & 1) {
       // Generate a relative path from this bundle to the root of the dist dir.
@@ -257,6 +281,70 @@ export class DevPackager {
     }
 
     contents += ')\n';
+
+    // Add ES module exports from the entry asset.
+    if (
+      this.bundle.env.outputFormat === 'esmodule' &&
+      mainEntry &&
+      (this.bundle.env.isLibrary || !this.bundle.env.isBrowser())
+    ) {
+      let hasNamespace = mainEntry.symbols.hasExportSymbol('*');
+      let importedSymbols = new Map();
+      let exportedSymbols = new Map();
+      for (let {
+        exportAs,
+        symbol,
+        exportSymbol,
+      } of this.bundleGraph.getExportedSymbols(mainEntry)) {
+        if (typeof symbol === 'string') {
+          if (hasNamespace && exportAs !== '*') {
+            continue;
+          }
+
+          if (exportAs === '*') {
+            exportAs = 'default';
+          }
+
+          let id = makeValidIdentifier(exportSymbol);
+          if (id === 'default') {
+            id = '_default';
+          }
+          importedSymbols.set(exportSymbol, id);
+          exportedSymbols.set(exportAs, id);
+        }
+      }
+
+      contents += 'let {';
+      for (let [key, value] of importedSymbols) {
+        contents += isValidIdentifier(key) ? key : JSON.stringify(key);
+        if (value !== key) {
+          contents += ': ';
+          contents += value;
+        }
+        contents += ', ';
+      }
+
+      contents +=
+        '} = ' +
+        this.parcelRequireName +
+        '(' +
+        JSON.stringify(this.bundleGraph.getAssetPublicId(mainEntry)) +
+        ');\n';
+      contents += 'export {';
+
+      for (let [exportAs, ident] of exportedSymbols) {
+        contents += ident;
+        if (exportAs !== ident) {
+          contents += ' as ';
+          contents += isValidIdentifier(exportAs)
+            ? exportAs
+            : JSON.stringify(exportAs);
+        }
+        contents += ', ';
+      }
+
+      contents += '};\n';
+    }
 
     // The entry asset of a script bundle gets hoisted outside the bundle wrapper function
     // so that its variables become globals. We need to replace any require calls for

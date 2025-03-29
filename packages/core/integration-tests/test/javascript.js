@@ -6211,4 +6211,42 @@ describe('javascript', function () {
       },
     );
   }
+
+  it('should support ESM externals and exports in development mode', async () => {
+    await fsFixture(overlayFS, __dirname)`
+    esm-externals
+      index.js:
+        import {createHash} from 'crypto';
+        let hash = createHash('md5');
+        hash.update('testing');
+        export const hashed = hash.digest('hex');
+        export default "Test";
+        
+      package.json:
+        {
+          "targets": {
+            "default": {
+              "context": "node",
+              "outputFormat": "esmodule"
+            }
+          }
+        }
+        
+      yarn.lock:`;
+
+    let b = await bundle(path.join(__dirname, 'esm-externals/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let res = await run(
+      b,
+      {},
+      {},
+      {
+        crypto: () => require('crypto'),
+      },
+    );
+    assert.equal(res.hashed, 'ae2b1fca515949e5d54fb22b8ed95575');
+    assert.equal(res.default, 'Test');
+  });
 });

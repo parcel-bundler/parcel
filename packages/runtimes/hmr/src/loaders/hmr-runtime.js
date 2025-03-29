@@ -164,7 +164,13 @@ if (!parent || !parent.isParcelRequire) {
             protocol + '://' + hostname + (port ? ':' + port : '') + '/',
           );
         } catch (err) {
-          if (err.message) {
+          // Ignore cloudflare workers error.
+          if (
+            err.message &&
+            !err.message.includes(
+              'Disallowed operation called within global scope',
+            )
+          ) {
             console.error(err.message);
           }
         }
