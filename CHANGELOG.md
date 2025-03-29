@@ -5,6 +5,13 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.14.3] - 2025-03-28
+
+### Fixed
+
+- JavaScript
+  - Updated to React 19.1, which enables Server Components to be used with stable React instead of only canary – [Details](https://github.com/parcel-bundler/parcel/commit/104abbe96a1f357411bac113e821cbc0454f41a4)
+
 ## [2.14.2] - 2025-03-23
 
 ### Fixed
