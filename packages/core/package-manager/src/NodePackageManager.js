@@ -23,7 +23,6 @@ import Module from 'module';
 import path from 'path';
 import semver from 'semver';
 import logger from '@parcel/logger';
-import nullthrows from 'nullthrows';
 
 import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
@@ -621,30 +620,36 @@ export class NodePackageManager implements PackageManager {
       e.code = 'MODULE_NOT_FOUND';
       throw e;
     }
-    let getPkg;
     switch (res.resolution.type) {
-      case 'Path':
-        getPkg = () => {
-          let pkgPath = this.fs.findAncestorFile(
-            ['package.json'],
-            nullthrows(res.resolution.value),
-            this.projectRoot,
-          );
-          return pkgPath
-            ? JSON.parse(this.fs.readFileSync(pkgPath, 'utf8'))
-            : null;
-        };
-      // fallthrough
-      case 'Builtin':
+      case 'Path': {
+        let self = this;
+        let resolved = res.resolution.value;
         return {
-          resolved: res.resolution.value,
+          resolved,
           invalidateOnFileChange: new Set(res.invalidateOnFileChange),
           invalidateOnFileCreate: res.invalidateOnFileCreate,
           type: res.moduleType,
           get pkg() {
-            return getPkg();
+            let pkgPath = self.fs.findAncestorFile(
+              ['package.json'],
+              resolved,
+              self.projectRoot,
+            );
+            return pkgPath
+              ? JSON.parse(self.fs.readFileSync(pkgPath, 'utf8'))
+              : null;
           },
         };
+      }
+      case 'Builtin': {
+        let {scheme, module} = res.resolution.value;
+        return {
+          resolved: scheme ? `${scheme}:${module}` : module,
+          invalidateOnFileChange: new Set(res.invalidateOnFileChange),
+          invalidateOnFileCreate: res.invalidateOnFileCreate,
+          type: res.moduleType,
+        };
+      }
       default:
         throw new Error('Unknown resolution type');
     }

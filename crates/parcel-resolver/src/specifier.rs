@@ -63,7 +63,7 @@ pub enum Specifier<'a> {
   /// A package specifier and subpath, e.g. 'lodash/clone'.
   Package(Cow<'a, str>, Cow<'a, str>),
   /// A Node builtin module, e.g. 'path' or 'node:path'.
-  Builtin(Cow<'a, str>),
+  Builtin(Cow<'a, str>, Cow<'a, str>),
   /// A URL specifier.
   Url(&'a str),
 }
@@ -118,7 +118,10 @@ impl<'a> Specifier<'a> {
               match scheme.as_ref() {
                 "npm" if flags.contains(Flags::NPM_SCHEME) => {
                   if BUILTINS.contains(&path) {
-                    return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
+                    return Ok((
+                      Specifier::Builtin(Cow::Borrowed(""), Cow::Borrowed(path)),
+                      None,
+                    ));
                   }
 
                   (
@@ -127,10 +130,11 @@ impl<'a> Specifier<'a> {
                   )
                 }
                 // Treat Deno's "jsr:" dependencies as builtins so they get marked as external.
-                "node" | "jsr" => {
+                // Also Cloudflare schemes: https://github.com/cloudflare/workerd/blob/b7bcb543812dfd9fdc0d9b391801ec1bc4f0973a/src/workerd/jsg/commonjs.c%2B%2B#L27
+                "node" | "jsr" | "cloudflare" | "workerd" => {
                   // Node does not URL decode or support query params here.
                   // See https://github.com/nodejs/node/issues/39710.
-                  (Specifier::Builtin(Cow::Borrowed(path)), None)
+                  (Specifier::Builtin(scheme, Cow::Borrowed(path)), None)
                 }
                 "file" => (
                   Specifier::Absolute(Cow::Owned(url_to_path(specifier)?)),
@@ -144,7 +148,10 @@ impl<'a> Specifier<'a> {
               let (path, rest) = parse_path(specifier);
               if specifier_type == SpecifierType::Esm {
                 if BUILTINS.contains(&path) {
-                  return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
+                  return Ok((
+                    Specifier::Builtin(Cow::Borrowed(""), Cow::Borrowed(path)),
+                    None,
+                  ));
                 }
 
                 let (query, _) = parse_query(rest);
@@ -159,12 +166,20 @@ impl<'a> Specifier<'a> {
             }
           }
           SpecifierType::Cjs => {
-            if let Some(node_prefixed) = specifier.strip_prefix("node:") {
-              return Ok((Specifier::Builtin(Cow::Borrowed(node_prefixed)), None));
+            if let Some((scheme, module)) = specifier.split_once(':') {
+              if matches!(scheme, "node" | "jsr" | "cloudflare" | "workerd") {
+                return Ok((
+                  Specifier::Builtin(Cow::Borrowed(scheme), Cow::Borrowed(module)),
+                  None,
+                ));
+              }
             }
 
             if BUILTINS.contains(&specifier) {
-              (Specifier::Builtin(Cow::Borrowed(specifier)), None)
+              (
+                Specifier::Builtin(Cow::Borrowed(""), Cow::Borrowed(specifier)),
+                None,
+              )
             } else {
               #[cfg(windows)]
               if !flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
@@ -200,7 +215,16 @@ impl<'a> Specifier<'a> {
           Cow::Owned(res)
         }
       }
-      Specifier::Builtin(builtin) => Cow::Borrowed(builtin),
+      Specifier::Builtin(scheme, builtin) => {
+        if scheme.is_empty() {
+          return Cow::Borrowed(builtin);
+        }
+        let mut res = String::with_capacity(scheme.len() + builtin.len() + 1);
+        res.push_str(scheme);
+        res.push(':');
+        res.push_str(builtin);
+        Cow::Owned(res)
+      }
       Specifier::Url(url) => Cow::Borrowed(url),
     }
   }
@@ -350,7 +374,10 @@ impl<'de> serde::Deserialize<'de> for Specifier<'static> {
         Specifier::Package(a, b) => {
           Specifier::Package(Cow::Owned(a.into_owned()), Cow::Owned(b.into_owned()))
         }
-        Specifier::Builtin(a) => Specifier::Builtin(Cow::Owned(a.into_owned())),
+        Specifier::Builtin(scheme, module) => Specifier::Builtin(
+          Cow::Owned(scheme.into_owned()),
+          Cow::Owned(module.into_owned()),
+        ),
         Specifier::Url(_) => todo!(),
       })
       .map_err(|_| serde::de::Error::custom("Invalid specifier"))

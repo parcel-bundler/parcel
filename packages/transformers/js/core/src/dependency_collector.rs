@@ -347,18 +347,6 @@ impl<'a> DependencyCollector<'a> {
   }
 }
 
-fn rewrite_require_specifier(node: ast::CallExpr, unresolved_mark: Mark) -> ast::CallExpr {
-  if let Some(arg) = node.args.first() {
-    if let Some((value, _)) = match_str(&arg.expr) {
-      if value.starts_with("node:") {
-        // create_require will take care of replacing the node: prefix...
-        return create_require(value, unresolved_mark);
-      }
-    }
-  }
-  node
-}
-
 impl<'a> Fold for DependencyCollector<'a> {
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
     let mut res = node.fold_children_with(self);
@@ -889,12 +877,11 @@ impl<'a> Fold for DependencyCollector<'a> {
       call.args.truncate(1);
 
       // Track the returned require call to be replaced with a promise chain.
-      let rewritten_call = rewrite_require_specifier(call, self.unresolved_mark);
-      self.require_node = Some(rewritten_call.clone());
-      rewritten_call
+      self.require_node = Some(call.clone());
+      call
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
-      rewrite_require_specifier(node, self.unresolved_mark)
+      node
     } else {
       node.fold_children_with(self)
     }

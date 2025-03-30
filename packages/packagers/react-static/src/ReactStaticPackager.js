@@ -439,12 +439,14 @@ async function loadBundleUncached(
     }
 
     let defaultRequire = Module.createRequire(from);
-    if (res.resolution.type === 'Builtin') {
-      return defaultRequire(res.resolution.value);
+    let resolution = res.resolution;
+    if (resolution.type === 'Builtin') {
+      let {scheme, module} = resolution.value;
+      return defaultRequire(scheme ? `${scheme}:${module}` : module);
     }
 
-    if (res.resolution.type === 'Path') {
-      let cacheKey = res.resolution.value + '#' + env;
+    if (resolution.type === 'Path') {
+      let cacheKey = resolution.value + '#' + env;
       const cachedModule = moduleCache.get(cacheKey);
       if (cachedModule) {
         return cachedModule.exports;
@@ -455,7 +457,7 @@ async function loadBundleUncached(
         return loadAsset(assetId);
       }
 
-      let filePath = nullthrows(res.resolution.value);
+      let filePath = resolution.value;
       let code = fs.readFileSync(filePath, 'utf8');
       let require = (id: string) => {
         return loadModule(id, filePath, env);

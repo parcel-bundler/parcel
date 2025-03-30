@@ -202,31 +202,38 @@ export class BrowserPackageManager implements PackageManager {
         e.code = 'MODULE_NOT_FOUND';
         throw e;
       }
-      let getPkg;
       switch (res.resolution.type) {
-        case 'Path':
-          getPkg = () => {
-            let pkgPath = this.fs.findAncestorFile(
-              ['package.json'],
-              nullthrows(res.resolution.value),
-              this.projectRoot,
-            );
-            resolved = pkgPath
-              ? JSON.parse(this.fs.readFileSync(pkgPath, 'utf8'))
-              : null;
-          };
-        // fallthrough
-        case 'Builtin':
+        case 'Path': {
+          let self = this;
+          let resolution = res.resolution.value;
           resolved = {
-            resolved: res.resolution.value,
+            resolved: resolution,
             invalidateOnFileChange: new Set(res.invalidateOnFileChange),
             invalidateOnFileCreate: res.invalidateOnFileCreate,
             type: res.moduleType,
             get pkg() {
-              return getPkg();
+              let pkgPath = self.fs.findAncestorFile(
+                ['package.json'],
+                resolution,
+                self.projectRoot,
+              );
+              return pkgPath
+                ? JSON.parse(self.fs.readFileSync(pkgPath, 'utf8'))
+                : null;
             },
           };
           break;
+        }
+        case 'Builtin': {
+          let {scheme, module} = res.resolution.value;
+          resolved = {
+            resolved: scheme ? `${scheme}:${module}` : module,
+            invalidateOnFileChange: new Set(res.invalidateOnFileChange),
+            invalidateOnFileCreate: res.invalidateOnFileCreate,
+            type: res.moduleType,
+          };
+          break;
+        }
         default:
           throw new Error('Unknown resolution type');
       }
