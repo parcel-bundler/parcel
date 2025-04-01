@@ -9,7 +9,12 @@ export default (new Compressor({
     }
 
     return {
-      stream: stream.pipe(zlib.createBrotliCompress()),
+      stream: stream.pipe(
+        zlib.createBrotliCompress({
+          [zlib.constants.BROTLI_PARAM_QUALITY]:
+            zlib.constants.BROTLI_MAX_QUALITY,
+        }),
+      ),
       type: 'br',
     };
   },
