@@ -1,6 +1,7 @@
 mod collect;
 mod constant_module;
 mod dependency_collector;
+mod dependency_collector2;
 mod env_replacer;
 mod fs;
 mod global_replacer;
@@ -80,7 +81,7 @@ pub struct Config {
   pub code: Vec<u8>,
   pub module_id: String,
   pub project_root: String,
-  pub env: HashMap<JsWord, JsWord>,
+  pub env: IndexMap<JsWord, JsWord>,
   pub inline_fs: bool,
   pub context: EnvContext,
   #[serde(rename = "type")]
@@ -493,15 +494,15 @@ pub fn transform(
             ),
             // Inline process.env and process.browser,
             Optional::new(
-              EnvReplacer {
-                replace_env: config.replace_env(),
-                env: &config.env,
-                is_browser: config.is_browser(),
-                used_env: &mut result.used_env,
-                source_map: source_map.clone(),
-                diagnostics: &mut diagnostics,
+              EnvReplacer::new(
+                config.replace_env(),
+                config.is_browser(),
+                &config.env,
+                &mut result.used_env,
+                source_map.clone(),
+                &mut diagnostics,
                 unresolved_mark,
-              },
+              ),
               config.source_type != SourceType::Script && !config.is_library,
             ),
             paren_remover(Some(&comments)),
