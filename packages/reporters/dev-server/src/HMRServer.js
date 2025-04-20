@@ -14,7 +14,7 @@ import type {
   Request,
   Response,
 } from './types.js.flow';
-import {setHeaders, SOURCES_ENDPOINT} from './Server';
+import {setHeaders, verifyOrigin, SOURCES_ENDPOINT} from './Server';
 
 import nullthrows from 'nullthrows';
 import url, {fileURLToPath} from 'url';
@@ -110,7 +110,7 @@ export default class HMRServer {
         outputFS: this.options.outputFS,
         cacheDir: this.options.cacheDir,
         listener: (req, res) => {
-          setHeaders(res);
+          setHeaders(req.headers.origin, this.options.host, res);
           if (req.method === 'OPTIONS') {
             res.statusCode = 200;
             res.end();
@@ -128,7 +128,17 @@ export default class HMRServer {
     } else {
       this.options.addMiddleware?.((req, res) => this.handle(req, res));
     }
-    this.wss = new WebSocket.Server({server});
+    this.wss = new WebSocket.Server({
+      server,
+      verifyClient: info => {
+        // Validate Origin header to prevent Cross-Site WebSocket Hijacking.
+        // If there is no Origin header, assume this request is from Node.js or another non-browser client.
+        if (!info.origin) {
+          return true;
+        }
+        return verifyOrigin(info.origin, this.options.host);
+      },
+    });
 
     this.wss.on('connection', ws => {
       if (this.unresolvedError) {

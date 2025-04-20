@@ -31,9 +31,39 @@ import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL} from 'url';
 import fresh from 'fresh';
+import os from 'os';
 
-export function setHeaders(res: Response) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+// Default allowed hosts include `localhost` and all local ip addresses.
+let defaultAllowedHostsCache = null;
+export function getDefaultAllowedHosts(): string[] {
+  if (!defaultAllowedHostsCache) {
+    defaultAllowedHostsCache = ['localhost'];
+    let interfaces = os.networkInterfaces();
+    for (let name in interfaces) {
+      for (let addr of interfaces[name]) {
+        defaultAllowedHostsCache.push(
+          addr.family === 'IPv6' ? `[${addr.address}]` : addr.address,
+        );
+      }
+    }
+  }
+
+  return defaultAllowedHostsCache;
+}
+
+export function setHeaders(
+  origin: ?string,
+  allowedHostname: ?string,
+  res: Response,
+) {
+  res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
+
+  // Add CORS headers if the Origin header is valid.
+  if (!origin || !verifyOrigin(origin, allowedHostname)) {
+    return;
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader(
     'Access-Control-Allow-Methods',
     'GET, HEAD, PUT, PATCH, POST, DELETE',
@@ -42,7 +72,53 @@ export function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
-  res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
+}
+
+export function verifyOrigin(
+  origin: string,
+  allowedHostname: ?string,
+): boolean {
+  try {
+    let url = new URL(origin);
+    if (
+      url.protocol === 'file:' ||
+      url.protocol === 'chrome-extension:' ||
+      url.protocol === 'moz-extension:'
+    ) {
+      return true;
+    }
+
+    return verifyHost(url.hostname, allowedHostname);
+  } catch {
+    return false;
+  }
+}
+
+export function verifyHost(
+  requestHost: string,
+  allowedHostname: ?string,
+): boolean {
+  // IPv6 address
+  if (requestHost[0] === '[') {
+    let index = requestHost.indexOf(']');
+    if (index < 0) {
+      return false;
+    }
+
+    requestHost = requestHost.slice(0, index + 1);
+  } else {
+    // Remove port
+    let index = requestHost.indexOf(':');
+    if (index >= 0) {
+      requestHost = requestHost.slice(0, index);
+    }
+  }
+
+  if (allowedHostname) {
+    return requestHost === allowedHostname;
+  }
+
+  return getDefaultAllowedHosts().includes(requestHost);
 }
 
 const SLASH_REGEX = /\//g;
@@ -479,7 +555,14 @@ export default class Server {
 
     const app = connect();
     app.use((req, res, next) => {
-      setHeaders(res);
+      // Validate the Host header to prevent DNS rebinding attacks.
+      if (!verifyHost(req.headers.host, this.options.host)) {
+        res.statusCode = 403;
+        res.end('Host not allowed.');
+        return;
+      }
+
+      setHeaders(req.headers.origin, this.options.host, res);
       if (req.method === 'OPTIONS') {
         res.statusCode = 200;
         res.end();

@@ -14,6 +14,10 @@ declare type ws$PerMessageDeflateOptions = {|
   maxPayload?: number,
 |};
 
+declare type ws$ClientInfo = {|
+  origin: string
+|};
+
 // $FlowFixMe[incompatible-extend]
 declare class ws$WebSocketServer extends events$EventEmitter {
   /**
@@ -31,7 +35,7 @@ declare class ws$WebSocketServer extends events$EventEmitter {
       perMessageDeflate?: boolean | ws$PerMessageDeflateOptions,
       port: number,
       server?: http$Server | https$Server,
-      verifyClient?: () => mixed,
+      verifyClient?: (info: ws$ClientInfo) => mixed,
     |},
     callback?: () => mixed
   ): this;
@@ -47,7 +51,7 @@ declare class ws$WebSocketServer extends events$EventEmitter {
       perMessageDeflate?: boolean | ws$PerMessageDeflateOptions,
       port?: number,
       server: http$Server | https$Server,
-      verifyClient?: () => mixed,
+      verifyClient?: (info: ws$ClientInfo) => mixed,
     |},
     callback?: () => mixed
   ): this;
@@ -63,7 +67,7 @@ declare class ws$WebSocketServer extends events$EventEmitter {
       perMessageDeflate?: boolean | ws$PerMessageDeflateOptions,
       port?: number,
       server?: http$Server | https$Server,
-      verifyClient?: () => mixed,
+      verifyClient?: (info: ws$ClientInfo) => mixed,
     |},
     callback?: () => mixed
   ): this;
