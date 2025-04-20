@@ -1,4 +1,5 @@
 use std::{
+  cell::RefCell,
   collections::hash_map::DefaultHasher,
   fmt,
   hash::{Hash, Hasher},
@@ -7,13 +8,18 @@ use std::{
 };
 
 use bitflags::bitflags;
-use parcel_evaluator::{Evaluate, Evaluator, JsConstructor, JsObject, JsValue, Object};
+use parcel_evaluator::{
+  builtin_object, Evaluate, Evaluator, Function, JsValue, Object, StaticOrRc,
+};
 use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{sync::Lrc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP},
   ecma::{
-    ast::{self, CallExpr, Callee, Expr, Ident, MemberProp, Module},
+    ast::{
+      self, CallExpr, Callee, ExportAll, Expr, ExprOrSpread, Ident, ImportDecl, MemberProp, Module,
+      NamedExport, Prop, PropName, TryStmt,
+    },
     atoms::{js_word, JsWord},
     utils::{member_expr, stack_size::maybe_grow_default},
     visit::{Fold, FoldWith, VisitMut, VisitMutWith},
@@ -30,7 +36,7 @@ macro_rules! hash {
   }};
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
   /// Corresponds to ESM import statements
   /// ```skip
@@ -142,7 +148,7 @@ pub struct DependencyDescriptor {
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
   pub specifier: swc_core::ecma::atoms::JsWord,
-  // pub attributes: Option<JsValue>,
+  pub attributes: Option<()>,
   pub flags: DependencyFlags,
   pub source_type: Option<SourceType>,
   pub placeholder: Option<String>,
@@ -183,7 +189,8 @@ struct DependencyCollector<'a> {
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
   helpers: Helpers,
-  evaluator: Evaluator,
+  filename: String,
+  evaluator: Evaluator<'a>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -200,66 +207,71 @@ impl<'a> DependencyCollector<'a> {
 
     evaluator.add_value(
       ("require".into(), ctxt),
-      JsValue::Function(Rc::new(require)),
+      JsValue::Function(StaticOrRc::Static(&require)),
     );
 
     evaluator.add_value(
       ("module".into(), ctxt),
-      JsValue::Object(Rc::new(JsObject(indexmap::indexmap! {
-        "require".into() => JsValue::Function(Rc::new(require)),
-      }))),
+      builtin_object! {
+        "require" => JsValue::Function(StaticOrRc::Static(&require)),
+      },
+    );
+
+    evaluator.add_value(
+      ("parcelRequire".into(), ctxt),
+      JsValue::Function(StaticOrRc::Static(&ParcelRequire)),
     );
 
     evaluator.add_value(
       ("URL".into(), ctxt),
-      JsValue::Function(Rc::new(JsConstructor(url_constructor))),
+      JsValue::Function(StaticOrRc::Static(&URL)),
+    );
+    evaluator.add_value(
+      ("__parcel_url_dep__".into(), ctxt),
+      JsValue::Function(StaticOrRc::Static(&parcel_url_dep)),
+    );
+
+    evaluator.add_value(
+      ("Promise".into(), ctxt),
+      JsValue::Function(StaticOrRc::Static(&Promise)),
     );
 
     // __parcel__require__
     // __parcel__import__
     // __parcel__importScripts__
     // __parcel__URL__
-    // parcelRequire
-    // parcelRequire.load
-    // parcelRequire.resolve
-    // parcelRequire.extendImportMap
-    // parcelRequire.meta
-    // __parcel__url_dep
 
     if config.is_worker() {
       evaluator.add_value(
         ("importScripts".into(), ctxt),
-        JsValue::Function(Rc::new(import_scripts)),
+        JsValue::Function(StaticOrRc::Static(&import_scripts)),
       );
     }
 
     if config.is_browser() {
       evaluator.add_value(
         ("navigator".into(), ctxt),
-        JsValue::Object(Rc::new(JsObject(indexmap::indexmap! {
-          "serviceWorker".into() => JsValue::Object(Rc::new(JsObject(indexmap::indexmap! {
-            "register".into() => JsValue::Function(Rc::new(service_worker_register)),
-          }))),
-        }))),
+        builtin_object! {
+          "serviceWorker" => builtin_object! {
+            "register" => JsValue::Function(StaticOrRc::Static(&service_worker_register)),
+          },
+        },
       );
 
       evaluator.add_value(
         ("CSS".into(), ctxt),
-        JsValue::Object(Rc::new(JsObject(indexmap::indexmap! {
-          "paintWorklet".into() => JsValue::Object(Rc::new(JsObject(indexmap::indexmap! {
-            "addModule".into() => JsValue::Function(Rc::new(paint_worklet)),
-          }))),
-        }))),
+        builtin_object! {
+          "paintWorklet" => builtin_object! {
+            "addModule" => JsValue::Function(StaticOrRc::Static(&paint_worklet)),
+          },
+        },
       );
 
-      evaluator.add_value(
-        ("Worker".into(), ctxt),
-        JsValue::Function(Rc::new(JsConstructor(worker_constructor))),
-      );
+      evaluator.add_value(("Worker".into(), ctxt), JsValue::Function((&Worker).into()));
 
       evaluator.add_value(
         ("SharedWorker".into(), ctxt),
-        JsValue::Function(Rc::new(JsConstructor(shared_worker_constructor))),
+        JsValue::Function((&SharedWorker).into()),
       );
     }
 
@@ -275,13 +287,16 @@ impl<'a> DependencyCollector<'a> {
     if config.source_type == SourceType::Module {
       // TODO: error if accessed in scripts
       // TODO: should have no prototype: Object.assign(Object.create(null), {url: 'file:///src/foo.js'});
-      evaluator.import_meta = JsValue::Object(Rc::new(JsObject(indexmap::indexmap! {
-        "url".into() => JsValue::String(format!("file:///{}", filename).into()),
-        // distDir, publicUrl, devServer
-      })));
+      evaluator.import_meta = JsValue::Object(
+        Rc::new(indexmap::indexmap! {
+          "url".into() => JsValue::String(format!("file:///{}", filename).into()),
+          // distDir, publicUrl, devServer
+        })
+        .into(),
+      );
     }
 
-    evaluator.dynamic_import = JsValue::Function(Rc::new(import));
+    evaluator.dynamic_import = JsValue::Function(StaticOrRc::Static(&import));
 
     DependencyCollector {
       source_map,
@@ -295,15 +310,179 @@ impl<'a> DependencyCollector<'a> {
       diagnostics,
       import_meta: None,
       helpers: Helpers::empty(),
+      filename,
       evaluator,
     }
   }
 }
 
+impl<'a> DependencyCollector<'a> {
+  fn placeholder(&self, specifier: &JsWord, kind: DependencyKind) -> JsWord {
+    format!(
+      "{:x}",
+      hash!(format!("{}:{}:{}", self.filename, specifier, kind)),
+    )
+    .into()
+  }
+}
+
 impl<'a> VisitMut for DependencyCollector<'a> {
+  fn visit_mut_import_decl(&mut self, node: &mut ImportDecl) {
+    if node.type_only {
+      return;
+    }
+
+    // let placeholder = self.placeholder(&node.src.value, DependencyKind::Import);
+    // node.src.value = placeholder.clone();
+
+    self.items.push(DependencyDescriptor {
+      kind: DependencyKind::Import,
+      loc: SourceLocation {
+        start_line: 0,
+        start_col: 0,
+        end_line: 0,
+        end_col: 0,
+      },
+      specifier: node.src.value.clone(),
+      attributes: None,
+      flags: DependencyFlags::empty(),
+      source_type: Some(SourceType::Module),
+      placeholder: None,
+    });
+  }
+
+  fn visit_mut_named_export(&mut self, node: &mut NamedExport) {
+    if node.type_only {
+      return;
+    }
+
+    if let Some(src) = &mut node.src {
+      self.items.push(DependencyDescriptor {
+        kind: DependencyKind::Export,
+        loc: SourceLocation {
+          start_line: 0,
+          start_col: 0,
+          end_line: 0,
+          end_col: 0,
+        },
+        specifier: src.value.clone(),
+        attributes: None,
+        flags: DependencyFlags::empty(),
+        source_type: Some(SourceType::Module),
+        placeholder: None,
+      });
+    }
+  }
+
+  fn visit_mut_export_all(&mut self, node: &mut ExportAll) {
+    if node.type_only {
+      return;
+    }
+
+    self.items.push(DependencyDescriptor {
+      kind: DependencyKind::Export,
+      loc: SourceLocation {
+        start_line: 0,
+        start_col: 0,
+        end_line: 0,
+        end_col: 0,
+      },
+      specifier: node.src.value.clone(),
+      attributes: None,
+      flags: DependencyFlags::empty(),
+      source_type: Some(SourceType::Module),
+      placeholder: None,
+    });
+  }
+
+  fn visit_mut_try_stmt(&mut self, node: &mut TryStmt) {
+    self.in_try = true;
+    node.block.visit_mut_children_with(self);
+    self.in_try = false;
+
+    node.handler.visit_mut_children_with(self);
+    node.finalizer.visit_mut_children_with(self);
+  }
+
   fn visit_mut_expr(&mut self, node: &mut Expr) {
     if matches!(node, Expr::Call(_) | Expr::New(_)) {
       let res = node.evaluate(&self.evaluator);
+      if let JsValue::Object(res) = &res {
+        if let Some(dep) = res.as_any().downcast_ref::<DependencyDescriptor>() {
+          let placeholder = self.placeholder(&dep.specifier, dep.kind);
+          let mut d = dep.clone();
+          d.placeholder = Some(placeholder.to_string());
+
+          if dep.kind == DependencyKind::Require && self.in_try {
+            d.flags |= DependencyFlags::OPTIONAL;
+          }
+
+          self.items.push(d);
+
+          if let Expr::New(new) = node {
+            if matches!(dep.kind, DependencyKind::WebWorker | DependencyKind::Url) {
+              if let Some(args) = &mut new.args {
+                if !self.config.supports_module_workers {
+                  remove_type_option(args);
+                }
+
+                args[0] = ExprOrSpread {
+                  expr: Box::new(Expr::Call(create_require(
+                    placeholder,
+                    self.unresolved_mark,
+                  ))),
+                  spread: None,
+                };
+                return;
+              }
+            }
+          }
+
+          if let Expr::Call(call) = node {
+            if matches!(
+              dep.kind,
+              DependencyKind::ServiceWorker | DependencyKind::Worklet
+            ) {
+              if !self.config.supports_module_workers {
+                remove_type_option(&mut call.args);
+              }
+
+              call.args[0] = ExprOrSpread {
+                expr: Box::new(Expr::Call(create_require(
+                  placeholder,
+                  self.unresolved_mark,
+                ))),
+                spread: None,
+              };
+              return;
+            }
+
+            if matches!(dep.kind, DependencyKind::Id) {
+              call.callee = Callee::Expr(Box::new(Expr::Member(member_expr!(
+                Default::default(),
+                call.span,
+                module.bundle.root
+              ))));
+              return;
+            }
+          }
+
+          *node = Expr::Call(create_require(placeholder, self.unresolved_mark));
+          return;
+        }
+      } else if let Expr::Call(call) = node {
+        let callee = call.callee.evaluate(&self.evaluator);
+        if let JsValue::Function(f) = callee {
+          if let Some(helper) = f.as_any().downcast_ref::<Helpers>() {
+            self.helpers |= *helper;
+            if let Ok(res) = helper.into_expr() {
+              call.callee = Callee::Expr(Box::new(res));
+              return;
+            }
+          }
+        }
+      }
+
       if let Ok(res) = res.into_expr() {
         *node = res;
         return;
@@ -314,47 +493,60 @@ impl<'a> VisitMut for DependencyCollector<'a> {
   }
 }
 
-fn require(this: JsValue, args: Vec<JsValue>, span: Span) -> JsValue {
+fn require(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
   if let Some(JsValue::String(src)) = args.get(0) {
-    JsValue::Object(Rc::new(DepObject(DependencyDescriptor {
-      kind: DependencyKind::Require,
-      flags: DependencyFlags::empty(),
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: src.clone(),
-      placeholder: None,
-      source_type: None,
-    })))
+    JsValue::Object(
+      Rc::new(DependencyDescriptor {
+        kind: DependencyKind::Require,
+        flags: DependencyFlags::empty(),
+        loc: SourceLocation {
+          start_line: 0,
+          start_col: 0,
+          end_line: 0,
+          end_col: 0,
+        },
+        specifier: src.clone(),
+        attributes: None,
+        placeholder: None,
+        source_type: Some(SourceType::Module),
+      })
+      .into(),
+    )
   } else {
     JsValue::Unknown(span)
   }
 }
 
-fn import(this: JsValue, args: Vec<JsValue>, span: Span) -> JsValue {
+fn import(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
   if let Some(JsValue::String(src)) = args.get(0) {
-    JsValue::Object(Rc::new(DepObject(DependencyDescriptor {
-      kind: DependencyKind::DynamicImport,
-      flags: DependencyFlags::empty(),
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: src.clone(),
-      placeholder: None,
-      source_type: None,
-    })))
+    JsValue::Object(
+      Rc::new(DependencyDescriptor {
+        kind: DependencyKind::DynamicImport,
+        flags: DependencyFlags::empty(),
+        loc: SourceLocation {
+          start_line: 0,
+          start_col: 0,
+          end_line: 0,
+          end_col: 0,
+        },
+        specifier: src.clone(),
+        attributes: None,
+        placeholder: None,
+        source_type: Some(SourceType::Module),
+      })
+      .into(),
+    )
   } else {
     JsValue::Unknown(span)
   }
 }
 
-fn import_scripts(this: JsValue, args: Vec<JsValue>, span: Span) -> JsValue {
+fn import_scripts(
+  _this: JsValue,
+  args: Vec<JsValue>,
+  span: Span,
+  _evaluator: &Evaluator,
+) -> JsValue {
   if let Some(JsValue::String(src)) = args.get(0) {
     // JsValue::Object(Rc::new(DepObject(src.clone())))
     todo!()
@@ -363,7 +555,12 @@ fn import_scripts(this: JsValue, args: Vec<JsValue>, span: Span) -> JsValue {
   }
 }
 
-fn service_worker_register(this: JsValue, args: Vec<JsValue>, span: Span) -> JsValue {
+fn service_worker_register(
+  _this: JsValue,
+  args: Vec<JsValue>,
+  span: Span,
+  _evaluator: &Evaluator,
+) -> JsValue {
   if let Some(dep) = match_url_dep(&args) {
     let mut source_type = SourceType::Script;
     if let Some(JsValue::Object(obj)) = args.get(1) {
@@ -374,19 +571,23 @@ fn service_worker_register(this: JsValue, args: Vec<JsValue>, span: Span) -> JsV
       }
     }
 
-    JsValue::Object(Rc::new(DepObject(DependencyDescriptor {
-      kind: DependencyKind::ServiceWorker,
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: dep.specifier.clone(),
-      flags: DependencyFlags::empty(),
-      source_type: Some(source_type),
-      placeholder: None,
-    })))
+    JsValue::Object(
+      Rc::new(DependencyDescriptor {
+        kind: DependencyKind::ServiceWorker,
+        loc: SourceLocation {
+          start_line: 0,
+          start_col: 0,
+          end_line: 0,
+          end_col: 0,
+        },
+        specifier: dep.specifier.clone(),
+        attributes: None,
+        flags: DependencyFlags::empty(),
+        source_type: Some(source_type),
+        placeholder: None,
+      })
+      .into(),
+    )
   } else {
     JsValue::Unknown(span)
   }
@@ -395,9 +596,9 @@ fn service_worker_register(this: JsValue, args: Vec<JsValue>, span: Span) -> JsV
 fn match_url_dep(args: &Vec<JsValue>) -> Option<&DependencyDescriptor> {
   // TODO: support self reference, e.g. new Worker(import.meta.url)
   if let Some(JsValue::Object(src)) = args.get(0) {
-    if let Some(dep) = src.as_any().downcast_ref::<DepObject>() {
-      if dep.0.kind == DependencyKind::Url {
-        return Some(&dep.0);
+    if let Some(dep) = src.as_any().downcast_ref::<DependencyDescriptor>() {
+      if dep.kind == DependencyKind::Url {
+        return Some(&dep);
       }
     }
   }
@@ -405,116 +606,173 @@ fn match_url_dep(args: &Vec<JsValue>) -> Option<&DependencyDescriptor> {
   None
 }
 
-fn paint_worklet(this: JsValue, args: Vec<JsValue>, span: Span) -> JsValue {
+fn paint_worklet(
+  _this: JsValue,
+  args: Vec<JsValue>,
+  span: Span,
+  _evaluator: &Evaluator,
+) -> JsValue {
   if let Some(dep) = match_url_dep(&args) {
-    let mut source_type = SourceType::Script;
-    if let Some(JsValue::Object(obj)) = args.get(1) {
-      if let JsValue::String(ty) = obj.get(&JsValue::String("type".into()), DUMMY_SP) {
-        if ty == "module" {
-          source_type = SourceType::Module;
+    JsValue::Object(
+      Rc::new(DependencyDescriptor {
+        kind: DependencyKind::Worklet,
+        loc: SourceLocation {
+          start_line: 0,
+          start_col: 0,
+          end_line: 0,
+          end_col: 0,
+        },
+        specifier: dep.specifier.clone(),
+        attributes: None,
+        flags: DependencyFlags::empty(),
+        source_type: Some(SourceType::Module),
+        placeholder: None,
+      })
+      .into(),
+    )
+  } else {
+    JsValue::Unknown(span)
+  }
+}
+
+struct URL;
+impl Object for URL {}
+impl Function for URL {
+  fn construct(&self, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
+    if let (Some(JsValue::String(url)), Some(_)) = (args.get(0), args.get(1)) {
+      JsValue::Object(
+        Rc::new(DependencyDescriptor {
+          kind: DependencyKind::Url,
+          loc: SourceLocation {
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+          },
+          specifier: url.clone(),
+          attributes: None,
+          flags: DependencyFlags::empty(),
+          source_type: Some(SourceType::Module),
+          placeholder: None,
+        })
+        .into(),
+      )
+    } else {
+      JsValue::Unknown(span)
+    }
+  }
+}
+
+fn parcel_url_dep(
+  this: JsValue,
+  args: Vec<JsValue>,
+  span: Span,
+  _evaluator: &Evaluator,
+) -> JsValue {
+  if let (Some(JsValue::String(url)), Some(JsValue::Bool(needs_stable_name))) =
+    (args.get(0), args.get(1))
+  {
+    JsValue::Object(
+      Rc::new(DependencyDescriptor {
+        kind: DependencyKind::Url,
+        loc: SourceLocation {
+          start_line: 0,
+          start_col: 0,
+          end_line: 0,
+          end_col: 0,
+        },
+        specifier: url.clone(),
+        attributes: None,
+        flags: if *needs_stable_name {
+          DependencyFlags::NEEDS_STABLE_NAME
+        } else {
+          DependencyFlags::empty()
+        },
+        source_type: Some(SourceType::Module),
+        placeholder: None,
+      })
+      .into(),
+    )
+  } else {
+    JsValue::Unknown(span)
+  }
+}
+
+struct Worker;
+impl Object for Worker {}
+impl Function for Worker {
+  fn construct(&self, args: Vec<JsValue>, span: Span, evaluator: &Evaluator) -> JsValue {
+    if let Some(dep) = match_url_dep(&args) {
+      let mut source_type = SourceType::Script;
+      if let Some(JsValue::Object(obj)) = args.get(1) {
+        if let JsValue::String(ty) = obj.get(&JsValue::String("type".into()), DUMMY_SP) {
+          if ty == "module" {
+            source_type = SourceType::Module;
+          }
         }
       }
+
+      JsValue::Object(
+        Rc::new(DependencyDescriptor {
+          kind: DependencyKind::WebWorker,
+          loc: SourceLocation {
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+          },
+          specifier: dep.specifier.clone(),
+          attributes: None,
+          flags: DependencyFlags::empty(),
+          source_type: Some(source_type),
+          placeholder: None,
+        })
+        .into(),
+      )
+    } else {
+      JsValue::Unknown(span)
     }
-
-    JsValue::Object(Rc::new(DepObject(DependencyDescriptor {
-      kind: DependencyKind::Worklet,
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: dep.specifier.clone(),
-      flags: DependencyFlags::empty(),
-      source_type: Some(source_type),
-      placeholder: None,
-    })))
-  } else {
-    JsValue::Unknown(span)
   }
 }
 
-fn url_constructor(args: Vec<JsValue>, span: Span) -> JsValue {
-  if let (Some(JsValue::String(url)), Some(_)) = (args.get(0), args.get(1)) {
-    JsValue::Object(Rc::new(DepObject(DependencyDescriptor {
-      kind: DependencyKind::Url,
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: url.clone(),
-      flags: DependencyFlags::empty(),
-      source_type: None,
-      placeholder: None,
-    })))
-  } else {
-    JsValue::Unknown(span)
-  }
-}
-
-fn worker_constructor(args: Vec<JsValue>, span: Span) -> JsValue {
-  if let Some(dep) = match_url_dep(&args) {
-    let mut source_type = SourceType::Script;
-    if let Some(JsValue::Object(obj)) = args.get(1) {
-      if let JsValue::String(ty) = obj.get(&JsValue::String("type".into()), DUMMY_SP) {
-        if ty == "module" {
-          source_type = SourceType::Module;
+struct SharedWorker;
+impl Object for SharedWorker {}
+impl Function for SharedWorker {
+  fn construct(&self, args: Vec<JsValue>, span: Span, evaluator: &Evaluator) -> JsValue {
+    if let Some(dep) = match_url_dep(&args) {
+      let mut source_type = SourceType::Script;
+      if let Some(JsValue::Object(obj)) = args.get(1) {
+        if let JsValue::String(ty) = obj.get(&JsValue::String("type".into()), DUMMY_SP) {
+          if ty == "module" {
+            source_type = SourceType::Module;
+          }
         }
       }
-    }
 
-    JsValue::Object(Rc::new(DepObject(DependencyDescriptor {
-      kind: DependencyKind::WebWorker,
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: dep.specifier.clone(),
-      flags: DependencyFlags::empty(),
-      source_type: Some(source_type),
-      placeholder: None,
-    })))
-  } else {
-    JsValue::Unknown(span)
+      JsValue::Object(
+        Rc::new(DependencyDescriptor {
+          kind: DependencyKind::WebWorker,
+          loc: SourceLocation {
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+          },
+          specifier: dep.specifier.clone(),
+          attributes: None,
+          flags: DependencyFlags::empty(),
+          source_type: Some(source_type),
+          placeholder: None,
+        })
+        .into(),
+      )
+    } else {
+      JsValue::Unknown(span)
+    }
   }
 }
 
-fn shared_worker_constructor(args: Vec<JsValue>, span: Span) -> JsValue {
-  if let Some(dep) = match_url_dep(&args) {
-    let mut source_type = SourceType::Script;
-    if let Some(JsValue::Object(obj)) = args.get(1) {
-      if let JsValue::String(ty) = obj.get(&JsValue::String("type".into()), DUMMY_SP) {
-        if ty == "module" {
-          source_type = SourceType::Module;
-        }
-      }
-    }
-
-    JsValue::Object(Rc::new(DepObject(DependencyDescriptor {
-      kind: DependencyKind::WebWorker,
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: dep.specifier.clone(),
-      flags: DependencyFlags::empty(),
-      source_type: Some(source_type),
-      placeholder: None,
-    })))
-  } else {
-    JsValue::Unknown(span)
-  }
-}
-
-struct DepObject(DependencyDescriptor);
-
-impl Object for DepObject {
+impl Object for DependencyDescriptor {
   fn get(&self, _prop: &parcel_evaluator::JsValue, span: Span) -> parcel_evaluator::JsValue {
     JsValue::Unknown(span)
   }
@@ -528,280 +786,221 @@ impl Object for DepObject {
   }
 
   fn into_expr(&self) -> Result<Expr, ()> {
-    Ok(Expr::Call(CallExpr {
-      callee: Callee::Expr(Box::new(Expr::Ident(Ident::new_private(
-        "__parcel_dep__".into(),
-        DUMMY_SP,
-      )))),
-      ..Default::default()
-    }))
+    // Ok(Expr::Call(CallExpr {
+    //   callee: Callee::Expr(Box::new(Expr::Ident(Ident::new_private(
+    //     "__parcel_dep__".into(),
+    //     DUMMY_SP,
+    //   )))),
+    //   ..Default::default()
+    // }))
+    Ok(Expr::Call(create_require(
+      self.specifier.clone(),
+      Mark::fresh(Mark::root()),
+    )))
   }
 }
 
-// impl<'a> DependencyCollector<'a> {
-//   fn fold_new_promise(&mut self, node: ast::NewExpr) -> ast::NewExpr {
-//     use ast::Expr::*;
+fn remove_type_option(args: &mut Vec<ExprOrSpread>) {
+  if let Some(arg) = args.get_mut(1) {
+    if let Expr::Object(obj) = &mut *arg.expr {
+      obj.props.retain(|v| {
+        if let ast::PropOrSpread::Prop(prop) = v {
+          if let Prop::KeyValue(kv) = &**prop {
+            match &kv.key {
+              PropName::Ident(id) if id.sym == "type" => return false,
+              PropName::Str(s) if s.value == "type" => return false,
+              _ => {}
+            }
+          }
+        }
 
-//     // Match requires inside promises (e.g. Rollup compiled dynamic imports)
-//     // new Promise(resolve => resolve(require('foo')))
-//     // new Promise(resolve => { resolve(require('foo')) })
-//     // new Promise(function (resolve) { resolve(require('foo')) })
-//     // new Promise(function (resolve) { return resolve(require('foo')) })
-//     if let Some(args) = &node.args {
-//       if let Some(arg) = args.first() {
-//         let (resolve, expr) = match &*arg.expr {
-//           Fn(f) => {
-//             let param = f.function.params.first().map(|param| &param.pat);
-//             let body = if let Some(body) = &f.function.body {
-//               self.match_block_stmt_expr(body)
-//             } else {
-//               None
-//             };
-//             (param, body)
-//           }
-//           Arrow(f) => {
-//             let param = f.params.first();
-//             let body = match &*f.body {
-//               ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
-//               ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
-//             };
-//             (param, body)
-//           }
-//           _ => (None, None),
-//         };
+        true
+      });
 
-//         let resolve_id = match resolve {
-//           Some(ast::Pat::Ident(id)) => id.to_id(),
-//           _ => return node.fold_children_with(self),
-//         };
+      if obj.props.is_empty() {
+        args.truncate(1);
+      }
+    } else {
+      args.truncate(1);
+    }
+  }
+}
 
-//         if let Some(ast::Expr::Call(call)) = expr {
-//           if let ast::Callee::Expr(callee) = &call.callee {
-//             if let ast::Expr::Ident(id) = &**callee {
-//               if id.to_id() == resolve_id {
-//                 if let Some(arg) = call.args.first() {
-//                   if match_require(&arg.expr, self.unresolved_mark, Mark::fresh(Mark::root()))
-//                     .is_some()
-//                   {
-//                     let was_in_promise = self.in_promise;
-//                     self.in_promise = true;
-//                     let node = node.fold_children_with(self);
-//                     self.in_promise = was_in_promise;
-//                     return node;
-//                   }
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     }
+struct ParcelRequire;
+impl Object for ParcelRequire {
+  fn get(&self, prop: &JsValue, span: Span) -> JsValue {
+    match prop.to_string().as_str() {
+      "load" => JsValue::Function(StaticOrRc::Static(&Helpers::LOAD)),
+      "resolve" => JsValue::Function(StaticOrRc::Static(&Helpers::RESOLVE)),
+      "extendImportMap" => JsValue::Function(StaticOrRc::Static(&Helpers::EXTEND_IMPORT_MAP)),
+      "meta" => todo!(),
+      _ => JsValue::Unknown(span),
+    }
+  }
+}
 
-//     node.fold_children_with(self)
-//   }
+impl Function for ParcelRequire {
+  fn call(
+    &self,
+    _this: JsValue,
+    args: Vec<JsValue>,
+    span: Span,
+    _evaluator: &Evaluator,
+  ) -> JsValue {
+    if let Some(JsValue::String(id)) = args.get(0) {
+      JsValue::Object(
+        Rc::new(DependencyDescriptor {
+          kind: DependencyKind::Id,
+          flags: DependencyFlags::empty(),
+          loc: SourceLocation {
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+          },
+          placeholder: None,
+          attributes: None,
+          specifier: id.clone(),
+          source_type: None,
+        })
+        .into(),
+      )
+    } else {
+      JsValue::Unknown(span)
+    }
+  }
+}
 
-//   fn match_block_stmt_expr<'x>(&self, block: &'x ast::BlockStmt) -> Option<&'x ast::Expr> {
-//     match block.stmts.last() {
-//       Some(ast::Stmt::Expr(ast::ExprStmt { expr, .. })) => Some(&**expr),
-//       Some(ast::Stmt::Return(ast::ReturnStmt { arg, .. })) => {
-//         if let Some(arg) = arg {
-//           Some(&**arg)
-//         } else {
-//           None
-//         }
-//       }
-//       _ => None,
-//     }
-//   }
-// }
+impl Object for Helpers {
+  fn into_expr(&self) -> Result<Expr, ()> {
+    if *self == Helpers::RESOLVE {
+      Ok(Expr::Member(member_expr!(
+        Default::default(),
+        DUMMY_SP,
+        module.bundle.resolve
+      )))
+    } else if *self == Helpers::LOAD {
+      Ok(Expr::Member(member_expr!(
+        Default::default(),
+        DUMMY_SP,
+        module.bundle.load
+      )))
+    } else if *self == Helpers::EXTEND_IMPORT_MAP {
+      Ok(Expr::Member(member_expr!(
+        Default::default(),
+        DUMMY_SP,
+        module.bundle.extendImportMap
+      )))
+    } else {
+      Err(())
+    }
+  }
+}
 
-// If the `require` call is not immediately returned (e.g. wrapped in another function),
-// then transform the AST to create a promise chain so that the require is by itself.
-// This is because the require will return a promise rather than the module synchronously.
-// For example, TypeScript generates the following with the esModuleInterop flag:
-//   Promise.resolve().then(() => __importStar(require('./foo')));
-// This is transformed into:
-//   Promise.resolve().then(() => require('./foo')).then(res => __importStar(res));
-fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast::CallExpr {
-  let mut transformer = PromiseTransformer {
-    require_node: Some(require_node),
-  };
+impl Function for Helpers {}
 
-  let node = node.fold_with(&mut transformer);
+struct Promise;
+impl Object for Promise {
+  fn get(&self, prop: &JsValue, span: Span) -> JsValue {
+    match prop.to_string().as_str() {
+      "resolve" => JsValue::Function(StaticOrRc::Static(&promise_resolve)),
+      _ => JsValue::Unknown(span),
+    }
+  }
+}
 
-  if let Some(require_node) = &transformer.require_node {
-    if let Some(f) = node.args.first() {
-      // Add `res` as an argument to the original function
-      let f = match &*f.expr {
-        ast::Expr::Fn(f) => {
-          let mut f = f.clone();
-          f.function.params.insert(
-            0,
-            ast::Param {
-              pat: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new_no_ctxt(
-                "res".into(),
-                DUMMY_SP,
-              ))),
-              decorators: vec![],
-              span: DUMMY_SP,
+fn promise_resolve(
+  _this: JsValue,
+  args: Vec<JsValue>,
+  _span: Span,
+  _evaluator: &Evaluator,
+) -> JsValue {
+  let arg = args.get(0).cloned().unwrap_or(JsValue::Undefined);
+
+  if let JsValue::Object(obj) = &arg {
+    if let Some(dep) = obj.as_any().downcast_ref::<DependencyDescriptor>() {
+      if dep.kind == DependencyKind::Require {
+        let mut dep = dep.clone();
+        dep.kind = DependencyKind::DynamicImport;
+        return JsValue::Object(Rc::new(dep).into());
+      }
+    }
+  }
+
+  JsValue::Object(Rc::new(PromiseInstance(arg)).into())
+}
+
+impl Function for Promise {
+  fn construct(&self, args: Vec<JsValue>, span: Span, evaluator: &Evaluator) -> JsValue {
+    if let Some(JsValue::Function(f)) = args.get(0) {
+      let result = Rc::new(RefCell::new(JsValue::Unknown(span)));
+      let result_clone = result.clone();
+      let resolve = JsValue::Function(
+        Rc::new(
+          move |_this: JsValue, args: Vec<JsValue>, _span: Span, _evaluator: &Evaluator| {
+            if let Some(arg) = args.get(0) {
+              *result_clone.borrow_mut() = arg.clone();
+            }
+            JsValue::Undefined
+          },
+        )
+        .into(),
+      );
+      f.call(JsValue::Undefined, vec![resolve], span, evaluator);
+
+      let res = result.clone().borrow().clone();
+
+      if let JsValue::Object(obj) = res {
+        if let Some(dep) = obj.as_any().downcast_ref::<DependencyDescriptor>() {
+          if dep.kind == DependencyKind::Require {
+            let mut dep = dep.clone();
+            dep.kind = DependencyKind::DynamicImport;
+            return JsValue::Object(Rc::new(dep).into());
+          }
+        }
+      }
+    }
+
+    JsValue::Unknown(span)
+  }
+}
+
+struct PromiseInstance(JsValue);
+impl Object for PromiseInstance {
+  fn get(&self, prop: &JsValue, span: Span) -> JsValue {
+    match prop.to_string().as_str() {
+      "then" => {
+        let val = self.0.clone();
+        JsValue::Function(
+          Rc::new(
+            move |this: JsValue, args: Vec<JsValue>, span: Span, evaluator: &Evaluator| {
+              if let Some(JsValue::Function(f)) = args.get(0) {
+                let res = f.call(this, vec![val.clone()], span, evaluator);
+                if let JsValue::Object(obj) = &res {
+                  if let Some(dep) = obj.as_any().downcast_ref::<DependencyDescriptor>() {
+                    if dep.kind == DependencyKind::Require {
+                      let mut dep = dep.clone();
+                      dep.kind = DependencyKind::DynamicImport;
+                      return JsValue::Object(Rc::new(dep).into());
+                    }
+                  }
+                }
+
+                res
+              } else {
+                JsValue::Unknown(span)
+              }
             },
-          );
-          ast::Expr::Fn(f)
-        }
-        ast::Expr::Arrow(f) => {
-          let mut f = f.clone();
-          f.params.insert(
-            0,
-            ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new_no_ctxt(
-              "res".into(),
-              DUMMY_SP,
-            ))),
-          );
-          ast::Expr::Arrow(f)
-        }
-        _ => return node,
-      };
-
-      return ast::CallExpr {
-        callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
-          span: DUMMY_SP,
-          obj: (Box::new(ast::Expr::Call(ast::CallExpr {
-            callee: node.callee,
-            args: vec![ast::ExprOrSpread {
-              expr: Box::new(ast::Expr::Fn(ast::FnExpr {
-                ident: None,
-                function: Box::new(ast::Function {
-                  body: Some(ast::BlockStmt {
-                    span: DUMMY_SP,
-                    stmts: vec![ast::Stmt::Return(ast::ReturnStmt {
-                      span: DUMMY_SP,
-                      arg: Some(Box::new(ast::Expr::Call(require_node.clone()))),
-                    })],
-                    ctxt: SyntaxContext::empty(),
-                  }),
-                  params: vec![],
-                  decorators: vec![],
-                  is_async: false,
-                  is_generator: false,
-                  return_type: None,
-                  type_params: None,
-                  span: DUMMY_SP,
-                  ctxt: SyntaxContext::empty(),
-                }),
-              })),
-              spread: None,
-            }],
-            span: DUMMY_SP,
-            ctxt: SyntaxContext::empty(),
-            type_args: None,
-          }))),
-          prop: MemberProp::Ident(ast::IdentName::new("then".into(), DUMMY_SP)),
-        }))),
-        args: vec![ast::ExprOrSpread {
-          expr: Box::new(f),
-          spread: None,
-        }],
-        span: DUMMY_SP,
-        ctxt: SyntaxContext::empty(),
-        type_args: None,
-      };
+          )
+          .into(),
+        )
+      }
+      _ => JsValue::Unknown(span),
     }
   }
 
-  node
-}
-
-fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
-  use ast::*;
-
-  let expr = if use_import_meta {
-    Expr::Member(MemberExpr {
-      span: DUMMY_SP,
-      obj: Box::new(Expr::MetaProp(MetaPropExpr {
-        kind: MetaPropKind::ImportMeta,
-        span: DUMMY_SP,
-      })),
-      prop: MemberProp::Ident(IdentName::new(js_word!("url"), DUMMY_SP)),
-    })
-  } else {
-    // CJS output: "file:" + __filename
-    Expr::Bin(BinExpr {
-      span: DUMMY_SP,
-      left: Box::new(Expr::Lit(Lit::Str("file:".into()))),
-      op: BinaryOp::Add,
-      right: Box::new(Expr::Ident(Ident::new_no_ctxt(
-        "__filename".into(),
-        DUMMY_SP,
-      ))),
-    })
-  };
-
-  Expr::New(NewExpr {
-    span: DUMMY_SP,
-    ctxt: SyntaxContext::empty(),
-    callee: Box::new(Expr::Ident(Ident::new_no_ctxt(js_word!("URL"), DUMMY_SP))),
-    args: Some(vec![
-      ExprOrSpread {
-        expr: Box::new(url),
-        spread: None,
-      },
-      ExprOrSpread {
-        expr: Box::new(expr),
-        spread: None,
-      },
-    ]),
-    type_args: None,
-  })
-}
-
-struct PromiseTransformer {
-  require_node: Option<ast::CallExpr>,
-}
-
-impl Fold for PromiseTransformer {
-  fn fold_return_stmt(&mut self, node: ast::ReturnStmt) -> ast::ReturnStmt {
-    // If the require node is returned, no need to do any replacement.
-    if let Some(arg) = &node.arg {
-      if let ast::Expr::Call(call) = &**arg {
-        if let Some(require_node) = &self.require_node {
-          if require_node == call {
-            self.require_node = None
-          }
-        }
-      }
-    }
-
-    node.fold_children_with(self)
-  }
-
-  fn fold_arrow_expr(&mut self, node: ast::ArrowExpr) -> ast::ArrowExpr {
-    if let ast::BlockStmtOrExpr::Expr(expr) = &*node.body {
-      if let ast::Expr::Call(call) = &**expr {
-        if let Some(require_node) = &self.require_node {
-          if require_node == call {
-            self.require_node = None
-          }
-        }
-      }
-    }
-
-    node.fold_children_with(self)
-  }
-
-  fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    let node = node.fold_children_with(self);
-
-    // Replace the original require node with a reference to a variable `res`,
-    // which will be added as a parameter to the parent function.
-    if let ast::Expr::Call(call) = &node {
-      if let Some(require_node) = &self.require_node {
-        if require_node == call {
-          return ast::Expr::Ident(ast::Ident::new_no_ctxt("res".into(), DUMMY_SP));
-        }
-      }
-    }
-
-    node
+  fn into_expr(&self) -> Result<Expr, ()> {
+    Err(())
   }
 }
 
@@ -1084,7 +1283,7 @@ Promise.resolve().then(() => require('other'));
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-Promise.resolve().then(()=>require("{}"));
+require("{}");
     "#,
       hash
     );
@@ -1213,7 +1412,7 @@ new Promise((resolve) => resolve(require("other")));
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-new Promise((resolve)=>resolve(require("{}")));
+require("{}");
     "#,
       hash
     );
@@ -1254,9 +1453,7 @@ new Promise(function(resolve) { return resolve(require("other")) });
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-new Promise(function(resolve) {{
-    return resolve(require("{}"));
-}});
+require("{}");
     "#,
       hash
     );
@@ -1297,7 +1494,7 @@ Promise.resolve(require("other"));
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-Promise.resolve(require("{}"));
+require("{}");
     "#,
       hash
     );

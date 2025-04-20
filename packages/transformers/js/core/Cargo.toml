@@ -42,3 +42,4 @@ parking_lot = "0.12"
 bitflags = "1.3.2"
 mdxjs = { version = "0.2.4", git = "https://github.com/devongovett/mdxjs-rs", branch = "export_phases" }
 markdown = { version = "1.0.0-alpha.21", features = ["serde"] }
+phf = "0.11.2"

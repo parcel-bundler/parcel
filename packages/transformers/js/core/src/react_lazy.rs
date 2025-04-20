@@ -4,7 +4,7 @@ use swc_core::ecma::{
 };
 
 use crate::{
-  collect::Collect, dependency_collector::DependencyFlags, utils::match_str, DependencyDescriptor,
+  collect::Collect, dependency_collector2::DependencyFlags, utils::match_str, DependencyDescriptor,
   DependencyKind,
 };
 
@@ -96,7 +96,7 @@ mod test {
 
   use super::*;
   use crate::{
-    dependency_collector::DependencyFlags,
+    dependency_collector2::DependencyFlags,
     test_utils::{run_with_transformation, RunTestContext},
     DependencyKind,
   };
