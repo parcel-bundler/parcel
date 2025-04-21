@@ -57,11 +57,6 @@ pub fn create_require(
   specifier: swc_core::ecma::atoms::JsWord,
   unresolved_mark: Mark,
 ) -> ast::CallExpr {
-  let mut normalized_specifier = specifier;
-  if normalized_specifier.starts_with("node:") {
-    normalized_specifier = normalized_specifier.replace("node:", "").into();
-  }
-
   ast::CallExpr {
     callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
@@ -69,7 +64,7 @@ pub fn create_require(
       SyntaxContext::empty().apply_mark(unresolved_mark),
     )))),
     args: vec![ast::ExprOrSpread {
-      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(normalized_specifier.into()))),
+      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(specifier.into()))),
       spread: None,
     }],
     span: DUMMY_SP,

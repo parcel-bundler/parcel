@@ -47,7 +47,7 @@ export interface ResolveOptions {
 }
 export type Resolution =
   | {|type: 'Path', value: string|}
-  | {|type: 'Builtin', value: string|}
+  | {|type: 'Builtin', value: {|scheme: string, module: string|}|}
   | {|type: 'External'|}
   | {|type: 'Empty'|}
   | {|type: 'Global', value: string|};

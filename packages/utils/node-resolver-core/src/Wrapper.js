@@ -252,7 +252,7 @@ export default class NodeResolver {
   }
 
   async resolveBuiltin(
-    name: string,
+    {scheme, module}: {|scheme: string, module: string|},
     options: ResolveOptions,
   ): Promise<?ResolveResult> {
     if (options.env.isNode() || options.env.context === 'react-server') {
@@ -262,12 +262,15 @@ export default class NodeResolver {
     // By default, exclude node builtins from libraries unless explicitly opted in.
     if (
       options.env.isLibrary &&
-      this.shouldIncludeNodeModule(options.env, name) !== true
+      this.shouldIncludeNodeModule(
+        options.env,
+        scheme ? `${scheme}:${module}` : module,
+      ) !== true
     ) {
       return {isExcluded: true};
     }
 
-    let builtin = builtins[name];
+    let builtin = scheme === '' || scheme === 'node' ? builtins[module] : null;
     if (!builtin || builtin.name === empty) {
       return {
         filePath: empty,

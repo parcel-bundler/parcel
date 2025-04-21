@@ -1,6 +1,6 @@
 {
   "name": "@parcel/query",
-  "version": "2.14.2",
+  "version": "2.14.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -18,15 +18,15 @@
   },
   "main": "src/index.js",
   "dependencies": {
-    "@parcel/cache": "2.14.2",
-    "@parcel/core": "2.14.2",
-    "@parcel/graph": "3.4.2",
+    "@parcel/cache": "2.14.4",
+    "@parcel/core": "2.14.4",
+    "@parcel/graph": "3.4.4",
     "nullthrows": "^1.1.1",
     "table": "^6.8.1",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.14.2"
+    "@parcel/babel-register": "2.14.4"
   }
 }
