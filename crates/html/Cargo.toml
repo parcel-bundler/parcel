@@ -25,6 +25,7 @@ swc_core = { version = "9", features = [
 lightningcss = "1.0.0-alpha.63"
 convert_case = "0.6.0"
 indexmap = { version = "1.9.2", features = ["serde"] }
+ref-cast = "1.0"
 
 [dev-dependencies]
 indoc = "1.0.3"

@@ -1,9 +1,9 @@
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fmt::Write;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::arena::{Node, NodeData};
+use crate::arena::{Node, NodeData, SelectorFlags};
 use crate::srcset::parse_srcset;
 use crate::SerializableTendril;
 use html5ever::tendril::{format_tendril, StrTendril};
@@ -158,6 +158,7 @@ pub fn collect_dependencies<'arena>(
         }]),
         template_contents: None,
         mathml_annotation_xml_integration_point: false,
+        selector_flags: SelectorFlags(Cell::new(None)),
       };
 
       body.append(arena.alloc(Node::new(script, 0)));

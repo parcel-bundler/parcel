@@ -394,16 +394,12 @@ pub fn optimize<'arena>(
             let document = arena.alloc(Node::new(NodeData::Document, 0));
             document.first_child.set(Some(node));
             document.last_child.set(Some(node));
-            let node = crate::oxvg::OxvgNode {
-              node: document,
-              arena,
-            };
 
-            match options
-              .minify_svg
-              .into_jobs(OxvgKind::Html)
-              .run(&node, &oxvg_ast::visitor::Info::default())
-            {
+            let mut jobs = options.minify_svg.into_jobs(OxvgKind::Html);
+            match jobs.run(
+              &&*document,
+              &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),
+            ) {
               Err(_err) => {}
               Ok(()) => {}
             }
@@ -463,9 +459,11 @@ pub fn optimize_svg<'arena>(
   options: &OxvgConfig,
 ) {
   if options.has_any_jobs() {
-    let node = crate::oxvg::OxvgNode { node: dom, arena };
-    let jobs = options.into_jobs(OxvgKind::Svg);
-    match jobs.run(&node, &oxvg_ast::visitor::Info::default()) {
+    let mut jobs = options.into_jobs(OxvgKind::Svg);
+    match jobs.run(
+      &dom,
+      &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),
+    ) {
       Err(_err) => {}
       Ok(()) => {}
     }

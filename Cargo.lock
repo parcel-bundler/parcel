@@ -215,6 +215,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "base64-simd"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -403,6 +409,7 @@ dependencies = [
  "android-tzdata",
  "iana-time-zone",
  "num-traits",
+ "serde",
  "windows-targets",
 ]
 
@@ -814,6 +821,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "deranged"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c9e6a11ca8224451684bc0d7d5a7adbf8f2fd6887261a1cfc3c0432f9d4068e"
+dependencies = [
+ "powerfmt",
+ "serde",
+]
+
+[[package]]
 name = "derive-where"
 version = "1.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -864,6 +881,27 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.89",
+]
+
+[[package]]
+name = "derive_more"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.89",
+ "unicode-xid",
 ]
 
 [[package]]
@@ -1248,6 +1286,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hstr"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1263,13 +1307,25 @@ dependencies = [
 
 [[package]]
 name = "html5ever"
-version = "0.29.0"
-source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#653e07369dba04c20022ef5295854b6948c007e6"
+version = "0.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b7410cae13cbc75623c98ac4cbfd1f0bedddf3227afc24f370cf0f50a44a11c"
 dependencies = [
  "log",
  "mac",
- "markup5ever",
- "match_token",
+ "markup5ever 0.14.1",
+ "match_token 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "html5ever"
+version = "0.30.0"
+source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#6d269f34f20b189c2ffd976da6d73e1f9cf4e03c"
+dependencies = [
+ "log",
+ "mac",
+ "markup5ever 0.15.0",
+ "match_token 0.1.0 (git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs)",
 ]
 
 [[package]]
@@ -1650,8 +1706,22 @@ dependencies = [
 
 [[package]]
 name = "markup5ever"
-version = "0.14.0"
-source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#653e07369dba04c20022ef5295854b6948c007e6"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7a7213d12e1864c0f002f52c2923d4556935a43dec5e71355c2760e0f6e7a18"
+dependencies = [
+ "log",
+ "phf",
+ "phf_codegen",
+ "string_cache",
+ "string_cache_codegen",
+ "tendril",
+]
+
+[[package]]
+name = "markup5ever"
+version = "0.15.0"
+source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#6d269f34f20b189c2ffd976da6d73e1f9cf4e03c"
 dependencies = [
  "log",
  "phf",
@@ -1667,16 +1737,27 @@ version = "0.5.0-unofficial"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9cb12459c4cab18dcc580159590f404ad78c0a9c5435ace80288ed43abdce31"
 dependencies = [
- "html5ever",
- "markup5ever",
+ "html5ever 0.29.1",
+ "markup5ever 0.14.1",
  "tendril",
- "xml5ever",
+ "xml5ever 0.20.0",
 ]
 
 [[package]]
 name = "match_token"
 version = "0.1.0"
-source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#653e07369dba04c20022ef5295854b6948c007e6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88a9689d8d44bf9964484516275f5cd4c9b59457a6940c1d5d0ecbb94510a36b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.89",
+]
+
+[[package]]
+name = "match_token"
+version = "0.1.0"
+source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#6d269f34f20b189c2ffd976da6d73e1f9cf4e03c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1876,6 +1957,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-conv"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
 name = "num-integer"
 version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1975,30 +2062,34 @@ dependencies = [
 [[package]]
 name = "oxvg_ast"
 version = "0.0.1-beta.1"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#54aa8a121ca36e80bc54ec39529bbfd869eb9857"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
 dependencies = [
- "anyhow",
  "bitflags",
  "cfg-if",
  "cssparser 0.33.0",
  "cssparser 0.34.0",
+ "derive_more 2.0.1",
  "itertools 0.14.0",
  "lightningcss",
  "log",
- "markup5ever",
+ "markup5ever 0.14.1",
  "markup5ever_rcdom",
  "precomputed-hash",
+ "roxmltree",
  "selectors",
  "servo_arc",
  "smallvec",
  "string_cache",
- "xml5ever",
+ "tendril",
+ "typed-arena",
+ "xml5ever 0.20.0",
+ "xmlwriter",
 ]
 
 [[package]]
 name = "oxvg_collections"
 version = "0.0.1"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#54aa8a121ca36e80bc54ec39529bbfd869eb9857"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
 dependencies = [
  "lazy_static",
  "phf",
@@ -2008,7 +2099,7 @@ dependencies = [
 [[package]]
 name = "oxvg_optimiser"
 version = "0.1.0"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#54aa8a121ca36e80bc54ec39529bbfd869eb9857"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
 dependencies = [
  "anyhow",
  "derive-where",
@@ -2024,13 +2115,15 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "serde_with",
+ "typed-arena",
  "urlencoding",
 ]
 
 [[package]]
 name = "oxvg_path"
 version = "0.0.1-beta.4"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#54aa8a121ca36e80bc54ec39529bbfd869eb9857"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
 dependencies = [
  "bitflags",
  "lightningcss",
@@ -2059,19 +2152,20 @@ dependencies = [
  "anyhow",
  "convert_case",
  "cssparser 0.34.0",
- "html5ever",
+ "html5ever 0.30.0",
  "indexmap 1.9.3",
  "indoc",
  "lightningcss",
  "oxvg_ast",
  "oxvg_optimiser",
+ "ref-cast",
  "selectors",
  "serde",
  "serde_bytes",
  "serde_json",
  "swc_core",
  "typed-arena",
- "xml5ever",
+ "xml5ever 0.21.0",
 ]
 
 [[package]]
@@ -2343,6 +2437,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "powerfmt"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
+
+[[package]]
 name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2511,6 +2611,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ref-cast"
+version = "1.0.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a0ae411dbe946a674d89546582cea4ba2bb8defac896622d6496f14c23ba5cf"
+dependencies = [
+ "ref-cast-impl",
+]
+
+[[package]]
+name = "ref-cast-impl"
+version = "1.0.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1165225c21bff1f3bbce98f5a1f889949bc902d3575308cc7b0de30b4f6d27c7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.89",
+]
+
+[[package]]
 name = "regex"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2591,6 +2711,12 @@ name = "roff"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88f8660c1ff60292143c98d08fc6e2f654d722db50410e3f3797d40baaf9d8f3"
+
+[[package]]
+name = "roxmltree"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
 
 [[package]]
 name = "rspack_resolver"
@@ -2714,7 +2840,7 @@ checksum = "fd568a4c9bb598e291a08244a5c1f5a8a6650bee243b5b0f8dbb3d9cc1d87fe8"
 dependencies = [
  "bitflags",
  "cssparser 0.34.0",
- "derive_more",
+ "derive_more 0.99.19",
  "fxhash",
  "log",
  "new_debug_unreachable",
@@ -2789,6 +2915,36 @@ dependencies = [
  "memchr",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_with"
+version = "3.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6b6f7f2fcb69f747921f79f3926bd1e203fce4fef62c268dd3abfb6d86029aa"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "hex",
+ "indexmap 1.9.3",
+ "indexmap 2.6.0",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_with_macros",
+ "time",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "3.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d00caa5193a3c8362ac2b73be6b9e768aa5a4b2f721d8f4b339600c3cb51f8e"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.89",
 ]
 
 [[package]]
@@ -2980,9 +3136,9 @@ dependencies = [
 
 [[package]]
 name = "string_cache_codegen"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "244292f3441c89febe5b5bdfbb6863aeaf4f64da810ea3050fd927b27b8d92ce"
+checksum = "c711928715f1fe0fe509c53b43e993a9a557babc2d0a3567d0a3006f1ac931a0"
 dependencies = [
  "phf_generator",
  "phf_shared",
@@ -3568,7 +3724,7 @@ version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4cabf9375cfb71fc0e3d98e07e6fca39a18daa23d4878d8d2daa4c2b6c07b379"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "dashmap 5.5.3",
  "indexmap 2.6.0",
  "once_cell",
@@ -3783,6 +3939,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "time"
+version = "0.3.41"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a7619e19bc266e0f9c5e6686659d394bc57973859340060a69221e57dbc0c40"
+dependencies = [
+ "deranged",
+ "itoa",
+ "num-conv",
+ "powerfmt",
+ "serde",
+ "time-core",
+ "time-macros",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9e9a38711f559d9e3ce1cdb06dd7c5b8ea546bc90052da6d06bb76da74bb07c"
+
+[[package]]
+name = "time-macros"
+version = "0.2.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3526739392ec93fd8b359c8e98514cb3e8e021beb4e5f597b00a0221f8ed8a49"
+dependencies = [
+ "num-conv",
+ "time-core",
+]
+
+[[package]]
 name = "tinytemplate"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3933,6 +4120,12 @@ name = "unicode-width"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
+
+[[package]]
+name = "unicode-xid"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "url"
@@ -4222,12 +4415,29 @@ dependencies = [
 [[package]]
 name = "xml5ever"
 version = "0.20.0"
-source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#653e07369dba04c20022ef5295854b6948c007e6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2278b4bf33071ba8e30368a59436c65eec8e01c49d5c29b3dfeb0cdc45331383"
 dependencies = [
  "log",
  "mac",
- "markup5ever",
+ "markup5ever 0.14.1",
 ]
+
+[[package]]
+name = "xml5ever"
+version = "0.21.0"
+source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#6d269f34f20b189c2ffd976da6d73e1f9cf4e03c"
+dependencies = [
+ "log",
+ "mac",
+ "markup5ever 0.15.0",
+]
+
+[[package]]
+name = "xmlwriter"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xxhash-rust"
@@ -4272,4 +4482,4 @@ dependencies = [
 [[patch.unused]]
 name = "markup5ever_rcdom"
 version = "0.3.0"
-source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#653e07369dba04c20022ef5295854b6948c007e6"
+source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#6d269f34f20b189c2ffd976da6d73e1f9cf4e03c"
