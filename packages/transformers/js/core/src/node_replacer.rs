@@ -5,7 +5,7 @@ use swc_core::{
   common::{sync::Lrc, Mark, SourceMap, SyntaxContext, DUMMY_SP},
   ecma::{
     ast::{self, MemberProp},
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     utils::member_expr,
     visit::{VisitMut, VisitMutWith},
   },
@@ -48,8 +48,8 @@ impl<'a> VisitMut for NodeReplacer<'a> {
 
         match id.sym.to_string().as_str() {
           "__filename" => {
-            let path_module_specifier = swc_core::ecma::atoms::JsWord::from("path");
-            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$filenameReplace");
+            let path_module_specifier = JsWord::from("path");
+            let replace_me_value = JsWord::from("$parcel$filenameReplace");
 
             let unresolved_mark = self.unresolved_mark;
             let is_esm = self.is_esm;
@@ -82,7 +82,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                     spread: None,
                     expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
                       span: DUMMY_SP,
-                      value: swc_core::ecma::atoms::JsWord::from(filename.to_string_lossy()),
+                      value: JsWord::from(filename.to_string_lossy()),
                       raw: None,
                     }))),
                   },
@@ -112,8 +112,8 @@ impl<'a> VisitMut for NodeReplacer<'a> {
             }
           }
           "__dirname" => {
-            let path_module_specifier = swc_core::ecma::atoms::JsWord::from("path");
-            let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$dirnameReplace");
+            let path_module_specifier = JsWord::from("path");
+            let replace_me_value = JsWord::from("$parcel$dirnameReplace");
 
             let unresolved_mark = self.unresolved_mark;
             let is_esm = self.is_esm;

@@ -201,7 +201,7 @@ describe('scope hoisting', function () {
         b.getBundles()[0].filePath,
         'utf8',
       );
-      assert(/let \S* = Symbol.toStringTag;/.test(contents));
+      assert(/Symbol.toStringTag/.test(contents));
 
       let output = await run(b);
       assert.deepEqual(output, ['1', '2']);

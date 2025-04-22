@@ -9,7 +9,7 @@ use swc_core::{
   common::{Mark, Span, SyntaxContext, DUMMY_SP},
   ecma::{
     ast::*,
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith},
   },
@@ -463,7 +463,7 @@ impl<'a> Fold for Hoist<'a> {
                       self.re_exports.push(ImportedSymbol {
                         source: src.value.clone(),
                         local: default.exported.sym,
-                        imported: js_word!("default"),
+                        imported: "default".into(),
                         loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
                         kind: ImportKind::Import,
                       });
@@ -1093,7 +1093,7 @@ impl<'a> Fold for Hoist<'a> {
       return self.get_export_ident(node.span, &"*".into());
     }
 
-    if node.sym == js_word!("global") && is_unresolved(&node, self.unresolved_mark) {
+    if node.sym == "global" && is_unresolved(&node, self.unresolved_mark) {
       return Ident::new("$parcel$global".into(), node.span, node.ctxt);
     }
 
@@ -1597,7 +1597,7 @@ mod tests {
     let (collect, _code, _hoist) = parse(
       r#"
     import { formatters } from "other";
-    
+
     export function format() {
       return formatters[something]();
     }

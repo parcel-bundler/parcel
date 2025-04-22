@@ -45,7 +45,7 @@ use swc_core::{
   },
   ecma::{
     ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
     parser::{error::Error, lexer::Lexer, EsSyntax, Parser, StringInput, Syntax, TsSyntax},
     preset_env::{preset_env, Mode::Entry, Targets, Version, Versions},
@@ -365,10 +365,10 @@ pub fn transform(
           let mut react_options = react::Options::default();
           if config.is_jsx() {
             if let Some(jsx_pragma) = &config.jsx_pragma {
-              react_options.pragma = Some(jsx_pragma.clone());
+              react_options.pragma = Some(Lrc::new(jsx_pragma.clone()));
             }
             if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
-              react_options.pragma_frag = Some(jsx_pragma_frag.clone());
+              react_options.pragma_frag = Some(Lrc::new(jsx_pragma_frag.clone()));
             }
             react_options.development = Some(config.is_development);
             react_options.refresh = if config.react_refresh() {
@@ -379,7 +379,7 @@ pub fn transform(
 
             react_options.runtime = if config.automatic_jsx_runtime {
               if let Some(import_source) = &config.jsx_import_source {
-                react_options.import_source = Some(import_source.clone());
+                react_options.import_source = Some(import_source.clone().into());
               }
               Some(react::Runtime::Automatic)
             } else {

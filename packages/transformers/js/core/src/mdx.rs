@@ -16,8 +16,8 @@ use mdxjs::{
   mdx_plugin_recma_jsx_rewrite, Options,
 };
 use parcel_macros::{Evaluator, JsValue};
+use rustc_hash::FxHashSet;
 use swc_core::{
-  alloc::collections::FxHashSet,
   common::{
     comments::{Comments, SingleThreadedComments},
     sync::Lrc,
@@ -29,7 +29,7 @@ use swc_core::{
       JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement, JSXElementName, JSXExpr,
       JSXExprContainer, JSXOpeningElement, Lit, Module, ModuleDecl, ModuleItem, Stmt, VarDeclKind,
     },
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     codegen::to_code,
     parser::{lexer::Lexer, EsSyntax, Parser, StringInput, Syntax, TsSyntax},
     utils::for_each_binding_ident,
