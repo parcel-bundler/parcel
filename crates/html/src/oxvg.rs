@@ -1305,7 +1305,7 @@ pub struct OxvgConfig {
   pub remove_deprecated_attrs: ConfigItem<oxvg_optimiser::RemoveDeprecatedAttrs>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub remove_metadata: ConfigItem<oxvg_optimiser::RemoveMetadata>,
-  #[serde(default, deserialize_with = "ok_or_default")]
+  #[serde(default, deserialize_with = "ok_or_default", rename = "cleanupAttrs")]
   pub cleanup_attributes: ConfigItem<oxvg_optimiser::CleanupAttributes>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub merge_styles: ConfigItem<()>,
