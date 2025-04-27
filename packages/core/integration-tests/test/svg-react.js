@@ -20,7 +20,7 @@ describe('svg-react', function () {
     assert(!file.includes('inkscape'));
     assert(file.includes('function SvgComponent'));
     assert(file.includes('createElement("svg"'));
-    assert(file.includes('id: "66e692__circle"'));
+    assert(file.includes('id: "fbacef__circle"'));
   });
 
   it('should support transforming SVGs to typescript react components', async function () {
