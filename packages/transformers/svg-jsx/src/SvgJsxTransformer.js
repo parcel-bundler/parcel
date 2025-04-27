@@ -3,7 +3,7 @@
 import {Transformer} from '@parcel/plugin';
 
 import path from 'path';
-import {convertSVGOConfig} from '@parcel/utils';
+import {convertSVGOConfig, relativePath} from '@parcel/utils';
 import ThrowableDiagnostic, {
   md,
   generateJSONCodeHighlights,
@@ -74,7 +74,7 @@ Unsupported SVGR option "template".
     // Prefix ids by default so they don't conflict between svgs.
     if (svgoConfig && svgoConfig.prefixIds == null) {
       let hash = hashString(
-        path.relative(options.projectRoot, config.searchPath),
+        relativePath(options.projectRoot, config.searchPath),
       );
       svgoConfig.prefixIds = {
         prefix: hash.slice(-6),
