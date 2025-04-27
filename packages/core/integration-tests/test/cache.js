@@ -6415,7 +6415,7 @@ describe('cache', function () {
       assert(!contents.includes('$parcel$interopDefault'));
     });
 
-    it.skip('should invalidate when an htmlnano config is modified', async function () {
+    it('should invalidate when an htmlnano config is modified', async function () {
       let b = await testCache({
         mode: 'production',
         entries: ['src/index.html'],
@@ -6447,7 +6447,7 @@ describe('cache', function () {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(contents.includes('type="module"'));
+      assert(contents.includes('type=module'));
     });
   });
 
