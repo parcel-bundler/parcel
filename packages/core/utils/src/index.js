@@ -65,6 +65,7 @@ export {normalizePath, normalizeSeparators, relativePath} from './path';
 export {
   replaceURLReferences,
   replaceInlineReferences,
+  getURLReplacement,
 } from './replaceBundleReferences';
 export {
   measureStreamLength,
@@ -86,5 +87,5 @@ export {
   remapSourceLocation,
 } from './sourcemap';
 export {default as stripAnsi} from 'strip-ansi';
-export {detectSVGOVersion} from './svgo';
+export {detectSVGOVersion, convertSVGOConfig} from './svgo';
 export {getImportMap} from './import-map';
