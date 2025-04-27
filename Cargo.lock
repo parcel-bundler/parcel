@@ -1175,25 +1175,13 @@ dependencies = [
 
 [[package]]
 name = "html5ever"
-version = "0.29.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b7410cae13cbc75623c98ac4cbfd1f0bedddf3227afc24f370cf0f50a44a11c"
-dependencies = [
- "log",
- "mac",
- "markup5ever 0.14.1",
- "match_token 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "html5ever"
 version = "0.30.0"
 source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#6d269f34f20b189c2ffd976da6d73e1f9cf4e03c"
 dependencies = [
  "log",
  "mac",
  "markup5ever 0.15.0",
- "match_token 0.1.0 (git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs)",
+ "match_token",
 ]
 
 [[package]]
@@ -1712,29 +1700,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "markup5ever_rcdom"
-version = "0.5.0-unofficial"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9cb12459c4cab18dcc580159590f404ad78c0a9c5435ace80288ed43abdce31"
-dependencies = [
- "html5ever 0.29.1",
- "markup5ever 0.14.1",
- "tendril",
- "xml5ever 0.20.0",
-]
-
-[[package]]
-name = "match_token"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88a9689d8d44bf9964484516275f5cd4c9b59457a6940c1d5d0ecbb94510a36b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.89",
-]
-
-[[package]]
 name = "match_token"
 version = "0.1.0"
 source = "git+https://github.com/devongovett/html5ever.git?branch=xmlns-attrs#6d269f34f20b189c2ffd976da6d73e1f9cf4e03c"
@@ -1992,7 +1957,7 @@ dependencies = [
 [[package]]
 name = "oxvg_ast"
 version = "0.0.1-beta.1"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -2002,8 +1967,6 @@ dependencies = [
  "itertools 0.14.0",
  "lightningcss",
  "log",
- "markup5ever 0.14.1",
- "markup5ever_rcdom",
  "precomputed-hash",
  "roxmltree",
  "selectors",
@@ -2013,13 +1976,12 @@ dependencies = [
  "tendril",
  "typed-arena",
  "xml5ever 0.20.0",
- "xmlwriter",
 ]
 
 [[package]]
 name = "oxvg_collections"
 version = "0.0.1"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
 dependencies = [
  "lazy_static",
  "phf",
@@ -2029,7 +1991,7 @@ dependencies = [
 [[package]]
 name = "oxvg_optimiser"
 version = "0.1.0"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
 dependencies = [
  "anyhow",
  "derive-where",
@@ -2053,7 +2015,7 @@ dependencies = [
 [[package]]
 name = "oxvg_path"
 version = "0.0.1-beta.4"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#2d9516a25399353ccf4507d2078ff9a89b61d6fd"
+source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
 dependencies = [
  "bitflags",
  "lightningcss",
@@ -2101,7 +2063,7 @@ dependencies = [
  "anyhow",
  "convert_case",
  "cssparser 0.34.0",
- "html5ever 0.30.0",
+ "html5ever",
  "indexmap 1.9.3",
  "indoc",
  "lightningcss",
@@ -4368,12 +4330,6 @@ dependencies = [
  "mac",
  "markup5ever 0.15.0",
 ]
-
-[[package]]
-name = "xmlwriter"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xxhash-rust"

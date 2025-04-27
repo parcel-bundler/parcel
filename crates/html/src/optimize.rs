@@ -395,7 +395,7 @@ pub fn optimize<'arena>(
             document.first_child.set(Some(node));
             document.last_child.set(Some(node));
 
-            let mut jobs = options.minify_svg.into_jobs(OxvgKind::Html);
+            let jobs = options.minify_svg.into_jobs(OxvgKind::Html);
             match jobs.run(
               &&*document,
               &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),
@@ -459,7 +459,7 @@ pub fn optimize_svg<'arena>(
   options: &OxvgConfig,
 ) {
   if options.has_any_jobs() {
-    let mut jobs = options.into_jobs(OxvgKind::Svg);
+    let jobs = options.into_jobs(OxvgKind::Svg);
     match jobs.run(
       &dom,
       &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),

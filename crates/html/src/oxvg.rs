@@ -14,6 +14,7 @@ use oxvg_ast::{attribute::Attr as _, element::Element as _, name::Name, node::No
 
 impl<'arena> oxvg_ast::node::Node<'arena> for Ref<'arena> {
   type Arena = Arena<'arena>;
+  type Name = QName;
   type Atom = StrTendril;
   type Child = Ref<'arena>;
   type ParentChild = Ref<'arena>;
@@ -591,6 +592,7 @@ impl<'arena> oxvg_ast::attribute::Attributes<'arena> for Attributes<'arena> {
 
 impl<'arena> oxvg_ast::node::Node<'arena> for Element<'arena> {
   type Arena = Arena<'arena>;
+  type Name = QName;
   type Atom = StrTendril;
   type Child = Ref<'arena>;
   type ParentChild = Ref<'arena>;
@@ -604,7 +606,7 @@ impl<'arena> oxvg_ast::node::Node<'arena> for Element<'arena> {
     self.node.child_nodes_iter()
   }
 
-  fn element(&self) -> Option<impl oxvg_ast::element::Element<'arena>> {
+  fn element(&self) -> Option<impl oxvg_ast::element::Element<'arena, Name = QName>> {
     Some(self.clone())
   }
 
@@ -744,7 +746,6 @@ pub struct Element<'arena> {
 }
 
 impl<'arena> oxvg_ast::element::Element<'arena> for Element<'arena> {
-  type Name = QName;
   type Attributes<'a> = Attributes<'a>;
   type Attr = Attr;
   type Lifetimed<'a> = Element<'a>;
@@ -1139,7 +1140,7 @@ impl<'arena> oxvg_ast::document::Document<'arena> for Document<'arena> {
 
   fn create_element(
     &self,
-    tag_name: <Self::Root as oxvg_ast::element::Element<'arena>>::Name,
+    tag_name: <Self::Root as oxvg_ast::node::Node<'arena>>::Name,
     arena: &<Self::Root as oxvg_ast::node::Node<'arena>>::Arena,
   ) -> Self::Root {
     Element::new(arena.alloc(Node::new(
