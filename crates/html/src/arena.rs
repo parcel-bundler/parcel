@@ -84,7 +84,7 @@ pub enum NodeData<'arena> {
 pub struct SelectorFlags(pub Cell<Option<selectors::matching::ElementSelectorFlags>>);
 
 impl PartialEq<SelectorFlags> for SelectorFlags {
-  fn eq(&self, other: &SelectorFlags) -> bool {
+  fn eq(&self, _other: &SelectorFlags) -> bool {
     true
   }
 }

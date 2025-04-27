@@ -5,7 +5,7 @@ use swc_core::{
   common::{Mark, Span, SyntaxContext, DUMMY_SP},
   ecma::{
     ast::*,
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith, VisitWith},
   },

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use swc_core::ecma::{
   ast::{Decl, Expr, Lit, Module, ModuleDecl, ModuleItem, Stmt, VarDeclKind, VarDeclarator},
-  atoms::JsWord,
+  atoms::Atom as JsWord,
   visit::Visit,
 };
 

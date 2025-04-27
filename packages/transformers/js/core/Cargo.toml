@@ -8,9 +8,8 @@ edition = "2021"
 crate-type = ["rlib"]
 
 [dependencies]
-swc_core = { version = "9", features = [
+swc_core = { version = "21", features = [
   "common",
-  "common_ahash",
   "common_sourcemap",
   "ecma_ast",
   "ecma_codegen",
@@ -39,5 +38,6 @@ indexmap = "1.9.2"
 parcel-macros = { path = "../../../../crates/macros" }
 parking_lot = "0.12"
 bitflags = { version = "2.7.0", features=["serde"] }
-mdxjs = { version = "0.2.4", git = "https://github.com/devongovett/mdxjs-rs", branch = "export_phases" }
-markdown = { version = "1.0.0-alpha.21", features = ["serde"] }
+mdxjs = "0.3.4"
+markdown = { version = "1.0.0-alpha.22", features = ["serde"] }
+rustc-hash = "2"

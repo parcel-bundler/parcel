@@ -8,7 +8,7 @@ use swc_core::{
   },
   ecma::{
     ast::{self, Ident, IdentName},
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
   },
 };
 
@@ -53,10 +53,7 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, unresolved_m
   false
 }
 
-pub fn create_require(
-  specifier: swc_core::ecma::atoms::JsWord,
-  unresolved_mark: Mark,
-) -> ast::CallExpr {
+pub fn create_require(specifier: JsWord, unresolved_mark: Mark) -> ast::CallExpr {
   ast::CallExpr {
     callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
@@ -130,7 +127,7 @@ pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark)
     Expr::Call(call) => match &call.callee {
       Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
-          if ident.sym == js_word!("require")
+          if ident.sym == "require"
             && is_unresolved(&ident, unresolved_mark)
             && !is_marked(ident.ctxt, ignore_mark)
           {
@@ -177,7 +174,7 @@ pub fn match_import(node: &ast::Expr) -> Option<JsWord> {
 
 // `name` must not be an existing binding.
 pub fn create_global_decl_stmt(
-  name: swc_core::ecma::atoms::JsWord,
+  name: JsWord,
   init: ast::Expr,
   global_mark: Mark,
 ) -> (ast::Stmt, SyntaxContext) {
@@ -206,7 +203,7 @@ pub fn create_global_decl_stmt(
 
 pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
   ast::Ident::new(
-    js_word!("undefined"),
+    "undefined".into(),
     DUMMY_SP,
     SyntaxContext::empty().apply_mark(unresolved_mark),
   )
@@ -417,7 +414,7 @@ pub struct ErrorBuffer(
 );
 
 impl Emitter for ErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
+  fn emit(&mut self, db: &mut DiagnosticBuilder) {
     self.0.lock().push((**db).clone());
   }
 }

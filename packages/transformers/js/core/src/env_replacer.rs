@@ -8,7 +8,7 @@ use swc_core::{
   common::{sync::Lrc, Mark, DUMMY_SP},
   ecma::{
     ast,
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     visit::{VisitMut, VisitMutWith},
   },
 };

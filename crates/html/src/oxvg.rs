@@ -966,7 +966,7 @@ impl<'arena> oxvg_ast::element::Element<'arena> for Element<'arena> {
 }
 
 impl Debug for Element<'_> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     // if self.node_type() != node::Type::Element {
     //   return (&self.node).fmt(f);
     // }
