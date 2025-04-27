@@ -1267,7 +1267,11 @@ pub struct OxvgConfig {
   pub default: DefaultTrue,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub add_attributes_to_svg_element: ConfigItem<oxvg_optimiser::AddAttributesToSVGElement>,
-  #[serde(default, deserialize_with = "ok_or_default")]
+  #[serde(
+    default,
+    deserialize_with = "ok_or_default",
+    rename = "addClassesToSVGElement"
+  )]
   pub add_classes_to_svg: ConfigItem<oxvg_optimiser::AddClassesToSVG>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub cleanup_list_of_values: ConfigItem<oxvg_optimiser::CleanupListOfValues>,
@@ -1362,6 +1366,18 @@ pub struct OxvgConfig {
   pub sort_defs_children: ConfigItem<oxvg_optimiser::SortDefsChildren>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub remove_desc: ConfigItem<oxvg_optimiser::RemoveDesc>,
+  #[serde(
+    default,
+    deserialize_with = "ok_or_default",
+    rename = "removeEditorsNSData"
+  )]
+  pub remove_editors_ns_data: ConfigItem<oxvg_optimiser::RemoveEditorsNSData>,
+  #[serde(default, deserialize_with = "ok_or_default", rename = "removeUnusedNS")]
+  pub remove_unused_n_s: ConfigItem<oxvg_optimiser::RemoveUnusedNS>,
+  #[serde(default, deserialize_with = "ok_or_default", rename = "removeXMLNS")]
+  pub remove_x_m_l_n_s: ConfigItem<oxvg_optimiser::RemoveXMLNS>,
+  #[serde(default, deserialize_with = "ok_or_default")]
+  pub remove_xlink: ConfigItem<oxvg_optimiser::RemoveXlink>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -1539,6 +1555,10 @@ impl OxvgConfig {
     job!(sort_attrs);
     job!(sort_defs_children);
     job!(remove_desc);
+    job!(remove_editors_ns_data);
+    job!(remove_unused_n_s);
+    job!(remove_x_m_l_n_s);
+    job!(remove_xlink);
 
     jobs
   }
@@ -1592,6 +1612,10 @@ impl OxvgConfig {
       || self.merge_paths.is_some()
       || self.sort_attrs.is_some()
       || self.sort_defs_children.is_some()
-      || self.remove_desc.is_some();
+      || self.remove_desc.is_some()
+      || self.remove_editors_ns_data.is_some()
+      || self.remove_unused_n_s.is_some()
+      || self.remove_x_m_l_n_s.is_some()
+      || self.remove_xlink.is_some();
   }
 }
