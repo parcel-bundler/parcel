@@ -1,4 +1,10 @@
 // @flow
+import type {FileSystem} from '@parcel/fs';
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
+import path from 'path';
+
 export function detectSVGOVersion(
   config: any,
 ): {|version: 3|} | {|version: 2, path: string|} {
@@ -49,7 +55,13 @@ export function detectSVGOVersion(
   return {version: 3};
 }
 
-export function convertSVGOConfig(config: any): any {
+export async function convertSVGOConfig(
+  config: any,
+  filePath: string,
+  jsonPath: string,
+  fs: FileSystem,
+  hint?: string,
+): Promise<any> {
   if (typeof config === 'boolean') {
     return {default: config};
   }
@@ -63,7 +75,7 @@ export function convertSVGOConfig(config: any): any {
   };
 
   if (Array.isArray(config.plugins)) {
-    for (let plugin of config.plugins) {
+    for (let [i, plugin] of config.plugins.entries()) {
       let name: string,
         params = true;
       if (typeof plugin === 'string') {
@@ -76,10 +88,22 @@ export function convertSVGOConfig(config: any): any {
         params = plugin.params ?? true;
 
         if (typeof plugin.fn === 'function') {
-          throw new Error('Unsupported custom SVGO plugin.');
+          await throwDiagnostic(
+            'Unsupported custom SVGO plugin.',
+            filePath,
+            `${jsonPath}/plugins/${i}/fn`,
+            fs,
+            hint,
+          );
         }
       } else if (typeof plugin === 'function') {
-        throw new Error('Unsupported custom SVGO plugin.');
+        await throwDiagnostic(
+          'Unsupported custom SVGO plugin.',
+          filePath,
+          `${jsonPath}/plugins/${i}`,
+          fs,
+          hint,
+        );
       } else {
         continue;
       }
@@ -106,4 +130,29 @@ export function convertSVGOConfig(config: any): any {
   }
 
   return result;
+}
+
+async function throwDiagnostic(message, filePath, jsonPath, fs, hint) {
+  throw new ThrowableDiagnostic({
+    diagnostic: {
+      message: message,
+      codeFrames: [
+        {
+          filePath: filePath,
+          codeHighlights:
+            path.extname(filePath) === '' || path.extname(filePath) === '.json'
+              ? generateJSONCodeHighlights(
+                  await fs.readFile(filePath, 'utf8'),
+                  [
+                    {
+                      key: jsonPath,
+                    },
+                  ],
+                )
+              : [],
+        },
+      ],
+      hints: hint ? [hint] : [],
+    },
+  });
 }

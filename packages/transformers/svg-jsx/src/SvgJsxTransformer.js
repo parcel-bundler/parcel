@@ -30,23 +30,15 @@ export default (new Transformer({
       'svgo.config.json',
     ]);
 
-    let svgoConfig;
-    try {
-      svgoConfig = convertSVGOConfig(
-        svgrResult?.contents?.svgoConfig ?? svgoResult?.contents,
-      );
-    } catch (err) {
-      throw new ThrowableDiagnostic({
-        diagnostic: await createDiagnostic(
-          err.message,
-          svgrResult?.contents?.svgoConfig
-            ? svgrResult.filePath
-            : svgoResult.filePath,
-          svgrResult?.contents?.svgoConfig ? '/svgoConfig' : '/',
-          options,
-        ),
-      });
-    }
+    let svgoConfig = await convertSVGOConfig(
+      svgrResult?.contents?.svgoConfig ?? svgoResult?.contents,
+      svgrResult?.contents?.svgoConfig
+        ? svgrResult.filePath
+        : svgoResult.filePath,
+      svgrResult?.contents?.svgoConfig ? '/svgoConfig' : '',
+      options.inputFS,
+      'Use the legacy @parcel/transformer-svg-react instead of @parcel/transformer-svg-jsx if needed.',
+    );
 
     let svgr = svgrResult?.contents;
     if (svgoResult && svgr?.jsx) {

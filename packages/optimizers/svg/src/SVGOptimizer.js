@@ -4,7 +4,7 @@ import {blobToBuffer, convertSVGOConfig} from '@parcel/utils';
 import {optimizeSvg} from '@parcel/rust';
 
 export default (new Optimizer({
-  async loadConfig({config}) {
+  async loadConfig({config, options}) {
     let configFile = await config.getConfig([
       'svgo.config.js',
       'svgo.config.cjs',
@@ -12,7 +12,15 @@ export default (new Optimizer({
       'svgo.config.json',
     ]);
 
-    return convertSVGOConfig(configFile?.contents);
+    if (configFile) {
+      return convertSVGOConfig(
+        configFile.contents,
+        configFile.filePath,
+        '',
+        options.inputFS,
+        'Use the legacy @parcel/optimizer-svgo instead of @parcel/optimizer-svg if needed.',
+      );
+    }
   },
   async optimize({bundle, contents, map, config}) {
     if (!bundle.env.shouldOptimize) {

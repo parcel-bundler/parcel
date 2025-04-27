@@ -25,8 +25,16 @@ export default (new Optimizer({
 
     let contents = userConfig?.contents;
 
-    if (contents && typeof contents === 'object') {
-      contents.minifySvg = convertSVGOConfig(contents.minifySvg);
+    if (userConfig && contents && typeof contents === 'object') {
+      contents.minifySvg = await convertSVGOConfig(
+        contents.minifySvg,
+        userConfig.filePath,
+        path.extname(userConfig.filePath) === 'package.json'
+          ? '/htmlnano/minifySvg'
+          : '/minifySvg',
+        options.inputFS,
+        'Use the legacy @parcel/optimizer-htmlnano instead of @parcel/optimizer-html if needed.',
+      );
     }
 
     return contents;
