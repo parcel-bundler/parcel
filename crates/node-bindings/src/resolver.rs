@@ -6,8 +6,8 @@ use std::{
 };
 
 use napi::{
-  bindgen_prelude::Either3, Env, JsBuffer, JsFunction, JsNumber, JsObject, JsString, JsUnknown,
-  Ref, Result,
+  Env, JsBuffer, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Result,
+  bindgen_prelude::Either3,
 };
 use napi_derive::napi;
 
@@ -356,13 +356,13 @@ fn resolve_internal(
         return Err(napi::Error::new(
           napi::Status::InvalidArg,
           "Unsupported specifier type: custom",
-        ))
+        ));
       }
       _ => {
         return Err(napi::Error::new(
           napi::Status::InvalidArg,
           format!("Invalid specifier type: {}", options.specifier_type),
-        ))
+        ));
       }
     },
     if let Some(conditions) = options.package_conditions {

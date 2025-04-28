@@ -33,7 +33,7 @@ impl TypeofReplacer {
   /// Given an expression, optionally return a replacement if it happens to be `typeof $symbol` for
   /// the constants supported in this transformation step (`require`, `exports` and `module`).
   fn get_replacement(&mut self, node: &Expr) -> Option<Expr> {
-    let Expr::Unary(ref unary) = node else {
+    let Expr::Unary(unary) = node else {
       return None;
     };
     if unary.op != UnaryOp::TypeOf {

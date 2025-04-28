@@ -43,15 +43,15 @@ use std::{
   borrow::Cow,
   cell::OnceCell,
   collections::HashMap,
-  path::{is_separator, Path, PathBuf},
+  path::{Path, PathBuf, is_separator},
   sync::Arc,
 };
 
 use bitflags::bitflags;
 
-use cache::private::CacheCow;
 pub use cache::Cache;
 use cache::CachedPath;
+use cache::private::CacheCow;
 pub use error::ResolverError;
 #[cfg(not(target_arch = "wasm32"))]
 pub use fs::OsFileSystem;
@@ -59,8 +59,8 @@ pub use fs::{FileKind, FileSystem};
 pub use invalidations::*;
 use package_json::{AliasValue, ExportsResolution, PackageJson};
 pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
-use specifier::{parse_package_specifier, parse_scheme};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};
+use specifier::{parse_package_specifier, parse_scheme};
 use tsconfig::TsConfigWrapper;
 
 mod builtins;

@@ -587,7 +587,7 @@ export type DependencyOptions = {|
   /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
   +isOptional?: boolean,
   /** The location within the source file where the dependency was found. */
-  +loc?: SourceLocation,
+  +loc?: ?SourceLocation,
   /** The environment of the dependency. */
   +env?: EnvironmentOptions,
   /**
@@ -605,9 +605,9 @@ export type DependencyOptions = {|
    * The file path where the dependency should be resolved from.
    * By default, this is the path of the source file where the dependency was specified.
    */
-  +resolveFrom?: FilePath,
+  +resolveFrom?: ?FilePath,
   /** The semver version range expected for the dependency. */
-  +range?: SemverRange,
+  +range?: ?SemverRange,
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,

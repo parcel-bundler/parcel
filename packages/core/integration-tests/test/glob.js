@@ -2,6 +2,7 @@
 import assert from 'assert';
 import path from 'path';
 import {
+  assertRejectsWithDiagnostic,
   bundle,
   run,
   assertBundles,
@@ -130,17 +131,50 @@ describe('glob', function () {
   it('should error when an unsupported asset type imports a glob', async function () {
     let filePath = path.join(__dirname, '/integration/glob-error/index.html');
     // $FlowFixMe[prop-missing]
-    await assert.rejects(() => bundle(filePath), {
+    await assertRejectsWithDiagnostic(() => bundle(filePath), {
       name: 'BuildError',
       diagnostics: [
         {
           message: "Failed to resolve 'foo/\\*.js' from './index.html'",
           origin: '@parcel/core',
+          codeFrames: [
+            {
+              filePath,
+              code: `<script src="foo/*.js"></script>\n`,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 1,
+                  },
+                },
+              ],
+            },
+          ],
         },
         {
           message: 'Glob imports are not supported in html files.',
           origin: '@parcel/resolver-glob',
-          codeFrames: undefined,
+          codeFrames: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 1,
+                  },
+                },
+              ],
+            },
+          ],
         },
       ],
     });

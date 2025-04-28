@@ -27,7 +27,7 @@ pub struct Sink<'arena> {
   arena: Arena<'arena>,
   document: Ref<'arena>,
   quirks_mode: Cell<QuirksMode>,
-  line: Cell<u64>,
+  line: Cell<u32>,
 }
 
 impl<'arena> Sink<'arena> {
@@ -49,7 +49,7 @@ pub struct Node<'arena> {
   pub first_child: Link<'arena>,
   pub last_child: Link<'arena>,
   pub data: NodeData<'arena>,
-  pub line: u64,
+  pub line: u32,
 }
 
 /// HTML node data which can be an element, a comment, a string, a DOCTYPE, etc...
@@ -128,7 +128,7 @@ impl<'arena> PartialEq<Node<'arena>> for Node<'arena> {
 }
 
 impl<'arena> Node<'arena> {
-  pub fn new(data: NodeData<'arena>, line: u64) -> Self {
+  pub fn new(data: NodeData<'arena>, line: u32) -> Self {
     Node {
       parent: Cell::new(None),
       previous_sibling: Cell::new(None),
@@ -447,7 +447,7 @@ impl<'arena> TreeSink for Sink<'arena> {
   }
 
   fn set_current_line(&self, line: u64) {
-    self.line.set(line);
+    self.line.set(line as u32);
   }
 
   fn same_node(&self, x: &Ref<'arena>, y: &Ref<'arena>) -> bool {

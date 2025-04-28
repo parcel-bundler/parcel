@@ -13,6 +13,7 @@ import type {
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {IncomingMessage} from 'http';
+import type ThrowableDiagnostic, {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import util from 'util';
@@ -1376,4 +1377,55 @@ export function request(
       },
     );
   });
+}
+
+export function assertEqualDiagnostics(
+  actual: Diagnostic[],
+  expected: Diagnostic[],
+) {
+  let mappedActual = actual.map(normalizeDiagnostic);
+  let mappedExpected = expected.map(normalizeDiagnostic);
+  assert.deepEqual(mappedActual, mappedExpected);
+}
+
+export async function assertRejectsWithDiagnostic(
+  fn: () => Promise<mixed>,
+  expected: $Shape<ThrowableDiagnostic>,
+) {
+  try {
+    await fn();
+  } catch (err) {
+    if (expected.name) {
+      assert.equal(err.name, expected.name);
+    }
+    if (expected.message) {
+      assert.equal(err.message, expected.message);
+    }
+    assertEqualDiagnostics(err.diagnostics, expected.diagnostics);
+    return;
+  }
+  assert(false, 'Expected an error');
+}
+
+function normalizeDiagnostic(diagnostic: Diagnostic): Diagnostic {
+  return {
+    message: diagnostic.message,
+    origin: diagnostic.origin ?? undefined,
+    stack: diagnostic.stack ?? undefined,
+    name: diagnostic.name ?? undefined,
+    codeFrames:
+      diagnostic.codeFrames?.map(frame => ({
+        code: frame.code ?? undefined,
+        filePath: frame.filePath ?? undefined,
+        language: frame.language ?? undefined,
+        codeHighlights: frame.codeHighlights.map(h => ({
+          start: h.start,
+          end: h.end,
+          message: h.message ?? undefined,
+        })),
+      })) ?? [],
+    hints: diagnostic.hints ?? [],
+    documentationURL: diagnostic.documentationURL ?? undefined,
+    meta: diagnostic.meta ?? undefined,
+  };
 }

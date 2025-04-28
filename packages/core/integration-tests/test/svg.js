@@ -134,7 +134,7 @@ describe('svg', function () {
       b.getBundles().find(b => b.type === 'svg').filePath,
       'utf-8',
     );
-    // assert(!file.includes('inkscape'));
+    assert(!file.includes('inkscape'));
     assert(file.includes('comment'));
   });
 

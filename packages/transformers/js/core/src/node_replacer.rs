@@ -2,7 +2,7 @@ use std::{ffi::OsStr, path::Path};
 
 use indexmap::IndexMap;
 use swc_core::{
-  common::{sync::Lrc, Mark, SourceMap, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, SourceMap, SyntaxContext, sync::Lrc},
   ecma::{
     ast::{self, MemberProp},
     atoms::Atom as JsWord,
@@ -13,7 +13,7 @@ use swc_core::{
 
 use crate::{
   dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
-  utils::{create_global_decl_stmt, create_require, is_unresolved, SourceLocation, SourceType},
+  utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
 };
 
 /// Replaces __filename and __dirname with globals that reference to string literals for the

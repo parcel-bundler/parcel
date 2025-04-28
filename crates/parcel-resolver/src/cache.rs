@@ -3,20 +3,20 @@ use dashmap::DashSet;
 use rustc_hash::FxHasher;
 
 use crate::{
+  FileSystem, ResolverError,
   fs::FileKind,
   package_json::PackageJson,
   tsconfig::{TsConfig, TsConfigWrapper},
-  FileSystem, ResolverError,
 };
 use std::{
   cell::UnsafeCell,
   ffi::OsStr,
   hash::{BuildHasherDefault, Hash, Hasher},
   ops::Deref,
-  path::{is_separator, Component, Path, PathBuf},
+  path::{Component, Path, PathBuf, is_separator},
   sync::{
-    atomic::{AtomicU64, Ordering},
     Arc, OnceLock,
+    atomic::{AtomicU64, Ordering},
   },
 };
 
@@ -573,14 +573,18 @@ mod test {
         .get(dir.child("root.js").path())
         .canonicalize(&cache)?
     );
-    assert!(cache
-      .get(dir.child("cycle").path())
-      .canonicalize(&cache)
-      .is_err());
-    assert!(cache
-      .get(dir.child("absolute_cycle").path())
-      .canonicalize(&cache)
-      .is_err());
+    assert!(
+      cache
+        .get(dir.child("cycle").path())
+        .canonicalize(&cache)
+        .is_err()
+    );
+    assert!(
+      cache
+        .get(dir.child("absolute_cycle").path())
+        .canonicalize(&cache)
+        .is_err()
+    );
     assert_eq!(
       cache
         .get(dir.child("a/b/e/d/a/b/e/d/a").path())

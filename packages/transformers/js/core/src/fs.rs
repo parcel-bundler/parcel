@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use data_encoding::{BASE64, HEXLOWER};
 use swc_core::{
-  common::{Mark, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,

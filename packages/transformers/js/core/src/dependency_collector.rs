@@ -10,7 +10,7 @@ use parcel_macros::{Evaluator, JsValue};
 use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{sync::Lrc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, SourceMap, Span, SyntaxContext, sync::Lrc},
   ecma::{
     ast::{self, Callee, MemberProp, Module},
     atoms::Atom as JsWord,
@@ -19,7 +19,7 @@ use swc_core::{
   },
 };
 
-use crate::{fold_member_expr_skip_prop, utils::*, Config};
+use crate::{Config, fold_member_expr_skip_prop, utils::*};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -1793,8 +1793,8 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
 mod test {
   use super::*;
   use crate::{
-    test_utils::{run_fold, RunTestContext, RunVisitResult},
     DependencyDescriptor,
+    test_utils::{RunTestContext, RunVisitResult, run_fold},
   };
 
   fn make_dependency_collector<'a>(

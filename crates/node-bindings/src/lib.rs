@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
 #[cfg(target_arch = "wasm32")]
-use std::alloc::alloc;
-#[cfg(target_arch = "wasm32")]
 use std::alloc::Layout;
+#[cfg(target_arch = "wasm32")]
+use std::alloc::alloc;
 
 #[cfg(all(target_os = "macos", not(miri)))]
 #[global_allocator]

@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "index.js",
-  "browser": "browser.js",
+  "source": "src/index.js",
+  "main": "lib/index.js",
+  "browser": "src/browser.js",
   "napi": {
     "name": "parcel-node-bindings"
   },

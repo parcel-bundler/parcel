@@ -7,13 +7,13 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use swc_core::{
   atoms::Atom,
-  common::{sync::Lrc, SourceMap, DUMMY_SP},
+  common::{DUMMY_SP, SourceMap, sync::Lrc},
   ecma::{
     ast::*,
-    parser::{lexer::Lexer, Parser, StringInput},
+    parser::{Parser, StringInput, lexer::Lexer},
   },
 };
-use xml5ever::{expanded_name, local_name, namespace_url, ns, ExpandedName};
+use xml5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
 
 fn to_jsx<'arena>(dom: &'arena Node<'arena>) -> JSXElementChild {
   match &dom.data {

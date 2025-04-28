@@ -1,6 +1,7 @@
 import assert from 'assert';
 import {
   assertBundles,
+  assertRejectsWithDiagnostic,
   bundle,
   bundler,
   distDir,
@@ -2935,7 +2936,7 @@ describe('html', function () {
   });
 
   it('should throw error with empty string reference to other resource', async function () {
-    await assert.rejects(
+    await assertRejectsWithDiagnostic(
       () =>
         bundle(
           path.join(__dirname, 'integration/html-empty-reference/index.html'),
@@ -2955,6 +2956,7 @@ describe('html', function () {
                   __dirname,
                   'integration/html-empty-reference/index.html',
                 ),
+                code: null,
                 language: 'html',
                 codeHighlights: [
                   {

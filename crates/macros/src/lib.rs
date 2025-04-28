@@ -9,11 +9,11 @@ use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use indexmap::IndexMap;
 use swc_core::{
-  common::{sync::Lrc, util::take::Take, SourceMap, Span, DUMMY_SP},
+  common::{DUMMY_SP, SourceMap, Span, sync::Lrc, util::take::Take},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
-    parser::{error::Error, lexer::Lexer, Parser, StringInput},
+    parser::{Parser, StringInput, error::Error, lexer::Lexer},
     visit::{Fold, FoldWith},
   },
 };
@@ -382,7 +382,7 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-  pub fn new(source_map: &'a SourceMap) -> Evaluator<'_> {
+  pub fn new(source_map: &'a SourceMap) -> Evaluator<'a> {
     Evaluator {
       constants: HashMap::new(),
       source_map,

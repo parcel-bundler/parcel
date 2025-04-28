@@ -1,12 +1,12 @@
 use std::{
-  collections::{hash_map::DefaultHasher, HashMap, HashSet},
+  collections::{HashMap, HashSet, hash_map::DefaultHasher},
   hash::Hasher,
 };
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{Mark, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
@@ -19,9 +19,9 @@ use crate::{
   collect::{Collect, Export, Import, ImportKind},
   id,
   utils::{
-    get_undefined_ident, is_unresolved, match_export_name, match_export_name_ident, match_import,
-    match_member_expr, match_property_name, match_require, CodeHighlight, Diagnostic,
-    DiagnosticSeverity, SourceLocation,
+    CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, get_undefined_ident,
+    is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
+    match_property_name, match_require,
   },
 };
 
@@ -1354,10 +1354,10 @@ impl<'a> Hoist<'a> {
 #[cfg(test)]
 mod tests {
   use swc_core::{
-    common::{comments::SingleThreadedComments, sync::Lrc, FileName, Globals, SourceMap},
+    common::{FileName, Globals, SourceMap, comments::SingleThreadedComments, sync::Lrc},
     ecma::{
       codegen::text_writer::JsWriter,
-      parser::{lexer::Lexer, Parser, StringInput},
+      parser::{Parser, StringInput, lexer::Lexer},
       transforms::base::{fixer::fixer, hygiene::hygiene, resolver},
       visit::{VisitMutWith, VisitWith},
     },

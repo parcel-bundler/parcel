@@ -1,4 +1,5 @@
 const {Environment, napi} = require('napi-wasm');
+const utils = require('./utils');
 
 let env;
 module.exports.init = async function init(input) {
@@ -50,5 +51,6 @@ module.exports.init = async function init(input) {
     };
   };
 
+  Object.assign(module.exports, utils);
   env.exports.initPanicHook();
 };

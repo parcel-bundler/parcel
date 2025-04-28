@@ -3,7 +3,7 @@ use std::path::Path;
 use indexmap::IndexMap;
 use path_slash::PathBufExt;
 use swc_core::{
-  common::{sync::Lrc, Mark, SourceMap, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, SourceMap, SyntaxContext, sync::Lrc},
   ecma::{
     ast::{self, ComputedPropName, Expr, Module},
     atoms::Atom as JsWord,
@@ -13,7 +13,7 @@ use swc_core::{
 
 use crate::{
   dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
-  utils::{create_global_decl_stmt, create_require, is_unresolved, SourceLocation, SourceType},
+  utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
 };
 
 /// Replaces a few node.js constants with literals or require statements.
@@ -197,9 +197,9 @@ mod test {
   use swc_core::ecma::atoms::Atom as JsWord;
 
   use crate::{
-    global_replacer::GlobalReplacer,
-    test_utils::{run_visit, RunTestContext, RunVisitResult},
     DependencyDescriptor, DependencyKind,
+    global_replacer::GlobalReplacer,
+    test_utils::{RunTestContext, RunVisitResult, run_visit},
   };
 
   fn make_global_replacer(
