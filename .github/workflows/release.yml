@@ -114,13 +114,6 @@ jobs:
         with:
           name: debug-symbols-linux-gnu-x64
           path: packages/*/*/*.node.debug
-      - name: Polyfill glibc
-        run: |
-          git clone https://github.com/corsix/polyfill-glibc.git
-          cd polyfill-glibc
-          apt-get install ninja-build -y
-          ninja polyfill-glibc
-          ./polyfill-glibc --target-glibc=2.28 ../packages/*/*/*.node
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: strip packages/*/*/*.node
       - name: Upload artifacts
@@ -183,13 +176,6 @@ jobs:
         with:
           name: debug-symbols-${{ matrix.target }}
           path: packages/*/*/*.node.debug
-      - name: Polyfill glibc
-        run: |
-          git clone https://github.com/corsix/polyfill-glibc.git
-          cd polyfill-glibc
-          sudo apt-get install ninja-build -y
-          ninja polyfill-glibc
-          ./polyfill-glibc --target-glibc=2.28 ../packages/*/*/*.node
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
