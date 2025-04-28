@@ -153,7 +153,7 @@ jobs:
           platforms: arm64,arm
       - name: Configure binfmt-support
         if: ${{ matrix.arch != 'x86_64' }}
-        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
       - name: Smoke test
         uses: addnab/docker-run-action@v3
         with:
