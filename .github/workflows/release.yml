@@ -81,33 +81,33 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             arch: x86_64
-            cflags: -mmevex512
+            cflags: -mevex512
             glibc: 2.28
-            docker: node:18-slim
+            docker: node:20-slim
             args: ''
           - target: armv7-unknown-linux-gnueabihf
             arch: armhf
             cflags: -mfpu=neon
             glibc: 2.28
-            docker: node:18-slim
+            docker: node:20-slim
             args: '--platform linux/arm/v7'
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             cflags: ''
             glibc: 2.28
-            docker: node:18-slim
+            docker: node:20-slim
             args: '--platform linux/arm64'
           - target: x86_64-unknown-linux-musl
             arch: x86_64
             cflags: -msse4.2 -mevex512
             glibc: ''
-            docker: node:18-alpine
+            docker: node:20-alpine
             args: ''
           - target: aarch64-unknown-linux-musl
             arch: aarch64
             cflags: ''
             glibc: ''
-            docker: node:18-alpine
+            docker: node:20-alpine
             args: '--platform linux/arm64'
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -155,15 +155,11 @@ jobs:
         if: ${{ matrix.arch != 'x86_64' }}
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Smoke test
-        if: ${{ matrix.arch != 'x86_64' }}
         uses: addnab/docker-run-action@v3
         with:
           image: ${{ matrix.docker }}
           options: ${{ matrix.args }} -v ${{ github.workspace }}:/build -w /build
           run: node -e "require('@parcel/rust')"
-      - name: Smoke test
-        if: ${{ matrix.arch == 'x86_64' }}
-        run: node -e 'require("@parcel/rust")'
 
   build-and-release:
     runs-on: ubuntu-22.04
