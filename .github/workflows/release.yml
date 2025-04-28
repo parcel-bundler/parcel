@@ -105,10 +105,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: arm-unknown-linux-gnueabihf.2.28
+          - target: arm-unknown-linux-gnueabihf
             arch: armhf
             cflags: -mfpu=neon
-          - target: aarch64-unknown-linux-gnu.2.28
+          - target: aarch64-unknown-linux-gnu
             arch: arm64
             cflags: ''
     name: ${{ matrix.target }}
@@ -138,7 +138,7 @@ jobs:
       - name: Build native packages
         run: yarn build-native-${{ inputs.profile }}
         env:
-          RUST_TARGET: ${{ matrix.target }}
+          RUST_TARGET: ${{ matrix.target }}.2.28
           CFLAGS: ${{ matrix.cflags }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
