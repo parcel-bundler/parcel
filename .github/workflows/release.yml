@@ -138,7 +138,8 @@ jobs:
       - name: Build native packages
         run: yarn build-native-${{ inputs.profile }}
         env:
-          RUST_TARGET: ${{ matrix.target }}.2.28
+          RUST_TARGET: ${{ matrix.target }}
+          ZIG_GLIBC: 2.28
           CFLAGS: ${{ matrix.cflags }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
