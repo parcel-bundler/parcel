@@ -1,6 +1,6 @@
 mod collect;
 mod constant_module;
-mod dependency_collector;
+// mod dependency_collector;
 mod dependency_collector2;
 mod env_replacer;
 mod fs;
@@ -24,8 +24,8 @@ use std::{
 pub use collect::CollectImportedSymbol;
 use collect::{Collect, CollectResult};
 use constant_module::ConstantModule;
-use dependency_collector::Helpers;
-pub use dependency_collector::{DependencyDescriptor, DependencyKind, dependency_collector};
+use dependency_collector2::Helpers;
+pub use dependency_collector2::{DependencyDescriptor, DependencyKind, dependency_collector};
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;

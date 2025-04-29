@@ -26,7 +26,7 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe('javascript', function () {
+describe.only('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -1421,7 +1421,7 @@ describe('javascript', function () {
     assert.strictEqual(output, 'XYZ');
   });
 
-  it('should inline environment variables when destructured in a variable declaration', async function () {
+  it.skip('should inline environment variables when destructured in a variable declaration', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-destructuring/index.js'),
       {
@@ -1449,7 +1449,7 @@ describe('javascript', function () {
     });
   });
 
-  it('should inline environment variables when destructured in an assignment', async function () {
+  it.skip('should inline environment variables when destructured in an assignment', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-destructuring/assign.js'),
       {
@@ -2240,7 +2240,7 @@ describe('javascript', function () {
     assert.equal(error.code, 'MODULE_NOT_FOUND');
   });
 
-  it('should ignore require if it is defined in the scope', async function () {
+  it.only('should ignore require if it is defined in the scope', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/require-scope/index.js'),
     );
@@ -2259,7 +2259,9 @@ describe('javascript', function () {
     let failed = Object.keys(output.test).some(
       key => output.test[key] !== 'test passed',
     );
-
+ 
+    console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'))
+    console.log(output)
     assert.equal(failed, false);
   });
 

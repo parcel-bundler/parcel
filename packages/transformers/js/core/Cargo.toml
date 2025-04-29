@@ -43,3 +43,4 @@ bitflags = { version = "2.7.0", features=["serde"] }
 mdxjs = "0.3.4"
 markdown = { version = "1.0.0-alpha.22", features = ["serde"] }
 rustc-hash = "2"
+phf = "0.11.2"

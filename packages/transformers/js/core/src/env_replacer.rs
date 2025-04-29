@@ -7,10 +7,10 @@ use std::{
 
 use ast::*;
 use indexmap::IndexMap;
-use parcel_evaluator::{Evaluate, Evaluator, JsObject, JsValue, Object};
+use parcel_evaluator::{Evaluate, Evaluator, JsValue, Object};
 use std::rc::Rc;
 use swc_core::{
-  common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext, sync::Lrc},
   ecma::{
     ast,
     atoms::Atom as JsWord,
@@ -30,7 +30,7 @@ pub struct EnvReplacer<'a> {
   pub diagnostics: &'a mut Vec<Diagnostic>,
   pub unresolved_mark: Mark,
   pub env_object: Rc<EnvObject>,
-  pub evaluator: Evaluator,
+  pub evaluator: Evaluator<'a>,
 }
 
 struct EnvObject {
@@ -54,7 +54,7 @@ impl Object for EnvObject {
     }
 
     if key == "hasOwnProperty" {
-      return JsValue::Function(Rc::new(has_own_property));
+      return JsValue::Function((&has_own_property).into());
     }
 
     let res = self
@@ -83,9 +83,39 @@ impl Object for EnvObject {
         .map(|(k, v)| (k.clone(), JsValue::String(v.clone()))),
     )
   }
+
+  fn into_expr(&self) -> Result<Expr, ()> {
+    Ok(Expr::Object(ObjectLit {
+      span: DUMMY_SP,
+      props: {
+        let mut props = Vec::new();
+        for (k, v) in self.iter() {
+          props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+            key: if Ident::verify_symbol(&k).is_ok() {
+              PropName::Ident(IdentName::new(k.clone().into(), DUMMY_SP))
+            } else {
+              PropName::Str(Str {
+                value: k.clone().into(),
+                span: DUMMY_SP,
+                raw: None,
+              })
+            },
+            value: Box::new(v.clone().into_expr()?),
+          }))));
+        }
+
+        props
+      },
+    }))
+  }
 }
 
-fn has_own_property(this: JsValue, args: Vec<JsValue>, span: Span) -> JsValue {
+fn has_own_property(
+  this: JsValue,
+  args: Vec<JsValue>,
+  span: Span,
+  _evaluator: &Evaluator,
+) -> JsValue {
   if let (JsValue::Object(obj), Some(prop)) = (this, args.get(0)) {
     JsValue::Bool(obj.has(prop))
   } else {
@@ -115,14 +145,17 @@ impl<'a> EnvReplacer<'a> {
         "process".into(),
         SyntaxContext::empty().apply_mark(unresolved_mark),
       ),
-      JsValue::Object(Rc::new(JsObject(indexmap::indexmap! {
-        "env".into() => if replace_env {
-          JsValue::Object(env_object.clone())
-        } else {
-          JsValue::Unknown(DUMMY_SP)
-        },
-        "browser".into() => JsValue::Bool(is_browser)
-      }))),
+      JsValue::Object(
+        Rc::new(indexmap::indexmap! {
+          "env".into() => if replace_env {
+            JsValue::Object(env_object.clone().into())
+          } else {
+            JsValue::Unknown(DUMMY_SP)
+          },
+          "browser".into() => JsValue::Bool(is_browser)
+        })
+        .into(),
+      ),
     );
 
     Self {
@@ -258,7 +291,7 @@ impl<'a> VisitMut for EnvReplacer<'a> {
       if let Some(init) = &decl.init {
         if let Expr::Member(member) = &**init {
           let init = member.evaluate(&self.evaluator);
-          if matches!(init, JsValue::Object(obj)  if obj.as_any().is::<EnvObject>()) {
+          if matches!(init, JsValue::Object(obj) if obj.as_any().is::<EnvObject>()) {
             self.evaluator.eval_pat(
               member.evaluate(&self.evaluator),
               &decl.name,
@@ -631,7 +664,7 @@ impl<'a> EnvReplacer<'a> {
 
 #[cfg(test)]
 mod test {
-  use crate::test_utils::{run_visit, RunTestContext, RunVisitResult};
+  use crate::test_utils::{RunTestContext, RunVisitResult, run_visit};
 
   use super::*;
 

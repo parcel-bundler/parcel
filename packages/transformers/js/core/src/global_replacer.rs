@@ -12,7 +12,7 @@ use swc_core::{
 };
 
 use crate::{
-  dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
+  dependency_collector2::{DependencyDescriptor, DependencyFlags, DependencyKind},
   utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
 };
 
