@@ -13,6 +13,7 @@ pub use diagnostic::*;
 pub use environment::*;
 
 // By default, bitflags serializes as a string, but we want the raw number instead.
+#[macro_export]
 macro_rules! impl_bitflags_serde {
   ($t: ty) => {
     impl Serialize for $t {
@@ -35,8 +36,6 @@ macro_rules! impl_bitflags_serde {
     }
   };
 }
-
-pub(crate) use impl_bitflags_serde;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

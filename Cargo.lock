@@ -2164,12 +2164,13 @@ version = "0.1.0"
 dependencies = [
  "as-any",
  "indexmap 1.9.3",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "num-bigint",
  "num-traits",
  "pretty_assertions",
  "serde",
  "swc_core",
+]
 
 [[package]]
 name = "parcel-html"
@@ -2207,6 +2208,7 @@ dependencies = [
  "indoc",
  "markdown",
  "mdxjs",
+ "parcel-core",
  "parcel-evaluator",
  "parcel-macros",
  "parking_lot",

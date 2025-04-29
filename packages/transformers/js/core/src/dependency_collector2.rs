@@ -7,20 +7,21 @@ use std::{
 };
 
 use bitflags::bitflags;
+use parcel_core::impl_bitflags_serde;
 use parcel_evaluator::{Evaluate, Evaluator, JsConstructor, JsObject, JsValue, Object};
 use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{sync::Lrc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, SourceMap, Span, SyntaxContext, sync::Lrc},
   ecma::{
     ast::{self, CallExpr, Callee, Expr, Ident, MemberProp, Module},
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
     utils::{member_expr, stack_size::maybe_grow_default},
     visit::{Fold, FoldWith, VisitMut, VisitMutWith},
   },
 };
 
-use crate::{fold_member_expr_skip_prop, utils::*, Config};
+use crate::{Config, fold_member_expr_skip_prop, utils::*};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -101,8 +102,7 @@ pub enum DependencyKind {
 }
 
 bitflags! {
-  #[derive(Serialize, Deserialize, Default)]
-  #[serde(transparent)]
+  #[derive(Clone, Copy, Default)]
   pub struct Helpers: u8 {
     /// `import.meta.distDir` – a relative path from the current bundle to the distDir
     const DIST_DIR = 1 << 0;
@@ -119,6 +119,8 @@ bitflags! {
   }
 }
 
+impl_bitflags_serde!(Helpers);
+
 impl fmt::Display for DependencyKind {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "{:?}", self)
@@ -126,8 +128,7 @@ impl fmt::Display for DependencyKind {
 }
 
 bitflags! {
-  #[derive(Serialize, Deserialize, Default)]
-  #[serde(transparent)]
+  #[derive(Clone, Default, Debug, PartialEq)]
   pub struct DependencyFlags: u8 {
     const OPTIONAL = 1 << 0;
     const HELPER = 1 << 1;
@@ -136,12 +137,14 @@ bitflags! {
   }
 }
 
+impl_bitflags_serde!(DependencyFlags);
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
-  pub specifier: swc_core::ecma::atoms::JsWord,
+  pub specifier: JsWord,
   // pub attributes: Option<JsValue>,
   pub flags: DependencyFlags,
   pub source_type: Option<SourceType>,
@@ -721,7 +724,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
         kind: MetaPropKind::ImportMeta,
         span: DUMMY_SP,
       })),
-      prop: MemberProp::Ident(IdentName::new(js_word!("url"), DUMMY_SP)),
+      prop: MemberProp::Ident(IdentName::new("url".into(), DUMMY_SP)),
     })
   } else {
     // CJS output: "file:" + __filename
@@ -739,7 +742,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
   Expr::New(NewExpr {
     span: DUMMY_SP,
     ctxt: SyntaxContext::empty(),
-    callee: Box::new(Expr::Ident(Ident::new_no_ctxt(js_word!("URL"), DUMMY_SP))),
+    callee: Box::new(Expr::Ident(Ident::new_no_ctxt("URL".into(), DUMMY_SP))),
     args: Some(vec![
       ExprOrSpread {
         expr: Box::new(url),
@@ -809,7 +812,7 @@ impl Fold for PromiseTransformer {
 mod test {
   use super::DependencyDescriptor;
   use super::*;
-  use crate::test_utils::{run_visit, RunTestContext, RunVisitResult};
+  use crate::test_utils::{RunTestContext, RunVisitResult, run_visit};
 
   fn make_dependency_collector<'a>(
     context: RunTestContext,

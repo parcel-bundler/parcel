@@ -35,6 +35,7 @@ dunce = "1.0.1"
 pathdiff = "0.2.0"
 path-slash = "0.1.4"
 indexmap = "1.9.2"
+parcel-core = { path = "../../../../crates/core" }
 parcel-macros = { path = "../../../../crates/macros" }
 parcel-evaluator = { path = "../../../../crates/evaluator" }
 parking_lot = "0.12"

@@ -10,7 +10,7 @@ use num_traits::{Pow, ToPrimitive, Zero};
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{util::take::Take, Span, Spanned, DUMMY_SP},
-  ecma::{ast::*, atoms::JsWord},
+  ecma::{ast::*, atoms::Atom as JsWord},
 };
 
 // 1. Build value graph, collect constants.
