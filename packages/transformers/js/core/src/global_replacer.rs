@@ -3,17 +3,17 @@ use std::path::Path;
 use indexmap::IndexMap;
 use path_slash::PathBufExt;
 use swc_core::{
-  common::{sync::Lrc, Mark, SourceMap, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, SourceMap, SyntaxContext, sync::Lrc},
   ecma::{
     ast::{self, ComputedPropName, Expr, Module},
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
     visit::{VisitMut, VisitMutWith},
   },
 };
 
 use crate::{
   dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
-  utils::{create_global_decl_stmt, create_require, is_unresolved, SourceLocation, SourceType},
+  utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
 };
 
 /// Replaces a few node.js constants with literals or require statements.
@@ -77,7 +77,7 @@ impl VisitMut for GlobalReplacer<'_> {
     match id.sym.to_string().as_str() {
       "process" => {
         if self.update_binding(id, |_| {
-          Call(create_require(js_word!("process"), unresolved_mark))
+          Call(create_require("process".into(), unresolved_mark))
         }) {
           let specifier = id.sym.clone();
           self.items.push(DependencyDescriptor {
@@ -92,7 +92,7 @@ impl VisitMut for GlobalReplacer<'_> {
         }
       }
       "Buffer" => {
-        let specifier = swc_core::ecma::atoms::JsWord::from("buffer");
+        let specifier = JsWord::from("buffer");
         if self.update_binding(id, |_| {
           Member(MemberExpr {
             obj: Box::new(Call(create_require(specifier.clone(), unresolved_mark))),
@@ -122,9 +122,7 @@ impl VisitMut for GlobalReplacer<'_> {
               String::from("/unknown.js")
             };
 
-          Lit(ast::Lit::Str(
-            swc_core::ecma::atoms::JsWord::from(filename).into(),
-          ))
+          Lit(ast::Lit::Str(JsWord::from(filename).into()))
         });
       }
       "__dirname" => {
@@ -138,19 +136,14 @@ impl VisitMut for GlobalReplacer<'_> {
           } else {
             String::from("/")
           };
-          Lit(ast::Lit::Str(
-            swc_core::ecma::atoms::JsWord::from(dirname).into(),
-          ))
+          Lit(ast::Lit::Str(JsWord::from(dirname).into()))
         });
       }
       "global" => {
         if !self.scope_hoist {
           self.update_binding(id, |_| {
             Member(MemberExpr {
-              obj: Box::new(Ident(ast::Ident::new_no_ctxt(
-                js_word!("arguments"),
-                DUMMY_SP,
-              ))),
+              obj: Box::new(Ident(ast::Ident::new_no_ctxt("arguments".into(), DUMMY_SP))),
               prop: MemberProp::Computed(ComputedPropName {
                 span: DUMMY_SP,
                 expr: Box::new(Lit(ast::Lit::Num(3.into()))),
@@ -201,12 +194,12 @@ impl GlobalReplacer<'_> {
 mod test {
   use std::path::Path;
 
-  use swc_core::ecma::atoms::JsWord;
+  use swc_core::ecma::atoms::Atom as JsWord;
 
   use crate::{
-    global_replacer::GlobalReplacer,
-    test_utils::{run_visit, RunTestContext, RunVisitResult},
     DependencyDescriptor, DependencyKind,
+    global_replacer::GlobalReplacer,
+    test_utils::{RunTestContext, RunVisitResult, run_visit},
   };
 
   fn make_global_replacer(

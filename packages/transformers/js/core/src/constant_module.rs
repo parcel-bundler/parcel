@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use swc_core::ecma::{
   ast::{Decl, Expr, Lit, Module, ModuleDecl, ModuleItem, Stmt, VarDeclKind, VarDeclarator},
-  atoms::JsWord,
+  atoms::Atom as JsWord,
   visit::Visit,
 };
 
@@ -152,9 +152,9 @@ impl Visit for ConstantModule {
 #[cfg(test)]
 mod tests {
   use swc_core::{
-    common::{comments::SingleThreadedComments, sync::Lrc, FileName, Globals, SourceMap},
+    common::{FileName, Globals, SourceMap, comments::SingleThreadedComments, sync::Lrc},
     ecma::{
-      parser::{lexer::Lexer, Parser, StringInput},
+      parser::{Parser, StringInput, lexer::Lexer},
       visit::VisitWith,
     },
   };

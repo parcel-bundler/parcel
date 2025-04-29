@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use inflector::Inflector;
 use swc_core::{
-  common::{Mark, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
     ast::*,
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
     preset_env::{Feature, Versions},
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith},
@@ -173,11 +173,11 @@ impl ESMFold {
 
   fn create_export(&mut self, exported: JsWord, local: Expr, span: Span) {
     let export = self.call_helper(
-      js_word!("export"),
+      "export".into(),
       vec![
         Expr::Ident(Ident::new_no_ctxt("exports".into(), DUMMY_SP)),
         Expr::Lit(Lit::Str(exported.into())),
-        if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(versions, true, false)) {
+        if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(&versions, true, false)) {
           Expr::Fn(FnExpr {
             ident: None,
             function: Box::new(Function {
@@ -304,7 +304,7 @@ impl Fold for ESMFold {
                     id!(named.local),
                     (import.src.value.clone(), imported.clone()),
                   );
-                  if imported == js_word!("default") {
+                  if imported == "default" {
                     self.create_interop_default(import.src.value.clone());
                   }
                 }
@@ -337,7 +337,7 @@ impl Fold for ESMFold {
                       None => named.orig.clone(),
                     };
 
-                    if match_export_name(&named.orig).0 == js_word!("default") {
+                    if match_export_name(&named.orig).0 == "default" {
                       self.create_interop_default(src.value.clone());
                     }
 
@@ -351,7 +351,7 @@ impl Fold for ESMFold {
                   ExportSpecifier::Default(default) => {
                     self.create_interop_default(src.value.clone());
                     let specifier =
-                      self.create_import_access(&src.value, &js_word!("default"), DUMMY_SP);
+                      self.create_import_access(&src.value, &"default".into(), DUMMY_SP);
                     self.create_export(default.exported.sym.clone(), specifier, export.span);
                   }
                   ExportSpecifier::Namespace(namespace) => {

@@ -2,20 +2,20 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{sync::Lrc, Mark, Span, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, sync::Lrc},
   ecma::{
     ast::*,
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
     utils::stack_size::maybe_grow_default,
-    visit::{noop_visit_type, Visit, VisitWith},
+    visit::{Visit, VisitWith, noop_visit_type},
   },
 };
 
 use crate::{
   id,
   utils::{
-    is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
-    match_property_name, match_require, Bailout, BailoutReason, SourceLocation,
+    Bailout, BailoutReason, SourceLocation, is_unresolved, match_export_name,
+    match_export_name_ident, match_import, match_member_expr, match_property_name, match_require,
   },
 };
 
@@ -350,7 +350,7 @@ impl Visit for Collect {
             id!(default.local),
             Import {
               source: node.src.value.clone(),
-              specifier: js_word!("default"),
+              specifier: "default".into(),
               kind: ImportKind::Import,
               loc: SourceLocation::from(&self.source_map, default.span),
             },
@@ -411,7 +411,7 @@ impl Visit for Collect {
         }
         ExportSpecifier::Default(default) => {
           self.exports.insert(
-            js_word!("default"),
+            "default".into(),
             Export {
               specifier: default.exported.sym.clone(),
               loc: SourceLocation::from(&self.source_map, default.exported.span),
@@ -423,7 +423,7 @@ impl Visit for Collect {
             self
               .exports_locals
               .entry(id!(default.exported))
-              .or_insert_with(|| js_word!("default"));
+              .or_insert_with(|| "default".into());
           }
         }
         ExportSpecifier::Namespace(namespace) => {
@@ -493,7 +493,7 @@ impl Visit for Collect {
       DefaultDecl::Class(class) => {
         if let Some(ident) = &class.ident {
           self.exports.insert(
-            js_word!("default"),
+            "default".into(),
             Export {
               specifier: ident.sym.clone(),
               loc: SourceLocation::from(&self.source_map, node.span),
@@ -501,12 +501,12 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          self.exports_locals.insert(id!(ident), js_word!("default"));
+          self.exports_locals.insert(id!(ident), "default".into());
         } else {
           self.exports.insert(
-            js_word!("default"),
+            "default".into(),
             Export {
-              specifier: js_word!("default"),
+              specifier: "default".into(),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
               is_esm: true,
@@ -517,7 +517,7 @@ impl Visit for Collect {
       DefaultDecl::Fn(func) => {
         if let Some(ident) = &func.ident {
           self.exports.insert(
-            js_word!("default"),
+            "default".into(),
             Export {
               specifier: ident.sym.clone(),
               loc: SourceLocation::from(&self.source_map, node.span),
@@ -525,12 +525,12 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          self.exports_locals.insert(id!(ident), js_word!("default"));
+          self.exports_locals.insert(id!(ident), "default".into());
         } else {
           self.exports.insert(
-            js_word!("default"),
+            "default".into(),
             Export {
-              specifier: js_word!("default"),
+              specifier: "default".into(),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
               is_esm: true,
@@ -548,9 +548,9 @@ impl Visit for Collect {
 
   fn visit_export_default_expr(&mut self, node: &ExportDefaultExpr) {
     self.exports.insert(
-      js_word!("default"),
+      "default".into(),
       Export {
-        specifier: js_word!("default"),
+        specifier: "default".into(),
         loc: SourceLocation::from(&self.source_map, node.span),
         source: None,
         is_esm: true,
@@ -679,7 +679,7 @@ impl Visit for Collect {
       Expr::Ident(ident) => {
         if &*ident.sym == "exports" && is_unresolved(&ident, self.unresolved_mark) {
           handle_export!();
-        } else if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) {
+        } else if ident.sym == "module" && is_unresolved(&ident, self.unresolved_mark) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           self.should_wrap = true;
@@ -718,7 +718,7 @@ impl Visit for Collect {
     if node.op == UnaryOp::TypeOf {
       match &*node.arg {
         Expr::Ident(ident)
-          if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) =>
+          if ident.sym == "module" && is_unresolved(&ident, self.unresolved_mark) =>
         {
           // Do nothing to avoid the ident visitor from marking the module as non-static.
         }
@@ -754,7 +754,7 @@ impl Visit for Collect {
     match node {
       Expr::Ident(ident) => {
         // Bail if `module` or `exports` are accessed non-statically.
-        let is_module = ident.sym == js_word!("module");
+        let is_module = ident.sym == "module";
         let is_exports = &*ident.sym == "exports";
         if (is_module || is_exports) && is_unresolved(&ident, self.unresolved_mark) {
           self.has_cjs_exports = true;
@@ -913,7 +913,7 @@ impl Visit for Collect {
     if let Callee::Expr(expr) = &node.callee {
       match &**expr {
         Expr::Ident(ident) => {
-          if ident.sym == js_word!("eval") && is_unresolved(&ident, self.unresolved_mark) {
+          if ident.sym == "eval" && is_unresolved(&ident, self.unresolved_mark) {
             self.should_wrap = true;
             self.add_bailout(node.span, BailoutReason::Eval);
           }

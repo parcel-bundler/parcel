@@ -40,6 +40,10 @@ async function build() {
         args.push('--target', process.env.RUST_TARGET);
       }
 
+      if (process.env.ZIG_GLIBC) {
+        args.push('--zig', '--zig-abi-suffix', process.env.ZIG_GLIBC);
+      }
+
       let yarn = spawn('yarn', args, {
         stdio: 'inherit',
         cwd: pkg,

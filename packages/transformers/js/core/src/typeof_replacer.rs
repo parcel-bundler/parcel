@@ -2,7 +2,6 @@ use swc_core::{
   common::Mark,
   ecma::{
     ast::{Expr, Lit, Str, UnaryOp},
-    atoms::js_word,
     visit::{VisitMut, VisitMutWith},
   },
 };
@@ -34,7 +33,7 @@ impl TypeofReplacer {
   /// Given an expression, optionally return a replacement if it happens to be `typeof $symbol` for
   /// the constants supported in this transformation step (`require`, `exports` and `module`).
   fn get_replacement(&mut self, node: &Expr) -> Option<Expr> {
-    let Expr::Unary(ref unary) = node else {
+    let Expr::Unary(unary) = node else {
       return None;
     };
     if unary.op != UnaryOp::TypeOf {
@@ -46,10 +45,10 @@ impl TypeofReplacer {
       return None;
     };
 
-    if ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark) {
+    if ident.sym == "require" && is_unresolved(&ident, self.unresolved_mark) {
       return Some(Expr::Lit(Lit::Str(Str {
         span: unary.span,
-        value: js_word!("function"),
+        value: "function".into(),
         raw: None,
       })));
     }
@@ -57,27 +56,24 @@ impl TypeofReplacer {
     if &*ident.sym == "exports" && is_unresolved(&ident, self.unresolved_mark) {
       return Some(Expr::Lit(Lit::Str(Str {
         span: unary.span,
-        value: js_word!("object"),
+        value: "object".into(),
         raw: None,
       })));
     }
 
-    if ident.sym == js_word!("module") && is_unresolved(&ident, self.unresolved_mark) {
+    if ident.sym == "module" && is_unresolved(&ident, self.unresolved_mark) {
       return Some(Expr::Lit(Lit::Str(Str {
         span: unary.span,
-        value: js_word!("object"),
+        value: "object".into(),
         raw: None,
       })));
     }
 
     // Replace `typeof process` with "undefined" in browser builds to avoid pulling in the polyfill.
-    if !self.is_node
-      && ident.sym == js_word!("process")
-      && is_unresolved(&ident, self.unresolved_mark)
-    {
+    if !self.is_node && ident.sym == "process" && is_unresolved(&ident, self.unresolved_mark) {
       return Some(Expr::Lit(Lit::Str(Str {
         span: unary.span,
-        value: js_word!("undefined"),
+        value: "undefined".into(),
         raw: None,
       })));
     }

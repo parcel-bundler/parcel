@@ -1,11 +1,11 @@
 use std::{
   borrow::Cow,
-  path::{is_separator, Path, PathBuf},
+  path::{Path, PathBuf, is_separator},
 };
 
 use percent_encoding::percent_decode_str;
 
-use crate::{builtins::BUILTINS, url_to_path::url_to_path, Flags};
+use crate::{Flags, builtins::BUILTINS, url_to_path::url_to_path};
 
 /// Indicates how a specifier should be parsed.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

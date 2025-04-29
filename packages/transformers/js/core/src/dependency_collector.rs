@@ -10,16 +10,16 @@ use parcel_macros::{Evaluator, JsValue};
 use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{sync::Lrc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, SourceMap, Span, SyntaxContext, sync::Lrc},
   ecma::{
     ast::{self, Callee, MemberProp, Module},
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
     utils::{member_expr, stack_size::maybe_grow_default},
     visit::{Fold, FoldWith},
   },
 };
 
-use crate::{fold_member_expr_skip_prop, utils::*, Config};
+use crate::{Config, fold_member_expr_skip_prop, utils::*};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -100,8 +100,7 @@ pub enum DependencyKind {
 }
 
 bitflags! {
-  #[derive(Serialize, Deserialize, Default)]
-  #[serde(transparent)]
+  #[derive(Default, Debug, Clone, Copy, PartialEq)]
   pub struct Helpers: u8 {
     /// `import.meta.distDir` – a relative path from the current bundle to the distDir
     const DIST_DIR = 1 << 0;
@@ -118,6 +117,25 @@ bitflags! {
   }
 }
 
+impl serde::Serialize for Helpers {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.bits().serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for Helpers {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let bits: u8 = Deserialize::deserialize(deserializer)?;
+    Self::from_bits(bits).ok_or(serde::de::Error::custom("invalid flags"))
+  }
+}
+
 impl fmt::Display for DependencyKind {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "{:?}", self)
@@ -125,8 +143,7 @@ impl fmt::Display for DependencyKind {
 }
 
 bitflags! {
-  #[derive(Serialize, Deserialize, Default)]
-  #[serde(transparent)]
+  #[derive(Default, Clone, Copy, Debug, PartialEq)]
   pub struct DependencyFlags: u8 {
     const OPTIONAL = 1 << 0;
     const HELPER = 1 << 1;
@@ -135,12 +152,31 @@ bitflags! {
   }
 }
 
+impl serde::Serialize for DependencyFlags {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.bits().serialize(serializer)
+  }
+}
+
+impl<'de> serde::Deserialize<'de> for DependencyFlags {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let bits: u8 = Deserialize::deserialize(deserializer)?;
+    Self::from_bits(bits).ok_or(serde::de::Error::custom("invalid flags"))
+  }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
-  pub specifier: swc_core::ecma::atoms::JsWord,
+  pub specifier: JsWord,
   pub attributes: Option<JsValue>,
   pub flags: DependencyFlags,
   pub source_type: Option<SourceType>,
@@ -896,7 +932,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     } = &node
     {
       if let ast::Expr::Ident(ident) = &**arg {
-        if ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark) {
+        if ident.sym == "require" && is_unresolved(&ident, self.unresolved_mark) {
           return node;
         }
       }
@@ -1043,7 +1079,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       if !self.config.is_library && !self.config.standalone {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
-          callee: Box::new(Expr::Ident(Ident::new_no_ctxt(js_word!("URL"), DUMMY_SP))),
+          callee: Box::new(Expr::Ident(Ident::new_no_ctxt("URL".into(), DUMMY_SP))),
           ctxt: SyntaxContext::empty(),
           args: Some(vec![ExprOrSpread {
             expr: Box::new(url),
@@ -1062,12 +1098,12 @@ impl<'a> Fold for DependencyCollector<'a> {
           return ast::Expr::Ident("import".into());
         }
         // Free `require` -> undefined
-        ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark)
+        ident.sym == "require" && is_unresolved(&ident, self.unresolved_mark)
       }
       Expr::Member(MemberExpr { obj: expr, .. }) => {
         // e.g. `require.extensions` -> undefined
         if let Expr::Ident(ident) = &**expr {
-          ident.sym == js_word!("require") && is_unresolved(&ident, self.unresolved_mark)
+          ident.sym == "require" && is_unresolved(&ident, self.unresolved_mark)
         } else {
           false
         }
@@ -1266,7 +1302,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
         kind: MetaPropKind::ImportMeta,
         span: DUMMY_SP,
       })),
-      prop: MemberProp::Ident(IdentName::new(js_word!("url"), DUMMY_SP)),
+      prop: MemberProp::Ident(IdentName::new("url".into(), DUMMY_SP)),
     })
   } else {
     // CJS output: "file:" + __filename
@@ -1284,7 +1320,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
   Expr::New(NewExpr {
     span: DUMMY_SP,
     ctxt: SyntaxContext::empty(),
-    callee: Box::new(Expr::Ident(Ident::new_no_ctxt(js_word!("URL"), DUMMY_SP))),
+    callee: Box::new(Expr::Ident(Ident::new_no_ctxt("URL".into(), DUMMY_SP))),
     args: Some(vec![
       ExprOrSpread {
         expr: Box::new(url),
@@ -1356,7 +1392,7 @@ impl<'a> DependencyCollector<'a> {
 
     if let Expr::New(new) = expr {
       let is_url = match &*new.callee {
-        Expr::Ident(id) => id.sym == js_word!("URL") && is_unresolved(&id, self.unresolved_mark),
+        Expr::Ident(id) => id.sym == "URL" && is_unresolved(&id, self.unresolved_mark),
         _ => false,
       };
 
@@ -1426,7 +1462,7 @@ impl<'a> DependencyCollector<'a> {
         let name = match_property_name(member);
 
         if let Some((name, _)) = name {
-          name == js_word!("url")
+          name == "url"
         } else {
           false
         }
@@ -1641,10 +1677,7 @@ impl<'a> DependencyCollector<'a> {
           name: Pat::Ident(BindingIdent::from(ident.clone())),
           init: Some(Box::new(Expr::Call(CallExpr {
             callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-              obj: Box::new(Expr::Ident(Ident::new_no_ctxt(
-                js_word!("Object"),
-                DUMMY_SP,
-              ))),
+              obj: Box::new(Expr::Ident(Ident::new_no_ctxt("Object".into(), DUMMY_SP))),
               prop: MemberProp::Ident(IdentName::new("assign".into(), DUMMY_SP)),
               span: DUMMY_SP,
             }))),
@@ -1652,10 +1685,7 @@ impl<'a> DependencyCollector<'a> {
               ExprOrSpread {
                 expr: Box::new(Expr::Call(CallExpr {
                   callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                    obj: (Box::new(Expr::Ident(Ident::new_no_ctxt(
-                      js_word!("Object"),
-                      DUMMY_SP,
-                    )))),
+                    obj: (Box::new(Expr::Ident(Ident::new_no_ctxt("Object".into(), DUMMY_SP)))),
                     prop: MemberProp::Ident(IdentName::new("create".into(), DUMMY_SP)),
                     span: DUMMY_SP,
                   }))),
@@ -1672,7 +1702,7 @@ impl<'a> DependencyCollector<'a> {
               ExprOrSpread {
                 expr: Box::new(Expr::Object(ObjectLit {
                   props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(IdentName::new(js_word!("url"), DUMMY_SP)),
+                    key: PropName::Ident(IdentName::new("url".into(), DUMMY_SP)),
                     value: Box::new(self.get_import_meta_url()),
                   })))],
                   span: DUMMY_SP,
@@ -1763,8 +1793,8 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
 mod test {
   use super::*;
   use crate::{
-    test_utils::{run_fold, RunTestContext, RunVisitResult},
     DependencyDescriptor,
+    test_utils::{RunTestContext, RunVisitResult, run_fold},
   };
 
   fn make_dependency_collector<'a>(

@@ -3,11 +3,6 @@
 import {Transformer} from '@parcel/plugin';
 
 import path from 'path';
-import posthtml from 'posthtml';
-import {parser as parse} from 'posthtml-parser';
-import {render} from 'posthtml-render';
-import nullthrows from 'nullthrows';
-import semver from 'semver';
 import loadPlugins from './loadPlugins';
 
 export default (new Transformer({
@@ -64,44 +59,31 @@ export default (new Transformer({
 
       configFile.contents.plugins = plugins;
 
-      // tells posthtml that we have already called parse
-      configFile.contents.skipParse = true;
       delete configFile.contents.render;
 
       return configFile.contents;
     }
   },
 
-  canReuseAST({ast}) {
-    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.4.0');
-  },
-
-  async parse({asset, config}) {
-    // if we don't have a config it is posthtml is not configure, don't parse
-    if (!config) {
-      return;
-    }
-
-    return {
-      type: 'posthtml',
-      version: '0.4.1',
-      program: parse(await asset.getCode(), {
-        lowerCaseAttributeNames: true,
-        sourceLocations: true,
-        xmlMode: asset.type === 'xhtml',
-      }),
-    };
-  },
-
-  async transform({asset, config}) {
+  async transform({asset, config, options}) {
     if (!config) {
       return [asset];
     }
 
-    let ast = nullthrows(await asset.getAST());
-    let res = await posthtml(config.plugins).process(ast.program, {
+    let posthtml = await options.packageManager.require(
+      'posthtml',
+      asset.filePath,
+      {
+        range: '^0.16.5',
+      },
+    );
+
+    let code = await asset.getCode();
+    let res = await posthtml(config.plugins).process(code, {
       ...config,
       plugins: config.plugins,
+      xmlMode: asset.type === 'xhtml',
+      closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined,
     });
 
     if (res.messages) {
@@ -112,20 +94,7 @@ export default (new Transformer({
       }
     }
 
-    asset.setAST({
-      type: 'posthtml',
-      version: '0.4.1',
-      program: JSON.parse(JSON.stringify(res.tree)), // posthtml adds functions to the AST that are not serializable
-    });
-
+    asset.setCode(res.html);
     return [asset];
-  },
-
-  generate({ast, asset}) {
-    return {
-      content: render(ast.program, {
-        closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined,
-      }),
-    };
   },
 }): Transformer);

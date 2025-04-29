@@ -8,3 +8,11 @@ members = [
 [profile.canary]
 inherits = "release"
 debug = true
+
+[profile.release]
+strip = "symbols"
+
+[patch.crates-io]
+html5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
+xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
+markup5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }

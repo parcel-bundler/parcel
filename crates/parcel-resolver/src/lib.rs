@@ -43,15 +43,15 @@ use std::{
   borrow::Cow,
   cell::OnceCell,
   collections::HashMap,
-  path::{is_separator, Path, PathBuf},
+  path::{Path, PathBuf, is_separator},
   sync::Arc,
 };
 
 use bitflags::bitflags;
 
-use cache::private::CacheCow;
 pub use cache::Cache;
 use cache::CachedPath;
+use cache::private::CacheCow;
 pub use error::ResolverError;
 #[cfg(not(target_arch = "wasm32"))]
 pub use fs::OsFileSystem;
@@ -59,8 +59,8 @@ pub use fs::{FileKind, FileSystem};
 pub use invalidations::*;
 use package_json::{AliasValue, ExportsResolution, PackageJson};
 pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
-use specifier::{parse_package_specifier, parse_scheme};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};
+use specifier::{parse_package_specifier, parse_scheme};
 use tsconfig::TsConfigWrapper;
 
 mod builtins;
@@ -76,6 +76,7 @@ mod url_to_path;
 
 bitflags! {
   /// Resolution features to enable.
+  #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
   pub struct Flags: u16 {
     /// Parcel-style absolute paths resolved relative to project root.
     const ABSOLUTE_SPECIFIERS = 1 << 0;
@@ -102,11 +103,11 @@ bitflags! {
     const EXPORTS_OPTIONAL_EXTENSIONS = 1 << 10;
 
     /// Default Node settings for CommonJS.
-    const NODE_CJS = Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits;
+    const NODE_CJS = Self::EXPORTS.bits() | Self::DIR_INDEX.bits() | Self::OPTIONAL_EXTENSIONS.bits();
     /// Default Node settings for ESM.
-    const NODE_ESM = Self::EXPORTS.bits;
+    const NODE_ESM = Self::EXPORTS.bits();
     /// Default TypeScript settings.
-    const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits;
+    const TYPESCRIPT = Self::TSCONFIG.bits() | Self::EXPORTS.bits() | Self::DIR_INDEX.bits() | Self::OPTIONAL_EXTENSIONS.bits() | Self::TYPESCRIPT_EXTENSIONS.bits() | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits();
   }
 }
 

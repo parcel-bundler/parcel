@@ -7,10 +7,10 @@ use std::{
 use data_encoding::{BASE64, HEXLOWER};
 use parcel_evaluator::{Evaluate, Evaluator, JsObject, JsValue, Object};
 use swc_core::{
-  common::{Mark, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
     ast::*,
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith, VisitWith},
   },

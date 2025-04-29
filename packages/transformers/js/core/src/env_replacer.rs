@@ -13,7 +13,7 @@ use swc_core::{
   common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP},
   ecma::{
     ast,
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     visit::{VisitMut, VisitMutWith},
   },
 };
@@ -217,7 +217,7 @@ impl<'a> VisitMut for EnvReplacer<'a> {
         Expr::Unary(UnaryExpr { op: UnaryOp::Delete, arg, span, .. }) |
         // e.g. process.env.UPDATE++
         Expr::Update(UpdateExpr { arg, span, .. }) => {
-          if let Expr::Member(MemberExpr { ref obj, .. }) = &**arg {
+          if let Expr::Member(MemberExpr { obj, .. }) = &**arg {
             if let Expr::Member(member) = &**obj {
               if matches!(member.evaluate(&self.evaluator), JsValue::Object(obj) if obj.as_any().is::<EnvObject>()) {
                 self.emit_mutating_error(*span);
@@ -491,7 +491,7 @@ impl<'a> EnvReplacer<'a> {
   ///
   /// This likely doesn't make sense so it should be deprecated in the future.
   fn replace_browser_assignment(&mut self, node: &Expr) -> Option<Expr> {
-    let Expr::Assign(ref assign) = node else {
+    let Expr::Assign(assign) = node else {
       return None;
     };
     let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left else {
