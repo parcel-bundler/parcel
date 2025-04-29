@@ -1,12 +1,13 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use arena::{SerializableHandle, Sink};
-use dependencies::{collect_dependencies, Asset, Dependency, Error};
+use dependencies::collect_dependencies;
 use html5ever::tendril::{StrTendril, TendrilSink};
-use jsx::{to_component, JsxOptions};
+use jsx::{JsxOptions, to_component};
 use optimize::optimize;
 use oxvg::ConfigItem;
-use package::{insert_bundle_references, BundleReference, InlineBundle};
+use package::{BundleReference, InlineBundle, insert_bundle_references};
+use parcel_core::{Asset, AssetType, Dependency, Diagnostic, Environment};
 use serde::{Deserialize, Serialize, Serializer};
 use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
@@ -44,12 +45,13 @@ impl<'de> serde::Deserialize<'de> for SerializableTendril {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
+  pub file_path: PathBuf,
   pub xml: bool,
-  pub scope_hoist: bool,
-  pub supports_esm: bool,
+  pub env: Arc<Environment>,
   pub hmr: bool,
 }
 
@@ -59,7 +61,7 @@ pub struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   assets: Vec<Asset>,
-  errors: Vec<Error>,
+  errors: Vec<Diagnostic>,
 }
 
 pub fn transform_html(options: TransformOptions) -> TransformResult {
@@ -77,8 +79,9 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
   let (deps, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
-    options.scope_hoist,
-    options.supports_esm,
+    options.file_path,
+    AssetType::Html,
+    options.env,
     options.hmr,
   );
 
@@ -94,10 +97,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
     )
   };
   if let Err(err) = res {
-    errors.push(Error {
-      message: err.to_string(),
-      line: 0,
-    });
+    errors.push(err.into());
   }
 
   TransformResult {
@@ -117,17 +117,15 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
   let (deps, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
-    options.scope_hoist,
-    options.supports_esm,
+    options.file_path,
+    AssetType::Svg,
+    options.env,
     options.hmr,
   );
 
   let mut vec = Vec::new();
   if let Err(err) = serialize_xml::serialize(&mut vec, dom) {
-    errors.push(Error {
-      message: err.to_string(),
-      line: 0,
-    });
+    errors.push(err.into());
   }
 
   TransformResult {

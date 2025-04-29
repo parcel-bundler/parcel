@@ -6178,7 +6178,7 @@ describe('javascript', function () {
         await fsFixture(overlayFS, __dirname)`
         native-node
           index.js:
-            output = require('@parcel/rust');
+            output = require('@parcel/rust/index');
             
           package.json:
             {

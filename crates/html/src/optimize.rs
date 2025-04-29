@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use html5ever::{expanded_name, local_name, namespace_url, ns, ExpandedName};
+use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
 use typed_arena::Arena;
 use xml5ever::tendril::StrTendril;
 
@@ -710,7 +710,7 @@ mod tests {
   use super::*;
   use crate::arena::Sink;
   use html5ever::tendril::TendrilSink;
-  use html5ever::{parse_document, ParseOpts};
+  use html5ever::{ParseOpts, parse_document};
   use typed_arena::Arena;
 
   fn test(input: &str, expected: &str) {
@@ -761,7 +761,7 @@ mod tests {
     );
     test(
       "<button formaction=' yoo.cgi ' formenctype='application/x-www-form-urlencoded' formmethod='GET' type='submit' disabled='disabled'>Test</button>",
-      "<button formaction='yoo.cgi' disabled>Test</button>"
+      "<button formaction='yoo.cgi' disabled>Test</button>",
     );
     test(
       "<canvas width=300 height=150></canvas>",

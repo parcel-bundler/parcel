@@ -1,5 +1,6 @@
 // @flow
-import type {FileCreateInvalidation, DependencyPriority, JSONObject} from '@parcel/types';
+import type {FileCreateInvalidation, SpecifierType, DependencyPriority, EnvironmentContext, JSONObject, SourceLocation, OutputFormat, SourceType} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 declare export var init: void | (() => void);
 
@@ -91,43 +92,50 @@ declare export class Resolver {
 
 export interface TransformHtmlOpts {
   code: Buffer,
-  scope_hoist: boolean,
-  supports_esm: boolean,
+  filePath: string,
+  env: RustEnvironment,
   hmr: boolean
 }
 
 export interface TransformHtmlResult {
   code: Buffer,
-  dependencies: HtmlDependency[],
-  assets: HtmlAsset[],
-  errors: HtmlError[]
+  dependencies: RustDependency[],
+  assets: RustAsset[],
+  errors: Diagnostic[]
 }
 
-export interface HtmlDependency {
-  href: string,
-  needsStableName: boolean,
+export interface RustEnvironment {
+  context: EnvironmentContext,
+  outputFormat: OutputFormat,
+  sourceType: SourceType,
+  flags: number,
+  sourceMap: ?any,
+  loc: ?SourceLocation,
+  includeNodeModules: any,
+  engines: any
+}
+
+export interface RustDependency {
+  specifier: string,
+  specifierType: SpecifierType,
+  flags: number,
   priority: DependencyPriority,
-  outputFormat: 'none' | 'global' | 'esmodule',
-  sourceType: 'none' | 'module' | 'script',
   bundleBehavior: 'none' | 'isolated' | 'inline',
-  placeholder: string,
-  line: number
+  env: RustEnvironment,
+  loc: ?SourceLocation,
+  placeholder: ?string,
+  resolveFrom: ?string,
+  range: ?string
 }
 
-export interface HtmlAsset {
+export interface RustAsset {
+  loc: ?SourceLocation,
   type: string,
   content: Buffer,
-  key: string,
-  isAttr: boolean,
-  outputFormat: 'none' | 'global' | 'esmodule',
-  sourceType: 'none' | 'module' | 'script',
-  bundleBehavior: 'none' | 'isolated' | 'inline',
-  line: number
-}
-
-export interface HtmlError {
-  message: string,
-  line: number
+  env: RustEnvironment,
+  uniqueKey: string,
+  flags: number,
+  bundleBehavior: 'none' | 'isolated' | 'inline'
 }
 
 export interface PackageHtmlOpts {

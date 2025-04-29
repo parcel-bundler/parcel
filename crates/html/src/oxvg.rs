@@ -8,7 +8,7 @@ use std::{
 use crate::arena::{Arena, Node, NodeData, Ref, SelectorFlags};
 use ref_cast::RefCast;
 use serde::Deserialize;
-use xml5ever::{local_name, tendril::StrTendril, Attribute, QualName};
+use xml5ever::{Attribute, QualName, local_name, tendril::StrTendril};
 
 use oxvg_ast::{attribute::Attr as _, element::Element as _, name::Name, node::Node as _};
 

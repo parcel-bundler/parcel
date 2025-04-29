@@ -8,10 +8,10 @@ use indexmap::IndexMap;
 use itertools::Either;
 
 use crate::{
+  ResolverError,
   cache::{Cache, CachedPath},
   error::JsonError,
   specifier::Specifier,
-  ResolverError,
 };
 
 #[derive(serde::Deserialize, Debug, Default)]

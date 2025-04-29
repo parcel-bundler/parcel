@@ -10,7 +10,7 @@
 // Modified from html5ever to add minification support.
 
 use crate::arena::{NodeData, Ref};
-use html5ever::{expanded_name, Attribute, LocalName, QualName};
+use html5ever::{Attribute, LocalName, QualName, expanded_name};
 use html5ever::{local_name, namespace_url, ns};
 use std::io::{self, Write};
 
@@ -528,7 +528,7 @@ mod tests {
   use super::*;
   use crate::arena::Sink;
   use html5ever::tendril::TendrilSink;
-  use html5ever::{parse_document, ParseOpts};
+  use html5ever::{ParseOpts, parse_document};
   use typed_arena::Arena;
 
   fn test(input: &str, expected: &str) {
@@ -552,20 +552,20 @@ mod tests {
   #[test]
   fn test_serialize() {
     test(
-      "<!DOCTYPE HTML><html><head><title>Hello</title></head><body><p>Welcome to this example.</p></body></html>", 
-      "<!DOCTYPE html><title>Hello</title><p>Welcome to this example."
+      "<!DOCTYPE HTML><html><head><title>Hello</title></head><body><p>Welcome to this example.</p></body></html>",
+      "<!DOCTYPE html><title>Hello</title><p>Welcome to this example.",
     );
     test(
-      "<!DOCTYPE HTML><html lang=\"en\"><head><title>Hello</title></head><body class=\"demo\"><p>Welcome to this example.</p></body></html>", 
-      "<!DOCTYPE html><html lang=en><title>Hello</title><body class=demo><p>Welcome to this example."
+      "<!DOCTYPE HTML><html lang=\"en\"><head><title>Hello</title></head><body class=\"demo\"><p>Welcome to this example.</p></body></html>",
+      "<!DOCTYPE html><html lang=en><title>Hello</title><body class=demo><p>Welcome to this example.",
     );
     test(
-      "<!DOCTYPE HTML><html><!-- comment --><head><title>Hello</title></head><body><p>Welcome to this example.</p></body></html>", 
-      "<!DOCTYPE html><html><!-- comment --><title>Hello</title><p>Welcome to this example."
+      "<!DOCTYPE HTML><html><!-- comment --><head><title>Hello</title></head><body><p>Welcome to this example.</p></body></html>",
+      "<!DOCTYPE html><html><!-- comment --><title>Hello</title><p>Welcome to this example.",
     );
     test(
-      "<!DOCTYPE HTML><html><head><title>Hello</title></head><body><p>Welcome to this example.</p></body></html><!-- comment -->", 
-      "<!DOCTYPE html><title>Hello</title><p>Welcome to this example.</html><!-- comment -->"
+      "<!DOCTYPE HTML><html><head><title>Hello</title></head><body><p>Welcome to this example.</p></body></html><!-- comment -->",
+      "<!DOCTYPE html><title>Hello</title><p>Welcome to this example.</html><!-- comment -->",
     );
     test("<html><head></head><body>Test</body></html>", "Test");
     test(
@@ -586,7 +586,7 @@ mod tests {
     );
     test(
       "<!DOCTYPE HTML><html><body><table><caption>Test</caption><colgroup><col><col></colgroup><thead><tr><th>Foo</th><th>Bar</th></tr></thead><tbody><tr><td>A</td><td>B</td></tr><tr><td>A</td><td>B</td></tr></tbody></table></body></html>",
-      "<!DOCTYPE html><table><caption>Test<col><col><thead><tr><th>Foo<th>Bar<tbody><tr><td>A<td>B<tr><td>A<td>B</table>"
+      "<!DOCTYPE html><table><caption>Test<col><col><thead><tr><th>Foo<th>Bar<tbody><tr><td>A<td>B<tr><td>A<td>B</table>",
     );
     test(
       "<template><div>test</div></template>",

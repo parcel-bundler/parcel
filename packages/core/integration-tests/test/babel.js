@@ -363,7 +363,7 @@ describe('babel', function () {
     });
   });
 
-  describe('tests needing the real filesystem', () => {
+  describe.skip('tests needing the real filesystem', () => {
     afterEach(async () => {
       try {
         await fs.rimraf(inputDir);

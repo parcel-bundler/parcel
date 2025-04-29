@@ -1,27 +1,28 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
-  utils::{CodeHighlight, Diagnostic, DiagnosticSeverity},
   Config, SourceLocation,
+  utils::{CodeHighlight, Diagnostic, DiagnosticSeverity},
 };
 use markdown::{
+  Location,
   mdast::{AttributeValueExpression, Code, MdxjsEsm, Node, Text},
   message::{Message, Place},
   unist::Position,
-  Location,
 };
 use mdxjs::{
+  Options,
   hast::{AttributeContent, AttributeValue, MdxJsxAttribute},
   hast_util_to_swc, mdast_util_from_mdx, mdast_util_to_hast, mdx_plugin_recma_document,
-  mdx_plugin_recma_jsx_rewrite, Options,
+  mdx_plugin_recma_jsx_rewrite,
 };
 use parcel_macros::{Evaluator, JsValue};
 use rustc_hash::FxHashSet;
 use swc_core::{
   common::{
+    DUMMY_SP, SourceMap,
     comments::{Comments, SingleThreadedComments},
     sync::Lrc,
-    SourceMap, DUMMY_SP,
   },
   ecma::{
     ast::{
@@ -31,7 +32,7 @@ use swc_core::{
     },
     atoms::Atom as JsWord,
     codegen::to_code,
-    parser::{lexer::Lexer, EsSyntax, Parser, StringInput, Syntax, TsSyntax},
+    parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, lexer::Lexer},
     utils::for_each_binding_ident,
     visit::{VisitMut, VisitMutWith},
   },

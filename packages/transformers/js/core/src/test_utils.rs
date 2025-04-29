@@ -1,11 +1,11 @@
 use swc_core::{
   common::{
-    input::StringInput, sync::Lrc, util::take::Take, FileName, Globals, Mark, SourceMap, GLOBALS,
+    FileName, GLOBALS, Globals, Mark, SourceMap, input::StringInput, sync::Lrc, util::take::Take,
   },
   ecma::{
     ast::Module,
     codegen::text_writer::JsWriter,
-    parser::{lexer::Lexer, Parser},
+    parser::{Parser, lexer::Lexer},
     transforms::base::resolver,
     visit::{Fold, FoldWith, VisitMut, VisitMutWith},
   },

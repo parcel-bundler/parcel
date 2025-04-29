@@ -24,14 +24,14 @@ pub use collect::CollectImportedSymbol;
 use collect::{Collect, CollectResult};
 use constant_module::ConstantModule;
 use dependency_collector::Helpers;
-pub use dependency_collector::{dependency_collector, DependencyDescriptor, DependencyKind};
+pub use dependency_collector::{DependencyDescriptor, DependencyKind, dependency_collector};
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::{hoist, HoistResult};
 pub use hoist::{ExportedSymbol, ImportedSymbol};
+use hoist::{HoistResult, hoist};
 use indexmap::IndexMap;
-use mdx::{mdx, MdxAsset, TocNode};
+use mdx::{MdxAsset, TocNode, mdx};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use parcel_macros::{JsValue, MacroCallback, MacroError, Macros};
@@ -40,15 +40,15 @@ use react_lazy::ReactLazy;
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{
-    comments::SingleThreadedComments, errors::Handler, pass::Optional,
-    source_map::SourceMapGenConfig, sync::Lrc, FileName, Globals, Mark, SourceMap,
+    FileName, Globals, Mark, SourceMap, comments::SingleThreadedComments, errors::Handler,
+    pass::Optional, source_map::SourceMapGenConfig, sync::Lrc,
   },
   ecma::{
     ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
     atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
-    parser::{error::Error, lexer::Lexer, EsSyntax, Parser, StringInput, Syntax, TsSyntax},
-    preset_env::{preset_env, Mode::Entry, Targets, Version, Versions},
+    parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
+    preset_env::{Mode::Entry, Targets, Version, Versions, preset_env},
     transforms::{
       base::{
         assumptions::Assumptions,
@@ -67,7 +67,7 @@ use swc_core::{
 };
 use typeof_replacer::*;
 use utils::{
-  error_buffer_to_diagnostics, CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer,
+  CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer, error_buffer_to_diagnostics,
 };
 pub use utils::{SourceLocation, SourceType};
 

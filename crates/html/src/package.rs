@@ -1,11 +1,11 @@
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
+  SerializableTendril,
   arena::{Node, NodeData},
   dependencies::{is_func_iri_attr, parse_xml_stylesheet, serialize_xml_stylesheet},
-  SerializableTendril,
 };
-use html5ever::{expanded_name, local_name, namespace_url, ns, ExpandedName};
+use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
 use serde::Deserialize;
 use typed_arena::Arena;
 

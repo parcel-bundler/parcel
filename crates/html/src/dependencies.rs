@@ -2,103 +2,29 @@ use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};
 use std::fmt::Write;
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::arena::{Node, NodeData, SelectorFlags};
 use crate::srcset::parse_srcset;
-use crate::SerializableTendril;
-use html5ever::tendril::{format_tendril, StrTendril};
-use html5ever::{expanded_name, local_name, namespace_url, ns, Attribute, ExpandedName, QualName};
-use serde::Serialize;
+use html5ever::tendril::{StrTendril, format_tendril};
+use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, namespace_url, ns};
+use parcel_core::{
+  Asset, AssetFlags, AssetType, BundleBehavior, CodeFrame, CodeHighlight, Dependency,
+  DependencyFlags, Diagnostic, DiagnosticSeverity, Environment, EnvironmentFeature, Location,
+  OutputFormat, Priority, SourceLocation, SourceType, SpecifierType,
+};
 use typed_arena::Arena;
-
-#[derive(Serialize, Hash)]
-#[serde(rename_all = "camelCase")]
-pub struct Dependency {
-  pub href: SerializableTendril,
-  pub needs_stable_name: bool,
-  pub priority: Priority,
-  pub output_format: OutputFormat,
-  pub source_type: SourceType,
-  pub bundle_behavior: BundleBehavior,
-  pub placeholder: SerializableTendril,
-  pub line: u64,
-}
-
-impl Dependency {
-  fn set_placeholder(&mut self) -> &str {
-    let mut hasher = DefaultHasher::new();
-    self.href.hash(&mut hasher);
-    self.needs_stable_name.hash(&mut hasher);
-    self.priority.hash(&mut hasher);
-    self.output_format.hash(&mut hasher);
-    self.source_type.hash(&mut hasher);
-    self.bundle_behavior.hash(&mut hasher);
-    self.placeholder = SerializableTendril(format_tendril!("{:x}", hasher.finish()));
-    self.placeholder.0.as_ref()
-  }
-}
-
-#[derive(Serialize, Hash, PartialEq, Clone, Copy)]
-#[serde(rename_all = "lowercase")]
-pub enum Priority {
-  Sync,
-  Parallel,
-  Lazy,
-}
-
-#[derive(Serialize, Hash, PartialEq, Clone, Copy)]
-#[serde(rename_all = "lowercase")]
-pub enum OutputFormat {
-  None,
-  Global,
-  Esmodule,
-}
-
-#[derive(PartialEq, Serialize, Hash, Clone, Copy)]
-#[serde(rename_all = "lowercase")]
-pub enum SourceType {
-  None,
-  Module,
-  Script,
-}
-
-#[derive(PartialEq, Serialize, Hash, Clone, Copy)]
-#[serde(rename_all = "lowercase")]
-pub enum BundleBehavior {
-  None,
-  Isolated,
-  Inline,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Asset {
-  #[serde(rename = "type")]
-  pub ty: SerializableTendril,
-  #[serde(with = "serde_bytes")]
-  pub content: Vec<u8>,
-  pub key: SerializableTendril,
-  pub is_attr: bool,
-  pub output_format: OutputFormat,
-  pub source_type: SourceType,
-  pub bundle_behavior: BundleBehavior,
-  pub line: u64,
-}
-
-#[derive(Serialize)]
-pub struct Error {
-  pub message: String,
-  pub line: u64,
-}
 
 pub fn collect_dependencies<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
-  scope_hoist: bool,
-  supports_esm: bool,
+  file_path: PathBuf,
+  ty: AssetType,
+  env: Arc<Environment>,
   hmr: bool,
-) -> (Vec<Dependency>, Vec<Asset>, Vec<Error>) {
-  let mut collector = DependencyCollector::new(arena, scope_hoist, supports_esm);
+) -> (Vec<Dependency>, Vec<Asset>, Vec<Diagnostic>) {
+  let mut collector = DependencyCollector::new(arena, file_path, ty, env);
 
   dom.walk(&mut |node| match &node.data {
     NodeData::Element { name, .. } => {
@@ -124,14 +50,16 @@ pub fn collect_dependencies<'arena>(
 
   for asset in &collector.assets {
     collector.deps.push(Dependency {
-      href: asset.key.clone(),
-      needs_stable_name: false,
+      specifier: asset.unique_key.clone().unwrap(),
+      specifier_type: SpecifierType::Esm,
+      flags: DependencyFlags::empty(),
       priority: Priority::Sync,
-      output_format: asset.output_format,
-      source_type: asset.source_type,
+      env: asset.env.clone(),
       bundle_behavior: BundleBehavior::None,
-      placeholder: asset.key.clone(),
-      line: asset.line,
+      placeholder: asset.unique_key.clone(),
+      loc: None,
+      resolve_from: None,
+      range: None,
     });
   }
 
@@ -140,14 +68,13 @@ pub fn collect_dependencies<'arena>(
       let key: StrTendril = "hmr.js".into();
       let src = collector.add_dep(key.clone(), false, Priority::Parallel, 0);
       collector.assets.push(Asset {
-        ty: SerializableTendril("application/javascript".into()),
+        ty: AssetType::Js,
         content: Vec::new(),
-        key: SerializableTendril(key),
-        is_attr: false,
-        output_format: OutputFormat::None,
-        source_type: SourceType::None,
+        unique_key: Some(key.into()),
+        flags: AssetFlags::empty(),
+        env: collector.env.clone(),
         bundle_behavior: BundleBehavior::None,
-        line: 0,
+        loc: None,
       });
 
       let script = NodeData::Element {
@@ -170,27 +97,75 @@ pub fn collect_dependencies<'arena>(
 
 struct DependencyCollector<'arena> {
   arena: &'arena Arena<Node<'arena>>,
-  scope_hoist: bool,
-  supports_esm: bool,
+  file_path: PathBuf,
+  ty: AssetType,
+  env: Arc<Environment>,
   deps: Vec<Dependency>,
   assets: Vec<Asset>,
   key: u32,
   has_module_scripts: bool,
-  errors: Vec<Error>,
+  errors: Vec<Diagnostic>,
 }
 
 impl<'arena> DependencyCollector<'arena> {
-  fn new(arena: &'arena Arena<Node<'arena>>, scope_hoist: bool, supports_esm: bool) -> Self {
+  fn new(
+    arena: &'arena Arena<Node<'arena>>,
+    file_path: PathBuf,
+    ty: AssetType,
+    env: Arc<Environment>,
+  ) -> Self {
     DependencyCollector {
       arena,
-      scope_hoist,
-      supports_esm,
+      file_path,
+      ty,
+      env,
       deps: Vec::new(),
       assets: Vec::new(),
       key: 0,
       has_module_scripts: false,
       errors: Vec::new(),
     }
+  }
+
+  fn create_env(
+    &self,
+    output_format: OutputFormat,
+    source_type: SourceType,
+    line: u32,
+  ) -> Arc<Environment> {
+    Arc::new(Environment {
+      output_format,
+      source_type,
+      loc: self.create_loc(line),
+      ..(*self.env).clone()
+    })
+  }
+
+  fn create_loc(&self, line: u32) -> Option<SourceLocation> {
+    Some(SourceLocation {
+      file_path: self.file_path.clone(),
+      start: Location { line, column: 1 },
+      end: Location { line, column: 2 },
+    })
+  }
+
+  fn add_diagnostic(&mut self, message: &str, line: u32) {
+    self.errors.push(Diagnostic {
+      message: message.into(),
+      origin: None,
+      code_frames: vec![CodeFrame {
+        file_path: Some(self.file_path.clone()),
+        code: None,
+        language: Some(self.ty.clone()),
+        code_highlights: vec![CodeHighlight::from_loc(
+          &self.create_loc(line).unwrap(),
+          None,
+        )],
+      }],
+      hints: vec![],
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    });
   }
 
   fn visit_element(&mut self, node: &'arena Node<'arena>, name: &QualName) {
@@ -201,18 +176,15 @@ impl<'arena> DependencyCollector<'arena> {
         if let Some(mut href) = href {
           // Check for empty string
           if href.is_empty() {
-            self.errors.push(Error {
-              message: "'href' should not be empty string".into(),
-              line: node.line,
-            });
+            self.add_diagnostic("'href' should not be empty string".into(), node.line);
             return;
           }
 
-          let mut needs_stable_name = false;
+          let mut flags = DependencyFlags::empty();
           let mut priority = Priority::Lazy;
           if let Some(rel) = node.get_attribute(expanded_name!("", "rel")) {
             if rel.as_ref() == "canonical" || rel.as_ref() == "manifest" {
-              needs_stable_name = true;
+              flags |= DependencyFlags::NEEDS_STABLE_NAME;
               if rel.as_ref() == "manifest" && !href.contains(':') {
                 // A hack to allow manifest.json rather than manifest.webmanifest.
                 // If a custom pipeline is used, it is responsible for running @parcel/transformer-webmanifest.
@@ -224,21 +196,23 @@ impl<'arena> DependencyCollector<'arena> {
             } else if rel.as_ref() == "alternate" {
               if let Some(t) = node.get_attribute(expanded_name!("", "type")) {
                 if t.as_ref() == "application/rss+xml" || t.as_ref() == "application/atom+xml" {
-                  needs_stable_name = true;
+                  flags |= DependencyFlags::NEEDS_STABLE_NAME;
                 }
               }
             }
           }
 
           let mut dep = Dependency {
-            href: SerializableTendril(href),
-            needs_stable_name,
+            specifier: href.into(),
+            specifier_type: SpecifierType::Url,
+            flags,
             priority,
-            source_type: SourceType::None,
-            output_format: OutputFormat::None,
+            env: self.env.clone(),
             bundle_behavior: BundleBehavior::None,
             placeholder: Default::default(),
-            line: node.line,
+            loc: self.create_loc(node.line),
+            resolve_from: None,
+            range: None,
           };
 
           node.set_attribute(expanded_name!("", "href"), dep.set_placeholder());
@@ -278,14 +252,14 @@ impl<'arena> DependencyCollector<'arena> {
         if let Some(src) = src {
           // Check for empty string
           if src.is_empty() {
-            self.errors.push(Error {
-              message: "'src' should not be empty string".into(),
-              line: node.line,
-            });
+            self.add_diagnostic("'src' should not be empty string".into(), node.line);
             return;
           }
 
-          if source_type == SourceType::Module && (self.scope_hoist || self.supports_esm) && !is_svg
+          if source_type == SourceType::Module
+            && (self.env.should_scope_hoist()
+              || self.env.engines.supports(EnvironmentFeature::Esmodules))
+            && !is_svg
           {
             output_format = OutputFormat::Esmodule;
           }
@@ -310,21 +284,25 @@ impl<'arena> DependencyCollector<'arena> {
 
           // If this is a <script type="module">, and not all of the browser targets support ESM natively,
           // add a copy of the script tag with a nomodule attribute.
-          if output_format == OutputFormat::Esmodule && !self.supports_esm {
+          if output_format == OutputFormat::Esmodule
+            && !self.env.engines.supports(EnvironmentFeature::Esmodules)
+          {
             let copy = self.arena.alloc(Node::new(node.data.clone(), node.line));
             copy.remove_attribute(expanded_name!("", "type"));
             copy.set_attribute(expanded_name!("", "nomodule"), "");
             copy.set_attribute(expanded_name!("", "defer"), "");
 
             let mut dep = Dependency {
-              href: SerializableTendril(src.clone()),
+              specifier: src.clone().into(),
+              specifier_type: SpecifierType::Url,
               priority: Priority::Parallel,
-              output_format: OutputFormat::Global,
-              needs_stable_name: false,
-              source_type,
+              env: self.create_env(OutputFormat::Global, source_type, node.line),
+              flags: DependencyFlags::empty(),
               bundle_behavior,
               placeholder: Default::default(),
-              line: node.line,
+              loc: self.create_loc(node.line),
+              resolve_from: None,
+              range: None,
             };
 
             copy.set_attribute(src_attr, dep.set_placeholder());
@@ -333,14 +311,16 @@ impl<'arena> DependencyCollector<'arena> {
           }
 
           let mut dep = Dependency {
-            href: SerializableTendril(src),
+            specifier: src.into(),
+            specifier_type: SpecifierType::Url,
             priority: Priority::Parallel,
-            output_format,
-            needs_stable_name: false,
-            source_type,
+            env: self.create_env(output_format, source_type, node.line),
+            flags: DependencyFlags::empty(),
             bundle_behavior,
             placeholder: Default::default(),
-            line: node.line,
+            loc: self.create_loc(node.line),
+            resolve_from: None,
+            range: None,
           };
 
           node.set_attribute(src_attr, dep.set_placeholder());
@@ -358,7 +338,10 @@ impl<'arena> DependencyCollector<'arena> {
           let code = node.text_content();
 
           if source_type == SourceType::Module {
-            if self.scope_hoist && self.supports_esm && !is_svg {
+            if self.env.should_scope_hoist()
+              && self.env.engines.supports(EnvironmentFeature::Esmodules)
+              && !is_svg
+            {
               output_format = OutputFormat::Esmodule;
             } else {
               node.remove_attribute(expanded_name!("", "type"));
@@ -380,14 +363,15 @@ impl<'arena> DependencyCollector<'arena> {
           };
 
           self.assets.push(Asset {
-            ty: SerializableTendril(ty.unwrap_or_else(|| "application/javascript".into())),
+            ty: ty
+              .map(|ty| AssetType::from_mime(&ty))
+              .unwrap_or(AssetType::Js),
             content: code.into_bytes(),
-            key: SerializableTendril(key.clone()),
-            is_attr: false,
-            source_type,
-            output_format,
+            unique_key: Some(key.into()),
+            flags: AssetFlags::IS_HTML_TAG,
+            env: self.create_env(output_format, source_type, node.line),
             bundle_behavior: BundleBehavior::Inline,
-            line: node.line,
+            loc: self.create_loc(node.line),
           });
         }
       }
@@ -409,20 +393,19 @@ impl<'arena> DependencyCollector<'arena> {
 
         let ty = if let Some(ty) = node.get_attribute(expanded_name!("", "type")) {
           node.remove_attribute(expanded_name!("", "type"));
-          ty
+          AssetType::from_mime(&ty)
         } else {
-          "text/css".into()
+          AssetType::Css
         };
 
         self.assets.push(Asset {
-          ty: SerializableTendril(ty),
+          ty,
           content: code.into_bytes(),
-          key: SerializableTendril(key.clone()),
-          is_attr: false,
-          output_format: OutputFormat::None,
-          source_type: SourceType::None,
+          unique_key: Some(key.into()),
+          flags: AssetFlags::IS_HTML_TAG,
+          env: self.env.clone(),
           bundle_behavior: BundleBehavior::Inline,
-          line: node.line,
+          loc: self.create_loc(node.line),
         });
       }
       expanded_name!(html "meta") => {
@@ -556,14 +539,13 @@ impl<'arena> DependencyCollector<'arena> {
       node.set_attribute(expanded_name!("", "style"), &key);
 
       self.assets.push(Asset {
-        ty: SerializableTendril("text/css".into()),
+        ty: AssetType::Css,
         content: style.to_string().into_bytes(),
-        key: SerializableTendril(key),
-        is_attr: true,
-        output_format: OutputFormat::None,
-        source_type: SourceType::None,
+        unique_key: Some(key.into()),
+        flags: AssetFlags::IS_HTML_ATTR,
+        env: self.env.clone(),
         bundle_behavior: BundleBehavior::Inline,
-        line: node.line,
+        loc: self.create_loc(node.line),
       });
     }
 
@@ -596,16 +578,16 @@ impl<'arena> DependencyCollector<'arena> {
     node: &'arena Node<'arena>,
     name: ExpandedName,
     needs_stable_name: bool,
-    line: u64,
+    line: u32,
   ) {
     let src = node.get_attribute(name.clone());
     if let Some(src) = src {
       // Check for empty string
       if src.is_empty() {
-        self.errors.push(Error {
-          message: format!("'{}' should not be empty string", name.local),
+        self.add_diagnostic(
+          &format!("'{}' should not be empty string", name.local),
           line,
-        });
+        );
         return;
       }
 
@@ -619,7 +601,7 @@ impl<'arena> DependencyCollector<'arena> {
     }
   }
 
-  fn handle_srcset(&mut self, node: &'arena Node<'arena>, name: ExpandedName, line: u64) {
+  fn handle_srcset(&mut self, node: &'arena Node<'arena>, name: ExpandedName, line: u32) {
     let srcset = node.get_attribute(name.clone());
     if let Some(srcset) = srcset {
       let mut res = String::with_capacity(srcset.len());
@@ -627,17 +609,19 @@ impl<'arena> DependencyCollector<'arena> {
       for img in &mut srcset {
         let mut hasher = DefaultHasher::new();
         img.url.hash(&mut hasher);
-        let placeholder = format_tendril!("{:x}", hasher.finish());
+        let placeholder = format!("{:x}", hasher.finish());
 
         self.deps.push(Dependency {
-          href: SerializableTendril(img.url.clone().into()),
+          specifier: img.url.clone().into(),
+          specifier_type: SpecifierType::Url,
           priority: Priority::Lazy,
-          output_format: OutputFormat::None,
-          needs_stable_name: false,
-          source_type: SourceType::None,
+          env: self.env.clone(),
+          flags: DependencyFlags::empty(),
           bundle_behavior: BundleBehavior::None,
-          placeholder: SerializableTendril(placeholder.clone()),
-          line,
+          placeholder: Some(placeholder.clone()),
+          loc: self.create_loc(line),
+          resolve_from: None,
+          range: None,
         });
 
         img.url = placeholder.into();
@@ -659,17 +643,23 @@ impl<'arena> DependencyCollector<'arena> {
     src: StrTendril,
     needs_stable_name: bool,
     priority: Priority,
-    line: u64,
+    line: u32,
   ) -> StrTendril {
     let mut dep = Dependency {
-      href: SerializableTendril(src),
+      specifier: src.into(),
+      specifier_type: SpecifierType::Url,
       priority,
-      output_format: OutputFormat::None,
-      needs_stable_name,
-      source_type: SourceType::None,
+      env: self.env.clone(),
+      flags: {
+        let mut flags = DependencyFlags::empty();
+        flags.set(DependencyFlags::NEEDS_STABLE_NAME, needs_stable_name);
+        flags
+      },
       bundle_behavior: BundleBehavior::None,
       placeholder: Default::default(),
-      line,
+      loc: self.create_loc(line),
+      range: None,
+      resolve_from: None,
     };
 
     let placeholder = dep.set_placeholder().into();

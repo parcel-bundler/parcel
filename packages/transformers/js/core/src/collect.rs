@@ -2,20 +2,20 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{sync::Lrc, Mark, Span, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, sync::Lrc},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
     utils::stack_size::maybe_grow_default,
-    visit::{noop_visit_type, Visit, VisitWith},
+    visit::{Visit, VisitWith, noop_visit_type},
   },
 };
 
 use crate::{
   id,
   utils::{
-    is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
-    match_property_name, match_require, Bailout, BailoutReason, SourceLocation,
+    Bailout, BailoutReason, SourceLocation, is_unresolved, match_export_name,
+    match_export_name_ident, match_import, match_member_expr, match_property_name, match_require,
   },
 };
 

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use inflector::Inflector;
 use swc_core::{
-  common::{Mark, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
