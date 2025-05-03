@@ -1,22 +1,20 @@
+use parcel_core::{Dependency, DependencyFlags, Priority};
 use swc_core::ecma::{
   ast::{CallExpr, Callee, Expr, MemberProp},
   visit::{Visit, VisitWith},
 };
 
-use crate::{
-  DependencyDescriptor, DependencyKind, collect::Collect, dependency_collector2::DependencyFlags,
-  utils::match_str,
-};
+use crate::{DependencyKind, collect::Collect, utils::match_str};
 
 /// This pass marks dependencies created inside a React.lazy call.
 pub struct ReactLazy<'a> {
   collect: &'a Collect,
-  deps: &'a mut Vec<DependencyDescriptor>,
+  deps: &'a mut Vec<Dependency>,
   in_lazy: bool,
 }
 
 impl<'a> ReactLazy<'a> {
-  pub fn new(collect: &'a Collect, deps: &'a mut Vec<DependencyDescriptor>) -> Self {
+  pub fn new(collect: &'a Collect, deps: &'a mut Vec<Dependency>) -> Self {
     ReactLazy {
       collect,
       deps,
@@ -77,8 +75,8 @@ impl<'a> Visit for ReactLazy<'a> {
     if let Some(arg) = node.args.get(0) {
       if let Some((specifier, _)) = match_str(&*arg.expr) {
         for dep in self.deps.iter_mut() {
-          if dep.kind == DependencyKind::DynamicImport
-            && (dep.specifier == specifier
+          if dep.priority == Priority::Lazy
+            && (dep.specifier == specifier.as_str()
               || matches!(&dep.placeholder, Some(p) if p == specifier.as_str()))
           {
             dep.flags |= DependencyFlags::REACT_LAZY;
@@ -91,31 +89,26 @@ impl<'a> Visit for ReactLazy<'a> {
 
 #[cfg(test)]
 mod test {
+  use parcel_core::{Environment, SpecifierType};
   use swc_core::ecma::visit::VisitWith;
   use swc_core::{common::Mark, ecma::ast::Module};
 
   use super::*;
-  use crate::{
-    DependencyKind,
-    dependency_collector2::DependencyFlags,
-    test_utils::{RunTestContext, run_with_transformation},
-  };
+  use crate::test_utils::{RunTestContext, run_with_transformation};
 
   fn run(context: RunTestContext, module: &mut Module) {
     let mut deps = Vec::new();
-    deps.push(DependencyDescriptor {
+    deps.push(Dependency {
       specifier: "./lazy".into(),
-      attributes: None,
+      specifier_type: SpecifierType::Esm,
+      priority: Priority::Lazy,
       flags: DependencyFlags::empty(),
-      kind: DependencyKind::DynamicImport,
-      loc: crate::SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      source_type: None,
+      loc: None,
+      bundle_behavior: parcel_core::BundleBehavior::None,
+      env: Default::default(),
       placeholder: None,
+      range: None,
+      resolve_from: None,
     });
 
     let mut collect = Collect::new(

@@ -5,6 +5,7 @@ use std::{
 };
 
 use data_encoding::{BASE64, HEXLOWER};
+use parcel_core::Dependency;
 use parcel_evaluator::{Evaluate, Evaluator, JsValue, Object, StaticOrRc, builtin_object};
 use swc_core::{
   common::{DUMMY_SP, Mark, Span, SyntaxContext},
@@ -16,20 +17,13 @@ use swc_core::{
   },
 };
 
-use crate::{
-  collect::{Collect, Import},
-  dependency_collector2::{DependencyDescriptor, DependencyFlags, DependencyKind},
-  id,
-  utils::SourceLocation,
-};
-
 pub fn inline_fs<'a>(
   filename: &str,
   source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   unresolved_mark: Mark,
   global_mark: Mark,
   project_root: &'a str,
-  deps: &'a mut Vec<DependencyDescriptor>,
+  deps: &'a mut Vec<Dependency>,
   is_module: bool,
 ) -> impl Fold + 'a {
   let mut evaluator = Evaluator::new();

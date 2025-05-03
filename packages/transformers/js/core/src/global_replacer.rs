@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use indexmap::IndexMap;
+use parcel_core::{Dependency, DependencyFlags, SpecifierType};
 use path_slash::PathBufExt;
 use swc_core::{
   common::{DUMMY_SP, Mark, SourceMap, SyntaxContext, sync::Lrc},
@@ -11,9 +12,8 @@ use swc_core::{
   },
 };
 
-use crate::{
-  dependency_collector2::{DependencyDescriptor, DependencyFlags, DependencyKind},
-  utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
+use crate::utils::{
+  SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved,
 };
 
 /// Replaces a few node.js constants with literals or require statements.
@@ -49,7 +49,7 @@ use crate::{
 pub struct GlobalReplacer<'a> {
   pub source_map: Lrc<SourceMap>,
   /// Require statements that are inserted into the file will be added to this list.
-  pub items: &'a mut Vec<DependencyDescriptor>,
+  pub items: &'a mut Vec<Dependency>,
   pub global_mark: Mark,
   /// Internal structure for inserted global statements.
   pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
@@ -80,11 +80,10 @@ impl VisitMut for GlobalReplacer<'_> {
           Call(create_require("process".into(), unresolved_mark))
         }) {
           let specifier = id.sym.clone();
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(&self.source_map, id.span),
+          self.items.push(Dependency {
             specifier,
-            attributes: None,
+            specifier_type: SpecifierType::Commonjs,
+            loc: SourceLocation::from(&self.source_map, id.span),
             flags: DependencyFlags::empty(),
             source_type: Some(SourceType::Module),
             placeholder: None,

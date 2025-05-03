@@ -19,8 +19,8 @@ use crate::{
   collect::{Collect, Export, Import, ImportKind},
   id,
   utils::{
-    CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, get_undefined_ident,
-    is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
+    CodeHighlight, Diagnostic, DiagnosticSeverity, get_undefined_ident, is_unresolved,
+    match_export_name, match_export_name_ident, match_import, match_member_expr,
     match_property_name, match_require,
   },
 };

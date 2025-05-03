@@ -1,9 +1,6 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
-use crate::{
-  Config, SourceLocation,
-  utils::{CodeHighlight, Diagnostic, DiagnosticSeverity},
-};
+use crate::Config;
 use markdown::{
   Location,
   mdast::{AttributeValueExpression, Code, MdxjsEsm, Node, Text},
@@ -16,6 +13,7 @@ use mdxjs::{
   hast_util_to_swc, mdast_util_from_mdx, mdast_util_to_hast, mdx_plugin_recma_document,
   mdx_plugin_recma_jsx_rewrite,
 };
+use parcel_core::{CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation};
 use parcel_macros::{Evaluator, JsValue};
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -62,7 +60,7 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
   };
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let mut ast = mdast_util_from_mdx(code, &options)?;
+  let mut ast = mdast_util_from_mdx(code, &options).map_err(to_diagnostic)?;
   let mut contents: Vec<_> = Vec::new();
   toc(&ast, &mut contents);
 
@@ -84,13 +82,15 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
   let hast = mdast_util_to_hast(&ast);
   let location = Location::new(code.as_bytes());
   let mut explicit_jsxs = FxHashSet::default();
-  let mut program = hast_util_to_swc(&hast, &options, Some(&location), &mut explicit_jsxs)?;
+  let mut program = hast_util_to_swc(&hast, &options, Some(&location), &mut explicit_jsxs)
+    .map_err(to_diagnostic)?;
   let exports = constant_exports(&program.module);
 
   program.module.visit_mut_with(&mut DependencyVisitor);
 
-  mdx_plugin_recma_document(&mut program, &options, Some(&location))?;
-  mdx_plugin_recma_jsx_rewrite(&mut program, &options, Some(&location), &explicit_jsxs)?;
+  mdx_plugin_recma_document(&mut program, &options, Some(&location)).map_err(to_diagnostic)?;
+  mdx_plugin_recma_jsx_rewrite(&mut program, &options, Some(&location), &explicit_jsxs)
+    .map_err(to_diagnostic)?;
 
   let comments = SingleThreadedComments::default();
   for c in program.comments {
@@ -435,34 +435,55 @@ fn has_default_export(module: &Module) -> bool {
   })
 }
 
-impl From<Message> for Diagnostic {
-  fn from(value: Message) -> Self {
-    let loc = if let Some(place) = value.place {
-      Some(match *place {
-        Place::Point(point) => SourceLocation {
-          start_line: point.line,
-          start_col: point.column,
-          end_line: point.line,
-          end_col: point.column,
+fn to_diagnostic(value: Message) -> Diagnostic {
+  let loc = if let Some(place) = value.place {
+    Some(match *place {
+      Place::Point(point) => SourceLocation {
+        file_path: PathBuf::new(), // TODO
+        start: parcel_core::Location {
+          line: point.line as u32,
+          column: point.column as u32,
         },
-        Place::Position(pos) => SourceLocation {
-          start_line: pos.start.line,
-          start_col: pos.start.column,
-          end_line: pos.end.line,
-          end_col: pos.end.column,
+        end: parcel_core::Location {
+          line: point.line as u32,
+          column: point.column as u32,
         },
-      })
-    } else {
-      None
-    };
+      },
+      Place::Position(pos) => SourceLocation {
+        file_path: PathBuf::new(),
+        start: parcel_core::Location {
+          line: pos.start.line as u32,
+          column: pos.start.column as u32,
+        },
+        end: parcel_core::Location {
+          line: pos.end.line as u32,
+          column: pos.end.column as u32,
+        },
+      },
+    })
+  } else {
+    None
+  };
 
-    Diagnostic {
-      message: value.reason,
-      severity: DiagnosticSeverity::Error,
-      hints: None,
-      code_highlights: loc.map(|loc| vec![CodeHighlight { message: None, loc }]),
-      show_environment: false,
-      documentation_url: None,
-    }
+  Diagnostic {
+    message: value.reason,
+    severity: DiagnosticSeverity::Error,
+    hints: Vec::new(),
+    origin: None,
+    code_frames: vec![CodeFrame {
+      code: None,
+      file_path: None,
+      language: None,
+      code_highlights: if let Some(loc) = loc {
+        vec![CodeHighlight {
+          message: None,
+          start: loc.start,
+          end: loc.end,
+        }]
+      } else {
+        Vec::new()
+      },
+    }],
+    documentation_url: None,
   }
 }

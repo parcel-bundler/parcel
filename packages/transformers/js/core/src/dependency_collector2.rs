@@ -5,10 +5,15 @@ use std::{
   hash::{Hash, Hasher},
   path::Path,
   rc::Rc,
+  sync::Arc,
 };
 
 use bitflags::bitflags;
-use parcel_core::impl_bitflags_serde;
+use parcel_core::{
+  BundleBehavior, Dependency, DependencyFlags, Diagnostic, Environment, EnvironmentContext,
+  EnvironmentFeature, Location, OutputFormat, Priority, SourceLocation, SourceType, SpecifierType,
+  impl_bitflags_serde,
+};
 use parcel_evaluator::{
   Evaluate, Evaluator, Function, JsValue, Object, StaticOrRc, builtin_object,
 };
@@ -27,7 +32,10 @@ use swc_core::{
   },
 };
 
-use crate::{Config, fold_member_expr_skip_prop, utils::*};
+use crate::{
+  Config, fold_member_expr_skip_prop,
+  utils::{create_require, loc},
+};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -133,35 +141,36 @@ impl fmt::Display for DependencyKind {
   }
 }
 
-bitflags! {
-  #[derive(Clone, Default, Debug, PartialEq)]
-  pub struct DependencyFlags: u8 {
-    const OPTIONAL = 1 << 0;
-    const HELPER = 1 << 1;
-    const NEEDS_STABLE_NAME = 1 << 2;
-    const REACT_LAZY = 1 << 3;
-  }
-}
+// bitflags! {
+//   #[derive(Clone, Default, Debug, PartialEq)]
+//   pub struct DependencyFlags: u8 {
+//     const OPTIONAL = 1 << 0;
+//     const HELPER = 1 << 1;
+//     const NEEDS_STABLE_NAME = 1 << 2;
+//     const REACT_LAZY = 1 << 3;
+//   }
+// }
 
-impl_bitflags_serde!(DependencyFlags);
+// impl_bitflags_serde!(DependencyFlags);
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DependencyDescriptor {
-  pub kind: DependencyKind,
-  pub loc: SourceLocation,
-  /// The text specifier associated with the import/export statement.
-  pub specifier: JsWord,
-  pub attributes: Option<()>,
-  pub flags: DependencyFlags,
-  pub source_type: Option<SourceType>,
-  pub placeholder: Option<String>,
-}
+// #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+// pub struct DependencyDescriptor {
+//   pub kind: DependencyKind,
+//   pub loc: SourceLocation,
+//   /// The text specifier associated with the import/export statement.
+//   pub specifier: JsWord,
+//   pub attributes: Option<()>,
+//   pub flags: DependencyFlags,
+//   pub source_type: Option<SourceType>,
+//   pub placeholder: Option<String>,
+// }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
   mut module: Module,
   source_map: Lrc<SourceMap>,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut Vec<Dependency>,
+  env: Arc<Environment>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
@@ -170,6 +179,7 @@ pub fn dependency_collector<'a>(
   let mut collector = DependencyCollector::new(
     source_map,
     items,
+    env,
     ignore_mark,
     unresolved_mark,
     config,
@@ -182,13 +192,13 @@ pub fn dependency_collector<'a>(
 
 struct DependencyCollector<'a> {
   source_map: Lrc<SourceMap>,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut Vec<Dependency>,
+  env: Arc<Environment>,
   in_try: bool,
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
-  config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
   helpers: Helpers,
@@ -199,7 +209,8 @@ struct DependencyCollector<'a> {
 impl<'a> DependencyCollector<'a> {
   pub fn new(
     source_map: Lrc<SourceMap>,
-    items: &'a mut Vec<DependencyDescriptor>,
+    items: &'a mut Vec<Dependency>,
+    env: Arc<Environment>,
     ignore_mark: swc_core::common::Mark,
     unresolved_mark: swc_core::common::Mark,
     config: &'a Config,
@@ -244,14 +255,14 @@ impl<'a> DependencyCollector<'a> {
     // __parcel__importScripts__
     // __parcel__URL__
 
-    if config.is_worker() {
+    if env.context.is_worker() {
       evaluator.add_value(
         ("importScripts".into(), ctxt),
         JsValue::Function(StaticOrRc::Static(&import_scripts)),
       );
     }
 
-    if config.is_browser() {
+    if env.context.is_browser() {
       evaluator.add_value(
         ("navigator".into(), ctxt),
         builtin_object! {
@@ -287,7 +298,7 @@ impl<'a> DependencyCollector<'a> {
         String::from("unknown.js")
       };
 
-    if config.source_type == SourceType::Module {
+    if env.source_type == SourceType::Module {
       // TODO: error if accessed in scripts
       // TODO: should have no prototype: Object.assign(Object.create(null), {url: 'file:///src/foo.js'});
       evaluator.import_meta = JsValue::Object(
@@ -304,12 +315,12 @@ impl<'a> DependencyCollector<'a> {
     DependencyCollector {
       source_map,
       items,
+      env,
       in_try: false,
       in_promise: false,
       require_node: None,
       ignore_mark,
       unresolved_mark,
-      config,
       diagnostics,
       import_meta: None,
       helpers: Helpers::empty(),
@@ -338,19 +349,17 @@ impl<'a> VisitMut for DependencyCollector<'a> {
     // let placeholder = self.placeholder(&node.src.value, DependencyKind::Import);
     // node.src.value = placeholder.clone();
 
-    self.items.push(DependencyDescriptor {
-      kind: DependencyKind::Import,
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: node.src.value.clone(),
-      attributes: None,
+    self.items.push(Dependency {
+      specifier: node.src.value.to_string(),
+      specifier_type: SpecifierType::Esm,
+      priority: Priority::Sync,
+      bundle_behavior: BundleBehavior::None,
       flags: DependencyFlags::empty(),
-      source_type: Some(SourceType::Module),
+      env: self.env.clone(),
       placeholder: None,
+      loc: Some(loc(node.span, &self.filename, &self.source_map)),
+      resolve_from: None,
+      range: None,
     });
   }
 
@@ -360,19 +369,17 @@ impl<'a> VisitMut for DependencyCollector<'a> {
     }
 
     if let Some(src) = &mut node.src {
-      self.items.push(DependencyDescriptor {
-        kind: DependencyKind::Export,
-        loc: SourceLocation {
-          start_line: 0,
-          start_col: 0,
-          end_line: 0,
-          end_col: 0,
-        },
-        specifier: src.value.clone(),
-        attributes: None,
+      self.items.push(Dependency {
+        specifier: src.value.to_string(),
+        specifier_type: SpecifierType::Esm,
+        priority: Priority::Sync,
+        bundle_behavior: BundleBehavior::None,
         flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
+        env: self.env.clone(),
+        loc: Some(loc(node.span, &self.filename, &self.source_map)),
         placeholder: None,
+        resolve_from: None,
+        range: None,
       });
     }
   }
@@ -382,19 +389,17 @@ impl<'a> VisitMut for DependencyCollector<'a> {
       return;
     }
 
-    self.items.push(DependencyDescriptor {
-      kind: DependencyKind::Export,
-      loc: SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      specifier: node.src.value.clone(),
-      attributes: None,
+    self.items.push(Dependency {
+      specifier: node.src.value.to_string(),
+      specifier_type: SpecifierType::Esm,
+      priority: Priority::Sync,
+      bundle_behavior: BundleBehavior::None,
       flags: DependencyFlags::empty(),
-      source_type: Some(SourceType::Module),
+      env: self.env.clone(),
+      loc: Some(loc(node.span, &self.filename, &self.source_map)),
       placeholder: None,
+      resolve_from: None,
+      range: None,
     });
   }
 
@@ -411,27 +416,26 @@ impl<'a> VisitMut for DependencyCollector<'a> {
     if matches!(node, Expr::Call(_) | Expr::New(_)) {
       let res = node.evaluate(&self.evaluator);
       if let JsValue::Object(res) = &res {
-        if let Some(dep) = res.as_any().downcast_ref::<DependencyDescriptor>() {
-          let placeholder = self.placeholder(&dep.specifier, dep.kind);
-          let mut d = dep.clone();
-          d.placeholder = Some(placeholder.to_string());
+        if let Some(dep) = res.as_any().downcast_ref::<DepObject>() {
+          let mut d = dep.into_dependency(self.env.clone(), &self.filename, &self.source_map);
+          let placeholder: JsWord = d.placeholder.as_ref().unwrap().clone().into();
 
-          if dep.kind == DependencyKind::Require && self.in_try {
+          if matches!(dep, DepObject::Require(..)) && self.in_try {
             d.flags |= DependencyFlags::OPTIONAL;
           }
 
           self.items.push(d);
 
           if let Expr::New(new) = node {
-            if matches!(dep.kind, DependencyKind::WebWorker | DependencyKind::Url) {
+            if matches!(dep, DepObject::Worker(..) | DepObject::Url(..)) {
               if let Some(args) = &mut new.args {
-                if !self.config.supports_module_workers {
+                if !self.env.engines.supports(EnvironmentFeature::WorkerModule) {
                   remove_type_option(args);
                 }
 
                 args[0] = ExprOrSpread {
                   expr: Box::new(Expr::Call(create_require(
-                    placeholder,
+                    placeholder.clone(),
                     self.unresolved_mark,
                   ))),
                   spread: None,
@@ -442,17 +446,14 @@ impl<'a> VisitMut for DependencyCollector<'a> {
           }
 
           if let Expr::Call(call) = node {
-            if matches!(
-              dep.kind,
-              DependencyKind::ServiceWorker | DependencyKind::Worklet
-            ) {
-              if !self.config.supports_module_workers {
+            if matches!(dep, DepObject::ServiceWorker(..) | DepObject::Worklet(..)) {
+              if !self.env.engines.supports(EnvironmentFeature::WorkerModule) {
                 remove_type_option(&mut call.args);
               }
 
               call.args[0] = ExprOrSpread {
                 expr: Box::new(Expr::Call(create_require(
-                  placeholder,
+                  placeholder.clone(),
                   self.unresolved_mark,
                 ))),
                 spread: None,
@@ -460,7 +461,7 @@ impl<'a> VisitMut for DependencyCollector<'a> {
               return;
             }
 
-            if matches!(dep.kind, DependencyKind::Id) {
+            if matches!(dep, DepObject::ParcelRequire(..)) {
               call.callee = Callee::Expr(Box::new(Expr::Member(member_expr!(
                 Default::default(),
                 call.span,
@@ -470,7 +471,7 @@ impl<'a> VisitMut for DependencyCollector<'a> {
             }
           }
 
-          *node = Expr::Call(create_require(placeholder, self.unresolved_mark));
+          *node = Expr::Call(create_require(placeholder.clone(), self.unresolved_mark));
           return;
         }
       } else if let Expr::Call(call) = node {
@@ -496,25 +497,184 @@ impl<'a> VisitMut for DependencyCollector<'a> {
   }
 }
 
+enum DepObject {
+  Require(JsWord, Span),
+  Import(JsWord, Span),
+  Url(JsWord, Span, bool),
+  Worker(JsWord, SourceType, Span),
+  ServiceWorker(JsWord, SourceType, Span),
+  Worklet(JsWord, Span),
+  ParcelRequire(JsWord, Span),
+}
+
+impl Object for DepObject {
+  fn get(&self, _prop: &parcel_evaluator::JsValue, span: Span) -> parcel_evaluator::JsValue {
+    JsValue::Unknown(span)
+  }
+
+  fn has(&self, _prop: &parcel_evaluator::JsValue) -> bool {
+    false
+  }
+
+  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, parcel_evaluator::JsValue)> + 'a> {
+    Box::new(std::iter::empty())
+  }
+
+  fn into_expr(&self) -> Result<Expr, ()> {
+    // Ok(Expr::Call(CallExpr {
+    //   callee: Callee::Expr(Box::new(Expr::Ident(Ident::new_private(
+    //     "__parcel_dep__".into(),
+    //     DUMMY_SP,
+    //   )))),
+    //   ..Default::default()
+    // }))
+    // Ok(Expr::Call(create_require(
+    //   self.0.specifier.clone(),
+    //   Mark::fresh(Mark::root()),
+    // )))
+    todo!()
+  }
+}
+
+impl DepObject {
+  fn into_dependency(
+    &self,
+    env: Arc<Environment>,
+    filename: &str,
+    source_map: &Lrc<SourceMap>,
+  ) -> Dependency {
+    match self {
+      DepObject::Require(atom, span) => Dependency {
+        specifier: atom.to_string(),
+        specifier_type: SpecifierType::Commonjs,
+        priority: Priority::Sync,
+        bundle_behavior: BundleBehavior::None,
+        flags: DependencyFlags::empty(),
+        env,
+        loc: Some(loc(*span, filename, source_map)),
+        placeholder: placeholder(filename, &atom, DependencyKind::Require),
+        resolve_from: None,
+        range: None,
+      },
+      DepObject::Import(atom, span) => Dependency {
+        specifier: atom.to_string(),
+        specifier_type: SpecifierType::Esm,
+        priority: Priority::Lazy,
+        bundle_behavior: BundleBehavior::None,
+        flags: DependencyFlags::empty(),
+        env,
+        loc: Some(loc(*span, filename, source_map)),
+        placeholder: placeholder(filename, &atom, DependencyKind::Import),
+        resolve_from: None,
+        range: None,
+      },
+      DepObject::Url(atom, span, needs_stable_name) => Dependency {
+        specifier: atom.to_string(),
+        specifier_type: SpecifierType::Url,
+        priority: Priority::Lazy,
+        bundle_behavior: BundleBehavior::Isolated,
+        flags: {
+          let mut flags = DependencyFlags::empty();
+          flags.set(DependencyFlags::NEEDS_STABLE_NAME, *needs_stable_name);
+          flags
+        },
+        env,
+        loc: Some(loc(*span, filename, source_map)),
+        placeholder: placeholder(filename, &atom, DependencyKind::Url),
+        resolve_from: None,
+        range: None,
+      },
+      DepObject::Worker(atom, source_type, span) => {
+        let output_format = if env.output_format == OutputFormat::Esmodule
+          && *source_type == SourceType::Module
+          && env.engines.supports(EnvironmentFeature::WorkerModule)
+        {
+          OutputFormat::Esmodule
+        } else if env.output_format == OutputFormat::Commonjs {
+          OutputFormat::Commonjs
+        } else {
+          OutputFormat::Global
+        };
+
+        let loc = Some(loc(*span, filename, source_map));
+        let env = Arc::new(Environment {
+          context: EnvironmentContext::WebWorker,
+          source_type: *source_type,
+          output_format,
+          loc: loc.clone(),
+          ..(*env).clone()
+        });
+
+        Dependency {
+          specifier: atom.to_string(),
+          specifier_type: SpecifierType::Url,
+          priority: Priority::Lazy,
+          bundle_behavior: BundleBehavior::None,
+          flags: DependencyFlags::IS_WEBWORKER,
+          env,
+          loc,
+          placeholder: placeholder(filename, &atom, DependencyKind::WebWorker),
+          resolve_from: None,
+          range: None,
+        }
+      }
+      DepObject::ServiceWorker(atom, source_type, span) => {
+        let loc = Some(loc(*span, filename, source_map));
+        Dependency {
+          specifier: atom.to_string(),
+          specifier_type: SpecifierType::Url,
+          priority: Priority::Lazy,
+          bundle_behavior: BundleBehavior::None,
+          flags: DependencyFlags::NEEDS_STABLE_NAME,
+          env: Arc::new(Environment {
+            context: EnvironmentContext::ServiceWorker,
+            source_type: *source_type,
+            output_format: OutputFormat::Global,
+            loc: loc.clone(),
+            ..(*env).clone()
+          }),
+          loc,
+          placeholder: placeholder(filename, &atom, DependencyKind::ServiceWorker),
+          resolve_from: None,
+          range: None,
+        }
+      }
+      DepObject::Worklet(atom, span) => {
+        let loc = Some(loc(*span, filename, source_map));
+        Dependency {
+          specifier: atom.to_string(),
+          specifier_type: SpecifierType::Url,
+          priority: Priority::Lazy,
+          bundle_behavior: BundleBehavior::None,
+          flags: DependencyFlags::empty(),
+          env: Arc::new(Environment {
+            context: EnvironmentContext::Worklet,
+            source_type: SourceType::Module,
+            output_format: OutputFormat::Esmodule,
+            loc: loc.clone(),
+            ..(*env).clone()
+          }),
+          loc,
+          placeholder: placeholder(filename, &atom, DependencyKind::Worklet),
+          resolve_from: None,
+          range: None,
+        }
+      }
+      DepObject::ParcelRequire(atom, span) => todo!(),
+    }
+  }
+}
+
+fn placeholder(filename: &str, specifier: &JsWord, kind: DependencyKind) -> Option<String> {
+  Some(format!(
+    "{:x}",
+    hash!(format!("{}:{}:{}", filename, specifier, kind)),
+  ))
+}
+
 fn require(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
   if let Some(JsValue::String(src)) = args.get(0) {
-    JsValue::Object(
-      Rc::new(DependencyDescriptor {
-        kind: DependencyKind::Require,
-        flags: DependencyFlags::empty(),
-        loc: SourceLocation {
-          start_line: 0,
-          start_col: 0,
-          end_line: 0,
-          end_col: 0,
-        },
-        specifier: src.clone(),
-        attributes: None,
-        placeholder: None,
-        source_type: Some(SourceType::Module),
-      })
-      .into(),
-    )
+    JsValue::Object(Rc::new(DepObject::Require(src.clone(), span)).into())
   } else {
     JsValue::Unknown(span)
   }
@@ -522,23 +682,7 @@ fn require(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluato
 
 fn import(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
   if let Some(JsValue::String(src)) = args.get(0) {
-    JsValue::Object(
-      Rc::new(DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        flags: DependencyFlags::empty(),
-        loc: SourceLocation {
-          start_line: 0,
-          start_col: 0,
-          end_line: 0,
-          end_col: 0,
-        },
-        specifier: src.clone(),
-        attributes: None,
-        placeholder: None,
-        source_type: Some(SourceType::Module),
-      })
-      .into(),
-    )
+    JsValue::Object(Rc::new(DepObject::Import(src.clone(), span)).into())
   } else {
     JsValue::Unknown(span)
   }
@@ -574,34 +718,18 @@ fn service_worker_register(
       }
     }
 
-    JsValue::Object(
-      Rc::new(DependencyDescriptor {
-        kind: DependencyKind::ServiceWorker,
-        loc: SourceLocation {
-          start_line: 0,
-          start_col: 0,
-          end_line: 0,
-          end_col: 0,
-        },
-        specifier: dep.specifier.clone(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(source_type),
-        placeholder: None,
-      })
-      .into(),
-    )
+    JsValue::Object(Rc::new(DepObject::ServiceWorker(dep.clone(), source_type, span)).into())
   } else {
     JsValue::Unknown(span)
   }
 }
 
-fn match_url_dep(args: &Vec<JsValue>) -> Option<&DependencyDescriptor> {
+fn match_url_dep(args: &Vec<JsValue>) -> Option<&JsWord> {
   // TODO: support self reference, e.g. new Worker(import.meta.url)
   if let Some(JsValue::Object(src)) = args.get(0) {
-    if let Some(dep) = src.as_any().downcast_ref::<DependencyDescriptor>() {
-      if dep.kind == DependencyKind::Url {
-        return Some(&dep);
+    if let Some(dep) = src.as_any().downcast_ref::<DepObject>() {
+      if let DepObject::Url(url, _, _) = dep {
+        return Some(url);
       }
     }
   }
@@ -616,23 +744,7 @@ fn paint_worklet(
   _evaluator: &Evaluator,
 ) -> JsValue {
   if let Some(dep) = match_url_dep(&args) {
-    JsValue::Object(
-      Rc::new(DependencyDescriptor {
-        kind: DependencyKind::Worklet,
-        loc: SourceLocation {
-          start_line: 0,
-          start_col: 0,
-          end_line: 0,
-          end_col: 0,
-        },
-        specifier: dep.specifier.clone(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: None,
-      })
-      .into(),
-    )
+    JsValue::Object(Rc::new(DepObject::Worklet(dep.clone(), span)).into())
   } else {
     JsValue::Unknown(span)
   }
@@ -643,23 +755,7 @@ impl Object for URL {}
 impl Function for URL {
   fn construct(&self, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
     if let (Some(JsValue::String(url)), Some(_)) = (args.get(0), args.get(1)) {
-      JsValue::Object(
-        Rc::new(DependencyDescriptor {
-          kind: DependencyKind::Url,
-          loc: SourceLocation {
-            start_line: 0,
-            start_col: 0,
-            end_line: 0,
-            end_col: 0,
-          },
-          specifier: url.clone(),
-          attributes: None,
-          flags: DependencyFlags::empty(),
-          source_type: Some(SourceType::Module),
-          placeholder: None,
-        })
-        .into(),
-      )
+      JsValue::Object(Rc::new(DepObject::Url(url.clone(), span, false)).into())
     } else {
       JsValue::Unknown(span)
     }
@@ -675,27 +771,7 @@ fn parcel_url_dep(
   if let (Some(JsValue::String(url)), Some(JsValue::Bool(needs_stable_name))) =
     (args.get(0), args.get(1))
   {
-    JsValue::Object(
-      Rc::new(DependencyDescriptor {
-        kind: DependencyKind::Url,
-        loc: SourceLocation {
-          start_line: 0,
-          start_col: 0,
-          end_line: 0,
-          end_col: 0,
-        },
-        specifier: url.clone(),
-        attributes: None,
-        flags: if *needs_stable_name {
-          DependencyFlags::NEEDS_STABLE_NAME
-        } else {
-          DependencyFlags::empty()
-        },
-        source_type: Some(SourceType::Module),
-        placeholder: None,
-      })
-      .into(),
-    )
+    JsValue::Object(Rc::new(DepObject::Url(url.clone(), span, *needs_stable_name)).into())
   } else {
     JsValue::Unknown(span)
   }
@@ -704,7 +780,7 @@ fn parcel_url_dep(
 struct Worker;
 impl Object for Worker {}
 impl Function for Worker {
-  fn construct(&self, args: Vec<JsValue>, span: Span, evaluator: &Evaluator) -> JsValue {
+  fn construct(&self, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
     if let Some(dep) = match_url_dep(&args) {
       let mut source_type = SourceType::Script;
       if let Some(JsValue::Object(obj)) = args.get(1) {
@@ -715,23 +791,7 @@ impl Function for Worker {
         }
       }
 
-      JsValue::Object(
-        Rc::new(DependencyDescriptor {
-          kind: DependencyKind::WebWorker,
-          loc: SourceLocation {
-            start_line: 0,
-            start_col: 0,
-            end_line: 0,
-            end_col: 0,
-          },
-          specifier: dep.specifier.clone(),
-          attributes: None,
-          flags: DependencyFlags::empty(),
-          source_type: Some(source_type),
-          placeholder: None,
-        })
-        .into(),
-      )
+      JsValue::Object(Rc::new(DepObject::Worker(dep.clone(), source_type, span)).into())
     } else {
       JsValue::Unknown(span)
     }
@@ -752,54 +812,10 @@ impl Function for SharedWorker {
         }
       }
 
-      JsValue::Object(
-        Rc::new(DependencyDescriptor {
-          kind: DependencyKind::WebWorker,
-          loc: SourceLocation {
-            start_line: 0,
-            start_col: 0,
-            end_line: 0,
-            end_col: 0,
-          },
-          specifier: dep.specifier.clone(),
-          attributes: None,
-          flags: DependencyFlags::empty(),
-          source_type: Some(source_type),
-          placeholder: None,
-        })
-        .into(),
-      )
+      JsValue::Object(Rc::new(DepObject::Worker(dep.clone(), source_type, span)).into())
     } else {
       JsValue::Unknown(span)
     }
-  }
-}
-
-impl Object for DependencyDescriptor {
-  fn get(&self, _prop: &parcel_evaluator::JsValue, span: Span) -> parcel_evaluator::JsValue {
-    JsValue::Unknown(span)
-  }
-
-  fn has(&self, _prop: &parcel_evaluator::JsValue) -> bool {
-    false
-  }
-
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, parcel_evaluator::JsValue)> + 'a> {
-    Box::new(std::iter::empty())
-  }
-
-  fn into_expr(&self) -> Result<Expr, ()> {
-    // Ok(Expr::Call(CallExpr {
-    //   callee: Callee::Expr(Box::new(Expr::Ident(Ident::new_private(
-    //     "__parcel_dep__".into(),
-    //     DUMMY_SP,
-    //   )))),
-    //   ..Default::default()
-    // }))
-    Ok(Expr::Call(create_require(
-      self.specifier.clone(),
-      Mark::fresh(Mark::root()),
-    )))
   }
 }
 
@@ -851,23 +867,7 @@ impl Function for ParcelRequire {
     _evaluator: &Evaluator,
   ) -> JsValue {
     if let Some(JsValue::String(id)) = args.get(0) {
-      JsValue::Object(
-        Rc::new(DependencyDescriptor {
-          kind: DependencyKind::Id,
-          flags: DependencyFlags::empty(),
-          loc: SourceLocation {
-            start_line: 0,
-            start_col: 0,
-            end_line: 0,
-            end_col: 0,
-          },
-          placeholder: None,
-          attributes: None,
-          specifier: id.clone(),
-          source_type: None,
-        })
-        .into(),
-      )
+      JsValue::Object(Rc::new(DepObject::ParcelRequire(id.clone(), span)).into())
     } else {
       JsValue::Unknown(span)
     }
@@ -921,11 +921,9 @@ fn promise_resolve(
   let arg = args.get(0).cloned().unwrap_or(JsValue::Undefined);
 
   if let JsValue::Object(obj) = &arg {
-    if let Some(dep) = obj.as_any().downcast_ref::<DependencyDescriptor>() {
-      if dep.kind == DependencyKind::Require {
-        let mut dep = dep.clone();
-        dep.kind = DependencyKind::DynamicImport;
-        return JsValue::Object(Rc::new(dep).into());
+    if let Some(dep) = obj.as_any().downcast_ref::<DepObject>() {
+      if let DepObject::Require(dep, span) = dep {
+        return JsValue::Object(Rc::new(DepObject::Import(dep.clone(), *span)).into());
       }
     }
   }
@@ -954,11 +952,9 @@ impl Function for Promise {
       let res = result.clone().borrow().clone();
 
       if let JsValue::Object(obj) = res {
-        if let Some(dep) = obj.as_any().downcast_ref::<DependencyDescriptor>() {
-          if dep.kind == DependencyKind::Require {
-            let mut dep = dep.clone();
-            dep.kind = DependencyKind::DynamicImport;
-            return JsValue::Object(Rc::new(dep).into());
+        if let Some(dep) = obj.as_any().downcast_ref::<DepObject>() {
+          if let DepObject::Require(dep, span) = dep {
+            return JsValue::Object(Rc::new(DepObject::Import(dep.clone(), *span)).into());
           }
         }
       }
@@ -980,11 +976,11 @@ impl Object for PromiseInstance {
               if let Some(JsValue::Function(f)) = args.get(0) {
                 let res = f.call(this, vec![val.clone()], span, evaluator);
                 if let JsValue::Object(obj) = &res {
-                  if let Some(dep) = obj.as_any().downcast_ref::<DependencyDescriptor>() {
-                    if dep.kind == DependencyKind::Require {
-                      let mut dep = dep.clone();
-                      dep.kind = DependencyKind::DynamicImport;
-                      return JsValue::Object(Rc::new(dep).into());
+                  if let Some(dep) = obj.as_any().downcast_ref::<DepObject>() {
+                    if let DepObject::Require(dep, span) = dep {
+                      return JsValue::Object(
+                        Rc::new(DepObject::Import(dep.clone(), *span)).into(),
+                      );
                     }
                   }
                 }
@@ -1009,19 +1005,19 @@ impl Object for PromiseInstance {
 
 #[cfg(test)]
 mod test {
-  use super::DependencyDescriptor;
   use super::*;
   use crate::test_utils::{RunTestContext, RunVisitResult, run_visit};
 
   fn make_dependency_collector<'a>(
     context: RunTestContext,
-    items: &'a mut Vec<DependencyDescriptor>,
+    items: &'a mut Vec<Dependency>,
     diagnostics: &'a mut Vec<Diagnostic>,
     config: &'a Config,
   ) -> DependencyCollector<'a> {
     DependencyCollector::new(
       context.source_map.clone(),
       items,
+      Default::default(),
       Mark::new(),
       context.unresolved_mark,
       config,

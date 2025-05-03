@@ -1,6 +1,9 @@
-use std::{ffi::OsStr, path::Path};
+use std::{ffi::OsStr, path::Path, sync::Arc};
 
 use indexmap::IndexMap;
+use parcel_core::{
+  BundleBehavior, Dependency, DependencyFlags, Environment, Priority, SpecifierType,
+};
 use swc_core::{
   common::{DUMMY_SP, Mark, SourceMap, SyntaxContext, sync::Lrc},
   ecma::{
@@ -11,10 +14,7 @@ use swc_core::{
   },
 };
 
-use crate::{
-  dependency_collector2::{DependencyDescriptor, DependencyFlags, DependencyKind},
-  utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
-};
+use crate::utils::{SourceType, create_global_decl_stmt, create_require, is_unresolved, loc};
 
 /// Replaces __filename and __dirname with globals that reference to string literals for the
 /// file-path of this file.
@@ -26,13 +26,14 @@ pub struct NodeReplacer<'a> {
   pub source_map: Lrc<SourceMap>,
   pub global_mark: Mark,
   pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
-  pub filename: &'a Path,
+  pub filename: &'a str,
   pub is_esm: bool,
   pub unresolved_mark: Mark,
   /// This will be set to true if the file has either __dirname or __filename replacements inserted
   pub has_node_replacements: &'a mut bool,
   /// This will be populated with the added dependency into the `"path"` module.
-  pub items: &'a mut Vec<DependencyDescriptor>,
+  pub items: &'a mut Vec<Dependency>,
+  pub env: Arc<Environment>,
 }
 
 impl<'a> VisitMut for NodeReplacer<'a> {
@@ -54,7 +55,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
             let unresolved_mark = self.unresolved_mark;
             let is_esm = self.is_esm;
             let expr = |this: &NodeReplacer| {
-              let filename = if let Some(name) = this.filename.file_name() {
+              let filename = if let Some(name) = Path::new(this.filename).file_name() {
                 name
               } else {
                 OsStr::new("unknown.js")
@@ -98,14 +99,17 @@ impl<'a> VisitMut for NodeReplacer<'a> {
               })
             };
             if self.update_binding(id, "$parcel$__filename".into(), expr) {
-              self.items.push(DependencyDescriptor {
-                kind: DependencyKind::Require,
-                loc: SourceLocation::from(&self.source_map, id.span),
-                specifier: path_module_specifier,
-                attributes: None,
+              self.items.push(Dependency {
+                specifier: path_module_specifier.to_string(),
+                specifier_type: SpecifierType::Commonjs,
+                priority: Priority::Sync,
+                bundle_behavior: BundleBehavior::None,
+                loc: Some(loc(id.span, &self.filename, &self.source_map)),
                 flags: DependencyFlags::empty(),
-                source_type: Some(SourceType::Module),
+                env: self.env.clone(),
                 placeholder: None,
+                resolve_from: None,
+                range: None,
               });
 
               *self.has_node_replacements = true;
@@ -146,14 +150,17 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                 }))),
               })
             }) {
-              self.items.push(DependencyDescriptor {
-                kind: DependencyKind::Require,
-                loc: SourceLocation::from(&self.source_map, id.span),
-                specifier: path_module_specifier,
-                attributes: None,
+              self.items.push(Dependency {
+                specifier: path_module_specifier.to_string(),
+                specifier_type: SpecifierType::Commonjs,
+                priority: Priority::Sync,
+                bundle_behavior: BundleBehavior::None,
+                loc: Some(loc(id.span, &self.filename, &self.source_map)),
                 flags: DependencyFlags::empty(),
-                source_type: Some(SourceType::Module),
+                env: self.env.clone(),
                 placeholder: None,
+                resolve_from: None,
+                range: None,
               });
 
               *self.has_node_replacements = true;
@@ -268,7 +275,7 @@ console.log(__filename);
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: IndexMap::new(),
-      filename: Path::new("/path/random.js"),
+      filename: "/path/random.js",
       has_node_replacements: &mut has_node_replacements,
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
@@ -284,9 +291,8 @@ console.log($parcel$__filename);
     .trim_start();
     assert_eq!(output_code, expected_code);
     assert_eq!(has_node_replacements, true);
-    assert_eq!(items[0].specifier, JsWord::from("path"));
-    assert_eq!(items[0].kind, DependencyKind::Require);
-    assert_eq!(items[0].source_type, Some(SourceType::Module));
+    assert_eq!(items[0].specifier, "path");
+    assert_eq!(items[0].specifier_type, SpecifierType::Commonjs);
     assert_eq!(items.len(), 1);
   }
 
@@ -303,7 +309,7 @@ console.log(__dirname);
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: IndexMap::new(),
-      filename: Path::new("/path/random.js"),
+      filename: "/path/random.js",
       has_node_replacements: &mut has_node_replacements,
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
@@ -319,9 +325,7 @@ console.log($parcel$__dirname);
     .trim_start();
     assert_eq!(output_code, expected_code);
     assert_eq!(has_node_replacements, true);
-    assert_eq!(items[0].specifier, JsWord::from("path"));
-    assert_eq!(items[0].kind, DependencyKind::Require);
-    assert_eq!(items[0].source_type, Some(SourceType::Module));
+    assert_eq!(items[0].specifier, "path");
     assert_eq!(items.len(), 1);
   }
 
@@ -341,7 +345,7 @@ function something(__filename, __dirname) {
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: IndexMap::new(),
-      filename: Path::new("/path/random.js"),
+      filename: "/path/random.js",
       has_node_replacements: &mut has_node_replacements,
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
@@ -374,7 +378,7 @@ const filename = obj.__filename;
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: IndexMap::new(),
-      filename: Path::new("/path/random.js"),
+      filename: "/path/random.js",
       has_node_replacements: &mut has_node_replacements,
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
@@ -403,7 +407,7 @@ const filename = obj[__filename];
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: IndexMap::new(),
-      filename: Path::new("/path/random.js"),
+      filename: "/path/random.js",
       has_node_replacements: &mut has_node_replacements,
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
@@ -434,7 +438,7 @@ console.log(__dirname);
       source_map: context.source_map.clone(),
       global_mark: context.global_mark,
       globals: IndexMap::new(),
-      filename: Path::new("/path/random.js"),
+      filename: "/path/random.js",
       has_node_replacements: &mut has_node_replacements,
       items: &mut items,
       unresolved_mark: context.unresolved_mark,

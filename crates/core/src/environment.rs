@@ -5,7 +5,7 @@ use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
   pub context: EnvironmentContext,
@@ -421,7 +421,7 @@ impl Engines {
 }
 
 bitflags! {
-  #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
+  #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Default)]
   pub struct EnvironmentFlags: u8 {
     const IS_LIBRARY = 1 << 0;
     const SHOULD_OPTIMIZE = 1 << 1;
@@ -431,9 +431,10 @@ bitflags! {
 
 impl_bitflags_serde!(EnvironmentFlags);
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum EnvironmentContext {
+  #[default]
   Browser,
   WebWorker,
   ServiceWorker,
@@ -470,16 +471,18 @@ impl EnvironmentContext {
   }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceType {
+  #[default]
   Module,
   Script,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
+  #[default]
   Global,
   Commonjs,
   Esmodule,

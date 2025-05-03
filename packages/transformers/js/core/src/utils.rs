@@ -1,10 +1,12 @@
 use std::cmp::Ordering;
 
+use parcel_core::{Location, SourceLocation};
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{
     DUMMY_SP, Mark, SourceMap, Span, SyntaxContext,
     errors::{DiagnosticBuilder, Emitter},
+    sync::Lrc,
   },
   ecma::{
     ast::{self, Ident, IdentName},
@@ -209,47 +211,73 @@ pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
   )
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+// #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 /// Corresponds to the JS SourceLocation type (1-based, end exclusive)
-pub struct SourceLocation {
-  pub start_line: usize,
-  pub start_col: usize,
-  pub end_line: usize,
-  pub end_col: usize,
-}
+// pub struct SourceLocation {
+//   pub start_line: usize,
+//   pub start_col: usize,
+//   pub end_line: usize,
+//   pub end_col: usize,
+// }
 
-impl SourceLocation {
-  pub fn from(source_map: &SourceMap, span: Span) -> Self {
-    if span.lo.is_dummy() || span.hi.is_dummy() {
-      return SourceLocation {
-        start_line: 1,
-        start_col: 1,
-        end_line: 1,
-        end_col: 2,
-      };
-    }
+// impl SourceLocation {
+//   pub fn from(source_map: &SourceMap, span: Span) -> Self {
+//     if span.lo.is_dummy() || span.hi.is_dummy() {
+//       return SourceLocation {
+//         start_line: 1,
+//         start_col: 1,
+//         end_line: 1,
+//         end_col: 2,
+//       };
+//     }
 
-    let start = source_map.lookup_char_pos(span.lo);
-    let end = source_map.lookup_char_pos(span.hi);
-    // SWC's columns are exclusive, ours are exclusive
-    // SWC has 0-based columns, ours are 1-based (column + 1)
-    SourceLocation {
-      start_line: start.line,
-      start_col: start.col_display + 1,
-      end_line: end.line,
-      end_col: end.col_display + 1,
-    }
+//     let start = source_map.lookup_char_pos(span.lo);
+//     let end = source_map.lookup_char_pos(span.hi);
+//     // SWC's columns are exclusive, ours are exclusive
+//     // SWC has 0-based columns, ours are 1-based (column + 1)
+//     SourceLocation {
+//       start_line: start.line,
+//       start_col: start.col_display + 1,
+//       end_line: end.line,
+//       end_col: end.col_display + 1,
+//     }
+//   }
+// }
+
+pub fn loc(span: Span, filename: &str, source_map: &Lrc<SourceMap>) -> SourceLocation {
+  if span.lo.is_dummy() || span.hi.is_dummy() {
+    return SourceLocation {
+      file_path: filename.clone().into(),
+      start: Location { line: 1, column: 1 },
+      end: Location { line: 1, column: 2 },
+    };
+  }
+
+  let start = source_map.lookup_char_pos(span.lo);
+  let end = source_map.lookup_char_pos(span.hi);
+  // SWC's columns are exclusive, ours are exclusive
+  // SWC has 0-based columns, ours are 1-based (column + 1)
+  SourceLocation {
+    file_path: filename.clone().into(),
+    start: Location {
+      line: start.line as u32,
+      column: (start.col_display + 1) as u32,
+    },
+    end: Location {
+      line: end.line as u32,
+      column: (end.col_display + 1) as u32,
+    },
   }
 }
 
-impl PartialOrd for SourceLocation {
-  fn partial_cmp(&self, other: &SourceLocation) -> Option<Ordering> {
-    match self.start_line.cmp(&other.start_line) {
-      Ordering::Equal => self.start_col.partial_cmp(&other.start_col),
-      o => Some(o),
-    }
-  }
-}
+// impl PartialOrd for SourceLocation {
+//   fn partial_cmp(&self, other: &SourceLocation) -> Option<Ordering> {
+//     match self.start_line.cmp(&other.start_line) {
+//       Ordering::Equal => self.start_col.partial_cmp(&other.start_col),
+//       o => Some(o),
+//     }
+//   }
+// }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct CodeHighlight {
