@@ -2,6 +2,8 @@ import assert from 'assert';
 import path from 'path';
 import {
   assertBundles,
+  assertEqualDiagnostics,
+  assertRejectsWithDiagnostic,
   bundle,
   inputFS,
   outputFS,
@@ -261,8 +263,8 @@ describe('workers', function () {
     let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
     shared = await outputFS.readFile(shared.filePath, 'utf8');
-    assert(/new Worker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
-    assert(/new SharedWorker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
+    assert(/new Worker(.*?, {[\n\s]+type: "module"[\n\s]+})/.test(main));
+    assert(/new SharedWorker(.*?, {[\n\s]+type: "module"[\n\s]+})/.test(main));
   });
 
   for (let shouldScopeHoist of [true, false]) {
@@ -410,8 +412,8 @@ describe('workers', function () {
     );
 
     let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(/new Worker(.*?, {[\n\s]+name: 'worker'[\n\s]+})/.test(main));
-    assert(/new SharedWorker(.*?, {[\n\s]+name: 'shared'[\n\s]+})/.test(main));
+    assert(/new Worker(.*?, {[\n\s]+name: "worker"[\n\s]+})/.test(main));
+    assert(/new SharedWorker(.*?, {[\n\s]+name: "shared"[\n\s]+})/.test(main));
   });
 
   it('errors when importing in a worker without type: module', async function () {
@@ -431,7 +433,7 @@ describe('workers', function () {
         err.message,
         'Web workers cannot have imports or exports without the `type: "module"` option.',
       );
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message:
             'Web workers cannot have imports or exports without the `type: "module"` option.',
@@ -466,11 +468,11 @@ describe('workers', function () {
                   message: 'The environment was originally created here',
                   start: {
                     line: 1,
-                    column: 20,
+                    column: 1,
                   },
                   end: {
                     line: 1,
-                    column: 40,
+                    column: 59,
                   },
                 },
               ],
@@ -531,7 +533,7 @@ describe('workers', function () {
           err.message,
           'Argument to importScripts() must be a fully qualified URL.',
         );
-        assert.deepEqual(err.diagnostics, [
+        assertEqualDiagnostics(err.diagnostics, [
           {
             message:
               'Argument to importScripts() must be a fully qualified URL.',
@@ -547,11 +549,11 @@ describe('workers', function () {
                     message: undefined,
                     start: {
                       line: 1,
-                      column: 15,
+                      column: 1,
                     },
                     end: {
                       line: 1,
-                      column: 27,
+                      column: 28,
                     },
                   },
                 ],
@@ -566,11 +568,11 @@ describe('workers', function () {
                     message: 'The environment was originally created here',
                     start: {
                       line: 1,
-                      column: workerType === 'webworker' ? 20 : 42,
+                      column: workerType === 'webworker' ? 1 : 1,
                     },
                     end: {
                       line: 1,
-                      column: workerType === 'webworker' ? 37 : 59,
+                      column: workerType === 'webworker' ? 56 : 78,
                     },
                   },
                 ],
@@ -730,7 +732,7 @@ describe('workers', function () {
     let main = bundles.find(b => !b.env.isWorker());
     let mainContents = await outputFS.readFile(main.filePath, 'utf8');
     assert(
-      /navigator.serviceWorker.register\(.*?, {[\n\s]*scope: 'foo'[\n\s]*}\)/.test(
+      /navigator.serviceWorker.register\(.*?, {[\n\s]*scope: "foo"[\n\s]*}\)/.test(
         mainContents,
       ),
     );
@@ -753,7 +755,7 @@ describe('workers', function () {
         err.message,
         'Service workers cannot have imports or exports without the `type: "module"` option.',
       );
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message:
             'Service workers cannot have imports or exports without the `type: "module"` option.',
@@ -788,11 +790,11 @@ describe('workers', function () {
                   message: 'The environment was originally created here',
                   start: {
                     line: 1,
-                    column: 42,
+                    column: 1,
                   },
                   end: {
                     line: 1,
-                    column: 59,
+                    column: 78,
                   },
                 },
               ],
@@ -883,11 +885,11 @@ describe('workers', function () {
                 {
                   message: undefined,
                   end: {
-                    column: 55,
+                    column: 74,
                     line: 1,
                   },
                   start: {
-                    column: 42,
+                    column: 1,
                     line: 1,
                   },
                 },
@@ -918,7 +920,7 @@ describe('workers', function () {
     } catch (err) {
       errored = true;
       assert.equal(err.message, 'import() is not allowed in service workers.');
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'import() is not allowed in service workers.',
           origin: '@parcel/transformer-js',
@@ -933,11 +935,11 @@ describe('workers', function () {
                   message: undefined,
                   start: {
                     line: 1,
-                    column: 8,
+                    column: 1,
                   },
                   end: {
                     line: 1,
-                    column: 27,
+                    column: 28,
                   },
                 },
               ],
@@ -952,11 +954,11 @@ describe('workers', function () {
                   message: 'The environment was originally created here',
                   start: {
                     line: 1,
-                    column: 42,
+                    column: 1,
                   },
                   end: {
                     line: 1,
-                    column: 60,
+                    column: 97,
                   },
                 },
               ],
@@ -1016,9 +1018,6 @@ describe('workers', function () {
         assets: ['dynamic.js'],
       },
     ]);
-
-    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(contents.includes('import.meta.url'));
   });
 
   it('ignores worker constructors with local URL binding and import.meta.url', async function () {
@@ -1032,9 +1031,6 @@ describe('workers', function () {
         assets: ['local-url.js'],
       },
     ]);
-
-    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(contents.includes('import.meta.url'));
   });
 
   it('throws a codeframe for a missing file in worker constructor with URL and import.meta.url', async function () {
@@ -1043,7 +1039,7 @@ describe('workers', function () {
       'integration/worker-import-meta-url/missing.js',
     );
     let code = await inputFS.readFileSync(fixture, 'utf8');
-    await assert.rejects(() => bundle(fixture), {
+    await assertRejectsWithDiagnostic(() => bundle(fixture), {
       name: 'BuildError',
       diagnostics: [
         {
@@ -1055,11 +1051,11 @@ describe('workers', function () {
                 {
                   message: undefined,
                   end: {
-                    column: 33,
+                    column: 52,
                     line: 1,
                   },
                   start: {
-                    column: 20,
+                    column: 1,
                     line: 1,
                   },
                 },

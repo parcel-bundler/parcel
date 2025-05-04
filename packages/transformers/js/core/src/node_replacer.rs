@@ -2,7 +2,7 @@ use std::{ffi::OsStr, path::Path, sync::Arc};
 
 use indexmap::IndexMap;
 use parcel_core::{
-  BundleBehavior, Dependency, DependencyFlags, Environment, Priority, SpecifierType,
+  BundleBehavior, Dependency, DependencyFlags, Environment, Priority, SourceType, SpecifierType,
 };
 use swc_core::{
   common::{DUMMY_SP, Mark, SourceMap, SyntaxContext, sync::Lrc},
@@ -14,7 +14,7 @@ use swc_core::{
   },
 };
 
-use crate::utils::{SourceType, create_global_decl_stmt, create_require, is_unresolved, loc};
+use crate::utils::{create_global_decl_stmt, create_require, is_unresolved, loc};
 
 /// Replaces __filename and __dirname with globals that reference to string literals for the
 /// file-path of this file.
@@ -93,6 +93,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                   obj: (Box::new(Call(create_require(
                     path_module_specifier.clone(),
                     unresolved_mark,
+                    SourceType::Module,
                   )))),
                   prop: MemberProp::Ident(ast::IdentName::new("resolve".into(), DUMMY_SP)),
                 }))),
@@ -104,7 +105,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                 specifier_type: SpecifierType::Commonjs,
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
-                loc: Some(loc(id.span, &self.filename, &self.source_map)),
+                loc: Some(loc(id.span, &self.source_map)),
                 flags: DependencyFlags::empty(),
                 env: self.env.clone(),
                 placeholder: None,
@@ -145,6 +146,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                   obj: (Box::new(Call(create_require(
                     path_module_specifier.clone(),
                     unresolved_mark,
+                    SourceType::Module,
                   )))),
                   prop: MemberProp::Ident(ast::IdentName::new("resolve".into(), DUMMY_SP)),
                 }))),
@@ -155,7 +157,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                 specifier_type: SpecifierType::Commonjs,
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
-                loc: Some(loc(id.span, &self.filename, &self.source_map)),
+                loc: Some(loc(id.span, &self.source_map)),
                 flags: DependencyFlags::empty(),
                 env: self.env.clone(),
                 placeholder: None,
@@ -226,14 +228,22 @@ fn dirname(is_esm: bool, unresolved_mark: Mark) -> ast::Expr {
     // TODO: use import.meta.dirname if available?
     Expr::Call(CallExpr {
       callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-        obj: Box::new(Expr::Call(create_require("path".into(), unresolved_mark))),
+        obj: Box::new(Expr::Call(create_require(
+          "path".into(),
+          unresolved_mark,
+          SourceType::Module,
+        ))),
         prop: MemberProp::Ident(IdentName::new("dirname".into(), DUMMY_SP)),
         span: DUMMY_SP,
       }))),
       args: vec![ExprOrSpread {
         expr: Box::new(Expr::Call(CallExpr {
           callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-            obj: Box::new(Expr::Call(create_require("url".into(), unresolved_mark))),
+            obj: Box::new(Expr::Call(create_require(
+              "url".into(),
+              unresolved_mark,
+              SourceType::Module,
+            ))),
             prop: MemberProp::Ident(IdentName::new("fileURLToPath".into(), DUMMY_SP)),
             span: DUMMY_SP,
           }))),
@@ -280,6 +290,7 @@ console.log(__filename);
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
       is_esm: false,
+      env: Default::default(),
     })
     .output_code;
 
@@ -314,6 +325,7 @@ console.log(__dirname);
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
       is_esm: false,
+      env: Default::default(),
     })
     .output_code;
 
@@ -350,6 +362,7 @@ function something(__filename, __dirname) {
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
       is_esm: false,
+      env: Default::default(),
     })
     .output_code;
 
@@ -383,6 +396,7 @@ const filename = obj.__filename;
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
       is_esm: false,
+      env: Default::default(),
     })
     .output_code;
 
@@ -412,6 +426,7 @@ const filename = obj[__filename];
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
       is_esm: false,
+      env: Default::default(),
     })
     .output_code;
 
@@ -443,6 +458,7 @@ console.log(__dirname);
       items: &mut items,
       unresolved_mark: context.unresolved_mark,
       is_esm: true,
+      env: Default::default(),
     })
     .output_code;
 

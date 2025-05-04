@@ -158,7 +158,7 @@ impl<'arena> DependencyCollector<'arena> {
         code: None,
         language: Some(self.ty.clone()),
         code_highlights: vec![CodeHighlight::from_loc(
-          &self.create_loc(line).unwrap(),
+          self.create_loc(line).unwrap(),
           None,
         )],
       }],

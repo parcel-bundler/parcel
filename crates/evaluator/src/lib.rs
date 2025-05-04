@@ -332,6 +332,12 @@ impl JsValue {
   }
 }
 
+impl PartialEq<JsValue> for JsValue {
+  fn eq(&self, other: &JsValue) -> bool {
+    return self.is_strictly_equal(other) == Some(true);
+  }
+}
+
 pub struct JsFunction {
   params: Vec<Pat>,
   expr: Expr,
@@ -701,7 +707,15 @@ impl Evaluate for UnaryExpr {
       }
       (UnaryOp::Tilde, JsValue::Number(v)) => JsValue::Number((!(v as i32)) as f64),
       (UnaryOp::Tilde, JsValue::BigInt(v)) => JsValue::BigInt(!v),
-      (UnaryOp::Void, _) => JsValue::Undefined,
+      (UnaryOp::Void, arg) => {
+        if arg.is_known() {
+          JsValue::Undefined
+        } else {
+          // Mark as unknown in case argument has side effects.
+          // TODO: check this
+          JsValue::Unknown(self.span)
+        }
+      }
       (UnaryOp::TypeOf, value) => value.type_of(self.span),
       _ => JsValue::Unknown(self.span),
     }
@@ -771,12 +785,15 @@ impl Evaluate for OptChainExpr {
 
 impl Evaluate for SeqExpr {
   fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
-    self
-      .exprs
-      .iter()
-      .map(|e| e.evaluate(evaluator))
-      .last()
-      .unwrap_or(JsValue::Unknown(self.span))
+    let mut last = JsValue::Unknown(self.span);
+    for expr in self.exprs.iter() {
+      last = expr.evaluate(evaluator);
+      if !last.is_known() {
+        return last;
+      }
+    }
+
+    last
   }
 }
 
@@ -875,43 +892,67 @@ impl Evaluate for swc_core::ecma::ast::Function {
 
     if let Some(body) = &self.body {
       if body.stmts.len() == 1 {
-        if let Stmt::Return(ret) = &body.stmts[0] {
-          let mut params = Vec::with_capacity(self.params.len());
-          for param in &self.params {
-            if !param.decorators.is_empty() {
-              return JsValue::Unknown(param.span);
+        match &body.stmts[0] {
+          Stmt::Return(ret) => {
+            let mut params = Vec::with_capacity(self.params.len());
+            for param in &self.params {
+              if !param.decorators.is_empty() {
+                return JsValue::Unknown(param.span);
+              }
+
+              params.push(param.pat.clone());
             }
 
-            params.push(param.pat.clone());
-          }
-
-          if let Some(arg) = &ret.arg {
-            return JsValue::Function(
-              Rc::new(JsFunction {
-                params,
-                expr: (**arg).clone(),
-              })
-              .into(),
-            );
-          } else {
-            return JsValue::Function(
-              Rc::new(JsFunction {
-                params,
-                expr: UnaryExpr {
-                  span: ret.span,
-                  op: op!("void"),
-                  arg: Lit::Num(Number {
-                    span: ret.span,
-                    value: 0.0,
-                    raw: None,
-                  })
-                  .into(),
-                }
+            if let Some(arg) = &ret.arg {
+              return JsValue::Function(
+                Rc::new(JsFunction {
+                  params,
+                  expr: (**arg).clone(),
+                })
                 .into(),
+              );
+            } else {
+              return JsValue::Function(
+                Rc::new(JsFunction {
+                  params,
+                  expr: UnaryExpr {
+                    span: ret.span,
+                    op: op!("void"),
+                    arg: Lit::Num(Number {
+                      span: ret.span,
+                      value: 0.0,
+                      raw: None,
+                    })
+                    .into(),
+                  }
+                  .into(),
+                })
+                .into(),
+              );
+            }
+          }
+          Stmt::Expr(expr) => {
+            let mut params = Vec::with_capacity(self.params.len());
+            for param in &self.params {
+              if !param.decorators.is_empty() {
+                return JsValue::Unknown(param.span);
+              }
+
+              params.push(param.pat.clone());
+            }
+
+            return JsValue::Function(
+              Rc::new(JsFunction {
+                params,
+                expr: Expr::Seq(SeqExpr {
+                  span: DUMMY_SP,
+                  exprs: vec![expr.expr.clone(), Expr::undefined(DUMMY_SP)],
+                }),
               })
               .into(),
             );
           }
+          _ => {}
         }
       }
     }
@@ -935,34 +976,49 @@ impl Evaluate for ArrowExpr {
     match &*self.body {
       BlockStmtOrExpr::BlockStmt(block) => {
         if block.stmts.len() == 1 {
-          if let Stmt::Return(ret) = &block.stmts[0] {
-            if let Some(arg) = &ret.arg {
-              return JsValue::Function(
-                Rc::new(JsFunction {
-                  params: self.params.clone(),
-                  expr: (**arg).clone(),
-                })
-                .into(),
-              );
-            } else {
-              return JsValue::Function(
-                Rc::new(JsFunction {
-                  params: self.params.clone(),
-                  expr: UnaryExpr {
-                    span: ret.span,
-                    op: op!("void"),
-                    arg: Lit::Num(Number {
-                      span: ret.span,
-                      value: 0.0,
-                      raw: None,
-                    })
-                    .into(),
-                  }
+          match &block.stmts[0] {
+            Stmt::Return(ret) => {
+              if let Some(arg) = &ret.arg {
+                return JsValue::Function(
+                  Rc::new(JsFunction {
+                    params: self.params.clone(),
+                    expr: (**arg).clone(),
+                  })
                   .into(),
+                );
+              } else {
+                return JsValue::Function(
+                  Rc::new(JsFunction {
+                    params: self.params.clone(),
+                    expr: UnaryExpr {
+                      span: ret.span,
+                      op: op!("void"),
+                      arg: Lit::Num(Number {
+                        span: ret.span,
+                        value: 0.0,
+                        raw: None,
+                      })
+                      .into(),
+                    }
+                    .into(),
+                  })
+                  .into(),
+                );
+              }
+            }
+            Stmt::Expr(expr) => {
+              return JsValue::Function(
+                Rc::new(JsFunction {
+                  params: self.params.clone(),
+                  expr: Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs: vec![expr.expr.clone(), Expr::undefined(DUMMY_SP)],
+                  }),
                 })
                 .into(),
               );
             }
+            _ => {}
           }
         }
       }

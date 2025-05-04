@@ -1,7 +1,9 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use indexmap::IndexMap;
-use parcel_core::{Dependency, DependencyFlags, SpecifierType};
+use parcel_core::{
+  BundleBehavior, Dependency, DependencyFlags, Environment, Priority, SourceType, SpecifierType,
+};
 use path_slash::PathBufExt;
 use swc_core::{
   common::{DUMMY_SP, Mark, SourceMap, SyntaxContext, sync::Lrc},
@@ -12,9 +14,7 @@ use swc_core::{
   },
 };
 
-use crate::utils::{
-  SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved,
-};
+use crate::utils::{create_global_decl_stmt, create_require, is_unresolved, loc};
 
 /// Replaces a few node.js constants with literals or require statements.
 /// This duplicates some logic in [`NodeReplacer`]
@@ -54,9 +54,10 @@ pub struct GlobalReplacer<'a> {
   /// Internal structure for inserted global statements.
   pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
-  pub filename: &'a Path,
+  pub filename: &'a str,
   pub unresolved_mark: Mark,
   pub scope_hoist: bool,
+  pub env: Arc<Environment>,
 }
 
 impl VisitMut for GlobalReplacer<'_> {
@@ -77,37 +78,52 @@ impl VisitMut for GlobalReplacer<'_> {
     match id.sym.to_string().as_str() {
       "process" => {
         if self.update_binding(id, |_| {
-          Call(create_require("process".into(), unresolved_mark))
+          Call(create_require(
+            "process".into(),
+            unresolved_mark,
+            SourceType::Module,
+          ))
         }) {
           let specifier = id.sym.clone();
-          self.items.push(Dependency {
-            specifier,
-            specifier_type: SpecifierType::Commonjs,
-            loc: SourceLocation::from(&self.source_map, id.span),
-            flags: DependencyFlags::empty(),
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-          });
+          // self.items.push(Dependency {
+          //   specifier: specifier.to_string(),
+          //   specifier_type: SpecifierType::Commonjs,
+          //   priority: Priority::Sync,
+          //   bundle_behavior: BundleBehavior::None,
+          //   loc: Some(loc(id.span, &self.source_map)),
+          //   flags: DependencyFlags::empty(),
+          //   env: self.env.clone(),
+          //   placeholder: None,
+          //   range: None,
+          //   resolve_from: None,
+          // });
         }
       }
       "Buffer" => {
         let specifier = JsWord::from("buffer");
         if self.update_binding(id, |_| {
           Member(MemberExpr {
-            obj: Box::new(Call(create_require(specifier.clone(), unresolved_mark))),
+            obj: Box::new(Call(create_require(
+              specifier.clone(),
+              unresolved_mark,
+              SourceType::Module,
+            ))),
             prop: MemberProp::Ident(ast::IdentName::new("Buffer".into(), DUMMY_SP)),
             span: DUMMY_SP,
           })
         }) {
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(&self.source_map, id.span),
-            specifier,
-            attributes: None,
-            flags: DependencyFlags::empty(),
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-          });
+          // self.items.push(Dependency {
+          //   specifier: specifier.to_string(),
+          //   specifier_type: SpecifierType::Commonjs,
+          //   priority: Priority::Sync,
+          //   bundle_behavior: BundleBehavior::None,
+          //   loc: Some(loc(id.span, &self.source_map)),
+          //   flags: DependencyFlags::empty(),
+          //   env: self.env.clone(),
+          //   placeholder: None,
+          //   range: None,
+          //   resolve_from: None,
+          // });
         }
       }
       "__filename" => {
@@ -115,7 +131,7 @@ impl VisitMut for GlobalReplacer<'_> {
           let filename =
             if let Some(relative) = pathdiff::diff_paths(this.filename, this.project_root) {
               relative.to_slash_lossy()
-            } else if let Some(filename) = this.filename.file_name() {
+            } else if let Some(filename) = Path::new(this.filename).file_name() {
               format!("/{}", filename.to_string_lossy())
             } else {
               String::from("/unknown.js")
@@ -126,7 +142,7 @@ impl VisitMut for GlobalReplacer<'_> {
       }
       "__dirname" => {
         self.update_binding(id, |this| {
-          let dirname = if let Some(dirname) = this.filename.parent() {
+          let dirname = if let Some(dirname) = Path::new(this.filename).parent() {
             if let Some(relative) = pathdiff::diff_paths(dirname, this.project_root) {
               relative.to_slash_lossy()
             } else {
@@ -193,17 +209,16 @@ impl GlobalReplacer<'_> {
 mod test {
   use std::path::Path;
 
-  use swc_core::ecma::atoms::Atom as JsWord;
+  use parcel_core::{Dependency, SpecifierType};
 
   use crate::{
-    DependencyDescriptor, DependencyKind,
     global_replacer::GlobalReplacer,
     test_utils::{RunTestContext, RunVisitResult, run_visit},
   };
 
   fn make_global_replacer(
     run_test_context: RunTestContext,
-    items: &mut Vec<DependencyDescriptor>,
+    items: &mut Vec<Dependency>,
   ) -> GlobalReplacer {
     GlobalReplacer {
       source_map: run_test_context.source_map.clone(),
@@ -211,9 +226,10 @@ mod test {
       global_mark: run_test_context.global_mark.clone(),
       globals: Default::default(),
       project_root: Path::new("project-root"),
-      filename: Path::new("filename"),
+      filename: "filename",
       unresolved_mark: run_test_context.unresolved_mark.clone(),
       scope_hoist: false,
+      env: Default::default(),
     }
   }
 
@@ -234,8 +250,8 @@ console.log(process.test);
 "#
     );
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].kind, DependencyKind::Require);
-    assert_eq!(items[0].specifier, JsWord::from("process"));
+    assert_eq!(items[0].specifier, "process");
+    assert_eq!(items[0].specifier_type, SpecifierType::Commonjs);
   }
 
   #[test]

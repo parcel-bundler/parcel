@@ -2,6 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {
   assertBundles,
+  assertEqualDiagnostics,
   bundle,
   removeDistDirectory,
   run,
@@ -171,7 +172,7 @@ describe('worklets', function () {
     } catch (err) {
       errored = true;
       assert.equal(err.message, 'import() is not allowed in worklets.');
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
           origin: '@parcel/transformer-js',
@@ -186,11 +187,11 @@ describe('worklets', function () {
                   message: undefined,
                   start: {
                     line: 1,
-                    column: 8,
+                    column: 1,
                   },
                   end: {
                     line: 1,
-                    column: 18,
+                    column: 19,
                   },
                 },
               ],
@@ -205,11 +206,11 @@ describe('worklets', function () {
                   message: 'The environment was originally created here',
                   start: {
                     line: 1,
-                    column: 36,
+                    column: 1,
                   },
                   end: {
                     line: 1,
-                    column: 53,
+                    column: 72,
                   },
                 },
               ],
@@ -269,7 +270,7 @@ describe('worklets', function () {
     } catch (err) {
       errored = true;
       assert.equal(err.message, 'import() is not allowed in worklets.');
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
           origin: '@parcel/transformer-js',
@@ -284,11 +285,11 @@ describe('worklets', function () {
                   message: undefined,
                   start: {
                     line: 1,
-                    column: 8,
+                    column: 1,
                   },
                   end: {
                     line: 1,
-                    column: 18,
+                    column: 19,
                   },
                 },
               ],

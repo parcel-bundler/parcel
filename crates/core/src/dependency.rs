@@ -9,7 +9,7 @@ use crate::{SourceLocation, impl_bitflags_serde};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   pub specifier: String,
@@ -66,11 +66,10 @@ bitflags! {
     const ENTRY    = 1 << 0;
     const OPTIONAL = 1 << 1;
     const NEEDS_STABLE_NAME = 1 << 2;
-    const SHOULD_WRAP = 1 << 3;
+    const IS_HELPER = 1 << 3;
     const IS_ESM = 1 << 4;
     const IS_WEBWORKER = 1 << 5;
-    const HAS_SYMBOLS = 1 << 6;
-    const REACT_LAZY = 1 << 7;
+    const REACT_LAZY = 1 << 6;
   }
 }
 

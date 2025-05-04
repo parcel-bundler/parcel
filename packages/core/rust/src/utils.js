@@ -28,7 +28,7 @@ export function envToRust(env: Environment): RustEnvironment {
     sourceType: env.sourceType,
     flags,
     sourceMap: null,
-    loc: null,
+    loc: env.loc,
     includeNodeModules: env.includeNodeModules,
     engines: env.engines,
   };
@@ -52,12 +52,29 @@ export function envFromRust(env: RustEnvironment): EnvironmentOptions {
 // const ENTRY    = 1 << 0;
 const OPTIONAL = 1 << 1;
 const NEEDS_STABLE_NAME = 1 << 2;
-// const SHOULD_WRAP = 1 << 3;
-// const IS_ESM = 1 << 4;
-// const IS_WEBWORKER = 1 << 5;
-// const HAS_SYMBOLS = 1 << 6;
+const IS_HELPER = 1 << 3;
+const IS_ESM = 1 << 4;
+const IS_WEBWORKER = 1 << 5;
+const REACT_LAZY = 1 << 6;
 
 export function dependencyFromRust(dep: RustDependency): DependencyOptions {
+  let meta = {};
+  if (dep.placeholder) {
+    meta.placeholder = dep.placeholder;
+  }
+  if (dep.flags & IS_ESM) {
+    meta.isEsm = true;
+  }
+  if (dep.flags & IS_WEBWORKER) {
+    meta.webworker = true;
+  }
+  if (dep.flags & IS_HELPER) {
+    meta.isHelper = true;
+  }
+  if (dep.flags & REACT_LAZY) {
+    meta.isReactLazy = true;
+  }
+
   return {
     specifier: dep.specifier,
     specifierType: dep.specifierType,
@@ -68,9 +85,7 @@ export function dependencyFromRust(dep: RustDependency): DependencyOptions {
     needsStableName: Boolean(dep.flags & NEEDS_STABLE_NAME),
     env: envFromRust(dep.env),
     loc: dep.loc,
-    meta: {
-      placeholder: dep.placeholder,
-    },
+    meta,
     resolveFrom: dep.resolveFrom,
     range: dep.range,
   };

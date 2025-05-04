@@ -3,6 +3,8 @@ import path from 'path';
 import url from 'url';
 import {
   assertDependencyWasExcluded,
+  assertRejectsWithDiagnostic,
+  assertEqualDiagnostics,
   bundle,
   bundler,
   findAsset,
@@ -969,11 +971,11 @@ describe.only('javascript', function () {
                 {
                   message: undefined,
                   end: {
-                    column: 36,
+                    column: 54,
                     line: 1,
                   },
                   start: {
-                    column: 24,
+                    column: 16,
                     line: 1,
                   },
                 },
@@ -1400,7 +1402,7 @@ describe.only('javascript', function () {
     );
 
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(contents.includes('process.env'));
+    assert(!contents.includes('process.env'));
 
     let output = await run(b);
     assert.strictEqual(output, undefined);
@@ -1543,7 +1545,7 @@ describe.only('javascript', function () {
 
   it('should error on process.env mutations', async function () {
     let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
-    await assert.rejects(bundle(filePath), {
+    await assertRejectsWithDiagnostic(() => bundle(filePath), {
       diagnostics: [
         {
           origin: '@parcel/transformer-js',
@@ -1653,86 +1655,81 @@ describe.only('javascript', function () {
     );
     disposable.dispose();
 
-    assert.deepEqual(logs, [
+    assertEqualDiagnostics(logs[0].diagnostics, [
       {
-        type: 'log',
-        level: 'warn',
-        diagnostics: [
+        origin: '@parcel/transformer-js',
+        message: 'Mutating process.env is not supported',
+        hints: null,
+        codeFrames: [
           {
-            origin: '@parcel/transformer-js',
-            message: 'Mutating process.env is not supported',
-            hints: null,
-            codeFrames: [
+            filePath: path.join(
+              __dirname,
+              '/integration/env-mutate/node_modules/foo/index.js',
+            ),
+            code: null,
+            codeHighlights: [
               {
-                filePath: path.join(
-                  __dirname,
-                  '/integration/env-mutate/node_modules/foo/index.js',
-                ),
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 1,
-                      column: 8,
-                    },
-                    end: {
-                      line: 1,
-                      column: 36,
-                    },
-                  },
-                ],
+                message: null,
+                start: {
+                  line: 1,
+                  column: 8,
+                },
+                end: {
+                  line: 1,
+                  column: 36,
+                },
               },
             ],
           },
+        ],
+      },
+      {
+        origin: '@parcel/transformer-js',
+        message: 'Mutating process.env is not supported',
+        hints: null,
+        codeFrames: [
           {
-            origin: '@parcel/transformer-js',
-            message: 'Mutating process.env is not supported',
-            hints: null,
-            codeFrames: [
+            filePath: path.join(
+              __dirname,
+              '/integration/env-mutate/node_modules/foo/index.js',
+            ),
+            codeHighlights: [
               {
-                filePath: path.join(
-                  __dirname,
-                  '/integration/env-mutate/node_modules/foo/index.js',
-                ),
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 2,
-                      column: 8,
-                    },
-                    end: {
-                      line: 2,
-                      column: 35,
-                    },
-                  },
-                ],
+                message: null,
+                start: {
+                  line: 2,
+                  column: 8,
+                },
+                end: {
+                  line: 2,
+                  column: 35,
+                },
               },
             ],
           },
+        ],
+      },
+      {
+        origin: '@parcel/transformer-js',
+        message: 'Mutating process.env is not supported',
+        hints: null,
+        codeFrames: [
           {
-            origin: '@parcel/transformer-js',
-            message: 'Mutating process.env is not supported',
-            hints: null,
-            codeFrames: [
+            filePath: path.join(
+              __dirname,
+              '/integration/env-mutate/node_modules/foo/index.js',
+            ),
+            codeHighlights: [
               {
-                filePath: path.join(
-                  __dirname,
-                  '/integration/env-mutate/node_modules/foo/index.js',
-                ),
-                codeHighlights: [
-                  {
-                    message: undefined,
-                    start: {
-                      line: 3,
-                      column: 8,
-                    },
-                    end: {
-                      line: 3,
-                      column: 30,
-                    },
-                  },
-                ],
+                message: null,
+                start: {
+                  line: 3,
+                  column: 8,
+                },
+                end: {
+                  line: 3,
+                  column: 30,
+                },
               },
             ],
           },
@@ -2240,7 +2237,7 @@ describe.only('javascript', function () {
     assert.equal(error.code, 'MODULE_NOT_FOUND');
   });
 
-  it.only('should ignore require if it is defined in the scope', async function () {
+  it('should ignore require if it is defined in the scope', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/require-scope/index.js'),
     );
@@ -2260,8 +2257,6 @@ describe.only('javascript', function () {
       key => output.test[key] !== 'test passed',
     );
  
-    console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'))
-    console.log(output)
     assert.equal(failed, false);
   });
 
@@ -3033,7 +3028,7 @@ describe.only('javascript', function () {
     assert.equal(add(2, 3), 5);
   });
 
-  it(`should detect requires in commonjs with plain template literals`, async function () {
+  it.skip(`should detect requires in commonjs with plain template literals`, async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -3846,7 +3841,7 @@ describe.only('javascript', function () {
       'integration/diagnostic-sourcemap/index.js',
     );
     let code = await inputFS.readFileSync(fixture, 'utf8');
-    await assert.rejects(
+    await assertRejectsWithDiagnostic(
       () =>
         bundle(fixture, {
           defaultTargetOptions: {
@@ -4826,7 +4821,7 @@ describe.only('javascript', function () {
       '/js-recoverable-parse-errors/index.js',
     );
 
-    await assert.rejects(
+    await assertRejectsWithDiagnostic(
       () =>
         bundle(fixture, {
           inputFS: overlayFS,

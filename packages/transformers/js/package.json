@@ -32,9 +32,7 @@
     "@parcel/rust": "2.14.4",
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.14.4",
-    "@parcel/workers": "2.14.4",
     "@swc/helpers": "^0.5.0",
-    "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.14.1",
     "semver": "^7.5.2"

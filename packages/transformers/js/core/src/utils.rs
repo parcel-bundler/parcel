@@ -1,12 +1,10 @@
-use std::cmp::Ordering;
-
-use parcel_core::{Location, SourceLocation};
-use serde::{Deserialize, Serialize};
+use parcel_core::{
+  CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity, Location, SourceLocation, SourceType,
+};
 use swc_core::{
   common::{
-    DUMMY_SP, Mark, SourceMap, Span, SyntaxContext,
+    DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
     errors::{DiagnosticBuilder, Emitter},
-    sync::Lrc,
   },
   ecma::{
     ast::{self, Ident, IdentName},
@@ -55,10 +53,19 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, unresolved_m
   false
 }
 
-pub fn create_require(specifier: JsWord, unresolved_mark: Mark) -> ast::CallExpr {
+pub fn create_require(
+  specifier: JsWord,
+  unresolved_mark: Mark,
+  source_type: SourceType,
+) -> ast::CallExpr {
   ast::CallExpr {
     callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-      "require".into(),
+      if source_type == SourceType::Script {
+        "__parcel__require__"
+      } else {
+        "require"
+      }
+      .into(),
       DUMMY_SP,
       SyntaxContext::empty().apply_mark(unresolved_mark),
     )))),
@@ -70,6 +77,49 @@ pub fn create_require(specifier: JsWord, unresolved_mark: Mark) -> ast::CallExpr
     ctxt: SyntaxContext::empty(),
     type_args: None,
   }
+}
+
+pub fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
+  use ast::*;
+
+  let expr = if use_import_meta {
+    Expr::Member(MemberExpr {
+      span: DUMMY_SP,
+      obj: Box::new(Expr::MetaProp(MetaPropExpr {
+        kind: MetaPropKind::ImportMeta,
+        span: DUMMY_SP,
+      })),
+      prop: MemberProp::Ident(IdentName::new("url".into(), DUMMY_SP)),
+    })
+  } else {
+    // CJS output: "file:" + __filename
+    Expr::Bin(BinExpr {
+      span: DUMMY_SP,
+      left: Box::new(Expr::Lit(Lit::Str("file:".into()))),
+      op: BinaryOp::Add,
+      right: Box::new(Expr::Ident(Ident::new_no_ctxt(
+        "__filename".into(),
+        DUMMY_SP,
+      ))),
+    })
+  };
+
+  Expr::New(NewExpr {
+    span: DUMMY_SP,
+    ctxt: SyntaxContext::empty(),
+    callee: Box::new(Expr::Ident(Ident::new_no_ctxt("URL".into(), DUMMY_SP))),
+    args: Some(vec![
+      ExprOrSpread {
+        expr: Box::new(url),
+        spread: None,
+      },
+      ExprOrSpread {
+        expr: Box::new(expr),
+        spread: None,
+      },
+    ]),
+    type_args: None,
+  })
 }
 
 fn is_marked(mut ctxt: SyntaxContext, mark: Mark) -> bool {
@@ -211,43 +261,10 @@ pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
   )
 }
 
-// #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
-/// Corresponds to the JS SourceLocation type (1-based, end exclusive)
-// pub struct SourceLocation {
-//   pub start_line: usize,
-//   pub start_col: usize,
-//   pub end_line: usize,
-//   pub end_col: usize,
-// }
-
-// impl SourceLocation {
-//   pub fn from(source_map: &SourceMap, span: Span) -> Self {
-//     if span.lo.is_dummy() || span.hi.is_dummy() {
-//       return SourceLocation {
-//         start_line: 1,
-//         start_col: 1,
-//         end_line: 1,
-//         end_col: 2,
-//       };
-//     }
-
-//     let start = source_map.lookup_char_pos(span.lo);
-//     let end = source_map.lookup_char_pos(span.hi);
-//     // SWC's columns are exclusive, ours are exclusive
-//     // SWC has 0-based columns, ours are 1-based (column + 1)
-//     SourceLocation {
-//       start_line: start.line,
-//       start_col: start.col_display + 1,
-//       end_line: end.line,
-//       end_col: end.col_display + 1,
-//     }
-//   }
-// }
-
-pub fn loc(span: Span, filename: &str, source_map: &Lrc<SourceMap>) -> SourceLocation {
+pub fn loc(span: Span, source_map: &SourceMap) -> SourceLocation {
   if span.lo.is_dummy() || span.hi.is_dummy() {
     return SourceLocation {
-      file_path: filename.clone().into(),
+      file_path: "unknown".into(),
       start: Location { line: 1, column: 1 },
       end: Location { line: 1, column: 2 },
     };
@@ -258,7 +275,10 @@ pub fn loc(span: Span, filename: &str, source_map: &Lrc<SourceMap>) -> SourceLoc
   // SWC's columns are exclusive, ours are exclusive
   // SWC has 0-based columns, ours are 1-based (column + 1)
   SourceLocation {
-    file_path: filename.clone().into(),
+    file_path: match &*start.file.name {
+      FileName::Real(p) => p.clone(),
+      p => p.to_string().into(),
+    },
     start: Location {
       line: start.line as u32,
       column: (start.col_display + 1) as u32,
@@ -267,53 +287,6 @@ pub fn loc(span: Span, filename: &str, source_map: &Lrc<SourceMap>) -> SourceLoc
       line: end.line as u32,
       column: (end.col_display + 1) as u32,
     },
-  }
-}
-
-// impl PartialOrd for SourceLocation {
-//   fn partial_cmp(&self, other: &SourceLocation) -> Option<Ordering> {
-//     match self.start_line.cmp(&other.start_line) {
-//       Ordering::Equal => self.start_col.partial_cmp(&other.start_col),
-//       o => Some(o),
-//     }
-//   }
-// }
-
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct CodeHighlight {
-  pub message: Option<String>,
-  pub loc: SourceLocation,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct Diagnostic {
-  pub message: String,
-  pub code_highlights: Option<Vec<CodeHighlight>>,
-  pub hints: Option<Vec<String>>,
-  pub show_environment: bool,
-  pub severity: DiagnosticSeverity,
-  pub documentation_url: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
-pub enum DiagnosticSeverity {
-  /// Fails the build with an error.
-  Error,
-  /// Logs a warning, but the build does not fail.
-  Warning,
-  /// An error if this is source code in the project, or a warning if in node_modules.
-  SourceError,
-}
-
-#[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]
-pub enum SourceType {
-  Script,
-  Module,
-}
-
-impl Default for SourceType {
-  fn default() -> Self {
-    SourceType::Module
   }
 }
 
@@ -326,17 +299,10 @@ pub struct Bailout {
 impl Bailout {
   pub fn to_diagnostic(&self) -> Diagnostic {
     let (message, documentation_url) = self.reason.info();
-    Diagnostic {
-      message: message.into(),
-      documentation_url: Some(documentation_url.into()),
-      code_highlights: Some(vec![CodeHighlight {
-        loc: self.loc.clone(),
-        message: None,
-      }]),
-      show_environment: false,
-      severity: DiagnosticSeverity::Warning,
-      hints: None,
-    }
+    let mut diagnostic = Diagnostic::from_loc(self.loc.clone(), message);
+    diagnostic.documentation_url = Some(documentation_url.into());
+    diagnostic.severity = DiagnosticSeverity::Warning;
+    diagnostic
   }
 }
 
@@ -459,36 +425,33 @@ pub fn error_buffer_to_diagnostics(
       let suggestions = diagnostic.suggestions.clone();
 
       let span_labels = span.span_labels();
-      let code_highlights = if !span_labels.is_empty() {
-        let mut highlights = vec![];
-        for span_label in span_labels {
-          highlights.push(CodeHighlight {
-            message: span_label.label,
-            loc: SourceLocation::from(source_map, span_label.span),
-          });
-        }
+      let mut code_highlights = vec![];
+      for span_label in span_labels {
+        code_highlights.push(CodeHighlight::from_loc(
+          loc(span_label.span, source_map),
+          span_label.label,
+        ));
+      }
 
-        Some(highlights)
-      } else {
-        None
-      };
-
-      let hints = if !suggestions.is_empty() {
-        Some(
-          suggestions
-            .into_iter()
-            .map(|suggestion| suggestion.msg)
-            .collect(),
-        )
-      } else {
-        None
-      };
+      let hints = suggestions
+        .into_iter()
+        .map(|suggestion| suggestion.msg)
+        .collect();
 
       Diagnostic {
+        origin: None,
         message,
-        code_highlights,
+        code_frames: if !code_highlights.is_empty() {
+          vec![CodeFrame {
+            file_path: span.primary_span().map(|p| loc(p, source_map).file_path),
+            code: None,
+            code_highlights,
+            language: None,
+          }]
+        } else {
+          vec![]
+        },
         hints,
-        show_environment: false,
         severity: DiagnosticSeverity::Error,
         documentation_url: None,
       }

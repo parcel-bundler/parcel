@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use parcel_core::SourceLocation;
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{DUMMY_SP, Mark, Span, sync::Lrc},
@@ -14,8 +15,8 @@ use swc_core::{
 use crate::{
   id,
   utils::{
-    Bailout, BailoutReason, SourceLocation, is_unresolved, match_export_name,
-    match_export_name_ident, match_import, match_member_expr, match_property_name, match_require,
+    Bailout, BailoutReason, is_unresolved, loc, match_export_name, match_export_name_ident,
+    match_import, match_member_expr, match_property_name, match_require,
   },
 };
 
@@ -218,12 +219,7 @@ impl From<Collect> for CollectResult {
         source: None,
         exported: "*".into(),
         local: "_".into(),
-        loc: SourceLocation {
-          start_line: 1,
-          start_col: 1,
-          end_line: 1,
-          end_col: 1,
-        },
+        loc: Default::default(),
       })
     }
 
@@ -273,7 +269,7 @@ impl Visit for Collect {
           if let Some(spans) = self.non_static_access.get(key) {
             for span in spans {
               bailouts.push(Bailout {
-                loc: SourceLocation::from(&self.source_map, *span),
+                loc: loc(*span, &self.source_map),
                 reason: BailoutReason::NonStaticAccess,
               })
             }
@@ -341,7 +337,7 @@ impl Visit for Collect {
               source: node.src.value.clone(),
               specifier: imported,
               kind: ImportKind::Import,
-              loc: SourceLocation::from(&self.source_map, named.span),
+              loc: loc(named.span, &self.source_map),
             },
           );
         }
@@ -352,7 +348,7 @@ impl Visit for Collect {
               source: node.src.value.clone(),
               specifier: "default".into(),
               kind: ImportKind::Import,
-              loc: SourceLocation::from(&self.source_map, default.span),
+              loc: loc(default.span, &self.source_map),
             },
           );
         }
@@ -363,7 +359,7 @@ impl Visit for Collect {
               source: node.src.value.clone(),
               specifier: "*".into(),
               kind: ImportKind::Import,
-              loc: SourceLocation::from(&self.source_map, namespace.span),
+              loc: loc(namespace.span, &self.source_map),
             },
           );
         }
@@ -397,7 +393,7 @@ impl Visit for Collect {
             exported.0.clone(),
             Export {
               specifier,
-              loc: SourceLocation::from(&self.source_map, exported.1),
+              loc: loc(exported.1, &self.source_map),
               source,
               is_esm: true,
             },
@@ -414,7 +410,7 @@ impl Visit for Collect {
             "default".into(),
             Export {
               specifier: default.exported.sym.clone(),
-              loc: SourceLocation::from(&self.source_map, default.exported.span),
+              loc: loc(default.exported.span, &self.source_map),
               source,
               is_esm: true,
             },
@@ -431,7 +427,7 @@ impl Visit for Collect {
             match_export_name(&namespace.name).0,
             Export {
               specifier: "*".into(),
-              loc: SourceLocation::from(&self.source_map, namespace.span),
+              loc: loc(namespace.span, &self.source_map),
               source,
               is_esm: true,
             },
@@ -450,7 +446,7 @@ impl Visit for Collect {
           class.ident.sym.clone(),
           Export {
             specifier: class.ident.sym.clone(),
-            loc: SourceLocation::from(&self.source_map, class.ident.span),
+            loc: loc(class.ident.span, &self.source_map),
             source: None,
             is_esm: true,
           },
@@ -464,7 +460,7 @@ impl Visit for Collect {
           func.ident.sym.clone(),
           Export {
             specifier: func.ident.sym.clone(),
-            loc: SourceLocation::from(&self.source_map, func.ident.span),
+            loc: loc(func.ident.span, &self.source_map),
             source: None,
             is_esm: true,
           },
@@ -496,7 +492,7 @@ impl Visit for Collect {
             "default".into(),
             Export {
               specifier: ident.sym.clone(),
-              loc: SourceLocation::from(&self.source_map, node.span),
+              loc: loc(node.span, &self.source_map),
               source: None,
               is_esm: true,
             },
@@ -507,7 +503,7 @@ impl Visit for Collect {
             "default".into(),
             Export {
               specifier: "default".into(),
-              loc: SourceLocation::from(&self.source_map, node.span),
+              loc: loc(node.span, &self.source_map),
               source: None,
               is_esm: true,
             },
@@ -520,7 +516,7 @@ impl Visit for Collect {
             "default".into(),
             Export {
               specifier: ident.sym.clone(),
-              loc: SourceLocation::from(&self.source_map, node.span),
+              loc: loc(node.span, &self.source_map),
               source: None,
               is_esm: true,
             },
@@ -531,7 +527,7 @@ impl Visit for Collect {
             "default".into(),
             Export {
               specifier: "default".into(),
-              loc: SourceLocation::from(&self.source_map, node.span),
+              loc: loc(node.span, &self.source_map),
               source: None,
               is_esm: true,
             },
@@ -551,7 +547,7 @@ impl Visit for Collect {
       "default".into(),
       Export {
         specifier: "default".into(),
-        loc: SourceLocation::from(&self.source_map, node.span),
+        loc: loc(node.span, &self.source_map),
         source: None,
         is_esm: true,
       },
@@ -561,10 +557,9 @@ impl Visit for Collect {
   }
 
   fn visit_export_all(&mut self, node: &ExportAll) {
-    self.exports_all.insert(
-      node.src.value.clone(),
-      SourceLocation::from(&self.source_map, node.span),
-    );
+    self
+      .exports_all
+      .insert(node.src.value.clone(), loc(node.span, &self.source_map));
   }
 
   fn visit_return_stmt(&mut self, node: &ReturnStmt) {
@@ -582,7 +577,7 @@ impl Visit for Collect {
         node.id.sym.clone(),
         Export {
           specifier: node.id.sym.clone(),
-          loc: SourceLocation::from(&self.source_map, node.id.span),
+          loc: loc(node.id.span, &self.source_map),
           source: None,
           is_esm: true,
         },
@@ -607,7 +602,7 @@ impl Visit for Collect {
         node.key.sym.clone(),
         Export {
           specifier: node.key.sym.clone(),
-          loc: SourceLocation::from(&self.source_map, node.key.span),
+          loc: loc(node.key.span, &self.source_map),
           source: None,
           is_esm: true,
         },
@@ -656,7 +651,7 @@ impl Visit for Collect {
             Export {
               specifier: name,
               source: None,
-              loc: SourceLocation::from(&self.source_map, span),
+              loc: loc(span, &self.source_map),
               is_esm: false,
             },
           );
@@ -991,7 +986,7 @@ impl Collect {
             source: src.clone(),
             specifier: "*".into(),
             kind,
-            loc: SourceLocation::from(&self.source_map, ident.id.span),
+            loc: loc(ident.id.span, &self.source_map),
           },
         );
       }
@@ -1020,7 +1015,7 @@ impl Collect {
                       source: src.clone(),
                       specifier: imported,
                       kind,
-                      loc: SourceLocation::from(&self.source_map, ident.id.span),
+                      loc: loc(ident.id.span, &self.source_map),
                     },
                   );
 
@@ -1049,7 +1044,7 @@ impl Collect {
                   source: src.clone(),
                   specifier: assign.key.sym.clone(),
                   kind,
-                  loc: SourceLocation::from(&self.source_map, assign.key.span),
+                  loc: loc(assign.key.span, &self.source_map),
                 },
               );
               self
@@ -1120,7 +1115,7 @@ impl Collect {
   fn add_bailout(&mut self, span: Span, reason: BailoutReason) {
     if let Some(bailouts) = &mut self.bailouts {
       bailouts.push(Bailout {
-        loc: SourceLocation::from(&self.source_map, span),
+        loc: loc(span, &self.source_map),
         reason,
       })
     }

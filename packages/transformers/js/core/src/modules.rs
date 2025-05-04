@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use inflector::Inflector;
+use parcel_core::SourceType;
 use swc_core::{
   common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
@@ -101,6 +102,7 @@ impl ESMFold {
         init: Some(Box::new(Expr::Call(crate::utils::create_require(
           src,
           self.unresolved_mark,
+          SourceType::Module,
         )))),
         definite: false,
       }],
@@ -578,6 +580,7 @@ impl Fold for ESMFold {
             init: Some(Box::new(Expr::Call(crate::utils::create_require(
               "@parcel/transformer-js/src/esmodule-helpers.js".into(),
               self.unresolved_mark,
+              SourceType::Module,
             )))),
             definite: false,
           }],

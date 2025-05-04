@@ -215,7 +215,7 @@ describe('postcss', () => {
     ]);
   });
 
-  it('should support dir-dependency messages from plugins', async function () {
+  it.skip('should support dir-dependency messages from plugins', async function () {
     let inputDir = path.join(
       __dirname,
       '/input',

@@ -1,6 +1,5 @@
 // @flow
 import type {
-  JSONObject,
   EnvMap,
   SourceLocation,
   FilePath,
@@ -10,14 +9,11 @@ import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {transform, transformAsync} from '@parcel/rust';
-import browserslist from 'browserslist';
+import {transform, transformAsync, dependencyFromRust, envToRust} from '@parcel/rust';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
-import invariant from 'assert';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
-  convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import pkg from '../package.json';
@@ -50,44 +46,6 @@ const JSX_PRAGMA = {
   },
 };
 
-const BROWSER_MAPPING = {
-  and_chr: 'chrome',
-  and_ff: 'firefox',
-  ie_mob: 'ie',
-  ios_saf: 'ios',
-  op_mob: 'opera',
-  and_qq: null,
-  and_uc: null,
-  baidu: null,
-  bb: null,
-  kaios: null,
-  op_mini: null,
-};
-
-// List of browsers to exclude when the esmodule target is specified.
-// Based on https://caniuse.com/#feat=es6-module
-const ESMODULE_BROWSERS = [
-  'not ie <= 11',
-  'not edge < 16',
-  'not firefox < 60',
-  'not chrome < 61',
-  'not safari < 11',
-  'not opera < 48',
-  'not ios_saf < 11',
-  'not op_mini all',
-  'not android < 76',
-  'not blackberry > 0',
-  'not op_mob > 0',
-  'not and_chr < 76',
-  'not and_ff < 68',
-  'not ie_mob > 0',
-  'not and_uc > 0',
-  'not samsung < 8.2',
-  'not and_qq > 0',
-  'not baidu > 0',
-  'not kaios > 0',
-];
-
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
@@ -113,28 +71,6 @@ const CONFIG_SCHEMA: SchemaEntity = {
   },
   additionalProperties: false,
 };
-
-const SCRIPT_ERRORS = {
-  browser: {
-    message: 'Browser scripts cannot have imports or exports.',
-    hint: 'Add the type="module" attribute to the <script> tag.',
-  },
-  'web-worker': {
-    message:
-      'Web workers cannot have imports or exports without the `type: "module"` option.',
-    hint: "Add {type: 'module'} as a second argument to the Worker constructor.",
-  },
-  'service-worker': {
-    message:
-      'Service workers cannot have imports or exports without the `type: "module"` option.',
-    hint: "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
-  },
-};
-
-const OPTIONAL = 1 << 0;
-const HELPER = 1 << 1;
-const NEEDS_STABLE_NAME = 1 << 2;
-const REACT_LAZY = 1 << 3;
 
 type TSConfig = {
   compilerOptions?: {
@@ -336,50 +272,6 @@ export default (new Transformer({
       asset.getMap(),
     ]);
 
-    let targets;
-    if (asset.env.isElectron() && asset.env.engines.electron) {
-      targets = {
-        electron: semver.minVersion(asset.env.engines.electron)?.toString(),
-      };
-    } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
-      targets = {};
-
-      let browsers = Array.isArray(asset.env.engines.browsers)
-        ? asset.env.engines.browsers
-        : [asset.env.engines.browsers];
-
-      // If the output format is esmodule, exclude browsers
-      // that support them natively so that we transpile less.
-      if (asset.env.outputFormat === 'esmodule') {
-        browsers = [...browsers, ...ESMODULE_BROWSERS];
-      }
-
-      browsers = browserslist(browsers);
-      for (let browser of browsers) {
-        let [name, version] = browser.split(' ');
-        if (BROWSER_MAPPING.hasOwnProperty(name)) {
-          name = BROWSER_MAPPING[name];
-          if (!name) {
-            continue;
-          }
-        }
-
-        let [major, minor = '0', patch = '0'] = version
-          .split('-')[0]
-          .split('.');
-        if (isNaN(major) || isNaN(minor) || isNaN(patch)) {
-          continue;
-        }
-        let semverVersion = `${major}.${minor}.${patch}`;
-
-        if (targets[name] == null || semver.gt(targets[name], semverVersion)) {
-          targets[name] = semverVersion;
-        }
-      }
-    } else if (asset.env.isNode() && asset.env.engines.node) {
-      targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
-    }
-
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -405,8 +297,6 @@ export default (new Transformer({
       }
     }
 
-    let supportsModuleWorkers =
-      asset.env.shouldScopeHoist && asset.env.supports('worker-module', true);
     let isJSX = Boolean(config?.isJSX);
     if (asset.type === 'ts') {
       isJSX = false;
@@ -445,8 +335,8 @@ export default (new Transformer({
       module_id: asset.id,
       project_root: options.projectRoot,
       inline_fs: Boolean(config?.inlineFS),
-      context: asset.env.context,
       env,
+      environment: envToRust(asset.env),
       type,
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
@@ -456,14 +346,7 @@ export default (new Transformer({
       react_refresh: Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
       use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
-      targets,
       source_maps: !!asset.env.sourceMap,
-      scope_hoist:
-        asset.env.shouldScopeHoist && asset.env.sourceType !== 'script',
-      source_type: asset.env.sourceType === 'script' ? 'Script' : 'Module',
-      supports_module_workers: supportsModuleWorkers,
-      is_library: asset.env.isLibrary,
-      is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
       standalone: asset.query.has('standalone'),
@@ -590,25 +473,28 @@ export default (new Transformer({
       asset.meta.isConstantModule = true;
     }
 
-    let convertLoc = (loc): SourceLocation => {
-      let location = {
-        filePath: asset.filePath,
-        start: {
-          line: loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
-          column: loc.start_col,
-        },
-        end: {
-          line: loc.end_line + Number(asset.meta.startLine ?? 1) - 1,
-          column: loc.end_col,
-        },
-      };
+    let startLine = asset.meta?.startLine;
+    let convertLoc = (loc: SourceLocation): SourceLocation => {
+      if (typeof startLine === 'number') {
+        loc = {
+          filePath: loc.filePath,
+          start: {
+            line: loc.start.line + (startLine ?? 1) - 1,
+            column: loc.start.column
+          },
+          end: {
+            line: loc.end.line + (startLine ?? 1) - 1,
+            column: loc.end.column
+          }
+        };
+      }
 
       // If there is an original source map, use it to remap to the original source location.
       if (originalMap) {
-        location = remapSourceLocation(location, originalMap);
+        return remapSourceLocation(loc, originalMap);
       }
 
-      return location;
+      return loc;
     };
 
     if (diagnostics) {
@@ -622,66 +508,37 @@ export default (new Transformer({
           d.severity === 'Warning' ||
           (d.severity === 'SourceError' && !asset.isSource),
       );
-      let convertDiagnostic = diagnostic => {
-        let message = diagnostic.message;
-        if (message === 'SCRIPT_ERROR') {
-          let err = SCRIPT_ERRORS[(asset.env.context: string)];
-          message = err?.message || SCRIPT_ERRORS.browser.message;
-        }
 
-        let res: Diagnostic = {
-          message,
-          codeFrames: [
-            {
-              filePath: asset.filePath,
-              codeHighlights: diagnostic.code_highlights?.map(highlight =>
-                convertSourceLocationToHighlight(
-                  convertLoc(highlight.loc),
-                  highlight.message ?? undefined,
-                ),
-              ),
-            },
-          ],
-          hints: diagnostic.hints,
-        };
-
-        if (diagnostic.documentation_url) {
-          res.documentationURL = diagnostic.documentation_url;
-        }
-
-        if (diagnostic.show_environment) {
-          if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
-            res.codeFrames?.push({
-              filePath: asset.env.loc.filePath,
-              codeHighlights: [
-                convertSourceLocationToHighlight(
-                  asset.env.loc,
-                  'The environment was originally created here',
-                ),
-              ],
-            });
-          }
-
-          let err = SCRIPT_ERRORS[(asset.env.context: string)];
-          if (err) {
-            if (!res.hints) {
-              res.hints = [err.hint];
-            } else {
-              res.hints.push(err.hint);
+      let mapDiagnostic = (diagnostic: Diagnostic) => {
+        if ((originalMap || startLine) && diagnostic.codeFrames) {
+          for (let frame of diagnostic.codeFrames) {
+            for (let highlight of frame.codeHighlights) {
+              let location = convertLoc({
+                filePath: frame.filePath || '',
+                start: highlight.start,
+                end: {
+                  line: highlight.end.line,
+                  column: highlight.end.column + 1
+                }
+              });
+              highlight.start = location.start;
+              highlight.end = {
+                line: location.end.line,
+                column: location.end.column - 1
+              };
             }
           }
         }
-
-        return res;
+        return diagnostic;
       };
 
       if (errors.length > 0) {
         throw new ThrowableDiagnostic({
-          diagnostic: errors.map(convertDiagnostic),
+          diagnostic: errors.map(mapDiagnostic),
         });
       }
 
-      logger.warn(warnings.map(convertDiagnostic));
+      logger.warn(warnings.map(mapDiagnostic));
     }
 
     if (shebang) {
@@ -799,208 +656,46 @@ export default (new Transformer({
     }
 
     for (let dep of dependencies) {
-      if (dep.kind === 'WebWorker') {
-        // Use native ES module output if the worker was created with `type: 'module'` and all targets
-        // support native module workers. Only do this if parent asset output format is also esmodule so that
-        // assets can be shared between workers and the main thread in the global output format.
-        let outputFormat;
-        if (
-          asset.env.outputFormat === 'esmodule' &&
-          dep.source_type === 'Module' &&
-          supportsModuleWorkers
-        ) {
-          outputFormat = 'esmodule';
-        } else {
-          outputFormat =
-            asset.env.outputFormat === 'commonjs' ? 'commonjs' : 'global';
+      let d = dependencyFromRust(dep);
+
+      // Add required version range for helpers.
+      if (d.meta?.isHelper) {
+        let idx = dep.specifier.indexOf('/');
+        if (dep.specifier[0] === '@') {
+          idx = dep.specifier.indexOf('/', idx + 1);
         }
-
-        let loc = convertLoc(dep.loc);
-        asset.addURLDependency(dep.specifier, {
-          loc,
-          env: {
-            context: 'web-worker',
-            sourceType: dep.source_type === 'Module' ? 'module' : 'script',
-            outputFormat,
-            loc,
-          },
-          meta: {
-            webworker: true,
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'ServiceWorker') {
-        let loc = convertLoc(dep.loc);
-        asset.addURLDependency(dep.specifier, {
-          loc,
-          needsStableName: true,
-          env: {
-            context: 'service-worker',
-            sourceType: dep.source_type === 'Module' ? 'module' : 'script',
-            outputFormat: 'global', // TODO: module service worker support
-            loc,
-          },
-          meta: {
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'Worklet') {
-        let loc = convertLoc(dep.loc);
-        asset.addURLDependency(dep.specifier, {
-          loc,
-          env: {
-            context: 'worklet',
-            sourceType: 'module',
-            outputFormat: 'esmodule', // Worklets require ESM
-            loc,
-          },
-          meta: {
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'Url') {
-        asset.addURLDependency(dep.specifier, {
-          bundleBehavior: 'isolated',
-          loc: convertLoc(dep.loc),
-          needsStableName: Boolean(dep.flags & NEEDS_STABLE_NAME),
-          meta: {
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'File') {
-        asset.invalidateOnFileChange(dep.specifier);
-      } else if (dep.kind === 'Id') {
-        // Record parcelRequire calls so that the dev packager can add them as dependencies.
-        // This allows the HMR runtime to collect parents across async boundaries (through runtimes).
-        // TODO: ideally this would result as an actual dep in the graph rather than asset.meta.
-        asset.meta.hmrDeps ??= [];
-        invariant(Array.isArray(asset.meta.hmrDeps));
-        asset.meta.hmrDeps.push(dep.specifier);
-      } else {
-        let meta: JSONObject = {kind: dep.kind};
-        if (dep.attributes) {
-          meta.importAttributes = dep.attributes;
-        }
-
-        if (dep.placeholder) {
-          meta.placeholder = dep.placeholder;
-        }
-
-        if (dep.flags & REACT_LAZY) {
-          meta.isReactLazy = true;
-        }
-
-        let env;
-        if (dep.kind === 'DynamicImport') {
-          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
-          if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
-            let loc = convertLoc(dep.loc);
-            let diagnostic = {
-              message: `import() is not allowed in ${
-                asset.env.isWorklet() ? 'worklets' : 'service workers'
-              }.`,
-              codeFrames: [
-                {
-                  filePath: asset.filePath,
-                  codeHighlights: [convertSourceLocationToHighlight(loc)],
-                },
-              ],
-              hints: ['Try using a static `import`.'],
-            };
-
-            if (asset.env.loc) {
-              diagnostic.codeFrames.push({
-                filePath: asset.env.loc.filePath,
-                codeHighlights: [
-                  convertSourceLocationToHighlight(
-                    asset.env.loc,
-                    'The environment was originally created here',
-                  ),
-                ],
-              });
-            }
-
-            throw new ThrowableDiagnostic({
-              diagnostic,
-            });
-          }
-
-          // If all of the target engines support dynamic import natively,
-          // we can output native ESM if scope hoisting is enabled.
-          // Only do this for scripts, rather than modules in the global
-          // output format so that assets can be shared between the bundles.
-          let outputFormat = asset.env.outputFormat;
-          if (
-            asset.env.sourceType === 'script' &&
-            asset.env.shouldScopeHoist &&
-            asset.env.supports('dynamic-import', true)
-          ) {
-            outputFormat = 'esmodule';
-          }
-
-          env = {
-            sourceType: 'module',
-            outputFormat,
-            loc: convertLoc(dep.loc),
-          };
-        }
-
-        // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-        let isHelper =
-          dep.flags & HELPER &&
-          !(
-            dep.specifier.endsWith('/jsx-runtime') ||
-            dep.specifier.endsWith('/jsx-dev-runtime')
-          );
-        if (isHelper && !asset.env.isLibrary) {
-          env = {
-            ...env,
-            includeNodeModules: true,
-          };
-        }
-
-        // Add required version range for helpers.
-        let range;
-        if (isHelper) {
-          let idx = dep.specifier.indexOf('/');
-          if (dep.specifier[0] === '@') {
-            idx = dep.specifier.indexOf('/', idx + 1);
-          }
-          let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
-          range = pkg.dependencies[module];
-        }
-
-        if (dep.attributes?.env === 'react-server') {
-          env = {
-            ...env,
-            context: 'react-server',
-            outputFormat: 'commonjs',
-          };
-        } else if (dep.attributes?.env === 'react-client') {
-          env = {
-            ...env,
-            context: 'react-client',
-            outputFormat: 'esmodule',
-            includeNodeModules: true,
-          };
-
-          // This is a hack to prevent creating unnecessary shared bundles between actual client code
-          // and server code that runs in the client environment (e.g. react).
-          asset.isBundleSplittable = false;
-        }
-
-        asset.addDependency({
-          specifier: dep.specifier,
-          specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
-          loc: convertLoc(dep.loc),
-          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
-          isOptional: Boolean(dep.flags & OPTIONAL),
-          meta,
-          resolveFrom: isHelper ? __filename : undefined,
-          range,
-          env,
-        });
+        let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
+        d = {
+          ...d,
+          range: pkg.dependencies[module],
+          resolveFrom: __filename
+        };
       }
+
+      if (d.loc && originalMap) {
+        d = {
+          ...d,
+          loc: remapSourceLocation(d.loc, originalMap)
+        };
+      }
+
+      if (d.env?.loc && originalMap) {
+        d = {
+          ...d,
+          env: {
+            ...d.env,
+            loc: remapSourceLocation(d.env.loc, originalMap)
+          }
+        };
+      }
+
+      if (asset.env.context !== 'react-client' && d.env?.context === 'react-client') {
+        // This is a hack to prevent creating unnecessary shared bundles between actual client code
+        // and server code that runs in the client environment (e.g. react).
+        asset.isBundleSplittable = false;
+      }
+
+      asset.addDependency(d);
     }
 
     if (hoist_result) {

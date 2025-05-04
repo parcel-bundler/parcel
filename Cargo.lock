@@ -2216,6 +2216,7 @@ dependencies = [
  "path-slash",
  "pathdiff",
  "phf",
+ "pretty_assertions",
  "rustc-hash 2.0.0",
  "serde",
  "serde_bytes",

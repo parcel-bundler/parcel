@@ -5,7 +5,7 @@ use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
   pub context: EnvironmentContext,
@@ -21,6 +21,34 @@ pub struct Environment {
 impl Environment {
   pub fn should_scope_hoist(&self) -> bool {
     self.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
+  }
+
+  pub fn is_library(&self) -> bool {
+    self.flags.contains(EnvironmentFlags::IS_LIBRARY)
+  }
+
+  pub fn is_node(&self) -> bool {
+    self.context.is_node()
+  }
+
+  pub fn is_browser(&self) -> bool {
+    self.context.is_browser()
+  }
+
+  pub fn is_worker(&self) -> bool {
+    self.context.is_worker()
+  }
+
+  pub fn is_electron(&self) -> bool {
+    self.context.is_electron()
+  }
+
+  pub fn is_worklet(&self) -> bool {
+    self.context.is_worklet()
+  }
+
+  pub fn is_server(&self) -> bool {
+    self.context.is_server()
   }
 }
 
@@ -63,8 +91,11 @@ pub struct Engines {
 pub struct Version(NonZeroU16);
 
 impl Version {
-  pub fn new(major: NonZeroU16, minor: u16) -> Self {
-    Version(NonZeroU16::new((major.get() & 0xff) << 8 | (minor & 0xff)).unwrap())
+  pub fn new(major: u16, mut minor: u16) -> Self {
+    if major == 0 && minor == 0 {
+      minor = 1;
+    }
+    Version(NonZeroU16::new((major & 0xff) << 8 | (minor & 0xff)).unwrap())
   }
 
   pub fn major(&self) -> u16 {
@@ -73,6 +104,12 @@ impl Version {
 
   pub fn minor(&self) -> u16 {
     self.0.get() & 0xff
+  }
+}
+
+impl From<u16> for Version {
+  fn from(value: u16) -> Version {
+    Version::new(value, 0)
   }
 }
 
@@ -86,7 +123,7 @@ impl FromStr for Version {
     }
 
     let mut version = version.unwrap().split('.');
-    let major = version.next().and_then(|v| v.parse::<NonZeroU16>().ok());
+    let major = version.next().and_then(|v| v.parse::<u16>().ok());
     if let Some(major) = major {
       let minor = version
         .next()
@@ -139,10 +176,7 @@ impl<'de> serde::Deserialize<'de> for Version {
       .ok()
       .and_then(|r| r.min_version())
     {
-      Ok(Version(
-        NonZeroU16::new((version.major as u16) << 8 | (version.minor as u16))
-          .ok_or(serde::de::Error::custom("version must be > 0"))?,
-      ))
+      Ok(Version::new(version.major as u16, version.minor as u16))
     } else {
       Err(serde::de::Error::custom("invalid semver range"))
     }
@@ -331,38 +365,38 @@ impl EnvironmentFeature {
     match self {
       EnvironmentFeature::WorkerModule => Engines {
         browsers: Browsers {
-          edge: Some(Version::new(NonZeroU16::new(80).unwrap(), 0)),
-          chrome: Some(Version::new(NonZeroU16::new(80).unwrap(), 0)),
-          opera: Some(Version::new(NonZeroU16::new(67).unwrap(), 0)),
-          android: Some(Version::new(NonZeroU16::new(81).unwrap(), 0)),
+          edge: Some(Version::new(80, 0)),
+          chrome: Some(Version::new(80, 0)),
+          opera: Some(Version::new(67, 0)),
+          android: Some(Version::new(81, 0)),
           ..Default::default()
         },
         ..Default::default()
       },
       EnvironmentFeature::DynamicImport => Engines {
         browsers: Browsers {
-          edge: Some(Version::new(NonZeroU16::new(76).unwrap(), 0)),
-          firefox: Some(Version::new(NonZeroU16::new(67).unwrap(), 0)),
-          chrome: Some(Version::new(NonZeroU16::new(63).unwrap(), 0)),
-          safari: Some(Version::new(NonZeroU16::new(11).unwrap(), 1)),
-          opera: Some(Version::new(NonZeroU16::new(50).unwrap(), 0)),
-          ios_saf: Some(Version::new(NonZeroU16::new(11).unwrap(), 3)),
-          android: Some(Version::new(NonZeroU16::new(63).unwrap(), 0)),
-          samsung: Some(Version::new(NonZeroU16::new(8).unwrap(), 0)),
+          edge: Some(Version::new(76, 0)),
+          firefox: Some(Version::new(67, 0)),
+          chrome: Some(Version::new(63, 0)),
+          safari: Some(Version::new(11, 1)),
+          opera: Some(Version::new(50, 0)),
+          ios_saf: Some(Version::new(11, 3)),
+          android: Some(Version::new(63, 0)),
+          samsung: Some(Version::new(8, 0)),
           ..Default::default()
         },
         ..Default::default()
       },
       EnvironmentFeature::Esmodules => Engines {
         browsers: Browsers {
-          edge: Some(Version::new(NonZeroU16::new(16).unwrap(), 0)),
-          firefox: Some(Version::new(NonZeroU16::new(60).unwrap(), 0)),
-          chrome: Some(Version::new(NonZeroU16::new(61).unwrap(), 0)),
-          safari: Some(Version::new(NonZeroU16::new(10).unwrap(), 1)),
-          opera: Some(Version::new(NonZeroU16::new(48).unwrap(), 0)),
-          ios_saf: Some(Version::new(NonZeroU16::new(10).unwrap(), 3)),
-          android: Some(Version::new(NonZeroU16::new(76).unwrap(), 0)),
-          samsung: Some(Version::new(NonZeroU16::new(8).unwrap(), 2)),
+          edge: Some(Version::new(16, 0)),
+          firefox: Some(Version::new(60, 0)),
+          chrome: Some(Version::new(61, 0)),
+          safari: Some(Version::new(10, 1)),
+          opera: Some(Version::new(48, 0)),
+          ios_saf: Some(Version::new(10, 3)),
+          android: Some(Version::new(76, 0)),
+          samsung: Some(Version::new(8, 2)),
           ..Default::default()
         },
         ..Default::default()
@@ -449,14 +483,14 @@ pub enum EnvironmentContext {
 impl EnvironmentContext {
   pub fn is_node(&self) -> bool {
     use EnvironmentContext::*;
-    matches!(self, Node | ElectronMain | ElectronRenderer)
+    matches!(self, Node | ElectronMain | ElectronRenderer | ReactServer)
   }
 
   pub fn is_browser(&self) -> bool {
     use EnvironmentContext::*;
     matches!(
       self,
-      Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer
+      Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer | ReactClient
     )
   }
 
@@ -468,6 +502,16 @@ impl EnvironmentContext {
   pub fn is_electron(&self) -> bool {
     use EnvironmentContext::*;
     matches!(self, ElectronMain | ElectronRenderer)
+  }
+
+  pub fn is_worklet(&self) -> bool {
+    use EnvironmentContext::*;
+    matches!(self, Worklet)
+  }
+
+  pub fn is_server(&self) -> bool {
+    use EnvironmentContext::*;
+    matches!(self, Node | ReactServer)
   }
 }
 

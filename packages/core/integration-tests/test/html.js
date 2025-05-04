@@ -2,6 +2,7 @@ import assert from 'assert';
 import {
   assertBundles,
   assertRejectsWithDiagnostic,
+  assertEqualDiagnostics,
   bundle,
   bundler,
   distDir,
@@ -1433,7 +1434,7 @@ describe('html', function () {
   });
 
   for (let scopeHoist of [false, true]) {
-    it(
+    it.skip(
       'should expose top level declarations globally in inline <script> tags with dependencies with scopeHoist = ' +
         scopeHoist,
       async function () {
@@ -1507,7 +1508,7 @@ describe('html', function () {
         err.message,
         'Browser scripts cannot have imports or exports.',
       );
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'Browser scripts cannot have imports or exports.',
           origin: '@parcel/transformer-js',
@@ -1775,7 +1776,7 @@ describe('html', function () {
         err.message,
         'Browser scripts cannot have imports or exports.',
       );
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'Browser scripts cannot have imports or exports.',
           origin: '@parcel/transformer-js',

@@ -19,13 +19,14 @@ use std::{
   collections::{HashMap, HashSet},
   path::{Path, PathBuf},
   str::FromStr,
+  sync::Arc,
 };
 
 pub use collect::CollectImportedSymbol;
 use collect::{Collect, CollectResult};
 use constant_module::ConstantModule;
 use dependency_collector2::Helpers;
-pub use dependency_collector2::{DependencyDescriptor, DependencyKind, dependency_collector};
+pub use dependency_collector2::dependency_collector;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
@@ -35,6 +36,10 @@ use indexmap::IndexMap;
 use mdx::{MdxAsset, TocNode, mdx};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
+use parcel_core::{
+  AssetType, Dependency, Diagnostic, DiagnosticSeverity, Engines, Environment, EnvironmentContext,
+  OutputFormat, SourceType,
+};
 use parcel_macros::{JsValue, MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
 use react_lazy::ReactLazy;
@@ -67,11 +72,7 @@ use swc_core::{
   },
 };
 use typeof_replacer::*;
-use utils::{
-  CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer, error_buffer_to_diagnostics,
-};
-pub use utils::{SourceLocation, SourceType};
-
+use utils::{ErrorBuffer, error_buffer_to_diagnostics, loc};
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
 #[derive(Default, Serialize, Debug, Deserialize)]
@@ -83,9 +84,8 @@ pub struct Config {
   pub project_root: String,
   pub env: IndexMap<JsWord, JsWord>,
   pub inline_fs: bool,
-  pub context: EnvContext,
   #[serde(rename = "type")]
-  pub asset_type: Type,
+  pub asset_type: AssetType,
   pub jsx_pragma: Option<String>,
   pub jsx_pragma_frag: Option<String>,
   pub automatic_jsx_runtime: bool,
@@ -94,108 +94,57 @@ pub struct Config {
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
   pub react_refresh: bool,
-  pub targets: Option<HashMap<String, String>>,
   pub source_maps: bool,
-  pub scope_hoist: bool,
-  pub source_type: SourceType,
-  pub supports_module_workers: bool,
-  pub is_library: bool,
-  pub is_esm_output: bool,
   pub trace_bailouts: bool,
   pub is_swc_helpers: bool,
   pub standalone: bool,
   pub inline_constants: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum Type {
-  #[default]
-  Js,
-  Jsx,
-  Ts,
-  Tsx,
-  Mdx,
-}
-
-#[derive(Default, Serialize, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum EnvContext {
-  #[default]
-  Browser,
-  WebWorker,
-  ServiceWorker,
-  Worklet,
-  Node,
-  ElectronRenderer,
-  ElectronMain,
-  EdgeRoutine,
-  ReactClient,
-  ReactServer,
+  pub environment: Arc<Environment>,
 }
 
 impl Config {
-  fn is_browser(&self) -> bool {
-    use EnvContext::*;
-    matches!(
-      self.context,
-      Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer | ReactClient
-    )
-  }
-
-  fn is_node(&self) -> bool {
-    use EnvContext::*;
-    matches!(
-      self.context,
-      Node | ElectronMain | ElectronRenderer | ReactServer
-    )
-  }
-
-  fn is_server(&self) -> bool {
-    use EnvContext::*;
-    matches!(self.context, Node | ReactServer)
-  }
-
-  fn is_worker(&self) -> bool {
-    use EnvContext::*;
-    matches!(self.context, WebWorker | ServiceWorker)
-  }
-
-  fn is_worklet(&self) -> bool {
-    use EnvContext::*;
-    matches!(self.context, Worklet)
-  }
-
   fn react_refresh(&self) -> bool {
-    self.is_browser()
-      && !self.is_library
-      && !self.is_worker()
-      && !self.is_worklet()
+    self.environment.is_browser()
+      && !self.environment.is_library()
+      && !self.environment.is_worker()
+      && !self.environment.is_worklet()
       && self.react_refresh
   }
 
   fn inline_fs(&self) -> bool {
-    self.inline_fs && !self.is_node() && self.source_type != SourceType::Script
+    self.inline_fs
+      && !self.environment.is_node()
+      && self.environment.source_type != SourceType::Script
   }
 
   fn node_replacer(&self) -> bool {
-    self.is_node()
+    self.environment.is_node()
   }
 
   fn insert_node_globals(&self) -> bool {
-    !self.is_node() && self.source_type != SourceType::Script && !self.is_library
+    !self.environment.is_node()
+      && self.environment.source_type != SourceType::Script
+      && !self.environment.is_library()
   }
 
   fn replace_env(&self) -> bool {
-    !self.is_node() || matches!(self.context, EnvContext::ReactServer)
+    !self.environment.is_node()
+      || matches!(self.environment.context, EnvironmentContext::ReactServer)
   }
 
   fn is_jsx(&self) -> bool {
-    matches!(self.asset_type, Type::Jsx | Type::Tsx | Type::Mdx)
+    matches!(
+      self.asset_type,
+      AssetType::Jsx | AssetType::Tsx | AssetType::Mdx
+    )
   }
 
   fn is_type_script(&self) -> bool {
-    matches!(self.asset_type, Type::Ts | Type::Tsx)
+    matches!(self.asset_type, AssetType::Ts | AssetType::Tsx)
+  }
+
+  fn scope_hoist(&self) -> bool {
+    self.environment.should_scope_hoist() && self.environment.source_type != SourceType::Script
   }
 }
 
@@ -206,7 +155,7 @@ pub struct TransformResult {
   pub code: Vec<u8>,
   pub map: Option<String>,
   pub shebang: Option<String>,
-  pub dependencies: Vec<DependencyDescriptor>,
+  pub dependencies: Vec<Dependency>,
   pub hoist_result: Option<HoistResult>,
   pub symbol_result: Option<CollectResult>,
   pub diagnostics: Option<Vec<Diagnostic>>,
@@ -221,34 +170,48 @@ pub struct TransformResult {
   pub mdx_assets: Vec<MdxAsset>,
 }
 
-fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
-  if let Some(targets) = targets {
-    macro_rules! set_target {
-      ($versions: ident, $name: ident) => {
-        let version = targets.get(stringify!($name));
-        if let Some(version) = version {
-          if let Ok(version) = Version::from_str(version.as_str()) {
-            $versions.$name = Some(version);
-          }
-        }
-      };
+fn env_to_versions(env: &Environment) -> Option<Versions> {
+  let mut targets = None;
+  if env.context.is_electron() {
+    if let Some(electron) = &env.engines.electron {
+      targets = Some(Versions {
+        electron: Some(convert_version(electron)),
+        ..Default::default()
+      });
     }
-
+  } else if env.context.is_browser() {
+    let browsers = &env.engines.browsers;
     let mut versions = Versions::default();
-    set_target!(versions, chrome);
-    set_target!(versions, opera);
-    set_target!(versions, edge);
-    set_target!(versions, firefox);
-    set_target!(versions, safari);
-    set_target!(versions, ie);
-    set_target!(versions, ios);
-    set_target!(versions, android);
-    set_target!(versions, node);
-    set_target!(versions, electron);
-    return Some(versions);
+    versions.android = browsers.android.as_ref().map(convert_version);
+    versions.chrome = browsers.chrome.as_ref().map(convert_version);
+    versions.edge = browsers.edge.as_ref().map(convert_version);
+    versions.firefox = browsers.firefox.as_ref().map(convert_version);
+    versions.ie = browsers.ie.as_ref().map(convert_version);
+    versions.ios = browsers.ios_saf.as_ref().map(convert_version);
+    versions.opera = browsers.opera.as_ref().map(convert_version);
+    versions.safari = browsers.safari.as_ref().map(convert_version);
+    versions.samsung = browsers.samsung.as_ref().map(convert_version);
+    if !versions.is_any_target() {
+      targets = Some(versions);
+    }
+  } else if env.context.is_node() {
+    if let Some(node) = &env.engines.node {
+      targets = Some(Versions {
+        node: Some(convert_version(node)),
+        ..Default::default()
+      });
+    }
   }
 
-  None
+  targets
+}
+
+fn convert_version(version: &parcel_core::Version) -> Version {
+  Version {
+    major: version.major() as u32,
+    minor: version.minor() as u32,
+    patch: 0,
+  }
 }
 
 pub fn transform(
@@ -260,17 +223,11 @@ pub fn transform(
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
-  // Attempt to convert the path to be relative to the project root.
-  // If outside the project root, use an absolute path so that if the project root moves the path still works.
-  let filename: PathBuf =
-    if let Ok(relative) = Path::new(&config.filename).strip_prefix(&config.project_root) {
-      relative.to_slash_lossy().into()
-    } else {
-      PathBuf::from(&config.filename)
-    };
-
-  let (module, comments) = if matches!(config.asset_type, Type::Mdx) {
-    source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.into());
+  let (module, comments) = if matches!(config.asset_type, AssetType::Mdx) {
+    source_map.new_source_file(
+      Lrc::new(FileName::Real(config.filename.clone().into())),
+      code.into(),
+    );
 
     let res = mdx(&config);
     match res {
@@ -286,7 +243,7 @@ pub fn transform(
       }
     }
   } else {
-    let module = parse(code, filename, &source_map, &config);
+    let module = parse(code, config.filename.clone().into(), &source_map, &config);
 
     match module {
       Err(errs) => {
@@ -334,22 +291,32 @@ pub fn transform(
     }
   }
 
-  if config.is_server() && !config.is_library && result.directives.contains(&"use client".into()) {
-    config.context = EnvContext::ReactClient;
-    config.is_esm_output = true;
-  } else if !config.is_server()
-    && !config.is_library
+  if config.environment.is_server()
+    && !config.environment.is_library()
+    && result.directives.contains(&"use client".into())
+  {
+    config.environment = Arc::new(Environment {
+      context: EnvironmentContext::ReactClient,
+      output_format: OutputFormat::Esmodule,
+      ..(*config.environment).clone()
+    });
+  } else if !config.environment.is_server()
+    && !config.environment.is_library()
     && result.directives.contains(&"use server".into())
   {
-    config.context = EnvContext::ReactServer;
-    config.is_esm_output = false;
+    config.environment = Arc::new(Environment {
+      context: EnvironmentContext::ReactServer,
+      output_format: OutputFormat::Commonjs,
+      ..(*config.environment).clone()
+    });
   }
 
   let mut global_deps = vec![];
   let mut fs_deps = vec![];
-  let should_inline_fs =
-    config.inline_fs() && config.source_type != SourceType::Script && code.contains("readFileSync");
-  let should_import_swc_helpers = match config.source_type {
+  let should_inline_fs = config.inline_fs()
+    && config.environment.source_type != SourceType::Script
+    && code.contains("readFileSync");
+  let should_import_swc_helpers = match config.environment.source_type {
     SourceType::Module => true,
     SourceType::Script => false,
   };
@@ -452,7 +419,7 @@ pub fn transform(
             dynamic_import: true,
             ..Default::default()
           };
-          let versions = targets_to_versions(&config.targets);
+          let versions = env_to_versions(&config.environment);
           let mut should_run_preset_env = false;
           if !config.is_swc_helpers {
             // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
@@ -481,7 +448,7 @@ pub fn transform(
             }
           }
 
-          if config.scope_hoist && config.inline_constants {
+          if config.scope_hoist() && config.inline_constants {
             let mut constant_module = ConstantModule::new();
             module.visit_with(&mut constant_module);
             result.is_constant_module = constant_module.is_constant_module;
@@ -489,21 +456,22 @@ pub fn transform(
 
           module.visit_mut_with(&mut (
             Optional::new(
-              TypeofReplacer::new(unresolved_mark, config.is_node()),
-              config.source_type != SourceType::Script,
+              TypeofReplacer::new(unresolved_mark, config.environment.is_node()),
+              config.environment.source_type != SourceType::Script,
             ),
             // Inline process.env and process.browser,
             Optional::new(
               EnvReplacer::new(
                 config.replace_env(),
-                config.is_browser(),
+                config.environment.is_browser(),
                 &config.env,
                 &mut result.used_env,
                 source_map.clone(),
                 &mut diagnostics,
                 unresolved_mark,
               ),
-              config.source_type != SourceType::Script && !config.is_library,
+              config.environment.source_type != SourceType::Script
+                && !config.environment.is_library(),
             ),
             paren_remover(Some(&comments)),
             // Simplify expressions and remove dead branches so that we
@@ -533,10 +501,11 @@ pub fn transform(
                 items: &mut global_deps,
                 global_mark,
                 globals: IndexMap::new(),
-                filename: Path::new(&config.filename),
+                filename: &config.filename,
                 unresolved_mark,
                 has_node_replacements: &mut result.has_node_replacements,
-                is_esm: config.is_esm_output,
+                is_esm: config.environment.output_format == OutputFormat::Esmodule,
+                env: config.environment.clone(),
               },
               config.node_replacer(),
             ),
@@ -551,9 +520,10 @@ pub fn transform(
                 global_mark,
                 globals: IndexMap::new(),
                 project_root: Path::new(&config.project_root),
-                filename: Path::new(&config.filename),
+                filename: &config.filename,
                 unresolved_mark,
-                scope_hoist: config.scope_hoist,
+                scope_hoist: config.scope_hoist(),
+                env: config.environment.clone(),
               },
               config.insert_node_globals(),
             ),
@@ -582,7 +552,7 @@ pub fn transform(
           // - This will also remove any other other marks (like ignore_mark)
           // This only needs to be done if preset_env ran because all other transforms
           // insert declarations with global_mark (even though they are generated).
-          if config.scope_hoist && should_run_preset_env {
+          if config.scope_hoist() && should_run_preset_env {
             module.visit_mut_with(&mut (hygiene(), resolver(unresolved_mark, global_mark, false)))
           }
 
@@ -592,7 +562,9 @@ pub fn transform(
             module,
             source_map.clone(),
             &mut result.dependencies,
+            config.environment.clone(),
             ignore_mark,
+            global_mark,
             unresolved_mark,
             &config,
             &mut diagnostics,
@@ -623,13 +595,13 @@ pub fn transform(
           }
 
           if matches!(
-            config.context,
-            EnvContext::ReactClient | EnvContext::ReactServer
+            config.environment.context,
+            EnvironmentContext::ReactClient | EnvironmentContext::ReactServer
           ) {
             module.visit_with(&mut ReactLazy::new(&collect, &mut result.dependencies));
           }
 
-          let mut module = if config.scope_hoist {
+          let mut module = if config.scope_hoist() {
             let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
             match res {
               Ok((module, hoist_result, hoist_diagnostics)) => {
@@ -782,39 +754,18 @@ impl SourceMapGenConfig for SourceMapConfig {
 
 fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagnostic {
   match error {
-    MacroError::EvaluationError(span) => Diagnostic {
-      message: "Could not statically evaluate macro argument".into(),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: crate::utils::DiagnosticSeverity::Error,
-      documentation_url: None,
-    },
-    MacroError::LoadError(err, span) => Diagnostic {
-      message: format!("Error loading macro: {}", err),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: crate::utils::DiagnosticSeverity::Error,
-      documentation_url: None,
-    },
-    MacroError::ExecutionError(err, span) => Diagnostic {
-      message: format!("Error evaluating macro: {}", err),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: crate::utils::DiagnosticSeverity::Error,
-      documentation_url: None,
-    },
+    MacroError::EvaluationError(span) => Diagnostic::from_loc(
+      loc(span, source_map),
+      "Could not statically evaluate macro argument",
+    ),
+    MacroError::LoadError(err, span) => Diagnostic::from_loc(
+      loc(span, source_map),
+      format!("Error loading macro: {}", err),
+    ),
+    MacroError::ExecutionError(err, span) => Diagnostic::from_loc(
+      loc(span, source_map),
+      format!("Error evaluating macro: {}", err),
+    ),
     MacroError::ParseError(err) => {
       let error_buffer = ErrorBuffer::default();
       let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));

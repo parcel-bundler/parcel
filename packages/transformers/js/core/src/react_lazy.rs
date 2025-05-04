@@ -4,7 +4,7 @@ use swc_core::ecma::{
   visit::{Visit, VisitWith},
 };
 
-use crate::{DependencyKind, collect::Collect, utils::match_str};
+use crate::{collect::Collect, utils::match_str};
 
 /// This pass marks dependencies created inside a React.lazy call.
 pub struct ReactLazy<'a> {
@@ -89,7 +89,7 @@ impl<'a> Visit for ReactLazy<'a> {
 
 #[cfg(test)]
 mod test {
-  use parcel_core::{Environment, SpecifierType};
+  use parcel_core::SpecifierType;
   use swc_core::ecma::visit::VisitWith;
   use swc_core::{common::Mark, ecma::ast::Module};
 

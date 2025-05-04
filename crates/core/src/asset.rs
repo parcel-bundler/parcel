@@ -23,12 +23,14 @@ pub struct Asset {
   pub unique_key: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Default)]
 pub enum AssetType {
+  #[default]
   Js,
   Jsx,
   Ts,
   Tsx,
+  Mdx,
   Css,
   Html,
   Xhtml,
@@ -64,6 +66,7 @@ impl AssetType {
       AssetType::Jsx => "jsx",
       AssetType::Ts => "ts",
       AssetType::Tsx => "tsx",
+      AssetType::Mdx => "mdx",
       AssetType::Css => "css",
       AssetType::Html => "html",
       AssetType::Xhtml => "xhtml",
@@ -80,6 +83,7 @@ impl AssetType {
       "jsx" => AssetType::Jsx,
       "ts" => AssetType::Ts,
       "tsx" => AssetType::Tsx,
+      "mdx" => AssetType::Mdx,
       "css" => AssetType::Css,
       "html" => AssetType::Html,
       "xhtml" => AssetType::Xhtml,

@@ -37,7 +37,7 @@ macro_rules! impl_bitflags_serde {
   };
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash, Default, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
   pub file_path: PathBuf,
@@ -45,7 +45,7 @@ pub struct SourceLocation {
   pub end: Location,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash, Default, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Location {
   pub line: u32,
   pub column: u32,

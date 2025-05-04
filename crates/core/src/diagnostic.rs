@@ -18,6 +18,19 @@ pub struct Diagnostic {
   pub documentation_url: Option<String>,
 }
 
+impl Diagnostic {
+  pub fn from_loc<M: Into<String>>(loc: SourceLocation, message: M) -> Diagnostic {
+    Diagnostic {
+      origin: None,
+      message: message.into(),
+      code_frames: vec![CodeFrame::from_loc(loc, None)],
+      hints: vec![],
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeFrame {
@@ -25,6 +38,24 @@ pub struct CodeFrame {
   pub file_path: Option<PathBuf>,
   pub language: Option<AssetType>,
   pub code_highlights: Vec<CodeHighlight>,
+}
+
+impl CodeFrame {
+  pub fn from_loc(loc: SourceLocation, message: Option<String>) -> CodeFrame {
+    CodeFrame {
+      file_path: Some(loc.file_path),
+      code: None,
+      language: None,
+      code_highlights: vec![CodeHighlight {
+        message,
+        start: loc.start.clone(),
+        end: Location {
+          line: loc.end.line,
+          column: loc.end.column - 1,
+        },
+      }],
+    }
+  }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -47,7 +78,7 @@ pub enum DiagnosticSeverity {
 }
 
 impl CodeHighlight {
-  pub fn from_loc(loc: &SourceLocation, message: Option<String>) -> CodeHighlight {
+  pub fn from_loc(loc: SourceLocation, message: Option<String>) -> CodeHighlight {
     CodeHighlight {
       message,
       start: loc.start.clone(),

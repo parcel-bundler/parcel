@@ -4,6 +4,7 @@ use std::{
 };
 
 use indexmap::IndexMap;
+use parcel_core::{CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation};
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{DUMMY_SP, Mark, Span, SyntaxContext},
@@ -19,9 +20,8 @@ use crate::{
   collect::{Collect, Export, Import, ImportKind},
   id,
   utils::{
-    CodeHighlight, Diagnostic, DiagnosticSeverity, get_undefined_ident, is_unresolved,
-    match_export_name, match_export_name_ident, match_import, match_member_expr,
-    match_property_name, match_require,
+    get_undefined_ident, is_unresolved, loc, match_export_name, match_export_name_ident,
+    match_import, match_member_expr, match_property_name, match_require,
   },
 };
 
@@ -404,22 +404,24 @@ impl<'a> Fold for Hoist<'a> {
                 if let Some(spans) = self.collect.non_const_bindings.get(&id!(local)) {
                   let mut highlights: Vec<CodeHighlight> = spans
                     .iter()
-                    .map(|span| CodeHighlight {
-                      loc: SourceLocation::from(&self.collect.source_map, *span),
-                      message: None,
-                    })
+                    .map(|span| CodeHighlight::from_loc(loc(*span, &self.collect.source_map), None))
                     .collect();
 
-                  highlights.push(CodeHighlight {
-                    loc: SourceLocation::from(&self.collect.source_map, local.span),
-                    message: Some("Originally imported here".into()),
-                  });
+                  highlights.push(CodeHighlight::from_loc(
+                    loc(local.span, &self.collect.source_map),
+                    Some("Originally imported here".into()),
+                  ));
 
                   self.diagnostics.push(Diagnostic {
+                    origin: None,
                     message: "Assignment to an import specifier is not allowed".into(),
-                    code_highlights: Some(highlights),
-                    hints: None,
-                    show_environment: false,
+                    code_frames: vec![CodeFrame {
+                      file_path: Some(loc(local.span, &self.collect.source_map).file_path),
+                      code: None,
+                      code_highlights: highlights,
+                      language: None,
+                    }],
+                    hints: vec![],
                     severity: DiagnosticSeverity::Error,
                     documentation_url: None,
                   })
@@ -455,7 +457,7 @@ impl<'a> Fold for Hoist<'a> {
                         source: src.value.clone(),
                         local: exported,
                         imported: match_export_name(&named.orig).0,
-                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        loc: loc(named.span, &self.collect.source_map),
                         kind: ImportKind::Import,
                       });
                     }
@@ -464,7 +466,7 @@ impl<'a> Fold for Hoist<'a> {
                         source: src.value.clone(),
                         local: default.exported.sym,
                         imported: "default".into(),
-                        loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
+                        loc: loc(default.exported.span, &self.collect.source_map),
                         kind: ImportKind::Import,
                       });
                     }
@@ -473,7 +475,7 @@ impl<'a> Fold for Hoist<'a> {
                         source: src.value.clone(),
                         local: match_export_name(&namespace.name).0,
                         imported: "*".into(),
-                        loc: SourceLocation::from(&self.collect.source_map, namespace.span),
+                        loc: loc(namespace.span, &self.collect.source_map),
                         kind: ImportKind::Import,
                       });
                     }
@@ -498,7 +500,7 @@ impl<'a> Fold for Hoist<'a> {
                         source: source.clone(),
                         local: exported,
                         imported: specifier.clone(),
-                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        loc: loc(named.span, &self.collect.source_map),
                         kind: *kind,
                       });
                     } else {
@@ -515,7 +517,7 @@ impl<'a> Fold for Hoist<'a> {
                       self.exported_symbols.push(ExportedSymbol {
                         local: id,
                         exported,
-                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        loc: loc(named.span, &self.collect.source_map),
                         is_esm: true,
                       });
                     }
@@ -541,7 +543,7 @@ impl<'a> Fold for Hoist<'a> {
                 source: export.src.value,
                 local: "*".into(),
                 imported: "*".into(),
-                loc: SourceLocation::from(&self.collect.source_map, export.span),
+                loc: loc(export.span, &self.collect.source_map),
                 kind: ImportKind::Import,
               });
             }
@@ -848,7 +850,7 @@ impl<'a> Fold for Hoist<'a> {
                     source: source.clone(),
                     local: name,
                     imported: key.clone(),
-                    loc: SourceLocation::from(&self.collect.source_map, member.span),
+                    loc: loc(member.span, &self.collect.source_map),
                     kind: *kind,
                   });
                 } else {
@@ -856,7 +858,7 @@ impl<'a> Fold for Hoist<'a> {
                     member.span,
                     source,
                     &key,
-                    SourceLocation::from(&self.collect.source_map, member.span),
+                    loc(member.span, &self.collect.source_map),
                     *kind,
                   ));
                 }
@@ -883,7 +885,7 @@ impl<'a> Fold for Hoist<'a> {
                 member.span,
                 &source,
                 &key,
-                SourceLocation::from(&self.collect.source_map, member.span),
+                loc(member.span, &self.collect.source_map),
                 ImportKind::Require,
               ));
             }
@@ -927,7 +929,7 @@ impl<'a> Fold for Hoist<'a> {
             call.span,
             &source,
             &("*".into()),
-            SourceLocation::from(&self.collect.source_map, call.span),
+            loc(call.span, &self.collect.source_map),
             ImportKind::Require,
           ));
         }
@@ -941,7 +943,7 @@ impl<'a> Fold for Hoist<'a> {
               source,
               local: name.clone(),
               imported: "*".into(),
-              loc: SourceLocation::from(&self.collect.source_map, call.span),
+              loc: loc(call.span, &self.collect.source_map),
               kind: ImportKind::DynamicImport,
             });
           }
@@ -1076,7 +1078,7 @@ impl<'a> Fold for Hoist<'a> {
         self.exported_symbols.push(ExportedSymbol {
           local: node.sym.clone(),
           exported: exported.clone(),
-          loc: SourceLocation::from(&self.collect.source_map, node.span),
+          loc: loc(node.span, &self.collect.source_map),
           is_esm: false,
         });
         return node;
@@ -1302,7 +1304,7 @@ impl<'a> Hoist<'a> {
     self.exported_symbols.push(ExportedSymbol {
       local: new_name.clone(),
       exported: exported.clone(),
-      loc: SourceLocation::from(&self.collect.source_map, span),
+      loc: loc(span, &self.collect.source_map),
       is_esm,
     });
 
@@ -1329,7 +1331,7 @@ impl<'a> Hoist<'a> {
           v.span,
           source,
           specifier,
-          SourceLocation::from(&self.collect.source_map, v.span),
+          loc(v.span, &self.collect.source_map),
           *kind,
         );
         self
@@ -1353,6 +1355,7 @@ impl<'a> Hoist<'a> {
 
 #[cfg(test)]
 mod tests {
+  use parcel_core::Location;
   use swc_core::{
     common::{FileName, Globals, SourceMap, comments::SingleThreadedComments, sync::Lrc},
     ecma::{
@@ -1553,10 +1556,15 @@ mod tests {
           source: Some("other".into()),
           specifier: "foo".into(),
           loc: SourceLocation {
-            start_line: 3,
-            start_col: 20,
-            end_line: 3,
-            end_col: 24
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 3,
+              column: 20
+            },
+            end: Location {
+              line: 3,
+              column: 24
+            }
           },
           is_esm: true
         }
@@ -3697,10 +3705,15 @@ mod tests {
           source: None,
           specifier: "default".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 1,
-            end_line: 1,
-            end_col: 30
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 1
+            },
+            end: Location {
+              line: 1,
+              column: 30
+            }
           },
           is_esm: true
         }
@@ -3715,10 +3728,15 @@ mod tests {
           source: None,
           specifier: "test".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 1,
-            end_line: 1,
-            end_col: 35
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 1
+            },
+            end: Location {
+              line: 1,
+              column: 35
+            }
           },
           is_esm: true
         }
@@ -3732,11 +3750,16 @@ mod tests {
         w!("default") => Export {
           source: None,
           specifier: "default".into(),
-          loc: SourceLocation {
-            start_line: 1,
-            start_col: 1,
-            end_line: 1,
-            end_col: 24
+          loc:SourceLocation {
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 1
+            },
+            end: Location {
+              line: 1,
+              column: 24
+            }
           },
           is_esm: true
         }
@@ -3751,10 +3774,15 @@ mod tests {
           source: None,
           specifier: "test".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 1,
-            end_line: 1,
-            end_col: 29
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 1
+            },
+            end: Location {
+              line: 1,
+              column: 29
+            }
           },
           is_esm: true
         }
@@ -3769,10 +3797,15 @@ mod tests {
           source: None,
           specifier: "default".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 1,
-            end_line: 1,
-            end_col: 20
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 1
+            },
+            end: Location {
+              line: 1,
+              column: 20
+            }
           },
           is_esm: true
         }
@@ -3787,10 +3820,15 @@ mod tests {
           source: None,
           specifier: "foo".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 16,
-            end_line: 1,
-            end_col: 19
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 16
+            },
+            end: Location {
+              line: 1,
+              column: 19
+            }
           },
           is_esm: false
         }
@@ -3805,10 +3843,15 @@ mod tests {
           source: None,
           specifier: "foo".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 16,
-            end_line: 1,
-            end_col: 21
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 16
+            },
+            end: Location {
+              line: 1,
+              column: 21
+            }
           },
           is_esm: false
         }
@@ -3823,10 +3866,15 @@ mod tests {
           source: None,
           specifier: "foo".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 16,
-            end_line: 1,
-            end_col: 21
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 16
+            },
+            end: Location {
+              line: 1,
+              column: 21
+            }
           },
           is_esm: false
         }
@@ -3841,10 +3889,15 @@ mod tests {
           source: None,
           specifier: "foo".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 9,
-            end_line: 1,
-            end_col: 12
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 9
+            },
+            end: Location {
+              line: 1,
+              column: 12
+            }
           },
           is_esm: false
         }
@@ -3859,10 +3912,15 @@ mod tests {
           source: None,
           specifier: "foo".into(),
           loc: SourceLocation {
-            start_line: 1,
-            start_col: 6,
-            end_line: 1,
-            end_col: 9
+            file_path: "<anon>".into(),
+            start: Location {
+              line: 1,
+              column: 6
+            },
+            end: Location {
+              line: 1,
+              column: 9
+            }
           },
           is_esm: false
         }

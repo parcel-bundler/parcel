@@ -3,6 +3,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
 import {
+  assertEqualDiagnostics,
   bundle,
   bundler,
   run,
@@ -313,7 +314,7 @@ describe('macros', function () {
         mode: 'production',
       });
     } catch (err) {
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'Could not statically evaluate macro argument',
           origin: '@parcel/transformer-js',
@@ -335,7 +336,7 @@ describe('macros', function () {
               ],
             },
           ],
-          hints: null,
+          hints: [],
         },
       ]);
     }
@@ -365,9 +366,11 @@ describe('macros', function () {
       assert.deepEqual(err.diagnostics[0].codeFrames, [
         {
           filePath: path.join(dir, 'index.js'),
+          code: null,
+          language: null,
           codeHighlights: [
             {
-              message: undefined,
+              message: null,
               start: {
                 line: 2,
                 column: 10,
@@ -396,7 +399,7 @@ describe('macros', function () {
         mode: 'production',
       });
     } catch (err) {
-      assert.deepEqual(
+      assertEqualDiagnostics(
         // \ gets escaped by Node -> Rust -> Node in Windows, so we normalize it for the test
         err.diagnostics.map(d => ({
           ...d,
@@ -427,7 +430,7 @@ describe('macros', function () {
                 ],
               },
             ],
-            hints: null,
+            hints: [],
           },
         ],
       );
@@ -736,7 +739,7 @@ describe('macros', function () {
         mode: 'production',
       });
     } catch (err) {
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'Could not statically evaluate macro argument',
           origin: '@parcel/transformer-js',
@@ -758,7 +761,7 @@ describe('macros', function () {
               ],
             },
           ],
-          hints: null,
+          hints: [],
         },
         {
           message: 'Could not statically evaluate macro argument',
@@ -781,7 +784,7 @@ describe('macros', function () {
               ],
             },
           ],
-          hints: null,
+          hints: [],
         },
       ]);
     }
@@ -817,7 +820,7 @@ describe('macros', function () {
         mode: 'production',
       });
     } catch (err) {
-      assert.deepEqual(err.diagnostics, [
+      assertEqualDiagnostics(err.diagnostics, [
         {
           message: 'Could not statically evaluate macro argument',
           origin: '@parcel/transformer-js',
@@ -839,7 +842,7 @@ describe('macros', function () {
               ],
             },
           ],
-          hints: null,
+          hints: [],
         },
         {
           message: 'Could not statically evaluate macro argument',
@@ -862,7 +865,7 @@ describe('macros', function () {
               ],
             },
           ],
-          hints: null,
+          hints: [],
         },
         {
           message: 'Could not statically evaluate macro argument',
@@ -885,7 +888,7 @@ describe('macros', function () {
               ],
             },
           ],
-          hints: null,
+          hints: [],
         },
         {
           message: 'Could not statically evaluate macro argument',
@@ -908,7 +911,7 @@ describe('macros', function () {
               ],
             },
           ],
-          hints: null,
+          hints: [],
         },
       ]);
     }
