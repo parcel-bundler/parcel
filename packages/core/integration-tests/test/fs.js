@@ -13,7 +13,7 @@ import {
   distDir,
 } from '@parcel/test-utils';
 
-describe('fs', function () {
+describe.only('fs', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });

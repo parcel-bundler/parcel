@@ -313,9 +313,9 @@ pub fn transform(
 
   let mut global_deps = vec![];
   let mut fs_deps = vec![];
-  let should_inline_fs = config.inline_fs()
-    && config.environment.source_type != SourceType::Script
-    && code.contains("readFileSync");
+  // let should_inline_fs = config.inline_fs()
+  //   && config.environment.source_type != SourceType::Script
+  //   && code.contains("readFileSync");
   let should_import_swc_helpers = match config.environment.source_type {
     SourceType::Module => true,
     SourceType::Script => false,
@@ -480,54 +480,54 @@ pub fn transform(
             dead_branch_remover(unresolved_mark),
           ));
 
-          let mut module = module.fold_with(&mut Optional::new(
-            inline_fs(
-              config.filename.as_str(),
-              source_map.clone(),
-              unresolved_mark,
-              global_mark,
-              &config.project_root,
-              &mut fs_deps,
-              is_module,
-            ),
-            should_inline_fs,
-          ));
+          // let mut module = module.fold_with(&mut Optional::new(
+          //   inline_fs(
+          //     config.filename.as_str(),
+          //     source_map.clone(),
+          //     unresolved_mark,
+          //     global_mark,
+          //     &config.project_root,
+          //     &mut fs_deps,
+          //     is_module,
+          //   ),
+          //   should_inline_fs,
+          // ));
 
-          module.visit_mut_with(
-            // Replace __dirname and __filename with placeholders in Node env
-            &mut Optional::new(
-              NodeReplacer {
-                source_map: source_map.clone(),
-                items: &mut global_deps,
-                global_mark,
-                globals: IndexMap::new(),
-                filename: &config.filename,
-                unresolved_mark,
-                has_node_replacements: &mut result.has_node_replacements,
-                is_esm: config.environment.output_format == OutputFormat::Esmodule,
-                env: config.environment.clone(),
-              },
-              config.node_replacer(),
-            ),
-          );
+          // module.visit_mut_with(
+          //   // Replace __dirname and __filename with placeholders in Node env
+          //   &mut Optional::new(
+          //     NodeReplacer {
+          //       source_map: source_map.clone(),
+          //       items: &mut global_deps,
+          //       global_mark,
+          //       globals: IndexMap::new(),
+          //       filename: &config.filename,
+          //       unresolved_mark,
+          //       has_node_replacements: &mut result.has_node_replacements,
+          //       is_esm: config.environment.output_format == OutputFormat::Esmodule,
+          //       env: config.environment.clone(),
+          //     },
+          //     config.node_replacer(),
+          //   ),
+          // );
 
-          module.visit_mut_with(
-            // Insert dependencies for node globals
-            &mut Optional::new(
-              GlobalReplacer {
-                source_map: source_map.clone(),
-                items: &mut global_deps,
-                global_mark,
-                globals: IndexMap::new(),
-                project_root: Path::new(&config.project_root),
-                filename: &config.filename,
-                unresolved_mark,
-                scope_hoist: config.scope_hoist(),
-                env: config.environment.clone(),
-              },
-              config.insert_node_globals(),
-            ),
-          );
+          // module.visit_mut_with(
+          //   // Insert dependencies for node globals
+          //   &mut Optional::new(
+          //     GlobalReplacer {
+          //       source_map: source_map.clone(),
+          //       items: &mut global_deps,
+          //       global_mark,
+          //       globals: IndexMap::new(),
+          //       project_root: Path::new(&config.project_root),
+          //       filename: &config.filename,
+          //       unresolved_mark,
+          //       scope_hoist: config.scope_hoist(),
+          //       env: config.environment.clone(),
+          //     },
+          //     config.insert_node_globals(),
+          //   ),
+          // );
 
           let mut program = Program::Module(module);
           program.mutate(&mut (

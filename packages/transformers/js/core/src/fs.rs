@@ -36,37 +36,37 @@ pub fn inline_fs<'a>(
   };
 
   let project_root = project_root.to_string();
-  let fs = JsValue::Object(
-    Rc::new(indexmap::indexmap! {
-      "readFileSync".into() => JsValue::Function(Rc::new(move |this, args, span, _evaluator: &Evaluator|{
-        fs_read_file_sync(this, args, span, files_clone.clone(), &project_root, unresolved_mark)
-      }).into())
-    })
-    .into(),
-  );
+  // let fs = JsValue::Object(
+  //   Rc::new(indexmap::indexmap! {
+  //     "readFileSync".into() => JsValue::Function(Rc::new(move |this, args, span, _evaluator: &Evaluator|{
+  //       fs_read_file_sync(this, args, span, files_clone.clone(), &project_root, unresolved_mark)
+  //     }).into())
+  //   })
+  //   .into(),
+  // );
 
   let path_ns = path.clone();
-  let fs_ns = fs.clone();
+  // let fs_ns = fs.clone();
 
-  evaluator.add_value(
-    ("require".into(), ctxt),
-    JsValue::Function(
-      Rc::new(
-        move |_this, args: Vec<JsValue>, span, _evaluator: &Evaluator| {
-          if let Some(JsValue::String(specifier)) = args.get(0) {
-            match specifier.as_str() {
-              "path" | "node:path" => path_ns.clone(),
-              "fs" | "node:fs" => fs_ns.clone(),
-              _ => JsValue::Unknown(DUMMY_SP),
-            }
-          } else {
-            JsValue::Unknown(span)
-          }
-        },
-      )
-      .into(),
-    ),
-  );
+  // evaluator.add_value(
+  //   ("require".into(), ctxt),
+  //   JsValue::Function(
+  //     Rc::new(
+  //       move |_this, args: Vec<JsValue>, span, _evaluator: &Evaluator| {
+  //         if let Some(JsValue::String(specifier)) = args.get(0) {
+  //           match specifier.as_str() {
+  //             "path" | "node:path" => path_ns.clone(),
+  //             "fs" | "node:fs" => fs_ns.clone(),
+  //             _ => JsValue::Unknown(DUMMY_SP),
+  //           }
+  //         } else {
+  //           JsValue::Unknown(span)
+  //         }
+  //       },
+  //     )
+  //     .into(),
+  //   ),
+  // );
 
   evaluator.add_value(
     ("__dirname".into(), ctxt),
@@ -89,7 +89,7 @@ pub fn inline_fs<'a>(
     filename: Path::new(filename).to_path_buf(),
     deps: files,
     path,
-    fs,
+    fs: JsValue::Undefined,
     evaluator,
   }
 }
@@ -104,7 +104,29 @@ struct InlineFS<'a> {
   evaluator: Evaluator<'a>,
 }
 
-fn path_join(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
+pub fn path_ns() -> JsValue {
+  builtin_object! {
+    "join" => JsValue::Function(StaticOrRc::Static(&path_join))
+  }
+}
+
+pub fn fs_ns(project_root: String) -> JsValue {
+  JsValue::Object(
+    Rc::new(indexmap::indexmap! {
+      "readFileSync".into() => JsValue::Function(Rc::new(move |this, args, span, _evaluator: &Evaluator|{
+        fs_read_file_sync(this, args, span, &project_root)
+      }).into())
+    })
+    .into(),
+  )
+}
+
+pub fn path_join(
+  _this: JsValue,
+  args: Vec<JsValue>,
+  span: Span,
+  _evaluator: &Evaluator,
+) -> JsValue {
   let mut path = PathBuf::new();
   for arg in args {
     match arg {
@@ -130,16 +152,16 @@ fn path_join(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evalua
   JsValue::String(path.to_string_lossy().into())
 }
 
-fn fs_read_file_sync(
+pub fn fs_read_file_sync(
   _this: JsValue,
   args: Vec<JsValue>,
   span: Span,
-  deps: Rc<RefCell<Vec<(JsWord, Span)>>>,
+  // deps: Rc<RefCell<Vec<(JsWord, Span)>>>,
   project_root: &str,
-  unresolved_mark: Mark,
+  // unresolved_mark: Mark,
 ) -> JsValue {
   if let Some(JsValue::String(path)) = args.get(0) {
-    deps.borrow_mut().push((path.clone(), span));
+    // deps.borrow_mut().push((path.clone(), span));
     let encoding = match args.get(1) {
       Some(JsValue::String(encoding)) => encoding.as_str(),
       _ => "buffer",
@@ -157,7 +179,7 @@ fn fs_read_file_sync(
     let contents = match encoding {
       "buffer" => {
         if let Ok(contents) = std::fs::read(&path) {
-          return JsValue::Object(Rc::new(Buffer(Rc::new(contents), unresolved_mark)).into());
+          return JsValue::Object(Rc::new(Buffer(Rc::new(contents))).into());
         } else {
           return JsValue::Unknown(span);
         }
@@ -192,7 +214,7 @@ fn fs_read_file_sync(
   JsValue::Unknown(span)
 }
 
-struct Buffer(Rc<Vec<u8>>, Mark);
+struct Buffer(Rc<Vec<u8>>);
 
 impl Object for Buffer {
   fn get(&self, prop: &JsValue, span: Span) -> JsValue {
@@ -259,7 +281,7 @@ impl Object for Buffer {
         obj: Box::new(Expr::Ident(Ident::new(
           "Buffer".into(),
           DUMMY_SP,
-          SyntaxContext::empty().apply_mark(self.1),
+          SyntaxContext::empty(),
         ))),
         prop: MemberProp::Ident(IdentName::new("from".into(), DUMMY_SP)),
         span: DUMMY_SP,

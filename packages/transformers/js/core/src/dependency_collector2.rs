@@ -32,6 +32,7 @@ use swc_core::{
 
 use crate::{
   Config, fold_member_expr_skip_prop,
+  fs::{fs_ns, path_ns},
   utils::{create_require, create_url_constructor, is_unresolved, loc},
 };
 
@@ -123,6 +124,7 @@ struct DependencyCollector<'a> {
   helpers: Helpers,
   filename: String,
   relative_filename: String,
+  project_root: &'a str,
   evaluator: Evaluator<'a>,
 }
 
@@ -140,16 +142,24 @@ impl<'a> DependencyCollector<'a> {
     let mut evaluator = Evaluator::new();
     let ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
 
-    evaluator.add_value(
-      ("require".into(), ctxt),
-      JsValue::Function(StaticOrRc::Static(&Require)),
+    let require = JsValue::Function(
+      Rc::new(Require {
+        project_root: config.project_root.clone(),
+        inline_fs: config.inline_fs(),
+      })
+      .into(),
     );
+
+    evaluator.add_value(("require".into(), ctxt), require.clone());
 
     evaluator.add_value(
       ("module".into(), ctxt),
-      builtin_object! {
-        "require" => JsValue::Function(StaticOrRc::Static(&Require)),
-      },
+      JsValue::Object(
+        Rc::new(indexmap::indexmap! {
+          "require".into() => require.clone(),
+        })
+        .into(),
+      ),
     );
 
     let relative_filename =
@@ -223,6 +233,25 @@ impl<'a> DependencyCollector<'a> {
       );
     }
 
+    if config.insert_node_globals() {
+      evaluator.add_value(
+        ("__dirname".into(), ctxt),
+        JsValue::String(
+          Path::new(&config.filename)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .into(),
+        ),
+      );
+
+      evaluator.add_value(
+        ("__filename".into(), ctxt),
+        JsValue::String(relative_filename.clone().into()),
+      );
+    }
+
     if env.source_type == SourceType::Module {
       // TODO: error if accessed in scripts
       evaluator.import_meta = meta;
@@ -242,6 +271,7 @@ impl<'a> DependencyCollector<'a> {
       import_meta: None,
       helpers: Helpers::empty(),
       filename: config.filename.clone(),
+      project_root: &config.project_root,
       relative_filename,
       evaluator,
     }
@@ -317,6 +347,43 @@ impl<'a> DependencyCollector<'a> {
 
 impl<'a> VisitMut for DependencyCollector<'a> {
   fn visit_mut_module(&mut self, node: &mut Module) {
+    // Find builtin modules (e.g. fs and path).
+    for item in &node.body {
+      if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item {
+        let namespace = match import.src.value.as_str() {
+          "path" | "node:path" => path_ns(),
+          "fs" | "node:fs" => fs_ns(self.project_root.to_string()),
+          _ => JsValue::Unknown(DUMMY_SP),
+        };
+
+        if matches!(namespace, JsValue::Object(..)) {
+          for specifier in &import.specifiers {
+            match specifier {
+              ImportSpecifier::Named(named) => {
+                let imported = match &named.imported {
+                  Some(ModuleExportName::Ident(id)) => id.sym.clone(),
+                  Some(ModuleExportName::Str(s)) => s.value.clone(),
+                  None => named.local.sym.clone(),
+                };
+                let value = namespace.get(&JsValue::String(imported), DUMMY_SP);
+                self.evaluator.add_value(named.local.to_id(), value);
+              }
+              ImportSpecifier::Default(default) => {
+                self
+                  .evaluator
+                  .add_value(default.local.to_id(), namespace.clone());
+              }
+              ImportSpecifier::Namespace(ns) => {
+                self
+                  .evaluator
+                  .add_value(ns.local.to_id(), namespace.clone());
+              }
+            }
+          }
+        }
+      }
+    }
+
     node.visit_mut_children_with(self);
     if let Some(decl) = self.import_meta.take() {
       node
@@ -450,6 +517,19 @@ impl<'a> VisitMut for DependencyCollector<'a> {
     });
   }
 
+  fn visit_mut_var_decl(&mut self, node: &mut VarDecl) {
+    for decl in &node.decls {
+      if let Some(expr) = &decl.init {
+        let val = expr.evaluate(&self.evaluator);
+        self
+          .evaluator
+          .eval_pat(val, &decl.name, &mut Evaluator::add_value);
+      }
+    }
+
+    node.visit_mut_children_with(self);
+  }
+
   fn visit_mut_try_stmt(&mut self, node: &mut TryStmt) {
     self.in_try = true;
     node.block.visit_mut_children_with(self);
@@ -519,7 +599,8 @@ impl<'a> VisitMut for DependencyCollector<'a> {
     if matches!(
       node,
       Expr::Call(_) | Expr::New(_) | Expr::Member(_) | Expr::MetaProp(_)
-    ) {
+    ) || matches!(node, Expr::Ident(id) if is_unresolved(id, self.unresolved_mark))
+    {
       let res = node.evaluate(&self.evaluator);
 
       let v = match &res {
@@ -702,7 +783,14 @@ enum DepObject {
   ParcelRequire(ParcelRequireDep),
 }
 
-impl Object for DepObject {}
+impl Object for DepObject {
+  fn get(&self, prop: &JsValue, span: Span) -> JsValue {
+    match self {
+      DepObject::Require(dep) => dep.get(prop, span),
+      _ => JsValue::Unknown(span),
+    }
+  }
+}
 
 impl UpdateExpr for DepObject {
   fn update_expr(
@@ -730,7 +818,11 @@ fn placeholder(filename: &str, specifier: &JsWord, kind: DependencyKind) -> Stri
   )
 }
 
-struct Require;
+struct Require {
+  project_root: String,
+  inline_fs: bool,
+}
+
 impl Object for Require {
   fn get(&self, prop: &JsValue, span: Span) -> JsValue {
     match prop.to_string().as_str() {
@@ -749,10 +841,17 @@ impl Function for Require {
     _evaluator: &Evaluator,
   ) -> JsValue {
     if let Some(JsValue::String(src)) = args.get(0) {
+      let namespace = match src.as_str() {
+        "path" | "node:path" if self.inline_fs => path_ns(),
+        "fs" | "node:fs" if self.inline_fs => fs_ns(self.project_root.clone()),
+        _ => JsValue::Unknown(DUMMY_SP),
+      };
+
       JsValue::Object(
         Rc::new(DepObject::Require(RequireDep {
           specifier: src.clone(),
           span,
+          ns: namespace,
         }))
         .into(),
       )
@@ -765,6 +864,7 @@ impl Function for Require {
 struct RequireDep {
   specifier: JsWord,
   span: Span,
+  ns: JsValue,
 }
 
 impl UpdateExpr for RequireDep {
@@ -808,6 +908,32 @@ impl UpdateExpr for RequireDep {
     ));
 
     Ok(())
+  }
+}
+
+impl Object for RequireDep {
+  fn get(&self, prop: &JsValue, span: Span) -> JsValue {
+    self.ns.get(prop, span)
+  }
+
+  fn has(&self, prop: &JsValue) -> bool {
+    if let JsValue::Object(obj) = &self.ns {
+      obj.has(prop)
+    } else {
+      false
+    }
+  }
+
+  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+    if let JsValue::Object(obj) = &self.ns {
+      obj.iter()
+    } else {
+      Box::new(std::iter::empty())
+    }
+  }
+
+  fn into_expr(&self) -> Result<Expr, ()> {
+    self.ns.clone().into_expr()
   }
 }
 
