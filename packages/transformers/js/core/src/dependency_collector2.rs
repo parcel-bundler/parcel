@@ -813,10 +813,28 @@ impl UpdateExpr for RequireDep {
 
 fn import(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
   if let Some(JsValue::String(src)) = args.get(0) {
+    let mut flags = DependencyFlags::empty();
+    if let Some(JsValue::Object(attrs)) = args.get(1) {
+      if matches!(
+        attrs.get(&JsValue::String("preload".into()), DUMMY_SP),
+        JsValue::Bool(true)
+      ) {
+        flags |= DependencyFlags::PRELOAD;
+      }
+
+      if matches!(
+        attrs.get(&JsValue::String("prefetch".into()), DUMMY_SP),
+        JsValue::Bool(true)
+      ) {
+        flags |= DependencyFlags::PREFETCH;
+      }
+    }
+
     JsValue::Object(
       Rc::new(DepObject::Import(ImportDep {
         specifier: src.clone(),
         span,
+        flags,
       }))
       .into(),
     )
@@ -828,6 +846,7 @@ fn import(_this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator
 struct ImportDep {
   specifier: JsWord,
   span: Span,
+  flags: DependencyFlags,
 }
 
 impl UpdateExpr for ImportDep {
@@ -876,7 +895,7 @@ impl UpdateExpr for ImportDep {
       specifier_type: SpecifierType::Esm,
       priority: Priority::Lazy,
       bundle_behavior: BundleBehavior::None,
-      flags: DependencyFlags::empty(),
+      flags: self.flags,
       env,
       loc: Some(loc(self.span, &collector.source_map)),
       placeholder: Some(placeholder.clone()),
@@ -1588,6 +1607,7 @@ fn promise_resolve(
           Rc::new(DepObject::Import(ImportDep {
             specifier: dep.specifier.clone(),
             span: dep.span,
+            flags: DependencyFlags::empty(),
           }))
           .into(),
         );
@@ -1629,6 +1649,7 @@ impl Function for Promise {
               Rc::new(DepObject::Import(ImportDep {
                 specifier: dep.specifier.clone(),
                 span: dep.span,
+                flags: DependencyFlags::empty(),
               }))
               .into(),
             );
@@ -1659,6 +1680,7 @@ impl Object for PromiseInstance {
                         Rc::new(DepObject::Import(ImportDep {
                           specifier: dep.specifier.clone(),
                           span: dep.span,
+                          flags: DependencyFlags::empty(),
                         }))
                         .into(),
                       );

@@ -49,13 +49,14 @@ export function envFromRust(env: RustEnvironment): EnvironmentOptions {
   };
 }
 
-// const ENTRY    = 1 << 0;
-const OPTIONAL = 1 << 1;
-const NEEDS_STABLE_NAME = 1 << 2;
-const IS_HELPER = 1 << 3;
-const IS_ESM = 1 << 4;
-const IS_WEBWORKER = 1 << 5;
-const REACT_LAZY = 1 << 6;
+const OPTIONAL = 1 << 0;
+const NEEDS_STABLE_NAME = 1 << 1;
+const IS_HELPER = 1 << 2;
+const IS_ESM = 1 << 3;
+const IS_WEBWORKER = 1 << 4;
+const REACT_LAZY = 1 << 5;
+const PRELOAD = 1 << 6;
+const PREFETCH = 1 << 7;
 
 export function dependencyFromRust(dep: RustDependency): DependencyOptions {
   let meta = {};
@@ -73,6 +74,14 @@ export function dependencyFromRust(dep: RustDependency): DependencyOptions {
   }
   if (dep.flags & REACT_LAZY) {
     meta.isReactLazy = true;
+  }
+  if (dep.flags & PRELOAD) {
+    meta.importAttributes ??= {};
+    meta.importAttributes.preload = true;
+  }
+  if (dep.flags & PREFETCH) {
+    meta.importAttributes ??= {};
+    meta.importAttributes.prefetch = true;
   }
 
   return {

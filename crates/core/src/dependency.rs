@@ -63,13 +63,14 @@ pub enum Priority {
 bitflags! {
   #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
   pub struct DependencyFlags: u8 {
-    const ENTRY    = 1 << 0;
-    const OPTIONAL = 1 << 1;
-    const NEEDS_STABLE_NAME = 1 << 2;
-    const IS_HELPER = 1 << 3;
-    const IS_ESM = 1 << 4;
-    const IS_WEBWORKER = 1 << 5;
-    const REACT_LAZY = 1 << 6;
+    const OPTIONAL = 1 << 0;
+    const NEEDS_STABLE_NAME = 1 << 1;
+    const IS_HELPER = 1 << 2;
+    const IS_ESM = 1 << 3;
+    const IS_WEBWORKER = 1 << 4;
+    const REACT_LAZY = 1 << 5;
+    const PRELOAD = 1 << 6;
+    const PREFETCH = 1 << 7;
   }
 }
 
