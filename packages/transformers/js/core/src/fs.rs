@@ -169,7 +169,7 @@ pub fn fs_read_file_sync(
       _ => "buffer",
     };
 
-    let path = Path::new(path.as_str());
+    let path = Path::new(project_root).join(path.as_str());
     let path = match dunce::canonicalize(path) {
       Ok(path) => path,
       Err(_err) => return JsValue::Unknown(span),

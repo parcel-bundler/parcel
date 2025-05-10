@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashSet, vec};
+use std::{
+  cell::{Ref, RefCell},
+  collections::HashSet,
+  vec,
+};
 
 use ast::*;
 use indexmap::IndexMap;
@@ -14,7 +18,10 @@ use swc_core::{
   },
 };
 
-use crate::utils::*;
+use crate::{
+  dependency_collector2::{DependencyCollector, UpdateExpr},
+  utils::*,
+};
 
 /// Replaces process.env usage with the literal strings for values referenced.
 pub struct EnvReplacer<'a> {
@@ -29,9 +36,54 @@ pub struct EnvReplacer<'a> {
   pub evaluator: Evaluator<'a>,
 }
 
-struct EnvObject {
+pub struct Process {
+  pub env: Rc<EnvObject>,
+  pub browser: bool,
+}
+
+impl Object for Process {
+  fn get(&self, prop: &JsValue, span: Span) -> JsValue {
+    match prop.to_string().as_str() {
+      "env" => JsValue::Object(self.env.clone().into()),
+      "browser" => {
+        if self.browser {
+          JsValue::Bool(true)
+        } else {
+          JsValue::Unknown(span)
+        }
+      }
+      _ => JsValue::Unknown(span),
+    }
+  }
+
+  fn has(&self, prop: &JsValue) -> bool {
+    matches!(prop.to_string().as_str(), "env" | "browser")
+  }
+}
+
+impl UpdateExpr for Process {
+  fn update_expr(
+    &self,
+    _node: &mut Expr,
+    collector: &mut DependencyCollector,
+  ) -> Result<(), Diagnostic> {
+    collector.add_import("process", "process", None);
+    Ok(())
+  }
+}
+
+pub struct EnvObject {
   env: IndexMap<JsWord, JsWord>,
   used_env: RefCell<HashSet<JsWord>>,
+}
+
+impl EnvObject {
+  pub fn new(env: IndexMap<JsWord, JsWord>) -> Self {
+    Self {
+      env,
+      used_env: RefCell::new(HashSet::new()),
+    }
+  }
 }
 
 impl Object for EnvObject {
@@ -244,33 +296,33 @@ impl<'a> VisitMut for EnvReplacer<'a> {
       }
     }
 
-    if self.replace_env {
-      match &node {
-        // e.g. delete process.env.SOMETHING
-        Expr::Unary(UnaryExpr { op: UnaryOp::Delete, arg, span, .. }) |
-        // e.g. process.env.UPDATE++
-        Expr::Update(UpdateExpr { arg, span, .. }) => {
-          if let Expr::Member(MemberExpr { obj, .. }) = &**arg {
-            if let Expr::Member(member) = &**obj {
-              if matches!(member.evaluate(&self.evaluator), JsValue::Object(obj) if obj.as_any().is::<EnvObject>()) {
-                self.emit_mutating_error(*span);
-                *node = match &node {
-                  Expr::Unary(_) => Expr::Lit(Lit::Bool(Bool { span: *span, value: true })),
-                  Expr::Update(_) => {
-                    // TODO: This can be written to run in-place to make it more efficient
-                    let mut replacement = *arg.clone();
-                    replacement.visit_mut_with(self);
-                    replacement
-                  }
-                  _ => unreachable!()
-                };
-              }
-            }
-          }
-        },
-        _ => {}
-      }
-    }
+    // if self.replace_env {
+    //   match &node {
+    //     // e.g. delete process.env.SOMETHING
+    //     Expr::Unary(UnaryExpr { op: UnaryOp::Delete, arg, span, .. }) |
+    //     // e.g. process.env.UPDATE++
+    //     Expr::Update(UpdateExpr { arg, span, .. }) => {
+    //       if let Expr::Member(MemberExpr { obj, .. }) = &**arg {
+    //         if let Expr::Member(member) = &**obj {
+    //           if matches!(member.evaluate(&self.evaluator), JsValue::Object(obj) if obj.as_any().is::<EnvObject>()) {
+    //             self.emit_mutating_error(*span);
+    //             *node = match &node {
+    //               Expr::Unary(_) => Expr::Lit(Lit::Bool(Bool { span: *span, value: true })),
+    //               Expr::Update(_) => {
+    //                 // TODO: This can be written to run in-place to make it more efficient
+    //                 let mut replacement = *arg.clone();
+    //                 replacement.visit_mut_with(self);
+    //                 replacement
+    //               }
+    //               _ => unreachable!()
+    //             };
+    //           }
+    //         }
+    //       }
+    //     },
+    //     _ => {}
+    //   }
+    // }
 
     let value = node.evaluate(&self.evaluator);
     if let Ok(expr) = value.into_expr() {

@@ -9,6 +9,7 @@ use std::{
 };
 
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use parcel_core::{
   BundleBehavior, CodeFrame, Dependency, DependencyFlags, Diagnostic, DiagnosticSeverity,
   Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags, Location, OutputFormat,
@@ -31,7 +32,9 @@ use swc_core::{
 };
 
 use crate::{
-  Config, fold_member_expr_skip_prop,
+  Config,
+  env_replacer::{EnvObject, Process},
+  fold_member_expr_skip_prop,
   fs::{Buffer, fs_ns, path_ns},
   utils::{create_require, create_url_constructor, is_unresolved, loc},
 };
@@ -73,6 +76,10 @@ bitflags! {
     const EXTEND_IMPORT_MAP = 1 << 4;
     /// `import.meta.devServer` – URL of Parcel HMR server
     const DEV_SERVER = 1 << 5;
+    /// __dirname
+    const DIRNAME = 1 << 6;
+    /// __filename
+    const FILENAME = 1 << 7;
   }
 }
 
@@ -95,6 +102,8 @@ pub fn dependency_collector<'a>(
   unresolved_mark: Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
+  env_vars: IndexMap<JsWord, JsWord>,
+  is_browser: bool,
 ) -> (Module, Helpers) {
   let mut collector = DependencyCollector::new(
     source_map,
@@ -105,13 +114,15 @@ pub fn dependency_collector<'a>(
     unresolved_mark,
     config,
     diagnostics,
+    env_vars,
+    is_browser,
   );
 
   module.visit_mut_with(&mut collector);
   (module, collector.helpers)
 }
 
-struct DependencyCollector<'a> {
+pub struct DependencyCollector<'a> {
   source_map: Lrc<SourceMap>,
   items: &'a mut Vec<Dependency>,
   env: Arc<Environment>,
@@ -139,6 +150,8 @@ impl<'a> DependencyCollector<'a> {
     unresolved_mark: Mark,
     config: &'a Config,
     diagnostics: &'a mut Vec<Diagnostic>,
+    env_vars: IndexMap<JsWord, JsWord>,
+    is_browser: bool,
   ) -> Self {
     let mut evaluator = Evaluator::new();
     let ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
@@ -235,28 +248,28 @@ impl<'a> DependencyCollector<'a> {
     }
 
     if config.insert_node_globals() {
-      // let dirname = if let Some(dirname) = Path::new(&config.filename).parent() {
-      //   if let Some(relative) = pathdiff::diff_paths(dirname, &config.project_root) {
-      //     relative.to_slash_lossy()
-      //   } else {
-      //     String::from("/")
-      //   }
-      // } else {
-      //   String::from("/")
-      // };
+      let dirname = if let Some(dirname) = Path::new(&config.filename).parent() {
+        if let Some(relative) = pathdiff::diff_paths(dirname, &config.project_root) {
+          relative.to_slash_lossy()
+        } else {
+          String::from("/")
+        }
+      } else {
+        String::from("/")
+      };
 
-      // evaluator.add_value(("__dirname".into(), ctxt), JsValue::String(dirname.into()));
-      evaluator.add_value(
-        ("__dirname".into(), ctxt),
-        JsValue::String(
-          Path::new(&config.filename)
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .into(),
-        ),
-      );
+      evaluator.add_value(("__dirname".into(), ctxt), JsValue::String(dirname.into()));
+      // evaluator.add_value(
+      //   ("__dirname".into(), ctxt),
+      //   JsValue::String(
+      //     Path::new(&config.filename)
+      //       .parent()
+      //       .unwrap()
+      //       .to_str()
+      //       .unwrap()
+      //       .into(),
+      //   ),
+      // );
       evaluator.add_value(
         ("__filename".into(), ctxt),
         JsValue::String(relative_filename.clone().into()),
@@ -266,10 +279,22 @@ impl<'a> DependencyCollector<'a> {
         ("Buffer".into(), ctxt),
         JsValue::Function(
           (&Global {
+            name: "Buffer",
             module: "buffer",
             property: Some("Buffer"),
           })
             .into(),
+        ),
+      );
+
+      evaluator.add_value(
+        ("process".into(), ctxt),
+        JsValue::Object(
+          Rc::new(Process {
+            env: Rc::new(EnvObject::new(env_vars)),
+            browser: is_browser,
+          })
+          .into(),
         ),
       );
     }
@@ -365,6 +390,53 @@ impl<'a> DependencyCollector<'a> {
       severity: DiagnosticSeverity::Error,
       documentation_url: None,
     });
+  }
+
+  pub fn add_import(&mut self, name: &str, module: &str, property: Option<&str>) {
+    if self.statements.iter().any(|s| matches!(s, ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl { src, .. })) if src.value == module)) {
+      return;
+    }
+
+    let specifier = if let Some(property) = property {
+      ImportSpecifier::Named(ImportNamedSpecifier {
+        span: DUMMY_SP,
+        local: Ident::new(
+          name.into(),
+          DUMMY_SP,
+          SyntaxContext::empty().apply_mark(self.unresolved_mark),
+        ),
+        imported: if property != name {
+          Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+            property.into(),
+            DUMMY_SP,
+          )))
+        } else {
+          None
+        },
+        is_type_only: false,
+      })
+    } else {
+      ImportSpecifier::Namespace(ImportStarAsSpecifier {
+        span: DUMMY_SP,
+        local: Ident::new(
+          name.into(),
+          DUMMY_SP,
+          SyntaxContext::empty().apply_mark(self.unresolved_mark),
+        ),
+      })
+    };
+
+    let mut stmt = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+      span: DUMMY_SP,
+      specifiers: vec![specifier],
+      src: Box::new(module.into()),
+      phase: Default::default(),
+      type_only: false,
+      with: None,
+    }));
+
+    stmt.visit_mut_with(self);
+    self.statements.push(stmt);
   }
 }
 
@@ -643,6 +715,10 @@ impl<'a> VisitMut for DependencyCollector<'a> {
           Some(d as &dyn UpdateExpr)
         } else if let Some(d) = v.downcast_ref::<Buffer>() {
           Some(d as &dyn UpdateExpr)
+        } else if let Some(d) = v.downcast_ref::<Global>() {
+          Some(d as &dyn UpdateExpr)
+        } else if let Some(d) = v.downcast_ref::<Process>() {
+          Some(d as &dyn UpdateExpr)
         } else {
           None
         };
@@ -687,6 +763,7 @@ pub trait UpdateExpr {
 }
 
 struct Global {
+  name: &'static str,
   module: &'static str,
   property: Option<&'static str>,
 }
@@ -697,25 +774,10 @@ impl Function for Global {}
 impl UpdateExpr for Global {
   fn update_expr(
     &self,
-    node: &mut Expr,
+    _node: &mut Expr,
     collector: &mut DependencyCollector,
   ) -> Result<(), Diagnostic> {
-    let mut require = Expr::Call(create_require(
-      self.module.into(),
-      collector.unresolved_mark,
-      SourceType::Module,
-    ));
-
-    if let Some(prop) = self.property {
-      require = Expr::Member(MemberExpr {
-        obj: Box::new(require),
-        prop: MemberProp::Ident(IdentName::new(prop.into(), DUMMY_SP)),
-        span: DUMMY_SP,
-      });
-    }
-
-    *node = require;
-
+    collector.add_import(self.name, self.module, self.property);
     Ok(())
   }
 }
@@ -726,38 +788,9 @@ impl UpdateExpr for Buffer {
     node: &mut Expr,
     collector: &mut DependencyCollector,
   ) -> Result<(), parcel_core::Diagnostic> {
-    if let Some(JsValue::Function(_)) = collector.evaluator.get((
-      "Buffer".into(),
-      SyntaxContext::empty().apply_mark(collector.unresolved_mark),
-    )) {
-      let mut stmt = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        span: DUMMY_SP,
-        specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-          span: DUMMY_SP,
-          local: Ident::new(
-            "Buffer".into(),
-            DUMMY_SP,
-            SyntaxContext::empty().apply_mark(collector.unresolved_mark),
-          ),
-          imported: None,
-          is_type_only: false,
-        })],
-        src: Box::new("buffer".into()),
-        phase: Default::default(),
-        type_only: false,
-        with: None,
-      }));
+    collector.add_import("Buffer", "buffer", Some("Buffer"));
 
-      stmt.visit_mut_with(collector);
-      collector.statements.push(stmt);
-
-      collector.evaluator.remove((
-        "Buffer".into(),
-        SyntaxContext::empty().apply_mark(collector.unresolved_mark),
-      ));
-    }
-
-    use data_encoding::{BASE64, HEXLOWER};
+    use data_encoding::BASE64;
 
     *node = Expr::Call(CallExpr {
       callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
@@ -1984,6 +2017,8 @@ mod test {
       context.unresolved_mark,
       config,
       diagnostics,
+      IndexMap::new(),
+      false,
     )
   }
 

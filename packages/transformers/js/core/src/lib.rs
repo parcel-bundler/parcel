@@ -460,19 +460,19 @@ pub fn transform(
               config.environment.source_type != SourceType::Script,
             ),
             // Inline process.env and process.browser,
-            Optional::new(
-              EnvReplacer::new(
-                config.replace_env(),
-                config.environment.is_browser(),
-                &config.env,
-                &mut result.used_env,
-                source_map.clone(),
-                &mut diagnostics,
-                unresolved_mark,
-              ),
-              config.environment.source_type != SourceType::Script
-                && !config.environment.is_library(),
-            ),
+            // Optional::new(
+            //   EnvReplacer::new(
+            //     config.replace_env(),
+            //     config.environment.is_browser(),
+            //     &config.env,
+            //     &mut result.used_env,
+            //     source_map.clone(),
+            //     &mut diagnostics,
+            //     unresolved_mark,
+            //   ),
+            //   config.environment.source_type != SourceType::Script
+            //     && !config.environment.is_library(),
+            // ),
             paren_remover(Some(&comments)),
             // Simplify expressions and remove dead branches so that we
             // don't include dependencies inside conditionals that are always false.
@@ -568,6 +568,8 @@ pub fn transform(
             unresolved_mark,
             &config,
             &mut diagnostics,
+            config.env.clone(),
+            config.environment.is_browser(),
           );
 
           result.helpers = helpers;
