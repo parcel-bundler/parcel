@@ -2033,8 +2033,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.0.1-beta.1"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
+version = "0.0.2"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -2057,8 +2057,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_collections"
-version = "0.0.1"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
+version = "0.0.2"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
 dependencies = [
  "lazy_static",
  "phf",
@@ -2067,11 +2067,12 @@ dependencies = [
 
 [[package]]
 name = "oxvg_optimiser"
-version = "0.1.0"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
+version = "0.0.2"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
 dependencies = [
  "anyhow",
  "derive-where",
+ "derive_more 2.0.1",
  "itertools 0.14.0",
  "lazy_static",
  "lightningcss",
@@ -2091,8 +2092,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.1-beta.4"
-source = "git+https://github.com/devongovett/oxvg.git?branch=parcel#55e5bfc784cc0b4195499931ad984555b831846b"
+version = "0.0.2"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
 dependencies = [
  "bitflags",
  "lightningcss",
