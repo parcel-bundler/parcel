@@ -32,7 +32,7 @@ use swc_core::{
 
 use crate::{
   Config, fold_member_expr_skip_prop,
-  fs::{fs_ns, path_ns},
+  fs::{Buffer, fs_ns, path_ns},
   utils::{create_require, create_url_constructor, is_unresolved, loc},
 };
 
@@ -121,6 +121,7 @@ struct DependencyCollector<'a> {
   unresolved_mark: Mark,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<VarDecl>,
+  statements: Vec<ModuleItem>,
   helpers: Helpers,
   filename: String,
   relative_filename: String,
@@ -234,6 +235,17 @@ impl<'a> DependencyCollector<'a> {
     }
 
     if config.insert_node_globals() {
+      // let dirname = if let Some(dirname) = Path::new(&config.filename).parent() {
+      //   if let Some(relative) = pathdiff::diff_paths(dirname, &config.project_root) {
+      //     relative.to_slash_lossy()
+      //   } else {
+      //     String::from("/")
+      //   }
+      // } else {
+      //   String::from("/")
+      // };
+
+      // evaluator.add_value(("__dirname".into(), ctxt), JsValue::String(dirname.into()));
       evaluator.add_value(
         ("__dirname".into(), ctxt),
         JsValue::String(
@@ -245,10 +257,20 @@ impl<'a> DependencyCollector<'a> {
             .into(),
         ),
       );
-
       evaluator.add_value(
         ("__filename".into(), ctxt),
         JsValue::String(relative_filename.clone().into()),
+      );
+
+      evaluator.add_value(
+        ("Buffer".into(), ctxt),
+        JsValue::Function(
+          (&Global {
+            module: "buffer",
+            property: Some("Buffer"),
+          })
+            .into(),
+        ),
       );
     }
 
@@ -269,6 +291,7 @@ impl<'a> DependencyCollector<'a> {
       unresolved_mark,
       diagnostics,
       import_meta: None,
+      statements: Vec::new(),
       helpers: Helpers::empty(),
       filename: config.filename.clone(),
       project_root: &config.project_root,
@@ -390,6 +413,8 @@ impl<'a> VisitMut for DependencyCollector<'a> {
         .body
         .insert(0, ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(decl)))));
     }
+
+    node.body.append(&mut self.statements);
   }
 
   fn visit_mut_module_decl(&mut self, node: &mut ModuleDecl) {
@@ -616,6 +641,8 @@ impl<'a> VisitMut for DependencyCollector<'a> {
           Some(d as &dyn UpdateExpr)
         } else if let Some(d) = v.downcast_ref::<ImportMeta>() {
           Some(d as &dyn UpdateExpr)
+        } else if let Some(d) = v.downcast_ref::<Buffer>() {
+          Some(d as &dyn UpdateExpr)
         } else {
           None
         };
@@ -651,12 +678,114 @@ impl<'a> VisitMut for DependencyCollector<'a> {
   }
 }
 
-trait UpdateExpr {
+pub trait UpdateExpr {
   fn update_expr(
     &self,
     node: &mut Expr,
     collector: &mut DependencyCollector,
   ) -> Result<(), Diagnostic>;
+}
+
+struct Global {
+  module: &'static str,
+  property: Option<&'static str>,
+}
+
+impl Object for Global {}
+impl Function for Global {}
+
+impl UpdateExpr for Global {
+  fn update_expr(
+    &self,
+    node: &mut Expr,
+    collector: &mut DependencyCollector,
+  ) -> Result<(), Diagnostic> {
+    let mut require = Expr::Call(create_require(
+      self.module.into(),
+      collector.unresolved_mark,
+      SourceType::Module,
+    ));
+
+    if let Some(prop) = self.property {
+      require = Expr::Member(MemberExpr {
+        obj: Box::new(require),
+        prop: MemberProp::Ident(IdentName::new(prop.into(), DUMMY_SP)),
+        span: DUMMY_SP,
+      });
+    }
+
+    *node = require;
+
+    Ok(())
+  }
+}
+
+impl UpdateExpr for Buffer {
+  fn update_expr(
+    &self,
+    node: &mut Expr,
+    collector: &mut DependencyCollector,
+  ) -> Result<(), parcel_core::Diagnostic> {
+    if let Some(JsValue::Function(_)) = collector.evaluator.get((
+      "Buffer".into(),
+      SyntaxContext::empty().apply_mark(collector.unresolved_mark),
+    )) {
+      let mut stmt = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+        span: DUMMY_SP,
+        specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+          span: DUMMY_SP,
+          local: Ident::new(
+            "Buffer".into(),
+            DUMMY_SP,
+            SyntaxContext::empty().apply_mark(collector.unresolved_mark),
+          ),
+          imported: None,
+          is_type_only: false,
+        })],
+        src: Box::new("buffer".into()),
+        phase: Default::default(),
+        type_only: false,
+        with: None,
+      }));
+
+      stmt.visit_mut_with(collector);
+      collector.statements.push(stmt);
+
+      collector.evaluator.remove((
+        "Buffer".into(),
+        SyntaxContext::empty().apply_mark(collector.unresolved_mark),
+      ));
+    }
+
+    use data_encoding::{BASE64, HEXLOWER};
+
+    *node = Expr::Call(CallExpr {
+      callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+        obj: Box::new(Expr::Ident(Ident::new(
+          "Buffer".into(),
+          DUMMY_SP,
+          SyntaxContext::empty().apply_mark(collector.unresolved_mark),
+        ))),
+        prop: MemberProp::Ident(IdentName::new("from".into(), DUMMY_SP)),
+        span: DUMMY_SP,
+      }))),
+      args: vec![
+        ExprOrSpread {
+          expr: Box::new(BASE64.encode(&self.0).into()),
+          spread: None,
+        },
+        ExprOrSpread {
+          expr: Box::new(Expr::Lit(Lit::Str("base64".into()))),
+          spread: None,
+        },
+      ],
+      span: DUMMY_SP,
+      ctxt: SyntaxContext::empty(),
+      type_args: None,
+    });
+
+    Ok(())
+  }
 }
 
 struct ImportMeta {

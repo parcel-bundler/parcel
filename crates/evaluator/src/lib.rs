@@ -1068,6 +1068,10 @@ impl<'a> Evaluator<'a> {
     self.values.entry(id).or_insert(value);
   }
 
+  pub fn remove(&mut self, id: Id) {
+    self.values.remove(&id);
+  }
+
   pub fn eval_pat<F: FnMut(&mut Self, Id, JsValue)>(
     &mut self,
     value: JsValue,

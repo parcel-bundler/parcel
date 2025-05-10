@@ -17,6 +17,8 @@ use swc_core::{
   },
 };
 
+use crate::dependency_collector2::UpdateExpr;
+
 pub fn inline_fs<'a>(
   filename: &str,
   source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
@@ -214,7 +216,7 @@ pub fn fs_read_file_sync(
   JsValue::Unknown(span)
 }
 
-struct Buffer(Rc<Vec<u8>>);
+pub struct Buffer(pub Rc<Vec<u8>>);
 
 impl Object for Buffer {
   fn get(&self, prop: &JsValue, span: Span) -> JsValue {
