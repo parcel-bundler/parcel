@@ -939,6 +939,10 @@ describe('html', function () {
         assets: ['300x300.png'],
       },
     ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('src="/'));
+    assert(contents.includes('srcset="/'));
   });
 
   it('should detect srcset attribute of source element', async function () {
@@ -967,7 +971,7 @@ describe('html', function () {
 
     const html = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
 
-    const source = html.match(/<source srcset=".*>/)[0];
+    const source = html.match(/<source srcset="\/.*>/)[0];
 
     assert(source.split(', ').length === 3);
   });
@@ -995,6 +999,9 @@ describe('html', function () {
         assets: ['300x300.png'],
       },
     ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('imagesrcset="/'));
   });
 
   it.skip('should support webmanifest', async function () {

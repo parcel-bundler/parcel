@@ -1,12 +1,11 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::{Cell, RefCell};
-use std::fmt::Write;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::arena::{Node, NodeData, SelectorFlags};
-use crate::srcset::parse_srcset;
+use crate::srcset::{parse_srcset, serialize_srcset};
 use html5ever::tendril::{StrTendril, format_tendril};
 use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, namespace_url, ns};
 use parcel_core::{
@@ -604,37 +603,26 @@ impl<'arena> DependencyCollector<'arena> {
   fn handle_srcset(&mut self, node: &'arena Node<'arena>, name: ExpandedName, line: u32) {
     let srcset = node.get_attribute(name.clone());
     if let Some(srcset) = srcset {
-      let mut res = String::with_capacity(srcset.len());
       let mut srcset = parse_srcset(srcset.as_ref());
       for img in &mut srcset {
-        let mut hasher = DefaultHasher::new();
-        img.url.hash(&mut hasher);
-        let placeholder = format!("{:x}", hasher.finish());
-
-        self.deps.push(Dependency {
+        let mut dep = Dependency {
           specifier: img.url.clone().into(),
           specifier_type: SpecifierType::Url,
           priority: Priority::Lazy,
           env: self.env.clone(),
           flags: DependencyFlags::empty(),
           bundle_behavior: BundleBehavior::None,
-          placeholder: Some(placeholder.clone()),
+          placeholder: None,
           loc: self.create_loc(line),
           resolve_from: None,
           range: None,
-        });
+        };
 
-        img.url = placeholder.into();
-
-        if !res.is_empty() {
-          res.push_str(", ");
-        }
-        if write!(&mut res, "{}", img).is_err() {
-          return;
-        }
+        img.url = dep.set_placeholder().into();
+        self.deps.push(dep);
       }
 
-      node.set_attribute(name, &res);
+      node.set_attribute(name, &serialize_srcset(srcset));
     }
   }
 
