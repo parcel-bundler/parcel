@@ -31,3 +31,4 @@ yarn-debug.log*
 yarn-error.log*
 *.log
 *.min.js
+*.node

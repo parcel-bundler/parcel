@@ -43,6 +43,16 @@
       "optional": true
     }
   },
+  "optionalDependencies": {
+    "@parcel/rust-darwin-arm64": "2.14.4",
+    "@parcel/rust-darwin-x64": "2.14.4",
+    "@parcel/rust-linux-arm-gnueabihf": "2.14.4",
+    "@parcel/rust-linux-arm64-gnu": "2.14.4",
+    "@parcel/rust-linux-arm64-musl": "2.14.4",
+    "@parcel/rust-linux-x64-gnu": "2.14.4",
+    "@parcel/rust-linux-x64-musl": "2.14.4",
+    "@parcel/rust-win32-x64-msvc": "2.14.4"
+  },
   "scripts": {
     "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",
     "build-canary": "napi build --platform --profile canary --cargo-cwd ../../../crates/node-bindings",

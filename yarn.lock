@@ -4708,14 +4708,87 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@parcel/rust-darwin-arm64@npm:2.14.4, @parcel/rust-darwin-arm64@workspace:packages/core/rust-darwin-arm64":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-darwin-arm64@workspace:packages/core/rust-darwin-arm64"
+  languageName: unknown
+  linkType: soft
+
+"@parcel/rust-darwin-x64@npm:2.14.4, @parcel/rust-darwin-x64@workspace:packages/core/rust-darwin-x64":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-darwin-x64@workspace:packages/core/rust-darwin-x64"
+  languageName: unknown
+  linkType: soft
+
+"@parcel/rust-linux-arm-gnueabihf@npm:2.14.4, @parcel/rust-linux-arm-gnueabihf@workspace:packages/core/rust-linux-arm-gnueabihf":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-linux-arm-gnueabihf@workspace:packages/core/rust-linux-arm-gnueabihf"
+  languageName: unknown
+  linkType: soft
+
+"@parcel/rust-linux-arm64-gnu@npm:2.14.4, @parcel/rust-linux-arm64-gnu@workspace:packages/core/rust-linux-arm64-gnu":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-linux-arm64-gnu@workspace:packages/core/rust-linux-arm64-gnu"
+  languageName: unknown
+  linkType: soft
+
+"@parcel/rust-linux-arm64-musl@npm:2.14.4, @parcel/rust-linux-arm64-musl@workspace:packages/core/rust-linux-arm64-musl":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-linux-arm64-musl@workspace:packages/core/rust-linux-arm64-musl"
+  languageName: unknown
+  linkType: soft
+
+"@parcel/rust-linux-x64-gnu@npm:2.14.4, @parcel/rust-linux-x64-gnu@workspace:packages/core/rust-linux-x64-gnu":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-linux-x64-gnu@workspace:packages/core/rust-linux-x64-gnu"
+  languageName: unknown
+  linkType: soft
+
+"@parcel/rust-linux-x64-musl@npm:2.14.4, @parcel/rust-linux-x64-musl@workspace:packages/core/rust-linux-x64-musl":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-linux-x64-musl@workspace:packages/core/rust-linux-x64-musl"
+  languageName: unknown
+  linkType: soft
+
+"@parcel/rust-win32-x64-msvc@npm:2.14.4, @parcel/rust-win32-x64-msvc@workspace:packages/core/rust-win32-x64-msvc":
+  version: 0.0.0-use.local
+  resolution: "@parcel/rust-win32-x64-msvc@workspace:packages/core/rust-win32-x64-msvc"
+  languageName: unknown
+  linkType: soft
+
 "@parcel/rust@npm:2.14.4, @parcel/rust@workspace:packages/core/rust":
   version: 0.0.0-use.local
   resolution: "@parcel/rust@workspace:packages/core/rust"
   dependencies:
     "@napi-rs/cli": "npm:^2.15.2"
+    "@parcel/rust-darwin-arm64": "npm:2.14.4"
+    "@parcel/rust-darwin-x64": "npm:2.14.4"
+    "@parcel/rust-linux-arm-gnueabihf": "npm:2.14.4"
+    "@parcel/rust-linux-arm64-gnu": "npm:2.14.4"
+    "@parcel/rust-linux-arm64-musl": "npm:2.14.4"
+    "@parcel/rust-linux-x64-gnu": "npm:2.14.4"
+    "@parcel/rust-linux-x64-musl": "npm:2.14.4"
+    "@parcel/rust-win32-x64-msvc": "npm:2.14.4"
     napi-wasm: "npm:^1.1.2"
   peerDependencies:
     napi-wasm: ^1.1.2
+  dependenciesMeta:
+    "@parcel/rust-darwin-arm64":
+      optional: true
+    "@parcel/rust-darwin-x64":
+      optional: true
+    "@parcel/rust-linux-arm-gnueabihf":
+      optional: true
+    "@parcel/rust-linux-arm64-gnu":
+      optional: true
+    "@parcel/rust-linux-arm64-musl":
+      optional: true
+    "@parcel/rust-linux-x64-gnu":
+      optional: true
+    "@parcel/rust-linux-x64-musl":
+      optional: true
+    "@parcel/rust-win32-x64-msvc":
+      optional: true
   peerDependenciesMeta:
     napi-wasm:
       optional: true
