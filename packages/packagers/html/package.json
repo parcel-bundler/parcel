@@ -21,8 +21,8 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.14.4",
-    "@parcel/types": "2.14.4",
     "@parcel/rust": "2.14.4",
+    "@parcel/types": "2.14.4",
     "@parcel/utils": "2.14.4"
   }
 }

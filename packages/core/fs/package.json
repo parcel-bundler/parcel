@@ -70,7 +70,7 @@
     "@parcel/core": "^2.14.4"
   },
   "browser": {
-    "@parcel/fs": "./lib/browser.js",
-    "./src/NodeFS.js": "./src/NodeFS.browser.js"
+    "./src/NodeFS.js": "./src/NodeFS.browser.js",
+    "@parcel/fs": "./lib/browser.js"
   }
 }

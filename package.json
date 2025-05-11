@@ -77,10 +77,10 @@
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
   },
-  "packageManager": "yarn@1.22.19",
+  "packageManager": "yarn@4.9.1",
   "browser": {
-    "react-dom": "preact/compat",
     "react": "preact/compat",
+    "react-dom": "preact/compat",
     "scheduler": false
   },
   "dependencies": {

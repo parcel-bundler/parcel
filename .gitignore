@@ -15,6 +15,14 @@ tmp
 
 /target/
 
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
 .DS_Store
 npm-debug.log*
 package-lock.json
