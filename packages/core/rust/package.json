@@ -23,6 +23,7 @@
     "node": ">= 16.0.0"
   },
   "files": [
+    "lib",
     "browser.js",
     "index.d.ts",
     "index.js",
