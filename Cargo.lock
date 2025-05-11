@@ -2034,7 +2034,7 @@ dependencies = [
 [[package]]
 name = "oxvg_ast"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -2058,7 +2058,7 @@ dependencies = [
 [[package]]
 name = "oxvg_collections"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
 dependencies = [
  "lazy_static",
  "phf",
@@ -2068,7 +2068,7 @@ dependencies = [
 [[package]]
 name = "oxvg_optimiser"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
 dependencies = [
  "anyhow",
  "derive-where",
@@ -2093,7 +2093,7 @@ dependencies = [
 [[package]]
 name = "oxvg_path"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-arc-parsing#edd9b877a5e4aa8a15149b439b90df090687e5ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
 dependencies = [
  "bitflags",
  "lightningcss",
