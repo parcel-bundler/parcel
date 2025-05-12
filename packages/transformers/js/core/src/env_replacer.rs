@@ -5,10 +5,10 @@ use std::{
 
 use ast::*;
 use swc_core::{
-  common::{sync::Lrc, Mark, DUMMY_SP},
+  common::{DUMMY_SP, Mark, sync::Lrc},
   ecma::{
     ast,
-    atoms::JsWord,
+    atoms::Atom as JsWord,
     visit::{VisitMut, VisitMutWith},
   },
 };
@@ -52,7 +52,7 @@ impl<'a> VisitMut for EnvReplacer<'a> {
       _ => {}
     }
 
-    if let Expr::Member(ref member) = node {
+    if let Expr::Member(member) = node {
       if self.is_browser
         && match_member_expr(member, vec!["process", "browser"], self.unresolved_mark)
       {
@@ -152,7 +152,7 @@ impl<'a> VisitMut for EnvReplacer<'a> {
         Expr::Unary(UnaryExpr { op: UnaryOp::Delete, arg, span, .. }) |
         // e.g. process.env.UPDATE++
         Expr::Update(UpdateExpr { arg, span, .. }) => {
-          if let Expr::Member(MemberExpr { ref obj, .. }) = &**arg {
+          if let Expr::Member(MemberExpr { obj, .. }) = &**arg {
             if let Expr::Member(member) = &**obj {
               if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
                 self.emit_mutating_error(*span);
@@ -215,7 +215,7 @@ impl<'a> EnvReplacer<'a> {
   ///
   /// This likely doesn't make sense so it should be deprecated in the future.
   fn replace_browser_assignment(&mut self, node: &Expr) -> Option<Expr> {
-    let Expr::Assign(ref assign) = node else {
+    let Expr::Assign(assign) = node else {
       return None;
     };
     let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left else {
@@ -355,7 +355,7 @@ impl<'a> EnvReplacer<'a> {
 
 #[cfg(test)]
 mod test {
-  use crate::test_utils::{run_visit, RunTestContext, RunVisitResult};
+  use crate::test_utils::{RunTestContext, RunVisitResult, run_visit};
 
   use super::*;
 

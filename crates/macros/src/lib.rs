@@ -9,11 +9,11 @@ use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use indexmap::IndexMap;
 use swc_core::{
-  common::{sync::Lrc, util::take::Take, SourceMap, Span, DUMMY_SP},
+  common::{DUMMY_SP, SourceMap, Span, sync::Lrc, util::take::Take},
   ecma::{
     ast::*,
-    atoms::{js_word, JsWord},
-    parser::{error::Error, lexer::Lexer, Parser, StringInput},
+    atoms::Atom as JsWord,
+    parser::{Parser, StringInput, error::Error, lexer::Lexer},
     visit::{Fold, FoldWith},
   },
 };
@@ -102,7 +102,7 @@ impl<'a> Macros<'a> {
             default.local.to_id(),
             MacroImport {
               src: import.src.value.clone(),
-              imported: Some(js_word!("default")),
+              imported: Some("default".into()),
               span: import.span,
             },
           );
@@ -382,7 +382,7 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-  pub fn new(source_map: &'a SourceMap) -> Evaluator<'_> {
+  pub fn new(source_map: &'a SourceMap) -> Evaluator<'a> {
     Evaluator {
       constants: HashMap::new(),
       source_map,
@@ -707,7 +707,7 @@ impl<'a> Evaluator<'a> {
   pub fn value_to_expr(&self, value: JsValue) -> Result<Expr, MacroError> {
     Ok(match value {
       JsValue::Null => Expr::Lit(Lit::Null(Null::dummy())),
-      JsValue::Undefined => Expr::Ident(Ident::new_no_ctxt(js_word!("undefined"), DUMMY_SP)),
+      JsValue::Undefined => Expr::Ident(Ident::new_no_ctxt("undefined".into(), DUMMY_SP)),
       JsValue::Bool(b) => Expr::Lit(Lit::Bool(Bool {
         value: b,
         span: DUMMY_SP,

@@ -129,10 +129,16 @@ export function mergeEnvironments(
     return environmentToInternalEnvironment(b);
   }
 
-  // $FlowFixMe - ignore the `id` that is already on a
   return createEnvironment({
-    ...a,
-    ...b,
+    context: b.context ?? a.context,
+    engines: b.engines ?? a.engines,
+    includeNodeModules: b.includeNodeModules ?? a.includeNodeModules,
+    outputFormat: b.outputFormat ?? a.outputFormat,
+    sourceType: b.sourceType ?? a.sourceType,
+    isLibrary: b.isLibrary ?? a.isLibrary,
+    shouldOptimize: b.shouldOptimize ?? a.shouldOptimize,
+    shouldScopeHoist: b.shouldScopeHoist ?? a.shouldScopeHoist,
+    sourceMap: b.sourceMap ?? a.sourceMap,
     loc: b.loc ? toInternalSourceLocation(projectRoot, b.loc) : a.loc,
   });
 }

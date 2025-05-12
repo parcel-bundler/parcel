@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-xml",
-  "version": "2.14.1",
+  "version": "2.14.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/XMLPackager.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.14.1"
+    "parcel": "^2.14.4"
   },
   "dependencies": {
-    "@parcel/plugin": "2.14.1",
-    "@parcel/types": "2.14.1",
-    "@parcel/utils": "2.14.1",
+    "@parcel/plugin": "2.14.4",
+    "@parcel/types": "2.14.4",
+    "@parcel/utils": "2.14.4",
     "@xmldom/xmldom": "^0.9.3"
   }
 }

@@ -1,7 +1,7 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use node_resolver::{
-  errors::{PackageFolderResolveError, PackageFolderResolveIoError, PackageNotFoundError},
   PackageJsonResolver,
+  errors::{PackageFolderResolveError, PackageFolderResolveIoError, PackageNotFoundError},
 };
 use std::{
   borrow::Cow,

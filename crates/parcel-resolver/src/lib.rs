@@ -43,15 +43,15 @@ use std::{
   borrow::Cow,
   cell::OnceCell,
   collections::HashMap,
-  path::{is_separator, Path, PathBuf},
+  path::{Path, PathBuf, is_separator},
   sync::Arc,
 };
 
 use bitflags::bitflags;
 
-use cache::private::CacheCow;
 pub use cache::Cache;
 use cache::CachedPath;
+use cache::private::CacheCow;
 pub use error::ResolverError;
 #[cfg(not(target_arch = "wasm32"))]
 pub use fs::OsFileSystem;
@@ -59,8 +59,8 @@ pub use fs::{FileKind, FileSystem};
 pub use invalidations::*;
 use package_json::{AliasValue, ExportsResolution, PackageJson};
 pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
-use specifier::{parse_package_specifier, parse_scheme};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};
+use specifier::{parse_package_specifier, parse_scheme};
 use tsconfig::TsConfigWrapper;
 
 mod builtins;
@@ -76,6 +76,7 @@ mod url_to_path;
 
 bitflags! {
   /// Resolution features to enable.
+  #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
   pub struct Flags: u16 {
     /// Parcel-style absolute paths resolved relative to project root.
     const ABSOLUTE_SPECIFIERS = 1 << 0;
@@ -102,11 +103,11 @@ bitflags! {
     const EXPORTS_OPTIONAL_EXTENSIONS = 1 << 10;
 
     /// Default Node settings for CommonJS.
-    const NODE_CJS = Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits;
+    const NODE_CJS = Self::EXPORTS.bits() | Self::DIR_INDEX.bits() | Self::OPTIONAL_EXTENSIONS.bits();
     /// Default Node settings for ESM.
-    const NODE_ESM = Self::EXPORTS.bits;
+    const NODE_ESM = Self::EXPORTS.bits();
     /// Default TypeScript settings.
-    const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits;
+    const TYPESCRIPT = Self::TSCONFIG.bits() | Self::EXPORTS.bits() | Self::DIR_INDEX.bits() | Self::OPTIONAL_EXTENSIONS.bits() | Self::TYPESCRIPT_EXTENSIONS.bits() | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits();
   }
 }
 
@@ -181,7 +182,7 @@ pub enum Resolution {
   /// Resolved to a file path.
   Path(PathBuf),
   /// Resolved to a runtime builtin module.
-  Builtin(String),
+  Builtin { scheme: String, module: String },
   /// Resolved to an external module that should not be bundled.
   External,
   /// Resolved to an empty module (e.g. `false` in the package.json#browser field).
@@ -623,11 +624,14 @@ impl<'a> ResolveRequest<'a> {
         // Bare specifier.
         self.resolve_bare(module, subpath)
       }
-      Specifier::Builtin(builtin) => {
+      Specifier::Builtin(scheme, module) => {
         if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(self.specifier)? {
           return Ok(res);
         }
-        Ok(Resolution::Builtin(builtin.as_ref().to_owned()))
+        Ok(Resolution::Builtin {
+          scheme: scheme.as_ref().to_owned(),
+          module: module.as_ref().to_owned(),
+        })
       }
       Specifier::Url(url) => {
         if self.specifier_type == SpecifierType::Url {
@@ -2521,7 +2525,10 @@ mod tests {
         .result
         .unwrap()
         .resolution,
-      Resolution::Builtin("zlib".into())
+      Resolution::Builtin {
+        scheme: "".into(),
+        module: "zlib".into()
+      }
     );
     assert_eq!(
       test_resolver()
@@ -2529,7 +2536,10 @@ mod tests {
         .result
         .unwrap()
         .resolution,
-      Resolution::Builtin("zlib".into())
+      Resolution::Builtin {
+        scheme: "node".into(),
+        module: "zlib".into()
+      }
     );
     assert_eq!(
       test_resolver()
@@ -2541,7 +2551,40 @@ mod tests {
         .result
         .unwrap()
         .resolution,
-      Resolution::Builtin("fs/promises".into())
+      Resolution::Builtin {
+        scheme: "node".into(),
+        module: "fs/promises".into()
+      }
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "jsr:@std/http/file-server",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .resolution,
+      Resolution::Builtin {
+        scheme: "jsr".into(),
+        module: "@std/http/file-server".into()
+      }
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "cloudflare:workers",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .resolution,
+      Resolution::Builtin {
+        scheme: "cloudflare".into(),
+        module: "workers".into()
+      }
     );
   }
 
@@ -2663,7 +2706,10 @@ mod tests {
         .result
         .unwrap()
         .resolution,
-      Resolution::Builtin("zlib".into())
+      Resolution::Builtin {
+        scheme: "".into(),
+        module: "zlib".into()
+      }
     );
 
     let invalidations = test_resolver()

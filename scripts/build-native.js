@@ -17,8 +17,9 @@ async function build() {
 
   let packages = glob.sync('packages/*/*', {onlyFiles: false});
   for (let pkg of packages) {
+    let pkgJSON;
     try {
-      let pkgJSON = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json')));
+      pkgJSON = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json')));
       if (!wasm && !pkgJSON.napi) continue;
       if (wasm && !pkgJSON.scripts?.['wasm:build-release']) continue;
     } catch (err) {
@@ -40,6 +41,10 @@ async function build() {
         args.push('--target', process.env.RUST_TARGET);
       }
 
+      if (process.env.ZIG_GLIBC) {
+        args.push('--zig', '--zig-abi-suffix', process.env.ZIG_GLIBC);
+      }
+
       let yarn = spawn('yarn', args, {
         stdio: 'inherit',
         cwd: pkg,
@@ -48,6 +53,15 @@ async function build() {
 
       yarn.on('close', code => (code === 0 ? resolve() : reject()));
     }).catch(() => process.exit(1));
+
+    if (pkgJSON.napi) {
+      for (let binding of glob.sync('*.node', {cwd: pkg, onlyFiles: false})) {
+        let match = binding.match(/^.*?\.(.+?)\.node$/);
+        if (match) {
+          fs.renameSync(path.join(pkg, binding), path.join(path.dirname(pkg), path.basename(pkg) + '-' + match[1], binding));
+        }
+      }
+    }
   }
 }
 

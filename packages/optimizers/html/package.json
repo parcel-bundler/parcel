@@ -1,0 +1,27 @@
+{
+  "name": "@parcel/optimizer-html",
+  "version": "2.14.4",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/HTMLOptimizer.js",
+  "source": "src/HTMLOptimizer.js",
+  "engines": {
+    "node": ">= 16.0.0",
+    "parcel": "^2.14.4"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.14.4",
+    "@parcel/rust": "2.14.4",
+    "@parcel/utils": "2.14.4"
+  }
+}

@@ -258,9 +258,7 @@ export default (new Transformer({
             });
         }
 
-        if (automaticJSXRuntime) {
-          jsxImportSource = reactLib;
-        }
+        jsxImportSource = reactLib;
       }
 
       isJSX = Boolean(compilerOptions?.jsx || pragma);
@@ -450,7 +448,9 @@ export default (new Transformer({
       type,
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
-      automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
+      automatic_jsx_runtime: Boolean(
+        config?.automaticJSXRuntime || asset.meta.jsxRuntime === 'automatic',
+      ),
       jsx_import_source: config?.jsxImportSource,
       is_development: options.mode === 'development',
       react_refresh: Boolean(config?.reactRefresh),
@@ -536,6 +536,7 @@ export default (new Transformer({
                       content: a.content,
                       map,
                       uniqueKey: k,
+                      bundleBehavior: null,
                     });
 
                     asset.addDependency({
@@ -738,6 +739,7 @@ export default (new Transformer({
           content: mdxAsset.code,
           map,
           uniqueKey: 'mdx-' + i,
+          bundleBehavior: null,
         });
       }
     }

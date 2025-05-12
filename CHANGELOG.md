@@ -5,6 +5,46 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.14.4] - 2025-03-29
+
+### Fixed
+
+- Core
+  - Fix duplicate bundles error message – [Details](https://github.com/parcel-bundler/parcel/pull/10119)
+
+- JavaScript
+  - Support ESM externals and exports in dev packager – [Details](https://github.com/parcel-bundler/parcel/commit/424604880be6c20c1a11044bffad3fd02628d43d)
+  - Treat Deno's jsr: dependencies as external – [Details](https://github.com/parcel-bundler/parcel/commit/f08c0d60649be751c77672c1810cface016a6fcd)
+
+## [2.14.3] - 2025-03-28
+
+### Fixed
+
+- JavaScript
+  - Updated to React 19.1, which enables Server Components to be used with stable React instead of only canary – [Details](https://github.com/parcel-bundler/parcel/commit/104abbe96a1f357411bac113e821cbc0454f41a4)
+
+## [2.14.2] - 2025-03-23
+
+### Fixed
+
+- Core
+
+  - Enable resolving source field in dev dependencies – [Details](https://github.com/parcel-bundler/parcel/commit/432ee45517905d6284adfa7da42feb2ac7afaad6)
+  - Error when building a library target in serve mode – [Details](https://github.com/parcel-bundler/parcel/commit/3a566fd69830e43daa849c60b596c31dec5e3aff)
+
+- JavaScript
+
+  - Fix MDX inline assets in static RSCs – [Details](https://github.com/parcel-bundler/parcel/commit/fbcd624f4bca70b48d6c61af8c842591bb1de188)
+  - Fix symbol collection with multiple exports of same function (e.g. date-fns) – [Details](https://github.com/parcel-bundler/parcel/commit/aca7f9c89d9531580f0d6e9cd8461634c894d0dc)
+
+- REPL
+
+  - Fix error overlay resolution in REPL – [Details](https://github.com/parcel-bundler/parcel/commit/9dec3d8a5c6ff99aec83492fae8ef6b7c305dad5)
+
+- create-parcel
+  - Fix gitignore in create-parcel – [Details](https://github.com/parcel-bundler/parcel/commit/d8053053dfd7f712d85ab7d883fff603baec00a6)
+  - Fix create-parcel on windows – [Details](https://github.com/parcel-bundler/parcel/commit/02e8fa8eaed7a009cfd4d77501f6dbb18361a912)
+
 ## [2.14.1] - 2025-03-19
 
 ### Fixed
@@ -17,9 +57,11 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Core
+
   - Add a CLI to create new Parcel apps – [Details](https://github.com/parcel-bundler/parcel/pull/10069)
 
 - JavaScript
+
   - React Server Components – [Details](https://github.com/parcel-bundler/parcel/pull/10043), [Details](https://github.com/parcel-bundler/parcel/pull/10067), [Details](https://github.com/parcel-bundler/parcel/pull/10074), [Details](https://github.com/parcel-bundler/parcel/pull/10093), [Details](https://github.com/parcel-bundler/parcel/pull/10104)
   - Add RSC-based static site generator – [Details](https://github.com/parcel-bundler/parcel/pull/10057)
   - First-class MDX support – [Details](https://github.com/parcel-bundler/parcel/pull/10064)

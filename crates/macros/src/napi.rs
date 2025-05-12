@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crossbeam_channel::{Receiver, Sender};
 use indexmap::IndexMap;
 use napi::{
-  threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
   Env, JsBoolean, JsFunction, JsNumber, JsObject, JsString, JsUnknown, ValueType,
+  threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
 use swc_core::common::DUMMY_SP;

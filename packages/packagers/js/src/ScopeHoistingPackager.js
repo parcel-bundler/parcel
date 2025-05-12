@@ -363,7 +363,7 @@ export class ScopeHoistingPackager {
 
   buildExportedSymbols() {
     if (
-      !this.bundle.env.isLibrary ||
+      (!this.bundle.env.isLibrary && this.bundle.env.isBrowser()) ||
       this.bundle.env.outputFormat !== 'esmodule'
     ) {
       return;

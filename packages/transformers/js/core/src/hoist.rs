@@ -1,15 +1,15 @@
 use std::{
-  collections::{hash_map::DefaultHasher, HashMap, HashSet},
+  collections::{HashMap, HashSet, hash_map::DefaultHasher},
   hash::Hasher,
 };
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{Mark, Span, SyntaxContext, DUMMY_SP},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
     ast::*,
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith},
   },
@@ -19,9 +19,9 @@ use crate::{
   collect::{Collect, Export, Import, ImportKind},
   id,
   utils::{
-    get_undefined_ident, is_unresolved, match_export_name, match_export_name_ident, match_import,
-    match_member_expr, match_property_name, match_require, CodeHighlight, Diagnostic,
-    DiagnosticSeverity, SourceLocation,
+    CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, get_undefined_ident,
+    is_unresolved, match_export_name, match_export_name_ident, match_import, match_member_expr,
+    match_property_name, match_require,
   },
 };
 
@@ -463,7 +463,7 @@ impl<'a> Fold for Hoist<'a> {
                       self.re_exports.push(ImportedSymbol {
                         source: src.value.clone(),
                         local: default.exported.sym,
-                        imported: js_word!("default"),
+                        imported: "default".into(),
                         loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
                         kind: ImportKind::Import,
                       });
@@ -1093,7 +1093,7 @@ impl<'a> Fold for Hoist<'a> {
       return self.get_export_ident(node.span, &"*".into());
     }
 
-    if node.sym == js_word!("global") && is_unresolved(&node, self.unresolved_mark) {
+    if node.sym == "global" && is_unresolved(&node, self.unresolved_mark) {
       return Ident::new("$parcel$global".into(), node.span, node.ctxt);
     }
 
@@ -1354,10 +1354,10 @@ impl<'a> Hoist<'a> {
 #[cfg(test)]
 mod tests {
   use swc_core::{
-    common::{comments::SingleThreadedComments, sync::Lrc, FileName, Globals, SourceMap},
+    common::{FileName, Globals, SourceMap, comments::SingleThreadedComments, sync::Lrc},
     ecma::{
       codegen::text_writer::JsWriter,
-      parser::{lexer::Lexer, Parser, StringInput},
+      parser::{Parser, StringInput, lexer::Lexer},
       transforms::base::{fixer::fixer, hygiene::hygiene, resolver},
       visit::{VisitMutWith, VisitWith},
     },
@@ -1593,6 +1593,17 @@ mod tests {
         w!("y") => (w!("other"), w!("*"), false)
       }
     );
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+    import { formatters } from "other";
+
+    export function format() {
+      return formatters[something]();
+    }
+    "#,
+    );
+    assert_eq_set!(collect.used_imports, set! { w!("formatters") });
   }
 
   #[test]
@@ -2868,6 +2879,23 @@ mod tests {
       hoist.re_exports,
       map! {
         w!("siteSettings") => (w!("./settings"), w!("settings"))
+      }
+    );
+
+    let (_collect, _code, hoist) = parse(
+      r#"
+      export { format as formatDate };
+      export function format() {}
+    export default format;
+    "#,
+    );
+
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("formatDate") => (w!("$abc$export$d9468344d3651243"), true),
+        w!("format") => (w!("$abc$export$d9468344d3651243"), true),
+        w!("default") => (w!("$abc$export$2e2bcd8739ae039"), true)
       }
     );
   }

@@ -76,7 +76,13 @@ export default (new Packager({
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
-  async package({bundle, bundleGraph, getInlineBundleContents, config}) {
+  async package({
+    bundle,
+    bundleGraph,
+    getInlineBundleContents,
+    config,
+    options,
+  }) {
     if (bundle.env.shouldScopeHoist) {
       throw new Error('Scope hoisting is not supported with SSG');
     }
@@ -90,6 +96,8 @@ export default (new Packager({
       getInlineBundleContents,
     );
 
+    let env = process.env.NODE_ENV;
+    process.env.NODE_ENV = options.env.NODE_ENV;
     let Component = load(nullthrows(bundle.getMainEntry()).id).default;
     let {renderToReadableStream} = loadModule(
       'react-server-dom-parcel/server.edge',
@@ -107,6 +115,7 @@ export default (new Packager({
       __filename,
       'react-client',
     );
+    process.env.NODE_ENV = env;
     let {injectRSCPayload} = await import('rsc-html-stream/server');
 
     let pages: Page[] = [];
@@ -430,12 +439,14 @@ async function loadBundleUncached(
     }
 
     let defaultRequire = Module.createRequire(from);
-    if (res.resolution.type === 'Builtin') {
-      return defaultRequire(res.resolution.value);
+    let resolution = res.resolution;
+    if (resolution.type === 'Builtin') {
+      let {scheme, module} = resolution.value;
+      return defaultRequire(scheme ? `${scheme}:${module}` : module);
     }
 
-    if (res.resolution.type === 'Path') {
-      let cacheKey = res.resolution.value + '#' + env;
+    if (resolution.type === 'Path') {
+      let cacheKey = resolution.value + '#' + env;
       const cachedModule = moduleCache.get(cacheKey);
       if (cachedModule) {
         return cachedModule.exports;
@@ -446,7 +457,7 @@ async function loadBundleUncached(
         return loadAsset(assetId);
       }
 
-      let filePath = nullthrows(res.resolution.value);
+      let filePath = resolution.value;
       let code = fs.readFileSync(filePath, 'utf8');
       let require = (id: string) => {
         return loadModule(id, filePath, env);
@@ -509,7 +520,12 @@ function runModule(
 }
 
 function getCacheKey(asset: Asset) {
-  return asset.filePath + '#' + asset.env.context;
+  return (
+    asset.filePath +
+    '#' +
+    asset.env.context +
+    (asset.uniqueKey ? '-' + asset.uniqueKey : '')
+  );
 }
 
 function getSpecifier(dep: Dependency) {

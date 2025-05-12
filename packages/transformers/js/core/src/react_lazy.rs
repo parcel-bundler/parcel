@@ -4,8 +4,8 @@ use swc_core::ecma::{
 };
 
 use crate::{
-  collect::Collect, dependency_collector::DependencyFlags, utils::match_str, DependencyDescriptor,
-  DependencyKind,
+  DependencyDescriptor, DependencyKind, collect::Collect, dependency_collector::DependencyFlags,
+  utils::match_str,
 };
 
 /// This pass marks dependencies created inside a React.lazy call.
@@ -96,9 +96,9 @@ mod test {
 
   use super::*;
   use crate::{
-    dependency_collector::DependencyFlags,
-    test_utils::{run_with_transformation, RunTestContext},
     DependencyKind,
+    dependency_collector::DependencyFlags,
+    test_utils::{RunTestContext, run_with_transformation},
   };
 
   fn run(context: RunTestContext, module: &mut Module) {

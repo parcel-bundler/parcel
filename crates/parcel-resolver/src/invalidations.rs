@@ -8,8 +8,8 @@ use std::{
 use rustc_hash::FxHasher;
 
 use crate::{
-  cache::{CachedPath, IdentityHasher},
   ResolverError,
+  cache::{CachedPath, IdentityHasher},
 };
 
 /// Files that should invalidate the cache when they are created.

@@ -154,7 +154,11 @@ describe('sourcemaps', function () {
       __dirname,
       '/integration/sourcemap/index.js',
     );
-    await bundle(sourceFilename);
+    await bundle(sourceFilename, {
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
+    });
 
     let distDir = path.join(__dirname, '/integration/sourcemap/dist/');
 
@@ -175,6 +179,7 @@ describe('sourcemaps', function () {
     let sourcePath = 'index.js';
 
     let name = raw.match(/function (\$.*\$var\$helloWorld)/)[1];
+    let exports = raw.match(/var (\$.*\$exports)/)[1];
 
     checkSourceMapping({
       map: sourceMap,
@@ -190,7 +195,7 @@ describe('sourcemaps', function () {
       source: input,
       generated: raw,
       str: 'module.exports = helloWorld;',
-      generatedStr: 'module.exports = ' + name + ';',
+      generatedStr: exports + ' = ' + name + ';',
       sourcePath,
     });
 

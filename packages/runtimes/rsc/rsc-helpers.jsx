@@ -44,7 +44,7 @@ function createResourcesValueProxy(value, resources, bootstrapScript) {
 
     let proxy = new Proxy(value, {
       get(target, prop, receiver) {
-        if (prototypeProxy && prop === 'prototype') {
+        if (prototypeProxy && prop === 'prototype' && Object.getOwnPropertyDescriptor(target, 'prototype').configurable) {
           return prototypeProxy;
         }
 

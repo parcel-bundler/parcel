@@ -2689,7 +2689,6 @@ describe('javascript', function () {
     );
 
     let cssBundleContent = (await run(b)).default;
-
     assert(
       cssBundleContent.startsWith(
         `body {
@@ -2697,7 +2696,7 @@ describe('javascript', function () {
 }
 
 .svg-img {
-  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E");
 }`,
       ),
     );
@@ -2742,7 +2741,7 @@ describe('javascript', function () {
 }
 
 .svg-img {
-  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E");
 }`,
       ),
     );
@@ -2756,7 +2755,10 @@ describe('javascript', function () {
     );
 
     let res = await run(b);
-    assert.equal(res.default, '<p>test</p>\n');
+    assert.equal(
+      res.default,
+      '<html><head></head><body><p>test</p>\n</body></html>',
+    );
   });
 
   it('should inline an HTML bundle and inline scripts with `bundle-text`', async () => {
@@ -2767,7 +2769,7 @@ describe('javascript', function () {
     let res = await run(b);
     assert.equal(
       res.default,
-      `<p>test</p>\n<script>console.log('hi');\n\n</script>\n`,
+      `<html><head></head><body><p>test</p>\n<script>console.log('hi');\n\n</script>\n</body></html>`,
     );
   });
 
@@ -2830,7 +2832,7 @@ describe('javascript', function () {
 }
 
 .svg-img {
-  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E");
 }`,
       ),
     );
@@ -2843,7 +2845,7 @@ describe('javascript', function () {
 
     assert.equal(
       (await run(b)).default,
-      'data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A',
+      'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%22120%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%2F%3E%0A%3C%2Fsvg%3E',
     );
   });
 
@@ -6143,6 +6145,25 @@ describe('javascript', function () {
       await res.output;
       assert.equal(res.result, 2);
     });
+
+    it(`can bundle date-fns ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        date-fns
+          a.ts:
+            import {format} from 'date-fns';
+            output = format(new Date(2025, 1, 3), "yyyy-MM-dd");`;
+
+      let b = await bundle(path.join(__dirname, 'date-fns/a.ts'), {
+        ...options,
+        mode: 'development',
+        inputFS: overlayFS,
+      });
+      let res = await run(b, null, {require: false});
+      let result = await res.output;
+      assert.equal(result, '2025-02-03');
+    });
   }
 
   for (let defaultTargetOptions of [
@@ -6157,7 +6178,7 @@ describe('javascript', function () {
         await fsFixture(overlayFS, __dirname)`
         native-node
           index.js:
-            output = require('@parcel/rust');
+            output = require('@parcel/rust/index');
             
           package.json:
             {
@@ -6192,4 +6213,42 @@ describe('javascript', function () {
       },
     );
   }
+
+  it('should support ESM externals and exports in development mode', async () => {
+    await fsFixture(overlayFS, __dirname)`
+    esm-externals
+      index.js:
+        import {createHash} from 'crypto';
+        let hash = createHash('md5');
+        hash.update('testing');
+        export const hashed = hash.digest('hex');
+        export default "Test";
+        
+      package.json:
+        {
+          "targets": {
+            "default": {
+              "context": "node",
+              "outputFormat": "esmodule"
+            }
+          }
+        }
+        
+      yarn.lock:`;
+
+    let b = await bundle(path.join(__dirname, 'esm-externals/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let res = await run(
+      b,
+      {},
+      {},
+      {
+        crypto: () => require('crypto'),
+      },
+    );
+    assert.equal(res.hashed, 'ae2b1fca515949e5d54fb22b8ed95575');
+    assert.equal(res.default, 'Test');
+  });
 });

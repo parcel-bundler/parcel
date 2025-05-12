@@ -3,12 +3,12 @@ use std::cmp::Ordering;
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{
+    DUMMY_SP, Mark, SourceMap, Span, SyntaxContext,
     errors::{DiagnosticBuilder, Emitter},
-    Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
   },
   ecma::{
     ast::{self, Ident, IdentName},
-    atoms::{js_word, JsWord},
+    atoms::Atom as JsWord,
   },
 };
 
@@ -31,7 +31,7 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, unresolved_m
           return false;
         }
       }
-      MemberProp::Ident(IdentName { ref sym, .. }) => sym,
+      MemberProp::Ident(IdentName { sym, .. }) => sym,
       _ => return false,
     };
 
@@ -53,15 +53,7 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, unresolved_m
   false
 }
 
-pub fn create_require(
-  specifier: swc_core::ecma::atoms::JsWord,
-  unresolved_mark: Mark,
-) -> ast::CallExpr {
-  let mut normalized_specifier = specifier;
-  if normalized_specifier.starts_with("node:") {
-    normalized_specifier = normalized_specifier.replace("node:", "").into();
-  }
-
+pub fn create_require(specifier: JsWord, unresolved_mark: Mark) -> ast::CallExpr {
   ast::CallExpr {
     callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
@@ -69,7 +61,7 @@ pub fn create_require(
       SyntaxContext::empty().apply_mark(unresolved_mark),
     )))),
     args: vec![ast::ExprOrSpread {
-      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(normalized_specifier.into()))),
+      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(specifier.into()))),
       spread: None,
     }],
     span: DUMMY_SP,
@@ -135,7 +127,7 @@ pub fn match_require(node: &ast::Expr, unresolved_mark: Mark, ignore_mark: Mark)
     Expr::Call(call) => match &call.callee {
       Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
-          if ident.sym == js_word!("require")
+          if ident.sym == "require"
             && is_unresolved(&ident, unresolved_mark)
             && !is_marked(ident.ctxt, ignore_mark)
           {
@@ -182,7 +174,7 @@ pub fn match_import(node: &ast::Expr) -> Option<JsWord> {
 
 // `name` must not be an existing binding.
 pub fn create_global_decl_stmt(
-  name: swc_core::ecma::atoms::JsWord,
+  name: JsWord,
   init: ast::Expr,
   global_mark: Mark,
 ) -> (ast::Stmt, SyntaxContext) {
@@ -211,7 +203,7 @@ pub fn create_global_decl_stmt(
 
 pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
   ast::Ident::new(
-    js_word!("undefined"),
+    "undefined".into(),
     DUMMY_SP,
     SyntaxContext::empty().apply_mark(unresolved_mark),
   )
@@ -341,51 +333,51 @@ impl BailoutReason {
     match self {
       BailoutReason::NonTopLevelRequire => (
         "Conditional or non-top-level `require()` call. This causes the resolved module and all dependencies to be wrapped.",
-        "https://parceljs.org/features/scope-hoisting/#avoid-conditional-require()"
+        "https://parceljs.org/features/scope-hoisting/#avoid-conditional-require()",
       ),
       BailoutReason::NonStaticDestructuring => (
         "Non-static destructuring of `require` or dynamic `import()`. This causes all exports of the resolved module to be included.",
-        "https://parceljs.org/features/scope-hoisting/#commonjs"
+        "https://parceljs.org/features/scope-hoisting/#commonjs",
       ),
       BailoutReason::TopLevelReturn => (
         "Module contains a top-level `return` statement. This causes the module to be wrapped in a function and tree shaking to be disabled.",
-        "https://parceljs.org/features/scope-hoisting/#avoid-top-level-return"
+        "https://parceljs.org/features/scope-hoisting/#avoid-top-level-return",
       ),
       BailoutReason::Eval => (
         "Module contains usage of `eval`. This causes the module to be wrapped in a function and minification to be disabled.",
-        "https://parceljs.org/features/scope-hoisting/#avoid-eval"
+        "https://parceljs.org/features/scope-hoisting/#avoid-eval",
       ),
       BailoutReason::NonStaticExports => (
         "Non-static access of CommonJS `exports` object. This causes tree shaking to be disabled for the module.",
-        "https://parceljs.org/features/scope-hoisting/#commonjs"
+        "https://parceljs.org/features/scope-hoisting/#commonjs",
       ),
       BailoutReason::FreeModule => (
         "Unknown usage of CommonJS `module` object. This causes the module to be wrapped, and tree shaking to be disabled.",
-        "https://parceljs.org/features/scope-hoisting/#commonjs"
+        "https://parceljs.org/features/scope-hoisting/#commonjs",
       ),
       BailoutReason::FreeExports => (
         "Unknown usage of CommonJS `exports` object. This causes tree shaking to be disabled.",
-        "https://parceljs.org/features/scope-hoisting/#commonjs"
+        "https://parceljs.org/features/scope-hoisting/#commonjs",
       ),
       BailoutReason::ExportsReassignment => (
         "Module contains a reassignment of the CommonJS `exports` object. This causes the module to be wrapped and tree-shaking to be disabled.",
-        "https://parceljs.org/features/scope-hoisting/#avoid-module-and-exports-re-assignment"
+        "https://parceljs.org/features/scope-hoisting/#avoid-module-and-exports-re-assignment",
       ),
       BailoutReason::ModuleReassignment => (
         "Module contains a reassignment of the CommonJS `module` object. This causes the module to be wrapped and tree-shaking to be disabled.",
-        "https://parceljs.org/features/scope-hoisting/#avoid-module-and-exports-re-assignment"
+        "https://parceljs.org/features/scope-hoisting/#avoid-module-and-exports-re-assignment",
       ),
       BailoutReason::NonStaticDynamicImport => (
         "Unknown dynamic import usage. This causes tree shaking to be disabled for the resolved module.",
-        "https://parceljs.org/features/scope-hoisting/#dynamic-imports"
+        "https://parceljs.org/features/scope-hoisting/#dynamic-imports",
       ),
       BailoutReason::NonStaticAccess => (
         "Non-static access of an `import` or `require`. This causes tree shaking to be disabled for the resolved module.",
-        "https://parceljs.org/features/scope-hoisting/#dynamic-member-accesses"
+        "https://parceljs.org/features/scope-hoisting/#dynamic-member-accesses",
       ),
       BailoutReason::ThisInExport => (
         "Module contains `this` access of an exported value. This causes the module to be wrapped and tree-shaking to be disabled.",
-        "https://parceljs.org/features/scope-hoisting/#avoiding-bail-outs"
+        "https://parceljs.org/features/scope-hoisting/#avoiding-bail-outs",
       ),
     }
   }
@@ -422,7 +414,7 @@ pub struct ErrorBuffer(
 );
 
 impl Emitter for ErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
+  fn emit(&mut self, db: &mut DiagnosticBuilder) {
     self.0.lock().push((**db).clone());
   }
 }

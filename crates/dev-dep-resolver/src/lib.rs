@@ -4,7 +4,7 @@ use std::{
 };
 
 use dashmap::{DashMap, DashSet};
-use es_module_lexer::{lex, ImportKind};
+use es_module_lexer::{ImportKind, lex};
 use parcel_resolver::{
   Invalidations, ModuleType, Resolution, ResolutionAndQuery, ResolveOptions, Resolver,
   ResolverError, Specifier, SpecifierError, SpecifierType,
@@ -155,7 +155,7 @@ impl<'a> EsmGraphBuilder<'a> {
 
         Ok(())
       })
-      .collect::<Result<_, _>>()?;
+      .collect::<Result<(), _>>()?;
 
     self.invalidations.extend(&invalidations);
     self.cache.entries.insert(file.to_owned(), invalidations);
@@ -291,7 +291,7 @@ fn read_string(bytes: &[u8]) -> Option<(Cow<'_, str>, &[u8])> {
         return Some((
           escape_glob(unsafe { std::str::from_utf8_unchecked(&bytes[1..i]) }),
           &bytes[i + 1..],
-        ))
+        ));
       }
       _ => {}
     }

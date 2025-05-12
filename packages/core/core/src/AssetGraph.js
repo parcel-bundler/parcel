@@ -29,6 +29,7 @@ import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
+import {BROWSER_ENVS} from './public/Environment';
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
@@ -223,6 +224,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     correspondingRequest: string,
   ) {
     let depNodes = targets.map(target => {
+      // In library mode, all of the entry's symbols are "used"
+      // In non-browser environments, exports may also be used (e.g. serverless request handlers).
+      let includeAllSymbols =
+        target.env.isLibrary || !BROWSER_ENVS.has(target.env.context);
       let node = nodeFromDep(
         // The passed project path is ignored in this case, because there is no `loc`
         createDependency('', {
@@ -233,14 +238,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           env: target.env,
           isEntry: true,
           needsStableName: true,
-          symbols: target.env.isLibrary
+          symbols: includeAllSymbols
             ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
             : undefined,
         }),
       );
 
-      if (node.value.env.isLibrary) {
-        // in library mode, all of the entry's symbols are "used"
+      if (includeAllSymbols) {
         node.usedSymbolsDown.add('*');
         node.usedSymbolsUp.set('*', undefined);
       }

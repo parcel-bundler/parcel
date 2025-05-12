@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
 #[cfg(target_arch = "wasm32")]
-use std::alloc::alloc;
-#[cfg(target_arch = "wasm32")]
 use std::alloc::Layout;
+#[cfg(target_arch = "wasm32")]
+use std::alloc::alloc;
 
 #[cfg(all(target_os = "macos", not(miri)))]
 #[global_allocator]
@@ -19,11 +19,12 @@ mod hash;
 #[cfg(not(target_arch = "wasm32"))]
 mod image;
 
+mod html;
 mod resolver;
 mod transformer;
 
 #[cfg(target_arch = "wasm32")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {
   let align = std::mem::align_of::<usize>();
   if let Ok(layout) = Layout::from_size_align(size, align) {
@@ -47,7 +48,7 @@ mod wasm {
   use napi_derive::napi;
 
   #[link(wasm_import_module = "env")]
-  extern "C" {
+  unsafe extern "C" {
     fn log(ptr: *const u8, len: usize);
   }
 

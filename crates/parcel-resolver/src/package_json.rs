@@ -11,15 +11,15 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 
 use crate::{
+  ResolverError,
   cache::{Cache, CachedPath},
   error::JsonError,
-  specifier::{decode_path, Specifier, SpecifierType},
-  ResolverError,
+  specifier::{Specifier, SpecifierType, decode_path},
 };
 
 bitflags! {
   /// A package.json top-level entry field.
-  #[derive(serde::Serialize)]
+  #[derive(Clone, Copy)]
   pub struct Fields: u8 {
     /// The "main" field.
     const MAIN = 1 << 0;
@@ -35,6 +35,15 @@ bitflags! {
     const TSCONFIG = 1 << 5;
     /// The "types" field.
     const TYPES = 1 << 6;
+  }
+}
+
+impl serde::Serialize for Fields {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.bits().serialize(serializer)
   }
 }
 
@@ -186,6 +195,7 @@ impl ExportsField {
 
 bitflags! {
   /// A common package.json "exports" field.
+  #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
   pub struct ExportsCondition: u32 {
     /// The "import" condition. True when the package was referenced using the ESM `import` syntax.
     const IMPORT = 1 << 0;
@@ -403,7 +413,7 @@ impl PackageJson {
     }
   }
 
-  pub fn entries<'a>(&'a self, fields: Fields, cache: &'a Cache) -> EntryIter {
+  pub fn entries<'a>(&'a self, fields: Fields, cache: &'a Cache) -> EntryIter<'a> {
     EntryIter {
       package: self,
       fields,
@@ -536,7 +546,7 @@ impl PackageJson {
     conditions: ExportsCondition,
     custom_conditions: &[String],
     paths: &Cache,
-  ) -> Result<ExportsResolution<'_>, PackageJsonError> {
+  ) -> Result<ExportsResolution<'a>, PackageJsonError> {
     match target {
       ExportsField::String(target) => {
         if !target.starts_with("./") {
@@ -637,7 +647,7 @@ impl PackageJson {
     conditions: ExportsCondition,
     custom_conditions: &[String],
     paths: &Cache,
-  ) -> Result<ExportsResolution<'_>, PackageJsonError> {
+  ) -> Result<ExportsResolution<'a>, PackageJsonError> {
     let pattern = ExportsKey::Pattern(Cow::Borrowed(match_key));
     if let Some(target) = match_obj.get(&pattern) {
       if !match_key.contains('*') {
@@ -721,7 +731,7 @@ impl PackageJson {
     &'a self,
     map: &'a IndexMap<Specifier<'a>, AliasValue<'a>>,
     specifier: &Specifier<'a>,
-  ) -> Option<Cow<'a, AliasValue>> {
+  ) -> Option<Cow<'a, AliasValue<'a>>> {
     if let Some(alias) = self.lookup_alias(map, specifier) {
       return Some(alias);
     }
@@ -794,7 +804,7 @@ impl PackageJson {
     &'a self,
     map: &'a IndexMap<Specifier<'a>, AliasValue<'a>>,
     specifier: &Specifier<'a>,
-  ) -> Option<Cow<'a, AliasValue>> {
+  ) -> Option<Cow<'a, AliasValue<'a>>> {
     if let Some(value) = map.get(specifier) {
       return Some(Cow::Borrowed(value));
     }
@@ -972,7 +982,7 @@ impl<'a> Iterator for EntryIter<'a> {
           return Some((
             self.package.path.resolve(Path::new(browser), self.cache),
             "browser",
-          ))
+          ));
         }
         BrowserField::Map(map) => {
           if let Some(AliasValue::Specifier(Specifier::Relative(s))) = map.get(&Specifier::Package(

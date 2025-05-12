@@ -27,7 +27,6 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique, setDifference} from '@parcel/utils';
 import {hashString} from '@parcel/rust';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
@@ -56,6 +55,7 @@ import {
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
 import {requestTypes} from '../RequestTracker';
+import type {ProjectPath} from '../projectPath';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -476,17 +476,21 @@ class BundlerRunner {
 
   validateBundles(bundleGraph: InternalBundleGraph): void {
     let bundles = bundleGraph.getBundles();
-
     let bundleNames = bundles.map(b =>
       joinProjectPath(b.target.distDir, nullthrows(b.name)),
     );
-    assert.deepEqual(
-      bundleNames,
-      unique(bundleNames),
-      'Bundles must have unique name. Conflicting names: ' +
-        [
-          ...setDifference(new Set(bundleNames), new Set(unique(bundleNames))),
-        ].join(),
+
+    let seenNames = new Set<ProjectPath>();
+    let duplicateNames = bundleNames.filter(name => {
+      let isDuplicate = seenNames.has(name);
+      seenNames.add(name);
+      return isDuplicate;
+    });
+
+    assert(
+      duplicateNames.length === 0,
+      'Bundles must have unique names. Conflicting names: ' +
+        duplicateNames.join(', '),
     );
   }
 

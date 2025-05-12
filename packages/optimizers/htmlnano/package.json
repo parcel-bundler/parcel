@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-htmlnano",
-  "version": "2.14.1",
+  "version": "2.14.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/HTMLNanoOptimizer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.14.1"
+    "parcel": "^2.14.4"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.14.1",
-    "@parcel/plugin": "2.14.1",
-    "@parcel/utils": "2.14.1",
+    "@parcel/diagnostic": "2.14.4",
+    "@parcel/plugin": "2.14.4",
+    "@parcel/utils": "2.14.4",
     "htmlnano": "^2.0.0",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.16.5"

@@ -1,5 +1,5 @@
-use crate::specifier::SpecifierError;
 use crate::PackageJsonError;
+use crate::specifier::SpecifierError;
 use std::path::PathBuf;
 use std::sync::Arc;
 
