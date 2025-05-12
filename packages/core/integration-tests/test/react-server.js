@@ -614,11 +614,11 @@ describe('react server components', function () {
         it('should support inject CSS resources', async function () {
           await fsFixture(overlayFS, dir)`
           index.jsx:
-            import {Server} from './Page.jsx';
+            import {Server, foo} from './Page.jsx';
             function render() {
               return <Server />;
             }
-            output = {render};
+            output = {render, foo: foo.map(f => f * 2)};
 
           Page.jsx:
             "use server-entry";
@@ -626,6 +626,8 @@ describe('react server components', function () {
             export function Server() {
               return <h1>Server</h1>;
             }
+
+            export const foo = [1, 2, 3];
 
           server.css:
             .server { color: red }
@@ -656,6 +658,7 @@ describe('react server components', function () {
           );
 
           let res = (await run(b, {output: null}, {require: false})).output;
+          assert.deepEqual(res.foo, [2, 4, 6]);
           let output = res.render();
 
           output.type.$$typeof;
