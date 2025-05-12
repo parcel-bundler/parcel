@@ -12,7 +12,7 @@
     "@parcel/core": "2.14.4"
   },
   "dependencies": {
-    "react": "^19",
-    "react-dom": "^19"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   }
 }

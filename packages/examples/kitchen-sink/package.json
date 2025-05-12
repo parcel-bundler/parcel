@@ -35,8 +35,8 @@
     }
   },
   "dependencies": {
-    "lodash": "^4.17.11",
-    "react": "^19",
-    "react-dom": "^19"
+    "lodash": "^4.17.21",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   }
 }

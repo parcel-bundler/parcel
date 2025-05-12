@@ -25,6 +25,6 @@
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.14.4",
     "nullthrows": "^1.1.1",
-    "terser": "^5.2.0"
+    "terser": "^5.39.0"
   }
 }

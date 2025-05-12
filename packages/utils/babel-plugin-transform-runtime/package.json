@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@babel/plugin-transform-runtime": "^7.22.10",
-    "semver": "^7.5.2"
+    "semver": "^7.7.1"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",

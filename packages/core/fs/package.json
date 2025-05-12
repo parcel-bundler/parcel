@@ -61,10 +61,10 @@
   },
   "devDependencies": {
     "@parcel/watcher-watchman-js": "2.14.4",
-    "graceful-fs": "^4.2.4",
+    "graceful-fs": "^4.2.11",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
-    "utility-types": "^3.10.0"
+    "utility-types": "^3.11.0"
   },
   "peerDependencies": {
     "@parcel/core": "^2.14.4"

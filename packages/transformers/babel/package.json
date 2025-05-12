@@ -24,10 +24,10 @@
     "@parcel/plugin": "2.14.4",
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.14.4",
-    "browserslist": "^4.6.6",
-    "json5": "^2.2.0",
+    "browserslist": "^4.24.5",
+    "json5": "^2.2.3",
     "nullthrows": "^1.1.1",
-    "semver": "^7.5.2"
+    "semver": "^7.7.1"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",

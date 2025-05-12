@@ -23,6 +23,6 @@
     "@parcel/error-overlay": "2.14.4",
     "@parcel/plugin": "2.14.4",
     "@parcel/utils": "2.14.4",
-    "react-refresh": ">=0.9 <=0.16"
+    "react-refresh": "^0.16.0"
   }
 }

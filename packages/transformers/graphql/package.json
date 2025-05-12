@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.14.4",
-    "graphql": "^15.0.0",
+    "graphql": "^15.10.1",
     "graphql-import-macro": "^1.0.0"
   }
 }

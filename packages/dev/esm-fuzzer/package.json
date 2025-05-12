@@ -12,7 +12,7 @@
     "@babel/types": "^7.22.11",
     "@parcel/core": "2.14.4",
     "@parcel/fs": "2.14.4",
-    "nanoid": "^3.1.12",
+    "nanoid": "^3.3.11",
     "nullthrows": "^1.1.1"
   }
 }

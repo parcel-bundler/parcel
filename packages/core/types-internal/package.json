@@ -19,6 +19,6 @@
     "@parcel/diagnostic": "2.14.4",
     "@parcel/feature-flags": "2.14.4",
     "@parcel/source-map": "^2.1.1",
-    "utility-types": "^3.10.0"
+    "utility-types": "^3.11.0"
   }
 }

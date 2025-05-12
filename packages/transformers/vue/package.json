@@ -20,16 +20,16 @@
     "parcel": "^2.14.4"
   },
   "dependencies": {
-    "@ladjs/consolidate": "^1.0.3",
+    "@ladjs/consolidate": "^1.0.4",
     "@parcel/diagnostic": "2.14.4",
     "@parcel/plugin": "2.14.4",
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.14.4",
     "@vue/compiler-sfc": "^3.2.27",
     "nullthrows": "^1.1.1",
-    "semver": "^7.5.2"
+    "semver": "^7.7.1"
   },
   "devDependencies": {
-    "vue": "^3.2.27"
+    "vue": "^3.5.13"
   }
 }

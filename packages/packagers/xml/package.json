@@ -23,6 +23,6 @@
     "@parcel/plugin": "2.14.4",
     "@parcel/types": "2.14.4",
     "@parcel/utils": "2.14.4",
-    "@xmldom/xmldom": "^0.9.3"
+    "@xmldom/xmldom": "^0.9.8"
   }
 }

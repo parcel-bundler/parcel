@@ -23,9 +23,9 @@
     "@parcel/diagnostic": "2.14.4",
     "@parcel/plugin": "2.14.4",
     "@parcel/utils": "2.14.4",
-    "htmlnano": "^2.0.0",
+    "htmlnano": "^2.1.2",
     "nullthrows": "^1.1.1",
-    "posthtml": "^0.16.5"
+    "posthtml": "^0.16.6"
   },
   "devDependencies": {
     "svgo": "^3.3.2"

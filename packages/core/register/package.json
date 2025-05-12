@@ -28,6 +28,6 @@
     "@parcel/core": "2.14.4",
     "@parcel/fs": "2.14.4",
     "@parcel/package-manager": "2.14.4",
-    "pirates": "^4.0.0"
+    "pirates": "^4.0.7"
   }
 }

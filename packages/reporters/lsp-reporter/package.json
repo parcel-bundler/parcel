@@ -23,9 +23,9 @@
     "@parcel/lsp-protocol": "2.14.4",
     "@parcel/plugin": "2.14.4",
     "@parcel/utils": "2.14.4",
-    "node-ipc": "^9.1.4",
+    "node-ipc": "^9.2.1",
     "nullthrows": "^1.1.1",
     "ps-node": "^0.1.6",
-    "vscode-jsonrpc": "^8.0.2"
+    "vscode-jsonrpc": "^8.2.1"
   }
 }

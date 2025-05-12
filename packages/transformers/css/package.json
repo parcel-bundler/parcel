@@ -24,12 +24,12 @@
     "@parcel/plugin": "2.14.4",
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.14.4",
-    "browserslist": "^4.6.6",
-    "lightningcss": "^1.22.1",
+    "browserslist": "^4.24.5",
+    "lightningcss": "^1.30.0",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "lightningcss-wasm": "^1.22.1"
+    "lightningcss-wasm": "^1.30.0"
   },
   "browser": {
     "lightningcss": "lightningcss-wasm"

@@ -26,6 +26,6 @@
     "@parcel/types": "2.14.4",
     "@parcel/utils": "2.14.4",
     "nullthrows": "^1.1.1",
-    "rsc-html-stream": "^0.0.5"
+    "rsc-html-stream": "^0.0.6"
   }
 }

@@ -19,7 +19,7 @@
     "parcel": "^2.14.4"
   },
   "dependencies": {
-    "@mischnic/json-sourcemap": "^0.1.0",
+    "@mischnic/json-sourcemap": "^0.1.1",
     "@parcel/diagnostic": "2.14.4",
     "@parcel/plugin": "2.14.4",
     "@parcel/utils": "2.14.4",

@@ -22,8 +22,8 @@
     "@parcel/core": "2.14.4",
     "@parcel/graph": "3.4.4",
     "nullthrows": "^1.1.1",
-    "table": "^6.8.1",
-    "v8-compile-cache": "^2.0.0"
+    "table": "^6.9.0",
+    "v8-compile-cache": "^2.4.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",

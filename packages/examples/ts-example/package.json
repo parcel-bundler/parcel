@@ -15,6 +15,6 @@
   "module": "dist/module.js",
   "types": "dist/types.d.ts",
   "dependencies": {
-    "lodash": "^4.17.11"
+    "lodash": "^4.17.21"
   }
 }

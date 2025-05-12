@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "2.14.4",
     "@parcel/utils": "2.14.4",
-    "isbinaryfile": "^5.0.2",
+    "isbinaryfile": "^5.0.4",
     "mime": "^3.0.0"
   }
 }

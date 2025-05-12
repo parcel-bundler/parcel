@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@babel/preset-env": "^7.22.14",
-    "semver": "^7.5.2"
+    "semver": "^7.7.1"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11"

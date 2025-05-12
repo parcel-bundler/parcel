@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "ansi-html-community": "0.0.8",
-    "preact": "^10.26.4"
+    "preact": "^10.26.6"
   },
   "alias": {
     "preact/jsx-dev-runtime": "preact/jsx-runtime"

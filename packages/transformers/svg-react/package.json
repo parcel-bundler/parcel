@@ -23,7 +23,7 @@
     "@parcel/diagnostic": "2.14.4",
     "@parcel/plugin": "2.14.4",
     "@parcel/utils": "2.14.4",
-    "@svgr/core": "^8.0.0",
-    "@svgr/plugin-jsx": "^8.0.0"
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0"
   }
 }

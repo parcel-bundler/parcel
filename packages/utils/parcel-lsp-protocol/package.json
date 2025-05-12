@@ -26,7 +26,7 @@
     "typescript": ">=3.0.0"
   },
   "dependencies": {
-    "vscode-jsonrpc": "^8.0.2"
+    "vscode-jsonrpc": "^8.2.1"
   },
   "targets": {
     "types": false
