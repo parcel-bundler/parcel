@@ -1,6 +1,6 @@
 {
   "name": "parcel-rsc-client",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "private": true,
   "client": "dist/index.html",
   "server": "dist/server.js",
@@ -19,7 +19,7 @@
     "build": "parcel build"
   },
   "dependencies": {
-    "@parcel/rsc": "2.14.4",
+    "@parcel/rsc": "2.15.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "react": "^19.1.0",

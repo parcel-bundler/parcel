@@ -5,6 +5,30 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.15.0] - 2025-05-11
+
+### Added
+
+- Core
+  - Distribute Rust binaries for each architecture as separate npm packages – [Details](https://github.com/parcel-bundler/parcel/commit/396c3941f74dc509ee7fe4c60bff8b2c7ecf78a4)
+
+- HTML and SVG
+  - Add Rust-based transformer/packager/optimizer for HTML and SVG – [Details](https://github.com/parcel-bundler/parcel/pull/10090)
+
+- Resolver
+  - Support `cloudflare:` scheme and no longer rewrite node: scheme – [Details](https://github.com/parcel-bundler/parcel/commit/ccd4d462f27856f9ef4adbd9ac31d0b2e8092aee)
+
+### Fixed
+
+- Core
+  - Avoid segmentation fault on thread exit on Linux – [Details](https://github.com/parcel-bundler/parcel/pull/10144)
+  - Support older GLIBC versions on Linux – [Details](https://github.com/parcel-bundler/parcel/pull/10145)
+
+- JavaScript
+  - Include all symbols in non-browser entries – [Details](https://github.com/parcel-bundler/parcel/commit/40ebdcd87a4bb51df3b060a05aad005595de8558)
+  - Update swc and mdx-rs – [Details](https://github.com/parcel-bundler/parcel/commit/3d72dd007ba377c037bd66ca5fa20db6e5a09fcb)
+  - Fix exporting objects with non-configurable prototypes from React Server Components – [Details](https://github.com/parcel-bundler/parcel/commit/f7d5ffd735f723f639f7cb863c899d09e95d46c9)
+
 ## [2.14.4] - 2025-03-29
 
 ### Fixed
