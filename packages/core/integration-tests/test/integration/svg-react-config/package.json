@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "preact": "*"
+  },
+  "alias": {
+    "preact/jsx-dev-runtime": "preact/jsx-runtime"
   }
 }

@@ -95,6 +95,7 @@ Unsupported SVGR option "template".
 
     asset.type = 'jsx';
     asset.bundleBehavior = null;
+    asset.meta.jsxRuntime = 'automatic';
     asset.setBuffer(jsx);
 
     return [asset];
