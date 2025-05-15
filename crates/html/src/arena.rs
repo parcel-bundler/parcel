@@ -626,6 +626,7 @@ impl<'a, 'arena> Serialize for SerializableHandle<'a, 'arena> {
           NodeData::Element {
             ref name,
             ref attrs,
+            ref template_contents,
             ..
           } => {
             serializer.start_elem(
@@ -640,6 +641,10 @@ impl<'a, 'arena> Serialize for SerializableHandle<'a, 'arena> {
               ops.push_front(SerializeOp::Open(c));
               child = c.previous_sibling.get();
             }
+
+            if let Some(template) = template_contents {
+              ops.push_front(SerializeOp::Open(template));
+            }
           }
 
           NodeData::Doctype { ref name, .. } => serializer.write_doctype(name)?,
@@ -653,7 +658,13 @@ impl<'a, 'arena> Serialize for SerializableHandle<'a, 'arena> {
             ref contents,
           } => serializer.write_processing_instruction(target, &*contents.borrow())?,
 
-          NodeData::Document => panic!("Can't serialize Document node itself"),
+          NodeData::Document => {
+            let mut child = handle.last_child.get();
+            while let Some(c) = child {
+              ops.push_front(SerializeOp::Open(c));
+              child = c.previous_sibling.get();
+            }
+          }
         },
 
         SerializeOp::Close(name) => {
