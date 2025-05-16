@@ -5,6 +5,16 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.15.1] - 2025-05-15
+
+### Fixed
+
+- HTML
+  - Fix serializing `<template>` element contents – [Details](https://github.com/parcel-bundler/parcel/commit/e6fe231b037457cc16f9b7603836d39dfb6f91be)
+
+- JavaScript
+  - Skip optional dependencies in ESM externals – [Details](https://github.com/parcel-bundler/parcel/commit/a12ed0ce5a000bad9fb158c1b8740435784201a8)
+
 ## [2.15.0] - 2025-05-11
 
 ### Added

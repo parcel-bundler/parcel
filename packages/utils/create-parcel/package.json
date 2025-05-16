@@ -1,6 +1,6 @@
 {
   "name": "create-parcel",
-  "version": "2.15.0",
+  "version": "2.15.1",
   "bin": "lib/create-parcel.js",
   "main": "src/create-parcel.js",
   "repository": {
