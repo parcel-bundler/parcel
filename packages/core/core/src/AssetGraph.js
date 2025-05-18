@@ -487,7 +487,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let assetNodeIds = [];
     for (let asset of assets) {
       this.normalizeEnvironment(asset);
-      let isDirect = asset.id === entryAssetId || !dependentAssetKeys.has(asset.uniqueKey);
+      let isDirect =
+        asset.id === entryAssetId || !dependentAssetKeys.has(asset.uniqueKey);
 
       let dependentAssets = [];
       for (let dep of asset.dependencies.values()) {

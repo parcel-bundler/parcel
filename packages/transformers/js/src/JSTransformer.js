@@ -919,7 +919,10 @@ export default (new Transformer({
           let env;
           if (dep.kind === 'DynamicImport') {
             // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
-            if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
+            if (
+              asset.env.isWorklet() ||
+              asset.env.context === 'service-worker'
+            ) {
               let loc = convertLoc(dep.loc);
               let diagnostic = {
                 message: `import() is not allowed in ${
@@ -1236,7 +1239,7 @@ export default (new Transformer({
       resultAssets.push(asset);
     }
 
-    if (resultAssets.length > 1 ) {
+    if (resultAssets.length > 1) {
       resultAssets.reverse();
     }
 

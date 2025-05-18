@@ -236,10 +236,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   createChildAsset(): MutableAsset {
-    let asset = this.#asset.createChildAsset({
-      type: this.#asset.value.type,
-      
-    }, this.#asset.value.plugin, this.#asset.value.configPath, this.#asset.value.configKeyPath);
+    let asset = this.#asset.createChildAsset(
+      {
+        type: this.#asset.value.type,
+      },
+      this.#asset.value.plugin,
+      this.#asset.value.configPath,
+      this.#asset.value.configKeyPath,
+    );
     return new MutableAsset(asset);
   }
 
