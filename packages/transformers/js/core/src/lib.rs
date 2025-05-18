@@ -275,18 +275,17 @@ pub fn transform(
       PathBuf::from(&config.filename)
     };
 
+  let mut result = TransformResult::default();
   let (mut module, comments) = if matches!(config.asset_type, Type::Mdx) {
     source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.into());
 
     let res = mdx(&config);
     match res {
       Err(diagnostic) => {
-        let mut result = TransformResult::default();
         result.diagnostics = Some(vec![diagnostic]);
         return Ok(result);
       }
       Ok(res) => {
-        let mut result = TransformResult::default();
         result.mdx_toc = res.toc;
         result.mdx_exports = res.exports;
         result.mdx_assets = res.assets;
@@ -304,7 +303,6 @@ pub fn transform(
           err.into_diagnostic(&handler).emit();
         }
 
-        let mut result = TransformResult::default();
         result.diagnostics = Some(error_buffer_to_diagnostics(&error_buffer, &source_map));
         return Ok(result);
       }
@@ -317,6 +315,7 @@ pub fn transform(
     let unresolved_mark = Mark::fresh(Mark::root());
 
     let mut results = Vec::new();
+    let mut diagnostics = Vec::new();
 
     if matches!(config.context, EnvContext::ReactServer) {
       module.mutate(&mut resolver(
@@ -337,13 +336,13 @@ pub fn transform(
           call_macro.clone(),
           global_mark,
           unresolved_mark,
+          &mut diagnostics,
         ) {
           Ok(mut res) => {
             res.unique_key = Some("parcel-server-actions".into());
             results.push(res);
           }
-          Err(diagnostics) => {
-            let mut result = TransformResult::default();
+          Err(()) => {
             result.diagnostics = Some(diagnostics);
             return Ok(result);
           }
@@ -360,25 +359,24 @@ pub fn transform(
       call_macro,
       global_mark,
       unresolved_mark,
+      &mut diagnostics,
     ) {
       Ok(mut res) => {
         res.unique_key = Some(unique_key);
         results.push(res);
       }
-      Err(diagnostics) => {
-        let mut result = TransformResult::default();
+      Err(()) => {
         result.diagnostics = Some(diagnostics);
         return Ok(result);
       }
     }
 
-    Ok(TransformResult {
-      assets: results,
-      diagnostics: None,
-      mdx_assets: Vec::new(),
-      mdx_toc: Vec::new(),
-      mdx_exports: HashMap::new(),
-    })
+    if !diagnostics.is_empty() {
+      result.diagnostics = Some(diagnostics);
+    }
+
+    result.assets = results;
+    Ok(result)
   })
 }
 
@@ -390,7 +388,8 @@ fn transform_module(
   call_macro: Option<MacroCallback>,
   global_mark: Mark,
   unresolved_mark: Mark,
-) -> Result<TransformResultAsset, Vec<Diagnostic>> {
+  diagnostics: &mut Vec<Diagnostic>,
+) -> Result<TransformResultAsset, ()> {
   let mut result = TransformResultAsset::default();
   let mut map_buf = vec![];
   let mut module = module;
@@ -404,7 +403,6 @@ fn transform_module(
     SourceType::Script => false,
   };
 
-  // swc_core::common::GLOBALS.set(&Globals::new(), || {
   let error_buffer = ErrorBuffer::default();
   let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
   swc_core::common::errors::HANDLER.set(&handler, || {
@@ -563,7 +561,6 @@ fn transform_module(
           assumptions.set_public_class_fields |= true;
         }
 
-        let mut diagnostics = vec![];
         if let Some(call_macro) = call_macro {
           let mut errors = Vec::new();
           module = module.fold_with(&mut Macros::new(call_macro, &source_map, &mut errors));
@@ -591,7 +588,7 @@ fn transform_module(
               is_browser: config.is_browser(),
               used_env: &mut result.used_env,
               source_map: source_map.clone(),
-              diagnostics: &mut diagnostics,
+              diagnostics,
               unresolved_mark,
             },
             config.source_type != SourceType::Script && !config.is_library,
@@ -686,7 +683,7 @@ fn transform_module(
           ignore_mark,
           unresolved_mark,
           &config,
-          &mut diagnostics,
+          diagnostics,
         );
 
         result.helpers = helpers;
@@ -696,7 +693,7 @@ fn transform_module(
           .iter()
           .any(|d| d.severity == DiagnosticSeverity::Error)
         {
-          return Err(diagnostics);
+          return Err(());
         }
 
         let mut collect = Collect::new(
@@ -727,8 +724,9 @@ fn transform_module(
               diagnostics.extend(hoist_diagnostics);
               module
             }
-            Err(diagnostics) => {
-              return Err(diagnostics);
+            Err(d) => {
+              diagnostics.extend(d);
+              return Err(());
             }
           }
         } else {
@@ -747,10 +745,6 @@ fn transform_module(
         result.dependencies.extend(global_deps);
         result.dependencies.extend(fs_deps);
 
-        if !diagnostics.is_empty() {
-          return Err(diagnostics);
-        }
-
         let (buf, src_map_buf) =
           emit(source_map.clone(), comments, &module, config.source_maps).unwrap();
         if config.source_maps
@@ -766,7 +760,6 @@ fn transform_module(
       },
     )
   })
-  // })
 }
 
 pub type ParseResult<T> = Result<T, Vec<Error>>;

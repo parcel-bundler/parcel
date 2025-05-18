@@ -682,6 +682,51 @@ export default (new Transformer({
       logger.warn(warnings.map(convertDiagnostic));
     }
 
+    for (let [i, mdxAsset] of mdx_assets.entries()) {
+      let map;
+      if (asset.env.sourceMap && mdxAsset.position) {
+        // Generate a source map that maps each line of the asset to the original code block.
+        map = new SourceMap(options.projectRoot);
+        let mappings = [];
+        let line = 1;
+        let column = mdxAsset.position.start.column;
+        for (
+          let i = mdxAsset.position.start.line + 1;
+          i < mdxAsset.position.end.line;
+          i++
+        ) {
+          mappings.push({
+            generated: {
+              line,
+              column: 0,
+            },
+            source: asset.filePath,
+            original: {
+              line: i,
+              column,
+            },
+          });
+          line++;
+          column = 0;
+        }
+
+        map.addIndexedMappings(mappings);
+        if (originalMap) {
+          map.extends(originalMap);
+        } else {
+          map.setSourceContent(asset.filePath, code.toString());
+        }
+      }
+
+      macroAssets.push({
+        type: mdxAsset.lang,
+        content: mdxAsset.code,
+        map,
+        uniqueKey: 'mdx-' + i,
+        bundleBehavior: null,
+      });
+    }
+
     let originalAsset = asset;
     let resultAssets = [];
 
@@ -723,51 +768,6 @@ export default (new Transformer({
           exports: mdx_exports,
           tableOfContents: mdx_toc,
         };
-
-        for (let [i, mdxAsset] of mdx_assets.entries()) {
-          let map;
-          if (asset.env.sourceMap && mdxAsset.position) {
-            // Generate a source map that maps each line of the asset to the original code block.
-            map = new SourceMap(options.projectRoot);
-            let mappings = [];
-            let line = 1;
-            let column = mdxAsset.position.start.column;
-            for (
-              let i = mdxAsset.position.start.line + 1;
-              i < mdxAsset.position.end.line;
-              i++
-            ) {
-              mappings.push({
-                generated: {
-                  line,
-                  column: 0,
-                },
-                source: asset.filePath,
-                original: {
-                  line: i,
-                  column,
-                },
-              });
-              line++;
-              column = 0;
-            }
-
-            map.addIndexedMappings(mappings);
-            if (originalMap) {
-              map.extends(originalMap);
-            } else {
-              map.setSourceContent(asset.filePath, code.toString());
-            }
-          }
-
-          macroAssets.push({
-            type: mdxAsset.lang,
-            content: mdxAsset.code,
-            map,
-            uniqueKey: 'mdx-' + i,
-            bundleBehavior: null,
-          });
-        }
       }
 
       for (let env of used_env) {
@@ -1076,7 +1076,7 @@ export default (new Transformer({
           } else {
             let reExportName =
               dep.symbols.get(imported)?.local ??
-              `$${asset.id}$re_export$${local}`;
+              `$${originalAsset.id}$re_export$${local}`;
             asset.symbols.set(local, reExportName);
             dep.symbols.set(imported, reExportName, convertLoc(loc), true);
           }
@@ -1136,7 +1136,7 @@ export default (new Transformer({
             Object.keys(hoist_result.exported_symbols).length === 0) ||
           (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
         ) {
-          asset.symbols.set('*', `$${asset.id}$exports`);
+          asset.symbols.set('*', `$${originalAsset.id}$exports`);
         }
 
         asset.meta.hasCJSExports = hoist_result.has_cjs_exports;
@@ -1193,12 +1193,12 @@ export default (new Transformer({
             (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
           ) {
             asset.symbols.ensure();
-            asset.symbols.set('*', `$${asset.id}$exports`);
+            asset.symbols.set('*', `$${originalAsset.id}$exports`);
           }
         } else {
           // If the asset is wrapped, add * as a fallback
           asset.symbols.ensure();
-          asset.symbols.set('*', `$${asset.id}$exports`);
+          asset.symbols.set('*', `$${originalAsset.id}$exports`);
         }
 
         // For all other imports and requires, mark everything as imported (this covers both dynamic

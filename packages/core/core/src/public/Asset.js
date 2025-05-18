@@ -20,6 +20,7 @@ import type {
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
   BundleBehavior,
+  TransformerResult,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -235,15 +236,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this;
   }
 
-  createChildAsset(): MutableAsset {
+  createChildAsset(result?: TransformerResult): MutableAsset {
     let asset = this.#asset.createChildAsset(
-      {
+      result || {
         type: this.#asset.value.type,
       },
-      this.#asset.value.plugin,
-      this.#asset.value.configPath,
-      this.#asset.value.configKeyPath,
     );
+    asset.transformers = this.#asset.transformers;
+    asset.sourceContent = this.#asset.sourceContent;
     return new MutableAsset(asset);
   }
 

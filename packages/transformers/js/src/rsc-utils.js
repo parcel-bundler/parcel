@@ -53,6 +53,5 @@ export async function decryptClosure(args) {
   });
 
   let res = await createFromReadableStream(stream);
-  console.log(res);
   return res;
 }
