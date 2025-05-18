@@ -420,13 +420,9 @@ export default (new Transformer({
     }
 
     let macroAssets = [];
-    let {
-      assets,
-      diagnostics,
-      mdx_exports,
-      mdx_toc,
-      mdx_assets,
-    } = await (transformAsync || transform)({
+    let {assets, diagnostics, mdx_exports, mdx_toc, mdx_assets} = await (
+      transformAsync || transform
+    )({
       filename: asset.filePath,
       code,
       module_id: asset.id,
