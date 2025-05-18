@@ -9,6 +9,7 @@ mod mdx;
 mod modules;
 mod node_replacer;
 mod react_lazy;
+mod react_server;
 #[cfg(test)]
 mod test_utils;
 mod typeof_replacer;
@@ -37,6 +38,7 @@ use node_replacer::NodeReplacer;
 use parcel_macros::{JsValue, MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
 use react_lazy::ReactLazy;
+use react_server::ReactServer;
 use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{
@@ -308,46 +310,6 @@ pub fn transform(
     Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
   };
 
-  match &module {
-    Program::Module(module) => {
-      for item in &module.body {
-        if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item {
-          if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-            result.directives.push(value.clone());
-            continue;
-          }
-        }
-        break;
-      }
-    }
-    Program::Script(script) => {
-      for item in &script.body {
-        if let Stmt::Expr(ExprStmt { expr, .. }) = item {
-          if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-            result.directives.push(value.clone());
-            continue;
-          }
-        }
-        break;
-      }
-    }
-  }
-
-  if config.is_server() && !config.is_library && result.directives.contains(&"use client".into()) {
-    config.context = EnvContext::ReactClient;
-    config.is_esm_output = true;
-  } else if !config.is_server()
-    && !config.is_library
-    && result.directives.contains(&"use server".into())
-  {
-    config.context = EnvContext::ReactServer;
-    config.is_esm_output = false;
-  }
-
-  let mut global_deps = vec![];
-  let mut fs_deps = vec![];
-  let should_inline_fs =
-    config.inline_fs() && config.source_type != SourceType::Script && code.contains("readFileSync");
   let should_import_swc_helpers = match config.source_type {
     SourceType::Module => true,
     SourceType::Script => false,
@@ -362,6 +324,61 @@ pub fn transform(
           /* external helpers from @swc/helpers */ should_import_swc_helpers,
         ),
         || {
+          let global_mark = Mark::fresh(Mark::root());
+          let unresolved_mark = Mark::fresh(Mark::root());
+
+          if matches!(config.context, EnvContext::ReactServer) {
+            module.mutate(&mut resolver(
+              unresolved_mark,
+              global_mark,
+              config.is_type_script(),
+            ));
+            module.visit_mut_with(&mut ReactServer::new(global_mark, unresolved_mark));
+          }
+
+          match &module {
+            Program::Module(module) => {
+              for item in &module.body {
+                if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item {
+                  if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
+                    result.directives.push(value.clone());
+                    continue;
+                  }
+                }
+                break;
+              }
+            }
+            Program::Script(script) => {
+              for item in &script.body {
+                if let Stmt::Expr(ExprStmt { expr, .. }) = item {
+                  if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
+                    result.directives.push(value.clone());
+                    continue;
+                  }
+                }
+                break;
+              }
+            }
+          }
+
+          if config.is_server()
+            && !config.is_library
+            && result.directives.contains(&"use client".into())
+          {
+            config.context = EnvContext::ReactClient;
+            config.is_esm_output = true;
+          } else if !config.is_server()
+            && !config.is_library
+            && result.directives.contains(&"use server".into())
+          {
+            config.context = EnvContext::ReactServer;
+            config.is_esm_output = false;
+          }
+
+          let mut global_deps = vec![];
+          let mut fs_deps = vec![];
+          let should_inline_fs = config.inline_fs() && config.source_type != SourceType::Script;
+
           let mut react_options = react::Options::default();
           if config.is_jsx() {
             if let Some(jsx_pragma) = &config.jsx_pragma {
@@ -387,8 +404,6 @@ pub fn transform(
             };
           }
 
-          let global_mark = Mark::fresh(Mark::root());
-          let unresolved_mark = Mark::fresh(Mark::root());
           module.mutate(&mut (
             resolver(unresolved_mark, global_mark, config.is_type_script()),
             // Decorators can use type information, so must run before the TypeScript pass.
