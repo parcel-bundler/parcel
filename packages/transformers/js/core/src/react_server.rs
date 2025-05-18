@@ -10,19 +10,23 @@ use crate::utils::is_unresolved;
 pub struct ReactServer {
   global_mark: Mark,
   unresolved_mark: Mark,
+  unique_key: String,
   server_functions: Vec<FnDecl>,
   decrypt_ident: Option<Ident>,
   encrypt_ident: Option<Ident>,
+  references: FxHashSet<Id>,
 }
 
 impl ReactServer {
-  pub fn new(global_mark: Mark, unresolved_mark: Mark) -> Self {
+  pub fn new(global_mark: Mark, unresolved_mark: Mark, unique_key: String) -> Self {
     ReactServer {
       global_mark,
       unresolved_mark,
+      unique_key,
       server_functions: Vec::new(),
       decrypt_ident: None,
       encrypt_ident: None,
+      references: FxHashSet::default(),
     }
   }
 
@@ -39,6 +43,7 @@ impl ReactServer {
       self.global_mark,
       self.unresolved_mark,
       &mut self.decrypt_ident,
+      &mut self.references,
     ) {
       params.insert(
         0,
@@ -107,6 +112,74 @@ impl ReactServer {
     });
 
     res
+  }
+
+  pub fn into_module(mut self) -> Option<Module> {
+    let has_server_functions = !self.server_functions.is_empty();
+    if !has_server_functions {
+      return None;
+    }
+
+    let mut body = vec![ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+      span: DUMMY_SP,
+      expr: Box::new(Expr::Lit("use server".into())),
+    }))];
+
+    if self.decrypt_ident.is_some() {
+      let mut specifiers = Vec::new();
+      if let Some(decrypt_ident) = &self.decrypt_ident {
+        specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
+          span: DUMMY_SP,
+          local: decrypt_ident.clone(),
+          imported: None,
+          is_type_only: false,
+        }));
+      }
+
+      body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+        span: DUMMY_SP,
+        specifiers,
+        src: Box::new("@parcel/transformer-js/src/rsc-utils.js".into()),
+        type_only: false,
+        with: None,
+        phase: Default::default(),
+      })));
+    }
+
+    if !self.references.is_empty() {
+      body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+        span: DUMMY_SP,
+        src: Box::new(self.unique_key.as_str().into()),
+        specifiers: self
+          .references
+          .drain()
+          .map(|(name, ctxt)| {
+            ImportSpecifier::Named(ImportNamedSpecifier {
+              span: DUMMY_SP,
+              local: Ident::new(name, DUMMY_SP, ctxt),
+              imported: None,
+              is_type_only: false,
+            })
+          })
+          .collect(),
+        type_only: false,
+        with: None,
+        phase: Default::default(),
+      })));
+    }
+
+    body.extend(self.server_functions.drain(..).map(|f| {
+      ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+        span: DUMMY_SP,
+        decl: Decl::Fn(f),
+      }))
+    }));
+
+    Some(Module {
+      span: DUMMY_SP,
+      body,
+      shebang: None,
+    })
   }
 }
 
@@ -285,17 +358,56 @@ impl VisitMut for ReactServer {
   fn visit_mut_module(&mut self, node: &mut Module) {
     node.visit_mut_children_with(self);
 
-    let has_server_functions = !self.server_functions.is_empty();
-    if has_server_functions {
-      node.body.extend(self.server_functions.drain(..).map(|f| {
-        ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+    if !self.server_functions.is_empty() {
+      node
+        .body
+        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
           span: DUMMY_SP,
-          decl: Decl::Fn(f),
-        }))
-      }));
+          specifiers: self
+            .server_functions
+            .iter()
+            .map(|f| {
+              ImportSpecifier::Named(ImportNamedSpecifier {
+                span: DUMMY_SP,
+                local: f.ident.clone(),
+                imported: None,
+                is_type_only: false,
+              })
+            })
+            .collect(),
+          src: Box::new("parcel-server-actions".into()),
+          type_only: false,
+          with: None,
+          phase: Default::default(),
+        })))
     }
 
-    if self.encrypt_ident.is_some() || self.decrypt_ident.is_some() {
+    if !self.references.is_empty() {
+      node
+        .body
+        .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+          NamedExport {
+            span: DUMMY_SP,
+            specifiers: self
+              .references
+              .iter()
+              .map(|(id, ctxt)| {
+                ExportSpecifier::Named(ExportNamedSpecifier {
+                  span: DUMMY_SP,
+                  orig: ModuleExportName::Ident(Ident::new(id.clone(), DUMMY_SP, *ctxt)),
+                  exported: None,
+                  is_type_only: false,
+                })
+              })
+              .collect(),
+            src: None,
+            type_only: false,
+            with: None,
+          },
+        )))
+    }
+
+    if self.encrypt_ident.is_some() {
       let mut specifiers = Vec::new();
       if let Some(encrypt_ident) = &self.encrypt_ident {
         specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
@@ -306,54 +418,35 @@ impl VisitMut for ReactServer {
         }));
       }
 
-      if let Some(decrypt_ident) = &self.decrypt_ident {
-        specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
-          span: DUMMY_SP,
-          local: decrypt_ident.clone(),
-          imported: None,
-          is_type_only: false,
-        }));
-      }
-
-      node.body.insert(
-        0,
-        ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+      node
+        .body
+        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
           span: DUMMY_SP,
           specifiers,
           src: Box::new("@parcel/transformer-js/src/rsc-utils.js".into()),
           type_only: false,
           with: None,
           phase: Default::default(),
-        })),
-      )
-    }
-
-    if has_server_functions {
-      // TODO
-      node.body.insert(
-        0,
-        ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-          span: DUMMY_SP,
-          expr: Box::new(Expr::Lit("use server".into())),
-        })),
-      );
+        })));
     }
   }
 }
 
-struct ServerFunctionVisitor {
+struct ServerFunctionVisitor<'a> {
   global_mark: Mark,
   unresolved_mark: Mark,
   decls: FxHashSet<Id>,
   bound: Vec<(Ident, Expr)>,
+  references: &'a mut FxHashSet<Id>,
 }
 
-impl ServerFunctionVisitor {
+impl<'a> ServerFunctionVisitor<'a> {
   fn visit_server_function(
     body: &mut BlockStmt,
     global_mark: Mark,
     unresolved_mark: Mark,
     decrypt_ident: &mut Option<Ident>,
+    references: &mut FxHashSet<Id>,
   ) -> Option<(Ident, ArrayLit)> {
     let decls: FxHashSet<Id> = collect_decls(body);
     let mut visitor = ServerFunctionVisitor {
@@ -361,6 +454,7 @@ impl ServerFunctionVisitor {
       unresolved_mark,
       decls,
       bound: Vec::new(),
+      references,
     };
 
     body.visit_mut_with(&mut visitor);
@@ -427,13 +521,16 @@ impl ServerFunctionVisitor {
     }
   }
 
-  fn is_external_id(&self, id: &Ident) -> bool {
-    !self.decls.contains(&id.to_id())
-      && !is_unresolved(id, self.unresolved_mark)
-      && !id.ctxt.has_mark(self.global_mark)
+  fn is_external_id(&mut self, id: &Ident) -> bool {
+    if id.ctxt.has_mark(self.global_mark) {
+      self.references.insert(id.to_id());
+      return false;
+    }
+
+    !self.decls.contains(&id.to_id()) && !is_unresolved(id, self.unresolved_mark)
   }
 
-  fn is_external_member(&self, member: &MemberExpr) -> bool {
+  fn is_external_member(&mut self, member: &MemberExpr) -> bool {
     if !matches!(member.prop, MemberProp::Ident(_)) {
       return false;
     }
@@ -446,7 +543,7 @@ impl ServerFunctionVisitor {
   }
 }
 
-impl VisitMut for ServerFunctionVisitor {
+impl<'a> VisitMut for ServerFunctionVisitor<'a> {
   fn visit_mut_expr(&mut self, node: &mut Expr) {
     match node {
       Expr::Ident(id) if self.is_external_id(id) => {
@@ -496,6 +593,7 @@ mod test {
     module.visit_mut_with(&mut ReactServer::new(
       context.global_mark,
       context.unresolved_mark,
+      "foo".into(),
     ));
   }
 

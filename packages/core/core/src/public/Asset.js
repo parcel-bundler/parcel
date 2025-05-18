@@ -235,6 +235,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this;
   }
 
+  createChildAsset(): MutableAsset {
+    let asset = this.#asset.createChildAsset({
+      type: this.#asset.value.type,
+      
+    }, this.#asset.value.plugin, this.#asset.value.configPath, this.#asset.value.configKeyPath);
+    return new MutableAsset(asset);
+  }
+
   setMap(map: ?SourceMap): void {
     this.#asset.setMap(map);
   }
@@ -288,6 +296,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       );
     }
     this.#asset.value.uniqueKey = uniqueKey;
+    this.#asset.updateId();
   }
 
   get symbols(): IMutableAssetSymbols {

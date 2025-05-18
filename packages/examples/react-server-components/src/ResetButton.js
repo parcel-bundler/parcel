@@ -1,12 +1,13 @@
 import Button from './Button.js';
 import {setServerState} from './ServerState';
 
+const foo = 'test';
+
 export function ResetButton({value}) {
   let reset = () => {
     'use server';
-    setServerState(value);
+    setServerState(foo + ': ' + value);
   };
 
-  console.log(reset.$$typeof);
   return <Button action={reset}>Reset server state</Button>;
 }

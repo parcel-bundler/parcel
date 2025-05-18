@@ -6,12 +6,10 @@
   "targets": {
     "server": {
       "source": "src/server.js",
-      "context": "react-server"
-    },
-    "react-static": {
-      "source": "static/*.js",
-      "distDir": "dist/static",
-      "context": "react-server"
+      "context": "react-server",
+      "includeNodeModules": {
+        "express": false
+      }
     }
   },
   "scripts": {

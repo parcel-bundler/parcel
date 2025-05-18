@@ -143,11 +143,6 @@ export default (new Runtime({
             );
             code += `let originalModule = parcelRequire(${publicId});\n`;
             code += `for (let key in originalModule) {\n`;
-            code += `      let value = originalModule[key];\n`;
-            code += `      if (typeof value === 'function' && !value.$$typeof) {\n`;
-            code += `        registerServerReference(value, ${publicId}, key);\n`;
-            code += `      }\n`;
-
             code += `  Object.defineProperty(exports, key, {\n`;
             code += `    enumerable: true,\n`;
             code += `    get: () => {\n`;
