@@ -317,35 +317,43 @@ pub fn transform(
     let mut results = Vec::new();
     let mut diagnostics = Vec::new();
 
-    if matches!(config.context, EnvContext::ReactServer) {
-      module.mutate(&mut resolver(
-        unresolved_mark,
-        global_mark,
-        config.is_type_script(),
-      ));
+    module.mutate(&mut resolver(
+      unresolved_mark,
+      global_mark,
+      config.is_type_script(),
+    ));
 
+    if matches!(config.context, EnvContext::ReactServer) {
       let mut rsc = ReactServer::new(global_mark, unresolved_mark, config.unique_key.clone());
       module.visit_mut_with(&mut rsc);
 
-      if let Some(rsc_module) = rsc.into_module() {
-        match transform_module(
-          Program::Module(rsc_module),
-          &comments,
-          &source_map,
-          config.clone(),
-          call_macro.clone(),
-          global_mark,
-          unresolved_mark,
-          &mut diagnostics,
-        ) {
-          Ok(mut res) => {
-            res.unique_key = Some("parcel-server-actions".into());
-            results.push(res);
+      match rsc.into_module(&source_map) {
+        Ok(Some(rsc_module)) => {
+          match transform_module(
+            Program::Module(rsc_module),
+            &comments,
+            &source_map,
+            config.clone(),
+            call_macro.clone(),
+            global_mark,
+            unresolved_mark,
+            &mut diagnostics,
+          ) {
+            Ok(mut res) => {
+              res.unique_key = Some("parcel-server-actions".into());
+              results.push(res);
+            }
+            Err(()) => {
+              result.diagnostics = Some(diagnostics);
+              return Ok(result);
+            }
           }
-          Err(()) => {
-            result.diagnostics = Some(diagnostics);
-            return Ok(result);
-          }
+        }
+        Ok(None) => {}
+        Err(d) => {
+          diagnostics.extend(d);
+          result.diagnostics = Some(diagnostics);
+          return Ok(result);
         }
       }
     }
@@ -362,8 +370,10 @@ pub fn transform(
       &mut diagnostics,
     ) {
       Ok(mut res) => {
-        res.unique_key = Some(unique_key);
-        results.push(res);
+        if !results.is_empty() {
+          res.unique_key = Some(unique_key);
+        }
+        results.insert(0, res);
       }
       Err(()) => {
         result.diagnostics = Some(diagnostics);
@@ -480,7 +490,6 @@ fn transform_module(
         }
 
         module.mutate(&mut (
-          resolver(unresolved_mark, global_mark, config.is_type_script()),
           // Decorators can use type information, so must run before the TypeScript pass.
           Optional::new(
             decorators::decorators(decorators::Config {

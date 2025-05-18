@@ -422,19 +422,7 @@ export default (new Transformer({
     let macroAssets = [];
     let {
       assets,
-      // dependencies,
-      // code: compiledCode,
-      // map,
-      // shebang,
-      // hoist_result,
-      // symbol_result,
-      // needs_esm_helpers,
       diagnostics,
-      // used_env,
-      // has_node_replacements,
-      // is_constant_module,
-      // directives,
-      // helpers,
       mdx_exports,
       mdx_toc,
       mdx_assets,
@@ -1118,8 +1106,9 @@ export default (new Transformer({
           // Using the unique key ensures that the dependency always resolves to the correct asset,
           // even if it came from a transformer that produced multiple assets (e.g. css modules).
           // Also avoids needing a resolution request.
+          asset.uniqueKey ||= asset.id;
           asset.addDependency({
-            specifier: unique_key,
+            specifier: asset.uniqueKey,
             specifierType: 'esm',
             symbols,
           });
@@ -1237,10 +1226,6 @@ export default (new Transformer({
       }
 
       resultAssets.push(asset);
-    }
-
-    if (resultAssets.length > 1) {
-      resultAssets.reverse();
     }
 
     return [...resultAssets, ...macroAssets];

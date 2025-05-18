@@ -8,5 +8,5 @@ export async function generateEncryptionKey() {
     ['encrypt', 'decrypt'],
   );
   const exported = await crypto.subtle.exportKey('raw', key);
-  return Buffer.from(exported).toString('hex');
+  return Array.from(new Uint8Array(exported));
 }

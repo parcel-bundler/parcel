@@ -4,7 +4,7 @@ import {setServerState} from './ServerState';
 const foo = 'test';
 
 export function ResetButton({value}) {
-  let reset = () => {
+  let reset = async () => {
     'use server';
     setServerState(foo + ': ' + value);
   };

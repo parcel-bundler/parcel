@@ -1,11 +1,12 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::common::util::take::Take;
-use swc_core::common::{DUMMY_SP, Mark, Span, SyntaxContext};
+use swc_core::common::{DUMMY_SP, Mark, SourceMap, Span, Spanned, SyntaxContext};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::utils::collect_decls;
 use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
-use crate::utils::is_unresolved;
+use crate::SourceLocation;
+use crate::utils::{CodeHighlight, Diagnostic, is_unresolved};
 
 pub struct ReactServer {
   global_mark: Mark,
@@ -14,7 +15,54 @@ pub struct ReactServer {
   server_functions: Vec<FnDecl>,
   decrypt_ident: Option<Ident>,
   encrypt_ident: Option<Ident>,
-  references: FxHashSet<Id>,
+  references: FxHashMap<Id, Ident>,
+  errors: Vec<ServerFunctionError>,
+}
+
+enum ServerFunctionError {
+  NotAsync(Span),
+  Generator(Span),
+  ThisUsage(Span),
+  SuperUsage(Span),
+  ArgumentsUsage(Span),
+  NotStatic(Span),
+  HasDecorators(Span),
+}
+
+impl ServerFunctionError {
+  fn into_diagnostic(self, source_map: &SourceMap) -> Diagnostic {
+    let (message, span) = match self {
+      ServerFunctionError::NotAsync(span) => ("React Server Functions must be async", span),
+      ServerFunctionError::Generator(span) => ("React Server Functions cannot be generators", span),
+      ServerFunctionError::ThisUsage(span) => {
+        ("`this` is not allowed in React Server Functions", span)
+      }
+      ServerFunctionError::SuperUsage(span) => {
+        ("`super` is not allowed in React Server Functions", span)
+      }
+      ServerFunctionError::ArgumentsUsage(span) => {
+        ("`arguments` is not allowed in React Server Functions", span)
+      }
+      ServerFunctionError::NotStatic(span) => {
+        ("React Server Functions cannot be instance methods", span)
+      }
+      ServerFunctionError::HasDecorators(span) => {
+        ("React Server Functions cannot have decorators", span)
+      }
+    };
+
+    Diagnostic {
+      message: message.into(),
+      code_highlights: Some(vec![CodeHighlight {
+        loc: SourceLocation::from(source_map, span),
+        message: None,
+      }]),
+      show_environment: false,
+      severity: crate::utils::DiagnosticSeverity::Error,
+      hints: None,
+      documentation_url: None,
+    }
+  }
 }
 
 impl ReactServer {
@@ -26,7 +74,8 @@ impl ReactServer {
       server_functions: Vec::new(),
       decrypt_ident: None,
       encrypt_ident: None,
-      references: FxHashSet::default(),
+      references: FxHashMap::default(),
+      errors: Vec::new(),
     }
   }
 
@@ -39,11 +88,13 @@ impl ReactServer {
   ) -> Expr {
     let fn_id = Ident::new_private("a".into(), DUMMY_SP);
     let res = if let Some((ident, arr)) = ServerFunctionVisitor::visit_server_function(
+      &params,
       &mut body,
       self.global_mark,
       self.unresolved_mark,
       &mut self.decrypt_ident,
       &mut self.references,
+      &mut self.errors,
     ) {
       params.insert(
         0,
@@ -114,10 +165,45 @@ impl ReactServer {
     res
   }
 
-  pub fn into_module(mut self) -> Option<Module> {
+  fn is_valid_function(
+    &mut self,
+    is_async: bool,
+    is_generator: bool,
+    has_decorators: bool,
+    span: Span,
+  ) -> bool {
+    if !is_async {
+      self.errors.push(ServerFunctionError::NotAsync(span));
+      return false;
+    }
+
+    if is_generator {
+      self.errors.push(ServerFunctionError::Generator(span));
+      return false;
+    }
+
+    if has_decorators {
+      self.errors.push(ServerFunctionError::HasDecorators(span));
+      return false;
+    }
+
+    return true;
+  }
+
+  pub fn into_module(mut self, source_map: &SourceMap) -> Result<Option<Module>, Vec<Diagnostic>> {
+    if !self.errors.is_empty() {
+      return Err(
+        self
+          .errors
+          .drain(..)
+          .map(|e| e.into_diagnostic(source_map))
+          .collect(),
+      );
+    }
+
     let has_server_functions = !self.server_functions.is_empty();
     if !has_server_functions {
-      return None;
+      return Ok(None);
     }
 
     let mut body = vec![ModuleItem::Stmt(Stmt::Expr(ExprStmt {
@@ -147,21 +233,25 @@ impl ReactServer {
     }
 
     if !self.references.is_empty() {
+      let mut specifiers: Vec<_> = self
+        .references
+        .drain()
+        .map(|((name, ctxt), imported)| {
+          ImportSpecifier::Named(ImportNamedSpecifier {
+            span: DUMMY_SP,
+            local: Ident::new(name, DUMMY_SP, ctxt),
+            imported: Some(ModuleExportName::Ident(imported)),
+            is_type_only: false,
+          })
+        })
+        .collect();
+
+      specifiers.sort_by_cached_key(|s| s.local().sym.clone());
+
       body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         span: DUMMY_SP,
         src: Box::new(self.unique_key.as_str().into()),
-        specifiers: self
-          .references
-          .drain()
-          .map(|(name, ctxt)| {
-            ImportSpecifier::Named(ImportNamedSpecifier {
-              span: DUMMY_SP,
-              local: Ident::new(name, DUMMY_SP, ctxt),
-              imported: None,
-              is_type_only: false,
-            })
-          })
-          .collect(),
+        specifiers,
         type_only: false,
         with: None,
         phase: Default::default(),
@@ -175,11 +265,11 @@ impl ReactServer {
       }))
     }));
 
-    Some(Module {
+    Ok(Some(Module {
       span: DUMMY_SP,
       body,
       shebang: None,
-    })
+    }))
   }
 }
 
@@ -202,12 +292,13 @@ impl VisitMut for ReactServer {
       Decl::Fn(f) => {
         if let Some(body) = &mut f.function.body {
           if is_server_function(body) {
-            if !f.function.is_async {
-              // TODO: error
-            }
-
-            if f.function.is_generator {
-              // TODO: error
+            if !self.is_valid_function(
+              f.function.is_async,
+              f.function.is_generator,
+              !f.function.decorators.is_empty(),
+              f.function.span,
+            ) {
+              return;
             }
 
             let expr = self.add_server_function(
@@ -246,12 +337,8 @@ impl VisitMut for ReactServer {
       Expr::Arrow(f) => {
         if let BlockStmtOrExpr::BlockStmt(body) = &mut *f.body {
           if is_server_function(body) {
-            if !f.is_async {
-              // TODO: error
-            }
-
-            if f.is_generator {
-              // TODO: error
+            if !self.is_valid_function(f.is_async, f.is_generator, false, f.span) {
+              return;
             }
 
             let body = body.take();
@@ -273,12 +360,13 @@ impl VisitMut for ReactServer {
       Expr::Fn(f) => {
         if let Some(body) = &mut f.function.body {
           if is_server_function(body) {
-            if !f.function.is_async {
-              // TODO: error
-            }
-
-            if f.function.is_generator {
-              // TODO: error
+            if !self.is_valid_function(
+              f.function.is_async,
+              f.function.is_generator,
+              !f.function.decorators.is_empty(),
+              f.function.span,
+            ) {
+              return;
             }
 
             *node = self.add_server_function(
@@ -298,9 +386,30 @@ impl VisitMut for ReactServer {
 
   fn visit_mut_prop(&mut self, node: &mut Prop) {
     match node {
-      Prop::Method(f) => {
-        if let Some(body) = &f.function.body {
-          if is_server_function(body) {}
+      Prop::Method(m) => {
+        if let Some(body) = &mut m.function.body {
+          if is_server_function(body) {
+            if !self.is_valid_function(
+              m.function.is_async,
+              m.function.is_generator,
+              !m.function.decorators.is_empty(),
+              m.function.span,
+            ) {
+              return;
+            }
+
+            let f = self.add_server_function(
+              m.function.params.take(),
+              body.take(),
+              m.function.span,
+              m.function.ctxt,
+            );
+
+            *node = Prop::KeyValue(KeyValueProp {
+              key: m.key.take(),
+              value: Box::new(f),
+            });
+          }
         }
       }
       _ => {}
@@ -311,41 +420,86 @@ impl VisitMut for ReactServer {
 
   fn visit_mut_class_member(&mut self, node: &mut ClassMember) {
     match node {
-      ClassMember::Method(f) => {
-        if let Some(body) = &mut f.function.body {
+      ClassMember::Method(m) => {
+        if let Some(body) = &mut m.function.body {
           if is_server_function(body) {
-            if !f.is_static {
-              // TODO: error
+            if !m.is_static {
+              self.errors.push(ServerFunctionError::NotStatic(m.span));
+              return;
             }
 
-            if !f.function.is_async {
-              // TODO: error
+            if !self.is_valid_function(
+              m.function.is_async,
+              m.function.is_generator,
+              !m.function.decorators.is_empty(),
+              m.function.span,
+            ) {
+              return;
             }
 
-            if f.function.is_generator {
-              // TODO: error
-            }
+            let f = self.add_server_function(
+              m.function.params.take(),
+              body.take(),
+              m.function.span,
+              m.function.ctxt,
+            );
 
-            // TODO
+            *node = ClassMember::ClassProp(ClassProp {
+              span: m.span,
+              key: m.key.take(),
+              value: Some(Box::new(f)),
+              type_ann: None,
+              is_static: true,
+              decorators: Vec::new(),
+              accessibility: m.accessibility.take(),
+              is_abstract: m.is_abstract,
+              is_optional: m.is_optional,
+              is_override: m.is_override,
+              readonly: false,
+              declare: false,
+              definite: false,
+            });
           }
         }
       }
-      ClassMember::PrivateMethod(f) => {
-        if let Some(body) = &mut f.function.body {
+      ClassMember::PrivateMethod(m) => {
+        if let Some(body) = &mut m.function.body {
           if is_server_function(body) {
-            if !f.is_static {
-              // TODO: error
+            if !m.is_static {
+              self.errors.push(ServerFunctionError::NotStatic(m.span));
+              return;
             }
 
-            if !f.function.is_async {
-              // TODO: error
+            if !self.is_valid_function(
+              m.function.is_async,
+              m.function.is_generator,
+              !m.function.decorators.is_empty(),
+              m.function.span,
+            ) {
+              return;
             }
 
-            if f.function.is_generator {
-              // TODO: error
-            }
+            let f = self.add_server_function(
+              m.function.params.take(),
+              body.take(),
+              m.function.span,
+              m.function.ctxt,
+            );
 
-            // TODO
+            *node = ClassMember::PrivateProp(PrivateProp {
+              span: m.span,
+              key: m.key.clone(),
+              value: Some(Box::new(f)),
+              type_ann: None,
+              is_static: true,
+              decorators: Vec::new(),
+              accessibility: m.accessibility.take(),
+              is_optional: m.is_optional,
+              is_override: m.is_override,
+              readonly: false,
+              definite: false,
+              ctxt: m.function.ctxt,
+            });
           }
         }
       }
@@ -356,12 +510,23 @@ impl VisitMut for ReactServer {
   }
 
   fn visit_mut_module(&mut self, node: &mut Module) {
+    // First check if the whole file already has a "use server" directive.
+    // If so, then we don't need to proceed any further.
+    for item in &node.body {
+      if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item {
+        if matches!(&**expr, Expr::Lit(Lit::Str(Str { value, .. })) if value == "use server") {
+          return;
+        }
+      }
+    }
+
     node.visit_mut_children_with(self);
 
+    // Insert import statement for extracted server actions module.
     if !self.server_functions.is_empty() {
-      node
-        .body
-        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+      node.body.insert(
+        0,
+        ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
           span: DUMMY_SP,
           specifiers: self
             .server_functions
@@ -379,27 +544,32 @@ impl VisitMut for ReactServer {
           type_only: false,
           with: None,
           phase: Default::default(),
-        })))
+        })),
+      )
     }
 
     if !self.references.is_empty() {
+      let mut specifiers: Vec<_> = self
+        .references
+        .iter()
+        .map(|((id, ctxt), exported)| {
+          ExportSpecifier::Named(ExportNamedSpecifier {
+            span: DUMMY_SP,
+            orig: ModuleExportName::Ident(Ident::new(id.clone(), DUMMY_SP, *ctxt)),
+            exported: Some(ModuleExportName::Ident(exported.clone())),
+            is_type_only: false,
+          })
+        })
+        .collect();
+
+      specifiers.sort_by_cached_key(|s| s.as_named().unwrap().orig.atom().clone());
+
       node
         .body
         .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
           NamedExport {
             span: DUMMY_SP,
-            specifiers: self
-              .references
-              .iter()
-              .map(|(id, ctxt)| {
-                ExportSpecifier::Named(ExportNamedSpecifier {
-                  span: DUMMY_SP,
-                  orig: ModuleExportName::Ident(Ident::new(id.clone(), DUMMY_SP, *ctxt)),
-                  exported: None,
-                  is_type_only: false,
-                })
-              })
-              .collect(),
+            specifiers,
             src: None,
             type_only: false,
             with: None,
@@ -407,27 +577,24 @@ impl VisitMut for ReactServer {
         )))
     }
 
-    if self.encrypt_ident.is_some() {
-      let mut specifiers = Vec::new();
-      if let Some(encrypt_ident) = &self.encrypt_ident {
-        specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
+    // Import encryption helper
+    if let Some(encrypt_ident) = &self.encrypt_ident {
+      node.body.insert(
+        0,
+        ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
           span: DUMMY_SP,
-          local: encrypt_ident.clone(),
-          imported: None,
-          is_type_only: false,
-        }));
-      }
-
-      node
-        .body
-        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-          span: DUMMY_SP,
-          specifiers,
+          specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+            span: DUMMY_SP,
+            local: encrypt_ident.clone(),
+            imported: None,
+            is_type_only: false,
+          })],
           src: Box::new("@parcel/transformer-js/src/rsc-utils.js".into()),
           type_only: false,
           with: None,
           phase: Default::default(),
-        })));
+        })),
+      );
     }
   }
 }
@@ -437,24 +604,29 @@ struct ServerFunctionVisitor<'a> {
   unresolved_mark: Mark,
   decls: FxHashSet<Id>,
   bound: Vec<(Ident, Expr)>,
-  references: &'a mut FxHashSet<Id>,
+  references: &'a mut FxHashMap<Id, Ident>,
+  errors: &'a mut Vec<ServerFunctionError>,
 }
 
 impl<'a> ServerFunctionVisitor<'a> {
   fn visit_server_function(
+    params: &Vec<Param>,
     body: &mut BlockStmt,
     global_mark: Mark,
     unresolved_mark: Mark,
     decrypt_ident: &mut Option<Ident>,
-    references: &mut FxHashSet<Id>,
+    references: &mut FxHashMap<Id, Ident>,
+    errors: &mut Vec<ServerFunctionError>,
   ) -> Option<(Ident, ArrayLit)> {
-    let decls: FxHashSet<Id> = collect_decls(body);
+    let mut decls: FxHashSet<Id> = collect_decls(body);
+    decls.extend(collect_decls(params));
     let mut visitor = ServerFunctionVisitor {
       global_mark,
       unresolved_mark,
       decls,
       bound: Vec::new(),
       references,
+      errors,
     };
 
     body.visit_mut_with(&mut visitor);
@@ -482,6 +654,7 @@ impl<'a> ServerFunctionVisitor<'a> {
         decrypt_ident.clone().unwrap()
       };
 
+      // var [a, b, c] = await decryptClosure(closure);
       body.stmts.insert(
         0,
         Stmt::Decl(Decl::Var(Box::new(VarDecl {
@@ -522,12 +695,27 @@ impl<'a> ServerFunctionVisitor<'a> {
   }
 
   fn is_external_id(&mut self, id: &Ident) -> bool {
+    // Track access to module-level variables.
+    // These will be exported from the main module and imported in the server actions module.
     if id.ctxt.has_mark(self.global_mark) {
-      self.references.insert(id.to_id());
+      let len = self.references.len();
+      self
+        .references
+        .entry(id.to_id())
+        .or_insert_with(|| Ident::new_no_ctxt(format!("__actionShared{}", len).into(), DUMMY_SP));
       return false;
     }
 
-    !self.decls.contains(&id.to_id()) && !is_unresolved(id, self.unresolved_mark)
+    if is_unresolved(id, self.unresolved_mark) {
+      if id.sym == "arguments" {
+        self
+          .errors
+          .push(ServerFunctionError::ArgumentsUsage(id.span));
+      }
+      return false;
+    }
+
+    !self.decls.contains(&id.to_id())
   }
 
   fn is_external_member(&mut self, member: &MemberExpr) -> bool {
@@ -573,35 +761,45 @@ impl<'a> VisitMut for ServerFunctionVisitor<'a> {
   }
 
   fn visit_mut_this_expr(&mut self, node: &mut ThisExpr) {
-    // TODO: error
+    self.errors.push(ServerFunctionError::ThisUsage(node.span))
   }
 
   fn visit_mut_super_prop(&mut self, node: &mut SuperProp) {
-    // TODO: error
+    self
+      .errors
+      .push(ServerFunctionError::SuperUsage(node.span()))
   }
 }
 
 #[cfg(test)]
 mod test {
-  use swc_core::ecma::visit::VisitWith;
-  use swc_core::{common::Mark, ecma::ast::Module};
+  use indoc::indoc;
+  use pretty_assertions::assert_eq;
+  use swc_core::ecma::ast::Module;
 
   use super::*;
   use crate::test_utils::{RunTestContext, run_with_transformation};
 
-  fn run(context: RunTestContext, module: &mut Module) {
-    module.visit_mut_with(&mut ReactServer::new(
-      context.global_mark,
-      context.unresolved_mark,
-      "foo".into(),
-    ));
+  fn run(context: RunTestContext, module: &mut Module) -> Vec<Diagnostic> {
+    let mut rsc = ReactServer::new(context.global_mark, context.unresolved_mark, "foo".into());
+    module.visit_mut_with(&mut rsc);
+
+    match rsc.into_module(&context.source_map) {
+      Ok(Some(m)) => {
+        module.body.extend(m.body);
+      }
+      Ok(None) => {}
+      Err(diagnostics) => return diagnostics,
+    }
+
+    Vec::new()
   }
 
-  // #[test]
+  #[test]
   fn test_arrow() {
     let code = r#"
     function ServerComponent() {
-      let action = () => {
+      let action = async () => {
         "use server";
         console.log('hello');
       };
@@ -609,46 +807,221 @@ mod test {
     "#;
 
     let res = run_with_transformation(code, run);
-    println!("{}", res.0);
-
-    let code = r#"
-let moduleVar = 2;
-function ServerComponent({foo, bar}) {
-  let action = () => {
-    "use server";
-    console.log(foo, bar.baz, doSomething(bar).a, moduleVar);
-  };
-}
-    "#;
-
-    let res = run_with_transformation(code, run);
-    println!("{}", res.0);
-
-    let code = r#"
-let moduleVar = 2;
-function ServerComponent({foo, bar}) {
-  let action = () => {
-    "use server";
-    console.log(foo, bar.baz, doSomething(bar).a, moduleVar);
-
-    let hi = 3;
-    let nested = () => {
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { a } from "parcel-server-actions";
+      function ServerComponent() {
+          let action = a;
+      }
       "use server";
-      console.log(foo, hi);
-    };
+      export async function a() {
+          "use server";
+          console.log('hello');
+      }
+      "#}
+    );
+
+    let code = r#"
+let moduleVar = 2;
+function ServerComponent({foo, bar}) {
+  let action = async (arg) => {
+    "use server";
+    let test = 3;
+    console.log(foo, bar.baz, doSomething(bar).a, moduleVar, test, arg);
   };
 }
     "#;
 
     let res = run_with_transformation(code, run);
-    println!("{}", res.0);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { a } from "parcel-server-actions";
+      let moduleVar = 2;
+      function ServerComponent({ foo, bar }) {
+          let action = a.bind(null, encryptClosure([
+              foo,
+              bar.baz,
+              bar
+          ]));
+      }
+      export { moduleVar as __actionShared0 };
+      "use server";
+      import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { __actionShared0 as moduleVar } from "foo";
+      export async function a(closure, arg) {
+          var [foo, bound, bar] = await decryptClosure(closure);
+          "use server";
+          let test = 3;
+          console.log(foo, bound, doSomething(bar).a, moduleVar, test, arg);
+      }
+      "#}
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let action = () => {
+        "use server";
+        console.log('hello');
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(res.1[0].message, "React Server Functions must be async");
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let action = async () => {
+        "use server";
+        console.log(this);
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`this` is not allowed in React Server Functions"
+    );
+  }
+
+  #[test]
+  fn test_fn_expr() {
+    let code = r#"
+    function ServerComponent() {
+      let action = async function () {
+        "use server";
+        console.log('hello');
+      };
+    }
+    "#;
+
+    let res = run_with_transformation(code, run);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { a } from "parcel-server-actions";
+      function ServerComponent() {
+          let action = a;
+      }
+      "use server";
+      export async function a() {
+          "use server";
+          console.log('hello');
+      }
+      "#}
+    );
+
+    let code = r#"
+let moduleVar = 2;
+let test2 = 4;
+function ServerComponent({foo, bar}) {
+  let action = async function (arg) {
+    "use server";
+    console.log(foo, bar.baz, doSomething(bar).a, moduleVar, test2, arg);
+  };
+}
+    "#;
+
+    let res = run_with_transformation(code, run);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { a } from "parcel-server-actions";
+      let moduleVar = 2;
+      let test2 = 4;
+      function ServerComponent({ foo, bar }) {
+          let action = a.bind(null, encryptClosure([
+              foo,
+              bar.baz,
+              bar
+          ]));
+      }
+      export { moduleVar as __actionShared0, test2 as __actionShared1 };
+      "use server";
+      import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { __actionShared0 as moduleVar, __actionShared1 as test2 } from "foo";
+      export async function a(closure, arg) {
+          var [foo, bound, bar] = await decryptClosure(closure);
+          "use server";
+          console.log(foo, bound, doSomething(bar).a, moduleVar, test2, arg);
+      }
+      "#}
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let action = function () {
+        "use server";
+        console.log('hello');
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(res.1[0].message, "React Server Functions must be async");
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let action = async function *() {
+        "use server";
+        console.log('hello');
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "React Server Functions cannot be generators"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let action = async function () {
+        "use server";
+        console.log(this);
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`this` is not allowed in React Server Functions"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let action = async function () {
+        "use server";
+        console.log(arguments[0]);
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`arguments` is not allowed in React Server Functions"
+    );
   }
 
   #[test]
   fn test_fn_decl() {
     let code = r#"
     function ServerComponent() {
-      function action() {
+      async function action() {
         "use server";
         console.log('hello');
       }
@@ -656,19 +1029,506 @@ function ServerComponent({foo, bar}) {
     "#;
 
     let res = run_with_transformation(code, run);
-    println!("{}", res.0);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { a } from "parcel-server-actions";
+      function ServerComponent() {
+          var action = a;
+      }
+      "use server";
+      export async function a() {
+          "use server";
+          console.log('hello');
+      }
+      "#}
+    );
 
     let code = r#"
 let moduleVar = 2;
 function ServerComponent({foo, bar}) {
-  function action() {
+  async function action(arg) {
     "use server";
-    console.log(foo, bar.baz, doSomething(bar).a, moduleVar);
+    console.log(foo, bar.baz, doSomething(bar).a, moduleVar, arg);
   }
 }
     "#;
 
     let res = run_with_transformation(code, run);
-    println!("{}", res.0);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { a } from "parcel-server-actions";
+      let moduleVar = 2;
+      function ServerComponent({ foo, bar }) {
+          var action = a.bind(null, encryptClosure([
+              foo,
+              bar.baz,
+              bar
+          ]));
+      }
+      export { moduleVar as __actionShared0 };
+      "use server";
+      import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { __actionShared0 as moduleVar } from "foo";
+      export async function a(closure, arg) {
+          var [foo, bound, bar] = await decryptClosure(closure);
+          "use server";
+          console.log(foo, bound, doSomething(bar).a, moduleVar, arg);
+      }
+      "#}
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      function action() {
+        "use server";
+        console.log('hello');
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(res.1[0].message, "React Server Functions must be async");
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      async function *action() {
+        "use server";
+        console.log('hello');
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "React Server Functions cannot be generators"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      async function action() {
+        "use server";
+        console.log(this);
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`this` is not allowed in React Server Functions"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      async function action() {
+        "use server";
+        console.log(arguments[0]);
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`arguments` is not allowed in React Server Functions"
+    );
+  }
+
+  #[test]
+  fn test_object_method() {
+    let code = r#"
+let moduleVar = 2;
+function ServerComponent({foo, bar}) {
+  let test = {
+    async action(arg) {
+      "use server";
+      console.log(foo, bar.baz, doSomething(bar).a, moduleVar, arg);
+    }
+  };
+}
+    "#;
+
+    let res = run_with_transformation(code, run);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { a } from "parcel-server-actions";
+      let moduleVar = 2;
+      function ServerComponent({ foo, bar }) {
+          let test = {
+              action: a.bind(null, encryptClosure([
+                  foo,
+                  bar.baz,
+                  bar
+              ]))
+          };
+      }
+      export { moduleVar as __actionShared0 };
+      "use server";
+      import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { __actionShared0 as moduleVar } from "foo";
+      export async function a(closure, arg) {
+          var [foo, bound, bar] = await decryptClosure(closure);
+          "use server";
+          console.log(foo, bound, doSomething(bar).a, moduleVar, arg);
+      }
+      "#}
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let test = {
+        action() {
+          "use server";
+          console.log('hello');
+        }
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(res.1[0].message, "React Server Functions must be async");
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let test = {
+        async *action() {
+          "use server";
+          console.log('hello');
+        }
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "React Server Functions cannot be generators"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let test = {
+        async action() {
+          "use server";
+          console.log(this);
+        }
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`this` is not allowed in React Server Functions"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      let test = {
+        async action() {
+          "use server";
+          console.log(arguments[0]);
+        }
+      };
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`arguments` is not allowed in React Server Functions"
+    );
+  }
+
+  #[test]
+  fn test_class_method() {
+    let code = r#"
+let moduleVar = 2;
+function ServerComponent({foo, bar}) {
+  class Test {
+    static async action(arg) {
+      "use server";
+      console.log(foo, bar.baz, doSomething(bar).a, moduleVar, arg);
+    }
+  }
+}
+    "#;
+
+    let res = run_with_transformation(code, run);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { a } from "parcel-server-actions";
+      let moduleVar = 2;
+      function ServerComponent({ foo, bar }) {
+          class Test {
+              static action = a.bind(null, encryptClosure([
+                  foo,
+                  bar.baz,
+                  bar
+              ]));
+          }
+      }
+      export { moduleVar as __actionShared0 };
+      "use server";
+      import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { __actionShared0 as moduleVar } from "foo";
+      export async function a(closure, arg) {
+          var [foo, bound, bar] = await decryptClosure(closure);
+          "use server";
+          console.log(foo, bound, doSomething(bar).a, moduleVar, arg);
+      }
+      "#}
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static action() {
+          "use server";
+          console.log('hello');
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(res.1[0].message, "React Server Functions must be async");
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static async *action() {
+          "use server";
+          console.log('hello');
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "React Server Functions cannot be generators"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static async action() {
+          "use server";
+          console.log(this);
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`this` is not allowed in React Server Functions"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static async action() {
+          "use server";
+          console.log(arguments[0]);
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`arguments` is not allowed in React Server Functions"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        async action() {
+          "use server";
+          console.log('hi');
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "React Server Functions cannot be instance methods"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static async action() {
+          "use server";
+          super.action();
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`super` is not allowed in React Server Functions"
+    );
+  }
+
+  #[test]
+  fn test_class_private_method() {
+    let code = r#"
+let moduleVar = 2;
+function ServerComponent({foo, bar}) {
+  class Test {
+    static async #action(arg) {
+      "use server";
+      console.log(foo, bar.baz, doSomething(bar).a, moduleVar, arg);
+    }
+  }
+}
+    "#;
+
+    let res = run_with_transformation(code, run);
+    assert_eq!(
+      res.0,
+      indoc! {r#"
+      import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { a } from "parcel-server-actions";
+      let moduleVar = 2;
+      function ServerComponent({ foo, bar }) {
+          class Test {
+              static #action = a.bind(null, encryptClosure([
+                  foo,
+                  bar.baz,
+                  bar
+              ]));
+          }
+      }
+      export { moduleVar as __actionShared0 };
+      "use server";
+      import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
+      import { __actionShared0 as moduleVar } from "foo";
+      export async function a(closure, arg) {
+          var [foo, bound, bar] = await decryptClosure(closure);
+          "use server";
+          console.log(foo, bound, doSomething(bar).a, moduleVar, arg);
+      }
+      "#}
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static #action() {
+          "use server";
+          console.log('hello');
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(res.1[0].message, "React Server Functions must be async");
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static async *#action() {
+          "use server";
+          console.log('hello');
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "React Server Functions cannot be generators"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static async #action() {
+          "use server";
+          console.log(this);
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`this` is not allowed in React Server Functions"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        static async #action() {
+          "use server";
+          console.log(arguments[0]);
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "`arguments` is not allowed in React Server Functions"
+    );
+
+    let res = run_with_transformation(
+      r#"
+    function ServerComponent() {
+      class Test {
+        async #action() {
+          "use server";
+          console.log('hi');
+        }
+      }
+    }
+    "#,
+      run,
+    );
+    assert_eq!(
+      res.1[0].message,
+      "React Server Functions cannot be instance methods"
+    );
   }
 }
