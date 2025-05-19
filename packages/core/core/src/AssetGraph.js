@@ -478,7 +478,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     // If all of the assets are dependent (e.g. circular dependency),
     // make the first one the main resolved asset.
     let entryAssetId;
-    if (assets.length > 0 && dependentAssetKeys.size === assetsByKey.size) {
+    if (assets.length > 1 && dependentAssetKeys.size === assets.length) {
       entryAssetId = assets[0].id;
     }
 

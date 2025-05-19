@@ -81,7 +81,7 @@ pub struct Config {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub module_id: String,
-  pub unique_key: String,
+  pub unique_key: Option<String>,
   pub project_root: String,
   pub env: HashMap<JsWord, JsWord>,
   pub inline_fs: bool,
@@ -261,7 +261,7 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
 }
 
 pub fn transform(
-  config: Config,
+  mut config: Config,
   call_macro: Option<MacroCallback>,
 ) -> Result<TransformResult, std::io::Error> {
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
@@ -324,7 +324,14 @@ pub fn transform(
     ));
 
     if matches!(config.context, EnvContext::ReactServer) {
-      let mut rsc = ReactServer::new(global_mark, unresolved_mark, config.unique_key.clone());
+      if config.unique_key.is_none() {
+        config.unique_key = Some(config.module_id.clone());
+      }
+      let mut rsc = ReactServer::new(
+        global_mark,
+        unresolved_mark,
+        config.unique_key.clone().unwrap(),
+      );
       module.visit_mut_with(&mut rsc);
 
       match rsc.into_module(&source_map) {
@@ -370,9 +377,7 @@ pub fn transform(
       &mut diagnostics,
     ) {
       Ok(mut res) => {
-        if !results.is_empty() {
-          res.unique_key = Some(unique_key);
-        }
+        res.unique_key = unique_key;
         results.insert(0, res);
       }
       Err(()) => {

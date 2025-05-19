@@ -426,7 +426,7 @@ export default (new Transformer({
       filename: asset.filePath,
       code,
       module_id: asset.id,
-      unique_key: asset.uniqueKey || asset.id,
+      unique_key: asset.uniqueKey,
       project_root: options.projectRoot,
       inline_fs: Boolean(config?.inlineFS),
       context: asset.env.context,
@@ -732,7 +732,7 @@ export default (new Transformer({
       let asset = originalAsset.createChildAsset();
 
       if (unique_key) {
-        asset.uniqueKey = unique_key;
+        asset.uniqueKey ||= unique_key;
       }
 
       if (is_constant_module) {
