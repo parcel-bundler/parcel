@@ -3,6 +3,7 @@
 import Container from './Container.js';
 import {Counter} from './Counter.js';
 import Button from './Button.js';
+import {ResetButton} from './ResetButton';
 import {Files} from './Files';
 import React, {lazy, Suspense} from 'react';
 import './App.css';
@@ -28,6 +29,7 @@ export default async function App() {
           <form>
             <button formAction={like.bind(null, 'yoo')}>Like form</button>
           </form>
+          <ResetButton value="HIIII" />
         </Container>
         <Suspense fallback={<>Loading files...</>}>
           <Files />

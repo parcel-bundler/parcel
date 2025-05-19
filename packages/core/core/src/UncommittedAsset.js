@@ -352,8 +352,8 @@ export default class UncommittedAsset {
 
   createChildAsset(
     result: TransformerResult,
-    plugin: PackageName,
-    configPath: ProjectPath,
+    plugin?: PackageName,
+    configPath?: ProjectPath,
     configKeyPath?: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
