@@ -6,7 +6,7 @@ use swc_core::{
     ast::Module,
     codegen::text_writer::JsWriter,
     parser::{Parser, lexer::Lexer},
-    transforms::base::resolver,
+    transforms::base::{hygiene::hygiene, resolver},
     visit::{Fold, FoldWith, VisitMut, VisitMutWith},
   },
 };
@@ -100,6 +100,8 @@ pub(crate) fn run_with_transformation<R>(
       unresolved_mark,
     };
     let result = transform(context, &mut module);
+
+    module.visit_mut_with(&mut hygiene());
 
     let mut output_buffer = vec![];
     let writer = JsWriter::new(source_map.clone(), "\n", &mut output_buffer, None);
