@@ -86,7 +86,7 @@ impl ReactServer {
     span: Span,
     ctxt: SyntaxContext,
   ) -> Expr {
-    let fn_id = Ident::new_private("a".into(), DUMMY_SP);
+    let fn_id = Ident::new_private(format!("a{}", self.server_functions.len()).into(), DUMMY_SP);
     let res = if let Some((ident, arr)) = ServerFunctionVisitor::visit_server_function(
       &params,
       &mut body,
@@ -540,7 +540,7 @@ impl VisitMut for ReactServer {
               })
             })
             .collect(),
-          src: Box::new("parcel-server-actions".into()),
+          src: Box::new("parcel:server-actions".into()),
           type_only: false,
           with: None,
           phase: Default::default(),
@@ -803,6 +803,11 @@ mod test {
         "use server";
         console.log('hello');
       };
+
+      let action2 = async () => {
+        "use server";
+        console.log('yo');
+      };
     }
     "#;
 
@@ -810,14 +815,19 @@ mod test {
     assert_eq!(
       res.0,
       indoc! {r#"
-      import { a } from "parcel-server-actions";
+      import { a0, a1 } from "parcel:server-actions";
       function ServerComponent() {
-          let action = a;
+          let action = a0;
+          let action2 = a1;
       }
       "use server";
-      export async function a() {
+      export async function a0() {
           "use server";
           console.log('hello');
+      }
+      export async function a1() {
+          "use server";
+          console.log('yo');
       }
       "#}
     );
@@ -828,7 +838,7 @@ function ServerComponent({foo, bar}) {
   let action = async (arg) => {
     "use server";
     let test = 3;
-    console.log(foo, bar.baz, doSomething(bar).a, moduleVar, test, arg);
+    console.log(foo, bar.baz, bar.baz.foo, doSomething(bar).a, moduleVar, test, arg);
   };
 }
     "#;
@@ -838,12 +848,13 @@ function ServerComponent({foo, bar}) {
       res.0,
       indoc! {r#"
       import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       let moduleVar = 2;
       function ServerComponent({ foo, bar }) {
-          let action = a.bind(null, encryptClosure([
+          let action = a0.bind(null, encryptClosure([
               foo,
               bar.baz,
+              bar.baz.foo,
               bar
           ]));
       }
@@ -851,11 +862,11 @@ function ServerComponent({foo, bar}) {
       "use server";
       import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
       import { __actionShared0 as moduleVar } from "foo";
-      export async function a(closure, arg) {
-          var [foo, bound, bar] = await decryptClosure(closure);
+      export async function a0(closure, arg) {
+          var [foo, bound, bound1, bar] = await decryptClosure(closure);
           "use server";
           let test = 3;
-          console.log(foo, bound, doSomething(bar).a, moduleVar, test, arg);
+          console.log(foo, bound, bound1, doSomething(bar).a, moduleVar, test, arg);
       }
       "#}
     );
@@ -905,12 +916,12 @@ function ServerComponent({foo, bar}) {
     assert_eq!(
       res.0,
       indoc! {r#"
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       function ServerComponent() {
-          let action = a;
+          let action = a0;
       }
       "use server";
-      export async function a() {
+      export async function a0() {
           "use server";
           console.log('hello');
       }
@@ -933,11 +944,11 @@ function ServerComponent({foo, bar}) {
       res.0,
       indoc! {r#"
       import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       let moduleVar = 2;
       let test2 = 4;
       function ServerComponent({ foo, bar }) {
-          let action = a.bind(null, encryptClosure([
+          let action = a0.bind(null, encryptClosure([
               foo,
               bar.baz,
               bar
@@ -947,7 +958,7 @@ function ServerComponent({foo, bar}) {
       "use server";
       import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
       import { __actionShared0 as moduleVar, __actionShared1 as test2 } from "foo";
-      export async function a(closure, arg) {
+      export async function a0(closure, arg) {
           var [foo, bound, bar] = await decryptClosure(closure);
           "use server";
           console.log(foo, bound, doSomething(bar).a, moduleVar, test2, arg);
@@ -1032,12 +1043,12 @@ function ServerComponent({foo, bar}) {
     assert_eq!(
       res.0,
       indoc! {r#"
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       function ServerComponent() {
-          var action = a;
+          var action = a0;
       }
       "use server";
-      export async function a() {
+      export async function a0() {
           "use server";
           console.log('hello');
       }
@@ -1059,10 +1070,10 @@ function ServerComponent({foo, bar}) {
       res.0,
       indoc! {r#"
       import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       let moduleVar = 2;
       function ServerComponent({ foo, bar }) {
-          var action = a.bind(null, encryptClosure([
+          var action = a0.bind(null, encryptClosure([
               foo,
               bar.baz,
               bar
@@ -1072,7 +1083,7 @@ function ServerComponent({foo, bar}) {
       "use server";
       import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
       import { __actionShared0 as moduleVar } from "foo";
-      export async function a(closure, arg) {
+      export async function a0(closure, arg) {
           var [foo, bound, bar] = await decryptClosure(closure);
           "use server";
           console.log(foo, bound, doSomething(bar).a, moduleVar, arg);
@@ -1161,11 +1172,11 @@ function ServerComponent({foo, bar}) {
       res.0,
       indoc! {r#"
       import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       let moduleVar = 2;
       function ServerComponent({ foo, bar }) {
           let test = {
-              action: a.bind(null, encryptClosure([
+              action: a0.bind(null, encryptClosure([
                   foo,
                   bar.baz,
                   bar
@@ -1176,7 +1187,7 @@ function ServerComponent({foo, bar}) {
       "use server";
       import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
       import { __actionShared0 as moduleVar } from "foo";
-      export async function a(closure, arg) {
+      export async function a0(closure, arg) {
           var [foo, bound, bar] = await decryptClosure(closure);
           "use server";
           console.log(foo, bound, doSomething(bar).a, moduleVar, arg);
@@ -1273,11 +1284,11 @@ function ServerComponent({foo, bar}) {
       res.0,
       indoc! {r#"
       import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       let moduleVar = 2;
       function ServerComponent({ foo, bar }) {
           class Test {
-              static action = a.bind(null, encryptClosure([
+              static action = a0.bind(null, encryptClosure([
                   foo,
                   bar.baz,
                   bar
@@ -1288,7 +1299,7 @@ function ServerComponent({foo, bar}) {
       "use server";
       import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
       import { __actionShared0 as moduleVar } from "foo";
-      export async function a(closure, arg) {
+      export async function a0(closure, arg) {
           var [foo, bound, bar] = await decryptClosure(closure);
           "use server";
           console.log(foo, bound, doSomething(bar).a, moduleVar, arg);
@@ -1421,11 +1432,11 @@ function ServerComponent({foo, bar}) {
       res.0,
       indoc! {r#"
       import { encryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
-      import { a } from "parcel-server-actions";
+      import { a0 } from "parcel:server-actions";
       let moduleVar = 2;
       function ServerComponent({ foo, bar }) {
           class Test {
-              static #action = a.bind(null, encryptClosure([
+              static #action = a0.bind(null, encryptClosure([
                   foo,
                   bar.baz,
                   bar
@@ -1436,7 +1447,7 @@ function ServerComponent({foo, bar}) {
       "use server";
       import { decryptClosure } from "@parcel/transformer-js/src/rsc-utils.js";
       import { __actionShared0 as moduleVar } from "foo";
-      export async function a(closure, arg) {
+      export async function a0(closure, arg) {
           var [foo, bound, bar] = await decryptClosure(closure);
           "use server";
           console.log(foo, bound, doSomething(bar).a, moduleVar, arg);

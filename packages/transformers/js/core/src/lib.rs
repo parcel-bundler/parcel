@@ -347,7 +347,7 @@ pub fn transform(
             &mut diagnostics,
           ) {
             Ok(mut res) => {
-              res.unique_key = Some("parcel-server-actions".into());
+              res.unique_key = Some("parcel:server-actions".into());
               results.push(res);
             }
             Err(()) => {
