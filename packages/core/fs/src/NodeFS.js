@@ -102,7 +102,7 @@ export class NodeFS implements FileSystem {
           await fsPromises.unlink(filePath);
         }
         await fsPromises.rename(tmpFilePath, filePath);
-      } catch (e: any) {
+      } catch (e) {
         // For Windows: if rename fails with EPERM, compare hashes
         if (
           process.platform === 'win32' &&
