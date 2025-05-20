@@ -237,7 +237,6 @@ pub fn optimize<'arena>(
           }
         }
         expanded_name!(html "meta") => {
-          enumerated(node, expanded_name!("", "charset"), "utf-8", &options);
           if let NodeData::Element { attrs, .. } = &node.data {
             if attrs.borrow().is_empty() {
               node.detach();
@@ -807,7 +806,7 @@ mod tests {
   </body>
 </html>
 "#,
-      r#"<!doctype html><html><head><title>Test</title></head><body>
+      r#"<!doctype html><html><head><meta charset="utf-8"><title>Test</title></head><body>
     <p>Test</p>
     <p>Foo</p>
   
