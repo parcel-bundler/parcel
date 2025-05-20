@@ -2034,7 +2034,7 @@ dependencies = [
 [[package]]
 name = "oxvg_ast"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
+source = "git+https://github.com/noahbald/oxvg.git#94b2abbc1126ca4056d4bb4d14b3ad24f376db15"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -2058,7 +2058,7 @@ dependencies = [
 [[package]]
 name = "oxvg_collections"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
+source = "git+https://github.com/noahbald/oxvg.git#94b2abbc1126ca4056d4bb4d14b3ad24f376db15"
 dependencies = [
  "lazy_static",
  "phf",
@@ -2068,7 +2068,7 @@ dependencies = [
 [[package]]
 name = "oxvg_optimiser"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
+source = "git+https://github.com/noahbald/oxvg.git#94b2abbc1126ca4056d4bb4d14b3ad24f376db15"
 dependencies = [
  "anyhow",
  "derive-where",
@@ -2093,7 +2093,7 @@ dependencies = [
 [[package]]
 name = "oxvg_path"
 version = "0.0.2"
-source = "git+https://github.com/devongovett/oxvg.git?branch=fix-curve-to-shorthand#6cf91d0d4eb6dbdc8388fdc42ead38aaceac73e4"
+source = "git+https://github.com/noahbald/oxvg.git#94b2abbc1126ca4056d4bb4d14b3ad24f376db15"
 dependencies = [
  "bitflags",
  "lightningcss",
