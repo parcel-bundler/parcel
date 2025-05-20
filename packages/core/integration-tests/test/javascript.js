@@ -3025,7 +3025,7 @@ describe('javascript', function () {
       b.getBundles().find(b => b.type === 'js').filePath,
       'utf8',
     );
-    assert(dist.includes('$lodash = require("lodash");'));
+    assert(dist.includes('$eyi1T$lodash = require("lodash");'));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);

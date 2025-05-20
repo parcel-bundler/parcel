@@ -880,8 +880,6 @@ export interface MutableAsset extends BaseAsset {
   /** Sets the asset's source map. */
   setMap(?SourceMap): void;
   setEnvironment(opts: EnvironmentOptions): void;
-  /** Creates a child asset of this asset. */
-  createChildAsset(result?: TransformerResult): MutableAsset;
 }
 
 /**
