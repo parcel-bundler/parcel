@@ -915,9 +915,6 @@ function prepareNodeContext(
   ctx.URL = URL;
   ctx.TextEncoder = TextEncoder;
   ctx.TextDecoder = TextDecoder;
-  ctx.ReadableStream = ReadableStream;
-  // $FlowFixMe
-  ctx.crypto = crypto;
   Object.assign(ctx, globals);
   return ctx;
 }

@@ -8,7 +8,7 @@ edition = "2024"
 napi = ["dep:napi", "dep:napi-derive", "dep:crossbeam-channel"]
 
 [dependencies]
-indexmap = {version = "1.9.2", features = ["serde"] }
+indexmap = "1.9.2"
 swc_core = { version = "21", features = [
   "common",
   "common_sourcemap",
