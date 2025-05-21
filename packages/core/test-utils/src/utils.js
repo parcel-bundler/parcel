@@ -31,6 +31,8 @@ import postHtml from 'posthtml';
 import EventEmitter from 'events';
 import http from 'http';
 import https from 'https';
+// $FlowFixMe
+import {webcrypto as crypto} from 'crypto';
 
 import {
   makeDeferredWithPromise,
