@@ -475,6 +475,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       }
     }
 
+    // If all of the assets are dependent (e.g. circular dependency),
+    // make the first one the main resolved asset.
+    let entryAssetId;
+    if (assets.length > 1 && dependentAssetKeys.size === assets.length) {
+      entryAssetId = assets[0].id;
+    }
+
     let assetObjects: Array<{|
       assetNodeId: NodeId,
       dependentAssets: Array<Asset>,
@@ -482,7 +489,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let assetNodeIds = [];
     for (let asset of assets) {
       this.normalizeEnvironment(asset);
-      let isDirect = !dependentAssetKeys.has(asset.uniqueKey);
+      let isDirect =
+        asset.id === entryAssetId || !dependentAssetKeys.has(asset.uniqueKey);
 
       let dependentAssets = [];
       for (let dep of asset.dependencies.values()) {

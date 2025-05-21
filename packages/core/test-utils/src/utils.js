@@ -31,6 +31,8 @@ import postHtml from 'posthtml';
 import EventEmitter from 'events';
 import http from 'http';
 import https from 'https';
+// $FlowFixMe
+import {webcrypto as crypto} from 'crypto';
 
 import {
   makeDeferredWithPromise,
@@ -915,6 +917,9 @@ function prepareNodeContext(
   ctx.URL = URL;
   ctx.TextEncoder = TextEncoder;
   ctx.TextDecoder = TextDecoder;
+  ctx.ReadableStream = ReadableStream;
+  // $FlowFixMe
+  ctx.crypto = crypto;
   Object.assign(ctx, globals);
   return ctx;
 }
