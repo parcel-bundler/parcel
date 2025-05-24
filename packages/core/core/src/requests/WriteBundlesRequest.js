@@ -13,7 +13,11 @@ import {HASH_REF_PREFIX} from '../constants';
 import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/rust';
-import {createPackageRequest} from './PackageRequest';
+import {
+  canSkipPackageRequest,
+  createPackageRequest,
+  getPackageRequestId,
+} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
 
 type WriteBundlesRequestInput = {|
@@ -93,7 +97,7 @@ async function run({input, api, farm, options}) {
   // This avoids the cost of serializing the bundle graph for single file change builds.
   let useMainThread =
     bundles.length === 1 ||
-    bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
+    bundles.filter(b => !api.canSkipSubrequest(getPackageRequestId(b)))
       .length === 1;
 
   try {
@@ -107,7 +111,9 @@ async function run({input, api, farm, options}) {
           useMainThread,
         });
 
-        let infos = await api.runRequest(request);
+        let {info: infos} = await api.runRequest(request, {
+          force: !(await canSkipPackageRequest(api, request)),
+        });
 
         if (!useMainThread) {
           // Force a refresh of the cache to avoid a race condition

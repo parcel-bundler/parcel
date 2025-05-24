@@ -5,7 +5,7 @@ import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 
 import type {StaticRunOpts} from '../RequestTracker';
-import {requestTypes} from '../RequestTracker';
+import {requestTypes, type RunAPI} from '../RequestTracker';
 import type {Bundle} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo, RunPackagerRunnerResult} from '../PackagerRunner';
@@ -15,6 +15,7 @@ import nullthrows from 'nullthrows';
 import {runConfigRequest} from './ConfigRequest';
 import {getDevDepRequests, runDevDepRequest} from './DevDepRequest';
 import createParcelConfigRequest from './ParcelConfigRequest';
+import type {WriteBundlesRequestResult} from './WriteBundlesRequest';
 
 type PackageRequestInput = {|
   bundleGraph: BundleGraph,
@@ -24,7 +25,10 @@ type PackageRequestInput = {|
   useMainThread?: boolean,
 |};
 
-export type PackageRequestResult = BundleInfo[];
+export type PackageRequestResult = {|
+  hash: string,
+  info: BundleInfo[],
+|};
 
 type RunInput<TResult> = {|
   input: PackageRequestInput,
@@ -34,7 +38,7 @@ type RunInput<TResult> = {|
 export type PackageRequest = {|
   id: ContentKey,
   +type: typeof requestTypes.package_request,
-  run: (RunInput<BundleInfo[]>) => Async<BundleInfo[]>,
+  run: (RunInput<PackageRequestResult>) => Async<PackageRequestResult>,
   input: PackageRequestInput,
 |};
 
@@ -43,10 +47,25 @@ export function createPackageRequest(
 ): PackageRequest {
   return {
     type: requestTypes.package_request,
-    id: input.bundleGraph.getHash(input.bundle),
+    id: getPackageRequestId(input.bundle),
     run,
     input,
   };
+}
+
+export function getPackageRequestId(bundle: Bundle): string {
+  return 'package:' + bundle.id;
+}
+
+export async function canSkipPackageRequest(
+  api: RunAPI<WriteBundlesRequestResult>,
+  request: PackageRequest,
+): Promise<boolean> {
+  return (
+    api.canSkipSubrequest(request.id) &&
+    (await api.getRequestResult<PackageRequestResult>(request.id))?.hash ===
+      request.input.bundleGraph.getHash(request.input.bundle)
+  );
 }
 
 async function run({input, api, farm}) {
@@ -100,6 +119,11 @@ async function run({input, api, farm}) {
     info.time = Date.now() - start;
   }
 
-  api.storeResult(bundleInfo);
-  return bundleInfo;
+  let res = {
+    hash: input.bundleGraph.getHash(input.bundle),
+    info: bundleInfo,
+  };
+
+  api.storeResult(res);
+  return res;
 }
