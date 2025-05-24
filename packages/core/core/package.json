@@ -1,6 +1,6 @@
 {
   "name": "@parcel/core",
-  "version": "2.15.1",
+  "version": "2.15.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -25,21 +25,21 @@
   },
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.1",
-    "@parcel/cache": "2.15.1",
-    "@parcel/diagnostic": "2.15.1",
-    "@parcel/events": "2.15.1",
-    "@parcel/feature-flags": "2.15.1",
-    "@parcel/fs": "2.15.1",
-    "@parcel/graph": "3.5.1",
-    "@parcel/logger": "2.15.1",
-    "@parcel/package-manager": "2.15.1",
-    "@parcel/plugin": "2.15.1",
-    "@parcel/profiler": "2.15.1",
-    "@parcel/rust": "2.15.1",
+    "@parcel/cache": "2.15.2",
+    "@parcel/diagnostic": "2.15.2",
+    "@parcel/events": "2.15.2",
+    "@parcel/feature-flags": "2.15.2",
+    "@parcel/fs": "2.15.2",
+    "@parcel/graph": "3.5.2",
+    "@parcel/logger": "2.15.2",
+    "@parcel/package-manager": "2.15.2",
+    "@parcel/plugin": "2.15.2",
+    "@parcel/profiler": "2.15.2",
+    "@parcel/rust": "2.15.2",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/types": "2.15.1",
-    "@parcel/utils": "2.15.1",
-    "@parcel/workers": "2.15.1",
+    "@parcel/types": "2.15.2",
+    "@parcel/utils": "2.15.2",
+    "@parcel/workers": "2.15.2",
     "base-x": "^3.0.11",
     "browserslist": "^4.24.5",
     "clone": "^2.1.2",
@@ -51,7 +51,7 @@
     "semver": "^7.7.1"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.15.1",
+    "@parcel/babel-register": "2.15.2",
     "@types/node": "^22.15.17",
     "graphviz": "^0.0.9",
     "tempy": "^0.2.1"

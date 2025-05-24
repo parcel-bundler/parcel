@@ -5,11 +5,35 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.15.2] - 2025-05-24
+
+### Fixed
+
+- Core
+
+  - Change minimum required glibc version to 2.26 – [Details](https://github.com/parcel-bundler/parcel/pull/10164)
+  - Cache inline bundle packaging – [Details](https://github.com/parcel-bundler/parcel/commit/a993f9811de6934387f2ae6c77f4e4ace038b30b)
+  - Use stable id for package requests – [Details](https://github.com/parcel-bundler/parcel/commit/afc86c24eec20a12be00be9965546595fc2c6bfc)
+
+- HTML
+  - Do not remove `<meta charset="utf-8">` – [Details](https://github.com/parcel-bundler/parcel/commit/69c06862c4fdb0d9005179dc914e5da8e6d67d63)
+- MDX
+  - Make URL dependencies in MDX files optional – [Details](https://github.com/parcel-bundler/parcel/commit/67e4fe0b6666656c2913655a830bb6f50c660200)
+- React Server Components
+  - Fix memory leak in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/638b12d8ddf7f5f833db815e832c9de5c457299e)
+- Resolver
+  - Fix resolving source package exports condition from self reference – [Details](https://github.com/parcel-bundler/parcel/commit/6820335b0f6ff77c301a26dffbed09751e80deed)
+- SVG
+  - Update oxvg – [Details](https://github.com/parcel-bundler/parcel/commit/7576cfaf38fc074533e28aab4832010496445593)
+- Compressors
+  - Use max level compression for brotli compressor – [Details](https://github.com/parcel-bundler/parcel/pull/10128)
+
 ## [2.15.1] - 2025-05-15
 
 ### Fixed
 
 - HTML
+
   - Fix serializing `<template>` element contents – [Details](https://github.com/parcel-bundler/parcel/commit/e6fe231b037457cc16f9b7603836d39dfb6f91be)
 
 - JavaScript
@@ -20,9 +44,11 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Core
+
   - Distribute Rust binaries for each architecture as separate npm packages – [Details](https://github.com/parcel-bundler/parcel/commit/396c3941f74dc509ee7fe4c60bff8b2c7ecf78a4)
 
 - HTML and SVG
+
   - Add Rust-based transformer/packager/optimizer for HTML and SVG – [Details](https://github.com/parcel-bundler/parcel/pull/10090)
 
 - Resolver
@@ -31,6 +57,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Core
+
   - Avoid segmentation fault on thread exit on Linux – [Details](https://github.com/parcel-bundler/parcel/pull/10144)
   - Support older GLIBC versions on Linux – [Details](https://github.com/parcel-bundler/parcel/pull/10145)
 
@@ -44,6 +71,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Core
+
   - Fix duplicate bundles error message – [Details](https://github.com/parcel-bundler/parcel/pull/10119)
 
 - JavaScript
