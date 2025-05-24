@@ -44,6 +44,7 @@ let serverResolver: ResolverBase;
 let packagingBundles = new Map<NamedBundle, Async<{|contents: Blob|}>>();
 let moduleCache = new Map<string, ParcelModule>();
 let loadedBundles = new Map<NamedBundle, any>();
+let context: any = vm.createContext();
 
 export default (new Packager({
   async loadConfig({options, config}) {
@@ -51,6 +52,7 @@ export default (new Packager({
     packagingBundles.clear();
     moduleCache.clear();
     loadedBundles.clear();
+    context = createContext(options);
     clientResolver = new ResolverBase(options.projectRoot, {
       mode: 2,
       packageExports: true,
@@ -76,19 +78,10 @@ export default (new Packager({
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
-  async package({
-    bundle,
-    bundleGraph,
-    getInlineBundleContents,
-    config,
-    options,
-  }) {
+  async package({bundle, bundleGraph, getInlineBundleContents, config}) {
     if (bundle.env.shouldScopeHoist) {
       throw new Error('Scope hoisting is not supported with SSG');
     }
-
-    // $FlowFixMe
-    globalThis.AsyncLocalStorage ??= AsyncLocalStorage;
 
     let {load, loadModule} = await loadBundle(
       bundle,
@@ -96,8 +89,6 @@ export default (new Packager({
       getInlineBundleContents,
     );
 
-    let env = process.env.NODE_ENV;
-    process.env.NODE_ENV = options.env.NODE_ENV;
     let Component = load(nullthrows(bundle.getMainEntry()).id).default;
     let {renderToReadableStream} = loadModule(
       'react-server-dom-parcel/server.edge',
@@ -115,7 +106,6 @@ export default (new Packager({
       __filename,
       'react-client',
     );
-    process.env.NODE_ENV = env;
     let {injectRSCPayload} = await import('rsc-html-stream/server');
 
     let pages: Page[] = [];
@@ -474,6 +464,38 @@ async function loadBundleUncached(
   return {load: loadAsset, loadModule, assets};
 }
 
+function createContext(options) {
+  // Create a fresh global context to execute code in on each build to avoid memory leaks.
+  // $FlowFixMe
+  let context: any = vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  context.global = context;
+  context.AsyncLocalStorage = AsyncLocalStorage;
+  context.process = new Proxy(process, {
+    get(target, prop, receiver) {
+      // Expose the provided environment variables from Parcel instead of the global ones.
+      if (prop === 'env') {
+        return options.env;
+      }
+
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+
+  // $FlowFixMe
+  for (let key of Object.getOwnPropertyNames(globalThis)) {
+    if (!context.hasOwnProperty(key)) {
+      Object.defineProperty(
+        context,
+        key,
+        // $FlowFixMe
+        Object.getOwnPropertyDescriptor(globalThis, key),
+      );
+    }
+  }
+
+  return context;
+}
+
 function runModule(
   code: string,
   filename: string,
@@ -493,6 +515,7 @@ function runModule(
     ],
     {
       filename,
+      parsingContext: context,
     },
   );
 
