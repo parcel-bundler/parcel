@@ -863,6 +863,7 @@ export default (new Transformer({
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
           needsStableName: Boolean(dep.flags & NEEDS_STABLE_NAME),
+          isOptional: Boolean(dep.flags & OPTIONAL),
           meta: {
             placeholder: dep.placeholder,
           },

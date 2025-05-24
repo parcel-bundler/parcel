@@ -108,7 +108,7 @@ describe('mdx', function () {
   it('should support dependencies', async function () {
     await fsFixture(overlayFS, dir)`
       index.mdx:
-        Testing [urls](another.mdx).
+        Testing [urls](another.mdx). [optional](optional.html)
 
         <audio src="some.mp3" />
 
@@ -143,6 +143,8 @@ describe('mdx', function () {
       ],
       {skipNodeModules: true},
     );
+
+    await run(b);
   });
 
   it('should support code block props', async function () {
