@@ -375,7 +375,7 @@ impl PackageJson {
       }
 
       if let Ok(realpath) = path.canonicalize(&cache) {
-        let is_src = realpath != path && !realpath.in_node_modules();
+        let is_src = !realpath.in_node_modules();
         is_source = Some(is_src);
         is_src
       } else {

@@ -2396,6 +2396,19 @@ describe('resolver', function () {
         path.join(rootDir, 'packages/self/bar.js'),
       );
     });
+
+    it('should support resolving package self with source field', async function () {
+      let resolved = await resolver.resolve({
+        env: NODE_INCLUDE_ENV,
+        filename: 'self-source',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'packages/self-source/foo.js'),
+      });
+      assert.equal(
+        resolved?.filePath,
+        path.join(rootDir, 'packages/self-source/source.js'),
+      );
+    });
   });
 
   describe('symlinks', function () {
