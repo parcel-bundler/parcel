@@ -12,3 +12,5 @@ node-semver = "2.2.0"
 serde = { version = "1.0.123", features = ["derive", "rc"] }
 serde_bytes = "0.11.5"
 serde-value = "0.7.0"
+indexmap = { version = "1.9.2", features = ["serde"] }
+glob-match = "*"

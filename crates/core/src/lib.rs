@@ -3,14 +3,19 @@ use std::{hash::Hash, path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 mod asset;
+mod config;
 mod dependency;
 mod diagnostic;
+mod entry;
 mod environment;
+mod target;
 
 pub use asset::*;
 pub use dependency::*;
 pub use diagnostic::*;
+pub use entry::*;
 pub use environment::*;
+pub use target::*;
 
 // By default, bitflags serializes as a string, but we want the raw number instead.
 macro_rules! impl_bitflags_serde {
