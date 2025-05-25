@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -16,11 +16,21 @@ pub struct Asset {
   pub content: Vec<u8>,
   pub env: Arc<Environment>,
   // pub query: Option<String>,
-  // pub pipeline: Option<String>,
+  pub pipeline: Option<String>,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
   // pub symbols: Vec<Symbol>,
   pub unique_key: Option<String>,
+}
+
+impl Asset {
+  pub fn file_path(&self) -> &Path {
+    self
+      .loc
+      .as_ref()
+      .map(|l| l.file_path.as_path())
+      .unwrap_or(Path::new("")) // TODO
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Hash)]

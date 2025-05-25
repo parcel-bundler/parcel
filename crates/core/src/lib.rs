@@ -9,6 +9,7 @@ mod diagnostic;
 mod entry;
 mod environment;
 mod target;
+mod transformer;
 
 pub use asset::*;
 pub use dependency::*;
@@ -43,7 +44,7 @@ macro_rules! impl_bitflags_serde {
 
 pub(crate) use impl_bitflags_serde;
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
   pub file_path: PathBuf,
@@ -51,7 +52,7 @@ pub struct SourceLocation {
   pub end: Location,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Hash, Serialize, Deserialize)]
 pub struct Location {
   pub line: u32,
   pub column: u32,
