@@ -100,6 +100,14 @@ impl AssetType {
     }
   }
 
+  pub fn from_path(path: &Path) -> AssetType {
+    if let Some(ext) = path.extension().and_then(|ext| ext.to_str()) {
+      AssetType::from_extension(ext)
+    } else {
+      AssetType::Other("".into())
+    }
+  }
+
   pub fn from_mime(mime: &str) -> AssetType {
     match mime {
       // https://mimesniff.spec.whatwg.org/#javascript-mime-type

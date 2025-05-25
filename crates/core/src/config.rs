@@ -8,6 +8,7 @@ use std::{
 
 use crate::{resolver::Resolver, transformer::Transformer};
 
+#[derive(Default)]
 pub struct ParcelConfig {
   pub resolvers: Vec<Plugin<dyn Resolver>>,
   pub transformers: PipelineMap<dyn Transformer>,
@@ -23,6 +24,13 @@ pub struct ParcelConfig {
 
 pub struct PipelineMap<T: ?Sized>(pub IndexMap<String, Vec<PipelineNode<T>>>);
 
+impl<T: ?Sized> Default for PipelineMap<T> {
+  fn default() -> Self {
+    PipelineMap(IndexMap::new())
+  }
+}
+
+#[derive(Default)]
 pub struct Plugin<T: ?Sized> {
   pub package_name: String,
   pub key_path: Option<String>,

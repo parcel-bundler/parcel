@@ -74,6 +74,7 @@ pub fn collect_dependencies<'arena>(
         env: collector.env.clone(),
         bundle_behavior: BundleBehavior::None,
         loc: None,
+        pipeline: None,
       });
 
       let script = NodeData::Element {
@@ -371,6 +372,7 @@ impl<'arena> DependencyCollector<'arena> {
             env: self.create_env(output_format, source_type, node.line),
             bundle_behavior: BundleBehavior::Inline,
             loc: self.create_loc(node.line),
+            pipeline: None,
           });
         }
       }
@@ -405,6 +407,7 @@ impl<'arena> DependencyCollector<'arena> {
           env: self.env.clone(),
           bundle_behavior: BundleBehavior::Inline,
           loc: self.create_loc(node.line),
+          pipeline: None,
         });
       }
       expanded_name!(html "meta") => {
@@ -545,6 +548,7 @@ impl<'arena> DependencyCollector<'arena> {
         env: self.env.clone(),
         bundle_behavior: BundleBehavior::Inline,
         loc: self.create_loc(node.line),
+        pipeline: None,
       });
     }
 

@@ -178,7 +178,6 @@ mod tests {
     let res = transform(input, pipeline, &transformers).unwrap();
 
     assert_eq!(res.len(), 2);
-    println!("{:?}", res);
     assert_eq!(res[0].asset.ty, AssetType::Js);
     assert_eq!(
       res[0].asset.content,

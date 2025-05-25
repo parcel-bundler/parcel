@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use crate::{CodeFrame, Dependency, DependencyFlags, Diagnostic, config::Plugin};
+use crate::{
+  CodeFrame, Dependency, DependencyFlags, Diagnostic,
+  config::{JsPlugin, Plugin},
+};
 
 pub trait Resolver {
   fn resolve(
@@ -9,6 +12,17 @@ pub trait Resolver {
     specifier: &str,
     pipeline: Option<&str>,
   ) -> Result<ResolverResult, Vec<Diagnostic>>;
+}
+
+impl Resolver for JsPlugin {
+  fn resolve(
+    &self,
+    dep: &Dependency,
+    specifier: &str,
+    pipeline: Option<&str>,
+  ) -> Result<ResolverResult, Vec<Diagnostic>> {
+    Err(vec![])
+  }
 }
 
 #[derive(Debug, PartialEq, Clone)]

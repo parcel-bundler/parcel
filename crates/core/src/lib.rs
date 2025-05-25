@@ -3,11 +3,13 @@ use std::{hash::Hash, path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 mod asset;
+mod asset_graph;
 mod config;
 mod dependency;
 mod diagnostic;
 mod entry;
 mod environment;
+mod fs;
 mod resolver;
 mod target;
 mod transformer;
