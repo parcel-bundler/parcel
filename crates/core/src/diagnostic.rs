@@ -46,6 +46,17 @@ pub enum DiagnosticSeverity {
   Info,
 }
 
+impl CodeFrame {
+  pub fn from_loc(loc: &SourceLocation, message: Option<String>) -> CodeFrame {
+    CodeFrame {
+      code: None,
+      file_path: Some(loc.file_path.clone()),
+      language: None,
+      code_highlights: vec![CodeHighlight::from_loc(loc, message)],
+    }
+  }
+}
+
 impl CodeHighlight {
   pub fn from_loc(loc: &SourceLocation, message: Option<String>) -> CodeHighlight {
     CodeHighlight {

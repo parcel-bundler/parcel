@@ -6,32 +6,32 @@ use std::{
   sync::Arc,
 };
 
-use crate::transformer::Transformer;
+use crate::{resolver::Resolver, transformer::Transformer};
 
 pub struct ParcelConfig {
-  pub resolvers: Vec<PluginNode<()>>,
+  pub resolvers: Vec<Plugin<dyn Resolver>>,
   pub transformers: PipelineMap<dyn Transformer>,
-  pub bundler: PluginNode<()>,
-  pub namers: Vec<PluginNode<()>>,
-  pub runtimes: Vec<PluginNode<()>>,
-  pub packagers: IndexMap<String, PluginNode<()>>,
+  pub bundler: Plugin<()>,
+  pub namers: Vec<Plugin<()>>,
+  pub runtimes: Vec<Plugin<()>>,
+  pub packagers: IndexMap<String, Plugin<()>>,
   pub optimizers: PipelineMap<()>,
   pub validators: PipelineMap<()>,
   pub compressors: PipelineMap<()>,
-  pub reporters: Vec<PluginNode<()>>,
+  pub reporters: Vec<Plugin<()>>,
 }
 
 pub struct PipelineMap<T: ?Sized>(pub IndexMap<String, Vec<PipelineNode<T>>>);
 
-pub struct PluginNode<T: ?Sized> {
+pub struct Plugin<T: ?Sized> {
   pub package_name: String,
   pub key_path: Option<String>,
   pub plugin: Arc<T>,
 }
 
-impl<T: ?Sized> Clone for PluginNode<T> {
+impl<T: ?Sized> Clone for Plugin<T> {
   fn clone(&self) -> Self {
-    PluginNode {
+    Plugin {
       package_name: self.package_name.clone(),
       key_path: self.key_path.clone(),
       plugin: self.plugin.clone(),
@@ -39,7 +39,7 @@ impl<T: ?Sized> Clone for PluginNode<T> {
   }
 }
 
-impl<T: ?Sized> PartialEq for PluginNode<T> {
+impl<T: ?Sized> PartialEq for Plugin<T> {
   fn eq(&self, other: &Self) -> bool {
     self.package_name == other.package_name
   }
@@ -50,7 +50,7 @@ pub struct JsPlugin {
   pub resolve_from: PathBuf,
 }
 
-impl<T> std::fmt::Debug for PluginNode<T> {
+impl<T> std::fmt::Debug for Plugin<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     self.package_name.fmt(f)
   }
@@ -58,7 +58,7 @@ impl<T> std::fmt::Debug for PluginNode<T> {
 
 #[derive(Clone)]
 pub enum PipelineNode<T: ?Sized> {
-  Plugin(PluginNode<T>),
+  Plugin(Plugin<T>),
   Spread,
 }
 
@@ -68,7 +68,7 @@ impl<T: ?Sized> PipelineMap<T> {
     path: &Path,
     pipeline: &Option<P>,
     allow_empty: bool,
-  ) -> Vec<PluginNode<T>> {
+  ) -> Vec<Plugin<T>> {
     let basename = path.file_name().unwrap().to_str().unwrap();
     let path = path.as_os_str().to_str().unwrap();
 
@@ -95,7 +95,7 @@ impl<T: ?Sized> PipelineMap<T> {
       return Vec::new();
     }
 
-    fn flatten<T: ?Sized>(matches: &mut Vec<&Vec<PipelineNode<T>>>) -> Vec<PluginNode<T>> {
+    fn flatten<T: ?Sized>(matches: &mut Vec<&Vec<PipelineNode<T>>>) -> Vec<Plugin<T>> {
       if matches.is_empty() {
         return Vec::new();
       }

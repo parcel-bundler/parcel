@@ -8,6 +8,7 @@ mod dependency;
 mod diagnostic;
 mod entry;
 mod environment;
+mod resolver;
 mod target;
 mod transformer;
 

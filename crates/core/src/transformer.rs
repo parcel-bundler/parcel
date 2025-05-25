@@ -1,6 +1,6 @@
 use crate::{
   Asset, Dependency, Diagnostic,
-  config::{JsPlugin, PipelineMap, PluginNode},
+  config::{JsPlugin, PipelineMap, Plugin},
 };
 
 pub trait Transformer {
@@ -22,7 +22,7 @@ impl Transformer for JsPlugin {
 
 pub fn transform(
   asset: Asset,
-  pipeline: Vec<PluginNode<dyn Transformer>>,
+  pipeline: Vec<Plugin<dyn Transformer>>,
   transformers: &PipelineMap<dyn Transformer>,
 ) -> Result<Vec<TransformerResult>, Vec<Diagnostic>> {
   let initial_type = asset.ty.clone();
@@ -145,17 +145,17 @@ mod tests {
 
     let transformers = PipelineMap(indexmap! {
       "*.js".into() => vec![
-        PipelineNode::Plugin(PluginNode::<dyn Transformer> {
+        PipelineNode::Plugin(Plugin::<dyn Transformer> {
           package_name: "multi".into(),
           key_path: None,
           plugin: Arc::new(MultiTransformer {})
         }),
-        PipelineNode::Plugin(PluginNode::<dyn Transformer> {
+        PipelineNode::Plugin(Plugin::<dyn Transformer> {
           package_name: "type-change".into(),
           key_path: None,
           plugin: Arc::new(TypeChangeTransformer {})
         }),
-        PipelineNode::Plugin(PluginNode::<dyn Transformer> {
+        PipelineNode::Plugin(Plugin::<dyn Transformer> {
           package_name: "simple".into(),
           key_path: None,
           plugin: Arc::new(SimpleTransformer {
@@ -164,7 +164,7 @@ mod tests {
         }),
       ],
       "*.css".into() => vec![
-        PipelineNode::Plugin(PluginNode::<dyn Transformer> {
+        PipelineNode::Plugin(Plugin::<dyn Transformer> {
           package_name: "simple".into(),
           key_path: None,
           plugin: Arc::new(SimpleTransformer {
