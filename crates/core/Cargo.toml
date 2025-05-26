@@ -15,3 +15,4 @@ serde-value = "0.7.0"
 indexmap = { version = "1.9.2", features = ["serde"] }
 glob-match = "*"
 petgraph = "*"
+fixedbitset = "0.5.7"

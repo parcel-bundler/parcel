@@ -4,7 +4,10 @@ use std::{
   sync::Arc,
 };
 
-use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::{
+  Direction,
+  graph::{DiGraph, NodeIndex},
+};
 
 use crate::{
   Asset, AssetFlags, AssetType, Dependency, DependencyFlags, Diagnostic, SourceLocation,
@@ -31,7 +34,7 @@ pub enum AssetGraphNode {
 
 #[derive(Debug, Clone)]
 pub struct DependencyNode {
-  dependency: Dependency,
+  pub dependency: Dependency,
   state: DependencyState,
 }
 
@@ -67,6 +70,21 @@ impl AssetGraph {
     let idx = self.assets.len();
     self.assets.push(asset);
     self.graph.add_node(AssetGraphNode::Asset(idx))
+  }
+
+  pub fn dependency_assets<'a>(
+    &'a self,
+    dep: NodeIndex,
+  ) -> impl Iterator<Item = (usize, &'a Asset)> + 'a {
+    self
+      .graph
+      .neighbors_directed(dep, Direction::Outgoing)
+      .map(|node| {
+        let AssetGraphNode::Asset(asset_index) = self.graph[node] else {
+          unreachable!()
+        };
+        (asset_index, &self.assets[asset_index])
+      })
   }
 }
 

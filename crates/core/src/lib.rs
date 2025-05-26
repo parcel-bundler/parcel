@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 mod asset;
 mod asset_graph;
+mod bundle;
+mod bundle_graph;
 mod config;
 mod dependency;
 mod diagnostic;

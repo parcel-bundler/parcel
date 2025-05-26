@@ -1,5 +1,4 @@
 use std::{
-  collections::HashMap,
   ffi::{OsStr, OsString},
   io::{Error, ErrorKind, Result},
   path::{Component, Path, PathBuf},
