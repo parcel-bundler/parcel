@@ -1,6 +1,10 @@
+import {SourceLocation} from "@parcel/types-internal";
+
 export interface MacroContext {
   /** Adds an asset as a dependency of the JS module that called this macro. */
   addAsset(asset: MacroAsset): void;
+  /** The source location of the macro call. */
+  loc: SourceLocation;
   /** Invalidate the macro call whenever the given file changes. */
   invalidateOnFileChange(filePath: string): void;
   /** Invalidate the macro call when a file matching the given pattern is created. */
