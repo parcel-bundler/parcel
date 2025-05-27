@@ -86,6 +86,21 @@ impl AssetGraph {
         (asset_index, &self.assets[asset_index])
       })
   }
+
+  pub fn incoming_dependencies<'a>(
+    &'a self,
+    asset: NodeIndex,
+  ) -> impl Iterator<Item = (usize, &'a Dependency)> + 'a {
+    self
+      .graph
+      .neighbors_directed(asset, Direction::Incoming)
+      .map(|node| {
+        let AssetGraphNode::Dependency(dep_index) = self.graph[node] else {
+          unreachable!()
+        };
+        (dep_index, &self.dependencies[dep_index].dependency)
+      })
+  }
 }
 
 enum Request {

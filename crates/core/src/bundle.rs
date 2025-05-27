@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use crate::{AssetType, BundleBehavior, Environment, impl_bitflags_serde};
 
 pub struct Bundle {
-  ty: AssetType,
-  env: Arc<Environment>,
-  bundle_behavior: BundleBehavior,
-  flags: BundleFlags,
-  name: Option<PathBuf>,
-  assets: Vec<usize>,
-  entry_assets: Vec<usize>,
-  main_entry_asset: Option<usize>,
+  pub ty: AssetType,
+  pub env: Arc<Environment>,
+  pub bundle_behavior: BundleBehavior,
+  pub flags: BundleFlags,
+  pub name: Option<PathBuf>,
+  pub assets: Vec<usize>,
+  pub entry_assets: Vec<usize>,
+  pub main_entry_asset: Option<usize>,
 }
 
 bitflags! {
