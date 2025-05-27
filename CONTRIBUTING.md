@@ -16,7 +16,7 @@ Before starting make sure you have the following installed:
 
 - [git](https://git-scm.com)
 - [Node](https://nodejs.org) at LTS
-- [Yarn](https://yarnpkg.com) at v1
+- [Yarn](https://yarnpkg.com) at v4 and/or enable corepack
 - [Rust](https://www.rust-lang.org/tools/install) stable
 - [Flow](https://flow.org/en/docs/editors) IDE autocompletion and type-checking
 
