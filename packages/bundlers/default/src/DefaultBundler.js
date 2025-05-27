@@ -875,7 +875,8 @@ function createIdealGraph(
               //   // bundle.bundleBehavior == null &&
               //   // !bundle.env.isIsolated() &&
               //   // bundle.env.context === root.env.context
-                bundleRoots.has(bundleRoot)
+                bundleRoots.has(bundleRoot) &&
+                dependency.priority !== 'sync'
               ) {
                 bundleRootGraph.addEdge(
                   bundleRootId,
@@ -986,9 +987,9 @@ function createIdealGraph(
       //     );
       //   }
       // }
+      available.union(reachableAssets[nodeId]);
     }
 
-    available.union(reachableAssets[nodeId]);
 
     // let reachable1 = [];
     // available.forEach(i => reachable1.push(assets[i]))
@@ -1044,7 +1045,7 @@ function createIdealGraph(
   //   // available.union(reachableAssets[i]);
   //   let reachable1 = [];
   //   reachableAssets[i].forEach(i => reachable1.push(assets[i]))
-  //   console.log(assets[bundleRootGraph.getNode(i)], reachable1, ancestorAssets)
+  //   console.log(assets[bundleRootGraph.getNode(i)], reachable1)
   // }
   // Step Internalize async bundles - internalize Async bundles if and only if,
   // the bundle is synchronously available elsewhere.
@@ -1056,6 +1057,11 @@ function createIdealGraph(
 
     if (manualAssetToConfig.has(bundleRoot)) {
       // We internalize for MSBs later, we should never delete MSBs
+      continue;
+    }
+
+    let bundle = getBundleFromBundleRoot(bundleRoot)
+    if (bundle.bundleBehavior != null || bundle.env.isIsolated()) {
       continue;
     }
 
