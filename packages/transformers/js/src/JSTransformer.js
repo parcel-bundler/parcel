@@ -549,12 +549,12 @@ export default (new Transformer({
                     filePath: asset.filePath,
                     start: {
                       line: loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
-                      column: loc.start_col,
+                      column: loc.start_col
                     },
                     end: {
                       line: loc.end_line + Number(asset.meta.startLine ?? 1) - 1,
-                      column: loc.end_col,
-                    },
+                      column: loc.end_col
+                    }
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);
