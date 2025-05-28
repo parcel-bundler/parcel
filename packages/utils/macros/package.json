@@ -18,8 +18,5 @@
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.15.2"
-  },
-  "dependencies": {
-    "@parcel/types-internal": "2.15.2"
   }
 }
