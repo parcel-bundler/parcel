@@ -548,13 +548,15 @@ export default (new Transformer({
                   loc: {
                     filePath: asset.filePath,
                     start: {
-                      line: loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
-                      column: loc.start_col
+                      line:
+                        loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
+                      column: loc.start_col,
                     },
                     end: {
-                      line: loc.end_line + Number(asset.meta.startLine ?? 1) - 1,
-                      column: loc.end_col
-                    }
+                      line:
+                        loc.end_line + Number(asset.meta.startLine ?? 1) - 1,
+                      column: loc.end_col,
+                    },
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);
