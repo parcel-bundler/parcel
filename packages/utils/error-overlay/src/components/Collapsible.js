@@ -6,7 +6,7 @@
  */
 
 /* @flow */
-import {useState} from 'preact/hooks';
+import {useRef} from 'preact/hooks';
 import {theme} from '../styles';
 
 const _collapsibleStyle = {
@@ -40,15 +40,12 @@ type CollapsiblePropsType = {|
 |};
 
 function Collapsible(props: CollapsiblePropsType): React$Element<'details'> {
-  const [collapsed, setCollapsed] = useState(true);
-
-  const toggleCollapsed = () => {
-    setCollapsed(!collapsed);
-  };
+  const ref = useRef(null);
+  const collapsed = ref.current?.open;
 
   const count = props.children.length;
   return (
-    <details open={!collapsed} onToggle={toggleCollapsed}>
+    <details ref={ref}>
       <summary
         style={collapsed ? collapsibleCollapsedStyle : collapsibleExpandedStyle}
       >
@@ -58,7 +55,10 @@ function Collapsible(props: CollapsiblePropsType): React$Element<'details'> {
       </summary>
       <div>
         {props.children}
-        <button onClick={toggleCollapsed} style={collapsibleExpandedStyle}>
+        <button
+          onClick={() => ref.current?.removeAttribute('open')}
+          style={collapsibleExpandedStyle}
+        >
           {`▲ ${count} stack frames were expanded.`}
         </button>
       </div>
