@@ -499,7 +499,7 @@ describe('Graph', () => {
         });
 
         assert.deepEqual(contexts, [
-          [0, undefined],
+          [0, null],
           [1, 'node-0-created-context'],
           [2, 'node-1-created-context'],
           [3, 'node-2-created-context'],
@@ -543,7 +543,7 @@ describe('Graph', () => {
         });
 
         assert.deepEqual(contexts, [
-          [0, undefined],
+          [0, null],
           [1, 'node-0-created-context'],
           [2, 'node-1-created-context'],
           ['exit', 2, 'node-2-created-context'],
