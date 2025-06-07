@@ -78,7 +78,37 @@ export default (new Packager({
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
-  async package({bundle, bundleGraph, getInlineBundleContents, config}) {
+  loadBundleConfig({bundle, bundleGraph}) {
+    let pages: Page[] = [];
+    for (let b of bundleGraph.getEntryBundles()) {
+      let main = b.getMainEntry();
+      if (main && b.type === 'js' && b.needsStableName) {
+        let meta = pageMeta(main.meta);
+        pages.push({
+          url: urlJoin(b.target.publicUrl, b.name),
+          name: b.name,
+          ...meta,
+        });
+      }
+    }
+
+    let referencedBundles = [];
+    for (let b of bundleGraph.getReferencedBundles(bundle, {
+      includeInline: false,
+      includeIsolated: false,
+    })) {
+      referencedBundles.push(b.getContentHash());
+    }
+
+    return {pages, referencedBundles};
+  },
+  async package({
+    bundle,
+    bundleGraph,
+    getInlineBundleContents,
+    config,
+    bundleConfig,
+  }) {
     if (bundle.env.shouldScopeHoist) {
       throw new Error('Scope hoisting is not supported with SSG');
     }
@@ -108,19 +138,7 @@ export default (new Packager({
     );
     let {injectRSCPayload} = await import('rsc-html-stream/server');
 
-    let pages: Page[] = [];
-    for (let b of bundleGraph.getEntryBundles()) {
-      let main = b.getMainEntry();
-      if (main && b.type === 'js' && b.needsStableName) {
-        let meta = pageMeta(main.meta);
-        pages.push({
-          url: urlJoin(b.target.publicUrl, b.name),
-          name: b.name,
-          ...meta,
-        });
-      }
-    }
-
+    let pages: Page[] = bundleConfig.pages;
     let meta = pageMeta(nullthrows(bundle.getMainEntry()).meta);
     let props: PageProps = {
       key: 'page',

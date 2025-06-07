@@ -574,4 +574,147 @@ describe('react static', function () {
     assert(links.includes('/' + path.basename(client1CSS.filePath)));
     assert(!links.includes('/' + path.basename(client2CSS.filePath)));
   });
+
+  it('invalidates the cache when a new page is added', async function () {
+    await fsFixture(overlayFS, dir)`
+    a.jsx:
+      export default function A({pages}) {
+        return (
+          <html>
+            <body>
+              <h1>A</h1>
+              <ul>
+                {pages.map(page => <li key={page.url}>{page.name}</li>)}
+              </ul>
+            </body>
+          </html>
+        );
+      }
+
+    b.jsx:
+      export default function B({pages}) {
+        return (
+          <html>
+            <body>
+              <h1>B</h1>
+              <ul>
+                {pages.map(page => <li key={page.url}>{page.name}</li>)}
+              </ul>
+            </body>
+          </html>
+        );
+      }
+    `;
+
+    let b = await bundle(path.join(dir, '/*.jsx'), {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+      mode: 'production',
+      env: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    for (let [i, page] of ['A', 'B'].entries()) {
+      let output = await overlayFS.readFile(b.getBundles()[i].filePath, 'utf8');
+      assert(output.includes(`<h1>${page}</h1><ul><li>a.html<li>b.html</ul>`));
+    }
+
+    await fsFixture(overlayFS, dir)`
+    c.jsx:
+      export default function A({pages}) {
+        return (
+          <html>
+            <body>
+              <h1>C</h1>
+              <ul>
+                {pages.map(page => <li key={page.url}>{page.name}</li>)}
+              </ul>
+            </body>
+          </html>
+        );
+      }
+    `;
+
+    b = await bundle(path.join(dir, '/*.jsx'), {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+      mode: 'production',
+      env: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    for (let [i, page] of ['A', 'B', 'C'].entries()) {
+      let output = await overlayFS.readFile(b.getBundles()[i].filePath, 'utf8');
+      assert(
+        output.includes(
+          `<h1>${page}</h1><ul><li>a.html<li>b.html<li>c.html</ul>`,
+        ),
+      );
+    }
+  });
+
+  it('invalidates the cache when a client component changes', async function () {
+    await fsFixture(overlayFS, dir)`
+    index.jsx:
+      import {Client} from './client';
+      import './bootstrap';
+
+      export default function Index() {
+        return (
+          <html>
+            <head>
+              <title>Static RSC</title>
+            </head>
+            <body>
+              <h1>This is an RSC!</h1>
+              <Client />
+            </body>
+          </html>
+        );
+      }
+
+    client.jsx:
+      "use client";
+      export function Client() {
+        return <p>Client</p>;
+      }
+
+    bootstrap.js:
+      "use client-entry";
+    `;
+
+    let b = await bundle(path.join(dir, '/index.jsx'), {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+      mode: 'production',
+      env: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    let output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('<p>Client</p>'));
+
+    await fsFixture(overlayFS, dir)`
+    client.jsx:
+      "use client";
+      export function Client() {
+        return <p>Updated</p>;
+      }
+    `;
+
+    b = await bundle(path.join(dir, '/index.jsx'), {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+      mode: 'production',
+      env: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    output = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('<p>Updated</p>'));
+  });
 });
