@@ -51,7 +51,9 @@ export class NodeRunner {
   startWorker(): Promise<void> {
     let entry = nullthrows(this.bundleGraph)
       .getEntryBundles()
-      .find(b => b.env.isNode() && b.type === 'js');
+      .find(
+        b => b.env.isNode() && /^\.(js|mjs|cjs)/.test(path.extname(b.filePath)),
+      );
     if (entry) {
       let relativePath = path.relative(process.cwd(), entry.filePath);
       this.logger.log({message: md`Starting __${relativePath}__...`});
