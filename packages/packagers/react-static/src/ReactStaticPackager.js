@@ -220,6 +220,7 @@ export default (new Packager({
     // There could potentially be a more optimal way of doing this in the future.
     let buffers = [];
     let len = 0;
+    // $FlowFixMe
     let bufferedStream = new TransformStream({
       transform(chunk) {
         len += chunk.length;
