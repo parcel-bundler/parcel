@@ -3293,12 +3293,12 @@ __metadata:
   dependencies:
     "@babel/core": "npm:^7.22.11"
     "@babel/plugin-transform-runtime": "npm:^7.22.10"
-    "@parcel/babel-preset-env": "npm:2.15.2"
+    "@parcel/babel-preset-env": "npm:2.15.3"
     semver: "npm:^7.7.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/babel-preset-env@npm:2.15.2, @parcel/babel-preset-env@workspace:packages/utils/babel-preset-env":
+"@parcel/babel-preset-env@npm:2.15.3, @parcel/babel-preset-env@workspace:packages/utils/babel-preset-env":
   version: 0.0.0-use.local
   resolution: "@parcel/babel-preset-env@workspace:packages/utils/babel-preset-env"
   dependencies:
@@ -3310,7 +3310,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/babel-preset@npm:2.15.2, @parcel/babel-preset@workspace:packages/dev/babel-preset":
+"@parcel/babel-preset@npm:2.15.3, @parcel/babel-preset@workspace:packages/dev/babel-preset":
   version: 0.0.0-use.local
   resolution: "@parcel/babel-preset@workspace:packages/dev/babel-preset"
   dependencies:
@@ -3325,12 +3325,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/babel-register@npm:*, @parcel/babel-register@npm:2.15.2, @parcel/babel-register@workspace:packages/dev/babel-register":
+"@parcel/babel-register@npm:*, @parcel/babel-register@npm:2.15.3, @parcel/babel-register@workspace:packages/dev/babel-register":
   version: 0.0.0-use.local
   resolution: "@parcel/babel-register@workspace:packages/dev/babel-register"
   dependencies:
     "@babel/register": "npm:^7.22.5"
-    "@parcel/babel-preset": "npm:2.15.2"
+    "@parcel/babel-preset": "npm:2.15.3"
     resolve: "npm:^1.22.10"
   peerDependencies:
     "@babel/core": ^7.22.11
@@ -3341,27 +3341,27 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/bundle-stats@workspace:packages/dev/bundle-stats-cli"
   dependencies:
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/query": "npm:2.15.2"
-    "@parcel/reporter-bundle-stats": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/query": "npm:2.15.3"
+    "@parcel/reporter-bundle-stats": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     commander: "npm:^12.1.0"
   bin:
     parcel-bundle-stats: src/bin.js
   languageName: unknown
   linkType: soft
 
-"@parcel/bundler-default@npm:2.15.2, @parcel/bundler-default@workspace:packages/bundlers/default":
+"@parcel/bundler-default@npm:2.15.3, @parcel/bundler-default@workspace:packages/bundlers/default":
   version: 0.0.0-use.local
   resolution: "@parcel/bundler-default@workspace:packages/bundlers/default"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/graph": "npm:3.5.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/graph": "npm:3.5.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
@@ -3370,26 +3370,26 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/bundler-library@workspace:packages/bundlers/library"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/cache@npm:2.15.2, @parcel/cache@workspace:packages/core/cache":
+"@parcel/cache@npm:2.15.3, @parcel/cache@workspace:packages/core/cache":
   version: 0.0.0-use.local
   resolution: "@parcel/cache@workspace:packages/core/cache"
   dependencies:
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/logger": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/logger": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     idb: "npm:^5.0.8"
     lmdb: "npm:2.8.5"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
-"@parcel/codeframe@npm:2.15.2, @parcel/codeframe@workspace:packages/core/codeframe":
+"@parcel/codeframe@npm:2.15.3, @parcel/codeframe@workspace:packages/core/codeframe":
   version: 0.0.0-use.local
   resolution: "@parcel/codeframe@workspace:packages/core/codeframe"
   dependencies:
@@ -3404,7 +3404,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/compressor-brotli@workspace:packages/compressors/brotli"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -3412,87 +3412,87 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/compressor-gzip@workspace:packages/compressors/gzip"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/compressor-raw@npm:2.15.2, @parcel/compressor-raw@workspace:packages/compressors/raw":
+"@parcel/compressor-raw@npm:2.15.3, @parcel/compressor-raw@workspace:packages/compressors/raw":
   version: 0.0.0-use.local
   resolution: "@parcel/compressor-raw@workspace:packages/compressors/raw"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/config-default@npm:2.15.2, @parcel/config-default@workspace:packages/configs/default":
+"@parcel/config-default@npm:2.15.3, @parcel/config-default@workspace:packages/configs/default":
   version: 0.0.0-use.local
   resolution: "@parcel/config-default@workspace:packages/configs/default"
   dependencies:
-    "@parcel/bundler-default": "npm:2.15.2"
-    "@parcel/compressor-raw": "npm:2.15.2"
-    "@parcel/namer-default": "npm:2.15.2"
-    "@parcel/optimizer-css": "npm:2.15.2"
-    "@parcel/optimizer-html": "npm:2.15.2"
-    "@parcel/optimizer-image": "npm:2.15.2"
-    "@parcel/optimizer-svg": "npm:2.15.2"
-    "@parcel/optimizer-swc": "npm:2.15.2"
-    "@parcel/packager-css": "npm:2.15.2"
-    "@parcel/packager-html": "npm:2.15.2"
-    "@parcel/packager-js": "npm:2.15.2"
-    "@parcel/packager-raw": "npm:2.15.2"
-    "@parcel/packager-svg": "npm:2.15.2"
-    "@parcel/packager-wasm": "npm:2.15.2"
-    "@parcel/reporter-dev-server": "npm:2.15.2"
-    "@parcel/resolver-default": "npm:2.15.2"
-    "@parcel/runtime-browser-hmr": "npm:2.15.2"
-    "@parcel/runtime-js": "npm:2.15.2"
-    "@parcel/runtime-rsc": "npm:2.15.2"
-    "@parcel/runtime-service-worker": "npm:2.15.2"
-    "@parcel/transformer-babel": "npm:2.15.2"
-    "@parcel/transformer-css": "npm:2.15.2"
-    "@parcel/transformer-html": "npm:2.15.2"
-    "@parcel/transformer-image": "npm:2.15.2"
-    "@parcel/transformer-js": "npm:2.15.2"
-    "@parcel/transformer-json": "npm:2.15.2"
-    "@parcel/transformer-node": "npm:2.15.2"
-    "@parcel/transformer-postcss": "npm:2.15.2"
-    "@parcel/transformer-posthtml": "npm:2.15.2"
-    "@parcel/transformer-raw": "npm:2.15.2"
-    "@parcel/transformer-react-refresh-wrap": "npm:2.15.2"
-    "@parcel/transformer-svg": "npm:2.15.2"
+    "@parcel/bundler-default": "npm:2.15.3"
+    "@parcel/compressor-raw": "npm:2.15.3"
+    "@parcel/namer-default": "npm:2.15.3"
+    "@parcel/optimizer-css": "npm:2.15.3"
+    "@parcel/optimizer-html": "npm:2.15.3"
+    "@parcel/optimizer-image": "npm:2.15.3"
+    "@parcel/optimizer-svg": "npm:2.15.3"
+    "@parcel/optimizer-swc": "npm:2.15.3"
+    "@parcel/packager-css": "npm:2.15.3"
+    "@parcel/packager-html": "npm:2.15.3"
+    "@parcel/packager-js": "npm:2.15.3"
+    "@parcel/packager-raw": "npm:2.15.3"
+    "@parcel/packager-svg": "npm:2.15.3"
+    "@parcel/packager-wasm": "npm:2.15.3"
+    "@parcel/reporter-dev-server": "npm:2.15.3"
+    "@parcel/resolver-default": "npm:2.15.3"
+    "@parcel/runtime-browser-hmr": "npm:2.15.3"
+    "@parcel/runtime-js": "npm:2.15.3"
+    "@parcel/runtime-rsc": "npm:2.15.3"
+    "@parcel/runtime-service-worker": "npm:2.15.3"
+    "@parcel/transformer-babel": "npm:2.15.3"
+    "@parcel/transformer-css": "npm:2.15.3"
+    "@parcel/transformer-html": "npm:2.15.3"
+    "@parcel/transformer-image": "npm:2.15.3"
+    "@parcel/transformer-js": "npm:2.15.3"
+    "@parcel/transformer-json": "npm:2.15.3"
+    "@parcel/transformer-node": "npm:2.15.3"
+    "@parcel/transformer-postcss": "npm:2.15.3"
+    "@parcel/transformer-posthtml": "npm:2.15.3"
+    "@parcel/transformer-raw": "npm:2.15.3"
+    "@parcel/transformer-react-refresh-wrap": "npm:2.15.3"
+    "@parcel/transformer-svg": "npm:2.15.3"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
-"@parcel/config-repl@npm:2.15.2, @parcel/config-repl@workspace:packages/configs/repl":
+"@parcel/config-repl@npm:2.15.3, @parcel/config-repl@workspace:packages/configs/repl":
   version: 0.0.0-use.local
   resolution: "@parcel/config-repl@workspace:packages/configs/repl"
   dependencies:
-    "@parcel/bundler-default": "npm:2.15.2"
-    "@parcel/compressor-raw": "npm:2.15.2"
-    "@parcel/namer-default": "npm:2.15.2"
-    "@parcel/optimizer-terser": "npm:2.15.2"
-    "@parcel/packager-css": "npm:2.15.2"
-    "@parcel/packager-html": "npm:2.15.2"
-    "@parcel/packager-js": "npm:2.15.2"
-    "@parcel/packager-raw": "npm:2.15.2"
-    "@parcel/reporter-dev-server-sw": "npm:2.15.2"
-    "@parcel/reporter-json": "npm:2.15.2"
-    "@parcel/resolver-default": "npm:2.15.2"
-    "@parcel/resolver-repl-runtimes": "npm:2.15.2"
-    "@parcel/runtime-browser-hmr": "npm:2.15.2"
-    "@parcel/runtime-js": "npm:2.15.2"
-    "@parcel/transformer-babel": "npm:2.15.2"
-    "@parcel/transformer-css": "npm:2.15.2"
-    "@parcel/transformer-html": "npm:2.15.2"
-    "@parcel/transformer-inline-string": "npm:2.15.2"
-    "@parcel/transformer-js": "npm:2.15.2"
-    "@parcel/transformer-json": "npm:2.15.2"
-    "@parcel/transformer-postcss": "npm:2.15.2"
-    "@parcel/transformer-posthtml": "npm:2.15.2"
-    "@parcel/transformer-raw": "npm:2.15.2"
-    "@parcel/transformer-react-refresh-wrap": "npm:2.15.2"
+    "@parcel/bundler-default": "npm:2.15.3"
+    "@parcel/compressor-raw": "npm:2.15.3"
+    "@parcel/namer-default": "npm:2.15.3"
+    "@parcel/optimizer-terser": "npm:2.15.3"
+    "@parcel/packager-css": "npm:2.15.3"
+    "@parcel/packager-html": "npm:2.15.3"
+    "@parcel/packager-js": "npm:2.15.3"
+    "@parcel/packager-raw": "npm:2.15.3"
+    "@parcel/reporter-dev-server-sw": "npm:2.15.3"
+    "@parcel/reporter-json": "npm:2.15.3"
+    "@parcel/resolver-default": "npm:2.15.3"
+    "@parcel/resolver-repl-runtimes": "npm:2.15.3"
+    "@parcel/runtime-browser-hmr": "npm:2.15.3"
+    "@parcel/runtime-js": "npm:2.15.3"
+    "@parcel/transformer-babel": "npm:2.15.3"
+    "@parcel/transformer-css": "npm:2.15.3"
+    "@parcel/transformer-html": "npm:2.15.3"
+    "@parcel/transformer-inline-string": "npm:2.15.3"
+    "@parcel/transformer-js": "npm:2.15.3"
+    "@parcel/transformer-json": "npm:2.15.3"
+    "@parcel/transformer-postcss": "npm:2.15.3"
+    "@parcel/transformer-posthtml": "npm:2.15.3"
+    "@parcel/transformer-raw": "npm:2.15.3"
+    "@parcel/transformer-react-refresh-wrap": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -3500,37 +3500,37 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/config-webextension@workspace:packages/configs/webextension"
   dependencies:
-    "@parcel/config-default": "npm:2.15.2"
-    "@parcel/packager-webextension": "npm:2.15.2"
-    "@parcel/runtime-webextension": "npm:2.15.2"
-    "@parcel/transformer-raw": "npm:2.15.2"
-    "@parcel/transformer-webextension": "npm:2.15.2"
+    "@parcel/config-default": "npm:2.15.3"
+    "@parcel/packager-webextension": "npm:2.15.3"
+    "@parcel/runtime-webextension": "npm:2.15.3"
+    "@parcel/transformer-raw": "npm:2.15.3"
+    "@parcel/transformer-webextension": "npm:2.15.3"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
-"@parcel/core@npm:2.15.2, @parcel/core@workspace:packages/core/core":
+"@parcel/core@npm:2.15.3, @parcel/core@workspace:packages/core/core":
   version: 0.0.0-use.local
   resolution: "@parcel/core@workspace:packages/core/core"
   dependencies:
     "@mischnic/json-sourcemap": "npm:^0.1.1"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/cache": "npm:2.15.2"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/events": "npm:2.15.2"
-    "@parcel/feature-flags": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/graph": "npm:3.5.2"
-    "@parcel/logger": "npm:2.15.2"
-    "@parcel/package-manager": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/profiler": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/cache": "npm:2.15.3"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/events": "npm:2.15.3"
+    "@parcel/feature-flags": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/graph": "npm:3.5.3"
+    "@parcel/logger": "npm:2.15.3"
+    "@parcel/package-manager": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/profiler": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
-    "@parcel/workers": "npm:2.15.2"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
+    "@parcel/workers": "npm:2.15.3"
     "@types/node": "npm:^22.15.17"
     base-x: "npm:^3.0.11"
     browserslist: "npm:^4.24.5"
@@ -3551,7 +3551,7 @@ __metadata:
   resolution: "@parcel/create-react-app@workspace:packages/utils/create-react-app"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
     chalk: "npm:^4.1.2"
     command-exists: "npm:^1.2.9"
     commander: "npm:^12.1.0"
@@ -3566,7 +3566,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/diagnostic@npm:2.15.2, @parcel/diagnostic@workspace:packages/core/diagnostic":
+"@parcel/diagnostic@npm:2.15.3, @parcel/diagnostic@workspace:packages/core/diagnostic":
   version: 0.0.0-use.local
   resolution: "@parcel/diagnostic@workspace:packages/core/diagnostic"
   dependencies:
@@ -3575,7 +3575,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/error-overlay@npm:2.15.2, @parcel/error-overlay@workspace:packages/utils/error-overlay":
+"@parcel/error-overlay@npm:2.15.3, @parcel/error-overlay@workspace:packages/utils/error-overlay":
   version: 0.0.0-use.local
   resolution: "@parcel/error-overlay@workspace:packages/utils/error-overlay"
   dependencies:
@@ -3588,21 +3588,21 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/eslint-config-browser@workspace:packages/dev/eslint-config-browser"
   dependencies:
-    "@parcel/eslint-config": "npm:2.15.2"
+    "@parcel/eslint-config": "npm:2.15.3"
   peerDependencies:
     "@babel/core": ^7.22.11
     eslint: ">= 7.0.0"
   languageName: unknown
   linkType: soft
 
-"@parcel/eslint-config@npm:2.15.2, @parcel/eslint-config@workspace:packages/dev/eslint-config":
+"@parcel/eslint-config@npm:2.15.3, @parcel/eslint-config@workspace:packages/dev/eslint-config":
   version: 0.0.0-use.local
   resolution: "@parcel/eslint-config@workspace:packages/dev/eslint-config"
   dependencies:
     "@babel/eslint-parser": "npm:^7.22.11"
     "@babel/plugin-syntax-flow": "npm:^7.14.5"
     "@babel/plugin-transform-react-jsx": "npm:^7.14.9"
-    "@parcel/eslint-plugin": "npm:2.15.2"
+    "@parcel/eslint-plugin": "npm:2.15.3"
     eslint-config-prettier: "npm:^8.10.0"
     eslint-plugin-flowtype: "npm:^8.0.3"
     eslint-plugin-import: "npm:^2.31.0"
@@ -3620,14 +3620,14 @@ __metadata:
   resolution: "@parcel/eslint-example@workspace:packages/examples/eslint-example"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/validator-eslint": "npm:2.15.2"
-    parcel: "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/validator-eslint": "npm:2.15.3"
+    parcel: "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/eslint-plugin@npm:2.15.2, @parcel/eslint-plugin@workspace:packages/dev/eslint-plugin":
+"@parcel/eslint-plugin@npm:2.15.3, @parcel/eslint-plugin@workspace:packages/dev/eslint-plugin":
   version: 0.0.0-use.local
   resolution: "@parcel/eslint-plugin@workspace:packages/dev/eslint-plugin"
   dependencies:
@@ -3638,43 +3638,43 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/events@npm:2.15.2, @parcel/events@workspace:packages/utils/events":
+"@parcel/events@npm:2.15.3, @parcel/events@workspace:packages/utils/events":
   version: 0.0.0-use.local
   resolution: "@parcel/events@workspace:packages/utils/events"
   languageName: unknown
   linkType: soft
 
-"@parcel/feature-flags@npm:2.15.2, @parcel/feature-flags@workspace:packages/core/feature-flags":
+"@parcel/feature-flags@npm:2.15.3, @parcel/feature-flags@workspace:packages/core/feature-flags":
   version: 0.0.0-use.local
   resolution: "@parcel/feature-flags@workspace:packages/core/feature-flags"
   languageName: unknown
   linkType: soft
 
-"@parcel/fs@npm:2.15.2, @parcel/fs@workspace:packages/core/fs":
+"@parcel/fs@npm:2.15.3, @parcel/fs@workspace:packages/core/fs":
   version: 0.0.0-use.local
   resolution: "@parcel/fs@workspace:packages/core/fs"
   dependencies:
-    "@parcel/feature-flags": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/types-internal": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/feature-flags": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/types-internal": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     "@parcel/watcher": "npm:^2.0.7"
-    "@parcel/watcher-watchman-js": "npm:2.15.2"
-    "@parcel/workers": "npm:2.15.2"
+    "@parcel/watcher-watchman-js": "npm:2.15.3"
+    "@parcel/workers": "npm:2.15.3"
     graceful-fs: "npm:^4.2.11"
     ncp: "npm:^2.0.0"
     nullthrows: "npm:^1.1.1"
     utility-types: "npm:^3.11.0"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
-"@parcel/graph@npm:3.5.2, @parcel/graph@workspace:packages/core/graph":
+"@parcel/graph@npm:3.5.3, @parcel/graph@workspace:packages/core/graph":
   version: 0.0.0-use.local
   resolution: "@parcel/graph@workspace:packages/core/graph"
   dependencies:
-    "@parcel/feature-flags": "npm:2.15.2"
+    "@parcel/feature-flags": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
@@ -3684,9 +3684,9 @@ __metadata:
   resolution: "@parcel/html-example@workspace:packages/examples/html"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
     lodash: "npm:^4.17.21"
-    parcel: "npm:2.15.2"
+    parcel: "npm:2.15.3"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
   languageName: unknown
@@ -3724,7 +3724,7 @@ __metadata:
     ncp: "npm:^2.0.0"
     nib: "npm:^1.2.0"
     node-elm-compiler: "npm:^5.0.6"
-    parcel: "npm:2.15.2"
+    parcel: "npm:2.15.3"
     postcss: "npm:^8.5.3"
     postcss-custom-properties: "npm:^12.1.11"
     postcss-import: "npm:^16.1.0"
@@ -3746,13 +3746,13 @@ __metadata:
   resolution: "@parcel/kitchen-sink-example@workspace:packages/examples/kitchen-sink"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/config-default": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/optimizer-esbuild": "npm:2.15.2"
-    "@parcel/reporter-sourcemap-visualiser": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/config-default": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/optimizer-esbuild": "npm:2.15.3"
+    "@parcel/reporter-sourcemap-visualiser": "npm:2.15.3"
     lodash: "npm:^4.17.21"
-    parcel: "npm:2.15.2"
+    parcel: "npm:2.15.3"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
   languageName: unknown
@@ -3763,9 +3763,9 @@ __metadata:
   resolution: "@parcel/link@workspace:packages/dev/parcel-link"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     commander: "npm:^12.1.0"
     nullthrows: "npm:^1.1.1"
   bin:
@@ -3773,16 +3773,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/logger@npm:2.15.2, @parcel/logger@workspace:packages/core/logger":
+"@parcel/logger@npm:2.15.3, @parcel/logger@workspace:packages/core/logger":
   version: 0.0.0-use.local
   resolution: "@parcel/logger@workspace:packages/core/logger"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/events": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/events": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/lsp-protocol@npm:2.15.2, @parcel/lsp-protocol@workspace:packages/utils/parcel-lsp-protocol":
+"@parcel/lsp-protocol@npm:2.15.3, @parcel/lsp-protocol@workspace:packages/utils/parcel-lsp-protocol":
   version: 0.0.0-use.local
   resolution: "@parcel/lsp-protocol@workspace:packages/utils/parcel-lsp-protocol"
   dependencies:
@@ -3791,11 +3791,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/lsp@npm:2.15.2, @parcel/lsp@workspace:packages/utils/parcel-lsp":
+"@parcel/lsp@npm:2.15.3, @parcel/lsp@workspace:packages/utils/parcel-lsp":
   version: 0.0.0-use.local
   resolution: "@parcel/lsp@workspace:packages/utils/parcel-lsp"
   dependencies:
-    "@parcel/lsp-protocol": "npm:2.15.2"
+    "@parcel/lsp-protocol": "npm:2.15.3"
     "@parcel/watcher": "npm:^2.0.7"
     "@types/node": "npm:^22.15.17"
     "@typescript-eslint/eslint-plugin": "npm:^5.59.7"
@@ -3817,7 +3817,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/markdown-ansi@npm:2.15.2, @parcel/markdown-ansi@workspace:packages/core/markdown-ansi":
+"@parcel/markdown-ansi@npm:2.15.3, @parcel/markdown-ansi@workspace:packages/core/markdown-ansi":
   version: 0.0.0-use.local
   resolution: "@parcel/markdown-ansi@workspace:packages/core/markdown-ansi"
   dependencies:
@@ -3857,25 +3857,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/namer-default@npm:2.15.2, @parcel/namer-default@workspace:packages/namers/default":
+"@parcel/namer-default@npm:2.15.3, @parcel/namer-default@workspace:packages/namers/default":
   version: 0.0.0-use.local
   resolution: "@parcel/namer-default@workspace:packages/namers/default"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/node-resolver-core@npm:3.6.2, @parcel/node-resolver-core@workspace:packages/utils/node-resolver-core":
+"@parcel/node-resolver-core@npm:3.6.3, @parcel/node-resolver-core@workspace:packages/utils/node-resolver-core":
   version: 0.0.0-use.local
   resolution: "@parcel/node-resolver-core@workspace:packages/utils/node-resolver-core"
   dependencies:
     "@mischnic/json-sourcemap": "npm:^0.1.1"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     assert: "npm:^2.1.0"
     browserify-zlib: "npm:^0.2.0"
     buffer: "npm:^5.5.0||^6.0.0"
@@ -3907,19 +3907,19 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-blob-url@workspace:packages/optimizers/blob-url"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/optimizer-css@npm:2.15.2, @parcel/optimizer-css@workspace:packages/optimizers/css":
+"@parcel/optimizer-css@npm:2.15.3, @parcel/optimizer-css@workspace:packages/optimizers/css":
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-css@workspace:packages/optimizers/css"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     browserslist: "npm:^4.24.5"
     lightningcss: "npm:^1.30.1"
     lightningcss-wasm: "npm:^1.30.1"
@@ -3931,7 +3931,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-cssnano@workspace:packages/optimizers/cssnano"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
     cssnano: "npm:^7.0.7"
     postcss: "npm:^8.5.3"
@@ -3942,33 +3942,33 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-data-url@workspace:packages/optimizers/data-url"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     isbinaryfile: "npm:^5.0.4"
     mime: "npm:^3.0.0"
   languageName: unknown
   linkType: soft
 
-"@parcel/optimizer-esbuild@npm:2.15.2, @parcel/optimizer-esbuild@workspace:packages/optimizers/esbuild":
+"@parcel/optimizer-esbuild@npm:2.15.3, @parcel/optimizer-esbuild@workspace:packages/optimizers/esbuild":
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-esbuild@workspace:packages/optimizers/esbuild"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     esbuild: "npm:^0.25.4"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/optimizer-html@npm:2.15.2, @parcel/optimizer-html@workspace:packages/optimizers/html":
+"@parcel/optimizer-html@npm:2.15.3, @parcel/optimizer-html@workspace:packages/optimizers/html":
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-html@workspace:packages/optimizers/html"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -3976,9 +3976,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-htmlnano@workspace:packages/optimizers/htmlnano"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     htmlnano: "npm:^2.1.2"
     nullthrows: "npm:^1.1.1"
     posthtml: "npm:^0.16.6"
@@ -3986,17 +3986,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/optimizer-image@npm:2.15.2, @parcel/optimizer-image@workspace:packages/optimizers/image":
+"@parcel/optimizer-image@npm:2.15.3, @parcel/optimizer-image@workspace:packages/optimizers/image":
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-image@workspace:packages/optimizers/image"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
-    "@parcel/workers": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
+    "@parcel/workers": "npm:2.15.3"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
@@ -4004,21 +4004,21 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-inline-requires@workspace:packages/optimizers/inline-requires"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/types": "npm:2.15.2"
+    "@parcel/types": "npm:2.15.3"
     "@swc/core": "npm:^1.11.24"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/optimizer-svg@npm:2.15.2, @parcel/optimizer-svg@workspace:packages/optimizers/svg":
+"@parcel/optimizer-svg@npm:2.15.3, @parcel/optimizer-svg@workspace:packages/optimizers/svg":
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-svg@workspace:packages/optimizers/svg"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4026,50 +4026,50 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-svgo@workspace:packages/optimizers/svgo"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     svgo: "npm:^3.3.2"
   languageName: unknown
   linkType: soft
 
-"@parcel/optimizer-swc@npm:2.15.2, @parcel/optimizer-swc@workspace:packages/optimizers/swc":
+"@parcel/optimizer-swc@npm:2.15.3, @parcel/optimizer-swc@workspace:packages/optimizers/swc":
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-swc@workspace:packages/optimizers/swc"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     "@swc/core": "npm:^1.11.24"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/optimizer-terser@npm:2.15.2, @parcel/optimizer-terser@workspace:packages/optimizers/terser":
+"@parcel/optimizer-terser@npm:2.15.3, @parcel/optimizer-terser@workspace:packages/optimizers/terser":
   version: 0.0.0-use.local
   resolution: "@parcel/optimizer-terser@workspace:packages/optimizers/terser"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
     terser: "npm:^5.39.0"
   languageName: unknown
   linkType: soft
 
-"@parcel/package-manager@npm:2.15.2, @parcel/package-manager@workspace:packages/core/package-manager":
+"@parcel/package-manager@npm:2.15.3, @parcel/package-manager@workspace:packages/core/package-manager":
   version: 0.0.0-use.local
   resolution: "@parcel/package-manager@workspace:packages/core/package-manager"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/logger": "npm:2.15.2"
-    "@parcel/node-resolver-core": "npm:3.6.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
-    "@parcel/workers": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/logger": "npm:2.15.3"
+    "@parcel/node-resolver-core": "npm:3.6.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
+    "@parcel/workers": "npm:2.15.3"
     "@swc/core": "npm:^1.11.24"
     command-exists: "npm:^1.2.9"
     cross-spawn: "npm:^7.0.6"
@@ -4077,18 +4077,18 @@ __metadata:
     semver: "npm:^7.7.1"
     split2: "npm:^4.2.0"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
-"@parcel/packager-css@npm:2.15.2, @parcel/packager-css@workspace:packages/packagers/css":
+"@parcel/packager-css@npm:2.15.3, @parcel/packager-css@workspace:packages/packagers/css":
   version: 0.0.0-use.local
   resolution: "@parcel/packager-css@workspace:packages/packagers/css"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     lightningcss: "npm:^1.30.1"
     lightningcss-wasm: "npm:^1.30.1"
     nullthrows: "npm:^1.1.1"
@@ -4096,27 +4096,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/packager-html@npm:2.15.2, @parcel/packager-html@workspace:packages/packagers/html":
+"@parcel/packager-html@npm:2.15.3, @parcel/packager-html@workspace:packages/packagers/html":
   version: 0.0.0-use.local
   resolution: "@parcel/packager-html@workspace:packages/packagers/html"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/packager-js@npm:2.15.2, @parcel/packager-js@workspace:packages/packagers/js":
+"@parcel/packager-js@npm:2.15.3, @parcel/packager-js@workspace:packages/packagers/js":
   version: 0.0.0-use.local
   resolution: "@parcel/packager-js@workspace:packages/packagers/js"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     globals: "npm:^13.24.0"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
@@ -4126,16 +4126,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/packager-raw-url@workspace:packages/packagers/raw-url"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/packager-raw@npm:2.15.2, @parcel/packager-raw@workspace:packages/packagers/raw":
+"@parcel/packager-raw@npm:2.15.3, @parcel/packager-raw@workspace:packages/packagers/raw":
   version: 0.0.0-use.local
   resolution: "@parcel/packager-raw@workspace:packages/packagers/raw"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4143,24 +4143,24 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/packager-react-static@workspace:packages/packagers/react-static"
   dependencies:
-    "@parcel/node-resolver-core": "npm:3.6.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/node-resolver-core": "npm:3.6.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
     rsc-html-stream: "npm:^0.0.6"
   languageName: unknown
   linkType: soft
 
-"@parcel/packager-svg@npm:2.15.2, @parcel/packager-svg@workspace:packages/packagers/svg":
+"@parcel/packager-svg@npm:2.15.3, @parcel/packager-svg@workspace:packages/packagers/svg":
   version: 0.0.0-use.local
   resolution: "@parcel/packager-svg@workspace:packages/packagers/svg"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4168,24 +4168,24 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/packager-ts@workspace:packages/packagers/ts"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/packager-wasm@npm:2.15.2, @parcel/packager-wasm@workspace:packages/packagers/wasm":
+"@parcel/packager-wasm@npm:2.15.3, @parcel/packager-wasm@workspace:packages/packagers/wasm":
   version: 0.0.0-use.local
   resolution: "@parcel/packager-wasm@workspace:packages/packagers/wasm"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/packager-webextension@npm:2.15.2, @parcel/packager-webextension@workspace:packages/packagers/webextension":
+"@parcel/packager-webextension@npm:2.15.3, @parcel/packager-webextension@workspace:packages/packagers/webextension":
   version: 0.0.0-use.local
   resolution: "@parcel/packager-webextension@workspace:packages/packagers/webextension"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
@@ -4194,41 +4194,41 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/packager-xml@workspace:packages/packagers/xml"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     "@xmldom/xmldom": "npm:^0.9.8"
   languageName: unknown
   linkType: soft
 
-"@parcel/plugin@npm:2.15.2, @parcel/plugin@workspace:packages/core/plugin":
+"@parcel/plugin@npm:2.15.3, @parcel/plugin@workspace:packages/core/plugin":
   version: 0.0.0-use.local
   resolution: "@parcel/plugin@workspace:packages/core/plugin"
   dependencies:
-    "@parcel/types": "npm:2.15.2"
+    "@parcel/types": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/profiler@npm:2.15.2, @parcel/profiler@workspace:packages/core/profiler":
+"@parcel/profiler@npm:2.15.3, @parcel/profiler@workspace:packages/core/profiler":
   version: 0.0.0-use.local
   resolution: "@parcel/profiler@workspace:packages/core/profiler"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/events": "npm:2.15.2"
-    "@parcel/types-internal": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/events": "npm:2.15.3"
+    "@parcel/types-internal": "npm:2.15.3"
     chrome-trace-event: "npm:^1.0.2"
   languageName: unknown
   linkType: soft
 
-"@parcel/query@npm:2.15.2, @parcel/query@workspace:packages/dev/query":
+"@parcel/query@npm:2.15.3, @parcel/query@workspace:packages/dev/query":
   version: 0.0.0-use.local
   resolution: "@parcel/query@workspace:packages/dev/query"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/cache": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/graph": "npm:3.5.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/cache": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/graph": "npm:3.5.3"
     nullthrows: "npm:^1.1.1"
     table: "npm:^6.9.0"
     v8-compile-cache: "npm:^2.4.0"
@@ -4241,7 +4241,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/react-hmr-example@workspace:packages/examples/react-hmr"
   dependencies:
-    parcel: "npm:2.15.2"
+    parcel: "npm:2.15.3"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
   languageName: unknown
@@ -4252,8 +4252,8 @@ __metadata:
   resolution: "@parcel/react-refresh-example@workspace:packages/examples/react-refresh"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
   languageName: unknown
@@ -4263,10 +4263,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/register@workspace:packages/core/register"
   dependencies:
-    "@parcel/config-default": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/package-manager": "npm:2.15.2"
+    "@parcel/config-default": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/package-manager": "npm:2.15.3"
     pirates: "npm:^4.0.7"
   languageName: unknown
   linkType: soft
@@ -4291,10 +4291,10 @@ __metadata:
     "@mischnic/dot-svg": "npm:^0.0.0"
     "@mischnic/pako": "npm:^1.0.10"
     "@mischnic/yarn-browser": "npm:^0.0.4"
-    "@parcel/config-repl": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/package-manager": "npm:2.15.2"
+    "@parcel/config-repl": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/package-manager": "npm:2.15.3"
     comlink: "npm:^4.4.2"
     eslint-config-react-app: "npm:^7.0.1"
     filesize: "npm:^10.1.6"
@@ -4315,8 +4315,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-build-metrics@workspace:packages/reporters/build-metrics"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4324,9 +4324,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-bundle-analyzer@workspace:packages/reporters/bundle-analyzer"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
@@ -4335,31 +4335,31 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-bundle-buddy@workspace:packages/reporters/bundle-buddy"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/reporter-bundle-stats@npm:2.15.2, @parcel/reporter-bundle-stats@workspace:packages/reporters/bundle-stats":
+"@parcel/reporter-bundle-stats@npm:2.15.3, @parcel/reporter-bundle-stats@workspace:packages/reporters/bundle-stats":
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-bundle-stats@workspace:packages/reporters/bundle-stats"
   dependencies:
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   bin:
     parcel-bundle-stats: bin.js
   languageName: unknown
   linkType: soft
 
-"@parcel/reporter-cli@npm:2.15.2, @parcel/reporter-cli@workspace:packages/reporters/cli":
+"@parcel/reporter-cli@npm:2.15.3, @parcel/reporter-cli@workspace:packages/reporters/cli":
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-cli@workspace:packages/reporters/cli"
   dependencies:
-    "@parcel/feature-flags": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/feature-flags": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     chalk: "npm:^4.1.2"
     filesize: "npm:^10.1.6"
     nullthrows: "npm:^1.1.1"
@@ -4370,27 +4370,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/reporter-dev-server-sw@npm:2.15.2, @parcel/reporter-dev-server-sw@workspace:packages/reporters/dev-server-sw":
+"@parcel/reporter-dev-server-sw@npm:2.15.3, @parcel/reporter-dev-server-sw@workspace:packages/reporters/dev-server-sw":
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-dev-server-sw@workspace:packages/reporters/dev-server-sw"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/reporter-dev-server@npm:2.15.2, @parcel/reporter-dev-server@workspace:packages/reporters/dev-server":
+"@parcel/reporter-dev-server@npm:2.15.3, @parcel/reporter-dev-server@workspace:packages/reporters/dev-server":
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-dev-server@workspace:packages/reporters/dev-server"
   dependencies:
-    "@parcel/babel-preset": "npm:2.15.2"
-    "@parcel/codeframe": "npm:2.15.2"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/babel-preset": "npm:2.15.3"
+    "@parcel/codeframe": "npm:2.15.3"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     connect: "npm:^3.7.0"
     ejs: "npm:^3.1.10"
     fresh: "npm:^0.5.2"
@@ -4403,13 +4403,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/reporter-json@npm:2.15.2, @parcel/reporter-json@workspace:packages/reporters/json":
+"@parcel/reporter-json@npm:2.15.3, @parcel/reporter-json@workspace:packages/reporters/json":
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-json@workspace:packages/reporters/json"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
@@ -4418,9 +4418,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-lsp@workspace:packages/reporters/lsp-reporter"
   dependencies:
-    "@parcel/lsp-protocol": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/lsp-protocol": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     node-ipc: "npm:^9.2.1"
     nullthrows: "npm:^1.1.1"
     ps-node: "npm:^0.1.6"
@@ -4428,35 +4428,35 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/reporter-sourcemap-visualiser@npm:2.15.2, @parcel/reporter-sourcemap-visualiser@workspace:packages/reporters/sourcemap-visualiser":
+"@parcel/reporter-sourcemap-visualiser@npm:2.15.3, @parcel/reporter-sourcemap-visualiser@workspace:packages/reporters/sourcemap-visualiser":
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-sourcemap-visualiser@workspace:packages/reporters/sourcemap-visualiser"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/reporter-tracer@npm:2.15.2, @parcel/reporter-tracer@workspace:packages/reporters/tracer":
+"@parcel/reporter-tracer@npm:2.15.3, @parcel/reporter-tracer@workspace:packages/reporters/tracer":
   version: 0.0.0-use.local
   resolution: "@parcel/reporter-tracer@workspace:packages/reporters/tracer"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     chrome-trace-event: "npm:^1.0.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/resolver-default@npm:2.15.2, @parcel/resolver-default@workspace:packages/resolvers/default":
+"@parcel/resolver-default@npm:2.15.3, @parcel/resolver-default@workspace:packages/resolvers/default":
   version: 0.0.0-use.local
   resolution: "@parcel/resolver-default@workspace:packages/resolvers/default"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/node-resolver-core": "npm:3.6.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/node-resolver-core": "npm:3.6.3"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4464,25 +4464,25 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/resolver-glob@workspace:packages/resolvers/glob"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/node-resolver-core": "npm:3.6.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/node-resolver-core": "npm:3.6.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/resolver-repl-runtimes@npm:2.15.2, @parcel/resolver-repl-runtimes@workspace:packages/resolvers/repl-runtimes":
+"@parcel/resolver-repl-runtimes@npm:2.15.3, @parcel/resolver-repl-runtimes@workspace:packages/resolvers/repl-runtimes":
   version: 0.0.0-use.local
   resolution: "@parcel/resolver-repl-runtimes@workspace:packages/resolvers/repl-runtimes"
   dependencies:
     "@babel/core": "npm:^7.12.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/rsc@npm:2.15.2, @parcel/rsc@workspace:packages/utils/rsc":
+"@parcel/rsc@npm:2.15.3, @parcel/rsc@workspace:packages/utils/rsc":
   version: 0.0.0-use.local
   resolution: "@parcel/rsc@workspace:packages/utils/rsc"
   dependencies:
@@ -4497,118 +4497,118 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/runtime-browser-hmr@npm:2.15.2, @parcel/runtime-browser-hmr@workspace:packages/runtimes/hmr":
+"@parcel/runtime-browser-hmr@npm:2.15.3, @parcel/runtime-browser-hmr@workspace:packages/runtimes/hmr":
   version: 0.0.0-use.local
   resolution: "@parcel/runtime-browser-hmr@workspace:packages/runtimes/hmr"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/runtime-js@npm:2.15.2, @parcel/runtime-js@workspace:packages/runtimes/js":
+"@parcel/runtime-js@npm:2.15.3, @parcel/runtime-js@workspace:packages/runtimes/js":
   version: 0.0.0-use.local
   resolution: "@parcel/runtime-js@workspace:packages/runtimes/js"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/runtime-rsc@npm:2.15.2, @parcel/runtime-rsc@workspace:packages/runtimes/rsc":
+"@parcel/runtime-rsc@npm:2.15.3, @parcel/runtime-rsc@workspace:packages/runtimes/rsc":
   version: 0.0.0-use.local
   resolution: "@parcel/runtime-rsc@workspace:packages/runtimes/rsc"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/runtime-service-worker@npm:2.15.2, @parcel/runtime-service-worker@workspace:packages/runtimes/service-worker":
+"@parcel/runtime-service-worker@npm:2.15.3, @parcel/runtime-service-worker@workspace:packages/runtimes/service-worker":
   version: 0.0.0-use.local
   resolution: "@parcel/runtime-service-worker@workspace:packages/runtimes/service-worker"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/runtime-webextension@npm:2.15.2, @parcel/runtime-webextension@workspace:packages/runtimes/webextension":
+"@parcel/runtime-webextension@npm:2.15.3, @parcel/runtime-webextension@workspace:packages/runtimes/webextension":
   version: 0.0.0-use.local
   resolution: "@parcel/runtime-webextension@workspace:packages/runtimes/webextension"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-darwin-arm64@npm:2.15.2, @parcel/rust-darwin-arm64@workspace:packages/core/rust-darwin-arm64":
+"@parcel/rust-darwin-arm64@npm:2.15.3, @parcel/rust-darwin-arm64@workspace:packages/core/rust-darwin-arm64":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-darwin-arm64@workspace:packages/core/rust-darwin-arm64"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-darwin-x64@npm:2.15.2, @parcel/rust-darwin-x64@workspace:packages/core/rust-darwin-x64":
+"@parcel/rust-darwin-x64@npm:2.15.3, @parcel/rust-darwin-x64@workspace:packages/core/rust-darwin-x64":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-darwin-x64@workspace:packages/core/rust-darwin-x64"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-linux-arm-gnueabihf@npm:2.15.2, @parcel/rust-linux-arm-gnueabihf@workspace:packages/core/rust-linux-arm-gnueabihf":
+"@parcel/rust-linux-arm-gnueabihf@npm:2.15.3, @parcel/rust-linux-arm-gnueabihf@workspace:packages/core/rust-linux-arm-gnueabihf":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-linux-arm-gnueabihf@workspace:packages/core/rust-linux-arm-gnueabihf"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-linux-arm64-gnu@npm:2.15.2, @parcel/rust-linux-arm64-gnu@workspace:packages/core/rust-linux-arm64-gnu":
+"@parcel/rust-linux-arm64-gnu@npm:2.15.3, @parcel/rust-linux-arm64-gnu@workspace:packages/core/rust-linux-arm64-gnu":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-linux-arm64-gnu@workspace:packages/core/rust-linux-arm64-gnu"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-linux-arm64-musl@npm:2.15.2, @parcel/rust-linux-arm64-musl@workspace:packages/core/rust-linux-arm64-musl":
+"@parcel/rust-linux-arm64-musl@npm:2.15.3, @parcel/rust-linux-arm64-musl@workspace:packages/core/rust-linux-arm64-musl":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-linux-arm64-musl@workspace:packages/core/rust-linux-arm64-musl"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-linux-x64-gnu@npm:2.15.2, @parcel/rust-linux-x64-gnu@workspace:packages/core/rust-linux-x64-gnu":
+"@parcel/rust-linux-x64-gnu@npm:2.15.3, @parcel/rust-linux-x64-gnu@workspace:packages/core/rust-linux-x64-gnu":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-linux-x64-gnu@workspace:packages/core/rust-linux-x64-gnu"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-linux-x64-musl@npm:2.15.2, @parcel/rust-linux-x64-musl@workspace:packages/core/rust-linux-x64-musl":
+"@parcel/rust-linux-x64-musl@npm:2.15.3, @parcel/rust-linux-x64-musl@workspace:packages/core/rust-linux-x64-musl":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-linux-x64-musl@workspace:packages/core/rust-linux-x64-musl"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust-win32-x64-msvc@npm:2.15.2, @parcel/rust-win32-x64-msvc@workspace:packages/core/rust-win32-x64-msvc":
+"@parcel/rust-win32-x64-msvc@npm:2.15.3, @parcel/rust-win32-x64-msvc@workspace:packages/core/rust-win32-x64-msvc":
   version: 0.0.0-use.local
   resolution: "@parcel/rust-win32-x64-msvc@workspace:packages/core/rust-win32-x64-msvc"
   languageName: unknown
   linkType: soft
 
-"@parcel/rust@npm:2.15.2, @parcel/rust@workspace:packages/core/rust":
+"@parcel/rust@npm:2.15.3, @parcel/rust@workspace:packages/core/rust":
   version: 0.0.0-use.local
   resolution: "@parcel/rust@workspace:packages/core/rust"
   dependencies:
     "@napi-rs/cli": "npm:^2.15.2"
-    "@parcel/rust-darwin-arm64": "npm:2.15.2"
-    "@parcel/rust-darwin-x64": "npm:2.15.2"
-    "@parcel/rust-linux-arm-gnueabihf": "npm:2.15.2"
-    "@parcel/rust-linux-arm64-gnu": "npm:2.15.2"
-    "@parcel/rust-linux-arm64-musl": "npm:2.15.2"
-    "@parcel/rust-linux-x64-gnu": "npm:2.15.2"
-    "@parcel/rust-linux-x64-musl": "npm:2.15.2"
-    "@parcel/rust-win32-x64-msvc": "npm:2.15.2"
+    "@parcel/rust-darwin-arm64": "npm:2.15.3"
+    "@parcel/rust-darwin-x64": "npm:2.15.3"
+    "@parcel/rust-linux-arm-gnueabihf": "npm:2.15.3"
+    "@parcel/rust-linux-arm64-gnu": "npm:2.15.3"
+    "@parcel/rust-linux-arm64-musl": "npm:2.15.3"
+    "@parcel/rust-linux-x64-gnu": "npm:2.15.3"
+    "@parcel/rust-linux-x64-musl": "npm:2.15.3"
+    "@parcel/rust-win32-x64-msvc": "npm:2.15.3"
     napi-wasm: "npm:^1.1.3"
   peerDependencies:
     napi-wasm: ^1.1.2
@@ -4646,8 +4646,8 @@ __metadata:
   resolution: "@parcel/simple-example@workspace:packages/examples/simple"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
     lodash: "npm:^4.17.21"
   languageName: unknown
   linkType: soft
@@ -4665,11 +4665,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/test-utils@workspace:packages/core/test-utils"
   dependencies:
-    "@parcel/config-default": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/package-manager": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/config-default": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/package-manager": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     chalk: "npm:^4.1.2"
     ncp: "npm:^2.0.0"
     nullthrows: "npm:^1.1.1"
@@ -4684,25 +4684,25 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/three-js-stresstest@workspace:packages/examples/three"
   dependencies:
-    "@parcel/config-default": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/optimizer-esbuild": "npm:2.15.2"
-    parcel: "npm:2.15.2"
+    "@parcel/config-default": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/optimizer-esbuild": "npm:2.15.3"
+    parcel: "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-babel@npm:2.15.2, @parcel/transformer-babel@workspace:packages/transformers/babel":
+"@parcel/transformer-babel@npm:2.15.3, @parcel/transformer-babel@workspace:packages/transformers/babel":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-babel@workspace:packages/transformers/babel"
   dependencies:
     "@babel/core": "npm:^7.22.11"
     "@babel/preset-env": "npm:^7.22.14"
     "@babel/types": "npm:^7.22.11"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     browserslist: "npm:^4.24.5"
     json5: "npm:^2.2.3"
     nullthrows: "npm:^1.1.1"
@@ -4714,23 +4714,23 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-coffeescript@workspace:packages/transformers/coffeescript"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     coffeescript: "npm:^2.7.0"
     nullthrows: "npm:^1.1.1"
     semver: "npm:^7.7.1"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-css@npm:2.15.2, @parcel/transformer-css@workspace:packages/transformers/css":
+"@parcel/transformer-css@npm:2.15.3, @parcel/transformer-css@workspace:packages/transformers/css":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-css@workspace:packages/transformers/css"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     browserslist: "npm:^4.24.5"
     lightningcss: "npm:^1.30.1"
     lightningcss-wasm: "npm:^1.30.1"
@@ -4742,8 +4742,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-elm@workspace:packages/transformers/elm"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     command-exists: "npm:^1.2.9"
     cross-spawn: "npm:^7.0.6"
     elm-hot: "npm:^1.1.6"
@@ -4759,7 +4759,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-glsl@workspace:packages/transformers/glsl"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     glslify-bundle: "npm:^5.1.1"
     glslify-deps: "npm:^1.3.2"
   languageName: unknown
@@ -4769,41 +4769,41 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-graphql@workspace:packages/transformers/graphql"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     graphql: "npm:^15.10.1"
     graphql-import-macro: "npm:^1.0.0"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-html@npm:2.15.2, @parcel/transformer-html@workspace:packages/transformers/html":
+"@parcel/transformer-html@npm:2.15.3, @parcel/transformer-html@workspace:packages/transformers/html":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-html@workspace:packages/transformers/html"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-image@npm:2.15.2, @parcel/transformer-image@workspace:packages/transformers/image":
+"@parcel/transformer-image@npm:2.15.3, @parcel/transformer-image@workspace:packages/transformers/image":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-image@workspace:packages/transformers/image"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
-    "@parcel/workers": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
+    "@parcel/workers": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
     sharp: "npm:^0.33.5"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-inline-string@npm:2.15.2, @parcel/transformer-inline-string@workspace:packages/transformers/inline-string":
+"@parcel/transformer-inline-string@npm:2.15.3, @parcel/transformer-inline-string@workspace:packages/transformers/inline-string":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-inline-string@workspace:packages/transformers/inline-string"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4811,35 +4811,35 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-inline@workspace:packages/transformers/inline"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-js@npm:2.15.2, @parcel/transformer-js@workspace:packages/transformers/js":
+"@parcel/transformer-js@npm:2.15.3, @parcel/transformer-js@workspace:packages/transformers/js":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-js@workspace:packages/transformers/js"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
-    "@parcel/workers": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
+    "@parcel/workers": "npm:2.15.3"
     "@swc/helpers": "npm:^0.5.0"
     browserslist: "npm:^4.24.5"
     nullthrows: "npm:^1.1.1"
     regenerator-runtime: "npm:^0.14.1"
     semver: "npm:^7.7.1"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-json@npm:2.15.2, @parcel/transformer-json@workspace:packages/transformers/json":
+"@parcel/transformer-json@npm:2.15.3, @parcel/transformer-json@workspace:packages/transformers/json":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-json@workspace:packages/transformers/json"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     json5: "npm:^2.2.3"
   languageName: unknown
   linkType: soft
@@ -4848,8 +4848,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-jsonld@workspace:packages/transformers/jsonld"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
     json5: "npm:^2.2.3"
   languageName: unknown
   linkType: soft
@@ -4858,28 +4858,28 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-less@workspace:packages/transformers/less"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
     less: "npm:^4.3.0"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-node@npm:2.15.2, @parcel/transformer-node@workspace:packages/transformers/node":
+"@parcel/transformer-node@npm:2.15.3, @parcel/transformer-node@workspace:packages/transformers/node":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-node@workspace:packages/transformers/node"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-postcss@npm:2.15.2, @parcel/transformer-postcss@workspace:packages/transformers/postcss":
+"@parcel/transformer-postcss@npm:2.15.3, @parcel/transformer-postcss@workspace:packages/transformers/postcss":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-postcss@workspace:packages/transformers/postcss"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     clone: "npm:^2.1.2"
     nullthrows: "npm:^1.1.1"
     postcss: "npm:^8.5.3"
@@ -4889,12 +4889,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-posthtml@npm:2.15.2, @parcel/transformer-posthtml@workspace:packages/transformers/posthtml":
+"@parcel/transformer-posthtml@npm:2.15.3, @parcel/transformer-posthtml@workspace:packages/transformers/posthtml":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-posthtml@workspace:packages/transformers/posthtml"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4902,26 +4902,26 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-pug@workspace:packages/transformers/pug"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     pug: "npm:^3.0.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-raw@npm:2.15.2, @parcel/transformer-raw@workspace:packages/transformers/raw":
+"@parcel/transformer-raw@npm:2.15.3, @parcel/transformer-raw@workspace:packages/transformers/raw":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-raw@workspace:packages/transformers/raw"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-react-refresh-wrap@npm:2.15.2, @parcel/transformer-react-refresh-wrap@workspace:packages/transformers/react-refresh-wrap":
+"@parcel/transformer-react-refresh-wrap@npm:2.15.3, @parcel/transformer-react-refresh-wrap@workspace:packages/transformers/react-refresh-wrap":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-react-refresh-wrap@workspace:packages/transformers/react-refresh-wrap"
   dependencies:
-    "@parcel/error-overlay": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/error-overlay": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     react-refresh: "npm:^0.16.0"
   languageName: unknown
   linkType: soft
@@ -4930,7 +4930,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-react-static@workspace:packages/transformers/react-static"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4938,7 +4938,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-sass@workspace:packages/transformers/sass"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
     sass: "npm:^1.88.0"
   languageName: unknown
@@ -4948,8 +4948,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-stylus@workspace:packages/transformers/stylus"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     stylus: "npm:^0.63.0"
   languageName: unknown
   linkType: soft
@@ -4958,7 +4958,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-sugarss@workspace:packages/transformers/sugarss"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     postcss: "npm:^8.5.3"
     sugarss: "npm:^4.0.1"
   languageName: unknown
@@ -4968,10 +4968,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-svg-jsx@workspace:packages/transformers/svg-jsx"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -4979,21 +4979,21 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-svg-react@workspace:packages/transformers/svg-react"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     "@svgr/core": "npm:^8.1.0"
     "@svgr/plugin-jsx": "npm:^8.1.0"
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-svg@npm:2.15.2, @parcel/transformer-svg@workspace:packages/transformers/svg":
+"@parcel/transformer-svg@npm:2.15.3, @parcel/transformer-svg@workspace:packages/transformers/svg":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-svg@workspace:packages/transformers/svg"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -5002,7 +5002,7 @@ __metadata:
   resolution: "@parcel/transformer-toml@workspace:packages/transformers/toml"
   dependencies:
     "@iarna/toml": "npm:^2.2.5"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -5010,9 +5010,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-typescript-tsc@workspace:packages/transformers/typescript-tsc"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/ts-utils": "npm:2.15.2"
+    "@parcel/ts-utils": "npm:2.15.3"
     typescript: "npm:>=3.0.0"
   peerDependencies:
     typescript: ">=3.0.0"
@@ -5023,11 +5023,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-typescript-types@workspace:packages/transformers/typescript-types"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/ts-utils": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/ts-utils": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
     typescript: "npm:>=3.0.0"
   peerDependencies:
@@ -5040,10 +5040,10 @@ __metadata:
   resolution: "@parcel/transformer-vue@workspace:packages/transformers/vue"
   dependencies:
     "@ladjs/consolidate": "npm:^1.0.4"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/utils": "npm:2.15.3"
     "@vue/compiler-sfc": "npm:^3.2.27"
     nullthrows: "npm:^1.1.1"
     semver: "npm:^7.7.1"
@@ -5051,14 +5051,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/transformer-webextension@npm:2.15.2, @parcel/transformer-webextension@workspace:packages/transformers/webextension":
+"@parcel/transformer-webextension@npm:2.15.3, @parcel/transformer-webextension@workspace:packages/transformers/webextension":
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-webextension@workspace:packages/transformers/webextension"
   dependencies:
     "@mischnic/json-sourcemap": "npm:^0.1.1"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     content-security-policy-parser: "npm:^0.6.0"
   languageName: unknown
   linkType: soft
@@ -5068,9 +5068,9 @@ __metadata:
   resolution: "@parcel/transformer-webmanifest@workspace:packages/transformers/webmanifest"
   dependencies:
     "@mischnic/json-sourcemap": "npm:^0.1.1"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -5078,7 +5078,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-worklet@workspace:packages/transformers/worklet"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
@@ -5086,7 +5086,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-xml@workspace:packages/transformers/xml"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     "@xmldom/xmldom": "npm:^0.9.8"
   languageName: unknown
   linkType: soft
@@ -5095,7 +5095,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@parcel/transformer-yaml@workspace:packages/transformers/yaml"
   dependencies:
-    "@parcel/plugin": "npm:2.15.2"
+    "@parcel/plugin": "npm:2.15.3"
     js-yaml: "npm:^4.1.0"
   languageName: unknown
   linkType: soft
@@ -5105,8 +5105,8 @@ __metadata:
   resolution: "@parcel/ts-example@workspace:packages/examples/ts-example"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
     lodash: "npm:^4.17.21"
   languageName: unknown
   linkType: soft
@@ -5116,13 +5116,13 @@ __metadata:
   resolution: "@parcel/ts-typecheck-example@workspace:packages/examples/ts-typecheck-example"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/validator-typescript": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/validator-typescript": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/ts-utils@npm:2.15.2, @parcel/ts-utils@workspace:packages/utils/ts-utils":
+"@parcel/ts-utils@npm:2.15.3, @parcel/ts-utils@workspace:packages/utils/ts-utils":
   version: 0.0.0-use.local
   resolution: "@parcel/ts-utils@workspace:packages/utils/ts-utils"
   dependencies:
@@ -5133,36 +5133,36 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/types-internal@npm:2.15.2, @parcel/types-internal@workspace:packages/core/types-internal":
+"@parcel/types-internal@npm:2.15.3, @parcel/types-internal@workspace:packages/core/types-internal":
   version: 0.0.0-use.local
   resolution: "@parcel/types-internal@workspace:packages/core/types-internal"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/feature-flags": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/feature-flags": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
     utility-types: "npm:^3.11.0"
   languageName: unknown
   linkType: soft
 
-"@parcel/types@npm:2.15.2, @parcel/types@workspace:packages/core/types":
+"@parcel/types@npm:2.15.3, @parcel/types@workspace:packages/core/types":
   version: 0.0.0-use.local
   resolution: "@parcel/types@workspace:packages/core/types"
   dependencies:
-    "@parcel/types-internal": "npm:2.15.2"
-    "@parcel/workers": "npm:2.15.2"
+    "@parcel/types-internal": "npm:2.15.3"
+    "@parcel/workers": "npm:2.15.3"
   languageName: unknown
   linkType: soft
 
-"@parcel/utils@npm:2.15.2, @parcel/utils@workspace:packages/core/utils":
+"@parcel/utils@npm:2.15.3, @parcel/utils@workspace:packages/core/utils":
   version: 0.0.0-use.local
   resolution: "@parcel/utils@workspace:packages/core/utils"
   dependencies:
     "@iarna/toml": "npm:^2.2.5"
-    "@parcel/codeframe": "npm:2.15.2"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/logger": "npm:2.15.2"
-    "@parcel/markdown-ansi": "npm:2.15.2"
-    "@parcel/rust": "npm:2.15.2"
+    "@parcel/codeframe": "npm:2.15.3"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/logger": "npm:2.15.3"
+    "@parcel/markdown-ansi": "npm:2.15.3"
+    "@parcel/rust": "npm:2.15.3"
     "@parcel/source-map": "npm:^2.1.1"
     ansi-html-community: "npm:0.0.8"
     chalk: "npm:^4.1.2"
@@ -5183,13 +5183,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/validator-eslint@npm:2.15.2, @parcel/validator-eslint@workspace:packages/validators/eslint":
+"@parcel/validator-eslint@npm:2.15.3, @parcel/validator-eslint@workspace:packages/validators/eslint":
   version: 0.0.0-use.local
   resolution: "@parcel/validator-eslint@workspace:packages/validators/eslint"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     chalk: "npm:^4.1.2"
     eslint: "npm:^8.57.1"
   peerDependencies:
@@ -5197,15 +5197,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/validator-typescript@npm:2.15.2, @parcel/validator-typescript@workspace:packages/validators/typescript":
+"@parcel/validator-typescript@npm:2.15.3, @parcel/validator-typescript@workspace:packages/validators/typescript":
   version: 0.0.0-use.local
   resolution: "@parcel/validator-typescript@workspace:packages/validators/typescript"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/plugin": "npm:2.15.2"
-    "@parcel/ts-utils": "npm:2.15.2"
-    "@parcel/types": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/plugin": "npm:2.15.3"
+    "@parcel/ts-utils": "npm:2.15.3"
+    "@parcel/types": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     typescript: "npm:>=3.0.0"
   peerDependencies:
     typescript: ">=3.0.0"
@@ -5268,12 +5268,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@parcel/watcher-watchman-js@npm:2.15.2, @parcel/watcher-watchman-js@workspace:packages/utils/parcel-watcher-watchman-js":
+"@parcel/watcher-watchman-js@npm:2.15.3, @parcel/watcher-watchman-js@workspace:packages/utils/parcel-watcher-watchman-js":
   version: 0.0.0-use.local
   resolution: "@parcel/watcher-watchman-js@workspace:packages/utils/parcel-watcher-watchman-js"
   dependencies:
-    "@parcel/logger": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/logger": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     "@parcel/watcher": "npm:^2.4.1"
     fb-watchman: "npm:^2.0.2"
   languageName: unknown
@@ -5337,18 +5337,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@parcel/workers@npm:2.15.2, @parcel/workers@workspace:packages/core/workers":
+"@parcel/workers@npm:2.15.3, @parcel/workers@workspace:packages/core/workers":
   version: 0.0.0-use.local
   resolution: "@parcel/workers@workspace:packages/core/workers"
   dependencies:
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/logger": "npm:2.15.2"
-    "@parcel/profiler": "npm:2.15.2"
-    "@parcel/types-internal": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/logger": "npm:2.15.3"
+    "@parcel/profiler": "npm:2.15.3"
+    "@parcel/types-internal": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     nullthrows: "npm:^1.1.1"
   peerDependencies:
-    "@parcel/core": ^2.15.2
+    "@parcel/core": ^2.15.3
   languageName: unknown
   linkType: soft
 
@@ -11449,8 +11449,8 @@ __metadata:
     "@babel/generator": "npm:^7.22.10"
     "@babel/template": "npm:^7.22.5"
     "@babel/types": "npm:^7.22.11"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
     nanoid: "npm:^3.3.11"
     nullthrows: "npm:^1.1.1"
   languageName: unknown
@@ -16946,8 +16946,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "parcel-for-vscode@workspace:packages/utils/parcelforvscode"
   dependencies:
-    "@parcel/lsp": "npm:2.15.2"
-    "@parcel/lsp-protocol": "npm:2.15.2"
+    "@parcel/lsp": "npm:2.15.3"
+    "@parcel/lsp-protocol": "npm:2.15.3"
     "@parcel/watcher": "npm:^2.0.7"
     "@types/mocha": "npm:^8.2.3"
     "@types/node": "npm:^22.15.17"
@@ -16968,7 +16968,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "parcel-react-server-components-example@workspace:packages/examples/react-server-components"
   dependencies:
-    "@parcel/rsc": "npm:2.15.2"
+    "@parcel/rsc": "npm:2.15.3"
     express: "npm:^4.21.2"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
@@ -16979,7 +16979,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "parcel-rsc-client@workspace:packages/examples/rsc-client"
   dependencies:
-    "@parcel/rsc": "npm:2.15.2"
+    "@parcel/rsc": "npm:2.15.3"
     cors: "npm:^2.8.5"
     express: "npm:^4.21.2"
     react: "npm:^19.1.0"
@@ -16991,30 +16991,30 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "parcel-rsc-static-example@workspace:packages/examples/react-static"
   dependencies:
-    "@parcel/rsc": "npm:2.15.2"
+    "@parcel/rsc": "npm:2.15.3"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
   languageName: unknown
   linkType: soft
 
-"parcel@npm:2.15.2, parcel@workspace:packages/core/parcel":
+"parcel@npm:2.15.3, parcel@workspace:packages/core/parcel":
   version: 0.0.0-use.local
   resolution: "parcel@workspace:packages/core/parcel"
   dependencies:
     "@babel/core": "npm:^7.22.11"
-    "@parcel/babel-register": "npm:2.15.2"
-    "@parcel/config-default": "npm:2.15.2"
-    "@parcel/core": "npm:2.15.2"
-    "@parcel/diagnostic": "npm:2.15.2"
-    "@parcel/events": "npm:2.15.2"
-    "@parcel/feature-flags": "npm:2.15.2"
-    "@parcel/fs": "npm:2.15.2"
-    "@parcel/logger": "npm:2.15.2"
-    "@parcel/package-manager": "npm:2.15.2"
-    "@parcel/reporter-cli": "npm:2.15.2"
-    "@parcel/reporter-dev-server": "npm:2.15.2"
-    "@parcel/reporter-tracer": "npm:2.15.2"
-    "@parcel/utils": "npm:2.15.2"
+    "@parcel/babel-register": "npm:2.15.3"
+    "@parcel/config-default": "npm:2.15.3"
+    "@parcel/core": "npm:2.15.3"
+    "@parcel/diagnostic": "npm:2.15.3"
+    "@parcel/events": "npm:2.15.3"
+    "@parcel/feature-flags": "npm:2.15.3"
+    "@parcel/fs": "npm:2.15.3"
+    "@parcel/logger": "npm:2.15.3"
+    "@parcel/package-manager": "npm:2.15.3"
+    "@parcel/reporter-cli": "npm:2.15.3"
+    "@parcel/reporter-dev-server": "npm:2.15.3"
+    "@parcel/reporter-tracer": "npm:2.15.3"
+    "@parcel/utils": "npm:2.15.3"
     chalk: "npm:^4.1.2"
     commander: "npm:^12.1.0"
     get-port: "npm:^4.2.0"

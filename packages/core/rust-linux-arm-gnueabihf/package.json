@@ -1,6 +1,6 @@
 {
   "name": "@parcel/rust-linux-arm-gnueabihf",
-  "version": "2.15.2",
+  "version": "2.15.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"

@@ -5,6 +5,20 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.15.3] – 2025-06-20
+
+### Fixed
+
+- JavaScript
+  - Expose line and column number to macros – [Details](https://github.com/parcel-bundler/parcel/pull/10171)
+
+- React Server Components
+  - Invalidate cache in ReactStaticPackager when pages are added or client components change – [Details](https://github.com/parcel-bundler/parcel/commit/3405c22220ce40a161964af76893554ddc25c03e)
+  - Fix lazy mode with React Server Components – [Details](https://github.com/parcel-bundler/parcel/commit/a76b47ec65b30cb13f649f6cab807479ca4ad139)
+  - Fix `@parcel/rsc` duplicate types – [Details](https://github.com/parcel-bundler/parcel/commit/9cb4b8660cbcd13f01e1efac88757de2bedb0895)
+  - Ensure publicUrl ends with a slash in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/a90f06a2fb97716f01e86664b45f952648172ba3)
+  - Fix hash reference replacement in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/4c3226fe522c8283dcf2186db8adf26eae96046b)
+
 ## [2.15.2] - 2025-05-24
 
 ### Fixed
