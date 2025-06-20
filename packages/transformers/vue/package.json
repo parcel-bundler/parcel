@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-vue",
-  "version": "2.15.3",
+  "version": "2.15.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,14 +17,14 @@
   "source": "src/VueTransformer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.15.3"
+    "parcel": "^2.15.4"
   },
   "dependencies": {
     "@ladjs/consolidate": "^1.0.4",
-    "@parcel/diagnostic": "2.15.3",
-    "@parcel/plugin": "2.15.3",
+    "@parcel/diagnostic": "2.15.4",
+    "@parcel/plugin": "2.15.4",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.15.3",
+    "@parcel/utils": "2.15.4",
     "@vue/compiler-sfc": "^3.2.27",
     "nullthrows": "^1.1.1",
     "semver": "^7.7.1"

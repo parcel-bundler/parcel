@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-svgo",
-  "version": "2.15.3",
+  "version": "2.15.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/SVGOOptimizer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.15.3"
+    "parcel": "^2.15.4"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.15.3",
-    "@parcel/plugin": "2.15.3",
-    "@parcel/utils": "2.15.3"
+    "@parcel/diagnostic": "2.15.4",
+    "@parcel/plugin": "2.15.4",
+    "@parcel/utils": "2.15.4"
   },
   "devDependencies": {
     "svgo": "^3.3.2"

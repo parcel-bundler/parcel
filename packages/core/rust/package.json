@@ -1,6 +1,6 @@
 {
   "name": "@parcel/rust",
-  "version": "2.15.3",
+  "version": "2.15.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -44,14 +44,14 @@
     }
   },
   "optionalDependencies": {
-    "@parcel/rust-darwin-arm64": "2.15.3",
-    "@parcel/rust-darwin-x64": "2.15.3",
-    "@parcel/rust-linux-arm-gnueabihf": "2.15.3",
-    "@parcel/rust-linux-arm64-gnu": "2.15.3",
-    "@parcel/rust-linux-arm64-musl": "2.15.3",
-    "@parcel/rust-linux-x64-gnu": "2.15.3",
-    "@parcel/rust-linux-x64-musl": "2.15.3",
-    "@parcel/rust-win32-x64-msvc": "2.15.3"
+    "@parcel/rust-darwin-arm64": "2.15.4",
+    "@parcel/rust-darwin-x64": "2.15.4",
+    "@parcel/rust-linux-arm-gnueabihf": "2.15.4",
+    "@parcel/rust-linux-arm64-gnu": "2.15.4",
+    "@parcel/rust-linux-arm64-musl": "2.15.4",
+    "@parcel/rust-linux-x64-gnu": "2.15.4",
+    "@parcel/rust-linux-x64-musl": "2.15.4",
+    "@parcel/rust-win32-x64-msvc": "2.15.4"
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",
