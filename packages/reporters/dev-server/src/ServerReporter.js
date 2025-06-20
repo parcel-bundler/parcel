@@ -71,7 +71,7 @@ export default (new Reporter({
             event.bundleGraph
               .getEntryBundles()
               .some(
-                b => b.env.isBrowser() || path.extname(b.filePath) === 'html',
+                b => b.env.isBrowser() || path.extname(b.filePath) === '.html',
               ),
           );
         }
