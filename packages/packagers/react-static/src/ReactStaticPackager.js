@@ -215,7 +215,30 @@ export default (new Packager({
     let {prelude} = await prerender(React.createElement(Content), {
       bootstrapScriptContent,
     });
-    let response = prelude.pipeThrough(injectRSCPayload(injectStream));
+
+    // Buffer into a single chunk so hash reference replacement works correctly.
+    // There could potentially be a more optimal way of doing this in the future.
+    let buffers = [];
+    let len = 0;
+    let bufferedStream = new TransformStream({
+      transform(chunk) {
+        len += chunk.length;
+        buffers.push(chunk);
+      },
+      flush(controller) {
+        let concated = new Uint8Array(len);
+        let offset = 0;
+        for (let buf of buffers) {
+          concated.set(buf, offset);
+          offset += buf.length;
+        }
+        controller.enqueue(concated);
+      },
+    });
+
+    let response = prelude.pipeThrough(
+      injectRSCPayload(injectStream.pipeThrough(bufferedStream)),
+    );
 
     return [
       {
