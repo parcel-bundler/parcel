@@ -392,9 +392,13 @@ async function loadBundleUncached(
 
   parcelRequire.root = parcelRequire;
 
+  let publicUrl = bundle.target.publicUrl;
+  if (!publicUrl.endsWith('/')) {
+    publicUrl += '/';
+  }
   parcelRequire.meta = {
     distDir: bundle.target.distDir,
-    publicUrl: bundle.target.publicUrl,
+    publicUrl,
   };
 
   parcelRequire.load = async (filePath: string) => {
