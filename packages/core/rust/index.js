@@ -340,7 +340,9 @@ const {
   svgReact,
   Resolver,
   transform,
+  treeShake,
   transformAsync,
+  treeShakeAsync,
 } = nativeBinding;
 
 module.exports.findAncestorFile = findAncestorFile;
@@ -359,4 +361,6 @@ module.exports.optimizeSvg = optimizeSvg;
 module.exports.svgReact = svgReact;
 module.exports.Resolver = Resolver;
 module.exports.transform = transform;
+module.exports.treeShake = treeShake;
 module.exports.transformAsync = transformAsync;
+module.exports.treeShakeAsync = treeShakeAsync;

@@ -88,6 +88,7 @@ pub struct Collect {
   in_assign: bool,
   in_class: bool,
   is_module: bool,
+  scope_hoist: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -134,6 +135,7 @@ impl Collect {
     global_mark: Mark,
     trace_bailouts: bool,
     is_module: bool,
+    scope_hoist: bool,
   ) -> Self {
     Collect {
       source_map,
@@ -162,13 +164,14 @@ impl Collect {
       in_assign: false,
       in_class: false,
       bailouts: if trace_bailouts { Some(vec![]) } else { None },
+      scope_hoist,
     }
   }
 }
 
 impl From<Collect> for CollectResult {
   fn from(collect: Collect) -> CollectResult {
-    let imports = collect
+    let mut imports: Vec<_> = collect
       .imports
       .into_iter()
       .filter(|(local, _)| collect.used_imports.contains(local))
@@ -190,6 +193,21 @@ impl From<Collect> for CollectResult {
         },
       )
       .collect();
+
+    for source in &collect.non_static_requires {
+      imports.push(CollectImportedSymbol {
+        kind: ImportKind::Require,
+        source: source.clone(),
+        imported: "*".into(),
+        local: format!("${}", source).into(),
+        loc: SourceLocation {
+          start_line: 0,
+          start_col: 0,
+          end_line: 0,
+          end_col: 0,
+        },
+      });
+    }
 
     let mut exports: Vec<CollectExportedSymbol> = collect
       .exports
@@ -249,12 +267,12 @@ impl Visit for Collect {
     self.in_function = false;
     // Visit all imports first so that all imports are known when collecting used_imports
     for n in &node.body {
-      if n.is_module_decl() {
+      if matches!(n, ModuleItem::ModuleDecl(decl) if decl.is_import()) {
         n.visit_with(self);
       }
     }
     for n in &node.body {
-      if !n.is_module_decl() {
+      if !matches!(n, ModuleItem::ModuleDecl(decl) if decl.is_import()) {
         n.visit_with(self);
       }
     }
@@ -411,9 +429,9 @@ impl Visit for Collect {
         }
         ExportSpecifier::Default(default) => {
           self.exports.insert(
-            "default".into(),
+            default.exported.sym.clone(),
             Export {
-              specifier: default.exported.sym.clone(),
+              specifier: "default".into(),
               loc: SourceLocation::from(&self.source_map, default.exported.span),
               source,
               is_esm: true,
@@ -701,7 +719,7 @@ impl Visit for Collect {
           if !self.is_module {
             handle_export!();
           }
-        } else if !self.in_class {
+        } else if !self.in_class && self.scope_hoist {
           if let MemberProp::Ident(prop) = &node.prop {
             self.this_exprs.insert(prop.sym.clone(), node.span);
           }
@@ -733,6 +751,7 @@ impl Visit for Collect {
     // If we reached this visitor, this is a non-top-level require that isn't in a variable
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
     if let Some(source) = self.match_require(node) {
+      self.non_static_requires.insert(source.clone());
       self.wrapped_requires.insert(source.to_string());
       let span = match node {
         Expr::Call(c) => c.span,

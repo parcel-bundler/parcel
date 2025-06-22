@@ -14,7 +14,7 @@ use swc_core::{
 
 use crate::{
   fold_member_expr_skip_prop, id,
-  utils::{get_undefined_ident, match_export_name, match_export_name_ident},
+  utils::{get_undefined_ident, match_export_name, match_export_name_ident, match_str},
 };
 
 pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) -> (Module, bool) {
@@ -278,7 +278,6 @@ macro_rules! modules_visit_fn {
 
 impl Fold for ESMFold {
   fn fold_module(&mut self, node: Module) -> Module {
-    let mut is_esm = false;
     let mut needs_interop_flag = false;
 
     // First pass: collect all imported declarations. On the second pass, exports can be matched to
@@ -288,7 +287,6 @@ impl Fold for ESMFold {
     // export declarations with a source in the first pass as well.
     for item in &node.body {
       if let ModuleItem::ModuleDecl(decl) = &item {
-        is_esm = true;
         match decl {
           ModuleDecl::Import(import) => {
             self.create_require(import.src.value.clone(), import.span);
@@ -385,11 +383,6 @@ impl Fold for ESMFold {
           _ => (),
         }
       }
-    }
-
-    // If we didn't see any module declarations, nothing to do.
-    if !is_esm {
-      return node;
     }
 
     let node = node.fold_children_with(self);
@@ -622,6 +615,22 @@ impl Fold for ESMFold {
       }
       _ => maybe_grow_default(|| node.fold_children_with(self)),
     }
+  }
+
+  fn fold_call_expr(&mut self, mut node: CallExpr) -> CallExpr {
+    if let Callee::Import(import) = &node.callee {
+      if let Some(expr) = node.args.get(0) {
+        if match_str(&expr.expr).is_some() {
+          node.callee = Callee::Expr(Box::new(Expr::Ident(Ident::new(
+            "require".into(),
+            import.span,
+            SyntaxContext::empty().apply_mark(self.unresolved_mark),
+          ))));
+        }
+      }
+    }
+
+    return node.fold_children_with(self);
   }
 
   fn fold_prop(&mut self, node: Prop) -> Prop {

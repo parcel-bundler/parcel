@@ -1138,6 +1138,10 @@ export default (new Transformer({
         );
         asset.symbols.ensure();
 
+        for (let dep of asset.getDependencies()) {
+          dep.symbols.ensure();
+        }
+
         for (let {exported, local, loc, source} of symbol_result.exports) {
           let dep = source ? deps.get(source) : undefined;
           asset.symbols.set(
@@ -1181,19 +1185,6 @@ export default (new Transformer({
         ) {
           asset.symbols.ensure();
           asset.symbols.set('*', `$${asset.id}$exports`);
-        }
-      } else {
-        // If the asset is wrapped, add * as a fallback
-        asset.symbols.ensure();
-        asset.symbols.set('*', `$${asset.id}$exports`);
-      }
-
-      // For all other imports and requires, mark everything as imported (this covers both dynamic
-      // imports and non-top-level requires.)
-      for (let dep of asset.getDependencies()) {
-        if (dep.symbols.isCleared) {
-          dep.symbols.ensure();
-          dep.symbols.set('*', `${dep.id}$`);
         }
       }
 

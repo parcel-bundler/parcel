@@ -11,6 +11,7 @@ mod node_replacer;
 mod react_lazy;
 #[cfg(test)]
 mod test_utils;
+mod tree_shake;
 mod typeof_replacer;
 mod utils;
 
@@ -65,6 +66,7 @@ use swc_core::{
     visit::{FoldWith, VisitMutWith, VisitWith},
   },
 };
+pub use tree_shake::*;
 use typeof_replacer::*;
 use utils::{
   CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer, error_buffer_to_diagnostics,
@@ -615,6 +617,7 @@ pub fn transform(
             global_mark,
             config.trace_bailouts,
             is_module,
+            config.scope_hoist,
           );
           module.visit_with(&mut collect);
           if let Some(bailouts) = &collect.bailouts {
@@ -643,13 +646,23 @@ pub fn transform(
             }
           } else {
             // Bail if we could not statically analyze.
-            if collect.static_cjs_exports && !collect.should_wrap {
+            let is_esm = collect.is_esm;
+            if !collect.should_wrap {
               result.symbol_result = Some(collect.into());
             }
 
-            let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
-            result.needs_esm_helpers = needs_helpers;
-            module
+            if is_esm
+              || result
+                .dependencies
+                .iter()
+                .any(|dep| dep.kind == DependencyKind::DynamicImport)
+            {
+              let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
+              result.needs_esm_helpers = needs_helpers;
+              module
+            } else {
+              module
+            }
           };
 
           module.visit_mut_with(&mut (reserved_words(), hygiene(), fixer(Some(&comments))));

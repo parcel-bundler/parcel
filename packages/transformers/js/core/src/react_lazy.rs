@@ -125,6 +125,7 @@ mod test {
       context.global_mark,
       false,
       true,
+      false,
     );
     module.visit_with(&mut collect);
     module.visit_with(&mut ReactLazy::new(&collect, &mut deps));

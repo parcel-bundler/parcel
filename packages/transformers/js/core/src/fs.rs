@@ -36,6 +36,7 @@ pub fn inline_fs<'a>(
       global_mark,
       false,
       is_module,
+      false,
     ),
     project_root,
     deps,

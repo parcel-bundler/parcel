@@ -802,7 +802,6 @@ impl<'a> Fold for DependencyCollector<'a> {
       }
     }
 
-    let mut is_specifier_str = false;
     let node = if let Some(arg) = node.args.first() {
       if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
         let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
@@ -868,7 +867,6 @@ impl<'a> Fold for DependencyCollector<'a> {
       }
 
       if let Some((specifier, span)) = match_str(&arg.expr) {
-        is_specifier_str = true;
         // require() calls aren't allowed in scripts, flag as an error.
         if kind == DependencyKind::Require && self.config.source_type == SourceType::Script {
           self.add_script_error(node.span);
@@ -905,17 +903,9 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
+      let callee = node.callee.clone();
       let mut call = node.fold_children_with(self);
-      if !self.config.scope_hoist && !self.config.standalone && is_specifier_str {
-        let name = match &self.config.source_type {
-          SourceType::Module => "require",
-          SourceType::Script => "__parcel__require__",
-        };
-        call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new_no_ctxt(
-          name.into(),
-          DUMMY_SP,
-        ))));
-      }
+      call.callee = callee; // Otherwise require gets replaced with undefined
 
       // Drop import attributes
       call.args.truncate(1);

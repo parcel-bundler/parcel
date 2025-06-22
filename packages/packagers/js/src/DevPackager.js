@@ -9,9 +9,11 @@ import {
   relativePath,
 } from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
+import {treeShakeAsync} from '@parcel/rust';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
+import nullthrows from 'nullthrows';
 import {
   replaceScriptDependencies,
   getSpecifier,
@@ -52,6 +54,33 @@ export class DevPackager {
           asset.getCode(),
           this.bundle.env.sourceMap && asset.getMapBuffer(),
         ]);
+
+        // TODO: only in production builds?
+        if (!asset.symbols.isCleared) {
+          let incomingDeps = this.bundleGraph.getIncomingDependencies(asset);
+          let exportSymbols = [...asset.symbols.exportSymbols()].filter(
+            symbol => symbol !== '*',
+          );
+          let usedExports = exportSymbols.filter(symbol => {
+            let unused = incomingDeps.every(d => {
+              let symbols = this.bundleGraph.getUsedSymbols(d);
+              return symbols && !symbols.has(symbol) && !symbols.has('*');
+            });
+            return !unused;
+          });
+
+          if (usedExports.length < exportSymbols.length) {
+            let res = await treeShakeAsync({
+              filename: asset.filePath,
+              code: Buffer.from(code),
+              used_symbols: usedExports,
+            });
+            if (res) {
+              code = res.code.toString();
+            }
+          }
+        }
+
         return {code, mapBuffer};
       });
     });
