@@ -1,6 +1,6 @@
 {
   "name": "@parcel/error-overlay",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "ansi-html-community": "0.0.8",
-    "preact": "^10.26.4"
+    "preact": "^10.26.6"
   },
   "alias": {
     "preact/jsx-dev-runtime": "preact/jsx-runtime"

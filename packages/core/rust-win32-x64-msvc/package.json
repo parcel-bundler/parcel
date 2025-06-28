@@ -1,0 +1,29 @@
+{
+  "name": "@parcel/rust-win32-x64-msvc",
+  "version": "2.15.4",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "parcel-node-bindings.win32-x64-msvc.node",
+  "files": [
+    "parcel-node-bindings.win32-x64-msvc.node"
+  ],
+  "engines": {
+    "node": ">= 10"
+  }
+}

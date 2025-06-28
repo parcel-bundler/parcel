@@ -122,7 +122,10 @@ export class DevPackager {
           } else {
             // An external module - map placeholder to original specifier.
             deps[specifier] = dep.specifier;
-            if (this.bundle.env.outputFormat === 'esmodule') {
+            if (
+              this.bundle.env.outputFormat === 'esmodule' &&
+              !dep.isOptional
+            ) {
               externals.add(dep.specifier);
             }
           }

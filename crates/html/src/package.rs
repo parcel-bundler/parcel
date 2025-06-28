@@ -4,6 +4,7 @@ use crate::{
   SerializableTendril,
   arena::{Node, NodeData},
   dependencies::{is_func_iri_attr, parse_xml_stylesheet, serialize_xml_stylesheet},
+  srcset::{parse_srcset, serialize_srcset},
 };
 use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
 use serde::Deserialize;
@@ -72,7 +73,18 @@ pub fn insert_bundle_references<'arena>(
       }
 
       for attr in attrs.borrow_mut().iter_mut() {
-        if let Some(bundle) = inline_bundles.get(&SerializableTendril(attr.value.clone())) {
+        if attr.name.expanded() == expanded_name!("", "srcset")
+          || attr.name.local.as_ref() == "imagesrcset"
+        {
+          let mut srcset = parse_srcset(&attr.value);
+          for img in &mut srcset {
+            if let Some(bundle) = inline_bundles.get(&SerializableTendril(img.url.clone().into())) {
+              img.url = bundle.contents.0.clone().into();
+            }
+          }
+
+          attr.value = serialize_srcset(srcset).into();
+        } else if let Some(bundle) = inline_bundles.get(&SerializableTendril(attr.value.clone())) {
           if is_func_iri_attr(&attr.name) {
             use cssparser::ToCss;
             let placeholder =

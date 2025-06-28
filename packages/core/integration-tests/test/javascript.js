@@ -6248,4 +6248,37 @@ describe('javascript', function () {
     assert.equal(res.hashed, 'ae2b1fca515949e5d54fb22b8ed95575');
     assert.equal(res.default, 'Test');
   });
+
+  it('should not add ESM externals for optional requires', async () => {
+    await fsFixture(overlayFS, __dirname)`
+    esm-externals
+      index.js:
+        let test;
+        try {
+          require('optional');
+          test = 'fail';
+        } catch {
+          test = 'pass';
+        }
+        export default test;
+        
+      package.json:
+        {
+          "targets": {
+            "default": {
+              "context": "node",
+              "outputFormat": "esmodule"
+            }
+          }
+        }
+        
+      yarn.lock:`;
+
+    let b = await bundle(path.join(__dirname, 'esm-externals/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let res = await run(b);
+    assert.equal(res.default, 'pass');
+  });
 });

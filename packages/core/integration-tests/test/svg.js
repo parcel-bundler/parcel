@@ -307,7 +307,7 @@ describe('svg', function () {
 
     const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
 
-    assert(svg.includes('style="fill:red"'));
+    assert(svg.includes('fill:red'));
   });
 
   it('should be in separate bundles', async function () {

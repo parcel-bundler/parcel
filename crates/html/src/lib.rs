@@ -308,3 +308,24 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
     })
   })
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::transform_html;
+
+  #[test]
+  fn test_transform() {
+    let res = transform_html(crate::TransformOptions {
+      code: "<html><body><template><div>test</div><span>hi</span></template></body></html>".into(),
+      file_path: "foo.html".into(),
+      xml: false,
+      env: Default::default(),
+      hmr: false,
+    });
+
+    assert_eq!(
+      std::str::from_utf8(&res.code).unwrap(),
+      "<html><head></head><body><template><div>test</div><span>hi</span></template></body></html>"
+    );
+  }
+}

@@ -374,3 +374,19 @@ fn is_ascii_digit(c: &char) -> bool {
     _ => false,
   }
 }
+
+pub fn serialize_srcset(srcset: Vec<ImageSource>) -> String {
+  use std::fmt::Write;
+
+  let mut res = String::with_capacity(srcset.len());
+  for img in srcset {
+    if !res.is_empty() {
+      res.push_str(", ");
+    }
+    if write!(&mut res, "{}", img).is_err() {
+      break;
+    }
+  }
+
+  res
+}

@@ -23,7 +23,6 @@ fn to_jsx<'arena>(dom: &'arena Node<'arena>) -> JSXElementChild {
         attrs: attrs
           .borrow()
           .iter()
-          .filter(|attr| matches!(attr.name.ns, ns!()))
           .map(|attr| {
             JSXAttrOrSpread::JSXAttr(JSXAttr {
               name: JSXAttrName::Ident(IdentName::new(
@@ -470,18 +469,18 @@ fn jsx_attr_name<'a>(name: &'a ExpandedName) -> &'a str {
     expanded_name!("", "x") => "x",
     expanded_name!("", "xchannelselector") => "xChannelSelector",
     expanded_name!("", "x-height") => "xHeight",
-    expanded_name!("", "xlink:actuate") => "xlinkActuate",
-    expanded_name!("", "xlink:arcrole") => "xlinkArcrole",
-    expanded_name!("", "xlink:href") => "xlinkHref",
-    expanded_name!("", "xlink:role") => "xlinkRole",
-    expanded_name!("", "xlink:show") => "xlinkShow",
-    expanded_name!("", "xlink:title") => "xlinkTitle",
-    expanded_name!("", "xlink:type") => "xlinkType",
-    expanded_name!("", "xml:base") => "xmlBase",
-    expanded_name!("", "xml:lang") => "xmlLang",
-    expanded_name!("", "xmlns") => "xmlns",
-    expanded_name!("", "xml:space") => "xmlSpace",
-    expanded_name!("", "xmlns:xlink") => "xmlnsXlink",
+    expanded_name!(xlink "actuate") => "xlinkActuate",
+    expanded_name!(xlink "arcrole") => "xlinkArcrole",
+    expanded_name!(xlink "href") => "xlinkHref",
+    expanded_name!(xlink "role") => "xlinkRole",
+    expanded_name!(xlink "show") => "xlinkShow",
+    expanded_name!(xlink "title") => "xlinkTitle",
+    expanded_name!(xlink "type") => "xlinkType",
+    expanded_name!(xml "base") => "xmlBase",
+    expanded_name!(xml "lang") => "xmlLang",
+    expanded_name!(xmlns "xmlns") => "xmlns",
+    expanded_name!(xml "space") => "xmlSpace",
+    expanded_name!(xmlns "xlink") => "xmlnsXlink",
     expanded_name!("", "y1") => "y1",
     expanded_name!("", "y2") => "y2",
     expanded_name!("", "y") => "y",
@@ -708,6 +707,10 @@ impl<'de> Deserialize<'de> for ExpandProps {
 }
 
 pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: JsxOptions) -> Program {
+  if let Some(svg) = dom.find(expanded_name!(svg "svg")) {
+    svg.remove_attribute(expanded_name!(xmlns "xmlns"));
+  }
+
   if options.dimensions {
     match &options.icon {
       Icon::None => {}
@@ -1197,6 +1200,25 @@ mod tests {
       JsxOptions {
         expand_props: ExpandProps::None,
         add_ref: true,
+        ..Default::default()
+      },
+    );
+
+    test(
+      r#"
+    <?xml version="1.0" encoding="UTF-8"?>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <text xml:space="preserve"> foo </text>
+    </svg>
+    "#,
+      indoc! {r#"
+    export default function SvgComponent(props) {
+        return <svg viewBox="0 0 100 100" {...props}>
+          <text xmlSpace="preserve"> foo </text>
+        </svg>;
+    }
+    "#},
+      JsxOptions {
         ..Default::default()
       },
     );

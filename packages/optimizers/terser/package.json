@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-terser",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,14 +17,14 @@
   "source": "src/TerserOptimizer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.14.4"
+    "parcel": "^2.15.4"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.14.4",
-    "@parcel/plugin": "2.14.4",
+    "@parcel/diagnostic": "2.15.4",
+    "@parcel/plugin": "2.15.4",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.14.4",
+    "@parcel/utils": "2.15.4",
     "nullthrows": "^1.1.1",
-    "terser": "^5.2.0"
+    "terser": "^5.39.0"
   }
 }

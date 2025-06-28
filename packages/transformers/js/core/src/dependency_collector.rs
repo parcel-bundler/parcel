@@ -294,6 +294,7 @@ impl<'a> DependencyCollector<'a> {
     kind: DependencyKind,
     source_type: SourceType,
     needs_stable_name: bool,
+    optional: bool,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
     if !self.config.is_library && !self.config.standalone {
@@ -302,7 +303,7 @@ impl<'a> DependencyCollector<'a> {
         span,
         kind,
         None,
-        false,
+        optional,
         source_type,
         needs_stable_name,
       );
@@ -329,7 +330,7 @@ impl<'a> DependencyCollector<'a> {
       )
     };
     let mut flags = DependencyFlags::empty();
-    flags.set(DependencyFlags::OPTIONAL, span.is_dummy());
+    flags.set(DependencyFlags::OPTIONAL, optional || span.is_dummy());
     flags.set(DependencyFlags::NEEDS_STABLE_NAME, needs_stable_name);
     self.items.push(DependencyDescriptor {
       kind,
@@ -812,41 +813,48 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
         let mut node = node.clone();
 
-        let (specifier, span, needs_stable_name) = if let Some(s) = self.match_new_url(&arg.expr) {
-          s
-        } else if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
-          let (msg, docs) = if kind == DependencyKind::ServiceWorker {
-            (
-              "Registering service workers with a string literal is not supported.",
-              "https://parceljs.org/languages/javascript/#service-workers",
-            )
+        let (specifier, span, needs_stable_name, optional) =
+          if let Some(s) = self.match_new_url(&arg.expr) {
+            s
+          } else if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
+            let (msg, docs) = if kind == DependencyKind::ServiceWorker {
+              (
+                "Registering service workers with a string literal is not supported.",
+                "https://parceljs.org/languages/javascript/#service-workers",
+              )
+            } else {
+              (
+                "Registering worklets with a string literal is not supported.",
+                "https://parceljs.org/languages/javascript/#worklets",
+              )
+            };
+            self.diagnostics.push(Diagnostic {
+              message: msg.to_string(),
+              code_highlights: Some(vec![CodeHighlight {
+                message: None,
+                loc: SourceLocation::from(&self.source_map, str_.span),
+              }]),
+              hints: Some(vec![format!(
+                "Replace with: new URL('{}', import.meta.url)",
+                str_.value,
+              )]),
+              show_environment: false,
+              severity: DiagnosticSeverity::Error,
+              documentation_url: Some(String::from(docs)),
+            });
+            return node;
           } else {
-            (
-              "Registering worklets with a string literal is not supported.",
-              "https://parceljs.org/languages/javascript/#worklets",
-            )
+            return node;
           };
-          self.diagnostics.push(Diagnostic {
-            message: msg.to_string(),
-            code_highlights: Some(vec![CodeHighlight {
-              message: None,
-              loc: SourceLocation::from(&self.source_map, str_.span),
-            }]),
-            hints: Some(vec![format!(
-              "Replace with: new URL('{}', import.meta.url)",
-              str_.value,
-            )]),
-            show_environment: false,
-            severity: DiagnosticSeverity::Error,
-            documentation_url: Some(String::from(docs)),
-          });
-          return node;
-        } else {
-          return node;
-        };
 
-        node.args[0].expr =
-          Box::new(self.add_url_dependency(specifier, span, kind, source_type, needs_stable_name));
+        node.args[0].expr = Box::new(self.add_url_dependency(
+          specifier,
+          span,
+          kind,
+          source_type,
+          needs_stable_name,
+          optional,
+        ));
 
         match opts {
           Some(opts) => {
@@ -980,7 +988,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     if let Some(args) = &node.args {
       if !args.is_empty() {
-        let (specifier, span, needs_stable_name) =
+        let (specifier, span, needs_stable_name, optional) =
           if let Some(s) = self.match_new_url(&args[0].expr) {
             s
           } else if let Lit(ast::Lit::Str(str_)) = &*args[0].expr {
@@ -1019,6 +1027,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           DependencyKind::WebWorker,
           source_type,
           needs_stable_name,
+          optional,
         );
 
         // Replace argument with a require call to resolve the URL at runtime.
@@ -1065,18 +1074,19 @@ impl<'a> Fold for DependencyCollector<'a> {
       return expr;
     }
 
-    if let Some((specifier, span, needs_stable_name)) = self.match_new_url(&node) {
+    if let Some((specifier, span, needs_stable_name, optional)) = self.match_new_url(&node) {
       let url = self.add_url_dependency(
         specifier,
         span,
         DependencyKind::Url,
         self.config.source_type,
         needs_stable_name,
+        optional,
       );
 
       // If this is a library, we will already have a URL object. Otherwise, we need to
       // construct one from the string returned by the JSRuntime.
-      if !self.config.is_library && !self.config.standalone {
+      if !self.config.is_library && !self.config.standalone && !optional {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
           callee: Box::new(Expr::Ident(Ident::new_no_ctxt("URL".into(), DUMMY_SP))),
@@ -1387,7 +1397,10 @@ impl Fold for PromiseTransformer {
 }
 
 impl<'a> DependencyCollector<'a> {
-  fn match_new_url(&mut self, expr: &ast::Expr) -> Option<(JsWord, swc_core::common::Span, bool)> {
+  fn match_new_url(
+    &mut self,
+    expr: &ast::Expr,
+  ) -> Option<(JsWord, swc_core::common::Span, bool, bool)> {
     use ast::*;
 
     if let Expr::New(new) = expr {
@@ -1409,7 +1422,7 @@ impl<'a> DependencyCollector<'a> {
 
         if let Some(arg) = args.get(1) {
           if self.is_import_meta_url(&arg.expr) {
-            return Some((specifier, span, false));
+            return Some((specifier, span, false, false));
           }
         }
       }
@@ -1430,7 +1443,7 @@ impl<'a> DependencyCollector<'a> {
             false
           };
 
-          return Some((specifier, span, needs_stable_name));
+          return Some((specifier, span, needs_stable_name, true));
         }
       }
     }
@@ -1443,7 +1456,7 @@ impl<'a> DependencyCollector<'a> {
         Expr::Member(member) => member.span,
         _ => unreachable!(),
       };
-      return Some((specifier.into(), span, false));
+      return Some((specifier.into(), span, false, false));
     }
 
     None

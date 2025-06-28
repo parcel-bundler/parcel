@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   cell::{Cell, RefCell, RefMut},
   collections::VecDeque,
   fmt::Debug,
@@ -21,14 +22,12 @@ impl<'arena> oxvg_ast::node::Node<'arena> for Ref<'arena> {
   type Parent = Element<'arena>;
 
   fn id(&self) -> usize {
-    self as *const _ as usize
+    *self as *const _ as usize
   }
 
   fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
     ChildNodes {
       front: self.first_child(),
-      front_next: self.first_child().and_then(|n| n.next_sibling()),
-      end_previous: self.last_child().and_then(|n| n.previous_sibling()),
       end: self.last_child(),
     }
   }
@@ -967,29 +966,28 @@ impl<'arena> oxvg_ast::element::Element<'arena> for Element<'arena> {
 }
 
 impl Debug for Element<'_> {
-  fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    // if self.node_type() != node::Type::Element {
-    //   return (&self.node).fmt(f);
-    // }
-    // let name = self.qual_name().formatter();
-    // let attributes = self.attributes();
-    // let child_node_count = self.child_node_count();
-    // let text = match child_node_count {
-    //   1 => self
-    //     .text_content()
-    //     .map(|s| s.trim().to_string())
-    //     .map(Cow::Owned)
-    //     .unwrap_or_default(),
-    //   _ => Cow::Borrowed(""),
-    // };
-    // let child_count = match child_node_count {
-    //   0 => String::from("/>"),
-    //   len => format!(">{len} child nodes</{name}>"),
-    // };
-    // f.debug_tuple("Element")
-    //   .field(&format!("<{name} {attributes:?}{child_count} {text}"))
-    //   .finish()
-    todo!()
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if self.node_type() != oxvg_ast::node::Type::Element {
+      return (&self.node).fmt(f);
+    }
+    let name = self.qual_name().formatter();
+    let attributes = self.attributes();
+    let child_node_count = self.child_node_count();
+    let text = match child_node_count {
+      1 => self
+        .text_content()
+        .map(|s| s.trim().to_string())
+        .map(Cow::Owned)
+        .unwrap_or_default(),
+      _ => Cow::Borrowed(""),
+    };
+    let child_count = match child_node_count {
+      0 => String::from("/>"),
+      len => format!(">{len} child nodes</{name}>"),
+    };
+    f.debug_tuple("Element")
+      .field(&format!("<{name} {attributes:?}{child_count} {text}"))
+      .finish()
   }
 }
 
@@ -1187,8 +1185,6 @@ impl<'arena> oxvg_ast::document::Document<'arena> for Document<'arena> {
 
 struct ChildNodes<'arena> {
   front: Option<Ref<'arena>>,
-  front_next: Option<Ref<'arena>>,
-  end_previous: Option<Ref<'arena>>,
   end: Option<Ref<'arena>>,
 }
 
@@ -1196,40 +1192,23 @@ impl<'arena> Iterator for ChildNodes<'arena> {
   type Item = Ref<'arena>;
 
   fn next(&mut self) -> Option<Self::Item> {
-    let current = self.front?;
-
-    // Move front tracking forwards
-    let new_front_next = self.front_next.and_then(|n| n.next_sibling());
-    self.front = std::mem::replace(&mut self.front_next, new_front_next);
-
-    // End iteration when it collides with end
-    if self.end.is_some_and(|end| end == current) {
-      self.front = None;
-      self.front_next = None;
-      self.end_previous = None;
-      self.end = None;
+    if let Some(current) = self.front {
+      self.front = current.next_sibling();
+      return Some(current);
     }
 
-    // Done
-    Some(current)
+    None
   }
 }
 
 impl DoubleEndedIterator for ChildNodes<'_> {
   fn next_back(&mut self) -> Option<Self::Item> {
-    let current = self.end?;
-
-    let new_end_previous = self.end_previous.and_then(|n| n.next_sibling());
-    self.end = std::mem::replace(&mut self.end_previous, new_end_previous);
-
-    if self.front.is_some_and(|front| front == current) {
-      self.front = None;
-      self.front_next = None;
-      self.end_previous = None;
-      self.end = None;
+    if let Some(current) = self.end {
+      self.end = current.previous_sibling();
+      return Some(current);
     }
 
-    Some(current)
+    None
   }
 }
 
@@ -1240,9 +1219,6 @@ impl ExactSizeIterator for ChildNodes<'_> {
     while let Some(node) = current {
       current = node.next_sibling();
       len += 1;
-      if self.end.is_none_or(|end| end == node) {
-        break;
-      }
     }
     len
   }

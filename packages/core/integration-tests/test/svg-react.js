@@ -19,7 +19,7 @@ describe('svg-react', function () {
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
     assert(!file.includes('inkscape'));
     assert(file.includes('function SvgComponent'));
-    assert(file.includes('createElement("svg"'));
+    assert(file.includes('jsxDEV)("svg"'));
     assert(file.includes('id: "fbacef__circle"'));
   });
 
@@ -37,7 +37,7 @@ describe('svg-react', function () {
     let types = await outputFS.readFile(b.getBundles()[1].filePath, 'utf-8');
 
     assert(!file.includes('inkscape'));
-    assert(file.includes('createElement("svg"'));
+    assert(file.includes('jsxDEV)("svg"'));
     assert(types.includes('const Icon: SVGRComponent'));
   });
 
@@ -57,7 +57,8 @@ describe('svg-react', function () {
     assert(file.includes('function SvgComponent'));
     assert(file.includes('_react.forwardRef'));
     assert(file.includes('_react.memo'));
-    assert(file.includes('h("svg"'));
+    assert(file.includes('preact/jsx-dev-runtime'));
+    assert(file.includes('jsxDEV)("svg"'));
     assert(file.includes('width: "1em"'));
     assert(file.includes('role: "img"'));
     assert(file.includes('fill: props.fill'));

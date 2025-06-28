@@ -1,6 +1,6 @@
 {
   "name": "@parcel/package-manager",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -43,24 +43,24 @@
     }
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.14.4",
-    "@parcel/fs": "2.14.4",
-    "@parcel/logger": "2.14.4",
-    "@parcel/node-resolver-core": "3.5.4",
-    "@parcel/types": "2.14.4",
-    "@parcel/utils": "2.14.4",
-    "@parcel/workers": "2.14.4",
-    "@swc/core": "^1.11.5",
-    "semver": "^7.5.2"
+    "@parcel/diagnostic": "2.15.4",
+    "@parcel/fs": "2.15.4",
+    "@parcel/logger": "2.15.4",
+    "@parcel/node-resolver-core": "3.6.4",
+    "@parcel/types": "2.15.4",
+    "@parcel/utils": "2.15.4",
+    "@parcel/workers": "2.15.4",
+    "@swc/core": "^1.11.24",
+    "semver": "^7.7.1"
   },
   "devDependencies": {
-    "command-exists": "^1.2.6",
-    "cross-spawn": "^7.0.3",
+    "command-exists": "^1.2.9",
+    "cross-spawn": "^7.0.6",
     "nullthrows": "^1.1.1",
     "split2": "^4.2.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.14.4"
+    "@parcel/core": "^2.15.4"
   },
   "browser": {
     "./src/NodePackageManager.js": false,

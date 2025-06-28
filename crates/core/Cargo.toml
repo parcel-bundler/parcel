@@ -9,6 +9,6 @@ bitflags = { version = "2.7.0", features = ["serde"] }
 browserslist-rs = "0.18.1"
 json-sourcemap = "0.2.0"
 node-semver = "2.2.0"
-serde = { version = "1.0.123", features = ["derive"] }
+serde = { version = "1.0.123", features = ["derive", "rc"] }
 serde_bytes = "0.11.5"
 serde-value = "0.7.0"

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-css",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,19 +17,19 @@
   "source": "src/CSSTransformer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.14.4"
+    "parcel": "^2.15.4"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.14.4",
-    "@parcel/plugin": "2.14.4",
+    "@parcel/diagnostic": "2.15.4",
+    "@parcel/plugin": "2.15.4",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.14.4",
-    "browserslist": "^4.6.6",
-    "lightningcss": "^1.22.1",
+    "@parcel/utils": "2.15.4",
+    "browserslist": "^4.24.5",
+    "lightningcss": "^1.30.1",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "lightningcss-wasm": "^1.22.1"
+    "lightningcss-wasm": "^1.30.1"
   },
   "browser": {
     "lightningcss": "lightningcss-wasm"

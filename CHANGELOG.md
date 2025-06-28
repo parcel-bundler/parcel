@@ -5,11 +5,87 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.15.3] – 2025-06-20
+
+### Fixed
+
+- JavaScript
+  - Expose line and column number to macros – [Details](https://github.com/parcel-bundler/parcel/pull/10171)
+
+- React Server Components
+  - Invalidate cache in ReactStaticPackager when pages are added or client components change – [Details](https://github.com/parcel-bundler/parcel/commit/3405c22220ce40a161964af76893554ddc25c03e)
+  - Fix lazy mode with React Server Components – [Details](https://github.com/parcel-bundler/parcel/commit/a76b47ec65b30cb13f649f6cab807479ca4ad139)
+  - Fix `@parcel/rsc` duplicate types – [Details](https://github.com/parcel-bundler/parcel/commit/9cb4b8660cbcd13f01e1efac88757de2bedb0895)
+  - Ensure publicUrl ends with a slash in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/a90f06a2fb97716f01e86664b45f952648172ba3)
+  - Fix hash reference replacement in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/4c3226fe522c8283dcf2186db8adf26eae96046b)
+
+## [2.15.2] - 2025-05-24
+
+### Fixed
+
+- Core
+
+  - Change minimum required glibc version to 2.26 – [Details](https://github.com/parcel-bundler/parcel/pull/10164)
+  - Cache inline bundle packaging – [Details](https://github.com/parcel-bundler/parcel/commit/a993f9811de6934387f2ae6c77f4e4ace038b30b)
+  - Use stable id for package requests – [Details](https://github.com/parcel-bundler/parcel/commit/afc86c24eec20a12be00be9965546595fc2c6bfc)
+
+- HTML
+  - Do not remove `<meta charset="utf-8">` – [Details](https://github.com/parcel-bundler/parcel/commit/69c06862c4fdb0d9005179dc914e5da8e6d67d63)
+- MDX
+  - Make URL dependencies in MDX files optional – [Details](https://github.com/parcel-bundler/parcel/commit/67e4fe0b6666656c2913655a830bb6f50c660200)
+- React Server Components
+  - Fix memory leak in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/638b12d8ddf7f5f833db815e832c9de5c457299e)
+- Resolver
+  - Fix resolving source package exports condition from self reference – [Details](https://github.com/parcel-bundler/parcel/commit/6820335b0f6ff77c301a26dffbed09751e80deed)
+- SVG
+  - Update oxvg – [Details](https://github.com/parcel-bundler/parcel/commit/7576cfaf38fc074533e28aab4832010496445593)
+- Compressors
+  - Use max level compression for brotli compressor – [Details](https://github.com/parcel-bundler/parcel/pull/10128)
+
+## [2.15.1] - 2025-05-15
+
+### Fixed
+
+- HTML
+
+  - Fix serializing `<template>` element contents – [Details](https://github.com/parcel-bundler/parcel/commit/e6fe231b037457cc16f9b7603836d39dfb6f91be)
+
+- JavaScript
+  - Skip optional dependencies in ESM externals – [Details](https://github.com/parcel-bundler/parcel/commit/a12ed0ce5a000bad9fb158c1b8740435784201a8)
+
+## [2.15.0] - 2025-05-11
+
+### Added
+
+- Core
+
+  - Distribute Rust binaries for each architecture as separate npm packages – [Details](https://github.com/parcel-bundler/parcel/commit/396c3941f74dc509ee7fe4c60bff8b2c7ecf78a4)
+
+- HTML and SVG
+
+  - Add Rust-based transformer/packager/optimizer for HTML and SVG – [Details](https://github.com/parcel-bundler/parcel/pull/10090)
+
+- Resolver
+  - Support `cloudflare:` scheme and no longer rewrite node: scheme – [Details](https://github.com/parcel-bundler/parcel/commit/ccd4d462f27856f9ef4adbd9ac31d0b2e8092aee)
+
+### Fixed
+
+- Core
+
+  - Avoid segmentation fault on thread exit on Linux – [Details](https://github.com/parcel-bundler/parcel/pull/10144)
+  - Support older GLIBC versions on Linux – [Details](https://github.com/parcel-bundler/parcel/pull/10145)
+
+- JavaScript
+  - Include all symbols in non-browser entries – [Details](https://github.com/parcel-bundler/parcel/commit/40ebdcd87a4bb51df3b060a05aad005595de8558)
+  - Update swc and mdx-rs – [Details](https://github.com/parcel-bundler/parcel/commit/3d72dd007ba377c037bd66ca5fa20db6e5a09fcb)
+  - Fix exporting objects with non-configurable prototypes from React Server Components – [Details](https://github.com/parcel-bundler/parcel/commit/f7d5ffd735f723f639f7cb863c899d09e95d46c9)
+
 ## [2.14.4] - 2025-03-29
 
 ### Fixed
 
 - Core
+
   - Fix duplicate bundles error message – [Details](https://github.com/parcel-bundler/parcel/pull/10119)
 
 - JavaScript

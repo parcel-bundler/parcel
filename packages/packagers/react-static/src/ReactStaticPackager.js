@@ -44,6 +44,7 @@ let serverResolver: ResolverBase;
 let packagingBundles = new Map<NamedBundle, Async<{|contents: Blob|}>>();
 let moduleCache = new Map<string, ParcelModule>();
 let loadedBundles = new Map<NamedBundle, any>();
+let context: any = vm.createContext();
 
 export default (new Packager({
   async loadConfig({options, config}) {
@@ -51,6 +52,7 @@ export default (new Packager({
     packagingBundles.clear();
     moduleCache.clear();
     loadedBundles.clear();
+    context = createContext(options);
     clientResolver = new ResolverBase(options.projectRoot, {
       mode: 2,
       packageExports: true,
@@ -76,19 +78,40 @@ export default (new Packager({
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
+  loadBundleConfig({bundle, bundleGraph}) {
+    let pages: Page[] = [];
+    for (let b of bundleGraph.getEntryBundles()) {
+      let main = b.getMainEntry();
+      if (main && b.type === 'js' && b.needsStableName) {
+        let meta = pageMeta(main.meta);
+        pages.push({
+          url: urlJoin(b.target.publicUrl, b.name),
+          name: b.name,
+          ...meta,
+        });
+      }
+    }
+
+    let referencedBundles = [];
+    for (let b of bundleGraph.getReferencedBundles(bundle, {
+      includeInline: false,
+      includeIsolated: false,
+    })) {
+      referencedBundles.push(b.getContentHash());
+    }
+
+    return {pages, referencedBundles};
+  },
   async package({
     bundle,
     bundleGraph,
     getInlineBundleContents,
     config,
-    options,
+    bundleConfig,
   }) {
     if (bundle.env.shouldScopeHoist) {
       throw new Error('Scope hoisting is not supported with SSG');
     }
-
-    // $FlowFixMe
-    globalThis.AsyncLocalStorage ??= AsyncLocalStorage;
 
     let {load, loadModule} = await loadBundle(
       bundle,
@@ -96,8 +119,6 @@ export default (new Packager({
       getInlineBundleContents,
     );
 
-    let env = process.env.NODE_ENV;
-    process.env.NODE_ENV = options.env.NODE_ENV;
     let Component = load(nullthrows(bundle.getMainEntry()).id).default;
     let {renderToReadableStream} = loadModule(
       'react-server-dom-parcel/server.edge',
@@ -115,22 +136,9 @@ export default (new Packager({
       __filename,
       'react-client',
     );
-    process.env.NODE_ENV = env;
     let {injectRSCPayload} = await import('rsc-html-stream/server');
 
-    let pages: Page[] = [];
-    for (let b of bundleGraph.getEntryBundles()) {
-      let main = b.getMainEntry();
-      if (main && b.type === 'js' && b.needsStableName) {
-        let meta = pageMeta(main.meta);
-        pages.push({
-          url: urlJoin(b.target.publicUrl, b.name),
-          name: b.name,
-          ...meta,
-        });
-      }
-    }
-
+    let pages: Page[] = bundleConfig.pages;
     let meta = pageMeta(nullthrows(bundle.getMainEntry()).meta);
     let props: PageProps = {
       key: 'page',
@@ -207,7 +215,31 @@ export default (new Packager({
     let {prelude} = await prerender(React.createElement(Content), {
       bootstrapScriptContent,
     });
-    let response = prelude.pipeThrough(injectRSCPayload(injectStream));
+
+    // Buffer into a single chunk so hash reference replacement works correctly.
+    // There could potentially be a more optimal way of doing this in the future.
+    let buffers = [];
+    let len = 0;
+    // $FlowFixMe
+    let bufferedStream = new TransformStream({
+      transform(chunk) {
+        len += chunk.length;
+        buffers.push(chunk);
+      },
+      flush(controller) {
+        let concated = new Uint8Array(len);
+        let offset = 0;
+        for (let buf of buffers) {
+          concated.set(buf, offset);
+          offset += buf.length;
+        }
+        controller.enqueue(concated);
+      },
+    });
+
+    let response = prelude.pipeThrough(
+      injectRSCPayload(injectStream.pipeThrough(bufferedStream)),
+    );
 
     return [
       {
@@ -384,9 +416,13 @@ async function loadBundleUncached(
 
   parcelRequire.root = parcelRequire;
 
+  let publicUrl = bundle.target.publicUrl;
+  if (!publicUrl.endsWith('/')) {
+    publicUrl += '/';
+  }
   parcelRequire.meta = {
     distDir: bundle.target.distDir,
-    publicUrl: bundle.target.publicUrl,
+    publicUrl,
   };
 
   parcelRequire.load = async (filePath: string) => {
@@ -474,6 +510,38 @@ async function loadBundleUncached(
   return {load: loadAsset, loadModule, assets};
 }
 
+function createContext(options) {
+  // Create a fresh global context to execute code in on each build to avoid memory leaks.
+  // $FlowFixMe
+  let context: any = vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  context.global = context;
+  context.AsyncLocalStorage = AsyncLocalStorage;
+  context.process = new Proxy(process, {
+    get(target, prop, receiver) {
+      // Expose the provided environment variables from Parcel instead of the global ones.
+      if (prop === 'env') {
+        return options.env;
+      }
+
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+
+  // $FlowFixMe
+  for (let key of Object.getOwnPropertyNames(globalThis)) {
+    if (!context.hasOwnProperty(key)) {
+      Object.defineProperty(
+        context,
+        key,
+        // $FlowFixMe
+        Object.getOwnPropertyDescriptor(globalThis, key),
+      );
+    }
+  }
+
+  return context;
+}
+
 function runModule(
   code: string,
   filename: string,
@@ -493,6 +561,7 @@ function runModule(
     ],
     {
       filename,
+      parsingContext: context,
     },
   );
 

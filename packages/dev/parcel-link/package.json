@@ -1,7 +1,7 @@
 {
   "name": "@parcel/link",
   "description": "A CLI for linking a dev version of Parcel into a project",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "private": true,
   "bin": {
     "parcel-link": "bin.js"
@@ -12,9 +12,9 @@
   "main": "src/index.js",
   "dependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.14.4",
-    "@parcel/fs": "2.14.4",
-    "@parcel/utils": "2.14.4",
+    "@parcel/babel-register": "2.15.4",
+    "@parcel/fs": "2.15.4",
+    "@parcel/utils": "2.15.4",
     "commander": "^12.1.0",
     "nullthrows": "^1.1.1"
   }

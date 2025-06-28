@@ -204,6 +204,10 @@ export class Bundle implements IBundle {
       startAsset ? assetToAssetValue(startAsset) : undefined,
     );
   }
+
+  getContentHash(): string {
+    return this.#bundleGraph.getContentHash(this.#bundle);
+  }
 }
 
 export class NamedBundle extends Bundle implements INamedBundle {

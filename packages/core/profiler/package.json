@@ -1,6 +1,6 @@
 {
   "name": "@parcel/profiler",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -20,13 +20,13 @@
     "node": ">= 16.0.0"
   },
   "scripts": {
-    "build-ts": "flow-to-ts src/*.js --write && rm -f ./src/*.d.ts && tsc --emitDeclarationOnly --declaration --esModuleInterop --target es2015 --moduleResolution node16 --module node16 src/*.ts && mkdir -p lib && mv src/*.d.ts lib/. && rm src/*.ts && node build-ts.js",
+    "build-ts": "flow-to-ts src/*.js --write && rm -f './src/*.d.ts' && tsc --emitDeclarationOnly --declaration --esModuleInterop --target es2015 --moduleResolution node16 --module node16 src/*.ts && mkdir -p lib && mv src/*.d.ts lib/. && rm src/*.ts && node build-ts.js",
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.14.4",
-    "@parcel/events": "2.14.4",
-    "@parcel/types-internal": "2.14.4",
+    "@parcel/diagnostic": "2.15.4",
+    "@parcel/events": "2.15.4",
+    "@parcel/types-internal": "2.15.4",
     "chrome-trace-event": "^1.0.2"
   }
 }

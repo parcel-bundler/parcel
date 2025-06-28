@@ -1,6 +1,6 @@
 {
   "name": "@parcel/diagnostic",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "description": "Types and utilities for printing source-code located errors, warning and information messages.",
   "license": "MIT",
   "publishConfig": {
@@ -25,7 +25,7 @@
     "check-ts": "tsc --noEmit lib/diagnostic.d.ts"
   },
   "dependencies": {
-    "@mischnic/json-sourcemap": "^0.1.0",
+    "@mischnic/json-sourcemap": "^0.1.1",
     "nullthrows": "^1.1.1"
   }
 }

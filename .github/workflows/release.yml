@@ -82,19 +82,19 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             arch: x86_64
             cflags: -mevex512
-            glibc: 2.28
+            glibc: 2.26
             docker: node:20-slim
             args: ''
           - target: armv7-unknown-linux-gnueabihf
             arch: armhf
             cflags: -mfpu=neon
-            glibc: 2.28
+            glibc: 2.26
             docker: node:20-slim
             args: '--platform linux/arm/v7'
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             cflags: ''
-            glibc: 2.28
+            glibc: 2.26
             docker: node:20-slim
             args: '--platform linux/arm64'
           - target: x86_64-unknown-linux-musl
@@ -172,8 +172,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: bahmutov/npm-install@v1.8.35
-      - name: Build native packages
-        run: yarn build-native-${{ inputs.profile }}
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:

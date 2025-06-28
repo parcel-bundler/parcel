@@ -1,0 +1,7 @@
+{
+  "name": "self-source",
+  "exports": {
+    "source": "./source.js",
+    "default": "./compiled.js"
+  }
+}

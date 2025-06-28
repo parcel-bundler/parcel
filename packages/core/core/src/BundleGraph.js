@@ -1932,9 +1932,13 @@ export default class BundleGraph {
     addReferencedBundles(bundle);
 
     this.traverseBundles((childBundle, _, traversal) => {
+      if (childBundle.id === bundle.id) {
+        return;
+      }
+
       if (childBundle.bundleBehavior === BundleBehavior.inline) {
         bundles.push(childBundle);
-      } else if (childBundle.id !== bundle.id) {
+      } else {
         traversal.skipChildren();
       }
     }, bundle);

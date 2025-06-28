@@ -4,7 +4,7 @@ import {createFromReadableStream, createFromFetch, encodeReply, setServerCallbac
 import {rscStream} from 'rsc-html-stream/client';
 import {hydrateRoot, HydrationOptions, Root} from 'react-dom/client';
 
-type CallServerCallback = <T>(id: string, args: any[]) => Promise<T>;
+export type CallServerCallback = <T>(id: string, args: any[]) => Promise<T>;
 export function setServerCallback(cb: CallServerCallback): void {
   return setReactServerCallback(cb);
 }
@@ -19,7 +19,6 @@ function RSCRoot({value, cb}: {value?: ReactNode, cb?: () => void}) {
   return value === undefined ? initialRSCPayload : value;
 }
 
-export type CallServerCallback = <T>(id: string, args: any[]) => Promise<T>;
 export interface HydrateOptions extends HydrationOptions {
   callServer?: CallServerCallback,
   onHmrReload?: () => void

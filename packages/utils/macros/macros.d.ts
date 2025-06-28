@@ -1,6 +1,8 @@
 export interface MacroContext {
   /** Adds an asset as a dependency of the JS module that called this macro. */
   addAsset(asset: MacroAsset): void;
+  /** The source location of the macro call. */
+  loc: SourceLocation;
   /** Invalidate the macro call whenever the given file changes. */
   invalidateOnFileChange(filePath: string): void;
   /** Invalidate the macro call when a file matching the given pattern is created. */
@@ -12,6 +14,25 @@ export interface MacroContext {
   /** Invalidate the macro on every build. */
   invalidateOnBuild(): void;
 }
+
+/**
+ * Source locations are 1-based, meaning lines and columns start at 1
+ */
+export type SourceLocation = {
+  readonly filePath: string;
+
+  /** inclusive */
+  readonly start: {
+    readonly line: number;
+    readonly column: number;
+  };
+
+  /** exclusive */
+  readonly end: {
+    readonly line: number;
+    readonly column: number;
+  };
+};
 
 export interface MacroAsset {
   /** The type of the asset (e.g. `'css'`). */

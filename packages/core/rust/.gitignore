@@ -1,4 +1,3 @@
-/index.*
 *.node
 *.wasm
 !*.flow

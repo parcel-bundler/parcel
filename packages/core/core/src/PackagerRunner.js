@@ -25,7 +25,7 @@ import type {ConfigRequest} from './requests/ConfigRequest';
 import type {DevDepSpecifier} from './requests/DevDepRequest';
 
 import invariant from 'assert';
-import {blobToStream, TapStream} from '@parcel/utils';
+import {blobToStream, bufferStream, TapStream} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable} from 'stream';
@@ -87,6 +87,12 @@ export type BundleInfo = {|
   +time?: number,
   +cacheKeys: CacheKeyMap,
   +isLargeBlob: boolean,
+|};
+
+type BundleContent = {|
+  type: string,
+  contents: Blob,
+  map: ?string,
 |};
 
 type CacheKeyMap = {|
@@ -336,18 +342,55 @@ export default class PackagerRunner {
     return this.writeToCache(cacheKey, results);
   }
 
+  async getInlineBundleContents(
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+    configs: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
+  ): Promise<Blob> {
+    let bundleInfo = await this.getBundleInfoFromCache(
+      bundleGraph,
+      bundle,
+      configs,
+      bundleConfigs,
+    );
+
+    if (bundleInfo.length > 0) {
+      return this.options.cache.getBlob(bundleInfo[0].cacheKeys.content);
+    }
+
+    let results = await this.getBundleResult(
+      bundle,
+      bundleGraph,
+      configs,
+      bundleConfigs,
+    );
+
+    // Writing to the cache consumes the stream, but we need to also return it to the calling packager.
+    // Buffer the stream into memory first.
+    if (results[0].contents instanceof Readable) {
+      results[0].contents = await bufferStream(results[0].contents);
+    }
+
+    // Recompute cache keys as they may have changed due to dev dependencies.
+    let cacheKey = await this.getCacheKey(
+      bundle,
+      bundleGraph,
+      configs,
+      bundleConfigs,
+      [...this.invalidations.values()],
+    );
+
+    await this.writeToCache(cacheKey, results);
+    return results[0].contents;
+  }
+
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
-  ): Promise<
-    {|
-      type: string,
-      contents: Blob,
-      map: ?string,
-    |}[],
-  > {
+  ): Promise<BundleContent[]> {
     let packagedResults = await this.package(
       bundle,
       bundleGraph,
@@ -440,15 +483,14 @@ export default class PackagerRunner {
             );
           }
 
-          let res = await this.getBundleResult(
+          let contents = await this.getInlineBundleContents(
             bundleToInternalBundle(bundle),
             // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
             configs,
             bundleConfigs,
           );
-
-          return {contents: res[0].contents};
+          return {contents};
         },
       });
       if (Array.isArray(res)) {

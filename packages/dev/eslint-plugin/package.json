@@ -1,15 +1,14 @@
 {
   "name": "@parcel/eslint-plugin",
   "private": true,
-  "version": "2.14.4",
+  "version": "2.15.4",
   "main": "index.js",
-  "scripts": {},
   "dependencies": {
     "read-pkg-up": "^5.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
     "@babel/eslint-parser": "^7.22.11",
-    "eslint": "^8.41.0"
+    "eslint": "^8.57.1"
   }
 }

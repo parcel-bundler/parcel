@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-html",
-  "version": "2.14.4",
+  "version": "2.15.4",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/HTMLPackager.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.14.4"
+    "parcel": "^2.15.4"
   },
   "dependencies": {
-    "@parcel/plugin": "2.14.4",
-    "@parcel/types": "2.14.4",
-    "@parcel/rust": "2.14.4",
-    "@parcel/utils": "2.14.4"
+    "@parcel/plugin": "2.15.4",
+    "@parcel/rust": "2.15.4",
+    "@parcel/types": "2.15.4",
+    "@parcel/utils": "2.15.4"
   }
 }
