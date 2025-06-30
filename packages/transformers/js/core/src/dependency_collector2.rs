@@ -670,6 +670,13 @@ impl<'a> VisitMut for DependencyCollector<'a> {
           SyntaxContext::empty().apply_mark(self.unresolved_mark),
         )
       }
+      "global" => {
+        *node = Ident::new(
+          "globalThis".into(),
+          node.span,
+          SyntaxContext::empty().apply_mark(self.unresolved_mark),
+        )
+      }
       _ => {}
     }
   }

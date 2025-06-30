@@ -2164,10 +2164,13 @@ name = "parcel-evaluator"
 version = "0.1.0"
 dependencies = [
  "as-any",
+ "data-encoding",
  "indexmap 1.9.3",
  "itertools 0.14.0",
  "num-bigint",
  "num-traits",
+ "parcel-core",
+ "petgraph",
  "phf",
  "pretty_assertions",
  "serde",
