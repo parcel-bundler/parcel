@@ -11,7 +11,7 @@ use swc_core::{
   ecma::ast::*,
 };
 
-use crate::{promise::PromiseInstance, JsFunction, JsValue};
+use crate::{promise::PromiseInstance, JsFunction, JsObject, JsValue};
 
 pub struct Evaluator<'a> {
   pub(crate) values: HashMap<Id, JsValue>,
@@ -163,6 +163,48 @@ impl<'a> Evaluator<'a> {
       Expr::Update(update) => {
         self.eval_update_expr(update);
       }
+      Expr::Call(call) => {
+        let callee = call.callee.evaluate(self);
+        if !callee.is_known() {
+          if let Callee::Expr(callee) = &call.callee {
+            if let Expr::Member(member) = &**callee {
+              let this = member.obj.evaluate(self);
+              if let JsValue::Object(obj) = this {
+                // Mark `this` object as potentially mutated.
+                obj.set(JsValue::Unknown(call.span), JsValue::Unknown(call.span));
+              }
+            }
+          }
+
+          let args = eval_args(&call.args, self);
+          for arg in args {
+            if let JsValue::Object(obj) = arg {
+              // Mark object as potentially mutated.
+              obj.set(JsValue::Unknown(call.span), JsValue::Unknown(call.span));
+            }
+          }
+        }
+      }
+      Expr::OptChain(opt_chain) => {
+        if let OptChainBase::Call(call) = &*opt_chain.base {
+          let callee = call.callee.evaluate(self);
+          if !callee.is_known() {
+            let this = evaluate_call_this(&*call.callee, self);
+            if let JsValue::Object(obj) = this {
+              // Mark `this` object as potentially mutated.
+              obj.set(JsValue::Unknown(call.span), JsValue::Unknown(call.span));
+            }
+
+            let args = eval_args(&call.args, self);
+            for arg in args {
+              if let JsValue::Object(obj) = arg {
+                // Mark object as potentially mutated.
+                obj.set(JsValue::Unknown(call.span), JsValue::Unknown(call.span));
+              }
+            }
+          }
+        }
+      }
       _ => {}
     }
   }
@@ -218,28 +260,23 @@ impl<'a> Evaluator<'a> {
     // not resolve to a known object, try the parent member expression if any.
     loop {
       if let JsValue::Object(obj) = member.obj.evaluate(self) {
-        // let mut obj = obj.borrow_mut();
-        // let object = match &mut *obj {
-        //   ValueOrUnknown::Unknown(_) => break,
-        //   ValueOrUnknown::Value(value) => value,
-        // };
         match &member.prop {
           MemberProp::Ident(id) => {
-            obj.set(id.sym.clone(), JsValue::Unknown(id.span));
+            obj.set(JsValue::String(id.sym.clone()), JsValue::Unknown(id.span));
             break;
           }
           MemberProp::Computed(prop) => {
             let key = prop.expr.evaluate(self);
             if key.is_known() {
-              obj.set(key.to_string(), JsValue::Unknown(prop.span));
+              obj.set(key, JsValue::Unknown(prop.span));
               break;
             }
           }
           MemberProp::PrivateName(_) => {}
         }
 
-        // TODO: Mark all object properties as unknown.
-        // *obj = ValueOrUnknown::Unknown(member.span);
+        // Mark all object properties as unknown.
+        obj.set(JsValue::Unknown(member.span), JsValue::Unknown(member.span));
         break;
       } else if let Expr::Member(m) = &*member.obj {
         member = m;
@@ -418,27 +455,19 @@ impl Evaluate for ObjectLit {
             let k = kv.key.evaluate(evaluator);
             if k.is_known() {
               let v = kv.value.evaluate(evaluator);
-              if v.is_known() {
-                res.insert(k.to_string(), v);
-              } else {
-                return v;
-              }
+              res.insert(k.to_string(), v);
             } else {
               return k;
             }
           }
           Prop::Shorthand(s) => {
             let val = s.evaluate(evaluator);
-            if val.is_known() {
-              res.insert(s.sym.clone(), val);
-            } else {
-              return val;
-            }
+            res.insert(s.sym.clone(), val);
           }
           Prop::Method(method) => {
             let k = method.key.evaluate(evaluator);
             let f = method.function.evaluate(evaluator);
-            if k.is_known() && f.is_known() {
+            if k.is_known() {
               res.insert(k.to_string(), f);
             } else {
               return JsValue::Unknown(method.span());
@@ -455,7 +484,7 @@ impl Evaluate for ObjectLit {
         }
       }
     }
-    JsValue::Object(Rc::new(res).into())
+    JsValue::Object(Rc::new(JsObject::new(res)).into())
   }
 }
 
@@ -663,7 +692,7 @@ impl Evaluate for OptChainBase {
       OptChainBase::Call(call) => match call.callee.evaluate(evaluator) {
         JsValue::Undefined | JsValue::Null => JsValue::Undefined,
         JsValue::Function(callee) => {
-          let this = JsValue::Undefined;
+          let this = evaluate_call_this(&*call.callee, evaluator);
           let args = eval_args(&call.args, evaluator);
           callee.call(this, args, call.span, evaluator)
         }
@@ -714,22 +743,13 @@ impl Evaluate for CallExpr {
   fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
     match &self.callee {
       Callee::Expr(callee) => {
-        let (this, callee) = if let Expr::Member(member) = &**callee {
-          let this = member.obj.evaluate(evaluator);
-          let prop = member.prop.evaluate(evaluator);
-          let callee = this.get(&prop, member.span);
-          (this, callee)
-        } else {
-          let this = JsValue::Undefined;
-          let callee = callee.evaluate(evaluator);
-          (this, callee)
-        };
+        let this = evaluate_call_this(&**callee, evaluator);
+        let callee = callee.evaluate(evaluator);
         match callee {
           JsValue::Function(callee) => {
             let args = eval_args(&self.args, evaluator);
             callee.call(this, args, self.span, evaluator)
           }
-          // TODO: mark arguments as unknown (potentially mutated)
           _ => JsValue::Unknown(self.span),
         }
       }
@@ -753,6 +773,20 @@ impl Evaluate for Callee {
       Callee::Super(s) => JsValue::Unknown(s.span),
       Callee::Import(_) => evaluator.dynamic_import.clone(),
     }
+  }
+}
+
+fn evaluate_call_this(callee: &Expr, evaluator: &Evaluator) -> JsValue {
+  match &callee {
+    Expr::Member(member) => member.obj.evaluate(evaluator),
+    Expr::OptChain(chain) => {
+      if let OptChainBase::Member(member) = &*chain.base {
+        member.obj.evaluate(evaluator)
+      } else {
+        JsValue::Undefined
+      }
+    }
+    _ => JsValue::Undefined,
   }
 }
 

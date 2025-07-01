@@ -628,6 +628,22 @@ impl<'a> ConstantCollector<'a> {
         }
       }
       Expr::Member(member) => self.visit_member_expr(member, access),
+      Expr::OptChain(opt_chain) => match &*opt_chain.base {
+        OptChainBase::Member(member) => {
+          self.visit_member_expr(member, access);
+        }
+        OptChainBase::Call(call) => {
+          let node_index = self.graph.add_node(Node::Expr(expr));
+          self.access(node_index, access);
+
+          let access = Access::Write(node_index);
+          self.visit_expr(&*call.callee, access);
+
+          for arg in &call.args {
+            self.visit_expr(&arg.expr, access);
+          }
+        }
+      },
       Expr::SuperProp(SuperPropExpr { prop, .. }) => {
         if let SuperProp::Computed(ComputedPropName { expr, .. }) = prop {
           self.visit_expr(&*expr, access);
@@ -641,9 +657,14 @@ impl<'a> ConstantCollector<'a> {
         self.visit_expr(&*alt, access);
       }
       Expr::Call(CallExpr { callee, args, .. }) => {
+        let node_index = self.graph.add_node(Node::Expr(expr));
+        self.access(node_index, access);
+
+        let access = Access::Write(node_index);
         if let Callee::Expr(expr) = callee {
           self.visit_expr(&*expr, access);
         }
+
         for arg in args {
           self.visit_expr(&arg.expr, access);
         }
@@ -692,7 +713,9 @@ impl<'a> ConstantCollector<'a> {
           }
         }
       }
-      Expr::Class(_) => todo!(),
+      Expr::Class(class_expr) => {
+        self.visit_class(&class_expr.class, access);
+      }
       Expr::Yield(YieldExpr { arg, .. }) => {
         if let Some(arg) = arg {
           self.visit_expr(&*arg, access);
@@ -705,14 +728,17 @@ impl<'a> ConstantCollector<'a> {
       Expr::Paren(ParenExpr { expr, .. }) => {
         self.visit_expr(&*expr, access);
       }
-      Expr::JSXMember(JSXMemberExpr { obj, .. }) => match obj {
-        JSXObject::JSXMemberExpr(jsxmember_expr) => todo!(),
-        JSXObject::Ident(ident) => todo!(),
-      },
+      Expr::JSXMember(member) => {
+        self.visit_jsx_member_expr(member, access);
+      }
       Expr::JSXNamespacedName(_) => {}
       Expr::JSXEmpty(_) => {}
-      Expr::JSXElement(el) => todo!(),
-      Expr::JSXFragment(_) => todo!(),
+      Expr::JSXElement(el) => {
+        self.visit_jsx_element(&*el, access);
+      }
+      Expr::JSXFragment(frag) => {
+        self.visit_jsx_fragment(frag, access);
+      }
       Expr::TsTypeAssertion(_) => {}
       Expr::TsConstAssertion(_) => {}
       Expr::TsNonNull(_) => {}
@@ -720,7 +746,6 @@ impl<'a> ConstantCollector<'a> {
       Expr::TsInstantiation(_) => {}
       Expr::TsSatisfies(_) => {}
       Expr::PrivateName(_) => {}
-      Expr::OptChain(_) => todo!(),
       Expr::Invalid(_) => {}
     }
   }
@@ -729,6 +754,88 @@ impl<'a> ConstantCollector<'a> {
     self.visit_expr(&*member.obj, access);
     if let MemberProp::Computed(ComputedPropName { expr, .. }) = &member.prop {
       self.visit_expr(&*expr, access.read());
+    }
+  }
+
+  fn visit_jsx_member_expr(&mut self, member: &'a JSXMemberExpr, access: Access) {
+    match &member.obj {
+      JSXObject::JSXMemberExpr(jsxmember_expr) => {
+        self.visit_jsx_member_expr(&*jsxmember_expr, access);
+      }
+      JSXObject::Ident(ident) => {
+        self.access_id(ident.to_id(), access);
+      }
+    }
+  }
+
+  fn visit_jsx_element(&mut self, el: &'a JSXElement, access: Access) {
+    match &el.opening.name {
+      JSXElementName::Ident(id) => {
+        self.access_id(id.to_id(), access);
+      }
+      JSXElementName::JSXMemberExpr(member) => {
+        self.visit_jsx_member_expr(member, access);
+      }
+      JSXElementName::JSXNamespacedName(_) => {}
+    }
+
+    for attr in &el.opening.attrs {
+      match attr {
+        JSXAttrOrSpread::JSXAttr(attr) => {
+          if let Some(value) = &attr.value {
+            match &value {
+              JSXAttrValue::JSXElement(el) => {
+                self.visit_jsx_element(&*el, access);
+              }
+              JSXAttrValue::JSXExprContainer(expr) => {
+                self.visit_jsx_expr(expr, access);
+              }
+              JSXAttrValue::JSXFragment(fragment) => {
+                self.visit_jsx_fragment(fragment, access);
+              }
+              JSXAttrValue::Lit(_) => {}
+            }
+          }
+        }
+        JSXAttrOrSpread::SpreadElement(spread) => {
+          self.visit_expr(&*spread.expr, access);
+        }
+      }
+    }
+
+    for child in &el.children {
+      self.visit_jsx_child(child, access);
+    }
+  }
+
+  fn visit_jsx_child(&mut self, child: &'a JSXElementChild, access: Access) {
+    match child {
+      JSXElementChild::JSXText(_) => {}
+      JSXElementChild::JSXExprContainer(expr) => {
+        self.visit_jsx_expr(expr, access);
+      }
+      JSXElementChild::JSXSpreadChild(spread) => {
+        self.visit_expr(&*spread.expr, access);
+      }
+      JSXElementChild::JSXElement(element) => {
+        self.visit_jsx_element(&*element, access);
+      }
+      JSXElementChild::JSXFragment(fragment) => self.visit_jsx_fragment(fragment, access),
+    }
+  }
+
+  fn visit_jsx_expr(&mut self, expr: &'a JSXExprContainer, access: Access) {
+    match &expr.expr {
+      JSXExpr::Expr(expr) => {
+        self.visit_expr(&*expr, access);
+      }
+      JSXExpr::JSXEmptyExpr(_) => {}
+    }
+  }
+
+  fn visit_jsx_fragment(&mut self, fragment: &'a JSXFragment, access: Access) {
+    for child in &fragment.children {
+      self.visit_jsx_child(child, access);
     }
   }
 }
@@ -800,10 +907,74 @@ mod tests {
       "function test() { let y = x + 2; } let x = 2;",
       HashMap::from([("test", "unknown"), ("x", "2"), ("y", "4")]),
     );
+  }
+
+  #[test]
+  fn test_mutation() {
+    // Assignment expression.
     expect("let x = 2; x = 3", HashMap::from([("x", "unknown")]));
+    expect("let x = 2; x += 3", HashMap::from([("x", "unknown")]));
+    // Mutation inside declaration.
     expect(
       "let x = 2; let y = x += 4;",
       HashMap::from([("x", "unknown"), ("y", "unknown")]),
     );
+    // Update expression.
+    expect("let x = 2; x++", HashMap::from([("x", "unknown")]));
+  }
+
+  #[test]
+  fn test_objects() {
+    // Mutating object property.
+    expect(
+      "const x = {a: 1, b: {c: 1}}; const y = x.b; x.b.c = 3;",
+      HashMap::from([("x", "{a: 1, b: {c: unknown}}"), ("y", "{c: unknown}")]),
+    );
+    // Mutating property of reference.
+    expect(
+      "const x = {a: 1, b: {c: 1}}; const y = x.b; y.c = 3;",
+      HashMap::from([("x", "{a: 1, b: {c: unknown}}"), ("y", "{c: unknown}")]),
+    );
+    // Mutating unknown property.
+    expect(
+      "const x = {a: 1, b: {c: 1}}; const y = x.b; y[A] = 3;",
+      HashMap::from([("x", "{a: 1, b: {}}"), ("y", "{}")]),
+    );
+    // Mutating computed property.
+    expect(
+      "const x = {a: 'c', b: {c: 1}}; const y = x.b; y[x.a] = 3;",
+      HashMap::from([("x", "{a: \"c\", b: {c: unknown}}"), ("y", "{c: unknown}")]),
+    );
+    // Mutating sub-property of unknown property.
+    expect(
+      "const x = {a: 1, b: {c: 1}}; x[B].c = 4;",
+      HashMap::from([("x", "{}")]),
+    );
+    // Mutating unknown property of sub-object.
+    expect(
+      "const x = {a: 1, b: {c: {d: 2}}}; x.b[Z].d = 4;",
+      HashMap::from([("x", "{a: 1, b: {}}")]),
+    );
+
+    // Update expression.
+    expect(
+      "const x = {a: 'c', b: 2}; x.b++",
+      HashMap::from([("x", "{a: \"c\", b: unknown}")]),
+    );
+  }
+
+  #[test]
+  fn test_call() {
+    // Primitive values are passed by value.
+    expect("let x = 2; fn(x)", HashMap::from([("x", "2")]));
+    expect("let x = 'hi'; fn(x)", HashMap::from([("x", "\"hi\"")]));
+    expect("let x = true; fn(x)", HashMap::from([("x", "true")]));
+
+    // Objects are passed by reference and could be mutated by the function call.
+    expect("let x = {foo: 2}; fn(x)", HashMap::from([("x", "{}")]));
+    expect("let x = {foo: 2}; fn?.(x)", HashMap::from([("x", "{}")]));
+    // This object may also be mutated.
+    expect("let x = {foo: 2}; x.bar()", HashMap::from([("x", "{}")]));
+    expect("let x = {foo: 2}; x?.bar()", HashMap::from([("x", "{}")]));
   }
 }
