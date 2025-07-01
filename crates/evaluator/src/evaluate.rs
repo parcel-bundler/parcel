@@ -11,7 +11,7 @@ use swc_core::{
   ecma::ast::*,
 };
 
-use crate::{promise::PromiseInstance, JsFunction, JsObject, JsValue};
+use crate::{promise::PromiseInstance, JsArray, JsFunction, JsObject, JsValue};
 
 pub struct Evaluator<'a> {
   pub(crate) values: HashMap<Id, JsValue>,
@@ -78,7 +78,14 @@ impl<'a> Evaluator<'a> {
     arr: &ArrayPat,
     add_value: &mut F,
   ) {
-    for (index, elem) in arr.elems.iter().enumerate() {
+    let mut values = if let JsValue::Object(obj) = &value {
+      obj.values().unwrap_or_else(|| Box::new(std::iter::empty()))
+    } else {
+      Box::new(std::iter::empty())
+    };
+
+    for elem in arr.elems.iter() {
+      let mut value = values.next();
       if let Some(elem) = elem {
         match elem {
           Pat::Array(ArrayPat { span, .. })
@@ -86,20 +93,19 @@ impl<'a> Evaluator<'a> {
           | Pat::Ident(BindingIdent {
             id: Ident { span, .. },
             ..
-          }) => self.eval_pat(
-            value.get_index(index).unwrap_or(JsValue::Unknown(*span)),
-            elem,
-            add_value,
-          ),
+          }) => self.eval_pat(value.unwrap_or(JsValue::Unknown(*span)), elem, add_value),
           Pat::Rest(rest) => self.eval_pat(
-            value.rest(index).unwrap_or(JsValue::Unknown(rest.span)),
+            JsValue::Object(Rc::new(JsArray::new(values.by_ref().collect())).into()),
             &*rest.arg,
             add_value,
           ),
           Pat::Assign(assign) => {
             let right = assign.right.evaluate(self);
+            if matches!(value, Some(JsValue::Undefined)) {
+              value = Some(right);
+            }
             self.eval_pat(
-              value.get_index(index).unwrap_or(right),
+              value.unwrap_or(JsValue::Unknown(assign.span)),
               &*assign.left,
               add_value,
             );
@@ -141,7 +147,7 @@ impl<'a> Evaluator<'a> {
         ObjectPatProp::Rest(rest) => {
           let val = if let JsValue::Object(obj) = &value {
             let filtered: IndexMap<_, _> = obj
-              .iter()
+              .entries()
               .filter(|(k, _)| !consumed.contains(&k.as_str().into()))
               .collect();
 
@@ -421,14 +427,18 @@ impl Evaluate for Tpl {
 
 impl Evaluate for ArrayLit {
   fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
-    let mut res = Vec::with_capacity(self.elems.len());
+    let mut res = Vec::<JsValue>::with_capacity(self.elems.len());
     for elem in &self.elems {
       if let Some(elem) = elem {
         let val = elem.expr.evaluate(evaluator);
         if elem.spread.is_some() {
           match val {
-            JsValue::Array(arr) => {
-              res.extend(arr.iter().cloned());
+            JsValue::Object(arr) => {
+              if let Some(values) = arr.values() {
+                res.extend(values);
+              } else {
+                return JsValue::Unknown(self.span);
+              }
             }
             _ => return JsValue::Unknown(self.span),
           }
@@ -441,7 +451,7 @@ impl Evaluate for ArrayLit {
         res.push(JsValue::Undefined);
       }
     }
-    JsValue::Array(Rc::new(res))
+    JsValue::Object(Rc::new(JsArray::new(res)).into())
   }
 }
 
@@ -478,7 +488,7 @@ impl Evaluate for ObjectLit {
         PropOrSpread::Spread(spread) => {
           let v = spread.expr.evaluate(evaluator);
           match v {
-            JsValue::Object(o) => res.extend(o.iter()),
+            JsValue::Object(o) => res.extend(o.entries()),
             _ => return JsValue::Unknown(self.span),
           }
         }
@@ -511,11 +521,14 @@ impl Evaluate for BinExpr {
       (BinaryOp::Add, JsValue::String(a), JsValue::String(b)) => {
         JsValue::String(format!("{}{}", a, b).into())
       }
-      (BinaryOp::Add, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a + b),
-      (BinaryOp::Add, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a + b),
       (BinaryOp::Add, JsValue::String(a), JsValue::Number(b)) => {
         JsValue::String(format!("{}{}", a, b).into())
       }
+      (BinaryOp::Add, JsValue::String(a), b) => {
+        JsValue::String(format!("{}{}", a, b.to_string()).into())
+      }
+      (BinaryOp::Add, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a + b),
+      (BinaryOp::Add, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a + b),
       (BinaryOp::Add, JsValue::Number(a), JsValue::String(b)) => {
         JsValue::String(format!("{}{}", a, b).into())
       }
@@ -814,8 +827,12 @@ fn eval_args<'a>(args: &'a Vec<ExprOrSpread>, evaluator: &'a Evaluator) -> Vec<J
     .flat_map(|arg| {
       let value = arg.expr.evaluate(evaluator);
       if let Some(span) = arg.spread {
-        Left(if let JsValue::Array(arr) = value {
-          Left((*arr).clone().into_iter())
+        Left(if let JsValue::Object(arr) = value {
+          if let Some(values) = arr.values() {
+            Left(values.collect::<Vec<_>>().into_iter())
+          } else {
+            Right(std::iter::once(JsValue::Unknown(span)))
+          }
         } else {
           Right(std::iter::once(JsValue::Unknown(span)))
         })

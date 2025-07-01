@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use itertools::Itertools;
 use num_bigint::BigInt;
 use num_traits::Zero;
 use swc_core::{
@@ -8,7 +7,7 @@ use swc_core::{
   ecma::{ast::*, atoms::Atom as JsWord},
 };
 
-use crate::{Function, Object};
+use crate::{Function, JsArray, Object};
 
 /// A type that represents a basic JS value.
 #[derive(Clone)]
@@ -22,7 +21,6 @@ pub enum JsValue {
   String(JsWord),
   BigInt(BigInt),
   Regex { source: JsWord, flags: JsWord },
-  Array(Rc<Vec<JsValue>>),
   Object(StaticOrRc<dyn Object>),
   Function(StaticOrRc<dyn Function>),
 }
@@ -79,14 +77,6 @@ impl<T: Function> From<&'static T> for StaticOrRc<dyn Function> {
 impl JsValue {
   pub fn get(&self, prop: &JsValue, span: Span) -> JsValue {
     match self {
-      JsValue::Array(arr) => match prop {
-        JsValue::Number(n) => arr
-          .get(*n as usize)
-          .cloned()
-          .unwrap_or(JsValue::Unknown(span)),
-        JsValue::String(s) if s == "length" => JsValue::Number(arr.len() as f64),
-        _ => JsValue::Unknown(span),
-      },
       JsValue::Object(obj) => obj.get(prop, span),
       JsValue::Function(obj) => obj.get(prop, span),
       JsValue::String(s) => match prop {
@@ -109,24 +99,6 @@ impl JsValue {
     }
   }
 
-  pub fn get_index(&self, index: usize) -> Option<JsValue> {
-    if let JsValue::Array(arr) = self {
-      arr.get(index).cloned()
-    } else {
-      None
-    }
-  }
-
-  pub fn rest(&self, index: usize) -> Option<JsValue> {
-    if let JsValue::Array(arr) = self {
-      arr
-        .get(index..)
-        .map(|s| JsValue::Array(Rc::new(s.to_vec())))
-    } else {
-      None
-    }
-  }
-
   pub fn is_known(&self) -> bool {
     !matches!(self, JsValue::Unknown(..))
   }
@@ -143,7 +115,6 @@ impl JsValue {
         BigInt(..) => "bigint",
         String(..) => "string",
         Regex { .. } => "object",
-        Array(..) => "object",
         Object(..) => "object",
         Function(..) => "function",
       }
@@ -162,7 +133,6 @@ impl JsValue {
       BigInt(v) => Some(!v.is_zero()),
       String(s) => Some(!s.is_empty()),
       Regex { .. } => Some(true),
-      Array(..) => Some(true),
       Object(..) => Some(true),
       Function(..) => Some(true),
     }
@@ -178,8 +148,7 @@ impl JsValue {
       JsValue::String(atom) => atom.clone(),
       JsValue::BigInt(big_int) => big_int.to_string().into(),
       JsValue::Regex { source, flags } => format!("/{}/{}", source, flags).into(),
-      JsValue::Array(js_values) => js_values.iter().map(|i| i.to_string()).join(",").into(),
-      JsValue::Object(_) => "[object Object]".into(),
+      JsValue::Object(obj) => obj.to_string(),
       JsValue::Function(_) => "function () { [native code] }".into(),
     }
   }
@@ -230,20 +199,6 @@ impl JsValue {
         exp: source.into(),
         flags: flags.into(),
       })),
-      JsValue::Array(arr) => Expr::Array(ArrayLit {
-        span: DUMMY_SP,
-        elems: {
-          let mut elems = Vec::new();
-          for elem in arr.iter() {
-            elems.push(Some(ExprOrSpread {
-              spread: None,
-              expr: Box::new(elem.clone().into_expr()?),
-            }));
-          }
-
-          elems
-        },
-      }),
       JsValue::Object(obj) => obj.into_expr()?,
       JsValue::Function(f) => f.into_expr()?,
       // JsValue::Function(source) => {
@@ -285,25 +240,26 @@ impl std::fmt::Display for JsValue {
       JsValue::BigInt(n) => write!(f, "{}n", n),
       JsValue::String(s) => write!(f, "{:?}", s),
       JsValue::Regex { source, flags } => write!(f, "/{}/{}", source, flags),
-      JsValue::Array(arr) => {
-        f.write_str("[")?;
-        for (index, v) in arr.iter().enumerate() {
-          if index > 0 {
-            f.write_str(", ")?;
-          }
-          write!(f, "{}", v)?;
-        }
-        f.write_str("]")
-      }
       JsValue::Object(obj) => {
-        f.write_str("{")?;
-        for (index, (k, v)) in obj.iter().enumerate() {
-          if index > 0 {
-            f.write_str(", ")?;
+        if let Some(arr) = obj.as_any().downcast_ref::<JsArray>() {
+          f.write_str("[")?;
+          for (index, v) in arr.values().unwrap().enumerate() {
+            if index > 0 {
+              f.write_str(", ")?;
+            }
+            write!(f, "{}", v)?;
           }
-          write!(f, "{}: {}", k, v)?
+          f.write_str("]")
+        } else {
+          f.write_str("{")?;
+          for (index, (k, v)) in obj.entries().enumerate() {
+            if index > 0 {
+              f.write_str(", ")?;
+            }
+            write!(f, "{}: {}", k, v)?
+          }
+          f.write_str("}")
         }
-        f.write_str("}")
       }
       JsValue::Function(_) => write!(f, "function"),
     }

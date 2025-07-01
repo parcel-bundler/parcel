@@ -23,12 +23,20 @@ pub trait Object: AsAny {
     false
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     Box::new(std::iter::empty())
+  }
+
+  fn values<'a>(&'a self) -> Option<Box<dyn Iterator<Item = JsValue> + 'a>> {
+    None
   }
 
   fn into_expr(&self) -> Result<Expr, ()> {
     Err(())
+  }
+
+  fn to_string(&self) -> JsWord {
+    "[object Object]".into()
   }
 }
 
@@ -44,7 +52,7 @@ impl Object for IndexMap<JsWord, JsValue> {
     self.contains_key(&prop.to_string())
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     Box::new(self.iter().map(|(k, v)| (k.clone(), v.clone())))
   }
 
@@ -86,7 +94,7 @@ impl Object for phf::OrderedMap<&'static str, JsValue> {
     self.contains_key(&prop.to_string())
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     Box::new(self.into_iter().map(|(k, v)| ((*k).into(), v.clone())))
   }
 }
@@ -143,7 +151,7 @@ impl Object for JsObject {
     }
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     let map = self.map.borrow();
     Box::new(JsObjectIter { map, index: 0 })
   }

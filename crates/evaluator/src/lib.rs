@@ -1,3 +1,4 @@
+mod array;
 mod buffer;
 mod collect_constants;
 mod evaluate;
@@ -15,6 +16,7 @@ mod require;
 mod url;
 mod worker;
 
+pub use array::*;
 pub use evaluate::{Evaluate, Evaluator};
 pub use function::*;
 pub use js_value::*;
@@ -198,8 +200,9 @@ mod test {
     //   "{foo: function() { side_effects = No; return 2 }}",
     // );
     test("{foo: 2, ...{bar: 3}}", "{foo: 2, bar: 3}");
-    test("{foo: 2, ...[1, 2]}", "unknown");
+    test("{foo: 2, ...[1, 2]}", "{foo: 2, 0: 1, 1: 2}");
     test("{foo: 2, ...unknown}", "unknown");
+    test("'' + {foo: 2}", "\"[object Object]\"");
   }
 
   #[test]
@@ -208,6 +211,8 @@ mod test {
     test("[2, ...[3, 4]]", "[2, 3, 4]");
     test("[2, ...unknown]", "unknown");
     test("[2, ...({foo: 2})]", "unknown");
+    test("[2, 3].length", "2");
+    test("'' + [2, 3]", "\"2,3\"");
   }
 
   #[test]

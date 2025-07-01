@@ -65,7 +65,7 @@ impl Object for Buffer {
     false
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     Box::new(std::iter::empty())
   }
 

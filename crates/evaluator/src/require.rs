@@ -124,11 +124,11 @@ impl Object for RequireDep {
     }
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     self.symbols.borrow_mut().insert(SymbolName::Namespace);
 
     if let JsValue::Object(obj) = &self.ns {
-      obj.iter()
+      obj.entries()
     } else {
       Box::new(std::iter::empty())
     }

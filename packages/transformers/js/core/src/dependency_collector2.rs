@@ -850,7 +850,7 @@ impl Object for ImportMeta {
     )
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     let keys = &["url", "distDist", "publicUrl", "devServer"];
     Box::new(keys.into_iter().map(|k| {
       (
@@ -1093,9 +1093,9 @@ impl Object for RequireDep {
     }
   }
 
-  fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
+  fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
     if let JsValue::Object(obj) = &self.ns {
-      obj.iter()
+      obj.entries()
     } else {
       Box::new(std::iter::empty())
     }

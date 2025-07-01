@@ -964,6 +964,30 @@ mod tests {
   }
 
   #[test]
+  fn test_arrays() {
+    // Mutating array index.
+    expect(
+      "const x = [1, [2, 3]]; const y = x[1]; x[1][1] = 3;",
+      HashMap::from([("x", "[1, [2, unknown]]"), ("y", "[2, unknown]")]),
+    );
+    // Mutating index of reference.
+    expect(
+      "const x = [1, [2, 3]]; const y = x[1]; y[1] = 3;",
+      HashMap::from([("x", "[1, [2, unknown]]"), ("y", "[2, unknown]")]),
+    );
+    // Mutating unknown index.
+    expect(
+      "const x = [1, [2, 3]]; const y = x[1]; y[2] = 3;",
+      HashMap::from([("x", "[1, []]"), ("y", "[]")]),
+    );
+    // Update expression.
+    expect(
+      "const x = [1, 2]; x[1]++",
+      HashMap::from([("x", "[1, unknown]")]),
+    );
+  }
+
+  #[test]
   fn test_call() {
     // Primitive values are passed by value.
     expect("let x = 2; fn(x)", HashMap::from([("x", "2")]));

@@ -122,7 +122,7 @@ impl Object for EnvObject {
     res
   }
 
-  fn iter<'s>(&'s self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 's> {
+  fn entries<'s>(&'s self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 's> {
     self.used_env.borrow_mut().extend(self.env.keys().cloned());
     Box::new(
       self
@@ -137,7 +137,7 @@ impl Object for EnvObject {
       span: DUMMY_SP,
       props: {
         let mut props = Vec::new();
-        for (k, v) in self.iter() {
+        for (k, v) in self.entries() {
           props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
             key: if Ident::verify_symbol(&k).is_ok() {
               PropName::Ident(IdentName::new(k.clone().into(), DUMMY_SP))
