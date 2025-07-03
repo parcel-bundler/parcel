@@ -15,7 +15,7 @@ use swc_core::{
 };
 
 use crate::{
-  module::{Module, SymbolName},
+  module::{Module, Symbol},
   url::UrlDep,
   Evaluator, Function, JsValue, Object,
 };

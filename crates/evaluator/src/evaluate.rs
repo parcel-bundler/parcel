@@ -334,6 +334,12 @@ impl Evaluate for Expr {
       Expr::Fn(fn_expr) => fn_expr.evaluate(evaluator),
       Expr::Arrow(arrow_expr) => arrow_expr.evaluate(evaluator),
       Expr::Await(await_expr) => await_expr.evaluate(evaluator),
+      Expr::TsTypeAssertion(ts_type_assertion) => ts_type_assertion.evaluate(evaluator),
+      Expr::TsConstAssertion(ts_const_assertion) => ts_const_assertion.evaluate(evaluator),
+      Expr::TsNonNull(ts_non_null_expr) => ts_non_null_expr.evaluate(evaluator),
+      Expr::TsAs(ts_as_expr) => ts_as_expr.evaluate(evaluator),
+      Expr::TsInstantiation(ts_instantiation) => ts_instantiation.evaluate(evaluator),
+      Expr::TsSatisfies(ts_satisfies_expr) => ts_satisfies_expr.evaluate(evaluator),
       Expr::Class(class_expr) => JsValue::Unknown(class_expr.class.span),
       Expr::TaggedTpl(tagged_tpl) => JsValue::Unknown(tagged_tpl.span),
       Expr::Update(update_expr) => JsValue::Unknown(update_expr.span),
@@ -345,12 +351,6 @@ impl Evaluate for Expr {
       Expr::JSXEmpty(jsxempty_expr) => JsValue::Unknown(jsxempty_expr.span),
       Expr::JSXElement(jsxelement) => JsValue::Unknown(jsxelement.span),
       Expr::JSXFragment(jsxfragment) => JsValue::Unknown(jsxfragment.span),
-      Expr::TsTypeAssertion(ts_type_assertion) => JsValue::Unknown(ts_type_assertion.span),
-      Expr::TsConstAssertion(ts_const_assertion) => JsValue::Unknown(ts_const_assertion.span),
-      Expr::TsNonNull(ts_non_null_expr) => JsValue::Unknown(ts_non_null_expr.span),
-      Expr::TsAs(ts_as_expr) => JsValue::Unknown(ts_as_expr.span),
-      Expr::TsInstantiation(ts_instantiation) => JsValue::Unknown(ts_instantiation.span),
-      Expr::TsSatisfies(ts_satisfies_expr) => JsValue::Unknown(ts_satisfies_expr.span),
       Expr::PrivateName(private_name) => JsValue::Unknown(private_name.span),
       Expr::Invalid(invalid) => JsValue::Unknown(invalid.span),
     }
@@ -1009,5 +1009,41 @@ impl Evaluate for AwaitExpr {
       }
       _ => JsValue::Unknown(self.span),
     }
+  }
+}
+
+impl Evaluate for TsTypeAssertion {
+  fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
+    self.expr.evaluate(evaluator)
+  }
+}
+
+impl Evaluate for TsConstAssertion {
+  fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
+    self.expr.evaluate(evaluator)
+  }
+}
+
+impl Evaluate for TsNonNullExpr {
+  fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
+    self.expr.evaluate(evaluator)
+  }
+}
+
+impl Evaluate for TsAsExpr {
+  fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
+    self.expr.evaluate(evaluator)
+  }
+}
+
+impl Evaluate for TsInstantiation {
+  fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
+    self.expr.evaluate(evaluator)
+  }
+}
+
+impl Evaluate for TsSatisfiesExpr {
+  fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
+    self.expr.evaluate(evaluator)
   }
 }

@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use data_encoding::{BASE64, HEXLOWER};
 use swc_core::{
   common::{Span, SyntaxContext, DUMMY_SP},
@@ -8,48 +6,13 @@ use swc_core::{
 
 use crate::{Evaluator, JsValue, Object};
 
-pub struct Buffer(pub Rc<Vec<u8>>);
+pub struct Buffer(pub Vec<u8>);
 
 impl Object for Buffer {
   fn get(&self, prop: &JsValue, span: Span) -> JsValue {
     match prop {
       JsValue::String(prop) => match prop.as_str() {
-        "toString" => {
-          let contents = self.0.clone();
-          JsValue::Function(
-            Rc::new(
-              move |_this, args: Vec<JsValue>, span, _evaluator: &Evaluator| {
-                let encoding = match args.get(0) {
-                  None => "utf8",
-                  Some(JsValue::String(e)) => e.as_str(),
-                  _ => return JsValue::Unknown(span),
-                };
-                let start = match args.get(1) {
-                  None | Some(JsValue::Undefined | JsValue::Null) => 0,
-                  Some(JsValue::Number(s)) => *s as usize,
-                  _ => return JsValue::Unknown(span),
-                };
-                let end = match args.get(2) {
-                  None | Some(JsValue::Undefined | JsValue::Null) => contents.len(),
-                  Some(JsValue::Number(s)) => *s as usize,
-                  _ => return JsValue::Unknown(span),
-                };
-                let slice = &contents[start..end];
-
-                match encoding {
-                  "base64" => JsValue::String(BASE64.encode(&slice).into()),
-                  "hex" => JsValue::String(HEXLOWER.encode(&slice).into()),
-                  "utf8" | "utf-8" => std::str::from_utf8(&slice)
-                    .ok()
-                    .map(|v| JsValue::String(v.into()))
-                    .unwrap_or(JsValue::Unknown(span)),
-                  _ => JsValue::Unknown(span),
-                }
-              },
-            )
-            .into(),
-          )
-        }
+        "toString" => JsValue::Function((&to_string).into()),
         "length" => JsValue::Number(self.0.len() as f64),
         _ => JsValue::Unknown(span),
       },
@@ -95,4 +58,46 @@ impl Object for Buffer {
       type_args: None,
     }))
   }
+
+  fn to_string(&self) -> JsWord {
+    std::str::from_utf8(&self.0)
+      .ok()
+      .map(|s| s.into())
+      .unwrap_or_else(|| "".into())
+  }
+}
+
+fn to_string(this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
+  if let JsValue::Object(this) = this {
+    if let Some(buffer) = this.as_any().downcast_ref::<Buffer>() {
+      let encoding = match args.get(0) {
+        None => "utf8",
+        Some(JsValue::String(e)) => e.as_str(),
+        _ => return JsValue::Unknown(span),
+      };
+      let start = match args.get(1) {
+        None | Some(JsValue::Undefined | JsValue::Null) => 0,
+        Some(JsValue::Number(s)) => *s as usize,
+        _ => return JsValue::Unknown(span),
+      };
+      let end = match args.get(2) {
+        None | Some(JsValue::Undefined | JsValue::Null) => buffer.0.len(),
+        Some(JsValue::Number(s)) => *s as usize,
+        _ => return JsValue::Unknown(span),
+      };
+      let slice = &buffer.0[start..end];
+
+      return match encoding {
+        "base64" => JsValue::String(BASE64.encode(&slice).into()),
+        "hex" => JsValue::String(HEXLOWER.encode(&slice).into()),
+        "utf8" | "utf-8" => std::str::from_utf8(&slice)
+          .ok()
+          .map(|v| JsValue::String(v.into()))
+          .unwrap_or(JsValue::Unknown(span)),
+        _ => JsValue::Unknown(span),
+      };
+    }
+  }
+
+  JsValue::Unknown(span)
 }

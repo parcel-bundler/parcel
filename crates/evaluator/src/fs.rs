@@ -43,7 +43,7 @@ fn read_file_sync(
     let contents = match encoding {
       "buffer" => {
         if let Ok(contents) = std::fs::read(&path) {
-          return JsValue::Object(Rc::new(Buffer(Rc::new(contents))).into());
+          return JsValue::Object(Rc::new(Buffer(contents)).into());
         } else {
           return JsValue::Unknown(span);
         }

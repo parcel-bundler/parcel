@@ -13,7 +13,7 @@ use swc_core::{
 };
 
 use crate::{
-  module::{Module, SymbolName},
+  module::{Module, Symbol},
   Evaluator, Function, JsValue, Object,
 };
 
@@ -81,7 +81,7 @@ impl Function for Require {
 pub struct RequireDep {
   src: JsWord,
   span: Span,
-  symbols: RefCell<HashSet<SymbolName>>,
+  symbols: RefCell<HashSet<Symbol>>,
   ns: JsValue,
 }
 
@@ -108,9 +108,9 @@ impl Object for RequireDep {
       self
         .symbols
         .borrow_mut()
-        .insert(SymbolName::Name(name.clone()));
+        .insert(Symbol::Name(name.clone()));
     } else {
-      self.symbols.borrow_mut().insert(SymbolName::Namespace);
+      self.symbols.borrow_mut().insert(Symbol::Namespace);
     }
 
     self.ns.get(prop, span)
@@ -125,7 +125,7 @@ impl Object for RequireDep {
   }
 
   fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
-    self.symbols.borrow_mut().insert(SymbolName::Namespace);
+    self.symbols.borrow_mut().insert(Symbol::Namespace);
 
     if let JsValue::Object(obj) = &self.ns {
       obj.entries()

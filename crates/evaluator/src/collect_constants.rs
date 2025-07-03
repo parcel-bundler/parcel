@@ -23,7 +23,6 @@ pub fn collect_constants(node: &Module, evaluator: &mut Evaluator) {
   collector.visit_module(node);
 
   let graph = collector.graph;
-  println!("{:?}", Dot::new(&graph));
 
   let mut visited = graph.visit_map();
   let mut stack = Vec::new();
@@ -81,9 +80,6 @@ pub fn collect_constants(node: &Module, evaluator: &mut Evaluator) {
 }
 
 struct ConstantCollector<'a> {
-  // module: Rc<RefCell<crate::module::Module>>,
-  // evaluator: Evaluator<'a>,
-  // call_macro: MacroCallback,
   graph: DiGraph<Node<'a>, AccessType>,
   ids: HashMap<Id, NodeIndex>,
 }
@@ -150,61 +146,6 @@ impl<'a> ConstantCollector<'a> {
 
 impl<'a> ConstantCollector<'a> {
   fn visit_module(&mut self, node: &'a Module) {
-    // Visit import statements first.
-    // for item in &node.body {
-    //   if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item {
-    //     let attrs = if let Some(attrs) = &import.with {
-    //       attrs.evaluate(&self.evaluator)
-    //     } else {
-    //       JsValue::Unknown(import.span)
-    //     };
-
-    //     let namespace = if matches!(attrs.get(&JsValue::String("type".into()), DUMMY_SP), JsValue::String(t) if t == "macro")
-    //     {
-    //       JsValue::Object(
-    //         Rc::new(MacroModule {
-    //           module: self.module.clone(),
-    //           src: import.src.value.clone(),
-    //           callback: self.call_macro.clone(),
-    //         })
-    //         .into(),
-    //       )
-    //     } else {
-    //       match import.src.value.as_str() {
-    //         "path" | "node:path" => create_path_module(),
-    //         // "fs" | "node:fs" => create_fs_module(self.project_root.to_string()),
-    //         _ => JsValue::Unknown(DUMMY_SP),
-    //       }
-    //     };
-
-    //     if matches!(namespace, JsValue::Object(..)) {
-    //       for specifier in &import.specifiers {
-    //         match specifier {
-    //           ImportSpecifier::Named(named) => {
-    //             let imported = match &named.imported {
-    //               Some(ModuleExportName::Ident(id)) => id.sym.clone(),
-    //               Some(ModuleExportName::Str(s)) => s.value.clone(),
-    //               None => named.local.sym.clone(),
-    //             };
-    //             let value = namespace.get(&JsValue::String(imported), DUMMY_SP);
-    //             self.evaluator.add_value(named.local.to_id(), value);
-    //           }
-    //           ImportSpecifier::Default(default) => {
-    //             self
-    //               .evaluator
-    //               .add_value(default.local.to_id(), namespace.clone());
-    //           }
-    //           ImportSpecifier::Namespace(ns) => {
-    //             self
-    //               .evaluator
-    //               .add_value(ns.local.to_id(), namespace.clone());
-    //           }
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
-
     for item in &node.body {
       match item {
         ModuleItem::Stmt(stmt) => {
@@ -224,7 +165,10 @@ impl<'a> ConstantCollector<'a> {
       }
       Stmt::Empty(_) => {}
       Stmt::Debugger(_) => {}
-      Stmt::With(_) => todo!(),
+      Stmt::With(WithStmt { obj, body, .. }) => {
+        self.visit_expr(&*obj, access);
+        self.visit_stmt(&*body, access);
+      }
       Stmt::Return(ReturnStmt { arg, .. }) => {
         if let Some(arg) = arg {
           self.visit_expr(&*arg, access);
@@ -313,7 +257,11 @@ impl<'a> ConstantCollector<'a> {
       }) => {
         match left {
           ForHead::VarDecl(decl) => self.visit_var_decl(decl, access),
-          ForHead::UsingDecl(_) => todo!(),
+          ForHead::UsingDecl(using_decl) => {
+            for decl in &using_decl.decls {
+              self.visit_var_declarator(decl, access);
+            }
+          }
           ForHead::Pat(pat) => self.visit_pat(pat, access),
         }
 
@@ -997,7 +945,7 @@ mod tests {
     // Objects are passed by reference and could be mutated by the function call.
     expect("let x = {foo: 2}; fn(x)", HashMap::from([("x", "{}")]));
     expect("let x = {foo: 2}; fn?.(x)", HashMap::from([("x", "{}")]));
-    // This object may also be mutated.
+    // `this` object may also be mutated.
     expect("let x = {foo: 2}; x.bar()", HashMap::from([("x", "{}")]));
     expect("let x = {foo: 2}; x?.bar()", HashMap::from([("x", "{}")]));
   }

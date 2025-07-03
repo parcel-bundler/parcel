@@ -7,7 +7,7 @@ use parcel_core::{
 use swc_core::{common::Span, ecma::atoms::Atom as JsWord};
 
 use crate::{
-  module::{Module, SymbolName},
+  module::{Module, Symbol},
   promise::PromiseInstance,
   Evaluator, Function, JsValue, Object,
 };
@@ -81,26 +81,23 @@ impl Function for Import {
 pub struct ImportDep {
   src: JsWord,
   span: Span,
-  symbols: RefCell<HashSet<SymbolName>>,
+  symbols: RefCell<HashSet<Symbol>>,
   flags: DependencyFlags,
 }
 
 impl Object for ImportDep {
   fn get(&self, prop: &JsValue, span: Span) -> JsValue {
     if let JsValue::String(name) = prop {
-      self
-        .symbols
-        .borrow_mut()
-        .insert(SymbolName::Name(name.clone()));
+      self.symbols.borrow_mut().insert(Symbol::Name(name.clone()));
     } else {
-      self.symbols.borrow_mut().insert(SymbolName::Namespace);
+      self.symbols.borrow_mut().insert(Symbol::Namespace);
     }
 
     JsValue::Unknown(span)
   }
 
   fn entries<'a>(&'a self) -> Box<dyn Iterator<Item = (JsWord, JsValue)> + 'a> {
-    self.symbols.borrow_mut().insert(SymbolName::Namespace);
+    self.symbols.borrow_mut().insert(Symbol::Namespace);
 
     Box::new(std::iter::empty())
   }
