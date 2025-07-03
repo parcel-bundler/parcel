@@ -687,12 +687,24 @@ impl<'a> ConstantCollector<'a> {
       Expr::JSXFragment(frag) => {
         self.visit_jsx_fragment(frag, access);
       }
-      Expr::TsTypeAssertion(_) => {}
-      Expr::TsConstAssertion(_) => {}
-      Expr::TsNonNull(_) => {}
-      Expr::TsAs(_) => {}
-      Expr::TsInstantiation(_) => {}
-      Expr::TsSatisfies(_) => {}
+      Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }) => {
+        self.visit_expr(expr, access);
+      }
+      Expr::TsConstAssertion(TsConstAssertion { expr, .. }) => {
+        self.visit_expr(expr, access);
+      }
+      Expr::TsNonNull(TsNonNullExpr { expr, .. }) => {
+        self.visit_expr(expr, access);
+      }
+      Expr::TsAs(TsAsExpr { expr, .. }) => {
+        self.visit_expr(expr, access);
+      }
+      Expr::TsInstantiation(TsInstantiation { expr, .. }) => {
+        self.visit_expr(expr, access);
+      }
+      Expr::TsSatisfies(TsSatisfiesExpr { expr, .. }) => {
+        self.visit_expr(expr, access);
+      }
       Expr::PrivateName(_) => {}
       Expr::Invalid(_) => {}
     }

@@ -78,11 +78,9 @@ impl<'a> Evaluator<'a> {
     arr: &ArrayPat,
     add_value: &mut F,
   ) {
-    let mut values = if let JsValue::Object(obj) = &value {
-      obj.values().unwrap_or_else(|| Box::new(std::iter::empty()))
-    } else {
-      Box::new(std::iter::empty())
-    };
+    let mut values = value
+      .values()
+      .unwrap_or_else(|| Box::new(std::iter::empty()));
 
     for elem in arr.elems.iter() {
       let mut value = values.next();
@@ -432,15 +430,10 @@ impl Evaluate for ArrayLit {
       if let Some(elem) = elem {
         let val = elem.expr.evaluate(evaluator);
         if elem.spread.is_some() {
-          match val {
-            JsValue::Object(arr) => {
-              if let Some(values) = arr.values() {
-                res.extend(values);
-              } else {
-                return JsValue::Unknown(self.span);
-              }
-            }
-            _ => return JsValue::Unknown(self.span),
+          if let Some(values) = val.values() {
+            res.extend(values);
+          } else {
+            return JsValue::Unknown(self.span);
           }
         } else if val.is_known() {
           res.push(val);
@@ -827,12 +820,8 @@ fn eval_args<'a>(args: &'a Vec<ExprOrSpread>, evaluator: &'a Evaluator) -> Vec<J
     .flat_map(|arg| {
       let value = arg.expr.evaluate(evaluator);
       if let Some(span) = arg.spread {
-        Left(if let JsValue::Object(arr) = value {
-          if let Some(values) = arr.values() {
-            Left(values.collect::<Vec<_>>().into_iter())
-          } else {
-            Right(std::iter::once(JsValue::Unknown(span)))
-          }
+        Left(if let Some(values) = value.values() {
+          Left(values.collect::<Vec<_>>().into_iter())
         } else {
           Right(std::iter::once(JsValue::Unknown(span)))
         })

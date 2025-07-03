@@ -13,6 +13,7 @@ mod path;
 mod process;
 mod promise;
 mod require;
+mod string;
 mod url;
 mod worker;
 
@@ -241,5 +242,68 @@ mod test {
     test("(({i}) => i + 2)({i: 4})", "6");
     test("{foo() { return 4 }}.foo()", "4");
     test("{foo() { return 4 }}?.foo()", "4");
+  }
+
+  #[test]
+  fn test_string() {
+    test("'foo'", "\"foo\"");
+    test("'foo'.length", "3");
+    test("'😍'.length", "2");
+    test("'foo'[1]", "\"o\"");
+    test("'foo'[5]", "undefined");
+    test("'😍'[0]", "unknown");
+    test("'😍x'[2]", "\"x\"");
+    test("'foo'.toUpperCase()", "\"FOO\"");
+    test("'FOO'.toLowerCase()", "\"foo\"");
+    test("' foo '.trim()", "\"foo\"");
+    test("' foo '.trimStart()", "\"foo \"");
+    test("' foo '.trimEnd()", "\" foo\"");
+    test("'food'.includes('foo')", "true");
+    test("'food'.includes('test')", "false");
+    test("'food'.startsWith('foo')", "true");
+    test("'food'.startsWith('test')", "false");
+    test("'food'.endsWith('od')", "true");
+    test("'food'.endsWith('test')", "false");
+    test("'abc'.codePointAt(1)", "98");
+    test("'abc'.codePointAt(-10)", "undefined");
+    test("'abc'.codePointAt(10)", "undefined");
+    test("'😍'.codePointAt(0)", "128525");
+    test("'😍'.codePointAt(1)", "56845");
+    test("'abc'.charCodeAt(1)", "98");
+    test("'abc'.charCodeAt(-10)", "undefined");
+    test("'abc'.charCodeAt(10)", "undefined");
+    test("'𠮷𠮾'.charCodeAt(0)", "55362");
+    test("'𠮷𠮾'.charCodeAt(1)", "57271");
+    test("'abc'.charAt(1)", "\"b\"");
+    test("'abc'.charAt(-10)", "\"\"");
+    test("'abc'.charAt(10)", "\"\"");
+    test("'😍'.charAt(0)", "unknown");
+    test("'😍x'.charAt(2)", "\"x\"");
+    test("'abc'.at(1)", "\"b\"");
+    test("'abc'.at(-1)", "\"c\"");
+    test("'abc'.at(-3)", "\"a\"");
+    test("'abc'.at(-4)", "undefined");
+    test("'abc'.at(4)", "undefined");
+    test("'Mozilla'.slice(1, 3)", "\"oz\"");
+    test("'Mozilla'.slice(2)", "\"zilla\"");
+    test("'Mozilla'.slice(7, 4)", "\"\"");
+    test("'Mozilla'.slice(-2)", "\"la\"");
+    test("'Mozilla'.slice(2, -2)", "\"zil\"");
+    test("'yay '.repeat(3)", "\"yay yay yay \"");
+    test("'yay '.repeat(0)", "\"\"");
+    test("'Hello'.concat(' ', 'world!')", "\"Hello world!\"");
+    test("''.concat(...['Hello', ' ', 'world!'])", "\"Hello world!\"");
+    test("'Hello world'.indexOf('')", "0");
+    test("'Hello world'.indexOf('', 0)", "0");
+    test("'Hello world'.indexOf('', 3)", "3");
+    test("'Hello world'.indexOf('', 100)", "11");
+    test("'Hello world'.indexOf('Hello')", "0");
+    test("'Hello world'.indexOf('Hello', 1)", "-1");
+    test("'Hello world'.indexOf('world')", "6");
+    test("'Hello world'.indexOf('test')", "-1");
+    test("'Hello world hello world'.indexOf('world', 6)", "6");
+    test("'Hello world hello world'.indexOf('world', 7)", "18");
+    test("[...'hi']", "[\"h\", \"i\"]");
+    test("[...'👉🏿']", "[\"👉\", \"🏿\"]");
   }
 }

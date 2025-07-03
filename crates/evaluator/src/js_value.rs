@@ -7,7 +7,7 @@ use swc_core::{
   ecma::{ast::*, atoms::Atom as JsWord},
 };
 
-use crate::{Function, JsArray, Object};
+use crate::{string::StringObject, Function, JsArray, Object};
 
 /// A type that represents a basic JS value.
 #[derive(Clone)]
@@ -79,14 +79,7 @@ impl JsValue {
     match self {
       JsValue::Object(obj) => obj.get(prop, span),
       JsValue::Function(obj) => obj.get(prop, span),
-      JsValue::String(s) => match prop {
-        JsValue::Number(n) => s
-          .get(*n as usize..=*n as usize)
-          .map(|c| JsValue::String(c.into()))
-          .unwrap_or(JsValue::Unknown(span)),
-        JsValue::String(name) if name == "length" => JsValue::Number(s.len() as f64),
-        _ => JsValue::Unknown(span),
-      },
+      JsValue::String(s) => StringObject::from(s.clone()).get(prop, span),
       _ => JsValue::Unknown(span),
     }
   }
@@ -96,6 +89,16 @@ impl JsValue {
       JsValue::Object(obj) => JsValue::Bool(obj.has(prop)),
       JsValue::Function(obj) => JsValue::Bool(obj.has(prop)),
       _ => JsValue::Unknown(span),
+    }
+  }
+
+  pub fn values<'a>(&'a self) -> Option<Box<dyn Iterator<Item = JsValue> + 'a>> {
+    match self {
+      JsValue::Object(obj) => obj.values(),
+      JsValue::String(s) => Some(Box::new(
+        s.chars().map(|c| JsValue::String(c.to_string().into())),
+      )),
+      _ => None,
     }
   }
 
