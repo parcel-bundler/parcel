@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use swc_core::{common::Span, ecma::ast::Expr};
 
-use crate::{Evaluator, Function, JsValue, Object, StaticOrRc};
+use crate::{module::ImportNamespace, Evaluator, Function, JsValue, Object, StaticOrRc};
 
 pub struct Promise;
 impl Object for Promise {
@@ -84,6 +84,13 @@ impl Object for PromiseInstance {
   }
 
   fn into_expr(&self) -> Result<Expr, ()> {
+    if let JsValue::Object(obj) = &self.0 {
+      if let Some(dep) = obj.as_any().downcast_ref::<ImportNamespace>() {
+        // TODO: mark dep as async
+        return dep.into_expr();
+      }
+    }
+
     Err(())
   }
 }

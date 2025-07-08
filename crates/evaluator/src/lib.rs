@@ -5,6 +5,7 @@ mod evaluate;
 mod fs;
 mod function;
 mod import;
+mod import_meta;
 mod js_value;
 mod macros;
 mod module;
@@ -14,6 +15,7 @@ mod process;
 mod promise;
 mod require;
 mod string;
+mod transform;
 mod url;
 mod worker;
 

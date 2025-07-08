@@ -3282,6 +3282,7 @@ dependencies = [
  "swc_ecma_codegen",
  "swc_ecma_parser",
  "swc_ecma_preset_env",
+ "swc_ecma_quote_macros",
  "swc_ecma_transforms_base",
  "swc_ecma_transforms_compat",
  "swc_ecma_transforms_optimization",
@@ -3619,6 +3620,24 @@ dependencies = [
  "swc_ecma_transforms",
  "swc_ecma_utils",
  "swc_ecma_visit",
+]
+
+[[package]]
+name = "swc_ecma_quote_macros"
+version = "11.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26132f0851c46a258f954cc00ca6c71fe6ab4520f6fde722e6e8a200c61f6c83"
+dependencies = [
+ "anyhow",
+ "proc-macro2",
+ "quote",
+ "rustc-hash 2.0.0",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_parser",
+ "swc_macros_common",
+ "syn 2.0.89",
 ]
 
 [[package]]

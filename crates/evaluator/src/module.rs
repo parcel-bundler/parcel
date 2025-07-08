@@ -17,11 +17,12 @@ use swc_core::{
     atoms::Atom as JsWord,
     utils::{for_each_binding_ident, private_ident},
   },
+  quote,
 };
 
 use crate::{macros::MacroModule, path::create_path_module, Evaluate, Evaluator, JsValue, Object};
 
-pub struct Module {
+pub struct ModuleRecord {
   pub env: Arc<Environment>,
   pub source_map: Lrc<SourceMap>,
   pub dependencies: Vec<Dependency>,
@@ -29,7 +30,7 @@ pub struct Module {
   local_exports: IndexMap<Symbol, LocalExportRecord>,
   indirect_exports: IndexMap<Symbol, IndirectExportRecord>,
   star_exports: Vec<JsWord>,
-  pub deps: HashMap<JsWord, JsValue>,
+  import_namespaces: Vec<JsValue>,
   pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -86,9 +87,9 @@ struct IndirectExportRecord {
   span: Span,
 }
 
-impl Module {
+impl ModuleRecord {
   pub fn new(env: Arc<Environment>, source_map: Lrc<SourceMap>) -> Self {
-    Module {
+    ModuleRecord {
       env,
       source_map,
       dependencies: Vec::new(),
@@ -96,7 +97,7 @@ impl Module {
       local_exports: IndexMap::new(),
       indirect_exports: IndexMap::new(),
       star_exports: Vec::new(),
-      deps: HashMap::new(),
+      import_namespaces: Vec::new(),
       diagnostics: Vec::new(),
     }
   }
@@ -104,6 +105,7 @@ impl Module {
   pub fn add_dependency(&mut self, dep: Dependency) -> u32 {
     let index = self.dependencies.len();
     self.dependencies.push(dep);
+    self.import_namespaces.push(JsValue::Undefined);
     index as u32
   }
 
@@ -121,6 +123,30 @@ impl Module {
       resolve_from: None,
     };
     self.add_dependency(dep)
+  }
+
+  pub fn get_import_namespace(&mut self, index: u32) -> JsValue {
+    if matches!(self.import_namespaces[index as usize], JsValue::Object(_)) {
+      return self.import_namespaces[index as usize].clone();
+    }
+
+    let builtin = match self.dependencies[index as usize].specifier.as_str() {
+      "path" | "node:path" => create_path_module(),
+      // "fs" | "node:fs" => create_fs_module(self.project_root.to_string()),
+      _ => JsValue::Unknown(DUMMY_SP),
+    };
+
+    let ns = JsValue::Object(
+      Rc::new(ImportNamespace {
+        index,
+        symbols: RefCell::new(HashSet::new()),
+        builtin,
+      })
+      .into(),
+    );
+
+    self.import_namespaces[index as usize] = ns.clone();
+    ns
   }
 
   pub fn loc(&self, span: Span) -> SourceLocation {
@@ -153,7 +179,7 @@ impl Module {
   }
 
   // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-parsemodule
-  pub fn parse_module(self: &mut Module, module: &mut SwcModule, evaluator: &mut Evaluator) {
+  pub fn parse_module(self: &mut ModuleRecord, module: &mut SwcModule, evaluator: &mut Evaluator) {
     let mut imported_bound_names = HashMap::new();
     let mut exports = Vec::<(Symbol, Id, Span)>::new();
     module.body.retain_mut(|item| {
@@ -167,6 +193,7 @@ impl Module {
             JsValue::Unknown(import.span)
           };
 
+          let dependency_index = self.add_import_dependency(import.src.value.clone());
           let namespace = if matches!(attrs.get(&JsValue::String("type".into()), DUMMY_SP), JsValue::String(t) if t == "macro")
           {
             // JsValue::Object(
@@ -179,21 +206,8 @@ impl Module {
             // )
             todo!()
           } else {
-            let builtin = match import.src.value.as_str() {
-              "path" | "node:path" => create_path_module(),
-              // "fs" | "node:fs" => create_fs_module(self.project_root.to_string()),
-              _ => JsValue::Unknown(DUMMY_SP),
-            };
-
-            JsValue::Object(Rc::new(ImportNamespace {
-              src: import.src.value.clone(),
-              span: import.span,
-              symbols: RefCell::new(HashSet::new()),
-              builtin
-            }).into())
+            self.get_import_namespace(dependency_index)
           };
-
-          let dependency_index = self.add_import_dependency(import.src.value.clone());
 
           for specifier in &import.specifiers {
             let index = self.import_entries.len();
@@ -452,10 +466,9 @@ impl Module {
   }
 }
 
-struct ImportNamespace {
-  src: JsWord,
-  span: Span,
-  symbols: RefCell<HashSet<Symbol>>,
+pub struct ImportNamespace {
+  pub index: u32,
+  pub symbols: RefCell<HashSet<Symbol>>,
   builtin: JsValue,
 }
 
@@ -468,6 +481,11 @@ impl Object for ImportNamespace {
     }
 
     self.builtin.get(prop, span)
+  }
+
+  fn set(&self, _prop: JsValue, _value: JsValue) {
+    // We need a namespace any time the import namespace is mutated.
+    self.symbols.borrow_mut().insert(Symbol::Namespace);
   }
 
   fn has(&self, prop: &JsValue) -> bool {
@@ -486,5 +504,9 @@ impl Object for ImportNamespace {
     } else {
       Box::new(std::iter::empty())
     }
+  }
+
+  fn into_expr(&self) -> Result<Expr, ()> {
+    Ok(quote!("__parcel_dep__($index)" as Expr, index: Expr = (self.index as f64).into()))
   }
 }

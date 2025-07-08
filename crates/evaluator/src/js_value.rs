@@ -185,7 +185,7 @@ impl JsValue {
   }
 
   /// Convert JS value to AST.
-  pub fn into_expr(self) -> Result<Expr, ()> {
+  pub fn into_expr(&self) -> Result<Expr, ()> {
     Ok(match self {
       JsValue::Null => Expr::Lit(Lit::Null(Null::dummy())),
       JsValue::Undefined => Expr::Unary(UnaryExpr {
@@ -193,14 +193,14 @@ impl JsValue {
         op: UnaryOp::Void,
         arg: 0.into(),
       }),
-      JsValue::Bool(b) => b.into(),
-      JsValue::Number(n) => n.into(),
-      JsValue::BigInt(n) => n.into(),
-      JsValue::String(s) => s.into(),
+      JsValue::Bool(b) => (*b).into(),
+      JsValue::Number(n) => (*n).into(),
+      JsValue::BigInt(n) => n.clone().into(),
+      JsValue::String(s) => s.clone().into(),
       JsValue::Regex { source, flags } => Expr::Lit(Lit::Regex(Regex {
         span: DUMMY_SP,
-        exp: source.into(),
-        flags: flags.into(),
+        exp: source.clone().into(),
+        flags: flags.clone().into(),
       })),
       JsValue::Object(obj) => obj.into_expr()?,
       JsValue::Function(f) => f.into_expr()?,
@@ -223,6 +223,20 @@ impl JsValue {
       // }
       _ => return Err(()),
     })
+  }
+
+  pub fn update_expr(&self, expr: &mut Expr) -> Result<(), ()> {
+    match self {
+      JsValue::Object(obj) => obj.update_expr(expr),
+      _ => {
+        if let Ok(res) = self.into_expr() {
+          *expr = res;
+          Ok(())
+        } else {
+          Err(())
+        }
+      }
+    }
   }
 }
 

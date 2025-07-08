@@ -35,6 +35,15 @@ pub trait Object: AsAny {
     Err(())
   }
 
+  fn update_expr(&self, expr: &mut Expr) -> Result<(), ()> {
+    if let Ok(res) = self.into_expr() {
+      *expr = res;
+      Ok(())
+    } else {
+      Err(())
+    }
+  }
+
   fn to_string(&self) -> JsWord {
     "[object Object]".into()
   }

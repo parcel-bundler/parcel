@@ -20,7 +20,8 @@ swc_core = { version = "21", features = [
   "ecma_transforms_react",
   "ecma_transforms_typescript",
   "ecma_visit",
-  "ecma_utils"
+  "ecma_utils",
+  "ecma_quote"
 ] }
 serde = "1.0.123"
 num-bigint = "0.4.6"

@@ -4,14 +4,14 @@ use parcel_core::{Diagnostic, SourceLocation};
 use std::rc::Rc;
 use swc_core::{common::Span, ecma::atoms::Atom as JsWord};
 
-use crate::{module::Module, Function, JsValue, Object};
+use crate::{module::ModuleRecord, Function, JsValue, Object};
 
 pub type MacroCallback = Arc<
   dyn Fn(String, String, Vec<JsValue>, SourceLocation) -> Result<JsValue, Diagnostic> + Send + Sync,
 >;
 
 pub struct MacroModule {
-  pub module: Rc<RefCell<Module>>,
+  pub module: Rc<RefCell<ModuleRecord>>,
   pub src: JsWord,
   pub callback: MacroCallback,
 }
@@ -35,7 +35,7 @@ impl Object for MacroModule {
 }
 
 pub struct MacroFunction {
-  pub module: Rc<RefCell<Module>>,
+  pub module: Rc<RefCell<ModuleRecord>>,
   pub src: JsWord,
   pub export: JsWord,
   pub callback: MacroCallback,
