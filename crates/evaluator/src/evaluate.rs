@@ -167,6 +167,9 @@ impl<'a> Evaluator<'a> {
       Expr::Update(update) => {
         self.eval_update_expr(update);
       }
+      Expr::Unary(unary) => {
+        self.eval_unary_expr_mutation(unary);
+      }
       Expr::Call(call) => {
         let callee = call.callee.evaluate(self);
         if !callee.is_known() {
@@ -213,7 +216,7 @@ impl<'a> Evaluator<'a> {
     }
   }
 
-  pub fn eval_assign_target(&mut self, target: &AssignTarget) {
+  fn eval_assign_target(&mut self, target: &AssignTarget) {
     match target {
       AssignTarget::Simple(SimpleAssignTarget::Ident(id)) => {
         self.mutate_value(id.to_id(), target.span());
@@ -259,7 +262,7 @@ impl<'a> Evaluator<'a> {
     }
   }
 
-  pub fn eval_member_assign(&mut self, mut member: &MemberExpr) {
+  fn eval_member_assign(&mut self, mut member: &MemberExpr) {
     // Try to mark the object property as unknown. If the expression does
     // not resolve to a known object, try the parent member expression if any.
     loop {
@@ -293,7 +296,7 @@ impl<'a> Evaluator<'a> {
     }
   }
 
-  pub fn eval_update_expr(&mut self, update: &UpdateExpr) {
+  fn eval_update_expr(&mut self, update: &UpdateExpr) {
     match &*update.arg {
       Expr::Ident(id) => {
         self.mutate_value(id.to_id(), update.span);
@@ -302,6 +305,20 @@ impl<'a> Evaluator<'a> {
         self.eval_member_assign(member);
       }
       _ => {}
+    }
+  }
+
+  fn eval_unary_expr_mutation(&mut self, unary: &UnaryExpr) {
+    if unary.op == UnaryOp::Delete {
+      match &*unary.arg {
+        Expr::Ident(id) => {
+          self.mutate_value(id.to_id(), unary.span);
+        }
+        Expr::Member(member) => {
+          self.eval_member_assign(member);
+        }
+        _ => {}
+      }
     }
   }
 }

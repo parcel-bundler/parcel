@@ -521,8 +521,14 @@ impl<'a> ConstantCollector<'a> {
       Expr::Fn(FnExpr { function, .. }) => {
         self.visit_function(function, access);
       }
-      Expr::Unary(UnaryExpr { arg, .. }) => {
-        self.visit_expr(&*arg, access);
+      Expr::Unary(UnaryExpr { arg, op, .. }) => {
+        if *op == UnaryOp::Delete {
+          let node_index = self.graph.add_node(Node::Expr(expr));
+          self.access(node_index, access);
+          self.visit_expr(&*arg, Access::Write(node_index));
+        } else {
+          self.visit_expr(&*arg, access);
+        }
       }
       Expr::Bin(BinExpr { left, right, .. }) => {
         self.visit_expr(&*left, access);
@@ -919,6 +925,12 @@ mod tests {
     // Update expression.
     expect(
       "const x = {a: 'c', b: 2}; x.b++",
+      HashMap::from([("x", "{a: \"c\", b: unknown}")]),
+    );
+
+    // Delete expression.
+    expect(
+      "const x = {a: 'c', b: 2}; delete x.b",
       HashMap::from([("x", "{a: \"c\", b: unknown}")]),
     );
   }

@@ -1,23 +1,93 @@
-use data_encoding::{BASE64, HEXLOWER};
+use std::{cell::RefCell, rc::Rc};
+
+use data_encoding::{BASE64, HEXLOWER, HEXLOWER_PERMISSIVE};
 use swc_core::{
-  common::{Span, SyntaxContext, DUMMY_SP},
+  common::Span,
   ecma::{ast::*, atoms::Atom as JsWord},
+  quote,
 };
 
-use crate::{Evaluator, JsValue, Object};
+use crate::{
+  module::{ModuleRecord, Symbol},
+  Evaluator, Function, JsValue, Object,
+};
 
-pub struct Buffer(pub Vec<u8>);
+pub struct BufferConstructor {
+  pub module: Rc<RefCell<ModuleRecord>>,
+}
+
+impl Object for BufferConstructor {
+  fn get(&self, prop: &JsValue, span: Span) -> JsValue {
+    match prop.to_string().as_str() {
+      "from" => JsValue::Function((&from).into()),
+      _ => JsValue::Unknown(span),
+    }
+  }
+
+  fn into_expr(&self) -> Result<Expr, ()> {
+    let ident = self
+      .module
+      .borrow_mut()
+      .add_global_import("buffer", Symbol::Default);
+    Ok(ident.into())
+  }
+}
+
+impl Function for BufferConstructor {}
+
+fn from(this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -> JsValue {
+  if let JsValue::Function(f) = this {
+    if let Some(buffer) = f.as_any().downcast_ref::<BufferConstructor>() {
+      match &args[..] {
+        [JsValue::String(string), JsValue::String(encoding)] => {
+          let content = match encoding.as_str() {
+            "base64" => BASE64.decode(string.as_bytes()).ok(),
+            "hex" => HEXLOWER_PERMISSIVE.decode(string.as_bytes()).ok(),
+            "utf-8" | "utf8" => Some(string.as_bytes().to_vec()),
+            _ => return JsValue::Unknown(span),
+          };
+          if let Some(content) = content {
+            return JsValue::Object(
+              Rc::new(Buffer {
+                module: buffer.module.clone(),
+                content,
+              })
+              .into(),
+            );
+          }
+        }
+        [JsValue::String(string)] => {
+          return JsValue::Object(
+            Rc::new(Buffer {
+              module: buffer.module.clone(),
+              content: string.as_bytes().to_vec(),
+            })
+            .into(),
+          );
+        }
+        _ => {}
+      }
+    }
+  }
+
+  JsValue::Unknown(span)
+}
+
+pub struct Buffer {
+  pub module: Rc<RefCell<ModuleRecord>>,
+  pub content: Vec<u8>,
+}
 
 impl Object for Buffer {
   fn get(&self, prop: &JsValue, span: Span) -> JsValue {
     match prop {
       JsValue::String(prop) => match prop.as_str() {
         "toString" => JsValue::Function((&to_string).into()),
-        "length" => JsValue::Number(self.0.len() as f64),
+        "length" => JsValue::Number(self.content.len() as f64),
         _ => JsValue::Unknown(span),
       },
       JsValue::Number(index) => self
-        .0
+        .content
         .get(*index as usize)
         .map_or(JsValue::Unknown(span), |v| JsValue::Number(*v as f64)),
       _ => JsValue::Unknown(span),
@@ -33,34 +103,19 @@ impl Object for Buffer {
   }
 
   fn into_expr(&self) -> Result<Expr, ()> {
-    Ok(Expr::Call(CallExpr {
-      callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-        obj: Box::new(Expr::Ident(Ident::new(
-          "Buffer".into(),
-          DUMMY_SP,
-          SyntaxContext::empty(),
-        ))),
-        prop: MemberProp::Ident(IdentName::new("from".into(), DUMMY_SP)),
-        span: DUMMY_SP,
-      }))),
-      args: vec![
-        ExprOrSpread {
-          expr: Box::new(BASE64.encode(&self.0).into()),
-          spread: None,
-        },
-        ExprOrSpread {
-          expr: Box::new(Expr::Lit(Lit::Str("base64".into()))),
-          spread: None,
-        },
-      ],
-      span: DUMMY_SP,
-      ctxt: SyntaxContext::empty(),
-      type_args: None,
-    }))
+    let ident = self
+      .module
+      .borrow_mut()
+      .add_global_import("buffer", Symbol::Default);
+    Ok(quote!(
+      "$buffer.from($content, 'base64')" as Expr,
+      buffer: Expr = ident.into(),
+      content: Expr = BASE64.encode(&self.content).into()
+    ))
   }
 
   fn to_string(&self) -> JsWord {
-    std::str::from_utf8(&self.0)
+    std::str::from_utf8(&self.content)
       .ok()
       .map(|s| s.into())
       .unwrap_or_else(|| "".into())
@@ -81,11 +136,11 @@ fn to_string(this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluat
         _ => return JsValue::Unknown(span),
       };
       let end = match args.get(2) {
-        None | Some(JsValue::Undefined | JsValue::Null) => buffer.0.len(),
+        None | Some(JsValue::Undefined | JsValue::Null) => buffer.content.len(),
         Some(JsValue::Number(s)) => *s as usize,
         _ => return JsValue::Unknown(span),
       };
-      let slice = &buffer.0[start..end];
+      let slice = &buffer.content[start..end];
 
       return match encoding {
         "base64" => JsValue::String(BASE64.encode(&slice).into()),

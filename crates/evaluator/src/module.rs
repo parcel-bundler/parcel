@@ -11,7 +11,9 @@ use parcel_core::{
   SourceLocation, SpecifierType,
 };
 use swc_core::{
-  common::{sync::Lrc, util::take::Take, FileName, SourceMap, Span, Spanned, DUMMY_SP},
+  common::{
+    sync::Lrc, util::take::Take, FileName, SourceMap, Span, Spanned, SyntaxContext, DUMMY_SP,
+  },
   ecma::{
     ast::{Module as SwcModule, ModuleDecl, ModuleItem, *},
     atoms::Atom as JsWord,
@@ -121,6 +123,34 @@ impl ModuleRecord {
       placeholder: None,
       range: None,
       resolve_from: None,
+    };
+    self.add_dependency(dep)
+  }
+
+  pub fn add_global_import(&mut self, src: &str, symbol: Symbol) -> Ident {
+    let index = self.add_import_dependency(src.into());
+    let ident = private_ident!(src);
+    self.import_entries.push(ImportEntry {
+      dependency_index: index,
+      import_name: symbol,
+      local: ident.to_id(),
+      span: DUMMY_SP,
+    });
+    ident
+  }
+
+  pub fn add_require_dependency(&mut self, src: JsWord, span: Span) -> u32 {
+    let dep = Dependency {
+      specifier: src.to_string(),
+      specifier_type: SpecifierType::Commonjs,
+      priority: Priority::Sync,
+      bundle_behavior: BundleBehavior::None,
+      flags: DependencyFlags::empty(),
+      env: self.env.clone(),
+      loc: Some(self.loc(span)),
+      placeholder: None,
+      resolve_from: None,
+      range: None,
     };
     self.add_dependency(dep)
   }

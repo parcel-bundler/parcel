@@ -1,15 +1,15 @@
-use std::{path::Path, rc::Rc};
+use std::{cell::RefCell, path::Path, rc::Rc};
 
 use data_encoding::{BASE64, HEXLOWER};
 use swc_core::common::Span;
 
-use crate::{buffer::Buffer, Evaluator, JsValue};
+use crate::{buffer::Buffer, module::ModuleRecord, Evaluator, JsValue};
 
-pub fn create_fs_module(project_root: String) -> JsValue {
+pub fn create_fs_module(project_root: String, module: Rc<RefCell<ModuleRecord>>) -> JsValue {
   JsValue::Object(
     Rc::new(indexmap::indexmap! {
       "readFileSync".into() => JsValue::Function(Rc::new(move |this, args, span, _evaluator: &Evaluator|{
-        read_file_sync(this, args, span, &project_root)
+        read_file_sync(this, args, span, &project_root, module.clone())
       }).into())
     })
     .into(),
@@ -22,6 +22,7 @@ fn read_file_sync(
   span: Span,
   // deps: Rc<RefCell<Vec<(JsWord, Span)>>>,
   project_root: &str,
+  module: Rc<RefCell<ModuleRecord>>,
   // unresolved_mark: Mark,
 ) -> JsValue {
   if let Some(JsValue::String(path)) = args.get(0) {
@@ -42,8 +43,8 @@ fn read_file_sync(
 
     let contents = match encoding {
       "buffer" => {
-        if let Ok(contents) = std::fs::read(&path) {
-          return JsValue::Object(Rc::new(Buffer(contents)).into());
+        if let Ok(content) = std::fs::read(&path) {
+          return JsValue::Object(Rc::new(Buffer { module, content }).into());
         } else {
           return JsValue::Unknown(span);
         }

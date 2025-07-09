@@ -7,9 +7,13 @@ use swc_core::{
   ecma::{ast::*, atoms::Atom as JsWord},
 };
 
-use crate::{Evaluator, JsValue, Object};
+use crate::{
+  module::{ModuleRecord, Symbol},
+  Evaluator, JsValue, Object,
+};
 
 pub struct Process {
+  pub module: Rc<RefCell<ModuleRecord>>,
   pub env: Rc<EnvObject>,
   pub browser: bool,
 }
@@ -31,6 +35,14 @@ impl Object for Process {
 
   fn has(&self, prop: &JsValue) -> bool {
     matches!(prop.to_string().as_str(), "env" | "browser")
+  }
+
+  fn into_expr(&self) -> Result<Expr, ()> {
+    let process = self
+      .module
+      .borrow_mut()
+      .add_global_import("process", Symbol::Default);
+    Ok(process.into())
   }
 }
 

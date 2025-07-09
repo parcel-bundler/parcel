@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
+use indexmap::indexmap;
 use parcel_core::Environment;
 use swc_core::{
   common::{sync::Lrc, Globals, Mark, SourceMap, SyntaxContext},
@@ -11,6 +12,7 @@ use swc_core::{
 };
 
 use crate::{
+  buffer::BufferConstructor,
   builtin_object,
   collect_constants::collect_constants,
   fs::create_fs_module,
@@ -18,6 +20,7 @@ use crate::{
   import_meta::ImportMeta,
   module::{ImportNamespace, ModuleRecord, Symbol},
   path::create_path_module,
+  process::{EnvObject, Process},
   promise::Promise,
   require::Require,
   url::URL,
@@ -40,6 +43,7 @@ pub fn transform(module: &mut Module, env: Arc<Environment>, source_map: Lrc<Sou
 
     let mut transformer = Transform {
       evaluator: &evaluator,
+      unresolved_mark,
     };
 
     module.visit_mut_with(&mut transformer);
@@ -61,7 +65,7 @@ fn setup_environment(
 
   let mut builtin_modules = HashMap::new();
   if !record.env.is_node() {
-    let fs = create_fs_module("/".into());
+    let fs = create_fs_module("/".into(), module.clone());
     let path = create_path_module();
     builtin_modules.insert("fs", fs.clone());
     builtin_modules.insert("node:fs", fs);
@@ -124,6 +128,30 @@ fn setup_environment(
     );
   }
 
+  evaluator.add_value(
+    ("process".into(), ctxt),
+    JsValue::Object(
+      Rc::new(Process {
+        module: module.clone(),
+        env: Rc::new(EnvObject::new(indexmap! {
+          "NODE_ENV".into() => "production".into()
+        })),
+        browser: true,
+      })
+      .into(),
+    ),
+  );
+
+  evaluator.add_value(
+    ("Buffer".into(), ctxt),
+    JsValue::Function(
+      Rc::new(BufferConstructor {
+        module: module.clone(),
+      })
+      .into(),
+    ),
+  );
+
   evaluator.import_meta = JsValue::Object(Rc::new(ImportMeta::new("/".into())).into());
 
   evaluator.dynamic_import = JsValue::Function(
@@ -136,27 +164,20 @@ fn setup_environment(
 
 struct Transform<'a> {
   evaluator: &'a Evaluator<'a>,
+  unresolved_mark: Mark,
 }
 
 impl<'a> VisitMut for Transform<'a> {
   fn visit_mut_expr(&mut self, expr: &mut Expr) {
-    match expr {
-      Expr::Call(_) | Expr::New(_) | Expr::Member(_) | Expr::MetaProp(_) => {
-        let value = expr.evaluate(&self.evaluator);
-        if value.update_expr(expr).is_ok() {
-          return;
-        }
+    if matches!(
+      expr,
+      Expr::Call(_) | Expr::New(_) | Expr::Member(_) | Expr::MetaProp(_) | Expr::Unary(_)
+    ) || matches!(expr, Expr::Ident(id) if id.ctxt.has_mark(self.unresolved_mark))
+    {
+      let value = expr.evaluate(&self.evaluator);
+      if value.update_expr(expr).is_ok() {
+        return;
       }
-      // Expr::Member(MemberExpr { obj, prop, .. }) => {
-      //   let obj = obj.evaluate(&self.evaluator);
-      //   if let JsValue::Object(obj) = obj {
-      //     if let Some(ns) = obj.as_any().downcast_ref::<ImportNamespace>() {
-      //       println!("{:?}", ns.symbols);
-      //       if !ns.symbols.borrow().contains(&Symbol::Namespace) {}
-      //     }
-      //   }
-      // }
-      _ => {}
     }
 
     expr.visit_mut_children_with(self);
@@ -210,5 +231,21 @@ mod tests {
     test("let worker = CSS.paintWorklet.addModule(new URL('test.png', import.meta.url));");
     test("console.log(import.meta.url)");
     test("console.log(import.meta)");
+    test("console.log(process.env.NODE_ENV)");
+    test("console.log(process.env)");
+    test("console.log(typeof process.env)");
+    test("console.log(process.browser)");
+    test("console.log(process.test)");
+    test("console.log(process)");
+    test("console.log(typeof process)");
+    test("console.log(Buffer)");
+    test("console.log(Buffer.from('hi'))");
+    test("console.log(Buffer.from('7468697320697320612074c3a97374', 'hex').toString())");
+    test("console.log(Buffer.from('😍').length)");
+    test("import {join} from 'path'; console.log(join('foo', 'bar'))");
+    test("import * as path from 'path'; console.log(path.join('foo', 'bar'))");
+    test("import path from 'path'; console.log(path.join('foo', 'bar'))");
+    test("const {join} = require('path'); console.log(join('foo', 'bar'))");
+    test("const path = require('path'); console.log(path.join('foo', 'bar'))");
   }
 }

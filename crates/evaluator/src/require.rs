@@ -47,20 +47,7 @@ impl Function for Require {
         return JsValue::Unknown(span);
       }
 
-      let dep = Dependency {
-        specifier: src.to_string(),
-        specifier_type: SpecifierType::Commonjs,
-        priority: Priority::Sync,
-        bundle_behavior: BundleBehavior::None,
-        flags: DependencyFlags::empty(),
-        env: module.env.clone(),
-        loc: Some(module.loc(span)),
-        placeholder: None,
-        resolve_from: None,
-        range: None,
-      };
-
-      let index = module.add_dependency(dep);
+      let index = module.add_require_dependency(src.clone(), span);
       module.get_import_namespace(index)
     } else {
       JsValue::Unknown(span)
