@@ -7,11 +7,19 @@ use indexmap::IndexMap;
 use num_bigint::Sign;
 use num_traits::{Pow, ToPrimitive};
 use swc_core::{
-  common::{Span, Spanned, DUMMY_SP},
+  common::{Span, Spanned, SyntaxContext, DUMMY_SP},
   ecma::ast::*,
 };
 
-use crate::{promise::PromiseInstance, JsArray, JsFunction, JsObject, JsValue};
+use crate::{
+  math::Math,
+  number::{
+    is_finite, is_nan, parse_float, parse_int, to_int32, to_number, to_uint32, NumberConstructor,
+  },
+  promise::PromiseInstance,
+  string::JsString,
+  JsArray, JsFunction, JsObject, JsValue,
+};
 
 pub struct Evaluator<'a> {
   pub(crate) values: HashMap<Id, JsValue>,
@@ -30,6 +38,37 @@ impl<'a> Evaluator<'a> {
       this: JsValue::Unknown(DUMMY_SP),
       parent: None,
     }
+  }
+
+  pub fn new_global(ctxt: SyntaxContext) -> Evaluator<'a> {
+    // https://tc39.es/ecma262/multipage/global-object.html#sec-global-object
+    let mut evaluator = Evaluator::new();
+    evaluator.add_value(("Infinity".into(), ctxt), JsValue::Number(f64::INFINITY));
+    evaluator.add_value(("NaN".into(), ctxt), JsValue::Number(f64::NAN));
+    evaluator.add_value(("undefined".into(), ctxt), JsValue::Undefined);
+    evaluator.add_value(
+      ("isFinite".into(), ctxt),
+      JsValue::Function((&is_finite).into()),
+    );
+    evaluator.add_value(("isNaN".into(), ctxt), JsValue::Function((&is_nan).into()));
+    evaluator.add_value(
+      ("parseFloat".into(), ctxt),
+      JsValue::Function((&parse_float).into()),
+    );
+    evaluator.add_value(
+      ("parseInt".into(), ctxt),
+      JsValue::Function((&parse_int).into()),
+    );
+    evaluator.add_value(
+      ("Number".into(), ctxt),
+      JsValue::Function((&NumberConstructor {}).into()),
+    );
+    evaluator.add_value(
+      ("String".into(), ctxt),
+      JsValue::Function((&JsString {}).into()),
+    );
+    evaluator.add_value(("Math".into(), ctxt), JsValue::Object((&Math {}).into()));
+    evaluator
   }
 
   pub fn get(&self, id: Id) -> Option<JsValue> {
@@ -528,35 +567,24 @@ impl Evaluate for BinExpr {
       self.left.evaluate(evaluator),
       self.right.evaluate(evaluator),
     ) {
+      // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-applystringornumericbinaryoperator
       (BinaryOp::Add, JsValue::String(a), JsValue::String(b)) => {
-        JsValue::String(format!("{}{}", a, b).into())
-      }
-      (BinaryOp::Add, JsValue::String(a), JsValue::Number(b)) => {
         JsValue::String(format!("{}{}", a, b).into())
       }
       (BinaryOp::Add, JsValue::String(a), b) => {
         JsValue::String(format!("{}{}", a, b.to_string()).into())
       }
-      (BinaryOp::Add, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a + b),
+      (BinaryOp::Add, a, JsValue::String(b)) => {
+        JsValue::String(format!("{}{}", a.to_string(), b).into())
+      }
       (BinaryOp::Add, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a + b),
-      (BinaryOp::Add, JsValue::Number(a), JsValue::String(b)) => {
-        JsValue::String(format!("{}{}", a, b).into())
-      }
-      (BinaryOp::BitAnd, JsValue::Number(a), JsValue::Number(b)) => {
-        JsValue::Number(((a as i32) & (b as i32)) as f64)
-      }
+      (BinaryOp::Add, a, b) => numeric_op(a, b, self.span, std::ops::Add::add),
       (BinaryOp::BitAnd, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a & b),
-      (BinaryOp::BitOr, JsValue::Number(a), JsValue::Number(b)) => {
-        JsValue::Number(((a as i32) | (b as i32)) as f64)
-      }
+      (BinaryOp::BitAnd, a, b) => bit_op(a, b, self.span, std::ops::BitAnd::bitand),
       (BinaryOp::BitOr, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a | b),
-      (BinaryOp::BitXor, JsValue::Number(a), JsValue::Number(b)) => {
-        JsValue::Number(((a as i32) ^ (b as i32)) as f64)
-      }
+      (BinaryOp::BitOr, a, b) => bit_op(a, b, self.span, std::ops::BitOr::bitor),
       (BinaryOp::BitXor, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a ^ b),
-      (BinaryOp::LShift, JsValue::Number(a), JsValue::Number(b)) => {
-        JsValue::Number(((a as i32) << (b as i32)) as f64)
-      }
+      (BinaryOp::BitXor, a, b) => bit_op(a, b, self.span, std::ops::BitXor::bitxor),
       (BinaryOp::LShift, JsValue::BigInt(a), JsValue::BigInt(b)) => {
         if let Some(b) = b.to_i128() {
           JsValue::BigInt(a << b)
@@ -564,9 +592,7 @@ impl Evaluate for BinExpr {
           JsValue::Unknown(self.span)
         }
       }
-      (BinaryOp::RShift, JsValue::Number(a), JsValue::Number(b)) => {
-        JsValue::Number(((a as i32) >> (b as i32)) as f64)
-      }
+      (BinaryOp::LShift, a, b) => int_op(a, b, self.span, i32::wrapping_shl),
       (BinaryOp::RShift, JsValue::BigInt(a), JsValue::BigInt(b)) => {
         if let Some(b) = b.to_i128() {
           JsValue::BigInt(a >> b)
@@ -574,18 +600,26 @@ impl Evaluate for BinExpr {
           JsValue::Unknown(self.span)
         }
       }
-      (BinaryOp::ZeroFillRShift, JsValue::Number(a), JsValue::Number(b)) => {
-        JsValue::Number(((a as i32) >> (b as u32)) as f64)
+      (BinaryOp::RShift, a, b) => int_op(a, b, self.span, i32::wrapping_shr),
+      (BinaryOp::ZeroFillRShift, JsValue::BigInt(_), JsValue::BigInt(_)) => {
+        JsValue::Unknown(self.span) // TODO
       }
-      (BinaryOp::Sub, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a - b),
+      (BinaryOp::ZeroFillRShift, a, b) => {
+        // https://tc39.es/ecma262/multipage/ecmascript-data-types-and-values.html#sec-numeric-types-number-unsignedRightShift
+        if let (Ok(a), Ok(b)) = (to_uint32(&a), to_uint32(&b)) {
+          JsValue::Number(a.wrapping_shr(b) as f64)
+        } else {
+          JsValue::Unknown(self.span)
+        }
+      }
       (BinaryOp::Sub, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a - b),
-      (BinaryOp::Div, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a / b),
+      (BinaryOp::Sub, a, b) => numeric_op(a, b, self.span, std::ops::Sub::sub),
       (BinaryOp::Div, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a / b),
-      (BinaryOp::Mul, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a * b),
+      (BinaryOp::Div, a, b) => numeric_op(a, b, self.span, std::ops::Div::div),
       (BinaryOp::Mul, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a * b),
-      (BinaryOp::Mod, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a % b),
+      (BinaryOp::Mul, a, b) => numeric_op(a, b, self.span, std::ops::Mul::mul),
       (BinaryOp::Mod, JsValue::BigInt(a), JsValue::BigInt(b)) => JsValue::BigInt(a % b),
-      (BinaryOp::Exp, JsValue::Number(a), JsValue::Number(b)) => JsValue::Number(a.powf(b)),
+      (BinaryOp::Mod, a, b) => numeric_op(a, b, self.span, std::ops::Rem::rem),
       (BinaryOp::Exp, JsValue::BigInt(a), JsValue::BigInt(b)) => {
         if b.sign() == Sign::Minus {
           JsValue::Unknown(self.span)
@@ -593,6 +627,7 @@ impl Evaluate for BinExpr {
           JsValue::BigInt(a.pow(b.magnitude()))
         }
       }
+      (BinaryOp::Exp, a, b) => numeric_op(a, b, self.span, f64::powf),
       (BinaryOp::EqEq, a, b) => a
         .is_loosely_equal(&b)
         .map(JsValue::Bool)
@@ -647,6 +682,30 @@ impl Evaluate for BinExpr {
   }
 }
 
+fn numeric_op<F: FnOnce(f64, f64) -> f64>(a: JsValue, b: JsValue, span: Span, op: F) -> JsValue {
+  if let (Ok(a), Ok(b)) = (to_number(&a), to_number(&b)) {
+    JsValue::Number(op(a, b))
+  } else {
+    JsValue::Unknown(span)
+  }
+}
+
+fn int_op<F: FnOnce(i32, u32) -> i32>(a: JsValue, b: JsValue, span: Span, op: F) -> JsValue {
+  if let (Ok(a), Ok(b)) = (to_int32(&a), to_uint32(&b)) {
+    JsValue::Number(op(a, b) as f64)
+  } else {
+    JsValue::Unknown(span)
+  }
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-data-types-and-values.html#sec-numberbitwiseop
+fn bit_op<F: FnOnce(i32, i32) -> i32>(a: JsValue, b: JsValue, span: Span, op: F) -> JsValue {
+  if let (Ok(a), Ok(b)) = (to_int32(&a), to_int32(&b)) {
+    JsValue::Number(op(a, b) as f64)
+  } else {
+    JsValue::Unknown(span)
+  }
+}
 impl Evaluate for UnaryExpr {
   fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
     match (self.op, self.arg.evaluate(evaluator)) {
@@ -654,18 +713,31 @@ impl Evaluate for UnaryExpr {
         .coerse_to_bool()
         .map(|v| JsValue::Bool(!v))
         .unwrap_or(JsValue::Unknown(self.span)),
-      (UnaryOp::Minus, JsValue::Number(v)) => JsValue::Number(-v),
       (UnaryOp::Minus, JsValue::BigInt(v)) => JsValue::BigInt(-v),
+      (UnaryOp::Minus, v) => {
+        if let Ok(v) = to_number(&v) {
+          JsValue::Number(-v)
+        } else {
+          JsValue::Unknown(self.span)
+        }
+      }
       (UnaryOp::Plus, JsValue::Number(v)) => JsValue::Number(v),
-      (UnaryOp::Plus, JsValue::String(v)) => {
-        if let Ok(v) = v.parse() {
+      (UnaryOp::Plus, v) => {
+        if let Ok(v) = to_number(&v) {
           JsValue::Number(v)
         } else {
           JsValue::Unknown(self.span)
         }
       }
-      (UnaryOp::Tilde, JsValue::Number(v)) => JsValue::Number((!(v as i32)) as f64),
       (UnaryOp::Tilde, JsValue::BigInt(v)) => JsValue::BigInt(!v),
+      (UnaryOp::Tilde, v) => {
+        // https://tc39.es/ecma262/multipage/ecmascript-data-types-and-values.html#sec-numeric-types-number-bitwiseNOT
+        if let Ok(v) = to_int32(&v) {
+          JsValue::Number((!v) as f64)
+        } else {
+          JsValue::Unknown(self.span)
+        }
+      }
       (UnaryOp::Void, arg) => {
         if arg.is_known() {
           JsValue::Undefined
@@ -676,7 +748,7 @@ impl Evaluate for UnaryExpr {
         }
       }
       (UnaryOp::TypeOf, value) => value.type_of(self.span),
-      _ => JsValue::Unknown(self.span),
+      (UnaryOp::Delete, _) => JsValue::Unknown(self.span),
     }
   }
 }

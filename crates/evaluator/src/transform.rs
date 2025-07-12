@@ -35,7 +35,7 @@ pub fn transform(module: &mut Module, env: Arc<Environment>, source_map: Lrc<Sou
     let global_mark = Mark::fresh(Mark::root());
     module.visit_mut_with(&mut resolver(unresolved_mark, global_mark, true));
 
-    let mut evaluator = Evaluator::new();
+    let mut evaluator = Evaluator::new_global(SyntaxContext::empty().apply_mark(unresolved_mark));
     setup_environment(&mut evaluator, record.clone(), unresolved_mark);
 
     record.borrow_mut().parse_module(module, &mut evaluator);

@@ -7,7 +7,7 @@ use swc_core::{
   ecma::{ast::*, atoms::Atom as JsWord},
 };
 
-use crate::{string::StringObject, Function, JsArray, Object};
+use crate::{number::NumberObject, string::StringObject, Function, JsArray, Object};
 
 /// A type that represents a basic JS value.
 #[derive(Clone)]
@@ -80,6 +80,7 @@ impl JsValue {
       JsValue::Object(obj) => obj.get(prop, span),
       JsValue::Function(obj) => obj.get(prop, span),
       JsValue::String(s) => StringObject::from(s.clone()).get(prop, span),
+      JsValue::Number(n) => NumberObject::from(*n).get(prop, span),
       _ => JsValue::Unknown(span),
     }
   }
@@ -147,7 +148,7 @@ impl JsValue {
       JsValue::Undefined => "undefined".into(),
       JsValue::Null => "null".into(),
       JsValue::Bool(value) => value.to_string().into(),
-      JsValue::Number(value) => value.to_string().into(),
+      JsValue::Number(value) => ryu_js::Buffer::new().format(*value).into(),
       JsValue::String(atom) => atom.clone(),
       JsValue::BigInt(big_int) => big_int.to_string().into(),
       JsValue::Regex { source, flags } => format!("/{}/{}", source, flags).into(),
@@ -253,7 +254,7 @@ impl std::fmt::Display for JsValue {
       JsValue::Undefined => f.write_str("undefined"),
       JsValue::Null => f.write_str("null"),
       JsValue::Bool(b) => write!(f, "{}", b),
-      JsValue::Number(n) => write!(f, "{}", n),
+      JsValue::Number(n) => write!(f, "{}", ryu_js::Buffer::new().format(*n)),
       JsValue::BigInt(n) => write!(f, "{}n", n),
       JsValue::String(s) => write!(f, "{:?}", s),
       JsValue::Regex { source, flags } => write!(f, "/{}/{}", source, flags),

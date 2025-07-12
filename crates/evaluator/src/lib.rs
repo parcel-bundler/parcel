@@ -8,7 +8,9 @@ mod import;
 mod import_meta;
 mod js_value;
 mod macros;
+mod math;
 mod module;
+mod number;
 mod object;
 mod path;
 mod process;
@@ -29,8 +31,9 @@ pub use object::*;
 mod test {
   use super::*;
   use pretty_assertions::assert_eq;
+  use swc_core::common::SyntaxContext;
   use swc_core::common::{sync::Lrc, FileName, SourceMap};
-  use swc_core::ecma::parser::parse_file_as_expr;
+  use swc_core::ecma::parser::{parse_file_as_expr, Syntax};
 
   fn test(code: &str, expected: &str) {
     let source_map = Lrc::new(SourceMap::default());
@@ -44,7 +47,7 @@ mod test {
     )
     .unwrap();
 
-    let mut evaluator = Evaluator::new();
+    let mut evaluator = Evaluator::new_global(SyntaxContext::empty());
     // collect_constants(&expr, &mut evaluator);
     let result = expr.evaluate(&evaluator);
     assert_eq!(&format!("{}", result), expected);
@@ -54,15 +57,20 @@ mod test {
   fn test_eval_bin_expr() {
     test("2", "2");
     test("2 + 2", "4");
+    test("2 + '2'", "\"22\"");
     test("4 - 2", "2");
     test("2 * 3", "6");
     test("4 / 2", "2");
     test("2.5 / 2", "1.25");
     test("2 ** 4", "16");
     test("1 << 4", "16");
+    test("-0xffffffff << 10", "1024");
     test("4 >> 1", "2");
+    test("-9 >> 2", "-3");
     test("4.2 >> 1", "2");
+    test("0xffffffff >> 10", "-1");
     test("4 >>> 1", "2");
+    test("-9 >>> 2", "1073741821");
     test("3 & 1", "1");
     test("1 | 2", "3");
     test("1 ^ 2", "3");
@@ -129,7 +137,7 @@ mod test {
     test("'foo' + 'bar'", "\"foobar\"");
     test("'foo' + 2", "\"foo2\"");
     test("2 + 'bar'", "\"2bar\"");
-    test("2 - '4'", "unknown");
+    test("2 - '4'", "-2");
 
     test("void 0 ?? 4", "4");
     test("null ?? 4", "4");
@@ -307,5 +315,385 @@ mod test {
     test("'Hello world hello world'.indexOf('world', 7)", "18");
     test("[...'hi']", "[\"h\", \"i\"]");
     test("[...'👉🏿']", "[\"👉\", \"🏿\"]");
+  }
+
+  #[test]
+  fn test_number() {
+    test("parseFloat('2.34')", "2.34");
+    test("parseFloat('  2.34')", "2.34");
+    test("parseFloat('NaN')", "NaN");
+    test("parseFloat('314e-2')", "3.14");
+    test("parseFloat('0.0314E+2')", "3.14");
+    test("parseFloat('1.7976931348623159e+308')", "Infinity");
+    test("parseFloat('-1.7976931348623159e+308')", "-Infinity");
+    test("parseFloat(900719925474099267n)", "900719925474099300");
+    test("parseFloat(123)", "123");
+    test("parseFloat('Infinity')", "Infinity");
+
+    test("Number.parseFloat('2.34')", "2.34");
+    test("Number.parseFloat('  2.34')", "2.34");
+    test("Number.parseFloat('NaN')", "NaN");
+    test("Number.parseFloat('314e-2')", "3.14");
+    test("Number.parseFloat('0.0314E+2')", "3.14");
+    test("Number.parseFloat('1.7976931348623159e+308')", "Infinity");
+    test("Number.parseFloat('-1.7976931348623159e+308')", "-Infinity");
+    test(
+      "Number.parseFloat(900719925474099267n)",
+      "900719925474099300",
+    );
+    test("Number.parseFloat(123)", "123");
+    test("Number.parseFloat('Infinity')", "Infinity");
+
+    test("parseInt('123')", "123");
+    test("parseInt('123', 10)", "123");
+    test("parseInt('  123  ')", "123");
+    test("parseInt('077')", "77");
+    test("parseInt('1.9')", "1");
+    test("parseInt('ff', 16)", "255");
+    test("parseInt('0xff')", "255");
+    test("parseInt('0xF')", "15");
+    test("parseInt('F', 16)", "15");
+    test("parseInt('17', 8)", "15");
+    test("parseInt('015', 10)", "15");
+    test("parseInt('15,123', 10)", "15");
+    test("parseInt('FXX123', 16)", "15");
+    test("parseInt('1111', 2)", "15");
+    test("parseInt('15 * 3', 10)", "15");
+    test("parseInt('15e2', 10)", "15");
+    test("parseInt('12', 13)", "15");
+    test("parseInt('0e0', 16)", "224");
+    test("parseInt(15.99)", "15");
+    test("parseInt('Infinity')", "NaN");
+
+    test("Number.parseInt('123')", "123");
+    test("Number.parseInt('123', 10)", "123");
+    test("Number.parseInt('  123  ')", "123");
+    test("Number.parseInt('077')", "77");
+    test("Number.parseInt('1.9')", "1");
+    test("Number.parseInt('ff', 16)", "255");
+    test("Number.parseInt('0xff')", "255");
+    test("Number.parseInt('0xF')", "15");
+    test("Number.parseInt('F', 16)", "15");
+    test("Number.parseInt('17', 8)", "15");
+    test("Number.parseInt('015', 10)", "15");
+    test("Number.parseInt('15,123', 10)", "15");
+    test("Number.parseInt('FXX123', 16)", "15");
+    test("Number.parseInt('1111', 2)", "15");
+    test("Number.parseInt('15 * 3', 10)", "15");
+    test("Number.parseInt('15e2', 10)", "15");
+    test("Number.parseInt('12', 13)", "15");
+    test("Number.parseInt('0e0', 16)", "224");
+    test("Number.parseInt(15.99)", "15");
+    test("Number.parseInt('Infinity')", "NaN");
+
+    test("Number('123')", "123");
+    test("Number('2.34')", "2.34");
+    test("Number('  2.34')", "2.34");
+    test("Number('12a')", "unknown");
+    test("Number('0xff')", "255");
+    test("Number('0b11')", "3");
+    test("Number('0o12')", "10");
+    test("Number(true)", "1");
+    test("Number(false)", "0");
+
+    test("+(new Number('123'))", "123");
+
+    test("isNaN(NaN)", "true");
+    test("isNaN(undefined)", "true");
+    test("isNaN({})", "true");
+    test("isNaN(true)", "false");
+    test("isNaN(null)", "false");
+    test("isNaN(37)", "false");
+    test("isNaN('37')", "false");
+    test("isNaN('37.37')", "false");
+    test("isNaN('37,5')", "true");
+    test("isNaN('123abc')", "true");
+    test("isNaN('')", "false");
+    test("isNaN(' ')", "false");
+    test("isNaN([])", "false");
+    test("isNaN([1])", "false");
+    test("isNaN([1, 2])", "true");
+
+    test("Number.isNaN(NaN)", "true");
+    test("Number.isNaN(Number.NaN)", "true");
+    test("Number.isNaN(0 / 0)", "true");
+    test("Number.isNaN(undefined)", "false");
+    test("Number.isNaN({})", "false");
+    test("Number.isNaN(true)", "false");
+    test("Number.isNaN(null)", "false");
+    test("Number.isNaN(37)", "false");
+    test("Number.isNaN('37')", "false");
+    test("Number.isNaN('37.37')", "false");
+    test("Number.isNaN('37,5')", "false");
+    test("Number.isNaN('123abc')", "false");
+    test("Number.isNaN('')", "false");
+    test("Number.isNaN(' ')", "false");
+    test("Number.isNaN([])", "false");
+    test("Number.isNaN([1])", "false");
+    test("Number.isNaN([1, 2])", "false");
+
+    test("isFinite(Infinity)", "false");
+    test("isFinite(-Infinity)", "false");
+    test("isFinite(NaN)", "false");
+    test("isFinite(0)", "true");
+    test("isFinite(12)", "true");
+    test("isFinite(null)", "true");
+    test("isFinite(false)", "true");
+    test("isFinite('12')", "true");
+    test("isFinite()", "false");
+
+    test("Number.isFinite(Infinity)", "false");
+    test("Number.isFinite(-Infinity)", "false");
+    test("Number.isFinite(NaN)", "false");
+    test("Number.isFinite(0)", "true");
+    test("Number.isFinite(12)", "true");
+    test("Number.isFinite(null)", "false");
+    test("Number.isFinite(false)", "false");
+    test("Number.isFinite('12')", "false");
+    test("Number.isFinite()", "false");
+
+    test("Number.isInteger(0)", "true");
+    test("Number.isInteger(1)", "true");
+    test("Number.isInteger(-100)", "true");
+    test("Number.isInteger(0.1)", "false");
+    test("Number.isInteger(Infinity)", "false");
+    test("Number.isInteger(-Infinity)", "false");
+    test("Number.isInteger('10')", "false");
+
+    test("Number.NEGATIVE_INFINITY", "-Infinity");
+    test("Number.POSITIVE_INFINITY", "Infinity");
+    test("Number.MAX_SAFE_INTEGER", "9007199254740991");
+    test("Number.MIN_SAFE_INTEGER", "-9007199254740991");
+    test("Number.MAX_VALUE", "1.7976931348623157e+308");
+    test("Number.MIN_VALUE", "5e-324");
+
+    test("37.25.toString()", "\"37.25\"");
+    test("255..toString(16)", "\"ff\"");
+    test("255..toString(36)", "\"73\"");
+    test("6..toString(2)", "\"110\"");
+    test("(-10).toString(2)", "\"-1010\"");
+    test("(10 ** 21.5).toString()", "\"3.1622776601683794e+21\"");
+    test("(10 ** 21.5).toString(8)", "\"526665530627250154000000\"");
+    test(
+      " parseInt('CAFEBABE', 16).toString(2)",
+      "\"11001010111111101011101010111110\"",
+    );
+
+    test("123.456.toFixed(2)", "\"123.46\"");
+    test("0.004.toFixed(2)", "\"0.00\"");
+    test("parseFloat('1.23e+5').toFixed(2)", "\"123000.00\"");
+    test("(6.02 * 10 ** 23).toFixed(50)", "\"6.019999999999999e+23\"");
+    test("(0.1600057092765239).toString(36)", "\"0.5rd85dm1ixq\"");
+  }
+
+  #[test]
+  fn test_math() {
+    test("String(Math)", "\"[object Math]\"");
+    test("Math.PI", "3.141592653589793");
+
+    test("Math.abs(-5)", "5");
+    test("Math.abs(-5.25)", "5.25");
+    test("Math.abs()", "NaN");
+
+    test("Math.acos(-2)", "NaN");
+    test("Math.acos(-1)", "3.141592653589793");
+    test("Math.acos(1)", "0");
+
+    test("Math.acosh(0)", "NaN");
+    test("Math.acosh(1)", "0");
+    test("Math.acosh(2)", "1.3169578969248166");
+    test("Math.acosh(Infinity)", "Infinity");
+
+    test("Math.asin(-2)", "NaN");
+    test("Math.asin(-1)", "-1.5707963267948966");
+    test("Math.asin(0)", "0");
+
+    test("Math.asinh(-Infinity)", "-Infinity");
+    test("Math.asinh(-1)", "-0.881373587019543");
+    test("Math.asinh(0)", "0");
+
+    test("Math.atan(-Infinity)", "-1.5707963267948966");
+    test("Math.atan(0)", "0");
+    test("Math.atan(1)", "0.7853981633974483");
+
+    test("Math.atanh(-2)", "NaN");
+    test("Math.atanh(-1)", "-Infinity");
+    test("Math.atanh(0)", "0");
+    test("Math.atanh(0.5)", "0.5493061443340549");
+
+    test("Math.atan2(90, 15)", "1.4056476493802699");
+    test("Math.atan2(15, 90)", "0.16514867741462683");
+
+    test("Math.cbrt(-Infinity)", "-Infinity");
+    test("Math.cbrt(-1)", "-1");
+    test("Math.cbrt(0)", "0");
+    test("Math.cbrt(1)", "1");
+    test("Math.cbrt(2)", "1.2599210498948732");
+
+    test("Math.ceil(-Infinity)", "-Infinity");
+    test("Math.ceil(-7.004)", "-7");
+    test("Math.ceil(-4)", "-4");
+    test("Math.ceil(-0.95)", "0");
+    test("Math.ceil(0.95)", "1");
+    test("Math.ceil(4)", "4");
+    test("Math.ceil(7.004)", "8");
+    test("Math.ceil(Infinity)", "Infinity");
+
+    test("Math.clz32(1)", "31");
+    test("Math.clz32(4)", "29");
+    test("Math.clz32(1000)", "22");
+    test("Math.clz32()", "32");
+
+    test("Math.cos(-Infinity)", "NaN");
+    test("Math.cos(0)", "1");
+    test("Math.cos(1)", "0.5403023058681398");
+    test("Math.cos(Math.PI)", "-1");
+    test("Math.cos(2 * Math.PI)", "1");
+    test("Math.cos(Infinity)", "NaN");
+
+    test("Math.cosh(-Infinity)", "Infinity");
+    test("Math.cosh(-1)", "1.5430806348152437");
+    test("Math.cosh(0)", "1");
+    test("Math.cosh(1)", "1.5430806348152437");
+    test("Math.cosh(Infinity)", "Infinity");
+
+    test("Math.exp(-Infinity)", "0");
+    test("Math.exp(-1)", "0.36787944117144233");
+    test("Math.exp(0)", "1");
+    test("Math.exp(1)", "2.718281828459045");
+    test("Math.exp(Infinity)", "Infinity");
+
+    test("Math.expm1(-Infinity)", "-1");
+    test("Math.expm1(-1)", "-0.6321205588285577");
+    test("Math.expm1(0)", "0");
+    test("Math.expm1(1)", "1.7182818284590453");
+    test("Math.expm1(Infinity)", "Infinity");
+
+    test("Math.floor(-Infinity)", "-Infinity");
+    test("Math.floor(-45.95)", "-46");
+    test("Math.floor(-45.05)", "-46");
+    test("Math.floor(0)", "0");
+    test("Math.floor(4)", "4");
+    test("Math.floor(45.05)", "45");
+    test("Math.floor(45.95)", "45");
+    test("Math.floor(Infinity)", "Infinity");
+
+    test("Math.fround(1.5)", "1.5");
+    test("Math.fround(1.337)", "1.3370000123977661");
+    test("Math.fround(2 ** 150)", "Infinity");
+
+    test("Math.hypot(3, 4)", "5");
+    test("Math.hypot(5, 12)", "13");
+    test("Math.hypot(3, 4, 5)", "7.0710678118654755");
+    test("Math.hypot()", "0");
+    test("Math.hypot(NaN)", "NaN");
+    test("Math.hypot(NaN, Infinity)", "Infinity");
+    test("Math.hypot(3, 4, '5')", "7.0710678118654755");
+    test("Math.hypot(-3)", "3");
+
+    test("Math.imul(2, 4)", "8");
+    test("Math.imul(-1, 8)", "-8");
+    test("Math.imul(-2, -2)", "4");
+    test("Math.imul(0xffffffff, 5)", "-5");
+    test("Math.imul(0xfffffffe, 5)", "-10");
+
+    test("Math.log(-1)", "NaN");
+    test("Math.log(0)", "-Infinity");
+    test("Math.log(1)", "0");
+    test("Math.log(10)", "2.302585092994046");
+    test("Math.log(Infinity)", "Infinity");
+
+    test("Math.log1p(-2)", "NaN");
+    test("Math.log1p(-1)", "-Infinity");
+    test("Math.log1p(0)", "0");
+    test("Math.log1p(1)", "0.6931471805599453");
+    test("Math.log1p(Infinity)", "Infinity");
+
+    test("Math.log2(-2)", "NaN");
+    test("Math.log2(0)", "-Infinity");
+    test("Math.log2(1)", "0");
+    test("Math.log2(2)", "1");
+    test("Math.log2(3)", "1.584962500721156");
+    test("Math.log2(1024)", "10");
+
+    test("Math.log10(-2)", "NaN");
+    test("Math.log10(0)", "-Infinity");
+    test("Math.log10(1)", "0");
+    test("Math.log10(2)", "0.3010299956639812");
+    test("Math.log10(100000)", "5");
+
+    test("Math.max(10, 20)", "20");
+    test("Math.max(-10, -20)", "-10");
+    test("Math.max(-10, 20)", "20");
+    test("Math.max(-1, -3, -2)", "-1");
+    test("Math.max()", "-Infinity");
+
+    test("Math.min(2, 3, 1)", "1");
+    test("Math.min(-2, -3, -1)", "-3");
+    test("Math.min()", "Infinity");
+
+    test("Math.pow(7, 3)", "343");
+    test("Math.pow(4, 0.5)", "2");
+    test("Math.pow(2, 10)", "1024");
+    test("Math.pow(8, 1 / 3)", "2");
+    test("Math.pow(8, -1 / 3)", "0.5");
+    test("Math.pow(-7, 2)", "49");
+    test("Math.pow(0, 0)", "1");
+    test("Math.pow(Infinity, 0.1)", "Infinity");
+    test("Math.pow(NaN, 0)", "1");
+
+    test("Math.round(0.9)", "1");
+    test("Math.round(-Infinity)", "-Infinity");
+    test("Math.round(-20.51)", "-21");
+    test("Math.round(-20.5)", "-20");
+    test("Math.round(-0.1)", "0");
+    test("Math.round(20.49)", "20");
+    test("Math.round(20.5)", "21");
+    test("Math.round(42)", "42");
+    test("Math.round(Infinity)", "Infinity");
+
+    test("Math.sign(3)", "1");
+    test("Math.sign(-3)", "-1");
+    test("Math.sign('-3')", "-1");
+    test("Math.sign(0)", "0");
+    test("Math.sign(NaN)", "NaN");
+    test("Math.sign()", "NaN");
+
+    test("Math.sin(-Infinity)", "NaN");
+    test("Math.sin(0)", "0");
+    test("Math.sin(1)", "0.8414709848078965");
+    test("Math.sin(Math.PI / 2)", "1");
+    test("Math.sin(Infinity)", "NaN");
+
+    test("Math.sinh(-Infinity)", "-Infinity");
+    test("Math.sinh(0)", "0");
+    test("Math.sinh(1)", "1.1752011936438014");
+    test("Math.sinh(Infinity)", "Infinity");
+
+    test("Math.sqrt(-1)", "NaN");
+    test("Math.sqrt(0)", "0");
+    test("Math.sqrt(1)", "1");
+    test("Math.sqrt(2)", "1.4142135623730951");
+    test("Math.sqrt(9)", "3");
+    test("Math.sqrt(Infinity)", "Infinity");
+
+    test("Math.tan(-Infinity)", "NaN");
+    test("Math.tan(0)", "0");
+    test("Math.tan(1)", "1.557407724654902");
+    test("Math.tan(Math.PI / 4)", "0.9999999999999999");
+    test("Math.tan(Infinity)", "NaN");
+
+    test("Math.tanh(-Infinity)", "-1");
+    test("Math.tanh(0)", "0");
+    test("Math.tanh(1)", "0.7615941559557649");
+    test("Math.tanh(Infinity)", "1");
+
+    test("Math.trunc(-Infinity)", "-Infinity");
+    test("Math.trunc(-1.123)", "-1");
+    test("Math.trunc(-0.123)", "0");
+    test("Math.trunc(-0.123)", "0");
+    test("Math.trunc(13.37)", "13");
+    test("Math.trunc(42.84)", "42");
+    test("Math.trunc(Infinity)", "Infinity");
   }
 }
