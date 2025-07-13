@@ -167,7 +167,37 @@ impl JsValue {
       (Number(a), Number(b)) => *a == *b,
       (BigInt(a), BigInt(b)) => *a == *b,
       (String(a), String(b)) => *a == *b,
-      _ => return None,
+      (Object(_), Object(_)) => return None,
+      (Function(_), Function(_)) => return None,
+      (Regex { .. }, Regex { .. }) => return None,
+      (Unknown(_), _) => return None,
+      (_, Unknown(_)) => return None,
+      _ => false,
+    })
+  }
+
+  pub fn same_value_zero(&self, other: &JsValue) -> Option<bool> {
+    // https://tc39.es/ecma262/multipage/abstract-operations.html#sec-samevaluezero
+    use JsValue::*;
+    Some(match (self, other) {
+      (Undefined, Undefined) => true,
+      (Null, Null) => true,
+      (Bool(a), Bool(b)) => *a == *b,
+      (Number(a), Number(b)) => {
+        if a.is_nan() && b.is_nan() {
+          true
+        } else {
+          *a == *b
+        }
+      }
+      (BigInt(a), BigInt(b)) => *a == *b,
+      (String(a), String(b)) => *a == *b,
+      (Object(_), Object(_)) => return None,
+      (Function(_), Function(_)) => return None,
+      (Regex { .. }, Regex { .. }) => return None,
+      (Unknown(_), _) => return None,
+      (_, Unknown(_)) => return None,
+      _ => false,
     })
   }
 
@@ -261,11 +291,16 @@ impl std::fmt::Display for JsValue {
       JsValue::Object(obj) => {
         if let Some(arr) = obj.as_any().downcast_ref::<JsArray>() {
           f.write_str("[")?;
-          for (index, v) in arr.values().unwrap().enumerate() {
-            if index > 0 {
-              f.write_str(", ")?;
+          let arr = arr.arr.borrow();
+          if let Some(arr) = &*arr {
+            for (index, v) in arr.iter().enumerate() {
+              if index > 0 {
+                f.write_str(", ")?;
+              }
+              if let Some(v) = v {
+                write!(f, "{}", v)?;
+              }
             }
-            write!(f, "{}", v)?;
           }
           f.write_str("]")
         } else {

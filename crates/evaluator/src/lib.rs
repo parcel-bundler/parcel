@@ -224,6 +224,255 @@ mod test {
     test("[2, ...({foo: 2})]", "unknown");
     test("[2, 3].length", "2");
     test("'' + [2, 3]", "\"2,3\"");
+    test("[2, 3, 4][1]", "3");
+    test("[2, 3, 4][-1]", "undefined");
+
+    test("[2, 3, 4].at(1)", "3");
+    test("[2, 3, 4].at(-1)", "4");
+    test("[2, 3, 4].at(100)", "undefined");
+
+    test("[2, 3, 4].every(v => v > 0)", "true");
+    test("[2, -3, 4].every(v => v > 0)", "false");
+    test("[2, 3, 4].every(v => alert('hi'))", "unknown");
+    test("[2, 3, 4].every(v => (this + v) >= 4, 2)", "true");
+    test("[2, 3, 4].every(v => (this + v) >= 4, 1)", "false");
+    test("[2, 3, 4].every((v, i) => (v * i) > 3)", "false");
+    test(
+      "[2, 3, 4].every((v, i, a) => v + (a[i - 1] || 0) > 3)",
+      "false",
+    );
+    test("[1, , 3].every((x) => x !== undefined)", "true");
+
+    test("[2, 3, 4].some(v => v > 0)", "true");
+    test("[2, 3, 4].some(v => v < 0)", "false");
+    test("[2, -3, 4].some(v => v > 0)", "true");
+    test("[2, 3, 4].some(v => alert('hi'))", "unknown");
+    test("[2, 3, 4].some(v => (this + v) >= 4, 2)", "true");
+    test("[2, 3, 4].some(v => (this + v) >= 4, 1)", "true");
+    test("[2, 3, 4].some((v, i) => (v * i) > 3)", "true");
+    test(
+      "[2, 3, 4].some((v, i, a) => v + (a[i - 1] || 0) > 3)",
+      "true",
+    );
+    test("[1, , 3].some((x) => x === undefined)", "false");
+    test("[1, undefined, 3].some((x) => x === undefined)", "true");
+
+    test("[2, 3, 4].filter(v => v > 0)", "[2, 3, 4]");
+    test("[2, 3, 4].filter(v => v < 0)", "[]");
+    test("[2, -3, 4].filter(v => v > 0)", "[2, 4]");
+    test("[2, 3, 4].filter(v => alert('hi'))", "unknown");
+    test("[2, 3, 4].filter(v => (this + v) >= 4, 2)", "[2, 3, 4]");
+    test("[2, 3, 4].filter(v => (this + v) >= 4, 1)", "[3, 4]");
+    test("[2, 3, 4].filter((v, i) => (v * i) > 3)", "[4]");
+    test(
+      "[2, 3, 4].filter((v, i, a) => v + (a[i - 1] || 0) > 3)",
+      "[3, 4]",
+    );
+    test(
+      "[1, , undefined].filter((x) => x === undefined)",
+      "[undefined]",
+    );
+
+    test("[2, 3, 4].find(v => v > 0)", "2");
+    test("[2, 3, 4].find(v => v < 0)", "undefined");
+    test("[-2, 3, 4].find(v => v > 0)", "3");
+    test("[2, 3, 4].find(v => alert('hi'))", "unknown");
+    test("[2, 3, 4].find(v => (this + v) >= 4, 2)", "2");
+    test("[2, 3, 4].find(v => (this + v) >= 4, 1)", "3");
+    test("[2, 3, 4].find((v, i) => (v * i) > 3)", "4");
+    test("[2, 3, 4].find((v, i, a) => v + (a[i - 1] || 0) > 3)", "3");
+    test(
+      "[0, 1, , , , 5, 6].find((v, i, a) => i > 0 && v !== undefined && a[i - 1] === undefined)",
+      "5",
+    );
+
+    test("[2, 3, 4].findLast(v => v > 0)", "4");
+    test("[2, 3, 4].findLast(v => v < 0)", "undefined");
+    test("[2, 3, -4].findLast(v => v > 0)", "3");
+    test("[2, 3, 4].findLast(v => alert('hi'))", "unknown");
+    test("[2, 3, 4].findLast(v => (this + v) >= 4, 2)", "4");
+    test("[2, 3, 4].findLast(v => (this + v) >= 4, 1)", "4");
+    test("[2, 3, 4].findLast((v, i) => (v * i) > 3)", "4");
+    test(
+      "[2, 3, 4].findLast((v, i, a) => v + (a[i - 1] || 0) > 3)",
+      "4",
+    );
+    test(
+      "[0, 1, , , , 5].findLast((v, i, a) => i < a.length - 1 && v !== undefined && a[i + 1] === undefined)",
+      "1",
+    );
+
+    test("[2, 3, 4].findIndex(v => v > 0)", "0");
+    test("[2, 3, 4].findIndex(v => v < 0)", "undefined");
+    test("[-2, 3, 4].findIndex(v => v > 0)", "1");
+    test("[2, 3, 4].findIndex(v => alert('hi'))", "unknown");
+    test("[2, 3, 4].findIndex(v => (this + v) >= 4, 2)", "0");
+    test("[2, 3, 4].findIndex(v => (this + v) >= 4, 1)", "1");
+    test("[2, 3, 4].findIndex((v, i) => (v * i) > 3)", "2");
+    test(
+      "[2, 3, 4].findIndex((v, i, a) => v + (a[i - 1] || 0) > 3)",
+      "1",
+    );
+    test(
+      "[0, 1, , , , 5, 6].findIndex((v, i, a) => i > 0 && v !== undefined && a[i - 1] === undefined)",
+      "5",
+    );
+
+    test("[2, 3, 4].findLastIndex(v => v > 0)", "2");
+    test("[2, 3, 4].findLastIndex(v => v < 0)", "undefined");
+    test("[2, 3, -4].findLastIndex(v => v > 0)", "1");
+    test("[2, 3, 4].findLastIndex(v => alert('hi'))", "unknown");
+    test("[2, 3, 4].findLastIndex(v => (this + v) >= 4, 2)", "2");
+    test("[2, 3, 4].findLastIndex(v => (this + v) >= 4, 1)", "2");
+    test("[2, 3, 4].findLastIndex((v, i) => (v * i) > 3)", "2");
+    test(
+      "[2, 3, 4].findLastIndex((v, i, a) => v + (a[i - 1] || 0) > 3)",
+      "2",
+    );
+    test(
+      "[0, 1, , , , 5].findLastIndex((v, i, a) => i < a.length - 1 && v !== undefined && a[i + 1] === undefined)",
+      "1",
+    );
+
+    test("[2, 3, 4].includes(2)", "true");
+    test("[2, 3, 4].includes(8)", "false");
+    test("[2, 3, 4].includes('2')", "false");
+    test("[2, 3, NaN].includes(NaN)", "true");
+    test("[2, 3, 4].includes(2, 1)", "false");
+    test("[2, 3, 4].includes(2, 10)", "false");
+    test("['a', 'b', 'c'].includes('a', -100)", "true");
+    test("['a', 'b', 'c'].includes('a', -2)", "false");
+    test("[1, , 3].includes(undefined)", "true");
+
+    test("[2, 3, 4].indexOf(2)", "0");
+    test("[2, 3, 4].indexOf(8)", "-1");
+    test("[2, 3, 4].indexOf('2')", "-1");
+    test("[2, 3, NaN].indexOf(NaN)", "-1");
+    test("[2, 3, 4].indexOf(2, 1)", "-1");
+    test("[2, 3, 4].indexOf(2, 10)", "-1");
+    test("[2, 3, 2].indexOf(2, 1)", "2");
+    test("['a', 'b', 'c'].indexOf('a', -100)", "0");
+    test("['a', 'b', 'c'].indexOf('a', -2)", "-1");
+    test("[1, , 3].indexOf(undefined)", "-1");
+
+    test("[2, 3, 4].lastIndexOf(2)", "0");
+    test("[2, 3, 4].lastIndexOf(8)", "-1");
+    test("[2, 3, 4].lastIndexOf('2')", "-1");
+    test("[2, 3, NaN].lastIndexOf(NaN)", "-1");
+    test("[2, 3, 4].lastIndexOf(2, 1)", "0");
+    test("[2, 3, 4].lastIndexOf(2, 10)", "0");
+    test("[2, 3, 2].lastIndexOf(2, 1)", "0");
+    test("['a', 'b', 'c'].lastIndexOf('a', -100)", "-1");
+    test("['a', 'b', 'c'].lastIndexOf('c', -2)", "-1");
+    test("[2, 5, 9, 2].lastIndexOf(2)", "3");
+    test("[2, 5, 9, 2].lastIndexOf(7)", "-1");
+    test("[2, 5, 9, 2].lastIndexOf(2, 3)", "3");
+    test("[2, 5, 9, 2].lastIndexOf(2, 2)", "0");
+    test("[2, 5, 9, 2].lastIndexOf(2, -2)", "0");
+    test("[2, 5, 9, 2].lastIndexOf(2, -1)", "3");
+    test("[1, , 3].lastIndexOf(undefined)", "-1");
+
+    test("[1, 4, 9, 16].map(v => v * 2)", "[2, 8, 18, 32]");
+    test("['1', '2', '3'].map(Number)", "[1, 2, 3]");
+    test("[{a: 1}, {a: 2}, {a: 3}].map(v => v.a)", "[1, 2, 3]");
+    test("[1, 4, 9, 16].map(v => v * this, 2)", "[2, 8, 18, 32]");
+    test("[1, 4, 9, 16].map((v, i) => v * i)", "[0, 4, 18, 48]");
+    test(
+      "[1, 4, 9, 16].map((v, i, a) => v + (a[i - 1] || 0))",
+      "[1, 5, 13, 25]",
+    );
+    test("[1, , 3].map(x => x * 2)", "[2, , 6]");
+
+    test("[0, 1, 2, [3, 4]].flat()", "[0, 1, 2, 3, 4]");
+    test("[0, 1, [2, [3, [4, 5]]]].flat()", "[0, 1, 2, [3, [4, 5]]]");
+    test("[0, 1, [2, [3, [4, 5]]]].flat(2)", "[0, 1, 2, 3, [4, 5]]");
+    test(
+      "[0, 1, [2, [3, [4, 5]]]].flat(Infinity)",
+      "[0, 1, 2, 3, 4, 5]",
+    );
+    test("[0, 1, [2, [3, [a, 5]]]].flat(2)", "unknown");
+    test("[1, 2, , 4, 5].flat()", "[1, 2, 4, 5]");
+    test("[1, , 3, ['a', , 'c']].flat()", "[1, 3, \"a\", \"c\"]");
+
+    test(
+      "[1, 2, 3, 4].flatMap(v => [v, v * 2])",
+      "[1, 2, 2, 4, 3, 6, 4, 8]",
+    );
+    test(
+      "[1, 2, 3, 4].flatMap(v => [[v, v * 2]])",
+      "[[1, 2], [2, 4], [3, 6], [4, 8]]",
+    );
+    test(
+      "[1, 2, 3, 4].flatMap(v => [v, v * this], 2)",
+      "[1, 2, 2, 4, 3, 6, 4, 8]",
+    );
+    test(
+      "[1, 2, 3, 4].flatMap((v, i) => [v, v * i])",
+      "[1, 0, 2, 2, 3, 6, 4, 12]",
+    );
+    test(
+      "[1, 2, 3, 4].flatMap((v, i, a) => [v, v + (a[i - 1] || 0)])",
+      "[1, 1, 2, 3, 3, 5, 4, 7]",
+    );
+    test(
+      "[1, 2, , 4, 5].flatMap((x) => [x, x * 2])",
+      "[1, 2, 2, 4, 4, 8, 5, 10]",
+    );
+    test("[1, 2, 3, 4].flatMap((x) => [, x * 2])", "[2, 4, 6, 8]");
+
+    test("[1, 2, 3].join()", "\"1,2,3\"");
+    test("[1, 2, 3].join(' and ')", "\"1 and 2 and 3\"");
+    test("[1, , 3].join()", "\"1,,3\"");
+    test("[1, undefined, 3].join()", "\"1,,3\"");
+
+    test("[1, 2, 3].toReversed()", "[3, 2, 1]");
+    test("[1, , 3].toReversed()", "[3, undefined, 1]");
+
+    test("[1, 2, 3, 4].slice()", "[1, 2, 3, 4]");
+    test("[1, 2, 3, 4].slice(1)", "[2, 3, 4]");
+    test("[1, 2, 3, 4].slice(1, 3)", "[2, 3]");
+    test("[1, 2, 3, 4].slice(-2)", "[3, 4]");
+    test("[1, 2, 3, 4].slice(-100)", "[1, 2, 3, 4]");
+    test("[1, 2, 3, 4].slice(1, -1)", "[2, 3]");
+    test("[1, 2, 3, 4].slice(0, 100)", "[1, 2, 3, 4]");
+    test("[1, 2, 3, 4].slice(-100, -100)", "[]");
+    test("[1, 2, 3, 4].slice(-100, 100)", "[1, 2, 3, 4]");
+    test("[1, 2, , 4, 5].slice(1, 4)", "[2, , 4]");
+
+    test("[1, 100].reduce((a, b) => Math.max(a, b), 50)", "100");
+    test("[50].reduce((a, b) => Math.max(a, b), 10)", "50");
+    test("[1, 100].reduce((a, b) => Math.max(a, b))", "100");
+    test("[50].reduce((a, b) => Math.max(a, b))", "50");
+    test("[].reduce((a, b) => Math.max(a, b), 1)", "1");
+    test("[].reduce((a, b) => Math.max(a, b))", "unknown");
+    test("[1, 2, , 4].reduce((a, b) => a + b)", "7");
+    test("[1, 2, undefined, 4].reduce((a, b) => a + b)", "NaN");
+
+    test("[0, 1, 2, 3].reduceRight((a, b) => a + b)", "6");
+    test(
+      "['1', '2', '3', '4'].reduceRight((a, b) => a + b)",
+      "\"4321\"",
+    );
+    test(
+      "['1', '2', '3', '4'].reduceRight((a, b) => a + b, '5')",
+      "\"54321\"",
+    );
+    test("[50].reduceRight((a, b) => Math.max(a, b), 10)", "50");
+    test("[].reduceRight((a, b) => Math.max(a, b), 1)", "1");
+    test("[].reduceRight((a, b) => Math.max(a, b))", "unknown");
+    test("[1, 2, , 4].reduceRight((a, b) => a + b)", "7");
+    test("[1, 2, undefined, 4].reduceRight((a, b) => a + b)", "NaN");
+
+    test("[1, 10, 21, 2].toSorted()", "[1, 10, 2, 21]");
+    test("[1, 10, 21, 2].toSorted((a, b) => a - b)", "[1, 2, 10, 21]");
+    test(
+      "['a', 'c', , 'b'].toSorted()",
+      "[\"a\", \"b\", \"c\", undefined]",
+    );
+    test(
+      "[, undefined, 'a', 'b'].toSorted()",
+      "[\"a\", \"b\", undefined, undefined]",
+    );
   }
 
   #[test]

@@ -132,7 +132,7 @@ impl<'a> Evaluator<'a> {
             ..
           }) => self.eval_pat(value.unwrap_or(JsValue::Unknown(*span)), elem, add_value),
           Pat::Rest(rest) => self.eval_pat(
-            JsValue::Object(Rc::new(JsArray::new(values.by_ref().collect())).into()),
+            JsValue::Object(Rc::new(JsArray::new(values.by_ref().map(Some).collect())).into()),
             &*rest.arg,
             add_value,
           ),
@@ -481,23 +481,23 @@ impl Evaluate for Tpl {
 
 impl Evaluate for ArrayLit {
   fn evaluate(&self, evaluator: &Evaluator) -> JsValue {
-    let mut res = Vec::<JsValue>::with_capacity(self.elems.len());
+    let mut res = Vec::<Option<JsValue>>::with_capacity(self.elems.len());
     for elem in &self.elems {
       if let Some(elem) = elem {
         let val = elem.expr.evaluate(evaluator);
         if elem.spread.is_some() {
           if let Some(values) = val.values() {
-            res.extend(values);
+            res.extend(values.map(Some));
           } else {
             return JsValue::Unknown(self.span);
           }
         } else if val.is_known() {
-          res.push(val);
+          res.push(Some(val));
         } else {
           return val;
         }
       } else {
-        res.push(JsValue::Undefined);
+        res.push(None);
       }
     }
     JsValue::Object(Rc::new(JsArray::new(res)).into())

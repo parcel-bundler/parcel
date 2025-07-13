@@ -397,7 +397,7 @@ fn this_number_value(this: JsValue) -> Result<f64, ()> {
 }
 
 // https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tointegerorinfinity
-fn to_integer_or_infinty(value: &JsValue) -> Result<f64, ()> {
+pub fn to_integer_or_infinty(value: &JsValue) -> Result<f64, ()> {
   if let Ok(number) = to_number(value) {
     if number.is_nan() || number.is_zero() {
       return Ok(0.0);
