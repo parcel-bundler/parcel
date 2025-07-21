@@ -7,6 +7,7 @@ mod function;
 mod import;
 mod import_meta;
 mod js_value;
+mod link;
 mod macros;
 mod math;
 mod module;
@@ -47,8 +48,7 @@ mod test {
     )
     .unwrap();
 
-    let mut evaluator = Evaluator::new_global(SyntaxContext::empty());
-    // collect_constants(&expr, &mut evaluator);
+    let evaluator = Evaluator::new_global(SyntaxContext::empty());
     let result = expr.evaluate(&evaluator);
     assert_eq!(&format!("{}", result), expected);
   }

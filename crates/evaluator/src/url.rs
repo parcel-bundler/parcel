@@ -72,23 +72,8 @@ pub struct UrlDep {
 impl Object for UrlDep {
   fn into_expr(&self) -> Result<Expr, ()> {
     let mut module = self.module.borrow_mut();
-    let dep = Dependency {
-      specifier: self.specifier.to_string(),
-      specifier_type: SpecifierType::Url,
-      priority: Priority::Lazy,
-      bundle_behavior: BundleBehavior::Isolated,
-      flags: {
-        let mut flags = DependencyFlags::empty();
-        flags.set(DependencyFlags::NEEDS_STABLE_NAME, self.needs_stable_name);
-        flags
-      },
-      env: module.env.clone(),
-      loc: Some(module.loc(self.span)),
-      placeholder: None,
-      resolve_from: None,
-      range: None,
-    };
-    let index = module.add_dependency(dep);
+    let index =
+      module.add_url_dependency(self.specifier.clone(), self.needs_stable_name, self.span);
     Ok(quote!("new URL(__parcel_url__($index))" as Expr, index: Expr = (index as f64).into()))
   }
 }

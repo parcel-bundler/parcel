@@ -36,3 +36,4 @@ petgraph = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"
+indoc = "1.0.3"

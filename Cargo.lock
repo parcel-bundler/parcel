@@ -2166,6 +2166,7 @@ dependencies = [
  "as-any",
  "data-encoding",
  "indexmap 1.9.3",
+ "indoc",
  "itertools 0.14.0",
  "num-bigint",
  "num-traits",

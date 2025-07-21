@@ -28,10 +28,10 @@ pub struct ModuleRecord {
   pub env: Arc<Environment>,
   pub source_map: Lrc<SourceMap>,
   pub dependencies: Vec<Dependency>,
-  import_entries: Vec<ImportEntry>,
-  local_exports: IndexMap<Symbol, LocalExportRecord>,
-  indirect_exports: IndexMap<Symbol, IndirectExportRecord>,
-  star_exports: Vec<JsWord>,
+  pub import_entries: Vec<ImportEntry>,
+  pub local_exports: IndexMap<Symbol, LocalExportRecord>,
+  pub indirect_exports: IndexMap<Symbol, IndirectExportRecord>,
+  pub star_exports: Vec<u32>,
   import_namespaces: Vec<JsValue>,
   pub diagnostics: Vec<Diagnostic>,
 }
@@ -71,22 +71,32 @@ impl TryFrom<Symbol> for JsWord {
   }
 }
 
-struct ImportEntry {
-  dependency_index: u32,
-  import_name: Symbol,
-  local: Id,
-  span: Span,
+impl Symbol {
+  pub fn name(&self) -> JsWord {
+    match self {
+      Symbol::Name(name) => name.clone(),
+      Symbol::Default => "default".into(),
+      _ => unreachable!(),
+    }
+  }
 }
 
-struct LocalExportRecord {
-  local: Id,
-  span: Span,
+pub struct ImportEntry {
+  pub dependency_index: u32,
+  pub import_name: Symbol,
+  pub local: Id,
+  pub span: Span,
 }
 
-struct IndirectExportRecord {
-  dependency_index: u32,
-  import_name: Symbol,
-  span: Span,
+pub struct LocalExportRecord {
+  pub local: Id,
+  pub span: Span,
+}
+
+pub struct IndirectExportRecord {
+  pub dependency_index: u32,
+  pub import_name: Symbol,
+  pub span: Span,
 }
 
 impl ModuleRecord {
@@ -146,6 +156,26 @@ impl ModuleRecord {
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
       flags: DependencyFlags::empty(),
+      env: self.env.clone(),
+      loc: Some(self.loc(span)),
+      placeholder: None,
+      resolve_from: None,
+      range: None,
+    };
+    self.add_dependency(dep)
+  }
+
+  pub fn add_url_dependency(&mut self, src: JsWord, needs_stable_name: bool, span: Span) -> u32 {
+    let dep = Dependency {
+      specifier: src.to_string(),
+      specifier_type: SpecifierType::Url,
+      priority: Priority::Lazy,
+      bundle_behavior: BundleBehavior::Isolated,
+      flags: {
+        let mut flags = DependencyFlags::empty();
+        flags.set(DependencyFlags::NEEDS_STABLE_NAME, needs_stable_name);
+        flags
+      },
       env: self.env.clone(),
       loc: Some(self.loc(span)),
       placeholder: None,
@@ -464,8 +494,8 @@ impl ModuleRecord {
         }
         // export * from 'foo';
         ModuleItem::ModuleDecl(ModuleDecl::ExportAll(decl)) => {
-          self.star_exports.push(decl.src.value.clone());
-          self.add_import_dependency(decl.src.value.clone());
+          let index = self.add_import_dependency(decl.src.value.clone());
+          self.star_exports.push(index);
           false
         }
         ModuleItem::ModuleDecl(ModuleDecl::TsImportEquals(_))

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
-use indexmap::indexmap;
+use indexmap::{indexmap, IndexMap};
 use parcel_core::Environment;
 use swc_core::{
   common::{sync::Lrc, Globals, Mark, SourceMap, SyntaxContext},
@@ -25,15 +25,15 @@ use crate::{
   require::Require,
   url::URL,
   worker::{paint_worklet, service_worker_register, SharedWorker, Worker},
-  Evaluate, Evaluator, JsValue, StaticOrRc,
+  Evaluate, Evaluator, JsObject, JsValue, StaticOrRc,
 };
 
 pub fn transform(module: &mut Module, env: Arc<Environment>, source_map: Lrc<SourceMap>) {
   swc_core::common::GLOBALS.set(&Globals::new(), || {
     let record = Rc::new(RefCell::new(ModuleRecord::new(env.clone(), source_map)));
     let unresolved_mark = Mark::fresh(Mark::root());
-    let global_mark = Mark::fresh(Mark::root());
-    module.visit_mut_with(&mut resolver(unresolved_mark, global_mark, true));
+    let top_level_mark = Mark::fresh(Mark::root());
+    module.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, true));
 
     let mut evaluator = Evaluator::new_global(SyntaxContext::empty().apply_mark(unresolved_mark));
     setup_environment(&mut evaluator, record.clone(), unresolved_mark);
@@ -47,6 +47,16 @@ pub fn transform(module: &mut Module, env: Arc<Environment>, source_map: Lrc<Sou
     };
 
     module.visit_mut_with(&mut transformer);
+
+    println!(
+      "EXPORTS: {}",
+      evaluator
+        .get((
+          "module".into(),
+          SyntaxContext::empty().apply_mark(unresolved_mark)
+        ))
+        .unwrap()
+    );
   });
 }
 
@@ -82,15 +92,20 @@ fn setup_environment(
 
   evaluator.add_value(("require".into(), ctxt), require.clone());
 
+  let exports = JsValue::Object(Rc::new(JsObject::new(IndexMap::new())).into());
+
   evaluator.add_value(
     ("module".into(), ctxt),
     JsValue::Object(
       Rc::new(indexmap::indexmap! {
         "require".into() => require.clone(),
+        "exports".into() => exports.clone()
       })
       .into(),
     ),
   );
+
+  evaluator.add_value(("exports".into(), ctxt), exports.clone());
 
   evaluator.add_value(
     ("URL".into(), ctxt),
@@ -151,6 +166,12 @@ fn setup_environment(
       .into(),
     ),
   );
+
+  evaluator.add_value(
+    ("__filename".into(), ctxt),
+    JsValue::String("/foo/bar.js".into()),
+  );
+  evaluator.add_value(("__dirname".into(), ctxt), JsValue::String("/foo".into()));
 
   evaluator.import_meta = JsValue::Object(Rc::new(ImportMeta::new("/".into())).into());
 
@@ -237,15 +258,29 @@ mod tests {
     test("console.log(process.browser)");
     test("console.log(process.test)");
     test("console.log(process)");
-    test("console.log(typeof process)");
+    test("console.log(typeof process)"); // we used to replace this with undefined to avoid the polyfill...
     test("console.log(Buffer)");
+    test("console.log(typeof Buffer)");
     test("console.log(Buffer.from('hi'))");
     test("console.log(Buffer.from('7468697320697320612074c3a97374', 'hex').toString())");
     test("console.log(Buffer.from('😍').length)");
+    test("console.log(__filename, __dirname)");
     test("import {join} from 'path'; console.log(join('foo', 'bar'))");
     test("import * as path from 'path'; console.log(path.join('foo', 'bar'))");
     test("import path from 'path'; console.log(path.join('foo', 'bar'))");
     test("const {join} = require('path'); console.log(join('foo', 'bar'))");
     test("const path = require('path'); console.log(path.join('foo', 'bar'))");
+    test("exports.foo = 2; exports.bar = 3;");
+    test("exports.foo = 2; exports.foo = 3;");
+    test("function test() { exports.foo = 2; }");
+    test("module.exports.foo = 2; module.exports.bar = 3;");
+    test("exports.foo = 2; module.exports = 3;");
+    test("module.exports = {foo: 2, bar: 3};");
+    test("doSomething(exports)");
+    test("doSomething(module.exports)");
+    test("console.log(typeof exports)");
+    test("console.log(typeof module.exports)");
+    test("console.log(typeof module)");
+    test("console.log(typeof require)");
   }
 }
