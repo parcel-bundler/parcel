@@ -2,10 +2,8 @@ use core::f64;
 
 use swc_core::common::Span;
 
-use crate::{
-  number::{to_number, to_uint32},
-  Evaluator, JsValue, Object,
-};
+use super::number::{to_number, to_uint32};
+use crate::{Evaluator, JsValue, Object};
 
 pub struct Math;
 

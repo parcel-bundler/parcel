@@ -1,32 +1,17 @@
-mod array;
-mod buffer;
+mod builtins;
 mod collect_constants;
+mod dependencies;
 mod evaluate;
-mod fs;
-mod function;
-mod import;
-mod import_meta;
 mod js_value;
 mod link;
-mod macros;
-mod math;
 mod module;
-mod number;
-mod object;
-mod path;
-mod process;
-mod promise;
-mod require;
-mod string;
 mod transform;
-mod url;
-mod worker;
 
-pub use array::*;
+pub use builtins::array::*;
+pub use builtins::function::*;
+pub use builtins::object::*;
 pub use evaluate::{Evaluate, Evaluator};
-pub use function::*;
 pub use js_value::*;
-pub use object::*;
 
 #[cfg(test)]
 mod test {
@@ -34,7 +19,7 @@ mod test {
   use pretty_assertions::assert_eq;
   use swc_core::common::SyntaxContext;
   use swc_core::common::{sync::Lrc, FileName, SourceMap};
-  use swc_core::ecma::parser::{parse_file_as_expr, Syntax};
+  use swc_core::ecma::parser::parse_file_as_expr;
 
   fn test(code: &str, expected: &str) {
     let source_map = Lrc::new(SourceMap::default());

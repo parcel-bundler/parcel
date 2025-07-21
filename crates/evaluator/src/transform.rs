@@ -12,25 +12,27 @@ use swc_core::{
 };
 
 use crate::{
-  buffer::BufferConstructor,
   builtin_object,
+  builtins::promise::Promise,
   collect_constants::collect_constants,
-  fs::create_fs_module,
-  import::{self, Import},
-  import_meta::ImportMeta,
-  module::{ImportNamespace, ModuleRecord, Symbol},
-  path::create_path_module,
-  process::{EnvObject, Process},
-  promise::Promise,
-  require::Require,
-  url::URL,
-  worker::{paint_worklet, service_worker_register, SharedWorker, Worker},
+  dependencies::{
+    buffer::BufferConstructor,
+    context::ModuleContext,
+    fs::create_fs_module,
+    import::Import,
+    import_meta::ImportMeta,
+    path::create_path_module,
+    process::{EnvObject, Process},
+    require::Require,
+    url::URL,
+    worker::{paint_worklet, service_worker_register, SharedWorker, Worker},
+  },
   Evaluate, Evaluator, JsObject, JsValue, StaticOrRc,
 };
 
 pub fn transform(module: &mut Module, env: Arc<Environment>, source_map: Lrc<SourceMap>) {
   swc_core::common::GLOBALS.set(&Globals::new(), || {
-    let record = Rc::new(RefCell::new(ModuleRecord::new(env.clone(), source_map)));
+    let record = Rc::new(RefCell::new(ModuleContext::new(env.clone(), source_map)));
     let unresolved_mark = Mark::fresh(Mark::root());
     let top_level_mark = Mark::fresh(Mark::root());
     module.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, true));
@@ -62,7 +64,7 @@ pub fn transform(module: &mut Module, env: Arc<Environment>, source_map: Lrc<Sou
 
 fn setup_environment(
   evaluator: &mut Evaluator,
-  module: Rc<RefCell<ModuleRecord>>,
+  module: Rc<RefCell<ModuleContext>>,
   unresolved_mark: Mark,
 ) {
   let record = module.borrow();

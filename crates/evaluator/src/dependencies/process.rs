@@ -7,13 +7,11 @@ use swc_core::{
   ecma::{ast::*, atoms::Atom as JsWord},
 };
 
-use crate::{
-  module::{ModuleRecord, Symbol},
-  Evaluator, JsValue, Object,
-};
+use super::context::{ModuleContext, Symbol};
+use crate::{Evaluator, JsValue, Object};
 
 pub struct Process {
-  pub module: Rc<RefCell<ModuleRecord>>,
+  pub module: Rc<RefCell<ModuleContext>>,
   pub env: Rc<EnvObject>,
   pub browser: bool,
 }

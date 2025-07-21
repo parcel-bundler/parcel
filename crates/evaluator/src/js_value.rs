@@ -7,7 +7,10 @@ use swc_core::{
   ecma::{ast::*, atoms::Atom as JsWord},
 };
 
-use crate::{number::NumberObject, string::StringObject, Function, JsArray, Object};
+use crate::{
+  builtins::{number::NumberObject, string::StringObject},
+  Function, JsArray, Object,
+};
 
 /// A type that represents a basic JS value.
 #[derive(Clone)]

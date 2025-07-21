@@ -2,7 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use swc_core::{common::Span, ecma::ast::Expr};
 
-use crate::{module::ImportNamespace, Evaluator, Function, JsValue, Object, StaticOrRc};
+use crate::{
+  dependencies::context::ImportNamespace, Evaluator, Function, JsValue, Object, StaticOrRc,
+};
 
 pub struct Promise;
 impl Object for Promise {

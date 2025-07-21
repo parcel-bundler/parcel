@@ -1,24 +1,13 @@
-use std::{
-  cell::RefCell,
-  collections::{HashMap, HashSet},
-  rc::Rc,
-};
+use std::{cell::RefCell, rc::Rc};
 
-use parcel_core::{
-  BundleBehavior, Dependency, DependencyFlags, Priority, SourceType, SpecifierType,
-};
-use swc_core::{
-  common::Span,
-  ecma::{ast::*, atoms::Atom as JsWord},
-};
+use parcel_core::SourceType;
+use swc_core::common::Span;
 
-use crate::{
-  module::{ModuleRecord, Symbol},
-  Evaluator, Function, JsValue, Object,
-};
+use super::context::ModuleContext;
+use crate::{Evaluator, Function, JsValue, Object};
 
 pub struct Require {
-  pub module: Rc<RefCell<ModuleRecord>>,
+  pub module: Rc<RefCell<ModuleContext>>,
 }
 
 impl Object for Require {

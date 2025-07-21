@@ -1,7 +1,4 @@
-use std::{
-  collections::{HashMap, HashSet},
-  rc::Rc,
-};
+use std::collections::HashSet;
 
 use indexmap::IndexMap;
 use parcel_core::{DependencyFlags, Priority};
@@ -16,7 +13,7 @@ use swc_core::{
   quote,
 };
 
-use crate::module::{ModuleRecord, Symbol};
+use crate::dependencies::context::{ModuleContext, Symbol};
 
 enum DependencyResolution {
   Module {
@@ -45,7 +42,7 @@ struct SymbolResolution {
 }
 
 struct Link<'a> {
-  module_record: &'a ModuleRecord,
+  module_record: &'a ModuleContext,
   dependency_resolutions: Vec<DependencyResolution>,
   import_symbols: IndexMap<Id, SymbolResolution>,
   indirect_export_symbols: Vec<SymbolResolution>,
@@ -287,7 +284,7 @@ impl<'a> Link<'a> {
 mod tests {
   use std::sync::Arc;
 
-  use crate::module::ImportEntry;
+  use crate::dependencies::context::ImportEntry;
 
   use super::*;
   use indoc::indoc;
@@ -324,7 +321,7 @@ mod tests {
       .unwrap();
 
       let env = Arc::new(Environment::default());
-      let mut record = ModuleRecord::new(env, source_map);
+      let mut record = ModuleContext::new(env, source_map);
       let mut dependency_resolutions = Vec::new();
       let mut import_symbols = IndexMap::new();
       for (src, specifier_type, res, symbols) in deps {

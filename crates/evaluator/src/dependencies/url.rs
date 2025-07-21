@@ -7,10 +7,11 @@ use swc_core::{
   quote,
 };
 
-use crate::{module::ModuleRecord, Evaluator, Function, JsValue, Object};
+use super::context::ModuleContext;
+use crate::{Evaluator, Function, JsValue, Object};
 
 pub struct URL {
-  pub module: Rc<RefCell<ModuleRecord>>,
+  pub module: Rc<RefCell<ModuleContext>>,
 }
 
 impl Object for URL {}
@@ -63,7 +64,7 @@ impl Function for URL {
 // }
 
 pub struct UrlDep {
-  pub module: Rc<RefCell<ModuleRecord>>,
+  pub module: Rc<RefCell<ModuleContext>>,
   pub specifier: JsWord,
   needs_stable_name: bool,
   span: Span,

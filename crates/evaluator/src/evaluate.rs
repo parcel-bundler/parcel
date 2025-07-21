@@ -12,12 +12,14 @@ use swc_core::{
 };
 
 use crate::{
-  math::Math,
-  number::{
-    is_finite, is_nan, parse_float, parse_int, to_int32, to_number, to_uint32, NumberConstructor,
+  builtins::{
+    math::Math,
+    number::{
+      is_finite, is_nan, parse_float, parse_int, to_int32, to_number, to_uint32, NumberConstructor,
+    },
+    promise::PromiseInstance,
+    string::JsString,
   },
-  promise::PromiseInstance,
-  string::JsString,
   JsArray, JsFunction, JsObject, JsValue,
 };
 

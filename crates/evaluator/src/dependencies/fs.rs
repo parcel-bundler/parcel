@@ -3,9 +3,10 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 use data_encoding::{BASE64, HEXLOWER};
 use swc_core::common::Span;
 
-use crate::{buffer::Buffer, module::ModuleRecord, Evaluator, JsValue};
+use super::{buffer::Buffer, context::ModuleContext};
+use crate::{Evaluator, JsValue};
 
-pub fn create_fs_module(project_root: String, module: Rc<RefCell<ModuleRecord>>) -> JsValue {
+pub fn create_fs_module(project_root: String, module: Rc<RefCell<ModuleContext>>) -> JsValue {
   JsValue::Object(
     Rc::new(indexmap::indexmap! {
       "readFileSync".into() => JsValue::Function(Rc::new(move |this, args, span, _evaluator: &Evaluator|{
@@ -22,7 +23,7 @@ fn read_file_sync(
   span: Span,
   // deps: Rc<RefCell<Vec<(JsWord, Span)>>>,
   project_root: &str,
-  module: Rc<RefCell<ModuleRecord>>,
+  module: Rc<RefCell<ModuleContext>>,
   // unresolved_mark: Mark,
 ) -> JsValue {
   if let Some(JsValue::String(path)) = args.get(0) {

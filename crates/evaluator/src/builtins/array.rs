@@ -10,10 +10,8 @@ use swc_core::{
   ecma::{ast::*, atoms::Atom as JsWord},
 };
 
-use crate::{
-  number::{to_integer_or_infinty, to_number},
-  Evaluator, Function, JsValue, Object, StaticOrRc,
-};
+use super::number::{to_integer_or_infinty, to_number};
+use crate::{Evaluator, Function, JsValue, Object, StaticOrRc};
 
 /// A JS array literal.
 pub struct JsArray {

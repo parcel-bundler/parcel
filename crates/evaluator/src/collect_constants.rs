@@ -1,18 +1,10 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
-use petgraph::dot::Dot;
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::{EdgeRef, VisitMap, Visitable};
-use swc_core::ecma::utils::for_each_binding_ident;
-use swc_core::ecma::visit::{visit_obj_and_computed, Visit, VisitWith};
-use swc_core::{common::DUMMY_SP, ecma::ast::*};
+use swc_core::ecma::ast::*;
 
-use crate::fs::create_fs_module;
-use crate::macros::{MacroCallback, MacroModule};
-use crate::path::create_path_module;
-use crate::{Evaluate, Evaluator, JsValue};
+use crate::{Evaluate, Evaluator};
 
 pub fn collect_constants(node: &Module, evaluator: &mut Evaluator) {
   let mut collector = ConstantCollector {
@@ -817,6 +809,7 @@ mod tests {
   };
 
   use super::*;
+  use crate::JsValue;
 
   fn parse(code: &str) -> Module {
     let source_map = Lrc::new(SourceMap::default());

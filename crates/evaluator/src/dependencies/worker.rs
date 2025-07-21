@@ -10,7 +10,8 @@ use swc_core::{
   quote,
 };
 
-use crate::{module::ModuleRecord, url::UrlDep, Evaluator, Function, JsValue, Object};
+use super::{context::ModuleContext, url::UrlDep};
+use crate::{Evaluator, Function, JsValue, Object};
 
 pub struct Worker;
 impl Object for Worker {}
@@ -72,7 +73,7 @@ impl Function for SharedWorker {
 
 fn match_url_dep<'a, 'b>(
   args: &'a Vec<JsValue>,
-) -> Option<(&'a JsWord, Rc<RefCell<ModuleRecord>>)> {
+) -> Option<(&'a JsWord, Rc<RefCell<ModuleContext>>)> {
   match args.get(0) {
     Some(JsValue::Object(src)) => {
       if let Some(url) = src.as_any().downcast_ref::<UrlDep>() {
@@ -86,7 +87,7 @@ fn match_url_dep<'a, 'b>(
 }
 
 struct WorkerDep {
-  module: Rc<RefCell<ModuleRecord>>,
+  module: Rc<RefCell<ModuleContext>>,
   specifier: JsWord,
   source_type: SourceType,
   span: Span,
@@ -121,7 +122,7 @@ impl Object for WorkerDep {
 }
 
 impl WorkerDep {
-  pub fn to_dependency(&self, module: &ModuleRecord) -> Dependency {
+  pub fn to_dependency(&self, module: &ModuleContext) -> Dependency {
     // Use native ES module output if the worker was created with `type: 'module'` and all targets
     // support native module workers. Only do this if parent asset output format is also esmodule so that
     // assets can be shared between workers and the main thread in the global output format.
@@ -220,7 +221,7 @@ pub fn service_worker_register(
 }
 
 pub struct ServiceWorkerDep {
-  module: Rc<RefCell<ModuleRecord>>,
+  module: Rc<RefCell<ModuleContext>>,
   specifier: JsWord,
   source_type: SourceType,
   span: Span,
@@ -247,7 +248,7 @@ impl Object for ServiceWorkerDep {
 }
 
 impl ServiceWorkerDep {
-  pub fn to_dependency(&self, module: &ModuleRecord) -> Dependency {
+  pub fn to_dependency(&self, module: &ModuleContext) -> Dependency {
     let loc = module.loc(self.span);
     Dependency {
       specifier: self.specifier.to_string(),
@@ -291,7 +292,7 @@ pub fn paint_worklet(
 }
 
 pub struct WorkletDep {
-  module: Rc<RefCell<ModuleRecord>>,
+  module: Rc<RefCell<ModuleContext>>,
   specifier: JsWord,
   span: Span,
 }
@@ -316,7 +317,7 @@ impl Object for WorkletDep {
 }
 
 impl WorkletDep {
-  fn to_dependency(&self, module: &ModuleRecord) -> Dependency {
+  fn to_dependency(&self, module: &ModuleContext) -> Dependency {
     let loc = Some(module.loc(self.span));
     Dependency {
       specifier: self.specifier.to_string(),

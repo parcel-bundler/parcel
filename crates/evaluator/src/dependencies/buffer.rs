@@ -7,13 +7,11 @@ use swc_core::{
   quote,
 };
 
-use crate::{
-  module::{ModuleRecord, Symbol},
-  Evaluator, Function, JsValue, Object,
-};
+use super::context::{ModuleContext, Symbol};
+use crate::{Evaluator, Function, JsValue, Object};
 
 pub struct BufferConstructor {
-  pub module: Rc<RefCell<ModuleRecord>>,
+  pub module: Rc<RefCell<ModuleContext>>,
 }
 
 impl Object for BufferConstructor {
@@ -74,7 +72,7 @@ fn from(this: JsValue, args: Vec<JsValue>, span: Span, _evaluator: &Evaluator) -
 }
 
 pub struct Buffer {
-  pub module: Rc<RefCell<ModuleRecord>>,
+  pub module: Rc<RefCell<ModuleContext>>,
   pub content: Vec<u8>,
 }
 

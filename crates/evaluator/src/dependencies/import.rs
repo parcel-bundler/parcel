@@ -1,19 +1,16 @@
-use std::{cell::RefCell, collections::HashSet, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use parcel_core::{
   BundleBehavior, Dependency, DependencyFlags, Environment, EnvironmentContext, EnvironmentFeature,
   OutputFormat, Priority, SourceType, SpecifierType,
 };
-use swc_core::{common::Span, ecma::atoms::Atom as JsWord};
+use swc_core::common::Span;
 
-use crate::{
-  module::{ModuleRecord, Symbol},
-  promise::PromiseInstance,
-  Evaluator, Function, JsValue, Object,
-};
+use super::context::ModuleContext;
+use crate::{builtins::promise::PromiseInstance, Evaluator, Function, JsValue, Object};
 
 pub struct Import {
-  pub module: Rc<RefCell<ModuleRecord>>,
+  pub module: Rc<RefCell<ModuleContext>>,
 }
 
 impl Object for Import {}
