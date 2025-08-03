@@ -42,12 +42,25 @@ export default (new Runtime({
         let resolvedAsset = bundleGraph.getResolvedAsset(node.value, bundle);
         let directives = resolvedAsset?.meta?.directives;
 
-        // Server dependency on a client component.
         if (
           node.value.env.isServer() &&
           resolvedAsset &&
           Array.isArray(directives) &&
-          directives.includes('use client')
+          directives.includes('use client-entry')
+        ) {
+          // Resolve to an empty module so the client entry does not run on the server.
+          runtimes.push({
+            filePath: replaceExtension(resolvedAsset.filePath),
+            code: '',
+            dependency: node.value,
+            env: {sourceType: 'module'},
+          });
+
+          // Server dependency on a client component.
+        } else if (
+          node.value.env.isServer() &&
+          resolvedAsset &&
+          resolvedAsset.env.context === 'react-client'
         ) {
           let bundles;
           let async = bundleGraph.resolveAsyncDependency(node.value, bundle);
@@ -188,21 +201,6 @@ export default (new Runtime({
             dependency: node.value,
             env: {sourceType: 'module'},
             shouldReplaceResolution: true,
-          });
-
-          // Server dependency on a client entry.
-        } else if (
-          node.value.env.isServer() &&
-          resolvedAsset &&
-          Array.isArray(directives) &&
-          directives.includes('use client-entry')
-        ) {
-          // Resolve to an empty module so the client entry does not run on the server.
-          runtimes.push({
-            filePath: replaceExtension(resolvedAsset.filePath),
-            code: '',
-            dependency: node.value,
-            env: {sourceType: 'module'},
           });
         } else {
           // Handle bundle group boundaries to automatically inject resources like CSS.

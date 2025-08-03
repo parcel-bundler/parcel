@@ -453,7 +453,7 @@ describe('sourcemaps', function () {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      generatedStr: 'let r',
+      generatedStr: 'let o',
       sourcePath: 'index.js',
     });
 
@@ -462,7 +462,7 @@ describe('sourcemaps', function () {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      generatedStr: 'r.a',
+      generatedStr: 'o.a',
       sourcePath: 'index.js',
     });
 
@@ -471,7 +471,7 @@ describe('sourcemaps', function () {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      generatedStr: 'o.a',
+      generatedStr: 'r.a',
       sourcePath: 'local.js',
     });
 
@@ -480,7 +480,7 @@ describe('sourcemaps', function () {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      generatedStr: 'o.count=function(e,n){',
+      generatedStr: 'r.count=function(e,n){',
       sourcePath: 'utils/util.js',
     });
   });
