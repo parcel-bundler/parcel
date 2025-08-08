@@ -1,19 +1,19 @@
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 use bitflags::bitflags;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
-use crate::{BundleBehavior, Environment, SourceLocation, impl_bitflags_serde};
+use crate::{BundleBehavior, Dependency, Environment, SourceLocation, impl_bitflags_serde};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
   // pub file_path: Interned<PathBuf>,
   pub loc: Option<SourceLocation>,
   #[serde(rename = "type")]
   pub ty: AssetType,
-  #[serde(with = "serde_bytes")]
-  pub content: Vec<u8>,
+  #[serde(serialize_with = "serialize_content")]
+  pub content: Rc<dyn AssetContent>,
   pub env: Arc<Environment>,
   // pub query: Option<String>,
   // pub pipeline: Option<String>,
@@ -21,6 +21,25 @@ pub struct Asset {
   pub flags: AssetFlags,
   // pub symbols: Vec<Symbol>,
   pub unique_key: Option<String>,
+
+  pub dependencies: Vec<Dependency>,
+}
+
+pub trait AssetContent: std::fmt::Debug {
+  fn as_bytes(&self) -> &[u8];
+}
+
+impl AssetContent for [u8] {
+  fn as_bytes(&self) -> &[u8] {
+    self
+  }
+}
+
+fn serialize_content<S: Serializer>(
+  content: &Rc<dyn AssetContent>,
+  serializer: S,
+) -> Result<S::Ok, S::Error> {
+  serde_bytes::serialize(content.as_bytes(), serializer)
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Default)]

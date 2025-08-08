@@ -1,4 +1,7 @@
-use std::{hash::Hash, path::PathBuf};
+use std::{
+  hash::Hash,
+  path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -40,7 +43,7 @@ macro_rules! impl_bitflags_serde {
 #[derive(PartialEq, Eq, Debug, Clone, Hash, Default, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
-  pub file_path: PathBuf,
+  pub url: Box<str>,
   pub start: Location,
   pub end: Location,
 }

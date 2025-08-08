@@ -1,6 +1,6 @@
 use std::{
   hash::{DefaultHasher, Hash, Hasher},
-  path::PathBuf,
+  path::{Path, PathBuf},
   sync::Arc,
 };
 
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
-  pub specifier: String,
+  pub specifier: Box<str>,
   pub specifier_type: SpecifierType,
   pub priority: Priority,
   pub bundle_behavior: BundleBehavior,
@@ -21,9 +21,11 @@ pub struct Dependency {
   #[serde(default)]
   pub loc: Option<SourceLocation>,
   #[serde(default)]
-  pub placeholder: Option<String>,
-  pub resolve_from: Option<PathBuf>,
-  pub range: Option<String>,
+  pub placeholder: Option<Box<str>>,
+  pub resolve_from: Option<Box<str>>,
+  pub range: Option<Box<str>>,
+
+  pub resolution: DependencyResolution,
 }
 
 impl Dependency {
@@ -36,7 +38,7 @@ impl Dependency {
     self.env.output_format.hash(&mut hasher);
     self.env.source_type.hash(&mut hasher);
     self.bundle_behavior.hash(&mut hasher);
-    self.placeholder = Some(format!("{:x}", hasher.finish()));
+    self.placeholder = Some(format!("{:x}", hasher.finish()).into_boxed_str());
     self.placeholder.as_ref().unwrap()
   }
 }
@@ -75,3 +77,21 @@ bitflags! {
 }
 
 impl_bitflags_serde!(DependencyFlags);
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DependencyResolution {
+  #[default]
+  New,
+  Deferred(Box<AssetRequest>),
+  External,
+  Excluded,
+  Asset(u32),
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssetRequest {
+  pub url: Box<str>,
+  pub code: Option<Box<[u8]>>,
+  pub pipeline: Option<Box<str>>,
+  pub side_effects: bool,
+}
