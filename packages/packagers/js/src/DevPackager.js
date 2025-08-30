@@ -118,7 +118,31 @@ export class DevPackager {
           if (this.bundleGraph.isDependencySkipped(dep)) {
             deps[specifier] = false;
           } else if (resolved) {
-            deps[specifier] = this.bundleGraph.getAssetPublicId(resolved);
+            let assetId = this.bundleGraph.getAssetPublicId(resolved);
+            let resolution = assetId;
+
+            // Dependencies may be re-targeted to follow re-exports.
+            // Pass these re-writes into the prelude.
+            for (let [name, sym] of dep.symbols) {
+              let rewritten = sym.meta?.rewritten;
+              if (typeof rewritten === 'string') {
+                let r =
+                  rewritten === name
+                    ? [rewritten, assetId]
+                    : [rewritten, assetId, name];
+                if (typeof resolution === 'string') {
+                  resolution = [r];
+                } else {
+                  resolution.push(r);
+                }
+              }
+            }
+
+            if (Array.isArray(deps[specifier]) && Array.isArray(resolution)) {
+              deps[specifier].push(...resolution);
+            } else {
+              deps[specifier] = resolution;
+            }
           } else {
             // An external module - map placeholder to original specifier.
             deps[specifier] = dep.specifier;
@@ -128,6 +152,18 @@ export class DevPackager {
             ) {
               externals.add(dep.specifier);
             }
+          }
+        }
+
+        // Simplify dependency resolutions when all symbols point to a single asset.
+        for (let specifier in deps) {
+          let resolution = deps[specifier];
+          if (
+            Array.isArray(resolution) &&
+            resolution.length > 0 &&
+            resolution.every(r => r.length === 2 && r[1] === resolution[0][1])
+          ) {
+            deps[specifier] = resolution[0][1];
           }
         }
 

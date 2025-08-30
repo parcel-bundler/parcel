@@ -411,9 +411,9 @@ impl Visit for Collect {
         }
         ExportSpecifier::Default(default) => {
           self.exports.insert(
-            "default".into(),
+            default.exported.sym.clone(),
             Export {
-              specifier: default.exported.sym.clone(),
+              specifier: "default".into(),
               loc: SourceLocation::from(&self.source_map, default.exported.span),
               source,
               is_esm: true,
