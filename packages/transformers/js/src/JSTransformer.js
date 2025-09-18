@@ -500,7 +500,9 @@ export default (new Transformer({
                 let ctx: MacroContext = {
                   // Allows macros to emit additional assets to add as dependencies (e.g. css).
                   addAsset(a: MacroAsset) {
-                    let k = String(macroAssets.length);
+                    let k =
+                      (asset.uniqueKey ? asset.uniqueKey + ':' : '') +
+                      String(macroAssets.length);
                     let map;
                     if (asset.env.sourceMap) {
                       // Generate a source map that maps each line of the asset to the original macro call.
