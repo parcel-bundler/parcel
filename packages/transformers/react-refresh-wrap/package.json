@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-react-refresh-wrap",
-  "version": "2.15.4",
+  "version": "2.16.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/ReactRefreshWrapTransformer.js",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.15.4"
+    "parcel": "^2.16.0"
   },
   "dependencies": {
-    "@parcel/error-overlay": "2.15.4",
-    "@parcel/plugin": "2.15.4",
-    "@parcel/utils": "2.15.4",
+    "@parcel/error-overlay": "2.16.0",
+    "@parcel/plugin": "2.16.0",
+    "@parcel/utils": "2.16.0",
     "react-refresh": "^0.16.0"
   }
 }

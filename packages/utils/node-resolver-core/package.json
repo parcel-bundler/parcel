@@ -1,6 +1,6 @@
 {
   "name": "@parcel/node-resolver-core",
-  "version": "3.6.4",
+  "version": "3.7.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -26,10 +26,10 @@
   ],
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.1",
-    "@parcel/diagnostic": "2.15.4",
-    "@parcel/fs": "2.15.4",
-    "@parcel/rust": "2.15.4",
-    "@parcel/utils": "2.15.4",
+    "@parcel/diagnostic": "2.16.0",
+    "@parcel/fs": "2.16.0",
+    "@parcel/rust": "2.16.0",
+    "@parcel/utils": "2.16.0",
     "nullthrows": "^1.1.1",
     "semver": "^7.7.1"
   },

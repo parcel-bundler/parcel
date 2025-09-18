@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "2.15.4",
+  "version": "2.16.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -52,22 +52,22 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/feature-flags": "2.15.4",
-    "@parcel/rust": "2.15.4",
-    "@parcel/types-internal": "2.15.4",
-    "@parcel/utils": "2.15.4",
+    "@parcel/feature-flags": "2.16.0",
+    "@parcel/rust": "2.16.0",
+    "@parcel/types-internal": "2.16.0",
+    "@parcel/utils": "2.16.0",
     "@parcel/watcher": "^2.0.7",
-    "@parcel/workers": "2.15.4"
+    "@parcel/workers": "2.16.0"
   },
   "devDependencies": {
-    "@parcel/watcher-watchman-js": "2.15.4",
+    "@parcel/watcher-watchman-js": "2.16.0",
     "graceful-fs": "^4.2.11",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
     "utility-types": "^3.11.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.15.4"
+    "@parcel/core": "^2.16.0"
   },
   "browser": {
     "./src/NodeFS.js": "./src/NodeFS.browser.js",

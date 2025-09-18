@@ -5,6 +5,18 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.16.0] – 2025-09-18
+
+### Added
+
+- JavaScript
+  - Code split re-exports when scope hoisting is disabled – [Details](https://github.com/parcel-bundler/parcel/pull/10207)
+
+### Fixed
+
+- JavaScript
+  - Scope macro asset unique keys to the parent asset – [Details](https://github.com/parcel-bundler/parcel/pull/10215)
+
 ## [2.15.3] – 2025-06-20
 
 ### Fixed

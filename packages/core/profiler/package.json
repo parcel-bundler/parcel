@@ -1,6 +1,6 @@
 {
   "name": "@parcel/profiler",
-  "version": "2.15.4",
+  "version": "2.16.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -24,9 +24,9 @@
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.15.4",
-    "@parcel/events": "2.15.4",
-    "@parcel/types-internal": "2.15.4",
+    "@parcel/diagnostic": "2.16.0",
+    "@parcel/events": "2.16.0",
+    "@parcel/types-internal": "2.16.0",
     "chrome-trace-event": "^1.0.2"
   }
 }
