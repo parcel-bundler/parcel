@@ -153,9 +153,12 @@ export class NodeFS implements FileSystem {
   ): Promise<void> {
     let tmpFilePath = getTempFilePath(filePath);
     await fs.promises.writeFile(tmpFilePath, contents, options);
-    // await fs.promises.rename(tmpFilePath, filePath);
-    await fs.promises.copyFile(tmpFilePath, filePath);
-    await fs.promises.unlink(tmpFilePath);
+    if (process.platform !== 'win32') {
+      await fs.promises.rename(tmpFilePath, filePath);
+    } else {
+      await fs.promises.copyFile(tmpFilePath, filePath);
+      await fs.promises.unlink(tmpFilePath);
+    }
   }
 
   readFileSync(filePath: FilePath, encoding?: Encoding): any {

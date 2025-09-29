@@ -54,9 +54,12 @@ async function run(packagePath: string) {
     throw e;
   }
 
-  // await fs.promises.rename(tempPath, packagePath);
-  await fs.promises.copyFile(tempPath, packagePath);
-  await fs.promises.unlink(tempPath);
+  if (process.platform !== 'win32') {
+    await fs.promises.rename(tempPath, packagePath);
+  } else {
+    await fs.promises.copyFile(tempPath, packagePath);
+    await fs.promises.unlink(tempPath);
+  }
 
   log(
     chalk`{green ${emoji.success} Successfully created a new Parcel app at {bold.underline ${packagePath}}.}`,
