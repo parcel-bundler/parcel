@@ -385,30 +385,7 @@ export default (new Runtime({
       bundle.env.isServer() &&
       bundleGraph.getParentBundles(bundle).length === 0
     ) {
-      let serverActions = '';
-      bundleGraph.traverse(node => {
-        if (
-          node.type === 'asset' &&
-          Array.isArray(node.value.meta?.directives) &&
-          node.value.meta.directives.includes('use server')
-        ) {
-          let bundlesWithAsset = bundleGraph.getBundlesWithAsset(node.value);
-          let bundles = new Set();
-          let referenced = bundleGraph.getReferencedBundles(
-            bundlesWithAsset[0],
-          );
-          bundles.add(normalizeSeparators(bundlesWithAsset[0].name));
-          for (let r of referenced) {
-            if (r.type === 'js' && r.env.context === bundle.env.context) {
-              bundles.add(normalizeSeparators(r.name));
-            }
-          }
-          serverActions += `  ${JSON.stringify(
-            bundleGraph.getAssetPublicId(node.value),
-          )}: ${JSON.stringify([...bundles])},\n`;
-        }
-      });
-
+      let serverActions = getServerActions(bundleGraph);
       let code = '';
       if (serverActions.length > 0) {
         code +=
@@ -460,4 +437,35 @@ function resolveURL(from, to) {
   }
 
   return `{parcelRequire.resolve(${JSON.stringify(to.publicId)})}`;
+}
+
+let serverActionsCache = new WeakMap();
+function getServerActions(bundleGraph) {
+  let cached = serverActionsCache.get(bundleGraph);
+  if (cached != null) {
+    return cached;
+  }
+  let serverActions = '';
+  bundleGraph.traverse(node => {
+    if (
+      node.type === 'asset' &&
+      Array.isArray(node.value.meta?.directives) &&
+      node.value.meta.directives.includes('use server')
+    ) {
+      let bundlesWithAsset = bundleGraph.getBundlesWithAsset(node.value);
+      let bundles = new Set();
+      let referenced = bundleGraph.getReferencedBundles(bundlesWithAsset[0]);
+      bundles.add(normalizeSeparators(bundlesWithAsset[0].name));
+      for (let r of referenced) {
+        if (r.type === 'js' && r.env.context === 'react-server') {
+          bundles.add(normalizeSeparators(r.name));
+        }
+      }
+      serverActions += `  ${JSON.stringify(
+        bundleGraph.getAssetPublicId(node.value),
+      )}: ${JSON.stringify([...bundles])},\n`;
+    }
+  });
+  serverActionsCache.set(bundleGraph, serverActions);
+  return serverActions;
 }
