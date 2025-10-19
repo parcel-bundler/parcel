@@ -45,6 +45,7 @@ let packagingBundles = new Map<NamedBundle, Async<{|contents: Blob|}>>();
 let moduleCache = new Map<string, ParcelModule>();
 let loadedBundles = new Map<NamedBundle, any>();
 let context: any = vm.createContext();
+let bundleLookupCache = new WeakMap();
 
 export default (new Packager({
   async loadConfig({options, config}) {
@@ -491,10 +492,18 @@ async function loadBundleUncached(
     publicUrl,
   };
 
+  let bundleLookup = bundleLookupCache.get(bundleGraph);
+  if (!bundleLookup) {
+    bundleLookup = new Map();
+    for (let bundle of bundleGraph.getBundles()) {
+      bundleLookup.set(bundle.publicId, bundle);
+      bundleLookup.set(bundle.name, bundle);
+    }
+    bundleLookupCache.set(bundleGraph, bundleLookup);
+  }
+
   parcelRequire.load = async (filePath: string) => {
-    let bundle = bundleGraph
-      .getBundles()
-      .find(b => b.publicId === filePath || b.name === filePath);
+    let bundle = bundleLookup?.get(filePath);
     if (bundle) {
       let {assets: subAssets} = await loadBundle(
         bundle,
@@ -514,9 +523,7 @@ async function loadBundleUncached(
   };
 
   parcelRequire.resolve = (url: string) => {
-    let bundle = bundleGraph
-      .getBundles()
-      .find(b => b.publicId === url || b.name === url);
+    let bundle = bundleLookup?.get(url);
     if (bundle) {
       return urlJoin(bundle.target.publicUrl, bundle.name);
     } else {
