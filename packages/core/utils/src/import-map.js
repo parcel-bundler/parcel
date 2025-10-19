@@ -2,10 +2,23 @@
 import type {BundleGraph, NamedBundle} from '@parcel/types';
 import {normalizeSeparators} from './path';
 
+let importMapCache = new WeakMap();
+
 export function getImportMap(
   bundleGraph: BundleGraph<NamedBundle>,
   entryBundle: NamedBundle,
 ): {[string]: string} {
+  let cache = importMapCache.get(bundleGraph);
+  if (!cache) {
+    cache = new WeakMap();
+    importMapCache.set(bundleGraph, cache);
+  }
+
+  let cached = cache.get(entryBundle);
+  if (cached) {
+    return cached;
+  }
+
   let mappings = {};
   for (let childBundle of bundleGraph.getChildBundles(entryBundle)) {
     bundleGraph.traverseBundles((bundle, _, actions) => {
@@ -25,6 +38,7 @@ export function getImportMap(
     }, childBundle);
   }
 
+  cache.set(entryBundle, mappings);
   return mappings;
 }
 
