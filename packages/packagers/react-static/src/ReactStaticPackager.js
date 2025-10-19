@@ -98,7 +98,9 @@ export default (new Packager({
       includeInline: false,
       includeIsolated: false,
     })) {
-      referencedBundles.push(b.getContentHash());
+      if (b.type === 'js') {
+        referencedBundles.push(b.getContentHash());
+      }
     }
 
     return {pages, referencedBundles};
