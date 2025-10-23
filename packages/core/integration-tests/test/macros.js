@@ -45,6 +45,39 @@ describe('macros', function () {
     assert(res.includes('output="2a2300bbd7ea6e9a"'));
   });
 
+  it('should support source location', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import { hash } from "./macro" with { type: "macro" };
+        output = hash();
+
+      macro.js:
+        export function hash(this: MacroContext) {
+          return this.loc;
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+      mode: 'production',
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+    // Extract the object from output={...};
+    let match = res.match(/output=(\{[^}]+\});/);
+
+    // Convert JavaScript object notation to valid JSON
+    let objString = match[1]
+      .replace(/(\w+):/g, '"$1":'); // Add quotes around keys
+
+    let locObj = JSON.parse(objString);
+
+    assert(locObj.filePath, 'filePath should exist');
+    assert.strictEqual(locObj.line, 2);
+    assert.strictEqual(locObj.col, 9);
+  });
+
   it('should support renamed imports', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
