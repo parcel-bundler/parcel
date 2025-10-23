@@ -3,6 +3,7 @@ import type {
   JSONObject,
   EnvMap,
   Location,
+  SourceLocation,
   FilePath,
   FileCreateInvalidation,
 } from '@parcel/types';
