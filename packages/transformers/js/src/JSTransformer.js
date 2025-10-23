@@ -2,7 +2,7 @@
 import type {
   JSONObject,
   EnvMap,
-  SourceLocation,
+  Location,
   FilePath,
   FileCreateInvalidation,
 } from '@parcel/types';
@@ -165,7 +165,7 @@ type MacroAsset = {|
 // NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
 type MacroContext = {|
   addAsset(asset: MacroAsset): void,
-  loc: SourceLocation,
+  loc: Location,
   invalidateOnFileChange(FilePath): void,
   invalidateOnFileCreate(FileCreateInvalidation): void,
   invalidateOnEnvChange(string): void,
