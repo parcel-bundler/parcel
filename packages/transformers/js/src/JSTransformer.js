@@ -165,7 +165,11 @@ type MacroAsset = {|
 // NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
 type MacroContext = {|
   addAsset(asset: MacroAsset): void,
-  loc: SourceLocation,
+  loc: {|
+    +filePath: string,
+    +line: number,
+    +col: number,
+  |},
   invalidateOnFileChange(FilePath): void,
   invalidateOnFileCreate(FileCreateInvalidation): void,
   invalidateOnEnvChange(string): void,
@@ -549,16 +553,8 @@ export default (new Transformer({
                   },
                   loc: {
                     filePath: asset.filePath,
-                    start: {
-                      line:
-                        loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
-                      column: loc.start_col,
-                    },
-                    end: {
-                      line:
-                        loc.end_line + Number(asset.meta.startLine ?? 1) - 1,
-                      column: loc.end_col,
-                    },
+                    line: loc.line,
+                    col: loc.col,
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);
