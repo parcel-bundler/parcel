@@ -62,17 +62,7 @@ describe('macros', function () {
       mode: 'production',
     });
 
-    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
-
-    // Extract the object from output={...};
-    let match = res.match(/output=(\{[^}]+\});/);
-
-    // Convert JavaScript object notation to valid JSON
-    let objString = match[1]
-      .replace(/\\/g, '\\\\') // Escape backslashes for Windows paths
-      .replace(/(\w+):/g, '"$1":'); // Add quotes around keys
-
-    let locObj = JSON.parse(objString);
+    let locObj = await run(b);
 
     assert(locObj.filePath, 'filePath should exist');
     assert.strictEqual(locObj.line, 2);
