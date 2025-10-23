@@ -68,7 +68,9 @@ describe('macros', function () {
     let match = res.match(/output=(\{[^}]+\});/);
 
     // Convert JavaScript object notation to valid JSON
-    let objString = match[1].replace(/(\w+):/g, '"$1":'); // Add quotes around keys
+    let objString = match[1]
+      .replace(/\\/g, '\\\\') // Escape backslashes for Windows paths
+      .replace(/(\w+):/g, '"$1":'); // Add quotes around keys
 
     let locObj = JSON.parse(objString);
 
