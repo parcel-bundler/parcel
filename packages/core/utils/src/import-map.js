@@ -47,11 +47,7 @@ function isNewContext(
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   let parents = bundleGraph.getParentBundles(bundle);
-  let isInEntryBundleGroup = bundleGraph
-    .getBundleGroupsContainingBundle(bundle)
-    .some(g => bundleGraph.isEntryBundleGroup(g));
   return (
-    isInEntryBundleGroup ||
     parents.length === 0 ||
     parents.some(
       parent =>
