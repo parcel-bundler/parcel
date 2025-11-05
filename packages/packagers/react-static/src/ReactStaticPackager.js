@@ -331,15 +331,15 @@ async function loadBundleUncached(
 
   for (let b of bundleGraph.getReferencedBundles(bundle)) {
     if (b.type === 'js') {
-    queue.add(async () => {
-      let {assets: subAssets} = await loadBundle(
-        b,
-        bundleGraph,
-        getInlineBundleContents,
-      );
-      return Array.from(subAssets);
-    });
-  }
+      queue.add(async () => {
+        let {assets: subAssets} = await loadBundle(
+          b,
+          bundleGraph,
+          getInlineBundleContents,
+        );
+        return Array.from(subAssets);
+      });
+    }
   }
 
   let assets = new Map<string, [NamedBundle, Asset, string]>(
