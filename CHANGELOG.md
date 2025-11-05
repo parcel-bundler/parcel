@@ -5,6 +5,16 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.16.1] – 2025-11-04
+
+### Fixed
+
+- JavaScript
+  - Fix macro location information – [Details](https://github.com/parcel-bundler/parcel/pull/10224)
+
+- React Server Components
+  Improve performance of RSC builds – [Details](https://github.com/parcel-bundler/parcel/pull/10233)
+
 ## [2.16.0] – 2025-09-18
 
 ### Added

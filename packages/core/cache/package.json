@@ -1,7 +1,7 @@
 {
   "name": "@parcel/cache",
   "description": "Interface for defining caches and file-system, IDB and LMDB implementations.",
-  "version": "2.16.0",
+  "version": "2.16.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -25,13 +25,13 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/fs": "2.16.0",
-    "@parcel/logger": "2.16.0",
-    "@parcel/utils": "2.16.0",
+    "@parcel/fs": "2.16.1",
+    "@parcel/logger": "2.16.1",
+    "@parcel/utils": "2.16.1",
     "lmdb": "2.8.5"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.16.0"
+    "@parcel/core": "^2.16.1"
   },
   "devDependencies": {
     "idb": "^5.0.8"
