@@ -67,6 +67,11 @@ export default async function applyRuntimes<TResult: RequestResult>({
   let connections: Array<RuntimeConnection> = [];
 
   let bundles = bundleGraph.getBundles({includeInline: true});
+  let publicBundleGraph = new BundleGraph<INamedBundle>(
+    bundleGraph,
+    NamedBundle.get.bind(NamedBundle),
+    options,
+  );
   for (let bundle of bundles) {
     for (let runtime of runtimes) {
       let measurement;
@@ -79,11 +84,7 @@ export default async function applyRuntimes<TResult: RequestResult>({
         );
         let applied = await runtime.plugin.apply({
           bundle: namedBundle,
-          bundleGraph: new BundleGraph<INamedBundle>(
-            bundleGraph,
-            NamedBundle.get.bind(NamedBundle),
-            options,
-          ),
+          bundleGraph: publicBundleGraph,
           config: configs.get(runtime.name)?.result,
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
