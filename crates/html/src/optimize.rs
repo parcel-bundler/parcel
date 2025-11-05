@@ -389,10 +389,14 @@ pub fn optimize<'arena>(
           remove_whitespace(node, &options);
 
           if should_optimize_svg {
+            // Detach the node to prevent Oxvg from altering following siblings.
+            let parent = node.parent.take();
+            let previous_sibling = node.previous_sibling.take();
+            let next_sibling = node.next_sibling.take();
+
             // Synthesize a fake document node to act as the root of the SVG.
             let document = arena.alloc(Node::new(NodeData::Document, 0));
-            document.first_child.set(Some(node));
-            document.last_child.set(Some(node));
+            document.append(node);
 
             let jobs = options.minify_svg.into_jobs(OxvgKind::Html);
             match jobs.run(
@@ -402,6 +406,11 @@ pub fn optimize<'arena>(
               Err(_err) => {}
               Ok(()) => {}
             }
+
+            // Reattach in original position.
+            node.parent.set(parent);
+            node.previous_sibling.set(previous_sibling);
+            node.next_sibling.set(next_sibling);
           }
         }
         _ => {
@@ -820,6 +829,23 @@ mod tests {
     test(
       "<svg><style>.foo{fill:red}</style><rect width=100 height=100 class=foo /></svg>",
       "<svg><rect width=100 height=100 style=fill:red /></svg>",
+    );
+    test(
+      "<p>a</p><svg></svg><p>b</p><p>c</p>",
+      "<p>a</p><svg></svg><p>b</p><p>c</p>",
+    );
+    test(
+      "<main><svg><style>.foo{fill:red}</style><rect width=100 height=100 class=foo /></svg><span>after</span></main>",
+      "<main><svg><rect width=100 height=100 style=fill:red /></svg><span>after</span></main>",
+    );
+    test(
+      r#"<svg xmlns:editor2="link2" fill="" b="" xmlns:xlink="http://www.w3.org/1999/xlink" class="foo" xmlns:editor1="link1" xmlns="" d="">
+        <rect editor2:b="" editor1:b="" editor2:a="" editor1:a="" />
+      </svg>
+      <div>
+        <svg fill="" id="a"></svg>
+      </div>"#,
+      "<svg class=foo><rect></rect></svg>\n      <div>\n        <svg id=a></svg>\n      </div>",
     );
   }
 }
