@@ -311,7 +311,7 @@ async function loadBundleUncached(
             ],
           ];
         });
-      } else if (entryBundle) {
+      } else if (entryBundle?.type === 'js') {
         queue.add(async () => {
           let {assets: subAssets} = await loadBundle(
             entryBundle,
@@ -330,6 +330,7 @@ async function loadBundleUncached(
   });
 
   for (let b of bundleGraph.getReferencedBundles(bundle)) {
+    if (b.type === 'js') {
     queue.add(async () => {
       let {assets: subAssets} = await loadBundle(
         b,
@@ -338,6 +339,7 @@ async function loadBundleUncached(
       );
       return Array.from(subAssets);
     });
+  }
   }
 
   let assets = new Map<string, [NamedBundle, Asset, string]>(
