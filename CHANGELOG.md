@@ -5,6 +5,19 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.16.2] – 2025-12-06
+
+### Fixed
+
+- HTML
+  - Fix siblings after `<svg>` being removed by HTML minifier – [Details](https://github.com/parcel-bundler/parcel/pull/10234)
+
+- React Server Components
+  - Bump `react-server-dom-parcel` to `^19.1.1` to fix vulnerability
+  - Fix cache key clash in `@parcel/packager-react-static` – [Details](https://github.com/parcel-bundler/parcel/pull/10245)
+  - Fix using inline string transformers with `@parcel/packager-react-static` – [Details](https://github.com/parcel-bundler/parcel/pull/10245)
+  - Preload CSS as soon as the RSC payload loads, without waiting for it to mount. This is useful for pre-fetching. – [Details](https://github.com/parcel-bundler/parcel/pull/10245)
+
 ## [2.16.1] – 2025-11-04
 
 ### Fixed

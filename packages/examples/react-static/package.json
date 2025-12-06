@@ -1,6 +1,6 @@
 {
   "name": "parcel-rsc-static-example",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "source": "pages/*.tsx",
   "targets": {
@@ -13,7 +13,7 @@
     "build": "parcel build"
   },
   "dependencies": {
-    "@parcel/rsc": "2.16.1",
+    "@parcel/rsc": "2.16.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   }

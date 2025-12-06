@@ -1,6 +1,6 @@
 {
   "name": "@parcel/feature-flags",
-  "version": "2.16.1",
+  "version": "2.16.2",
   "description": "Provides internal feature-flags for the parcel codebase.",
   "license": "MIT",
   "publishConfig": {
