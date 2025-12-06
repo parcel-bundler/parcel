@@ -134,7 +134,7 @@ export default (new Packager({
       'react-client',
     );
     let React = loadModule('react', __filename, 'react-client');
-    let ReactDOM = loadModule('react', __filename, 'react-server');
+    let ReactDOM = loadModule('react-dom', __filename, 'react-server');
     let {createFromReadableStream} = loadModule(
       'react-server-dom-parcel/client.edge',
       __filename,
