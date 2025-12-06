@@ -667,6 +667,7 @@ function runModule(
 
 function getCacheKey(asset: Asset) {
   return (
+    (asset.pipeline || '') +
     asset.filePath +
     '#' +
     asset.env.context +
