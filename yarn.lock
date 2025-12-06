@@ -15874,9 +15874,9 @@ __metadata:
   linkType: hard
 
 "node-forge@npm:^1.3.1":
-  version: 1.3.1
-  resolution: "node-forge@npm:1.3.1"
-  checksum: 10c0/e882819b251a4321f9fc1d67c85d1501d3004b4ee889af822fd07f64de3d1a8e272ff00b689570af0465d65d6bf5074df9c76e900e0aff23e60b847f2a46fbe8
+  version: 1.3.2
+  resolution: "node-forge@npm:1.3.2"
+  checksum: 10c0/1def35652c93a588718a6d0d0b4f33e3e7de283aa6f4c00d01d1605d6ccce23fb3b59bcbfb6434014acd23a251cfcc2736052b406f53d94e1b19c09d289d0176
   languageName: node
   linkType: hard
 
@@ -18608,12 +18608,12 @@ __metadata:
   linkType: hard
 
 "react-server-dom-parcel@npm:^19.1.0":
-  version: 19.1.0
-  resolution: "react-server-dom-parcel@npm:19.1.0"
+  version: 19.2.1
+  resolution: "react-server-dom-parcel@npm:19.2.1"
   peerDependencies:
-    react: ^19.1.0
-    react-dom: ^19.1.0
-  checksum: 10c0/82f4822e427308474118a705419b057cf325018078e3c3d622070fdb85a566835f9a902ee367bd94c8ccde35947086614ce6c9319074368be90651fbd2c3696f
+    react: ^19.2.1
+    react-dom: ^19.2.1
+  checksum: 10c0/b6fad28da5b838f11e73b628817a59b8d8c0fe2d85c80396c7453df9afbccf3af0f865993ec5a439aaf8220fe2828c810ed031e37aa4820eb7547771e65c3513
   languageName: node
   linkType: hard
 
