@@ -134,6 +134,7 @@ export default (new Packager({
       'react-client',
     );
     let React = loadModule('react', __filename, 'react-client');
+    let ReactDOM = loadModule('react', __filename, 'react-server');
     let {createFromReadableStream} = loadModule(
       'react-server-dom-parcel/client.edge',
       __filename,
@@ -153,33 +154,16 @@ export default (new Packager({
       },
     };
 
-    let resources = [];
     let bootstrapModules = [];
     let entry;
-    for (let b of bundleGraph.getReferencedBundles(bundle, {
+    let referencedBundles = bundleGraph.getReferencedBundles(bundle, {
       includeInline: false,
       includeIsolated: false,
-    })) {
-      if (b.type === 'css') {
-        resources.push(
-          React.createElement('link', {
-            key: b.id,
-            rel: 'stylesheet',
-            href: urlJoin(b.target.publicUrl, b.name),
-            precedence: 'default',
-          }),
-        );
-      } else if (b.type === 'js' && b.env.isBrowser()) {
-        bootstrapModules.push(urlJoin(b.target.publicUrl, b.name));
-        resources.push(
-          React.createElement('script', {
-            key: b.id,
-            type: 'module',
-            async: true,
-            src: urlJoin(b.target.publicUrl, b.name),
-          }),
-        );
+    });
 
+    for (let b of referencedBundles) {
+      if (b.type === 'js' && b.env.isBrowser()) {
+        bootstrapModules.push(urlJoin(b.target.publicUrl, b.name));
         if (!entry) {
           b.traverseAssets((a, ctx, actions) => {
             if (
@@ -194,8 +178,40 @@ export default (new Packager({
       }
     }
 
+    function Resources() {
+      let resources = [];
+      for (let b of referencedBundles) {
+        if (b.type === 'css') {
+          let href = urlJoin(b.target.publicUrl, b.name);
+
+          // Add preload hint so we start loading the stylesheet as soon
+          // as the RSC payload loads, without waiting for the component to mount.
+          ReactDOM.preload(href, {as: 'style'});
+          resources.push(
+            React.createElement('link', {
+              key: b.id,
+              rel: 'stylesheet',
+              href,
+              precedence: 'default',
+            }),
+          );
+        } else if (b.type === 'js' && b.env.isBrowser()) {
+          resources.push(
+            React.createElement('script', {
+              key: b.id,
+              type: 'module',
+              async: true,
+              src: urlJoin(b.target.publicUrl, b.name),
+            }),
+          );
+        }
+      }
+
+      return resources;
+    }
+
     let stream = renderToReadableStream([
-      ...resources,
+      React.createElement(Resources, {key: 'resources'}),
       React.createElement(Component, props),
     ]);
     let [s1, renderStream] = stream.tee();
@@ -302,8 +318,12 @@ async function loadBundleUncached(
           let packagedBundle = await nullthrows(
             packagingBundles.get(entryBundle),
           );
+          let inlineType = nullthrows(entryBundle.getMainEntry()).meta
+            .inlineType;
           let contents = await blobToString(packagedBundle.contents);
-          contents = `module.exports = ${contents}`;
+          contents = `module.exports = ${
+            inlineType === 'string' ? JSON.stringify(contents) : contents
+          }`;
           return [
             [
               entryBundle.id,
@@ -667,6 +687,7 @@ function runModule(
 
 function getCacheKey(asset: Asset) {
   return (
+    (asset.pipeline || '') +
     asset.filePath +
     '#' +
     asset.env.context +
