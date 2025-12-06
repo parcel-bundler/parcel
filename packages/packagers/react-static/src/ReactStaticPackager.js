@@ -302,8 +302,12 @@ async function loadBundleUncached(
           let packagedBundle = await nullthrows(
             packagingBundles.get(entryBundle),
           );
+          let inlineType = nullthrows(entryBundle.getMainEntry()).meta
+            .inlineType;
           let contents = await blobToString(packagedBundle.contents);
-          contents = `module.exports = ${contents}`;
+          contents = `module.exports = ${
+            inlineType === 'string' ? JSON.stringify(contents) : contents
+          }`;
           return [
             [
               entryBundle.id,
