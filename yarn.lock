@@ -18608,12 +18608,12 @@ __metadata:
   linkType: hard
 
 "react-server-dom-parcel@npm:^19.1.1":
-  version: 19.2.1
-  resolution: "react-server-dom-parcel@npm:19.2.1"
+  version: 19.2.2
+  resolution: "react-server-dom-parcel@npm:19.2.2"
   peerDependencies:
-    react: ^19.2.1
-    react-dom: ^19.2.1
-  checksum: 10c0/b6fad28da5b838f11e73b628817a59b8d8c0fe2d85c80396c7453df9afbccf3af0f865993ec5a439aaf8220fe2828c810ed031e37aa4820eb7547771e65c3513
+    react: ^19.2.2
+    react-dom: ^19.2.2
+  checksum: 10c0/f92c9cb530ac863640712bed2e148017b0fd13eb8189dbe8da7e56e25919dee4b767881b3bf9e5ed7f5cc8c476f09fddb69d85c82d923537fdb9784bb78e0543
   languageName: node
   linkType: hard
 
