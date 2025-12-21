@@ -1426,6 +1426,8 @@ export interface Bundle {
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,
   ): ?TContext;
+  /** Returns a hash of the contents of the bundle. */
+  getContentHash(): string;
 }
 
 /**

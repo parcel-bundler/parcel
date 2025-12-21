@@ -45,6 +45,7 @@ let packagingBundles = new Map<NamedBundle, Async<{|contents: Blob|}>>();
 let moduleCache = new Map<string, ParcelModule>();
 let loadedBundles = new Map<NamedBundle, any>();
 let context: any = vm.createContext();
+let bundleLookupCache = new WeakMap();
 
 export default (new Packager({
   async loadConfig({options, config}) {
@@ -78,7 +79,39 @@ export default (new Packager({
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
-  async package({bundle, bundleGraph, getInlineBundleContents, config}) {
+  loadBundleConfig({bundle, bundleGraph}) {
+    let pages: Page[] = [];
+    for (let b of bundleGraph.getEntryBundles()) {
+      let main = b.getMainEntry();
+      if (main && b.type === 'js' && b.needsStableName) {
+        let meta = pageMeta(main.meta);
+        pages.push({
+          url: urlJoin(b.target.publicUrl, b.name),
+          name: b.name,
+          ...meta,
+        });
+      }
+    }
+
+    let referencedBundles = [];
+    for (let b of bundleGraph.getReferencedBundles(bundle, {
+      includeInline: false,
+      includeIsolated: false,
+    })) {
+      if (b.type === 'js') {
+        referencedBundles.push(b.getContentHash());
+      }
+    }
+
+    return {pages, referencedBundles};
+  },
+  async package({
+    bundle,
+    bundleGraph,
+    getInlineBundleContents,
+    config,
+    bundleConfig,
+  }) {
     if (bundle.env.shouldScopeHoist) {
       throw new Error('Scope hoisting is not supported with SSG');
     }
@@ -101,6 +134,7 @@ export default (new Packager({
       'react-client',
     );
     let React = loadModule('react', __filename, 'react-client');
+    let ReactDOM = loadModule('react-dom', __filename, 'react-server');
     let {createFromReadableStream} = loadModule(
       'react-server-dom-parcel/client.edge',
       __filename,
@@ -108,19 +142,7 @@ export default (new Packager({
     );
     let {injectRSCPayload} = await import('rsc-html-stream/server');
 
-    let pages: Page[] = [];
-    for (let b of bundleGraph.getEntryBundles()) {
-      let main = b.getMainEntry();
-      if (main && b.type === 'js' && b.needsStableName) {
-        let meta = pageMeta(main.meta);
-        pages.push({
-          url: urlJoin(b.target.publicUrl, b.name),
-          name: b.name,
-          ...meta,
-        });
-      }
-    }
-
+    let pages: Page[] = bundleConfig.pages;
     let meta = pageMeta(nullthrows(bundle.getMainEntry()).meta);
     let props: PageProps = {
       key: 'page',
@@ -132,33 +154,16 @@ export default (new Packager({
       },
     };
 
-    let resources = [];
     let bootstrapModules = [];
     let entry;
-    for (let b of bundleGraph.getReferencedBundles(bundle, {
+    let referencedBundles = bundleGraph.getReferencedBundles(bundle, {
       includeInline: false,
       includeIsolated: false,
-    })) {
-      if (b.type === 'css') {
-        resources.push(
-          React.createElement('link', {
-            key: b.id,
-            rel: 'stylesheet',
-            href: urlJoin(b.target.publicUrl, b.name),
-            precedence: 'default',
-          }),
-        );
-      } else if (b.type === 'js' && b.env.isBrowser()) {
-        bootstrapModules.push(urlJoin(b.target.publicUrl, b.name));
-        resources.push(
-          React.createElement('script', {
-            key: b.id,
-            type: 'module',
-            async: true,
-            src: urlJoin(b.target.publicUrl, b.name),
-          }),
-        );
+    });
 
+    for (let b of referencedBundles) {
+      if (b.type === 'js' && b.env.isBrowser()) {
+        bootstrapModules.push(urlJoin(b.target.publicUrl, b.name));
         if (!entry) {
           b.traverseAssets((a, ctx, actions) => {
             if (
@@ -173,8 +178,40 @@ export default (new Packager({
       }
     }
 
+    function Resources() {
+      let resources = [];
+      for (let b of referencedBundles) {
+        if (b.type === 'css') {
+          let href = urlJoin(b.target.publicUrl, b.name);
+
+          // Add preload hint so we start loading the stylesheet as soon
+          // as the RSC payload loads, without waiting for the component to mount.
+          ReactDOM.preload(href, {as: 'style'});
+          resources.push(
+            React.createElement('link', {
+              key: b.id,
+              rel: 'stylesheet',
+              href,
+              precedence: 'default',
+            }),
+          );
+        } else if (b.type === 'js' && b.env.isBrowser()) {
+          resources.push(
+            React.createElement('script', {
+              key: b.id,
+              type: 'module',
+              async: true,
+              src: urlJoin(b.target.publicUrl, b.name),
+            }),
+          );
+        }
+      }
+
+      return resources;
+    }
+
     let stream = renderToReadableStream([
-      ...resources,
+      React.createElement(Resources, {key: 'resources'}),
       React.createElement(Component, props),
     ]);
     let [s1, renderStream] = stream.tee();
@@ -197,7 +234,31 @@ export default (new Packager({
     let {prelude} = await prerender(React.createElement(Content), {
       bootstrapScriptContent,
     });
-    let response = prelude.pipeThrough(injectRSCPayload(injectStream));
+
+    // Buffer into a single chunk so hash reference replacement works correctly.
+    // There could potentially be a more optimal way of doing this in the future.
+    let buffers = [];
+    let len = 0;
+    // $FlowFixMe
+    let bufferedStream = new TransformStream({
+      transform(chunk) {
+        len += chunk.length;
+        buffers.push(chunk);
+      },
+      flush(controller) {
+        let concated = new Uint8Array(len);
+        let offset = 0;
+        for (let buf of buffers) {
+          concated.set(buf, offset);
+          offset += buf.length;
+        }
+        controller.enqueue(concated);
+      },
+    });
+
+    let response = prelude.pipeThrough(
+      injectRSCPayload(injectStream.pipeThrough(bufferedStream)),
+    );
 
     return [
       {
@@ -257,8 +318,12 @@ async function loadBundleUncached(
           let packagedBundle = await nullthrows(
             packagingBundles.get(entryBundle),
           );
+          let inlineType = nullthrows(entryBundle.getMainEntry()).meta
+            .inlineType;
           let contents = await blobToString(packagedBundle.contents);
-          contents = `module.exports = ${contents}`;
+          contents = `module.exports = ${
+            inlineType === 'string' ? JSON.stringify(contents) : contents
+          }`;
           return [
             [
               entryBundle.id,
@@ -266,7 +331,7 @@ async function loadBundleUncached(
             ],
           ];
         });
-      } else if (entryBundle) {
+      } else if (entryBundle?.type === 'js') {
         queue.add(async () => {
           let {assets: subAssets} = await loadBundle(
             entryBundle,
@@ -285,14 +350,16 @@ async function loadBundleUncached(
   });
 
   for (let b of bundleGraph.getReferencedBundles(bundle)) {
-    queue.add(async () => {
-      let {assets: subAssets} = await loadBundle(
-        b,
-        bundleGraph,
-        getInlineBundleContents,
-      );
-      return Array.from(subAssets);
-    });
+    if (b.type === 'js') {
+      queue.add(async () => {
+        let {assets: subAssets} = await loadBundle(
+          b,
+          bundleGraph,
+          getInlineBundleContents,
+        );
+        return Array.from(subAssets);
+      });
+    }
   }
 
   let assets = new Map<string, [NamedBundle, Asset, string]>(
@@ -333,7 +400,27 @@ async function loadBundleUncached(
         if (resolved.type !== 'js') {
           deps.set(getSpecifier(dep), {skipped: true});
         } else {
-          deps.set(getSpecifier(dep), {id: resolved.id});
+          let resolution = {id: resolved.id};
+
+          // Dependencies may be re-targeted to follow re-exports.
+          for (let [name, sym] of dep.symbols) {
+            let rewritten = sym.meta?.rewritten;
+            if (typeof rewritten === 'string') {
+              if (Array.isArray(resolution)) {
+                resolution.push([rewritten, resolved.id, name]);
+              } else {
+                resolution = [[rewritten, resolved.id, name]];
+              }
+            }
+          }
+
+          let specifier = getSpecifier(dep);
+          let cur = deps.get(specifier);
+          if (Array.isArray(cur) && Array.isArray(resolution)) {
+            cur.push(...resolution);
+          } else {
+            deps.set(specifier, resolution);
+          }
         }
       } else {
         deps.set(getSpecifier(dep), {specifier: dep.specifier});
@@ -345,6 +432,52 @@ async function loadBundleUncached(
       let resolution = deps.get(id);
       if (resolution?.skipped) {
         return {};
+      }
+
+      // Synthesize a module to follow re-exports.
+      if (Array.isArray(resolution)) {
+        var m = {__esModule: true};
+        resolution.forEach(function (v) {
+          var key = v[0];
+          var id = v[1];
+          var exp = v[2];
+          var x = loadAsset(id);
+          if (key === '*') {
+            Object.keys(x).forEach(function (key) {
+              if (
+                key === 'default' ||
+                key === '__esModule' ||
+                // $FlowFixMe
+                Object.prototype.hasOwnProperty.call(m, key)
+              ) {
+                return;
+              }
+
+              Object.defineProperty(m, key, {
+                enumerable: true,
+                get: function () {
+                  return x[key];
+                },
+              });
+            });
+          } else if (exp === '*') {
+            Object.defineProperty(m, key, {
+              enumerable: true,
+              value: x,
+            });
+          } else {
+            Object.defineProperty(m, key, {
+              enumerable: true,
+              get: function () {
+                if (exp === 'default') {
+                  return x.__esModule ? x.default : x;
+                }
+                return x[exp];
+              },
+            });
+          }
+        });
+        return m;
       }
 
       if (resolution?.id) {
@@ -374,15 +507,27 @@ async function loadBundleUncached(
 
   parcelRequire.root = parcelRequire;
 
+  let publicUrl = bundle.target.publicUrl;
+  if (!publicUrl.endsWith('/')) {
+    publicUrl += '/';
+  }
   parcelRequire.meta = {
     distDir: bundle.target.distDir,
-    publicUrl: bundle.target.publicUrl,
+    publicUrl,
   };
 
+  let bundleLookup = bundleLookupCache.get(bundleGraph);
+  if (!bundleLookup) {
+    bundleLookup = new Map();
+    for (let bundle of bundleGraph.getBundles()) {
+      bundleLookup.set(bundle.publicId, bundle);
+      bundleLookup.set(bundle.name, bundle);
+    }
+    bundleLookupCache.set(bundleGraph, bundleLookup);
+  }
+
   parcelRequire.load = async (filePath: string) => {
-    let bundle = bundleGraph
-      .getBundles()
-      .find(b => b.publicId === filePath || b.name === filePath);
+    let bundle = bundleLookup?.get(filePath);
     if (bundle) {
       let {assets: subAssets} = await loadBundle(
         bundle,
@@ -402,9 +547,7 @@ async function loadBundleUncached(
   };
 
   parcelRequire.resolve = (url: string) => {
-    let bundle = bundleGraph
-      .getBundles()
-      .find(b => b.publicId === url || b.name === url);
+    let bundle = bundleLookup?.get(url);
     if (bundle) {
       return urlJoin(bundle.target.publicUrl, bundle.name);
     } else {
@@ -544,6 +687,7 @@ function runModule(
 
 function getCacheKey(asset: Asset) {
   return (
+    (asset.pipeline || '') +
     asset.filePath +
     '#' +
     asset.env.context +

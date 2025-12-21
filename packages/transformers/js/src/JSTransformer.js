@@ -165,6 +165,11 @@ type MacroAsset = {|
 // NOTE: Make sure this is in sync with the TypeScript definition in the @parcel/macros package.
 type MacroContext = {|
   addAsset(asset: MacroAsset): void,
+  loc: {|
+    +filePath: string,
+    +line: number,
+    +col: number,
+  |},
   invalidateOnFileChange(FilePath): void,
   invalidateOnFileCreate(FileCreateInvalidation): void,
   invalidateOnEnvChange(string): void,
@@ -499,7 +504,9 @@ export default (new Transformer({
                 let ctx: MacroContext = {
                   // Allows macros to emit additional assets to add as dependencies (e.g. css).
                   addAsset(a: MacroAsset) {
-                    let k = String(macroAssets.length);
+                    let k =
+                      (asset.uniqueKey ? asset.uniqueKey + ':' : '') +
+                      String(macroAssets.length);
                     let map;
                     if (asset.env.sourceMap) {
                       // Generate a source map that maps each line of the asset to the original macro call.
@@ -543,6 +550,11 @@ export default (new Transformer({
                       specifier: k,
                       specifierType: 'esm',
                     });
+                  },
+                  loc: {
+                    filePath: asset.filePath,
+                    line: loc.line,
+                    col: loc.col,
                   },
                   invalidateOnFileChange(filePath) {
                     asset.invalidateOnFileChange(filePath);

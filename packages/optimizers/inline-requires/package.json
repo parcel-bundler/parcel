@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-inline-requires",
-  "version": "2.15.2",
+  "version": "2.16.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,12 +17,12 @@
   "source": "src/InlineRequires.js",
   "engines": {
     "node": ">= 14.0.0",
-    "parcel": "^2.15.2"
+    "parcel": "^2.16.3"
   },
   "dependencies": {
-    "@parcel/plugin": "2.15.2",
+    "@parcel/plugin": "2.16.3",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/types": "2.15.2",
+    "@parcel/types": "2.16.3",
     "@swc/core": "^1.11.24",
     "nullthrows": "^1.1.1"
   }

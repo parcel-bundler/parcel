@@ -199,7 +199,6 @@ export default class BundleGraph {
       if (
         node.type === 'dependency' &&
         node.value.symbols != null &&
-        node.value.env.shouldScopeHoist &&
         // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
         isProduction
       ) {
@@ -290,7 +289,7 @@ export default class BundleGraph {
               for (let [as, from] of target) {
                 let existing = nodeValueSymbols.get(as);
                 if (existing) {
-                  symbols.set(from, existing);
+                  symbols.set(from, {...existing, meta: {rewritten: as}});
                 } else {
                   invariant(isReexportAll);
                   if (as === from) {

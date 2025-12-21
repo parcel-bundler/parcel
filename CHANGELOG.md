@@ -5,6 +5,62 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.16.3] – 2025-12-06
+
+### Fixed
+
+- React Server Components
+  - Fix `react-dom` import (bug in 2.16.2)
+
+## [2.16.2] – 2025-12-06
+
+### Fixed
+
+- HTML
+  - Fix siblings after `<svg>` being removed by HTML minifier – [Details](https://github.com/parcel-bundler/parcel/pull/10234)
+
+- React Server Components
+  - Bump `react-server-dom-parcel` to `^19.1.1` to fix vulnerability
+  - Fix cache key clash in `@parcel/packager-react-static` – [Details](https://github.com/parcel-bundler/parcel/pull/10245)
+  - Fix using inline string transformers with `@parcel/packager-react-static` – [Details](https://github.com/parcel-bundler/parcel/pull/10245)
+  - Preload CSS as soon as the RSC payload loads, without waiting for it to mount. This is useful for pre-fetching. – [Details](https://github.com/parcel-bundler/parcel/pull/10245)
+
+## [2.16.1] – 2025-11-04
+
+### Fixed
+
+- JavaScript
+  - Fix macro location information – [Details](https://github.com/parcel-bundler/parcel/pull/10224)
+
+- React Server Components
+  Improve performance of RSC builds – [Details](https://github.com/parcel-bundler/parcel/pull/10233)
+
+## [2.16.0] – 2025-09-18
+
+### Added
+
+- JavaScript
+  - Code split re-exports when scope hoisting is disabled – [Details](https://github.com/parcel-bundler/parcel/pull/10207)
+
+### Fixed
+
+- JavaScript
+  - Scope macro asset unique keys to the parent asset – [Details](https://github.com/parcel-bundler/parcel/pull/10215)
+
+## [2.15.3] – 2025-06-20
+
+### Fixed
+
+- JavaScript
+  - Expose line and column number to macros – [Details](https://github.com/parcel-bundler/parcel/pull/10171)
+
+- React Server Components
+  - Invalidate cache in ReactStaticPackager when pages are added or client components change – [Details](https://github.com/parcel-bundler/parcel/commit/3405c22220ce40a161964af76893554ddc25c03e)
+  - Fix lazy mode with React Server Components – [Details](https://github.com/parcel-bundler/parcel/commit/a76b47ec65b30cb13f649f6cab807479ca4ad139)
+  - Fix `@parcel/rsc` duplicate types – [Details](https://github.com/parcel-bundler/parcel/commit/9cb4b8660cbcd13f01e1efac88757de2bedb0895)
+  - Ensure publicUrl ends with a slash in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/a90f06a2fb97716f01e86664b45f952648172ba3)
+  - Fix hash reference replacement in react-static packager – [Details](https://github.com/parcel-bundler/parcel/commit/4c3226fe522c8283dcf2186db8adf26eae96046b)
+
 ## [2.15.2] - 2025-05-24
 
 ### Fixed

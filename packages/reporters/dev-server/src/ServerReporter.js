@@ -1,5 +1,6 @@
 // @flow
 
+import path from 'path';
 import {Reporter} from '@parcel/plugin';
 import HMRServer from './HMRServer';
 import Server from './Server';
@@ -69,7 +70,9 @@ export default (new Reporter({
             logger,
             event.bundleGraph
               .getEntryBundles()
-              .some(b => b.env.isBrowser() || b.type === 'html'),
+              .some(
+                b => b.env.isBrowser() || path.extname(b.filePath) === '.html',
+              ),
           );
         }
 
