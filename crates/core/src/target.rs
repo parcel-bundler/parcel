@@ -9,12 +9,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
-  name: String,
-  dist_entry: Option<PathBuf>,
-  dist_dir: PathBuf,
-  env: Arc<Environment>,
-  public_url: String,
-  loc: Option<SourceLocation>,
+  pub name: String,
+  pub dist_entry: Option<PathBuf>,
+  pub dist_dir: PathBuf,
+  pub env: Arc<Environment>,
+  pub public_url: String,
+  pub loc: Option<SourceLocation>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

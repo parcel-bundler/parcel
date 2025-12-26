@@ -1,25 +1,51 @@
 use glob_match::glob_match;
-use indexmap::{IndexMap, indexmap};
-use serde::{Deserialize, Serialize};
+use indexmap::IndexMap;
 use std::{
   path::{Path, PathBuf},
   sync::Arc,
 };
 
-use crate::{resolver::Resolver, transformer::Transformer};
+use crate::{
+  bundler::{Bundler, DefaultBundler},
+  namer::Namer,
+  optimizer::Optimizer,
+  packager::Packager,
+  resolver::Resolver,
+  transformer::Transformer,
+};
 
-#[derive(Default)]
 pub struct ParcelConfig {
   pub resolvers: Vec<Plugin<dyn Resolver>>,
   pub transformers: PipelineMap<dyn Transformer>,
-  pub bundler: Plugin<()>,
-  pub namers: Vec<Plugin<()>>,
+  pub bundler: Plugin<dyn Bundler>,
+  pub namers: Vec<Plugin<dyn Namer>>,
   pub runtimes: Vec<Plugin<()>>,
-  pub packagers: IndexMap<String, Plugin<()>>,
-  pub optimizers: PipelineMap<()>,
-  pub validators: PipelineMap<()>,
+  pub packagers: IndexMap<String, Plugin<dyn Packager>>,
+  pub optimizers: PipelineMap<dyn Optimizer>,
   pub compressors: PipelineMap<()>,
   pub reporters: Vec<Plugin<()>>,
+  pub validators: PipelineMap<()>,
+}
+
+impl Default for ParcelConfig {
+  fn default() -> Self {
+    ParcelConfig {
+      resolvers: Default::default(),
+      transformers: Default::default(),
+      bundler: Plugin {
+        package_name: "@parcel/bundler-default".into(),
+        key_path: Some("/bundler".into()),
+        plugin: Arc::new(DefaultBundler {}),
+      },
+      namers: Default::default(),
+      runtimes: Default::default(),
+      packagers: Default::default(),
+      optimizers: Default::default(),
+      validators: Default::default(),
+      compressors: Default::default(),
+      reporters: Default::default(),
+    }
+  }
 }
 
 pub struct PipelineMap<T: ?Sized>(pub IndexMap<String, Vec<PipelineNode<T>>>);
@@ -73,12 +99,11 @@ pub enum PipelineNode<T: ?Sized> {
 impl<T: ?Sized> PipelineMap<T> {
   pub fn get<P: AsRef<str>>(
     &self,
-    path: &Path,
+    path: &str,
     pipeline: &Option<P>,
-    allow_empty: bool,
+    _allow_empty: bool,
   ) -> Vec<Plugin<T>> {
-    let basename = path.file_name().unwrap().to_str().unwrap();
-    let path = path.as_os_str().to_str().unwrap();
+    let basename = Path::new(path).file_name().unwrap().to_str().unwrap();
 
     let mut matches = Vec::new();
     if let Some(pipeline) = pipeline {

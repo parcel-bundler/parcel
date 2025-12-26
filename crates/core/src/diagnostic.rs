@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
 
-use crate::{AssetType, Location, SourceLocation};
+use crate::{AssetType, Location, SourceLocation, SourceUrl};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -22,7 +20,7 @@ pub struct Diagnostic {
 #[serde(rename_all = "camelCase")]
 pub struct CodeFrame {
   pub code: Option<String>,
-  pub file_path: Option<PathBuf>,
+  pub url: Option<SourceUrl>,
   pub language: Option<AssetType>,
   pub code_highlights: Vec<CodeHighlight>,
 }
@@ -50,7 +48,7 @@ impl CodeFrame {
   pub fn from_loc(loc: &SourceLocation, message: Option<String>) -> CodeFrame {
     CodeFrame {
       code: None,
-      file_path: Some(loc.file_path.clone()),
+      url: Some(loc.url.clone()),
       language: None,
       code_highlights: vec![CodeHighlight::from_loc(loc, message)],
     }
@@ -109,6 +107,19 @@ impl From<std::io::Error> for Diagnostic {
   }
 }
 
+impl From<std::fmt::Error> for Diagnostic {
+  fn from(value: std::fmt::Error) -> Self {
+    Diagnostic {
+      origin: Some("@parcel/core".into()),
+      message: value.to_string(),
+      code_frames: Vec::new(),
+      hints: Vec::new(),
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
+}
+
 impl From<json_sourcemap::Error> for Diagnostic {
   fn from(value: json_sourcemap::Error) -> Self {
     Diagnostic {
@@ -119,6 +130,25 @@ impl From<json_sourcemap::Error> for Diagnostic {
       severity: DiagnosticSeverity::Error,
       documentation_url: None,
     }
+  }
+}
+
+impl From<std::str::Utf8Error> for Diagnostic {
+  fn from(value: std::str::Utf8Error) -> Self {
+    Diagnostic {
+      origin: Some("@parcel/core".into()),
+      message: value.to_string(),
+      code_frames: Vec::new(),
+      hints: Vec::new(),
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
+}
+
+impl From<Diagnostic> for Vec<Diagnostic> {
+  fn from(value: Diagnostic) -> Self {
+    vec![value]
   }
 }
 

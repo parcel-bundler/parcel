@@ -1,10 +1,9 @@
 use std::{
   hash::{DefaultHasher, Hash, Hasher},
-  path::PathBuf,
   sync::Arc,
 };
 
-use crate::{BundleBehavior, environment::Environment};
+use crate::{AssetType, BundleBehavior, SourceUrl, environment::Environment};
 use crate::{SourceLocation, impl_bitflags_serde};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -22,8 +21,9 @@ pub struct Dependency {
   pub loc: Option<SourceLocation>,
   #[serde(default)]
   pub placeholder: Option<String>,
-  pub resolve_from: Option<PathBuf>,
+  pub resolve_from: Option<SourceUrl>,
   pub range: Option<String>,
+  pub resolution: DependencyResolution,
 }
 
 impl Dependency {
@@ -74,3 +74,24 @@ bitflags! {
 }
 
 impl_bitflags_serde!(DependencyFlags);
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DependencyResolution {
+  #[default]
+  None,
+  Deferred(Arc<AssetRequest>),
+  External,
+  Excluded,
+  Asset(u32),
+  Bundle(u32),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AssetRequest {
+  pub url: SourceUrl,
+  pub ty: AssetType,
+  pub pipeline: Option<String>,
+  pub env: Arc<Environment>,
+  pub code: Option<Vec<u8>>,
+  pub side_effects: bool,
+}

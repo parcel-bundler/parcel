@@ -24,7 +24,9 @@ pub use collect::CollectImportedSymbol;
 use collect::{Collect, CollectResult};
 use constant_module::ConstantModule;
 use dependency_collector::Helpers;
-pub use dependency_collector::{DependencyDescriptor, DependencyKind, dependency_collector};
+pub use dependency_collector::{
+  DependencyDescriptor, DependencyFlags, DependencyKind, dependency_collector,
+};
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
@@ -38,6 +40,7 @@ use parcel_macros::{JsValue, MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
 use react_lazy::ReactLazy;
 use serde::{Deserialize, Serialize};
+pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
     FileName, Globals, Mark, SourceMap, comments::SingleThreadedComments, errors::Handler,
@@ -48,7 +51,7 @@ use swc_core::{
     atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
-    preset_env::{Mode::Entry, Targets, Version, Versions, preset_env},
+    preset_env::{Mode::Entry, Targets, preset_env},
     transforms::{
       base::{
         assumptions::Assumptions,
@@ -93,7 +96,7 @@ pub struct Config {
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
   pub react_refresh: bool,
-  pub targets: Option<HashMap<String, String>>,
+  pub targets: Option<Versions>,
   pub source_maps: bool,
   pub scope_hoist: bool,
   pub source_type: SourceType,
@@ -451,7 +454,8 @@ pub fn transform(
             dynamic_import: true,
             ..Default::default()
           };
-          let versions = targets_to_versions(&config.targets);
+          // let versions = targets_to_versions(&config.targets);
+          let versions = config.targets;
           let mut should_run_preset_env = false;
           if !config.is_swc_helpers {
             // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.

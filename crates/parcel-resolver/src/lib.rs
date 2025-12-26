@@ -53,20 +53,20 @@ pub use cache::Cache;
 use cache::CachedPath;
 use cache::private::CacheCow;
 pub use error::ResolverError;
-#[cfg(not(target_arch = "wasm32"))]
-pub use fs::OsFileSystem;
-pub use fs::{FileKind, FileSystem};
 pub use invalidations::*;
-use package_json::{AliasValue, ExportsResolution, PackageJson};
-pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
+pub use package_json::{
+  AliasValue, BrowserField, ExportsCondition, ExportsResolution, Fields, ModuleType, PackageJson,
+  PackageJsonError,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use parcel_core::{FileKind, FileSystem, OsFileSystem};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};
 use specifier::{parse_package_specifier, parse_scheme};
-use tsconfig::TsConfigWrapper;
+pub use tsconfig::{Jsx, TsConfig, TsConfigWrapper};
 
 mod builtins;
 mod cache;
 mod error;
-mod fs;
 mod invalidations;
 mod json_comments_rs;
 mod package_json;
@@ -361,7 +361,7 @@ impl<'a> Resolver<'a> {
     Ok(ModuleType::CommonJs)
   }
 
-  fn find_package(
+  pub fn find_package(
     &self,
     from: &CachedPath,
     invalidations: &Invalidations,
@@ -372,6 +372,21 @@ impl<'a> Resolver<'a> {
     }
 
     None
+  }
+
+  pub fn find_tsconfig(
+    &self,
+    from: &CachedPath,
+    invalidations: &Invalidations,
+  ) -> Option<Arc<Result<TsConfigWrapper, ResolverError>>> {
+    let mut request = ResolveRequest::new(
+      self,
+      &Specifier::Url(""),
+      SpecifierType::Url,
+      &from,
+      invalidations,
+    );
+    request.tsconfig().clone()
   }
 
   fn find_ancestor_file(

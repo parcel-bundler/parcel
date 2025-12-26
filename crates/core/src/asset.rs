@@ -1,45 +1,51 @@
-use std::{path::Path, sync::Arc};
+use std::{hash::Hash, path::Path, sync::Arc};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::{BundleBehavior, Environment, SourceLocation, impl_bitflags_serde};
+use crate::{
+  BundleBehavior, Content, Dependency, Environment, SourceLocation, SourceUrl, impl_bitflags_serde,
+};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
-  // pub file_path: Interned<PathBuf>,
-  pub loc: Option<SourceLocation>,
+  pub loc: SourceLocation,
   #[serde(rename = "type")]
   pub ty: AssetType,
-  #[serde(with = "serde_bytes")]
-  pub content: Vec<u8>,
+  pub content: Arc<dyn Content>,
   pub env: Arc<Environment>,
-  // pub query: Option<String>,
   pub pipeline: Option<String>,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
   // pub symbols: Vec<Symbol>,
   pub unique_key: Option<String>,
+  pub dependencies: Vec<Dependency>,
 }
 
 impl Asset {
-  pub fn file_path(&self) -> &Path {
-    self
-      .loc
-      .as_ref()
-      .map(|l| l.file_path.as_path())
-      .unwrap_or(Path::new("")) // TODO
+  pub fn id(&self) -> String {
+    let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
+    self.loc.hash(&mut hasher);
+    self.ty.hash(&mut hasher);
+    self.env.hash(&mut hasher);
+    self.pipeline.hash(&mut hasher);
+    self.bundle_behavior.hash(&mut hasher);
+    self.flags.hash(&mut hasher);
+    self.unique_key.hash(&mut hasher);
+    format!("{:016x}", hasher.digest())
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AssetType {
   Js,
   Jsx,
   Ts,
   Tsx,
+  Mdx,
   Css,
+  StyleAttribute,
   Html,
   Xhtml,
   Svg,
@@ -74,7 +80,9 @@ impl AssetType {
       AssetType::Jsx => "jsx",
       AssetType::Ts => "ts",
       AssetType::Tsx => "tsx",
+      AssetType::Mdx => "mdx",
       AssetType::Css => "css",
+      AssetType::StyleAttribute => "style", // ???
       AssetType::Html => "html",
       AssetType::Xhtml => "xhtml",
       AssetType::Svg => "svg",
@@ -90,7 +98,9 @@ impl AssetType {
       "jsx" => AssetType::Jsx,
       "ts" => AssetType::Ts,
       "tsx" => AssetType::Tsx,
+      "mdx" => AssetType::Mdx,
       "css" => AssetType::Css,
+      "style" => AssetType::StyleAttribute,
       "html" => AssetType::Html,
       "xhtml" => AssetType::Xhtml,
       "svg" => AssetType::Svg,
@@ -106,6 +116,10 @@ impl AssetType {
     } else {
       AssetType::Other("".into())
     }
+  }
+
+  pub fn from_url(url: &SourceUrl) -> AssetType {
+    AssetType::from_extension(url.extension())
   }
 
   pub fn from_mime(mime: &str) -> AssetType {
@@ -147,7 +161,7 @@ impl AssetType {
 }
 
 bitflags! {
-  #[derive(Debug, Clone, Copy)]
+  #[derive(Debug, Clone, Copy, Hash)]
   pub struct AssetFlags: u32 {
     const IS_SOURCE = 1 << 0;
     const SIDE_EFFECTS = 1 << 1;

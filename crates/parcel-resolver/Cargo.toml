@@ -20,6 +20,7 @@ serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 url = "2.5.4"
 rustc-hash = "2.0.0"
+parcel-core = { path = "../core" }
 
 [dev-dependencies]
 assert_fs = "1.0"

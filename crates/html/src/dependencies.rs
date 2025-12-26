@@ -9,9 +9,10 @@ use crate::srcset::{parse_srcset, serialize_srcset};
 use html5ever::tendril::{StrTendril, format_tendril};
 use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, namespace_url, ns};
 use parcel_core::{
-  Asset, AssetFlags, AssetType, BundleBehavior, CodeFrame, CodeHighlight, Dependency,
-  DependencyFlags, Diagnostic, DiagnosticSeverity, Environment, EnvironmentFeature, Location,
-  OutputFormat, Priority, SourceLocation, SourceType, SpecifierType,
+  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, CodeFrame,
+  CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticSeverity,
+  Environment, EnvironmentFeature, Location, OutputFormat, Priority, SourceLocation, SourceType,
+  SourceUrl, SpecifierType,
 };
 use typed_arena::Arena;
 
@@ -23,7 +24,7 @@ pub fn collect_dependencies<'arena>(
   env: Arc<Environment>,
   hmr: bool,
 ) -> (Vec<Dependency>, Vec<Asset>, Vec<Diagnostic>) {
-  let mut collector = DependencyCollector::new(arena, file_path, ty, env);
+  let mut collector = DependencyCollector::new(arena, file_path.clone(), ty, env);
 
   dom.walk(&mut |node| match &node.data {
     NodeData::Element { name, .. } => {
@@ -54,11 +55,19 @@ pub fn collect_dependencies<'arena>(
       flags: DependencyFlags::empty(),
       priority: Priority::Sync,
       env: asset.env.clone(),
-      bundle_behavior: BundleBehavior::None,
+      bundle_behavior: BundleBehavior::Inline,
       placeholder: asset.unique_key.clone(),
       loc: None,
       resolve_from: None,
       range: None,
+      resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
+        url: asset.loc.url.clone(),
+        ty: asset.ty.clone(),
+        code: Some(asset.content.read().unwrap()),
+        pipeline: None,
+        env: asset.env.clone(),
+        side_effects: true,
+      })),
     });
   }
 
@@ -68,13 +77,18 @@ pub fn collect_dependencies<'arena>(
       let src = collector.add_dep(key.clone(), false, Priority::Parallel, 0);
       collector.assets.push(Asset {
         ty: AssetType::Js,
-        content: Vec::new(),
+        content: Arc::new(BufferContent::new(Vec::new())),
         unique_key: Some(key.into()),
         flags: AssetFlags::empty(),
         env: collector.env.clone(),
         bundle_behavior: BundleBehavior::None,
-        loc: None,
+        loc: SourceLocation {
+          url: SourceUrl::from_path(&file_path).unwrap(),
+          start: Default::default(),
+          end: Default::default(),
+        },
         pipeline: None,
+        dependencies: Vec::new(),
       });
 
       let script = NodeData::Element {
@@ -143,7 +157,7 @@ impl<'arena> DependencyCollector<'arena> {
 
   fn create_loc(&self, line: u32) -> Option<SourceLocation> {
     Some(SourceLocation {
-      file_path: self.file_path.clone(),
+      url: SourceUrl::from_path(&self.file_path).unwrap(),
       start: Location { line, column: 1 },
       end: Location { line, column: 2 },
     })
@@ -154,7 +168,7 @@ impl<'arena> DependencyCollector<'arena> {
       message: message.into(),
       origin: None,
       code_frames: vec![CodeFrame {
-        file_path: Some(self.file_path.clone()),
+        url: Some(SourceUrl::from_path(&self.file_path).unwrap()),
         code: None,
         language: Some(self.ty.clone()),
         code_highlights: vec![CodeHighlight::from_loc(
@@ -211,8 +225,9 @@ impl<'arena> DependencyCollector<'arena> {
             bundle_behavior: BundleBehavior::None,
             placeholder: Default::default(),
             loc: self.create_loc(node.line),
-            resolve_from: None,
+            resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
             range: None,
+            resolution: DependencyResolution::None,
           };
 
           node.set_attribute(expanded_name!("", "href"), dep.set_placeholder());
@@ -301,8 +316,9 @@ impl<'arena> DependencyCollector<'arena> {
               bundle_behavior,
               placeholder: Default::default(),
               loc: self.create_loc(node.line),
-              resolve_from: None,
+              resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
               range: None,
+              resolution: DependencyResolution::None,
             };
 
             copy.set_attribute(src_attr, dep.set_placeholder());
@@ -319,8 +335,9 @@ impl<'arena> DependencyCollector<'arena> {
             bundle_behavior,
             placeholder: Default::default(),
             loc: self.create_loc(node.line),
-            resolve_from: None,
+            resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
             range: None,
+            resolution: DependencyResolution::None,
           };
 
           node.set_attribute(src_attr, dep.set_placeholder());
@@ -366,13 +383,14 @@ impl<'arena> DependencyCollector<'arena> {
             ty: ty
               .map(|ty| AssetType::from_mime(&ty))
               .unwrap_or(AssetType::Js),
-            content: code.into_bytes(),
+            content: Arc::new(BufferContent::new(code.into_bytes())),
             unique_key: Some(key.into()),
             flags: AssetFlags::IS_HTML_TAG,
             env: self.create_env(output_format, source_type, node.line),
             bundle_behavior: BundleBehavior::Inline,
-            loc: self.create_loc(node.line),
+            loc: self.create_loc(node.line).unwrap(),
             pipeline: None,
+            dependencies: Vec::new(),
           });
         }
       }
@@ -401,13 +419,14 @@ impl<'arena> DependencyCollector<'arena> {
 
         self.assets.push(Asset {
           ty,
-          content: code.into_bytes(),
+          content: Arc::new(BufferContent::new(code.into_bytes())),
           unique_key: Some(key.into()),
           flags: AssetFlags::IS_HTML_TAG,
           env: self.env.clone(),
           bundle_behavior: BundleBehavior::Inline,
-          loc: self.create_loc(node.line),
+          loc: self.create_loc(node.line).unwrap(),
           pipeline: None,
+          dependencies: Vec::new(),
         });
       }
       expanded_name!(html "meta") => {
@@ -541,14 +560,15 @@ impl<'arena> DependencyCollector<'arena> {
       node.set_attribute(expanded_name!("", "style"), &key);
 
       self.assets.push(Asset {
-        ty: AssetType::Css,
-        content: style.to_string().into_bytes(),
+        ty: AssetType::StyleAttribute,
+        content: Arc::new(BufferContent::new(style.to_string().into_bytes())),
         unique_key: Some(key.into()),
         flags: AssetFlags::IS_HTML_ATTR,
         env: self.env.clone(),
         bundle_behavior: BundleBehavior::Inline,
-        loc: self.create_loc(node.line),
+        loc: self.create_loc(node.line).unwrap(),
         pipeline: None,
+        dependencies: Vec::new(),
       });
     }
 
@@ -618,8 +638,9 @@ impl<'arena> DependencyCollector<'arena> {
           bundle_behavior: BundleBehavior::None,
           placeholder: None,
           loc: self.create_loc(line),
-          resolve_from: None,
+          resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
           range: None,
+          resolution: DependencyResolution::None,
         };
 
         img.url = dep.set_placeholder().into();
@@ -651,7 +672,8 @@ impl<'arena> DependencyCollector<'arena> {
       placeholder: Default::default(),
       loc: self.create_loc(line),
       range: None,
-      resolve_from: None,
+      resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+      resolution: DependencyResolution::None,
     };
 
     let placeholder = dep.set_placeholder().into();

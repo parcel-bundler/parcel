@@ -25,8 +25,8 @@ pub enum BundleReference {
 
 #[derive(Deserialize)]
 pub struct InlineBundle {
-  contents: SerializableTendril,
-  module: bool,
+  pub contents: SerializableTendril,
+  pub module: bool,
 }
 
 pub fn insert_bundle_references<'arena>(

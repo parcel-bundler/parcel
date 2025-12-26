@@ -16,3 +16,6 @@ indexmap = { version = "1.9.2", features = ["serde"] }
 glob-match = "*"
 petgraph = "*"
 fixedbitset = "0.5.7"
+url = "*"
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+parcel_sourcemap = "*"

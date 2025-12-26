@@ -6,11 +6,15 @@ use html5ever::tendril::{StrTendril, TendrilSink};
 use jsx::{JsxOptions, to_component};
 use optimize::optimize;
 use oxvg::ConfigItem;
-use package::{BundleReference, InlineBundle, insert_bundle_references};
+use package::insert_bundle_references;
 use parcel_core::{Asset, AssetType, Dependency, Diagnostic, Environment};
 use serde::{Deserialize, Serialize, Serializer};
 use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
+
+pub use package::{BundleReference, InlineBundle};
+
+use crate::arena::Node;
 
 mod arena;
 mod dependencies;
@@ -23,7 +27,7 @@ mod serialize_xml;
 mod srcset;
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Default, Clone)]
-pub struct SerializableTendril(StrTendril);
+pub struct SerializableTendril(pub StrTendril);
 
 impl serde::Serialize for SerializableTendril {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -57,11 +61,11 @@ pub struct TransformOptions {
 
 #[derive(Serialize)]
 pub struct TransformResult {
-  dependencies: Vec<Dependency>,
+  pub dependencies: Vec<Dependency>,
   #[serde(with = "serde_bytes")]
-  code: Vec<u8>,
-  assets: Vec<Asset>,
-  errors: Vec<Diagnostic>,
+  pub code: Vec<u8>,
+  pub assets: Vec<Asset>,
+  pub errors: Vec<Diagnostic>,
 }
 
 pub fn transform_html(options: TransformOptions) -> TransformResult {

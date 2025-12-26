@@ -4,10 +4,10 @@ use rustc_hash::FxHasher;
 
 use crate::{
   FileSystem, ResolverError,
-  fs::FileKind,
   package_json::PackageJson,
   tsconfig::{TsConfig, TsConfigWrapper},
 };
+use parcel_core::FileKind;
 use std::{
   cell::UnsafeCell,
   ffi::OsStr,
@@ -64,7 +64,7 @@ impl<'a> Eq for PathEntry<'a> {}
 #[cfg(not(target_arch = "wasm32"))]
 impl Default for Cache {
   fn default() -> Self {
-    Cache::new(Arc::new(crate::fs::OsFileSystem))
+    Cache::new(Arc::new(parcel_core::OsFileSystem))
   }
 }
 

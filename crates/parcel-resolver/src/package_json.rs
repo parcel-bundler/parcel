@@ -74,6 +74,46 @@ struct SerializedPackageJson {
   imports: IndexMap<ExportsKey<'static>, ExportsField>,
   #[serde(default, deserialize_with = "ok_or_default")]
   side_effects: SideEffects,
+  #[serde(default)]
+  pub dependencies: IndexMap<String, String>,
+  #[serde(default)]
+  pub dev_dependencies: IndexMap<String, String>,
+  #[serde(default)]
+  pub peer_dependencies: IndexMap<String, String>,
+  #[serde(default, rename = "@parcel/transformer-js")]
+  pub js_transformer_config: Option<JsTransformerConfig>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsTransformerConfig {
+  pub inline_fs: Option<bool>,
+  pub inline_environment: Option<InlineEnvironment>,
+  #[serde(default, rename = "unstable_inlineConstants")]
+  pub inline_constants: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(untagged)]
+pub enum InlineEnvironment {
+  Bool(bool),
+  Array(Vec<String>),
+}
+
+impl Default for InlineEnvironment {
+  fn default() -> Self {
+    InlineEnvironment::Bool(true)
+  }
+}
+
+impl InlineEnvironment {
+  pub fn matches(&self, name: &str) -> bool {
+    match self {
+      InlineEnvironment::Bool(false) => name == "NODE_ENV",
+      InlineEnvironment::Bool(true) => true,
+      InlineEnvironment::Array(arr) => arr.iter().any(|a| glob_match(a, name)),
+    }
+  }
 }
 
 fn ok_or_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
@@ -89,16 +129,20 @@ pub struct PackageJson {
   pub path: CachedPath,
   pub name: String,
   pub module_type: ModuleType,
-  main: Option<CachedPath>,
-  module: Option<CachedPath>,
-  tsconfig: Option<CachedPath>,
-  types: Option<CachedPath>,
+  pub main: Option<CachedPath>,
+  pub module: Option<CachedPath>,
+  pub tsconfig: Option<CachedPath>,
+  pub types: Option<CachedPath>,
   pub source: SourceField,
-  browser: BrowserField,
-  alias: IndexMap<Specifier<'static>, AliasValue<'static>>,
-  exports: ExportsField,
-  imports: IndexMap<ExportsKey<'static>, ExportsField>,
-  side_effects: SideEffects,
+  pub browser: BrowserField,
+  pub alias: IndexMap<Specifier<'static>, AliasValue<'static>>,
+  pub exports: ExportsField,
+  pub imports: IndexMap<ExportsKey<'static>, ExportsField>,
+  pub side_effects: SideEffects,
+  pub dependencies: IndexMap<String, String>,
+  pub dev_dependencies: IndexMap<String, String>,
+  pub peer_dependencies: IndexMap<String, String>,
+  pub js_transformer_config: Option<JsTransformerConfig>,
 }
 
 /// Whether the module is ESM, CommonJS, or JSON according to its extension or the package.json "type" field.
@@ -410,6 +454,10 @@ impl PackageJson {
       imports: parsed.imports,
       side_effects: parsed.side_effects,
       path,
+      dependencies: parsed.dependencies,
+      dev_dependencies: parsed.dev_dependencies,
+      peer_dependencies: parsed.peer_dependencies,
+      js_transformer_config: parsed.js_transformer_config,
     }
   }
 
@@ -888,6 +936,21 @@ impl PackageJson {
         .iter()
         .any(|glob| side_effects_glob_matches(glob, path)),
     }
+  }
+
+  pub fn has_dependency(&self, dep: &str) -> bool {
+    self.dependencies.contains_key(dep)
+      || self.dev_dependencies.contains_key(dep)
+      || self.peer_dependencies.contains_key(dep)
+  }
+
+  pub fn get_dependency_version(&self, dep: &str) -> Option<&str> {
+    self
+      .dependencies
+      .get(dep)
+      .or_else(|| self.dev_dependencies.get(dep))
+      .or_else(|| self.peer_dependencies.get(dep))
+      .map(|s| s.as_str())
   }
 }
 

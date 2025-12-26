@@ -1,22 +1,87 @@
+use std::sync::Arc;
+
 use crate::{
-  Asset, Dependency, Diagnostic,
-  config::{JsPlugin, PipelineMap, Plugin},
+  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, Content, DependencyResolution,
+  Diagnostic, ParcelOptions, SourceLocation,
+  config::{JsPlugin, ParcelConfig, PipelineMap, Plugin},
+  content::FileContent,
+  resolver::resolve,
 };
 
-pub trait Transformer {
-  fn transform(&self, asset: Asset) -> Result<Vec<TransformerResult>, Vec<Diagnostic>>;
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct TransformerResult {
-  pub asset: Asset,
-  pub dependencies: Vec<Dependency>,
-  // pub invalidations: Vec<Invalidation>,
+pub trait Transformer: Send + Sync {
+  fn transform(&self, asset: Asset, options: &ParcelOptions) -> Result<Asset, Vec<Diagnostic>>;
 }
 
 impl Transformer for JsPlugin {
-  fn transform(&self, _asset: Asset) -> Result<Vec<TransformerResult>, Vec<Diagnostic>> {
+  fn transform(&self, _asset: Asset, _options: &ParcelOptions) -> Result<Asset, Vec<Diagnostic>> {
     Err(vec![])
+  }
+}
+
+pub struct TransformRequest {
+  pub index: usize,
+  pub req: Arc<AssetRequest>,
+  pub options: Arc<ParcelOptions>,
+  pub config: Arc<ParcelConfig>,
+}
+
+pub struct TransformResult {
+  pub index: usize,
+  pub asset: Asset,
+}
+
+impl TransformRequest {
+  pub fn run(&self) -> Result<TransformResult, Vec<Diagnostic>> {
+    let req = &self.req;
+    let path = req.url.with_extension(req.ty.extension()).unwrap();
+    let transformer_pipeline = self
+      .config
+      .transformers
+      .get(path.as_str(), &req.pipeline, false);
+
+    let content: Arc<dyn Content> = if let Some(code) = &req.code {
+      Arc::new(BufferContent::new(code.clone()))
+    } else {
+      Arc::new(FileContent::new(
+        req.url.to_file_path().unwrap(),
+        self.options.input_fs.clone(),
+      ))
+    };
+
+    let asset = Asset {
+      ty: req.ty.clone(),
+      content,
+      loc: SourceLocation {
+        url: req.url.clone(),
+        ..Default::default()
+      },
+      env: req.env.clone(),
+      pipeline: req.pipeline.clone(),
+      bundle_behavior: crate::BundleBehavior::None,
+      flags: AssetFlags::empty(),
+      unique_key: None,
+      dependencies: Vec::new(),
+    };
+
+    let mut asset = transform(
+      asset,
+      transformer_pipeline,
+      &self.config.transformers,
+      &self.options,
+    )?;
+
+    let resolvers = &self.config.resolvers;
+    let named_pipelines = self.config.transformers.named_pipelines();
+    for dep in &mut asset.dependencies {
+      if dep.resolution == DependencyResolution::None {
+        dep.resolution = resolve(dep, resolvers, &named_pipelines)?;
+      }
+    }
+
+    Ok(TransformResult {
+      index: self.index,
+      asset,
+    })
   }
 }
 
@@ -24,106 +89,67 @@ pub fn transform(
   asset: Asset,
   pipeline: Vec<Plugin<dyn Transformer>>,
   transformers: &PipelineMap<dyn Transformer>,
-) -> Result<Vec<TransformerResult>, Vec<Diagnostic>> {
-  let initial_type = asset.ty.clone();
-  let mut input_assets = vec![TransformerResult {
-    asset,
-    dependencies: Vec::new(),
-  }];
+  options: &ParcelOptions,
+) -> Result<Asset, Vec<Diagnostic>> {
+  let mut input = asset;
 
-  let mut final_assets = Vec::new();
   for plugin in &pipeline {
-    let mut result_assets = Vec::new();
-    for input in input_assets {
-      if input.asset.ty != initial_type {
-        result_assets.push(input);
-        continue;
-      }
-
-      let ty = input.asset.ty.clone();
-      let results = plugin.plugin.transform(input.asset)?;
-      for result in results {
-        if result.asset.ty != ty {
-          let next_path = result
-            .asset
-            .file_path()
-            .with_extension(result.asset.ty.extension());
-          let next_pipeline = transformers.get(&next_path, &result.asset.pipeline, false);
-          if next_pipeline != pipeline {
-            let results = transform(result.asset, next_pipeline, transformers)?;
-            result_assets.extend(results);
-          }
-        } else {
-          result_assets.push(result);
-          // TODO: extend dependencies?
-        }
+    let ty: AssetType = input.ty.clone();
+    let result = plugin.plugin.transform(input, options)?;
+    if result.ty != ty {
+      let next_path = result
+        .loc
+        .url
+        .with_extension(result.ty.extension())
+        .unwrap();
+      let next_pipeline = transformers.get(next_path.as_str(), &result.pipeline, false);
+      if next_pipeline != pipeline {
+        return transform(result, next_pipeline, transformers, options);
       }
     }
 
-    input_assets = result_assets;
+    input = result;
   }
 
-  final_assets.extend(input_assets);
-  Ok(final_assets)
+  Ok(input)
 }
 
 #[cfg(test)]
 mod tests {
-  use std::{path::Path, sync::Arc};
+  use std::sync::Arc;
 
   use indexmap::indexmap;
 
   use super::*;
-  use crate::{AssetFlags, AssetType, Environment, config::PipelineNode};
+  use crate::{AssetFlags, AssetType, Environment, SourceUrl, config::PipelineNode};
 
   struct SimpleTransformer {
     content: &'static str,
   }
 
   impl Transformer for SimpleTransformer {
-    fn transform(&self, mut asset: Asset) -> Result<Vec<TransformerResult>, Vec<Diagnostic>> {
+    fn transform(
+      &self,
+      mut asset: Asset,
+      _options: &ParcelOptions,
+    ) -> Result<Asset, Vec<Diagnostic>> {
       asset.content.extend_from_slice(self.content.as_bytes());
-      Ok(vec![TransformerResult {
-        asset,
-        dependencies: vec![],
-      }])
-    }
-  }
-
-  struct MultiTransformer {}
-  impl Transformer for MultiTransformer {
-    fn transform(&self, asset: Asset) -> Result<Vec<TransformerResult>, Vec<Diagnostic>> {
-      Ok(vec![
-        TransformerResult {
-          asset: Asset {
-            content: "multi-1".as_bytes().into(),
-            ..asset.clone()
-          },
-          dependencies: vec![],
-        },
-        TransformerResult {
-          asset: Asset {
-            content: "multi-2".as_bytes().into(),
-            flags: AssetFlags::IS_SOURCE,
-            ..asset.clone()
-          },
-          dependencies: vec![],
-        },
-      ])
+      Ok(asset)
     }
   }
 
   struct TypeChangeTransformer {}
   impl Transformer for TypeChangeTransformer {
-    fn transform(&self, mut asset: Asset) -> Result<Vec<TransformerResult>, Vec<Diagnostic>> {
+    fn transform(
+      &self,
+      mut asset: Asset,
+      _options: &ParcelOptions,
+    ) -> Result<Asset, Vec<Diagnostic>> {
       if asset.flags.contains(AssetFlags::IS_SOURCE) {
         asset.content.extend_from_slice(":type-change".as_bytes());
         asset.ty = AssetType::Css;
       }
-      Ok(vec![TransformerResult {
-        asset,
-        dependencies: vec![],
-      }])
+      Ok(asset)
     }
   }
 
@@ -135,21 +161,17 @@ mod tests {
       bundle_behavior: crate::BundleBehavior::None,
       env: Arc::new(Environment::default()),
       flags: AssetFlags::empty(),
-      loc: Some(crate::SourceLocation {
-        file_path: "test.js".into(),
+      loc: crate::SourceLocation {
+        url: SourceUrl::parse("test.js").unwrap(),
         ..Default::default()
-      }),
+      },
       pipeline: None,
       unique_key: None,
+      dependencies: Vec::new(),
     };
 
     let transformers = PipelineMap(indexmap! {
       "*.js".into() => vec![
-        PipelineNode::Plugin(Plugin::<dyn Transformer> {
-          package_name: "multi".into(),
-          key_path: None,
-          plugin: Arc::new(MultiTransformer {})
-        }),
         PipelineNode::Plugin(Plugin::<dyn Transformer> {
           package_name: "type-change".into(),
           key_path: None,
@@ -174,19 +196,10 @@ mod tests {
       ]
     });
 
-    let pipeline = transformers.get::<&str>(Path::new("test.js"), &None, false);
-    let res = transform(input, pipeline, &transformers).unwrap();
+    let pipeline = transformers.get::<&str>("test.js", &None, false);
+    let res = transform(input, pipeline, &transformers, &Default::default()).unwrap();
 
-    assert_eq!(res.len(), 2);
-    assert_eq!(res[0].asset.ty, AssetType::Js);
-    assert_eq!(
-      res[0].asset.content,
-      "multi-1:simple-js".as_bytes().to_vec()
-    );
-    assert_eq!(res[1].asset.ty, AssetType::Css);
-    assert_eq!(
-      res[1].asset.content,
-      "multi-2:type-change:simple-css".as_bytes().to_vec()
-    );
+    assert_eq!(res.ty, AssetType::Js);
+    assert_eq!(res.content, "multi-1:simple-js".as_bytes().to_vec());
   }
 }

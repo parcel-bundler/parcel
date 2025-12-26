@@ -1,11 +1,11 @@
-use std::{collections::HashMap, num::NonZeroU16, str::FromStr};
+use std::{collections::BTreeMap, num::NonZeroU16, str::FromStr};
 
 use crate::{SourceLocation, impl_bitflags_serde};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
   pub context: EnvironmentContext,
@@ -33,7 +33,7 @@ pub struct TargetSourceMapOptions {
 }
 
 /// Describes which modules in node_modules should be resolved.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum IncludeNodeModules {
   /// Whether or not to include all node_modules.
@@ -41,7 +41,7 @@ pub enum IncludeNodeModules {
   /// An array of node_modules to include.
   Array(Vec<String>),
   /// A mapping of node_modules and whether to include them.
-  Map(HashMap<String, bool>),
+  Map(BTreeMap<String, bool>),
 }
 
 impl Default for IncludeNodeModules {

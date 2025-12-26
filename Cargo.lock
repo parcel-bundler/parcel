@@ -2123,6 +2123,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel"
+version = "0.1.0"
+dependencies = [
+ "indexmap 1.9.3",
+ "lightningcss",
+ "node-semver",
+ "parcel-core",
+ "parcel-html",
+ "parcel-js-swc-core",
+ "parcel-resolver",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "parcel-core"
 version = "0.1.0"
 dependencies = [
@@ -2133,10 +2147,13 @@ dependencies = [
  "indexmap 1.9.3",
  "json-sourcemap",
  "node-semver",
+ "parcel_sourcemap",
  "petgraph",
  "serde",
  "serde-value",
  "serde_bytes",
+ "url",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -2249,6 +2266,7 @@ dependencies = [
  "is_elevated",
  "itertools 0.10.5",
  "oxc_resolver",
+ "parcel-core",
  "parking_lot",
  "percent-encoding",
  "rspack_resolver",

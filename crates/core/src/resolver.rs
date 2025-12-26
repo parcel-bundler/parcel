@@ -1,48 +1,35 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::{
-  CodeFrame, Dependency, DependencyFlags, Diagnostic,
+  CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
   config::{JsPlugin, Plugin},
 };
 
-pub trait Resolver {
+pub trait Resolver: Send + Sync {
   fn resolve(
     &self,
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
-  ) -> Result<ResolverResult, Vec<Diagnostic>>;
+  ) -> Result<DependencyResolution, Vec<Diagnostic>>;
 }
 
 impl Resolver for JsPlugin {
   fn resolve(
     &self,
-    dep: &Dependency,
-    specifier: &str,
-    pipeline: Option<&str>,
-  ) -> Result<ResolverResult, Vec<Diagnostic>> {
+    _dep: &Dependency,
+    _specifier: &str,
+    _pipeline: Option<&str>,
+  ) -> Result<DependencyResolution, Vec<Diagnostic>> {
     Err(vec![])
   }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ResolverResult {
-  None,
-  Excluded,
-  Resolved {
-    path: PathBuf,
-    code: Option<Vec<u8>>,
-    pipeline: Option<String>,
-    side_effects: bool,
-    query: Option<String>,
-  },
 }
 
 pub fn resolve(
   dep: &Dependency,
   resolvers: &Vec<Plugin<dyn Resolver>>,
   named_pipelines: &Vec<&str>,
-) -> Result<ResolverResult, Vec<Diagnostic>> {
+) -> Result<DependencyResolution, Vec<Diagnostic>> {
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
     // and include e.g. `C:\` on Windows, conflicting with pipelines.
@@ -61,7 +48,7 @@ pub fn resolve(
   for resolver in resolvers {
     match resolver.plugin.resolve(dep, specifier, pipeline) {
       Ok(res) => match res {
-        ResolverResult::None => continue,
+        DependencyResolution::None => continue,
         _ => return Ok(res),
       },
       Err(err) => {
@@ -72,14 +59,14 @@ pub fn resolve(
   }
 
   if dep.flags.contains(DependencyFlags::OPTIONAL) {
-    return Ok(ResolverResult::Excluded);
+    return Ok(DependencyResolution::Excluded);
   }
 
   let resolve_from = dep
     .resolve_from
     .as_ref()
-    .or(dep.loc.as_ref().map(|loc| &loc.file_path))
-    .map(|p| format!(" from '{:?}'", p))
+    .or(dep.loc.as_ref().map(|loc| &loc.url))
+    .map(|p| format!(" from '{}'", p))
     .unwrap_or_default();
   diagnostics.insert(
     0,
@@ -131,6 +118,8 @@ fn parse_pipeline(input: &str) -> Result<(&str, &str), ()> {
 mod tests {
   use std::sync::Arc;
 
+  use crate::{AssetRequest, AssetType, SourceUrl};
+
   use super::*;
 
   struct Resolver1 {}
@@ -140,17 +129,18 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
-    ) -> Result<ResolverResult, Vec<Diagnostic>> {
+    ) -> Result<DependencyResolution, Vec<Diagnostic>> {
       if specifier == "one" {
-        Ok(ResolverResult::Resolved {
-          path: "one.js".into(),
+        Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+          url: SourceUrl::parse("one.js").unwrap(),
+          ty: AssetType::Js,
           code: None,
           pipeline: None,
           side_effects: false,
-          query: None,
-        })
+          env: Default::default(),
+        })))
       } else {
-        Ok(ResolverResult::None)
+        Ok(DependencyResolution::None)
       }
     }
   }
@@ -162,17 +152,18 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
-    ) -> Result<ResolverResult, Vec<Diagnostic>> {
+    ) -> Result<DependencyResolution, Vec<Diagnostic>> {
       if specifier == "two" {
-        Ok(ResolverResult::Resolved {
-          path: "two.js".into(),
+        Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+          url: SourceUrl::parse("two.js").unwrap(),
+          ty: AssetType::Js,
           code: None,
           pipeline: None,
           side_effects: false,
-          query: None,
-        })
+          env: Default::default(),
+        })))
       } else {
-        Ok(ResolverResult::None)
+        Ok(DependencyResolution::None)
       }
     }
   }
@@ -200,24 +191,26 @@ mod tests {
       flags: DependencyFlags::empty(),
       env: Arc::new(Default::default()),
       loc: Some(crate::SourceLocation {
-        file_path: "test.js".into(),
+        url: SourceUrl::parse("test.js").unwrap(),
         ..Default::default()
       }),
       placeholder: None,
       resolve_from: None,
       range: None,
+      resolution: crate::DependencyResolution::None,
     };
 
     let res = resolve(&dep, &resolvers, &Vec::new()).unwrap();
     assert_eq!(
       res,
-      ResolverResult::Resolved {
-        path: "one.js".into(),
+      DependencyResolution::Deferred(Arc::new(AssetRequest {
+        url: SourceUrl::parse("one.js").unwrap(),
+        ty: AssetType::Js,
         code: None,
         pipeline: None,
         side_effects: false,
-        query: None
-      }
+        env: Default::default()
+      }))
     );
 
     dep.specifier = "two".into();
@@ -225,13 +218,14 @@ mod tests {
     let res = resolve(&dep, &resolvers, &Vec::new()).unwrap();
     assert_eq!(
       res,
-      ResolverResult::Resolved {
-        path: "two.js".into(),
+      DependencyResolution::Deferred(Arc::new(AssetRequest {
+        url: SourceUrl::parse("two.js").unwrap(),
+        ty: AssetType::Js,
         code: None,
         pipeline: None,
         side_effects: false,
-        query: None
-      }
+        env: Default::default()
+      }))
     );
   }
 }

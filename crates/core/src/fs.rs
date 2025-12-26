@@ -21,12 +21,24 @@ bitflags! {
 
 /// A trait that provides the functions needed to read files and retrieve metadata from a file system.
 pub trait FileSystem: Send + Sync {
-  /// Reads the given path as a string.
+  /// Reads the given path as a byte vector.
   fn read(&self, path: &Path) -> Result<Vec<u8>>;
+
+  /// Reads the given path as a string
+  fn read_to_string(&self, path: &Path) -> Result<String> {
+    String::from_utf8(self.read(path)?).map_err(|e| std::io::Error::other(e))
+  }
+
   /// Returns the kind of file or directory that the given path represents.
   fn kind(&self, path: &Path) -> FileKind;
   /// Returns the resolution of a symbolic link.
   fn read_link(&self, path: &Path) -> Result<PathBuf>;
+
+  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()>;
+
+  fn copy(&self, from: &Path, to: &Path) -> Result<()> {
+    self.write(to, &self.read(from)?)
+  }
 }
 
 /// Default operating system file system implementation.
@@ -38,6 +50,10 @@ pub struct OsFileSystem;
 impl FileSystem for OsFileSystem {
   fn read(&self, path: &Path) -> Result<Vec<u8>> {
     std::fs::read(path)
+  }
+
+  fn read_to_string(&self, path: &Path) -> Result<String> {
+    std::fs::read_to_string(path)
   }
 
   fn kind(&self, path: &Path) -> FileKind {
@@ -65,13 +81,21 @@ impl FileSystem for OsFileSystem {
   fn read_link(&self, path: &Path) -> Result<PathBuf> {
     path.read_link()
   }
+
+  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+    std::fs::write(path, contents)
+  }
+
+  fn copy(&self, from: &Path, to: &Path) -> Result<()> {
+    std::fs::copy(from, to).map(|_| ())
+  }
 }
 
 pub struct MemoryFileSystem {
   entries: Vec<Entry>,
 }
 
-pub enum Entry {
+enum Entry {
   Directory {
     name: OsString,
     children: Vec<usize>,
@@ -244,7 +268,11 @@ impl FileSystem for MemoryFileSystem {
     }
   }
 
-  fn read_link(&self, path: &Path) -> Result<PathBuf> {
+  fn read_link(&self, _path: &Path) -> Result<PathBuf> {
+    todo!()
+  }
+
+  fn write(&self, _path: &Path, _contents: &Vec<u8>) -> Result<()> {
     todo!()
   }
 }

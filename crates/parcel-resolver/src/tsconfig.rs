@@ -6,6 +6,7 @@ use std::{
 use crate::json_comments_rs::strip_comments_in_place;
 use indexmap::IndexMap;
 use itertools::Either;
+use serde::ser;
 
 use crate::{
   ResolverError,
@@ -21,6 +22,15 @@ struct SerializedTsConfig {
   paths: Option<IndexMap<Specifier<'static>, Vec<String>>>,
   pub module_suffixes: Option<Vec<String>>,
   // rootDirs??
+  pub jsx_factory: Option<String>,
+  pub jsx_fragment_factory: Option<String>,
+  pub jsx_import_source: Option<String>,
+  pub jsx: Option<Jsx>,
+  #[serde(default)]
+  pub experimental_decorators: bool,
+  pub use_define_for_class_fields: Option<bool>,
+  #[serde(default)]
+  pub target: Option<String>,
 }
 
 pub struct TsConfig {
@@ -29,6 +39,23 @@ pub struct TsConfig {
   paths: Option<IndexMap<Specifier<'static>, Vec<String>>>,
   paths_base: CachedPath,
   pub module_suffixes: Option<Vec<String>>,
+  pub jsx_factory: Option<String>,
+  pub jsx_fragment_factory: Option<String>,
+  pub jsx_import_source: Option<String>,
+  pub jsx: Option<Jsx>,
+  pub experimental_decorators: bool,
+  pub use_define_for_class_fields: Option<bool>,
+  pub target: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum Jsx {
+  React,
+  ReactJsx,
+  ReactJsxdev,
+  Preserve,
+  ReactNative,
 }
 
 fn deserialize_extends<'de, D>(deserializer: D) -> Result<Vec<Specifier<'static>>, D::Error>
@@ -107,6 +134,13 @@ impl TsConfig {
       base_url,
       paths: serialized.paths,
       module_suffixes: serialized.module_suffixes,
+      jsx: serialized.jsx,
+      jsx_factory: serialized.jsx_factory,
+      jsx_fragment_factory: serialized.jsx_fragment_factory,
+      jsx_import_source: serialized.jsx_import_source,
+      experimental_decorators: serialized.experimental_decorators,
+      use_define_for_class_fields: serialized.use_define_for_class_fields,
+      target: serialized.target,
     }
   }
 
@@ -246,6 +280,13 @@ mod tests {
           "url".into() => vec!["node_modules/my-url".into()],
         }),
         module_suffixes: None,
+        jsx: None,
+        jsx_factory: None,
+        jsx_fragment_factory: None,
+        jsx_import_source: None,
+        experimental_decorators: false,
+        use_define_for_class_fields: None,
+        target: None,
       },
       &cache,
     );
@@ -296,6 +337,13 @@ mod tests {
         base_url: Some(PathBuf::from("src")),
         paths: None,
         module_suffixes: None,
+        jsx: None,
+        jsx_factory: None,
+        jsx_fragment_factory: None,
+        jsx_import_source: None,
+        experimental_decorators: false,
+        use_define_for_class_fields: None,
+        target: None,
       },
       &cache,
     );
@@ -328,6 +376,13 @@ mod tests {
           "@/components/*".into() => vec!["components/*".into()],
         }),
         module_suffixes: None,
+        jsx: None,
+        jsx_factory: None,
+        jsx_fragment_factory: None,
+        jsx_import_source: None,
+        experimental_decorators: false,
+        use_define_for_class_fields: None,
+        target: None,
       },
       &cache,
     );
