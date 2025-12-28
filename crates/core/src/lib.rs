@@ -50,7 +50,7 @@ pub fn build(
   options: Arc<ParcelOptions>,
 ) -> Result<(), Vec<Diagnostic>> {
   // Resolve entries.
-  let entries = resolve_entries(entries);
+  let entries = resolve_entries(entries, &*options);
 
   // Build asset graph.
   let asset_graph = build_asset_graph(entries, config.clone(), options.clone())?;

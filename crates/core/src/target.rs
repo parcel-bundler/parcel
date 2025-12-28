@@ -2,16 +2,16 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::{
   Engines, Environment, EnvironmentContext, IncludeNodeModules, OutputFormat, SourceLocation,
-  TargetSourceMapOptions,
+  SourceUrl, TargetSourceMapOptions,
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
   pub name: String,
-  pub dist_entry: Option<PathBuf>,
-  pub dist_dir: PathBuf,
+  pub dist_entry: Option<String>,
+  pub dist_dir: SourceUrl,
   pub env: Arc<Environment>,
   pub public_url: String,
   pub loc: Option<SourceLocation>,

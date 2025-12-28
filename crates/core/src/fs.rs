@@ -19,6 +19,11 @@ bitflags! {
   }
 }
 
+pub struct DirEntry {
+  pub name: OsString,
+  pub kind: FileKind,
+}
+
 /// A trait that provides the functions needed to read files and retrieve metadata from a file system.
 pub trait FileSystem: Send + Sync {
   /// Reads the given path as a byte vector.
@@ -39,6 +44,8 @@ pub trait FileSystem: Send + Sync {
   fn copy(&self, from: &Path, to: &Path) -> Result<()> {
     self.write(to, &self.read(from)?)
   }
+
+  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>>;
 }
 
 /// Default operating system file system implementation.
@@ -88,6 +95,25 @@ impl FileSystem for OsFileSystem {
 
   fn copy(&self, from: &Path, to: &Path) -> Result<()> {
     std::fs::copy(from, to).map(|_| ())
+  }
+
+  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+    let dir = path.read_dir()?;
+    let mut entries = Vec::new();
+    for ent in dir {
+      let ent = ent?;
+      let ty = ent.file_type()?;
+      let mut kind = FileKind::empty();
+      kind.set(FileKind::IS_DIR, ty.is_dir());
+      kind.set(FileKind::IS_FILE, ty.is_file());
+      kind.set(FileKind::IS_SYMLINK, ty.is_symlink());
+      entries.push(DirEntry {
+        name: ent.file_name(),
+        kind,
+      });
+    }
+
+    Ok(entries)
   }
 }
 
@@ -274,5 +300,30 @@ impl FileSystem for MemoryFileSystem {
 
   fn write(&self, _path: &Path, _contents: &Vec<u8>) -> Result<()> {
     todo!()
+  }
+
+  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+    let dir = self.dir(path)?;
+    let entry = &self.entries[dir];
+    if let Entry::Directory { children, .. } = entry {
+      let mut entries = Vec::new();
+      for child in children {
+        let child = &self.entries[*child];
+        entries.push(match child {
+          Entry::Directory { name, .. } => DirEntry {
+            name: name.clone(),
+            kind: FileKind::IS_DIR,
+          },
+          Entry::File { name, .. } => DirEntry {
+            name: name.clone(),
+            kind: FileKind::IS_FILE,
+          },
+        });
+      }
+
+      Ok(entries)
+    } else {
+      Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
+    }
   }
 }

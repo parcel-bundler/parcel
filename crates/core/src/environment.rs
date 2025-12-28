@@ -74,6 +74,19 @@ impl Version {
   pub fn minor(&self) -> u16 {
     self.0.get() & 0xff
   }
+
+  pub fn from_semver_range(range: &str) -> Result<Self, ()> {
+    if let Some(version) = node_semver::Range::parse(range)
+      .ok()
+      .and_then(|r| r.min_version())
+    {
+      Ok(Version(
+        NonZeroU16::new((version.major as u16) << 8 | (version.minor as u16)).ok_or(())?,
+      ))
+    } else {
+      Err(())
+    }
+  }
 }
 
 impl FromStr for Version {
@@ -135,14 +148,8 @@ impl<'de> serde::Deserialize<'de> for Version {
     D: serde::Deserializer<'de>,
   {
     let v: String = serde::Deserialize::deserialize(deserializer)?;
-    if let Some(version) = node_semver::Range::parse(v.as_str())
-      .ok()
-      .and_then(|r| r.min_version())
-    {
-      Ok(Version(
-        NonZeroU16::new((version.major as u16) << 8 | (version.minor as u16))
-          .ok_or(serde::de::Error::custom("version must be > 0"))?,
-      ))
+    if let Ok(version) = Version::from_semver_range(v.as_str()) {
+      Ok(version)
     } else {
       Err(serde::de::Error::custom("invalid semver range"))
     }
