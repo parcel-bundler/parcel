@@ -22,7 +22,7 @@ mod transformer;
 
 use std::sync::Arc;
 
-use crate::asset_graph::build_asset_graph;
+use crate::{asset_graph::build_asset_graph, packager::RawPackager};
 
 pub use asset::*;
 pub use asset_graph::AssetGraph;
@@ -77,13 +77,15 @@ fn get_bundle_content(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
 ) -> Result<Arc<dyn Content>, Vec<Diagnostic>> {
-  let packager = config.packagers.get(bundle.ty.extension()).unwrap();
+  let raw = RawPackager {};
+  let packager = config
+    .packagers
+    .get(bundle.ty.extension())
+    .map_or_else(|| &raw as &dyn Packager, |p| &*p.plugin);
   let get_inline_bundle_content =
     |bundle_index| get_bundle_content(config, bundle_graph, &bundle_graph.bundles[bundle_index]);
 
-  let mut content = packager
-    .plugin
-    .package(&bundle_graph, &bundle, &get_inline_bundle_content)?;
+  let mut content = packager.package(&bundle_graph, &bundle, &get_inline_bundle_content)?;
 
   let optimizers = config.optimizers.get::<&str>(
     bundle.name.as_ref().unwrap().as_path().to_str().unwrap(),

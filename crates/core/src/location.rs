@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -69,12 +70,22 @@ impl SourceUrl {
     })
   }
 
+  pub fn from_path_and_query(path: &Path, query: Option<&str>) -> Result<SourceUrl, ()> {
+    let mut url = Url::from_file_path(path)?;
+    url.set_query(query);
+    Ok(SourceUrl { url: Arc::new(url) })
+  }
+
   pub fn to_file_path(&self) -> Result<PathBuf, ()> {
     self.url.to_file_path()
   }
 
   pub fn as_str(&self) -> &str {
     self.url.as_str()
+  }
+
+  pub fn path(&self) -> &str {
+    self.url.path()
   }
 
   pub fn extension(&self) -> &str {
@@ -94,6 +105,10 @@ impl SourceUrl {
 
   pub fn query(&self) -> Option<&str> {
     self.url.query()
+  }
+
+  pub fn query_pairs(&self) -> impl Iterator<Item = (Cow<'_, str>, Cow<'_, str>)> {
+    self.url.query_pairs()
   }
 }
 

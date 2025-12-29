@@ -59,11 +59,13 @@ fn resolve_package_entries(fs: &dyn FileSystem, dir: PathBuf) -> Vec<Entry> {
       ("main", ExportsCondition::DEFAULT),
       ("module", ExportsCondition::MODULE),
       ("browser", ExportsCondition::BROWSER),
+      ("types", ExportsCondition::TYPES),
     ] {
       if let Some(Value::String(main)) = json.get(field) {
         entries.push(Entry {
           url: SourceUrl::from_path(&dir.join(source)).unwrap(),
           target: Target {
+            name: field.to_string(),
             dist_entry: Some(main.clone()),
             dist_dir: SourceUrl::from_path(&dir).unwrap(),
             env: Arc::new(cond.to_env(&json, main)),
@@ -73,6 +75,20 @@ fn resolve_package_entries(fs: &dyn FileSystem, dir: PathBuf) -> Vec<Entry> {
           loc: None,
         });
       }
+    }
+
+    if entries.is_empty() {
+      entries.push(Entry {
+        url: SourceUrl::from_path(&dir.join(source)).unwrap(),
+        target: Target {
+          dist_entry: None,
+          dist_dir: SourceUrl::from_path(&dir).unwrap(),
+          env: Arc::new(Default::default()),
+          ..Default::default()
+        },
+        asset: None,
+        loc: None,
+      });
     }
   }
 
@@ -194,9 +210,10 @@ impl ExportsCondition {
       context,
       output_format,
       source_type: SourceType::Module,
-      flags: EnvironmentFlags::empty(),
+      flags: EnvironmentFlags::IS_LIBRARY,
       source_map: None,
       loc: None,
+      // TODO: include devDependencies but exclude dependencies and peerDependencies for libraries
       include_node_modules: if context.is_node() {
         crate::IncludeNodeModules::Bool(false)
       } else {
@@ -697,6 +714,54 @@ mod tests {
         asset: None,
         loc: None,
       }],
+    );
+
+    test(
+      r#"
+    {
+      "exports": {
+        "./foo": {
+          "source": "./foo.tsx",
+          "default": "./foo.mjs"
+        },
+        "./bar": {
+          "source": "./bar.tsx",
+          "default": "./bar.mjs"
+        }
+      }
+    }"#,
+      vec![
+        Entry {
+          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          target: Target {
+            dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            dist_entry: Some("./foo.mjs".into()),
+            env: Arc::new(Environment {
+              context: EnvironmentContext::Browser,
+              output_format: crate::OutputFormat::Esmodule,
+              ..Default::default()
+            }),
+            ..Default::default()
+          },
+          asset: None,
+          loc: None,
+        },
+        Entry {
+          url: SourceUrl::parse("file:///root/bar.tsx").unwrap(),
+          target: Target {
+            dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            dist_entry: Some("./bar.mjs".into()),
+            env: Arc::new(Environment {
+              context: EnvironmentContext::Browser,
+              output_format: crate::OutputFormat::Esmodule,
+              ..Default::default()
+            }),
+            ..Default::default()
+          },
+          asset: None,
+          loc: None,
+        },
+      ],
     );
   }
 }

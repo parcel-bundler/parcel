@@ -13,3 +13,4 @@ node-semver = "2.2.0"
 parcel-html = { path = "../html" }
 lightningcss = "1.0.0-alpha.63"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+parcel-image = { path = "../image" }

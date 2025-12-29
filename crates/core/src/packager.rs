@@ -22,7 +22,7 @@ impl Packager for JsPlugin {
   }
 }
 
-struct RawPackager {}
+pub struct RawPackager {}
 
 impl Packager for RawPackager {
   fn package(

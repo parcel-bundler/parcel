@@ -188,7 +188,7 @@ impl Bundler for DefaultBundler {
       }
     }
 
-    println!("{:?}", bundles);
+    // println!("{:?}", bundles);
     Ok(BundleGraph {
       asset_graph,
       bundles,

@@ -5,6 +5,7 @@ use parcel_core::{
   AssetGraph, BundleFlags, DefaultBundler, Namer, Packager, ParcelConfig, ParcelOptions,
   PipelineMap, PipelineNode, Plugin, SourceUrl, Transformer, build,
 };
+use parcel_image::ImageTransformer;
 use parcel_resolver::OsFileSystem;
 use xxhash_rust::xxh3::Xxh3Default;
 
@@ -54,6 +55,11 @@ pub fn main() {
         package_name: "@parcel/transformer-svg".into(),
         key_path: None,
         plugin: Arc::new(SvgTransformer {})
+      })],
+      "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}".into() => vec![PipelineNode::Plugin(Plugin::<dyn Transformer> {
+        package_name: "@parcel/transformer-image".into(),
+        key_path: None,
+        plugin: Arc::new(ImageTransformer {})
       })],
     }),
     bundler: Plugin {
@@ -110,10 +116,14 @@ pub fn main() {
     input_fs: Arc::new(OsFileSystem {}),
     log_level: parcel_core::LogLevel::Verbose,
     mode: parcel_core::BuildMode::Development,
-    project_root: SourceUrl::from_path(Path::new("/Users/devongovett/dev/parcel/test")).unwrap(),
+    project_root: SourceUrl::from_path(Path::new(
+      "/Users/devongovett/dev/parcel/test", // "/Users/devongovett/dev/esbuild/require/parcel2/bench/three/",
+    ))
+    .unwrap(),
   });
 
   match build(
+    // vec!["/Users/devongovett/dev/esbuild/require/parcel2/bench/three/entry.parcel2.js".into()],
     vec!["/Users/devongovett/dev/parcel/test/index.html".into()],
     Arc::new(config),
     options,

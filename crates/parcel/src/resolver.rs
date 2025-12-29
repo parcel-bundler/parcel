@@ -60,7 +60,8 @@ impl Resolver for DefaultResolver {
     match res.result {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
-          let url = SourceUrl::from_path(&path).unwrap();
+          let url =
+            SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..])).unwrap();
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
             ty: AssetType::from_url(&url),
             url,

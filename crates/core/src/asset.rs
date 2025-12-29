@@ -18,7 +18,7 @@ pub struct Asset {
   pub pipeline: Option<String>,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
-  // pub symbols: Vec<Symbol>,
+  // pub symbols: Vec<AssetSymbol>,
   pub unique_key: Option<String>,
   pub dependencies: Vec<Dependency>,
 }
@@ -51,6 +51,14 @@ pub enum AssetType {
   Svg,
   Json,
   Jsonld,
+  Png,
+  Jpeg,
+  Gif,
+  WebP,
+  Tiff,
+  Bmp,
+  Ico,
+  Avif,
   Other(Box<str>),
 }
 
@@ -88,6 +96,14 @@ impl AssetType {
       AssetType::Svg => "svg",
       AssetType::Json => "json",
       AssetType::Jsonld => "jsonld",
+      AssetType::Png => "png",
+      AssetType::Jpeg => "jpg",
+      AssetType::Gif => "gif",
+      AssetType::WebP => "webp",
+      AssetType::Tiff => "tiff",
+      AssetType::Bmp => "bmp",
+      AssetType::Ico => "ico",
+      AssetType::Avif => "avif",
       AssetType::Other(s) => s,
     }
   }
@@ -106,6 +122,15 @@ impl AssetType {
       "svg" => AssetType::Svg,
       "json" => AssetType::Json,
       "jsonld" => AssetType::Jsonld,
+      "png" => AssetType::Png,
+      "jpeg" => AssetType::Jpeg,
+      "jpg" => AssetType::Jpeg,
+      "gif" => AssetType::Gif,
+      "webp" => AssetType::WebP,
+      "tiff" => AssetType::Tiff,
+      "bmp" => AssetType::Bmp,
+      "ico" => AssetType::Ico,
+      "avif" => AssetType::Avif,
       ext => AssetType::Other(ext.to_owned().into_boxed_str()),
     }
   }
@@ -148,6 +173,14 @@ impl AssetType {
       "text/html" => AssetType::Html,
       "application/xhtml+xml" => AssetType::Xhtml,
       "image/svg+xml" => AssetType::Svg,
+      "image/png" => AssetType::Png,
+      "image/jpeg" => AssetType::Jpeg,
+      "image/gif" => AssetType::Gif,
+      "image/webp" => AssetType::WebP,
+      "image/tiff" => AssetType::Tiff,
+      "image/bmp" => AssetType::Bmp,
+      "image/x-icon" | "image/vnd.microsoft.icon" => AssetType::Ico,
+      "image/avif" => AssetType::Avif,
       mime => AssetType::Other(
         mime
           .split('/')
@@ -179,3 +212,34 @@ bitflags! {
 }
 
 impl_bitflags_serde!(AssetFlags);
+
+pub struct AssetSymbols {
+  used_namespace: bool,
+  local: Vec<LocalSymbol>,
+  indirect: Vec<IndirectSymbol>,
+  star: Vec<StarSymbol>,
+}
+
+pub struct LocalSymbol {
+  exported: SymbolName,
+  requested: bool,
+}
+
+pub struct IndirectSymbol {
+  exported: SymbolName,
+  dep_index: u32,
+  imported: SymbolName,
+  requested: bool,
+}
+
+pub struct StarSymbol {
+  dep_index: u32,
+  requested: bool,
+}
+
+enum SymbolName {
+  Namespace,
+  AllButDefault,
+  Default,
+  Name(String),
+}

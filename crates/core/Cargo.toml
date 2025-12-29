@@ -19,3 +19,4 @@ fixedbitset = "0.5.7"
 url = "*"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel_sourcemap = "*"
+serde_json = { version = "1.0.91", features = ["preserve_order"] }
