@@ -29,7 +29,7 @@ macro_rules! hash {
   }};
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum DependencyKind {
   /// Corresponds to ESM import statements
   /// ```skip

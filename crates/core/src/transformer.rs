@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, Content, DependencyResolution,
-  Diagnostic, ParcelOptions, SourceLocation,
+  Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, Content,
+  DependencyFlags, DependencyResolution, Diagnostic, ParcelOptions, SourceLocation,
   config::{JsPlugin, ParcelConfig, PipelineMap, Plugin},
   content::FileContent,
   resolver::resolve,
@@ -48,6 +48,9 @@ impl TransformRequest {
       ))
     };
 
+    let mut flags = AssetFlags::empty();
+    flags.set(AssetFlags::SIDE_EFFECTS, req.side_effects);
+
     let asset = Asset {
       ty: req.ty.clone(),
       content,
@@ -58,9 +61,10 @@ impl TransformRequest {
       env: req.env.clone(),
       pipeline: req.pipeline.clone(),
       bundle_behavior: crate::BundleBehavior::None,
-      flags: AssetFlags::empty(),
+      flags,
       unique_key: None,
       dependencies: Vec::new(),
+      symbols: AssetSymbols::default(),
     };
 
     let mut asset = transform(
@@ -75,6 +79,12 @@ impl TransformRequest {
     for dep in &mut asset.dependencies {
       if dep.resolution == DependencyResolution::None {
         dep.resolution = resolve(dep, resolvers, &named_pipelines)?;
+      }
+
+      if let DependencyResolution::Deferred(req) = &dep.resolution {
+        if req.side_effects {
+          dep.flags |= DependencyFlags::SIDE_EFFECTS;
+        }
       }
     }
 

@@ -12,7 +12,7 @@ use swc_core::{
 };
 
 use crate::{
-  id,
+  DependencyKind, id,
   utils::{
     Bailout, BailoutReason, SourceLocation, is_unresolved, match_export_name,
     match_export_name_ident, match_import, match_member_expr, match_property_name, match_require,
@@ -38,6 +38,16 @@ pub enum ImportKind {
   Require,
   Import,
   DynamicImport,
+}
+
+impl Into<DependencyKind> for ImportKind {
+  fn into(self) -> DependencyKind {
+    match self {
+      ImportKind::Require => DependencyKind::Require,
+      ImportKind::Import => DependencyKind::Import,
+      ImportKind::DynamicImport => DependencyKind::DynamicImport,
+    }
+  }
 }
 
 #[derive(Debug)]

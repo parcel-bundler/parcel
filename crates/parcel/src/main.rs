@@ -2,8 +2,9 @@ use std::{collections::HashMap, hash::Hash, path::Path, sync::Arc};
 
 use indexmap::indexmap;
 use parcel_core::{
-  AssetGraph, BundleFlags, DefaultBundler, Namer, Packager, ParcelConfig, ParcelOptions,
-  PipelineMap, PipelineNode, Plugin, SourceUrl, Transformer, build,
+  AssetGraph, AssetNode, BundleFlags, CPlugin, DefaultBundler, Namer, Packager, ParcelConfig,
+  ParcelOptions, PipelineMap, PipelineNode, Plugin, SourceUrl, Transformer,
+  /*WasmPlugin,*/ build,
 };
 use parcel_image::ImageTransformer;
 use parcel_resolver::OsFileSystem;
@@ -36,10 +37,22 @@ pub fn main() {
         key_path: None,
         plugin: Arc::new(JsTransformer {})
       })],
+      "*.module.css".into() => vec![PipelineNode::Plugin(Plugin::<dyn Transformer> {
+        package_name: "@parcel/transformer-css".into(),
+        key_path: None,
+        plugin: Arc::new(CssTransformer {
+          css_modules: Some(lightningcss::css_modules::Config {
+            dashed_idents: true,
+            ..Default::default()
+          })
+        })
+      })],
       "*.css".into() => vec![PipelineNode::Plugin(Plugin::<dyn Transformer> {
         package_name: "@parcel/transformer-css".into(),
         key_path: None,
-        plugin: Arc::new(CssTransformer {})
+        plugin: Arc::new(CssTransformer {
+          css_modules: None
+        })
       })],
       "*.style".into() => vec![PipelineNode::Plugin(Plugin::<dyn Transformer> {
         package_name: "@parcel/transformer-css".into(),
@@ -60,6 +73,12 @@ pub fn main() {
         package_name: "@parcel/transformer-image".into(),
         key_path: None,
         plugin: Arc::new(ImageTransformer {})
+      })],
+      "*.less".into() => vec![PipelineNode::Plugin(Plugin::<dyn Transformer> {
+        package_name: "@parcel/transformer-image".into(),
+        key_path: None,
+        plugin: Arc::new(CPlugin::new(Path::new("/Users/devongovett/Downloads/hermes/plugin.dylib")))
+        // plugin: Arc::new(WasmPlugin::new(Path::new("/Users/devongovett/Downloads/hermes/plugin.wasm")))
       })],
     }),
     bundler: Plugin {
@@ -131,8 +150,8 @@ pub fn main() {
     Ok(_) => {
       println!("SUCCESS!");
     }
-    Err(_) => {
-      println!("ERROR");
+    Err(err) => {
+      println!("ERROR: {:?}", err);
     }
   }
 }
@@ -147,7 +166,7 @@ impl Namer for DefaultNamer {
   ) -> Result<Option<String>, Vec<parcel_core::Diagnostic>> {
     if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
       if let Some(entry) = bundle.main_entry_asset {
-        if let Some(asset) = &asset_graph.assets[entry] {
+        if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {
           return Ok(Some(format!(
             "test/dist/{}",
             asset

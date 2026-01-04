@@ -8,9 +8,10 @@ edition = "2024"
 parcel-core = { path = "../core" }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
 parcel-resolver = { path = "../parcel-resolver" }
-indexmap = { version = "1.9.2", features = ["serde"] }
+indexmap = { version = "=2.11.0", features = ["serde"] }
 node-semver = "2.2.0"
 parcel-html = { path = "../html" }
-lightningcss = "1.0.0-alpha.63"
+lightningcss = { version = "1.0.0-alpha.63", features = ["into_owned", "visitor"] }
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel-image = { path = "../image" }
+serde_json = { version = "1.0.91", features = ["preserve_order"] }

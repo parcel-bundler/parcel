@@ -3,3 +3,6 @@ rustflags = ["-C", "link-args=-Wl,-z,nodelete"]
 
 [target.wasm32-unknown-unknown]
 rustflags = ["-C", "link-arg=--export-table"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-Wl,-export_dynamic"]

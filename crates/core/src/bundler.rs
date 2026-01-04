@@ -5,7 +5,7 @@ use fixedbitset::FixedBitSet;
 use crate::{
   AssetType, Bundle, BundleBehavior, BundleFlags, DependencyFlags, DependencyResolution,
   Diagnostic, EnvironmentContext, Priority,
-  asset_graph::AssetGraph,
+  asset_graph::{AssetGraph, AssetNode},
   bundle_graph::BundleGraph,
   config::{JsPlugin, ParcelConfig},
   namer::name,
@@ -37,7 +37,7 @@ impl Bundler for DefaultBundler {
     }
 
     for asset_index in 0..asset_graph.assets.len() {
-      if let Some(asset) = &asset_graph.assets[asset_index] {
+      if let AssetNode::Asset(asset) = &asset_graph.assets[asset_index] {
         if asset.bundle_behavior != BundleBehavior::None {
           bundle_roots.insert(asset_index);
         }
@@ -63,16 +63,15 @@ impl Bundler for DefaultBundler {
       visited.clear();
       queue.clear();
       queue.push_back(bundle_root_asset_index);
+      visited.insert(bundle_root_asset_index);
       while let Some(asset_index) = queue.pop_front() {
-        visited.insert(asset_index);
         reachable_roots[asset_index].insert(bundle_root_index);
 
-        if let Some(asset) = &asset_graph.assets[asset_index] {
-          for dep in &asset.dependencies {
-            if let DependencyResolution::Asset(i) = dep.resolution {
-              if !visited.contains(i as usize) && !bundle_roots.contains(i as usize) {
-                queue.push_back(i as usize);
-              }
+        if let AssetNode::Asset(asset) = &asset_graph.assets[asset_index] {
+          for i in asset.resolved_dependencies() {
+            if !visited.contains(i as usize) && !bundle_roots.contains(i as usize) {
+              visited.insert(i as usize);
+              queue.push_back(i as usize);
             }
           }
         }
@@ -91,7 +90,7 @@ impl Bundler for DefaultBundler {
 
     // Create bundles for each bundle root first.
     for bundle_root_asset_index in bundle_roots.ones() {
-      if let Some(asset) = &asset_graph.assets[bundle_root_asset_index] {
+      if let AssetNode::Asset(asset) = &asset_graph.assets[bundle_root_asset_index] {
         let bundle = Bundle {
           ty: asset.ty.clone(),
           env: asset.env.clone(),
@@ -125,11 +124,11 @@ impl Bundler for DefaultBundler {
     }
 
     for (asset_index, asset) in asset_graph.assets.iter().enumerate() {
-      if bundle_roots.contains(asset_index) {
+      if bundle_roots.contains(asset_index) || reachable_roots[asset_index].is_clear() {
         continue;
       }
 
-      if let Some(asset) = asset {
+      if let AssetNode::Asset(asset) = asset {
         let key = BundleKey {
           reachable_roots: &reachable_roots[asset_index],
           context: asset.env.context, // TODO: other environment properties?
@@ -170,7 +169,7 @@ impl Bundler for DefaultBundler {
     }
 
     for asset in asset_graph.assets.iter_mut() {
-      if let Some(asset) = asset {
+      if let AssetNode::Asset(asset) = asset {
         for dep in &mut asset.dependencies {
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
             if bundle_roots.contains(resolved_asset_index as usize) {

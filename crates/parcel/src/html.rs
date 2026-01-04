@@ -48,9 +48,7 @@ impl Packager for HtmlPackager {
   ) -> Result<std::sync::Arc<dyn Content>, Vec<Diagnostic>> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let asset = bundle_graph.asset_graph.assets[bundle.assets[0]]
-      .as_ref()
-      .unwrap();
+    let asset = bundle_graph.asset_graph.assets[bundle.assets[0]].expect_asset();
 
     let code = asset.content.read()?;
 

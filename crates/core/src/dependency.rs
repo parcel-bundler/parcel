@@ -70,6 +70,7 @@ bitflags! {
     const IS_ESM = 1 << 4;
     const IS_WEBWORKER = 1 << 5;
     const HAS_SYMBOLS = 1 << 6;
+    const SIDE_EFFECTS = 1 << 7;
   }
 }
 

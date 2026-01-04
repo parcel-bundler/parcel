@@ -4,7 +4,8 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  BundleBehavior, Content, Dependency, Environment, SourceLocation, SourceUrl, impl_bitflags_serde,
+  BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, Environment,
+  SourceLocation, SourceUrl, impl_bitflags_serde,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -18,9 +19,9 @@ pub struct Asset {
   pub pipeline: Option<String>,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
-  // pub symbols: Vec<AssetSymbol>,
   pub unique_key: Option<String>,
   pub dependencies: Vec<Dependency>,
+  pub symbols: AssetSymbols,
 }
 
 impl Asset {
@@ -34,6 +35,50 @@ impl Asset {
     self.flags.hash(&mut hasher);
     self.unique_key.hash(&mut hasher);
     format!("{:016x}", hasher.digest())
+  }
+
+  /// Iterates over all resolved asset indices that this asset depends on, in dependency order.
+  /// NOTE: This may include duplicates. self.symbols.imports must be sorted by dep_index.
+  pub fn resolved_dependencies(&self) -> impl Iterator<Item = u32> {
+    let mut dep_index = 0;
+    let mut import_index = 0;
+    std::iter::from_fn(move || {
+      loop {
+        // If a dependency has side effects, emit its resolved asset.
+        // If the namespace of this asset is used, include all dependencies.
+        if dep_index < self.dependencies.len() {
+          let dep = &self.dependencies[dep_index];
+          if dep.flags.contains(DependencyFlags::SIDE_EFFECTS) || self.symbols.used_namespace {
+            if let DependencyResolution::Asset(asset) = dep.resolution {
+              dep_index += 1;
+              return Some(asset);
+            }
+          }
+        }
+
+        // Emit all resolved assets for imported symbols in this dependency.
+        // Side-effect free re-exports are not included - they are referenced directly through their importers.
+        if import_index < self.symbols.imports.len() {
+          let import = &self.symbols.imports[import_index];
+          while import.dep_index <= dep_index as u32 {
+            if let Some(asset) = import.resolved.asset_index() {
+              import_index += 1;
+              return Some(asset);
+            }
+
+            import_index += 1;
+          }
+        }
+
+        // Continue looping while there are more dependencies.
+        if dep_index < self.dependencies.len() {
+          dep_index += 1;
+          continue;
+        }
+
+        return None;
+      }
+    })
   }
 }
 
@@ -213,33 +258,106 @@ bitflags! {
 
 impl_bitflags_serde!(AssetFlags);
 
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct AssetSymbols {
-  used_namespace: bool,
-  local: Vec<LocalSymbol>,
-  indirect: Vec<IndirectSymbol>,
-  star: Vec<StarSymbol>,
+  pub used_namespace: bool,
+  pub imports: Vec<ImportedSymbol>,
+  pub exports: Vec<LocalSymbol>,
+  pub indirect: Vec<IndirectSymbol>,
+  pub star: Vec<StarSymbol>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportedSymbol {
+  pub dep_index: u32,
+  pub symbol: SymbolName,
+  pub resolved: SymbolResolution,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum SymbolResolution {
+  None,
+  Ambiguous,
+  Export { asset_index: u32, export_index: u32 },
+  Namespace { asset_index: u32 },
+  Runtime { asset_index: u32, name: SymbolName },
+}
+
+impl SymbolResolution {
+  pub fn asset_index(&self) -> Option<u32> {
+    match self {
+      SymbolResolution::None | SymbolResolution::Ambiguous => None,
+      SymbolResolution::Export { asset_index, .. }
+      | SymbolResolution::Namespace { asset_index }
+      | SymbolResolution::Runtime { asset_index, .. } => Some(*asset_index),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct LocalSymbol {
-  exported: SymbolName,
-  requested: bool,
+  pub exported: SymbolName,
+  pub requested: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub struct IndirectSymbol {
-  exported: SymbolName,
-  dep_index: u32,
-  imported: SymbolName,
-  requested: bool,
+  pub exported: SymbolName,
+  pub dep_index: u32,
+  pub imported: SymbolName,
+  pub requested: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub struct StarSymbol {
-  dep_index: u32,
-  requested: bool,
+  pub dep_index: u32,
+  pub requested: bool,
 }
 
-enum SymbolName {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+pub enum SymbolName {
   Namespace,
-  AllButDefault,
+  // AllButDefault,
   Default,
-  Name(String),
+  Name(hstr::Atom),
+}
+
+impl From<&str> for SymbolName {
+  fn from(value: &str) -> Self {
+    match value {
+      "*" => SymbolName::Namespace,
+      "default" => SymbolName::Default,
+      _ => SymbolName::Name(value.into()),
+    }
+  }
+}
+
+impl From<String> for SymbolName {
+  fn from(value: String) -> Self {
+    match value.as_str() {
+      "*" => SymbolName::Namespace,
+      "default" => SymbolName::Default,
+      _ => SymbolName::Name(value.into()),
+    }
+  }
+}
+
+impl From<hstr::Atom> for SymbolName {
+  fn from(value: hstr::Atom) -> Self {
+    match &*value {
+      "*" => SymbolName::Namespace,
+      "default" => SymbolName::Default,
+      _ => SymbolName::Name(value),
+    }
+  }
+}
+
+impl SymbolName {
+  pub fn as_str(&self) -> &str {
+    match self {
+      SymbolName::Namespace => "*",
+      SymbolName::Default => "default",
+      SymbolName::Name(name) => &*name,
+    }
+  }
 }

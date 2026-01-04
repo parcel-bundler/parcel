@@ -14,8 +14,6 @@ use typed_arena::Arena;
 
 pub use package::{BundleReference, InlineBundle};
 
-use crate::arena::Node;
-
 mod arena;
 mod dependencies;
 mod jsx;

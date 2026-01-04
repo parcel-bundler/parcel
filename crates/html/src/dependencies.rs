@@ -9,10 +9,10 @@ use crate::srcset::{parse_srcset, serialize_srcset};
 use html5ever::tendril::{StrTendril, format_tendril};
 use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, namespace_url, ns};
 use parcel_core::{
-  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, CodeFrame,
-  CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticSeverity,
-  Environment, EnvironmentFeature, Location, OutputFormat, Priority, SourceLocation, SourceType,
-  SourceUrl, SpecifierType,
+  Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, BundleBehavior,
+  CodeFrame, CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
+  DiagnosticSeverity, Environment, EnvironmentFeature, Location, OutputFormat, Priority,
+  SourceLocation, SourceType, SourceUrl, SpecifierType,
 };
 use typed_arena::Arena;
 
@@ -89,6 +89,7 @@ pub fn collect_dependencies<'arena>(
         },
         pipeline: None,
         dependencies: Vec::new(),
+        symbols: AssetSymbols::default(),
       });
 
       let script = NodeData::Element {
@@ -391,6 +392,7 @@ impl<'arena> DependencyCollector<'arena> {
             loc: self.create_loc(node.line).unwrap(),
             pipeline: None,
             dependencies: Vec::new(),
+            symbols: AssetSymbols::default(),
           });
         }
       }
@@ -427,6 +429,7 @@ impl<'arena> DependencyCollector<'arena> {
           loc: self.create_loc(node.line).unwrap(),
           pipeline: None,
           dependencies: Vec::new(),
+          symbols: AssetSymbols::default(),
         });
       }
       expanded_name!(html "meta") => {
@@ -569,6 +572,7 @@ impl<'arena> DependencyCollector<'arena> {
         loc: self.create_loc(node.line).unwrap(),
         pipeline: None,
         dependencies: Vec::new(),
+        symbols: AssetSymbols::default(),
       });
     }
 

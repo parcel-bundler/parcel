@@ -1,15 +1,24 @@
-use std::{collections::HashMap, fmt::Write, path::Path, sync::Arc};
+use std::{
+  collections::{HashMap, HashSet},
+  fmt::Write,
+  path::Path,
+  sync::Arc,
+};
 
 use indexmap::IndexSet;
+use lightningcss::css_modules::CssModuleReference;
 use parcel_core::{
-  Asset, AssetFlags, AssetType, BufferContent, BuildMode, Bundle, BundleBehavior, BundleGraph,
-  Content, Dependency, DependencyFlags, DependencyResolution, Diagnostic, Environment,
-  EnvironmentContext, EnvironmentFeature, EnvironmentFlags, FileSystem, IncludeNodeModules,
-  Location, LogLevel, OutputFormat, Packager, ParcelOptions, Priority, SourceLocation, SourceType,
-  SourceUrl, SpecifierType, Transformer,
+  Asset, AssetFlags, AssetNode, AssetType, BufferContent, BuildMode, Bundle, BundleBehavior,
+  BundleGraph, Content, Dependency, DependencyFlags, DependencyResolution, Diagnostic, Environment,
+  EnvironmentContext, EnvironmentFeature, EnvironmentFlags, FileSystem, ImportedSymbol,
+  IncludeNodeModules, IndirectSymbol, LocalSymbol, Location, LogLevel, OutputFormat, Packager,
+  ParcelOptions, Priority, SourceLocation, SourceType, SourceUrl, SpecifierType, StarSymbol,
+  SymbolName, SymbolResolution, Transformer,
 };
 use parcel_js_swc_core::{Config, DependencyKind, EnvContext, Type, Version, Versions, transform};
 use parcel_resolver::{AliasValue, BrowserField, Invalidations, Specifier};
+
+use crate::css::{CssContent, resolve_css_module_export};
 
 #[derive(Debug)]
 struct JsContent {
@@ -47,12 +56,18 @@ impl Transformer for JsTransformer {
       directives: res.directives.into_iter().map(|d| d.to_string()).collect(),
     });
 
+    let mut dep_map = HashMap::new();
     for dep in res.dependencies {
       let is_helper = dep
         .flags
         .contains(parcel_js_swc_core::DependencyFlags::HELPER)
         && !(dep.specifier.ends_with("/jsx-runtime")
           || dep.specifier.ends_with("/jsx-dev-runtime"));
+
+      dep_map.insert(
+        (dep.specifier.clone(), dep.kind.clone()),
+        asset.dependencies.len() as u32,
+      );
 
       asset.dependencies.push(Dependency {
         specifier: dep.specifier.to_string(),
@@ -200,6 +215,73 @@ impl Transformer for JsTransformer {
         },
         resolution: DependencyResolution::None,
       })
+    }
+
+    if res.needs_esm_helpers {
+      asset.dependencies.push(Dependency {
+        specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+        specifier_type: SpecifierType::Esm,
+        priority: Priority::Sync,
+        bundle_behavior: BundleBehavior::None,
+        flags: DependencyFlags::empty(),
+        env: Arc::new(Environment {
+          include_node_modules: IncludeNodeModules::Array(vec!["@parcel/transformer-js".into()]),
+          ..(*asset.env).clone()
+        }),
+        loc: None,
+        placeholder: None,
+        resolve_from: Some(options.project_root.clone()), // TODO
+        range: None,
+        resolution: DependencyResolution::None,
+      })
+    }
+
+    if let Some(symbols) = res.symbol_result {
+      asset
+        .flags
+        .set(AssetFlags::HAS_CJS_EXPORTS, symbols.has_cjs_exports);
+      asset
+        .flags
+        .set(AssetFlags::SHOULD_WRAP, symbols.should_wrap);
+
+      for import in symbols.imports {
+        let dep_index = dep_map[&(import.source, import.kind.into())];
+        asset.symbols.imports.push(ImportedSymbol {
+          dep_index,
+          symbol: SymbolName::from(import.imported.as_str()),
+          resolved: SymbolResolution::None,
+        });
+      }
+
+      asset
+        .symbols
+        .imports
+        .sort_by(|a, b| a.dep_index.cmp(&b.dep_index));
+
+      for export in symbols.exports {
+        if let Some(source) = export.source {
+          let dep_index = dep_map[&(source, DependencyKind::Export)];
+          asset.symbols.indirect.push(IndirectSymbol {
+            exported: SymbolName::from(export.exported.as_str()),
+            dep_index,
+            imported: SymbolName::from(export.local.as_str()),
+            requested: false,
+          });
+        } else {
+          asset.symbols.exports.push(LocalSymbol {
+            exported: SymbolName::from(export.exported.as_str()),
+            requested: false,
+          });
+        }
+      }
+
+      for star in symbols.exports_all {
+        let dep_index = dep_map[&(star.source, DependencyKind::Export)];
+        asset.symbols.star.push(StarSymbol {
+          dep_index,
+          requested: false,
+        });
+      }
     }
 
     Ok(asset)
@@ -525,7 +607,7 @@ impl Packager for JsPackager {
 
     let mut res = String::new();
     if let Some(main) = bundle.main_entry_asset {
-      if let Some(asset) = &bundle_graph.asset_graph.assets[main] {
+      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
         if let Some(content) = asset.content.downcast_ref::<JsContent>() {
           if let Some(shebang) = &content.shebang {
             write!(res, "#!{}\n", shebang).map_err(|e| vec![e.into()])?;
@@ -553,6 +635,7 @@ impl Packager for JsPackager {
 
     let mut first: bool = true;
     let mut resolved_bundles = IndexSet::new();
+    let mut non_js_assets = IndexSet::new();
     #[derive(Hash, PartialEq, Eq)]
     enum ResolutionType {
       Async,
@@ -561,11 +644,11 @@ impl Packager for JsPackager {
     }
 
     for asset_index in &bundle.assets {
-      if let Some(asset) = &bundle_graph.asset_graph.assets[*asset_index] {
+      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[*asset_index] {
         let mut deps = String::new();
         deps.push('{');
         let mut first_dep = true;
-        for dep in &asset.dependencies {
+        for (dep_index, dep) in asset.dependencies.iter().enumerate() {
           if !first_dep {
             deps.push(',');
           }
@@ -574,7 +657,56 @@ impl Packager for JsPackager {
           let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
           match &dep.resolution {
             DependencyResolution::Asset(resolved) => {
-              write!(deps, "'{}': {}", placeholder, *resolved).map_err(|e| vec![e.into()])?;
+              if let AssetNode::Asset(resolved_asset) =
+                &bundle_graph.asset_graph.assets[*resolved as usize]
+              {
+                if resolved_asset.ty != AssetType::Js {
+                  if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
+                    write!(deps, "'{}': {}", placeholder, *resolved).map_err(|e| vec![e.into()])?;
+                    non_js_assets.insert(*resolved);
+                    continue;
+                  }
+                  write!(deps, "'{}': false", placeholder).map_err(|e| vec![e.into()])?;
+                  continue;
+                }
+              }
+
+              let mut resolutions = Vec::new();
+              for import in &asset.symbols.imports {
+                if import.dep_index == dep_index as u32 {
+                  match &import.resolved {
+                    SymbolResolution::Export {
+                      asset_index,
+                      export_index,
+                    } => {
+                      let asset =
+                        bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
+                      let export = &asset.symbols.exports[*export_index as usize];
+                      resolutions.push((
+                        import.symbol.as_str(),
+                        *asset_index,
+                        export.exported.as_str(),
+                      ));
+                    }
+                    SymbolResolution::Runtime { asset_index, name } => {
+                      resolutions.push((import.symbol.as_str(), *asset_index, name.as_str()));
+                    }
+                    SymbolResolution::Namespace { asset_index } => {
+                      resolutions.push((import.symbol.as_str(), *asset_index, "*"));
+                    }
+                    _ => continue,
+                  }
+                }
+              }
+
+              // TODO: add indirect/star exports
+
+              if !resolutions.is_empty() {
+                let s = serde_json::to_string(&resolutions).unwrap();
+                write!(deps, "'{}': {}", placeholder, s).map_err(|e| vec![e.into()])?;
+              } else {
+                write!(deps, "'{}': {}", placeholder, *resolved).map_err(|e| vec![e.into()])?;
+              }
             }
             DependencyResolution::None
             | DependencyResolution::Excluded
@@ -612,13 +744,46 @@ impl Packager for JsPackager {
         let bytes = asset.content.read()?;
         write!(
           res,
-          "{}:[function(require,module,exports,__globalThis) {{\n{}\n}},{}]",
+          "{}:[function(require,module,exports) {{\n{}\n}},{}]",
           asset_index,
           String::from_utf8_lossy(&bytes),
           deps
         )
         .map_err(|e| vec![e.into()])?;
       }
+    }
+
+    for asset_index in non_js_assets {
+      if !first {
+        res.push(',');
+      }
+      first = false;
+
+      write!(
+        res,
+        "{}:[function(require,module,exports) {{\n",
+        asset_index,
+      )
+      .map_err(|e| vec![e.into()])?;
+
+      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[asset_index as usize] {
+        for exp in &asset.symbols.exports {
+          if !exp.requested {
+            continue;
+          }
+
+          if let Some(value) = resolve_css_module_export(
+            &bundle_graph.asset_graph.assets,
+            asset_index as usize,
+            exp.exported.as_str(),
+          ) {
+            write!(res, "exports.{} = '{}';\n", exp.exported.as_str(), value)
+              .map_err(|e| vec![e.into()])?;
+          }
+        }
+      }
+
+      write!(res, "\n}},{{}}]").map_err(|e| vec![e.into()])?;
     }
 
     for (bundle_index, ty) in resolved_bundles {

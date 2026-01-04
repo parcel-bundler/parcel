@@ -71,6 +71,51 @@ function parcelRequire(name, jumped) {
     if (res === false) {
       return {};
     }
+
+    if (Array.isArray(res)) {
+      var m = {__esModule: true};
+      res.forEach(function (v) {
+        var key = v[0];
+        var id = v[1];
+        var exp = v[2] || v[0];
+        var x = parcelRequire(id);
+        if (key === '*') {
+          Object.keys(x).forEach(function (key) {
+            if (
+              key === 'default' ||
+              key === '__esModule' ||
+              Object.prototype.hasOwnProperty.call(m, key)
+            ) {
+              return;
+            }
+
+            Object.defineProperty(m, key, {
+              enumerable: true,
+              get: function () {
+                return x[key];
+              },
+            });
+          });
+        } else if (exp === '*') {
+          Object.defineProperty(m, key, {
+            enumerable: true,
+            value: x,
+          });
+        } else {
+          Object.defineProperty(m, key, {
+            enumerable: true,
+            get: function () {
+              if (exp === 'default') {
+                return x.__esModule ? x.default : x;
+              }
+              return x[exp];
+            },
+          });
+        }
+      });
+      return m;
+    }
+
     return parcelRequire(res);
   }
 

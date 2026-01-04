@@ -44,8 +44,7 @@ impl Packager for RawPackager {
 
     Ok(
       bundle_graph.asset_graph.assets[bundle.assets[0]]
-        .as_ref()
-        .unwrap()
+        .expect_asset()
         .content
         .clone(),
     )
