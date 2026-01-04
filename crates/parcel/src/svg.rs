@@ -5,7 +5,8 @@ use std::{
 
 use parcel_core::{
   Asset, AssetType, BufferContent, Bundle, BundleBehavior, BundleGraph, Content,
-  DependencyResolution, Diagnostic, OutputFormat, Packager, ParcelOptions, Transformer,
+  DependencyResolution, Diagnostic, DiagnosticList, OutputFormat, Packager, ParcelOptions,
+  Transformer,
 };
 use parcel_html::{
   BundleReference, InlineBundle, PackageOptions, SerializableTendril, TransformOptions,
@@ -15,11 +16,7 @@ use parcel_html::{
 pub struct SvgTransformer {}
 
 impl Transformer for SvgTransformer {
-  fn transform(
-    &self,
-    mut asset: Asset,
-    _options: &ParcelOptions,
-  ) -> Result<Asset, Vec<Diagnostic>> {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_svg(TransformOptions {
       code,
@@ -44,8 +41,8 @@ impl Packager for SvgPackager {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, Vec<Diagnostic>>,
-  ) -> Result<std::sync::Arc<dyn Content>, Vec<Diagnostic>> {
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
     let asset = bundle_graph.asset_graph.assets[bundle.assets[0]].expect_asset();

@@ -2,19 +2,19 @@ use std::sync::Arc;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, Content,
-  DependencyFlags, DependencyResolution, Diagnostic, ParcelOptions, SourceLocation,
+  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, ParcelOptions, SourceLocation,
   config::{JsPlugin, ParcelConfig, PipelineMap, Plugin},
   content::FileContent,
   resolver::resolve,
 };
 
 pub trait Transformer: Send + Sync {
-  fn transform(&self, asset: Asset, options: &ParcelOptions) -> Result<Asset, Vec<Diagnostic>>;
+  fn transform(&self, asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList>;
 }
 
 impl Transformer for JsPlugin {
-  fn transform(&self, _asset: Asset, _options: &ParcelOptions) -> Result<Asset, Vec<Diagnostic>> {
-    Err(vec![])
+  fn transform(&self, _asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+    Err(DiagnosticList(vec![]))
   }
 }
 
@@ -31,7 +31,7 @@ pub struct TransformResult {
 }
 
 impl TransformRequest {
-  pub fn run(&self) -> Result<TransformResult, Vec<Diagnostic>> {
+  pub fn run(&self) -> Result<TransformResult, DiagnosticList> {
     let req = &self.req;
     let path = req.url.with_extension(req.ty.extension()).unwrap();
     let transformer_pipeline = self
@@ -100,7 +100,7 @@ pub fn transform(
   pipeline: Vec<Plugin<dyn Transformer>>,
   transformers: &PipelineMap<dyn Transformer>,
   options: &ParcelOptions,
-) -> Result<Asset, Vec<Diagnostic>> {
+) -> Result<Asset, DiagnosticList> {
   let mut input = asset;
 
   for plugin in &pipeline {

@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-  Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, Diagnostic, Entry,
+  Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
   ParcelOptions, SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
@@ -38,7 +38,7 @@ pub fn build_asset_graph(
   mut entries: Vec<Entry>,
   config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
-) -> Result<AssetGraph, Vec<Diagnostic>> {
+) -> Result<AssetGraph, DiagnosticList> {
   let mut queue = TransformQueue::new(config, options);
 
   let mut assets: Vec<AssetNode> = Vec::new();

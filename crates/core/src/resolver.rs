@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-  CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
+  CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
   config::{JsPlugin, Plugin},
 };
 
@@ -11,7 +11,7 @@ pub trait Resolver: Send + Sync {
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
-  ) -> Result<DependencyResolution, Vec<Diagnostic>>;
+  ) -> Result<DependencyResolution, DiagnosticList>;
 }
 
 impl Resolver for JsPlugin {
@@ -20,8 +20,8 @@ impl Resolver for JsPlugin {
     _dep: &Dependency,
     _specifier: &str,
     _pipeline: Option<&str>,
-  ) -> Result<DependencyResolution, Vec<Diagnostic>> {
-    Err(vec![])
+  ) -> Result<DependencyResolution, DiagnosticList> {
+    Err(DiagnosticList(vec![]))
   }
 }
 
@@ -29,7 +29,7 @@ pub fn resolve(
   dep: &Dependency,
   resolvers: &Vec<Plugin<dyn Resolver>>,
   named_pipelines: &Vec<&str>,
-) -> Result<DependencyResolution, Vec<Diagnostic>> {
+) -> Result<DependencyResolution, DiagnosticList> {
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
     // and include e.g. `C:\` on Windows, conflicting with pipelines.
@@ -52,7 +52,7 @@ pub fn resolve(
         _ => return Ok(res),
       },
       Err(err) => {
-        diagnostics.extend(err);
+        diagnostics.extend(err.0);
         break;
       }
     }
@@ -84,7 +84,7 @@ pub fn resolve(
     },
   );
 
-  Err(diagnostics)
+  Err(DiagnosticList(diagnostics))
 }
 
 fn parse_pipeline(input: &str) -> Result<(&str, &str), ()> {
@@ -129,7 +129,7 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
-    ) -> Result<DependencyResolution, Vec<Diagnostic>> {
+    ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           url: SourceUrl::parse("one.js").unwrap(),
@@ -152,7 +152,7 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
-    ) -> Result<DependencyResolution, Vec<Diagnostic>> {
+    ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           url: SourceUrl::parse("two.js").unwrap(),

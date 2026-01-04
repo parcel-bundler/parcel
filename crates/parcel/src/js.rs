@@ -9,11 +9,11 @@ use indexmap::IndexSet;
 use lightningcss::css_modules::CssModuleReference;
 use parcel_core::{
   Asset, AssetFlags, AssetNode, AssetType, BufferContent, BuildMode, Bundle, BundleBehavior,
-  BundleGraph, Content, Dependency, DependencyFlags, DependencyResolution, Diagnostic, Environment,
-  EnvironmentContext, EnvironmentFeature, EnvironmentFlags, FileSystem, ImportedSymbol,
-  IncludeNodeModules, IndirectSymbol, LocalSymbol, Location, LogLevel, OutputFormat, Packager,
-  ParcelOptions, Priority, SourceLocation, SourceType, SourceUrl, SpecifierType, StarSymbol,
-  SymbolName, SymbolResolution, Transformer,
+  BundleGraph, Content, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
+  DiagnosticList, Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags,
+  FileSystem, ImportedSymbol, IncludeNodeModules, IndirectSymbol, LocalSymbol, Location, LogLevel,
+  OutputFormat, Packager, ParcelOptions, Priority, SourceLocation, SourceType, SourceUrl,
+  SpecifierType, StarSymbol, SymbolName, SymbolResolution, Transformer,
 };
 use parcel_js_swc_core::{Config, DependencyKind, EnvContext, Type, Version, Versions, transform};
 use parcel_resolver::{AliasValue, BrowserField, Invalidations, Specifier};
@@ -45,9 +45,9 @@ impl Content for JsContent {
 pub struct JsTransformer {}
 
 impl Transformer for JsTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, Vec<Diagnostic>> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options);
-    let res = transform(config, None).map_err(|e| vec![e.into()])?;
+    let res = transform(config, None)?;
 
     asset.content = Arc::new(JsContent {
       code: res.code,
@@ -601,8 +601,8 @@ impl Packager for JsPackager {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, Vec<Diagnostic>>,
-  ) -> Result<Arc<dyn Content>, Vec<Diagnostic>> {
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!("runtime.js");
 
     let mut res = String::new();
@@ -610,7 +610,7 @@ impl Packager for JsPackager {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
         if let Some(content) = asset.content.downcast_ref::<JsContent>() {
           if let Some(shebang) = &content.shebang {
-            write!(res, "#!{}\n", shebang).map_err(|e| vec![e.into()])?;
+            write!(res, "#!{}\n", shebang)?;
           }
         }
       }
@@ -627,11 +627,10 @@ impl Packager for JsPackager {
         res,
         "import './{}';\n",
         name.file_name().unwrap().to_str().unwrap()
-      )
-      .map_err(|e| vec![e.into()])?;
+      )?;
     }
 
-    write!(res, "var modules = {{\n").map_err(|e| vec![e.into()])?;
+    write!(res, "var modules = {{\n")?;
 
     let mut first: bool = true;
     let mut resolved_bundles = IndexSet::new();
@@ -662,11 +661,11 @@ impl Packager for JsPackager {
               {
                 if resolved_asset.ty != AssetType::Js {
                   if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
-                    write!(deps, "'{}': {}", placeholder, *resolved).map_err(|e| vec![e.into()])?;
+                    write!(deps, "'{}': {}", placeholder, *resolved)?;
                     non_js_assets.insert(*resolved);
                     continue;
                   }
-                  write!(deps, "'{}': false", placeholder).map_err(|e| vec![e.into()])?;
+                  write!(deps, "'{}': false", placeholder)?;
                   continue;
                 }
               }
@@ -703,18 +702,18 @@ impl Packager for JsPackager {
 
               if !resolutions.is_empty() {
                 let s = serde_json::to_string(&resolutions).unwrap();
-                write!(deps, "'{}': {}", placeholder, s).map_err(|e| vec![e.into()])?;
+                write!(deps, "'{}': {}", placeholder, s)?;
               } else {
-                write!(deps, "'{}': {}", placeholder, *resolved).map_err(|e| vec![e.into()])?;
+                write!(deps, "'{}': {}", placeholder, *resolved)?;
               }
             }
             DependencyResolution::None
             | DependencyResolution::Excluded
             | DependencyResolution::Deferred(_) => {
-              write!(deps, "'{}': {}", placeholder, "false").map_err(|e| vec![e.into()])?;
+              write!(deps, "'{}': {}", placeholder, "false")?;
             }
             DependencyResolution::External => {
-              write!(deps, "'{}': '{}'", placeholder, dep.specifier).map_err(|e| vec![e.into()])?;
+              write!(deps, "'{}': '{}'", placeholder, dep.specifier)?;
             }
             DependencyResolution::Bundle(bundle_index) => {
               let bundle = &bundle_graph.bundles[*bundle_index as usize];
@@ -729,7 +728,7 @@ impl Packager for JsPackager {
               };
 
               resolved_bundles.insert((*bundle_index, resolution_type));
-              write!(deps, "'{}': 'b{}'", placeholder, bundle_index).map_err(|e| vec![e.into()])?;
+              write!(deps, "'{}': 'b{}'", placeholder, bundle_index)?;
             }
           }
         }
@@ -748,8 +747,7 @@ impl Packager for JsPackager {
           asset_index,
           String::from_utf8_lossy(&bytes),
           deps
-        )
-        .map_err(|e| vec![e.into()])?;
+        )?;
       }
     }
 
@@ -763,8 +761,7 @@ impl Packager for JsPackager {
         res,
         "{}:[function(require,module,exports) {{\n",
         asset_index,
-      )
-      .map_err(|e| vec![e.into()])?;
+      )?;
 
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[asset_index as usize] {
         for exp in &asset.symbols.exports {
@@ -777,13 +774,12 @@ impl Packager for JsPackager {
             asset_index as usize,
             exp.exported.as_str(),
           ) {
-            write!(res, "exports.{} = '{}';\n", exp.exported.as_str(), value)
-              .map_err(|e| vec![e.into()])?;
+            write!(res, "exports.{} = '{}';\n", exp.exported.as_str(), value)?;
           }
         }
       }
 
-      write!(res, "\n}},{{}}]").map_err(|e| vec![e.into()])?;
+      write!(res, "\n}},{{}}]")?;
     }
 
     for (bundle_index, ty) in resolved_bundles {
@@ -792,66 +788,61 @@ impl Packager for JsPackager {
         res,
         ",'b{}':[function(require,module){{\nmodule.exports=",
         bundle_index
-      )
-      .map_err(|e| vec![e.into()])?;
+      )?;
 
       match ty {
         ResolutionType::Async => {
           // TODO
           if !bundle.referenced_bundles.is_empty() {
-            write!(res, "Promise.all([").map_err(|e| vec![e.into()])?;
+            write!(res, "Promise.all([")?;
             for referenced_index in &bundle.referenced_bundles {
-              load_bundle(&bundle_graph.bundles[*referenced_index], &mut res)
-                .map_err(|e| vec![e.into()])?;
+              load_bundle(&bundle_graph.bundles[*referenced_index], &mut res)?;
               res.push_str(", ");
             }
 
-            load_bundle(bundle, &mut res).map_err(|e| vec![e.into()])?;
+            load_bundle(bundle, &mut res)?;
             write!(
               res,
               "]).then(() => require({}))",
               bundle.main_entry_asset.unwrap()
-            )
-            .map_err(|e| vec![e.into()])?;
+            )?;
           } else {
-            load_bundle(bundle, &mut res).map_err(|e| vec![e.into()])?;
+            load_bundle(bundle, &mut res)?;
             write!(
               res,
               ".then(() => require({}))",
               bundle.main_entry_asset.unwrap()
-            )
-            .map_err(|e| vec![e.into()])?;
+            )?;
           }
         }
         ResolutionType::Inline => {
-          // TODO
-          write!(res, "'inline'").map_err(|e| vec![e.into()])?;
+          let content = get_inline_bundle_content(bundle_index as usize)?.read()?;
+          write!(res, "{:?}", String::from_utf8_lossy(&content))?;
         }
         ResolutionType::Url => {
-          write!(res, "{:?}", bundle.name.as_ref().unwrap()).map_err(|e| vec![e.into()])?;
+          write!(res, "{:?}", bundle.name.as_ref().unwrap())?;
         }
       }
 
-      write!(res, ";\n}},{{}}]").map_err(|e| vec![e.into()])?;
+      write!(res, ";\n}},{{}}]")?;
     }
 
-    write!(res, "}};\n\n").map_err(|e| vec![e.into()])?;
+    write!(res, "}};\n\n")?;
     write!(
       res,
       r#"var parcelRequireName = 'parcelRequire';
 var externals = {{}};
 var entries = ["#,
-    )
-    .map_err(|e| vec![e.into()])?;
+    )?;
     for entry in &bundle.entry_assets {
-      write!(res, "{}", *entry).map_err(|e| vec![e.into()])?;
+      write!(res, "{}", *entry)?;
     }
 
-    write!(res, "];\nvar mainEntry = ").map_err(|e| vec![e.into()])?;
+    write!(res, "];\nvar mainEntry = ")?;
     if let Some(main) = &bundle.main_entry_asset {
-      write!(res, "{};\n", *main).map_err(|e| vec![e.into()])?;
+      write!(res, "{};\n", *main)?;
     } else {
-      write!(res, "null;\n").map_err(|e| vec![e.into()])?;
+      write!(res, "null;\n")?;
     }
 
     res.push_str(RUNTIME);

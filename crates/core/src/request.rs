@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-  AssetRequest, Diagnostic, ParcelConfig, ParcelOptions,
+  AssetRequest, DiagnosticList, ParcelConfig, ParcelOptions,
   transformer::{TransformRequest, TransformResult},
 };
 
@@ -16,7 +16,7 @@ pub enum Request {
 }
 
 pub enum RequestResult {
-  Transform(Result<TransformResult, Vec<Diagnostic>>),
+  Transform(Result<TransformResult, DiagnosticList>),
 }
 
 pub struct TransformQueue {

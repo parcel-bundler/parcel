@@ -19,9 +19,9 @@ use lightningcss::{
 };
 use parcel_core::{
   Asset, AssetNode, BufferContent, Bundle, BundleBehavior, BundleGraph, Content, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, Environment, ImportedSymbol, LocalSymbol,
-  Location, Packager, ParcelOptions, Priority, SourceLocation, SourceUrl, SpecifierType,
-  SymbolName, SymbolResolution, Transformer, Version,
+  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, Environment, ImportedSymbol,
+  LocalSymbol, Location, Packager, ParcelOptions, Priority, SourceLocation, SourceUrl,
+  SpecifierType, SymbolName, SymbolResolution, Transformer, Version,
 };
 
 #[derive(Debug)]
@@ -91,15 +91,11 @@ pub struct CssTransformer {
 }
 
 impl Transformer for CssTransformer {
-  fn transform(
-    &self,
-    mut asset: Asset,
-    _options: &ParcelOptions,
-  ) -> Result<Asset, Vec<Diagnostic>> {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     // TODO: normalize environment
 
     let code = asset.content.read()?;
-    let code = std::str::from_utf8(&code).map_err(|e| vec![e.into()])?;
+    let code = std::str::from_utf8(&code)?;
     let mut stylesheet = StyleSheet::parse(
       code,
       ParserOptions {
@@ -348,8 +344,8 @@ impl Packager for CssPackager {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, Vec<Diagnostic>>,
-  ) -> Result<Arc<dyn Content>, Vec<Diagnostic>> {
+    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let mut asset_index_to_stylesheet_index: HashMap<u32, usize> = HashMap::new();
     let mut stylesheets = Vec::new();
     for asset_index in &bundle.assets {
@@ -901,13 +897,9 @@ impl Content for StyleAttrContent {
 pub struct StyleAttrTransformer {}
 
 impl Transformer for StyleAttrTransformer {
-  fn transform(
-    &self,
-    mut asset: Asset,
-    _options: &ParcelOptions,
-  ) -> Result<Asset, Vec<Diagnostic>> {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
-    let code = std::str::from_utf8(&code).map_err(|e| vec![e.into()])?;
+    let code = std::str::from_utf8(&code)?;
     let mut attr = StyleAttribute::parse(
       code,
       ParserOptions {
@@ -962,8 +954,8 @@ impl Packager for StyleAttrPackager {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, Vec<Diagnostic>>,
-  ) -> Result<Arc<dyn Content>, Vec<Diagnostic>> {
+    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
     let asset = bundle_graph.asset_graph.assets[bundle.assets[0]].expect_asset();

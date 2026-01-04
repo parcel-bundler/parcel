@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  AssetRequest, AssetType, Dependency, DependencyResolution, Diagnostic, Resolver, SourceUrl,
+  AssetRequest, AssetType, Dependency, DependencyResolution, DiagnosticList, Resolver, SourceUrl,
   SpecifierType,
 };
 use parcel_resolver::{OsFileSystem, Resolution, ResolutionAndQuery};
@@ -28,7 +28,7 @@ impl Resolver for DefaultResolver {
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
-  ) -> Result<DependencyResolution, Vec<Diagnostic>> {
+  ) -> Result<DependencyResolution, DiagnosticList> {
     let resolve_from = dep.resolve_from.as_ref().unwrap();
     let mut res = self.resolver.resolve(
       specifier,
@@ -83,7 +83,7 @@ impl Resolver for DefaultResolver {
         }
       },
       Err(e) => {
-        Err(vec![]) // TODO
+        Err(DiagnosticList(vec![])) // TODO
       }
     }
   }

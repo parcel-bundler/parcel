@@ -6,7 +6,7 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-use crate::{Asset, AssetType, BufferContent, Transformer};
+use crate::{Asset, AssetType, BufferContent, DiagnosticList, Transformer};
 
 #[repr(C)]
 pub struct Buffer {
@@ -65,7 +65,7 @@ impl Transformer for CPlugin {
     &self,
     mut asset: Asset,
     _options: &crate::ParcelOptions,
-  ) -> Result<Asset, Vec<crate::Diagnostic>> {
+  ) -> Result<Asset, DiagnosticList> {
     let transform: Symbol<extern "C" fn(*mut Asset)> = unsafe {
       self
         .lib

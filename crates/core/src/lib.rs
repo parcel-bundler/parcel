@@ -50,7 +50,7 @@ pub fn build(
   entries: Vec<String>,
   config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
-) -> Result<(), Vec<Diagnostic>> {
+) -> Result<(), DiagnosticList> {
   // Resolve entries.
   let entries = resolve_entries(entries, &*options);
 
@@ -66,9 +66,7 @@ pub fn build(
     // TODO: replace hash references
 
     let name = bundle_graph.bundles[i].name.as_ref().unwrap();
-    content
-      .write(&*options.input_fs, name)
-      .map_err(|e| vec![e.into()])?;
+    content.write(&*options.input_fs, name)?;
   }
 
   Ok(())
@@ -78,7 +76,7 @@ fn get_bundle_content(
   config: &ParcelConfig,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
-) -> Result<Arc<dyn Content>, Vec<Diagnostic>> {
+) -> Result<Arc<dyn Content>, DiagnosticList> {
   let raw = RawPackager {};
   let packager = config
     .packagers

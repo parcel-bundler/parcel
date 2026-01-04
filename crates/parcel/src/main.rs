@@ -2,9 +2,8 @@ use std::{collections::HashMap, hash::Hash, path::Path, sync::Arc};
 
 use indexmap::indexmap;
 use parcel_core::{
-  AssetGraph, AssetNode, BundleFlags, CPlugin, DefaultBundler, Namer, Packager, ParcelConfig,
-  ParcelOptions, PipelineMap, PipelineNode, Plugin, SourceUrl, Transformer,
-  /*WasmPlugin,*/ build,
+  AssetGraph, AssetNode, BundleFlags, CPlugin, DefaultBundler, DiagnosticList, Namer, Packager,
+  ParcelConfig, ParcelOptions, PipelineMap, PipelineNode, Plugin, SourceUrl, Transformer, build,
 };
 use parcel_image::ImageTransformer;
 use parcel_resolver::OsFileSystem;
@@ -163,7 +162,7 @@ impl Namer for DefaultNamer {
     &self,
     asset_graph: &AssetGraph,
     bundle: &parcel_core::Bundle,
-  ) -> Result<Option<String>, Vec<parcel_core::Diagnostic>> {
+  ) -> Result<Option<String>, DiagnosticList> {
     if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
       if let Some(entry) = bundle.main_entry_asset {
         if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {

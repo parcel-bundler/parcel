@@ -4,7 +4,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   AssetType, Bundle, BundleBehavior, BundleFlags, DependencyFlags, DependencyResolution,
-  Diagnostic, EnvironmentContext, Priority,
+  DiagnosticList, EnvironmentContext, Priority,
   asset_graph::{AssetGraph, AssetNode},
   bundle_graph::BundleGraph,
   config::{JsPlugin, ParcelConfig},
@@ -12,19 +12,19 @@ use crate::{
 };
 
 pub trait Bundler: Send + Sync {
-  fn bundle(&self, asset_graph: AssetGraph) -> Result<BundleGraph, Vec<Diagnostic>>;
+  fn bundle(&self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList>;
 }
 
 impl Bundler for JsPlugin {
-  fn bundle(&self, _asset_graph: AssetGraph) -> Result<BundleGraph, Vec<Diagnostic>> {
-    Err(vec![])
+  fn bundle(&self, _asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+    Err(DiagnosticList(vec![]))
   }
 }
 
 pub struct DefaultBundler {}
 
 impl Bundler for DefaultBundler {
-  fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, Vec<Diagnostic>> {
+  fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
     let mut bundles = Vec::<Bundle>::new();
 
     // Step 1: Traverse the asset graph and find bundle roots.
@@ -198,7 +198,7 @@ impl Bundler for DefaultBundler {
 pub fn bundle(
   asset_graph: AssetGraph,
   config: &ParcelConfig,
-) -> Result<BundleGraph, Vec<Diagnostic>> {
+) -> Result<BundleGraph, DiagnosticList> {
   let mut bundle_graph = config.bundler.plugin.bundle(asset_graph)?;
 
   for bundle in &mut bundle_graph.bundles {

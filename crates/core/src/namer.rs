@@ -1,5 +1,5 @@
 use crate::{
-  Bundle, Diagnostic,
+  Bundle, Diagnostic, DiagnosticList,
   asset_graph::AssetGraph,
   config::{JsPlugin, ParcelConfig},
 };
@@ -9,7 +9,7 @@ pub trait Namer: Send + Sync {
     &self,
     asset_graph: &AssetGraph,
     bundle: &Bundle,
-  ) -> Result<Option<String>, Vec<Diagnostic>>;
+  ) -> Result<Option<String>, DiagnosticList>;
 }
 
 impl Namer for JsPlugin {
@@ -17,8 +17,8 @@ impl Namer for JsPlugin {
     &self,
     _asset_graph: &AssetGraph,
     _bundle: &Bundle,
-  ) -> Result<Option<String>, Vec<Diagnostic>> {
-    Err(vec![])
+  ) -> Result<Option<String>, DiagnosticList> {
+    Err(DiagnosticList(vec![]))
   }
 }
 
@@ -26,19 +26,22 @@ pub fn name(
   asset_graph: &AssetGraph,
   bundle: &Bundle,
   config: &ParcelConfig,
-) -> Result<String, Vec<Diagnostic>> {
+) -> Result<String, DiagnosticList> {
   for namer in &config.namers {
     if let Some(name) = namer.plugin.name(asset_graph, bundle)? {
       return Ok(name);
     }
   }
 
-  Err(vec![Diagnostic {
-    message: "Could not name bundle".into(),
-    origin: Some("@parcel/core".into()),
-    code_frames: vec![],
-    hints: vec![],
-    severity: crate::DiagnosticSeverity::Error,
-    documentation_url: None,
-  }])
+  Err(
+    Diagnostic {
+      message: "Could not name bundle".into(),
+      origin: Some("@parcel/core".into()),
+      code_frames: vec![],
+      hints: vec![],
+      severity: crate::DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+    .into(),
+  )
 }

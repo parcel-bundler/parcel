@@ -10,7 +10,7 @@ mod jpeg;
 pub struct ImageTransformer {}
 
 impl Transformer for ImageTransformer {
-  fn transform(&self, mut asset: Asset, _: &ParcelOptions) -> Result<Asset, Vec<Diagnostic>> {
+  fn transform(&self, mut asset: Asset, _: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     asset.bundle_behavior = BundleBehavior::Isolated;
 
     let mut width: Option<u32> = None;

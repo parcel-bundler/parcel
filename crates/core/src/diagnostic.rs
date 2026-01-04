@@ -152,6 +152,16 @@ impl From<Diagnostic> for Vec<Diagnostic> {
   }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(transparent)]
+pub struct DiagnosticList(pub Vec<Diagnostic>);
+
+impl<T: Into<Diagnostic>> From<T> for DiagnosticList {
+  fn from(value: T) -> Self {
+    DiagnosticList(vec![value.into()])
+  }
+}
+
 // pub(crate) struct EscapeMarkdown<'a, T>(pub &'a T);
 
 // fn escape_markdown(s: &str) -> Cow<'_, str> {
