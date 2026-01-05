@@ -19,11 +19,7 @@ use mdxjs::{
 use parcel_macros::{Evaluator, JsValue};
 use rustc_hash::FxHashSet;
 use swc_core::{
-  common::{
-    DUMMY_SP, SourceMap,
-    comments::{Comments, SingleThreadedComments},
-    sync::Lrc,
-  },
+  common::{DUMMY_SP, SourceMap, comments::Comments, sync::Lrc},
   ecma::{
     ast::{
       CallExpr, Callee, Decl, ExportDefaultExpr, ExportSpecifier, Expr, ExprOrSpread, Ident,
@@ -37,10 +33,11 @@ use swc_core::{
     visit::{VisitMut, VisitMutWith},
   },
 };
+use swc_node_comments::SwcComments;
 
 pub struct MdxResult {
   pub module: Module,
-  pub comments: SingleThreadedComments,
+  pub comments: SwcComments,
   pub toc: Vec<TocNode>,
   pub exports: HashMap<JsWord, JsValue>,
   pub assets: Vec<MdxAsset>,
@@ -92,7 +89,7 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
   mdx_plugin_recma_document(&mut program, &options, Some(&location))?;
   mdx_plugin_recma_jsx_rewrite(&mut program, &options, Some(&location), &explicit_jsxs)?;
 
-  let comments = SingleThreadedComments::default();
+  let comments = SwcComments::default();
   for c in program.comments {
     comments.add_leading(c.span.lo, c.clone());
   }

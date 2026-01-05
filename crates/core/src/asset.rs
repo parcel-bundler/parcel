@@ -16,7 +16,7 @@ pub struct Asset {
   pub ty: AssetType,
   pub content: Arc<dyn Content>,
   pub env: Arc<Environment>,
-  pub pipeline: Option<String>,
+  pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
   pub unique_key: Option<String>,
@@ -104,7 +104,7 @@ pub enum AssetType {
   Bmp,
   Ico,
   Avif,
-  Other(Box<str>),
+  Other(hstr::Atom),
 }
 
 impl Serialize for AssetType {
@@ -176,7 +176,7 @@ impl AssetType {
       "bmp" => AssetType::Bmp,
       "ico" => AssetType::Ico,
       "avif" => AssetType::Avif,
-      ext => AssetType::Other(ext.to_owned().into_boxed_str()),
+      ext => AssetType::Other(ext.into()),
     }
   }
 
@@ -230,9 +230,8 @@ impl AssetType {
         mime
           .split('/')
           .nth(1)
-          .map(|m| m.to_owned())
-          .unwrap_or_else(|| mime.to_owned())
-          .into_boxed_str(),
+          .map(|m| m.into())
+          .unwrap_or_else(|| mime.into()),
       ),
     }
   }

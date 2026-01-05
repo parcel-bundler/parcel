@@ -10,9 +10,11 @@ crate-type = ["rlib"]
 [dependencies]
 swc_core = { version = "21", features = [
   "common",
+  "common_concurrent",
   "common_sourcemap",
   "ecma_ast",
   "ecma_codegen",
+  "ecma_minifier",
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",
@@ -25,6 +27,7 @@ swc_core = { version = "21", features = [
   "ecma_visit",
   "stacker"
 ] }
+swc_node_comments = "8.0.0"
 indoc = "1.0.3"
 serde = "1.0.123"
 serde_bytes = "0.11.5"

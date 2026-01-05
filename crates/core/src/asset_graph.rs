@@ -290,6 +290,10 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
 
   asset.symbols.used_namespace = true;
 
+  for sym in &mut asset.symbols.exports {
+    sym.requested = true;
+  }
+
   for i in 0..asset.symbols.indirect.len() {
     let AssetNode::Asset(asset) = &mut assets[asset_index as usize] else {
       continue;

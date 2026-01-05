@@ -15,30 +15,30 @@ use parcel_core::{
   OutputFormat, Packager, ParcelOptions, Priority, SourceLocation, SourceType, SourceUrl,
   SpecifierType, StarSymbol, SymbolName, SymbolResolution, Transformer,
 };
-use parcel_js_swc_core::{Config, DependencyKind, EnvContext, Type, Version, Versions, transform};
+use parcel_js_swc_core::{
+  Ast, Config, DependencyKind, EnvContext, Type, Version, Versions, transform, transform_to_ast,
+  tree_shake::tree_shake,
+};
 use parcel_resolver::{AliasValue, BrowserField, Invalidations, Specifier};
 
 use crate::css::{CssContent, resolve_css_module_export};
 
-#[derive(Debug)]
 struct JsContent {
-  code: Vec<u8>,
-  map: Option<String>,
+  ast: Ast,
   shebang: Option<String>,
   directives: Vec<String>,
 }
 
+impl std::fmt::Debug for JsContent {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "JsContent")
+  }
+}
+
 impl Content for JsContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
-    Ok(self.code.clone())
-  }
-
-  fn take(&mut self) -> Result<Vec<u8>, Diagnostic> {
-    Ok(std::mem::take(&mut self.code))
-  }
-
-  fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
-    Ok(fs.write(path, &self.code)?)
+    let (code, _) = self.ast.to_code(false, false)?;
+    Ok(code)
   }
 }
 
@@ -47,11 +47,10 @@ pub struct JsTransformer {}
 impl Transformer for JsTransformer {
   fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options);
-    let res = transform(config, None)?;
+    let res = transform_to_ast(config, None)?;
 
     asset.content = Arc::new(JsContent {
-      code: res.code,
-      map: res.map,
+      ast: res.ast,
       shebang: res.shebang,
       directives: res.directives.into_iter().map(|d| d.to_string()).collect(),
     });
@@ -218,6 +217,7 @@ impl Transformer for JsTransformer {
     }
 
     if res.needs_esm_helpers {
+      let index = asset.dependencies.len() as u32;
       asset.dependencies.push(Dependency {
         specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
         specifier_type: SpecifierType::Esm,
@@ -233,7 +233,13 @@ impl Transformer for JsTransformer {
         resolve_from: Some(options.project_root.clone()), // TODO
         range: None,
         resolution: DependencyResolution::None,
-      })
+      });
+
+      asset.symbols.imports.push(ImportedSymbol {
+        dep_index: index,
+        symbol: SymbolName::Namespace,
+        resolved: SymbolResolution::None,
+      });
     }
 
     if let Some(symbols) = res.symbol_result {
@@ -740,12 +746,34 @@ impl Packager for JsPackager {
         }
         first = false;
 
-        let bytes = asset.content.read()?;
+        let code = if bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+          && let Some(content) = asset.content.downcast_ref::<JsContent>()
+        {
+          let mut ast = content.ast.clone();
+          let used_symbols = asset
+            .symbols
+            .exports
+            .iter()
+            .filter_map(|e| {
+              if e.requested {
+                Some(e.exported.as_str().into())
+              } else {
+                None
+              }
+            })
+            .collect();
+          tree_shake(&mut ast, used_symbols);
+          let (code, map) = ast.to_code(false, true)?;
+          code
+        } else {
+          asset.content.read()?
+        };
+
         write!(
           res,
           "{}:[function(require,module,exports) {{\n{}\n}},{}]",
           asset_index,
-          String::from_utf8_lossy(&bytes),
+          String::from_utf8_lossy(&code),
           deps
         )?;
       }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, Content,
-  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, ParcelOptions, SourceLocation,
+  DependencyFlags, DependencyResolution, DiagnosticList, ParcelOptions, SourceLocation,
   config::{JsPlugin, ParcelConfig, PipelineMap, Plugin},
   content::FileContent,
   resolver::resolve,

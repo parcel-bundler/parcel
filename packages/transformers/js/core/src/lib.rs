@@ -11,6 +11,7 @@ mod node_replacer;
 mod react_lazy;
 #[cfg(test)]
 mod test_utils;
+pub mod tree_shake;
 mod typeof_replacer;
 mod utils;
 
@@ -18,6 +19,7 @@ use std::{
   collections::{HashMap, HashSet},
   path::{Path, PathBuf},
   str::FromStr,
+  sync::Arc,
 };
 
 pub use collect::CollectImportedSymbol;
@@ -43,8 +45,8 @@ use serde::{Deserialize, Serialize};
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
-    FileName, Globals, Mark, SourceMap, comments::SingleThreadedComments, errors::Handler,
-    pass::Optional, source_map::SourceMapGenConfig, sync::Lrc,
+    FileName, Globals, Mark, SourceMap, errors::Handler, pass::Optional,
+    source_map::SourceMapGenConfig, sync::Lrc,
   },
   ecma::{
     ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
@@ -68,6 +70,7 @@ use swc_core::{
     visit::{FoldWith, VisitMutWith, VisitWith},
   },
 };
+use swc_node_comments::SwcComments;
 use typeof_replacer::*;
 use utils::{
   CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer, error_buffer_to_diagnostics,
@@ -223,6 +226,53 @@ pub struct TransformResult {
   pub mdx_assets: Vec<MdxAsset>,
 }
 
+#[derive(Clone)]
+pub struct Ast {
+  pub program: Module,
+  pub globals: Arc<Globals>,
+  pub source_map: Lrc<SourceMap>,
+  pub comments: SwcComments,
+  pub global_mark: Mark,
+  pub unresolved_mark: Mark,
+}
+
+impl Default for Ast {
+  fn default() -> Self {
+    let globals = Globals::new();
+    let (global_mark, unresolved_mark) =
+      swc_core::common::GLOBALS.set(&globals, || (Mark::new(), Mark::new()));
+
+    Ast {
+      program: Default::default(),
+      globals: Arc::new(globals),
+      source_map: Default::default(),
+      comments: Default::default(),
+      global_mark,
+      unresolved_mark,
+    }
+  }
+}
+
+#[derive(Default)]
+#[non_exhaustive]
+pub struct TransformAstResult {
+  pub ast: Ast,
+  pub shebang: Option<String>,
+  pub dependencies: Vec<DependencyDescriptor>,
+  pub hoist_result: Option<HoistResult>,
+  pub symbol_result: Option<CollectResult>,
+  pub diagnostics: Option<Vec<Diagnostic>>,
+  pub needs_esm_helpers: bool,
+  pub used_env: HashSet<JsWord>,
+  pub has_node_replacements: bool,
+  pub is_constant_module: bool,
+  pub directives: Vec<JsWord>,
+  pub helpers: Helpers,
+  pub mdx_toc: Vec<TocNode>,
+  pub mdx_exports: HashMap<JsWord, JsValue>,
+  pub mdx_assets: Vec<MdxAsset>,
+}
+
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
   if let Some(targets) = targets {
     macro_rules! set_target {
@@ -253,15 +303,73 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
   None
 }
 
+impl Ast {
+  pub fn to_code(
+    &self,
+    source_maps: bool,
+    minify: bool,
+  ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
+    swc_core::common::GLOBALS.set(&*self.globals, || {
+      let mut map_buf = Vec::new();
+      let (buf, src_map_buf) = emit(
+        self.source_map.clone(),
+        &self.comments,
+        &self.program,
+        source_maps,
+        minify,
+      )?;
+      let map = if source_maps
+        && self
+          .source_map
+          .build_source_map_with_config(&src_map_buf, None, SourceMapConfig)
+          .to_writer(&mut map_buf)
+          .is_ok()
+      {
+        Some(String::from_utf8(map_buf).unwrap())
+      } else {
+        None
+      };
+      Ok((buf, map))
+    })
+  }
+}
+
 pub fn transform(
-  mut config: Config,
+  config: Config,
   call_macro: Option<MacroCallback>,
 ) -> Result<TransformResult, std::io::Error> {
-  let mut result = TransformResult::default();
-  let mut map_buf = vec![];
+  let source_maps = config.source_maps;
+  let res = transform_to_ast(config, call_macro)?;
+  let (code, map) = res.ast.to_code(source_maps, false)?;
+
+  Ok(TransformResult {
+    code,
+    map,
+    shebang: res.shebang,
+    dependencies: res.dependencies,
+    hoist_result: res.hoist_result,
+    symbol_result: res.symbol_result,
+    diagnostics: res.diagnostics,
+    needs_esm_helpers: res.needs_esm_helpers,
+    used_env: res.used_env,
+    has_node_replacements: res.has_node_replacements,
+    is_constant_module: res.is_constant_module,
+    directives: res.directives,
+    helpers: res.helpers,
+    mdx_toc: res.mdx_toc,
+    mdx_exports: res.mdx_exports,
+    mdx_assets: res.mdx_assets,
+  })
+}
+
+pub fn transform_to_ast(
+  mut config: Config,
+  call_macro: Option<MacroCallback>,
+) -> Result<TransformAstResult, std::io::Error> {
+  let mut result = TransformAstResult::default();
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
-  let source_map = Lrc::new(SourceMap::default());
+  let source_map = result.ast.source_map.clone();
   // Attempt to convert the path to be relative to the project root.
   // If outside the project root, use an absolute path so that if the project root moves the path still works.
   let filename: PathBuf =
@@ -356,7 +464,8 @@ pub fn transform(
     SourceType::Script => false,
   };
 
-  swc_core::common::GLOBALS.set(&Globals::new(), || {
+  let globals = result.ast.globals.clone();
+  swc_core::common::GLOBALS.set(&*globals, || {
     let error_buffer = ErrorBuffer::default();
     let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
     swc_core::common::errors::HANDLER.set(&handler, || {
@@ -665,16 +774,7 @@ pub fn transform(
             result.diagnostics = Some(diagnostics);
           }
 
-          let (buf, src_map_buf) = emit(source_map.clone(), comments, &module, config.source_maps)?;
-          if config.source_maps
-            && source_map
-              .build_source_map_with_config(&src_map_buf, None, SourceMapConfig)
-              .to_writer(&mut map_buf)
-              .is_ok()
-          {
-            result.map = Some(String::from_utf8(map_buf).unwrap());
-          }
-          result.code = buf;
+          result.ast.program = module;
           Ok(result)
         },
       )
@@ -689,9 +789,9 @@ fn parse(
   filename: PathBuf,
   source_map: &Lrc<SourceMap>,
   config: &Config,
-) -> ParseResult<(Program, SingleThreadedComments)> {
+) -> ParseResult<(Program, SwcComments)> {
   let source_file = source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.into());
-  let comments = SingleThreadedComments::default();
+  let comments = SwcComments::default();
   let syntax = if config.is_type_script() {
     Syntax::Typescript(TsSyntax {
       tsx: config.is_jsx(),
@@ -737,9 +837,10 @@ fn parse(
 
 fn emit(
   source_map: Lrc<SourceMap>,
-  comments: SingleThreadedComments,
+  comments: &SwcComments,
   module: &Module,
   source_maps: bool,
+  minify: bool,
 ) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
@@ -757,10 +858,11 @@ fn emit(
     let config = swc_core::ecma::codegen::Config::default()
       .with_target(swc_core::ecma::ast::EsVersion::Es5)
       // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
-      .with_ascii_only(true);
+      .with_ascii_only(true)
+      .with_minify(minify);
     let mut emitter = swc_core::ecma::codegen::Emitter {
       cfg: config,
-      comments: Some(&comments),
+      comments: Some(comments),
       cm: source_map,
       wr: writer,
     };

@@ -91,7 +91,7 @@ pub enum DependencyResolution {
 pub struct AssetRequest {
   pub url: SourceUrl,
   pub ty: AssetType,
-  pub pipeline: Option<String>,
+  pub pipeline: Option<hstr::Atom>,
   pub env: Arc<Environment>,
   pub code: Option<Vec<u8>>,
   pub side_effects: bool,
