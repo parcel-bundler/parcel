@@ -25,6 +25,7 @@ swc_core = { version = "21", features = [
   "ecma_transforms_typescript",
   "ecma_utils",
   "ecma_visit",
+  "ecma_quote",
   "stacker"
 ] }
 swc_node_comments = "8.0.0"

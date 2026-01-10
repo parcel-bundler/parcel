@@ -6,6 +6,7 @@ use std::{
 use lightningcss::{
   css_modules::{CssModuleExport, CssModuleReference},
   media_query::MediaList,
+  printer::PrinterOptions,
   rules::{
     CssRule, CssRuleList,
     layer::{LayerBlockRule, LayerName},
@@ -19,9 +20,9 @@ use lightningcss::{
 };
 use parcel_core::{
   Asset, AssetNode, BufferContent, Bundle, BundleBehavior, BundleGraph, Content, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, Environment, ImportedSymbol,
-  LocalSymbol, Location, Packager, ParcelOptions, Priority, SourceLocation, SourceUrl,
-  SpecifierType, SymbolName, SymbolResolution, Transformer, Version,
+  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
+  ImportedSymbol, LocalSymbol, Location, Packager, ParcelOptions, Priority, SourceLocation,
+  SourceUrl, SpecifierType, SymbolName, SymbolResolution, Transformer, Version,
 };
 
 #[derive(Debug)]
@@ -426,7 +427,12 @@ impl Packager for CssPackager {
       },
     );
 
-    let res = stylesheet.to_css(Default::default()).unwrap();
+    let res = stylesheet
+      .to_css(PrinterOptions {
+        minify: bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE),
+        ..Default::default()
+      })
+      .unwrap();
     let content = Arc::new(BufferContent::new(res.code.into_bytes()));
     Ok(content)
   }
