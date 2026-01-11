@@ -2,7 +2,7 @@ use std::{
   collections::{HashMap, HashSet},
   fmt::Write,
   path::Path,
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 
 use indexmap::IndexSet;
@@ -23,7 +23,7 @@ use parcel_resolver::{AliasValue, BrowserField, Invalidations, Specifier};
 use crate::css::resolve_css_module_export;
 
 struct JsContent {
-  ast: Ast,
+  ast: Mutex<Ast>,
   shebang: Option<String>,
   directives: Vec<String>,
 }
@@ -36,7 +36,7 @@ impl std::fmt::Debug for JsContent {
 
 impl Content for JsContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
-    let (code, _) = self.ast.to_code(false, false)?;
+    let (code, _) = self.ast.lock().unwrap().to_code(false, false)?;
     Ok(code)
   }
 }
@@ -49,7 +49,7 @@ impl Transformer for JsTransformer {
     let res = transform_to_ast(config, None)?;
 
     asset.content = Arc::new(JsContent {
-      ast: res.ast,
+      ast: Mutex::new(res.ast),
       shebang: res.shebang,
       directives: res.directives.into_iter().map(|d| d.to_string()).collect(),
     });
@@ -781,7 +781,7 @@ impl Packager for JsPackager {
         /*bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)
         &&*/
         let Some(content) = asset.content.downcast_ref::<JsContent>() {
-          let mut ast = content.ast.clone();
+          let mut ast = content.ast.lock().unwrap();
           let used_symbols = asset
             .symbols
             .exports
