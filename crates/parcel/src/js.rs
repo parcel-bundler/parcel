@@ -63,7 +63,10 @@ impl Transformer for JsTransformer {
           || dep.specifier.ends_with("/jsx-dev-runtime"));
 
       dep_map.insert(
-        (dep.specifier.clone(), dep.kind.clone()),
+        dep
+          .placeholder
+          .as_ref()
+          .map_or_else(|| dep.specifier.clone(), |v| v.clone().into()),
         asset.dependencies.len() as u32,
       );
 
@@ -250,7 +253,7 @@ impl Transformer for JsTransformer {
         .set(AssetFlags::SHOULD_WRAP, symbols.should_wrap);
 
       for import in symbols.imports {
-        let dep_index = dep_map[&(import.source, import.kind.into())];
+        let dep_index = dep_map[&import.source];
         asset.symbols.imports.push(ImportedSymbol {
           dep_index,
           symbol: SymbolName::from(import.imported.as_str()),
@@ -265,7 +268,7 @@ impl Transformer for JsTransformer {
 
       for export in symbols.exports {
         if let Some(source) = export.source {
-          let dep_index = dep_map[&(source, DependencyKind::Export)];
+          let dep_index = dep_map[&source];
           asset.symbols.indirect.push(IndirectSymbol {
             exported: SymbolName::from(export.exported.as_str()),
             dep_index,
@@ -281,7 +284,7 @@ impl Transformer for JsTransformer {
       }
 
       for star in symbols.exports_all {
-        let dep_index = dep_map[&(star.source, DependencyKind::Export)];
+        let dep_index = dep_map[&star.source];
         asset.symbols.star.push(StarSymbol {
           dep_index,
           requested: false,
@@ -768,6 +771,11 @@ impl Packager for JsPackager {
             }
           }
         }
+
+        if !first {
+          res.push(',');
+        }
+        first = false;
 
         let code = if
         /*bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)

@@ -87,8 +87,69 @@ pub fn resolve_css_module_export(
   None
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Config {
+  css_modules: Option<CssModulesOption>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum CssModulesOption {
+  Bool(bool),
+  Config(CssModulesConfig),
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CssModulesConfig {
+  pattern: Option<String>,
+  dashed_idents: Option<bool>,
+  animation: Option<bool>,
+  container: Option<bool>,
+  grid: Option<bool>,
+  custom_idents: Option<bool>,
+  pure: Option<bool>,
+}
+
+#[derive(Default)]
 pub struct CssTransformer {
   pub css_modules: Option<lightningcss::css_modules::Config<'static>>,
+}
+
+impl<'de> serde::Deserialize<'de> for CssTransformer {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let config: Config = serde::Deserialize::deserialize(deserializer)?;
+    Ok(CssTransformer {
+      css_modules: if let Some(css_modules) = config.css_modules {
+        match css_modules {
+          CssModulesOption::Bool(true) => Some(lightningcss::css_modules::Config::default()),
+          CssModulesOption::Bool(false) => None,
+          CssModulesOption::Config(c) => Some(lightningcss::css_modules::Config {
+            pattern: if let Some(pattern) = c.pattern {
+              match lightningcss::css_modules::Pattern::parse(pattern.leak()) {
+                Ok(p) => p,
+                Err(e) => return Err(serde::de::Error::custom(e.to_string())),
+              }
+            } else {
+              Default::default()
+            },
+            dashed_idents: c.dashed_idents.unwrap_or_default(),
+            animation: c.animation.unwrap_or(true),
+            container: c.container.unwrap_or(true),
+            grid: c.grid.unwrap_or(true),
+            custom_idents: c.custom_idents.unwrap_or(true),
+            pure: c.pure.unwrap_or_default(),
+          }),
+        }
+      } else {
+        None
+      },
+    })
+  }
 }
 
 impl Transformer for CssTransformer {

@@ -28,7 +28,7 @@ pub fn name(
   config: &ParcelConfig,
 ) -> Result<String, DiagnosticList> {
   for namer in &config.namers {
-    if let Some(name) = namer.plugin.name(asset_graph, bundle)? {
+    if let Some(name) = namer.name(asset_graph, bundle)? {
       return Ok(name);
     }
   }

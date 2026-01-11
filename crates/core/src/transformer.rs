@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, Content,
-  DependencyFlags, DependencyResolution, DiagnosticList, ParcelOptions, SourceLocation,
-  config::{JsPlugin, ParcelConfig, PipelineMap, Plugin},
+  DependencyFlags, DependencyResolution, DiagnosticList, ParcelOptions, Pipeline, SourceLocation,
+  config::{JsPlugin, ParcelConfig, PipelineMap},
   content::FileContent,
   resolver::resolve,
 };
@@ -97,15 +97,15 @@ impl TransformRequest {
 
 pub fn transform(
   asset: Asset,
-  pipeline: Vec<Plugin<dyn Transformer>>,
+  pipeline: Pipeline<dyn Transformer>,
   transformers: &PipelineMap<dyn Transformer>,
   options: &ParcelOptions,
 ) -> Result<Asset, DiagnosticList> {
   let mut input = asset;
 
-  for plugin in &pipeline {
+  for plugin in &pipeline.0 {
     let ty: AssetType = input.ty.clone();
-    let result = plugin.plugin.transform(input, options)?;
+    let result = plugin.transform(input, options)?;
     if result.ty != ty {
       let next_path = result
         .loc

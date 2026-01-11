@@ -199,7 +199,7 @@ pub fn bundle(
   asset_graph: AssetGraph,
   config: &ParcelConfig,
 ) -> Result<BundleGraph, DiagnosticList> {
-  let mut bundle_graph = config.bundler.plugin.bundle(asset_graph)?;
+  let mut bundle_graph = config.bundler.bundle(asset_graph)?;
 
   for bundle in &mut bundle_graph.bundles {
     // TODO: enforce uniqueness

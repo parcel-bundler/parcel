@@ -1,8 +1,8 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  config::{JsPlugin, Plugin},
+  config::JsPlugin,
 };
 
 pub trait Resolver: Send + Sync {
@@ -27,7 +27,7 @@ impl Resolver for JsPlugin {
 
 pub fn resolve(
   dep: &Dependency,
-  resolvers: &Vec<Plugin<dyn Resolver>>,
+  resolvers: &Vec<Arc<dyn Resolver>>,
   named_pipelines: &Vec<&str>,
 ) -> Result<DependencyResolution, DiagnosticList> {
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
@@ -46,7 +46,7 @@ pub fn resolve(
 
   let mut diagnostics = Vec::new();
   for resolver in resolvers {
-    match resolver.plugin.resolve(dep, specifier, pipeline) {
+    match resolver.resolve(dep, specifier, pipeline) {
       Ok(res) => match res {
         DependencyResolution::None => continue,
         _ => return Ok(res),
@@ -171,16 +171,8 @@ mod tests {
   #[test]
   fn test_resolve() {
     let resolvers = vec![
-      Plugin::<dyn Resolver> {
-        package_name: "resolver-1".into(),
-        key_path: None,
-        plugin: Arc::new(Resolver1 {}),
-      },
-      Plugin::<dyn Resolver> {
-        package_name: "resolver-2".into(),
-        key_path: None,
-        plugin: Arc::new(Resolver2 {}),
-      },
+      Arc::new(Resolver1 {}) as Arc<dyn Resolver>,
+      Arc::new(Resolver2 {}),
     ];
 
     let mut dep = Dependency {

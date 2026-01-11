@@ -39,6 +39,7 @@ pub use environment::*;
 pub use fs::*;
 pub use location::*;
 pub use namer::*;
+pub use optimizer::Optimizer;
 pub use options::*;
 pub use packager::Packager;
 pub use plugin_abi::{CPlugin /*WasmPlugin*/};
@@ -81,7 +82,7 @@ fn get_bundle_content(
   let packager = config
     .packagers
     .get(bundle.ty.extension())
-    .map_or_else(|| &raw as &dyn Packager, |p| &*p.plugin);
+    .map_or_else(|| &raw as &dyn Packager, |p| &**p);
   let get_inline_bundle_content =
     |bundle_index| get_bundle_content(config, bundle_graph, &bundle_graph.bundles[bundle_index]);
 
@@ -93,8 +94,8 @@ fn get_bundle_content(
     false,
   );
 
-  for optimizer in optimizers {
-    content = optimizer.plugin.optimize(&bundle_graph, &bundle, content)?;
+  for optimizer in optimizers.0 {
+    content = optimizer.optimize(&bundle_graph, &bundle, content)?;
   }
 
   Ok(content)

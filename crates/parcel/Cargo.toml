@@ -15,3 +15,4 @@ lightningcss = { version = "1.0.0-alpha.63", features = ["into_owned", "visitor"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel-image = { path = "../image" }
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
+serde = { version = "1.0.123", features = ["derive", "rc"] }

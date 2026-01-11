@@ -24,3 +24,4 @@ libloading = "0.9"
 # wasmtime = "38.0.0"
 # wasmtime-wasi = "38.0.0"
 hstr = { version = "1.0.0", features = ["serde"] }
+either = "1.15.0"
