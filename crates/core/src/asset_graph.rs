@@ -126,7 +126,7 @@ pub fn build_asset_graph(
             request_symbol(
               &mut assets,
               resolved_index,
-              name.clone(),
+              name,
               &mut HashSet::new(),
               &mut queue,
             );

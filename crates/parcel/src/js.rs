@@ -793,6 +793,13 @@ impl Packager for JsPackager {
                 None
               }
             })
+            .chain(asset.symbols.indirect.iter().filter_map(|e| {
+              if e.requested {
+                Some(e.exported.as_str().into())
+              } else {
+                None
+              }
+            }))
             .collect();
           tree_shake(&mut ast, used_symbols, dependencies);
           let (code, map) = ast.to_code(false, true)?;
