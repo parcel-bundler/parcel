@@ -348,9 +348,10 @@ function replaceStream(hashRefToNameHash) {
         replacedLength - BOUNDARY_LENGTH,
         replacedLength,
       );
-      let strUpToBoundary = replaced.subarray(
-        0,
-        replacedLength - BOUNDARY_LENGTH,
+      // Copy buffer to avoid reuse issues - subarray returns a view that can be
+      // corrupted if the underlying buffer is modified before the data is written
+      let strUpToBoundary = Buffer.from(
+        replaced.subarray(0, replacedLength - BOUNDARY_LENGTH),
       );
       cb(null, strUpToBoundary);
     },
