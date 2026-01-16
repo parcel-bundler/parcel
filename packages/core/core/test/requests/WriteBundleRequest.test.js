@@ -206,7 +206,7 @@ describe('WriteBundleRequest', () => {
       assert.strictEqual(
         corruptedBytes,
         0,
-        `First buffer was corrupted. ${corruptedBytes} bytes changed after processing second chunk.`
+        `First buffer was corrupted. ${corruptedBytes} bytes changed after processing second chunk.`,
       );
 
       // Verify first buffer contains only 'A's (0x41)

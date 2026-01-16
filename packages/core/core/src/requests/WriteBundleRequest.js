@@ -310,7 +310,9 @@ async function runCompressor(
   }
 }
 
-export function replaceStream(hashRefToNameHash: Map<string, string>): Transform {
+export function replaceStream(
+  hashRefToNameHash: Map<string, string>,
+): Transform {
   let boundaryStr = Buffer.alloc(0);
   let replaced = Buffer.alloc(0);
   return new Transform({
