@@ -94,6 +94,19 @@ impl std::fmt::Display for Diagnostic {
 
 impl std::error::Error for Diagnostic {}
 
+impl Diagnostic {
+  pub fn from_message(message: String) -> Self {
+    Diagnostic {
+      origin: None,
+      message: message,
+      code_frames: Vec::new(),
+      hints: Vec::new(),
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
+}
+
 impl From<std::io::Error> for Diagnostic {
   fn from(value: std::io::Error) -> Self {
     Diagnostic {

@@ -3835,6 +3835,7 @@ __metadata:
     "@parcel/babel-register": "npm:*"
     "@swc/core": "npm:^1.11.24"
     "@types/node": "npm:^22.15.17"
+    babel-plugin-react-compiler: "npm:^1.0.0"
     buffer: "mischnic/buffer#b8a4fa94"
     cross-env: "npm:^7.0.3"
     eslint: "npm:^8.57.1"
@@ -7033,6 +7034,15 @@ __metadata:
   peerDependencies:
     "@babel/core": ^7.4.0 || ^8.0.0-0 <8.0.0
   checksum: 10c0/40164432e058e4b5c6d56feecacdad22692ae0534bd80c92d5399ed9e1a6a2b6797c8fda837995daddd4ca391f9aa2d58c74ad465164922e0f73631eaf9c4f76
+  languageName: node
+  linkType: hard
+
+"babel-plugin-react-compiler@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "babel-plugin-react-compiler@npm:1.0.0"
+  dependencies:
+    "@babel/types": "npm:^7.26.0"
+  checksum: 10c0/9406267ada8d7dbdfe8906b40ecadb816a5f4cee2922bee23f7729293b369624ee135b5a9b0f263851c263c9787522ac5d97016c9a2b82d1668300e42b18aff8
   languageName: node
   linkType: hard
 

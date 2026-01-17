@@ -58,16 +58,18 @@ impl Asset {
 
         // Emit all resolved assets for imported symbols in this dependency.
         // Side-effect free re-exports are not included - they are referenced directly through their importers.
-        if import_index < self.symbols.imports.len() {
+        while import_index < self.symbols.imports.len() {
           let import = &self.symbols.imports[import_index];
-          while import.dep_index <= dep_index as u32 {
-            if let Some(asset) = import.resolved.asset_index() {
-              import_index += 1;
-              return Some(asset);
-            }
-
-            import_index += 1;
+          if import.dep_index > dep_index as u32 {
+            break;
           }
+
+          if let Some(asset) = import.resolved.asset_index() {
+            import_index += 1;
+            return Some(asset);
+          }
+
+          import_index += 1;
         }
 
         // Continue looping while there are more dependencies.

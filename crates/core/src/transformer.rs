@@ -50,6 +50,10 @@ impl TransformRequest {
 
     let mut flags = AssetFlags::empty();
     flags.set(AssetFlags::SIDE_EFFECTS, req.side_effects);
+    flags.set(
+      AssetFlags::IS_SOURCE,
+      !req.url.as_str().contains("/node_modules/"), // TODO: symlinks
+    );
 
     let asset = Asset {
       ty: req.ty.clone(),

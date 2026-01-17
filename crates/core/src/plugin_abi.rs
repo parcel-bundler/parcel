@@ -205,6 +205,21 @@ impl Transformer for CPlugin {
 //       )
 //       .unwrap();
 
+//     linker
+//       .func_wrap(
+//         "env",
+//         "abort",
+//         |mut caller: Caller<'_, wasmtime_wasi::p1::WasiP1Ctx>,
+//          message: u32,
+//          filename: u32,
+//          line: u32,
+//          col: u32| {
+//           todo!("abort");
+//           ()
+//         },
+//       )
+//       .unwrap();
+
 //     let wasi_ctx = WasiCtxBuilder::new()
 //       .inherit_stdout()
 //       .inherit_stderr()
@@ -240,12 +255,13 @@ impl Transformer for CPlugin {
 //     &self,
 //     mut asset: Asset,
 //     _options: &crate::ParcelOptions,
-//   ) -> Result<Asset, Vec<crate::Diagnostic>> {
+//   ) -> Result<Asset, crate::DiagnosticList> {
 //     let mut store = self.store.lock().unwrap();
 
 //     let ptr = (&mut asset) as *mut Asset as u64;
 //     self.transform.call(&mut *store, ptr).unwrap();
 
+//     println!("{:?}", asset);
 //     Ok(asset)
 //   }
 // }

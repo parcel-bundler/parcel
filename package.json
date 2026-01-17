@@ -47,6 +47,7 @@
     "@parcel/babel-register": "*",
     "@swc/core": "^1.11.24",
     "@types/node": "^22.15.17",
+    "babel-plugin-react-compiler": "^1.0.0",
     "buffer": "mischnic/buffer#b8a4fa94",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",

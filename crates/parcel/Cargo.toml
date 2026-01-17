@@ -16,3 +16,5 @@ xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel-image = { path = "../image" }
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
 serde = { version = "1.0.123", features = ["derive", "rc"] }
+parcel-watcher = { path = "/Users/devongovett/dev/watcher/rust" }
+parcel-plugin-js = { path = "../plugin-js" }

@@ -48,6 +48,24 @@ impl Transformer for JsTransformer {
     let config = config(&mut asset, options);
     let res = transform_to_ast(config, None)?;
 
+    // if let Some(diagnostics) = res.diagnostics {
+    //   return Err(DiagnosticList(
+    //     diagnostics
+    //       .into_iter()
+    //       .filter(|d| d.severity == parcel_js_swc_core:)
+    //       .map(|d| Diagnostic {
+    //         origin: Some("@parcel/transformer-js".into()),
+    //         message: d.message,
+    //         code_frames: vec![],
+    //         hints: vec![],
+    //         severity: parcel_core::DiagnosticSeverity::Error,
+    //         documentation_url: None,
+    //       })
+    //       .collect(),
+    //   ));
+    // }
+
+    asset.ty = AssetType::Js;
     asset.content = Arc::new(JsContent {
       ast: Mutex::new(res.ast),
       shebang: res.shebang,
@@ -496,12 +514,12 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
           }
         }
       }
+    }
 
-      if asset.ty == AssetType::Ts {
-        is_jsx = false;
-      } else if !is_jsx {
-        is_jsx = matches!(asset.ty, AssetType::Jsx | AssetType::Tsx);
-      }
+    if asset.ty == AssetType::Ts {
+      is_jsx = false;
+    } else if !is_jsx {
+      is_jsx = matches!(asset.ty, AssetType::Jsx | AssetType::Tsx);
     }
   }
 
@@ -801,8 +819,9 @@ impl Packager for JsPackager {
               }
             }))
             .collect();
+          println!("{:?} {:?}", asset.loc.url, used_symbols);
           tree_shake(&mut ast, used_symbols, dependencies);
-          let (code, map) = ast.to_code(false, true)?;
+          let (code, map) = ast.to_code(false, false)?;
           code
         } else {
           asset.content.read()?

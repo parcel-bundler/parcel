@@ -49,9 +49,19 @@ pub use transformer::Transformer;
 
 pub fn build(
   entries: Vec<String>,
-  config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
+  factory: &dyn PluginFactory,
 ) -> Result<(), DiagnosticList> {
+  let config = Arc::new(ParcelConfig::read(
+    &*options.input_fs,
+    &options
+      .project_root
+      .to_file_path()
+      .unwrap()
+      .join(".parcelrc"),
+    factory,
+  ));
+
   // Resolve entries.
   let entries = resolve_entries(entries, &*options);
 

@@ -1,5 +1,3 @@
-use parcel::build;
-
 pub fn main() {
-  build();
+  parcel::build();
 }
