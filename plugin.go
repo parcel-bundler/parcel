@@ -1,3 +1,4 @@
+// go build -o goplugin.dylib -buildmode=c-shared plugin.go
 package main
 
 /*
@@ -14,10 +15,10 @@ typedef struct Buffer {
 } Buffer;
 
 // These are the external C functions your Go code will call.
-extern Buffer parcel_asset_get_content(Asset asset);
+extern void parcel_asset_get_content(Buffer *buffer, Asset asset);
 extern void parcel_asset_set_content(Asset asset, const uint8_t *data, uint32_t len);
 extern void parcel_asset_set_type(Asset asset, const char *type);
-extern void parcel_free_buffer(Buffer buffer);
+extern void parcel_free_buffer(Buffer *buffer);
 */
 // #cgo LDFLAGS: -Wl,-undefined,dynamic_lookup
 import "C"
@@ -29,11 +30,12 @@ import (
 type Asset C.Asset
 
 func (a Asset) Content() string {
-	buffer := C.parcel_asset_get_content(C.Asset(a))
+	var buffer C.Buffer
+	C.parcel_asset_get_content(&buffer, C.Asset(a))
 	if buffer.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(buffer)
+	defer C.parcel_free_buffer(&buffer)
 	
 	return C.GoStringN((*C.char)(unsafe.Pointer(buffer.data)), C.int(buffer.len))
 }

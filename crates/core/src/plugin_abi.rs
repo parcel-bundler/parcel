@@ -16,17 +16,19 @@ pub struct Buffer {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_asset_get_content(asset: *const Asset) -> Buffer {
+pub extern "C" fn parcel_asset_get_content(buffer: *mut Buffer, asset: *const Asset) {
+  if buffer.is_null() || asset.is_null() {
+    return;
+  }
+
   let asset: &Asset = unsafe { &*asset };
   let mut content = asset.content.read().unwrap();
-  let buf = Buffer {
-    data: content.as_mut_ptr(),
-    len: content.len(),
-    cap: content.capacity(),
-  };
-
+  unsafe {
+    (*buffer).data = content.as_mut_ptr();
+    (*buffer).len = content.len();
+    (*buffer).cap = content.capacity();
+  }
   std::mem::forget(content);
-  buf
 }
 
 #[unsafe(no_mangle)]

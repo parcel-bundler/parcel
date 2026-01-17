@@ -2,7 +2,7 @@
 import Foundation
 
 class BufferWrapper {
-  private let raw: Buffer
+  private var raw: Buffer
 
   init(cBuffer: Buffer) {
     self.raw = cBuffer
@@ -19,7 +19,7 @@ class BufferWrapper {
   }
 
   deinit {
-    parcel_free_buffer(raw)
+    parcel_free_buffer(&raw)
   }
 }
 
@@ -27,7 +27,8 @@ struct AssetWrapper {
   let raw: UInt64
 
   public func getBuffer() -> BufferWrapper {
-    let cBuffer = parcel_asset_get_content(raw)
+    var cBuffer = Buffer()
+    parcel_asset_get_content(&cBuffer, raw)
     return BufferWrapper(cBuffer: cBuffer)
   }
 
