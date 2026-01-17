@@ -237,6 +237,32 @@ impl AssetType {
       ),
     }
   }
+
+  pub fn mime(&self) -> &'static str {
+    match self {
+      AssetType::Js => "application/javascript",
+      AssetType::Jsx => "application/javascript",
+      AssetType::Ts => "application/javascript",
+      AssetType::Tsx => "application/javascript",
+      AssetType::Mdx => "application/javascript",
+      AssetType::Css => "text/css",
+      AssetType::StyleAttribute => todo!(),
+      AssetType::Html => "text/html",
+      AssetType::Xhtml => "application/xhtml+xml",
+      AssetType::Svg => "image/svg+xml",
+      AssetType::Json => "application/json",
+      AssetType::Jsonld => "application/json",
+      AssetType::Png => "image/png",
+      AssetType::Jpeg => "image/jpeg",
+      AssetType::Gif => "image/gif",
+      AssetType::WebP => "image/webp",
+      AssetType::Tiff => "image/tiff",
+      AssetType::Bmp => "image/bmp",
+      AssetType::Ico => "image/x-icon",
+      AssetType::Avif => "image/avif",
+      AssetType::Other(_) => "application/octet-stream",
+    }
+  }
 }
 
 bitflags! {

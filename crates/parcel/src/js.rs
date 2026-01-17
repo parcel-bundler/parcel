@@ -8,11 +8,11 @@ use std::{
 use indexmap::IndexSet;
 use parcel_core::{
   Asset, AssetFlags, AssetNode, AssetType, BufferContent, BuildMode, Bundle, BundleBehavior,
-  BundleGraph, Content, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
-  DiagnosticList, Environment, EnvironmentContext, EnvironmentFeature, EnvironmentFlags,
-  ImportedSymbol, IncludeNodeModules, IndirectSymbol, LocalSymbol, Location, LogLevel,
-  OutputFormat, Packager, ParcelOptions, Priority, SourceLocation, SourceType, SourceUrl,
-  SpecifierType, StarSymbol, SymbolName, SymbolResolution, Transformer,
+  BundleGraph, CodeFrame, CodeHighlight, Content, Dependency, DependencyFlags,
+  DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentContext,
+  EnvironmentFeature, EnvironmentFlags, ImportedSymbol, IncludeNodeModules, IndirectSymbol,
+  LocalSymbol, Location, LogLevel, OutputFormat, Packager, ParcelOptions, Priority, SourceLocation,
+  SourceType, SourceUrl, SpecifierType, StarSymbol, SymbolName, SymbolResolution, Transformer,
 };
 use parcel_js_swc_core::{
   Ast, Config, DependencyKind, EnvContext, Type, Version, Versions, transform_to_ast,
@@ -48,22 +48,43 @@ impl Transformer for JsTransformer {
     let config = config(&mut asset, options);
     let res = transform_to_ast(config, None)?;
 
-    // if let Some(diagnostics) = res.diagnostics {
-    //   return Err(DiagnosticList(
-    //     diagnostics
-    //       .into_iter()
-    //       .filter(|d| d.severity == parcel_js_swc_core:)
-    //       .map(|d| Diagnostic {
-    //         origin: Some("@parcel/transformer-js".into()),
-    //         message: d.message,
-    //         code_frames: vec![],
-    //         hints: vec![],
-    //         severity: parcel_core::DiagnosticSeverity::Error,
-    //         documentation_url: None,
-    //       })
-    //       .collect(),
-    //   ));
-    // }
+    if let Some(diagnostics) = res.diagnostics {
+      let diagnostics: Vec<Diagnostic> = diagnostics
+        .into_iter()
+        .filter(|d| d.severity == parcel_js_swc_core::DiagnosticSeverity::Error)
+        .map(|d| Diagnostic {
+          origin: Some("@parcel/transformer-js".into()),
+          message: d.message,
+          code_frames: vec![CodeFrame {
+            url: Some(asset.loc.url.clone()),
+            code: None,
+            language: Some(asset.ty.clone()),
+            code_highlights: d
+              .code_highlights
+              .unwrap_or(vec![])
+              .into_iter()
+              .map(|h| CodeHighlight {
+                message: h.message,
+                start: Location {
+                  line: h.loc.start_line as u32,
+                  column: h.loc.end_col as u32,
+                },
+                end: Location {
+                  line: h.loc.end_line as u32,
+                  column: h.loc.end_col as u32,
+                },
+              })
+              .collect(),
+          }],
+          hints: vec![],
+          severity: parcel_core::DiagnosticSeverity::Error,
+          documentation_url: None,
+        })
+        .collect();
+      if !diagnostics.is_empty() {
+        return Err(DiagnosticList(diagnostics));
+      }
+    }
 
     asset.ty = AssetType::Js;
     asset.content = Arc::new(JsContent {
@@ -420,6 +441,9 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
       }
     }
 
+    let mut tsconfig_jsx = None;
+    let mut tsconfig_jsx_import_source = None;
+    let mut tsconfig_jsx_factory = None;
     if let Some(tsconfig) = resolver.find_tsconfig(
       &resolver
         .cache()
@@ -427,75 +451,12 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
       &invalidations,
     ) {
       if let Ok(tsconfig) = &*tsconfig {
-        jsx_pragma = tsconfig
-          .compiler_options
-          .jsx_factory
-          .clone()
-          .or_else(|| match react_lib {
-            Some("react") => Some("React.createElement".into()),
-            Some("preact") => Some("h".into()),
-            Some("nervjs") => Some("Nerv.createElement".into()),
-            Some("hyperapp") => Some("h".into()),
-            _ => None,
-          });
+        jsx_pragma = tsconfig.compiler_options.jsx_factory.clone();
+        jsx_pragma_frag = tsconfig.compiler_options.jsx_fragment_factory.clone();
 
-        jsx_pragma_frag = tsconfig
-          .compiler_options
-          .jsx_fragment_factory
-          .clone()
-          .or_else(|| match react_lib {
-            Some("react") => Some("React.Fragment".into()),
-            Some("preact") => Some("Fragment".into()),
-            _ => None,
-          });
-
-        if matches!(
-          tsconfig.compiler_options.jsx,
-          Some(parcel_resolver::Jsx::ReactJsx | parcel_resolver::Jsx::ReactJsxdev)
-        ) || tsconfig.compiler_options.jsx_import_source.is_some()
-        {
-          jsx_import_source = tsconfig.compiler_options.jsx_import_source.clone();
-          automatic_jsx_runtime = true;
-        } else if let Some(react_lib) = react_lib {
-          if let Some(pkg) = &pkg {
-            if let Ok(pkg) = &**pkg {
-              let effective_react_lib = if pkg
-                .alias
-                .get(&Specifier::Package("react".into(), "".into()))
-                == Some(&AliasValue::Specifier(Specifier::Package(
-                  "preact".into(),
-                  "".into(),
-                ))) {
-                "preact"
-              } else {
-                react_lib
-              };
-
-              let automatic_range = match effective_react_lib {
-                "react" => Some(
-                  node_semver::Range::parse(">= 17.0.0 || ^16.14.0 || >= 0.0.0-0 < 0.0.0").unwrap(),
-                ),
-                "preact" => Some(node_semver::Range::parse(">= 10.5.0").unwrap()),
-                _ => None,
-              };
-
-              if let Some(min_version) = pkg
-                .get_dependency_version(effective_react_lib)
-                .and_then(|v| node_semver::Range::parse(v).ok())
-                .and_then(|r| r.min_version())
-              {
-                automatic_jsx_runtime = tsconfig.compiler_options.jsx_factory.is_none()
-                  && matches!(automatic_range, Some(automatic_range) if min_version.satisfies(&automatic_range));
-              }
-
-              if automatic_jsx_runtime {
-                jsx_import_source = Some(react_lib.into());
-              }
-            }
-          }
-        }
-
-        is_jsx = tsconfig.compiler_options.jsx.is_some() || jsx_pragma.is_some();
+        tsconfig_jsx = tsconfig.compiler_options.jsx;
+        tsconfig_jsx_import_source = tsconfig.compiler_options.jsx_import_source.clone();
+        tsconfig_jsx_factory = tsconfig.compiler_options.jsx_factory.clone();
         decorators = tsconfig.compiler_options.experimental_decorators;
         use_define_for_class_fields =
           tsconfig.compiler_options.use_define_for_class_fields == Some(true);
@@ -515,6 +476,72 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
         }
       }
     }
+
+    if jsx_pragma.is_none() {
+      jsx_pragma = match react_lib {
+        Some("react") => Some("React.createElement".into()),
+        Some("preact") => Some("h".into()),
+        Some("nervjs") => Some("Nerv.createElement".into()),
+        Some("hyperapp") => Some("h".into()),
+        _ => None,
+      };
+    }
+
+    if jsx_pragma_frag.is_none() {
+      jsx_pragma_frag = match react_lib {
+        Some("react") => Some("React.Fragment".into()),
+        Some("preact") => Some("Fragment".into()),
+        _ => None,
+      };
+    }
+
+    if matches!(
+      tsconfig_jsx,
+      Some(parcel_resolver::Jsx::ReactJsx | parcel_resolver::Jsx::ReactJsxdev)
+    ) || tsconfig_jsx_import_source.is_some()
+    {
+      jsx_import_source = tsconfig_jsx_import_source.clone();
+      automatic_jsx_runtime = true;
+    } else if let Some(react_lib) = react_lib {
+      if let Some(pkg) = &pkg {
+        if let Ok(pkg) = &**pkg {
+          let effective_react_lib = if pkg
+            .alias
+            .get(&Specifier::Package("react".into(), "".into()))
+            == Some(&AliasValue::Specifier(Specifier::Package(
+              "preact".into(),
+              "".into(),
+            ))) {
+            "preact"
+          } else {
+            react_lib
+          };
+
+          let automatic_range = match effective_react_lib {
+            "react" => Some(
+              node_semver::Range::parse(">= 17.0.0 || ^16.14.0 || >= 0.0.0-0 < 0.0.0").unwrap(),
+            ),
+            "preact" => Some(node_semver::Range::parse(">= 10.5.0").unwrap()),
+            _ => None,
+          };
+
+          if let Some(min_version) = pkg
+            .get_dependency_version(effective_react_lib)
+            .and_then(|v| node_semver::Range::parse(v).ok())
+            .and_then(|r| r.min_version())
+          {
+            automatic_jsx_runtime = tsconfig_jsx_factory.is_none()
+              && matches!(automatic_range, Some(automatic_range) if min_version.satisfies(&automatic_range));
+          }
+
+          if automatic_jsx_runtime {
+            jsx_import_source = Some(react_lib.into());
+          }
+        }
+      }
+    }
+
+    is_jsx = tsconfig_jsx.is_some() || jsx_pragma.is_some();
 
     if asset.ty == AssetType::Ts {
       is_jsx = false;
@@ -819,7 +846,7 @@ impl Packager for JsPackager {
               }
             }))
             .collect();
-          println!("{:?} {:?}", asset.loc.url, used_symbols);
+          println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
           tree_shake(&mut ast, used_symbols, dependencies);
           let (code, map) = ast.to_code(false, false)?;
           code

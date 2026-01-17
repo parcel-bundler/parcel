@@ -1,3 +1,3 @@
 pub fn main() {
-  parcel::build();
+  parcel::serve();
 }

@@ -45,11 +45,11 @@ use serde::{Deserialize, Serialize};
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
-    FileName, Globals, Mark, SourceMap, errors::Handler, pass::Optional,
+    DUMMY_SP, FileName, Globals, Mark, SourceMap, errors::Handler, pass::Optional,
     source_map::SourceMapGenConfig, sync::Lrc,
   },
   ecma::{
-    ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
+    ast::{BlockStmt, Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str, TryStmt},
     atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
@@ -69,13 +69,12 @@ use swc_core::{
     },
     visit::{FoldWith, VisitMutWith, VisitWith},
   },
+  quote,
 };
 use swc_node_comments::SwcComments;
 use typeof_replacer::*;
-use utils::{
-  CodeHighlight, Diagnostic, DiagnosticSeverity, ErrorBuffer, error_buffer_to_diagnostics,
-};
-pub use utils::{SourceLocation, SourceType};
+use utils::{CodeHighlight, ErrorBuffer, error_buffer_to_diagnostics};
+pub use utils::{Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -772,6 +771,54 @@ pub fn transform_to_ast(
 
           if !diagnostics.is_empty() {
             result.diagnostics = Some(diagnostics);
+          }
+
+          if config.react_refresh && result.dependencies.iter().any(|d| matches!(d.specifier.as_str(), "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "'@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
+            module.body = vec![
+              quote!("var $parcel$ReactRefreshHelpers = require('@parcel/transformer-react-refresh-wrap/lib/helpers/helpers.js');" as ModuleItem),
+              quote!("$parcel$ReactRefreshHelpers.init()" as ModuleItem),
+              quote!("var prevRefreshReg = globalThis.$RefreshReg$;" as ModuleItem),
+              quote!("var prevRefreshSig = globalThis.$RefreshSig$;" as ModuleItem),
+              quote!("$parcel$ReactRefreshHelpers.prelude(module);" as ModuleItem),
+              ModuleItem::Stmt(Stmt::Try(Box::new(TryStmt {
+                block: BlockStmt {
+                  stmts: module.body
+                    .into_iter()
+                    .map(|item| item.expect_stmt())
+                    .chain(std::iter::once(quote!("$parcel$ReactRefreshHelpers.postlude(module);" as Stmt)))
+                    .collect(),
+                  ..Default::default()
+                },
+                finalizer: Some(BlockStmt {
+                  stmts: vec![
+                    quote!("globalThis.$RefreshReg$ = prevRefreshReg;" as Stmt),
+                    quote!("globalThis.$RefreshSig$ = prevRefreshSig;" as Stmt)
+                  ],
+                  ..Default::default()
+                }),
+                ..Default::default()
+              })))
+            ];
+
+            result.dependencies.push(DependencyDescriptor {
+              kind: DependencyKind::Require,
+              loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },
+              specifier: "@parcel/transformer-react-refresh-wrap/lib/helpers/helpers.js".into(),
+              attributes: None,
+              flags: DependencyFlags::empty(),
+              source_type: None,
+              placeholder: None
+            });
+
+            if let Some(sym) = &mut result.symbol_result {
+              sym.imports.push(CollectImportedSymbol {
+                source: "@parcel/transformer-react-refresh-wrap/lib/helpers/helpers.js".into(),
+                local: "$parcel$ReactRefreshHelpers".into(),
+                imported: "*".into(),
+                loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },
+                kind: collect::ImportKind::Require
+              });
+            }
           }
 
           result.ast.program = module;

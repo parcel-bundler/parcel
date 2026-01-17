@@ -23,6 +23,7 @@ mod css;
 mod html;
 mod js;
 mod resolver;
+mod server;
 mod svg;
 
 struct DefaultPluginFactory {}
@@ -119,6 +120,7 @@ impl PluginFactory for DefaultPluginFactory {
 }
 
 pub fn build() {
+  let start = std::time::Instant::now();
   let options = Arc::new(ParcelOptions {
     env: HashMap::new(),
     input_fs: Arc::new(OsFileSystem {}),
@@ -138,7 +140,7 @@ pub fn build() {
     &DefaultPluginFactory {},
   ) {
     Ok(_) => {
-      println!("SUCCESS!");
+      println!("SUCCESS! {:?}", start.elapsed());
     }
     Err(err) => {
       println!("ERROR: {:?}", err);
@@ -159,6 +161,11 @@ pub fn watch() {
       build();
     }
   }
+}
+
+pub fn serve() {
+  server::serve_dir(Path::new("/Users/devongovett/dev/parcel/test/dist"));
+  watch();
 }
 
 struct DefaultNamer {}

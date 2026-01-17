@@ -48,7 +48,7 @@ pub struct TsConfig {
   pub target: Option<String>,
 }
 
-#[derive(serde::Deserialize, Debug, PartialEq)]
+#[derive(serde::Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(rename_all = "kebab-case")]
 pub enum Jsx {
   React,
