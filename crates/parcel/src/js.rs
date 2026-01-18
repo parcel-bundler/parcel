@@ -17,6 +17,7 @@ use parcel_js_swc_core::{
   Ast, Config, DependencyKind, EnvContext, Type, Version, Versions, transform_to_ast,
   tree_shake::{Resolution, tree_shake},
 };
+use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, Invalidations, Specifier};
 
 use crate::css::resolve_css_module_export;
@@ -45,7 +46,25 @@ pub struct JsTransformer {}
 impl Transformer for JsTransformer {
   fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options);
-    let res = transform_to_ast(config, None)?;
+    let resolver = parcel_resolver::Resolver::parcel(
+      &options.project_root.to_file_path().unwrap(),
+      parcel_resolver::Cache::new(options.input_fs.clone()),
+    );
+
+    let resolve_from = asset.loc.url.to_file_path().unwrap();
+    let res = transform_to_ast(
+      config,
+      Some(Arc::new(move |src, export, args, loc| {
+        let resolved = resolver.resolve(&src, &resolve_from, parcel_resolver::SpecifierType::Esm);
+        if let Ok(res) = resolved.result {
+          if let parcel_resolver::Resolution::Path(p) = res.resolution {
+            return call_macro(p.to_str().unwrap().to_string(), export, args, loc);
+          }
+        }
+
+        todo!()
+      })),
+    )?;
 
     if let Some(diagnostics) = res.diagnostics {
       let diagnostics: Vec<Diagnostic> = diagnostics

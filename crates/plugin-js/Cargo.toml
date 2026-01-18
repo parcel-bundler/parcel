@@ -11,3 +11,5 @@ rquickjs-extra-console = "0.2.1"
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
 serde = { version = "1.0.123", features = ["derive", "rc"] }
 parcel-resolver = { path = "../parcel-resolver" }
+parcel-macros = { path = "../macros" }
+indexmap = { version = "=2.11.0", features = ["serde"] }
