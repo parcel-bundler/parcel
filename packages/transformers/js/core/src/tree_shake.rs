@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use indexmap::IndexMap;
 use swc_core::{
   common::{DUMMY_SP, Mark, util::take::Take},
   ecma::{
@@ -17,18 +18,38 @@ use crate::{
   utils::{is_unresolved, match_member_expr, match_property_name},
 };
 
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
 pub enum Resolution<'a> {
+  #[serde(serialize_with = "serialize_excluded")]
   Excluded,
   Asset(u32),
   Symbols(Vec<(&'a str, u32, &'a str)>),
+  #[serde(serialize_with = "serialize_bundle")]
   Bundle(u32),
   External(&'a str),
+}
+
+fn serialize_excluded<S>(serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  false.serialize(serializer)
+}
+
+fn serialize_bundle<S>(value: &u32, serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  format!("b{}", value).serialize(serializer)
 }
 
 pub fn tree_shake<'a>(
   ast: &mut Ast,
   used_symbols: HashSet<JsWord>,
-  resolutions: HashMap<JsWord, Resolution<'a>>,
+  resolutions: IndexMap<String, Resolution<'a>>,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
     let global_mark = Mark::fresh(Mark::root());
@@ -42,39 +63,39 @@ pub fn tree_shake<'a>(
 
     ast.program.visit_mut_with(&mut shake);
 
-    let module = std::mem::take(&mut ast.program);
-    let mut program = swc_core::ecma::minifier::optimize(
-      Program::Module(module),
-      ast.source_map.clone(),
-      Some(&ast.comments),
-      None,
-      &swc_core::ecma::minifier::option::MinifyOptions {
-        rename: true,
-        compress: Some(CompressOptions {
-          top_level: Some(TopLevelOptions { functions: true }),
-          ..Default::default()
-        }),
-        mangle: Some(MangleOptions {
-          top_level: Some(true),
-          ..Default::default()
-        }),
-        ..Default::default()
-      },
-      &swc_core::ecma::minifier::option::ExtraOptions {
-        mangle_name_cache: None,
-        top_level_mark: global_mark,
-        unresolved_mark,
-      },
-    );
+    // let module = std::mem::take(&mut ast.program);
+    // let mut program = swc_core::ecma::minifier::optimize(
+    //   Program::Module(module),
+    //   ast.source_map.clone(),
+    //   Some(&ast.comments),
+    //   None,
+    //   &swc_core::ecma::minifier::option::MinifyOptions {
+    //     rename: true,
+    //     compress: Some(CompressOptions {
+    //       top_level: Some(TopLevelOptions { functions: true }),
+    //       ..Default::default()
+    //     }),
+    //     mangle: Some(MangleOptions {
+    //       top_level: Some(true),
+    //       ..Default::default()
+    //     }),
+    //     ..Default::default()
+    //   },
+    //   &swc_core::ecma::minifier::option::ExtraOptions {
+    //     mangle_name_cache: None,
+    //     top_level_mark: global_mark,
+    //     unresolved_mark,
+    //   },
+    // );
 
-    program.mutate(&mut fixer(Some(&ast.comments)));
-    ast.program = program.expect_module();
+    // program.mutate(&mut fixer(Some(&ast.comments)));
+    // ast.program = program.expect_module();
   })
 }
 
 struct TreeShake<'a> {
   used_symbols: HashSet<JsWord>,
-  resolutions: HashMap<JsWord, Resolution<'a>>,
+  resolutions: IndexMap<String, Resolution<'a>>,
   unresolved_mark: Mark,
   mutated: bool,
 }
@@ -174,7 +195,7 @@ impl<'a> VisitMut for TreeShake<'a> {
               return;
             };
 
-            if let Some(resolution) = self.resolutions.get(&specifier.value) {
+            if let Some(resolution) = self.resolutions.get(specifier.value.as_str()) {
               id.sym = "parcelRequire".into();
               match resolution {
                 Resolution::Excluded => {

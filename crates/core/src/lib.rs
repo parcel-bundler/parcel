@@ -51,7 +51,7 @@ pub fn build(
   entries: Vec<String>,
   options: Arc<ParcelOptions>,
   factory: &dyn PluginFactory,
-) -> Result<(), DiagnosticList> {
+) -> Result<BundleGraph, DiagnosticList> {
   let config = Arc::new(ParcelConfig::read(
     &*options.input_fs,
     &options
@@ -80,7 +80,7 @@ pub fn build(
     content.write(&*options.input_fs, name)?;
   }
 
-  Ok(())
+  Ok(bundle_graph)
 }
 
 fn get_bundle_content(

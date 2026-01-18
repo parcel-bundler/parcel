@@ -1,10 +1,13 @@
-use std::{collections::HashMap, hash::Hash, path::Path, sync::Arc};
+use std::{
+  collections::{HashMap, HashSet},
+  hash::Hash,
+  path::Path,
+  sync::Arc,
+};
 
-use indexmap::{IndexMap, indexmap};
 use parcel_core::{
-  AssetGraph, AssetNode, BundleFlags, CPlugin, DefaultBundler, DiagnosticList, Namer, Optimizer,
-  Packager, ParcelConfig, ParcelOptions, PipelineMap, PipelineNode, Plugin, PluginFactory,
-  SourceUrl, Transformer,
+  AssetGraph, AssetNode, BundleFlags, BundleGraph, CPlugin, DefaultBundler, DiagnosticList, Namer,
+  Optimizer, Packager, ParcelConfig, ParcelOptions, PluginFactory, SourceUrl, Transformer,
 };
 use parcel_image::ImageTransformer;
 use parcel_plugin_js::JsPlugin;
@@ -119,7 +122,7 @@ impl PluginFactory for DefaultPluginFactory {
   }
 }
 
-pub fn build() {
+pub fn build() -> Result<BundleGraph, DiagnosticList> {
   let start = std::time::Instant::now();
   let options = Arc::new(ParcelOptions {
     env: HashMap::new(),
@@ -139,11 +142,13 @@ pub fn build() {
     options,
     &DefaultPluginFactory {},
   ) {
-    Ok(_) => {
+    Ok(g) => {
       println!("SUCCESS! {:?}", start.elapsed());
+      Ok(g)
     }
     Err(err) => {
       println!("ERROR: {:?}", err);
+      Err(err)
     }
   }
 }
@@ -164,8 +169,50 @@ pub fn watch() {
 }
 
 pub fn serve() {
-  server::serve_dir(Path::new("/Users/devongovett/dev/parcel/test/dist"));
-  watch();
+  let server = server::serve_dir(Path::new("/Users/devongovett/dev/parcel/test/dist"));
+  build();
+
+  let watcher = parcel_watcher::watch(Path::new("/Users/devongovett/dev/parcel/test"));
+  while let Ok(events) = watcher.recv() {
+    if events
+      .iter()
+      .any(|e| !e.path.as_os_str().to_str().unwrap().contains("dist"))
+    {
+      let result = build();
+      match result {
+        Ok(graph) => {
+          let changed_urls: HashSet<_> = events
+            .iter()
+            .map(|e| SourceUrl::from_path(e.path.as_path()).unwrap())
+            .collect();
+
+          // TODO: also include new assets
+          let changed_assets: Vec<_> = graph
+            .asset_graph
+            .assets
+            .iter()
+            .enumerate()
+            .filter_map(|(index, a)| {
+              if let AssetNode::Asset(a) = a {
+                if changed_urls.contains(&a.loc.url) {
+                  Some((index as u32, a))
+                } else {
+                  None
+                }
+              } else {
+                None
+              }
+            })
+            .collect();
+
+          if !changed_assets.is_empty() {
+            server.emit_hmr_update(changed_assets, &graph);
+          }
+        }
+        Err(_) => {}
+      }
+    }
+  }
 }
 
 struct DefaultNamer {}

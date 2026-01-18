@@ -38,7 +38,7 @@ sha-1 = "0.10.0"
 dunce = "1.0.1"
 pathdiff = "0.2.0"
 path-slash = "0.1.4"
-indexmap = "1.9.2"
+indexmap = { version = "=2.11.0", features = ["serde"] }
 parcel-macros = { path = "../../../../crates/macros" }
 parking_lot = "0.12"
 bitflags = { version = "2.7.0", features=["serde"] }

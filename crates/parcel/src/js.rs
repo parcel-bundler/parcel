@@ -1,11 +1,10 @@
 use std::{
-  collections::{HashMap, HashSet},
+  collections::HashMap,
   fmt::Write,
-  path::Path,
   sync::{Arc, Mutex},
 };
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use parcel_core::{
   Asset, AssetFlags, AssetNode, AssetType, BufferContent, BuildMode, Bundle, BundleBehavior,
   BundleGraph, CodeFrame, CodeHighlight, Content, Dependency, DependencyFlags,
@@ -656,7 +655,7 @@ impl Packager for JsPackager {
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    const RUNTIME: &str = include_str!("runtime.js");
+    const RUNTIME: &str = include_str!("dev-runtime.js");
 
     let mut res = String::new();
     if let Some(main) = bundle.main_entry_asset {
@@ -686,146 +685,20 @@ impl Packager for JsPackager {
     write!(res, "var modules = {{\n")?;
 
     let mut first: bool = true;
-    let mut resolved_bundles = IndexSet::new();
-    let mut non_js_assets = IndexSet::new();
-    #[derive(Hash, PartialEq, Eq)]
-    enum ResolutionType {
-      Async,
-      Url,
-      Inline,
-    }
+    let mut synthetic_assets = IndexSet::new();
 
     for asset_index in &bundle.assets {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[*asset_index] {
-        let mut dependencies = HashMap::new();
-        for (dep_index, dep) in asset.dependencies.iter().enumerate() {
-          let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
-          match &dep.resolution {
-            DependencyResolution::Asset(resolved) => {
-              if let AssetNode::Asset(resolved_asset) =
-                &bundle_graph.asset_graph.assets[*resolved as usize]
-              {
-                if resolved_asset.ty != AssetType::Js {
-                  if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
-                    dependencies.insert(placeholder.as_str().into(), Resolution::Asset(*resolved));
-                    non_js_assets.insert(*resolved);
-                    continue;
-                  }
-                  dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
-                  continue;
-                }
-
-                if bundle.env.context == EnvironmentContext::ReactServer
-                  && resolved_asset.env.context == EnvironmentContext::ReactClient
-                {
-                  continue;
-                }
-              }
-
-              let mut resolutions = Vec::new();
-              let mut first_asset = None;
-              let mut all_assets_match = true;
-              for import in &asset.symbols.imports {
-                if import.dep_index == dep_index as u32 {
-                  match &import.resolved {
-                    SymbolResolution::Export {
-                      asset_index,
-                      export_index,
-                    } => {
-                      let asset =
-                        bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
-                      let export = &asset.symbols.exports[*export_index as usize];
-                      resolutions.push((
-                        import.symbol.as_str(),
-                        *asset_index,
-                        export.exported.as_str(),
-                      ));
-                      if first_asset.is_none() {
-                        first_asset = Some(*asset_index);
-                      }
-                      if first_asset != Some(*asset_index) {
-                        all_assets_match = false;
-                      }
-                    }
-                    SymbolResolution::Runtime { asset_index, name } => {
-                      resolutions.push((import.symbol.as_str(), *asset_index, name.as_str()));
-                      if first_asset.is_none() {
-                        first_asset = Some(*asset_index);
-                      }
-                      if first_asset != Some(*asset_index) {
-                        all_assets_match = false;
-                      }
-                    }
-                    SymbolResolution::Namespace { asset_index } => {
-                      resolutions.push((import.symbol.as_str(), *asset_index, "*"));
-                      if first_asset.is_none() {
-                        first_asset = Some(*asset_index);
-                      }
-                      if first_asset != Some(*asset_index) {
-                        all_assets_match = false;
-                      }
-                    }
-                    _ => continue,
-                  }
-                }
-              }
-
-              // TODO: add indirect/star exports
-
-              if !resolutions.is_empty() {
-                if all_assets_match && let Some(res) = first_asset {
-                  dependencies.insert(placeholder.as_str().into(), Resolution::Asset(res));
-                } else {
-                  dependencies.insert(
-                    placeholder.as_str().into(),
-                    Resolution::Symbols(resolutions),
-                  );
-                }
-              } else {
-                dependencies.insert(placeholder.as_str().into(), Resolution::Asset(*resolved));
-              }
-            }
-            DependencyResolution::None
-            | DependencyResolution::Excluded
-            | DependencyResolution::Deferred(_) => {
-              dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
-            }
-            DependencyResolution::External => {
-              dependencies.insert(
-                placeholder.as_str().into(),
-                Resolution::External(&dep.specifier),
-              );
-            }
-            DependencyResolution::Bundle(bundle_index) => {
-              let bundle = &bundle_graph.bundles[*bundle_index as usize];
-              let resolution_type = if dep.bundle_behavior == BundleBehavior::Inline
-                || bundle.bundle_behavior == BundleBehavior::Inline
-              {
-                ResolutionType::Inline
-              } else if dep.specifier_type == SpecifierType::Url {
-                ResolutionType::Url
-              } else {
-                ResolutionType::Async
-              };
-
-              resolved_bundles.insert((*bundle_index, resolution_type));
-              dependencies.insert(
-                placeholder.as_str().into(),
-                Resolution::Bundle(*bundle_index),
-              );
-            }
-          }
-        }
+        let dependencies = asset_dependencies(asset, bundle_graph, &mut synthetic_assets);
 
         if !first {
           res.push(',');
         }
         first = false;
 
-        let code = if
-        /*bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)
-        &&*/
-        let Some(content) = asset.content.downcast_ref::<JsContent>() {
+        if bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+          && let Some(content) = asset.content.downcast_ref::<JsContent>()
+        {
           let mut ast = content.ast.lock().unwrap();
           let used_symbols = asset
             .symbols
@@ -846,87 +719,40 @@ impl Packager for JsPackager {
               }
             }))
             .collect();
-          println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
+          // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
           tree_shake(&mut ast, used_symbols, dependencies);
           let (code, map) = ast.to_code(false, false)?;
-          code
-        } else {
-          asset.content.read()?
-        };
 
-        write!(
-          res,
-          "{}:[function(require,module,exports) {{\n{}\n}}]",
-          asset_index,
-          String::from_utf8_lossy(&code),
-        )?;
+          write!(
+            res,
+            "{}:[function(require,module,exports) {{\n{}\n}}]",
+            asset_index,
+            String::from_utf8_lossy(&code),
+          )?;
+        } else {
+          let code = asset.content.read()?;
+          let deps = serde_json::to_string(&dependencies).unwrap();
+          write!(
+            res,
+            "{}:[function(require,module,exports) {{\n{}\n}}, {}]",
+            asset_index,
+            String::from_utf8_lossy(&code),
+            deps
+          )?;
+        }
       }
     }
 
-    for asset_index in non_js_assets {
+    for synthetic_asset in synthetic_assets {
       if !first {
         res.push(',');
       }
       first = false;
 
-      write!(
-        res,
-        "{}:[function(require,module,exports) {{\n",
-        asset_index,
-      )?;
-
-      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[asset_index as usize] {
-        for exp in &asset.symbols.exports {
-          if !exp.requested {
-            continue;
-          }
-
-          if let Some(value) = resolve_css_module_export(
-            &bundle_graph.asset_graph.assets,
-            asset_index as usize,
-            exp.exported.as_str(),
-          ) {
-            write!(res, "exports.{} = '{}';\n", exp.exported.as_str(), value)?;
-          }
-        }
-      }
-
+      synthetic_asset.write_id(&mut res)?;
+      write!(res, ":[function(require,module,exports) {{\n")?;
+      synthetic_asset.write_content(&mut res, bundle_graph, get_inline_bundle_content)?;
       write!(res, "\n}},{{}}]")?;
-    }
-
-    for (bundle_index, ty) in resolved_bundles {
-      let resolved_bundle = &bundle_graph.bundles[bundle_index as usize];
-      write!(res, ",'b{}':[function(require,module){{\n", bundle_index)?;
-
-      match ty {
-        ResolutionType::Async => {
-          if matches!(
-            bundle.env.context,
-            EnvironmentContext::ReactServer | EnvironmentContext::ReactClient
-          ) {
-            load_bundles_rsc(bundle_graph, resolved_bundle, &mut res)?;
-          } else {
-            load_bundles(bundle_graph, resolved_bundle, &mut res)?;
-          }
-        }
-        ResolutionType::Inline => {
-          let content = get_inline_bundle_content(bundle_index as usize)?.read()?;
-          write!(
-            res,
-            "module.exports={:?}",
-            String::from_utf8_lossy(&content)
-          )?;
-        }
-        ResolutionType::Url => {
-          write!(
-            res,
-            "module.exports={:?}",
-            resolved_bundle.name.as_ref().unwrap()
-          )?;
-        }
-      }
-
-      write!(res, ";\n}},{{}}]")?;
     }
 
     write!(res, "}};\n\n")?;
@@ -953,30 +779,249 @@ var entries = ["#,
   }
 }
 
-fn load_bundles(
+#[derive(PartialEq, Eq, Hash)]
+pub enum SyntheticAsset {
+  Asset(u32),
+  Async(u32),
+  Url(u32),
+  Inline(u32),
+}
+
+pub fn asset_dependencies<'a>(
+  asset: &'a Asset,
+  bundle_graph: &'a BundleGraph,
+  additional_assets: &mut IndexSet<SyntheticAsset>,
+) -> IndexMap<String, Resolution<'a>> {
+  let mut dependencies = IndexMap::new();
+
+  for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+    let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
+    match &dep.resolution {
+      DependencyResolution::Asset(resolved) => {
+        if let AssetNode::Asset(resolved_asset) =
+          &bundle_graph.asset_graph.assets[*resolved as usize]
+        {
+          if resolved_asset.ty != AssetType::Js {
+            if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
+              dependencies.insert(placeholder.as_str().into(), Resolution::Asset(*resolved));
+              additional_assets.insert(SyntheticAsset::Asset(*resolved));
+              continue;
+            }
+            dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
+            continue;
+          }
+
+          if dep.env.context == EnvironmentContext::ReactServer
+            && resolved_asset.env.context == EnvironmentContext::ReactClient
+          {
+            continue;
+          }
+        }
+
+        let mut resolutions = Vec::new();
+        let mut first_asset = None;
+        let mut all_assets_match = true;
+        for import in &asset.symbols.imports {
+          if import.dep_index == dep_index as u32 {
+            match &import.resolved {
+              SymbolResolution::Export {
+                asset_index,
+                export_index,
+              } => {
+                let asset = bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
+                let export = &asset.symbols.exports[*export_index as usize];
+                resolutions.push((
+                  import.symbol.as_str(),
+                  *asset_index,
+                  export.exported.as_str(),
+                ));
+                if first_asset.is_none() {
+                  first_asset = Some(*asset_index);
+                }
+                if first_asset != Some(*asset_index) {
+                  all_assets_match = false;
+                }
+              }
+              SymbolResolution::Runtime { asset_index, name } => {
+                resolutions.push((import.symbol.as_str(), *asset_index, name.as_str()));
+                if first_asset.is_none() {
+                  first_asset = Some(*asset_index);
+                }
+                if first_asset != Some(*asset_index) {
+                  all_assets_match = false;
+                }
+              }
+              SymbolResolution::Namespace { asset_index } => {
+                resolutions.push((import.symbol.as_str(), *asset_index, "*"));
+                if first_asset.is_none() {
+                  first_asset = Some(*asset_index);
+                }
+                if first_asset != Some(*asset_index) {
+                  all_assets_match = false;
+                }
+              }
+              _ => continue,
+            }
+          }
+        }
+
+        // TODO: add indirect/star exports
+
+        if !resolutions.is_empty() {
+          if all_assets_match && let Some(res) = first_asset {
+            dependencies.insert(placeholder.as_str().into(), Resolution::Asset(res));
+          } else {
+            dependencies.insert(
+              placeholder.as_str().into(),
+              Resolution::Symbols(resolutions),
+            );
+          }
+        } else {
+          dependencies.insert(placeholder.as_str().into(), Resolution::Asset(*resolved));
+        }
+      }
+      DependencyResolution::None
+      | DependencyResolution::Excluded
+      | DependencyResolution::Deferred(_) => {
+        dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
+      }
+      DependencyResolution::External => {
+        dependencies.insert(
+          placeholder.as_str().into(),
+          Resolution::External(&dep.specifier),
+        );
+      }
+      DependencyResolution::Bundle(bundle_index) => {
+        let bundle = &bundle_graph.bundles[*bundle_index as usize];
+        if dep.bundle_behavior == BundleBehavior::Inline
+          || bundle.bundle_behavior == BundleBehavior::Inline
+        {
+          additional_assets.insert(SyntheticAsset::Inline(*bundle_index));
+        } else if dep.specifier_type == SpecifierType::Url {
+          additional_assets.insert(SyntheticAsset::Url(*bundle_index));
+        } else {
+          additional_assets.insert(SyntheticAsset::Async(*bundle_index));
+        };
+
+        dependencies.insert(
+          placeholder.as_str().into(),
+          Resolution::Bundle(*bundle_index),
+        );
+      }
+    }
+  }
+
+  dependencies
+}
+
+impl SyntheticAsset {
+  pub fn id(&self) -> String {
+    match self {
+      SyntheticAsset::Asset(id) => format!("{}", id),
+      SyntheticAsset::Async(id) => format!("'b{}'", id),
+      SyntheticAsset::Url(id) => format!("'b{}'", id),
+      SyntheticAsset::Inline(id) => format!("'b{}'", id),
+    }
+  }
+
+  pub fn write_id<W: std::fmt::Write>(&self, dest: &mut W) -> std::fmt::Result {
+    match self {
+      SyntheticAsset::Asset(id) => write!(dest, "{}", id),
+      SyntheticAsset::Async(id) => write!(dest, "'b{}'", id),
+      SyntheticAsset::Url(id) => write!(dest, "'b{}'", id),
+      SyntheticAsset::Inline(id) => write!(dest, "'b{}'", id),
+    }
+  }
+
+  pub fn write_content<W: std::fmt::Write>(
+    &self,
+    dest: &mut W,
+    bundle_graph: &BundleGraph,
+    // bundle: &Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<(), DiagnosticList> {
+    match *self {
+      SyntheticAsset::Asset(asset_index) => {
+        if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[asset_index as usize] {
+          for exp in &asset.symbols.exports {
+            if !exp.requested {
+              continue;
+            }
+
+            if let Some(value) = resolve_css_module_export(
+              &bundle_graph.asset_graph.assets,
+              asset_index as usize,
+              exp.exported.as_str(),
+            ) {
+              write!(dest, "exports.{} = '{}';\n", exp.exported.as_str(), value)?;
+            }
+          }
+        }
+      }
+      SyntheticAsset::Async(bundle_index) => {
+        let resolved_bundle = &bundle_graph.bundles[bundle_index as usize];
+        // if matches!(
+        //   bundle.env.context,
+        //   EnvironmentContext::ReactServer | EnvironmentContext::ReactClient
+        // ) {
+        //   load_bundles_rsc(bundle_graph, resolved_bundle, dest)?;
+        // } else {
+        load_bundles(bundle_graph, resolved_bundle, dest)?;
+        // }
+      }
+      SyntheticAsset::Inline(bundle_index) => {
+        let content = get_inline_bundle_content(bundle_index as usize)?.read()?;
+        write!(
+          dest,
+          "module.exports={:?};",
+          String::from_utf8_lossy(&content)
+        )?;
+      }
+      SyntheticAsset::Url(bundle_index) => {
+        let resolved_bundle = &bundle_graph.bundles[bundle_index as usize];
+        write!(
+          dest,
+          "module.exports=new URL({:?}, import.meta.url).toString();",
+          resolved_bundle
+            .name
+            .as_ref()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+        )?;
+      }
+    }
+
+    Ok(())
+  }
+}
+
+fn load_bundles<W: std::fmt::Write>(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
-  res: &mut String,
+  res: &mut W,
 ) -> core::fmt::Result {
   if !bundle.referenced_bundles.is_empty() {
     write!(res, "module.exports=Promise.all([")?;
     // TODO: recursive
     for referenced_index in &bundle.referenced_bundles {
       load_bundle(&bundle_graph.bundles[*referenced_index], res)?;
-      res.push_str(", ");
+      write!(res, ", ")?;
     }
 
     load_bundle(bundle, res)?;
     write!(
       res,
-      "]).then(() => require({}))",
+      "]).then(() => require({}));",
       bundle.main_entry_asset.unwrap()
     )?;
   } else {
     load_bundle(bundle, res)?;
     write!(
       res,
-      ".then(() => require({}))",
+      ".then(() => require({}));",
       bundle.main_entry_asset.unwrap()
     )?;
   }
@@ -984,7 +1029,7 @@ fn load_bundles(
   Ok(())
 }
 
-fn load_bundle(bundle: &Bundle, res: &mut String) -> core::fmt::Result {
+fn load_bundle<W: std::fmt::Write>(bundle: &Bundle, res: &mut W) -> core::fmt::Result {
   let name = bundle
     .name
     .as_ref()
@@ -1004,10 +1049,10 @@ fn load_bundle(bundle: &Bundle, res: &mut String) -> core::fmt::Result {
   }
 }
 
-fn load_bundles_rsc(
+fn load_bundles_rsc<W: std::fmt::Write>(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
-  res: &mut String,
+  res: &mut W,
 ) -> core::fmt::Result {
   let mut resources = Vec::new();
   let mut promises = Vec::new();
@@ -1020,11 +1065,10 @@ fn load_bundles_rsc(
 
   write!(res, "module.exports=Promise.all([")?;
   for p in promises {
-    res.push_str(&p);
-    res.push(',');
+    write!(res, "{},", p)?;
   }
 
-  res.push_str("])");
+  write!(res, "])")?;
   if !resources.is_empty() {
     write!(
       res,
@@ -1033,13 +1077,13 @@ fn load_bundles_rsc(
     )?;
   }
 
-  res.push_str(";\n");
+  write!(res, ";\n")?;
   Ok(())
 }
 
-fn load_bundle_rsc(
+fn load_bundle_rsc<W: std::fmt::Write>(
   bundle: &Bundle,
-  res: &mut String,
+  res: &mut W,
   resources: &mut Vec<String>,
   promises: &mut Vec<String>,
 ) -> core::fmt::Result {

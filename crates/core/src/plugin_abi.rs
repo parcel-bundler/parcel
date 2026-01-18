@@ -32,8 +32,8 @@ pub extern "C" fn parcel_asset_get_content(buffer: *mut Buffer, asset: *const As
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_free_buffer(buf: Buffer) {
-  drop(unsafe { Vec::from_raw_parts(buf.data, buf.len, buf.cap) })
+pub extern "C" fn parcel_free_buffer(buf: *mut Buffer) {
+  drop(unsafe { Vec::from_raw_parts((*buf).data, (*buf).len, (*buf).cap) })
 }
 
 #[unsafe(no_mangle)]

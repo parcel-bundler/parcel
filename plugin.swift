@@ -1,4 +1,4 @@
-// swiftc -emit-library -import-objc-header plugin.h -module-name plugin -Xlinker -undefined -Xlinker dynamic_lookup plugin.swift -o libplugin.dylib
+// swiftc -emit-library -import-objc-header plugin.h -module-name plugin -Xlinker -undefined -Xlinker dynamic_lookup plugin.swift -o libswiftplugin.dylib
 import Foundation
 
 class BufferWrapper {
