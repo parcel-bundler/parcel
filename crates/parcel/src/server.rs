@@ -129,11 +129,12 @@ impl DevServer {
       let mut deps_by_bundle = HashMap::new();
       deps_by_bundle.insert("TODO".into(), dependencies);
 
-      let mut output = String::from_utf8(asset.content.read().unwrap()).unwrap();
+      let mut output = String::new();
       if asset.ty == AssetType::Js {
         output = format!(
           "parcelHotUpdate[{}] = function (require, module, exports) {{{}}}",
-          id, output
+          id,
+          String::from_utf8(asset.content.read().unwrap()).unwrap()
         );
       }
 
