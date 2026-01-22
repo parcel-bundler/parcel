@@ -5,8 +5,7 @@ use std::{
 
 use parcel_core::{
   Asset, AssetType, BufferContent, Bundle, BundleBehavior, BundleGraph, Content,
-  DependencyResolution, Diagnostic, DiagnosticList, OutputFormat, Packager, ParcelOptions,
-  Transformer,
+  DependencyResolution, DiagnosticList, OutputFormat, Packager, ParcelOptions, Transformer,
 };
 use parcel_html::{
   BundleReference, InlineBundle, PackageOptions, SerializableTendril, TransformOptions,
@@ -52,63 +51,39 @@ impl Packager for SvgPackager {
     let mut referenced_bundles = HashSet::<usize>::new();
     for dep in &asset.dependencies {
       if let DependencyResolution::Bundle(b) = dep.resolution {
-        let bundle = &bundle_graph.bundles[b as usize];
+        let referenced_bundle = &bundle_graph.bundles[b as usize];
         let contents = if dep.bundle_behavior == BundleBehavior::Inline {
           String::from_utf8(get_inline_bundle_content(b as usize)?.read()?).unwrap()
         } else {
-          bundle
-            .name
-            .as_ref()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_owned()
+          referenced_bundle.relative_url(&bundle).unwrap()
         };
 
         inline_bundles.insert(
           SerializableTendril(dep.placeholder.clone().unwrap().into()),
           InlineBundle {
             contents: SerializableTendril(contents.into()),
-            module: bundle.env.output_format == OutputFormat::Esmodule,
+            module: referenced_bundle.env.output_format == OutputFormat::Esmodule,
           },
         );
 
-        referenced_bundles.extend(bundle.referenced_bundles.iter()); // TODO: should be recursive
+        referenced_bundles.extend(referenced_bundle.referenced_bundles.iter()); // TODO: should be recursive
       }
     }
 
     let mut bundles: Vec<BundleReference> = Vec::new();
     for reference in referenced_bundles {
-      let bundle = &bundle_graph.bundles[reference];
-      match &bundle.ty {
+      let referenced_bundle = &bundle_graph.bundles[reference];
+      match &referenced_bundle.ty {
         AssetType::Js => {
-          let src = bundle
-            .name
-            .as_ref()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_owned();
+          let src = referenced_bundle.relative_url(&bundle).unwrap();
           bundles.push(BundleReference::Script {
             src: SerializableTendril(src.into()),
-            module: bundle.env.output_format == OutputFormat::Esmodule,
+            module: referenced_bundle.env.output_format == OutputFormat::Esmodule,
             nomodule: false,
           });
         }
         AssetType::Css => {
-          let src = bundle
-            .name
-            .as_ref()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_owned();
+          let src = referenced_bundle.relative_url(&bundle).unwrap();
           bundles.push(BundleReference::StyleSheet {
             href: SerializableTendril(src.into()),
           });

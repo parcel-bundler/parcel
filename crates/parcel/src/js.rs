@@ -693,11 +693,10 @@ impl Packager for JsPackager {
         continue;
       }
 
-      let name = referenced.name.as_ref().unwrap();
       write!(
         res,
         "import './{}';\n",
-        name.file_name().unwrap().to_str().unwrap()
+        referenced.relative_url(&bundle).unwrap()
       )?;
     }
 
@@ -770,7 +769,7 @@ impl Packager for JsPackager {
 
       synthetic_asset.write_id(&mut res)?;
       write!(res, ":[function(require,module,exports) {{\n")?;
-      synthetic_asset.write_content(&mut res, bundle_graph, get_inline_bundle_content)?;
+      synthetic_asset.write_content(&mut res, bundle_graph, bundle, get_inline_bundle_content)?;
       write!(res, "\n}},{{}}]")?;
     }
 
@@ -956,7 +955,7 @@ impl SyntheticAsset {
     &self,
     dest: &mut W,
     bundle_graph: &BundleGraph,
-    // bundle: &Bundle,
+    bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<(), DiagnosticList> {
     match *self {
@@ -985,7 +984,7 @@ impl SyntheticAsset {
         // ) {
         //   load_bundles_rsc(bundle_graph, resolved_bundle, dest)?;
         // } else {
-        load_bundles(bundle_graph, resolved_bundle, dest)?;
+        load_bundles(bundle_graph, bundle, resolved_bundle, dest)?;
         // }
       }
       SyntheticAsset::Inline(bundle_index) => {
@@ -1001,14 +1000,7 @@ impl SyntheticAsset {
         write!(
           dest,
           "module.exports=new URL({:?}, import.meta.url).toString();",
-          resolved_bundle
-            .name
-            .as_ref()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
+          resolved_bundle.relative_url(&bundle).unwrap()
         )?;
       }
     }
@@ -1019,6 +1011,7 @@ impl SyntheticAsset {
 
 fn load_bundles<W: std::fmt::Write>(
   bundle_graph: &BundleGraph,
+  from: &Bundle,
   bundle: &Bundle,
   res: &mut W,
 ) -> core::fmt::Result {
@@ -1026,18 +1019,18 @@ fn load_bundles<W: std::fmt::Write>(
     write!(res, "module.exports=Promise.all([")?;
     // TODO: recursive
     for referenced_index in &bundle.referenced_bundles {
-      load_bundle(&bundle_graph.bundles[*referenced_index], res)?;
+      load_bundle(&bundle_graph.bundles[*referenced_index], from, res)?;
       write!(res, ", ")?;
     }
 
-    load_bundle(bundle, res)?;
+    load_bundle(bundle, from, res)?;
     write!(
       res,
       "]).then(() => require({}));",
       bundle.main_entry_asset.unwrap()
     )?;
   } else {
-    load_bundle(bundle, res)?;
+    load_bundle(bundle, from, res)?;
     write!(
       res,
       ".then(() => require({}));",
@@ -1048,15 +1041,12 @@ fn load_bundles<W: std::fmt::Write>(
   Ok(())
 }
 
-fn load_bundle<W: std::fmt::Write>(bundle: &Bundle, res: &mut W) -> core::fmt::Result {
-  let name = bundle
-    .name
-    .as_ref()
-    .unwrap()
-    .file_name()
-    .unwrap()
-    .to_str()
-    .unwrap();
+fn load_bundle<W: std::fmt::Write>(
+  bundle: &Bundle,
+  from: &Bundle,
+  res: &mut W,
+) -> core::fmt::Result {
+  let name = bundle.relative_url(from).unwrap();
   match &bundle.ty {
     AssetType::Js => {
       write!(res, "parcelLoadJS('./{}')", name)
@@ -1070,6 +1060,7 @@ fn load_bundle<W: std::fmt::Write>(bundle: &Bundle, res: &mut W) -> core::fmt::R
 
 fn load_bundles_rsc<W: std::fmt::Write>(
   bundle_graph: &BundleGraph,
+  from: &Bundle,
   bundle: &Bundle,
   res: &mut W,
 ) -> core::fmt::Result {
@@ -1077,10 +1068,10 @@ fn load_bundles_rsc<W: std::fmt::Write>(
   let mut promises = Vec::new();
   for referenced_index in &bundle.referenced_bundles {
     let referenced_bundle = &bundle_graph.bundles[*referenced_index];
-    load_bundle_rsc(referenced_bundle, res, &mut resources, &mut promises)?;
+    load_bundle_rsc(referenced_bundle, from, res, &mut resources, &mut promises)?;
   }
 
-  load_bundle_rsc(bundle, res, &mut resources, &mut promises)?;
+  load_bundle_rsc(bundle, from, res, &mut resources, &mut promises)?;
 
   write!(res, "module.exports=Promise.all([")?;
   for p in promises {
@@ -1102,18 +1093,12 @@ fn load_bundles_rsc<W: std::fmt::Write>(
 
 fn load_bundle_rsc<W: std::fmt::Write>(
   bundle: &Bundle,
+  from: &Bundle,
   res: &mut W,
   resources: &mut Vec<String>,
   promises: &mut Vec<String>,
 ) -> core::fmt::Result {
-  let name = bundle
-    .name
-    .as_ref()
-    .unwrap()
-    .file_name()
-    .unwrap()
-    .to_str()
-    .unwrap();
+  let name = bundle.relative_url(&from).unwrap();
   match &bundle.ty {
     AssetType::Js => {
       if bundle.env.context.is_browser() {

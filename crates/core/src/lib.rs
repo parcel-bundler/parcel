@@ -21,7 +21,7 @@ mod resolver;
 mod target;
 mod transformer;
 
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use crate::{asset_graph::build_asset_graph, packager::RawPackager};
 
@@ -77,7 +77,7 @@ pub fn build(
     // TODO: replace hash references
 
     let name = bundle_graph.bundles[i].name.as_ref().unwrap();
-    content.write(&*options.input_fs, name)?;
+    content.write(&*options.input_fs, Path::new(name))?;
   }
 
   Ok(bundle_graph)
@@ -98,11 +98,9 @@ fn get_bundle_content(
 
   let mut content = packager.package(&bundle_graph, &bundle, &get_inline_bundle_content)?;
 
-  let optimizers = config.optimizers.get::<&str>(
-    bundle.name.as_ref().unwrap().as_path().to_str().unwrap(),
-    &None,
-    false,
-  );
+  let optimizers = config
+    .optimizers
+    .get::<&str>(bundle.name.as_ref().unwrap(), &None, false);
 
   for optimizer in optimizers.0 {
     content = optimizer.optimize(&bundle_graph, &bundle, content)?;

@@ -160,7 +160,12 @@ impl DevServer {
       write!(&mut output, "parcelHotUpdate[",);
       synthetic_asset.write_id(&mut output);
       write!(&mut output, "] = function (require, module, exports) {{");
-      synthetic_asset.write_content(&mut output, bundle_graph, &|_| todo!());
+      synthetic_asset.write_content(
+        &mut output,
+        bundle_graph,
+        &bundle_graph.bundles[0], // TODO
+        &|_| todo!(),
+      );
       write!(&mut output, "}}");
 
       assets.push(HmrAsset {

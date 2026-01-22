@@ -11,7 +11,7 @@ pub struct Bundle {
   pub env: Arc<Environment>,
   pub bundle_behavior: BundleBehavior,
   pub flags: BundleFlags,
-  pub name: Option<PathBuf>,
+  pub name: Option<String>,
   pub assets: Vec<usize>,
   pub entry_assets: Vec<usize>,
   pub main_entry_asset: Option<usize>,
@@ -37,4 +37,17 @@ pub enum BundleBehavior {
   None,
   Inline,
   Isolated,
+}
+
+impl Bundle {
+  pub fn relative_url(&self, from: &Bundle) -> Option<String> {
+    if let (Some(this), Some(from)) = (&self.name, &from.name) {
+      let root = url::Url::parse("file:///").unwrap();
+      let this = root.join(this).ok()?;
+      let from = root.join(from).ok()?;
+      from.make_relative(&this)
+    } else {
+      None
+    }
+  }
 }

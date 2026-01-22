@@ -468,6 +468,7 @@ impl Packager for CssPackager {
       if !visited[source_index] {
         inline(
           &bundle_graph,
+          &bundle,
           &asset_index_to_stylesheet_index,
           &mut stylesheets,
           source_index,
@@ -633,6 +634,7 @@ fn collect(
 
 fn inline(
   bundle_graph: &BundleGraph,
+  bundle: &Bundle,
   asset_index_to_stylesheet_index: &HashMap<u32, usize>,
   stylesheets: &mut Vec<StyleSheetWrapper>,
   source_index: usize,
@@ -655,6 +657,7 @@ fn inline(
         {
           inline(
             bundle_graph,
+            bundle,
             asset_index_to_stylesheet_index,
             stylesheets,
             dep_source_index,
@@ -682,6 +685,7 @@ fn inline(
             {
               inline(
                 bundle_graph,
+                bundle,
                 asset_index_to_stylesheet_index,
                 stylesheets,
                 dep_source_index,
@@ -693,14 +697,13 @@ fn inline(
             *rule = CssRule::Ignored;
           }
           DependencyResolution::Bundle(bundle_index) => {
-            let bundle = &bundle_graph.bundles[bundle_index as usize];
+            let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];
             if dep.bundle_behavior == BundleBehavior::Inline
-              || bundle.bundle_behavior == BundleBehavior::Inline
+              || referenced_bundle.bundle_behavior == BundleBehavior::Inline
             {
               todo!()
             } else {
-              let url = bundle.name.as_ref().unwrap().to_str().unwrap().to_owned(); // TODO
-              import.url = url.into();
+              import.url = referenced_bundle.relative_url(&bundle).unwrap().into();
             }
           }
           _ => break,
@@ -753,6 +756,7 @@ fn inline(
   let mut replacer = ReferenceReplacer::new(
     &asset.dependencies,
     &bundle_graph.bundles,
+    bundle,
     source_index as u32,
     references,
   );
@@ -812,6 +816,7 @@ impl ReferenceReplacer {
   fn new(
     dependencies: &Vec<Dependency>,
     bundles: &Vec<Bundle>,
+    bundle: &Bundle,
     source_index: u32,
     css_modules: HashMap<String, String>,
   ) -> ReferenceReplacer {
@@ -819,13 +824,13 @@ impl ReferenceReplacer {
     for dep in dependencies {
       if dep.priority == Priority::Lazy && dep.specifier_type == SpecifierType::Url {
         if let DependencyResolution::Bundle(bundle_index) = dep.resolution {
-          let bundle = &bundles[bundle_index as usize];
+          let referenced_bundle = &bundles[bundle_index as usize];
           if dep.bundle_behavior == BundleBehavior::Inline
-            || bundle.bundle_behavior == BundleBehavior::Inline
+            || referenced_bundle.bundle_behavior == BundleBehavior::Inline
           {
             todo!()
           } else {
-            let url = bundle.name.as_ref().unwrap().to_str().unwrap().to_owned(); // TODO
+            let url = referenced_bundle.relative_url(bundle).unwrap().into();
             urls.insert(dep.specifier.clone(), url);
           }
         }
@@ -1031,6 +1036,7 @@ impl Packager for StyleAttrPackager {
     let mut replacer = ReferenceReplacer::new(
       &asset.dependencies,
       &bundle_graph.bundles,
+      bundle,
       0,
       HashMap::new(),
     );
