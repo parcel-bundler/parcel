@@ -1,0 +1,11 @@
+@import 'test.less';
+
+.test {
+  /* background: url(test.png); */
+  composes: b from './b.module.css';
+  color: var(--color from './b.module.css');
+}
+
+.unused {
+  color: green;
+}

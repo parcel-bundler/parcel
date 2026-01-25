@@ -1,0 +1,52 @@
+{
+  "resolvers": ["@parcel/resolver-default"],
+  "transformers": {
+    "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": [
+      "@parcel/transformer-js"
+    ],
+    "*.module.css": [
+      {
+        "plugin": "@parcel/transformer-css",
+        "config": {
+          "cssModules": {
+            "pattern": "devon-[hash]",
+            "dashedIdents": true
+          }
+        }
+      }
+    ],
+    "*.css": [
+      "@parcel/transformer-css"
+    ],
+    "*.style": ["@parcel/transformer-style-attr"],
+    "*.{html,xhtml}": ["@parcel/transformer-html"],
+    "*.svg": ["@parcel/transformer-svg"],
+    "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": ["@parcel/transformer-image"],
+    "*.less": [
+      {
+        "plugin": "@parcel/transformer-quickjs",
+        "config": {
+          "path": "/Users/devongovett/dev/parcel/less-plugin.mjs"
+        }
+      }
+    ],
+    "*.txt": [
+      {
+        "plugin": "@parcel/transformer-native",
+        "config": {
+          "lib": "/Users/devongovett/dev/parcel/libcppplugin.dylib"
+        }
+      }
+    ]
+  },
+  "bundler": "@parcel/bundler-default",
+  "namers": ["@parcel/namer-default"],
+  "packagers": {
+    "js": "@parcel/packager-js",
+    "css": "@parcel/packager-css",
+    "style": "@parcel/packager-style-attr",
+    "html": "@parcel/packager-html",
+    "xhtml": "@parcel/packager-html",
+    "svg": "@parcel/packager-svg"
+  }
+}

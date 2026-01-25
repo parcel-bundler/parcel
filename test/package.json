@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "sideEffects": true,
+  "dependencies": {
+    "react": "^19"
+  }
+}
