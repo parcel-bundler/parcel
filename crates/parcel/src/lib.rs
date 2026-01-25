@@ -124,11 +124,21 @@ impl PluginFactory for DefaultPluginFactory {
 
 pub fn build() -> Result<BundleGraph, DiagnosticList> {
   let start = std::time::Instant::now();
+  let mode = parcel_core::BuildMode::Production;
+  let mut env = HashMap::new();
+  env.insert(
+    "NODE_ENV".into(),
+    if mode == parcel_core::BuildMode::Production {
+      "production".into()
+    } else {
+      "development".into()
+    },
+  );
   let options = Arc::new(ParcelOptions {
-    env: HashMap::new(),
+    env,
     input_fs: Arc::new(OsFileSystem {}),
     log_level: parcel_core::LogLevel::Verbose,
-    mode: parcel_core::BuildMode::Development,
+    mode,
     project_root: SourceUrl::from_path(Path::new(
       "/Users/devongovett/dev/parcel/test",
       // "/Users/devongovett/dev/esbuild/require/parcel2/bench/three/",

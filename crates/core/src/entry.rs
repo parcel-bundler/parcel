@@ -7,8 +7,8 @@ use glob_match::glob_match;
 use serde_json::Value;
 
 use crate::{
-  Engines, Environment, EnvironmentContext, EnvironmentFlags, FileKind, FileSystem, OutputFormat,
-  ParcelOptions, SourceLocation, SourceType, SourceUrl, Target, Version,
+  BuildMode, Engines, Environment, EnvironmentContext, EnvironmentFlags, FileKind, FileSystem,
+  OutputFormat, ParcelOptions, SourceLocation, SourceType, SourceUrl, Target, Version,
 };
 
 #[derive(Debug, PartialEq)]
@@ -26,9 +26,20 @@ pub fn resolve_entries(entries: Vec<String>, options: &ParcelOptions) -> Vec<Ent
       if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
         resolved_entries.extend(resolve_package_entries(&*options.input_fs, path));
       } else {
+        let mut flags = EnvironmentFlags::empty();
+        flags.set(
+          EnvironmentFlags::SHOULD_OPTIMIZE,
+          options.mode == BuildMode::Production,
+        );
         resolved_entries.push(Entry {
           url: SourceUrl::from_path(&path).unwrap(),
-          target: Target::default(),
+          target: Target {
+            env: Arc::new(Environment {
+              flags,
+              ..Default::default()
+            }),
+            ..Default::default()
+          },
           loc: None,
           asset: None,
         });
