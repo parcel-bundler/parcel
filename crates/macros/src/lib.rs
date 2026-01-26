@@ -40,7 +40,7 @@ pub struct Location {
 }
 
 pub type MacroCallback =
-  Arc<dyn Fn(String, String, Vec<JsValue>, Location) -> Result<JsValue, MacroError> + Send + Sync>;
+  Arc<dyn Fn(String, String, Vec<JsValue>, Location) -> Result<JsValue, MacroError>>;
 
 pub struct Macros<'a> {
   /// Mapping of imported identifiers to import metadata.

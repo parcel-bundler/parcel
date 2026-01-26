@@ -7,3 +7,10 @@ export function testMacro() {
     f: (x) => x * 2
   };
 }
+
+export function css(code) {
+  this.addAsset({
+    type: 'css',
+    content: code
+  });
+}

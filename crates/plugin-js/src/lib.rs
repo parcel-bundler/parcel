@@ -1,8 +1,12 @@
-use std::{cell::RefCell, path::Path, sync::Arc};
+use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
 
 use indexmap::IndexMap;
-use parcel_core::{Asset, AssetType, BufferContent, Diagnostic, Transformer};
-use parcel_macros::{JsValue, Location, MacroError};
+use parcel_core::{
+  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency,
+  DependencyFlags, DependencyResolution, Diagnostic, Environment, Location, Priority,
+  SourceLocation, SourceUrl, SpecifierType, Transformer,
+};
+use parcel_macros::{JsValue, MacroError};
 use rquickjs::{
   Class, Context, Ctx, FromJs, Function, IntoJs, JsLifetime, Module, Object, Runtime, Type,
   TypedArray, Value,
@@ -260,23 +264,99 @@ impl Process {
   }
 }
 
+#[derive(JsLifetime)]
+#[rquickjs::class]
+pub struct MacroContext {
+  url: SourceUrl,
+  env: Arc<Environment>,
+  loc: parcel_macros::Location,
+  dependencies: Rc<RefCell<Vec<Dependency>>>,
+}
+
+impl<'js> Trace<'js> for MacroContext {
+  fn trace<'a>(&self, _tracer: class::Tracer<'a, 'js>) {}
+}
+
+#[methods]
+impl MacroContext {
+  #[qjs(rename = "addAsset")]
+  fn add_asset<'js>(&mut self, asset: Object<'js>) {
+    let ty: String = asset.get("type").unwrap();
+    let content: String = asset.get("content").unwrap();
+    self.dependencies.borrow_mut().push(Dependency {
+      specifier: format!("macro"),
+      specifier_type: SpecifierType::Esm,
+      priority: Priority::Sync,
+      bundle_behavior: BundleBehavior::None,
+      flags: DependencyFlags::empty(),
+      env: self.env.clone(),
+      loc: Some(SourceLocation {
+        url: self.url.clone(),
+        start: Location {
+          line: self.loc.line,
+          column: self.loc.col,
+        },
+        end: Location {
+          line: self.loc.line,
+          column: self.loc.col,
+        },
+      }),
+      placeholder: None,
+      resolve_from: None,
+      range: None,
+      resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
+        url: self.url.clone(),
+        ty: AssetType::from_extension(&ty),
+        pipeline: None,
+        env: self.env.clone(),
+        code: Some(content.into_bytes()),
+        side_effects: true,
+      })),
+    })
+  }
+
+  #[qjs(get)]
+  fn loc<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<Object<'js>> {
+    let res = Object::new(ctx)?;
+    res.set("filePath", self.url.as_str())?;
+    res.set("line", self.loc.line)?;
+    res.set("col", self.loc.col)?;
+    Ok(res)
+  }
+
+  // TODO: invalidations
+}
+
 pub fn call_macro(
+  url: SourceUrl,
+  env: Arc<Environment>,
   src: String,
   export: String,
   args: Vec<JsValue>,
-  loc: Location,
-) -> Result<JsValue, MacroError> {
+  loc: parcel_macros::Location,
+) -> Result<(JsValue, Vec<Dependency>), MacroError> {
   with_js_env(|ctx| {
     let promise = Module::import(&ctx, src)?;
     let module: Object = promise.finish()?;
     let f: Function = module.get(&export)?;
     let mut js_args = Args::new(ctx.clone(), args.len());
+    let dependencies = Rc::new(RefCell::new(Vec::new()));
+    let context = MacroContext {
+      url,
+      env,
+      loc,
+      dependencies: dependencies.clone(),
+    };
+    js_args.this(context)?;
     for arg in args {
       js_args.push_arg(js_value_to_quickjs(arg, ctx.clone())?)?;
     }
     let result: rquickjs::Value = f.call_arg(js_args)?;
+    if result.is_promise() {
+      // TODO
+    }
     let result = quickjs_to_js_value(result, ctx.clone())?;
-    Ok(result)
+    Ok((result, std::mem::take(&mut *dependencies.borrow_mut())))
   })
   .map_err(|d| MacroError::ExecutionError(d.message, Default::default()))
 }

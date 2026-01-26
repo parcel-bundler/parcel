@@ -1,4 +1,5 @@
 use std::{
+  cell::RefCell,
   collections::HashMap,
   fmt::Write,
   sync::{Arc, Mutex},
@@ -51,14 +52,27 @@ impl Transformer for JsTransformer {
       parcel_resolver::Cache::new(options.input_fs.clone()),
     );
 
+    let url = asset.loc.url.clone();
+    let env = asset.env.clone();
     let resolve_from = asset.loc.url.to_file_path().unwrap();
+    let macro_deps = Arc::new(RefCell::new(Vec::new()));
+    let macro_deps_cloned = macro_deps.clone();
     let res = transform_to_ast(
       config,
       Some(Arc::new(move |src, export, args, loc| {
         let resolved = resolver.resolve(&src, &resolve_from, parcel_resolver::SpecifierType::Esm);
         if let Ok(res) = resolved.result {
           if let parcel_resolver::Resolution::Path(p) = res.resolution {
-            return call_macro(p.to_str().unwrap().to_string(), export, args, loc);
+            let (res, deps) = call_macro(
+              url.clone(),
+              env.clone(),
+              p.to_str().unwrap().to_string(),
+              export,
+              args,
+              loc,
+            )?;
+            macro_deps_cloned.borrow_mut().extend(deps);
+            return Ok(res);
           }
         }
 
@@ -349,6 +363,9 @@ impl Transformer for JsTransformer {
       }
     }
 
+    asset
+      .dependencies
+      .extend(std::mem::take(&mut *macro_deps.borrow_mut()));
     Ok(asset)
   }
 }
