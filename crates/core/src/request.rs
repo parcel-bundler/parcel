@@ -86,7 +86,7 @@ fn spawn_workers(rx: mpsc::Receiver<Request>, tx: mpsc::Sender<RequestResult>) {
           Request::Transform(req) => RequestResult::Transform(req.run()),
         };
 
-        tx.send(result).unwrap();
+        let _ = tx.send(result);
       }
     });
   }

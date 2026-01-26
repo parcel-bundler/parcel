@@ -110,6 +110,10 @@ impl SourceUrl {
   pub fn query_pairs(&self) -> impl Iterator<Item = (Cow<'_, str>, Cow<'_, str>)> {
     self.url.query_pairs()
   }
+
+  pub fn url(&self) -> &Url {
+    &*self.url
+  }
 }
 
 impl std::fmt::Display for SourceUrl {

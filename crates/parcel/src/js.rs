@@ -251,7 +251,7 @@ impl Transformer for JsTransformer {
             }
           }
         },
-        loc: None,
+        loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
         placeholder: dep.placeholder,
         resolve_from: if is_helper {
           // TODO

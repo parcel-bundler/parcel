@@ -124,7 +124,7 @@ impl PluginFactory for DefaultPluginFactory {
 
 pub fn build() -> Result<BundleGraph, DiagnosticList> {
   let start = std::time::Instant::now();
-  let mode = parcel_core::BuildMode::Production;
+  let mode = parcel_core::BuildMode::Development;
   let mut env = HashMap::new();
   env.insert(
     "NODE_ENV".into(),
@@ -157,7 +157,8 @@ pub fn build() -> Result<BundleGraph, DiagnosticList> {
       Ok(g)
     }
     Err(err) => {
-      println!("ERROR: {:?}", err);
+      let mut stderr = std::io::stderr();
+      err.report(&mut stderr).unwrap();
       Err(err)
     }
   }

@@ -9,7 +9,7 @@ bitflags = { version = "2.7.0", features = ["serde"] }
 browserslist-rs = "0.18.1"
 json-sourcemap = "0.2.0"
 node-semver = "2.2.0"
-serde = { version = "1.0.123", features = ["derive", "rc"] }
+serde = { version = "=1.0.219", features = ["derive", "rc"] }
 serde_bytes = "0.11.5"
 serde-value = "0.7.0"
 indexmap = { version = "=2.11.0", features = ["serde"] }
@@ -19,9 +19,18 @@ fixedbitset = "0.5.7"
 url = "*"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel_sourcemap = "*"
-serde_json = { version = "1.0.91", features = ["preserve_order"] }
+serde_json = { version = "=1.0.140", features = ["preserve_order"] }
 libloading = "0.9"
 # wasmtime = "38.0.0"
 # wasmtime-wasi = "38.0.0"
 hstr = { version = "1.0.0", features = ["serde"] }
 either = "1.15.0"
+anstyle = "*"
+
+tree-sitter = "0.25.10"
+tree-sitter-highlight = "0.25.10"
+tree-sitter-css = "0.25.0"
+tree-sitter-javascript = "0.25.0"
+tree-sitter-typescript = "0.23.2"
+tree-sitter-json = "0.24.8"
+tree-sitter-html = "0.23.2"

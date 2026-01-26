@@ -29,14 +29,6 @@
           "path": "/Users/devongovett/dev/parcel/less-plugin.mjs"
         }
       }
-    ],
-    "*.txt": [
-      {
-        "plugin": "@parcel/transformer-native",
-        "config": {
-          "lib": "/Users/devongovett/dev/parcel/libcppplugin.dylib"
-        }
-      }
     ]
   },
   "bundler": "@parcel/bundler-default",
