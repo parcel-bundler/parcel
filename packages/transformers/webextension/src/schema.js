@@ -286,7 +286,8 @@ const commonProps = {
   }: SchemaEntity),
   optional_host_permissions: arrStr,
   optional_permissions: arrStr,
-  // options_page is deprecated
+  // options_page is a legacy key but still supported by Chrome and Firefox
+  options_page: string,
   options_ui: {
     type: 'object',
     properties: {
