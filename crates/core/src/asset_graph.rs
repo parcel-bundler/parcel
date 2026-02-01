@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  ParcelOptions, SymbolName, SymbolResolution,
+  EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -57,7 +57,16 @@ pub fn build_asset_graph(
     let index = assets.len();
     assets.push(AssetNode::Deferred {
       request: req.clone(),
-      symbols: Vec::new(),
+      symbols: if entry
+        .target
+        .env
+        .flags
+        .contains(EnvironmentFlags::IS_LIBRARY)
+      {
+        vec![SymbolName::Namespace]
+      } else {
+        Vec::new()
+      },
       requested: true,
     });
     entry.asset = Some(index);

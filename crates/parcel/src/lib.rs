@@ -5,9 +5,11 @@ use std::{
   sync::Arc,
 };
 
+use lightningcss::properties::outline::Outline;
 use parcel_core::{
-  AssetGraph, AssetNode, BundleFlags, BundleGraph, CPlugin, DefaultBundler, DiagnosticList, Namer,
-  Optimizer, Packager, ParcelConfig, ParcelOptions, PluginFactory, SourceUrl, Transformer,
+  AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Bundler, CPlugin,
+  DefaultBundler, DependencyResolution, DiagnosticList, Namer, Optimizer, OutputFormat, Packager,
+  ParcelConfig, ParcelOptions, PluginFactory, SourceUrl, Transformer,
 };
 use parcel_image::ImageTransformer;
 use parcel_plugin_js::JsPlugin;
@@ -17,7 +19,7 @@ use xxhash_rust::xxh3::Xxh3Default;
 use crate::{
   css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer},
   html::{HtmlPackager, HtmlTransformer},
-  js::{JsPackager, JsTransformer},
+  js::{JsPackager, JsTransformer, LibraryPackager},
   resolver::DefaultResolver,
   svg::{SvgPackager, SvgTransformer},
 };
@@ -77,6 +79,8 @@ impl PluginFactory for DefaultPluginFactory {
   ) -> Arc<dyn parcel_core::Bundler> {
     if name == "@parcel/bundler-default" {
       Arc::new(DefaultBundler {})
+    } else if name == "@parcel/bundler-library" {
+      Arc::new(LibraryBundler {})
     } else {
       todo!()
     }
@@ -97,6 +101,7 @@ impl PluginFactory for DefaultPluginFactory {
   fn packager(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Packager> {
     match name {
       "@parcel/packager-js" => Arc::new(JsPackager {}),
+      "@parcel/packager-library" => Arc::new(LibraryPackager {}),
       "@parcel/packager-css" => Arc::new(CssPackager {}),
       "@parcel/packager-style-attr" => Arc::new(StyleAttrPackager {}),
       "@parcel/packager-html" => Arc::new(HtmlPackager {}),
@@ -140,7 +145,7 @@ pub fn build() -> Result<BundleGraph, DiagnosticList> {
     log_level: parcel_core::LogLevel::Verbose,
     mode,
     project_root: SourceUrl::from_path(Path::new(
-      "/Users/devongovett/dev/parcel/test",
+      "/Users/devongovett/dev/parcel/test/library",
       // "/Users/devongovett/dev/esbuild/require/parcel2/bench/three/",
     ))
     .unwrap(),
@@ -148,7 +153,8 @@ pub fn build() -> Result<BundleGraph, DiagnosticList> {
 
   match parcel_core::build(
     // vec!["/Users/devongovett/dev/esbuild/require/parcel2/bench/three/entry.parcel2.js".into()],
-    vec!["/Users/devongovett/dev/parcel/test/index.html".into()],
+    // vec!["/Users/devongovett/dev/parcel/test/index.html".into()],
+    vec!["/Users/devongovett/dev/parcel/test/library".into()],
     options,
     &DefaultPluginFactory {},
   ) {
@@ -234,16 +240,26 @@ impl Namer for DefaultNamer {
     asset_graph: &AssetGraph,
     bundle: &parcel_core::Bundle,
   ) -> Result<Option<String>, DiagnosticList> {
+    let mut ext = bundle.ty.extension();
+    if bundle.ty == AssetType::Js {
+      if bundle.env.output_format == OutputFormat::Esmodule {
+        ext = "mjs";
+      } else if bundle.env.output_format == OutputFormat::Commonjs {
+        ext = "cjs";
+      }
+    }
+
     if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
       if let Some(entry) = bundle.main_entry_asset {
         if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {
           return Ok(Some(format!(
-            "test/dist/{}",
+            "test/library/dist/{}",
             asset
               .loc
               .url
               .to_file_path()
               .unwrap()
+              .with_extension(ext)
               .file_name()
               .unwrap()
               .to_str()
@@ -256,10 +272,45 @@ impl Namer for DefaultNamer {
     let mut hash = Xxh3Default::new();
     bundle.assets.hash(&mut hash);
     Ok(Some(format!(
-      "test/dist/{:016x}.{}",
+      "test/library/dist/{:016x}.{}",
       hash.digest(),
-      bundle.ty.extension()
+      ext
     )))
+  }
+}
+
+struct LibraryBundler {}
+
+impl Bundler for LibraryBundler {
+  fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+    let mut bundles = Vec::<Bundle>::new();
+
+    for (id, asset) in asset_graph.assets.iter_mut().enumerate() {
+      if let AssetNode::Asset(asset) = asset {
+        bundles.push(Bundle {
+          ty: asset.ty.clone(),
+          assets: vec![id],
+          bundle_behavior: asset.bundle_behavior,
+          entry_assets: vec![id],
+          env: asset.env.clone(),
+          flags: BundleFlags::NEEDS_STABLE_NAME,
+          main_entry_asset: Some(id),
+          name: None,
+          referenced_bundles: Vec::new(),
+        });
+
+        for dep in &mut asset.dependencies {
+          if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
+            dep.resolution = DependencyResolution::Bundle(resolved_asset_index);
+          }
+        }
+      }
+    }
+
+    Ok(BundleGraph {
+      asset_graph,
+      bundles,
+    })
   }
 }
 

@@ -50,6 +50,7 @@ pub fn tree_shake<'a>(
   ast: &mut Ast,
   used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
+  minify: bool,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
     let global_mark = Mark::fresh(Mark::root());
@@ -63,33 +64,35 @@ pub fn tree_shake<'a>(
 
     ast.program.visit_mut_with(&mut shake);
 
-    let module = std::mem::take(&mut ast.program);
-    let mut program = swc_core::ecma::minifier::optimize(
-      Program::Module(module),
-      ast.source_map.clone(),
-      Some(&ast.comments),
-      None,
-      &swc_core::ecma::minifier::option::MinifyOptions {
-        rename: true,
-        compress: Some(CompressOptions {
-          top_level: Some(TopLevelOptions { functions: true }),
+    if minify {
+      let module = std::mem::take(&mut ast.program);
+      let mut program = swc_core::ecma::minifier::optimize(
+        Program::Module(module),
+        ast.source_map.clone(),
+        Some(&ast.comments),
+        None,
+        &swc_core::ecma::minifier::option::MinifyOptions {
+          rename: true,
+          compress: Some(CompressOptions {
+            top_level: Some(TopLevelOptions { functions: true }),
+            ..Default::default()
+          }),
+          mangle: Some(MangleOptions {
+            top_level: Some(true),
+            ..Default::default()
+          }),
           ..Default::default()
-        }),
-        mangle: Some(MangleOptions {
-          top_level: Some(true),
-          ..Default::default()
-        }),
-        ..Default::default()
-      },
-      &swc_core::ecma::minifier::option::ExtraOptions {
-        mangle_name_cache: None,
-        top_level_mark: global_mark,
-        unresolved_mark,
-      },
-    );
+        },
+        &swc_core::ecma::minifier::option::ExtraOptions {
+          mangle_name_cache: None,
+          top_level_mark: global_mark,
+          unresolved_mark,
+        },
+      );
 
-    program.mutate(&mut fixer(Some(&ast.comments)));
-    ast.program = program.expect_module();
+      program.mutate(&mut fixer(Some(&ast.comments)));
+      ast.program = program.expect_module();
+    }
   })
 }
 
@@ -264,6 +267,28 @@ impl<'a> VisitMut for TreeShake<'a> {
         }
       }
       _ => {}
+    }
+  }
+
+  fn visit_mut_module_item(&mut self, node: &mut ModuleItem) {
+    match node {
+      ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+        if let Some(resolution) = self.resolutions.get(import.src.value.as_str()) {
+          println!("{:?} {:?}", import.src.value, resolution);
+        }
+      }
+      ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) => {
+        if let Some(resolution) = self.resolutions.get(export.src.value.as_str()) {
+          match resolution {
+            Resolution::Bundle(resolution) => {
+              export.src.value = format!("b{}", *resolution).into();
+              println!("{:?} {:?}", export.src.value, resolution);
+            }
+            _ => {}
+          }
+        }
+      }
+      _ => node.visit_mut_children_with(self),
     }
   }
 }

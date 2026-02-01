@@ -759,9 +759,13 @@ pub fn transform_to_ast(
               result.symbol_result = Some(collect.into());
             }
 
-            let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
-            result.needs_esm_helpers = needs_helpers;
-            module
+            if !config.is_library || !config.is_esm_output {
+              let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
+              result.needs_esm_helpers = needs_helpers;
+              module
+            } else {
+              module
+            }
           };
 
           module.visit_mut_with(&mut (reserved_words(), hygiene(), fixer(Some(&comments))));

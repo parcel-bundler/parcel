@@ -755,7 +755,7 @@ impl Packager for JsPackager {
             }))
             .collect();
           // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
-          tree_shake(&mut ast, used_symbols, dependencies);
+          tree_shake(&mut ast, used_symbols, dependencies, true);
           let (code, map) = ast.to_code(false, false)?;
 
           write!(
@@ -1155,4 +1155,59 @@ fn load_bundle_rsc<W: std::fmt::Write>(
   }
 
   Ok(())
+}
+
+pub struct LibraryPackager {}
+
+impl Packager for LibraryPackager {
+  fn package(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
+    assert_eq!(bundle.assets.len(), 1);
+
+    let asset = bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap()].expect_asset();
+    let mut synthetic_assets = IndexSet::new();
+    let dependencies = asset_dependencies(asset, bundle_graph, &mut synthetic_assets);
+
+    let mut res = String::new();
+    let code = if let Some(content) = asset.content.downcast_ref::<JsContent>() {
+      if let Some(shebang) = &content.shebang {
+        write!(res, "#!{}\n", shebang)?;
+      }
+
+      let mut ast = content.ast.lock().unwrap();
+      let used_symbols = asset
+        .symbols
+        .exports
+        .iter()
+        .filter_map(|e| {
+          if e.requested {
+            Some(e.exported.as_str().into())
+          } else {
+            None
+          }
+        })
+        .chain(asset.symbols.indirect.iter().filter_map(|e| {
+          if e.requested {
+            Some(e.exported.as_str().into())
+          } else {
+            None
+          }
+        }))
+        .collect();
+      // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
+      tree_shake(&mut ast, used_symbols, dependencies, false);
+      let (code, map) = ast.to_code(false, false)?;
+      code
+    } else {
+      asset.content.read()?
+    };
+
+    res.push_str(&std::str::from_utf8(&code).unwrap());
+
+    Ok(Arc::new(BufferContent::new(res.into_bytes())))
+  }
 }

@@ -1,0 +1,12 @@
+{
+  "name": "library",
+  "sideEffects": true,
+  "dependencies": {
+    "react": "^19"
+  },
+  "exports": {
+    "source": "./library.js",
+    "import": "./dist/index.mjs",
+    "require": "./dist/index.cjs"
+  }
+}
