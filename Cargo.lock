@@ -2667,12 +2667,11 @@ name = "parcel"
 version = "0.1.0"
 dependencies = [
  "indexmap 2.11.0",
- "lightningcss",
- "node-semver",
  "parcel-core",
+ "parcel-css",
  "parcel-html",
  "parcel-image",
- "parcel-js-swc-core",
+ "parcel-js",
  "parcel-plugin-js",
  "parcel-resolver",
  "parcel-watcher",
@@ -2714,6 +2713,15 @@ dependencies = [
  "tree-sitter-typescript",
  "url",
  "xxhash-rust",
+]
+
+[[package]]
+name = "parcel-css"
+version = "0.1.0"
+dependencies = [
+ "lightningcss",
+ "parcel-core",
+ "serde",
 ]
 
 [[package]]
@@ -2763,6 +2771,21 @@ dependencies = [
  "oxipng",
  "parcel-core",
  "webp",
+]
+
+[[package]]
+name = "parcel-js"
+version = "0.1.0"
+dependencies = [
+ "indexmap 2.11.0",
+ "node-semver",
+ "parcel-core",
+ "parcel-css",
+ "parcel-js-swc-core",
+ "parcel-plugin-js",
+ "parcel-resolver",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

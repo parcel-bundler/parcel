@@ -1,0 +1,10 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-css"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+parcel-core = { path = "../core" }
+lightningcss = { version = "1.0.0-alpha.63", features = ["into_owned", "visitor"] }
+serde = { version = "1.0.123", features = ["derive", "rc"] }

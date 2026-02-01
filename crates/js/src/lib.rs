@@ -6,22 +6,17 @@ use std::{
 };
 
 use indexmap::{IndexMap, IndexSet};
-use parcel_core::{
-  Asset, AssetFlags, AssetNode, AssetType, BufferContent, BuildMode, Bundle, BundleBehavior,
-  BundleGraph, CodeFrame, CodeHighlight, Content, Dependency, DependencyFlags,
-  DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentContext,
-  EnvironmentFeature, EnvironmentFlags, ImportedSymbol, IncludeNodeModules, IndirectSymbol,
-  LocalSymbol, Location, LogLevel, OutputFormat, Packager, ParcelOptions, Priority, SourceLocation,
-  SourceType, SourceUrl, SpecifierType, StarSymbol, SymbolName, SymbolResolution, Transformer,
-};
+use parcel_core::*;
 use parcel_js_swc_core::{
   Ast, Config, DependencyKind, EnvContext, Type, Version, Versions, transform_to_ast,
-  tree_shake::{Resolution, tree_shake},
+  tree_shake::tree_shake,
 };
 use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, Invalidations, Specifier};
 
-use crate::css::resolve_css_module_export;
+use parcel_css::resolve_css_module_export;
+
+pub use parcel_js_swc_core::tree_shake::Resolution;
 
 struct JsContent {
   ast: Mutex<Ast>,

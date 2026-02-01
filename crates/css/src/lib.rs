@@ -18,12 +18,7 @@ use lightningcss::{
   traits::{IntoOwned, ToCss},
   visitor::Visit,
 };
-use parcel_core::{
-  Asset, AssetNode, BufferContent, Bundle, BundleBehavior, BundleGraph, Content, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
-  ImportedSymbol, LocalSymbol, Location, Packager, ParcelOptions, Priority, SourceLocation,
-  SourceUrl, SpecifierType, SymbolName, SymbolResolution, Transformer, Version,
-};
+use parcel_core::*;
 
 #[derive(Debug)]
 pub struct CssContent {

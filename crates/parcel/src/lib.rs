@@ -5,31 +5,23 @@ use std::{
   sync::Arc,
 };
 
-use lightningcss::properties::outline::Outline;
 use parcel_core::{
   AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Bundler, CPlugin,
   DefaultBundler, DependencyResolution, DiagnosticList, Namer, Optimizer, OutputFormat, Packager,
   ParcelConfig, ParcelOptions, PluginFactory, SourceUrl, Transformer,
 };
+use parcel_css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer};
+use parcel_html::{HtmlPackager, HtmlTransformer, SvgPackager, SvgTransformer};
 use parcel_image::ImageTransformer;
+use parcel_js::{JsPackager, JsTransformer, LibraryPackager};
 use parcel_plugin_js::JsPlugin;
 use parcel_resolver::OsFileSystem;
 use xxhash_rust::xxh3::Xxh3Default;
 
-use crate::{
-  css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer},
-  html::{HtmlPackager, HtmlTransformer},
-  js::{JsPackager, JsTransformer, LibraryPackager},
-  resolver::DefaultResolver,
-  svg::{SvgPackager, SvgTransformer},
-};
+use crate::resolver::DefaultResolver;
 
-mod css;
-mod html;
-mod js;
 mod resolver;
 mod server;
-mod svg;
 
 struct DefaultPluginFactory {}
 

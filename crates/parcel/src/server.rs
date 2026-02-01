@@ -1,6 +1,6 @@
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::{Asset, AssetType, BundleGraph, OutputFormat};
-use parcel_js_swc_core::tree_shake::Resolution;
+use parcel_js::{Resolution, SyntheticAsset, asset_dependencies};
 use std::{
   collections::HashMap,
   fmt::Write,
@@ -12,8 +12,6 @@ use std::{
 use tiny_http::{Header, ReadWrite, Response, Server};
 use tungstenite::{Message, WebSocket};
 use url::Url;
-
-use crate::js::{SyntheticAsset, asset_dependencies};
 
 #[derive(serde::Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]

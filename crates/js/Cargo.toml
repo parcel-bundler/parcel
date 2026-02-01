@@ -1,0 +1,16 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-js"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+parcel-core = { path = "../core" }
+serde = { version = "1.0.123", features = ["derive", "rc"] }
+serde_json = { version = "1.0.91", features = ["preserve_order"] }
+parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
+indexmap = { version = "=2.11.0", features = ["serde"] }
+parcel-plugin-js = { path = "../plugin-js" }
+parcel-css = { path = "../css" }
+parcel-resolver = { path = "../parcel-resolver" }
+node-semver = "2.2.0"

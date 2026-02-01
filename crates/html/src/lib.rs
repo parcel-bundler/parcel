@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+  collections::{HashMap, HashSet},
+  path::PathBuf,
+  sync::Arc,
+};
 
 use arena::{SerializableHandle, Sink};
 use dependencies::collect_dependencies;
@@ -7,7 +11,7 @@ use jsx::{JsxOptions, to_component};
 use optimize::optimize;
 use oxvg::ConfigItem;
 use package::insert_bundle_references;
-use parcel_core::{Asset, AssetType, Dependency, Diagnostic, Environment};
+use parcel_core::*;
 use serde::{Deserialize, Serialize, Serializer};
 use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
@@ -309,6 +313,166 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
       code: code.into_bytes(),
     })
   })
+}
+
+pub struct HtmlTransformer {}
+
+impl Transformer for HtmlTransformer {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+    let code = asset.content.read()?;
+    let res = transform_html(TransformOptions {
+      code,
+      file_path: asset.loc.url.to_file_path().unwrap(),
+      xml: asset.ty == AssetType::Xhtml,
+      env: asset.env.clone(),
+      hmr: false,
+    });
+
+    asset.bundle_behavior = BundleBehavior::Isolated;
+    asset.content = Arc::new(BufferContent::new(res.code));
+    asset.dependencies.extend(res.dependencies);
+
+    Ok(asset)
+  }
+}
+
+pub struct HtmlPackager {}
+
+impl Packager for HtmlPackager {
+  fn package(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
+    assert_eq!(bundle.assets.len(), 1);
+
+    let (code, bundles, inline_bundles) =
+      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
+
+    let res = package_html(PackageOptions {
+      code,
+      xml: bundle.ty == AssetType::Xhtml,
+      bundles,
+      inline_bundles,
+      import_map: Default::default(),
+    })
+    .unwrap();
+
+    Ok(Arc::new(BufferContent::new(res.code)))
+  }
+}
+
+fn prepare_to_package(
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+  get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+) -> Result<
+  (
+    Vec<u8>,
+    Vec<BundleReference>,
+    HashMap<SerializableTendril, InlineBundle>,
+  ),
+  DiagnosticList,
+> {
+  let asset = bundle_graph.asset_graph.assets[bundle.assets[0]].expect_asset();
+
+  let code = asset.content.read()?;
+
+  let mut inline_bundles = HashMap::new();
+  let mut referenced_bundles = HashSet::<usize>::new();
+  for dep in &asset.dependencies {
+    if let DependencyResolution::Bundle(b) = dep.resolution {
+      let referenced_bundle = &bundle_graph.bundles[b as usize];
+      let contents = if dep.bundle_behavior == BundleBehavior::Inline {
+        String::from_utf8(get_inline_bundle_content(b as usize)?.read()?).unwrap()
+      } else {
+        referenced_bundle.relative_url(&bundle).unwrap()
+      };
+
+      inline_bundles.insert(
+        SerializableTendril(dep.placeholder.clone().unwrap().into()),
+        InlineBundle {
+          contents: SerializableTendril(contents.into()),
+          module: referenced_bundle.env.output_format == OutputFormat::Esmodule,
+        },
+      );
+
+      referenced_bundles.extend(referenced_bundle.referenced_bundles.iter()); // TODO: should be recursive
+    }
+  }
+
+  let mut bundles: Vec<BundleReference> = Vec::new();
+  for reference in referenced_bundles {
+    let referenced_bundle = &bundle_graph.bundles[reference];
+    match &referenced_bundle.ty {
+      AssetType::Js => {
+        let src = referenced_bundle.relative_url(&bundle).unwrap();
+        bundles.push(BundleReference::Script {
+          src: SerializableTendril(src.into()),
+          module: referenced_bundle.env.output_format == OutputFormat::Esmodule,
+          nomodule: false,
+        });
+      }
+      AssetType::Css => {
+        let src = referenced_bundle.relative_url(&bundle).unwrap();
+        bundles.push(BundleReference::StyleSheet {
+          href: SerializableTendril(src.into()),
+        });
+      }
+      _ => {}
+    }
+  }
+
+  Ok((code, bundles, inline_bundles))
+}
+
+pub struct SvgTransformer {}
+
+impl Transformer for SvgTransformer {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+    let code = asset.content.read()?;
+    let res = transform_svg(TransformOptions {
+      code,
+      file_path: asset.loc.url.to_file_path().unwrap(),
+      xml: false,
+      env: asset.env.clone(),
+      hmr: false,
+    });
+
+    asset.bundle_behavior = BundleBehavior::Isolated;
+    asset.content = Arc::new(BufferContent::new(res.code));
+    asset.dependencies.extend(res.dependencies);
+
+    Ok(asset)
+  }
+}
+
+pub struct SvgPackager {}
+
+impl Packager for SvgPackager {
+  fn package(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
+    assert_eq!(bundle.assets.len(), 1);
+
+    let (code, bundles, inline_bundles) =
+      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
+
+    let res = package_svg(PackageOptions {
+      code,
+      xml: false,
+      bundles,
+      inline_bundles,
+      import_map: Default::default(),
+    })
+    .unwrap();
+
+    Ok(Arc::new(BufferContent::new(res.code)))
+  }
 }
 
 #[cfg(test)]
