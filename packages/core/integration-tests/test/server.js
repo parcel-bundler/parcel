@@ -636,4 +636,57 @@ describe('server', function () {
 
     assert(data.includes(path.basename(localCSS.filePath)));
   });
+
+  it('should support cors by default', async function () {
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let res = await fetch(`http://localhost:${port}/index.js`);
+    assert.equal(res.headers.get('Access-Control-Allow-Origin'), '*');
+    assert.equal(
+      res.headers.get('Access-Control-Allow-Methods'),
+      'GET, HEAD, PUT, PATCH, POST, DELETE',
+    );
+    assert.equal(
+      res.headers.get('Access-Control-Allow-Headers'),
+      'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
+    );
+  });
+
+  it('should support --no-cors', async function () {
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+        cors: false,
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let res = await fetch(`http://localhost:${port}/index.js`);
+    assert.equal(res.headers.has('Access-Control-Allow-Origin'), false);
+    assert.equal(res.headers.has('Access-Control-Allow-Methods'), false);
+    assert.equal(res.headers.has('Access-Control-Allow-Headers'), false);
+  });
 });

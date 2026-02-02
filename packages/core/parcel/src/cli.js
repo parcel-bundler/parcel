@@ -173,6 +173,7 @@ var hmrOptions = {
   '--key <path>': 'path to private key to use with HTTPS',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
   '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
+  '--no-cors': 'disable cors',
 };
 
 function applyOptions(cmd, options) {
@@ -484,13 +485,14 @@ async function normalizeOptions(
   }
 
   if (command.name() === 'serve') {
-    let {publicUrl} = command;
+    let {publicUrl, cors} = command;
 
     serveOptions = {
       https,
       port,
       host,
       publicUrl,
+      cors,
     };
   }
 
@@ -502,6 +504,7 @@ async function normalizeOptions(
     hmrOptions = {
       port: hmrport,
       host: hmrhost,
+      cors: command.cors,
     };
   }
 
