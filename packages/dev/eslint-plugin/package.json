@@ -1,7 +1,7 @@
 {
   "name": "@parcel/eslint-plugin",
   "private": true,
-  "version": "2.16.3",
+  "version": "2.16.4",
   "main": "index.js",
   "dependencies": {
     "read-pkg-up": "^5.0.0"

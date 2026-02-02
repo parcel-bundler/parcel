@@ -1,12 +1,12 @@
 {
   "name": "@parcel/eslint-config",
   "private": true,
-  "version": "2.16.3",
+  "version": "2.16.4",
   "dependencies": {
     "@babel/eslint-parser": "^7.22.11",
     "@babel/plugin-syntax-flow": "^7.14.5",
     "@babel/plugin-transform-react-jsx": "^7.14.9",
-    "@parcel/eslint-plugin": "2.16.3",
+    "@parcel/eslint-plugin": "2.16.4",
     "eslint-config-prettier": "^8.10.0",
     "eslint-plugin-flowtype": "^8.0.3",
     "eslint-plugin-import": "^2.31.0",

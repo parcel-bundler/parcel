@@ -5,6 +5,13 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.16.4] – 2026-02-01
+
+### Fixed
+
+- Dev server
+  - Add `--no-cors` option to disable CORS headers – [Details](https://github.com/parcel-bundler/parcel/pull/10268)
+
 ## [2.16.3] – 2025-12-06
 
 ### Fixed
@@ -17,6 +24,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - HTML
+
   - Fix siblings after `<svg>` being removed by HTML minifier – [Details](https://github.com/parcel-bundler/parcel/pull/10234)
 
 - React Server Components
@@ -30,6 +38,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - JavaScript
+
   - Fix macro location information – [Details](https://github.com/parcel-bundler/parcel/pull/10224)
 
 - React Server Components
@@ -52,6 +61,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - JavaScript
+
   - Expose line and column number to macros – [Details](https://github.com/parcel-bundler/parcel/pull/10171)
 
 - React Server Components
