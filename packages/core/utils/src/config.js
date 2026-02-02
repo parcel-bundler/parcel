@@ -8,6 +8,7 @@ import clone from 'clone';
 import json5 from 'json5';
 import {parse as toml} from '@iarna/toml';
 import {LRUCache} from 'lru-cache';
+import stripBOM from './stripBOM';
 
 export type ConfigOutput = {|
   config: ConfigResult,
@@ -112,7 +113,7 @@ export async function readConfig(
   }
 
   try {
-    let configContent = await fs.readFile(configFile, 'utf8');
+    let configContent = stripBOM(await fs.readFile(configFile, 'utf8'));
     let config;
     if (parse === false) {
       config = configContent;
