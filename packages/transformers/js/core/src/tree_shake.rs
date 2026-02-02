@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+  borrow::Cow,
+  collections::{HashMap, HashSet},
+};
 
 use indexmap::IndexMap;
 use swc_core::{
@@ -27,7 +30,8 @@ pub enum Resolution<'a> {
   Symbols(Vec<(&'a str, u32, &'a str)>),
   #[serde(serialize_with = "serialize_bundle")]
   Bundle(u32),
-  External(&'a str),
+  External(Cow<'a, str>),
+  String(String),
 }
 
 fn serialize_excluded<S>(serializer: S) -> Result<S::Ok, S::Error>
@@ -181,85 +185,84 @@ impl<'a> VisitMut for TreeShake<'a> {
     node.visit_mut_children_with(self);
     match node {
       Expr::Call(call) => {
-        let Callee::Expr(expr) = &mut call.callee else {
+        match &call.callee {
+          Callee::Import(_) => {}
+          Callee::Expr(expr) if matches!(&**expr, Expr::Ident(id) if id.sym == "require") => {} // && is_unresolved(&id, self.unresolved_mark)
+          _ => return,
+        };
+
+        let Some(ExprOrSpread { expr, .. }) = call.args.get_mut(0) else {
           return;
         };
 
-        // if matches!(&*expr, Expr::Ident(id) if id.sym == "require" && is_unresolved(&id, self.unresolved_mark)) {
-        if let Expr::Ident(id) = &mut **expr {
-          if id.sym == "require"
-          /*  && is_unresolved(&id, self.unresolved_mark) */
-          {
-            let Some(ExprOrSpread { expr, .. }) = call.args.get_mut(0) else {
-              return;
-            };
+        let Expr::Lit(Lit::Str(specifier)) = &**expr else {
+          return;
+        };
 
-            let Expr::Lit(Lit::Str(specifier)) = &**expr else {
-              return;
-            };
-
-            if let Some(resolution) = self.resolutions.get(specifier.value.as_str()) {
-              id.sym = "parcelRequire".into();
-              match resolution {
-                Resolution::Excluded => {
-                  *node = Expr::Object(Default::default());
-                }
-                Resolution::Asset(resolution) => {
-                  **expr = (*resolution as f64).into();
-                }
-                Resolution::Bundle(resolution) => {
-                  **expr = format!("b{}", *resolution).into();
-                }
-                Resolution::External(specifier) => {
-                  **expr = (*specifier).into();
-                }
-                Resolution::Symbols(symbols) => {
-                  **expr = Expr::Object(ObjectLit {
-                    span: DUMMY_SP,
-                    props: symbols
-                      .iter()
-                      .map(|(key, id, exp)| {
-                        let prop = if *key == "*" {
-                          todo!()
-                        } else if *exp == "*" {
-                          Prop::KeyValue(KeyValueProp {
-                            key: PropName::Str((*key).into()),
-                            value: Box::new(
-                              quote!("parcelRequire($id)" as Expr, id: Expr = (*id as f64).into()),
-                            ),
-                          })
-                        } else {
-                          Prop::Getter(GetterProp {
-                            span: DUMMY_SP,
-                            key: PropName::Str((*key).into()),
-                            type_ann: None,
-                            body: Some(BlockStmt {
-                              stmts: if *exp == "default" {
-                                vec![
-                                  quote!(
-                                    "var m = parcelRequire($id);" as Stmt,
-                                    id: Expr = (*id as f64).into(),
-                                  ),
-                                  quote!("return m.__esModule ? m.default : m;" as Stmt),
-                                ]
-                              } else {
-                                vec![quote!(
-                                  "return parcelRequire($id)[$exp];" as Stmt,
-                                  id: Expr = (*id as f64).into(),
-                                  exp: Expr = (*exp).into()
-                                )]
-                              },
-                              ..Default::default()
-                            }),
-                          })
-                        };
-
-                        PropOrSpread::Prop(Box::new(prop))
+        if let Some(resolution) = self.resolutions.get(specifier.value.as_str()) {
+          match resolution {
+            Resolution::Excluded => {
+              *node = Expr::Object(Default::default());
+            }
+            Resolution::Asset(resolution) => {
+              call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
+              **expr = (*resolution as f64).into();
+            }
+            Resolution::Bundle(resolution) => {
+              call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
+              **expr = format!("b{}", *resolution).into();
+            }
+            Resolution::External(specifier) => {
+              **expr = specifier.as_ref().into();
+            }
+            Resolution::String(string) => {
+              *node = string.as_str().into();
+            }
+            Resolution::Symbols(symbols) => {
+              *node = Expr::Object(ObjectLit {
+                span: DUMMY_SP,
+                props: symbols
+                  .iter()
+                  .map(|(key, id, exp)| {
+                    let prop = if *key == "*" {
+                      todo!()
+                    } else if *exp == "*" {
+                      Prop::KeyValue(KeyValueProp {
+                        key: PropName::Str((*key).into()),
+                        value: Box::new(
+                          quote!("parcelRequire($id)" as Expr, id: Expr = (*id as f64).into()),
+                        ),
                       })
-                      .collect(),
-                  });
-                }
-              }
+                    } else {
+                      Prop::Getter(GetterProp {
+                        span: DUMMY_SP,
+                        key: PropName::Str((*key).into()),
+                        type_ann: None,
+                        body: Some(BlockStmt {
+                          stmts: if *exp == "default" {
+                            vec![
+                              quote!(
+                                "var m = parcelRequire($id);" as Stmt,
+                                id: Expr = (*id as f64).into(),
+                              ),
+                              quote!("return m.__esModule ? m.default : m;" as Stmt),
+                            ]
+                          } else {
+                            vec![quote!(
+                              "return parcelRequire($id)[$exp];" as Stmt,
+                              id: Expr = (*id as f64).into(),
+                              exp: Expr = (*exp).into()
+                            )]
+                          },
+                          ..Default::default()
+                        }),
+                      })
+                    };
+
+                    PropOrSpread::Prop(Box::new(prop))
+                  })
+                  .collect(),
+              });
             }
           }
 
@@ -274,15 +277,27 @@ impl<'a> VisitMut for TreeShake<'a> {
     match node {
       ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
         if let Some(resolution) = self.resolutions.get(import.src.value.as_str()) {
-          println!("{:?} {:?}", import.src.value, resolution);
+          match resolution {
+            Resolution::External(specifier) => {
+              import.src.value = specifier.as_ref().into();
+              import.src.raw = None;
+            }
+            Resolution::String(string) => {
+              // TODO
+            }
+            _ => {}
+          }
         }
       }
       ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) => {
         if let Some(resolution) = self.resolutions.get(export.src.value.as_str()) {
           match resolution {
-            Resolution::Bundle(resolution) => {
-              export.src.value = format!("b{}", *resolution).into();
-              println!("{:?} {:?}", export.src.value, resolution);
+            Resolution::External(resolution) => {
+              export.src.value = resolution.as_ref().into();
+              export.src.raw = None;
+            }
+            Resolution::String(string) => {
+              // TODO
             }
             _ => {}
           }

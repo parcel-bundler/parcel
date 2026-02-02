@@ -17,6 +17,7 @@ use swc_core::{
     utils::{member_expr, stack_size::maybe_grow_default},
     visit::{Fold, FoldWith},
   },
+  quote,
 };
 
 use crate::{Config, fold_member_expr_skip_prop, utils::*};
@@ -297,7 +298,7 @@ impl<'a> DependencyCollector<'a> {
     optional: bool,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
-    if !self.config.is_library && !self.config.standalone {
+    if !self.config.standalone {
       let placeholder = self.add_dependency(
         specifier.clone(),
         span,
@@ -312,7 +313,10 @@ impl<'a> DependencyCollector<'a> {
       } else {
         specifier
       };
-      return ast::Expr::Call(self.create_require(specifier));
+      return create_url_constructor(
+        ast::Expr::Call(self.create_require(specifier)),
+        self.config.is_esm_output,
+      );
     }
 
     // For library builds, we need to create something that can be statically analyzed by another bundler,
@@ -906,7 +910,11 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node.fold_children_with(self);
-      if !self.config.scope_hoist && !self.config.standalone && is_specifier_str {
+      if !self.config.is_library
+        && !self.config.scope_hoist
+        && !self.config.standalone
+        && is_specifier_str
+      {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
           SourceType::Script => "__parcel__require__",

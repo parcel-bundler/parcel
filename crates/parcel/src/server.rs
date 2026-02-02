@@ -123,7 +123,13 @@ impl DevServer {
     let mut synthetic_assets = IndexSet::new();
     let mut assets = Vec::with_capacity(changed_assets.len());
     for (id, asset) in changed_assets {
-      let dependencies = asset_dependencies(asset, bundle_graph, &mut synthetic_assets);
+      let dependencies = asset_dependencies(
+        asset,
+        bundle_graph,
+        &bundle_graph.bundles[0], // TODO
+        &mut synthetic_assets,
+        &|_| todo!(),
+      );
       let mut deps_by_bundle = HashMap::new();
       deps_by_bundle.insert("TODO".into(), dependencies);
 

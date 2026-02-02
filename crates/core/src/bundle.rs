@@ -50,4 +50,13 @@ impl Bundle {
       None
     }
   }
+
+  pub fn relative_specifier(&self, from: &Bundle) -> Option<String> {
+    self.relative_url(from).map(|mut r| {
+      if !r.starts_with(".") {
+        r.insert_str(0, "./");
+      }
+      r
+    })
+  }
 }

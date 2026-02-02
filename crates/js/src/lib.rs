@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::HashMap,
   fmt::Write,
@@ -707,8 +708,8 @@ impl Packager for JsPackager {
 
       write!(
         res,
-        "import './{}';\n",
-        referenced.relative_url(&bundle).unwrap()
+        "import '{}';\n",
+        referenced.relative_specifier(&bundle).unwrap()
       )?;
     }
 
@@ -719,7 +720,13 @@ impl Packager for JsPackager {
 
     for asset_index in &bundle.assets {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[*asset_index] {
-        let dependencies = asset_dependencies(asset, bundle_graph, &mut synthetic_assets);
+        let dependencies = asset_dependencies(
+          asset,
+          bundle_graph,
+          bundle,
+          &mut synthetic_assets,
+          get_inline_bundle_content,
+        );
 
         if !first {
           res.push(',');
@@ -820,7 +827,9 @@ pub enum SyntheticAsset {
 pub fn asset_dependencies<'a>(
   asset: &'a Asset,
   bundle_graph: &'a BundleGraph,
+  bundle: &'a Bundle,
   additional_assets: &mut IndexSet<SyntheticAsset>,
+  get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
 ) -> IndexMap<String, Resolution<'a>> {
   let mut dependencies = IndexMap::new();
 
@@ -851,46 +860,48 @@ pub fn asset_dependencies<'a>(
         let mut resolutions = Vec::new();
         let mut first_asset = None;
         let mut all_assets_match = true;
-        for import in &asset.symbols.imports {
-          if import.dep_index == dep_index as u32 {
-            match &import.resolved {
-              SymbolResolution::Export {
-                asset_index,
-                export_index,
-              } => {
-                let asset = bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
-                let export = &asset.symbols.exports[*export_index as usize];
-                resolutions.push((
-                  import.symbol.as_str(),
-                  *asset_index,
-                  export.exported.as_str(),
-                ));
-                if first_asset.is_none() {
-                  first_asset = Some(*asset_index);
+        if !bundle.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+          for import in &asset.symbols.imports {
+            if import.dep_index == dep_index as u32 {
+              match &import.resolved {
+                SymbolResolution::Export {
+                  asset_index,
+                  export_index,
+                } => {
+                  let asset = bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
+                  let export = &asset.symbols.exports[*export_index as usize];
+                  resolutions.push((
+                    import.symbol.as_str(),
+                    *asset_index,
+                    export.exported.as_str(),
+                  ));
+                  if first_asset.is_none() {
+                    first_asset = Some(*asset_index);
+                  }
+                  if first_asset != Some(*asset_index) {
+                    all_assets_match = false;
+                  }
                 }
-                if first_asset != Some(*asset_index) {
-                  all_assets_match = false;
+                SymbolResolution::Runtime { asset_index, name } => {
+                  resolutions.push((import.symbol.as_str(), *asset_index, name.as_str()));
+                  if first_asset.is_none() {
+                    first_asset = Some(*asset_index);
+                  }
+                  if first_asset != Some(*asset_index) {
+                    all_assets_match = false;
+                  }
                 }
+                SymbolResolution::Namespace { asset_index } => {
+                  resolutions.push((import.symbol.as_str(), *asset_index, "*"));
+                  if first_asset.is_none() {
+                    first_asset = Some(*asset_index);
+                  }
+                  if first_asset != Some(*asset_index) {
+                    all_assets_match = false;
+                  }
+                }
+                _ => continue,
               }
-              SymbolResolution::Runtime { asset_index, name } => {
-                resolutions.push((import.symbol.as_str(), *asset_index, name.as_str()));
-                if first_asset.is_none() {
-                  first_asset = Some(*asset_index);
-                }
-                if first_asset != Some(*asset_index) {
-                  all_assets_match = false;
-                }
-              }
-              SymbolResolution::Namespace { asset_index } => {
-                resolutions.push((import.symbol.as_str(), *asset_index, "*"));
-                if first_asset.is_none() {
-                  first_asset = Some(*asset_index);
-                }
-                if first_asset != Some(*asset_index) {
-                  all_assets_match = false;
-                }
-              }
-              _ => continue,
             }
           }
         }
@@ -918,25 +929,51 @@ pub fn asset_dependencies<'a>(
       DependencyResolution::External => {
         dependencies.insert(
           placeholder.as_str().into(),
-          Resolution::External(&dep.specifier),
+          Resolution::External(Cow::Borrowed(&dep.specifier)),
         );
       }
       DependencyResolution::Bundle(bundle_index) => {
-        let bundle = &bundle_graph.bundles[*bundle_index as usize];
-        if dep.bundle_behavior == BundleBehavior::Inline
-          || bundle.bundle_behavior == BundleBehavior::Inline
-        {
-          additional_assets.insert(SyntheticAsset::Inline(*bundle_index));
-        } else if dep.specifier_type == SpecifierType::Url {
-          additional_assets.insert(SyntheticAsset::Url(*bundle_index));
-        } else {
-          additional_assets.insert(SyntheticAsset::Async(*bundle_index));
-        };
+        let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
 
-        dependencies.insert(
-          placeholder.as_str().into(),
-          Resolution::Bundle(*bundle_index),
-        );
+        if bundle.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+          if dep.bundle_behavior == BundleBehavior::Inline
+            || resolved_bundle.bundle_behavior == BundleBehavior::Inline
+          {
+            let content = get_inline_bundle_content(*bundle_index as usize)
+              .unwrap()
+              .read()
+              .unwrap();
+            dependencies.insert(
+              placeholder.as_str().into(),
+              Resolution::String(String::from_utf8(content).unwrap()),
+            );
+          } else if dep.specifier_type == SpecifierType::Url {
+            dependencies.insert(
+              placeholder.as_str().into(),
+              Resolution::String(resolved_bundle.relative_url(bundle).unwrap().into()),
+            );
+          } else {
+            dependencies.insert(
+              placeholder.as_str().into(),
+              Resolution::External(resolved_bundle.relative_specifier(bundle).unwrap().into()),
+            );
+          }
+        } else {
+          if dep.bundle_behavior == BundleBehavior::Inline
+            || resolved_bundle.bundle_behavior == BundleBehavior::Inline
+          {
+            additional_assets.insert(SyntheticAsset::Inline(*bundle_index));
+          } else if dep.specifier_type == SpecifierType::Url {
+            additional_assets.insert(SyntheticAsset::Url(*bundle_index));
+          } else {
+            additional_assets.insert(SyntheticAsset::Async(*bundle_index));
+          };
+
+          dependencies.insert(
+            placeholder.as_str().into(),
+            Resolution::Bundle(*bundle_index),
+          );
+        }
       }
     }
   }
@@ -1165,7 +1202,13 @@ impl Packager for LibraryPackager {
 
     let asset = bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap()].expect_asset();
     let mut synthetic_assets = IndexSet::new();
-    let dependencies = asset_dependencies(asset, bundle_graph, &mut synthetic_assets);
+    let dependencies = asset_dependencies(
+      asset,
+      bundle_graph,
+      bundle,
+      &mut synthetic_assets,
+      get_inline_bundle_content,
+    );
 
     let mut res = String::new();
     let code = if let Some(content) = asset.content.downcast_ref::<JsContent>() {

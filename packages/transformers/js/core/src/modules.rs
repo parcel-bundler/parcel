@@ -10,6 +10,7 @@ use swc_core::{
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith},
   },
+  quote,
 };
 
 use crate::{
@@ -618,6 +619,16 @@ impl Fold for ESMFold {
           Expr::Ident(get_undefined_ident(self.unresolved_mark))
         } else {
           node
+        }
+      }
+      Expr::Call(call) => {
+        if call.callee.is_import() {
+          quote!(
+            "Promise.resolve(require($specifier))" as Expr,
+            specifier: Expr = *call.args[0].expr.clone()
+          )
+        } else {
+          node.fold_children_with(self)
         }
       }
       _ => maybe_grow_default(|| node.fold_children_with(self)),
