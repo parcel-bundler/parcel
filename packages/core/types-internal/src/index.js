@@ -103,6 +103,7 @@ export type RawParcelConfigPipeline = Array<PackageName>;
 export type HMROptions = {
   port?: number,
   host?: string,
+  cors?: boolean,
   ...
 };
 
@@ -405,6 +406,7 @@ export type InitialServerOptions = {|
   +host?: string,
   +port: number,
   +https?: HTTPSOptions | boolean,
+  +cors?: boolean,
 |};
 
 export interface PluginOptions {
@@ -432,6 +434,7 @@ export type ServerOptions = {|
   +port: number,
   +https?: HTTPSOptions | boolean,
   +publicUrl?: string,
+  +cors?: boolean,
 |};
 
 export type HTTPSOptions = {|

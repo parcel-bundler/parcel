@@ -56,4 +56,5 @@ export type HMRServerOptions = {|
   projectRoot: FilePath,
   distDir: ?FilePath,
   publicUrl: string,
+  cors: ?boolean
 |};

@@ -150,6 +150,7 @@ async function startDevServer(options, logger, isBrowser) {
         projectRoot: options.projectRoot,
         distDir: serveOptions.distDir,
         publicUrl: serveOptions.publicUrl ?? '/',
+        cors: serveOptions.cors,
       };
       hmrServer = new HMRServer(hmrServerOptions);
       hmrServers.set(serveOptions.port, hmrServer);
@@ -171,6 +172,8 @@ async function startDevServer(options, logger, isBrowser) {
       projectRoot: options.projectRoot,
       distDir: serveOptions ? serveOptions.distDir : null,
       publicUrl: serveOptions ? serveOptions.publicUrl ?? '/' : '/',
+      cors:
+        hmrOptions?.cors ?? (serveOptions ? serveOptions.cors : true) ?? true,
     };
     hmrServer = new HMRServer(hmrServerOptions);
     hmrServers.set(port, hmrServer);

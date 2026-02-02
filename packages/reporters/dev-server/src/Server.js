@@ -32,16 +32,18 @@ import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL} from 'url';
 import fresh from 'fresh';
 
-export function setHeaders(res: Response) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader(
-    'Access-Control-Allow-Methods',
-    'GET, HEAD, PUT, PATCH, POST, DELETE',
-  );
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
-  );
+export function setHeaders(res: Response, cors: boolean) {
+  if (cors) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET, HEAD, PUT, PATCH, POST, DELETE',
+    );
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
+    );
+  }
   res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
 }
 
@@ -479,7 +481,7 @@ export default class Server {
 
     const app = connect();
     app.use((req, res, next) => {
-      setHeaders(res);
+      setHeaders(res, this.options.cors ?? true);
       if (req.method === 'OPTIONS') {
         res.statusCode = 200;
         res.end();

@@ -110,7 +110,7 @@ export default class HMRServer {
         outputFS: this.options.outputFS,
         cacheDir: this.options.cacheDir,
         listener: (req, res) => {
-          setHeaders(res);
+          setHeaders(res, this.options.cors ?? true);
           if (req.method === 'OPTIONS') {
             res.statusCode = 200;
             res.end();
