@@ -8,7 +8,7 @@ import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 // $FlowFixMe
 import elm from 'node-elm-compiler';
 // $FlowFixMe
-import elmHMR from 'elm-hot';
+import elmHMR from '@curtissimo/elm-hot';
 
 import {load, elmBinaryPath} from './loadConfig';
 

@@ -20,11 +20,11 @@
     "parcel": "^2.16.4"
   },
   "dependencies": {
+    "@curtissimo/elm-hot": "^1.2.0",
     "@parcel/diagnostic": "2.16.4",
     "@parcel/plugin": "2.16.4",
     "command-exists": "^1.2.9",
     "cross-spawn": "^7.0.6",
-    "elm-hot": "^1.1.6",
     "node-elm-compiler": "^5.0.6",
     "nullthrows": "^1.1.1",
     "terser": "^5.39.0"
