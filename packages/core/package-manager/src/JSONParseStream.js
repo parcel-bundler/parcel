@@ -4,6 +4,7 @@ import type {JSONObject} from '@parcel/types';
 
 import logger from '@parcel/logger';
 import {Transform} from 'stream';
+import {stripBOM} from '@parcel/utils';
 
 // Transforms chunks of json strings to parsed objects.
 // Pair with split2 to parse stream of newline-delimited text.
@@ -21,7 +22,7 @@ export default class JSONParseStream extends Transform {
     try {
       let parsed;
       try {
-        parsed = JSON.parse(chunk.toString());
+        parsed = JSON.parse(stripBOM(chunk.toString()));
       } catch (e) {
         // Be permissive and ignoreJSON parse errors in case there was
         // a non-JSON line in the package manager's stdout.
