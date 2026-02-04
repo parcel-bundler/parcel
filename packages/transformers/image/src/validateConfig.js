@@ -232,6 +232,29 @@ const HEIF_OUTPUT_SCHEMA: SchemaEntity = {
   additionalProperties: true,
 };
 
+// https://sharp.pixelplumbing.com/api-output#jxl
+const JXL_OUTPUT_SCHEMA: SchemaEntity = {
+  type: 'object',
+  properties: {
+    distance: {
+      type: 'number',
+    },
+    quality: {
+      type: 'number',
+    },
+    decodingTier: {
+      type: 'number',
+    },
+    lossless: {
+      type: 'boolean',
+    },
+    effort: {
+      type: 'number',
+    },
+  },
+  additionalProperties: true,
+};
+
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
@@ -246,6 +269,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
     tiff: TIFF_OUTPUT_SCHEMA,
     avif: AVIF_OUTPUT_SCHEMA,
     heif: HEIF_OUTPUT_SCHEMA,
+    jxl: JXL_OUTPUT_SCHEMA,
   },
   additionalProperties: false,
 };
