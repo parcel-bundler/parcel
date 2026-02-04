@@ -2,6 +2,7 @@ use std::{
   ffi::{OsStr, OsString},
   io::{Error, ErrorKind, Result},
   path::{Component, Path, PathBuf},
+  sync::Mutex,
 };
 
 use bitflags::bitflags;
@@ -19,6 +20,7 @@ bitflags! {
   }
 }
 
+#[derive(Debug)]
 pub struct DirEntry {
   pub name: OsString,
   pub kind: FileKind,
@@ -118,7 +120,7 @@ impl FileSystem for OsFileSystem {
 }
 
 pub struct MemoryFileSystem {
-  entries: Vec<Entry>,
+  entries: Mutex<Vec<Entry>>,
 }
 
 enum Entry {
@@ -160,11 +162,11 @@ impl Entry {
 impl MemoryFileSystem {
   pub fn new() -> MemoryFileSystem {
     MemoryFileSystem {
-      entries: vec![Entry::Directory {
+      entries: Mutex::new(vec![Entry::Directory {
         name: OsString::new(),
         children: vec![],
         parent: None,
-      }],
+      }]),
     }
   }
 
@@ -174,7 +176,8 @@ impl MemoryFileSystem {
       match component {
         Component::CurDir => {}
         Component::ParentDir => {
-          let entry = &self.entries[node];
+          let entries = self.entries.lock().unwrap();
+          let entry = &entries[node];
           if let Some(parent) = entry.parent() {
             node = parent;
           } else {
@@ -195,10 +198,11 @@ impl MemoryFileSystem {
   }
 
   fn entry(&self, parent: usize, name: &OsStr) -> Result<usize> {
-    let entry = &self.entries[parent];
+    let entries = self.entries.lock().unwrap();
+    let entry = &entries[parent];
     if let Entry::Directory { children, .. } = entry {
       for child in children {
-        if self.entries[*child].name() == name {
+        if entries[*child].name() == name {
           return Ok(*child);
         }
       }
@@ -209,37 +213,7 @@ impl MemoryFileSystem {
     }
   }
 
-  pub fn write(&mut self, path: &Path, contents: Vec<u8>) -> Result<()> {
-    let name = path.file_name().unwrap();
-    let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
-    let found = self.entry(node, name);
-
-    if let Ok(found) = found {
-      if let Entry::File {
-        contents: file_contents,
-        ..
-      } = &mut self.entries[found]
-      {
-        *file_contents = contents;
-      } else {
-        return Err(Error::new(ErrorKind::NotFound, "not a file"));
-      }
-    } else {
-      let index = self.entries.len();
-      self.entries.push(Entry::File {
-        name: name.into(),
-        contents,
-        parent: Some(node),
-      });
-      if let Entry::Directory { children, .. } = &mut self.entries[node] {
-        children.push(index);
-      }
-    }
-
-    Ok(())
-  }
-
-  pub fn mkdir(&mut self, path: &Path) -> Result<()> {
+  pub fn mkdir(&self, path: &Path) -> Result<()> {
     let name = path.file_name().unwrap();
     let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
     let found = self.entry(node, name);
@@ -250,13 +224,14 @@ impl MemoryFileSystem {
       ));
     }
 
-    let index = self.entries.len();
-    self.entries.push(Entry::Directory {
+    let mut entries = self.entries.lock().unwrap();
+    let index = entries.len();
+    entries.push(Entry::Directory {
       name: name.into(),
       children: vec![],
       parent: Some(node),
     });
-    if let Entry::Directory { children, .. } = &mut self.entries[node] {
+    if let Entry::Directory { children, .. } = &mut entries[node] {
       children.push(index);
     }
     Ok(())
@@ -268,7 +243,8 @@ impl FileSystem for MemoryFileSystem {
     let name = path.file_name().unwrap();
     let node = path.parent().map_or(Ok(0), |p| self.dir(p));
     if let Ok(found) = node.and_then(|node| self.entry(node, name)) {
-      self.entries[found].kind()
+      let entries = self.entries.lock().unwrap();
+      entries[found].kind()
     } else {
       FileKind::empty()
     }
@@ -278,7 +254,8 @@ impl FileSystem for MemoryFileSystem {
     let name = path.file_name().unwrap();
     let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
     if let Ok(found) = self.entry(node, name) {
-      if let Entry::File { contents, .. } = &self.entries[found] {
+      let entries = self.entries.lock().unwrap();
+      if let Entry::File { contents, .. } = &entries[found] {
         Ok(contents.clone())
       } else {
         Err(std::io::Error::new(
@@ -298,18 +275,46 @@ impl FileSystem for MemoryFileSystem {
     todo!()
   }
 
-  fn write(&self, _path: &Path, _contents: &Vec<u8>) -> Result<()> {
-    todo!()
+  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+    let name = path.file_name().unwrap();
+    let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
+    let found = self.entry(node, name);
+    let mut entries = self.entries.lock().unwrap();
+
+    if let Ok(found) = found {
+      if let Entry::File {
+        contents: file_contents,
+        ..
+      } = &mut entries[found]
+      {
+        *file_contents = contents.clone();
+      } else {
+        return Err(Error::new(ErrorKind::NotFound, "not a file"));
+      }
+    } else {
+      let index = entries.len();
+      entries.push(Entry::File {
+        name: name.into(),
+        contents: contents.clone(),
+        parent: Some(node),
+      });
+      if let Entry::Directory { children, .. } = &mut entries[node] {
+        children.push(index);
+      }
+    }
+
+    Ok(())
   }
 
   fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
     let dir = self.dir(path)?;
-    let entry = &self.entries[dir];
+    let entries = self.entries.lock().unwrap();
+    let entry = &entries[dir];
     if let Entry::Directory { children, .. } = entry {
-      let mut entries = Vec::new();
+      let mut dir_entries = Vec::new();
       for child in children {
-        let child = &self.entries[*child];
-        entries.push(match child {
+        let child = &entries[*child];
+        dir_entries.push(match child {
           Entry::Directory { name, .. } => DirEntry {
             name: name.clone(),
             kind: FileKind::IS_DIR,
@@ -321,7 +326,7 @@ impl FileSystem for MemoryFileSystem {
         });
       }
 
-      Ok(entries)
+      Ok(dir_entries)
     } else {
       Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
     }

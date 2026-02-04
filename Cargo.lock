@@ -2675,6 +2675,7 @@ dependencies = [
  "parcel-plugin-js",
  "parcel-resolver",
  "parcel-watcher",
+ "rquickjs",
  "serde",
  "serde_json",
  "tiny_http",

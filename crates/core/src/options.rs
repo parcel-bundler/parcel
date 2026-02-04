@@ -10,6 +10,7 @@ pub struct ParcelOptions {
   pub log_level: LogLevel,
   pub project_root: SourceUrl,
   pub input_fs: Arc<dyn FileSystem>,
+  pub output_fs: Arc<dyn FileSystem>,
 }
 
 impl Default for ParcelOptions {
@@ -20,6 +21,7 @@ impl Default for ParcelOptions {
       log_level: Default::default(),
       project_root: Default::default(),
       input_fs: Arc::new(OsFileSystem {}),
+      output_fs: Arc::new(OsFileSystem {}),
     }
   }
 }

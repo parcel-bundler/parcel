@@ -54,11 +54,12 @@ pub fn build(
 ) -> Result<BundleGraph, DiagnosticList> {
   let config = Arc::new(ParcelConfig::read(
     &*options.input_fs,
-    &options
-      .project_root
-      .to_file_path()
-      .unwrap()
-      .join(".parcelrc"),
+    // &options
+    //   .project_root
+    //   .to_file_path()
+    //   .unwrap()
+    //   .join(".parcelrc"),
+    Path::new("/Users/devongovett/dev/parcel/test/.parcelrc"),
     factory,
   ));
 
@@ -77,7 +78,7 @@ pub fn build(
     // TODO: replace hash references
 
     let name = bundle_graph.bundles[i].name.as_ref().unwrap();
-    content.write(&*options.input_fs, Path::new(name))?;
+    content.write(&*options.output_fs, Path::new(name))?;
   }
 
   Ok(bundle_graph)

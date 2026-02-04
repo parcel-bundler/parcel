@@ -357,6 +357,20 @@ impl Transformer for JsTransformer {
           requested: false,
         });
       }
+    } else {
+      // Could not statically analyze symbols. Assume everything is imported.
+      for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+        if matches!(
+          dep.specifier_type,
+          SpecifierType::Esm | SpecifierType::Commonjs
+        ) {
+          asset.symbols.imports.push(ImportedSymbol {
+            dep_index: dep_index as u32,
+            symbol: SymbolName::Namespace,
+            resolved: SymbolResolution::None,
+          });
+        }
+      }
     }
 
     asset
@@ -687,7 +701,7 @@ impl Packager for JsPackager {
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    const RUNTIME: &str = include_str!("dev-runtime.js");
+    const RUNTIME: &str = include_str!("runtime.js");
 
     let mut res = String::new();
     if let Some(main) = bundle.main_entry_asset {

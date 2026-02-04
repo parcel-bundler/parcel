@@ -1,9 +1,4 @@
-use std::{
-  collections::{HashMap, HashSet},
-  hash::Hash,
-  path::Path,
-  sync::Arc,
-};
+use std::{collections::HashSet, hash::Hash, path::Path, sync::Arc};
 
 use parcel_core::{
   AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Bundler, CPlugin,
@@ -15,7 +10,6 @@ use parcel_html::{HtmlPackager, HtmlTransformer, SvgPackager, SvgTransformer};
 use parcel_image::ImageTransformer;
 use parcel_js::{JsPackager, JsTransformer, LibraryPackager};
 use parcel_plugin_js::JsPlugin;
-use parcel_resolver::OsFileSystem;
 use xxhash_rust::xxh3::Xxh3Default;
 
 use crate::resolver::DefaultResolver;
@@ -119,37 +113,12 @@ impl PluginFactory for DefaultPluginFactory {
   }
 }
 
-pub fn build() -> Result<BundleGraph, DiagnosticList> {
+pub fn build(
+  entries: Vec<String>,
+  options: Arc<ParcelOptions>,
+) -> Result<BundleGraph, DiagnosticList> {
   let start = std::time::Instant::now();
-  let mode = parcel_core::BuildMode::Development;
-  let mut env = HashMap::new();
-  env.insert(
-    "NODE_ENV".into(),
-    if mode == parcel_core::BuildMode::Production {
-      "production".into()
-    } else {
-      "development".into()
-    },
-  );
-  let options = Arc::new(ParcelOptions {
-    env,
-    input_fs: Arc::new(OsFileSystem {}),
-    log_level: parcel_core::LogLevel::Verbose,
-    mode,
-    project_root: SourceUrl::from_path(Path::new(
-      "/Users/devongovett/dev/parcel/test/library",
-      // "/Users/devongovett/dev/esbuild/require/parcel2/bench/three/",
-    ))
-    .unwrap(),
-  });
-
-  match parcel_core::build(
-    // vec!["/Users/devongovett/dev/esbuild/require/parcel2/bench/three/entry.parcel2.js".into()],
-    // vec!["/Users/devongovett/dev/parcel/test/index.html".into()],
-    vec!["/Users/devongovett/dev/parcel/test/library".into()],
-    options,
-    &DefaultPluginFactory {},
-  ) {
+  match parcel_core::build(entries, options, &DefaultPluginFactory {}) {
     Ok(g) => {
       println!("SUCCESS! {:?}", start.elapsed());
       Ok(g)
@@ -162,8 +131,8 @@ pub fn build() -> Result<BundleGraph, DiagnosticList> {
   }
 }
 
-pub fn watch() {
-  build();
+pub fn watch(entries: Vec<String>, options: Arc<ParcelOptions>) {
+  build(entries.clone(), options.clone());
 
   let watcher = parcel_watcher::watch(Path::new("/Users/devongovett/dev/parcel/test"));
   while let Ok(events) = watcher.recv() {
@@ -172,14 +141,14 @@ pub fn watch() {
       .iter()
       .any(|e| !e.path.as_os_str().to_str().unwrap().contains("dist"))
     {
-      build();
+      build(entries.clone(), options.clone());
     }
   }
 }
 
-pub fn serve() {
+pub fn serve(entries: Vec<String>, options: Arc<ParcelOptions>) {
   let server = server::serve_dir(Path::new("/Users/devongovett/dev/parcel/test/dist"));
-  build();
+  build(entries.clone(), options.clone());
 
   let watcher = parcel_watcher::watch(Path::new("/Users/devongovett/dev/parcel/test"));
   while let Ok(events) = watcher.recv() {
@@ -187,7 +156,7 @@ pub fn serve() {
       .iter()
       .any(|e| !e.path.as_os_str().to_str().unwrap().contains("dist"))
     {
-      let result = build();
+      let result = build(entries.clone(), options.clone());
       match result {
         Ok(graph) => {
           let changed_urls: HashSet<_> = events
@@ -245,7 +214,7 @@ impl Namer for DefaultNamer {
       if let Some(entry) = bundle.main_entry_asset {
         if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {
           return Ok(Some(format!(
-            "test/library/dist/{}",
+            "/test/library/dist/{}",
             asset
               .loc
               .url
@@ -264,7 +233,7 @@ impl Namer for DefaultNamer {
     let mut hash = Xxh3Default::new();
     bundle.assets.hash(&mut hash);
     Ok(Some(format!(
-      "test/library/dist/{:016x}.{}",
+      "/test/library/dist/{:016x}.{}",
       hash.digest(),
       ext
     )))

@@ -72,14 +72,46 @@ impl Resolver for DefaultResolver {
           })))
         }
         Resolution::External => Ok(DependencyResolution::External),
-        Resolution::Empty => {
-          todo!()
-        }
+        Resolution::Empty => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+          ty: AssetType::Js,
+          url: SourceUrl::parse("file:///empty.js").unwrap(),
+          code: Some(vec![]),
+          env: dep.env.clone(),
+          pipeline: pipeline.map(|p| p.into()),
+          side_effects,
+        }))),
         Resolution::Global(global) => {
           todo!()
         }
         Resolution::Builtin { scheme, module } => {
-          todo!()
+          let module = match module.as_str() {
+            "assert" => "assert/",
+            "buffer" => "buffer/",
+            "console" => "console-browserify",
+            "constants" => "constants-browserify",
+            "crypto" => "crypto-browserify",
+            "domain" => "domain-browser",
+            "events" => "events/",
+            "http" => "stream-http",
+            "https" => "https-browserify",
+            "os" => "os-browserify",
+            "path" => "path-browserify",
+            "process" => "process/",
+            "punycode" => "punycode/",
+            "querystring" => "querystring-es3",
+            "stream" => "stream-browserify",
+            "string_decoder" => "string_decoder/",
+            "sys" => "util",
+            "timers" => "timers-browserify",
+            "tty" => "tty-browserify",
+            "url" => "url/",
+            "util" => "util/",
+            "vm" => "vm-browserify",
+            "zlib" => "browserify-zlib",
+            _ => todo!(),
+          };
+
+          self.resolve(dep, module, pipeline)
         }
       },
       Err(e) => {

@@ -364,8 +364,8 @@ fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut 
 #[cfg(test)]
 mod tests {
   use crate::{
-    Entry, Environment, EnvironmentContext, MemoryFileSystem, SourceUrl, Target, Version,
-    entry::resolve_package_entries,
+    Entry, Environment, EnvironmentContext, FileSystem, MemoryFileSystem, SourceUrl, Target,
+    Version, entry::resolve_package_entries,
   };
   use std::{
     num::NonZero,
@@ -376,8 +376,11 @@ mod tests {
   fn test(input: &str, expected: Vec<Entry>) {
     let mut fs = MemoryFileSystem::new();
     fs.mkdir(Path::new("/root")).unwrap();
-    fs.write(Path::new("/root/package.json"), input.as_bytes().to_owned())
-      .unwrap();
+    fs.write(
+      Path::new("/root/package.json"),
+      &input.as_bytes().to_owned(),
+    )
+    .unwrap();
     let result = resolve_package_entries(&fs, PathBuf::from("/root"));
     assert_eq!(result, expected);
   }

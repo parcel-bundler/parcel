@@ -20,3 +20,6 @@ parcel-plugin-js = { path = "../plugin-js" }
 tiny_http = "0.12.0"
 tungstenite = "0.28.0"
 url = "*"
+
+[dev-dependencies]
+rquickjs = { version = "0.11.0", features = ["full"] }
