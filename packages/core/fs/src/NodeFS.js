@@ -86,33 +86,43 @@ export class NodeFS implements FileSystem {
   createWriteStream(filePath: string, options: any): Writable {
     // Make createWriteStream atomic
     let tmpFilePath = getTempFilePath(filePath);
-    let failed = false;
 
     const move = async () => {
-      if (!failed) {
+      const fsPromises = fs.promises;
+      const exists = (p: string) => {
         try {
-          await fs.promises.rename(tmpFilePath, filePath);
+          return fs.existsSync(p);
         } catch (e) {
-          // This is adapted from fs-write-stream-atomic. Apparently
-          // Windows doesn't like renaming when the target already exists.
-          if (
-            process.platform === 'win32' &&
-            e.syscall &&
-            e.syscall === 'rename' &&
-            e.code &&
-            e.code === 'EPERM'
-          ) {
-            let [hashTmp, hashTarget] = await Promise.all([
-              hashFile(this, tmpFilePath),
-              hashFile(this, filePath),
-            ]);
+          return false;
+        }
+      };
+      try {
+        if (!exists(tmpFilePath)) return;
+        if (exists(filePath)) {
+          await fsPromises.unlink(filePath);
+        }
+        await fsPromises.rename(tmpFilePath, filePath);
+      } catch (e) {
+        // For Windows: if rename fails with EPERM, compare hashes
+        if (
+          process.platform === 'win32' &&
+          e.syscall &&
+          e.syscall === 'rename' &&
+          e.code &&
+          e.code === 'EPERM'
+        ) {
+          let [hashTmp, hashTarget] = await Promise.all([
+            hashFile(this, tmpFilePath),
+            hashFile(this, filePath),
+          ]);
 
-            await this.unlink(tmpFilePath);
+          await fsPromises.unlink(tmpFilePath);
 
-            if (hashTmp != hashTarget) {
-              throw e;
-            }
+          if (hashTmp != hashTarget) {
+            throw e;
           }
+        } else {
+          throw e;
         }
       }
     };
@@ -137,8 +147,9 @@ export class NodeFS implements FileSystem {
     });
 
     writeStream.once('error', () => {
-      failed = true;
-      fs.unlinkSync(tmpFilePath);
+      if (fs.existsSync(tmpFilePath)) {
+        fs.unlinkSync(tmpFilePath);
+      }
     });
 
     return writeStream;
