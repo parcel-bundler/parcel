@@ -1,9 +1,9 @@
 use std::{collections::HashSet, hash::Hash, path::Path, sync::Arc};
 
 use parcel_core::{
-  AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Bundler, CPlugin,
-  DefaultBundler, DependencyResolution, DiagnosticList, Namer, Optimizer, OutputFormat, Packager,
-  ParcelConfig, ParcelOptions, PluginFactory, SourceUrl, Transformer,
+  AssetGraph, AssetNode, AssetType, BuildOptions, Bundle, BundleFlags, BundleGraph, Bundler,
+  CPlugin, DefaultBundler, DependencyResolution, DiagnosticList, Namer, Optimizer, OutputFormat,
+  Packager, ParcelConfig, PluginFactory, SourceUrl, Transformer,
 };
 use parcel_css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer};
 use parcel_html::{HtmlPackager, HtmlTransformer, SvgPackager, SvgTransformer};
@@ -113,10 +113,7 @@ impl PluginFactory for DefaultPluginFactory {
   }
 }
 
-pub fn build(
-  entries: Vec<String>,
-  options: Arc<ParcelOptions>,
-) -> Result<BundleGraph, DiagnosticList> {
+pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph, DiagnosticList> {
   let start = std::time::Instant::now();
   match parcel_core::build(entries, options, &DefaultPluginFactory {}) {
     Ok(g) => {
@@ -131,7 +128,7 @@ pub fn build(
   }
 }
 
-pub fn watch(entries: Vec<String>, options: Arc<ParcelOptions>) {
+pub fn watch(entries: Vec<String>, options: BuildOptions) {
   build(entries.clone(), options.clone());
 
   let watcher = parcel_watcher::watch(Path::new("/Users/devongovett/dev/parcel/test"));
@@ -146,7 +143,7 @@ pub fn watch(entries: Vec<String>, options: Arc<ParcelOptions>) {
   }
 }
 
-pub fn serve(entries: Vec<String>, options: Arc<ParcelOptions>) {
+pub fn serve(entries: Vec<String>, options: BuildOptions) {
   let server = server::serve_dir(Path::new("/Users/devongovett/dev/parcel/test/dist"));
   build(entries.clone(), options.clone());
 
@@ -200,6 +197,7 @@ impl Namer for DefaultNamer {
     &self,
     asset_graph: &AssetGraph,
     bundle: &parcel_core::Bundle,
+    _options: &parcel_core::ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList> {
     let mut ext = bundle.ty.extension();
     if bundle.ty == AssetType::Js {
@@ -214,7 +212,7 @@ impl Namer for DefaultNamer {
       if let Some(entry) = bundle.main_entry_asset {
         if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {
           return Ok(Some(format!(
-            "/test/library/dist/{}",
+            "{}",
             asset
               .loc
               .url
@@ -232,11 +230,7 @@ impl Namer for DefaultNamer {
 
     let mut hash = Xxh3Default::new();
     bundle.assets.hash(&mut hash);
-    Ok(Some(format!(
-      "/test/library/dist/{:016x}.{}",
-      hash.digest(),
-      ext
-    )))
+    Ok(Some(format!("{:016x}.{}", hash.digest(), ext)))
   }
 }
 

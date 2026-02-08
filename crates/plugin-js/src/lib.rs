@@ -3,8 +3,8 @@ use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
 use indexmap::IndexMap;
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, Environment, Location, Priority,
-  SourceLocation, SourceUrl, SpecifierType, Transformer,
+  DependencyFlags, DependencyResolution, Diagnostic, Environment, FileSystem, Location,
+  OsFileSystem, Priority, SourceLocation, SourceUrl, SpecifierType, Transformer,
 };
 use parcel_macros::{JsValue, MacroError};
 use rquickjs::{
@@ -18,7 +18,7 @@ use rquickjs::{
 };
 use rquickjs_extra_console::Formatter;
 
-use crate::{cjs::CjsLoader, esm::create_esm_loader};
+pub use crate::{cjs::CjsLoader, esm::create_esm_loader};
 
 mod cjs;
 mod esm;
@@ -35,33 +35,8 @@ where
     let mut context = cell.borrow_mut();
 
     if context.is_none() {
-      let runtime = Runtime::new().map_err(|e| Diagnostic::from_message(e.to_string()))?;
-      let ctx = Context::full(&runtime).map_err(|e| Diagnostic::from_message(e.to_string()))?;
-      let (resolver, loader) = create_esm_loader("/".into());
-      runtime.set_loader(resolver, loader);
-      // runtime.set_max_stack_size(10 * 1024 * 1024);
-
-      ctx
-        .with(|ctx| -> rquickjs::Result<()> {
-          ctx.store_userdata(CjsLoader::new("/".into()))?;
-
-          let global = ctx.globals();
-          let req = Function::new(ctx.clone(), cjs::require)?;
-          req.prop("cache", Object::new(ctx.clone()))?;
-          req.prop("resolve", Function::new(ctx.clone(), cjs::require_resolve)?)?;
-          global.prop("require", req)?;
-
-          global.prop("module", Accessor::new(cjs::get_module, || {}))?;
-
-          let console = Console::new(Formatter::default());
-          global.set("console", console)?;
-
-          global.set("process", Process {})?;
-          global.set("global", global.clone())?;
-          Ok(())
-        })
+      let ctx = create_runtime(Arc::new(OsFileSystem {}))
         .map_err(|e| Diagnostic::from_message(e.to_string()))?;
-
       *context = Some(ctx);
     }
 
@@ -88,6 +63,35 @@ where
       })
     })
   })
+}
+
+pub fn create_runtime(fs: Arc<dyn FileSystem>) -> rquickjs::Result<Context> {
+  let runtime = Runtime::new()?;
+  let ctx = Context::full(&runtime)?;
+  let (resolver, loader) = create_esm_loader("/".into(), fs.clone());
+  runtime.set_loader(resolver, loader);
+  // runtime.set_max_stack_size(10 * 1024 * 1024);
+
+  ctx.with(|ctx| -> rquickjs::Result<()> {
+    ctx.store_userdata(CjsLoader::new("/".into(), fs))?;
+
+    let global = ctx.globals();
+    let req = Function::new(ctx.clone(), cjs::require)?;
+    req.prop("cache", Object::new(ctx.clone()))?;
+    req.prop("resolve", Function::new(ctx.clone(), cjs::require_resolve)?)?;
+    global.prop("require", req)?;
+
+    global.prop("module", Accessor::new(cjs::get_module, || {}))?;
+
+    let console = Console::new(Formatter::default());
+    global.set("console", console)?;
+
+    global.set("process", Process {})?;
+    global.set("global", global.clone())?;
+    Ok(())
+  })?;
+
+  Ok(ctx)
 }
 
 pub struct JsPlugin {

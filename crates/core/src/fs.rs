@@ -48,6 +48,8 @@ pub trait FileSystem: Send + Sync {
   }
 
   fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>>;
+
+  fn create_dir_all(&self, path: &Path) -> Result<()>;
 }
 
 /// Default operating system file system implementation.
@@ -116,6 +118,10 @@ impl FileSystem for OsFileSystem {
     }
 
     Ok(entries)
+  }
+
+  fn create_dir_all(&self, path: &Path) -> Result<()> {
+    std::fs::create_dir_all(path)
   }
 }
 
@@ -330,5 +336,48 @@ impl FileSystem for MemoryFileSystem {
     } else {
       Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
     }
+  }
+
+  fn create_dir_all(&self, path: &Path) -> Result<()> {
+    let mut node = 0;
+    for component in path.components() {
+      match component {
+        Component::CurDir => {}
+        Component::ParentDir => {
+          let entries = self.entries.lock().unwrap();
+          let entry = &entries[node];
+          if let Some(parent) = entry.parent() {
+            node = parent;
+          } else {
+            return Err(Error::new(ErrorKind::NotFound, "not found"));
+          }
+        }
+        Component::Prefix(_) => todo!(),
+        Component::RootDir => {
+          node = 0;
+        }
+        Component::Normal(name) => {
+          node = match self.entry(node, name) {
+            Ok(v) => v,
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+              let mut entries = self.entries.lock().unwrap();
+              let index = entries.len();
+              entries.push(Entry::Directory {
+                name: name.into(),
+                children: vec![],
+                parent: Some(node),
+              });
+              if let Entry::Directory { children, .. } = &mut entries[node] {
+                children.push(index);
+              }
+              index
+            }
+            Err(e) => return Err(e),
+          }
+        }
+      }
+    }
+
+    Ok(())
   }
 }

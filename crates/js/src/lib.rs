@@ -1093,6 +1093,7 @@ fn load_bundles<W: std::fmt::Write>(
       bundle.main_entry_asset.unwrap()
     )?;
   } else {
+    write!(res, "module.exports=")?;
     load_bundle(bundle, from, res)?;
     write!(
       res,

@@ -4,6 +4,15 @@ use serde::Deserialize;
 
 use crate::{OsFileSystem, SourceUrl, fs::FileSystem};
 
+#[derive(Clone)]
+pub struct BuildOptions {
+  pub mode: BuildMode,
+  pub env: HashMap<String, String>,
+  pub log_level: LogLevel,
+  pub input_fs: Arc<dyn FileSystem>,
+  pub output_fs: Arc<dyn FileSystem>,
+}
+
 pub struct ParcelOptions {
   pub mode: BuildMode,
   pub env: HashMap<String, String>,

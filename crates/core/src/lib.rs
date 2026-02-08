@@ -21,7 +21,10 @@ mod resolver;
 mod target;
 mod transformer;
 
-use std::{path::Path, sync::Arc};
+use std::{
+  path::{Path, PathBuf},
+  sync::Arc,
+};
 
 use crate::{asset_graph::build_asset_graph, packager::RawPackager};
 
@@ -49,28 +52,34 @@ pub use transformer::Transformer;
 
 pub fn build(
   entries: Vec<String>,
-  options: Arc<ParcelOptions>,
+  options: BuildOptions,
   factory: &dyn PluginFactory,
 ) -> Result<BundleGraph, DiagnosticList> {
+  // Resolve entries.
+  let entries = resolve_entries(entries, &options);
+
+  let project_root = find_project_root(&entries);
+  let options = Arc::new(ParcelOptions {
+    env: options.env,
+    mode: options.mode,
+    log_level: options.log_level,
+    project_root: SourceUrl::from_path(&project_root).unwrap(),
+    input_fs: options.input_fs,
+    output_fs: options.output_fs,
+  });
+
   let config = Arc::new(ParcelConfig::read(
     &*options.input_fs,
-    // &options
-    //   .project_root
-    //   .to_file_path()
-    //   .unwrap()
-    //   .join(".parcelrc"),
+    // &project_root.join(".parcelrc"),
     Path::new("/Users/devongovett/dev/parcel/test/.parcelrc"),
     factory,
   ));
-
-  // Resolve entries.
-  let entries = resolve_entries(entries, &*options);
 
   // Build asset graph.
   let asset_graph = build_asset_graph(entries, config.clone(), options.clone())?;
 
   // Group assets into bundles.
-  let bundle_graph = bundle(asset_graph, &config)?;
+  let bundle_graph = bundle(asset_graph, &config, &*options)?;
 
   for i in 0..bundle_graph.bundles.len() {
     let content = get_bundle_content(&config, &bundle_graph, &bundle_graph.bundles[i])?;
@@ -78,7 +87,9 @@ pub fn build(
     // TODO: replace hash references
 
     let name = bundle_graph.bundles[i].name.as_ref().unwrap();
-    content.write(&*options.output_fs, Path::new(name))?;
+    let dist_dir = options.project_root.to_file_path().unwrap().join("dist"); // TODO: target
+    options.output_fs.create_dir_all(&dist_dir)?;
+    content.write(&*options.output_fs, &dist_dir.join(name))?;
   }
 
   Ok(bundle_graph)
@@ -135,3 +146,49 @@ macro_rules! impl_bitflags_serde {
 }
 
 pub(crate) use impl_bitflags_serde;
+
+fn common_root_path<'a>(paths: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
+  let mut path_iter = paths.into_iter();
+  let mut root = path_iter.next()?.to_path_buf();
+
+  for path in path_iter {
+    let mut new_root = PathBuf::new();
+    let mut found = false;
+    for (a, b) in root.components().zip(path.components()) {
+      if a == b {
+        found = true;
+        new_root.push(a);
+      } else {
+        break;
+      }
+    }
+    root = new_root;
+    if !found {
+      return None;
+    }
+  }
+
+  Some(root)
+}
+
+fn find_project_root(entries: &Vec<Entry>) -> PathBuf {
+  let root = common_root_path(entries.iter().map(|e| e.url.to_file_path().unwrap()))
+    .unwrap_or_else(|| std::env::current_dir().unwrap());
+
+  for dir in root.ancestors() {
+    for file in &[
+      "yarn.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      ".git",
+      ".hg",
+    ] {
+      let p = dir.join(file);
+      if p.exists() {
+        return dir.to_path_buf();
+      }
+    }
+  }
+
+  std::env::current_dir().unwrap()
+}

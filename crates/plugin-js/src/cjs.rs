@@ -1,22 +1,23 @@
 use std::{path::Path, sync::Arc};
 
-use parcel_core::OsFileSystem;
+use parcel_core::{FileSystem, OsFileSystem};
 use parcel_resolver::ModuleType;
 use rquickjs::{Ctx, JsLifetime, Module, Object, Value, context::EvalOptions, function};
 
 #[derive(JsLifetime)]
 pub struct CjsLoader {
   resolver: parcel_resolver::Resolver<'static>,
+  fs: Arc<dyn FileSystem>,
 }
 
 impl CjsLoader {
-  pub fn new(project_root: String) -> Self {
-    let fs = Arc::new(OsFileSystem);
+  pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
     CjsLoader {
       resolver: parcel_resolver::Resolver::node(
         Path::new(&project_root),
-        parcel_resolver::Cache::new(fs),
+        parcel_resolver::Cache::new(fs.clone()),
       ),
+      fs,
     }
   }
 
@@ -75,7 +76,7 @@ impl CjsLoader {
         options.global = false;
         options.strict = false;
         options.filename = Some(resolved.into());
-        let source = std::fs::read_to_string(resolved).unwrap();
+        let source = self.fs.read_to_string(Path::new(resolved)).unwrap();
         let mut code = String::new();
         code.push_str("var exports = module.exports;\n");
         code.push_str(&source);
@@ -88,7 +89,7 @@ impl CjsLoader {
         let module = Object::new(ctx.clone())?;
         cache.set(resolved, module.clone())?;
 
-        let source = std::fs::read(resolved).unwrap();
+        let source = self.fs.read(Path::new(resolved)).unwrap();
         module.set("exports", ctx.json_parse(source)?)?;
 
         let exports: Value = module.get("exports")?;

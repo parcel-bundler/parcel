@@ -4,7 +4,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   AssetType, Bundle, BundleBehavior, BundleFlags, DependencyFlags, DependencyResolution,
-  DiagnosticList, EnvironmentContext, Priority,
+  DiagnosticList, EnvironmentContext, ParcelOptions, Priority,
   asset_graph::{AssetGraph, AssetNode},
   bundle_graph::BundleGraph,
   config::{JsPlugin, ParcelConfig},
@@ -198,12 +198,13 @@ impl Bundler for DefaultBundler {
 pub fn bundle(
   asset_graph: AssetGraph,
   config: &ParcelConfig,
+  options: &ParcelOptions,
 ) -> Result<BundleGraph, DiagnosticList> {
   let mut bundle_graph = config.bundler.bundle(asset_graph)?;
 
   for bundle in &mut bundle_graph.bundles {
     // TODO: enforce uniqueness
-    let name = name(&bundle_graph.asset_graph, bundle, config)?;
+    let name = name(&bundle_graph.asset_graph, bundle, config, options)?;
     bundle.name = Some(name.into()) // TODO: targets
   }
 

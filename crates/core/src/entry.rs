@@ -7,8 +7,8 @@ use glob_match::glob_match;
 use serde_json::Value;
 
 use crate::{
-  BuildMode, Engines, Environment, EnvironmentContext, EnvironmentFlags, FileKind, FileSystem,
-  OutputFormat, ParcelOptions, SourceLocation, SourceType, SourceUrl, Target, Version,
+  BuildMode, BuildOptions, Engines, Environment, EnvironmentContext, EnvironmentFlags, FileKind,
+  FileSystem, OutputFormat, SourceLocation, SourceType, SourceUrl, Target, Version,
 };
 
 #[derive(Debug, PartialEq)]
@@ -19,7 +19,7 @@ pub struct Entry {
   pub loc: Option<SourceLocation>,
 }
 
-pub fn resolve_entries(entries: Vec<String>, options: &ParcelOptions) -> Vec<Entry> {
+pub fn resolve_entries(entries: Vec<String>, options: &BuildOptions) -> Vec<Entry> {
   let mut resolved_entries = Vec::new();
   for entry in entries {
     for path in glob(&*options.input_fs, &entry) {

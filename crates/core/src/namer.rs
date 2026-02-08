@@ -1,5 +1,5 @@
 use crate::{
-  Bundle, Diagnostic, DiagnosticList,
+  Bundle, Diagnostic, DiagnosticList, ParcelOptions,
   asset_graph::AssetGraph,
   config::{JsPlugin, ParcelConfig},
 };
@@ -9,6 +9,7 @@ pub trait Namer: Send + Sync {
     &self,
     asset_graph: &AssetGraph,
     bundle: &Bundle,
+    options: &ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList>;
 }
 
@@ -17,6 +18,7 @@ impl Namer for JsPlugin {
     &self,
     _asset_graph: &AssetGraph,
     _bundle: &Bundle,
+    _options: &ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList> {
     Err(DiagnosticList(vec![]))
   }
@@ -26,9 +28,10 @@ pub fn name(
   asset_graph: &AssetGraph,
   bundle: &Bundle,
   config: &ParcelConfig,
+  options: &ParcelOptions,
 ) -> Result<String, DiagnosticList> {
   for namer in &config.namers {
-    if let Some(name) = namer.name(asset_graph, bundle)? {
+    if let Some(name) = namer.name(asset_graph, bundle, options)? {
       return Ok(name);
     }
   }
