@@ -1,0 +1,8 @@
+{
+  "description": "supports deferring with chained renaming reexports",
+  "input": "a.js",
+  "sideEffects": [
+    "message1"
+  ],
+  "output": "Message 1"
+}

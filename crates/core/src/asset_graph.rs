@@ -29,6 +29,7 @@ impl AssetNode {
   }
 }
 
+#[derive(Debug)]
 pub struct AssetGraph {
   pub assets: Vec<AssetNode>,
   pub entries: Vec<Entry>,
@@ -228,7 +229,7 @@ fn request_symbol(
     if export.exported == name {
       let dep = &asset.dependencies[export.dep_index as usize];
       if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-        export.requested = true;
+        // export.requested = true;
         let imported = export.imported.clone();
         return request_symbol(assets, resolved_asset_index, imported, resolve_set, queue);
       } else {

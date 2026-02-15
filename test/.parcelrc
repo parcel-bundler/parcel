@@ -1,6 +1,9 @@
 {
   "resolvers": ["@parcel/resolver-default"],
   "transformers": {
+    "bundle-text:*": ["...", "@parcel/transformer-inline"],
+    "data-url:*": ["...", "@parcel/transformer-inline"],
+    "url:*": ["...", "@parcel/transformer-raw"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": [
       "@parcel/transformer-js"
     ],
@@ -22,11 +25,22 @@
     "*.{html,xhtml}": ["@parcel/transformer-html"],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": ["@parcel/transformer-image"],
+    "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.toml": ["@parcel/transformer-toml"],
+    "*.{yaml,yml}": ["@parcel/transformer-yaml"],
     "*.less": [
       {
         "plugin": "@parcel/transformer-quickjs",
         "config": {
           "path": "/Users/devongovett/dev/parcel/less-plugin.mjs"
+        }
+      }
+    ],
+    "*.coffee": [
+      {
+        "plugin": "@parcel/transformer-quickjs",
+        "config": {
+          "path": "/Users/devongovett/dev/parcel/test/coffeescript-plugin.mjs"
         }
       }
     ]
@@ -40,5 +54,8 @@
     "html": "@parcel/packager-html",
     "xhtml": "@parcel/packager-html",
     "svg": "@parcel/packager-svg"
+  },
+  "optimizers": {
+    "data-url:*": ["...", "@parcel/optimizer-data-url"]
   }
 }

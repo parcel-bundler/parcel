@@ -1,3 +1,1 @@
-export function test() {
-    return 'pkg-jsnext-module'
-}
+export const test = 'pkg-jsnext-module';

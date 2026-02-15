@@ -1,0 +1,14 @@
+{
+  "description": "should produce working output with both scope hoisting and non scope hoisting targets",
+  "input": "",
+  "options": {
+    "defaultTargetOptions": {
+      "shouldScopeHoist": true
+    }
+  },
+  "sideEffects": [
+    "UIIcon",
+    "Icon"
+  ],
+  "output": {}
+}

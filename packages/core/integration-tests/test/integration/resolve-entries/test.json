@@ -1,0 +1,58 @@
+[
+  {
+    "description": "should resolve the browser field before main",
+    "input": "browser.js",
+    "bundles": [
+      {
+        "name": "browser.js",
+        "assets": [
+          "browser.js",
+          "browser-module.js",
+          "esmodule-helpers.js"
+        ]
+      }
+    ],
+    "output": {
+      "test": "pkg-browser"
+    }
+  },
+  {
+    "description": "should exclude resolving specifiers that map to false in the browser field in browser builds",
+    "input": "pkg-ignore-browser/index.js",
+    "options": {
+      "targets": [
+        "browsers"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "description": "should not exclude resolving specifiers that map to false in the browser field in node builds",
+    "input": "pkg-ignore-browser/index.js",
+    "options": {
+      "targets": [
+        "node"
+      ]
+    },
+    "output": {
+      "test": "this should only exist in non-browser builds"
+    }
+  },
+  {
+    "description": "should resolve the main field",
+    "input": "main-field.js",
+    "bundles": [
+      {
+        "name": "main-field.js",
+        "assets": [
+          "main-field.js",
+          "main.js",
+          "esmodule-helpers.js"
+        ]
+      }
+    ],
+    "output": {
+      "test": "pkg-main-module"
+    }
+  }
+]

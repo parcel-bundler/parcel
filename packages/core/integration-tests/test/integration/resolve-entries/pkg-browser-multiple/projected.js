@@ -1,3 +1,1 @@
-export function test() {
-  return 'pkg-main-multiple'
-}
+export const test = 'pkg-main-multiple';

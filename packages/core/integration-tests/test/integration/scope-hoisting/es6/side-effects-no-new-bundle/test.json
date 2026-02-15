@@ -1,0 +1,23 @@
+{
+  "description": "doesn't create new bundles for dynamic imports in excluded assets",
+  "input": "index.html",
+  "bundles": [
+    {
+      "name": "index.html",
+      "assets": [
+        "index.html"
+      ]
+    },
+    {
+      "type": "js",
+      "assets": [
+        "index.js",
+        "b1.js"
+      ]
+    }
+  ],
+  "sideEffects": [
+    "b1"
+  ],
+  "output": 2
+}

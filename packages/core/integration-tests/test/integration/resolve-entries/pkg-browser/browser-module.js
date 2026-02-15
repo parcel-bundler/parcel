@@ -1,3 +1,1 @@
-export function test() {
-    return 'pkg-browser'
-}
+export const test = 'pkg-browser';

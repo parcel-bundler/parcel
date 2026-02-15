@@ -1,3 +1,1 @@
-export function test() {
-  return 'pkg-main'
-}
+export const test = 'pkg-main';

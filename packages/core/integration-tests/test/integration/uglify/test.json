@@ -1,0 +1,11 @@
+{
+  "description": "should minify JS in production mode",
+  "input": "index.js",
+  "options": {
+    "defaultTargetOptions": {
+      "shouldOptimize": true,
+      "shouldScopeHoist": false
+    }
+  },
+  "output": 3
+}

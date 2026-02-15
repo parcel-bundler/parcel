@@ -1,0 +1,7 @@
+{
+  "description": "should exclude default from export all declaration",
+  "input": "index.js",
+  "output": {
+    "a": 4
+  }
+}

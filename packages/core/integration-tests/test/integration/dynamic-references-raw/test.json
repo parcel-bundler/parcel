@@ -1,0 +1,26 @@
+{
+  "description": "should dynamic import files which import raw files",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "assets": [
+        "local.js",
+        "esmodule-helpers.js"
+      ]
+    },
+    {
+      "assets": [
+        "test.txt"
+      ]
+    }
+  ],
+  "output": 3
+}

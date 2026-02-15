@@ -35,11 +35,13 @@ impl Default for ParcelOptions {
   }
 }
 
-#[derive(Clone, PartialEq, Debug, Default)]
+#[derive(Clone, PartialEq, Debug, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum BuildMode {
   #[default]
   Development,
   Production,
+  #[serde(untagged)]
   Other(String),
 }
 

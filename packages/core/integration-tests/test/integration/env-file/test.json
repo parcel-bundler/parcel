@@ -1,0 +1,27 @@
+[
+  {
+    "description": "should insert environment variables from a file",
+    "input": "index.js",
+    "output": "bartest"
+  },
+  {
+    "description": "should insert environment variables matching the user's NODE_ENV if passed",
+    "input": "index.js",
+    "options": {
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "output": "productiontest"
+  },
+  {
+    "description": "should overwrite environment variables from a file if passed",
+    "input": "index.js",
+    "options": {
+      "env": {
+        "BAR": "baz"
+      }
+    },
+    "output": "barbaz"
+  }
+]

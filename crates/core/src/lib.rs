@@ -22,6 +22,7 @@ mod target;
 mod transformer;
 
 use std::{
+  collections::HashMap,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -59,8 +60,10 @@ pub fn build(
   let entries = resolve_entries(entries, &options);
 
   let project_root = find_project_root(&entries);
+  let mut env = options.env;
+  load_dotenv(&project_root, &*options.input_fs, &mut env)?;
   let options = Arc::new(ParcelOptions {
-    env: options.env,
+    env,
     mode: options.mode,
     log_level: options.log_level,
     project_root: SourceUrl::from_path(&project_root).unwrap(),
@@ -87,7 +90,7 @@ pub fn build(
     // TODO: replace hash references
 
     let name = bundle_graph.bundles[i].name.as_ref().unwrap();
-    let dist_dir = options.project_root.to_file_path().unwrap().join("dist"); // TODO: target
+    let dist_dir = bundle_graph.bundles[i].env.dist_dir.to_file_path().unwrap();
     options.output_fs.create_dir_all(&dist_dir)?;
     content.write(&*options.output_fs, &dist_dir.join(name))?;
   }
@@ -110,9 +113,16 @@ fn get_bundle_content(
 
   let mut content = packager.package(&bundle_graph, &bundle, &get_inline_bundle_content)?;
 
+  let mut pipeline = None;
+  if let Some(main) = bundle.main_entry_asset {
+    pipeline = bundle_graph.asset_graph.assets[main]
+      .expect_asset()
+      .pipeline
+      .clone();
+  }
   let optimizers = config
     .optimizers
-    .get::<&str>(bundle.name.as_ref().unwrap(), &None, false);
+    .get(bundle.name.as_ref().unwrap(), &pipeline, false);
 
   for optimizer in optimizers.0 {
     content = optimizer.optimize(&bundle_graph, &bundle, content)?;
@@ -191,4 +201,40 @@ fn find_project_root(entries: &Vec<Entry>) -> PathBuf {
   }
 
   std::env::current_dir().unwrap()
+}
+
+fn load_dotenv(
+  project_root: &Path,
+  fs: &dyn FileSystem,
+  env: &mut HashMap<String, String>,
+) -> Result<(), DiagnosticList> {
+  if let Some(node_env) = env.get("NODE_ENV").cloned() {
+    for file in ["", ".local"] {
+      let path = project_root.join(format!(".env.{}{}", node_env, file));
+      if fs.kind(&path) == FileKind::IS_FILE {
+        let content = fs.read(&path)?;
+        let iter = dotenvy::from_read_iter(std::io::BufReader::new(std::io::Cursor::new(content)));
+        for item in iter {
+          if let Ok((key, value)) = item {
+            env.entry(key).or_insert(value);
+          }
+        }
+      }
+    }
+  }
+
+  for file in [".env", ".env.local"] {
+    let path = project_root.join(file);
+    if fs.kind(&path) == FileKind::IS_FILE {
+      let content = fs.read(&path)?;
+      let iter = dotenvy::from_read_iter(std::io::BufReader::new(std::io::Cursor::new(content)));
+      for item in iter {
+        if let Ok((key, value)) = item {
+          env.entry(key).or_insert(value);
+        }
+      }
+    }
+  }
+
+  Ok(())
 }

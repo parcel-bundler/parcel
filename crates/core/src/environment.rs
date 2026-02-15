@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, num::NonZeroU16, str::FromStr};
 
-use crate::{SourceLocation, impl_bitflags_serde};
+use crate::{SourceLocation, SourceUrl, impl_bitflags_serde};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,8 @@ pub struct Environment {
   pub loc: Option<SourceLocation>,
   pub include_node_modules: IncludeNodeModules,
   pub engines: Engines,
+  pub dist_entry: Option<String>,
+  pub dist_dir: SourceUrl,
 }
 
 impl Environment {

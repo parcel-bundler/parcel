@@ -1,0 +1,36 @@
+[
+  {
+    "description": "supports deferring unused ES6 re-exports (namespace used)",
+    "input": "a.js",
+    "sideEffects": [
+      "message1"
+    ],
+    "output": "Message 1"
+  },
+  {
+    "description": "supports deferring unused ES6 re-exports (reexport named used)",
+    "input": "b.js",
+    "sideEffects": [
+      "message2"
+    ],
+    "output": "Message 2"
+  },
+  {
+    "description": "supports deferring unused ES6 re-exports (namespace rename used)",
+    "input": "c.js",
+    "sideEffects": [
+      "message3"
+    ],
+    "output": {
+      "default": "Message 3"
+    }
+  },
+  {
+    "description": "supports deferring unused ES6 re-exports (direct export used)",
+    "input": "d.js",
+    "sideEffects": [
+      "index"
+    ],
+    "output": "Message 4"
+  }
+]

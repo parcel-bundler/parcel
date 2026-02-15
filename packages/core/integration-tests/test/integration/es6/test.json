@@ -1,0 +1,5 @@
+{
+  "description": "should produce a basic JS bundle with ES6 imports",
+  "input": "index.js",
+  "output": 3
+}

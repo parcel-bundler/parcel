@@ -1,0 +1,13 @@
+{
+  "description": "supports chained ES6 re-exports",
+  "input": "index.js",
+  "sideEffects": [
+    "key",
+    "index",
+    "foo"
+  ],
+  "output": [
+    "key",
+    "foo"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "description": "should inline environment variables with in binary expression whose right branch is process.env and left branch is string literal",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "ABC": "any"
+    },
+    "defaultTargetOptions": {
+      "engines": {
+        "browsers": ">= 0.25%"
+      }
+    }
+  },
+  "output": {
+    "existVar": "correct",
+    "notExistVar": "correct"
+  }
+}

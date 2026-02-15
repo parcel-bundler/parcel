@@ -14,3 +14,4 @@ parcel-plugin-js = { path = "../plugin-js" }
 parcel-css = { path = "../css" }
 parcel-resolver = { path = "../parcel-resolver" }
 node-semver = "2.2.0"
+glob-match = "*"

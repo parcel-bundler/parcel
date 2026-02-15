@@ -1,0 +1,17 @@
+[
+  {
+    "description": "should only replace free references to require",
+    "input": "index.js",
+    "sideEffects": ["a"],
+    "output": {}
+  },
+  {
+    "description": "should only replace free references to require with scope hoisting",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "sideEffects": ["a"],
+    "output": {}
+  }
+]

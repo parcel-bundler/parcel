@@ -1,0 +1,13 @@
+{
+  "description": "should minify JSON5 files",
+  "input": "index.json5",
+  "options": {
+    "defaultTargetOptions": {
+      "shouldOptimize": true,
+      "shouldScopeHoist": false
+    }
+  },
+  "output": {
+    "test": "test"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "should support requiring JSON5 files",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "local.json5"
+      ]
+    }
+  ],
+  "output": 3
+}

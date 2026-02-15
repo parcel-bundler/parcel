@@ -1,0 +1,32 @@
+[
+  {
+    "description": "should support requiring TOML files",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js",
+          "local.toml"
+        ],
+        "childBundles": [
+          {
+            "type": "map"
+          }
+        ]
+      }
+    ],
+    "output": 3
+  },
+  {
+    "description": "should minify TOML for production",
+    "input": "index.js",
+    "options": {
+      "defaultTargetOptions": {
+        "shouldOptimize": true,
+        "shouldScopeHoist": false
+      }
+    },
+    "output": 3
+  }
+]

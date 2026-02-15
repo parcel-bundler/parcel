@@ -1,0 +1,12 @@
+[
+  {
+    "description": "should replace process.browser for target browser",
+    "input": "index.js",
+    "output": true
+  },
+  {
+    "description": "should replace process.browser for target electron-renderer",
+    "input": "index.js",
+    "output": true
+  }
+]

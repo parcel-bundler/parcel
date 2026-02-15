@@ -1,0 +1,18 @@
+{
+  "description": "should ignore unused requires after process.env inlining",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "ABC": "XYZ"
+    }
+  },
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "index.js"
+      ]
+    }
+  ],
+  "output": "ok"
+}

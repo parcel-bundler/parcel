@@ -61,7 +61,11 @@ impl Content for FileContent {
 
   fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
     // Use native FS copy so we get copy on write behavior.
-    Ok(fs.copy(&self.path, path)?)
+    if Arc::as_ptr(&self.fs) == fs {
+      Ok(fs.copy(&self.path, path)?)
+    } else {
+      Ok(fs.write(path, &self.read()?)?)
+    }
   }
 }
 

@@ -6,6 +6,7 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+use glob_match::glob_match;
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
 use parcel_js_swc_core::{
@@ -13,7 +14,7 @@ use parcel_js_swc_core::{
   tree_shake::tree_shake,
 };
 use parcel_plugin_js::call_macro;
-use parcel_resolver::{AliasValue, BrowserField, Invalidations, Specifier};
+use parcel_resolver::{AliasValue, BrowserField, InlineEnvironment, Invalidations, Specifier};
 
 use parcel_css::resolve_css_module_export;
 
@@ -611,8 +612,8 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
     }
   }
 
-  let env = HashMap::new();
   let mut inline_constants = false;
+  let mut inline_env = InlineEnvironment::default();
   if let Some(root_pkg) = resolver.find_package(
     &resolver
       .cache()
@@ -621,15 +622,38 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
   ) {
     if let Ok(root_pkg) = &*root_pkg {
       if let Some(config) = &root_pkg.js_transformer_config {
-        // if let Some(inline_environment) = &config.inline_environment {
-        //   inline_env = inline_environment.clone(); // TODO: we could borrow here
-        // }
+        if let Some(inline_environment) = &config.inline_environment {
+          inline_env = inline_environment.clone();
+        }
 
         if let Some(fs) = config.inline_fs {
           inline_fs = fs;
         }
 
         inline_constants = config.inline_constants;
+      }
+    }
+  }
+
+  let mut env = HashMap::new();
+  match inline_env {
+    InlineEnvironment::Bool(false) => {
+      if let Some(node_env) = options.env.get("NODE_ENV") {
+        env.insert("NODE_ENV".into(), node_env.as_str().into());
+      }
+    }
+    InlineEnvironment::Bool(true) => {
+      for (k, v) in &options.env {
+        if !k.starts_with("npm_") {
+          env.insert(k.as_str().into(), v.as_str().into());
+        }
+      }
+    }
+    InlineEnvironment::Array(keys) => {
+      for (key, value) in &options.env {
+        if keys.iter().any(|k| glob_match(k, key)) {
+          env.insert(key.as_str().into(), value.as_str().into());
+        }
       }
     }
   }
@@ -847,6 +871,8 @@ pub fn asset_dependencies<'a>(
 ) -> IndexMap<String, Resolution<'a>> {
   let mut dependencies = IndexMap::new();
 
+  let used_deps: Vec<u32> = asset.resolved_dependencies().collect();
+
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
     match &dep.resolution {
@@ -892,7 +918,7 @@ pub fn asset_dependencies<'a>(
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
-                  if first_asset != Some(*asset_index) {
+                  if first_asset != Some(*asset_index) || import.symbol != export.exported {
                     all_assets_match = false;
                   }
                 }
@@ -910,7 +936,7 @@ pub fn asset_dependencies<'a>(
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
-                  if first_asset != Some(*asset_index) {
+                  if first_asset != Some(*asset_index) || import.symbol != SymbolName::Namespace {
                     all_assets_match = false;
                   }
                 }
@@ -931,6 +957,12 @@ pub fn asset_dependencies<'a>(
               Resolution::Symbols(resolutions),
             );
           }
+        } else if matches!(
+          bundle_graph.asset_graph.assets[*resolved as usize],
+          AssetNode::Deferred { .. }
+        ) || !used_deps.contains(resolved)
+        {
+          dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
         } else {
           dependencies.insert(placeholder.as_str().into(), Resolution::Asset(*resolved));
         }
@@ -977,10 +1009,10 @@ pub fn asset_dependencies<'a>(
             || resolved_bundle.bundle_behavior == BundleBehavior::Inline
           {
             additional_assets.insert(SyntheticAsset::Inline(*bundle_index));
-          } else if dep.specifier_type == SpecifierType::Url {
-            additional_assets.insert(SyntheticAsset::Url(*bundle_index));
-          } else {
+          } else if dep.priority == Priority::Lazy && dep.specifier_type != SpecifierType::Url {
             additional_assets.insert(SyntheticAsset::Async(*bundle_index));
+          } else {
+            additional_assets.insert(SyntheticAsset::Url(*bundle_index));
           };
 
           dependencies.insert(
@@ -1118,7 +1150,7 @@ fn load_bundle<W: std::fmt::Write>(
     AssetType::Css => {
       write!(res, "parcelLoadCSS('./{}')", name)
     }
-    _ => todo!(),
+    _ => Ok(()),
   }
 }
 

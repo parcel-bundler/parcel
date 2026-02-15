@@ -1,0 +1,29 @@
+{
+  "description": "should duplicate small modules across multiple bundles",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": [
+        "a.js",
+        "common.js",
+        "common-dep.js"
+      ]
+    },
+    {
+      "assets": [
+        "b.js",
+        "common.js",
+        "common-dep.js"
+      ]
+    },
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    }
+  ],
+  "output": 7
+}

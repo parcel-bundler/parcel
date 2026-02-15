@@ -1,7 +1,5 @@
-$black: #000;
-
 body {
-  background-color: $black;
+  background-color: black;
 }
 
 .svg-img {

@@ -401,7 +401,7 @@ impl Packager for CssPackager {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let mut asset_index_to_stylesheet_index: HashMap<u32, usize> = HashMap::new();
     let mut stylesheets = Vec::new();
@@ -464,6 +464,7 @@ impl Packager for CssPackager {
         inline(
           &bundle_graph,
           &bundle,
+          &get_inline_bundle_content,
           &asset_index_to_stylesheet_index,
           &mut stylesheets,
           source_index,
@@ -630,6 +631,7 @@ fn collect(
 fn inline(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
+  get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   asset_index_to_stylesheet_index: &HashMap<u32, usize>,
   stylesheets: &mut Vec<StyleSheetWrapper>,
   source_index: usize,
@@ -653,6 +655,7 @@ fn inline(
           inline(
             bundle_graph,
             bundle,
+            get_inline_bundle_content,
             asset_index_to_stylesheet_index,
             stylesheets,
             dep_source_index,
@@ -681,6 +684,7 @@ fn inline(
               inline(
                 bundle_graph,
                 bundle,
+                get_inline_bundle_content,
                 asset_index_to_stylesheet_index,
                 stylesheets,
                 dep_source_index,
@@ -754,6 +758,7 @@ fn inline(
     bundle,
     source_index as u32,
     references,
+    get_inline_bundle_content,
   );
   rules.visit(&mut replacer).unwrap();
 
@@ -814,6 +819,7 @@ impl ReferenceReplacer {
     bundle: &Bundle,
     source_index: u32,
     css_modules: HashMap<String, String>,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> ReferenceReplacer {
     let mut urls = HashMap::new();
     for dep in dependencies {
@@ -823,7 +829,14 @@ impl ReferenceReplacer {
           if dep.bundle_behavior == BundleBehavior::Inline
             || referenced_bundle.bundle_behavior == BundleBehavior::Inline
           {
-            todo!()
+            let url = String::from_utf8(
+              get_inline_bundle_content(bundle_index as usize)
+                .unwrap()
+                .read()
+                .unwrap(),
+            )
+            .unwrap();
+            urls.insert(dep.specifier.clone(), url);
           } else {
             let url = referenced_bundle.relative_url(bundle).unwrap().into();
             urls.insert(dep.specifier.clone(), url);
@@ -1021,7 +1034,7 @@ impl Packager for StyleAttrPackager {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
@@ -1034,6 +1047,7 @@ impl Packager for StyleAttrPackager {
       bundle,
       0,
       HashMap::new(),
+      get_inline_bundle_content,
     );
     if !replacer.urls.is_empty() {
       decls.visit(&mut replacer).unwrap();

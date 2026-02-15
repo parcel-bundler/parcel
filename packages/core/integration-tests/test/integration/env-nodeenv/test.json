@@ -1,0 +1,10 @@
+{
+  "description": "should inline NODE_ENV environment variable in browser environment even if disabled",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "FOO": "abc"
+    }
+  },
+  "output": "test:undefined"
+}

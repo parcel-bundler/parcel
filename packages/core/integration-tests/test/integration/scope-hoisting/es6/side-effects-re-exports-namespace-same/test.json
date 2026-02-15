@@ -1,0 +1,33 @@
+[
+  {
+    "description": "supports named and namespace exports of the same asset (named used)",
+    "input": "a.js",
+    "sideEffects": [
+      "other"
+    ],
+    "output": [
+      "foo"
+    ]
+  },
+  {
+    "description": "supports named and namespace exports of the same asset (namespace used)",
+    "input": "b.js",
+    "sideEffects": [
+      "other"
+    ],
+    "output": [
+      "bar"
+    ]
+  },
+  {
+    "description": "supports named and namespace exports of the same asset (both used)",
+    "input": "c.js",
+    "sideEffects": [
+      "other"
+    ],
+    "output": [
+      "foo",
+      "bar"
+    ]
+  }
+]

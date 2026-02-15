@@ -1,0 +1,5 @@
+{
+  "description": "should insert environment variables from a file even if entry file is specified with source value in package.json",
+  "input": "",
+  "output": "bartest"
+}

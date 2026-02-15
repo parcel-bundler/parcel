@@ -1,3 +1,3 @@
-result([this, x]);
+sideEffect([this, x]);
 
 import x from "./b.js";

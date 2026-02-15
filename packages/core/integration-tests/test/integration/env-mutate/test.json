@@ -1,0 +1,10 @@
+{
+  "description": "should warn on process.env mutations in node_modules",
+  "input": "warn.js",
+  "sideEffects": [
+    "foo",
+    true,
+    null
+  ],
+  "output": {}
+}

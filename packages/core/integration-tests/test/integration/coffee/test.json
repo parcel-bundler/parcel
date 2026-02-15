@@ -1,0 +1,14 @@
+{
+  "description": "should support requiring CoffeeScript files",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "local.coffee"
+      ]
+    }
+  ],
+  "output": 3
+}

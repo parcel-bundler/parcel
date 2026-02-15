@@ -1,0 +1,10 @@
+{
+  "description": "removes deferred reexports when imported from multiple asssets",
+  "input": "a.js",
+  "output": [
+    1234,
+    {
+      "default": 1234
+    }
+  ]
+}

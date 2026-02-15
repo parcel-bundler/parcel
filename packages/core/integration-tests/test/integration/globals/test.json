@@ -1,0 +1,27 @@
+[
+  {
+    "description": "should insert global variables when needed",
+    "input": "index.js",
+    "output": {
+      "dir": "integration/globals",
+      "file": "integration/globals/index.js",
+      "buf": "YnJvd3Nlcg==",
+      "global": true
+    }
+  },
+  {
+    "description": "should work when multiple files use globals with scope hoisting",
+    "input": "multiple.js",
+    "options": {
+      "mode": "production",
+      "defaultTargetOptions": {
+        "shouldScopeHoist": true,
+        "shouldOptimize": false
+      }
+    },
+    "output": {
+      "file": "integration/globals/multiple.js",
+      "other": "integration/globals/index.js"
+    }
+  }
+]

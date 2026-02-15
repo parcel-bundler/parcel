@@ -1,0 +1,46 @@
+[
+  {
+    "description": "should inline environment variables when destructured in a variable declaration",
+    "input": "index.js",
+    "options": {
+      "env": {
+        "TEST": "XYZ"
+      },
+      "defaultTargetOptions": {
+        "engines": {
+          "browsers": ">= 0.25%"
+        }
+      }
+    },
+    "output": {
+      "env": {},
+      "NODE_ENV": "test",
+      "renamed": "XYZ",
+      "fallback": "yo",
+      "rest": {},
+      "other": "hi"
+    }
+  },
+  {
+    "description": "should inline environment variables when destructured in an assignment",
+    "input": "assign.js",
+    "options": {
+      "env": {
+        "TEST": "XYZ"
+      },
+      "defaultTargetOptions": {
+        "engines": {
+          "browsers": ">= 0.25%"
+        }
+      }
+    },
+    "output": {
+      "env": {},
+      "NODE_ENV": "test",
+      "renamed": "XYZ",
+      "fallback": "yo",
+      "rest": {},
+      "result": {}
+    }
+  }
+]

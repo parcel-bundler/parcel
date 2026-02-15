@@ -1,0 +1,18 @@
+[
+  {
+    "description": "supports named and renamed reexports of the same asset (default used)",
+    "input": "a.js",
+    "sideEffects": [
+      "other"
+    ],
+    "output": "bar"
+  },
+  {
+    "description": "supports named and renamed reexports of the same asset (named used)",
+    "input": "b.js",
+    "sideEffects": [
+      "other"
+    ],
+    "output": "bar"
+  }
+]

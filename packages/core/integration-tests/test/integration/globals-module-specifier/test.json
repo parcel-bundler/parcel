@@ -1,0 +1,15 @@
+{
+  "description": "should not insert global variables when used in a module specifier",
+  "input": "a.js",
+  "bundles": [
+    {
+      "assets": [
+        "a.js",
+        "b.js",
+        "c.js",
+        "esmodule-helpers.js"
+      ]
+    }
+  ],
+  "output": 1234
+}

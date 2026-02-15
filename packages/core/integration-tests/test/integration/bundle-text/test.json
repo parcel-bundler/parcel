@@ -1,0 +1,30 @@
+[
+  {
+    "description": "should inline a bundle's compiled text with `bundle-text`",
+    "input": "index.js",
+    "options": {
+      "hmrOptions": {}
+    },
+    "output": {
+      "default": "body {\n  background-color: #000;\n}\n\n.svg-img {\n  background-image: url(\"data:image/svg+xml;base64,PHN2Zz4KCjwvc3ZnPg\");\n}\n"
+    }
+  },
+  {
+    "description": "should inline a JS bundle's compiled text with `bundle-text` and HMR enabled",
+    "input": "javascript.js",
+    "options": {
+      "hmrOptions": {}
+    },
+    "sideEffects": ["hi"],
+    "output": {}
+  },
+  {
+    "description": "should inline a JS bundle's compiled text with `bundle-text` with symbol propagation",
+    "input": "javascript.js",
+    "options": {
+      "mode": "production"
+    },
+    "sideEffects": ["hi"],
+    "output": {}
+  }
+]

@@ -59,4 +59,9 @@ impl Bundle {
       r
     })
   }
+
+  pub fn dist_path(&self) -> PathBuf {
+    let dist_dir = self.env.dist_dir.to_file_path().unwrap();
+    dist_dir.join(self.name.as_ref().unwrap())
+  }
 }

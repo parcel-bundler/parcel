@@ -76,8 +76,7 @@ describe('javascript', function () {
 
     let output = await run(b);
     assert.equal(typeof output, 'object');
-    assert.equal(typeof output.default, 'function');
-    assert.equal(output.default(), 3);
+    assert.equal(output.default, 3);
   });
 
   it('should detect dependencies inserted by a prior transform', async () => {
@@ -1069,7 +1068,7 @@ describe('javascript', function () {
     assert.deepEqual(output(), {
       dir: 'integration/globals',
       file: 'integration/globals/index.js',
-      buf: Buffer.from('browser').toString('base64'),
+      buf: 'YnJvd3Nlcg==',
       global: true,
     });
   });
@@ -1742,7 +1741,7 @@ describe('javascript', function () {
 
     let output = [];
     await run(b, {
-      output(o) {
+      sideEffect(o) {
         output.push(o);
       },
     });
@@ -1924,7 +1923,7 @@ describe('javascript', function () {
     let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-browser');
+    assert.equal(output.test, 'pkg-browser');
   });
 
   it('should exclude resolving specifiers that map to false in the browser field in browser builds', async () => {
@@ -1976,7 +1975,7 @@ describe('javascript', function () {
     let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-main');
+    assert.equal(output.test, 'pkg-main');
   });
 
   it.skip('should resolve advanced browser resolution', async function () {
@@ -2052,7 +2051,7 @@ describe('javascript', function () {
     let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-es6-module');
+    assert.equal(output.test, 'pkg-es6-module');
   });
 
   it.skip('should resolve the module field before main if scope-hoisting is enabled', async function () {
@@ -2075,7 +2074,7 @@ describe('javascript', function () {
     let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-es6-module');
+    assert.equal(output.test, 'pkg-es6-module');
   });
 
   it('should resolve the main field', async function () {
@@ -2093,7 +2092,7 @@ describe('javascript', function () {
     let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-main-module');
+    assert.equal(output.test, 'pkg-main-module');
   });
 
   it('should minify JSON files', async function () {
@@ -2366,10 +2365,10 @@ describe('javascript', function () {
     );
 
     let output;
-    function result(v) {
+    function sideEffect(v) {
       output = v;
     }
-    await run(b, {result});
+    await run(b, {sideEffect});
     assert.deepEqual(output, [{foo: 2}, 1234]);
   });
 
@@ -2384,10 +2383,10 @@ describe('javascript', function () {
     );
 
     let output;
-    function result(v) {
+    function sideEffect(v) {
       output = v;
     }
-    await run(b, {result});
+    await run(b, {sideEffect});
     assert.deepEqual(output, [{foo: 2}, 1234]);
   });
 
@@ -2395,10 +2394,10 @@ describe('javascript', function () {
     let b = await bundle(path.join(__dirname, '/integration/js-this-es6/a.js'));
 
     let output;
-    function result(v) {
+    function sideEffect(v) {
       output = v;
     }
-    await run(b, {result});
+    await run(b, {sideEffect});
     assert.deepEqual(output, [undefined, 1234]);
   });
 
@@ -2413,10 +2412,10 @@ describe('javascript', function () {
     );
 
     let output;
-    function result(v) {
+    function sideEffect(v) {
       output = v;
     }
-    await run(b, {result});
+    await run(b, {sideEffect});
     assert.deepEqual(output, [undefined, 1234]);
   });
 
@@ -2784,10 +2783,8 @@ describe('javascript', function () {
     let res = await run(b);
     let log;
     let ctx = vm.createContext({
-      console: {
-        log(x) {
-          log = x;
-        },
+      sideEffect(x) {
+        log = x;
       },
     });
     vm.runInContext(res.default, ctx);
@@ -3601,10 +3598,10 @@ describe('javascript', function () {
     );
 
     let output;
-    function result(v) {
+    function sideEffect(v) {
       output = v;
     }
-    await run(b, {result});
+    await run(b, {sideEffect});
     assert.deepEqual(output, 'b1');
   });
 
@@ -3617,10 +3614,10 @@ describe('javascript', function () {
     );
 
     let output;
-    function result(v) {
+    function sideEffect(v) {
       output = v;
     }
-    await run(b, {result});
+    await run(b, {sideEffect});
     assert.deepEqual(output, 'b1');
   });
 
@@ -3671,7 +3668,7 @@ describe('javascript', function () {
       path.join(__dirname, 'integration/js-import-shadow/index.js'),
     );
     let res = await run(b);
-    assert.strictEqual(res.baz(), 'foo');
+    assert.strictEqual(res.default(), 'foo');
   });
 
   it('should not replace identifier with a var declaration inside a for loop', async function () {
@@ -3679,7 +3676,7 @@ describe('javascript', function () {
       path.join(__dirname, 'integration/js-import-shadow-for-var/index.js'),
     );
     let res = await run(b);
-    assert.deepEqual(res.baz(), [0, 1, 2, 3]);
+    assert.deepEqual(res.default(), [0, 1, 2, 3]);
   });
 
   it('should replace an imported identifier with function locals of the same name', async function () {
@@ -3749,7 +3746,7 @@ describe('javascript', function () {
     );
     let output;
     await run(b, {
-      output(v) {
+      sideEffect(v) {
         output = v;
       },
     });
@@ -3765,7 +3762,7 @@ describe('javascript', function () {
     );
     let output;
     await run(b, {
-      output(v) {
+      sideEffect(v) {
         output = v;
       },
     });

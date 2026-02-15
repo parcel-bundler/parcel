@@ -1,0 +1,13 @@
+{
+  "description": "should retain the correct dependency order between import and reexports",
+  "input": "index.js",
+  "sideEffects": [
+    "a",
+    "b",
+    "c"
+  ],
+  "output": {
+    "a": "a",
+    "b": "b"
+  }
+}

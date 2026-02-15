@@ -13,3 +13,5 @@ serde = { version = "1.0.123", features = ["derive", "rc"] }
 parcel-resolver = { path = "../parcel-resolver" }
 parcel-macros = { path = "../macros" }
 indexmap = { version = "=2.11.0", features = ["serde"] }
+data-encoding = "2.3.2"
+url = "*"

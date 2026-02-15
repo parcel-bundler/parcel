@@ -46,9 +46,23 @@ impl Asset {
       loop {
         // If a dependency has side effects, emit its resolved asset.
         // If the namespace of this asset is used, include all dependencies.
+        // If the dependency is referenced by a used indirect or star export,
         if dep_index < self.dependencies.len() {
           let dep = &self.dependencies[dep_index];
-          if dep.flags.contains(DependencyFlags::SIDE_EFFECTS) || self.symbols.used_namespace {
+          if dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
+            || self.symbols.used_namespace
+            // TODO: check
+            || self
+              .symbols
+              .indirect
+              .iter()
+              .any(|i| i.dep_index == dep_index as u32 && i.requested)
+            || self
+              .symbols
+              .star
+              .iter()
+              .any(|i| i.dep_index == dep_index as u32 && i.requested)
+          {
             if let DependencyResolution::Asset(asset) = dep.resolution {
               dep_index += 1;
               return Some(asset);

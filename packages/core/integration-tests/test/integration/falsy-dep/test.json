@@ -1,0 +1,15 @@
+{
+  "description": "should support excluding dependencies in falsy branches",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "true-alternate.js",
+        "true-consequent.js"
+      ]
+    }
+  ],
+  "output": 2
+}

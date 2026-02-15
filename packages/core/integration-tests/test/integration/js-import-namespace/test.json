@@ -1,0 +1,18 @@
+[
+  {
+    "description": "should support import namespace declarations of other ES modules",
+    "input": "a.js",
+    "output": {
+      "a": 4,
+      "default": 1
+    }
+  },
+  {
+    "description": "should support import namespace declarations of object from CJS",
+    "input": "c.js",
+    "output": {
+      "foo": 2,
+      "default": 3
+    }
+  }
+]

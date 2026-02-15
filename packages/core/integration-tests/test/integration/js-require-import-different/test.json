@@ -1,0 +1,25 @@
+[
+  {
+    "description": "should support import and non-top-level require of same asset from different assets",
+    "input": "index.js",
+    "output": [
+      123,
+      {
+        "HooksContext": 123
+      }
+    ]
+  },
+  {
+    "description": "should support import and non-top-level require of same asset from different assets with scope hoisting",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": [
+      123,
+      {
+        "HooksContext": 123
+      }
+    ]
+  }
+]

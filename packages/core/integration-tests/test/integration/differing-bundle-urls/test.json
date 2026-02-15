@@ -1,0 +1,15 @@
+{
+  "description": "should support importing async bundles from bundles with different dist paths",
+  "input": "*/**/entry-*.js",
+  "options": {
+    "mode": "production",
+    "defaultTargetOptions": {
+      "shouldOptimize": false
+    }
+  },
+  "sideEffects": [
+    "common",
+    "deep"
+  ],
+  "output": {}
+}

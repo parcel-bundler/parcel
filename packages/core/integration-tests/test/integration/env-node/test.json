@@ -1,0 +1,5 @@
+{
+  "description": "should not insert environment variables in node environment",
+  "input": "index.js",
+  "output": "test:test"
+}

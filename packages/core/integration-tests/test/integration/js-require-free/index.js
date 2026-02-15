@@ -2,7 +2,7 @@ const x = {
 	require: ["a", "b"],
 };
 
-output(
+sideEffect(
 	x.require[
 		(() => {
 			let x = typeof require !== "undefined" && require;

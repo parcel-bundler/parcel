@@ -1,5 +1,5 @@
 import { foo } from './foo';
-export function baz() {
+export default function baz() {
   const _foo = foo();
   return _foo;
 }

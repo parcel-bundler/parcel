@@ -1,0 +1,10 @@
+{
+  "description": "should not insert environment variables in browser environment if disabled",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "FOOBAR": "abc"
+    }
+  },
+  "output": "undefined:undefined:undefined"
+}

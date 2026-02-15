@@ -1,0 +1,29 @@
+[
+  {
+    "description": "should replace toplevel this with undefined in ESM without scope-hoisting",
+    "input": "a.js",
+    "sideEffects": [
+      [
+        null,
+        1234
+      ]
+    ],
+    "output": {}
+  },
+  {
+    "description": "should replace toplevel this with undefined in ESM when scope-hoisting",
+    "input": "a.js",
+    "options": {
+      "defaultTargetOptions": {
+        "shouldScopeHoist": true
+      }
+    },
+    "sideEffects": [
+      [
+        null,
+        1234
+      ]
+    ],
+    "output": {}
+  }
+]

@@ -42,7 +42,10 @@ impl Resolver for ModuleResolver {
         parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
         _ => Err(rquickjs::Error::new_resolving(base, name)),
       },
-      Err(e) => Err(rquickjs::Error::new_resolving(base, name)),
+      Err(e) => {
+        println!("ERROR: {:?}", e);
+        Err(rquickjs::Error::new_resolving(base, name))
+      }
     }
   }
 }
@@ -60,7 +63,7 @@ impl Loader for ModuleLoader {
   ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
     // println!("LOADING {:?}", name);
 
-    match self
+    let module = match self
       .resolver
       .resolve_module_type(Path::new(name), &Default::default())
     {
@@ -73,11 +76,11 @@ impl Loader for ModuleLoader {
               name: name.into(),
               message: Some(e.to_string()),
             })?;
-        Module::declare(ctx.clone(), name, source)
+        Module::declare(ctx.clone(), name, source)?
       }
       Ok(ModuleType::CommonJs) => {
         let source = format!("export default require({:?});\n", name);
-        Module::declare(ctx.clone(), name, source)
+        Module::declare(ctx.clone(), name, source)?
       }
       Ok(ModuleType::Json) => {
         let source =
@@ -89,12 +92,18 @@ impl Loader for ModuleLoader {
               message: Some(e.to_string()),
             })?;
         let source = format!("export default {};\n", source);
-        Module::declare(ctx.clone(), name, source)
+        Module::declare(ctx.clone(), name, source)?
       }
-      Err(e) => Err(rquickjs::Error::Loading {
-        name: name.into(),
-        message: Some(e.to_string()),
-      }),
-    }
+      Err(e) => {
+        return Err(rquickjs::Error::Loading {
+          name: name.into(),
+          message: Some(e.to_string()),
+        });
+      }
+    };
+
+    let meta: rquickjs::Object<'js> = module.meta()?;
+    meta.prop("url", url::Url::from_file_path(name).unwrap().to_string())?;
+    Ok(module)
   }
 }

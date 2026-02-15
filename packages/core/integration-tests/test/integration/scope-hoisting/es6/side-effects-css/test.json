@@ -1,0 +1,29 @@
+{
+  "description": "supports excluding unused CSS imports",
+  "input": "index.html",
+  "bundles": [
+    {
+      "name": "index.html",
+      "assets": [
+        "index.html"
+      ]
+    },
+    {
+      "type": "js",
+      "assets": [
+        "index.js",
+        "b1.js"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "b1.css"
+      ]
+    }
+  ],
+  "sideEffects": [
+    "b1"
+  ],
+  "output": 2
+}

@@ -26,6 +26,7 @@ libloading = "0.9"
 hstr = { version = "1.0.0", features = ["serde"] }
 either = "1.15.0"
 anstyle = "*"
+dotenvy = "0.15.7"
 
 tree-sitter = "0.25.10"
 tree-sitter-highlight = "0.25.10"

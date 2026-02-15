@@ -1,1 +1,1 @@
-console.log('hi');
+sideEffect('hi');

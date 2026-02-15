@@ -1,0 +1,20 @@
+{
+  "description": "should split bundles when a dynamic import is used a browser environment",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "assets": [
+        "local.js"
+      ]
+    }
+  ],
+  "output": 3
+}

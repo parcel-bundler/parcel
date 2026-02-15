@@ -20,30 +20,38 @@ pub struct Entry {
 }
 
 pub fn resolve_entries(entries: Vec<String>, options: &BuildOptions) -> Vec<Entry> {
-  let mut resolved_entries = Vec::new();
+  let mut paths = Vec::new();
   for entry in entries {
     for path in glob(&*options.input_fs, &entry) {
-      if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
-        resolved_entries.extend(resolve_package_entries(&*options.input_fs, path));
-      } else {
-        let mut flags = EnvironmentFlags::empty();
-        flags.set(
-          EnvironmentFlags::SHOULD_OPTIMIZE,
-          options.mode == BuildMode::Production,
-        );
-        resolved_entries.push(Entry {
-          url: SourceUrl::from_path(&path).unwrap(),
-          target: Target {
-            env: Arc::new(Environment {
-              flags,
-              ..Default::default()
-            }),
+      paths.push(path);
+    }
+  }
+
+  let project_root = find_project_root(&paths);
+
+  let mut resolved_entries = Vec::new();
+  for path in paths {
+    if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
+      resolved_entries.extend(resolve_package_entries(&*options.input_fs, path));
+    } else {
+      let mut flags = EnvironmentFlags::empty();
+      flags.set(
+        EnvironmentFlags::SHOULD_OPTIMIZE,
+        options.mode == BuildMode::Production,
+      );
+      resolved_entries.push(Entry {
+        url: SourceUrl::from_path(&path).unwrap(),
+        target: Target {
+          env: Arc::new(Environment {
+            flags,
+            dist_dir: SourceUrl::from_path(&project_root.join("dist")).unwrap(),
             ..Default::default()
-          },
-          loc: None,
-          asset: None,
-        });
-      }
+          }),
+          ..Default::default()
+        },
+        loc: None,
+        asset: None,
+      });
     }
   }
 
@@ -79,7 +87,7 @@ fn resolve_package_entries(fs: &dyn FileSystem, dir: PathBuf) -> Vec<Entry> {
             name: field.to_string(),
             dist_entry: Some(main.clone()),
             dist_dir: SourceUrl::from_path(&dir).unwrap(),
-            env: Arc::new(cond.to_env(&json, main)),
+            env: Arc::new(cond.to_env(&json, main, SourceUrl::from_path(&dir).unwrap())),
             ..Default::default()
           },
           asset: None,
@@ -177,7 +185,7 @@ impl TryFrom<&str> for ExportsCondition {
 }
 
 impl ExportsCondition {
-  fn to_env(&self, pkg: &Value, entry: &str) -> Environment {
+  fn to_env(&self, pkg: &Value, entry: &str, dist_dir: SourceUrl) -> Environment {
     let engines = pkg.get("engines");
     let context = if self.contains(ExportsCondition::REACT_SERVER) {
       EnvironmentContext::ReactServer
@@ -211,10 +219,8 @@ impl ExportsCondition {
       } else {
         OutputFormat::Commonjs
       }
-    } else if context.is_node() {
-      OutputFormat::Commonjs
     } else {
-      OutputFormat::Esmodule
+      OutputFormat::Commonjs
     };
 
     Environment {
@@ -259,6 +265,8 @@ impl ExportsCondition {
       } else {
         Default::default()
       },
+      dist_dir,
+      dist_entry: Some(entry.to_string()),
     }
   }
 }
@@ -298,7 +306,7 @@ fn extract_exports(
           target: Target {
             dist_dir: SourceUrl::from_path(dir).unwrap(),
             dist_entry: Some(value.clone()),
-            env: Arc::new(condition.to_env(pkg, &value)),
+            env: Arc::new(condition.to_env(pkg, &value, SourceUrl::from_path(dir).unwrap())),
             ..Default::default()
           },
           asset: None,
@@ -337,11 +345,13 @@ fn is_glob(pattern: &str) -> bool {
 }
 
 fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut Vec<PathBuf>) {
-  if let Ok(entries) = fs.read_dir(dir_path) {
+  if let Ok(mut entries) = fs.read_dir(dir_path) {
     let is_globstar = pattern == "**";
     if is_globstar {
       matches.push(dir_path.to_path_buf());
     }
+
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
 
     for entry in entries {
       if let Some(name) = entry.name.to_str() {
@@ -359,6 +369,51 @@ fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut 
       }
     }
   }
+}
+
+fn find_project_root(entries: &Vec<PathBuf>) -> PathBuf {
+  let root = common_root_path(entries.iter()).unwrap_or_else(|| std::env::current_dir().unwrap());
+
+  for dir in root.ancestors() {
+    for file in &[
+      "yarn.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      ".git",
+      ".hg",
+    ] {
+      let p = dir.join(file);
+      if p.exists() {
+        return dir.to_path_buf();
+      }
+    }
+  }
+
+  std::env::current_dir().unwrap()
+}
+
+fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathBuf>) -> Option<PathBuf> {
+  let mut path_iter = paths.into_iter();
+  let mut root = path_iter.next()?.to_path_buf();
+
+  for path in path_iter {
+    let mut new_root = PathBuf::new();
+    let mut found = false;
+    for (a, b) in root.components().zip(path.components()) {
+      if a == b {
+        found = true;
+        new_root.push(a);
+      } else {
+        break;
+      }
+    }
+    root = new_root;
+    if !found {
+      return None;
+    }
+  }
+
+  Some(root)
 }
 
 #[cfg(test)]

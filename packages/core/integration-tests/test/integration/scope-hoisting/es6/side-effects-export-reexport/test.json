@@ -1,0 +1,8 @@
+{
+  "description": "supports excluding when doing both exports and reexports",
+  "input": "a.js",
+  "sideEffects": [
+    "index"
+  ],
+  "output": "Message 1"
+}

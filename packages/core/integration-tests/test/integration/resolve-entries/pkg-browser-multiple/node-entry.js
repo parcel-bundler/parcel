@@ -1,3 +1,1 @@
-export function test() {
-  return 'pkg-browser-multiple main-entry'
-}
+export const test = 'pkg-browser-multiple main-entry';

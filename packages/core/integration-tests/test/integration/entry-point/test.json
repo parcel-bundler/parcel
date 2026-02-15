@@ -1,0 +1,12 @@
+[
+  {
+    "description": "should expose to CommonJS entry point",
+    "input": "index.js",
+    "output": "Test!"
+  },
+  {
+    "description": "should expose to RequireJS entry point",
+    "input": "index.js",
+    "output": "Test!"
+  }
+]

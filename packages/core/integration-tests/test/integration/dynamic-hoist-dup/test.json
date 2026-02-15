@@ -1,0 +1,21 @@
+{
+  "description": "should not duplicate a module which is already in a parent bundle",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "common.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "assets": [
+        "a.js"
+      ]
+    }
+  ],
+  "output": 5
+}

@@ -1,2 +1,2 @@
-import cssText from 'bundle-text:./text.scss';
+import cssText from 'bundle-text:./text.css';
 export default cssText;

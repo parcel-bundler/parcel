@@ -1,6 +1,6 @@
 import { f, g, h } from "./other.js";
 
-export function baz() {
+export default function baz() {
   {
     class g {}
     var h = {};

@@ -1,0 +1,8 @@
+{
+  "description": "should support export declarations with destructuring",
+  "input": "index.js",
+  "output": {
+    "foo": 1,
+    "bar": 2
+  }
+}

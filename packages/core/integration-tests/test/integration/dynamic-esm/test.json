@@ -1,0 +1,21 @@
+{
+  "description": "should return all exports as an object when using ES modules",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "cacheLoader.js",
+        "esmodule-helpers.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "assets": [
+        "local.js"
+      ]
+    }
+  ],
+  "output": 3
+}

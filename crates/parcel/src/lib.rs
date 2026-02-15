@@ -1,9 +1,9 @@
 use std::{collections::HashSet, hash::Hash, path::Path, sync::Arc};
 
 use parcel_core::{
-  AssetGraph, AssetNode, AssetType, BuildOptions, Bundle, BundleFlags, BundleGraph, Bundler,
-  CPlugin, DefaultBundler, DependencyResolution, DiagnosticList, Namer, Optimizer, OutputFormat,
-  Packager, ParcelConfig, PluginFactory, SourceUrl, Transformer,
+  AssetGraph, AssetNode, AssetType, BufferContent, BuildOptions, Bundle, BundleFlags, BundleGraph,
+  Bundler, CPlugin, DefaultBundler, DependencyResolution, DiagnosticList, Namer, Optimizer,
+  OutputFormat, Packager, ParcelConfig, PluginFactory, SourceUrl, Transformer,
 };
 use parcel_css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer};
 use parcel_html::{HtmlPackager, HtmlTransformer, SvgPackager, SvgTransformer};
@@ -35,6 +35,11 @@ impl PluginFactory for DefaultPluginFactory {
       // "@parcel/transformer-less" => Arc::new(CPlugin::new(Path::new(
       //   "/Users/devongovett/Downloads/hermes/plugin.dylib",
       // ))),
+      "@parcel/transformer-json" => Arc::new(JsonTransformer {}),
+      "@parcel/transformer-toml" => Arc::new(TomlTransformer {}),
+      "@parcel/transformer-yaml" => Arc::new(YamlTransformer {}),
+      "@parcel/transformer-inline" => Arc::new(InlineTransformer {}),
+      "@parcel/transformer-raw" => Arc::new(RawTransformer {}),
       "@parcel/transformer-native" => {
         if let Some(config) = config {
           if let Some(serde_json::Value::String(lib)) = config.get("lib") {
@@ -81,7 +86,10 @@ impl PluginFactory for DefaultPluginFactory {
   }
 
   fn optimizer(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Optimizer> {
-    todo!()
+    match name {
+      "@parcel/optimizer-data-url" => Arc::new(DataUrlOptimizer {}),
+      _ => todo!(),
+    }
   }
 
   fn packager(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Packager> {
@@ -266,6 +274,106 @@ impl Bundler for LibraryBundler {
       asset_graph,
       bundles,
     })
+  }
+}
+
+struct JsonTransformer {}
+
+impl Transformer for JsonTransformer {
+  fn transform(
+    &self,
+    mut asset: parcel_core::Asset,
+    _options: &parcel_core::ParcelOptions,
+  ) -> Result<parcel_core::Asset, DiagnosticList> {
+    let content = asset.content.read()?;
+    let code = std::str::from_utf8(&content)?;
+    // let json: serde_json::Value = json5::from_str(code)?;
+    let js = format!("module.exports = {};\n", code);
+
+    asset.ty = AssetType::Js;
+    asset.content = Arc::new(BufferContent::new(js.into_bytes()));
+    Ok(asset)
+  }
+}
+
+struct TomlTransformer {}
+
+impl Transformer for TomlTransformer {
+  fn transform(
+    &self,
+    mut asset: parcel_core::Asset,
+    _options: &parcel_core::ParcelOptions,
+  ) -> Result<parcel_core::Asset, DiagnosticList> {
+    let content = asset.content.read()?;
+    let code = std::str::from_utf8(&content)?;
+    let parsed: serde_json::Value = toml::from_str(code).unwrap();
+    let json = serde_json::to_string(&parsed).unwrap();
+    let js = format!("module.exports = {};\n", json);
+
+    asset.ty = AssetType::Js;
+    asset.content = Arc::new(BufferContent::new(js.into_bytes()));
+    Ok(asset)
+  }
+}
+
+struct YamlTransformer {}
+
+impl Transformer for YamlTransformer {
+  fn transform(
+    &self,
+    mut asset: parcel_core::Asset,
+    _options: &parcel_core::ParcelOptions,
+  ) -> Result<parcel_core::Asset, DiagnosticList> {
+    let content = asset.content.read()?;
+    let code = std::str::from_utf8(&content)?;
+    let parsed: serde_json::Value = serde_yaml_ng::from_str(code).unwrap();
+    let json = serde_json::to_string(&parsed).unwrap();
+    let js = format!("module.exports = {};\n", json);
+
+    asset.ty = AssetType::Js;
+    asset.content = Arc::new(BufferContent::new(js.into_bytes()));
+    Ok(asset)
+  }
+}
+
+struct InlineTransformer {}
+
+impl Transformer for InlineTransformer {
+  fn transform(
+    &self,
+    mut asset: parcel_core::Asset,
+    _options: &parcel_core::ParcelOptions,
+  ) -> Result<parcel_core::Asset, DiagnosticList> {
+    asset.bundle_behavior = parcel_core::BundleBehavior::Inline;
+    Ok(asset)
+  }
+}
+
+struct DataUrlOptimizer {}
+
+impl Optimizer for DataUrlOptimizer {
+  fn optimize(
+    &self,
+    _bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    contents: Arc<dyn parcel_core::Content>,
+  ) -> Result<Arc<dyn parcel_core::Content>, DiagnosticList> {
+    let base64 = base64_url::encode(&contents.read()?);
+    let url = format!("data:{};base64,{}", bundle.ty.mime(), base64);
+    Ok(Arc::new(BufferContent::new(url.into_bytes())))
+  }
+}
+
+struct RawTransformer {}
+
+impl Transformer for RawTransformer {
+  fn transform(
+    &self,
+    mut asset: parcel_core::Asset,
+    _options: &parcel_core::ParcelOptions,
+  ) -> Result<parcel_core::Asset, DiagnosticList> {
+    asset.bundle_behavior = parcel_core::BundleBehavior::Isolated;
+    Ok(asset)
   }
 }
 
