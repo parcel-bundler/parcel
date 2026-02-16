@@ -1,0 +1,14 @@
+{
+  "description": "should retain the correct concat order with wrapped assets",
+  "input": "a.js",
+  "sideEffects": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "output": {}
+}

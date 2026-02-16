@@ -1,0 +1,18 @@
+[
+  {
+    "description": "supports importing from a reexporting asset in an anchestor (2)",
+    "input": "a.js",
+    "output": [
+      123,
+      123
+    ]
+  },
+  {
+    "description": "supports importing from a reexporting asset in an anchestor (3)",
+    "input": "b.js",
+    "output": [
+      123,
+      123
+    ]
+  }
+]

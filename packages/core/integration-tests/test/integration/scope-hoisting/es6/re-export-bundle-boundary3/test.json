@@ -1,0 +1,11 @@
+{
+  "description": "can import from its own bundle with a split package",
+  "input": "index.js",
+  "output": [
+    [
+      "a",
+      "b"
+    ],
+    "themed"
+  ]
+}

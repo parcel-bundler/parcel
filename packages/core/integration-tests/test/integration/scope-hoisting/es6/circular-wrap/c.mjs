@@ -1,2 +1,2 @@
 import "./d.mjs";
-eval('output("c")');
+eval('sideEffect("c")');

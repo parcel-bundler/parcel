@@ -1,0 +1,5 @@
+{
+  "description": "supports importing named CommonJS (export namespace)",
+  "input": "a.js",
+  "output": "name:1.2.3"
+}

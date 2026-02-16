@@ -1,0 +1,9 @@
+{
+  "description": "deduplicates shared sibling assets between bundle groups",
+  "input": "index.js",
+  "output": [
+    "a",
+    "b",
+    "c"
+  ]
+}

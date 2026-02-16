@@ -1,0 +1,5 @@
+{
+  "description": "can conditionally reference an imported symbol and unconditionally reference it",
+  "input": "index.js",
+  "output": "hello"
+}

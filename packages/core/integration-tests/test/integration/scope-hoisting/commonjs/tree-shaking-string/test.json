@@ -1,0 +1,11 @@
+{
+  "description": "removes unused exports when assigning with a string literal",
+  "input": "a.js",
+  "options": {
+    "mode": "production"
+  },
+  "output": [
+    2,
+    20
+  ]
+}

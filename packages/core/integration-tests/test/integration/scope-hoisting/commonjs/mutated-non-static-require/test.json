@@ -1,0 +1,5 @@
+{
+  "description": "supports non-static mutations of the exports object",
+  "input": "index.js",
+  "output": 4
+}

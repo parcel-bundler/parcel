@@ -1,0 +1,5 @@
+{
+  "description": "supports re-exporting all exports from multiple modules deep",
+  "input": "a.js",
+  "output": 7
+}

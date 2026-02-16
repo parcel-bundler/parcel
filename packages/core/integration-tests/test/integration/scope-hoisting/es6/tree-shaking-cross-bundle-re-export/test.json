@@ -1,0 +1,8 @@
+{
+  "description": "removes unused exports with re-exports across bundles",
+  "input": "a.js",
+  "output": [
+    "b1:foo",
+    "b2:foo"
+  ]
+}

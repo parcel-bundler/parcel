@@ -1,0 +1,8 @@
+{
+  "description": "supports live bindings in namespaces of reexporting assets",
+  "input": "a.js",
+  "output": [
+    1,
+    2
+  ]
+}

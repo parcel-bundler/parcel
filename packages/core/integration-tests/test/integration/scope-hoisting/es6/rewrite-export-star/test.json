@@ -1,0 +1,8 @@
+{
+  "description": "supports dependency rewriting for import * as from a library that has export *",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "output": 2
+}

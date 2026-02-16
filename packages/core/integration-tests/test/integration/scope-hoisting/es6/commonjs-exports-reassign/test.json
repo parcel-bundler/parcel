@@ -1,0 +1,5 @@
+{
+  "description": "does not export reassigned CommonJS exports references",
+  "input": "a.js",
+  "output": ["foobar", {}]
+}

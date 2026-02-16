@@ -1,0 +1,5 @@
+{
+  "description": "should not rewrite this in arrow function class properties",
+  "input": "a.js",
+  "output": "x: 123"
+}

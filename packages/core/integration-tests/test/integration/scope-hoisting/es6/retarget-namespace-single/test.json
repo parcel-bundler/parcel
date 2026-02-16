@@ -1,0 +1,8 @@
+{
+  "description": "should correctly retarget dependencies when both namespace and indvidual export are used",
+  "input": "index.js",
+  "output": [
+    123,
+    123
+  ]
+}

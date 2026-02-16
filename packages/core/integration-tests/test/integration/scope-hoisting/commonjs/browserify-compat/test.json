@@ -1,0 +1,5 @@
+{
+  "description": "can bundle browserify-produced umd bundles",
+  "input": "index.js",
+  "output": "foo"
+}

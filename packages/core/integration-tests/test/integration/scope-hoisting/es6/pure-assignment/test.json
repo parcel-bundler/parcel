@@ -1,0 +1,5 @@
+{
+  "description": "should shake pure property assignments",
+  "input": "a.js",
+  "output": 2
+}

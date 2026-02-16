@@ -1,0 +1,5 @@
+{
+  "description": "supports assigning to the result of a require",
+  "input": "a.js",
+  "output": 4
+}

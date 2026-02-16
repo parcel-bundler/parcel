@@ -1,0 +1,5 @@
+{
+  "description": "supports nested dynamic imports",
+  "input": "a.js",
+  "output": 123
+}

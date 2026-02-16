@@ -1,0 +1,5 @@
+{
+  "description": "define exports in the outermost scope",
+  "input": "a.js",
+  "output": "bar"
+}

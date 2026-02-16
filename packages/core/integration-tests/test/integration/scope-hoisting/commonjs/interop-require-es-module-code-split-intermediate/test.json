@@ -1,0 +1,5 @@
+{
+  "description": "should export the same values for interop shared modules in main and child bundle if shared bundle is deep nested",
+  "input": "main.js",
+  "output": "bar:bar"
+}

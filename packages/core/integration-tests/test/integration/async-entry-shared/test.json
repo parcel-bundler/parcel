@@ -1,0 +1,28 @@
+{
+  "description": "can run an async bundle whose entry asset is present in another bundle",
+  "input": "scope-hoisting.js",
+  "bundles": [
+    {
+      "name": "scope-hoisting.js",
+      "assets": [
+        "scope-hoisting.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "assets": [
+        "value.js"
+      ]
+    },
+    {
+      "assets": [
+        "async.js"
+      ]
+    }
+  ],
+  "output": [
+    42,
+    43
+  ]
+}

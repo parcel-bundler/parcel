@@ -1,0 +1,50 @@
+[
+  {
+    "description": "bails out exports access resolving if it is accessed freely (exports assign)",
+    "input": "exports-assign.js",
+    "output": 5
+  },
+  {
+    "description": "bails out exports access resolving if it is accessed freely (exports define)",
+    "input": "exports-define.js",
+    "output": 5
+  },
+  {
+    "description": "bails out exports access resolving if it is accessed freely (module.exports assign)",
+    "input": "module-exports-assign.js",
+    "output": 5
+  },
+  {
+    "description": "bails out exports access resolving if it is accessed freely (module.exports define)",
+    "input": "module-exports-define.js",
+    "output": 5
+  },
+  {
+    "description": "bails out imported exports access resolving if it is accessed freely (exports assign)",
+    "input": "exports-assign-entry.js",
+    "output": 5
+  },
+  {
+    "description": "bails out imported exports access resolving if it is accessed freely (exports define)",
+    "input": "exports-define-entry.js",
+    "output": 5
+  },
+  {
+    "description": "bails out imported exports access resolving if it is accessed freely (module.exports assign)",
+    "input": "module-exports-assign-entry.js",
+    "output": 5
+  },
+  {
+    "description": "bails out imported exports access resolving if it is accessed freely (module.exports define)",
+    "input": "module-exports-define-entry.js",
+    "output": 5
+  },
+  {
+    "description": "bails out imported exports access resolving if it is accessed freely (exports reexport)",
+    "input": "exports-assign-reexport-entry.js",
+    "output": [
+      5,
+      5
+    ]
+  }
+]

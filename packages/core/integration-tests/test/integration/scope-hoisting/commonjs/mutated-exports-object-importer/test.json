@@ -1,0 +1,10 @@
+{
+  "description": "supports mutations of the exports object by the importer",
+  "input": "index.js",
+  "output": [
+    43,
+    {
+      "foo": 43
+    }
+  ]
+}

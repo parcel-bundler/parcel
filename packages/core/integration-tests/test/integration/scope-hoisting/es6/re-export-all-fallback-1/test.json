@@ -1,0 +1,5 @@
+{
+  "description": "supports re-exporting all when falling back to namespace at runtime 1",
+  "input": "index.js",
+  "output": 2
+}

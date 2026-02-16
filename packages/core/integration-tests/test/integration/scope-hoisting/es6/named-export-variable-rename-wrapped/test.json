@@ -1,0 +1,5 @@
+{
+  "description": "supports named exports of variables with a different name when wrapped",
+  "input": "a.js",
+  "output": 2
+}

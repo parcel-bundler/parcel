@@ -1,0 +1,5 @@
+{
+  "description": "supports using exports self reference",
+  "input": "a.js",
+  "output": "Say other"
+}

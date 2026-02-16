@@ -168,7 +168,12 @@ impl Transformer for JsTransformer {
         },
         flags: {
           let mut flags = DependencyFlags::empty();
-          // if dep.flags.contains(parcel_js_swc_core::Depe)
+          if dep
+            .flags
+            .contains(parcel_js_swc_core::DependencyFlags::OPTIONAL)
+          {
+            flags |= DependencyFlags::OPTIONAL;
+          }
           if dep.kind == DependencyKind::WebWorker {
             flags |= DependencyFlags::IS_WEBWORKER;
           }
@@ -967,9 +972,8 @@ pub fn asset_dependencies<'a>(
           dependencies.insert(placeholder.as_str().into(), Resolution::Asset(*resolved));
         }
       }
-      DependencyResolution::None
-      | DependencyResolution::Excluded
-      | DependencyResolution::Deferred(_) => {
+      DependencyResolution::None | DependencyResolution::Excluded => {}
+      DependencyResolution::Deferred(_) => {
         dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
       }
       DependencyResolution::External => {

@@ -1,0 +1,5 @@
+{
+  "description": "supports require of es6 named export of variables",
+  "input": "a.js",
+  "output": 2
+}

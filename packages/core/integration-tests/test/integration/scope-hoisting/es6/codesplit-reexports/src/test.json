@@ -1,0 +1,37 @@
+{
+  "description": "should correctly codesplit even with reexporting library index",
+  "input": "entry.js",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "entry.js",
+        "foo.js",
+        "bar.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "type": "js",
+      "assets": [
+        "async.js",
+        "foo2.js",
+        "bar2.js"
+      ]
+    }
+  ],
+  "output": [
+    [
+      20,
+      30
+    ],
+    [
+      2,
+      3
+    ]
+  ]
+}

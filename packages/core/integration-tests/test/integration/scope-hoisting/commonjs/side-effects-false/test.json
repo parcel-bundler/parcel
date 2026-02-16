@@ -1,0 +1,5 @@
+{
+  "description": "should support sideEffects: false",
+  "input": "a.js",
+  "output": 9
+}

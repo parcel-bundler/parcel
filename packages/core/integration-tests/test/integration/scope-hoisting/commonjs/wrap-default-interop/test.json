@@ -1,0 +1,10 @@
+{
+  "description": "should ensure that side effect ordering is correct with default interop",
+  "input": "index.js",
+  "sideEffects": [
+    "shared",
+    "run1",
+    "async c: 123"
+  ],
+  "output": {}
+}

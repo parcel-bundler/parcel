@@ -1,0 +1,5 @@
+{
+  "description": "inserts commonjs exports object in the right place",
+  "input": "a.js",
+  "output": 5
+}

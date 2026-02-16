@@ -12,7 +12,9 @@ use parcel_core::{
 use parcel_plugin_js::create_runtime;
 use rquickjs::Function;
 
-fn run<F: FnOnce(rquickjs::Value<'_>, Vec<serde_json::Value>) -> rquickjs::Result<()>>(
+fn run<
+  F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
+>(
   paths: Vec<PathBuf>,
   fs: Arc<dyn FileSystem>,
   entry: usize,
@@ -28,6 +30,9 @@ fn run<F: FnOnce(rquickjs::Value<'_>, Vec<serde_json::Value>) -> rquickjs::Resul
       .set("document", rquickjs::Object::new(ctx.clone()))
       .unwrap();
     globals.set("output", rquickjs::Undefined).unwrap();
+    globals
+      .set("sideEffectNoop", rquickjs::Function::new(ctx.clone(), noop))
+      .unwrap();
     globals
       .set(
         "sideEffect",
@@ -70,18 +75,14 @@ fn run<F: FnOnce(rquickjs::Value<'_>, Vec<serde_json::Value>) -> rquickjs::Resul
     let output: rquickjs::Result<rquickjs::Value> = parcel_require
       .and_then(|parcel_require| parcel_require.call((entry,)))
       .and_then(|v: rquickjs::Value| {
-        if let Some(obj) = v.as_object() {
-          if obj.is_empty() {
-            let output: rquickjs::Value = ctx.globals().get("output")?;
-            if !output.is_undefined() {
-              return Ok(output);
-            }
-          }
+        let output: rquickjs::Value = ctx.globals().get("output")?;
+        if !output.is_undefined() {
+          return Ok(output);
         }
         Ok(v)
       });
 
-    match output.and_then(|o| f(o, std::mem::take(&mut side_effects.borrow_mut()))) {
+    match output.and_then(|o| f(o, side_effects)) {
       Ok(v) => v,
       Err(err) => {
         if err.is_exception() {
@@ -113,6 +114,10 @@ fn run<F: FnOnce(rquickjs::Value<'_>, Vec<serde_json::Value>) -> rquickjs::Resul
   });
 }
 
+fn noop<'js>(value: rquickjs::Value<'js>) -> rquickjs::Value<'js> {
+  value
+}
+
 fn bundle(entry: &Path, output_fs: Arc<dyn FileSystem>) -> BundleGraph {
   bundle_with_options(entry, output_fs, TestOptions::default())
 }
@@ -138,7 +143,9 @@ fn bundle_with_options(
   parcel::build(vec![entry.to_str().unwrap().to_owned()], options).unwrap()
 }
 
-fn run_test<F: FnOnce(rquickjs::Value<'_>, Vec<serde_json::Value>) -> rquickjs::Result<()>>(
+fn run_test<
+  F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
+>(
   entry: &Path,
   f: F,
 ) {
@@ -146,7 +153,7 @@ fn run_test<F: FnOnce(rquickjs::Value<'_>, Vec<serde_json::Value>) -> rquickjs::
 }
 
 fn run_test_with_options<
-  F: FnOnce(rquickjs::Value<'_>, Vec<serde_json::Value>) -> rquickjs::Result<()>,
+  F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
 >(
   entry: &Path,
   options: TestOptions,
@@ -263,121 +270,19 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
       if v.is_promise() {
         v = v.as_promise().unwrap().finish()?;
       }
-      let out: serde_json::Value = rquickjs_serde::from_value(v).unwrap();
-      assert_eq!(side_effects, test.side_effects);
+      let ctx = v.ctx().clone();
+      let out: serde_json::Value = match rquickjs_serde::from_value(v) {
+        Ok(v) => v,
+        Err(e) => {
+          panic!("{:?}", e.catch(&ctx));
+        }
+      };
+      assert_eq!(*side_effects.borrow(), test.side_effects);
       assert_eq!(out, test.output);
       Ok(())
     },
   );
 }
-
-// mod cjs {
-//   use super::*;
-
-//   #[test]
-//   fn basic() {
-//     run_test("commonjs/index.js", |v| {
-//       let f = v.as_function().unwrap();
-//       let output: f32 = f.call(()).unwrap();
-//       assert_eq!(output, 3.0);
-//       Ok(())
-//     });
-//   }
-
-//   #[test]
-//   fn node_modules_browser() {
-//     run_test("node_require_browser/main.js", |v| {
-//       let f = v.as_function().unwrap();
-//       let output: f32 = f.call(()).unwrap();
-//       assert_eq!(output, 3.0);
-//       Ok(())
-//     });
-//   }
-// }
-
-// mod esm {
-//   use super::*;
-
-//   #[test]
-//   fn basic() {
-//     run_test("es6/index.js", |v| {
-//       let obj = v.as_object().unwrap();
-//       let f: Function = obj.get("default").unwrap();
-//       let output: f32 = f.call(()).unwrap();
-//       assert_eq!(output, 3.0);
-//       Ok(())
-//     });
-
-//     run_test_json("js-export-all");
-//     run_test_json("js-import-namespace");
-//     run_test_json("js-export-namespace");
-//     run_test_json("js-export-destructuring");
-//     run_test_json("js-export-many");
-//     run_test_json("js-export-import");
-//     run_test_json("js-export-import-same");
-//   }
-// }
-
-// #[test]
-// fn test_dynamic_import() {
-//   run_test("dynamic/index.js", |v| {
-//     let f = v.as_function().unwrap();
-//     let output: rquickjs::Promise = f.call(())?;
-//     let result: f32 = output.finish()?;
-//     assert_eq!(result, 3.0);
-//     Ok(())
-//   });
-// }
-
-// mod env {
-//   use super::*;
-
-//   #[test]
-//   fn browser() {
-//     run_test("env/index.js", |v| {
-//       let f = v.as_function().unwrap();
-//       let output: String = f.call(())?;
-//       assert_eq!(output, "test:test");
-//       Ok(())
-//     });
-//   }
-
-//   #[test]
-//   fn computed_var() {
-//     run_test("env-computed/index.js", |v| {
-//       assert!(v.is_undefined());
-//       Ok(())
-//     });
-//   }
-
-//   #[test]
-//   fn computed_string() {
-//     run_test_json("env-computed-string");
-//   }
-
-//   #[test]
-//   fn destructuring() {
-//     run_test_json("env-destructuring");
-//   }
-
-//   #[test]
-//   fn binary() {
-//     run_test_json("env-binary-in-expression");
-//   }
-
-//   #[test]
-//   fn process_browser() {
-//     run_test_json("process");
-//   }
-
-//   #[test]
-//   fn globals() {
-//     run_test_json("globals");
-//     run_test_json("globals-module-specifier");
-//     run_test_json("globals-unused");
-//     // run_test_json("global-redeclare");
-//   }
-// }
 
 #[testing_macros::fixture("../../packages/core/integration-tests/test/integration/**/test.json")]
 fn test(file: PathBuf) {

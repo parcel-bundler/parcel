@@ -1,0 +1,5 @@
+{
+  "description": "should add a default interop for a CJS module used non-statically in a hybrid module",
+  "input": "a.js",
+  "output": 2
+}

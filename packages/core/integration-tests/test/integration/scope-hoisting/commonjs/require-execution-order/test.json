@@ -1,0 +1,11 @@
+{
+  "description": "executes modules in the correct order",
+  "input": "a.js",
+  "sideEffects": [
+    "a",
+    "b",
+    "c",
+    "d"
+  ],
+  "output": {}
+}

@@ -1,0 +1,5 @@
+{
+  "description": "eliminates CommonJS export object where possible",
+  "input": "a.js",
+  "output": 6
+}

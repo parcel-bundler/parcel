@@ -1,0 +1,8 @@
+{
+  "description": "wraps an asset if any of its ancestors is wrapped, even if one is not",
+  "input": "index.js",
+  "output": [
+    42,
+    43
+  ]
+}

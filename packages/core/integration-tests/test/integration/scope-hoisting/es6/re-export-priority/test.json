@@ -1,0 +1,26 @@
+[
+  {
+    "description": "should prioritize named exports before re-exports (before)",
+    "input": "entry-a.mjs",
+    "output": 2
+  },
+  {
+    "description": "should prioritize named exports before re-exports (after)",
+    "input": "entry-b.mjs",
+    "output": 2
+  },
+  {
+    "description": "should prioritize named exports before re-exports in namespace (before)",
+    "input": "namespace-a.mjs",
+    "output": {
+      "foo": 2
+    }
+  },
+  {
+    "description": "should prioritize named exports before re-exports in namespace (after)",
+    "input": "namespace-b.mjs",
+    "output": {
+      "foo": 2
+    }
+  }
+]

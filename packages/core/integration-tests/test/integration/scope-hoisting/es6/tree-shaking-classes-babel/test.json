@@ -1,0 +1,10 @@
+{
+  "description": "removes unused transpiled classes using terser when minified",
+  "input": "a.js",
+  "options": {
+    "defaultTargetOptions": {
+      "shouldOptimize": true
+    }
+  },
+  "output": 3
+}

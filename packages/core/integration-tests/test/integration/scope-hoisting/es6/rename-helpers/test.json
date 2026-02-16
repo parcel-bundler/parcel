@@ -1,0 +1,5 @@
+{
+  "description": "supports renaming helpers inserted during transpiling",
+  "input": "a.js",
+  "output": [1, 2]
+}

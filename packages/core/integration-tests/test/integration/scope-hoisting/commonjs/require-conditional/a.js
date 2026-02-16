@@ -1,7 +1,7 @@
-output('a');
+sideEffect('a');
 
-if (b) {
+if (globalThis.b) {
   require('./b');
 }
 
-output('d');
+sideEffect('d');

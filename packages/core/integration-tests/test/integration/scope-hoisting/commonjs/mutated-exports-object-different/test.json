@@ -1,0 +1,5 @@
+{
+  "description": "supports mutations of the exports object by a different asset",
+  "input": "index.js",
+  "output": 43
+}

@@ -1,0 +1,5 @@
+{
+  "description": "supports re-exporting all exports and overriding individual exports",
+  "input": "index.js",
+  "output": "fooBfooCC"
+}

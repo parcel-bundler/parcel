@@ -1,0 +1,8 @@
+{
+  "description": "replaces static require member expressions with the correct `this` context",
+  "input": "a.js",
+  "output": {
+    "foo": 2,
+    "bar": 4
+  }
+}

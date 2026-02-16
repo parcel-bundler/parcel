@@ -1,0 +1,29 @@
+[
+  {
+    "description": "should not update mutated destructured requires",
+    "input": "destructure.js",
+    "sideEffects": [
+      2,
+      2
+    ],
+    "output": {}
+  },
+  {
+    "description": "should not update mutated require members",
+    "input": "member.js",
+    "sideEffects": [
+      2,
+      2
+    ],
+    "output": {}
+  },
+  {
+    "description": "should update live mutated require members",
+    "input": "live.js",
+    "sideEffects": [
+      2,
+      3
+    ],
+    "output": {}
+  }
+]

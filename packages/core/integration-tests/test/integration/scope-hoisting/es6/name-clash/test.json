@@ -1,0 +1,5 @@
+{
+  "description": "should not nameclash with internal variables",
+  "input": "a.js",
+  "output": "bar"
+}

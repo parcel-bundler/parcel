@@ -1,0 +1,8 @@
+{
+  "description": "supports assigning to this as exports object",
+  "input": "a.js",
+  "output": [
+    6,
+    null
+  ]
+}

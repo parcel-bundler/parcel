@@ -1,0 +1,10 @@
+{
+  "description": "should be able to named import a reexported namespace in an async bundle",
+  "input": "index.js",
+  "output": [
+    42,
+    42,
+    42,
+    42
+  ]
+}

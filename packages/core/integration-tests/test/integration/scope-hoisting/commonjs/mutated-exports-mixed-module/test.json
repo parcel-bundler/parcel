@@ -1,0 +1,12 @@
+{
+  "description": "supports mutations of the cjs exports by the importer from a mixed module",
+  "input": "index.js",
+  "output": [
+    "CJS mutated",
+    "ESM",
+    {
+      "cjs": "CJS mutated",
+      "esm": "ESM"
+    }
+  ]
+}

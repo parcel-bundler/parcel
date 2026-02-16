@@ -1,0 +1,5 @@
+{
+  "description": "supports object pattern requires",
+  "input": "a.js",
+  "output": 5
+}

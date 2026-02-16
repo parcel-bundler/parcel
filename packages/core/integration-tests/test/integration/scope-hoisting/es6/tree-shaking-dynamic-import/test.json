@@ -1,0 +1,73 @@
+[
+  {
+    "description": "supports tree shaking statically analyzable dynamic import: destructured await declaration",
+    "input": "await-declaration.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": [
+      "foo",
+      "thing"
+    ]
+  },
+  {
+    "description": "supports tree shaking statically analyzable dynamic import: namespace await declaration",
+    "input": "await-declaration-namespace.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": [
+      "foo",
+      "thing"
+    ]
+  },
+  {
+    "description": "supports tree shaking statically analyzable dynamic import: namespace await declaration bailout",
+    "input": "await-declaration-namespace-bailout.js",
+    "output": {
+      "bar": "bar",
+      "foo": "foo",
+      "other": "other",
+      "stuff": "stuff",
+      "thing": "thing"
+    }
+  },
+  {
+    "description": "supports tree shaking statically analyzable dynamic import: namespace await declaration eval bailout",
+    "input": "await-declaration-namespace-bailout-eval.js",
+    "output": "thing"
+  },
+  {
+    "description": "supports tree shaking statically analyzable dynamic import: destructured then",
+    "input": "then.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": [
+      "foo",
+      "thing"
+    ]
+  },
+  {
+    "description": "supports tree shaking statically analyzable dynamic import: namespace then",
+    "input": "then-namespace.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": [
+      "foo",
+      "thing"
+    ]
+  },
+  {
+    "description": "supports tree shaking statically analyzable dynamic import: namespace then bailout",
+    "input": "then-namespace-bailout.js",
+    "output": {
+      "bar": "bar",
+      "foo": "foo",
+      "other": "other",
+      "stuff": "stuff",
+      "thing": "thing"
+    }
+  }
+]

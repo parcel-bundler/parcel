@@ -1,0 +1,10 @@
+{
+  "description": "supports renaming non-ASCII identifiers",
+  "input": "a.js",
+  "output": [
+    1,
+    2,
+    3,
+    4
+  ]
+}

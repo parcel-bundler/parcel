@@ -1,0 +1,5 @@
+{
+  "description": "should wrap when this could refer to an export",
+  "input": "index.js",
+  "output": [2, 2]
+}

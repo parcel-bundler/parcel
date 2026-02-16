@@ -1,0 +1,5 @@
+{
+  "description": "should support assigning to exports from inside a function",
+  "input": "a.js",
+  "output": 2
+}

@@ -1,0 +1,7 @@
+{
+  "description": "should wrap all assets with an incoming wrapped dependency",
+  "input": "index.js",
+  "output": {
+    "test": 2
+  }
+}

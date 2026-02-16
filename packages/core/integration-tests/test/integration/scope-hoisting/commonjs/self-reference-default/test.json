@@ -1,0 +1,5 @@
+{
+  "description": "does not create a self-referencing dependency for the default symbol without an __esModule flag",
+  "input": "a.js",
+  "output": 2
+}

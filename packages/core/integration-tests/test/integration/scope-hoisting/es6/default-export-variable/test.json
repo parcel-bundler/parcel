@@ -1,0 +1,5 @@
+{
+  "description": "supports default imports and exports of variables",
+  "input": "a.js",
+  "output": 2
+}

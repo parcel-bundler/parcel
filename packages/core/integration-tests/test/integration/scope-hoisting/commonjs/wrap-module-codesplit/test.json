@@ -1,0 +1,5 @@
+{
+  "description": "should call init for wrapped modules when codesplitting",
+  "input": "a.js",
+  "output": 2
+}

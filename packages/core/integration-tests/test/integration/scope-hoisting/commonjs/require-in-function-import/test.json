@@ -1,0 +1,11 @@
+{
+  "description": "supports requires inside functions with es6 import side effects",
+  "input": "a.js",
+  "sideEffects": [
+    "a",
+    "d",
+    "c",
+    "b"
+  ],
+  "output": {}
+}

@@ -1,0 +1,5 @@
+{
+  "description": "supports importing a namespace of exported values",
+  "input": "a.js",
+  "output": 2
+}

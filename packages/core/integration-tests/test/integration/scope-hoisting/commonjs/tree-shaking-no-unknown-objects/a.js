@@ -1,1 +1,1 @@
-module.exports = window;
+module.exports = globalThis;

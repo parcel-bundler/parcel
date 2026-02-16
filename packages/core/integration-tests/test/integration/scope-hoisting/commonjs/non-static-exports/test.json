@@ -1,0 +1,9 @@
+{
+  "description": "supports both static and non-static exports in the same module with self-reference",
+  "input": "a.js",
+  "output": {
+    "foo": 2,
+    "bar": 4,
+    "baz": 6
+  }
+}

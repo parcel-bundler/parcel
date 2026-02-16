@@ -1,5 +1,5 @@
 var b = require('./b');
 
-output(b.foo);
+sideEffect(b.foo);
 b.setFoo(3);
-output(b.foo);
+sideEffect(b.foo);

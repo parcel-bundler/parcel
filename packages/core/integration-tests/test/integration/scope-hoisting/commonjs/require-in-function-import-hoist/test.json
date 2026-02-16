@@ -1,0 +1,11 @@
+{
+  "description": "hoists import calls to the top",
+  "input": "a.js",
+  "sideEffects": [
+    "a",
+    "d",
+    "c",
+    "b"
+  ],
+  "output": {}
+}

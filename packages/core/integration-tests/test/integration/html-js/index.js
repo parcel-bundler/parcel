@@ -1,3 +1,3 @@
 import foo from "./other.js";
 
-alert(foo);
+sideEffect(foo);

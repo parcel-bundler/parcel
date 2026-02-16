@@ -1,2 +1,2 @@
 export {x} from './c';
-output('b');
+sideEffect('b');

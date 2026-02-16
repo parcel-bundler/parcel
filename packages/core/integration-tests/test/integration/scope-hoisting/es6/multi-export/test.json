@@ -1,0 +1,5 @@
+{
+  "description": "supports multiple exports of the same variable",
+  "input": "a.js",
+  "output": 6
+}

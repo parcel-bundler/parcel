@@ -1,0 +1,5 @@
+{
+  "description": "supports nested re-exporting all when falling back to namespace at runtime",
+  "input": "index.js",
+  "output": "2 4"
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "description": "produce the same bundle hash regardless of transformation order",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": "target"
+  },
+  {
+    "description": "should not deduplicate an asset if it will become unreachable",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": "target"
+  }
+]

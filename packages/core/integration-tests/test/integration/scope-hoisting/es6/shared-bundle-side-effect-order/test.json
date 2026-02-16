@@ -1,0 +1,14 @@
+{
+  "description": "should wrap modules in shared bundles",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "sideEffects": [
+    "shared1",
+    "run1 1",
+    "shared2",
+    "run2 2"
+  ],
+  "output": {}
+}

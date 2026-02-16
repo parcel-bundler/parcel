@@ -1,0 +1,89 @@
+[
+  {
+    "description": "should support assignment to a local variable with require",
+    "input": "basic.js",
+    "sideEffects": [
+      [
+        {
+          "foo": 2
+        },
+        {
+          "foo": 2
+        }
+      ],
+      [
+        4,
+        {
+          "foo": 2
+        }
+      ]
+    ],
+    "output": {}
+  },
+  {
+    "description": "should support out of order assignment to a local variable with require",
+    "input": "in-function.js",
+    "sideEffects": [
+      [
+        {
+          "foo": 2
+        },
+        {
+          "foo": 2
+        }
+      ],
+      [
+        4,
+        {
+          "foo": 2
+        }
+      ]
+    ],
+    "output": {}
+  },
+  {
+    "description": "should support assignment to a local variable with require and member expression",
+    "input": "member.js",
+    "sideEffects": [
+      [
+        2,
+        2
+      ],
+      [
+        4,
+        2
+      ]
+    ],
+    "output": {}
+  },
+  {
+    "description": "should support assignment to a local variable with require and destructuring",
+    "input": "destructure.js",
+    "sideEffects": [
+      [
+        2,
+        2
+      ],
+      [
+        4,
+        2
+      ]
+    ],
+    "output": {}
+  },
+  {
+    "description": "should support assignment to a local variable with require and non-static access",
+    "input": "destructure.js",
+    "sideEffects": [
+      [
+        2,
+        2
+      ],
+      [
+        4,
+        2
+      ]
+    ],
+    "output": {}
+  }
+]

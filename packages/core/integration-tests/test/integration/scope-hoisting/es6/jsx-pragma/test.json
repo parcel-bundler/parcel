@@ -1,0 +1,15 @@
+{
+  "description": "should support the jsx pragma",
+  "input": "a.jsx",
+  "output": {
+    "children": "Test",
+    "props": {
+      "__source": {
+        "fileName": "integration/scope-hoisting/es6/jsx-pragma/a.jsx",
+        "lineNumber": 3,
+        "columnNumber": 10
+      }
+    },
+    "type": "span"
+  }
+}

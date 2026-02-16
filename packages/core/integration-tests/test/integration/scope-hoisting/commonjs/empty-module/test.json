@@ -1,0 +1,7 @@
+{
+  "description": "missing exports should be replaced with an empty object",
+  "input": "a.js",
+  "output": {
+    "b": {}
+  }
+}

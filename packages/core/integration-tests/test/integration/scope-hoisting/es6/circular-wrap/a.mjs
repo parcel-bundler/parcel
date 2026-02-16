@@ -1,2 +1,2 @@
 import "./b.mjs";
-output('a');
+sideEffect('a');

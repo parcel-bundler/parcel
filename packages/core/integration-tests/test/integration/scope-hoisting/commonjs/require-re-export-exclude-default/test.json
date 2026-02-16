@@ -1,0 +1,7 @@
+{
+  "description": "excludes default when re-exporting a module",
+  "input": "a.js",
+  "output": {
+    "foo": 3
+  }
+}

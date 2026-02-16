@@ -1,0 +1,5 @@
+{
+  "description": "support exporting a ES6 module exported as CommonJS",
+  "input": "a.js",
+  "output": "foo"
+}

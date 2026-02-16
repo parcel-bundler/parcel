@@ -1,0 +1,22 @@
+[
+  {
+    "description": "should ensure that side effect ordering is correct in sequence expressions with require",
+    "input": "a.js",
+    "sideEffects": [
+      "before",
+      "require",
+      "after"
+    ],
+    "output": {}
+  },
+  {
+    "description": "should ensure that side effect ordering is correct in binary expressions with require",
+    "input": "b.js",
+    "sideEffects": [
+      "before",
+      "require",
+      "after"
+    ],
+    "output": "before bar after"
+  }
+]

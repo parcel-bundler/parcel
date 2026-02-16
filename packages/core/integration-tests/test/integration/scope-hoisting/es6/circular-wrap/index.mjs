@@ -1,2 +1,2 @@
 import "./a.mjs";
-output('index');
+sideEffect('index');

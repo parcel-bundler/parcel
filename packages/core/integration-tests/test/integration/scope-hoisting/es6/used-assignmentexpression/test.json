@@ -1,0 +1,5 @@
+{
+  "description": "should not remove a binding with a used AssignmentExpression",
+  "input": "a.js",
+  "output": 3
+}

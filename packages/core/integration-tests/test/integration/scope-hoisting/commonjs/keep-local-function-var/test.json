@@ -1,0 +1,5 @@
+{
+  "description": "should not rename function local variables according to global replacements",
+  "input": "a.js",
+  "output": "foo"
+}

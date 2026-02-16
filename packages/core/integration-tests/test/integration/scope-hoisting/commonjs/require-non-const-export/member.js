@@ -1,6 +1,6 @@
 var foo = require('./b').foo;
 var setFoo = require('./b').setFoo;
 
-output(foo);
+sideEffect(foo);
 setFoo(3);
-output(foo);
+sideEffect(foo);

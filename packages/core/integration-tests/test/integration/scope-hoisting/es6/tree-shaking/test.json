@@ -1,0 +1,8 @@
+{
+  "description": "removes unused exports",
+  "input": "a.js",
+  "options": {
+    "mode": "production"
+  },
+  "output": 2
+}

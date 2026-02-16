@@ -1,0 +1,5 @@
+{
+  "description": "can dynamically import a side-effect-free reexport",
+  "input": "index.mjs",
+  "output": 42
+}

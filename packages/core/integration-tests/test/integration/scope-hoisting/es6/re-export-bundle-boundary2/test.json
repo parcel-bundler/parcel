@@ -1,0 +1,8 @@
+{
+  "description": "can import from a different bundle via a re-export (2)",
+  "input": "index.js",
+  "output": [
+    "foo",
+    "foo"
+  ]
+}

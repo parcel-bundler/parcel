@@ -1,0 +1,61 @@
+[
+  {
+    "description": "can static import and dynamic import in the same bundle ancestry without creating a new bundle",
+    "input": "same-ancestry-scope-hoisting.js",
+    "options": {
+      "mode": "production"
+    },
+    "bundles": [
+      {
+        "name": "same-ancestry-scope-hoisting.js",
+        "assets": [
+          "cacheLoader.js",
+          "dep.js",
+          "js-loader.js",
+          "same-ancestry-scope-hoisting.js"
+        ]
+      },
+      {
+        "assets": [
+          "get-dep.js"
+        ]
+      }
+    ],
+    "output": [
+      42,
+      42
+    ]
+  },
+  {
+    "description": "can static import and dynamic import in the same bundle when another bundle requires async",
+    "input": "",
+    "options": {
+      "mode": "production"
+    },
+    "bundles": [
+      {
+        "assets": [
+          "dep.js"
+        ]
+      },
+      {
+        "name": "same-bundle-scope-hoisting.js",
+        "assets": [
+          "same-bundle-scope-hoisting.js",
+          "get-dep.js",
+          "get-dep-2.js",
+          "dep.js"
+        ]
+      },
+      {
+        "name": "get-dep-scope-hoisting.js",
+        "assets": [
+          "cacheLoader.js",
+          "get-dep-scope-hoisting.js",
+          "js-loader.js"
+        ]
+      }
+    ],
+    "output": 42
+  }
+]

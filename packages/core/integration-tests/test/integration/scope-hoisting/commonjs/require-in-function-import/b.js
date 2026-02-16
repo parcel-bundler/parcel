@@ -1,2 +1,2 @@
 import './c';
-output('b');
+sideEffect('b');

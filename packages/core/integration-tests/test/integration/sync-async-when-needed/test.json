@@ -1,0 +1,38 @@
+{
+  "description": "loads another bundle from a dynamic import with a shared dependency only when necessary",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "assets": [
+        "dep.js"
+      ]
+    },
+    {
+      "assets": [
+        "async-has-dep.js",
+        "dep.js",
+        "get-dep.js"
+      ]
+    },
+    {
+      "assets": [
+        "get-dep.js"
+      ]
+    }
+  ],
+  "output": [
+    42,
+    42
+  ]
+}

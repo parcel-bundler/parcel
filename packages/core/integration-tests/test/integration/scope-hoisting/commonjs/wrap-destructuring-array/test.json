@@ -1,0 +1,8 @@
+{
+  "description": "should support wrapping array destructuring declarations",
+  "input": "a.js",
+  "output": [
+    1,
+    2
+  ]
+}

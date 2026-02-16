@@ -1,0 +1,5 @@
+{
+  "description": "supports simultaneous import and re-export of a symbol",
+  "input": "a.js",
+  "output": 615
+}

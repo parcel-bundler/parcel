@@ -1,3 +1,3 @@
-output('a');
+sideEffect('a');
 require('./b');
-output('d');
+sideEffect('d');

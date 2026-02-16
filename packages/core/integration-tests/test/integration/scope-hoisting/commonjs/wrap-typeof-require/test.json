@@ -1,0 +1,5 @@
+{
+  "description": "should support typeof require when wrapped",
+  "input": "a.js",
+  "output": "c1"
+}

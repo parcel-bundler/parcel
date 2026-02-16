@@ -1,0 +1,9 @@
+{
+  "description": "supports assigning to this as exports object in wrapped module",
+  "input": "a.js",
+  "output": [
+    6,
+    null,
+    4
+  ]
+}

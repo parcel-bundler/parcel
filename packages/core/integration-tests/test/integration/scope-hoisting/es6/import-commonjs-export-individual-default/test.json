@@ -1,0 +1,12 @@
+{
+  "description": "supports import default CommonJS interop (individual exports)",
+  "input": "a.js",
+  "output": {
+    "x": {
+      "foo": 1,
+      "default": 2
+    },
+    "y": 4,
+    "z": 6
+  }
+}

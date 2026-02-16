@@ -1,0 +1,5 @@
+{
+  "description": "should correctly handle circular dependencies",
+  "input": "a.mjs",
+  "output": "c:foo"
+}

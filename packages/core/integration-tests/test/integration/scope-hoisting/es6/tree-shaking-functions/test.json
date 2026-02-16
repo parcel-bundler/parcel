@@ -1,0 +1,10 @@
+{
+  "description": "removes unused function exports when minified",
+  "input": "a.js",
+  "options": {
+    "defaultTargetOptions": {
+      "shouldOptimize": true
+    }
+  },
+  "output": 9
+}

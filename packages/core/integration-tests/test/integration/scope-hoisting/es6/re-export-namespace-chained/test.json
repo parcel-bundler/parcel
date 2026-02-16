@@ -1,0 +1,14 @@
+{
+  "description": "supports re-exporting a namespace from another module (chained)",
+  "input": "a.js",
+  "output": {
+    "Bar": {
+      "A": 1,
+      "B": 2
+    },
+    "Foo": {
+      "A": 1,
+      "B": 2
+    }
+  }
+}

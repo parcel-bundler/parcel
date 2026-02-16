@@ -1,0 +1,5 @@
+{
+  "description": "supports importing a namespace from a wrapped module",
+  "input": "a.js",
+  "output": 1
+}

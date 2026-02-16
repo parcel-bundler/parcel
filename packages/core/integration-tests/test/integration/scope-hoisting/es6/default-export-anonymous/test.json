@@ -1,0 +1,5 @@
+{
+  "description": "supports default imports and exports of anonymous declarations",
+  "input": "a.js",
+  "output": 2
+}

@@ -1,0 +1,11 @@
+{
+  "description": "supports default importing CommonJS (export namespace)",
+  "input": "a.js",
+  "output": {
+    "x": {
+      "foo": 1,
+      "default": 2
+    },
+    "y": 4
+  }
+}

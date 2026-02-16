@@ -1,0 +1,8 @@
+{
+  "description": "individually exports symbols from intermediately wrapped reexports",
+  "input": "index.mjs",
+  "output": [
+    42,
+    42
+  ]
+}

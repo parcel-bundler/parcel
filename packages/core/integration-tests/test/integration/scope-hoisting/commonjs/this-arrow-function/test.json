@@ -1,0 +1,5 @@
+{
+  "description": "supports using this in arrow functions",
+  "input": "a.js",
+  "output": "Say other"
+}

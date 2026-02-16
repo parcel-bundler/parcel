@@ -1,0 +1,34 @@
+{
+  "description": "can run an async bundle that depends on a nonentry asset in a sibling",
+  "input": "{scope-hoisting,other-entry}.js",
+  "bundles": [
+    {
+      "name": "scope-hoisting.js",
+      "assets": [
+        "scope-hoisting.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "name": "other-entry.js",
+      "assets": [
+        "other-entry.js",
+        "cacheLoader.js",
+        "js-loader.js"
+      ]
+    },
+    {
+      "assets": [
+        "a.js",
+        "value.js"
+      ]
+    },
+    {
+      "assets": [
+        "b.js"
+      ]
+    }
+  ],
+  "output": 43
+}

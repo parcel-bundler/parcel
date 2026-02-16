@@ -1,0 +1,21 @@
+[
+  {
+    "description": "supports resolving a static member access on a namespace",
+    "input": "a.js",
+    "sideEffects": [
+      "c1",
+      "c3"
+    ],
+    "output": "foobar"
+  },
+  {
+    "description": "should bailout with a non-static member access on a namespace",
+    "input": "b.js",
+    "sideEffects": [
+      "c1",
+      "c2",
+      "c3"
+    ],
+    "output": "foobar"
+  }
+]

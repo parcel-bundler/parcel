@@ -1,8 +1,8 @@
-output('a');
+sideEffect('a');
 
 function x() {
   return require('./b');
 }
 
-output('c');
+sideEffect('c');
 x();

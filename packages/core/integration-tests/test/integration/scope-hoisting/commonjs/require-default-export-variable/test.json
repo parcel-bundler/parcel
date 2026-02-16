@@ -1,0 +1,5 @@
+{
+  "description": "supports require of es6 default export of variables",
+  "input": "a.js",
+  "output": 2
+}

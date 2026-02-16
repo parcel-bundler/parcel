@@ -1,1 +1,1 @@
-output('c');
+sideEffect('c');

@@ -1,0 +1,5 @@
+{
+  "description": "builds commonjs modules that assigns to exports before module.exports",
+  "input": "a.js",
+  "output": 42
+}

@@ -1,0 +1,10 @@
+{
+  "description": "supports requires inside functions",
+  "input": "a.js",
+  "sideEffects": [
+    "a",
+    "c",
+    "b"
+  ],
+  "output": {}
+}

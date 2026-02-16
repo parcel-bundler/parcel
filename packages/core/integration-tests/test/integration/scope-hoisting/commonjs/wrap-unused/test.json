@@ -1,0 +1,5 @@
+{
+  "description": "should remove unused exports assignments for wrapped modules",
+  "input": "a.js",
+  "output": 1
+}

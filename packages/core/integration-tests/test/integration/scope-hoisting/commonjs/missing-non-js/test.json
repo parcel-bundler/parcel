@@ -1,0 +1,5 @@
+{
+  "description": "doesn't insert parcelRequire for missing non-js assets",
+  "input": "a.js",
+  "output": 27
+}

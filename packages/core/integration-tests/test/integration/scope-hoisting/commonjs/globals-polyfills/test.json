@@ -1,0 +1,5 @@
+{
+  "description": "should also hoist inserted polyfills of globals",
+  "input": "a.js",
+  "output": true
+}

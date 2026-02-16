@@ -1,0 +1,8 @@
+{
+  "description": "supports importing from a wrapped asset with multiple bailouts",
+  "input": "a.js",
+  "output": [
+    "b",
+    true
+  ]
+}

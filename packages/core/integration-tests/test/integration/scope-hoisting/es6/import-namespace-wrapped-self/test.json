@@ -1,0 +1,5 @@
+{
+  "description": "supports wrapped assets importing their own namespace",
+  "input": "a.js",
+  "output": true
+}

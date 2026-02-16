@@ -1,0 +1,11 @@
+{
+  "description": "supports mutations of the exports object inside an expression",
+  "input": "index.js",
+  "output": [
+    {
+      "foo": 3
+    },
+    3,
+    3
+  ]
+}

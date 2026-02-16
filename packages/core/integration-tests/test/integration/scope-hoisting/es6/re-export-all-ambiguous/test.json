@@ -1,0 +1,8 @@
+{
+  "description": "supports re-exporting all with ambiguous CJS and non-renaming and renaming dependency retargeting",
+  "input": "entry.js",
+  "options": {
+    "mode": "production"
+  },
+  "output": "123 999"
+}

@@ -1,0 +1,12 @@
+{
+  "description": "should handle circular dependencies with wrapped assets",
+  "input": "index.mjs",
+  "sideEffects": [
+    "d",
+    "c",
+    "b",
+    "a",
+    "index"
+  ],
+  "output": {}
+}

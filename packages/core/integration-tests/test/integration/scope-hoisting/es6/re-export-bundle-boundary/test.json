@@ -1,0 +1,8 @@
+{
+  "description": "can import from a different bundle via a re-export (1)",
+  "input": "index.js",
+  "output": [
+    "operational",
+    "ui"
+  ]
+}

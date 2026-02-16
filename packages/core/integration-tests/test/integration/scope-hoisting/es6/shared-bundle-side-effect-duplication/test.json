@@ -1,0 +1,11 @@
+{
+  "description": "should ensure that modules are only executed once in shared bundles",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "sideEffects": [
+    "v"
+  ],
+  "output": {}
+}

@@ -1,4 +1,4 @@
 import foo, {change} from "./b.js";
-output(foo);
+sideEffect(foo);
 change(10);
-output(foo);
+sideEffect(foo);

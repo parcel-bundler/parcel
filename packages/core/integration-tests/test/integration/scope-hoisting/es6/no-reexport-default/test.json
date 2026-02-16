@@ -1,0 +1,6 @@
+{
+  "description": "should not include default when reexporting * without $parcel$exportWildcard",
+  "input": "index.js",
+  "sideEffects": [42, 99],
+  "output": 42
+}

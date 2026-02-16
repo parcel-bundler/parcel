@@ -1,0 +1,5 @@
+{
+  "description": "not insert unused requires that aren't registered anywhere",
+  "input": "index.js",
+  "output": "foo"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "supports re-exporting default exports from another module",
+  "input": "a.js",
+  "output": 3
+}

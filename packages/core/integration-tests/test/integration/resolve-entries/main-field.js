@@ -1,6 +1,6 @@
 const required = require('./pkg-main')
 
-if(required.test() !== 'pkg-main-module') {
+if(required.test !== 'pkg-main-module') {
     throw new Error('Invalid module')
 }
 

@@ -1,0 +1,9 @@
+{
+  "description": "does not replace assignments to the exports object in the same module",
+  "input": "a.js",
+  "output": {
+    "foo": {
+      "bar": "bar"
+    }
+  }
+}

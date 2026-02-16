@@ -1,0 +1,8 @@
+{
+  "description": "supports importing from a wrapped asset",
+  "input": "a.js",
+  "output": [
+    "a",
+    true
+  ]
+}

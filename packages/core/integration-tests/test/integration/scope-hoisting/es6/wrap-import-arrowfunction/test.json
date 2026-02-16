@@ -1,0 +1,10 @@
+{
+  "description": "should wrap imports inside arrow functions",
+  "input": "a.js",
+  "sideEffects": [
+    "async"
+  ],
+  "output": {
+    "default": 1234
+  }
+}

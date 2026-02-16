@@ -1,9 +1,9 @@
 exports.foo = function() {
-    exports.bar()
+    return exports.bar()
 }
 
 exports.bar = function() {
-    this.baz()
+    return this.baz()
 }
 
 exports.baz = function() {

@@ -1,0 +1,47 @@
+{
+  "description": "can share dependencies between a shared bundle and its sibling's descendants",
+  "input": "scope-hoisting.js",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": [
+        "wraps.js",
+        "lodash.js"
+      ]
+    },
+    {
+      "assets": [
+        "a.js"
+      ]
+    },
+    {
+      "assets": [
+        "child.js"
+      ]
+    },
+    {
+      "assets": [
+        "grandchild.js"
+      ]
+    },
+    {
+      "assets": [
+        "b.js"
+      ]
+    },
+    {
+      "name": "scope-hoisting.js",
+      "assets": [
+        "cacheLoader.js",
+        "scope-hoisting.js",
+        "js-loader.js"
+      ]
+    }
+  ],
+  "output": [
+    3,
+    5
+  ]
+}

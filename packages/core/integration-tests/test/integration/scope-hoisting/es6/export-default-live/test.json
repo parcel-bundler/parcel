@@ -1,0 +1,9 @@
+{
+  "description": "supports live bindings of default exports",
+  "input": "a.js",
+  "sideEffects": [
+    5,
+    10
+  ],
+  "output": {}
+}

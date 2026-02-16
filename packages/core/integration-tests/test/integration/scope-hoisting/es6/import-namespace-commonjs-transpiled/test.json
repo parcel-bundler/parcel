@@ -1,0 +1,8 @@
+{
+  "description": "supports importing a namespace from a transpiled CommonJS module",
+  "input": "a.js",
+  "output": {
+    "bar": 3,
+    "foo": 1
+  }
+}

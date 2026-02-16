@@ -256,7 +256,14 @@ impl ESMFold {
         0.into(),
         Box::new(Expr::Member(MemberExpr {
           obj: Box::new(Expr::Ident(obj)),
-          prop: MemberProp::Ident(IdentName::new(imported.clone(), DUMMY_SP)),
+          prop: if Ident::verify_symbol(&imported).is_ok() {
+            MemberProp::Ident(IdentName::new(imported.clone(), DUMMY_SP))
+          } else {
+            MemberProp::Computed(ComputedPropName {
+              expr: imported.clone().into(),
+              span: DUMMY_SP,
+            })
+          },
           span,
         })),
       ],

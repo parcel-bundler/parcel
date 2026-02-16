@@ -1,0 +1,5 @@
+{
+  "description": "should support referencing a require in object literal shorthands when wrapped",
+  "input": "a.js",
+  "output": 1234
+}

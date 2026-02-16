@@ -1,0 +1,8 @@
+{
+  "description": "supports importing from a reexporting asset in an anchestor (1)",
+  "input": "a.js",
+  "output": [
+    "index",
+    "async"
+  ]
+}

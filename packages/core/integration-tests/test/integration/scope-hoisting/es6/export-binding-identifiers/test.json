@@ -1,0 +1,7 @@
+{
+  "description": "should not export function arguments",
+  "input": "a.js",
+  "output": [
+    "test"
+  ]
+}

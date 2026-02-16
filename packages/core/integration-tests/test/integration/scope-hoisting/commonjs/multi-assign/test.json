@@ -1,0 +1,9 @@
+{
+  "description": "supports multiple assignments in one line",
+  "input": "a.js",
+  "output": {
+    "foo": 2,
+    "bar": 2,
+    "baz": 2
+  }
+}

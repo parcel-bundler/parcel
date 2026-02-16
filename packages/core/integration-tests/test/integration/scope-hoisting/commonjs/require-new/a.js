@@ -1,1 +1,1 @@
-output = new (require("./b.js"))();
+output = new (require("./b.js"))().foo();

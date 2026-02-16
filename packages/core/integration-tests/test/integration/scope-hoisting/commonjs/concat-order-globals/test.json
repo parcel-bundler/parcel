@@ -1,0 +1,5 @@
+{
+  "description": "concats modules with inserted globals in the correct order",
+  "input": "a.js",
+  "output": "foobar"
+}

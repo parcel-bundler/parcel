@@ -1,0 +1,5 @@
+{
+  "description": "supports import default CommonJS interop (export value)",
+  "input": "a.js",
+  "output": "foobar:foo:bar"
+}

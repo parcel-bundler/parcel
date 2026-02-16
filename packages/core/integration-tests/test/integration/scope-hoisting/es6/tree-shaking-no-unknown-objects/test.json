@@ -1,0 +1,5 @@
+{
+  "description": "does not tree-shake assignments to unknown objects",
+  "input": "index.js",
+  "output": 42
+}

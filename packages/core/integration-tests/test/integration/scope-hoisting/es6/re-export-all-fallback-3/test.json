@@ -1,0 +1,5 @@
+{
+  "description": "supports re-exporting all when falling back to namespace at runtime 3",
+  "input": "entry.js",
+  "output": "FOOBAR!"
+}

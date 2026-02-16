@@ -850,7 +850,7 @@ describe('scope hoisting', function () {
 
       let out = [];
       await run(b, {
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -2260,7 +2260,7 @@ describe('scope hoisting', function () {
 
     it('should support the jsx pragma', async function () {
       let b = await bundle(
-        path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.js'),
+        path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.jsx'),
       );
 
       let output = await run(b);
@@ -2478,7 +2478,7 @@ describe('scope hoisting', function () {
 
       let output = [];
       await run(b, {
-        output(o) {
+        sideEffect(o) {
           output.push(o);
         },
       });
@@ -4534,7 +4534,7 @@ describe('scope hoisting', function () {
 
       let out = [];
       await run(b, {
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -4553,7 +4553,7 @@ describe('scope hoisting', function () {
       let out = [];
       await run(b, {
         b: false,
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -4563,7 +4563,7 @@ describe('scope hoisting', function () {
       out = [];
       await run(b, {
         b: true,
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -4603,7 +4603,7 @@ describe('scope hoisting', function () {
 
       let out = [];
       await run(b, {
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -4621,7 +4621,7 @@ describe('scope hoisting', function () {
 
       let out = [];
       await run(b, {
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -4639,7 +4639,7 @@ describe('scope hoisting', function () {
 
       let out = [];
       await run(b, {
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -4657,7 +4657,7 @@ describe('scope hoisting', function () {
 
       let out = [];
       await run(b, {
-        output(o) {
+        sideEffect(o) {
           out.push(o);
         },
       });
@@ -5145,7 +5145,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5166,7 +5166,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5187,7 +5187,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5208,7 +5208,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5229,7 +5229,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5249,7 +5249,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.strictEqual(output.foo(), 1);
+      assert.strictEqual(output, 1);
     });
 
     it('should not update mutated destructured requires', async function () {
@@ -5262,7 +5262,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5280,7 +5280,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5298,7 +5298,7 @@ describe('scope hoisting', function () {
 
       let outputs = [];
       await run(b, {
-        output(x) {
+        sideEffect(x) {
           outputs.push(x);
         },
       });
@@ -5365,7 +5365,7 @@ describe('scope hoisting', function () {
 
     let value = [];
     await run(b, {
-      alert: v => value.push(v),
+      sideEffect: v => value.push(v),
     });
     assert.deepEqual(value, ['other']);
   });

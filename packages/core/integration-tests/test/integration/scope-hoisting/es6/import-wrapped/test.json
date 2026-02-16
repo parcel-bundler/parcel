@@ -1,0 +1,5 @@
+{
+  "description": "should support named imports on wrapped modules",
+  "input": "a.js",
+  "output": "bar"
+}

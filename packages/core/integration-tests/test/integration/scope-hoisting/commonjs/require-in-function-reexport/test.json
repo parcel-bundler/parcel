@@ -1,0 +1,11 @@
+{
+  "description": "supports requires inside functions with es6 re-export side effects",
+  "input": "a.js",
+  "sideEffects": [
+    "a",
+    "d",
+    "c",
+    "b"
+  ],
+  "output": {}
+}

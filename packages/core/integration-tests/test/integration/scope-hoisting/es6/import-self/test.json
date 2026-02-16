@@ -1,0 +1,5 @@
+{
+  "description": "should support assets importing themselves",
+  "input": "a.js",
+  "output": 4
+}

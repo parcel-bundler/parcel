@@ -1,0 +1,10 @@
+{
+  "description": "supports removing an unused inline export with uglify minification",
+  "input": "a.js",
+  "options": {
+    "defaultTargetOptions": {
+      "shouldOptimize": true
+    }
+  },
+  "output": 3
+}

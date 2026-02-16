@@ -1,0 +1,23 @@
+{
+  "description": "should not throw with JS included from HTML",
+  "input": "index.html",
+  "bundles": [
+    {
+      "name": "index.html",
+      "assets": [
+        "index.html"
+      ]
+    },
+    {
+      "type": "js",
+      "assets": [
+        "index.js",
+        "other.js"
+      ]
+    }
+  ],
+  "sideEffects": [
+    "other"
+  ],
+  "output": {}
+}
