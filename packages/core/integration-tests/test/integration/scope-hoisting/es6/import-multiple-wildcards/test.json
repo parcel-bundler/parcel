@@ -1,0 +1,11 @@
+{
+  "description": "supports importing all exports re-exported from multiple modules deep",
+  "input": "a.js",
+  "output": {
+    "a": 4,
+    "b": 5,
+    "bar": 3,
+    "baz": 1,
+    "foo": 2
+  }
+}

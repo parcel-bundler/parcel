@@ -1,0 +1,5 @@
+{
+  "description": "should correctly rename references to default exported classes",
+  "input": "a.js",
+  "output": "bar"
+}

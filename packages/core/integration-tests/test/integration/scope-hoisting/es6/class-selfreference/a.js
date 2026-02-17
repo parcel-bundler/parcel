@@ -8,4 +8,4 @@ class Bar {
   }
 }
 
-output = new Bar().duplicate();
+output = new Bar().duplicate().foo;

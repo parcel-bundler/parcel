@@ -1,2 +1,2 @@
 import Test from './b';
-output = Test.create();
+output = Test.create().foo;

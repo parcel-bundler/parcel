@@ -1,1 +1,1 @@
-output = module.require("./b.js");
+output = module.require("./b.js").b;

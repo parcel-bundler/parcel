@@ -1,0 +1,5 @@
+{
+  "description": "replaces properties of require with undefined",
+  "input": "index.js",
+  "output": {}
+}

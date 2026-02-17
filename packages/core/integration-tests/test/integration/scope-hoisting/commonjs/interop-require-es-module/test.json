@@ -1,0 +1,8 @@
+{
+  "description": "should insert __esModule interop flag when importing from an ES module",
+  "input": "a.js",
+  "output": {
+    "__esModule": true,
+    "default": 2
+  }
+}

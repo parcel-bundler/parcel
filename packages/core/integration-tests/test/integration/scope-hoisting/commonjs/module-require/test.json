@@ -1,0 +1,5 @@
+{
+  "description": "supports using module.require like require",
+  "input": "a.js",
+  "output": 2
+}

@@ -1,0 +1,7 @@
+{
+  "description": "should wrap modules that access `module` as a free variable",
+  "input": "a.js",
+  "output": {
+    "foo": 2
+  }
+}

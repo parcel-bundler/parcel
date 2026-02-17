@@ -1,0 +1,5 @@
+{
+  "description": "should correctly rename references to a class in the class body",
+  "input": "a.js",
+  "output": "bar"
+}

@@ -1,0 +1,19 @@
+{
+  "description": "supports requiring a CSS asset",
+  "input": "a.js",
+  "bundles": [
+    {
+      "name": "a.js",
+      "assets": [
+        "a.js"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "b.css"
+      ]
+    }
+  ],
+  "output": {}
+}

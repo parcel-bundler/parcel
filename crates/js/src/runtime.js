@@ -54,6 +54,7 @@ function parcelRequire(name, jumped) {
     localRequire.cache = {};
 
     var module = (cache[name] = new parcelRequire.Module(name));
+    module.require = localRequire;
 
     modules[name][0].call(
       module.exports,

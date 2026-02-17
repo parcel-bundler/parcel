@@ -1,0 +1,10 @@
+{
+  "description": "correctly renames member expression properties",
+  "input": "a.js",
+  "output": [
+    12,
+    12,
+    34,
+    34
+  ]
+}

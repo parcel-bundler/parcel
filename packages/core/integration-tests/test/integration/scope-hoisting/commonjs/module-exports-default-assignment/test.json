@@ -1,0 +1,5 @@
+{
+  "description": "should support assigning to module.exports with another export",
+  "input": "index.js",
+  "output": "b"
+}

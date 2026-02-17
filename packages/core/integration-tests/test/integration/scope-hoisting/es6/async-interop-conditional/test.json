@@ -1,0 +1,5 @@
+{
+  "description": "can conditionally reference an imported symbol from another bundle in a case clause",
+  "input": "index.js",
+  "output": 42
+}

@@ -216,7 +216,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.deepEqual(output({foo: 12, bar: 34}), [12, 12, 34, 34]);
+      assert.deepEqual(output, [12, 12, 34, 34]);
     });
 
     it('supports renaming imports', async function () {
@@ -319,7 +319,7 @@ describe('scope hoisting', function () {
       assert(contents.includes('require("lodash")'));
 
       let output = await run(b);
-      assert.deepEqual(output.default, 12);
+      assert.deepEqual(output, {default: 12});
     });
 
     it('supports re-exporting all exports from another module', async function () {
@@ -511,8 +511,8 @@ describe('scope hoisting', function () {
         ),
       );
 
-      let {foo, bar, baz, a, b: bb} = await run(b);
-      assert.equal(foo + bar + baz + a + bb, 15);
+      let output = await run(b);
+      assert.deepEqual(output, {a: 4, b: 5, bar: 3, baz: 1, foo: 2});
     });
 
     it('deduplicates imports when wrapped', async function () {
@@ -2319,7 +2319,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.deepEqual(output.foo, 'bar');
+      assert.deepEqual(output, 'bar');
     });
 
     it('should correctly rename references to a class in the class body', async function () {
@@ -2330,7 +2330,7 @@ describe('scope hoisting', function () {
         ),
       );
       let output = await run(b);
-      assert.deepEqual(output.foo, 'bar');
+      assert.deepEqual(output, 'bar');
     });
 
     it('should correctly codesplit even with reexporting library index', async function () {
@@ -2518,7 +2518,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.equal(await output, 42);
+      assert.equal(output, 42);
     });
 
     it('should handle TSC polyfills', async () => {
@@ -4024,7 +4024,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.equal(output.foo, 'b');
+      assert.equal(output, 'b');
     });
 
     it("doesn't insert parcelRequire for missing non-js assets", async function () {
@@ -4150,7 +4150,7 @@ describe('scope hoisting', function () {
         ),
       );
 
-      assert.deepEqual((await run(b)).exports, {foo: 2});
+      assert.deepEqual((await run(b)), {foo: 2});
     });
 
     it('should call init for wrapped modules when codesplitting', async function () {
@@ -4291,7 +4291,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.strictEqual(output.b, 2);
+      assert.strictEqual(output, 2);
     });
 
     it('support url imports in wrapped modules with interop', async function () {
@@ -4590,7 +4590,8 @@ describe('scope hoisting', function () {
         },
       ]);
 
-      await run(b);
+      let output = await run(b);
+      assert.deepEqual(output, {});
     });
 
     it('supports requires inside functions', async function () {
@@ -4781,7 +4782,8 @@ describe('scope hoisting', function () {
         ),
       );
 
-      await run(b);
+      let output = await run(b);
+      assert.deepEqual(output, {});
     });
 
     it('should support two aliases to the same module', async function () {
@@ -4834,8 +4836,10 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.equal(output.__esModule, true);
-      assert.equal(output.default, 2);
+      assert.deepEqual(output, {
+        __esModule: true,
+        default: 2
+      });
     });
 
     it('should export the same values for interop shared modules in main and child bundle', async function () {
@@ -5555,7 +5559,7 @@ describe('scope hoisting', function () {
       },
     ]);
 
-    assert.deepEqual(await await run(b), [42, 42, 42]);
+    assert.deepEqual(await run(b), [42, 42, 42]);
   });
 
   it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {

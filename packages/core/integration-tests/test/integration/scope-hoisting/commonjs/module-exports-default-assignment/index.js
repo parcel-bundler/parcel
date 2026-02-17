@@ -1,4 +1,4 @@
 function x() {
 	require("./b");
 }
-output = require("./a");
+output = require("./a").foo;

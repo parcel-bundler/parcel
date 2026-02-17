@@ -1,0 +1,7 @@
+{
+  "description": "supports namespace imports of excluded assets (node_modules)",
+  "input": "a.js",
+  "output": {
+    "default": 12
+  }
+}
