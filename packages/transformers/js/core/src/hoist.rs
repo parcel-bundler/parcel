@@ -1407,6 +1407,7 @@ mod tests {
               global_mark,
               true,
               is_module,
+              true,
             );
             module.visit_with(&mut collect);
 

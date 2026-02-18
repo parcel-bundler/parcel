@@ -227,7 +227,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       // In library mode, all of the entry's symbols are "used"
       // In non-browser environments, exports may also be used (e.g. serverless request handlers).
       let includeAllSymbols =
-        target.env.isLibrary || !BROWSER_ENVS.has(target.env.context);
+        target.env.isLibrary ||
+        !BROWSER_ENVS.has(target.env.context) ||
+        !target.env.shouldScopeHoist;
       let node = nodeFromDep(
         // The passed project path is ignored in this case, because there is no `loc`
         createDependency('', {

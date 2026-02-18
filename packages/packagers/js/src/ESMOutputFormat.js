@@ -44,11 +44,14 @@ export class ESMOutputFormat implements OutputFormat {
         let s = namespaceSpecifier;
         if (defaultSpecifier) {
           s = `${defaultSpecifier}, ${namespaceSpecifier}`;
+          defaultSpecifier = null;
         }
 
         res += `import ${s} from ${JSON.stringify(source)};\n`;
         lines++;
-      } else if (defaultSpecifier) {
+      }
+
+      if (defaultSpecifier) {
         imported = defaultSpecifier;
         if (namedSpecifiers.length > 0) {
           imported += `, {${namedSpecifiers.join(', ')}}`;
