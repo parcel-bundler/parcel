@@ -995,7 +995,7 @@ Library targets are not supported in serve mode.
         loc = {
           filePath: pkgFilePath,
           ...getJSONSourceLocation(
-            pkgMap.pointers[`/targets/${targetName}`],
+            pkgMap.pointers[`/targets/${encodeJSONKeyComponent(targetName)}`],
             'key',
           ),
         };
