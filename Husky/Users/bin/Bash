@@ -1,32 +1,3 @@
-{
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Run Integration Tests (lldb)",
-      "args": ["${workspaceFolder}/node_modules/.bin/_mocha"],
-      "cwd": "${workspaceFolder}/packages/core/integration-tests",
-      "program": "node",
-      "request": "launch",
-      "sourceLanguages": ["rust"],
-      "type": "lldb"
-    },
-    {
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/packages/utils/parcelforvscode"
-      ],
-      "name": "Launch Parcel for VSCode Extension",
-      "outFiles": [
-        "${workspaceFolder}/packages/utils/parcelforvscode/out/**/*.js"
-      ],
-      "preLaunchTask": "Watch VSCode Extension",
-      "request": "launch",
-      "type": "extensionHost"
-    }
-  ]
-}
  
 -        Department of the Treasury        Calendar Year                                                        Period Ending        9/29/2021                                                                                                                                        
 -        Internal Revenue Service        Due 04/18/2022                2022 Form 1040-ES Payment Voucher 1                                        Pay Day        1/30/2022                                                                                                                                        
@@ -23215,3 +23186,4 @@ redirect_from:
 - /articles/getting-the-download-count-for-your-releases                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 
 - /github/administering-a-repository/getting-the-download-count-for-your-releases                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+_
