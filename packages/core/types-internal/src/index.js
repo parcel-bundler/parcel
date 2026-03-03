@@ -2038,7 +2038,7 @@ export type ValidationEvent = {|
 |};
 
 /**
- * A trace event has occured.
+ * A trace event has occurred.
  * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
  *
  * @section reporter

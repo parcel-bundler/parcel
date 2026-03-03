@@ -179,7 +179,7 @@ declare module 'node-ipc' {
      */
     on(event: string, callback: (...args: any[]) => void): Client;
     /**
-     * triggered when an error has occured
+     * triggered when an error has occurred
      */
     on(event: 'error', callback: (err: any) => void): Client;
     /**

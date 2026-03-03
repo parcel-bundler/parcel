@@ -194,7 +194,7 @@ declare module 'vscode-jsonrpc/node' {
 
   declare interface ResponseErrorLiteral<D> {
     /**
-     * A number indicating the error type that occured.
+     * A number indicating the error type that occurred.
      */
     code: number;
     /**

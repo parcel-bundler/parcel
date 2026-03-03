@@ -14,7 +14,7 @@ export function ParcelError({
 |}): any {
   return (
     <div className="build-error">
-      <span>A build error occured:</span>
+      <span>A build error occurred:</span>
       <div className="content" dangerouslySetInnerHTML={{__html: error}} />
     </div>
   );
