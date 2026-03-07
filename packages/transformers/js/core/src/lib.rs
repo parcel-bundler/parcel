@@ -104,6 +104,7 @@ pub struct Config {
   pub is_swc_helpers: bool,
   pub standalone: bool,
   pub inline_constants: bool,
+  pub core_js_version: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -463,6 +464,9 @@ pub fn transform(
               preset_env_config.shipped_proposals = true;
               preset_env_config.mode = Some(Entry);
               preset_env_config.bugfixes = true;
+              if let Some(core_js_version) = &config.core_js_version {
+                preset_env_config.core_js = Some(core_js_version.clone().into());
+              }
             }
           }
 
