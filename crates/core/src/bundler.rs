@@ -126,47 +126,46 @@ impl Bundler for DefaultBundler {
       }
     }
 
-    for (asset_index, asset) in asset_graph.assets.iter().enumerate() {
+    // Place assets into bundles, following depth-first order.
+    for (asset_index, asset) in asset_graph.dfs() {
       if bundle_roots.contains(asset_index) || reachable_roots[asset_index].is_clear() {
         continue;
       }
 
-      if let AssetNode::Asset(asset) = asset {
-        let key = BundleKey {
-          reachable_roots: &reachable_roots[asset_index],
-          context: asset.env.context, // TODO: other environment properties?
-          ty: &asset.ty,
+      let key = BundleKey {
+        reachable_roots: &reachable_roots[asset_index],
+        context: asset.env.context, // TODO: other environment properties?
+        ty: &asset.ty,
+      };
+
+      let bundle_index = if let Some(bundle_index) = shared_bundles.get_mut(&key) {
+        bundles[*bundle_index].assets.push(asset_index);
+        *bundle_index
+      } else {
+        let bundle = Bundle {
+          ty: asset.ty.clone(),
+          env: asset.env.clone(),
+          bundle_behavior: asset.bundle_behavior,
+          flags: BundleFlags::empty(),
+          name: None,
+          assets: vec![asset_index],
+          entry_assets: Vec::new(),
+          main_entry_asset: None,
+          referenced_bundles: Vec::new(),
         };
 
-        let bundle_index = if let Some(bundle_index) = shared_bundles.get_mut(&key) {
-          bundles[*bundle_index].assets.push(asset_index);
-          *bundle_index
-        } else {
-          let bundle = Bundle {
-            ty: asset.ty.clone(),
-            env: asset.env.clone(),
-            bundle_behavior: asset.bundle_behavior,
-            flags: BundleFlags::empty(),
-            name: None,
-            assets: vec![asset_index],
-            entry_assets: Vec::new(),
-            main_entry_asset: None,
-            referenced_bundles: Vec::new(),
-          };
+        let bundle_index = bundles.len();
+        shared_bundles.insert(key, bundle_index);
+        bundles.push(bundle);
+        bundle_index
+      };
 
-          let bundle_index = bundles.len();
-          shared_bundles.insert(key, bundle_index);
-          bundles.push(bundle);
-          bundle_index
-        };
-
-        // Each reachable root depends on this shared bundle.
-        for bundle_root_index in reachable_roots[asset_index].ones() {
-          if bundle_root_index != bundle_index {
-            bundles[bundle_root_index]
-              .referenced_bundles
-              .push(bundle_index);
-          }
+      // Each reachable root depends on this shared bundle.
+      for bundle_root_index in reachable_roots[asset_index].ones() {
+        if bundle_root_index != bundle_index {
+          bundles[bundle_root_index]
+            .referenced_bundles
+            .push(bundle_index);
         }
       }
     }

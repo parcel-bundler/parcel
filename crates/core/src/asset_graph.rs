@@ -3,6 +3,8 @@ use std::{
   sync::Arc,
 };
 
+use fixedbitset::FixedBitSet;
+
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
   EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution,
@@ -355,5 +357,48 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
         queue,
       );
     }
+  }
+}
+
+impl AssetGraph {
+  /// Visits all assets in depth-first order starting from each entry.
+  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset)> {
+    let mut stack = Vec::new();
+    let mut visited = FixedBitSet::with_capacity(self.assets.len());
+    let mut entries = self.entries.iter();
+
+    std::iter::from_fn(move || {
+      if stack.is_empty() {
+        while let Some(entry) = entries.next() {
+          if let Some(index) = entry.asset {
+            if !visited.contains(index) {
+              stack.push(index);
+              break;
+            }
+          }
+        }
+      }
+
+      while let Some(index) = stack.pop() {
+        if visited.contains(index) {
+          continue;
+        }
+
+        visited.insert(index);
+        if let AssetNode::Asset(asset) = &self.assets[index] {
+          for dep in asset.dependencies.iter().rev() {
+            if let DependencyResolution::Asset(index) = dep.resolution {
+              if !visited.contains(index as usize) {
+                stack.push(index as usize);
+              }
+            }
+          }
+
+          return Some((index, asset));
+        }
+      }
+
+      None
+    })
   }
 }
