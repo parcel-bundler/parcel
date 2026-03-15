@@ -1,7 +1,5 @@
 {
-  "@parcel/transformer-css": {
-    "drafts": {
-      "nesting": true
-    }
+  "engines": {
+    "browsers": "chrome 80"
   }
 }

@@ -11,8 +11,8 @@ use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, na
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, BundleBehavior,
   CodeFrame, CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
-  DiagnosticSeverity, Environment, EnvironmentFeature, Location, OutputFormat, Priority,
-  SourceLocation, SourceType, SourceUrl, SpecifierType,
+  DiagnosticSeverity, Environment, EnvironmentFeature, ExportsCondition, Location, OutputFormat,
+  Priority, SourceLocation, SourceType, SourceUrl, SpecifierType,
 };
 use typed_arena::Arena;
 
@@ -60,6 +60,7 @@ pub fn collect_dependencies<'arena>(
       loc: None,
       resolve_from: None,
       range: None,
+      conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
         url: asset.loc.url.clone(),
         ty: asset.ty.clone(),
@@ -228,6 +229,7 @@ impl<'arena> DependencyCollector<'arena> {
             loc: self.create_loc(node.line),
             resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
             range: None,
+            conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
           };
 
@@ -319,6 +321,7 @@ impl<'arena> DependencyCollector<'arena> {
               loc: self.create_loc(node.line),
               resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
               range: None,
+              conditions: ExportsCondition::empty(),
               resolution: DependencyResolution::None,
             };
 
@@ -338,6 +341,7 @@ impl<'arena> DependencyCollector<'arena> {
             loc: self.create_loc(node.line),
             resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
             range: None,
+            conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
           };
 
@@ -644,6 +648,7 @@ impl<'arena> DependencyCollector<'arena> {
           loc: self.create_loc(line),
           resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
           range: None,
+          conditions: ExportsCondition::empty(),
           resolution: DependencyResolution::None,
         };
 
@@ -677,6 +682,7 @@ impl<'arena> DependencyCollector<'arena> {
       loc: self.create_loc(line),
       range: None,
       resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+      conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
     };
 

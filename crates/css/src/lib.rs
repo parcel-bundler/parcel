@@ -221,6 +221,7 @@ impl Transformer for CssTransformer {
                 placeholder: None,
                 resolve_from: Some(asset.loc.url.clone()),
                 range: None,
+                conditions: ExportsCondition::STYLE,
                 resolution: DependencyResolution::None,
               });
 
@@ -254,6 +255,7 @@ impl Transformer for CssTransformer {
                 placeholder: None,
                 resolve_from: Some(asset.loc.url.clone()),
                 range: None,
+                conditions: ExportsCondition::STYLE,
                 resolution: DependencyResolution::None,
               });
 
@@ -331,6 +333,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         placeholder: None,
         resolve_from: Some(self.url.clone()),
         range: None,
+        conditions: ExportsCondition::STYLE,
         resolution: DependencyResolution::None,
       });
 
@@ -362,6 +365,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       placeholder: None,
       resolve_from: Some(self.url.clone()),
       range: None,
+      conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
     });
 
@@ -474,7 +478,7 @@ impl Packager for CssPackager {
       }
     }
 
-    let stylesheet = StyleSheet::new(
+    let mut stylesheet = StyleSheet::new(
       stylesheets
         .into_iter()
         .flat_map(|s| s.stylesheet.sources)
@@ -485,9 +489,30 @@ impl Packager for CssPackager {
       },
     );
 
+    stylesheet.minify(Default::default());
+
     let res = stylesheet
       .to_css(PrinterOptions {
         minify: bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE),
+        targets: Targets {
+          browsers: if bundle.env.context.is_browser() {
+            let browsers = &bundle.env.engines.browsers;
+            Some(Browsers {
+              chrome: browsers.chrome.map(convert_version),
+              firefox: browsers.firefox.map(convert_version),
+              safari: browsers.safari.map(convert_version),
+              ie: browsers.ie.map(convert_version),
+              ios_saf: browsers.ios_saf.map(convert_version),
+              android: browsers.android.map(convert_version),
+              edge: browsers.edge.map(convert_version),
+              opera: browsers.opera.map(convert_version),
+              samsung: browsers.samsung.map(convert_version),
+            })
+          } else {
+            None
+          },
+          ..Default::default()
+        },
         ..Default::default()
       })
       .unwrap();
@@ -527,11 +552,15 @@ fn collect(
     stylesheet.media.media_queries.clear();
   } else if !stylesheet.media.media_queries.is_empty() {
     stylesheet.media.or(&state.media);
+  } else {
+    stylesheet.media = state.media.clone();
   }
 
   if let Some(supports) = &state.supports {
     if let Some(existing_supports) = &mut stylesheet.supports {
       existing_supports.or(&supports)
+    } else {
+      stylesheet.supports = Some(supports.clone());
     }
   } else {
     stylesheet.supports = None;
@@ -668,6 +697,7 @@ fn inline(
   }
 
   let mut dep_index = 0;
+  let mut has_bundled_import = false;
   for rule in &mut rules {
     match rule {
       CssRule::Import(import) => {
@@ -694,6 +724,7 @@ fn inline(
             }
 
             *rule = CssRule::Ignored;
+            has_bundled_import = true;
           }
           DependencyResolution::Bundle(bundle_index) => {
             let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];
@@ -704,8 +735,14 @@ fn inline(
             } else {
               import.url = referenced_bundle.relative_url(&bundle).unwrap().into();
             }
+            dest.push(std::mem::replace(rule, CssRule::Ignored));
           }
-          _ => break,
+          _ => {
+            if has_bundled_import {
+              // TODO: error - external imports must be before bundled ones
+            }
+            dest.push(std::mem::replace(rule, CssRule::Ignored));
+          }
         }
 
         dep_index += 1;

@@ -1,0 +1,4 @@
+{
+  "description": "should support css nesting with lightningcss",
+  "input": "a.css"
+}

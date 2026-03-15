@@ -55,9 +55,10 @@ use cache::private::CacheCow;
 pub use error::ResolverError;
 pub use invalidations::*;
 pub use package_json::{
-  AliasValue, BrowserField, ExportsCondition, ExportsResolution, Fields, InlineEnvironment,
-  ModuleType, PackageJson, PackageJsonError,
+  AliasValue, BrowserField, ExportsResolution, Fields, InlineEnvironment, ModuleType, PackageJson,
+  PackageJsonError,
 };
+use parcel_core::ExportsCondition;
 #[cfg(not(target_arch = "wasm32"))]
 pub use parcel_core::{FileKind, FileSystem, OsFileSystem};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};

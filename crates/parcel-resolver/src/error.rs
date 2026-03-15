@@ -86,7 +86,7 @@ impl JsonError {
 }
 
 #[derive(Debug, Clone)]
-pub struct IOError(Arc<std::io::Error>);
+pub struct IOError(pub Arc<std::io::Error>);
 
 impl serde::Serialize for IOError {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

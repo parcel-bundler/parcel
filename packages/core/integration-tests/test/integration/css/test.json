@@ -1,0 +1,23 @@
+{
+  "description": "should produce two bundles when importing a CSS file",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "local.js",
+        "c.js"
+      ]
+    },
+    {
+      "name": "index.css",
+      "assets": [
+        "index.css",
+        "local.css",
+        "c.css"
+      ]
+    }
+  ],
+  "output": 3
+}

@@ -3,8 +3,8 @@ use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
 use indexmap::IndexMap;
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, Environment, FileSystem, Location,
-  OsFileSystem, Priority, SourceLocation, SourceUrl, SpecifierType, Transformer,
+  DependencyFlags, DependencyResolution, Diagnostic, Environment, ExportsCondition, FileSystem,
+  Location, OsFileSystem, Priority, SourceLocation, SourceUrl, SpecifierType, Transformer,
 };
 use parcel_macros::{JsValue, MacroError};
 use rquickjs::{
@@ -495,6 +495,7 @@ impl MacroContext {
       placeholder: None,
       resolve_from: None,
       range: None,
+      conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
         url: self.url.clone(),
         ty: AssetType::from_extension(&ty),

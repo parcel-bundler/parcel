@@ -1,0 +1,16 @@
+{
+  "description": "should bundle css dependencies in the correct, postorder traversal order",
+  "input": "a.css",
+  "bundles": [
+    {
+      "name": "a.css",
+      "assets": [
+        "a.css",
+        "b.css",
+        "c.css",
+        "d.css",
+        "e.css"
+      ]
+    }
+  ]
+}

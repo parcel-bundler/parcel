@@ -82,7 +82,7 @@ impl TransformRequest {
     let named_pipelines = self.config.transformers.named_pipelines();
     for dep in &mut asset.dependencies {
       if dep.resolution == DependencyResolution::None {
-        dep.resolution = resolve(dep, resolvers, &named_pipelines)?;
+        dep.resolution = resolve(dep, resolvers, &named_pipelines, &*self.options)?;
       }
 
       if let DependencyResolution::Deferred(req) = &dep.resolution {

@@ -287,6 +287,15 @@ impl Transformer for JsTransformer {
         } else {
           None
         },
+        conditions: match dep.kind {
+          DependencyKind::Import | DependencyKind::Export | DependencyKind::DynamicImport => {
+            ExportsCondition::IMPORT
+          }
+          DependencyKind::Require => ExportsCondition::REQUIRE,
+          DependencyKind::WebWorker | DependencyKind::ServiceWorker => ExportsCondition::WORKER,
+          DependencyKind::Worklet => ExportsCondition::WORKLET,
+          _ => ExportsCondition::empty(),
+        },
         resolution: DependencyResolution::None,
       })
     }
@@ -307,6 +316,7 @@ impl Transformer for JsTransformer {
         placeholder: None,
         resolve_from: Some(options.project_root.clone()), // TODO
         range: None,
+        conditions: ExportsCondition::empty(),
         resolution: DependencyResolution::None,
       });
 

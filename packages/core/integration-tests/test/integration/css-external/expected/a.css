@@ -1,0 +1,9 @@
+@import "http://example.com/external.css";
+
+.b {
+  color: red;
+}
+
+.a {
+  color: green;
+}

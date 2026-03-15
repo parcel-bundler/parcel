@@ -7,8 +7,9 @@ use glob_match::glob_match;
 use serde_json::Value;
 
 use crate::{
-  BuildMode, BuildOptions, Engines, Environment, EnvironmentContext, EnvironmentFlags, FileKind,
-  FileSystem, OutputFormat, SourceLocation, SourceType, SourceUrl, Target, Version,
+  BuildMode, BuildOptions, Engines, Environment, EnvironmentContext, EnvironmentFlags,
+  ExportsCondition, FileKind, FileSystem, OutputFormat, SourceLocation, SourceType, SourceUrl,
+  Target, Version,
 };
 
 #[derive(Debug, PartialEq)]
@@ -34,6 +35,19 @@ pub fn resolve_entries(entries: Vec<String>, options: &BuildOptions) -> Vec<Entr
     if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
       resolved_entries.extend(resolve_package_entries(&*options.input_fs, path));
     } else {
+      let (context, engines) = if let Some(pkg) = find_package(&path, &*options.input_fs) {
+        let engines = pkg.get("engines");
+        let context = if engines.and_then(|e| e.get("node")).is_some() {
+          EnvironmentContext::Node
+        } else {
+          EnvironmentContext::Browser
+        };
+        let engines = package_engines(&pkg, context, OutputFormat::Esmodule);
+        (context, engines)
+      } else {
+        (EnvironmentContext::Browser, Default::default())
+      };
+
       let mut flags = EnvironmentFlags::empty();
       flags.set(
         EnvironmentFlags::SHOULD_OPTIMIZE,
@@ -43,6 +57,8 @@ pub fn resolve_entries(entries: Vec<String>, options: &BuildOptions) -> Vec<Entr
         url: SourceUrl::from_path(&path).unwrap(),
         target: Target {
           env: Arc::new(Environment {
+            context,
+            engines,
             flags,
             dist_dir: SourceUrl::from_path(&project_root.join("dist")).unwrap(),
             ..Default::default()
@@ -114,76 +130,6 @@ fn resolve_package_entries(fs: &dyn FileSystem, dir: PathBuf) -> Vec<Entry> {
   entries
 }
 
-bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug)]
-  /// A common package.json "exports" field.
-  pub struct ExportsCondition: u32 {
-    /// The "import" condition. True when the package was referenced using the ESM `import` syntax.
-    const IMPORT = 1 << 0;
-    /// The "require" condition. True when the package was referenced using the CommonJS `require` function.
-    const REQUIRE = 1 << 1;
-    /// The "module" condition. True when the package was referenced from either the ESM `import` syntax or the CommonJS `require` function/
-    const MODULE = 1 << 2;
-    /// The "node" condition. True when the module will run in a Node environment.
-    const NODE = 1 << 3;
-    /// The "browser" condition. True when the module will run in a browser environment.
-    const BROWSER = 1 << 4;
-    /// The "worker" condition. True when the module will run in a web worker or service worker environment.
-    const WORKER = 1 << 5;
-    /// The "worklet" condition. True when the module will run in a worklet environment.
-    const WORKLET = 1 << 6;
-    /// The "electron" condition. True when the module will run in an Electron environment.
-    const ELECTRON = 1 << 7;
-    /// The "development" condition. True when the module will run in a development environment.
-    const DEVELOPMENT = 1 << 8;
-    /// The "production" condition. True when the module will run in a production environment.
-    const PRODUCTION = 1 << 9;
-    /// The "types" condition. True when loading TypeScript types.
-    const TYPES = 1 << 10;
-    /// The "default" condition when no other conditions matched.
-    const DEFAULT = 1 << 11;
-    /// The "style" condition. True when the package was referenced from a stylesheet (e.g. CSS, Sass, Stylus, etc.).
-    const STYLE = 1 << 12;
-    /// The "sass" condition. True when the package was referenced from a Sass stylesheet.
-    const SASS = 1 << 13;
-    /// The "less" condition. True when the package was referenced from a Less stylesheet.
-    const LESS = 1 << 14;
-    /// The "stylus" condition. True when the package was referenced from a Stylus stylesheet.
-    const STYLUS = 1 << 15;
-    /// The "react-server" condition.
-    const REACT_SERVER = 1 << 16;
-    /// The "source" condition.
-    const SOURCE = 1 << 17;
-  }
-}
-
-impl TryFrom<&str> for ExportsCondition {
-  type Error = ();
-  fn try_from(value: &str) -> Result<Self, Self::Error> {
-    Ok(match value {
-      "import" => ExportsCondition::IMPORT,
-      "require" => ExportsCondition::REQUIRE,
-      "module" => ExportsCondition::MODULE,
-      "node" => ExportsCondition::NODE,
-      "browser" => ExportsCondition::BROWSER,
-      "worker" => ExportsCondition::WORKER,
-      "worklet" => ExportsCondition::WORKLET,
-      "electron" => ExportsCondition::ELECTRON,
-      "development" => ExportsCondition::DEVELOPMENT,
-      "production" => ExportsCondition::PRODUCTION,
-      "types" => ExportsCondition::TYPES,
-      "default" => ExportsCondition::DEFAULT,
-      "style" => ExportsCondition::STYLE,
-      "sass" => ExportsCondition::SASS,
-      "less" => ExportsCondition::LESS,
-      "stylus" => ExportsCondition::STYLUS,
-      "react-server" => ExportsCondition::REACT_SERVER,
-      "source" => ExportsCondition::SOURCE,
-      _ => return Err(()),
-    })
-  }
-}
-
 impl ExportsCondition {
   fn to_env(&self, pkg: &Value, entry: &str, dist_dir: SourceUrl) -> Environment {
     let engines = pkg.get("engines");
@@ -236,39 +182,50 @@ impl ExportsCondition {
       } else {
         crate::IncludeNodeModules::Bool(true)
       },
-      engines: if context.is_browser() {
-        if let Some(Value::String(browsers)) = engines.and_then(|e| e.get("browsers")) {
-          Engines::from_browserslist(browsers, output_format)
-        } else if let Some(Value::String(browsers)) = pkg.get("browserslist") {
-          Engines::from_browserslist(browsers, output_format)
-        } else {
-          Default::default()
-        }
-      } else if context.is_electron() {
-        if let Some(Value::String(version)) = engines.and_then(|e| e.get("electron")) {
-          Engines {
-            electron: Version::from_semver_range(version).ok(),
-            ..Default::default()
-          }
-        } else {
-          Default::default()
-        }
-      } else if context.is_node() {
-        if let Some(Value::String(version)) = engines.and_then(|e| e.get("node")) {
-          Engines {
-            node: Version::from_semver_range(version).ok(),
-            ..Default::default()
-          }
-        } else {
-          Default::default()
-        }
-      } else {
-        Default::default()
-      },
+      engines: package_engines(pkg, context, output_format),
       dist_dir,
       dist_entry: Some(entry.to_string()),
     }
   }
+}
+
+fn package_engines(
+  pkg: &serde_json::Value,
+  context: EnvironmentContext,
+  output_format: OutputFormat,
+) -> Engines {
+  let engines = pkg.get("engines");
+  let engines = if context.is_browser() {
+    if let Some(Value::String(browsers)) = engines.and_then(|e| e.get("browsers")) {
+      Engines::from_browserslist(browsers, output_format)
+    } else if let Some(Value::String(browsers)) = pkg.get("browserslist") {
+      Engines::from_browserslist(browsers, output_format)
+    } else {
+      Default::default()
+    }
+  } else if context.is_electron() {
+    if let Some(Value::String(version)) = engines.and_then(|e| e.get("electron")) {
+      Engines {
+        electron: Version::from_semver_range(version).ok(),
+        ..Default::default()
+      }
+    } else {
+      Default::default()
+    }
+  } else if context.is_node() {
+    if let Some(Value::String(version)) = engines.and_then(|e| e.get("node")) {
+      Engines {
+        node: Version::from_semver_range(version).ok(),
+        ..Default::default()
+      }
+    } else {
+      Default::default()
+    }
+  } else {
+    Default::default()
+  };
+
+  engines
 }
 
 fn extract_exports(
@@ -414,6 +371,17 @@ fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathBuf>) -> Option<
   }
 
   Some(root)
+}
+
+fn find_package(path: &Path, fs: &dyn FileSystem) -> Option<serde_json::Value> {
+  for p in path.ancestors() {
+    let pkg = p.join("package.json");
+    if let Ok(pkg) = fs.read(&pkg) {
+      return serde_json::from_slice(&pkg).ok();
+    }
+  }
+
+  None
 }
 
 #[cfg(test)]

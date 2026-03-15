@@ -1,0 +1,5 @@
+{
+  "description": "should support loading a CSS bundle along side dynamic imports",
+  "input": "index.js",
+  "output": 3
+}

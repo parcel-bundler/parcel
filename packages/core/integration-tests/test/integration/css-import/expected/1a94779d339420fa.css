@@ -1,0 +1,13 @@
+@media print {
+  .local {
+    color: teal;
+  }
+
+  .other {
+    color: green;
+  }
+}
+
+.index {
+  color: red;
+}

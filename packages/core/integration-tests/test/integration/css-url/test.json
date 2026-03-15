@@ -1,0 +1,28 @@
+{
+  "description": "should support linking to assets with url() from CSS in production",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js"
+      ]
+    },
+    {
+      "name": "index.css",
+      "assets": [
+        "index.css"
+      ]
+    },
+    {
+      "type": "woff2",
+      "assets": [
+        "test.woff2"
+      ]
+    }
+  ],
+  "output": 2
+}

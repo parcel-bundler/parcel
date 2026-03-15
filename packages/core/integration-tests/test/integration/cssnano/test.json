@@ -1,0 +1,7 @@
+{
+  "description": "should produce a sourcemap when sourceMaps are used",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  }
+}

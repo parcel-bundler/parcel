@@ -237,7 +237,11 @@ impl Namer for DefaultNamer {
     }
 
     let mut hash = Xxh3Default::new();
-    bundle.assets.hash(&mut hash);
+    for asset in &bundle.assets {
+      if let AssetNode::Asset(asset) = &asset_graph.assets[*asset] {
+        asset.loc.hash(&mut hash);
+      }
+    }
     Ok(Some(format!("{:016x}.{}", hash.digest(), ext)))
   }
 }

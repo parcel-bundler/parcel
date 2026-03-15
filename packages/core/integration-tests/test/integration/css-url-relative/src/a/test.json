@@ -1,0 +1,30 @@
+{
+  "description": "should support linking to assets in parent folders with url() from CSS",
+  "input": "style1.css",
+  "options": {
+    "defaultTargetOptions": {
+      "shouldOptimize": true,
+      "sourceMaps": false
+    }
+  },
+  "bundles": [
+    {
+      "type": "css",
+      "assets": [
+        "style1.css"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "style2.css"
+      ]
+    },
+    {
+      "type": "png",
+      "assets": [
+        "foo.png"
+      ]
+    }
+  ]
+}

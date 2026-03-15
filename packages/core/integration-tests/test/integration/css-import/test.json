@@ -1,0 +1,21 @@
+{
+  "description": "should support importing CSS from a CSS file",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js"
+      ]
+    },
+    {
+      "name": "index.css",
+      "assets": [
+        "index.css",
+        "other.css",
+        "local.css"
+      ]
+    }
+  ],
+  "output": 2
+}

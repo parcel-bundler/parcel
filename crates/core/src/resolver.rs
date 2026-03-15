@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  config::JsPlugin,
+  ParcelOptions, config::JsPlugin,
 };
 
 pub trait Resolver: Send + Sync {
@@ -11,6 +11,7 @@ pub trait Resolver: Send + Sync {
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
+    options: &ParcelOptions,
   ) -> Result<DependencyResolution, DiagnosticList>;
 }
 
@@ -20,6 +21,7 @@ impl Resolver for JsPlugin {
     _dep: &Dependency,
     _specifier: &str,
     _pipeline: Option<&str>,
+    _options: &ParcelOptions,
   ) -> Result<DependencyResolution, DiagnosticList> {
     Err(DiagnosticList(vec![]))
   }
@@ -29,6 +31,7 @@ pub fn resolve(
   dep: &Dependency,
   resolvers: &Vec<Arc<dyn Resolver>>,
   named_pipelines: &Vec<&str>,
+  options: &ParcelOptions,
 ) -> Result<DependencyResolution, DiagnosticList> {
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
@@ -46,7 +49,7 @@ pub fn resolve(
 
   let mut diagnostics = Vec::new();
   for resolver in resolvers {
-    match resolver.resolve(dep, specifier, pipeline) {
+    match resolver.resolve(dep, specifier, pipeline, options) {
       Ok(res) => match res {
         DependencyResolution::None => continue,
         _ => return Ok(res),
@@ -118,7 +121,7 @@ fn parse_pipeline(input: &str) -> Result<(&str, &str), ()> {
 mod tests {
   use std::sync::Arc;
 
-  use crate::{AssetRequest, AssetType, SourceUrl};
+  use crate::{AssetRequest, AssetType, ExportsCondition, SourceUrl};
 
   use super::*;
 
@@ -129,6 +132,7 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
+      _options: &ParcelOptions,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -152,6 +156,7 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
+      _options: &ParcelOptions,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -189,10 +194,11 @@ mod tests {
       placeholder: None,
       resolve_from: None,
       range: None,
+      conditions: ExportsCondition::empty(),
       resolution: crate::DependencyResolution::None,
     };
 
-    let res = resolve(&dep, &resolvers, &Vec::new()).unwrap();
+    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default()).unwrap();
     assert_eq!(
       res,
       DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -207,7 +213,7 @@ mod tests {
 
     dep.specifier = "two".into();
 
-    let res = resolve(&dep, &resolvers, &Vec::new()).unwrap();
+    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default()).unwrap();
     assert_eq!(
       res,
       DependencyResolution::Deferred(Arc::new(AssetRequest {

@@ -8,6 +8,7 @@ use std::{
 use bitflags::bitflags;
 use glob_match::{glob_match, glob_match_with_captures};
 use indexmap::IndexMap;
+use parcel_core::ExportsCondition;
 use serde::Deserialize;
 
 use crate::{
@@ -234,82 +235,6 @@ impl ExportsField {
       }
       _ => {}
     }
-  }
-}
-
-bitflags! {
-  /// A common package.json "exports" field.
-  #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-  pub struct ExportsCondition: u32 {
-    /// The "import" condition. True when the package was referenced using the ESM `import` syntax.
-    const IMPORT = 1 << 0;
-    /// The "require" condition. True when the package was referenced using the CommonJS `require` function.
-    const REQUIRE = 1 << 1;
-    /// The "module" condition. True when the package was referenced from either the ESM `import` syntax or the CommonJS `require` function/
-    const MODULE = 1 << 2;
-    /// The "node" condition. True when the module will run in a Node environment.
-    const NODE = 1 << 3;
-    /// The "browser" condition. True when the module will run in a browser environment.
-    const BROWSER = 1 << 4;
-    /// The "worker" condition. True when the module will run in a web worker or service worker environment.
-    const WORKER = 1 << 5;
-    /// The "worklet" condition. True when the module will run in a worklet environment.
-    const WORKLET = 1 << 6;
-    /// The "electron" condition. True when the module will run in an Electron environment.
-    const ELECTRON = 1 << 7;
-    /// The "development" condition. True when the module will run in a development environment.
-    const DEVELOPMENT = 1 << 8;
-    /// The "production" condition. True when the module will run in a production environment.
-    const PRODUCTION = 1 << 9;
-    /// The "types" condition. True when loading TypeScript types.
-    const TYPES = 1 << 10;
-    /// The "default" condition when no other conditions matched.
-    const DEFAULT = 1 << 11;
-    /// The "style" condition. True when the package was referenced from a stylesheet (e.g. CSS, Sass, Stylus, etc.).
-    const STYLE = 1 << 12;
-    /// The "sass" condition. True when the package was referenced from a Sass stylesheet.
-    const SASS = 1 << 13;
-    /// The "less" condition. True when the package was referenced from a Less stylesheet.
-    const LESS = 1 << 14;
-    /// The "stylus" condition. True when the package was referenced from a Stylus stylesheet.
-    const STYLUS = 1 << 15;
-    /// The "react-server" condition.
-    const REACT_SERVER = 1 << 16;
-    /// The "source" condition.
-    const SOURCE = 1 << 17;
-  }
-}
-
-impl Default for ExportsCondition {
-  fn default() -> Self {
-    ExportsCondition::empty()
-  }
-}
-
-impl TryFrom<&str> for ExportsCondition {
-  type Error = ();
-  fn try_from(value: &str) -> Result<Self, Self::Error> {
-    Ok(match value {
-      "import" => ExportsCondition::IMPORT,
-      "require" => ExportsCondition::REQUIRE,
-      "module" => ExportsCondition::MODULE,
-      "node" => ExportsCondition::NODE,
-      "browser" => ExportsCondition::BROWSER,
-      "worker" => ExportsCondition::WORKER,
-      "worklet" => ExportsCondition::WORKLET,
-      "electron" => ExportsCondition::ELECTRON,
-      "development" => ExportsCondition::DEVELOPMENT,
-      "production" => ExportsCondition::PRODUCTION,
-      "types" => ExportsCondition::TYPES,
-      "default" => ExportsCondition::DEFAULT,
-      "style" => ExportsCondition::STYLE,
-      "sass" => ExportsCondition::SASS,
-      "less" => ExportsCondition::LESS,
-      "stylus" => ExportsCondition::STYLUS,
-      "react-server" => ExportsCondition::REACT_SERVER,
-      "source" => ExportsCondition::SOURCE,
-      _ => return Err(()),
-    })
   }
 }
 

@@ -94,17 +94,17 @@ fn run<
           } else {
             "Unknown error".into()
           };
-          println!(
-            "{}",
-            fs_clone
-              .read_to_string(Path::new(
-                &e.split('\n').nth(1).unwrap()[7..]
-                  .split(':')
-                  .next()
-                  .unwrap()
-              ))
-              .unwrap()
-          );
+          // println!(
+          //   "{}",
+          //   fs_clone
+          //     .read_to_string(Path::new(
+          //       &e.split('\n').nth(1).unwrap()[7..]
+          //         .split(':')
+          //         .next()
+          //         .unwrap()
+          //     ))
+          //     .unwrap()
+          // );
           panic!("exception: {}", e);
         } else {
           panic!("error: {}", err);
@@ -132,8 +132,7 @@ fn bundle_with_options(
     env.insert("NODE_ENV".into(), "test".into());
   }
   let options = BuildOptions {
-    // mode: options.mode,
-    mode: Default::default(),
+    mode: options.mode,
     env,
     input_fs: Arc::new(OsFileSystem {}),
     output_fs: output_fs.clone(),
@@ -216,7 +215,26 @@ fn run_test_with_options<
     }
   }
 
-  run(scripts, output_fs, main, f)
+  if !scripts.is_empty() {
+    run(scripts, output_fs.clone(), main, f);
+  }
+
+  let expected = entry.parent().unwrap().join("expected");
+  if expected.is_dir() {
+    for entry in expected.read_dir().unwrap() {
+      let entry = entry.unwrap();
+      let content = std::fs::read_to_string(entry.path()).unwrap();
+      println!("{:?}", bundle_graph.bundles);
+      let bundle = bundle_graph
+        .bundles
+        .iter()
+        .find(|b| b.name.as_ref().unwrap().as_str() == entry.file_name())
+        .unwrap();
+      let actual_content = output_fs.read_to_string(&bundle.dist_path()).unwrap();
+      println!("{}", actual_content);
+      assert_eq!(actual_content, content, "{:?}", entry.file_name());
+    }
+  }
 }
 
 #[derive(serde::Deserialize)]
@@ -227,7 +245,7 @@ struct TestJson {
   input: String,
   #[serde(default)]
   options: TestOptions,
-  output: serde_json::Value,
+  output: Option<serde_json::Value>,
   #[serde(default)]
   side_effects: Vec<serde_json::Value>,
 }
@@ -278,7 +296,9 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
         }
       };
       assert_eq!(*side_effects.borrow(), test.side_effects);
-      assert_eq!(out, test.output);
+      if let Some(expected_output) = test.output {
+        assert_eq!(out, expected_output);
+      }
       Ok(())
     },
   );
