@@ -319,6 +319,20 @@ export default (new Transformer({
         conf.contents?.unstable_inlineConstants ?? inlineConstants;
     }
 
+    // Detect core-js version for polyfills
+    let coreJsVersion = null;
+    let coreJsRange =
+      pkg?.dependencies?.['core-js'] ||
+      pkg?.devDependencies?.['core-js'] ||
+      pkg?.peerDependencies?.['core-js'];
+    if (coreJsRange) {
+      let minVersion = semver.minVersion(coreJsRange);
+      if (minVersion) {
+        // SWC expects the version in "major.minor" format (e.g., "3.37")
+        coreJsVersion = `${minVersion.major}.${minVersion.minor}`;
+      }
+    }
+
     return {
       isJSX,
       automaticJSXRuntime,
@@ -331,6 +345,7 @@ export default (new Transformer({
       reactRefresh,
       decorators,
       useDefineForClassFields,
+      coreJsVersion,
     };
   },
   async transform({asset, config, options, logger}) {
@@ -473,6 +488,7 @@ export default (new Transformer({
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
       standalone: asset.query.has('standalone'),
       inline_constants: config.inlineConstants,
+      core_js_version: config?.coreJsVersion,
       callMacro: asset.isSource
         ? async (err, src, exportName, args, loc) => {
             let mod;
