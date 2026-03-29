@@ -163,6 +163,19 @@ impl From<std::str::Utf8Error> for Diagnostic {
   }
 }
 
+impl From<serde_json::Error> for Diagnostic {
+  fn from(value: serde_json::Error) -> Self {
+    Diagnostic {
+      origin: Some("@parcel/core".into()),
+      message: value.to_string(),
+      code_frames: Vec::new(),
+      hints: Vec::new(),
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
+}
+
 impl From<Diagnostic> for Vec<Diagnostic> {
   fn from(value: Diagnostic) -> Self {
     vec![value]

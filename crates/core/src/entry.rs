@@ -1,4 +1,5 @@
 use std::{
+  collections::HashSet,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -7,33 +8,36 @@ use glob_match::glob_match;
 use serde_json::Value;
 
 use crate::{
-  BuildMode, BuildOptions, Engines, Environment, EnvironmentContext, EnvironmentFlags,
-  ExportsCondition, FileKind, FileSystem, OutputFormat, SourceLocation, SourceType, SourceUrl,
-  Target, Version,
+  BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentContext, EnvironmentFlags,
+  ExportsCondition, FileKind, FileSystem, IncludeNodeModules, OutputFormat, SourceLocation,
+  SourceType, SourceUrl, Target, Version,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Entry {
   pub url: SourceUrl,
-  pub target: Target,
+  pub target: Arc<Target>,
   pub asset: Option<usize>,
   pub loc: Option<SourceLocation>,
 }
 
-pub fn resolve_entries(entries: Vec<String>, options: &BuildOptions) -> Vec<Entry> {
+pub fn resolve_entries(
+  entries: Vec<String>,
+  options: &BuildOptions,
+) -> Result<Vec<Entry>, Diagnostic> {
   let mut paths = Vec::new();
   for entry in entries {
-    for path in glob(&*options.input_fs, &entry) {
+    for path in glob(&*options.input_fs, &entry, &std::env::current_dir()?) {
       paths.push(path);
     }
   }
 
   let project_root = find_project_root(&paths);
 
-  let mut resolved_entries = Vec::new();
+  let mut entries = EntryResolver::new();
   for path in paths {
     if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
-      resolved_entries.extend(resolve_package_entries(&*options.input_fs, path));
+      entries.resolve_package_entries(&*options.input_fs, path)?;
     } else {
       let (context, engines) = if let Some(pkg) = find_package(&path, &*options.input_fs) {
         let engines = pkg.get("engines");
@@ -53,85 +57,218 @@ pub fn resolve_entries(entries: Vec<String>, options: &BuildOptions) -> Vec<Entr
         EnvironmentFlags::SHOULD_OPTIMIZE,
         options.mode == BuildMode::Production,
       );
-      resolved_entries.push(Entry {
+      let env = entries.environment(Environment {
+        context,
+        engines,
+        flags,
+        ..Default::default()
+      });
+
+      entries.add_entry(Entry {
         url: SourceUrl::from_path(&path).unwrap(),
-        target: Target {
-          env: Arc::new(Environment {
-            context,
-            engines,
-            flags,
-            dist_dir: SourceUrl::from_path(&project_root.join("dist")).unwrap(),
-            ..Default::default()
-          }),
+        target: Arc::new(Target {
+          dist_dir: SourceUrl::from_path(&project_root.join("dist")).unwrap(),
+          env,
           ..Default::default()
-        },
+        }),
         loc: None,
         asset: None,
       });
     }
   }
 
-  resolved_entries
+  Ok(entries.entries)
 }
 
-fn resolve_package_entries(fs: &dyn FileSystem, dir: PathBuf) -> Vec<Entry> {
-  let pkg_path = dir.join("package.json");
-  let contents = fs.read(&pkg_path).unwrap();
-  let json: Value = serde_json::from_slice(&contents).unwrap();
-  let mut entries = Vec::new();
+struct EntryResolver {
+  entries: Vec<Entry>,
+  environments: HashSet<Arc<Environment>>,
+}
 
-  if let Some(exports) = json.get("exports") {
-    extract_exports(
-      &dir,
-      &json,
-      exports,
-      None,
-      ExportsCondition::empty(),
-      &mut entries,
-    );
-  } else if let Some(Value::String(source)) = json.get("source") {
-    for (field, cond) in &[
-      ("main", ExportsCondition::DEFAULT),
-      ("module", ExportsCondition::MODULE),
-      ("browser", ExportsCondition::BROWSER),
-      ("types", ExportsCondition::TYPES),
-    ] {
-      if let Some(Value::String(main)) = json.get(field) {
-        entries.push(Entry {
-          url: SourceUrl::from_path(&dir.join(source)).unwrap(),
-          target: Target {
-            name: field.to_string(),
-            dist_entry: Some(main.clone()),
-            dist_dir: SourceUrl::from_path(&dir).unwrap(),
-            env: Arc::new(cond.to_env(&json, main, SourceUrl::from_path(&dir).unwrap())),
-            ..Default::default()
-          },
-          asset: None,
-          loc: None,
-        });
+impl EntryResolver {
+  fn new() -> Self {
+    EntryResolver {
+      entries: Vec::new(),
+      environments: HashSet::new(),
+    }
+  }
+
+  fn add_entry(&mut self, entry: Entry) {
+    // TODO: hashset?
+    if !self.entries.contains(&entry) {
+      self.entries.push(entry);
+    }
+  }
+
+  fn environment(&mut self, env: Environment) -> Arc<Environment> {
+    if let Some(existing) = self.environments.get(&env) {
+      return existing.clone();
+    }
+
+    let arc = Arc::new(env);
+    self.environments.insert(arc.clone());
+    arc
+  }
+
+  fn resolve_package_entries(
+    &mut self,
+    fs: &dyn FileSystem,
+    dir: PathBuf,
+  ) -> Result<(), Diagnostic> {
+    let pkg_path = dir.join("package.json");
+    let contents = fs.read(&pkg_path)?;
+    let json: Value = serde_json::from_slice(&contents)?;
+
+    if let Some(exports) = json.get("exports") {
+      self.extract_exports(
+        fs,
+        &dir,
+        &json,
+        exports,
+        Vec::new(),
+        ExportsCondition::empty(),
+      );
+    }
+
+    if let Some(Value::String(source)) = json.get("source") {
+      for (field, cond) in &[
+        ("main", ExportsCondition::DEFAULT),
+        ("module", ExportsCondition::MODULE),
+        ("browser", ExportsCondition::BROWSER),
+        ("types", ExportsCondition::TYPES),
+      ] {
+        if let Some(Value::String(main)) = json.get(field) {
+          if is_glob(source) {
+            // TODO: error
+          }
+
+          let mut env = cond.to_env(&json, main);
+          if *cond == ExportsCondition::MODULE {
+            env.output_format = OutputFormat::Esmodule;
+          }
+
+          let env = self.environment(env);
+          self.add_entry(Entry {
+            url: SourceUrl::from_path(&dir.join(source)).unwrap(),
+            target: Arc::new(Target {
+              name: field.to_string(),
+              dist_entry: Some(main.clone()),
+              dist_dir: SourceUrl::from_path(&dir).unwrap(),
+              env,
+              ..Default::default()
+            }),
+            asset: None,
+            loc: None,
+          });
+        }
+      }
+
+      if self.entries.is_empty() {
+        for source in glob(fs, source, &dir) {
+          self.add_entry(Entry {
+            url: SourceUrl::from_path(&source).unwrap(),
+            target: Arc::new(Target {
+              dist_entry: None,
+              dist_dir: SourceUrl::from_path(&dir).unwrap(),
+              env: Arc::new(Default::default()),
+              ..Default::default()
+            }),
+            asset: None,
+            loc: None,
+          });
+        }
       }
     }
 
-    if entries.is_empty() {
-      entries.push(Entry {
-        url: SourceUrl::from_path(&dir.join(source)).unwrap(),
-        target: Target {
-          dist_entry: None,
-          dist_dir: SourceUrl::from_path(&dir).unwrap(),
-          env: Arc::new(Default::default()),
-          ..Default::default()
-        },
-        asset: None,
-        loc: None,
-      });
-    }
+    Ok(())
   }
 
-  entries
+  fn extract_exports(
+    &mut self,
+    fs: &dyn FileSystem,
+    dir: &Path,
+    pkg: &serde_json::Value,
+    value: &serde_json::Value,
+    source: Vec<(SourceUrl, Option<String>)>,
+    condition: ExportsCondition,
+  ) {
+    if let Value::Object(exports) = value {
+      let source = if let Some(Value::String(source)) = value.get("source") {
+        if source.contains('*') {
+          let source_path = dir.join(source);
+          let source_bytes = source_path.to_str().unwrap().as_bytes();
+          let start = source_bytes.iter().position(|b| *b == b'*').unwrap();
+          let end = source_bytes.len() - start;
+
+          let source_glob = if start == 0 || source_bytes[start - 1] == b'/' {
+            source.replace('*', "**/*")
+          } else {
+            source.clone()
+          };
+
+          glob(fs, &source_glob, dir)
+            .into_iter()
+            .map(|path| {
+              // Find the part of the path that matched the "*".
+              // This will be replaced in the target dist entry.
+              let dest_bytes = path.to_str().unwrap().as_bytes();
+              let matched =
+                String::from_utf8(dest_bytes[start..=dest_bytes.len() - end].to_vec()).unwrap();
+              let url = SourceUrl::from_path(&path).unwrap();
+              (url, Some(matched))
+            })
+            .collect()
+        } else {
+          vec![(SourceUrl::from_path(&dir.join(source)).unwrap(), None)]
+        }
+      } else {
+        source
+      };
+
+      for (key, value) in exports {
+        if key == "source" {
+          continue;
+        }
+
+        let cond = if !key.starts_with('.') {
+          condition | ExportsCondition::try_from(key.as_str()).unwrap_or(ExportsCondition::empty())
+        } else {
+          condition
+        };
+        self.extract_exports(fs, dir, pkg, value, source.clone(), cond);
+      }
+    } else if let Value::String(value) = value {
+      if value.starts_with('.') {
+        for (source, part) in source {
+          let dist_entry = if let Some(part) = part {
+            value.replace('*', &part)
+          } else {
+            value.clone()
+          };
+
+          let env = self.environment(condition.to_env(pkg, &dist_entry));
+          self.add_entry(Entry {
+            url: source,
+            target: Arc::new(Target {
+              // TODO: where should the files that aren't the dist entry go?
+              // Should we append the root directory of the dist_entry? the leaf?
+              // Depends on what should be exported...
+              dist_dir: SourceUrl::from_path(dir).unwrap(),
+              dist_entry: Some(dist_entry),
+              env,
+              ..Default::default()
+            }),
+            asset: None,
+            loc: None,
+          })
+        }
+      }
+    }
+  }
 }
 
 impl ExportsCondition {
-  fn to_env(&self, pkg: &Value, entry: &str, dist_dir: SourceUrl) -> Environment {
+  fn to_env(&self, pkg: &Value, entry: &str) -> Environment {
     let engines = pkg.get("engines");
     let context = if self.contains(ExportsCondition::REACT_SERVER) {
       EnvironmentContext::ReactServer
@@ -169,22 +306,27 @@ impl ExportsCondition {
       OutputFormat::Commonjs
     };
 
+    // Bundle devDependencies but not dependencies or peerDependencies.
+    let include_node_modules = if let Some(Value::Object(deps)) = pkg.get("devDependencies") {
+      IncludeNodeModules::Array(deps.keys().cloned().collect())
+    } else {
+      IncludeNodeModules::Bool(false)
+    };
+
+    let mut flags = EnvironmentFlags::IS_LIBRARY;
+    if self.contains(ExportsCondition::PRODUCTION) {
+      flags.insert(EnvironmentFlags::SHOULD_OPTIMIZE); // ??
+    }
+
     Environment {
       context,
       output_format,
       source_type: SourceType::Module,
-      flags: EnvironmentFlags::IS_LIBRARY,
+      flags,
       source_map: None,
       loc: None,
-      // TODO: include devDependencies but exclude dependencies and peerDependencies for libraries
-      include_node_modules: if context.is_node() {
-        crate::IncludeNodeModules::Bool(false)
-      } else {
-        crate::IncludeNodeModules::Bool(true)
-      },
+      include_node_modules,
       engines: package_engines(pkg, context, output_format),
-      dist_dir,
-      dist_entry: Some(entry.to_string()),
     }
   }
 }
@@ -228,56 +370,14 @@ fn package_engines(
   engines
 }
 
-fn extract_exports(
-  dir: &Path,
-  pkg: &serde_json::Value,
-  value: &serde_json::Value,
-  source: Option<SourceUrl>,
-  condition: ExportsCondition,
-  entries: &mut Vec<Entry>,
-) {
-  if let Value::Object(exports) = value {
-    let source = if let Some(Value::String(source)) = value.get("source") {
-      Some(SourceUrl::from_path(&dir.join(source)).unwrap())
-    } else {
-      source
-    };
-
-    for (key, value) in exports {
-      if key == "source" {
-        continue;
-      }
-
-      let cond = if !key.starts_with('.') {
-        condition | ExportsCondition::try_from(key.as_str()).unwrap_or(ExportsCondition::empty())
-      } else {
-        condition
-      };
-      extract_exports(dir, pkg, value, source.clone(), cond, entries);
-    }
-  } else if let Value::String(value) = value {
-    if value.starts_with('.') {
-      if let Some(source) = source {
-        entries.push(Entry {
-          url: source,
-          target: Target {
-            dist_dir: SourceUrl::from_path(dir).unwrap(),
-            dist_entry: Some(value.clone()),
-            env: Arc::new(condition.to_env(pkg, &value, SourceUrl::from_path(dir).unwrap())),
-            ..Default::default()
-          },
-          asset: None,
-          loc: None,
-        })
-      }
-    }
-  }
-}
-
-fn glob(fs: &dyn FileSystem, pattern: &str) -> Vec<PathBuf> {
+fn glob(fs: &dyn FileSystem, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
   if !is_glob(pattern) {
-    if Path::new(pattern).exists() {
-      return vec![Path::new(pattern).to_path_buf()];
+    let mut path = Path::new(pattern).to_path_buf();
+    if !path.is_absolute() {
+      path = cwd.join(path);
+    }
+    if !fs.kind(&path).is_empty() {
+      return vec![path];
     }
     return Vec::new();
   }
@@ -286,9 +386,13 @@ fn glob(fs: &dyn FileSystem, pattern: &str) -> Vec<PathBuf> {
   let mut matches = Vec::new();
 
   if !is_glob(dir) {
-    match_dir(fs, Path::new(dir), file, &mut matches);
+    let mut path = Path::new(dir).to_path_buf();
+    if !path.is_absolute() {
+      path = cwd.join(path);
+    }
+    match_dir(fs, &path, file, &mut matches);
   } else {
-    for dir in glob(fs, dir) {
+    for dir in glob(fs, dir, cwd) {
       match_dir(fs, &dir, file, &mut matches)
     }
   }
@@ -387,24 +491,37 @@ fn find_package(path: &Path, fs: &dyn FileSystem) -> Option<serde_json::Value> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    Entry, Environment, EnvironmentContext, FileSystem, MemoryFileSystem, SourceUrl, Target,
-    Version, entry::resolve_package_entries,
+    Entry, Environment, EnvironmentContext, EnvironmentFlags, FileSystem, MemoryFileSystem,
+    SourceUrl, Target, Version, entry::resolve_entries,
   };
-  use std::{
-    num::NonZero,
-    path::{Path, PathBuf},
-    sync::Arc,
-  };
+  use pretty_assertions::assert_eq;
+  use std::{collections::HashMap, num::NonZero, path::Path, sync::Arc};
 
   fn test(input: &str, expected: Vec<Entry>) {
-    let mut fs = MemoryFileSystem::new();
+    let fs = MemoryFileSystem::new();
     fs.mkdir(Path::new("/root")).unwrap();
     fs.write(
       Path::new("/root/package.json"),
       &input.as_bytes().to_owned(),
     )
     .unwrap();
-    let result = resolve_package_entries(&fs, PathBuf::from("/root"));
+    fs.mkdir(Path::new("/root/src")).unwrap();
+    fs.write(Path::new("/root/src/foo.tsx"), &Vec::new())
+      .unwrap();
+    fs.write(Path::new("/root/src/bar.tsx"), &Vec::new())
+      .unwrap();
+    let fs = Arc::new(fs);
+    let result = resolve_entries(
+      vec!["/root".into()],
+      &crate::BuildOptions {
+        input_fs: fs.clone(),
+        output_fs: fs,
+        env: HashMap::new(),
+        log_level: crate::LogLevel::Error,
+        mode: crate::BuildMode::Development,
+      },
+    )
+    .unwrap();
     assert_eq!(result, expected);
   }
 
@@ -417,34 +534,41 @@ mod tests {
         "source": "./foo.tsx",
         "import": "./import.mjs",
         "require": "./require.cjs"
+      },
+      "devDependencies": {
+        "foo": "*"
       }
     }"#,
       vec![
         Entry {
           url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./import.mjs".into()),
             env: Arc::new(Environment {
               output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./require.cjs".into()),
             env: Arc::new(Environment {
               output_format: crate::OutputFormat::Commonjs,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
@@ -463,32 +587,35 @@ mod tests {
       vec![
         Entry {
           url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./node.js".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: crate::OutputFormat::Commonjs,
               include_node_modules: crate::IncludeNodeModules::Bool(false),
+              flags: EnvironmentFlags::IS_LIBRARY,
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./browser.js".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Browser,
-              output_format: crate::OutputFormat::Esmodule,
+              output_format: crate::OutputFormat::Commonjs,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
@@ -514,61 +641,67 @@ mod tests {
       vec![
         Entry {
           url: SourceUrl::parse("file:///root/node.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./node.mjs".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: crate::OutputFormat::Esmodule,
               include_node_modules: crate::IncludeNodeModules::Bool(false),
+              flags: EnvironmentFlags::IS_LIBRARY,
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/node.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./node.cjs".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: crate::OutputFormat::Commonjs,
               include_node_modules: crate::IncludeNodeModules::Bool(false),
+              flags: EnvironmentFlags::IS_LIBRARY,
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/browser.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./browser.mjs".into()),
             env: Arc::new(Environment {
               output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/browser.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./browser.cjs".into()),
             env: Arc::new(Environment {
               output_format: crate::OutputFormat::Commonjs,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
@@ -593,61 +726,67 @@ mod tests {
       vec![
         Entry {
           url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./node.mjs".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
               include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./node.cjs".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Node,
               output_format: crate::OutputFormat::Commonjs,
+              flags: EnvironmentFlags::IS_LIBRARY,
               include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./browser.mjs".into()),
             env: Arc::new(Environment {
               output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./browser.cjs".into()),
             env: Arc::new(Environment {
               output_format: crate::OutputFormat::Commonjs,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
@@ -667,13 +806,14 @@ mod tests {
     }"#,
       vec![Entry {
         url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-        target: Target {
+        target: Arc::new(Target {
           dist_dir: SourceUrl::parse("file:///root").unwrap(),
           dist_entry: Some("./dist.js".into()),
           env: Arc::new(Environment {
             context: EnvironmentContext::Node,
             output_format: crate::OutputFormat::Commonjs,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
+            flags: EnvironmentFlags::IS_LIBRARY,
             engines: crate::Engines {
               node: Some(Version::new(NonZero::new(20).unwrap(), 0)),
               ..Default::default()
@@ -681,7 +821,7 @@ mod tests {
             ..Default::default()
           }),
           ..Default::default()
-        },
+        }),
         asset: None,
         loc: None,
       }],
@@ -700,12 +840,14 @@ mod tests {
     }"#,
       vec![Entry {
         url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-        target: Target {
+        target: Arc::new(Target {
           dist_dir: SourceUrl::parse("file:///root").unwrap(),
           dist_entry: Some("./dist.js".into()),
           env: Arc::new(Environment {
             context: EnvironmentContext::Browser,
-            output_format: crate::OutputFormat::Esmodule,
+            output_format: crate::OutputFormat::Commonjs,
+            flags: EnvironmentFlags::IS_LIBRARY,
+            include_node_modules: crate::IncludeNodeModules::Bool(false),
             engines: crate::Engines {
               browsers: crate::Browsers {
                 chrome: Some(Version::new(NonZero::new(100).unwrap(), 0)),
@@ -716,7 +858,7 @@ mod tests {
             ..Default::default()
           }),
           ..Default::default()
-        },
+        }),
         asset: None,
         loc: None,
       }],
@@ -727,30 +869,61 @@ mod tests {
     {
       "source": "./foo.tsx",
       "main": "./dist.js",
+      "module": "./module.js",
       "browserslist": "Chrome 100"
     }"#,
-      vec![Entry {
-        url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-        target: Target {
-          dist_dir: SourceUrl::parse("file:///root").unwrap(),
-          dist_entry: Some("./dist.js".into()),
-          env: Arc::new(Environment {
-            context: EnvironmentContext::Browser,
-            output_format: crate::OutputFormat::Esmodule,
-            engines: crate::Engines {
-              browsers: crate::Browsers {
-                chrome: Some(Version::new(NonZero::new(100).unwrap(), 0)),
+      vec![
+        Entry {
+          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          target: Arc::new(Target {
+            name: "main".into(),
+            dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            dist_entry: Some("./dist.js".into()),
+            env: Arc::new(Environment {
+              context: EnvironmentContext::Browser,
+              output_format: crate::OutputFormat::Commonjs,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
+              engines: crate::Engines {
+                browsers: crate::Browsers {
+                  chrome: Some(Version::new(NonZero::new(100).unwrap(), 0)),
+                  ..Default::default()
+                },
                 ..Default::default()
               },
               ..Default::default()
-            },
+            }),
             ..Default::default()
           }),
-          ..Default::default()
+          asset: None,
+          loc: None,
         },
-        asset: None,
-        loc: None,
-      }],
+        Entry {
+          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          target: Arc::new(Target {
+            name: "module".into(),
+            dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            dist_entry: Some("./module.js".into()),
+            env: Arc::new(Environment {
+              context: EnvironmentContext::Browser,
+              output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
+              engines: crate::Engines {
+                browsers: crate::Browsers {
+                  chrome: Some(Version::new(NonZero::new(100).unwrap(), 0)),
+                  ..Default::default()
+                },
+                ..Default::default()
+              },
+              ..Default::default()
+            }),
+            ..Default::default()
+          }),
+          asset: None,
+          loc: None,
+        },
+      ],
     );
 
     test(
@@ -770,31 +943,81 @@ mod tests {
       vec![
         Entry {
           url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./foo.mjs".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Browser,
               output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
           asset: None,
           loc: None,
         },
         Entry {
           url: SourceUrl::parse("file:///root/bar.tsx").unwrap(),
-          target: Target {
+          target: Arc::new(Target {
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
             dist_entry: Some("./bar.mjs".into()),
             env: Arc::new(Environment {
               context: EnvironmentContext::Browser,
               output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
               ..Default::default()
             }),
             ..Default::default()
-          },
+          }),
+          asset: None,
+          loc: None,
+        },
+      ],
+    );
+
+    test(
+      r#"
+    {
+      "exports": {
+        "source": "./src/*.tsx",
+        "default": "./dist/*.mjs"
+      }
+    }"#,
+      vec![
+        Entry {
+          url: SourceUrl::parse("file:///root/src/bar.tsx").unwrap(),
+          target: Arc::new(Target {
+            dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            dist_entry: Some("./dist/bar.mjs".into()),
+            env: Arc::new(Environment {
+              context: EnvironmentContext::Browser,
+              output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
+              ..Default::default()
+            }),
+            ..Default::default()
+          }),
+          asset: None,
+          loc: None,
+        },
+        Entry {
+          url: SourceUrl::parse("file:///root/src/foo.tsx").unwrap(),
+          target: Arc::new(Target {
+            dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            dist_entry: Some("./dist/foo.mjs".into()),
+            env: Arc::new(Environment {
+              context: EnvironmentContext::Browser,
+              output_format: crate::OutputFormat::Esmodule,
+              flags: EnvironmentFlags::IS_LIBRARY,
+              include_node_modules: crate::IncludeNodeModules::Bool(false),
+              ..Default::default()
+            }),
+            ..Default::default()
+          }),
           asset: None,
           loc: None,
         },

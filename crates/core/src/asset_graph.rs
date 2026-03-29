@@ -7,7 +7,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution,
+  EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution, Target,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -362,13 +362,21 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
 
 impl AssetGraph {
   /// Visits all assets in depth-first order starting from each entry.
-  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset)> {
+  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset, &'a Arc<Target>)> {
     let mut stack = Vec::new();
     let mut visited = FixedBitSet::with_capacity(self.assets.len());
     let mut entries = self.entries.iter();
+    let mut first_entry = true;
+    let mut entry_index = 0;
 
     std::iter::from_fn(move || {
       if stack.is_empty() {
+        if first_entry {
+          first_entry = false;
+        } else {
+          entry_index += 1;
+        }
+
         while let Some(entry) = entries.next() {
           if let Some(index) = entry.asset {
             if !visited.contains(index) {
@@ -394,7 +402,7 @@ impl AssetGraph {
             }
           }
 
-          return Some((index, asset));
+          return Some((index, asset, &self.entries[entry_index].target));
         }
       }
 

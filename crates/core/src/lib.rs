@@ -57,7 +57,7 @@ pub fn build(
   factory: &dyn PluginFactory,
 ) -> Result<BundleGraph, DiagnosticList> {
   // Resolve entries.
-  let entries = resolve_entries(entries, &options);
+  let entries = resolve_entries(entries, &options)?;
 
   let project_root = find_project_root(&entries);
   let mut env = options.env;
@@ -90,7 +90,11 @@ pub fn build(
     // TODO: replace hash references
 
     let name = bundle_graph.bundles[i].name.as_ref().unwrap();
-    let dist_dir = bundle_graph.bundles[i].env.dist_dir.to_file_path().unwrap();
+    let dist_dir = bundle_graph.bundles[i]
+      .target
+      .dist_dir
+      .to_file_path()
+      .unwrap();
     options.output_fs.create_dir_all(&dist_dir)?;
     content.write(&*options.output_fs, &dist_dir.join(name))?;
   }

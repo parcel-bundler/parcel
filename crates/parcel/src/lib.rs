@@ -257,6 +257,7 @@ impl Bundler for LibraryBundler {
         bundles.push(Bundle {
           ty: asset.ty.clone(),
           assets: vec![id],
+          target: Default::default(), // TODO
           bundle_behavior: asset.bundle_behavior,
           entry_assets: vec![id],
           env: asset.env.clone(),
