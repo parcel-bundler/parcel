@@ -938,7 +938,7 @@ describe('monorepos', function () {
 
     return new Promise((resolve, reject) => {
       // 1. Increment the build counter and modify `packages/lib/index.js` which
-      //    should trigger a subsquent build.
+      //    should trigger a subsequent build.
       //
       // 2. Ensure the changed asset was detected and built
       b.watch(async (err, buildEvent) => {

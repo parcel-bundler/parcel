@@ -148,7 +148,7 @@ async function getDependencies(
 
   new ImportVisitor(ast, options).visit(ast);
 
-  // Recursively process depdendencies, and return a map with all resolved paths.
+  // Recursively process dependencies, and return a map with all resolved paths.
   let res = new Map();
   await Promise.all(
     Array.from(deps.entries()).map(async ([importedPath, resolved]) => {

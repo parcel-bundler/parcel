@@ -1,4 +1,4 @@
-// Adapated from flow-typed
+// Adapted from flow-typed
 
 /* eslint-disable */
 declare type ws$PerMessageDeflateOptions = {|

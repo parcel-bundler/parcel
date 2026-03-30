@@ -244,7 +244,7 @@ export default (new Transformer({
       } else {
         code = cssModulesList
           .map(
-            // This syntax enables shaking the invidual statements, so that unused classes don't even exist in JS.
+            // This syntax enables shaking the individual statements, so that unused classes don't even exist in JS.
             ([className, classNameHashed]) =>
               `module.exports[${JSON.stringify(className)}] = ${JSON.stringify(
                 classNameHashed,

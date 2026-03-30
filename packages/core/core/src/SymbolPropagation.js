@@ -518,7 +518,7 @@ function propagateSymbolsDown(
   //
   // In the worst case, some nodes have to be revisited because we don't want to sort the assets
   // into topological order. For example in a diamond graph where the join point is visited twice
-  // via each parent (the numbers signifiying the order of re/visiting, `...` being unvisited).
+  // via each parent (the numbers signifying the order of re/visiting, `...` being unvisited).
   // However, this only continues as long as there are changes in the used symbols that influence
   // child nodes.
   //

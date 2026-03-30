@@ -243,7 +243,7 @@ describe('scope hoisting', function () {
       assert.equal(output, 2);
     });
 
-    it('supports importing from a reexporting asset in an anchestor (1)', async function () {
+    it('supports importing from a reexporting asset in an ancestor (1)', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -255,7 +255,7 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['index', 'async']);
     });
 
-    it('supports importing from a reexporting asset in an anchestor (2)', async function () {
+    it('supports importing from a reexporting asset in an ancestor (2)', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -267,7 +267,7 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, [123, 123]);
     });
 
-    it('supports importing from a reexporting asset in an anchestor (3)', async function () {
+    it('supports importing from a reexporting asset in an ancestor (3)', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -2366,7 +2366,7 @@ describe('scope hoisting', function () {
       ]);
     });
 
-    it('should correctly retarget dependencies when both namespace and indvidual export are used', async function () {
+    it('should correctly retarget dependencies when both namespace and individual export are used', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -3429,7 +3429,7 @@ describe('scope hoisting', function () {
       });
     });
 
-    it('should allow re-declaring __esModule interop flag', async function () {
+    it('should allow redeclaring __esModule interop flag', async function () {
       let b = await bundle(
         path.join(
           __dirname,

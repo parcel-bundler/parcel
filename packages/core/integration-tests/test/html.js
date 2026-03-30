@@ -2821,7 +2821,7 @@ describe('html', function () {
 
   it('should share older JS sibling (script) assets to younger siblings', async function () {
     // JS script tags are siblings to a common parent, and are marked as such by parallel dependency priority
-    // Becuase of load order any older sibling (and it's assets) are loaded before any subsequent sibling
+    // Because of load order any older sibling (and it's assets) are loaded before any subsequent sibling
     // Which means no younger sibling should have to reference sibling bundles for assets in them
     let b = await bundle(
       path.join(

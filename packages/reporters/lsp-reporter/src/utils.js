@@ -47,7 +47,7 @@ export function normalizeFilePath(
 //   return true;
 // }
 
-// /** This range is used when refering to a whole file and not a specific range. */
+// /** This range is used when referring to a whole file and not a specific range. */
 // export const RANGE_DUMMY: Range = {
 //   start: {line: 0, character: 0},
 //   end: {line: 0, character: 0},

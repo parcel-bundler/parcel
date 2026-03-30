@@ -535,7 +535,7 @@ export type CacheEntry = {|
 export type Bundle = {|
   id: ContentKey,
   publicId: ?string,
-  hashReference: string,
+  hash reference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<ContentKey>,

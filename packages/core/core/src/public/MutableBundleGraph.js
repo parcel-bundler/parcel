@@ -213,7 +213,7 @@ export default class MutableBundleGraph
       id: bundleId,
       value: {
         id: bundleId,
-        hashReference: this.#options.shouldContentHash
+        hash reference: this.#options.shouldContentHash
           ? HASH_REF_PREFIX + bundleId
           : bundleId.slice(-8),
         type: opts.entryAsset ? opts.entryAsset.type : opts.type,

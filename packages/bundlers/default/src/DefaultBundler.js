@@ -1420,7 +1420,7 @@ function createIdealGraph(
         let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
           let bundle = nullthrows(bundleGraph.getNode(b));
           // shared bundles must have source bundles, we could have a bundle
-          // connected to another bundle that isnt a shared bundle, so check
+          // connected to another bundle that isn't a shared bundle, so check
           return (
             bundle !== 'root' &&
             bundle.sourceBundles.size > 0 &&
@@ -1450,7 +1450,7 @@ function createIdealGraph(
           let bundleTuple = sharedBundlesInGroup.pop();
           let bundleToRemove = bundleTuple.bundle;
           let bundleIdToRemove = bundleTuple.id;
-          //TODO add integration test where bundles in bunlde group > max parallel request limit & only remove a couple shared bundles
+          //TODO add integration test where bundles in bundle group > max parallel request limit & only remove a couple shared bundles
           // but total # bundles still exceeds limit due to non shared bundles
 
           // Add all assets in the shared bundle into the source bundles that are within this bundle group.

@@ -18,8 +18,8 @@ pub fn serialize<'arena, Wr>(writer: Wr, node: Ref<'arena>, opts: SerializeOpts)
 where
   Wr: Write,
 {
-  let mut ser = HtmlSerializer::new(writer, opts.clone());
-  ser.serialize_node(node)
+  let mut set = HtmlSerializer::new(writer, opts.clone());
+  set.serialize_node(node)
 }
 
 #[derive(Clone)]

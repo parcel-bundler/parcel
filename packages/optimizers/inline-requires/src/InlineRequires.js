@@ -11,7 +11,7 @@ type BundleConfig = {|
   assetPublicIdsWithSideEffects: Set<string>,
 |};
 
-// $FlowFixMe not sure how to anotate the export here to make it work...
+// $FlowFixMe not sure how to annotate the export here to make it work...
 module.exports = new Optimizer<empty, BundleConfig>({
   loadBundleConfig({bundle, bundleGraph, tracer}): BundleConfig {
     if (assetPublicIdsWithSideEffects !== null) {

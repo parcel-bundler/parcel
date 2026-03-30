@@ -521,9 +521,9 @@ class BundlerRunner {
 
         if (name != null) {
           internalBundle.name = name;
-          let {hashReference} = internalBundle;
-          internalBundle.displayName = name.includes(hashReference)
-            ? name.replace(hashReference, '[hash]')
+          let {hash reference} = internalBundle;
+          internalBundle.displayName = name.includes(hash reference)
+            ? name.replace(hash reference, '[hash]')
             : name;
 
           return;

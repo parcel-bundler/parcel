@@ -1405,7 +1405,7 @@ export interface Bundle {
    * A placeholder for the bundle's content hash that can be used in the bundle's name or the contents of another
    * bundle. Hash references are replaced with a content hash of the bundle after packaging and optimizing.
    */
-  +hashReference: string;
+  +hash reference: string;
   /**
    * Returns the assets that are executed immediately when the bundle is loaded.
    * Some bundles may not have any entry assets, for example, shared bundles.
@@ -2038,7 +2038,7 @@ export type ValidationEvent = {|
 |};
 
 /**
- * A trace event has occured.
+ * A trace event has occurred.
  * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
  *
  * @section reporter

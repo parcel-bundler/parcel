@@ -62,13 +62,13 @@ parcelRegister('abc123', function (require, module, exports) {
 
 The minifier will remove the uninitialised variables, and it will also simplify the `(0, ...)` sequence expressions where possible.
 
-It is important to note, that Parcel will only execute the factory function once. Subseqent calls to `require` will return the module as returned from the original factory. See the `require` code in `packages/packagers/js/src/helpers.js` for how this works.
+It is important to note, that Parcel will only execute the factory function once. Subsequent calls to `require` will return the module as returned from the original factory. See the `require` code in `packages/packagers/js/src/helpers.js` for how this works.
 
 ## Caveats
 
 ### Overhead
 
-So the main caveat here is that we're now turning a simple variable access into a function call everytime the module is referenced. For smaller applications, this overhead may not be worth the tradeoff, however for larger applications it might. That's why this plugin is optional, as you need to try it to determine whether or not it works for you.
+So the main caveat here is that we're now turning a simple variable access into a function call every time the module is referenced. For smaller applications, this overhead may not be worth the tradeoff, however for larger applications it might. That's why this plugin is optional, as you need to try it to determine whether or not it works for you.
 
 ### Side-effects
 

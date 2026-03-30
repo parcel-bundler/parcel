@@ -223,7 +223,7 @@ export class TSModuleGraph {
         }
 
         if (m.imports.has(orig)) {
-          // Update imports after all modules's local variables have been renamed
+          // Update imports after all modules' local variables have been renamed
           importedSymbolsToUpdate.push([m, orig]);
           continue;
         }

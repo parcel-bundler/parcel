@@ -1428,7 +1428,7 @@ describe('bundler', function () {
         },
         inputFS: overlayFS,
       });
-      //assert that a,b,c are in one bundle, causeing foo and bar to overfetch, due to MSB config
+      //assert that a,b,c are in one bundle, causing foo and bar to overfetch, due to MSB config
       assertBundles(b, [
         {
           assets: ['index.html'],

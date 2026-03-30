@@ -93,7 +93,7 @@ declare module 'commander' {
      * Validation of option argument failed.
      * Intended for use from custom argument processing functions.
      */
-    argumentRejected(messsage: string): empty;
+    argumentRejected(message: string): empty;
 
     /**
      * Only allow option value to be one of choices.

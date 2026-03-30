@@ -172,7 +172,7 @@ pub struct HoistResult {
   /// ]
   /// ```
   ///
-  /// `local` will be the manged name of the variables.
+  /// `local` will be the managed name of the variables.
   pub imported_symbols: Vec<ImportedSymbol>,
   /// A vector of the symbols exported from this file, along with their mangled replacement
   /// identifiers.

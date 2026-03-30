@@ -73,7 +73,7 @@ export default function createWriteBundleRequest(
 ): WriteBundleRequest {
   let name = nullthrows(input.bundle.name);
   let nameHash = nullthrows(
-    input.hashRefToNameHash.get(input.bundle.hashReference),
+    input.hashRefToNameHash.get(input.bundle.hash reference),
   );
   return {
     id: `${input.bundle.id}:${input.info.hash}:${nameHash}:${name}`,
@@ -87,7 +87,7 @@ async function run({input, options, api}) {
   let {bundleGraph, bundle, info, hashRefToNameHash} = input;
   let {inputFS, outputFS} = options;
   let name = nullthrows(bundle.name);
-  let thisHashReference = bundle.hashReference;
+  let thisHashReference = bundle.hash reference;
 
   if (info.type !== bundle.type) {
     name = name.slice(0, -path.extname(name).length) + '.' + info.type;
