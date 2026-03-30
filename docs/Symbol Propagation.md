@@ -181,7 +181,7 @@ For better codesplitting and to hide the fact that symbol propagation runs on th
 To compute this information of where a symbol resolves to, the up traversal doesn't work with sets of symbols anymore but with a [map that lists the symbols together with the asset that symbol resolves to](https://github.com/parcel-bundler/parcel/blob/f65889ebd768e9b2e146537b47d4d5d82ff177b8/packages/core/core/src/types.js#L324-L333). The rules are:
 
 - if a symbol is exported directly (not reexported), then this is stored as the map entry value.
-- if a symbol is reexported and the reexporting asset is side-effect free and the symbol unambigously resolves to a single reexport, then the map entry value is just copied over from the outgoing dependency (and still points to the original asset).
+- if a symbol is reexported and the reexporting asset is side-effect free and the symbol unambiguously resolves to a single reexport, then the map entry value is just copied over from the outgoing dependency (and still points to the original asset).
 - otherwise if a symbol is reexported, then the map entry value is instead the reexporting asset (which will lead to a correct lookup at runtime, as described [above](#two-passes)).
 
 The rewriting of dependencies then happens in [`BundleGraph.fromAssetGraph`.](https://github.com/parcel-bundler/parcel/blob/6211c79f30e8fe2a1e079339277f11dba4acab2c/packages/core/core/src/BundleGraph.js#L210-L226)
