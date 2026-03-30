@@ -9,7 +9,22 @@ enum Command {
 }
 
 pub fn main() {
-  let mode = parcel_core::BuildMode::Development;
+  let mut args = std::env::args().skip(1);
+  let cmd = match args.next() {
+    None => todo!(),
+    Some(cmd) => match cmd.as_ref() {
+      "build" => Command::Build,
+      "serve" => Command::Serve,
+      "watch" => Command::Watch,
+      "targets" => Command::Targets,
+      _ => todo!(),
+    },
+  };
+
+  let mode = match cmd {
+    Command::Build => parcel_core::BuildMode::Production,
+    _ => parcel_core::BuildMode::Development,
+  };
   let mut env = HashMap::new();
   env.insert(
     "NODE_ENV".into(),
@@ -25,18 +40,6 @@ pub fn main() {
     output_fs: Arc::new(OsFileSystem {}),
     log_level: parcel_core::LogLevel::Verbose,
     mode,
-  };
-
-  let mut args = std::env::args().skip(1);
-  let cmd = match args.next() {
-    None => todo!(),
-    Some(cmd) => match cmd.as_ref() {
-      "build" => Command::Build,
-      "serve" => Command::Serve,
-      "watch" => Command::Watch,
-      "targets" => Command::Targets,
-      _ => todo!(),
-    },
   };
 
   let mut entries = Vec::new();

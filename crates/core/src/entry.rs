@@ -1,6 +1,6 @@
 use std::{
   collections::HashSet,
-  path::{Path, PathBuf},
+  path::{Component, Path, PathBuf},
   sync::Arc,
 };
 
@@ -147,12 +147,19 @@ impl EntryResolver {
           }
 
           let env = self.environment(env);
+          let dist_entry_path = Path::new(&main);
+          let mut components = dist_entry_path.components();
+          let root_dir = components
+            .find(|c| matches!(c, Component::Normal(_)))
+            .unwrap();
+          let rest = components.as_path();
+
           self.add_entry(Entry {
             url: SourceUrl::from_path(&dir.join(source)).unwrap(),
             target: Arc::new(Target {
               name: field.to_string(),
-              dist_entry: Some(main.clone()),
-              dist_dir: SourceUrl::from_path(&dir).unwrap(),
+              dist_dir: SourceUrl::from_path(&dir.join(root_dir)).unwrap(),
+              dist_entry: Some(rest.to_str().unwrap().to_owned()),
               env,
               ..Default::default()
             }),
@@ -252,14 +259,21 @@ impl EntryResolver {
           };
 
           let env = self.environment(context.to_env(pkg, &dist_entry));
+          let dist_entry_path = Path::new(&dist_entry);
+          let mut components = dist_entry_path.components();
+          let root_dir = components
+            .find(|c| matches!(c, Component::Normal(_)))
+            .unwrap();
+          let rest = components.as_path();
+
           self.add_entry(Entry {
             url: source,
             target: Arc::new(Target {
               // TODO: where should the files that aren't the dist entry go?
               // Should we append the root directory of the dist_entry? the leaf?
               // Depends on what should be exported...
-              dist_dir: SourceUrl::from_path(dir).unwrap(),
-              dist_entry: Some(dist_entry),
+              dist_dir: SourceUrl::from_path(&dir.join(root_dir)).unwrap(),
+              dist_entry: Some(rest.to_str().unwrap().to_owned()),
               env,
               ..Default::default()
             }),

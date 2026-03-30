@@ -370,43 +370,47 @@ impl AssetGraph {
     let mut entry_index = 0;
 
     std::iter::from_fn(move || {
-      if stack.is_empty() {
-        if first_entry {
-          first_entry = false;
-        } else {
-          entry_index += 1;
-        }
-
-        while let Some(entry) = entries.next() {
-          if let Some(index) = entry.asset {
-            if !visited.contains(index) {
-              stack.push(index);
-              break;
+      loop {
+        if stack.is_empty() {
+          while let Some(entry) = entries.next() {
+            if first_entry {
+              first_entry = false;
+            } else {
+              entry_index += 1;
             }
-          }
-        }
-      }
 
-      while let Some(index) = stack.pop() {
-        if visited.contains(index) {
-          continue;
-        }
-
-        visited.insert(index);
-        if let AssetNode::Asset(asset) = &self.assets[index] {
-          for dep in asset.dependencies.iter().rev() {
-            if let DependencyResolution::Asset(index) = dep.resolution {
-              if !visited.contains(index as usize) {
-                stack.push(index as usize);
+            if let Some(index) = entry.asset {
+              if !visited.contains(index) {
+                stack.push(index);
+                break;
               }
             }
           }
+        }
 
-          return Some((index, asset, &self.entries[entry_index].target));
+        if stack.is_empty() {
+          return None;
+        }
+
+        while let Some(index) = stack.pop() {
+          if visited.contains(index) {
+            continue;
+          }
+
+          visited.insert(index);
+          if let AssetNode::Asset(asset) = &self.assets[index] {
+            for dep in asset.dependencies.iter().rev() {
+              if let DependencyResolution::Asset(index) = dep.resolution {
+                if !visited.contains(index as usize) {
+                  stack.push(index as usize);
+                }
+              }
+            }
+
+            return Some((index, asset, &self.entries[entry_index].target));
+          }
         }
       }
-
-      None
     })
   }
 }

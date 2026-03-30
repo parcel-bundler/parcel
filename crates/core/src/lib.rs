@@ -95,8 +95,10 @@ pub fn build(
       .dist_dir
       .to_file_path()
       .unwrap();
-    options.output_fs.create_dir_all(&dist_dir)?;
-    content.write(&*options.output_fs, &dist_dir.join(name))?;
+    let path = dist_dir.join(name);
+    println!("{:?}", path);
+    options.output_fs.create_dir_all(&path.parent().unwrap())?;
+    content.write(&*options.output_fs, &path)?;
   }
 
   Ok(bundle_graph)

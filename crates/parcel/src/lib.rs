@@ -1,4 +1,9 @@
-use std::{collections::HashSet, hash::Hash, path::Path, sync::Arc};
+use std::{
+  collections::{HashMap, HashSet},
+  hash::Hash,
+  path::Path,
+  sync::Arc,
+};
 
 use parcel_core::{
   AssetGraph, AssetNode, AssetType, BufferContent, BuildOptions, Bundle, BundleFlags, BundleGraph,
@@ -258,26 +263,41 @@ struct LibraryBundler {}
 impl Bundler for LibraryBundler {
   fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
     let mut bundles = Vec::<Bundle>::new();
+    let mut asset_to_bundle = HashMap::new();
+
+    for (id, asset, target) in asset_graph.dfs() {
+      let bundle_index = bundles.len();
+      bundles.push(Bundle {
+        ty: asset.ty.clone(),
+        assets: vec![id],
+        target: target.clone(),
+        bundle_behavior: asset.bundle_behavior,
+        entry_assets: vec![id],
+        env: asset.env.clone(),
+        flags: BundleFlags::NEEDS_STABLE_NAME,
+        main_entry_asset: Some(id),
+        name: None,
+        referenced_bundles: Vec::new(),
+      });
+      asset_to_bundle.insert(id as u32, bundle_index);
+    }
 
     for (id, asset) in asset_graph.assets.iter_mut().enumerate() {
       if let AssetNode::Asset(asset) = asset {
-        bundles.push(Bundle {
-          ty: asset.ty.clone(),
-          assets: vec![id],
-          target: Default::default(), // TODO
-          bundle_behavior: asset.bundle_behavior,
-          entry_assets: vec![id],
-          env: asset.env.clone(),
-          flags: BundleFlags::NEEDS_STABLE_NAME,
-          main_entry_asset: Some(id),
-          name: None,
-          referenced_bundles: Vec::new(),
-        });
-
         for dep in &mut asset.dependencies {
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-            dep.resolution = DependencyResolution::Bundle(resolved_asset_index);
+            if let Some(bundle) = asset_to_bundle.get(&resolved_asset_index) {
+              dep.resolution = DependencyResolution::Bundle(*bundle as u32);
+            }
           }
+        }
+      }
+    }
+
+    for entry in &asset_graph.entries {
+      if let Some(asset_index) = entry.asset {
+        if let Some(bundle) = asset_to_bundle.get(&(asset_index as u32)) {
+          bundles[*bundle].flags |= BundleFlags::ENTRY;
         }
       }
     }

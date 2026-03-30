@@ -68,35 +68,35 @@ pub fn tree_shake<'a>(
 
     ast.program.visit_mut_with(&mut shake);
 
-    if minify {
-      let module = std::mem::take(&mut ast.program);
-      let mut program = swc_core::ecma::minifier::optimize(
-        Program::Module(module),
-        ast.source_map.clone(),
-        Some(&ast.comments),
-        None,
-        &swc_core::ecma::minifier::option::MinifyOptions {
-          rename: true,
-          compress: Some(CompressOptions {
-            top_level: Some(TopLevelOptions { functions: true }),
-            ..Default::default()
-          }),
-          mangle: Some(MangleOptions {
-            top_level: Some(true),
-            ..Default::default()
-          }),
-          ..Default::default()
-        },
-        &swc_core::ecma::minifier::option::ExtraOptions {
-          mangle_name_cache: None,
-          top_level_mark: global_mark,
-          unresolved_mark,
-        },
-      );
+    // if minify {
+    //   let module = std::mem::take(&mut ast.program);
+    //   let mut program = swc_core::ecma::minifier::optimize(
+    //     Program::Module(module),
+    //     ast.source_map.clone(),
+    //     Some(&ast.comments),
+    //     None,
+    //     &swc_core::ecma::minifier::option::MinifyOptions {
+    //       rename: true,
+    //       compress: Some(CompressOptions {
+    //         top_level: Some(TopLevelOptions { functions: true }),
+    //         ..Default::default()
+    //       }),
+    //       mangle: Some(MangleOptions {
+    //         top_level: Some(true),
+    //         ..Default::default()
+    //       }),
+    //       ..Default::default()
+    //     },
+    //     &swc_core::ecma::minifier::option::ExtraOptions {
+    //       mangle_name_cache: None,
+    //       top_level_mark: global_mark,
+    //       unresolved_mark,
+    //     },
+    //   );
 
-      program.mutate(&mut fixer(Some(&ast.comments)));
-      ast.program = program.expect_module();
-    }
+    //   program.mutate(&mut fixer(Some(&ast.comments)));
+    //   ast.program = program.expect_module();
+    // }
   })
 }
 
