@@ -79,7 +79,7 @@ When developing plugins, you should disable caching with the `--no-cache` CLI or
 
 _Please don't commit these examples._
 
-You can create a temporary example for debugging in the folder `packages/examples`. Start by copying the `simple` example and try to reproduce the bug. It has everything setup for working on local changes and you can run `yarn build` to build the project. If you're re-using another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected.
+You can create a temporary example for debugging in the folder `packages/examples`. Start by copying the `simple` example and try to reproduce the bug. It has everything setup for working on local changes and you can run `yarn build` to build the project. If you're reusing another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected.
 
 ### Testing outside of the monorepo
 

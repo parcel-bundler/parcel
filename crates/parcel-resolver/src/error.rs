@@ -3,7 +3,7 @@ use crate::specifier::SpecifierError;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// An error that occcured during resolution.
+/// An error that occurred during resolution.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum ResolverError {
