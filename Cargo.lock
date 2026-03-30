@@ -2880,20 +2880,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel-plugin"
-version = "0.1.0"
-dependencies = [
- "indexmap 2.11.0",
- "parcel-core",
- "parcel-macros",
- "parcel-resolver",
- "rquickjs",
- "rquickjs-extra-console",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "parcel-plugin-js"
 version = "0.1.0"
 dependencies = [

@@ -2,8 +2,8 @@ use std::{collections::HashSet, hash::Hash, path::Path, sync::Arc};
 
 use parcel_core::{
   AssetGraph, AssetNode, AssetType, BufferContent, BuildOptions, Bundle, BundleFlags, BundleGraph,
-  Bundler, CPlugin, DefaultBundler, DependencyResolution, DiagnosticList, Namer, Optimizer,
-  OutputFormat, Packager, ParcelConfig, PluginFactory, SourceUrl, Transformer,
+  Bundler, CPlugin, DefaultBundler, DependencyResolution, DiagnosticList, EnvironmentFlags, Namer,
+  Optimizer, OutputFormat, Packager, ParcelConfig, PluginFactory, SourceUrl, Transformer,
 };
 use parcel_css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer};
 use parcel_html::{HtmlPackager, HtmlTransformer, SvgPackager, SvgTransformer};
@@ -207,8 +207,14 @@ impl Namer for DefaultNamer {
     bundle: &parcel_core::Bundle,
     _options: &parcel_core::ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList> {
+    if bundle.flags.contains(BundleFlags::ENTRY)
+      && let Some(dist_entry) = &bundle.target.dist_entry
+    {
+      return Ok(Some(dist_entry.clone()));
+    }
+
     let mut ext = bundle.ty.extension();
-    if bundle.ty == AssetType::Js {
+    if bundle.ty == AssetType::Js && bundle.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
       if bundle.env.output_format == OutputFormat::Esmodule {
         ext = "mjs";
       } else if bundle.env.output_format == OutputFormat::Commonjs {

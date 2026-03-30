@@ -380,16 +380,21 @@ impl EnvironmentFeature {
 }
 
 impl Engines {
-  pub fn from_browserslist(browserslist: &str, output_format: OutputFormat) -> Engines {
+  pub fn from_browserslist<'a, I: IntoIterator<Item = &'a str>>(
+    browserslist: I,
+    output_format: OutputFormat,
+  ) -> Engines {
     let browsers = if output_format == OutputFormat::Esmodule {
       // If the output format is esmodule, exclude browsers
       // that support them natively so that we transpile less.
       browserslist::resolve(
-        std::iter::once(browserslist).chain(ESMODULE_BROWSERS.iter().map(|s| *s)),
+        browserslist
+          .into_iter()
+          .chain(ESMODULE_BROWSERS.iter().map(|s| *s)),
         &Default::default(),
       )
     } else {
-      browserslist::resolve(std::iter::once(browserslist), &Default::default())
+      browserslist::resolve(browserslist, &Default::default())
     };
 
     Engines {
@@ -424,6 +429,27 @@ impl Engines {
     check!(browsers.safari);
     check!(browsers.samsung);
     true
+  }
+
+  pub fn for_context(self, context: EnvironmentContext) -> Engines {
+    if context.is_browser() {
+      Engines {
+        browsers: self.browsers,
+        ..Default::default()
+      }
+    } else if context.is_node() {
+      Engines {
+        node: self.node,
+        ..Default::default()
+      }
+    } else if context.is_electron() {
+      Engines {
+        electron: self.electron,
+        ..Default::default()
+      }
+    } else {
+      Default::default()
+    }
   }
 }
 
@@ -478,6 +504,25 @@ impl EnvironmentContext {
   }
 }
 
+impl TryFrom<&str> for EnvironmentContext {
+  type Error = ();
+  fn try_from(value: &str) -> Result<Self, Self::Error> {
+    use EnvironmentContext::*;
+    Ok(match value {
+      "browser" => Browser,
+      "web-worker" => WebWorker,
+      "service-worker" => ServiceWorker,
+      "worklet" => Worklet,
+      "node" => Node,
+      "electron-main" => ElectronMain,
+      "electron-renderer" => ElectronRenderer,
+      "react-client" => ReactClient,
+      "react-server" => ReactServer,
+      _ => return Err(()),
+    })
+  }
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceType {
@@ -493,4 +538,17 @@ pub enum OutputFormat {
   Global,
   Commonjs,
   Esmodule,
+}
+
+impl TryFrom<&str> for OutputFormat {
+  type Error = ();
+
+  fn try_from(value: &str) -> Result<Self, Self::Error> {
+    Ok(match value {
+      "global" => OutputFormat::Global,
+      "commonjs" => OutputFormat::Commonjs,
+      "esmodule" => OutputFormat::Esmodule,
+      _ => return Err(()),
+    })
+  }
 }

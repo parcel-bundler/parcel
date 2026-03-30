@@ -46,7 +46,7 @@ pub fn resolve_entries(
         } else {
           EnvironmentContext::Browser
         };
-        let engines = package_engines(&pkg, context, OutputFormat::Esmodule);
+        let engines = package_engines(&pkg, engines, context, OutputFormat::Esmodule);
         (context, engines)
       } else {
         (EnvironmentContext::Browser, Default::default())
@@ -118,16 +118,16 @@ impl EntryResolver {
     let pkg_path = dir.join("package.json");
     let contents = fs.read(&pkg_path)?;
     let json: Value = serde_json::from_slice(&contents)?;
+    let context = ExportsContext {
+      condition: ExportsCondition::empty(),
+      engines: json.get("engines"),
+      context: None,
+      output_format: None,
+      include_node_modules: None,
+    };
 
     if let Some(exports) = json.get("exports") {
-      self.extract_exports(
-        fs,
-        &dir,
-        &json,
-        exports,
-        Vec::new(),
-        ExportsCondition::empty(),
-      );
+      self.extract_exports(fs, &dir, &json, exports, Vec::new(), &context);
     }
 
     if let Some(Value::String(source)) = json.get("source") {
@@ -142,7 +142,7 @@ impl EntryResolver {
             // TODO: error
           }
 
-          let mut env = cond.to_env(&json, main);
+          let mut env = context.child(&json, field).to_env(&json, main);
           if *cond == ExportsCondition::MODULE {
             env.output_format = OutputFormat::Esmodule;
           }
@@ -187,10 +187,10 @@ impl EntryResolver {
     &mut self,
     fs: &dyn FileSystem,
     dir: &Path,
-    pkg: &serde_json::Value,
-    value: &serde_json::Value,
+    pkg: &Value,
+    value: &Value,
     source: Vec<(SourceUrl, Option<String>)>,
-    condition: ExportsCondition,
+    context: &ExportsContext,
   ) {
     if let Value::Object(exports) = value {
       let source = if let Some(Value::String(source)) = value.get("source") {
@@ -230,12 +230,18 @@ impl EntryResolver {
           continue;
         }
 
-        let cond = if !key.starts_with('.') {
-          condition | ExportsCondition::try_from(key.as_str()).unwrap_or(ExportsCondition::empty())
+        if !key.starts_with('.') {
+          self.extract_exports(
+            fs,
+            dir,
+            pkg,
+            value,
+            source.clone(),
+            &context.child(pkg, key),
+          );
         } else {
-          condition
-        };
-        self.extract_exports(fs, dir, pkg, value, source.clone(), cond);
+          self.extract_exports(fs, dir, pkg, value, source.clone(), context);
+        }
       }
     } else if let Value::String(value) = value {
       if value.starts_with('.') {
@@ -246,7 +252,7 @@ impl EntryResolver {
             value.clone()
           };
 
-          let env = self.environment(condition.to_env(pkg, &dist_entry));
+          let env = self.environment(context.to_env(pkg, &dist_entry));
           self.add_entry(Entry {
             url: source,
             target: Arc::new(Target {
@@ -267,32 +273,65 @@ impl EntryResolver {
   }
 }
 
-impl ExportsCondition {
+struct ExportsContext<'a> {
+  condition: ExportsCondition,
+  engines: Option<&'a Value>,
+  context: Option<&'a Value>,
+  output_format: Option<&'a Value>,
+  include_node_modules: Option<&'a Value>,
+}
+
+impl<'a> ExportsContext<'a> {
+  fn child(&'a self, pkg: &'a Value, condition: &str) -> ExportsContext<'a> {
+    let target = pkg
+      .get("targets")
+      .and_then(|targets| targets.get(condition));
+    ExportsContext {
+      condition: self.condition
+        | ExportsCondition::try_from(condition).unwrap_or(ExportsCondition::empty()),
+      engines: target
+        .and_then(|t| t.get("engines"))
+        .or(self.engines.clone()),
+      context: target
+        .and_then(|t| t.get("context"))
+        .or(self.context.clone()),
+      output_format: target
+        .and_then(|t| t.get("outputFormat"))
+        .or(self.output_format.clone()),
+      include_node_modules: target
+        .and_then(|t| t.get("includeNodeModules"))
+        .or(self.output_format.clone()),
+    }
+  }
+
   fn to_env(&self, pkg: &Value, entry: &str) -> Environment {
-    let engines = pkg.get("engines");
-    let context = if self.contains(ExportsCondition::REACT_SERVER) {
+    let context = if let Some(Value::String(context)) = self.context {
+      EnvironmentContext::try_from(context.as_str()).unwrap()
+    } else if self.condition.contains(ExportsCondition::REACT_SERVER) {
       EnvironmentContext::ReactServer
-    } else if self.contains(ExportsCondition::ELECTRON) {
-      if self.contains(ExportsCondition::NODE) {
+    } else if self.condition.contains(ExportsCondition::ELECTRON) {
+      if self.condition.contains(ExportsCondition::NODE) {
         EnvironmentContext::ElectronMain
       } else {
         EnvironmentContext::ElectronRenderer
       }
-    } else if self.contains(ExportsCondition::NODE) {
+    } else if self.condition.contains(ExportsCondition::NODE) {
       EnvironmentContext::Node
-    } else if self.contains(ExportsCondition::WORKER) {
+    } else if self.condition.contains(ExportsCondition::WORKER) {
       EnvironmentContext::WebWorker
-    } else if self.contains(ExportsCondition::WORKLET) {
+    } else if self.condition.contains(ExportsCondition::WORKLET) {
       EnvironmentContext::Worklet
-    } else if self.contains(ExportsCondition::BROWSER) {
+    } else if self.condition.contains(ExportsCondition::BROWSER) {
       EnvironmentContext::Browser
-    } else if engines.and_then(|e| e.get("node")).is_some() {
+    } else if self.engines.and_then(|e| e.get("node")).is_some() {
       EnvironmentContext::Node
     } else {
       EnvironmentContext::Browser
     };
 
-    let output_format = if entry.ends_with(".mjs") {
+    let output_format = if let Some(Value::String(format)) = self.output_format {
+      OutputFormat::try_from(format.as_str()).unwrap()
+    } else if entry.ends_with(".mjs") {
       OutputFormat::Esmodule
     } else if entry.ends_with(".cjs") {
       OutputFormat::Commonjs
@@ -307,14 +346,16 @@ impl ExportsCondition {
     };
 
     // Bundle devDependencies but not dependencies or peerDependencies.
-    let include_node_modules = if let Some(Value::Object(deps)) = pkg.get("devDependencies") {
+    let include_node_modules = if let Some(include) = self.include_node_modules {
+      serde_json::from_value(include.clone()).unwrap()
+    } else if let Some(Value::Object(deps)) = pkg.get("devDependencies") {
       IncludeNodeModules::Array(deps.keys().cloned().collect())
     } else {
       IncludeNodeModules::Bool(false)
     };
 
     let mut flags = EnvironmentFlags::IS_LIBRARY;
-    if self.contains(ExportsCondition::PRODUCTION) {
+    if self.condition.contains(ExportsCondition::PRODUCTION) {
       flags.insert(EnvironmentFlags::SHOULD_OPTIMIZE); // ??
     }
 
@@ -326,24 +367,29 @@ impl ExportsCondition {
       source_map: None,
       loc: None,
       include_node_modules,
-      engines: package_engines(pkg, context, output_format),
+      engines: package_engines(pkg, self.engines, context, output_format),
     }
   }
 }
 
 fn package_engines(
-  pkg: &serde_json::Value,
+  pkg: &Value,
+  engines: Option<&Value>,
   context: EnvironmentContext,
   output_format: OutputFormat,
 ) -> Engines {
-  let engines = pkg.get("engines");
   let engines = if context.is_browser() {
-    if let Some(Value::String(browsers)) = engines.and_then(|e| e.get("browsers")) {
-      Engines::from_browserslist(browsers, output_format)
-    } else if let Some(Value::String(browsers)) = pkg.get("browserslist") {
-      Engines::from_browserslist(browsers, output_format)
-    } else {
-      Default::default()
+    let browsers = engines
+      .and_then(|e| e.get("browsers"))
+      .or_else(|| pkg.get("browserslist"));
+    match browsers {
+      Some(Value::String(browsers)) => {
+        Engines::from_browserslist(std::iter::once(browsers.as_str()), output_format)
+      }
+      Some(Value::Array(browsers)) => {
+        Engines::from_browserslist(browsers.iter().filter_map(|b| b.as_str()), output_format)
+      }
+      _ => Default::default(),
     }
   } else if context.is_electron() {
     if let Some(Value::String(version)) = engines.and_then(|e| e.get("electron")) {
@@ -1022,6 +1068,94 @@ mod tests {
           loc: None,
         },
       ],
+    );
+
+    test(
+      r#"
+    {
+      "exports": {
+        "source": "./src/index.tsx",
+        "custom": "./dist/index.js"
+      },
+      "targets": {
+        "custom": {
+          "outputFormat": "esmodule",
+          "engines": {
+            "browsers": "Chrome >= 79"
+          }
+        }
+      }
+    }"#,
+      vec![Entry {
+        url: SourceUrl::parse("file:///root/src/index.tsx").unwrap(),
+        target: Arc::new(Target {
+          dist_dir: SourceUrl::parse("file:///root").unwrap(),
+          dist_entry: Some("./dist/index.js".into()),
+          env: Arc::new(Environment {
+            context: EnvironmentContext::Browser,
+            output_format: crate::OutputFormat::Esmodule,
+            flags: EnvironmentFlags::IS_LIBRARY,
+            include_node_modules: crate::IncludeNodeModules::Bool(false),
+            engines: crate::Engines {
+              browsers: crate::Browsers {
+                chrome: Some(Version::new(NonZero::new(79).unwrap(), 0)),
+                ..Default::default()
+              },
+              ..Default::default()
+            },
+            ..Default::default()
+          }),
+          ..Default::default()
+        }),
+        asset: None,
+        loc: None,
+      }],
+    );
+
+    test(
+      r#"
+    {
+      "exports": {
+        "source": "./src/index.tsx",
+        "custom1": {
+          "custom2": "./dist/index.js"
+        }
+      },
+      "targets": {
+        "custom1": {
+          "outputFormat": "esmodule"
+        },
+        "custom2": {
+          "engines": {
+            "browsers": ["Chrome >= 79"]
+          }
+        }
+      }
+    }"#,
+      vec![Entry {
+        url: SourceUrl::parse("file:///root/src/index.tsx").unwrap(),
+        target: Arc::new(Target {
+          dist_dir: SourceUrl::parse("file:///root").unwrap(),
+          dist_entry: Some("./dist/index.js".into()),
+          env: Arc::new(Environment {
+            context: EnvironmentContext::Browser,
+            output_format: crate::OutputFormat::Esmodule,
+            flags: EnvironmentFlags::IS_LIBRARY,
+            include_node_modules: crate::IncludeNodeModules::Bool(false),
+            engines: crate::Engines {
+              browsers: crate::Browsers {
+                chrome: Some(Version::new(NonZero::new(79).unwrap(), 0)),
+                ..Default::default()
+              },
+              ..Default::default()
+            },
+            ..Default::default()
+          }),
+          ..Default::default()
+        }),
+        asset: None,
+        loc: None,
+      }],
     );
   }
 }
