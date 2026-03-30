@@ -1,5 +1,5 @@
 {
-  "resolvers": ["@parcel/resolver-default"],
+  "resolvers": ["@parcel/resolver-glob", "@parcel/resolver-default"],
   "transformers": {
     "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": [
       "@parcel/transformer-js"

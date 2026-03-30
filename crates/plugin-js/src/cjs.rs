@@ -13,7 +13,7 @@ pub struct CjsLoader {
 impl CjsLoader {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
     CjsLoader {
-      resolver: parcel_resolver::Resolver::node(
+      resolver: parcel_resolver::Resolver::parcel(
         Path::new(&project_root),
         parcel_resolver::Cache::new(fs.clone()),
       ),

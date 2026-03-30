@@ -34,7 +34,7 @@ impl Resolver for DefaultResolver {
     options: &ParcelOptions,
   ) -> Result<DependencyResolution, DiagnosticList> {
     let resolve_from = dep.resolve_from.as_ref().unwrap();
-    let mut conditions = dep.conditions;
+    let mut conditions = dep.conditions | ExportsCondition::SOURCE;
 
     if dep.env.context.is_browser() {
       conditions |= ExportsCondition::BROWSER;
@@ -76,7 +76,7 @@ impl Resolver for DefaultResolver {
         _ => parcel_resolver::SpecifierType::Esm,
       },
       ResolveOptions {
-        conditions: dep.conditions,
+        conditions,
         ..Default::default()
       },
     );

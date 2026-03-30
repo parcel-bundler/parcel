@@ -2688,6 +2688,7 @@ name = "parcel"
 version = "0.1.0"
 dependencies = [
  "base64-url",
+ "glob-match",
  "indexmap 2.11.0",
  "parcel-core",
  "parcel-css",
@@ -2697,6 +2698,7 @@ dependencies = [
  "parcel-plugin-js",
  "parcel-resolver",
  "parcel-watcher",
+ "pathdiff",
  "rquickjs",
  "rquickjs-serde",
  "serde",

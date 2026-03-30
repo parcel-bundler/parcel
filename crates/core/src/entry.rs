@@ -4,13 +4,12 @@ use std::{
   sync::Arc,
 };
 
-use glob_match::glob_match;
 use serde_json::Value;
 
 use crate::{
   BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentContext, EnvironmentFlags,
   ExportsCondition, FileKind, FileSystem, IncludeNodeModules, OutputFormat, SourceLocation,
-  SourceType, SourceUrl, Target, Version,
+  SourceType, SourceUrl, Target, Version, glob, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -414,68 +413,6 @@ fn package_engines(
   };
 
   engines
-}
-
-fn glob(fs: &dyn FileSystem, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
-  if !is_glob(pattern) {
-    let mut path = Path::new(pattern).to_path_buf();
-    if !path.is_absolute() {
-      path = cwd.join(path);
-    }
-    if !fs.kind(&path).is_empty() {
-      return vec![path];
-    }
-    return Vec::new();
-  }
-
-  let (dir, file) = pattern.rsplit_once('/').unwrap_or(("", pattern));
-  let mut matches = Vec::new();
-
-  if !is_glob(dir) {
-    let mut path = Path::new(dir).to_path_buf();
-    if !path.is_absolute() {
-      path = cwd.join(path);
-    }
-    match_dir(fs, &path, file, &mut matches);
-  } else {
-    for dir in glob(fs, dir, cwd) {
-      match_dir(fs, &dir, file, &mut matches)
-    }
-  }
-
-  matches
-}
-
-#[inline]
-fn is_glob(pattern: &str) -> bool {
-  pattern.contains(&['*', '?', '[', '{'])
-}
-
-fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut Vec<PathBuf>) {
-  if let Ok(mut entries) = fs.read_dir(dir_path) {
-    let is_globstar = pattern == "**";
-    if is_globstar {
-      matches.push(dir_path.to_path_buf());
-    }
-
-    entries.sort_by(|a, b| a.name.cmp(&b.name));
-
-    for entry in entries {
-      if let Some(name) = entry.name.to_str() {
-        if is_globstar {
-          if entry.kind.contains(FileKind::IS_DIR) {
-            match_dir(fs, &dir_path.join(name), pattern, matches);
-          } else {
-            matches.push(dir_path.join(name));
-          }
-        } else {
-          if glob_match(pattern, name) {
-            matches.push(dir_path.join(name));
-          }
-        }
-      }
-    }
-  }
 }
 
 fn find_project_root(entries: &Vec<PathBuf>) -> PathBuf {

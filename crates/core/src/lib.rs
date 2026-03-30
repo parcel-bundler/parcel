@@ -74,7 +74,7 @@ pub fn build(
   let config = Arc::new(ParcelConfig::read(
     &*options.input_fs,
     // &project_root.join(".parcelrc"),
-    Path::new("/Users/devongovett/dev/parcel/test/.parcelrc"),
+    Path::new("/Users/devongovett/dev/parcel/test/library/.parcelrc"),
     factory,
   ));
 

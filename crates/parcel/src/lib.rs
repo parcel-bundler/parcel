@@ -12,8 +12,9 @@ use parcel_js::{JsPackager, JsTransformer, LibraryPackager};
 use parcel_plugin_js::JsPlugin;
 use xxhash_rust::xxh3::Xxh3Default;
 
-use crate::resolver::DefaultResolver;
+use crate::{glob_resolver::GlobResolver, resolver::DefaultResolver};
 
+mod glob_resolver;
 mod resolver;
 mod server;
 
@@ -109,10 +110,10 @@ impl PluginFactory for DefaultPluginFactory {
     name: &str,
     config: Option<serde_json::Value>,
   ) -> Arc<dyn parcel_core::Resolver> {
-    if name == "@parcel/resolver-default" {
-      Arc::new(DefaultResolver::new("/".into()))
-    } else {
-      todo!()
+    match name {
+      "@parcel/resolver-default" => Arc::new(DefaultResolver::new("/".into())),
+      "@parcel/resolver-glob" => Arc::new(GlobResolver {}),
+      _ => todo!(),
     }
   }
 

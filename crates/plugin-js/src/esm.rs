@@ -23,7 +23,7 @@ pub struct ModuleResolver {
 impl ModuleResolver {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
     ModuleResolver {
-      resolver: Rc::new(parcel_resolver::Resolver::node_esm(
+      resolver: Rc::new(parcel_resolver::Resolver::parcel(
         Path::new(&project_root),
         parcel_resolver::Cache::new(fs),
       )),
