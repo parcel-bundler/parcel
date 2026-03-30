@@ -46,7 +46,7 @@ declare module 'node-ipc' {
      * https://www.npmjs.com/package/node-ipc#connecttonet
      * Used to connect as a client to a TCP or TLS socket via the network card.
      * This can be local or remote, if local, it is recommended that you use the Unix
-     * and Windows Socket Implementaion of connectTo instead as it is much faster since it avoids the network card altogether.
+     * and Windows Socket Implementation of connectTo instead as it is much faster since it avoids the network card altogether.
      * For TLS and SSL Sockets see the node-ipc TLS and SSL docs.
      * They have a few additional requirements, and things to know about and so have their own doc.
      * @param id is the string id of the socket being connected to. For TCP & TLS sockets,
@@ -66,7 +66,7 @@ declare module 'node-ipc' {
      * https://www.npmjs.com/package/node-ipc#connecttonet
      * Used to connect as a client to a TCP or TLS socket via the network card.
      * This can be local or remote, if local, it is recommended that you use the Unix
-     * and Windows Socket Implementaion of connectTo instead as it is much faster since it avoids the network card altogether.
+     * and Windows Socket Implementation of connectTo instead as it is much faster since it avoids the network card altogether.
      * For TLS and SSL Sockets see the node-ipc TLS and SSL docs.
      * They have a few additional requirements, and things to know about and so have their own doc.
      * @param id is the string id of the socket being connected to. For TCP & TLS sockets,
@@ -78,7 +78,7 @@ declare module 'node-ipc' {
      * https://www.npmjs.com/package/node-ipc#connecttonet
      * Used to connect as a client to a TCP or TLS socket via the network card.
      * This can be local or remote, if local, it is recommended that you use the Unix
-     * and Windows Socket Implementaion of connectTo instead as it is much faster since it avoids the network card altogether.
+     * and Windows Socket Implementation of connectTo instead as it is much faster since it avoids the network card altogether.
      * For TLS and SSL Sockets see the node-ipc TLS and SSL docs.
      * They have a few additional requirements, and things to know about and so have their own doc.
      * @param id is the string id of the socket being connected to.
@@ -95,7 +95,7 @@ declare module 'node-ipc' {
     /**
      * https://www.npmjs.com/package/node-ipc#disconnect
      * Used to disconnect a client from a Unix, Windows, TCP or TLS socket.
-     * The socket and its refrence will be removed from memory and the ipc.of scope.
+     * The socket and its reference will be removed from memory and the ipc.of scope.
      * This can be local or remote. UDP clients do not maintain connections and so there are no Clients and this method has no value to them
      * @param id is the string id of the socket from which to disconnect
      */
@@ -167,7 +167,7 @@ declare module 'node-ipc' {
      */
     of: {[string]: Client};
     /**
-     * This is a refrence to the server created by ipc.serve or ipc.serveNet
+     * This is a reference to the server created by ipc.serve or ipc.serveNet
      */
     server: Server;
   }
@@ -179,7 +179,7 @@ declare module 'node-ipc' {
      */
     on(event: string, callback: (...args: any[]) => void): Client;
     /**
-     * triggered when an error has occured
+     * triggered when an error has occurred
      */
     on(event: 'error', callback: (err: any) => void): Client;
     /**
@@ -233,8 +233,8 @@ declare module 'node-ipc' {
      * Used for Unix Socket (Unix Domain Socket) namespacing.
      * If not set specifically, the Unix Domain Socket will combine the socketRoot, appspace,
      * and id to form the Unix Socket Path for creation or binding.
-     * This is available incase you have many apps running on your system, you may have several sockets with the same id,
-     * but if you change the appspace, you will still have app specic unique sockets
+     * This is available in case you have many apps running on your system, you may have several sockets with the same id,
+     * but if you change the appspace, you will still have app specific unique sockets
      */
     appspace: string;
     /**

@@ -41,7 +41,7 @@ When linking into a project that uses a fork of Parcel,
 the published packages may have a different namespace from
 Parcel, so `parcel-link` allows specifying a namespace.
 
-If defined to someting other than `"@parcel"`,
+If defined to something other than `"@parcel"`,
 `parcel-link` will do some extra work to adjust
 namespaced packages to reference linked packages instead.
 

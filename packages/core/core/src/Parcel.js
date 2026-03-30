@@ -408,7 +408,7 @@ export default class Parcel {
       async (err, events) => {
         if (err) {
           logger.verbose({
-            message: `File watch event error occured`,
+            message: `File watch event error occurred`,
             meta: {err},
           });
           this.#watchEvents.emit({error: err});

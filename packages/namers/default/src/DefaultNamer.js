@@ -98,7 +98,7 @@ export default (new Namer({
       bundleGraph.getEntryRoot(bundle.target),
     );
     if (!bundle.needsStableName) {
-      name += '.' + bundle.hashReference;
+      name += '.' + bundle.hash reference;
     }
 
     // Allow bundle extension to be overridden.

@@ -23,7 +23,7 @@ const SCHEMA_ATTRS = [
 export default (new Transformer({
   async transform({asset}) {
     let rawCode = await asset.getCode();
-    // allowing any recieved jsonld to be in json5 format
+    // allowing any received jsonld to be in json5 format
     let jsonCode = json5.parse(rawCode);
 
     jsonCode = extractUrlsFrom(jsonCode, asset);

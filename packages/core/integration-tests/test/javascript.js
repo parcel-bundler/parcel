@@ -3498,7 +3498,7 @@ describe('javascript', function () {
     assert.equal(typeof res.c, 'function');
   });
 
-  it('should prioritize named exports before re-exports withput scope hoisting (before)', async () => {
+  it('should prioritize named exports before re-exports without scope hoisting (before)', async () => {
     let b = await bundle(
       path.join(
         __dirname,

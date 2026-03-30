@@ -72,11 +72,11 @@ async function run({input, api, farm, options}) {
     // need to update the name so other bundles can reference it.
     if (bundle.isPlaceholder) {
       let hash = bundle.id.slice(-8);
-      hashRefToNameHash.set(bundle.hashReference, hash);
+      hashRefToNameHash.set(bundle.hash reference, hash);
       let name = nullthrows(
         bundle.name,
         `Expected ${bundle.type} bundle to have a name`,
-      ).replace(bundle.hashReference, hash);
+      ).replace(bundle.hash reference, hash);
       res.set(bundle.id, [
         {
           filePath: joinProjectPath(bundle.target.distDir, name),
@@ -130,7 +130,7 @@ async function run({input, api, farm, options}) {
         bundleInfoMap[bundle.id] = infos;
         if (infos.every(info => info.hashReferences.length === 0)) {
           hashRefToNameHash.set(
-            bundle.hashReference,
+            bundle.hash reference,
             options.shouldContentHash
               ? infos.length === 1
                 ? infos[0].hash.slice(-8)
@@ -189,11 +189,11 @@ function assignComplexNameHashes(
   options,
 ) {
   for (let bundle of bundles) {
-    if (hashRefToNameHash.get(bundle.hashReference) != null) {
+    if (hashRefToNameHash.get(bundle.hash reference) != null) {
       continue;
     }
     hashRefToNameHash.set(
-      bundle.hashReference,
+      bundle.hash reference,
       options.shouldContentHash
         ? hashString(
             [...getBundlesIncludedInHash(bundle.id, bundleInfoMap)]

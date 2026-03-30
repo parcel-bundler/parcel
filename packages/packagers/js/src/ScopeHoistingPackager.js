@@ -1071,7 +1071,7 @@ ${code}
     }
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
-      // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
+      // Resolve to the namespace object if requested or this is a CJS default interop require.
       if (
         parentAsset === resolvedAsset &&
         this.wrappedAssets.has(resolvedAsset.id)

@@ -34,7 +34,7 @@ export default (new Runtime({
 
     let code = `import {_register} from '@parcel/service-worker';
 const manifest = ${JSON.stringify(manifest)};
-const version = ${JSON.stringify(bundle.hashReference)};
+const version = ${JSON.stringify(bundle.hash reference)};
 _register(manifest, version);
 `;
 

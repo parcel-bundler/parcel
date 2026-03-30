@@ -16,7 +16,7 @@ const {
  * @prop {Array<import('vscode-languageserver').Diagnostics>} diagnostics
  */
 
-// -------------------------------- Flow-specific defintions
+// -------------------------------- Flow-specific definitions
 
 /*::
 export type PublishDiagnostic = {|

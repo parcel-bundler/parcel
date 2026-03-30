@@ -533,7 +533,7 @@ declare module 'micromatch' {
      * @param str The string to match.
      * @param patterns Glob pattern to use for matching.
      * @param options See available options for changing how matches are performed
-     * @returns Returns true if the patter matches any part of `str`.
+     * @returns Returns true if the pattern matches any part of `str`.
      *
      * @example
      * ```js

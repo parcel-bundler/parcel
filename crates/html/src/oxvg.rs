@@ -1005,7 +1005,7 @@ impl PartialEq for Element<'_> {
   }
 }
 
-/// A whitespace seperated set of tokens of a class attribute's value.
+/// A whitespace separated set of tokens of a class attribute's value.
 pub struct ClassList<'arena> {
   attrs: Attributes<'arena>,
   tokens: Vec<StrTendril>,

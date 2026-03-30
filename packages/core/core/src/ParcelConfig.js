@@ -353,7 +353,7 @@ export default class ParcelConfig {
     pattern: Glob,
     pipeline?: ?string,
   ): boolean {
-    // glob's shouldn't be dependant on absolute paths anyway
+    // glob's shouldn't be dependent on absolute paths anyway
     let filePath = fromProjectPathRelative(projectPath);
 
     let [patternPipeline, patternGlob] = pattern.split(':');

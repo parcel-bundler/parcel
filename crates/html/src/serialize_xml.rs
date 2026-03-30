@@ -19,8 +19,8 @@ pub fn serialize<'arena, Wr>(writer: Wr, node: Ref<'arena>) -> io::Result<()>
 where
   Wr: Write,
 {
-  let mut ser = XmlSerializer::new(writer);
-  ser.serialize_node(node)
+  let mut set = XmlSerializer::new(writer);
+  set.serialize_node(node)
 }
 
 /// Struct used for serializing nodes into a text that other XML

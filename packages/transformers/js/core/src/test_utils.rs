@@ -70,7 +70,7 @@ pub(crate) fn run_fold<V: Fold>(
   }
 }
 
-/// Parse code, run resolver over it, then run the `tranform` function with the parsed module
+/// Parse code, run resolver over it, then run the `transform` function with the parsed module
 /// codegen and return the results.
 pub(crate) fn run_with_transformation<R>(
   code: &str,

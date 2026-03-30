@@ -177,7 +177,7 @@ export default async function loadPlugin<T>(
     });
   }
 
-  // Remove plugin version compatiblility validation in canary builds as they don't use semver
+  // Remove plugin version compatibility validation in canary builds as they don't use semver
   if (!process.env.SKIP_PLUGIN_COMPATIBILITY_CHECK) {
     if (!pluginName.startsWith('.')) {
       // Validate the engines.parcel field in the plugin's package.json
