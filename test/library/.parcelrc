@@ -20,8 +20,12 @@
     ],
     "*.style": ["@parcel/transformer-style-attr"],
     "*.{html,xhtml}": ["@parcel/transformer-html"],
+    "illustration:*.svg": ["@parcel/transformer-svg"],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": ["@parcel/transformer-image"],
+    "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.toml": ["@parcel/transformer-toml"],
+    "*.{yaml,yml}": ["@parcel/transformer-yaml"],
     "*.less": [
       {
         "plugin": "@parcel/transformer-quickjs",

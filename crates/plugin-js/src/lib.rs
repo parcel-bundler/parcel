@@ -4,11 +4,12 @@ use indexmap::IndexMap;
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency,
   DependencyFlags, DependencyResolution, Diagnostic, Environment, ExportsCondition, FileSystem,
-  Location, OsFileSystem, Priority, SourceLocation, SourceUrl, SpecifierType, Transformer,
+  Location, OsFileSystem, OutputFormat, Priority, SourceLocation, SourceUrl, SpecifierType,
+  Transformer,
 };
 use parcel_macros::{JsValue, MacroError};
 use rquickjs::{
-  Class, Context, Ctx, FromJs, Function, IntoJs, JsLifetime, Module, Object, Runtime, Type,
+  Class, Context, Ctx, FromJs, Function, IntoJs, JsLifetime, Module, Object, Runtime, Symbol, Type,
   TypedArray, Value,
   class::{self, JsClass, Trace},
   function::{Args, Constructor},
@@ -103,15 +104,21 @@ pub fn create_runtime(fs: Arc<dyn FileSystem>) -> rquickjs::Result<Context> {
 }
 
 pub struct JsPlugin {
-  path: Vec<u8>,
+  path: String,
 }
 
 impl JsPlugin {
   pub fn new(path: &Path) -> JsPlugin {
     JsPlugin {
-      path: path.as_os_str().as_encoded_bytes().into(),
+      path: path.to_str().unwrap().to_owned(),
     }
   }
+}
+
+fn load_module<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Object<'js>> {
+  let cjs = ctx.userdata::<CjsLoader>().unwrap();
+  let module = cjs.load(ctx, path)?;
+  module.into_object().ok_or(rquickjs::Error::Unknown)
 }
 
 impl Transformer for JsPlugin {
@@ -121,8 +128,14 @@ impl Transformer for JsPlugin {
     _options: &parcel_core::ParcelOptions,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
     let asset = with_js_env(|ctx| {
-      let promise = Module::import(&ctx, self.path.clone())?;
-      let module: Object = promise.finish()?;
+      // let promise = Module::import(&ctx, self.path.clone())?;
+      // let module: Object = promise.finish()?;
+      let module = load_module(&ctx, &self.path)?;
+      // let default: Object = module.get("default")?;
+      // let symbol: Object = ctx.globals().get("Symbol")?;
+      // let symbol_for: Function = symbol.get("for")?;
+      // let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+      // let config: Object = default.get(sym)?;
       let transform: Function = module.get("transform")?;
       let asset = JsAsset { asset: Some(asset) };
       let value = asset.into_js(&ctx)?;
@@ -203,6 +216,38 @@ impl JsAsset {
       unreachable!()
     };
     asset.content = Arc::new(BufferContent::new(value.into_bytes()));
+  }
+
+  #[qjs(get)]
+  fn target(&mut self) -> JsTarget {
+    let Some(asset) = &mut self.asset else {
+      unreachable!()
+    };
+    JsTarget {
+      env: asset.env.clone(),
+    }
+  }
+}
+
+#[derive(JsLifetime)]
+#[rquickjs::class]
+pub struct JsTarget {
+  env: Arc<Environment>,
+}
+
+impl<'js> Trace<'js> for JsTarget {
+  fn trace<'a>(&self, _tracer: class::Tracer<'a, 'js>) {}
+}
+
+#[methods]
+impl JsTarget {
+  #[qjs(get, rename = "outputFormat")]
+  fn output_format(&self) -> &str {
+    match self.env.output_format {
+      OutputFormat::Commonjs => "commonjs",
+      OutputFormat::Esmodule => "esmodule",
+      OutputFormat::Global => "global",
+    }
   }
 }
 
@@ -528,8 +573,7 @@ pub fn call_macro(
   loc: parcel_macros::Location,
 ) -> Result<(JsValue, Vec<Dependency>), MacroError> {
   with_js_env(|ctx| {
-    let promise = Module::import(&ctx, src)?;
-    let module: Object = promise.finish()?;
+    let module = load_module(&ctx, &src)?;
     let f: Function = module.get(&export)?;
     let mut js_args = Args::new(ctx.clone(), args.len());
     let dependencies = Rc::new(RefCell::new(Vec::new()));

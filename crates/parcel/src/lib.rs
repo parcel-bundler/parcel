@@ -1,7 +1,8 @@
 use std::{
   collections::{HashMap, HashSet},
+  ffi::OsStr,
   hash::Hash,
-  path::Path,
+  path::{Component, Path, PathBuf},
   sync::Arc,
 };
 
@@ -231,19 +232,26 @@ impl Namer for DefaultNamer {
     if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
       if let Some(entry) = bundle.main_entry_asset {
         if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {
-          return Ok(Some(format!(
-            "{}",
-            asset
-              .loc
-              .url
+          let path = asset.loc.url.to_file_path().unwrap().with_extension(ext);
+          let relative: PathBuf = pathdiff::diff_paths(
+            path,
+            bundle
+              .target
+              .dist_dir
               .to_file_path()
               .unwrap()
-              .with_extension(ext)
-              .file_name()
-              .unwrap()
-              .to_str()
-              .unwrap()
-          )));
+              .parent()
+              .unwrap(),
+          )
+          .unwrap()
+          .components()
+          .map(|c| match c {
+            Component::ParentDir => Component::Normal(OsStr::new("up")),
+            _ => c,
+          })
+          .collect();
+
+          return Ok(Some(relative.to_str().unwrap().to_owned()));
         }
       }
     }
@@ -319,8 +327,8 @@ impl Transformer for JsonTransformer {
   ) -> Result<parcel_core::Asset, DiagnosticList> {
     let content = asset.content.read()?;
     let code = std::str::from_utf8(&content)?;
-    // let json: serde_json::Value = json5::from_str(code)?;
-    let js = format!("module.exports = {};\n", code);
+    // let json: serde_json::Value = serde_json::from_str(code)?;
+    let js = format!("export default {};\n", code);
 
     asset.ty = AssetType::Js;
     asset.content = Arc::new(BufferContent::new(js.into_bytes()));

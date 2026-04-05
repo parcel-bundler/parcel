@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use std::{
   any::Any,
+  ffi::OsStr,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -131,7 +132,11 @@ impl<T: ?Sized> PipelineMap<T> {
     pipeline: &Option<P>,
     _allow_empty: bool,
   ) -> Pipeline<T> {
-    let basename = Path::new(path).file_name().unwrap().to_str().unwrap();
+    let basename = Path::new(path)
+      .file_name()
+      .unwrap_or_else(|| OsStr::new(path))
+      .to_str()
+      .unwrap();
 
     let mut matches = Vec::new();
     if let Some(pipeline) = pipeline {

@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{borrow::Cow, path::Path, sync::Arc};
 
 use parcel_core::{
   AssetRequest, AssetType, BuildMode, CodeFrame, CodeHighlight, Dependency, DependencyResolution,
@@ -10,17 +10,14 @@ use parcel_resolver::{
 };
 
 pub struct DefaultResolver {
-  resolver: parcel_resolver::Resolver<'static>,
+  cache: parcel_resolver::Cache,
 }
 
 impl DefaultResolver {
   pub fn new(project_root: String) -> Self {
     let fs = Arc::new(OsFileSystem);
     DefaultResolver {
-      resolver: parcel_resolver::Resolver::parcel(
-        Path::new(&project_root),
-        parcel_resolver::Cache::new(fs),
-      ),
+      cache: parcel_resolver::Cache::new(fs),
     }
   }
 }
@@ -66,7 +63,11 @@ impl Resolver for DefaultResolver {
       conditions |= ExportsCondition::DEVELOPMENT;
     }
 
-    let mut res = self.resolver.resolve_with_options(
+    let mut resolver =
+      parcel_resolver::Resolver::parcel(&options.project_root.to_file_path().unwrap(), &self.cache);
+    resolver.include_node_modules = Cow::Borrowed(&dep.env.include_node_modules);
+
+    let mut res = resolver.resolve_with_options(
       specifier,
       &resolve_from.to_file_path().unwrap(),
       match dep.specifier_type {
@@ -86,7 +87,7 @@ impl Resolver for DefaultResolver {
       ..
     }) = &res.result
     {
-      match self.resolver.resolve_side_effects(p, &res.invalidations) {
+      match resolver.resolve_side_effects(p, &res.invalidations) {
         Ok(side_effects) => side_effects,
         Err(err) => {
           res.result = Err(err);
@@ -157,7 +158,17 @@ impl Resolver for DefaultResolver {
             "util" => "util/",
             "vm" => "vm-browserify",
             "zlib" => "browserify-zlib",
-            _ => todo!(),
+            m => {
+              println!("MISSING {}", m);
+              return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+                ty: AssetType::Js,
+                url: SourceUrl::parse("file:///empty.js").unwrap(),
+                code: Some(vec![]),
+                env: dep.env.clone(),
+                pipeline: pipeline.map(|p| p.into()),
+                side_effects,
+              })));
+            }
           };
 
           self.resolve(dep, module, pipeline, options)

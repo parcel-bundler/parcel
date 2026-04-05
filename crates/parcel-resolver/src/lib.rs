@@ -58,7 +58,7 @@ pub use package_json::{
   AliasValue, BrowserField, ExportsResolution, Fields, InlineEnvironment, ModuleType, PackageJson,
   PackageJsonError,
 };
-use parcel_core::ExportsCondition;
+use parcel_core::{ExportsCondition, IncludeNodeModules};
 #[cfg(not(target_arch = "wasm32"))]
 pub use parcel_core::{FileKind, FileSystem, OsFileSystem};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};
@@ -113,21 +113,21 @@ bitflags! {
 }
 
 /// Describes which modules in node_modules should be resolved.
-#[derive(Clone)]
-pub enum IncludeNodeModules {
-  /// Whether or not to include all node_modules.
-  Bool(bool),
-  /// An array of node_modules to include.
-  Array(Vec<String>),
-  /// A mapping of node_modules and whether to include them.
-  Map(HashMap<String, bool>),
-}
+// #[derive(Clone)]
+// pub enum IncludeNodeModules {
+//   /// Whether or not to include all node_modules.
+//   Bool(bool),
+//   /// An array of node_modules to include.
+//   Array(Vec<String>),
+//   /// A mapping of node_modules and whether to include them.
+//   Map(HashMap<String, bool>),
+// }
 
-impl Default for IncludeNodeModules {
-  fn default() -> Self {
-    IncludeNodeModules::Bool(true)
-  }
-}
+// impl Default for IncludeNodeModules {
+//   fn default() -> Self {
+//     IncludeNodeModules::Bool(true)
+//   }
+// }
 
 type ResolveModuleDir = dyn Fn(&str, &Path) -> Result<PathBuf, ResolverError> + Send + Sync;
 

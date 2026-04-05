@@ -28,24 +28,24 @@ impl Resolver for GlobResolver {
     let dir = source_path.parent().unwrap();
     let files = glob(&*options.input_fs, specifier, dir)
       .into_iter()
-      .filter_map(|path| pathdiff::diff_paths(&source_path, path))
+      .filter_map(|path| pathdiff::diff_paths(path, &dir))
       .collect::<Vec<_>>();
 
     let mut code = String::new();
     let mut index = 0;
     for file in &files {
       let string = file.to_str().unwrap();
-      write!(&mut code, "import * as _temp{} from {:?}", index, string);
+      write!(&mut code, "import _temp{} from {:?};\n", index, string);
       index += 1;
     }
 
-    code.push_str("export {");
+    code.push_str("export default {");
     index = 0;
     for file in files {
       let string = file.to_str().unwrap();
       if let Some(captures) = glob_match_with_captures(specifier, string) {
         let root = &string[captures[0].clone()];
-        write!(&mut code, "_temp{} as {:?}", index, root);
+        write!(&mut code, "{:?}: _temp{}, ", root, index);
         index += 1;
       }
     }
@@ -57,7 +57,7 @@ impl Resolver for GlobResolver {
       pipeline: None,
       env: dep.env.clone(),
       code: Some(code.into_bytes()),
-      side_effects: false,
+      side_effects: true,
     })))
   }
 }

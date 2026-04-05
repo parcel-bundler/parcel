@@ -1,8 +1,16 @@
-use std::{path::Path, sync::Arc};
+use std::{
+  path::{Path, PathBuf},
+  sync::Arc,
+};
 
-use parcel_core::{FileSystem, OsFileSystem};
+use parcel_core::FileSystem;
 use parcel_resolver::ModuleType;
 use rquickjs::{Ctx, JsLifetime, Module, Object, Value, context::EvalOptions, function};
+use swc::config::ModuleConfig;
+use swc_core::{
+  common::FileName,
+  ecma::parser::{Syntax, TsSyntax},
+};
 
 #[derive(JsLifetime)]
 pub struct CjsLoader {
@@ -35,6 +43,9 @@ impl CjsLoader {
           }
           "os" => Ok("/Users/devongovett/dev/parcel/node_modules/os-browserify/browser.js".into()),
           "tty" => Ok("/Users/devongovett/dev/parcel/node_modules/tty-browserify/index.js".into()),
+          "assert" => {
+            Ok("/Users/devongovett/dev/parcel/node_modules/assert/build/assert.js".into())
+          }
           // _ => Err(rquickjs::Error::new_resolving(base, name)),
           _ => Ok(
             "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js".into(),
@@ -56,7 +67,7 @@ impl CjsLoader {
       return Ok(exports);
     }
 
-    // println!("require {}", resolved);
+    println!("require {}", resolved);
 
     match self
       .resolver
@@ -76,7 +87,35 @@ impl CjsLoader {
         options.global = false;
         options.strict = false;
         options.filename = Some(resolved.into());
-        let source = self.fs.read_to_string(Path::new(resolved)).unwrap();
+
+        let mut source = self.fs.read_to_string(Path::new(resolved)).unwrap();
+        if resolved.ends_with(".ts") || resolved.ends_with(".tsx") {
+          let cm = Arc::<swc_core::common::SourceMap>::default();
+          let compiler = swc::Compiler::new(cm.clone());
+          source = swc::try_with_handler(cm.clone(), Default::default(), |handler| {
+            let filename = Arc::new(FileName::Real(PathBuf::from(resolved)));
+            let file = cm.new_source_file(filename, source);
+            let result = compiler.process_js_file(
+              file,
+              handler,
+              &swc::config::Options {
+                swcrc: false,
+                config: swc::config::Config {
+                  jsc: swc::config::JscConfig {
+                    syntax: Some(Syntax::Typescript(TsSyntax::default())),
+                    ..Default::default()
+                  },
+                  module: Some(ModuleConfig::CommonJs(Default::default())),
+                  ..Default::default()
+                },
+                ..Default::default()
+              },
+            )?;
+            Ok(result.code)
+          })
+          .unwrap();
+        }
+
         let mut code = String::new();
         code.push_str("var exports = module.exports;\n");
         code.push_str(&source);

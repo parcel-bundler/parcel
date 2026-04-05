@@ -15,3 +15,5 @@ parcel-macros = { path = "../macros" }
 indexmap = { version = "=2.11.0", features = ["serde"] }
 data-encoding = "2.3.2"
 url = "*"
+swc = "21"
+swc_core = "21"

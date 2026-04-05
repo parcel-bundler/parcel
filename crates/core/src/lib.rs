@@ -27,6 +27,8 @@ use std::{
   sync::Arc,
 };
 
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
 use crate::{asset_graph::build_asset_graph, packager::RawPackager};
 
 pub use asset::*;
@@ -84,22 +86,22 @@ pub fn build(
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, &config, &*options)?;
 
-  for i in 0..bundle_graph.bundles.len() {
-    let content = get_bundle_content(&config, &bundle_graph, &bundle_graph.bundles[i])?;
+  // for i in 0..bundle_graph.bundles.len() {
+  bundle_graph.bundles.par_iter().for_each(|bundle| {
+    let content = get_bundle_content(&config, &bundle_graph, &bundle).unwrap();
 
     // TODO: replace hash references
 
-    let name = bundle_graph.bundles[i].name.as_ref().unwrap();
-    let dist_dir = bundle_graph.bundles[i]
-      .target
-      .dist_dir
-      .to_file_path()
-      .unwrap();
+    let name = bundle.name.as_ref().unwrap();
+    let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
     let path = dist_dir.join(name);
-    println!("{:?}", path);
-    options.output_fs.create_dir_all(&path.parent().unwrap())?;
-    content.write(&*options.output_fs, &path)?;
-  }
+    // println!("{:?}", path);
+    options
+      .output_fs
+      .create_dir_all(&path.parent().unwrap())
+      .unwrap();
+    content.write(&*options.output_fs, &path);
+  });
 
   Ok(bundle_graph)
 }

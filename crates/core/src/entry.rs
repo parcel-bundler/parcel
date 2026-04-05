@@ -141,18 +141,18 @@ impl EntryResolver {
             // TODO: error
           }
 
-          let mut env = context.child(&json, field).to_env(&json, main);
+          let mut env = context.child(&json, field).to_env(&json, &dir, main);
           if *cond == ExportsCondition::MODULE {
             env.output_format = OutputFormat::Esmodule;
           }
 
-          let env = self.environment(env);
           let dist_entry_path = Path::new(&main);
           let mut components = dist_entry_path.components();
           let root_dir = components
             .find(|c| matches!(c, Component::Normal(_)))
             .unwrap();
           let rest = components.as_path();
+          let env = self.environment(env);
 
           self.add_entry(Entry {
             url: SourceUrl::from_path(&dir.join(source)).unwrap(),
@@ -258,7 +258,7 @@ impl EntryResolver {
             value.clone()
           };
 
-          let env = self.environment(context.to_env(pkg, &dist_entry));
+          let env = self.environment(context.to_env(pkg, dir, &dist_entry));
           let dist_entry_path = Path::new(&dist_entry);
           let mut components = dist_entry_path.components();
           let root_dir = components
@@ -317,7 +317,7 @@ impl<'a> ExportsContext<'a> {
     }
   }
 
-  fn to_env(&self, pkg: &Value, entry: &str) -> Environment {
+  fn to_env(&self, pkg: &Value, dir: &Path, entry: &str) -> Environment {
     let context = if let Some(Value::String(context)) = self.context {
       EnvironmentContext::try_from(context.as_str()).unwrap()
     } else if self.condition.contains(ExportsCondition::REACT_SERVER) {
@@ -372,6 +372,13 @@ impl<'a> ExportsContext<'a> {
       flags.insert(EnvironmentFlags::SHOULD_OPTIMIZE); // ??
     }
 
+    let dist_entry_path = Path::new(&entry);
+    let mut components = dist_entry_path.components();
+    let root_dir = components
+      .find(|c| matches!(c, Component::Normal(_)))
+      .unwrap();
+    let rest = components.as_path();
+
     Environment {
       context,
       output_format,
@@ -381,6 +388,8 @@ impl<'a> ExportsContext<'a> {
       loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
+      dist_dir: SourceUrl::from_path(&dir.join(root_dir)).unwrap(),
+      dist_entry: Some(rest.to_str().unwrap().to_owned()),
     }
   }
 }
