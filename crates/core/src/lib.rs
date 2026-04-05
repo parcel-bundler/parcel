@@ -27,7 +27,7 @@ use std::{
   sync::Arc,
 };
 
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{asset_graph::build_asset_graph, packager::RawPackager};
 
@@ -86,21 +86,27 @@ pub fn build(
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, &config, &*options)?;
 
-  // for i in 0..bundle_graph.bundles.len() {
+  // Write all output files from a single thread. This significantly out-performs multi-threaded
+  // writing on macOS due to file system directory locking.
+  // Tried using a few worker threads for this but it didn't make much difference.
+  let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Vec<u8>)>();
+  std::thread::spawn(move || {
+    while let Ok((path, content)) = rx.recv() {
+      if let Err(_) = options.output_fs.write(&path, &content) {
+        let parent = path.parent().unwrap();
+        options.output_fs.create_dir_all(parent).ok();
+        options.output_fs.write(&path, &content).ok();
+      }
+    }
+  });
+
   bundle_graph.bundles.par_iter().for_each(|bundle| {
     let content = get_bundle_content(&config, &bundle_graph, &bundle).unwrap();
-
     // TODO: replace hash references
-
     let name = bundle.name.as_ref().unwrap();
     let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
     let path = dist_dir.join(name);
-    // println!("{:?}", path);
-    options
-      .output_fs
-      .create_dir_all(&path.parent().unwrap())
-      .unwrap();
-    content.write(&*options.output_fs, &path);
+    tx.send((path, content.read().unwrap())).unwrap();
   });
 
   Ok(bundle_graph)

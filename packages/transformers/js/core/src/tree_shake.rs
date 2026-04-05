@@ -141,12 +141,12 @@ impl<'a> VisitMut for TreeShake<'a> {
             _ => return,
           };
 
-          if !self.used_symbols.contains(&name) {
-            println!("TREE SHAKE {}", name);
-            stmt.expr = assign.right.take();
-            self.mutated = true;
-            return;
-          }
+          // if !self.used_symbols.contains(&name) {
+          //   println!("TREE SHAKE {}", name);
+          //   stmt.expr = assign.right.take();
+          //   self.mutated = true;
+          //   return;
+          // }
         }
       }
       Expr::Call(call) => {
@@ -171,11 +171,11 @@ impl<'a> VisitMut for TreeShake<'a> {
           return;
         };
 
-        if !self.used_symbols.contains(&name.value) {
-          println!("TREE SHAKE {}", name.value);
-          *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-          self.mutated = true;
-        }
+        // if !self.used_symbols.contains(&name.value) {
+        //   println!("TREE SHAKE {}", name.value);
+        //   *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+        //   self.mutated = true;
+        // }
       }
       _ => {}
     }

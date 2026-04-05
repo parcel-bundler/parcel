@@ -1,6 +1,9 @@
 use parcel_core::{BuildOptions, OsFileSystem};
 use std::{collections::HashMap, sync::Arc};
 
+#[global_allocator]
+static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 enum Command {
   Build,
   Serve,

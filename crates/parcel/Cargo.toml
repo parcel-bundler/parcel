@@ -25,6 +25,7 @@ serde_yaml_ng = "0.10"
 base64-url = "3.0.2"
 pathdiff = "0.2.0"
 glob-match = "*"
+mimalloc = "*"
 
 [dev-dependencies]
 rquickjs = { version = "0.11.0", features = ["full"] }

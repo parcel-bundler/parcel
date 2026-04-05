@@ -2745,6 +2745,7 @@ dependencies = [
  "base64-url",
  "glob-match",
  "indexmap 2.11.0",
+ "mimalloc",
  "parcel-core",
  "parcel-css",
  "parcel-html",
@@ -2935,20 +2936,6 @@ dependencies = [
  "parcel-resolver",
  "rayon",
  "xxhash-rust",
-]
-
-[[package]]
-name = "parcel-plugin"
-version = "0.1.0"
-dependencies = [
- "indexmap 2.11.0",
- "parcel-core",
- "parcel-macros",
- "parcel-resolver",
- "rquickjs",
- "rquickjs-extra-console",
- "serde",
- "serde_json",
 ]
 
 [[package]]
