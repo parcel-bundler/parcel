@@ -2720,6 +2720,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "papaya"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "997ee03cd38c01469a7046643714f0ad28880bcb9e6679ff0666e24817ca19b7"
+dependencies = [
+ "equivalent",
+ "seize",
+]
+
+[[package]]
 name = "par-core"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2963,13 +2973,13 @@ dependencies = [
  "assert_fs",
  "bitflags 2.8.0",
  "criterion",
- "dashmap 6.1.0",
  "deno_package_json",
  "glob-match",
  "indexmap 1.9.3",
  "is_elevated",
  "itertools 0.10.5",
  "oxc_resolver",
+ "papaya",
  "parcel-core",
  "parking_lot",
  "percent-encoding",
@@ -3886,6 +3896,16 @@ name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
+
+[[package]]
+name = "seize"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b55fb86dfd3a2f5f76ea78310a88f96c4ea21a3031f8d212443d56123fd0521"
+dependencies = [
+ "libc",
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "selectors"

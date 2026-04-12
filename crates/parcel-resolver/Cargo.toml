@@ -10,7 +10,7 @@ edition = "2024"
 
 [dependencies]
 bitflags = { version = "2.7.0", features = ["serde"] }
-dashmap = { version = "6.1.0", features = ["raw-api"] }
+papaya = "0.2.4"
 glob-match = "0.2.1"
 indexmap = { version = "1.9.2", features = ["serde"] }
 itertools = "0.10.5"

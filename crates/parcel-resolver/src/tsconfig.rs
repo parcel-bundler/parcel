@@ -3,7 +3,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::json_comments_rs::strip_comments_in_place;
+use crate::{cache::WeakPath, json_comments_rs::strip_comments_in_place};
 use indexmap::IndexMap;
 use itertools::Either;
 use serde::ser;
@@ -34,10 +34,10 @@ struct SerializedTsConfig {
 }
 
 pub struct TsConfig {
-  pub path: CachedPath,
-  base_url: Option<CachedPath>,
+  pub path: WeakPath,
+  base_url: Option<WeakPath>,
   paths: Option<IndexMap<Specifier<'static>, Vec<String>>>,
-  paths_base: CachedPath,
+  paths_base: WeakPath,
   pub module_suffixes: Option<Vec<String>>,
   pub jsx_factory: Option<String>,
   pub jsx_fragment_factory: Option<String>,
@@ -120,17 +120,17 @@ impl TsConfig {
   fn from_serialized(path: CachedPath, serialized: SerializedTsConfig, cache: &Cache) -> TsConfig {
     let base_url = serialized
       .base_url
-      .map(|base_url| path.resolve(&base_url, cache));
+      .map(|base_url| path.resolve(&base_url, cache).downgrade());
 
     TsConfig {
       paths_base: if serialized.paths.is_some() {
         base_url
           .clone()
-          .unwrap_or_else(|| path.parent().unwrap().clone())
+          .unwrap_or_else(|| path.parent().unwrap().downgrade())
       } else {
-        cache.get(Path::new(""))
+        cache.get(Path::new("")).downgrade()
       },
-      path,
+      path: path.downgrade(),
       base_url,
       paths: serialized.paths,
       module_suffixes: serialized.module_suffixes,
@@ -227,7 +227,7 @@ impl TsConfig {
 }
 
 fn join_paths<'a>(
-  base_url: &'a CachedPath,
+  base_url: &'a WeakPath,
   paths: &'a [String],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
   cache: &'a Cache,
@@ -238,23 +238,23 @@ fn join_paths<'a>(
     .map(move |path| {
       if let Some((replacement, start, end)) = &replacement {
         let path = path.replace('*', &replacement[*start..replacement.len() - *end]);
-        base_url.join(&path, cache)
+        base_url.upgrade().join(&path, cache)
       } else {
-        base_url.join(path, cache)
+        base_url.upgrade().join(path, cache)
       }
     })
 }
 
 fn base_url_iter<'a>(
-  base_url: &'a CachedPath,
+  base_url: &'a WeakPath,
   specifier: &'a Specifier,
   cache: &'a Cache,
 ) -> impl Iterator<Item = CachedPath> + 'a {
   std::iter::once_with(move || {
     if let Specifier::Package(module, subpath) = specifier {
-      base_url.join_package(module, subpath, cache)
+      base_url.upgrade().join_package(module, subpath, cache)
     } else {
-      base_url.clone()
+      base_url.upgrade()
     }
   })
 }

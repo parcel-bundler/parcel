@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 use crate::{
   ResolverError,
-  cache::{Cache, CachedPath},
+  cache::{Cache, CachedPath, WeakPath},
   error::JsonError,
   specifier::{Specifier, SpecifierType, decode_path},
 };
@@ -127,13 +127,13 @@ where
 
 #[derive(Debug)]
 pub struct PackageJson {
-  pub path: CachedPath,
+  pub path: WeakPath,
   pub name: String,
   pub module_type: ModuleType,
-  pub main: Option<CachedPath>,
-  pub module: Option<CachedPath>,
-  pub tsconfig: Option<CachedPath>,
-  pub types: Option<CachedPath>,
+  pub main: Option<WeakPath>,
+  pub module: Option<WeakPath>,
+  pub tsconfig: Option<WeakPath>,
+  pub types: Option<WeakPath>,
   pub source: SourceField,
   pub browser: BrowserField,
   pub alias: IndexMap<Specifier<'static>, AliasValue<'static>>,
@@ -177,14 +177,14 @@ pub enum SourceField {
   Bool(bool),
 }
 
-#[derive(serde::Deserialize, Debug, Default, PartialEq)]
+#[derive(serde::Deserialize, Debug, Default)]
 #[serde(untagged)]
 pub enum ExportsField {
   #[default]
   None,
   String(String),
   #[serde(skip)]
-  Path(CachedPath),
+  Path(WeakPath),
   Array(Vec<ExportsField>),
   Map(IndexMap<ExportsKey<'static>, ExportsField>),
 }
@@ -216,7 +216,7 @@ impl ExportsField {
             return;
           }
 
-          *self = ExportsField::Path(base.resolve(&target_path, cache));
+          *self = ExportsField::Path(base.resolve(&target_path, cache).downgrade());
         }
       }
       ExportsField::Array(arr) => {
@@ -366,19 +366,25 @@ impl PackageJson {
     PackageJson {
       name: parsed.name,
       module_type: parsed.module_type,
-      main: parsed.main.map(|main| path.resolve(&main, cache)),
-      module: parsed.module.map(|module| path.resolve(&module, cache)),
+      main: parsed
+        .main
+        .map(|main| path.resolve(&main, cache).downgrade()),
+      module: parsed
+        .module
+        .map(|module| path.resolve(&module, cache).downgrade()),
       tsconfig: parsed
         .tsconfig
-        .map(|tsconfig| path.resolve(&tsconfig, cache)),
-      types: parsed.types.map(|types| path.resolve(&types, cache)),
+        .map(|tsconfig| path.resolve(&tsconfig, cache).downgrade()),
+      types: parsed
+        .types
+        .map(|types| path.resolve(&types, cache).downgrade()),
       source: parsed.source,
       browser: parsed.browser,
       alias: parsed.alias,
       exports: parsed.exports,
       imports: parsed.imports,
       side_effects: parsed.side_effects,
-      path,
+      path: path.downgrade(),
       dependencies: parsed.dependencies,
       dev_dependencies: parsed.dev_dependencies,
       peer_dependencies: parsed.peer_dependencies,
@@ -397,19 +403,21 @@ impl PackageJson {
   pub fn source(&self, cache: &Cache) -> Option<CachedPath> {
     match &self.source {
       SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => None,
-      SourceField::String(source) => Some(self.path.resolve(Path::new(source), cache)),
+      SourceField::String(source) => Some(self.path.upgrade().resolve(Path::new(source), cache)),
       SourceField::Map(map) => match map.get(&Specifier::Package(
         Cow::Borrowed(self.name.as_str()),
         Cow::Borrowed(""),
       )) {
-        Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(self.path.resolve(s, cache)),
+        Some(AliasValue::Specifier(Specifier::Relative(s))) => {
+          Some(self.path.upgrade().resolve(s, cache))
+        }
         _ => None,
       },
     }
   }
 
   pub fn has_exports(&self) -> bool {
-    self.exports != ExportsField::None
+    !matches!(self.exports, ExportsField::None)
   }
 
   pub fn resolve_package_exports(
@@ -454,7 +462,7 @@ impl PackageJson {
         }
       }
 
-      if main_export != &ExportsField::None {
+      if !matches!(main_export, ExportsField::None) {
         match self.resolve_package_target(
           main_export,
           "",
@@ -558,10 +566,10 @@ impl PackageJson {
           return Err(PackageJsonError::InvalidPackageTarget);
         }
 
-        let resolved_target = self.path.resolve(&target_path, paths);
+        let resolved_target = self.path.upgrade().resolve(&target_path, paths);
         return Ok(ExportsResolution::Path(resolved_target));
       }
-      ExportsField::Path(target) => return Ok(ExportsResolution::Path(target.clone())),
+      ExportsField::Path(target) => return Ok(ExportsResolution::Path(target.upgrade())),
       ExportsField::Map(target) => {
         // We must iterate in object insertion order.
         for (key, value) in target {
@@ -830,7 +838,7 @@ impl PackageJson {
 
   pub fn has_side_effects(&self, path: &Path) -> bool {
     let path = path
-      .strip_prefix(self.path.as_path().parent().unwrap())
+      .strip_prefix(self.path.upgrade().parent().unwrap().as_path())
       .ok()
       .and_then(|path| path.as_os_str().to_str());
 
@@ -958,7 +966,7 @@ impl<'a> Iterator for EntryIter<'a> {
     if self.fields.contains(Fields::TYPES) {
       self.fields.remove(Fields::TYPES);
       if let Some(types) = &self.package.types {
-        return Some((types.clone(), "types"));
+        return Some((types.upgrade(), "types"));
       }
     }
 
@@ -968,7 +976,11 @@ impl<'a> Iterator for EntryIter<'a> {
         BrowserField::None => {}
         BrowserField::String(browser) => {
           return Some((
-            self.package.path.resolve(Path::new(browser), self.cache),
+            self
+              .package
+              .path
+              .upgrade()
+              .resolve(Path::new(browser), self.cache),
             "browser",
           ));
         }
@@ -977,7 +989,10 @@ impl<'a> Iterator for EntryIter<'a> {
             Cow::Borrowed(&self.package.name),
             Cow::Borrowed(""),
           )) {
-            return Some((self.package.path.resolve(s, self.cache), "browser"));
+            return Some((
+              self.package.path.upgrade().resolve(s, self.cache),
+              "browser",
+            ));
           }
         }
       }
@@ -986,21 +1001,21 @@ impl<'a> Iterator for EntryIter<'a> {
     if self.fields.contains(Fields::MODULE) {
       self.fields.remove(Fields::MODULE);
       if let Some(module) = &self.package.module {
-        return Some((module.clone(), "module"));
+        return Some((module.upgrade(), "module"));
       }
     }
 
     if self.fields.contains(Fields::MAIN) {
       self.fields.remove(Fields::MAIN);
       if let Some(main) = &self.package.main {
-        return Some((main.clone(), "main"));
+        return Some((main.upgrade(), "main"));
       }
     }
 
     if self.fields.contains(Fields::TSCONFIG) {
       self.fields.remove(Fields::TSCONFIG);
       if let Some(tsconfig) = &self.package.tsconfig {
-        return Some((tsconfig.clone(), "tsconfig"));
+        return Some((tsconfig.upgrade(), "tsconfig"));
       }
     }
 

@@ -408,7 +408,7 @@ impl<'a> Resolver<'a> {
         return Some(file);
       }
 
-      if *dir == self.project_root {
+      if dir == self.project_root {
         break;
       }
 
@@ -527,11 +527,12 @@ impl<'a> ResolveRequest<'a> {
     match package.resolve_aliases(specifier, fields) {
       Some(alias) => match alias.as_ref() {
         AliasValue::Specifier(specifier) => {
+          let pkg_path = package.path.upgrade();
           let mut req = ResolveRequest::new(
             self.resolver,
             specifier,
             SpecifierType::Cjs,
-            &package.path,
+            &pkg_path,
             self.invalidations,
           );
           req.priority_extension = self.priority_extension;
@@ -598,7 +599,7 @@ impl<'a> ResolveRequest<'a> {
           && self.resolver.flags.contains(Flags::EXPORTS)
         {
           // An internal package #import specifier.
-          let package = self.find_package(self.from.parent().unwrap_or_else(|| self.from));
+          let package = self.find_package(&self.from.parent().unwrap_or_else(|| self.from.clone()));
           if let Some(package) = package {
             let package = unwrap_arc(&package)?;
             let res = package
@@ -611,7 +612,7 @@ impl<'a> ResolveRequest<'a> {
               .map_err(|error| ResolverError::PackageJsonError {
                 error,
                 module: package.name.to_owned(),
-                path: package.path.as_path().into(),
+                path: package.path.upgrade().as_path().into(),
               })?;
             match res {
               ExportsResolution::Path(path) => {
@@ -740,7 +741,9 @@ impl<'a> ResolveRequest<'a> {
       }
 
       // Next, try the local package.json.
-      if let Some(package) = self.find_package(self.from.parent().unwrap_or_else(|| self.from)) {
+      if let Some(package) =
+        self.find_package(&self.from.parent().unwrap_or_else(|| self.from.clone()))
+      {
         let mut fields = Fields::ALIAS;
         if self.resolver.entries.contains(Fields::BROWSER) {
           fields |= Fields::BROWSER;
@@ -761,7 +764,9 @@ impl<'a> ResolveRequest<'a> {
   ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::EXPORTS) {
       if let Specifier::Package(pkg_name, subpath) = specifier {
-        if let Some(package) = self.find_package(self.from.parent().unwrap_or_else(|| self.from)) {
+        if let Some(package) =
+          self.find_package(&self.from.parent().unwrap_or_else(|| self.from.clone()))
+        {
           let package = unwrap_arc(&package)?;
           if package.has_exports() && package.name.as_str() == pkg_name {
             return self.resolve_package_exports(package, subpath).map(Some);
@@ -776,7 +781,7 @@ impl<'a> ResolveRequest<'a> {
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
     // If there is a custom module directory resolver (e.g. Yarn PnP), use that.
     if let Some(module_dir_resolver) = &self.resolver.module_dir_resolver {
-      let package_dir = module_dir_resolver(module, self.from.as_path())?;
+      let package_dir = module_dir_resolver(module, &self.from.as_path())?;
       return self.resolve_package(self.resolver.cache.get(&package_dir), module, subpath);
     } else {
       let mut file_name = String::with_capacity(module.len() + 13);
@@ -784,11 +789,7 @@ impl<'a> ResolveRequest<'a> {
       file_name.push_str(module);
       self.invalidations.invalidate_on_file_create_above(
         file_name,
-        self
-          .from
-          .parent()
-          .cloned()
-          .unwrap_or_else(|| self.from.clone()),
+        self.from.parent().unwrap_or_else(|| self.from.clone()),
       );
 
       for dir in self.from.ancestors() {
@@ -864,7 +865,7 @@ impl<'a> ResolveRequest<'a> {
       Err(ResolverError::ModuleSubpathNotFound {
         module: module.to_owned(),
         path: package_dir.as_path().to_owned(),
-        package_path: package.path.as_path().to_path_buf(),
+        package_path: package.path.upgrade().as_path().to_path_buf(),
       })
     } else {
       let res = self.try_package_entries(&*package);
@@ -887,7 +888,7 @@ impl<'a> ResolveRequest<'a> {
       Err(ResolverError::ModuleSubpathNotFound {
         module: module.to_owned(),
         path: package_dir.as_path().join(self.resolver.index_file),
-        package_path: package.path.as_path().to_path_buf(),
+        package_path: package.path.upgrade().as_path().to_path_buf(),
       })
     }
   }
@@ -906,7 +907,7 @@ impl<'a> ResolveRequest<'a> {
       )
       .map_err(|e| ResolverError::PackageJsonError {
         module: package.name.to_owned(),
-        path: package.path.as_path().to_path_buf(),
+        path: package.path.upgrade().as_path().to_path_buf(),
         error: e,
       })?;
 
@@ -929,7 +930,7 @@ impl<'a> ResolveRequest<'a> {
     Err(ResolverError::ModuleSubpathNotFound {
       module: package.name.to_owned(),
       path: path.as_path().to_path_buf(),
-      package_path: package.path.as_path().to_path_buf(),
+      package_path: package.path.upgrade().as_path().to_path_buf(),
     })
   }
 
@@ -948,7 +949,7 @@ impl<'a> ResolveRequest<'a> {
         return Err(ResolverError::ModuleEntryNotFound {
           module: package.name.to_owned(),
           entry_path: entry.as_path().to_path_buf(),
-          package_path: package.path.as_path().to_path_buf(),
+          package_path: package.path.upgrade().as_path().to_path_buf(),
           field,
         });
       }
@@ -1187,7 +1188,7 @@ impl<'a> ResolveRequest<'a> {
         let package = unwrap_arc(package)?;
         if let Ok(s) = path
           .as_path()
-          .strip_prefix(package.path.parent().unwrap().as_path())
+          .strip_prefix(package.path.upgrade().parent().unwrap().as_path())
         {
           let specifier = Specifier::Relative(Cow::Borrowed(s));
           if let Some(res) = self.resolve_aliases(&*package, &specifier, Fields::ALIAS)? {
@@ -1200,7 +1201,7 @@ impl<'a> ResolveRequest<'a> {
       if let Some(package) = package {
         if let Ok(s) = path
           .as_path()
-          .strip_prefix(package.path.parent().unwrap().as_path())
+          .strip_prefix(package.path.upgrade().parent().unwrap().as_path())
         {
           let specifier = Specifier::Relative(Cow::Borrowed(s));
           let mut fields = Fields::ALIAS;
@@ -1316,6 +1317,7 @@ impl<'a> ResolveRequest<'a> {
               let mut absolute_path = tsconfig
                 .compiler_options
                 .path
+                .upgrade()
                 .resolve(path, &self.resolver.cache);
 
               // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
@@ -1340,10 +1342,20 @@ impl<'a> ResolveRequest<'a> {
 
               if !exists {
                 return Err(ResolverError::TsConfigExtendsNotFound {
-                  tsconfig: tsconfig.compiler_options.path.as_path().to_path_buf(),
+                  tsconfig: tsconfig
+                    .compiler_options
+                    .path
+                    .upgrade()
+                    .as_path()
+                    .to_path_buf(),
                   error: Box::new(ResolverError::FileNotFound {
                     relative: path.to_path_buf(),
-                    from: tsconfig.compiler_options.path.as_path().to_path_buf(),
+                    from: tsconfig
+                      .compiler_options
+                      .path
+                      .upgrade()
+                      .as_path()
+                      .to_path_buf(),
                   }),
                 });
               }
@@ -1363,18 +1375,19 @@ impl<'a> ResolveRequest<'a> {
                 module_dir_resolver: self.resolver.module_dir_resolver.clone(),
               };
 
+              let tsconfig_path = tsconfig.compiler_options.path.upgrade();
               let req = ResolveRequest::new(
                 &resolver,
                 specifier,
                 SpecifierType::Cjs,
-                &tsconfig.compiler_options.path,
+                &tsconfig_path,
                 self.invalidations,
               );
 
               let res = req
                 .resolve()
                 .map_err(|err| ResolverError::TsConfigExtendsNotFound {
-                  tsconfig: tsconfig.compiler_options.path.as_path().to_path_buf(),
+                  tsconfig: tsconfig_path.as_path().to_path_buf(),
                   error: Box::new(err),
                 })?;
 
@@ -1382,7 +1395,7 @@ impl<'a> ResolveRequest<'a> {
                 self.resolver.cache.get(&res)
               } else {
                 return Err(ResolverError::TsConfigExtendsNotFound {
-                  tsconfig: tsconfig.compiler_options.path.as_path().to_path_buf(),
+                  tsconfig: tsconfig_path.as_path().to_path_buf(),
                   error: Box::new(ResolverError::UnknownError),
                 });
               }

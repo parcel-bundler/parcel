@@ -1,5 +1,4 @@
 use bitflags::bitflags;
-use dashmap::DashSet;
 use rustc_hash::FxHasher;
 
 use crate::{
@@ -15,7 +14,7 @@ use std::{
   ops::Deref,
   path::{Component, Path, PathBuf, is_separator},
   sync::{
-    Arc, OnceLock,
+    Arc, OnceLock, Weak,
     atomic::{AtomicU64, Ordering},
   },
 };
@@ -23,43 +22,48 @@ use std::{
 /// Stores various cached info about file paths.
 pub struct Cache {
   pub fs: Arc<dyn FileSystem>,
-  paths: DashSet<PathEntry<'static>, BuildHasherDefault<IdentityHasher>>,
+  paths: papaya::HashSet<PathEntry, BuildHasherDefault<IdentityHasher>>,
 }
 
 /// An entry in the path cache. Can also be borrowed for lookups without allocations.
-enum PathEntry<'a> {
-  Owned(Arc<PathInfo>),
-  Borrowed { hash: u64, path: &'a Path },
-}
+struct PathEntry(Arc<PathInfo>);
 
-impl<'a> Hash for PathEntry<'a> {
+impl Hash for PathEntry {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    match self {
-      PathEntry::Owned(info) => {
-        info.hash.hash(state);
-      }
-      PathEntry::Borrowed { hash, .. } => {
-        hash.hash(state);
-      }
-    }
+    self.0.hash.hash(state);
   }
 }
 
-impl<'a> PartialEq for PathEntry<'a> {
+impl PartialEq for PathEntry {
   fn eq(&self, other: &Self) -> bool {
-    let self_path = match self {
-      PathEntry::Owned(info) => &info.path,
-      PathEntry::Borrowed { path, .. } => *path,
-    };
-    let other_path = match other {
-      PathEntry::Owned(info) => &info.path,
-      PathEntry::Borrowed { path, .. } => *path,
-    };
-    self_path.as_os_str() == other_path.as_os_str()
+    self.0.path.as_os_str() == other.0.path.as_os_str()
   }
 }
 
-impl<'a> Eq for PathEntry<'a> {}
+impl Eq for PathEntry {}
+
+struct BorrowedPathEntry<'a> {
+  hash: u64,
+  path: &'a Path,
+}
+
+impl papaya::Equivalent<PathEntry> for BorrowedPathEntry<'_> {
+  fn equivalent(&self, key: &PathEntry) -> bool {
+    self.path.as_os_str() == key.0.path.as_os_str()
+  }
+}
+
+impl Hash for BorrowedPathEntry<'_> {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.hash.hash(state);
+  }
+}
+
+impl PartialEq for BorrowedPathEntry<'_> {
+  fn eq(&self, other: &Self) -> bool {
+    self.path.as_os_str() == other.path.as_os_str()
+  }
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Default for Cache {
@@ -73,7 +77,7 @@ impl Cache {
   pub fn new(fs: Arc<dyn FileSystem>) -> Cache {
     Cache {
       fs,
-      paths: DashSet::default(),
+      paths: papaya::HashSet::default(),
     }
   }
 
@@ -92,27 +96,18 @@ impl Cache {
     path.as_os_str().hash(&mut hasher);
     let hash = hasher.finish();
 
-    let key = PathEntry::Borrowed { hash, path };
+    let key = BorrowedPathEntry { hash, path };
 
-    // A DashMap is just an array of RwLock<HashSet>, sharded by hash to reduce lock contention.
-    // This uses the low level raw API to avoid cloning the value when using the `entry` method.
-    // First, find which shard the value is in, and check to see if we already have a value in the map.
-    let shard = self.paths.determine_shard(hash as usize);
-    {
-      // Scope the read lock.
-      let map = self.paths.shards()[shard].read();
-      if let Some((PathEntry::Owned(entry), _)) = map.get(hash, |v| v.0 == key) {
-        return CachedPath(Arc::clone(entry));
-      }
+    let paths = self.paths.pin();
+    if let Some(PathEntry(entry)) = paths.get(&key) {
+      return CachedPath(entry.clone());
     }
 
     // If that wasn't found, we need to create a new entry.
-    let parent = path
-      .parent()
-      .map(|p| CachedPath(Arc::clone(&self.get(p).0)));
-    let mut flags = parent.as_ref().map_or(PathFlags::empty(), |p| {
-      p.0.flags & PathFlags::IN_NODE_MODULES
-    });
+    let parent = path.parent().map(|p| self.get(p).0);
+    let mut flags = parent
+      .as_ref()
+      .map_or(PathFlags::empty(), |p| p.flags & PathFlags::IN_NODE_MODULES);
     if matches!(path.file_name(), Some(f) if f == "node_modules") {
       flags |= PathFlags::IS_NODE_MODULES | PathFlags::IN_NODE_MODULES;
     }
@@ -120,7 +115,7 @@ impl Cache {
     let info = Arc::new(PathInfo {
       hash,
       path: path.to_path_buf(),
-      parent,
+      parent: parent.as_ref().map(|p| WeakPath(Arc::downgrade(p))),
       flags,
       kind: OnceLock::new(),
       canonical: OnceLock::new(),
@@ -129,7 +124,7 @@ impl Cache {
       tsconfig: OnceLock::new(),
     });
 
-    self.paths.insert(PathEntry::Owned(Arc::clone(&info)));
+    paths.insert(PathEntry(Arc::clone(&info)));
     CachedPath(info)
   }
 }
@@ -183,9 +178,9 @@ struct PathInfo {
   hash: u64,
   path: PathBuf,
   flags: PathFlags,
-  parent: Option<CachedPath>,
+  parent: Option<WeakPath>,
   kind: OnceLock<FileKind>,
-  canonical: OnceLock<Result<CachedPath, ResolverError>>,
+  canonical: OnceLock<Result<WeakPath, ResolverError>>,
   canonicalizing: AtomicU64,
   package_json: OnceLock<Arc<Result<PackageJson, ResolverError>>>,
   tsconfig: OnceLock<Arc<Result<TsConfigWrapper, ResolverError>>>,
@@ -194,15 +189,28 @@ struct PathInfo {
 #[derive(Clone)]
 pub struct CachedPath(Arc<PathInfo>);
 
+#[derive(Clone)]
+pub struct WeakPath(Weak<PathInfo>);
+
+impl WeakPath {
+  pub fn upgrade(&self) -> CachedPath {
+    CachedPath(self.0.upgrade().unwrap())
+  }
+}
+
 impl CachedPath {
+  pub fn downgrade(&self) -> WeakPath {
+    WeakPath(Arc::downgrade(&self.0))
+  }
+
   /// Returns a std Path.
   pub fn as_path(&self) -> &Path {
     self.0.path.as_path()
   }
 
   /// Returns the parent path.
-  pub fn parent(&self) -> Option<&CachedPath> {
-    self.0.parent.as_ref()
+  pub fn parent(&self) -> Option<CachedPath> {
+    self.0.parent.as_ref().map(|parent| parent.upgrade())
   }
 
   fn kind(&self, fs: &dyn FileSystem) -> FileKind {
@@ -268,17 +276,19 @@ impl CachedPath {
               Ok(path)
             })
           })
-          .unwrap_or_else(|| Ok(self.clone()));
+          .unwrap_or_else(|| Ok(self.clone()))
+          .map(|p| p.downgrade());
 
         self.0.canonicalizing.store(0, Ordering::Release);
         res
       })
       .clone()
+      .map(|p| p.upgrade())
   }
 
   /// Returns an iterator over all ancestor paths.
-  pub fn ancestors<'a>(&'a self) -> impl Iterator<Item = &'a CachedPath> {
-    std::iter::successors(Some(self), |p| p.parent())
+  pub fn ancestors(&self) -> impl Iterator<Item = CachedPath> {
+    std::iter::successors(Some(self.clone()), |p| p.parent())
   }
 
   /// Returns the file name of this path (the final path component).
@@ -331,7 +341,7 @@ impl CachedPath {
     SCRATCH_PATH.with(|path| {
       let path = unsafe { &mut *path.get() };
       path.clear();
-      if let Some(parent) = self.0.parent.as_ref() {
+      if let Some(parent) = self.parent() {
         path.as_mut_os_string().push(parent.0.path.as_os_str());
       }
 
@@ -426,11 +436,38 @@ impl PartialEq for CachedPath {
   }
 }
 
+impl PartialEq<WeakPath> for CachedPath {
+  fn eq(&self, other: &WeakPath) -> bool {
+    // Cached paths always point to unique values, so we only need to compare the pointers.
+    std::ptr::eq(Arc::as_ptr(&self.0), Weak::as_ptr(&other.0))
+  }
+}
+
 impl Eq for CachedPath {}
 
 impl std::fmt::Debug for CachedPath {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     self.0.path.fmt(f)
+  }
+}
+
+impl std::fmt::Debug for WeakPath {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    self.upgrade().fmt(f)
+  }
+}
+
+impl PartialEq for WeakPath {
+  fn eq(&self, other: &Self) -> bool {
+    // Cached paths always point to unique values, so we only need to compare the pointers.
+    std::ptr::eq(Weak::as_ptr(&self.0), Weak::as_ptr(&other.0))
+  }
+}
+
+impl PartialEq<CachedPath> for WeakPath {
+  fn eq(&self, other: &CachedPath) -> bool {
+    // Cached paths always point to unique values, so we only need to compare the pointers.
+    std::ptr::eq(Weak::as_ptr(&self.0), Arc::as_ptr(&other.0))
   }
 }
 
