@@ -5,12 +5,14 @@ use std::{
 
 use parcel_core::FileSystem;
 use parcel_resolver::ModuleType;
-use rquickjs::{Ctx, JsLifetime, Module, Object, Value, context::EvalOptions, function};
+use rquickjs::{Ctx, IntoJs, JsLifetime, Module, Object, Value, context::EvalOptions, function};
 use swc::config::ModuleConfig;
 use swc_core::{
   common::FileName,
   ecma::parser::{Syntax, TsSyntax},
 };
+
+use crate::fs::Fs;
 
 #[derive(JsLifetime)]
 pub struct CjsLoader {
@@ -20,13 +22,12 @@ pub struct CjsLoader {
 
 impl CjsLoader {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
-    CjsLoader {
-      resolver: parcel_resolver::Resolver::parcel(
-        Path::new(&project_root),
-        parcel_resolver::Cache::new(fs.clone()),
-      ),
-      fs,
-    }
+    let mut resolver = parcel_resolver::Resolver::node(
+      Path::new(&project_root),
+      parcel_resolver::Cache::new(fs.clone()),
+    );
+    resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
+    CjsLoader { resolver, fs }
   }
 
   pub fn resolve(&self, base: &str, name: &str) -> rquickjs::Result<String> {
@@ -46,7 +47,7 @@ impl CjsLoader {
           "assert" => {
             Ok("/Users/devongovett/dev/parcel/node_modules/assert/build/assert.js".into())
           }
-          // _ => Err(rquickjs::Error::new_resolving(base, name)),
+          "fs" => Ok("builtin:fs".into()),
           _ => Ok(
             "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js".into(),
           ),
@@ -67,7 +68,17 @@ impl CjsLoader {
       return Ok(exports);
     }
 
-    println!("require {}", resolved);
+    if resolved.starts_with("builtin:") {
+      match &resolved[8..] {
+        "fs" => {
+          let fs = ctx.userdata::<Fs>().unwrap();
+          return fs.clone().into_js(ctx);
+        }
+        _ => {}
+      }
+    }
+
+    // println!("require {}", resolved);
 
     match self
       .resolver

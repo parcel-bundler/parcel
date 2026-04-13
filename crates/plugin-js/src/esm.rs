@@ -4,7 +4,7 @@ use std::{
   sync::Arc,
 };
 
-use parcel_core::{FileSystem, OsFileSystem};
+use parcel_core::FileSystem;
 use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Module,
@@ -14,6 +14,8 @@ use swc_core::{
   common::FileName,
   ecma::parser::{Syntax, TsSyntax},
 };
+
+use crate::fs::{Fs, FsModule};
 
 pub fn create_esm_loader(
   project_root: String,
@@ -30,11 +32,14 @@ pub struct ModuleResolver {
 
 impl ModuleResolver {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
+    let mut resolver = parcel_resolver::Resolver::node_esm(
+      Path::new(&project_root),
+      parcel_resolver::Cache::new(fs),
+    );
+    resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
+
     ModuleResolver {
-      resolver: Rc::new(parcel_resolver::Resolver::parcel(
-        Path::new(&project_root),
-        parcel_resolver::Cache::new(fs),
-      )),
+      resolver: Rc::new(resolver),
     }
   }
 }
@@ -48,6 +53,20 @@ impl Resolver for ModuleResolver {
     match res.result {
       Ok(res) => match res.resolution {
         parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
+        parcel_resolver::Resolution::Builtin { scheme, module } => match module.as_str() {
+          "path" => {
+            Ok("/Users/devongovett/dev/parcel/node_modules/path-browserify/index.js".into())
+          }
+          "os" => Ok("/Users/devongovett/dev/parcel/node_modules/os-browserify/browser.js".into()),
+          "tty" => Ok("/Users/devongovett/dev/parcel/node_modules/tty-browserify/index.js".into()),
+          "assert" => {
+            Ok("/Users/devongovett/dev/parcel/node_modules/assert/build/assert.js".into())
+          }
+          "fs" => Ok("builtin:fs".into()),
+          _ => Ok(
+            "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js".into(),
+          ),
+        },
         _ => Err(rquickjs::Error::new_resolving(base, name)),
       },
       Err(e) => {
@@ -70,6 +89,13 @@ impl Loader for ModuleLoader {
     name: &str,
   ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
     // println!("LOADING {:?}", name);
+
+    if name.starts_with("builtin:") {
+      match &name[8..] {
+        "fs" => return Module::declare_def::<FsModule, _>(ctx.clone(), "fs"),
+        _ => {}
+      }
+    }
 
     let module = match self
       .resolver
