@@ -115,6 +115,7 @@ describe('webextension', function () {
       {assets: ['popup.css']},
       {assets: ['popup.js', 'esmodule-helpers.js']},
       {assets: ['side-panel.html']},
+      {assets: ['options.html']},
       {assets: ['content-script.js']},
       {assets: ['other-content-script.js']},
       {assets: ['injected.css']},
@@ -128,6 +129,11 @@ describe('webextension', function () {
       (await outputFS.readFile(path.join(distDir, css[0]), 'utf-8')).includes(
         'Comic Sans MS',
       ),
+    );
+    assert(manifest.options_page, 'options_page should be set in manifest');
+    assert(
+      await outputFS.exists(path.join(distDir, manifest.options_page)),
+      'options_page file should exist in output',
     );
   });
   // TODO: Test error-checking
