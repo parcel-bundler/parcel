@@ -25,6 +25,7 @@ const DEP_LOCS = [
   ['background', 'scripts'],
   ['chrome_url_overrides'],
   ['devtools_page'],
+  ['options_page'],
   ['options_ui', 'page'],
   ['sandbox', 'pages'],
   ['side_panel', 'default_path'],
