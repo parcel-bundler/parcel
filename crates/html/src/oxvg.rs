@@ -1224,7 +1224,7 @@ impl ExactSizeIterator for ChildNodes<'_> {
   }
 }
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PrefixIdsOptions {
   pub delim: Option<String>,
@@ -1236,7 +1236,7 @@ pub struct PrefixIdsOptions {
   pub prefix_class_names: Option<bool>,
 }
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OxvgConfig {
   #[serde(deserialize_with = "ok_or_default")]
@@ -1356,7 +1356,7 @@ pub struct OxvgConfig {
   pub remove_xlink: ConfigItem<oxvg_optimiser::RemoveXlink>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct DefaultTrue(bool);
 
@@ -1366,7 +1366,7 @@ impl Default for DefaultTrue {
   }
 }
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default, Debug, Clone)]
 #[serde(untagged)]
 pub enum ConfigItem<C> {
   #[serde(skip)]

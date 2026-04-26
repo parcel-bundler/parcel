@@ -20,7 +20,22 @@
     ],
     "*.style": ["@parcel/transformer-style-attr"],
     "*.{html,xhtml}": ["@parcel/transformer-html"],
-    "illustration:*.svg": ["@parcel/transformer-svg"],
+    "**/s2wf-icons/**/*.svg": [
+      {
+        "plugin": "@parcel/transformer-svg-jsx",
+        "config": {
+          "ref": true
+        }
+      }
+    ],
+    "illustration:*.svg": [
+      {
+        "plugin": "@parcel/transformer-svg-jsx",
+        "config": {
+          "ref": true
+        }
+      }
+    ],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": ["@parcel/transformer-image"],
     "*.{json,json5}": ["@parcel/transformer-json"],

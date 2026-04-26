@@ -586,7 +586,7 @@ fn jsx_attr_value(name: ExpandedName, value: &str) -> JSXAttrValue {
   }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct JsxOptions {
   #[serde(default)]
@@ -635,7 +635,7 @@ impl Default for JsxOptions {
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum Icon {
   #[default]
   None,
@@ -673,7 +673,7 @@ impl<'de> Deserialize<'de> for Icon {
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum ExpandProps {
   Start,
   #[default]
@@ -706,7 +706,7 @@ impl<'de> Deserialize<'de> for ExpandProps {
   }
 }
 
-pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: JsxOptions) -> Program {
+pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: &JsxOptions) -> Program {
   if let Some(svg) = dom.find(expanded_name!(svg "svg")) {
     svg.remove_attribute(expanded_name!(xmlns "xmlns"));
   }
@@ -737,11 +737,11 @@ pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: JsxOptions) -> P
 
   if !options.svg_props.is_empty() {
     if let Some(svg) = dom.find(expanded_name!(svg "svg")) {
-      for (key, value) in options.svg_props {
+      for (key, value) in &options.svg_props {
         svg.set_attribute(
           ExpandedName {
             ns: &ns!(),
-            local: &key.into(),
+            local: &key.clone().into(),
           },
           &value,
         );
@@ -1021,7 +1021,7 @@ mod tests {
     .one(input.as_bytes());
 
     swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
-      let program = to_component(dom, options);
+      let program = to_component(dom, &options);
       let code = to_code(&program);
 
       assert_eq!(code, expected);

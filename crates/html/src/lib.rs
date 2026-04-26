@@ -306,7 +306,7 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
   }
 
   swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
-    let program = to_component(dom, options.config);
+    let program = to_component(dom, &options.config);
     let code = to_code(&program);
 
     Ok(PackageResult {
@@ -448,14 +448,16 @@ impl Transformer for SvgTransformer {
   }
 }
 
-pub struct SvgToJsxTransformer {}
+pub struct SvgToJsxTransformer {
+  pub config: JsxOptions,
+}
 
 impl Transformer for SvgToJsxTransformer {
   fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = svg_react(SvgReactOptions {
       code,
-      config: JsxOptions::default(),
+      config: self.config.clone(),
     })
     .unwrap();
     // TODO: avoid re-parse by storing JS ast.

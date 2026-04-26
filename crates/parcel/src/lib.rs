@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use std::{
   collections::{HashMap, HashSet},
   ffi::OsStr,
@@ -41,7 +42,12 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-style-attr" => Arc::new(StyleAttrTransformer {}),
       "@parcel/transformer-html" => Arc::new(HtmlTransformer {}),
       "@parcel/transformer-svg" => Arc::new(SvgTransformer {}),
-      "@parcel/transformer-svg-jsx" => Arc::new(SvgToJsxTransformer {}),
+      "@parcel/transformer-svg-jsx" => Arc::new(SvgToJsxTransformer {
+        config: config.map_or_else(
+          || Default::default(),
+          |config| serde_json::from_value(config).unwrap(),
+        ),
+      }),
       "@parcel/transformer-image" => Arc::new(ImageTransformer {}),
       // "@parcel/transformer-less" => Arc::new(CPlugin::new(Path::new(
       //   "/Users/devongovett/Downloads/hermes/plugin.dylib",
@@ -282,7 +288,6 @@ impl Bundler for LibraryBundler {
       bundles.push(Bundle {
         ty: asset.ty.clone(),
         assets: vec![id],
-        target: target.clone(),
         bundle_behavior: asset.bundle_behavior,
         entry_assets: vec![id],
         target: asset.target.clone(),
