@@ -145,7 +145,6 @@ impl Bundler for DefaultBundler {
       } else {
         let bundle = Bundle {
           ty: asset.ty.clone(),
-          target: (*target).clone(),
           env: asset.env.clone(),
           bundle_behavior: asset.bundle_behavior,
           flags: if is_bundle_root {

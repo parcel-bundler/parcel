@@ -7,7 +7,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution, Target,
+  Environment, EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -52,7 +52,7 @@ pub fn build_asset_graph(
       url: entry.url.clone(),
       ty: AssetType::from_url(&entry.url),
       code: None,
-      env: entry.target.env.clone(),
+      env: entry.target.clone(),
       pipeline: None,
       side_effects: true,
     });
@@ -60,12 +60,7 @@ pub fn build_asset_graph(
     let index = assets.len();
     assets.push(AssetNode::Deferred {
       request: req.clone(),
-      symbols: if entry
-        .target
-        .env
-        .flags
-        .contains(EnvironmentFlags::IS_LIBRARY)
-      {
+      symbols: if entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
         vec![SymbolName::Namespace]
       } else {
         Vec::new()
@@ -362,7 +357,7 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
 
 impl AssetGraph {
   /// Visits all assets in depth-first order starting from each entry.
-  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset, &'a Arc<Target>)> {
+  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset, &'a Arc<Environment>)> {
     let mut stack = Vec::new();
     let mut visited = FixedBitSet::with_capacity(self.assets.len());
     let mut entries = self.entries.iter();

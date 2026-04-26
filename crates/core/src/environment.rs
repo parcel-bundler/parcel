@@ -18,6 +18,7 @@ pub struct Environment {
   pub engines: Engines,
   pub dist_entry: Option<String>,
   pub dist_dir: SourceUrl,
+  pub public_url: String,
 }
 
 impl Environment {

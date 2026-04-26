@@ -18,7 +18,6 @@ mod packager;
 mod plugin_abi;
 mod request;
 mod resolver;
-mod target;
 mod transformer;
 
 use std::{
@@ -50,7 +49,6 @@ pub use options::*;
 pub use packager::Packager;
 pub use plugin_abi::{CPlugin /*WasmPlugin*/};
 pub use resolver::Resolver;
-pub use target::*;
 pub use transformer::Transformer;
 
 pub fn build(
@@ -104,7 +102,7 @@ pub fn build(
     let content = get_bundle_content(&config, &bundle_graph, &bundle).unwrap();
     // TODO: replace hash references
     let name = bundle.name.as_ref().unwrap();
-    let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
+    let dist_dir = bundle.env.dist_dir.to_file_path().unwrap();
     let path = dist_dir.join(name);
     tx.send((path, content)).unwrap();
   });
