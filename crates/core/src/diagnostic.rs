@@ -1,10 +1,10 @@
-use std::{collections::HashMap, io::Write};
+use std::io::Write;
 
-use anstyle::{Ansi256Color, AnsiColor, Color, RgbColor, Style};
+use anstyle::{Ansi256Color, AnsiColor, Color, Style};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::{AssetType, Location, Namer, SourceLocation, SourceUrl};
+use crate::{AssetType, Location, SourceLocation, SourceUrl};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -329,7 +329,7 @@ impl Diagnostic {
 
 const PADDING_BEFORE: u32 = 1;
 const PADDING_AFTER: u32 = 2;
-const TERMINAL_WIDTH: usize = 80;
+// const TERMINAL_WIDTH: usize = 80;
 const MAX_LINES: u32 = 12;
 
 impl CodeFrame {
@@ -374,7 +374,7 @@ impl CodeFrame {
     let end_line = last_highlight.end.line + PADDING_AFTER;
 
     if end_line - start_line > MAX_LINES {
-      let max_line = start_line + MAX_LINES - 1;
+      // let max_line = start_line + MAX_LINES - 1;
       // TODO
     }
 

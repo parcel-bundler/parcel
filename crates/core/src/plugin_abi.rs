@@ -1,9 +1,8 @@
 use libloading::{Library, Symbol};
 use std::{
-  cell::RefCell,
   ffi::{CStr, c_char},
   path::Path,
-  sync::{Arc, Mutex},
+  sync::Arc,
 };
 
 use crate::{Asset, AssetType, BufferContent, DiagnosticList, Transformer};

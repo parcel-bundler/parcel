@@ -3,7 +3,6 @@ use glob_match::glob_match;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::{
-  any::Any,
   ffi::OsStr,
   path::{Path, PathBuf},
   sync::Arc,

@@ -23,9 +23,6 @@ mod transformer;
 
 use std::{
   collections::HashMap,
-  ffi::CString,
-  io::Write,
-  os::fd::FromRawFd,
   path::{Path, PathBuf},
   sync::Arc,
 };

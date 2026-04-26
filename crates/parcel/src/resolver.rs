@@ -159,7 +159,6 @@ impl Resolver for DefaultResolver {
             "vm" => "vm-browserify",
             "zlib" => "browserify-zlib",
             m => {
-              println!("MISSING {}", m);
               return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
                 ty: AssetType::Js,
                 url: SourceUrl::parse("file:///empty.js").unwrap(),
