@@ -23,6 +23,9 @@ mod transformer;
 
 use std::{
   collections::HashMap,
+  ffi::CString,
+  io::Write,
+  os::fd::FromRawFd,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -89,13 +92,13 @@ pub fn build(
   // Write all output files from a single thread. This significantly out-performs multi-threaded
   // writing on macOS due to file system directory locking.
   // Tried using a few worker threads for this but it didn't make much difference.
-  let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Vec<u8>)>();
-  std::thread::spawn(move || {
+  let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Arc<dyn Content>)>();
+  let writer = std::thread::spawn(move || {
     while let Ok((path, content)) = rx.recv() {
-      if let Err(_) = options.output_fs.write(&path, &content) {
+      if let Err(_) = content.write(&*options.output_fs, &path) {
         let parent = path.parent().unwrap();
         options.output_fs.create_dir_all(parent).ok();
-        options.output_fs.write(&path, &content).ok();
+        content.write(&*options.output_fs, &path).ok();
       }
     }
   });
@@ -106,8 +109,11 @@ pub fn build(
     let name = bundle.name.as_ref().unwrap();
     let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
     let path = dist_dir.join(name);
-    tx.send((path, content.read().unwrap())).unwrap();
+    tx.send((path, content)).unwrap();
   });
+
+  drop(tx);
+  writer.join().expect("Error");
 
   Ok(bundle_graph)
 }
