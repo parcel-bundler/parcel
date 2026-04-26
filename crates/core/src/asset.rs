@@ -4,8 +4,8 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, Environment,
-  SourceLocation, SourceUrl, impl_bitflags_serde,
+  BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, SourceLocation,
+  SourceUrl, Target, impl_bitflags_serde,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -15,7 +15,7 @@ pub struct Asset {
   #[serde(rename = "type")]
   pub ty: AssetType,
   pub content: Arc<dyn Content>,
-  pub env: Arc<Environment>,
+  pub target: Arc<Target>,
   pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
@@ -29,7 +29,7 @@ impl Asset {
     let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
     self.loc.hash(&mut hasher);
     self.ty.hash(&mut hasher);
-    self.env.hash(&mut hasher);
+    self.target.hash(&mut hasher);
     self.pipeline.hash(&mut hasher);
     self.bundle_behavior.hash(&mut hasher);
     self.flags.hash(&mut hasher);

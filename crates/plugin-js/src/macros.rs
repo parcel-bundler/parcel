@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use indexmap::IndexMap;
 use parcel_core::{
   AssetRequest, AssetType, BundleBehavior, Dependency, DependencyFlags, DependencyResolution,
-  Environment, ExportsCondition, Location, Priority, SourceLocation, SourceUrl, SpecifierType,
+  ExportsCondition, Location, Priority, SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{JsValue, MacroError};
 use rquickjs::{
@@ -19,7 +19,7 @@ use crate::{load_module, with_js_env};
 #[rquickjs::class]
 pub struct MacroContext {
   url: SourceUrl,
-  env: Arc<Environment>,
+  target: Arc<Target>,
   loc: parcel_macros::Location,
   dependencies: Rc<RefCell<Vec<Dependency>>>,
 }
@@ -40,7 +40,7 @@ impl MacroContext {
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
       flags: DependencyFlags::empty(),
-      env: self.env.clone(),
+      target: self.target.clone(),
       loc: Some(SourceLocation {
         url: self.url.clone(),
         start: Location {
@@ -60,7 +60,7 @@ impl MacroContext {
         url: self.url.clone(),
         ty: AssetType::from_extension(&ty),
         pipeline: None,
-        env: self.env.clone(),
+        target: self.target.clone(),
         code: Some(content.into_bytes()),
         side_effects: true,
       })),
@@ -81,7 +81,7 @@ impl MacroContext {
 
 pub fn call_macro(
   url: SourceUrl,
-  env: Arc<Environment>,
+  target: Arc<Target>,
   src: String,
   export: String,
   args: Vec<JsValue>,
@@ -94,7 +94,7 @@ pub fn call_macro(
     let dependencies = Rc::new(RefCell::new(Vec::new()));
     let context = MacroContext {
       url,
-      env,
+      target,
       loc,
       dependencies: dependencies.clone(),
     };

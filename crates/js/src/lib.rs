@@ -50,7 +50,7 @@ impl Transformer for JsTransformer {
     );
 
     let url = asset.loc.url.clone();
-    let env = asset.env.clone();
+    let env = asset.target.clone();
     let resolve_from = asset.loc.url.to_file_path().unwrap();
     let macro_deps = Arc::new(RefCell::new(Vec::new()));
     let macro_deps_cloned = macro_deps.clone();
@@ -179,91 +179,94 @@ impl Transformer for JsTransformer {
           }
           flags
         },
-        env: match dep.kind {
+        target: match dep.kind {
           DependencyKind::WebWorker => {
             // Use native ES module output if the worker was created with `type: 'module'` and all targets
             // support native module workers. Only do this if parent asset output format is also esmodule so that
             // assets can be shared between workers and the main thread in the global output format.
-            let mut output_format = asset.env.output_format;
+            let mut output_format = asset.target.output_format;
             if output_format == OutputFormat::Esmodule
               && dep.source_type == Some(parcel_js_swc_core::SourceType::Module)
-              && asset.env.engines.supports(EnvironmentFeature::WorkerModule)
+              && asset
+                .target
+                .engines
+                .supports(EnvironmentFeature::WorkerModule)
             {
               output_format = OutputFormat::Esmodule;
             } else if output_format != OutputFormat::Commonjs {
               output_format = OutputFormat::Global;
             }
 
-            Arc::new(Environment {
-              context: EnvironmentContext::WebWorker,
+            Arc::new(Target {
+              environment: Environment::WebWorker,
               source_type: match dep.source_type {
                 Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
                 _ => SourceType::Script,
               },
               output_format,
               loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-              ..(*asset.env).clone()
+              ..(*asset.target).clone()
             })
           }
-          DependencyKind::ServiceWorker => Arc::new(Environment {
-            context: EnvironmentContext::ServiceWorker,
+          DependencyKind::ServiceWorker => Arc::new(Target {
+            environment: Environment::ServiceWorker,
             source_type: match dep.source_type {
               Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
               _ => SourceType::Script,
             },
             output_format: OutputFormat::Global,
             loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-            ..(*asset.env).clone()
+            ..(*asset.target).clone()
           }),
-          DependencyKind::Worklet => Arc::new(Environment {
-            context: EnvironmentContext::Worklet,
+          DependencyKind::Worklet => Arc::new(Target {
+            environment: Environment::Worklet,
             source_type: SourceType::Module,
             output_format: OutputFormat::Esmodule,
             loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-            ..(*asset.env).clone()
+            ..(*asset.target).clone()
           }),
           DependencyKind::DynamicImport => {
             // If all of the target engines support dynamic import natively,
             // we can output native ESM if scope hoisting is enabled.
             // Only do this for scripts, rather than modules in the global
             // output format so that assets can be shared between the bundles.
-            let mut output_format = asset.env.output_format;
-            if asset.env.source_type == SourceType::Script
+            let mut output_format = asset.target.output_format;
+            if asset.target.source_type == SourceType::Script
               && asset
-                .env
+                .target
                 .flags
                 .contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
               && asset
-                .env
+                .target
                 .engines
                 .supports(EnvironmentFeature::DynamicImport)
             {
               output_format = OutputFormat::Esmodule;
             }
 
-            if asset.env.source_type != SourceType::Module
-              || asset.env.output_format != output_format
+            if asset.target.source_type != SourceType::Module
+              || asset.target.output_format != output_format
             {
-              Arc::new(Environment {
+              Arc::new(Target {
                 source_type: SourceType::Module,
                 output_format,
                 loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-                ..(*asset.env).clone()
+                ..(*asset.target).clone()
               })
             } else {
-              asset.env.clone()
+              asset.target.clone()
             }
           }
-          DependencyKind::Url | DependencyKind::File | DependencyKind::Id => asset.env.clone(),
+          DependencyKind::Url | DependencyKind::File | DependencyKind::Id => asset.target.clone(),
           DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
             // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-            if is_helper && !asset.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-              Arc::new(Environment {
+            if is_helper && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+              Arc::new(Target {
                 include_node_modules: IncludeNodeModules::Bool(true),
-                ..(*asset.env).clone()
+                ..(*asset.target).clone()
               })
             } else {
-              asset.env.clone()
+              asset.target.clone()
             }
           }
         },
@@ -308,9 +311,9 @@ impl Transformer for JsTransformer {
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
         flags: DependencyFlags::empty(),
-        env: Arc::new(Environment {
+        target: Arc::new(Target {
           include_node_modules: IncludeNodeModules::Array(vec!["@parcel/transformer-js".into()]),
-          ..(*asset.env).clone()
+          ..(*asset.target).clone()
         }),
         loc: None,
         placeholder: None,
@@ -430,15 +433,15 @@ fn convert_version(version: &parcel_core::Version) -> Version {
 
 fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
   let mut targets = None;
-  if asset.env.context.is_electron() {
-    if let Some(electron) = &asset.env.engines.electron {
+  if asset.target.environment.is_electron() {
+    if let Some(electron) = &asset.target.engines.electron {
       targets = Some(Versions {
         electron: Some(convert_version(electron)),
         ..Default::default()
       });
     }
-  } else if asset.env.context.is_browser() {
-    let browsers = &asset.env.engines.browsers;
+  } else if asset.target.environment.is_browser() {
+    let browsers = &asset.target.engines.browsers;
     let mut versions = Versions::default();
     versions.android = browsers.android.as_ref().map(convert_version);
     versions.chrome = browsers.chrome.as_ref().map(convert_version);
@@ -452,8 +455,8 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
     if !versions.is_any_target() {
       targets = Some(versions);
     }
-  } else if asset.env.context.is_node() {
-    if let Some(node) = &asset.env.engines.node {
+  } else if asset.target.environment.is_node() {
+    if let Some(node) = &asset.target.engines.node {
       targets = Some(Versions {
         node: Some(convert_version(node)),
         ..Default::default()
@@ -678,16 +681,16 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
     code: asset.content.read().unwrap(),
     module_id: asset.id(),
     project_root: options.project_root.to_string(),
-    context: match &asset.env.context {
-      EnvironmentContext::Browser => EnvContext::Browser,
-      EnvironmentContext::WebWorker => EnvContext::WebWorker,
-      EnvironmentContext::ServiceWorker => EnvContext::ServiceWorker,
-      EnvironmentContext::Worklet => EnvContext::Worklet,
-      EnvironmentContext::Node => EnvContext::Node,
-      EnvironmentContext::ElectronRenderer => EnvContext::ElectronRenderer,
-      EnvironmentContext::ElectronMain => EnvContext::ElectronMain,
-      EnvironmentContext::ReactClient => EnvContext::ReactClient,
-      EnvironmentContext::ReactServer => EnvContext::ReactServer,
+    context: match &asset.target.environment {
+      Environment::Browser => EnvContext::Browser,
+      Environment::WebWorker => EnvContext::WebWorker,
+      Environment::ServiceWorker => EnvContext::ServiceWorker,
+      Environment::Worklet => EnvContext::Worklet,
+      Environment::Node => EnvContext::Node,
+      Environment::ElectronRenderer => EnvContext::ElectronRenderer,
+      Environment::ElectronMain => EnvContext::ElectronMain,
+      Environment::ReactClient => EnvContext::ReactClient,
+      Environment::ReactServer => EnvContext::ReactServer,
     },
     asset_type: match asset.ty {
       AssetType::Ts => Type::Ts,
@@ -707,19 +710,22 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
     is_development: options.mode == BuildMode::Development,
     react_refresh,
     targets,
-    source_maps: asset.env.source_map.is_some(),
+    source_maps: asset.target.source_map.is_some(),
     scope_hoist: asset
-      .env
+      .target
       .flags
       .contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
-      && asset.env.source_type != SourceType::Script,
-    source_type: match asset.env.source_type {
+      && asset.target.source_type != SourceType::Script,
+    source_type: match asset.target.source_type {
       SourceType::Script => parcel_js_swc_core::SourceType::Script,
       _ => parcel_js_swc_core::SourceType::Module,
     },
-    supports_module_workers: asset.env.engines.supports(EnvironmentFeature::WorkerModule),
-    is_library: asset.env.flags.contains(EnvironmentFlags::IS_LIBRARY),
-    is_esm_output: asset.env.output_format == OutputFormat::Esmodule,
+    supports_module_workers: asset
+      .target
+      .engines
+      .supports(EnvironmentFeature::WorkerModule),
+    is_library: asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY),
+    is_esm_output: asset.target.output_format == OutputFormat::Esmodule,
     trace_bailouts: options.log_level == LogLevel::Verbose,
     is_swc_helpers: asset.loc.url.as_str().contains("@swc/helpers"),
     standalone: asset
@@ -786,7 +792,10 @@ impl Packager for JsPackager {
         }
         first = false;
 
-        if bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+        if bundle
+          .target
+          .flags
+          .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
           && let Some(content) = asset.content.downcast_ref::<JsContent>()
         {
           let mut ast = content.ast.lock().unwrap();
@@ -905,8 +914,8 @@ pub fn asset_dependencies<'a>(
             continue;
           }
 
-          if dep.env.context == EnvironmentContext::ReactServer
-            && resolved_asset.env.context == EnvironmentContext::ReactClient
+          if dep.target.environment == Environment::ReactServer
+            && resolved_asset.target.environment == Environment::ReactClient
           {
             continue;
           }
@@ -915,7 +924,7 @@ pub fn asset_dependencies<'a>(
         let mut resolutions = Vec::new();
         let mut first_asset = None;
         let mut all_assets_match = true;
-        if !bundle.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+        if !bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           for import in &asset.symbols.imports {
             if import.dep_index == dep_index as u32 {
               match &import.resolved {
@@ -995,7 +1004,7 @@ pub fn asset_dependencies<'a>(
       DependencyResolution::Bundle(bundle_index) => {
         let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
 
-        if bundle.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+        if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           if dep.bundle_behavior == BundleBehavior::Inline
             || resolved_bundle.bundle_behavior == BundleBehavior::Inline
           {
@@ -1211,9 +1220,9 @@ fn load_bundle_rsc<W: std::fmt::Write>(
   let name = bundle.relative_url(&from).unwrap();
   match &bundle.ty {
     AssetType::Js => {
-      if bundle.env.context.is_browser() {
-        if bundle.env.context.is_browser() {
-          if bundle.env.output_format == OutputFormat::Esmodule {
+      if bundle.target.environment.is_browser() {
+        if bundle.target.environment.is_browser() {
+          if bundle.target.output_format == OutputFormat::Esmodule {
             // TODO: how to import jsx runtime?
             resources.push(format!("<link rel='modulepreload' href='{}' />", name));
           } else {
@@ -1225,7 +1234,7 @@ fn load_bundle_rsc<W: std::fmt::Write>(
         }
       }
 
-      if bundle.env.context == bundle.env.context {
+      if bundle.target.environment == bundle.target.environment {
         promises.push(format!("parcelLoadJS('./{}')", name));
       }
     }
@@ -1234,7 +1243,7 @@ fn load_bundle_rsc<W: std::fmt::Write>(
         "<link rel='stylesheet' href='{}' precedence='default' />",
         name
       ));
-      if bundle.env.context.is_browser() {
+      if bundle.target.environment.is_browser() {
         // TODO: only if not react lazy
         promises.push(format!("waitForCSS('{}')", name));
         write!(

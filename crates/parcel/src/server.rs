@@ -147,7 +147,7 @@ impl DevServer {
         ty: asset.ty.clone(),
         output,
         env_hash: "TODO".into(),
-        output_format: asset.env.output_format.clone(),
+        output_format: asset.target.output_format.clone(),
         deps_by_bundle,
       });
     }

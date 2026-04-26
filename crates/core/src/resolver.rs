@@ -141,7 +141,7 @@ mod tests {
           code: None,
           pipeline: None,
           side_effects: false,
-          env: Default::default(),
+          target: Default::default(),
         })))
       } else {
         Ok(DependencyResolution::None)
@@ -165,7 +165,7 @@ mod tests {
           code: None,
           pipeline: None,
           side_effects: false,
-          env: Default::default(),
+          target: Default::default(),
         })))
       } else {
         Ok(DependencyResolution::None)
@@ -186,7 +186,7 @@ mod tests {
       priority: crate::Priority::Sync,
       bundle_behavior: crate::BundleBehavior::None,
       flags: DependencyFlags::empty(),
-      env: Arc::new(Default::default()),
+      target: Arc::new(Default::default()),
       loc: Some(crate::SourceLocation {
         url: SourceUrl::parse("test.js").unwrap(),
         ..Default::default()
@@ -207,7 +207,7 @@ mod tests {
         code: None,
         pipeline: None,
         side_effects: false,
-        env: Default::default()
+        target: Default::default()
       }))
     );
 
@@ -222,7 +222,7 @@ mod tests {
         code: None,
         pipeline: None,
         side_effects: false,
-        env: Default::default()
+        target: Default::default()
       }))
     );
   }

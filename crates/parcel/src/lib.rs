@@ -225,10 +225,10 @@ impl Namer for DefaultNamer {
     }
 
     let mut ext = bundle.ty.extension();
-    if bundle.ty == AssetType::Js && bundle.env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-      if bundle.env.output_format == OutputFormat::Esmodule {
+    if bundle.ty == AssetType::Js && bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+      if bundle.target.output_format == OutputFormat::Esmodule {
         ext = "mjs";
-      } else if bundle.env.output_format == OutputFormat::Commonjs {
+      } else if bundle.target.output_format == OutputFormat::Commonjs {
         ext = "cjs";
       }
     }
@@ -285,7 +285,7 @@ impl Bundler for LibraryBundler {
         target: target.clone(),
         bundle_behavior: asset.bundle_behavior,
         entry_assets: vec![id],
-        env: asset.env.clone(),
+        target: asset.target.clone(),
         flags: BundleFlags::NEEDS_STABLE_NAME,
         main_entry_asset: Some(id),
         name: None,

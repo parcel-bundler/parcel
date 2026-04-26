@@ -57,7 +57,7 @@ pub struct TransformOptions {
   pub code: Vec<u8>,
   pub file_path: PathBuf,
   pub xml: bool,
-  pub env: Arc<Environment>,
+  pub target: Arc<Target>,
   pub hmr: bool,
 }
 
@@ -87,7 +87,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
     &dom,
     options.file_path,
     AssetType::Html,
-    options.env,
+    options.target,
     options.hmr,
   );
 
@@ -125,7 +125,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     &dom,
     options.file_path,
     AssetType::Svg,
-    options.env,
+    options.target,
     options.hmr,
   );
 
@@ -324,7 +324,7 @@ impl Transformer for HtmlTransformer {
       code,
       file_path: asset.loc.url.to_file_path().unwrap(),
       xml: asset.ty == AssetType::Xhtml,
-      env: asset.env.clone(),
+      target: asset.target.clone(),
       hmr: false,
     });
 
@@ -394,7 +394,7 @@ fn prepare_to_package(
         SerializableTendril(dep.placeholder.clone().unwrap().into()),
         InlineBundle {
           contents: SerializableTendril(contents.into()),
-          module: referenced_bundle.env.output_format == OutputFormat::Esmodule,
+          module: referenced_bundle.target.output_format == OutputFormat::Esmodule,
         },
       );
 
@@ -410,7 +410,7 @@ fn prepare_to_package(
         let src = referenced_bundle.relative_url(&bundle).unwrap();
         bundles.push(BundleReference::Script {
           src: SerializableTendril(src.into()),
-          module: referenced_bundle.env.output_format == OutputFormat::Esmodule,
+          module: referenced_bundle.target.output_format == OutputFormat::Esmodule,
           nomodule: false,
         });
       }
@@ -436,7 +436,7 @@ impl Transformer for SvgTransformer {
       code,
       file_path: asset.loc.url.to_file_path().unwrap(),
       xml: false,
-      env: asset.env.clone(),
+      target: asset.target.clone(),
       hmr: false,
     });
 
@@ -502,7 +502,7 @@ mod tests {
       code: "<html><body><template><div>test</div><span>hi</span></template></body></html>".into(),
       file_path: "foo.html".into(),
       xml: false,
-      env: Default::default(),
+      target: Default::default(),
       hmr: false,
     });
 

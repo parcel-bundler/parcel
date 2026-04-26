@@ -62,7 +62,7 @@ impl TransformRequest {
         url: req.url.clone(),
         ..Default::default()
       },
-      env: req.env.clone(),
+      target: req.target.clone(),
       pipeline: req.pipeline.clone(),
       bundle_behavior: crate::BundleBehavior::None,
       flags,

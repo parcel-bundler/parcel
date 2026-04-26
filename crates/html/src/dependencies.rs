@@ -11,8 +11,8 @@ use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, na
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, BundleBehavior,
   CodeFrame, CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
-  DiagnosticSeverity, Environment, EnvironmentFeature, ExportsCondition, Location, OutputFormat,
-  Priority, SourceLocation, SourceType, SourceUrl, SpecifierType,
+  DiagnosticSeverity, EnvironmentFeature, ExportsCondition, Location, OutputFormat, Priority,
+  SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
 };
 use typed_arena::Arena;
 
@@ -21,10 +21,10 @@ pub fn collect_dependencies<'arena>(
   dom: &'arena Node<'arena>,
   file_path: PathBuf,
   ty: AssetType,
-  env: Arc<Environment>,
+  target: Arc<Target>,
   hmr: bool,
 ) -> (Vec<Dependency>, Vec<Asset>, Vec<Diagnostic>) {
-  let mut collector = DependencyCollector::new(arena, file_path.clone(), ty, env);
+  let mut collector = DependencyCollector::new(arena, file_path.clone(), ty, target);
 
   dom.walk(&mut |node| match &node.data {
     NodeData::Element { name, .. } => {
@@ -54,7 +54,7 @@ pub fn collect_dependencies<'arena>(
       specifier_type: SpecifierType::Esm,
       flags: DependencyFlags::empty(),
       priority: Priority::Sync,
-      env: asset.env.clone(),
+      target: asset.target.clone(),
       bundle_behavior: BundleBehavior::Inline,
       placeholder: asset.unique_key.clone(),
       loc: None,
@@ -66,7 +66,7 @@ pub fn collect_dependencies<'arena>(
         ty: asset.ty.clone(),
         code: Some(asset.content.read().unwrap()),
         pipeline: None,
-        env: asset.env.clone(),
+        target: asset.target.clone(),
         side_effects: true,
       })),
     });
@@ -81,7 +81,7 @@ pub fn collect_dependencies<'arena>(
         content: Arc::new(BufferContent::new(Vec::new())),
         unique_key: Some(key.into()),
         flags: AssetFlags::empty(),
-        env: collector.env.clone(),
+        target: collector.target.clone(),
         bundle_behavior: BundleBehavior::None,
         loc: SourceLocation {
           url: SourceUrl::from_path(&file_path).unwrap(),
@@ -115,7 +115,7 @@ struct DependencyCollector<'arena> {
   arena: &'arena Arena<Node<'arena>>,
   file_path: PathBuf,
   ty: AssetType,
-  env: Arc<Environment>,
+  target: Arc<Target>,
   deps: Vec<Dependency>,
   assets: Vec<Asset>,
   key: u32,
@@ -128,13 +128,13 @@ impl<'arena> DependencyCollector<'arena> {
     arena: &'arena Arena<Node<'arena>>,
     file_path: PathBuf,
     ty: AssetType,
-    env: Arc<Environment>,
+    target: Arc<Target>,
   ) -> Self {
     DependencyCollector {
       arena,
       file_path,
       ty,
-      env,
+      target,
       deps: Vec::new(),
       assets: Vec::new(),
       key: 0,
@@ -148,12 +148,12 @@ impl<'arena> DependencyCollector<'arena> {
     output_format: OutputFormat,
     source_type: SourceType,
     line: u32,
-  ) -> Arc<Environment> {
-    Arc::new(Environment {
+  ) -> Arc<Target> {
+    Arc::new(Target {
       output_format,
       source_type,
       loc: self.create_loc(line),
-      ..(*self.env).clone()
+      ..(*self.target).clone()
     })
   }
 
@@ -223,7 +223,7 @@ impl<'arena> DependencyCollector<'arena> {
             specifier_type: SpecifierType::Url,
             flags,
             priority,
-            env: self.env.clone(),
+            target: self.target.clone(),
             bundle_behavior: BundleBehavior::None,
             placeholder: Default::default(),
             loc: self.create_loc(node.line),
@@ -275,8 +275,8 @@ impl<'arena> DependencyCollector<'arena> {
           }
 
           if source_type == SourceType::Module
-            && (self.env.should_scope_hoist()
-              || self.env.engines.supports(EnvironmentFeature::Esmodules))
+            && (self.target.should_scope_hoist()
+              || self.target.engines.supports(EnvironmentFeature::Esmodules))
             && !is_svg
           {
             output_format = OutputFormat::Esmodule;
@@ -303,7 +303,7 @@ impl<'arena> DependencyCollector<'arena> {
           // If this is a <script type="module">, and not all of the browser targets support ESM natively,
           // add a copy of the script tag with a nomodule attribute.
           if output_format == OutputFormat::Esmodule
-            && !self.env.engines.supports(EnvironmentFeature::Esmodules)
+            && !self.target.engines.supports(EnvironmentFeature::Esmodules)
           {
             let copy = self.arena.alloc(Node::new(node.data.clone(), node.line));
             copy.remove_attribute(expanded_name!("", "type"));
@@ -314,7 +314,7 @@ impl<'arena> DependencyCollector<'arena> {
               specifier: src.clone().into(),
               specifier_type: SpecifierType::Url,
               priority: Priority::Parallel,
-              env: self.create_env(OutputFormat::Global, source_type, node.line),
+              target: self.create_env(OutputFormat::Global, source_type, node.line),
               flags: DependencyFlags::empty(),
               bundle_behavior,
               placeholder: Default::default(),
@@ -334,7 +334,7 @@ impl<'arena> DependencyCollector<'arena> {
             specifier: src.into(),
             specifier_type: SpecifierType::Url,
             priority: Priority::Parallel,
-            env: self.create_env(output_format, source_type, node.line),
+            target: self.create_env(output_format, source_type, node.line),
             flags: DependencyFlags::empty(),
             bundle_behavior,
             placeholder: Default::default(),
@@ -360,8 +360,8 @@ impl<'arena> DependencyCollector<'arena> {
           let code = node.text_content();
 
           if source_type == SourceType::Module {
-            if self.env.should_scope_hoist()
-              && self.env.engines.supports(EnvironmentFeature::Esmodules)
+            if self.target.should_scope_hoist()
+              && self.target.engines.supports(EnvironmentFeature::Esmodules)
               && !is_svg
             {
               output_format = OutputFormat::Esmodule;
@@ -391,7 +391,7 @@ impl<'arena> DependencyCollector<'arena> {
             content: Arc::new(BufferContent::new(code.into_bytes())),
             unique_key: Some(key.into()),
             flags: AssetFlags::IS_HTML_TAG,
-            env: self.create_env(output_format, source_type, node.line),
+            target: self.create_env(output_format, source_type, node.line),
             bundle_behavior: BundleBehavior::Inline,
             loc: self.create_loc(node.line).unwrap(),
             pipeline: None,
@@ -428,7 +428,7 @@ impl<'arena> DependencyCollector<'arena> {
           content: Arc::new(BufferContent::new(code.into_bytes())),
           unique_key: Some(key.into()),
           flags: AssetFlags::IS_HTML_TAG,
-          env: self.env.clone(),
+          target: self.target.clone(),
           bundle_behavior: BundleBehavior::Inline,
           loc: self.create_loc(node.line).unwrap(),
           pipeline: None,
@@ -571,7 +571,7 @@ impl<'arena> DependencyCollector<'arena> {
         content: Arc::new(BufferContent::new(style.to_string().into_bytes())),
         unique_key: Some(key.into()),
         flags: AssetFlags::IS_HTML_ATTR,
-        env: self.env.clone(),
+        target: self.target.clone(),
         bundle_behavior: BundleBehavior::Inline,
         loc: self.create_loc(node.line).unwrap(),
         pipeline: None,
@@ -641,7 +641,7 @@ impl<'arena> DependencyCollector<'arena> {
           specifier: img.url.clone().into(),
           specifier_type: SpecifierType::Url,
           priority: Priority::Lazy,
-          env: self.env.clone(),
+          target: self.target.clone(),
           flags: DependencyFlags::empty(),
           bundle_behavior: BundleBehavior::None,
           placeholder: None,
@@ -671,7 +671,7 @@ impl<'arena> DependencyCollector<'arena> {
       specifier: src.into(),
       specifier_type: SpecifierType::Url,
       priority,
-      env: self.env.clone(),
+      target: self.target.clone(),
       flags: {
         let mut flags = DependencyFlags::empty();
         flags.set(DependencyFlags::NEEDS_STABLE_NAME, needs_stable_name);

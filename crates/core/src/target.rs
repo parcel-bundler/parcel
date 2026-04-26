@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Environment {
-  pub context: EnvironmentContext,
+pub struct Target {
+  pub environment: Environment,
   pub output_format: OutputFormat,
   pub source_type: SourceType,
   pub flags: EnvironmentFlags,
@@ -21,7 +21,7 @@ pub struct Environment {
   pub public_url: String,
 }
 
-impl Environment {
+impl Target {
   pub fn should_scope_hoist(&self) -> bool {
     self.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
   }
@@ -434,7 +434,7 @@ impl Engines {
     true
   }
 
-  pub fn for_context(self, context: EnvironmentContext) -> Engines {
+  pub fn for_context(self, context: Environment) -> Engines {
     if context.is_browser() {
       Engines {
         browsers: self.browsers,
@@ -469,7 +469,7 @@ impl_bitflags_serde!(EnvironmentFlags);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum EnvironmentContext {
+pub enum Environment {
   #[default]
   Browser,
   WebWorker,
@@ -482,14 +482,14 @@ pub enum EnvironmentContext {
   ReactServer,
 }
 
-impl EnvironmentContext {
+impl Environment {
   pub fn is_node(&self) -> bool {
-    use EnvironmentContext::*;
+    use Environment::*;
     matches!(self, Node | ElectronMain | ElectronRenderer)
   }
 
   pub fn is_browser(&self) -> bool {
-    use EnvironmentContext::*;
+    use Environment::*;
     matches!(
       self,
       Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer
@@ -497,20 +497,20 @@ impl EnvironmentContext {
   }
 
   pub fn is_worker(&self) -> bool {
-    use EnvironmentContext::*;
+    use Environment::*;
     matches!(self, WebWorker | ServiceWorker)
   }
 
   pub fn is_electron(&self) -> bool {
-    use EnvironmentContext::*;
+    use Environment::*;
     matches!(self, ElectronMain | ElectronRenderer)
   }
 }
 
-impl TryFrom<&str> for EnvironmentContext {
+impl TryFrom<&str> for Environment {
   type Error = ();
   fn try_from(value: &str) -> Result<Self, Self::Error> {
-    use EnvironmentContext::*;
+    use Environment::*;
     Ok(match value {
       "browser" => Browser,
       "web-worker" => WebWorker,

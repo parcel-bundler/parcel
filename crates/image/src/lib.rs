@@ -109,7 +109,11 @@ impl Transformer for ImageTransformer {
 
       match format.as_ref().unwrap_or(&asset.ty) {
         AssetType::Png => {
-          if asset.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE) {
+          if asset
+            .target
+            .flags
+            .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+          {
             let png = oxipng::RawImage::new(
               img.width(),
               img.height(),
@@ -183,7 +187,11 @@ impl Transformer for ImageTransformer {
       if let Some(format) = format {
         asset.ty = format;
       }
-    } else if asset.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE) {
+    } else if asset
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+    {
       match &asset.ty {
         AssetType::Png => {
           let bytes = asset.content.read()?;

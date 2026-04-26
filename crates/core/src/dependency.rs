@@ -3,7 +3,7 @@ use std::{
   sync::Arc,
 };
 
-use crate::{AssetType, BundleBehavior, SourceUrl, environment::Environment};
+use crate::{AssetType, BundleBehavior, SourceUrl, Target};
 use crate::{SourceLocation, impl_bitflags_serde};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ pub struct Dependency {
   pub priority: Priority,
   pub bundle_behavior: BundleBehavior,
   pub flags: DependencyFlags,
-  pub env: Arc<Environment>,
+  pub target: Arc<Target>,
   #[serde(default)]
   pub loc: Option<SourceLocation>,
   #[serde(default)]
@@ -34,8 +34,8 @@ impl Dependency {
     self.specifier_type.hash(&mut hasher);
     self.flags.hash(&mut hasher);
     self.priority.hash(&mut hasher);
-    self.env.output_format.hash(&mut hasher);
-    self.env.source_type.hash(&mut hasher);
+    self.target.output_format.hash(&mut hasher);
+    self.target.source_type.hash(&mut hasher);
     self.bundle_behavior.hash(&mut hasher);
     self.placeholder = Some(format!("{:x}", hasher.finish()));
     self.placeholder.as_ref().unwrap()
@@ -171,7 +171,7 @@ pub struct AssetRequest {
   pub url: SourceUrl,
   pub ty: AssetType,
   pub pipeline: Option<hstr::Atom>,
-  pub env: Arc<Environment>,
+  pub target: Arc<Target>,
   pub code: Option<Vec<u8>>,
   pub side_effects: bool,
 }

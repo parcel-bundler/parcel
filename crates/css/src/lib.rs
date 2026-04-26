@@ -166,8 +166,8 @@ impl Transformer for CssTransformer {
     stylesheet
       .minify(MinifyOptions {
         targets: Targets {
-          browsers: if asset.env.context.is_browser() {
-            let browsers = &asset.env.engines.browsers;
+          browsers: if asset.target.environment.is_browser() {
+            let browsers = &asset.target.engines.browsers;
             Some(Browsers {
               chrome: browsers.chrome.map(convert_version),
               firefox: browsers.firefox.map(convert_version),
@@ -190,7 +190,7 @@ impl Transformer for CssTransformer {
 
     let mut collector = DependencyCollector {
       dependencies: &mut asset.dependencies,
-      env: asset.env.clone(),
+      target: asset.target.clone(),
       url: asset.loc.url.clone(),
     };
     stylesheet.visit(&mut collector).unwrap();
@@ -216,7 +216,7 @@ impl Transformer for CssTransformer {
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
                 flags: DependencyFlags::empty(),
-                env: asset.env.clone(),
+                target: asset.target.clone(),
                 loc: None,
                 placeholder: None,
                 resolve_from: Some(asset.loc.url.clone()),
@@ -250,7 +250,7 @@ impl Transformer for CssTransformer {
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
                 flags: DependencyFlags::empty(),
-                env: asset.env.clone(),
+                target: asset.target.clone(),
                 loc: None,
                 placeholder: None,
                 resolve_from: Some(asset.loc.url.clone()),
@@ -299,7 +299,7 @@ impl Transformer for CssTransformer {
 
 struct DependencyCollector<'a> {
   dependencies: &'a mut Vec<Dependency>,
-  env: Arc<Environment>,
+  target: Arc<Target>,
   url: SourceUrl,
 }
 
@@ -318,7 +318,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
         flags: DependencyFlags::empty(),
-        env: self.env.clone(),
+        target: self.target.clone(),
         loc: Some(SourceLocation {
           url: self.url.clone(),
           start: Location {
@@ -350,7 +350,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       priority: Priority::Lazy,
       bundle_behavior: BundleBehavior::None,
       flags: DependencyFlags::empty(),
-      env: self.env.clone(),
+      target: self.target.clone(),
       loc: Some(SourceLocation {
         url: self.url.clone(),
         start: Location {
@@ -493,10 +493,13 @@ impl Packager for CssPackager {
 
     let res = stylesheet
       .to_css(PrinterOptions {
-        minify: bundle.env.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE),
+        minify: bundle
+          .target
+          .flags
+          .contains(EnvironmentFlags::SHOULD_OPTIMIZE),
         targets: Targets {
-          browsers: if bundle.env.context.is_browser() {
-            let browsers = &bundle.env.engines.browsers;
+          browsers: if bundle.target.environment.is_browser() {
+            let browsers = &bundle.target.engines.browsers;
             Some(Browsers {
               chrome: browsers.chrome.map(convert_version),
               firefox: browsers.firefox.map(convert_version),
@@ -1028,8 +1031,8 @@ impl Transformer for StyleAttrTransformer {
 
     attr.minify(MinifyOptions {
       targets: Targets {
-        browsers: if asset.env.context.is_browser() {
-          let browsers = &asset.env.engines.browsers;
+        browsers: if asset.target.environment.is_browser() {
+          let browsers = &asset.target.engines.browsers;
           Some(Browsers {
             chrome: browsers.chrome.map(convert_version),
             firefox: browsers.firefox.map(convert_version),
@@ -1052,7 +1055,7 @@ impl Transformer for StyleAttrTransformer {
     attr
       .visit(&mut DependencyCollector {
         dependencies: &mut asset.dependencies,
-        env: asset.env.clone(),
+        target: asset.target.clone(),
         url: asset.loc.url.clone(),
       })
       .unwrap();

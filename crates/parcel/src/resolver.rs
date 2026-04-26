@@ -2,8 +2,8 @@ use std::{borrow::Cow, path::Path, sync::Arc};
 
 use parcel_core::{
   AssetRequest, AssetType, BuildMode, CodeFrame, CodeHighlight, Dependency, DependencyResolution,
-  Diagnostic, DiagnosticList, EnvironmentContext, ExportsCondition, Location, ParcelOptions,
-  Resolver, SourceUrl, SpecifierType,
+  Diagnostic, DiagnosticList, Environment, ExportsCondition, Location, ParcelOptions, Resolver,
+  SourceUrl, SpecifierType,
 };
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -33,27 +33,27 @@ impl Resolver for DefaultResolver {
     let resolve_from = dep.resolve_from.as_ref().unwrap();
     let mut conditions = dep.conditions | ExportsCondition::SOURCE;
 
-    if dep.env.context.is_browser() {
+    if dep.target.environment.is_browser() {
       conditions |= ExportsCondition::BROWSER;
     }
 
-    if dep.env.context.is_worker() {
+    if dep.target.environment.is_worker() {
       conditions |= ExportsCondition::WORKER;
     }
 
-    if dep.env.context == EnvironmentContext::Worklet {
+    if dep.target.environment == Environment::Worklet {
       conditions |= ExportsCondition::WORKLET;
     }
 
-    if dep.env.context.is_electron() {
+    if dep.target.environment.is_electron() {
       conditions |= ExportsCondition::ELECTRON;
     }
 
-    if dep.env.context.is_node() {
+    if dep.target.environment.is_node() {
       conditions |= ExportsCondition::NODE;
     }
 
-    if dep.env.context == EnvironmentContext::ReactServer {
+    if dep.target.environment == Environment::ReactServer {
       conditions |= ExportsCondition::REACT_SERVER;
     }
 
@@ -65,7 +65,7 @@ impl Resolver for DefaultResolver {
 
     let mut resolver =
       parcel_resolver::Resolver::parcel(&options.project_root.to_file_path().unwrap(), &self.cache);
-    resolver.include_node_modules = Cow::Borrowed(&dep.env.include_node_modules);
+    resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
     let mut res = resolver.resolve_with_options(
       specifier,
@@ -107,7 +107,7 @@ impl Resolver for DefaultResolver {
             ty: AssetType::from_url(&url),
             url,
             code: None,
-            env: dep.env.clone(),
+            target: dep.target.clone(),
             pipeline: pipeline.map(|p| p.into()),
             side_effects,
           })))
@@ -117,7 +117,7 @@ impl Resolver for DefaultResolver {
           ty: AssetType::Js,
           url: SourceUrl::parse("file:///empty.js").unwrap(),
           code: Some(vec![]),
-          env: dep.env.clone(),
+          target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
         }))),
@@ -125,12 +125,13 @@ impl Resolver for DefaultResolver {
           ty: AssetType::Js,
           url: SourceUrl::parse("file:///global.js").unwrap(),
           code: Some(format!("module.exports={};", global).into_bytes()),
-          env: dep.env.clone(),
+          target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
         }))),
         Resolution::Builtin { scheme, module } => {
-          if dep.env.context.is_node() || dep.env.context == EnvironmentContext::ReactServer {
+          if dep.target.environment.is_node() || dep.target.environment == Environment::ReactServer
+          {
             return Ok(DependencyResolution::Excluded);
           }
 
@@ -163,7 +164,7 @@ impl Resolver for DefaultResolver {
                 ty: AssetType::Js,
                 url: SourceUrl::parse("file:///empty.js").unwrap(),
                 code: Some(vec![]),
-                env: dep.env.clone(),
+                target: dep.target.clone(),
                 pipeline: pipeline.map(|p| p.into()),
                 side_effects,
               })));

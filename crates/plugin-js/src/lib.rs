@@ -1,8 +1,8 @@
 use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
 
 use parcel_core::{
-  Asset, AssetType, BufferContent, CodeFrame, CodeHighlight, Diagnostic, Environment, FileSystem,
-  Location, OsFileSystem, OutputFormat, SourceUrl, Transformer,
+  Asset, AssetType, BufferContent, CodeFrame, CodeHighlight, Diagnostic, FileSystem, Location,
+  OsFileSystem, OutputFormat, SourceUrl, Target, Transformer,
 };
 use rquickjs::{
   Class, Context, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Runtime, TypedArray,
@@ -267,7 +267,7 @@ impl JsAsset {
       unreachable!()
     };
     JsTarget {
-      env: asset.env.clone(),
+      target: asset.target.clone(),
     }
   }
 }
@@ -275,7 +275,7 @@ impl JsAsset {
 #[derive(JsLifetime)]
 #[rquickjs::class]
 pub struct JsTarget {
-  env: Arc<Environment>,
+  target: Arc<Target>,
 }
 
 impl<'js> Trace<'js> for JsTarget {
@@ -286,7 +286,7 @@ impl<'js> Trace<'js> for JsTarget {
 impl JsTarget {
   #[qjs(get, rename = "outputFormat")]
   fn output_format(&self) -> &str {
-    match self.env.output_format {
+    match self.target.output_format {
       OutputFormat::Commonjs => "commonjs",
       OutputFormat::Esmodule => "esmodule",
       OutputFormat::Global => "global",

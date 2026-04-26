@@ -7,7 +7,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  Environment, EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution,
+  EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution, Target,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -52,7 +52,7 @@ pub fn build_asset_graph(
       url: entry.url.clone(),
       ty: AssetType::from_url(&entry.url),
       code: None,
-      env: entry.target.clone(),
+      target: entry.target.clone(),
       pipeline: None,
       side_effects: true,
     });
@@ -357,7 +357,7 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
 
 impl AssetGraph {
   /// Visits all assets in depth-first order starting from each entry.
-  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset, &'a Arc<Environment>)> {
+  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset, &'a Arc<Target>)> {
     let mut stack = Vec::new();
     let mut visited = FixedBitSet::with_capacity(self.assets.len());
     let mut entries = self.entries.iter();

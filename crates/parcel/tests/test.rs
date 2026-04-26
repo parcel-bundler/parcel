@@ -183,7 +183,7 @@ fn run_test_with_options<
           code: output_fs.read(&path).unwrap(),
           file_path: path.clone(),
           xml: false,
-          env: Default::default(),
+          target: Default::default(),
           hmr: false,
         });
 

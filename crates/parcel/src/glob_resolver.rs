@@ -3,8 +3,8 @@ use std::{fmt::Write, path::Path, sync::Arc};
 use glob_match::glob_match_with_captures;
 use parcel_core::{
   AssetRequest, AssetType, BuildMode, CodeFrame, CodeHighlight, Dependency, DependencyResolution,
-  Diagnostic, DiagnosticList, EnvironmentContext, ExportsCondition, Location, ParcelOptions,
-  Resolver, SourceUrl, SpecifierType, glob, is_glob,
+  Diagnostic, DiagnosticList, Environment, ExportsCondition, Location, ParcelOptions, Resolver,
+  SourceUrl, SpecifierType, glob, is_glob,
 };
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -55,7 +55,7 @@ impl Resolver for GlobResolver {
       url: SourceUrl::from_path(&dir.join("glob.js")).unwrap(),
       ty: AssetType::Js,
       pipeline: None,
-      env: dep.env.clone(),
+      target: dep.target.clone(),
       code: Some(code.into_bytes()),
       side_effects: true,
     })))

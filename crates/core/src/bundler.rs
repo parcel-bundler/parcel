@@ -4,7 +4,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   AssetType, Bundle, BundleBehavior, BundleFlags, DependencyFlags, DependencyResolution,
-  DiagnosticList, EnvironmentContext, ParcelOptions, Priority,
+  DiagnosticList, Environment, ParcelOptions, Priority,
   asset_graph::{AssetGraph, AssetNode},
   bundle_graph::BundleGraph,
   config::{JsPlugin, ParcelConfig},
@@ -84,7 +84,7 @@ impl Bundler for DefaultBundler {
     #[derive(Hash, PartialEq, Eq)]
     struct BundleKey<'a> {
       reachable_roots: &'a FixedBitSet,
-      context: EnvironmentContext,
+      context: Environment,
       ty: &'a AssetType,
     }
 
@@ -135,7 +135,7 @@ impl Bundler for DefaultBundler {
 
       let key = BundleKey {
         reachable_roots: &reachable_roots[asset_index],
-        context: asset.env.context, // TODO: other environment properties?
+        context: asset.target.environment, // TODO: other environment properties?
         ty: &asset.ty,
       };
 
@@ -145,7 +145,7 @@ impl Bundler for DefaultBundler {
       } else {
         let bundle = Bundle {
           ty: asset.ty.clone(),
-          env: asset.env.clone(),
+          target: asset.target.clone(),
           bundle_behavior: asset.bundle_behavior,
           flags: if is_bundle_root {
             BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
