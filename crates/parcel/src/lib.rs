@@ -9,10 +9,13 @@ use std::{
 use parcel_core::{
   AssetGraph, AssetNode, AssetType, BufferContent, BuildOptions, Bundle, BundleFlags, BundleGraph,
   Bundler, CPlugin, DefaultBundler, DependencyResolution, DiagnosticList, EnvironmentFlags, Namer,
-  Optimizer, OutputFormat, Packager, ParcelConfig, PluginFactory, SourceUrl, Transformer,
+  Optimizer, OsFileSystem, OutputFormat, Packager, ParcelConfig, PluginFactory, SourceUrl,
+  Transformer,
 };
 use parcel_css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer};
-use parcel_html::{HtmlPackager, HtmlTransformer, SvgPackager, SvgTransformer};
+use parcel_html::{
+  HtmlPackager, HtmlTransformer, SvgPackager, SvgToJsxTransformer, SvgTransformer,
+};
 use parcel_image::ImageTransformer;
 use parcel_js::{JsPackager, JsTransformer, LibraryPackager};
 use parcel_plugin_js::JsPlugin;
@@ -38,6 +41,7 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-style-attr" => Arc::new(StyleAttrTransformer {}),
       "@parcel/transformer-html" => Arc::new(HtmlTransformer {}),
       "@parcel/transformer-svg" => Arc::new(SvgTransformer {}),
+      "@parcel/transformer-svg-jsx" => Arc::new(SvgToJsxTransformer {}),
       "@parcel/transformer-image" => Arc::new(ImageTransformer {}),
       // "@parcel/transformer-less" => Arc::new(CPlugin::new(Path::new(
       //   "/Users/devongovett/Downloads/hermes/plugin.dylib",

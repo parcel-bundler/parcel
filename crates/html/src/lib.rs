@@ -448,6 +448,23 @@ impl Transformer for SvgTransformer {
   }
 }
 
+pub struct SvgToJsxTransformer {}
+
+impl Transformer for SvgToJsxTransformer {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+    let code = asset.content.read()?;
+    let res = svg_react(SvgReactOptions {
+      code,
+      config: JsxOptions::default(),
+    })
+    .unwrap();
+    // TODO: avoid re-parse by storing JS ast.
+    asset.content = Arc::new(BufferContent::new(res.code));
+    asset.ty = AssetType::Jsx;
+    Ok(asset)
+  }
+}
+
 pub struct SvgPackager {}
 
 impl Packager for SvgPackager {
