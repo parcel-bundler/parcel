@@ -109,14 +109,20 @@ pub fn transform(
 
   for plugin in &pipeline.0 {
     let ty: AssetType = input.ty.clone();
-    let result = plugin.transform(input, options)?;
+    let mut result = plugin.transform(input, options)?;
     if result.ty != ty {
       let next_path = result
         .loc
         .url
         .with_extension(result.ty.extension())
         .unwrap();
-      let next_pipeline = transformers.get(next_path.as_str(), &result.pipeline, false);
+
+      let mut next_pipeline = transformers.get(next_path.as_str(), &result.pipeline, false);
+      if result.pipeline.is_some() && next_pipeline.0.is_empty() {
+        result.pipeline = None;
+        next_pipeline = transformers.get(next_path.as_str(), &result.pipeline, false);
+      }
+
       if next_pipeline != pipeline {
         return transform(result, next_pipeline, transformers, options);
       }
