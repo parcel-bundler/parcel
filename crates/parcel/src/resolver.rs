@@ -2,8 +2,8 @@ use std::{borrow::Cow, path::Path, sync::Arc};
 
 use parcel_core::{
   AssetRequest, AssetType, BuildMode, CodeFrame, CodeHighlight, Dependency, DependencyResolution,
-  Diagnostic, DiagnosticList, Environment, ExportsCondition, Location, OutputFormat, ParcelOptions,
-  Resolver, SourceUrl, SpecifierType, Target,
+  Diagnostic, DiagnosticList, Environment, EnvironmentFlags, ExportsCondition, Location,
+  OutputFormat, ParcelOptions, Resolver, SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -131,9 +131,11 @@ impl Resolver for DefaultResolver {
           side_effects,
         }))),
         Resolution::Builtin { scheme, module } => {
-          if dep.target.environment.is_node() || dep.target.environment == Environment::ReactServer
+          if dep.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
+            || dep.target.environment.is_node()
+            || dep.target.environment == Environment::ReactServer
           {
-            return Ok(DependencyResolution::Excluded);
+            return Ok(DependencyResolution::External);
           }
 
           let module = match module.as_str() {

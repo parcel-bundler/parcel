@@ -54,6 +54,7 @@ pub fn tree_shake<'a>(
   ast: &mut Ast,
   used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
+  dirname: JsWord,
   minify: bool,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
@@ -63,6 +64,7 @@ pub fn tree_shake<'a>(
       used_symbols,
       resolutions,
       unresolved_mark,
+      dirname,
       mutated: false,
     };
 
@@ -104,6 +106,7 @@ struct TreeShake<'a> {
   used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
   unresolved_mark: Mark,
+  dirname: JsWord,
   mutated: bool,
 }
 
@@ -320,6 +323,12 @@ impl<'a> VisitMut for TreeShake<'a> {
         }
       }
       _ => node.visit_mut_children_with(self),
+    }
+  }
+
+  fn visit_mut_str(&mut self, node: &mut Str) {
+    if node.value == "$parcel$dirnameReplace" || node.value == "$parcel$filenameReplace" {
+      node.value = self.dirname.clone();
     }
   }
 }

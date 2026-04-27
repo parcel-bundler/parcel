@@ -114,6 +114,24 @@ impl SourceUrl {
   pub fn url(&self) -> &Url {
     &*self.url
   }
+
+  pub fn relative(&self, from: &SourceUrl) -> Option<String> {
+    from.url.make_relative(&self.url)
+  }
+
+  pub fn join(&self, other: &str) -> SourceUrl {
+    SourceUrl {
+      url: Arc::new(self.url.join(other).unwrap()),
+    }
+  }
+
+  pub fn parent(&self) -> Option<SourceUrl> {
+    self
+      .url
+      .join("../")
+      .ok()
+      .map(|url| SourceUrl { url: Arc::new(url) })
+  }
 }
 
 impl std::fmt::Display for SourceUrl {

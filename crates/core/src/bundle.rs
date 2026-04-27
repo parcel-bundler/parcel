@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::{AssetType, Target, impl_bitflags_serde};
+use crate::{AssetType, SourceUrl, Target, impl_bitflags_serde};
 
 #[derive(Debug)]
 pub struct Bundle {
@@ -63,5 +63,9 @@ impl Bundle {
   pub fn dist_path(&self) -> PathBuf {
     let dist_dir = self.target.dist_dir.to_file_path().unwrap();
     dist_dir.join(self.name.as_ref().unwrap())
+  }
+
+  pub fn dist_url(&self) -> SourceUrl {
+    self.target.dist_dir.join(self.name.as_ref().unwrap())
   }
 }

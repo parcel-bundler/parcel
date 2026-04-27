@@ -818,8 +818,16 @@ impl Packager for JsPackager {
               }
             }))
             .collect();
+          let dirname = asset
+            .loc
+            .url
+            .parent()
+            .unwrap()
+            .relative(&bundle.target.dist_dir)
+            .unwrap()
+            .into();
           // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
-          tree_shake(&mut ast, used_symbols, dependencies, true);
+          tree_shake(&mut ast, used_symbols, dependencies, dirname, true);
           let (code, map) = ast.to_code(false, false)?;
 
           write!(
@@ -1306,8 +1314,16 @@ impl Packager for LibraryPackager {
           }
         }))
         .collect();
+      let dirname = asset
+        .loc
+        .url
+        .parent()
+        .unwrap()
+        .relative(&bundle.target.dist_dir)
+        .unwrap()
+        .into();
       // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
-      tree_shake(&mut ast, used_symbols, dependencies, false);
+      tree_shake(&mut ast, used_symbols, dependencies, dirname, false);
       let (code, map) = ast.to_code(false, false)?;
       code
     } else {
