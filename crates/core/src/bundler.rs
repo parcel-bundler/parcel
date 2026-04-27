@@ -1,10 +1,10 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use fixedbitset::FixedBitSet;
 
 use crate::{
   AssetType, Bundle, BundleBehavior, BundleFlags, DependencyFlags, DependencyResolution,
-  DiagnosticList, Environment, ParcelOptions, Priority,
+  Diagnostic, DiagnosticList, Environment, ParcelOptions, Priority,
   asset_graph::{AssetGraph, AssetNode},
   bundle_graph::BundleGraph,
   config::{JsPlugin, ParcelConfig},
@@ -127,7 +127,7 @@ impl Bundler for DefaultBundler {
     // }
 
     // Place assets into bundles, following depth-first order.
-    for (asset_index, asset, target) in asset_graph.dfs() {
+    for (asset_index, asset, name) in asset_graph.dfs() {
       let is_bundle_root = bundle_roots.contains(asset_index);
       if !is_bundle_root && reachable_roots[asset_index].is_clear() {
         continue;
@@ -152,7 +152,7 @@ impl Bundler for DefaultBundler {
           } else {
             BundleFlags::empty()
           },
-          name: None,
+          name,
           assets: vec![asset_index],
           entry_assets: if is_bundle_root {
             vec![asset_index]
@@ -222,10 +222,41 @@ pub fn bundle(
 ) -> Result<BundleGraph, DiagnosticList> {
   let mut bundle_graph = config.bundler.bundle(asset_graph)?;
 
+  let mut seen_bundles = HashSet::new();
+  let mut duplicate_bundles = HashSet::new();
   for bundle in &mut bundle_graph.bundles {
-    // TODO: enforce uniqueness
-    let name = name(&bundle_graph.asset_graph, bundle, config, options)?;
-    bundle.name = Some(name.into()) // TODO: targets
+    if bundle.name.is_none() {
+      bundle.name = Some(name(&bundle_graph.asset_graph, bundle, config, options)?);
+    }
+
+    let name = bundle.name.as_ref().unwrap();
+    let full_path = bundle.target.dist_dir.to_file_path().unwrap().join(&name);
+    if seen_bundles.contains(&full_path) {
+      duplicate_bundles.insert(full_path);
+    } else {
+      seen_bundles.insert(full_path);
+    }
+  }
+
+  if !duplicate_bundles.is_empty() {
+    let mut duplicates = duplicate_bundles
+      .into_iter()
+      .map(|p| {
+        p.strip_prefix(std::env::current_dir().unwrap())
+          .unwrap_or_else(|_| &p)
+          .to_string_lossy()
+          .to_string()
+      })
+      .collect::<Vec<_>>();
+    duplicates.sort();
+
+    return Err(
+      Diagnostic::from_message(format!(
+        "Multiple bundles with the same name were found:\n  • {}",
+        duplicates.join("\n  • ")
+      ))
+      .into(),
+    );
   }
 
   Ok(bundle_graph)

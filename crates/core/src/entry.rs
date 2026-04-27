@@ -16,6 +16,7 @@ use crate::{
 pub struct Entry {
   pub url: SourceUrl,
   pub target: Arc<Target>,
+  pub dist_entry: Option<String>,
   pub asset: Option<usize>,
   pub loc: Option<SourceLocation>,
 }
@@ -67,6 +68,7 @@ pub fn resolve_entries(
       entries.add_entry(Entry {
         url: SourceUrl::from_path(&path).unwrap(),
         target: env,
+        dist_entry: None,
         loc: None,
         asset: None,
       });
@@ -151,6 +153,7 @@ impl EntryResolver {
           self.add_entry(Entry {
             url: SourceUrl::from_path(&dir.join(source)).unwrap(),
             target: env,
+            dist_entry: Some(dist_entry),
             asset: None,
             loc: None,
           });
@@ -162,10 +165,10 @@ impl EntryResolver {
           self.add_entry(Entry {
             url: SourceUrl::from_path(&source).unwrap(),
             target: Arc::new(Target {
-              dist_entry: None,
               dist_dir: SourceUrl::from_path(&dir).unwrap(),
               ..Default::default()
             }),
+            dist_entry: None,
             asset: None,
             loc: None,
           });
@@ -250,6 +253,7 @@ impl EntryResolver {
           self.add_entry(Entry {
             url: SourceUrl::from_path(&source).unwrap(),
             target: env,
+            dist_entry: Some(dist_entry),
             asset: None,
             loc: None,
           })
@@ -400,7 +404,6 @@ impl<'a> ExportsContext<'a> {
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
       dist_dir: SourceUrl::from_path(dir).unwrap(),
-      dist_entry: Some(entry.to_owned()),
       public_url: String::new(),
     }
   }
@@ -565,9 +568,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("import.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("import.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -578,9 +581,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("require.cjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("require.cjs".into()),
           asset: None,
           loc: None,
         },
@@ -605,9 +608,9 @@ mod tests {
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY,
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("node.js".into()),
             ..Default::default()
           }),
+          dist_entry: Some("node.js".into()),
           asset: None,
           loc: None,
         },
@@ -619,9 +622,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("browser.js".into()),
             ..Default::default()
           }),
+          dist_entry: Some("browser.js".into()),
           asset: None,
           loc: None,
         },
@@ -653,9 +656,9 @@ mod tests {
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY,
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("node.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("node.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -667,9 +670,9 @@ mod tests {
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY,
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("node.cjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("node.cjs".into()),
           asset: None,
           loc: None,
         },
@@ -680,9 +683,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("browser.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("browser.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -693,9 +696,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("browser.cjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("browser.cjs".into()),
           asset: None,
           loc: None,
         },
@@ -726,9 +729,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("node.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("node.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -740,9 +743,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("node.cjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("node.cjs".into()),
           asset: None,
           loc: None,
         },
@@ -753,9 +756,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("browser.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("browser.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -766,9 +769,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("browser.cjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("browser.cjs".into()),
           asset: None,
           loc: None,
         },
@@ -798,9 +801,9 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root").unwrap(),
-          dist_entry: Some("dist.js".into()),
           ..Default::default()
         }),
+        dist_entry: Some("dist.js".into()),
         asset: None,
         loc: None,
       }],
@@ -832,9 +835,9 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root").unwrap(),
-          dist_entry: Some("dist.js".into()),
           ..Default::default()
         }),
+        dist_entry: Some("dist.js".into()),
         asset: None,
         loc: None,
       }],
@@ -864,9 +867,9 @@ mod tests {
               ..Default::default()
             },
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("dist.js".into()),
             ..Default::default()
           }),
+          dist_entry: Some("dist.js".into()),
           asset: None,
           loc: None,
         },
@@ -885,9 +888,9 @@ mod tests {
               ..Default::default()
             },
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("module.js".into()),
             ..Default::default()
           }),
+          dist_entry: Some("module.js".into()),
           asset: None,
           loc: None,
         },
@@ -917,9 +920,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("foo.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("foo.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -931,9 +934,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
-            dist_entry: Some("bar.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("bar.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -957,9 +960,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
-            dist_entry: Some("bar.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("bar.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -971,9 +974,9 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
-            dist_entry: Some("foo.mjs".into()),
             ..Default::default()
           }),
+          dist_entry: Some("foo.mjs".into()),
           asset: None,
           loc: None,
         },
@@ -1011,9 +1014,9 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
-          dist_entry: Some("index.js".into()),
           ..Default::default()
         }),
+        dist_entry: Some("index.js".into()),
         asset: None,
         loc: None,
       }],
@@ -1054,9 +1057,9 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
-          dist_entry: Some("index.js".into()),
           ..Default::default()
         }),
+        dist_entry: Some("index.js".into()),
         asset: None,
         loc: None,
       }],
@@ -1078,9 +1081,9 @@ mod tests {
           flags: EnvironmentFlags::IS_LIBRARY,
           include_node_modules: crate::IncludeNodeModules::Bool(false),
           dist_dir: SourceUrl::parse("file:///root/style/dist").unwrap(),
-          dist_entry: Some("index.mjs".into()),
           ..Default::default()
         }),
+        dist_entry: Some("index.mjs".into()),
         asset: None,
         loc: None,
       }],

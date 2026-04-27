@@ -9,6 +9,7 @@ use parcel_core::{
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
 };
+use xxhash_rust::xxh3::xxh3_64;
 
 pub struct GlobResolver {}
 
@@ -51,8 +52,9 @@ impl Resolver for GlobResolver {
     }
     code.push_str("};\n");
 
+    let mut hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
     Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-      url: SourceUrl::from_path(&dir.join("glob.js")).unwrap(),
+      url: SourceUrl::from_path(&dir.join(&hash)).unwrap(),
       ty: AssetType::Js,
       pipeline: None,
       target: dep.target.clone(),

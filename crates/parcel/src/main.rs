@@ -1,4 +1,5 @@
 use parcel_core::{BuildOptions, OsFileSystem};
+use std::process::ExitCode;
 use std::{collections::HashMap, sync::Arc};
 
 #[global_allocator]
@@ -11,7 +12,7 @@ enum Command {
   Targets,
 }
 
-pub fn main() {
+pub fn main() -> ExitCode {
   let mut args = std::env::args().skip(1);
   let cmd = match args.next() {
     None => todo!(),
@@ -56,7 +57,9 @@ pub fn main() {
 
   match cmd {
     Command::Build => {
-      parcel::build(entries, options).unwrap();
+      if parcel::build(entries, options).is_err() {
+        return ExitCode::from(1);
+      }
     }
     Command::Watch => {
       parcel::watch(entries, options);
@@ -76,4 +79,5 @@ pub fn main() {
   //   vec!["/Users/devongovett/dev/parcel/test/library".into()],
   //   options,
   // );
+  ExitCode::from(0)
 }

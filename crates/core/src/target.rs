@@ -16,7 +16,6 @@ pub struct Target {
   pub loc: Option<SourceLocation>,
   pub include_node_modules: IncludeNodeModules,
   pub engines: Engines,
-  pub dist_entry: Option<String>,
   pub dist_dir: SourceUrl,
   pub public_url: String,
 }

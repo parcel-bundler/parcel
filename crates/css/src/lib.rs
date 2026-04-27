@@ -149,8 +149,6 @@ impl<'de> serde::Deserialize<'de> for CssTransformer {
 
 impl Transformer for CssTransformer {
   fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
-    // TODO: normalize environment
-
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut stylesheet = StyleSheet::parse(

@@ -112,6 +112,8 @@ pub enum AssetType {
   Svg,
   Json,
   Jsonld,
+  Toml,
+  Yaml,
   Png,
   Jpeg,
   Gif,
@@ -157,6 +159,8 @@ impl AssetType {
       AssetType::Svg => "svg",
       AssetType::Json => "json",
       AssetType::Jsonld => "jsonld",
+      AssetType::Yaml => "yaml",
+      AssetType::Toml => "toml",
       AssetType::Png => "png",
       AssetType::Jpeg => "jpg",
       AssetType::Gif => "gif",
@@ -183,6 +187,9 @@ impl AssetType {
       "svg" => AssetType::Svg,
       "json" => AssetType::Json,
       "jsonld" => AssetType::Jsonld,
+      "yaml" => AssetType::Yaml,
+      "yml" => AssetType::Yaml,
+      "toml" => AssetType::Toml,
       "png" => AssetType::Png,
       "jpeg" => AssetType::Jpeg,
       "jpg" => AssetType::Jpeg,
@@ -230,6 +237,8 @@ impl AssetType {
       "module" => AssetType::Js,
       "application/json" => AssetType::Json,
       "application/ld+json" => AssetType::Jsonld,
+      "application/yaml" => AssetType::Yaml,
+      "application/toml" => AssetType::Toml,
       "text/css" => AssetType::Css,
       "text/html" => AssetType::Html,
       "application/xhtml+xml" => AssetType::Xhtml,
@@ -266,6 +275,8 @@ impl AssetType {
       AssetType::Svg => "image/svg+xml",
       AssetType::Json => "application/json",
       AssetType::Jsonld => "application/json",
+      AssetType::Yaml => "application/yaml",
+      AssetType::Toml => "application/toml",
       AssetType::Png => "image/png",
       AssetType::Jpeg => "image/jpeg",
       AssetType::Gif => "image/gif",
@@ -276,6 +287,11 @@ impl AssetType {
       AssetType::Avif => "image/avif",
       AssetType::Other(_) => "application/octet-stream",
     }
+  }
+
+  pub fn is_js(&self) -> bool {
+    use AssetType::*;
+    matches!(self, Js | Jsx | Ts | Tsx | Mdx | Json | Toml | Yaml)
   }
 }
 
