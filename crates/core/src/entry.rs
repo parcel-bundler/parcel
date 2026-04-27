@@ -140,23 +140,23 @@ impl EntryResolver {
             // TODO: error
           }
 
-          let (dist_dir, dist_entry) = dist_dir_entry(&dir, &main, &dir.join(source));
-          let mut env = context
-            .child(&json, field)
-            .to_env(&json, &dist_dir, &dist_entry);
-          if *cond == ExportsCondition::MODULE {
-            env.output_format = OutputFormat::Esmodule;
+          if let Some(child) = context.child(&json, field) {
+            let (dist_dir, dist_entry) = dist_dir_entry(&dir, &main, &dir.join(source));
+            let mut env = child.to_env(&json, &dist_dir, &dist_entry);
+            if *cond == ExportsCondition::MODULE {
+              env.output_format = OutputFormat::Esmodule;
+            }
+
+            let env = self.target(env);
+
+            self.add_entry(Entry {
+              url: SourceUrl::from_path(&dir.join(source)).unwrap(),
+              target: env,
+              dist_entry: Some(dist_entry),
+              asset: None,
+              loc: None,
+            });
           }
-
-          let env = self.target(env);
-
-          self.add_entry(Entry {
-            url: SourceUrl::from_path(&dir.join(source)).unwrap(),
-            target: env,
-            dist_entry: Some(dist_entry),
-            asset: None,
-            loc: None,
-          });
         }
       }
 
@@ -226,14 +226,9 @@ impl EntryResolver {
         }
 
         if !key.starts_with('.') {
-          self.extract_exports(
-            fs,
-            dir,
-            pkg,
-            value,
-            source.clone(),
-            &context.child(pkg, key),
-          );
+          if let Some(child) = context.child(pkg, key) {
+            self.extract_exports(fs, dir, pkg, value, source.clone(), &child);
+          }
         } else {
           self.extract_exports(fs, dir, pkg, value, source.clone(), context);
         }
@@ -317,11 +312,15 @@ struct ExportsContext<'a> {
 }
 
 impl<'a> ExportsContext<'a> {
-  fn child(&'a self, pkg: &'a Value, condition: &str) -> ExportsContext<'a> {
+  fn child(&'a self, pkg: &'a Value, condition: &str) -> Option<ExportsContext<'a>> {
     let target = pkg
       .get("targets")
       .and_then(|targets| targets.get(condition));
-    ExportsContext {
+    if matches!(target, Some(Value::Bool(false))) {
+      return None;
+    }
+
+    Some(ExportsContext {
       condition: self.condition
         | ExportsCondition::try_from(condition).unwrap_or(ExportsCondition::empty()),
       engines: target
@@ -336,7 +335,7 @@ impl<'a> ExportsContext<'a> {
       include_node_modules: target
         .and_then(|t| t.get("includeNodeModules"))
         .or(self.include_node_modules.clone()),
-    }
+    })
   }
 
   fn to_env(&self, pkg: &Value, dir: &Path, entry: &str) -> Target {
@@ -1087,6 +1086,20 @@ mod tests {
         asset: None,
         loc: None,
       }],
+    );
+
+    test(
+      r#"
+    {
+      "exports": {
+        "source": "./style/index.ts",
+        "import": "./style/dist/index.mjs"
+      },
+      "targets": {
+        "import": false
+      }
+    }"#,
+      vec![],
     );
   }
 }
