@@ -33,6 +33,7 @@ impl MacroContext {
   #[qjs(rename = "addAsset")]
   fn add_asset<'js>(&mut self, asset: Object<'js>) {
     let ty: String = asset.get("type").unwrap();
+    let ty = AssetType::from_extension(&ty);
     let content: String = asset.get("content").unwrap();
     self.dependencies.borrow_mut().push(Dependency {
       specifier: format!("macro"),
@@ -58,9 +59,9 @@ impl MacroContext {
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
         url: self.url.clone(),
-        ty: AssetType::from_extension(&ty),
         pipeline: None,
-        target: self.target.clone(),
+        target: Target::normalize(&self.target, &ty),
+        ty,
         code: Some(content.into_bytes()),
         side_effects: true,
       })),

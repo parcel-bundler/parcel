@@ -177,6 +177,8 @@ impl AssetType {
     match ext {
       "js" => AssetType::Js,
       "jsx" => AssetType::Jsx,
+      "mjs" => AssetType::Js,
+      "cjs" => AssetType::Js,
       "ts" => AssetType::Ts,
       "tsx" => AssetType::Tsx,
       "mdx" => AssetType::Mdx,

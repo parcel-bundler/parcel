@@ -104,28 +104,12 @@ impl Resolver for DefaultResolver {
           let url =
             SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..])).unwrap();
           let ty = AssetType::from_url(&url);
-
-          // The output format only applies to JavaScript-based languages.
-          // Normalize the target for other asset types to avoid duplicating them.
-          let target = if ty.is_js()
-            && matches!(
-              dep.target.output_format,
-              OutputFormat::Esmodule | OutputFormat::Commonjs
-            ) {
-            Arc::new(Target {
-              output_format: OutputFormat::Global,
-              ..(*dep.target).clone()
-            })
-          } else {
-            dep.target.clone()
-          };
-
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-            ty,
             url,
             code: None,
-            target,
+            target: Target::normalize(&dep.target, &ty),
             pipeline: pipeline.map(|p| p.into()),
+            ty,
             side_effects,
           })))
         }

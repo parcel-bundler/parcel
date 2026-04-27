@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, num::NonZeroU16, str::FromStr};
+use std::{collections::BTreeMap, num::NonZeroU16, str::FromStr, sync::Arc};
 
-use crate::{SourceLocation, SourceUrl, impl_bitflags_serde};
+use crate::{AssetType, SourceLocation, SourceUrl, impl_bitflags_serde};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,24 @@ pub struct Target {
 impl Target {
   pub fn should_scope_hoist(&self) -> bool {
     self.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
+  }
+
+  pub fn normalize(target: &Arc<Target>, ty: &AssetType) -> Arc<Target> {
+    // The output format only applies to JavaScript-based languages.
+    // Normalize the target for other asset types to avoid duplicating them.
+    if !ty.is_js()
+      && matches!(
+        target.output_format,
+        OutputFormat::Esmodule | OutputFormat::Commonjs
+      )
+    {
+      Arc::new(Target {
+        output_format: OutputFormat::Global,
+        ..(**target).clone()
+      })
+    } else {
+      target.clone()
+    }
   }
 }
 

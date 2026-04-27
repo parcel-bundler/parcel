@@ -303,6 +303,22 @@ impl<'a> VisitMut for TreeShake<'a> {
           }
         }
       }
+      ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
+        if let Some(src) = &mut export.src {
+          if let Some(resolution) = self.resolutions.get(src.value.as_str()) {
+            match resolution {
+              Resolution::External(resolution) => {
+                src.value = resolution.as_ref().into();
+                src.raw = None;
+              }
+              Resolution::String(string) => {
+                // TODO
+              }
+              _ => {}
+            }
+          }
+        }
+      }
       _ => node.visit_mut_children_with(self),
     }
   }
