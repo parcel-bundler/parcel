@@ -19,6 +19,7 @@ mod macros;
 mod plugin;
 mod process;
 mod url;
+mod url_search_params;
 
 thread_local! {
   static JS_ENV: RefCell<Option<Context>> = RefCell::new(None);
@@ -132,6 +133,10 @@ pub fn create_runtime(fs: Arc<dyn FileSystem>) -> rquickjs::Result<Context> {
     global.set("TextDecoder", encoding::TextDecoder::constructor(&ctx))?;
     global.set("TextEncoder", encoding::TextEncoder::constructor(&ctx))?;
     global.set("URL", url::URL::constructor(&ctx))?;
+    global.set(
+      "URLSearchParams",
+      url_search_params::URLSearchParams::constructor(&ctx),
+    )?;
 
     global.set("atob", Function::new(ctx.clone(), encoding::atob)?)?;
     global.set("btoa", Function::new(ctx.clone(), encoding::btoa)?)?;

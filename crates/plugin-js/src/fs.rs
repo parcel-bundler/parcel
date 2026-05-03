@@ -27,7 +27,7 @@ pub struct FsModule {}
 
 impl ModuleDef for FsModule {
   fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
-    decl.declare("readFileSync")?;
+    decl.declare("default")?;
     Ok(())
   }
 
@@ -43,12 +43,32 @@ impl ModuleDef for FsModule {
 
 #[rquickjs::methods(rename_all = "camelCase")]
 impl Fs {
-  pub fn read_file_sync<'js>(&self, ctx: Ctx<'js>, path: String) -> rquickjs::Result<Value<'js>> {
-    // TODO: support encodings / buffers
-    let contents = self.fs.read_to_string(Path::new(&path));
-    match contents {
-      Ok(contents) => Ok(rquickjs::String::from_str(ctx, &contents)?.into_value()),
-      Err(err) => Err(rquickjs::Exception::throw_message(&ctx, &err.to_string())),
+  pub fn read_file_sync<'js>(
+    &self,
+    ctx: Ctx<'js>,
+    path: String,
+    encoding: rquickjs::function::Opt<String>,
+  ) -> rquickjs::Result<Value<'js>> {
+    let encoding = encoding.0.as_ref().map(|e| e.as_str());
+    match encoding {
+      None => {
+        let contents = self.fs.read(Path::new(&path));
+        match contents {
+          Ok(contents) => Ok(rquickjs::TypedArray::new(ctx, contents)?.into_value()),
+          Err(err) => Err(rquickjs::Exception::throw_message(&ctx, &err.to_string())),
+        }
+      }
+      Some("utf-8") | Some("utf8") => {
+        let contents = self.fs.read_to_string(Path::new(&path));
+        match contents {
+          Ok(contents) => Ok(rquickjs::String::from_str(ctx, &contents)?.into_value()),
+          Err(err) => Err(rquickjs::Exception::throw_message(&ctx, &err.to_string())),
+        }
+      }
+      _ => Err(rquickjs::Exception::throw_message(
+        &ctx,
+        "Unsupported encoding",
+      )),
     }
   }
 }
