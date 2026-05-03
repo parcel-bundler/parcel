@@ -13,7 +13,7 @@ use rquickjs::{
   methods,
 };
 
-use crate::{load_module, with_js_env};
+use crate::{plugin::load_module, with_js_env};
 
 #[derive(JsLifetime)]
 #[rquickjs::class]
