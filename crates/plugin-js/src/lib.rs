@@ -1,8 +1,6 @@
 use std::{cell::RefCell, path::Path, sync::Arc};
 
-use parcel_core::{
-  CodeFrame, CodeHighlight, Diagnostic, FileSystem, Location, OsFileSystem, SourceUrl,
-};
+use parcel_core::{CodeFrame, CodeHighlight, Diagnostic, FileSystem, Location, SourceUrl};
 use rquickjs::{Context, Ctx, Function, Object, Runtime, class::JsClass, object::Accessor};
 use rquickjs_extra_console::Formatter;
 
@@ -25,7 +23,7 @@ thread_local! {
   static JS_ENV: RefCell<Option<Context>> = RefCell::new(None);
 }
 
-fn with_js_env<F, R>(f: F) -> Result<R, Diagnostic>
+fn with_js_env<F, R>(fs: Arc<dyn FileSystem>, f: F) -> Result<R, Diagnostic>
 where
   F: FnOnce(&Ctx) -> rquickjs::Result<R>,
 {
@@ -33,8 +31,7 @@ where
     let mut context = cell.borrow_mut();
 
     if context.is_none() {
-      let ctx = create_runtime(Arc::new(OsFileSystem {}))
-        .map_err(|e| Diagnostic::from_message(e.to_string()))?;
+      let ctx = create_runtime(fs).map_err(|e| Diagnostic::from_message(e.to_string()))?;
       *context = Some(ctx);
     }
 

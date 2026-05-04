@@ -34,9 +34,9 @@ impl Transformer for JsPlugin {
   fn transform(
     &self,
     asset: Asset,
-    _options: &parcel_core::ParcelOptions,
+    options: &parcel_core::ParcelOptions,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
-    let asset = with_js_env(|ctx| {
+    let asset = with_js_env(options.input_fs.clone(), |ctx| {
       let module = load_module(&ctx, &self.path)?;
       let symbol: Object = ctx.globals().get("Symbol")?;
       let symbol_for: Function = symbol.get("for")?;
@@ -49,7 +49,9 @@ impl Transformer for JsPlugin {
       let transform: Function = config.get("transform")?;
       let asset = JsAsset { asset: Some(asset) };
       let value = asset.into_js(&ctx)?;
-      let _: () = transform.call((value.clone(),))?;
+      let options = Object::new(ctx.clone())?;
+      options.set("asset", value.clone())?;
+      let _: () = transform.call((options,))?;
       let obj = Class::<JsAsset>::from_js(&ctx, value)?;
       let js_asset = &mut *obj.borrow_mut();
       let asset = js_asset.asset.take().expect("Asset already taken");
@@ -242,10 +244,12 @@ impl JsTarget {
     }
   }
 
+  #[qjs(get)]
   fn is_library(&self) -> bool {
     self.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
   }
 
+  #[qjs(get)]
   fn should_optimize(&self) -> bool {
     self
       .target

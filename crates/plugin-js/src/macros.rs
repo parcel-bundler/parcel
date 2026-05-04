@@ -3,7 +3,8 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use indexmap::IndexMap;
 use parcel_core::{
   AssetRequest, AssetType, BundleBehavior, Dependency, DependencyFlags, DependencyResolution,
-  ExportsCondition, Location, Priority, SourceLocation, SourceUrl, SpecifierType, Target,
+  ExportsCondition, FileSystem, Location, Priority, SourceLocation, SourceUrl, SpecifierType,
+  Target,
 };
 use parcel_macros::{JsValue, MacroError};
 use rquickjs::{
@@ -81,6 +82,7 @@ impl MacroContext {
 }
 
 pub fn call_macro(
+  fs: Arc<dyn FileSystem>,
   url: SourceUrl,
   target: Arc<Target>,
   src: String,
@@ -88,7 +90,7 @@ pub fn call_macro(
   args: Vec<JsValue>,
   loc: parcel_macros::Location,
 ) -> Result<(JsValue, Vec<Dependency>), MacroError> {
-  with_js_env(|ctx| {
+  with_js_env(fs, |ctx| {
     let module = load_module(&ctx, &src)?;
     let f: Function = module.get(&export)?;
     let mut js_args = Args::new(ctx.clone(), args.len());

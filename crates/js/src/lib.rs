@@ -54,6 +54,7 @@ impl Transformer for JsTransformer {
     let resolve_from = asset.loc.url.to_file_path().unwrap();
     let macro_deps = Arc::new(RefCell::new(Vec::new()));
     let macro_deps_cloned = macro_deps.clone();
+    let input_fs = options.input_fs.clone();
     let res = transform_to_ast(
       config,
       Some(Arc::new(move |src, export, args, loc| {
@@ -61,6 +62,7 @@ impl Transformer for JsTransformer {
         if let Ok(res) = resolved.result {
           if let parcel_resolver::Resolution::Path(p) = res.resolution {
             let (res, deps) = call_macro(
+              input_fs.clone(),
               url.clone(),
               env.clone(),
               p.to_str().unwrap().to_string(),
