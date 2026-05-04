@@ -10,7 +10,7 @@ inherits = "release"
 debug = true
 
 [profile.release]
-strip = "symbols"
+debug = true
 
 [patch.crates-io]
 html5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
