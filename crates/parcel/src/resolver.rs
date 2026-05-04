@@ -3,7 +3,7 @@ use std::{borrow::Cow, path::Path, sync::Arc};
 use parcel_core::{
   AssetRequest, AssetType, BuildMode, CodeFrame, CodeHighlight, Dependency, DependencyResolution,
   Diagnostic, DiagnosticList, Environment, EnvironmentFlags, ExportsCondition, Location,
-  OutputFormat, ParcelOptions, Resolver, SourceUrl, SpecifierType, Target,
+  ParcelOptions, Resolver, SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -14,7 +14,7 @@ pub struct DefaultResolver {
 }
 
 impl DefaultResolver {
-  pub fn new(project_root: String) -> Self {
+  pub fn new(_project_root: String) -> Self {
     let fs = Arc::new(OsFileSystem);
     DefaultResolver {
       cache: parcel_resolver::Cache::new(fs),

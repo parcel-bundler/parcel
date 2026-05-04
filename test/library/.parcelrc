@@ -1,6 +1,14 @@
 {
   "resolvers": ["@parcel/resolver-glob", "@parcel/resolver-default"],
   "transformers": {
+    "**/packages/**/intl/**/*.json": [
+      {
+        "plugin": "@parcel/transformer-quickjs",
+        "config": {
+          "path": "/Users/devongovett/dev/react-spectrum/packages/dev/parcel-transformer-intl/IntlTransformer.js"
+        }
+      }
+    ],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": [
       "@parcel/transformer-js"
     ],
@@ -36,7 +44,7 @@
         }
       }
     ],
-    "*.svg": ["@parcel/transformer-svg"],
+    "*.svg": ["@parcel/transformer-svg-jsx"],
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": ["@parcel/transformer-image"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],

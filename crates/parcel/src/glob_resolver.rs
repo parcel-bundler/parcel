@@ -1,13 +1,9 @@
-use std::{fmt::Write, path::Path, sync::Arc};
+use std::{fmt::Write, sync::Arc};
 
 use glob_match::glob_match_with_captures;
 use parcel_core::{
-  AssetRequest, AssetType, BuildMode, CodeFrame, CodeHighlight, Dependency, DependencyResolution,
-  Diagnostic, DiagnosticList, Environment, ExportsCondition, Location, ParcelOptions, Resolver,
-  SourceUrl, SpecifierType, glob, is_glob,
-};
-use parcel_resolver::{
-  OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
+  AssetRequest, AssetType, Dependency, DependencyResolution, DiagnosticList, ParcelOptions,
+  Resolver, SourceUrl, glob, is_glob,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
@@ -18,7 +14,7 @@ impl Resolver for GlobResolver {
     &self,
     dep: &Dependency,
     specifier: &str,
-    pipeline: Option<&str>,
+    _pipeline: Option<&str>,
     options: &ParcelOptions,
   ) -> Result<DependencyResolution, DiagnosticList> {
     if !is_glob(specifier) {
@@ -52,7 +48,7 @@ impl Resolver for GlobResolver {
     }
     code.push_str("};\n");
 
-    let mut hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
+    let hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
     Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
       url: SourceUrl::from_path(&dir.join(&hash)).unwrap(),
       ty: AssetType::Js,
