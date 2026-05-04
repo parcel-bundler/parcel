@@ -1,14 +1,7 @@
 {
   "resolvers": ["@parcel/resolver-glob", "@parcel/resolver-default"],
   "transformers": {
-    "**/packages/**/intl/**/*.json": [
-      {
-        "plugin": "@parcel/transformer-quickjs",
-        "config": {
-          "path": "/Users/devongovett/dev/react-spectrum/packages/dev/parcel-transformer-intl/IntlTransformer.js"
-        }
-      }
-    ],
+    "**/packages/**/intl/**/*.json": ["/Users/devongovett/dev/react-spectrum/packages/dev/parcel-transformer-intl/IntlTransformer.js"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": [
       "@parcel/transformer-js"
     ],

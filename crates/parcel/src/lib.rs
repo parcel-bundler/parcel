@@ -19,7 +19,8 @@ mod yaml;
 
 pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph, DiagnosticList> {
   let start = std::time::Instant::now();
-  match parcel_core::build(entries, options, &DefaultPluginFactory {}) {
+  let factory = DefaultPluginFactory::new(options.input_fs.clone());
+  match parcel_core::build(entries, options, &factory) {
     Ok(g) => {
       println!("SUCCESS! {:?}", start.elapsed());
       Ok(g)

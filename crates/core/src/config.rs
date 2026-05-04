@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-  FileSystem,
+  Diagnostic, DiagnosticList, FileSystem,
   bundler::{Bundler, DefaultBundler},
   namer::Namer,
   optimizer::Optimizer,
@@ -32,10 +32,14 @@ pub struct ParcelConfig {
 }
 
 impl ParcelConfig {
-  pub fn read(fs: &dyn FileSystem, path: &Path, factory: &dyn PluginFactory) -> ParcelConfig {
-    let content = fs.read(path).unwrap();
-    let raw: RawParcelConfig = serde_json::from_slice(&content).unwrap();
-    raw.resolve(factory)
+  pub fn read(
+    fs: &dyn FileSystem,
+    path: &Path,
+    factory: &dyn PluginFactory,
+  ) -> Result<ParcelConfig, DiagnosticList> {
+    let content = fs.read(path)?;
+    let raw: RawParcelConfig = serde_json::from_slice(&content)?;
+    raw.resolve(factory, path)
   }
 }
 
@@ -242,10 +246,14 @@ impl PluginWithConfig {
     }
   }
 
-  fn resolve<T: ?Sized, F: Fn(&str, Option<serde_json::Value>) -> Arc<T>>(
+  fn resolve<
+    T: ?Sized,
+    F: Fn(&str, Option<serde_json::Value>) -> Result<Arc<T>, DiagnosticList>,
+    DiagnosticList,
+  >(
     self,
     factory: &F,
-  ) -> Arc<T> {
+  ) -> Result<Arc<T>, DiagnosticList> {
     match self {
       PluginWithConfig::Plugin(plugin) => factory(&plugin, None),
       PluginWithConfig::Config { plugin, config } => factory(&plugin, Some(config)),
@@ -284,32 +292,69 @@ struct RawPipeline(Vec<PluginWithConfig>);
 struct RawPipelineMap(IndexMap<String, RawPipeline>);
 
 pub trait PluginFactory {
-  fn config(&self, specifier: &str) -> ParcelConfig;
-  fn resolver(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Resolver>;
-  fn transformer(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Transformer>;
-  fn bundler(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Bundler>;
-  fn namer(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Namer>;
-  fn packager(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Packager>;
-  fn optimizer(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Optimizer>;
+  fn config(&self, specifier: &str, from: &Path) -> Result<ParcelConfig, DiagnosticList>;
+  fn resolver(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Resolver>, DiagnosticList>;
+  fn transformer(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Transformer>, DiagnosticList>;
+  fn bundler(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Bundler>, DiagnosticList>;
+  fn namer(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Namer>, DiagnosticList>;
+  fn packager(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Packager>, DiagnosticList>;
+  fn optimizer(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Optimizer>, DiagnosticList>;
 }
 
 impl RawParcelConfig {
-  fn resolve(self, factory: &dyn PluginFactory) -> ParcelConfig {
+  fn resolve(
+    self,
+    factory: &dyn PluginFactory,
+    from: &Path,
+  ) -> Result<ParcelConfig, DiagnosticList> {
     let extends = match self.extends {
       None => Vec::new(),
-      Some(ParcelConfigExtends::String(e)) => vec![factory.config(&e)],
-      Some(ParcelConfigExtends::Array(a)) => a.into_iter().map(|e| factory.config(&e)).collect(),
+      Some(ParcelConfigExtends::String(e)) => vec![factory.config(&e, from)?],
+      Some(ParcelConfigExtends::Array(a)) => a
+        .into_iter()
+        .map(|e| factory.config(&e, from))
+        .collect::<Result<_, DiagnosticList>>()?,
     };
 
     let mut transformers = self
       .transformers
       .unwrap_or_default()
-      .resolve(&|name, config| factory.transformer(name, config));
+      .resolve(&|name, config| factory.transformer(name, config, from))?;
 
     let mut optimizers = self
       .optimizers
       .unwrap_or_default()
-      .resolve(&|name, config| factory.optimizer(name, config));
+      .resolve(&|name, config| factory.optimizer(name, config, from))?;
 
     let mut extended_resolvers = Vec::new();
     let mut extended_namers = Vec::new();
@@ -325,57 +370,63 @@ impl RawParcelConfig {
     }
 
     for (key, pkg) in self.packagers.unwrap_or_default() {
-      let plugin = pkg.resolve(&|name, config| factory.packager(name, config));
+      let plugin = pkg.resolve(&|name, config| factory.packager(name, config, from))?;
       packagers.insert(key, plugin);
     }
 
-    ParcelConfig {
+    Ok(ParcelConfig {
       resolvers: self.resolvers.unwrap_or_default().resolve_extended(
-        &|name, config| factory.resolver(name, config),
+        &|name, config| factory.resolver(name, config, from),
         extended_resolvers.into_iter(),
-      ),
+      )?,
       transformers,
       bundler: self
         .bundler
         .unwrap()
-        .resolve(&|name, config| factory.bundler(name, config)),
+        .resolve(&|name, config| factory.bundler(name, config, from))?,
       namers: self.namers.unwrap_or_default().resolve_extended(
-        &|name, config| factory.namer(name, config),
+        &|name, config| factory.namer(name, config, from),
         extended_namers.into_iter(),
-      ),
+      )?,
       runtimes: Vec::new(),
       packagers,
       optimizers,
       validators: Default::default(),
       compressors: Default::default(),
       reporters: Default::default(),
-    }
+    })
   }
 }
 
 impl RawPipeline {
-  fn resolve<T: ?Sized, F: Fn(&str, Option<serde_json::Value>) -> Arc<T>>(
+  fn resolve<
+    T: ?Sized,
+    F: Fn(&str, Option<serde_json::Value>) -> Result<Arc<T>, DiagnosticList>,
+  >(
     self,
     factory: &F,
-  ) -> Vec<PipelineNode<T>> {
+  ) -> Result<Vec<PipelineNode<T>>, DiagnosticList> {
     self
       .0
       .into_iter()
       .map(|pkg| {
         if pkg.plugin() == "..." {
-          PipelineNode::Spread
+          Ok(PipelineNode::Spread)
         } else {
-          PipelineNode::Plugin(pkg.resolve(factory))
+          Ok(PipelineNode::Plugin(pkg.resolve(factory)?))
         }
       })
       .collect()
   }
 
-  fn resolve_extended<T: ?Sized, F: Fn(&str, Option<serde_json::Value>) -> Arc<T>>(
+  fn resolve_extended<
+    T: ?Sized,
+    F: Fn(&str, Option<serde_json::Value>) -> Result<Arc<T>, DiagnosticList>,
+  >(
     self,
     factory: &F,
     extends: impl Iterator<Item = Arc<T>>,
-  ) -> Vec<Arc<T>> {
+  ) -> Result<Vec<Arc<T>>, DiagnosticList> {
     let mut ext = Some(extends);
     self
       .0
@@ -383,7 +434,7 @@ impl RawPipeline {
       .flat_map(|pkg| {
         if pkg.plugin() == "..." {
           if let Some(ext) = std::mem::take(&mut ext) {
-            Either::Left(ext)
+            Either::Left(ext.map(Ok))
           } else {
             todo!()
           }
@@ -396,20 +447,23 @@ impl RawPipeline {
 }
 
 impl RawPipelineMap {
-  fn resolve<T: ?Sized, F: Fn(&str, Option<serde_json::Value>) -> Arc<T>>(
+  fn resolve<
+    T: ?Sized,
+    F: Fn(&str, Option<serde_json::Value>) -> Result<Arc<T>, DiagnosticList>,
+  >(
     self,
     factory: &F,
-  ) -> PipelineMap<T> {
-    PipelineMap(
+  ) -> Result<PipelineMap<T>, DiagnosticList> {
+    Ok(PipelineMap(
       self
         .0
         .into_iter()
         .map(|(key, pipeline)| {
           // TODO: error on reserved named pipeline
-          let pipeline = pipeline.resolve(factory);
-          (key, pipeline)
+          let pipeline = pipeline.resolve(factory)?;
+          Ok((key, pipeline))
         })
-        .collect(),
-    )
+        .collect::<Result<_, DiagnosticList>>()?,
+    ))
   }
 }

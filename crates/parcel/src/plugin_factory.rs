@@ -1,7 +1,8 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  CPlugin, DefaultBundler, Namer, Optimizer, Packager, ParcelConfig, PluginFactory, Transformer,
+  CPlugin, DefaultBundler, Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, Packager,
+  ParcelConfig, PluginFactory, Transformer,
 };
 use parcel_css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer};
 use parcel_html::{
@@ -10,6 +11,7 @@ use parcel_html::{
 use parcel_image::ImageTransformer;
 use parcel_js::{JsPackager, JsTransformer, LibraryPackager};
 use parcel_plugin_js::JsPlugin;
+use parcel_resolver::Resolution;
 
 use crate::{
   data_url::DataUrlOptimizer, glob_resolver::GlobResolver, inline::InlineTransformer,
@@ -17,11 +19,26 @@ use crate::{
   resolver::DefaultResolver, toml::TomlTransformer, yaml::YamlTransformer,
 };
 
-pub struct DefaultPluginFactory {}
+pub struct DefaultPluginFactory {
+  resolver: parcel_resolver::Resolver<'static>,
+}
+
+impl DefaultPluginFactory {
+  pub fn new(fs: Arc<dyn FileSystem>) -> Self {
+    DefaultPluginFactory {
+      resolver: parcel_resolver::Resolver::node(Path::new("/"), parcel_resolver::Cache::new(fs)),
+    }
+  }
+}
 
 impl PluginFactory for DefaultPluginFactory {
-  fn transformer(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Transformer> {
-    match name {
+  fn transformer(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Transformer>, DiagnosticList> {
+    Ok(match name {
       "@parcel/transformer-js" => Arc::new(JsTransformer {}),
       "@parcel/transformer-css" => Arc::new(if let Some(config) = config {
         serde_json::from_value(config).unwrap()
@@ -38,9 +55,6 @@ impl PluginFactory for DefaultPluginFactory {
         ),
       }),
       "@parcel/transformer-image" => Arc::new(ImageTransformer {}),
-      // "@parcel/transformer-less" => Arc::new(CPlugin::new(Path::new(
-      //   "/Users/devongovett/Downloads/hermes/plugin.dylib",
-      // ))),
       "@parcel/transformer-json" => Arc::new(JsonTransformer {}),
       "@parcel/transformer-toml" => Arc::new(TomlTransformer {}),
       "@parcel/transformer-yaml" => Arc::new(YamlTransformer {}),
@@ -49,7 +63,7 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-native" => {
         if let Some(config) = config {
           if let Some(serde_json::Value::String(lib)) = config.get("lib") {
-            return Arc::new(CPlugin::new(Path::new(lib)));
+            return Ok(Arc::new(CPlugin::new(Path::new(lib))));
           }
         }
         todo!()
@@ -57,72 +71,130 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-quickjs" => {
         if let Some(config) = config {
           if let Some(serde_json::Value::String(lib)) = config.get("path") {
-            return Arc::new(JsPlugin::new(Path::new(lib)));
+            return Ok(Arc::new(JsPlugin::new(Path::new(lib))));
           }
         }
         todo!()
       }
-      // "@parcel/transformer-test" => Arc::new(parcel_core::WasmPlugin::new(Path::new(
-      //   "/Users/devongovett/Downloads/asm-script/test.wasm",
-      // ))),
-      _ => todo!(),
-    }
+      _ => {
+        // TODO: possibly support exports conditions for platform (e.g. darwin, linux, x64, arm64, etc.)
+        let resolved = self
+          .resolver
+          .resolve(name, from, parcel_resolver::SpecifierType::Esm);
+        match resolved.result {
+          Ok(resolution) => match resolution.resolution {
+            Resolution::Path(path) => match path.extension().map(|s| s.as_encoded_bytes()) {
+              Some(b"so" | b"dylib" | b"dll") => {
+                return Ok(Arc::new(CPlugin::new(&path)));
+              }
+              _ => {
+                return Ok(Arc::new(JsPlugin::new(&path)));
+              }
+            },
+            _ => {}
+          },
+          _ => {}
+        }
+
+        return Err(
+          Diagnostic::from_message(format!("Could not find transformer {}", name)).into(),
+        );
+      }
+    })
   }
 
   fn bundler(
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-  ) -> Arc<dyn parcel_core::Bundler> {
+    from: &Path,
+  ) -> Result<Arc<dyn parcel_core::Bundler>, DiagnosticList> {
     if name == "@parcel/bundler-default" {
-      Arc::new(DefaultBundler {})
+      Ok(Arc::new(DefaultBundler {}))
     } else if name == "@parcel/bundler-library" {
-      Arc::new(LibraryBundler {})
+      Ok(Arc::new(LibraryBundler {}))
     } else {
-      todo!()
+      Err(Diagnostic::from_message(format!("Could not find bundler {}", name)).into())
     }
   }
 
-  fn namer(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Namer> {
+  fn namer(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     if name == "@parcel/namer-default" {
-      Arc::new(DefaultNamer {})
+      Ok(Arc::new(DefaultNamer {}))
     } else {
-      todo!()
+      Err(Diagnostic::from_message(format!("Could not find namer {}", name)).into())
     }
   }
 
-  fn optimizer(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Optimizer> {
+  fn optimizer(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Optimizer>, DiagnosticList> {
     match name {
-      "@parcel/optimizer-data-url" => Arc::new(DataUrlOptimizer {}),
-      _ => todo!(),
+      "@parcel/optimizer-data-url" => Ok(Arc::new(DataUrlOptimizer {})),
+      _ => {
+        return Err(Diagnostic::from_message(format!("Could not find optimizer {}", name)).into());
+      }
     }
   }
 
-  fn packager(&self, name: &str, config: Option<serde_json::Value>) -> Arc<dyn Packager> {
-    match name {
+  fn packager(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: &Path,
+  ) -> Result<Arc<dyn Packager>, DiagnosticList> {
+    Ok(match name {
       "@parcel/packager-js" => Arc::new(JsPackager {}),
       "@parcel/packager-library" => Arc::new(LibraryPackager {}),
       "@parcel/packager-css" => Arc::new(CssPackager {}),
       "@parcel/packager-style-attr" => Arc::new(StyleAttrPackager {}),
       "@parcel/packager-html" => Arc::new(HtmlPackager {}),
       "@parcel/packager-svg" => Arc::new(SvgPackager {}),
-      _ => todo!(),
-    }
+      _ => {
+        return Err(Diagnostic::from_message(format!("Could not find packager {}", name)).into());
+      }
+    })
   }
 
   fn resolver(
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-  ) -> Arc<dyn parcel_core::Resolver> {
-    match name {
+    from: &Path,
+  ) -> Result<Arc<dyn parcel_core::Resolver>, DiagnosticList> {
+    Ok(match name {
       "@parcel/resolver-default" => Arc::new(DefaultResolver::new("/".into())),
       "@parcel/resolver-glob" => Arc::new(GlobResolver {}),
-      _ => todo!(),
-    }
+      _ => {
+        return Err(Diagnostic::from_message(format!("Could not find resolver {}", name)).into());
+      }
+    })
   }
 
-  fn config(&self, specifier: &str) -> ParcelConfig {
-    todo!()
+  fn config(&self, specifier: &str, from: &Path) -> Result<ParcelConfig, DiagnosticList> {
+    let resolved = self
+      .resolver
+      .resolve(specifier, from, parcel_resolver::SpecifierType::Esm);
+    match resolved.result {
+      Ok(resolution) => match resolution.resolution {
+        Resolution::Path(path) => {
+          return ParcelConfig::read(&*self.resolver.cache().fs, &path, self);
+        }
+        _ => {}
+      },
+      _ => {}
+    }
+
+    return Err(
+      Diagnostic::from_message(format!("Could not find extended config {}", specifier)).into(),
+    );
   }
 }

@@ -76,7 +76,7 @@ pub fn build(
     // &project_root.join(".parcelrc"),
     Path::new("/Users/devongovett/dev/parcel/test/library/.parcelrc"),
     factory,
-  ));
+  )?);
 
   // Build asset graph.
   let asset_graph = build_asset_graph(entries, config.clone(), options.clone())?;
