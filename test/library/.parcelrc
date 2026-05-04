@@ -1,7 +1,6 @@
 {
-  "resolvers": ["@parcel/resolver-glob", "@parcel/resolver-default"],
+  "resolvers": ["@parcel/resolver-default"],
   "transformers": {
-    "**/packages/**/intl/**/*.json": ["/Users/devongovett/dev/react-spectrum/packages/dev/parcel-transformer-intl/IntlTransformer.js"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": [
       "@parcel/transformer-js"
     ],
@@ -21,35 +20,11 @@
     ],
     "*.style": ["@parcel/transformer-style-attr"],
     "*.{html,xhtml}": ["@parcel/transformer-html"],
-    "**/s2wf-icons/**/*.svg": [
-      {
-        "plugin": "@parcel/transformer-svg-jsx",
-        "config": {
-          "ref": true
-        }
-      }
-    ],
-    "illustration:*.svg": [
-      {
-        "plugin": "@parcel/transformer-svg-jsx",
-        "config": {
-          "ref": true
-        }
-      }
-    ],
     "*.svg": ["@parcel/transformer-svg-jsx"],
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": ["@parcel/transformer-image"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
-    "*.{yaml,yml}": ["@parcel/transformer-yaml"],
-    "*.less": [
-      {
-        "plugin": "@parcel/transformer-quickjs",
-        "config": {
-          "path": "/Users/devongovett/dev/parcel/less-plugin.mjs"
-        }
-      }
-    ]
+    "*.{yaml,yml}": ["@parcel/transformer-yaml"]
   },
   "bundler": "@parcel/bundler-library",
   "namers": ["@parcel/namer-default"],

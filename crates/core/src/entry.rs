@@ -539,6 +539,7 @@ mod tests {
         env: HashMap::new(),
         log_level: crate::LogLevel::Error,
         mode: crate::BuildMode::Development,
+        config: None,
       },
     )
     .unwrap();

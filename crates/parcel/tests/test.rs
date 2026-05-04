@@ -137,6 +137,7 @@ fn bundle_with_options(
     input_fs: Arc::new(OsFileSystem {}),
     output_fs: output_fs.clone(),
     log_level: parcel_core::LogLevel::Verbose,
+    config: None,
   };
 
   parcel::build(vec![entry.to_str().unwrap().to_owned()], options).unwrap()

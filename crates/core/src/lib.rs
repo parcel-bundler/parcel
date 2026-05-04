@@ -62,6 +62,23 @@ pub fn build(
   let project_root = find_project_root(&entries);
   let mut env = options.env;
   load_dotenv(&project_root, &*options.input_fs, &mut env)?;
+
+  let config_file = options
+    .config
+    .map(|c| std::env::current_dir().unwrap().join(c))
+    .unwrap_or_else(|| project_root.join(".parcelrc"));
+  let config = Arc::new(
+    if options
+      .input_fs
+      .kind(&config_file)
+      .contains(FileKind::IS_FILE)
+    {
+      ParcelConfig::read(&*options.input_fs, &config_file, factory)?
+    } else {
+      factory.config("@parcel/config-default", &config_file)?
+    },
+  );
+
   let options = Arc::new(ParcelOptions {
     env,
     mode: options.mode,
@@ -70,13 +87,6 @@ pub fn build(
     input_fs: options.input_fs,
     output_fs: options.output_fs,
   });
-
-  let config = Arc::new(ParcelConfig::read(
-    &*options.input_fs,
-    // &project_root.join(".parcelrc"),
-    Path::new("/Users/devongovett/dev/parcel/test/library/.parcelrc"),
-    factory,
-  )?);
 
   // Build asset graph.
   let asset_graph = build_asset_graph(entries, config.clone(), options.clone())?;

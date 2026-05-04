@@ -11,6 +11,7 @@ pub struct BuildOptions {
   pub log_level: LogLevel,
   pub input_fs: Arc<dyn FileSystem>,
   pub output_fs: Arc<dyn FileSystem>,
+  pub config: Option<String>,
 }
 
 pub struct ParcelOptions {

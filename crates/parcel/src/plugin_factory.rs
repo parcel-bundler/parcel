@@ -180,6 +180,15 @@ impl PluginFactory for DefaultPluginFactory {
   }
 
   fn config(&self, specifier: &str, from: &Path) -> Result<ParcelConfig, DiagnosticList> {
+    if specifier == "@parcel/config-default" {
+      // TODO
+      return ParcelConfig::read(
+        &*self.resolver.cache().fs,
+        Path::new("/Users/devongovett/dev/parcel/test/library/.parcelrc"),
+        self,
+      );
+    }
+
     let resolved = self
       .resolver
       .resolve(specifier, from, parcel_resolver::SpecifierType::Esm);

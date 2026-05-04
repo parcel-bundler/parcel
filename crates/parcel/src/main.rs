@@ -25,6 +25,21 @@ pub fn main() -> ExitCode {
     },
   };
 
+  let mut entries = Vec::new();
+  let mut config = None;
+  while let Some(arg) = args.next() {
+    if arg.starts_with("--") {
+      match arg.as_str() {
+        "--config" => {
+          config = args.next();
+        }
+        _ => {}
+      }
+    } else {
+      entries.push(arg);
+    }
+  }
+
   let mode = match cmd {
     Command::Build => parcel_core::BuildMode::Production,
     _ => parcel_core::BuildMode::Development,
@@ -44,16 +59,8 @@ pub fn main() -> ExitCode {
     output_fs: Arc::new(OsFileSystem {}),
     log_level: parcel_core::LogLevel::Verbose,
     mode,
+    config,
   };
-
-  let mut entries = Vec::new();
-  for arg in args {
-    if arg.starts_with("--") {
-      // TODO
-    } else {
-      entries.push(arg);
-    }
-  }
 
   match cmd {
     Command::Build => {

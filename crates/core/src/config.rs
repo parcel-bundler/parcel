@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-  Diagnostic, DiagnosticList, FileSystem,
+  DiagnosticList, FileSystem,
   bundler::{Bundler, DefaultBundler},
   namer::Namer,
   optimizer::Optimizer,
@@ -427,6 +427,10 @@ impl RawPipeline {
     factory: &F,
     extends: impl Iterator<Item = Arc<T>>,
   ) -> Result<Vec<Arc<T>>, DiagnosticList> {
+    if self.0.is_empty() {
+      return Ok(extends.collect());
+    }
+
     let mut ext = Some(extends);
     self
       .0
