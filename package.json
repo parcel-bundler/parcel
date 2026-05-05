@@ -47,7 +47,7 @@
     "@parcel/babel-register": "*",
     "@swc/core": "^1.11.24",
     "@types/node": "^22.15.17",
-    "buffer": "mischnic/buffer#b8a4fa94",
+    "buffer": "^6.0.3",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
     "fast-glob": "^3.3.3",
