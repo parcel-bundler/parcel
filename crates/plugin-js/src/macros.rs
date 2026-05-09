@@ -112,7 +112,7 @@ pub fn call_macro(
     let result = quickjs_to_js_value(result, ctx.clone())?;
     Ok((result, std::mem::take(&mut *dependencies.borrow_mut())))
   })
-  .map_err(|d| MacroError::ExecutionError(d.message, Default::default()))
+  .map_err(|d| MacroError::ExecutionError(d.0[0].message.clone(), Default::default()))
 }
 
 fn js_value_to_quickjs<'a>(value: JsValue, ctx: Ctx<'a>) -> rquickjs::Result<rquickjs::Value<'a>> {

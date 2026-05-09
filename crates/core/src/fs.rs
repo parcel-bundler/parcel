@@ -1,7 +1,7 @@
 use std::{
   ffi::{OsStr, OsString},
   io::{Error, ErrorKind, Result},
-  path::{Component, Path, PathBuf},
+  path::{Component, Path, PathBuf, is_separator},
   sync::Mutex,
 };
 
@@ -27,6 +27,63 @@ pub struct DirEntry {
   pub kind: FileKind,
 }
 
+/// Metadata returned by `stat` on a file or directory.
+#[derive(Debug, Clone)]
+pub struct FileStat {
+  /// Size of the file in bytes. 0 for directories and symlinks.
+  pub size: u64,
+  /// File type flags.
+  pub kind: FileKind,
+  /// Last access time as milliseconds since Unix epoch, or -1 if not available.
+  pub atime: i64,
+  /// Last modification time as milliseconds since Unix epoch, or -1 if not available.
+  pub mtime: i64,
+  /// Last status change time as milliseconds since Unix epoch, or -1 if not available.
+  pub ctime: i64,
+  /// Creation time as milliseconds since Unix epoch, or -1 if not available.
+  pub birthtime: i64,
+}
+
+impl FileStat {
+  /// Create a FileStat with all timestamps set to -1 (unavailable).
+  pub fn new_unavailable(kind: FileKind) -> Self {
+    Self {
+      size: 0,
+      kind,
+      atime: -1,
+      mtime: -1,
+      ctime: -1,
+      birthtime: -1,
+    }
+  }
+
+  /// Create a FileStat from std::fs::Metadata.
+  pub fn from_metadata(metadata: &std::fs::Metadata, is_symlink: bool) -> Self {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn to_epoch_ms(time: SystemTime) -> i64 {
+      match time.duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_millis() as i64,
+        Err(e) => -(e.duration().as_millis() as i64),
+      }
+    }
+
+    let mut kind = FileKind::empty();
+    kind.set(FileKind::IS_FILE, metadata.is_file());
+    kind.set(FileKind::IS_DIR, metadata.is_dir());
+    kind.set(FileKind::IS_SYMLINK, is_symlink);
+
+    Self {
+      size: metadata.len(),
+      kind,
+      atime: to_epoch_ms(metadata.accessed().unwrap_or_else(|_| SystemTime::now())),
+      mtime: to_epoch_ms(metadata.modified().unwrap_or_else(|_| SystemTime::now())),
+      ctime: to_epoch_ms(metadata.created().unwrap_or_else(|_| SystemTime::now())),
+      birthtime: to_epoch_ms(metadata.created().unwrap_or(UNIX_EPOCH)),
+    }
+  }
+}
+
 /// A trait that provides the functions needed to read files and retrieve metadata from a file system.
 pub trait FileSystem: Send + Sync {
   /// Reads the given path as a byte vector.
@@ -39,8 +96,42 @@ pub trait FileSystem: Send + Sync {
 
   /// Returns the kind of file or directory that the given path represents.
   fn kind(&self, path: &Path) -> FileKind;
+
+  /// Returns detailed metadata about the file, following symlinks.
+  fn stat(&self, path: &Path) -> Option<FileStat>;
+
+  /// Returns detailed metadata about the file, without following symlinks.
+  fn lstat(&self, path: &Path) -> Option<FileStat>;
+
   /// Returns the resolution of a symbolic link.
   fn read_link(&self, path: &Path) -> Result<PathBuf>;
+
+  fn canonicalize(&self, path: &Path) -> Result<PathBuf> {
+    path
+      .parent()
+      .map(|parent| {
+        self.canonicalize(parent).and_then(|parent_canonical| {
+          let resolved = parent_canonical.join(path.strip_prefix(parent).map_err(|_| {
+            std::io::Error::new(
+              std::io::ErrorKind::InvalidFilename,
+              "Error stripping prefix",
+            )
+          })?);
+
+          if self.kind(&path).contains(FileKind::IS_SYMLINK) {
+            let link = self.read_link(&resolved)?;
+            if link.is_absolute() {
+              return self.canonicalize(&link);
+            } else {
+              return self.canonicalize(&resolve_path(&resolved, &link));
+            }
+          }
+
+          Ok(resolved)
+        })
+      })
+      .unwrap_or_else(|| Ok(path.to_path_buf()))
+  }
 
   fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()>;
 
@@ -94,6 +185,10 @@ impl FileSystem for OsFileSystem {
     path.read_link()
   }
 
+  fn canonicalize(&self, path: &Path) -> Result<PathBuf> {
+    path.canonicalize()
+  }
+
   fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
     std::fs::write(path, contents)
   }
@@ -123,6 +218,21 @@ impl FileSystem for OsFileSystem {
 
   fn create_dir_all(&self, path: &Path) -> Result<()> {
     std::fs::create_dir_all(path)
+  }
+
+  fn stat(&self, path: &Path) -> Option<FileStat> {
+    path.symlink_metadata().ok().and_then(|meta| {
+      let is_symlink = meta.is_symlink();
+      let metadata = path.metadata().ok()?;
+      Some(FileStat::from_metadata(&metadata, is_symlink))
+    })
+  }
+
+  fn lstat(&self, path: &Path) -> Option<FileStat> {
+    path.symlink_metadata().ok().and_then(|meta| {
+      let is_symlink = meta.is_symlink();
+      Some(FileStat::from_metadata(&meta, is_symlink))
+    })
   }
 }
 
@@ -381,6 +491,28 @@ impl FileSystem for MemoryFileSystem {
 
     Ok(())
   }
+
+  fn stat(&self, path: &Path) -> Option<FileStat> {
+    let name = path.file_name().unwrap();
+    let node = path.parent().map_or(Ok(0), |p| self.dir(p)).ok()?;
+    let found = self.entry(node, name).ok()?;
+    let entries = self.entries.lock().unwrap();
+    match &entries[found] {
+      Entry::Directory { .. } => Some(FileStat::new_unavailable(FileKind::IS_DIR)),
+      Entry::File { contents, .. } => Some(FileStat {
+        size: contents.len() as u64,
+        kind: FileKind::IS_FILE,
+        atime: -1,
+        mtime: -1,
+        ctime: -1,
+        birthtime: -1,
+      }),
+    }
+  }
+
+  fn lstat(&self, path: &Path) -> Option<FileStat> {
+    self.stat(path)
+  }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -470,6 +602,22 @@ impl FileSystem for OverlayFileSystem {
   fn create_dir_all(&self, path: &Path) -> Result<()> {
     self.mem.create_dir_all(path)
   }
+
+  fn stat(&self, path: &Path) -> Option<FileStat> {
+    let mem_stat = self.mem.stat(path);
+    if mem_stat.is_some() {
+      return mem_stat;
+    }
+    self.os.stat(path)
+  }
+
+  fn lstat(&self, path: &Path) -> Option<FileStat> {
+    let mem_stat = self.mem.lstat(path);
+    if mem_stat.is_some() {
+      return mem_stat;
+    }
+    self.os.lstat(path)
+  }
 }
 
 pub fn glob(fs: &dyn FileSystem, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
@@ -532,4 +680,61 @@ fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut 
       }
     }
   }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+  // Normalize path components to resolve ".." and "." segments.
+  // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+  let mut components = path.components().peekable();
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    components.next();
+    PathBuf::from(c.as_os_str())
+  } else {
+    PathBuf::new()
+  };
+
+  for component in components {
+    match component {
+      Component::Prefix(..) => unreachable!(),
+      Component::RootDir => {
+        ret.push(component.as_os_str());
+      }
+      Component::CurDir => {}
+      Component::ParentDir => {
+        ret.pop();
+      }
+      Component::Normal(c) => {
+        ret.push(c);
+      }
+    }
+  }
+
+  // If the path ends with a separator, add an additional empty component.
+  if matches!(path.as_os_str().as_encoded_bytes().last(), Some(b) if is_separator(*b as char)) {
+    ret.push("");
+  }
+
+  ret
+}
+
+fn resolve_path(from: &Path, subpath: &Path) -> PathBuf {
+  let mut path = PathBuf::new();
+  if let Some(parent) = from.parent() {
+    path.push(parent);
+  }
+
+  for component in subpath.components() {
+    match component {
+      Component::Prefix(..) | Component::RootDir => unreachable!(),
+      Component::CurDir => {}
+      Component::ParentDir => {
+        path.pop();
+      }
+      Component::Normal(c) => {
+        path.push(c);
+      }
+    }
+  }
+
+  path
 }

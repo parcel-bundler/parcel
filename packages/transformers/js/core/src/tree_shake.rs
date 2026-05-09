@@ -286,7 +286,14 @@ impl<'a> VisitMut for TreeShake<'a> {
               import.src.raw = None;
             }
             Resolution::String(string) => {
-              // TODO
+              let name = import
+                .specifiers
+                .iter()
+                .find(|s| s.is_default())
+                .map(|s| &s.as_default().unwrap().local);
+              if let Some(name) = name {
+                *node = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = string.clone().into());
+              }
             }
             _ => {}
           }

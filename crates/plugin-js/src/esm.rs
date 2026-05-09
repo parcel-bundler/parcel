@@ -15,7 +15,7 @@ use swc_core::{
   ecma::parser::{Syntax, TsSyntax},
 };
 
-use crate::{CjsLoader, cjs::require, fs::FsModule};
+use crate::{CjsLoader, fs::FsModule};
 
 pub fn create_esm_loader(
   project_root: String,
@@ -45,7 +45,7 @@ impl ModuleResolver {
 }
 
 impl Resolver for ModuleResolver {
-  fn resolve<'js>(&mut self, _ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
+  fn resolve<'js>(&mut self, ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
     let res = self
       .resolver
       .resolve(name, Path::new(base), parcel_resolver::SpecifierType::Esm);
@@ -53,20 +53,41 @@ impl Resolver for ModuleResolver {
     match res.result {
       Ok(res) => match res.resolution {
         parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
-        parcel_resolver::Resolution::Builtin { scheme, module } => match module.as_str() {
-          "path" => {
-            Ok("/Users/devongovett/dev/parcel/node_modules/path-browserify/index.js".into())
-          }
-          "os" => Ok("/Users/devongovett/dev/parcel/node_modules/os-browserify/browser.js".into()),
-          "tty" => Ok("/Users/devongovett/dev/parcel/node_modules/tty-browserify/index.js".into()),
-          "assert" => {
-            Ok("/Users/devongovett/dev/parcel/node_modules/assert/build/assert.js".into())
-          }
-          "fs" => Ok("builtin:fs".into()),
-          _ => Ok(
-            "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js".into(),
-          ),
-        },
+        parcel_resolver::Resolution::Builtin { scheme, module } => {
+          let module = match module.as_str() {
+            "assert" => "assert/",
+            "buffer" => "buffer/",
+            "console" => "console-browserify",
+            "constants" => "constants-browserify",
+            "crypto" => "crypto-browserify",
+            "domain" => "domain-browser",
+            "events" => "events/",
+            "fs" => return Ok("builtin:fs".into()),
+            "http" => "stream-http",
+            "https" => "https-browserify",
+            "os" => "os-browserify",
+            "path" => "path-browserify",
+            "process" => "process/",
+            "punycode" => "punycode/",
+            "querystring" => "querystring-es3",
+            "stream" => "stream-browserify",
+            "string_decoder" => "string_decoder/",
+            "sys" => "util",
+            "timers" => "timers-browserify",
+            "tty" => "tty-browserify",
+            "url" => "url/",
+            "util" => "util/",
+            "vm" => "vm-browserify",
+            "zlib" => "browserify-zlib",
+            _ => {
+              return Ok(
+                "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js"
+                  .into(),
+              );
+            }
+          };
+          return self.resolve(ctx, "/Users/devongovett/dev/parcel", module);
+        }
         _ => Err(rquickjs::Error::new_resolving(base, name)),
       },
       Err(e) => {

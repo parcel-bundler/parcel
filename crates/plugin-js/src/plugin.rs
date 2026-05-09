@@ -53,7 +53,18 @@ impl Transformer for JsPlugin {
       options.set("asset", value.clone())?;
       let res: rquickjs::Value = transform.call((options,))?;
       if let Some(promise) = res.as_promise() {
-        let _: rquickjs::Value = promise.finish()?;
+        loop {
+          if promise.result::<rquickjs::Value>().is_some() {
+            break;
+          }
+
+          if !ctx.execute_pending_job() {
+            let err = ctx.catch();
+            if !err.is_null() {
+              return Err(ctx.throw(err));
+            }
+          }
+        }
       }
       let obj = Class::<JsAsset>::from_js(&ctx, value)?;
       let js_asset = &mut *obj.borrow_mut();

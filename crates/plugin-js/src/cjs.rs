@@ -5,7 +5,10 @@ use std::{
 
 use parcel_core::FileSystem;
 use parcel_resolver::ModuleType;
-use rquickjs::{Ctx, IntoJs, JsLifetime, Module, Object, Value, context::EvalOptions, function};
+use rquickjs::{
+  Ctx, Exception, Function, IntoJs, JsLifetime, Module, Object, Value, context::EvalOptions,
+  function,
+};
 use swc::config::ModuleConfig;
 use swc_core::{
   common::FileName,
@@ -27,10 +30,11 @@ impl CjsLoader {
       parcel_resolver::Cache::new(fs.clone()),
     );
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
+    resolver.entries |= parcel_resolver::Fields::BROWSER;
     CjsLoader { resolver, fs }
   }
 
-  pub fn resolve(&self, base: &str, name: &str) -> rquickjs::Result<String> {
+  pub fn resolve(&self, ctx: &Ctx, base: &str, name: &str) -> rquickjs::Result<String> {
     let res = self
       .resolver
       .resolve(name, Path::new(base), parcel_resolver::SpecifierType::Cjs);
@@ -38,23 +42,50 @@ impl CjsLoader {
     match res.result {
       Ok(res) => match res.resolution {
         parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
-        parcel_resolver::Resolution::Builtin { scheme, module } => match module.as_str() {
-          "path" => {
-            Ok("/Users/devongovett/dev/parcel/node_modules/path-browserify/index.js".into())
-          }
-          "os" => Ok("/Users/devongovett/dev/parcel/node_modules/os-browserify/browser.js".into()),
-          "tty" => Ok("/Users/devongovett/dev/parcel/node_modules/tty-browserify/index.js".into()),
-          "assert" => {
-            Ok("/Users/devongovett/dev/parcel/node_modules/assert/build/assert.js".into())
-          }
-          "fs" => Ok("builtin:fs".into()),
-          _ => Ok(
-            "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js".into(),
-          ),
-        },
-        _ => Err(rquickjs::Error::new_resolving(base, name)),
+        parcel_resolver::Resolution::Builtin { scheme, module } => {
+          let module = match module.as_str() {
+            "assert" => "assert/",
+            "buffer" => "buffer/",
+            "console" => "console-browserify",
+            "constants" => "constants-browserify",
+            "crypto" => "crypto-browserify",
+            "domain" => "domain-browser",
+            "events" => "events/",
+            "fs" => return Ok("builtin:fs".into()),
+            "http" => "stream-http",
+            "https" => "https-browserify",
+            "os" => "os-browserify",
+            "path" => "path-browserify",
+            "process" => "process/",
+            "punycode" => "punycode/",
+            "querystring" => "querystring-es3",
+            "stream" => "stream-browserify",
+            "string_decoder" => "string_decoder/",
+            "sys" => "util",
+            "timers" => "timers-browserify",
+            "tty" => "tty-browserify",
+            "url" => "url/",
+            "util" => "util/",
+            "vm" => "vm-browserify",
+            "zlib" => "browserify-zlib",
+            _ => {
+              return Ok(
+                "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js"
+                  .into(),
+              );
+            }
+          };
+          return self.resolve(ctx, "/Users/devongovett/dev/parcel", module);
+        }
+        _ => Err(rquickjs::Exception::throw_message(
+          ctx,
+          &format!("Could not resolve '{}' from '{}'", name, base),
+        )),
       },
-      Err(_) => Err(rquickjs::Error::new_resolving(base, name)),
+      Err(_) => Err(rquickjs::Exception::throw_message(
+        ctx,
+        &format!("Could not resolve '{}' from '{}'", name, base),
+      )),
     }
   }
 
@@ -95,7 +126,6 @@ impl CjsLoader {
         cache.set(resolved, module.clone())?;
 
         let mut options = EvalOptions::default();
-        options.global = false;
         options.strict = false;
         options.filename = Some(resolved.into());
 
@@ -128,9 +158,11 @@ impl CjsLoader {
         }
 
         let mut code = String::new();
-        code.push_str("var exports = module.exports;\n");
+        code.push_str("(function (module, exports) {");
         code.push_str(&source);
-        let _: Value = ctx.eval_with_options(code, options)?;
+        code.push_str("})");
+        let f: Function = ctx.eval_with_options(code, options)?;
+        f.call::<_, ()>((module.clone(), module.get::<_, Value>("exports")?))?;
 
         let exports: Value = module.get("exports")?;
         Ok(exports)
@@ -157,29 +189,13 @@ impl CjsLoader {
 pub fn require(ctx: Ctx<'_>, specifier: String) -> rquickjs::Result<Value<'_>> {
   let cjs = ctx.userdata::<CjsLoader>().unwrap();
   let from = ctx.script_or_module_name(0).unwrap().to_string()?;
-  if let Ok(resolved) = cjs.resolve(&from, &specifier) {
-    cjs.load(&ctx, &resolved)
-  } else {
-    Err(
-      ctx.throw(
-        rquickjs::String::from_str(ctx.clone(), &format!("Could not resolve {:?}", specifier))?
-          .into_value(),
-      ),
-    )
-  }
+  let resolved = cjs.resolve(&ctx, &from, &specifier)?;
+  cjs.load(&ctx, &resolved)
 }
 
 #[function]
 pub fn require_resolve(ctx: Ctx<'_>, specifier: String) -> rquickjs::Result<String> {
   let cjs = ctx.userdata::<CjsLoader>().unwrap();
   let from = ctx.script_or_module_name(0).unwrap().to_string()?;
-  cjs.resolve(&from, &specifier)
-}
-
-pub fn get_module<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Value<'js>> {
-  let from = ctx.script_or_module_name(0).unwrap();
-  let globals = ctx.globals();
-  let require: Object = globals.get("require")?;
-  let cache: Object = require.get("cache")?;
-  cache.get(from)
+  cjs.resolve(&ctx, &from, &specifier)
 }

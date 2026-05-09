@@ -5,8 +5,13 @@ use parcel_plugin_js::create_runtime;
 
 fn run(code: &str) {
   let fs = Arc::new(OverlayFileSystem::new());
-  fs.write(Path::new("/test.txt"), &"test".as_bytes().to_owned())
-    .expect("Error writing file");
+  fs.create_dir_all(Path::new("/_parcel_test"))
+    .expect("Error creating dir");
+  fs.write(
+    Path::new("/_parcel_test/test.txt"),
+    &"test".as_bytes().to_owned(),
+  )
+  .expect("Error writing file");
   fs.write(Path::new("/test.mjs"), &code.as_bytes().to_owned())
     .expect("Error writing file");
   let ctx = create_runtime(fs).unwrap();
@@ -40,14 +45,14 @@ fn test_read_file_string() {
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.equal(fs.readFileSync('/test.txt', 'utf8'), 'test');
+    assert.equal(fs.readFileSync('/_parcel_test/test.txt', 'utf8'), 'test');
   "#,
   );
   run(
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.equal(fs.readFileSync('/test.txt', 'utf-8'), 'test');
+    assert.equal(fs.readFileSync('/_parcel_test/test.txt', 'utf-8'), 'test');
   "#,
   );
 }
@@ -58,7 +63,37 @@ fn test_read_file_buffer() {
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.deepEqual(fs.readFileSync('/test.txt'), new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
+    assert.deepEqual(fs.readFileSync('/_parcel_test/test.txt'), new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
+  "#,
+  );
+}
+
+#[test]
+fn test_fs_stat() {
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+    let stat = fs.statSync('/_parcel_test/test.txt');
+    assert.equal(stat.size, 4);
+    assert.throws(() => fs.statSync('/_parcel_test/foo.txt'));
+  "#,
+  );
+}
+
+#[test]
+fn test_fs_readdir() {
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+    let dir = fs.readdirSync('/_parcel_test');
+    assert.deepEqual(dir, ['test.txt']);
+
+    let dir2 = fs.readdirSync('/_parcel_test', {withFileTypes: true});
+    assert.equal(dir2.length, 1);
+    assert.equal(dir2[0].name, 'test.txt');
+    assert(dir2[0].isFile());
   "#,
   );
 }
