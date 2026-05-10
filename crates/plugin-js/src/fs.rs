@@ -77,6 +77,120 @@ impl Fs {
       )?)),
     }
   }
+
+  fn stat_internal<'js>(
+    &self,
+    ctx: Ctx<'js>,
+    path: String,
+  ) -> rquickjs::Result<Result<Stats, Exception<'js>>> {
+    let stat = self.fs.stat(Path::new(&path));
+    match stat {
+      Some(stat) => Ok(Ok(Stats::new(stat))),
+      None => {
+        let exception = rquickjs::Exception::from_message(
+          ctx,
+          &format!("ENOENT: no such file or directory, stat '{}'", path),
+        )?;
+        exception.set("code", "ENOENT")?;
+        Ok(Err(exception))
+      }
+    }
+  }
+
+  fn lstat_internal<'js>(
+    &self,
+    ctx: Ctx<'js>,
+    path: String,
+  ) -> rquickjs::Result<Result<Stats, Exception<'js>>> {
+    let stat = self.fs.lstat(Path::new(&path));
+    match stat {
+      Some(stat) => Ok(Ok(Stats::new(stat))),
+      None => {
+        let exception = rquickjs::Exception::from_message(
+          ctx,
+          &format!("ENOENT: no such file or directory, stat '{}'", path),
+        )?;
+        exception.set("code", "ENOENT")?;
+        Ok(Err(exception))
+      }
+    }
+  }
+
+  fn readdir_internal<'js>(
+    &self,
+    ctx: Ctx<'js>,
+    path: String,
+    options: Option<&Value>,
+  ) -> rquickjs::Result<Result<Vec<Value<'js>>, Exception<'js>>> {
+    let entries = self.fs.read_dir(Path::new(&path));
+    let mut with_file_types = false;
+    if let Some(options) = options {
+      if let Some(obj) = options.as_object() {
+        with_file_types = obj
+          .get::<_, Value>("withFileTypes")
+          .ok()
+          .and_then(|v| v.as_bool())
+          .unwrap_or_default();
+      }
+    };
+
+    match entries {
+      Ok(entries) => {
+        if with_file_types {
+          let result = entries
+            .into_iter()
+            .map(|entry| {
+              Ok(
+                rquickjs::Class::instance(
+                  ctx.clone(),
+                  Dirent {
+                    entry,
+                    parent_path: path.clone(),
+                  },
+                )?
+                .into_value(),
+              )
+            })
+            .collect::<Result<Vec<_>, rquickjs::Error>>()?;
+          Ok(Ok(result))
+        } else {
+          let result = entries
+            .into_iter()
+            .map(|entry| {
+              Ok(
+                rquickjs::String::from_str(ctx.clone(), &entry.name.to_string_lossy())?
+                  .into_value(),
+              )
+            })
+            .collect::<Result<Vec<_>, rquickjs::Error>>()?;
+          Ok(Ok(result))
+        }
+      }
+      Err(err) => Ok(Err(Exception::from_message(ctx, &err.to_string())?)),
+    }
+  }
+
+  fn realpath_internal<'js>(
+    &self,
+    ctx: Ctx<'js>,
+    path: String,
+  ) -> rquickjs::Result<Result<String, Exception<'js>>> {
+    match self.fs.canonicalize(Path::new(&path)) {
+      Ok(link) => Ok(Ok(link.to_string_lossy().into_owned())),
+      Err(e) => Ok(Err(Exception::from_message(ctx, &e.to_string())?)),
+    }
+  }
+
+  fn readlink_internal<'js>(
+    &self,
+    ctx: Ctx<'js>,
+    path: String,
+  ) -> rquickjs::Result<Result<String, Exception<'js>>> {
+    match self.fs.read_link(Path::new(&path)) {
+      Ok(link) => Ok(Ok(link.to_string_lossy().into_owned())),
+      Err(e) => Ok(Err(Exception::from_message(ctx, &e.to_string())?)),
+    }
+  }
 }
 
 #[rquickjs::methods(rename_all = "camelCase")]
@@ -126,68 +240,34 @@ impl Fs {
   }
 
   pub fn stat_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Stats> {
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    let stat = fs.stat(Path::new(&path)).ok_or_else(|| {
-      let (Ok(e) | Err(e)) = rquickjs::Exception::from_message(
-        ctx,
-        &format!("ENOENT: no such file or directory, stat '{}'", path),
-      )
-      .and_then(|exception| {
-        exception.set("code", "ENOENT")?;
-        Ok(exception)
-      })
-      .map(|exception| exception.throw());
-      e
-    })?;
-
-    Ok(Stats::new(stat))
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.stat_internal(ctx.clone(), path)? {
+      Ok(stats) => Ok(stats),
+      Err(exception) => Err(exception.throw()),
+    }
   }
 
   pub fn lstat_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Stats> {
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    let stat = fs.lstat(Path::new(&path)).ok_or_else(|| {
-      let (Ok(e) | Err(e)) = rquickjs::Exception::from_message(
-        ctx,
-        &format!("ENOENT: no such file or directory, stat '{}'", path),
-      )
-      .and_then(|exception| {
-        exception.set("code", "ENOENT")?;
-        Ok(exception)
-      })
-      .map(|exception| exception.throw());
-      e
-    })?;
-
-    Ok(Stats::new(stat))
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.lstat_internal(ctx.clone(), path)? {
+      Ok(stats) => Ok(stats),
+      Err(exception) => Err(exception.throw()),
+    }
   }
 
   pub fn stat<'js>(ctx: Ctx<'js>, path: String, callback: Function<'js>) -> rquickjs::Result<()> {
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    match fs.stat(Path::new(&path)) {
-      Some(stat) => callback.call((rquickjs::Null, Stats::new(stat))),
-      None => {
-        let exception = rquickjs::Exception::from_message(
-          ctx,
-          &format!("ENOENT: no such file or directory, stat '{}'", path),
-        )?;
-        exception.set("code", "ENOENT")?;
-        callback.call((exception, rquickjs::Null))
-      }
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.stat_internal(ctx.clone(), path)? {
+      Ok(stats) => callback.call((rquickjs::Null, stats)),
+      Err(exception) => callback.call((exception, rquickjs::Null)),
     }
   }
 
   pub fn lstat<'js>(ctx: Ctx<'js>, path: String, callback: Function<'js>) -> rquickjs::Result<()> {
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    match fs.lstat(Path::new(&path)) {
-      Some(stat) => callback.call((rquickjs::Null, Stats::new(stat))),
-      None => {
-        let exception = rquickjs::Exception::from_message(
-          ctx,
-          &format!("ENOENT: no such file or directory, stat '{}'", path),
-        )?;
-        exception.set("code", "ENOENT")?;
-        callback.call((exception, rquickjs::Null))
-      }
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.lstat_internal(ctx.clone(), path)? {
+      Ok(stats) => callback.call((rquickjs::Null, stats)),
+      Err(exception) => callback.call((exception, rquickjs::Null)),
     }
   }
 
@@ -196,7 +276,7 @@ impl Fs {
     path: String,
     rest: rquickjs::function::Rest<Value<'js>>,
   ) -> rquickjs::Result<()> {
-    let (encoding, callback) = if rest.0.len() >= 2 {
+    let (_encoding, callback) = if rest.0.len() >= 2 {
       (rest.0[0].as_string(), rest.0[1].as_function())
     } else {
       (None, rest.0[0].as_function())
@@ -209,13 +289,18 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    match fs.canonicalize(Path::new(&path)) {
-      Ok(link) => callback.call((rquickjs::Null, link.to_string_lossy().into_owned())),
-      Err(e) => {
-        let exception = rquickjs::Exception::from_message(ctx, &e.to_string())?;
-        callback.call((exception, rquickjs::Null))
-      }
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.realpath_internal(ctx.clone(), path)? {
+      Ok(link) => callback.call((rquickjs::Null, link)),
+      Err(exception) => callback.call((exception, rquickjs::Null)),
+    }
+  }
+
+  pub fn realpath_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<String> {
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.realpath_internal(ctx.clone(), path)? {
+      Ok(link) => Ok(link),
+      Err(exception) => Err(exception.throw()),
     }
   }
 
@@ -224,7 +309,7 @@ impl Fs {
     path: String,
     rest: rquickjs::function::Rest<Value<'js>>,
   ) -> rquickjs::Result<()> {
-    let (encoding, callback) = if rest.0.len() >= 2 {
+    let (_encoding, callback) = if rest.0.len() >= 2 {
       (rest.0[0].as_string(), rest.0[1].as_function())
     } else {
       (None, rest.0[0].as_function())
@@ -237,13 +322,18 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    match fs.read_link(Path::new(&path)) {
-      Ok(link) => callback.call((rquickjs::Null, link.to_string_lossy().into_owned())),
-      Err(e) => {
-        let exception = rquickjs::Exception::from_message(ctx, &e.to_string())?;
-        callback.call((exception, rquickjs::Null))
-      }
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.readlink_internal(ctx.clone(), path)? {
+      Ok(link) => callback.call((rquickjs::Null, link)),
+      Err(exception) => callback.call((exception, rquickjs::Null)),
+    }
+  }
+
+  pub fn readlink_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<String> {
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.readlink_internal(ctx.clone(), path)? {
+      Ok(link) => Ok(link),
+      Err(exception) => Err(exception.throw()),
     }
   }
 
@@ -252,57 +342,10 @@ impl Fs {
     path: String,
     options: rquickjs::function::Opt<Value<'js>>,
   ) -> rquickjs::Result<Vec<Value<'js>>> {
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    let dir = fs.read_dir(Path::new(&path));
-    match dir {
-      Ok(entries) => {
-        if let Some(options) = options.0 {
-          if let Some(obj) = options.as_object() {
-            let with_file_types = obj
-              .get::<_, Value>("withFileTypes")
-              .ok()
-              .and_then(|v| v.as_bool())
-              .unwrap_or_default();
-            // let recursive = obj
-            //   .get("recursive")
-            //   .ok()
-            //   .and_then(|v| v.as_bool())
-            //   .unwrap_or_default();
-
-            if with_file_types {
-              return Ok(
-                entries
-                  .into_iter()
-                  .map(|entry| {
-                    Ok(
-                      rquickjs::Class::instance(
-                        ctx.clone(),
-                        Dirent {
-                          entry,
-                          parent_path: path.clone(),
-                        },
-                      )?
-                      .into_value(),
-                    )
-                  })
-                  .collect::<Result<_, rquickjs::Error>>()?,
-              );
-            }
-          }
-        }
-        return Ok(
-          entries
-            .into_iter()
-            .map(|entry| {
-              Ok(
-                rquickjs::String::from_str(ctx.clone(), &entry.name.to_string_lossy())?
-                  .into_value(),
-              )
-            })
-            .collect::<Result<_, rquickjs::Error>>()?,
-        );
-      }
-      Err(err) => return Err(rquickjs::Exception::throw_message(&ctx, &err.to_string())),
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.readdir_internal(ctx.clone(), path, options.0.as_ref())? {
+      Ok(entries) => Ok(entries),
+      Err(err) => Err(err.throw()),
     }
   }
 
@@ -323,64 +366,10 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    let dir = fs.read_dir(Path::new(&path));
-    match dir {
-      Ok(entries) => {
-        if let Some(options) = options {
-          if let Some(obj) = options.as_object() {
-            let with_file_types = obj
-              .get::<_, Value>("withFileTypes")
-              .ok()
-              .and_then(|v| v.as_bool())
-              .unwrap_or_default();
-            // let recursive = obj
-            //   .get("recursive")
-            //   .ok()
-            //   .and_then(|v| v.as_bool())
-            //   .unwrap_or_default();
-
-            if with_file_types {
-              return callback.call((
-                rquickjs::Null,
-                entries
-                  .into_iter()
-                  .map(|entry| {
-                    Ok(
-                      rquickjs::Class::instance(
-                        ctx.clone(),
-                        Dirent {
-                          entry,
-                          parent_path: path.clone(),
-                        },
-                      )?
-                      .into_value(),
-                    )
-                  })
-                  .collect::<Result<Vec<_>, rquickjs::Error>>()?,
-              ));
-            }
-          }
-        }
-        return callback.call((
-          rquickjs::Null,
-          entries
-            .into_iter()
-            .map(|entry| {
-              Ok(
-                rquickjs::String::from_str(ctx.clone(), &entry.name.to_string_lossy())?
-                  .into_value(),
-              )
-            })
-            .collect::<Result<Vec<_>, rquickjs::Error>>()?,
-        ));
-      }
-      Err(err) => {
-        return callback.call((
-          rquickjs::Exception::from_message(ctx, &err.to_string())?,
-          rquickjs::Null,
-        ));
-      }
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.readdir_internal(ctx.clone(), path, options)? {
+      Ok(entries) => callback.call((rquickjs::Null, entries)),
+      Err(err) => callback.call((err, rquickjs::Null)),
     }
   }
 
