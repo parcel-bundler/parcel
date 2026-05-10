@@ -61,6 +61,7 @@ impl CjsLoader {
             "stream" => "stream-browserify",
             "string_decoder" => "string_decoder/",
             "sys" => "util",
+            "tty" => "tty-browserify",
             "url" => "url/",
             "util" => "util/",
             "zlib" => "browserify-zlib",

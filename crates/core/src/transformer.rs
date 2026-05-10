@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, Content,
@@ -33,11 +33,25 @@ pub struct TransformResult {
 impl TransformRequest {
   pub fn run(&self) -> Result<TransformResult, DiagnosticList> {
     let req = &self.req;
-    let path = req.url.with_extension(req.ty.extension()).unwrap();
+    let mut relative_path = Cow::Borrowed(
+      req
+        .url
+        .path()
+        .strip_prefix(&self.options.project_root.path())
+        .map(|p| &p[1..])
+        .unwrap_or(req.url.path()),
+    );
+    let (base, ext) = relative_path
+      .rsplit_once('.')
+      .unwrap_or((relative_path.as_ref(), ""));
+    if req.ty.extension() != ext {
+      *relative_path.to_mut() = format!("{}.{}", base, req.ty.extension());
+    }
+
     let transformer_pipeline = self
       .config
       .transformers
-      .get(path.path(), &req.pipeline, false);
+      .get(&relative_path, &req.pipeline, false);
 
     let content: Arc<dyn Content> = if let Some(code) = &req.code {
       Arc::new(BufferContent::new(code.clone()))

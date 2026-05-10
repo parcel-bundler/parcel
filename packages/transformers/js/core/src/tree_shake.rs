@@ -32,6 +32,7 @@ pub enum Resolution<'a> {
   Bundle(u32),
   External(Cow<'a, str>),
   String(String),
+  CssModule(String, Vec<(&'a str, String)>),
 }
 
 fn serialize_excluded<S>(serializer: S) -> Result<S::Ok, S::Error>
@@ -267,6 +268,28 @@ impl<'a> VisitMut for TreeShake<'a> {
                   .collect(),
               });
             }
+            Resolution::CssModule(specifier, object) => {
+              **expr = specifier.as_str().into();
+              *node = Expr::Seq(SeqExpr {
+                span: DUMMY_SP,
+                exprs: vec![
+                  Box::new(node.clone()),
+                  Box::new(Expr::Object(ObjectLit {
+                    span: DUMMY_SP,
+                    props: object
+                      .iter()
+                      .map(|(key, value)| {
+                        let prop = Prop::KeyValue(KeyValueProp {
+                          key: PropName::Str((*key).into()),
+                          value: value.clone().into(),
+                        });
+                        PropOrSpread::Prop(Box::new(prop))
+                      })
+                      .collect(),
+                  })),
+                ],
+              });
+            }
           }
 
           return;
@@ -276,50 +299,64 @@ impl<'a> VisitMut for TreeShake<'a> {
     }
   }
 
-  fn visit_mut_module_item(&mut self, node: &mut ModuleItem) {
-    match node {
-      ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
-        if let Some(resolution) = self.resolutions.get(import.src.value.as_str()) {
-          match resolution {
-            Resolution::External(specifier) => {
-              import.src.value = specifier.as_ref().into();
-              import.src.raw = None;
-            }
-            Resolution::String(string) => {
-              let name = import
-                .specifiers
-                .iter()
-                .find(|s| s.is_default())
-                .map(|s| &s.as_default().unwrap().local);
-              if let Some(name) = name {
-                *node = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = string.clone().into());
+  fn visit_mut_module_items(&mut self, nodes: &mut Vec<ModuleItem>) {
+    for i in 0..nodes.len() {
+      let node = &mut nodes[i];
+      match node {
+        ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+          if let Some(resolution) = self.resolutions.get(import.src.value.as_str()) {
+            match resolution {
+              Resolution::External(specifier) => {
+                import.src.value = specifier.as_ref().into();
+                import.src.raw = None;
               }
+              Resolution::String(string) => {
+                let name = import
+                  .specifiers
+                  .iter()
+                  .find(|s| s.is_default())
+                  .map(|s| &s.as_default().unwrap().local);
+                if let Some(name) = name {
+                  *node = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = string.clone().into());
+                }
+              }
+              Resolution::CssModule(specifier, object) => {
+                let name = import
+                  .specifiers
+                  .iter()
+                  .find(|s| s.is_default())
+                  .map(|s| &s.as_default().unwrap().local);
+                if let Some(name) = name {
+                  let value = Expr::Object(ObjectLit {
+                    span: DUMMY_SP,
+                    props: object
+                      .iter()
+                      .map(|(key, value)| {
+                        let prop = Prop::KeyValue(KeyValueProp {
+                          key: PropName::Str((*key).into()),
+                          value: value.clone().into(),
+                        });
+                        PropOrSpread::Prop(Box::new(prop))
+                      })
+                      .collect(),
+                  });
+                  let assign = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = value.into());
+                  import.src.value = specifier.as_str().into();
+                  import.src.raw = None;
+                  import.specifiers.clear();
+                  nodes.insert(i + 1, assign);
+                }
+              }
+              _ => {}
             }
-            _ => {}
           }
         }
-      }
-      ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) => {
-        if let Some(resolution) = self.resolutions.get(export.src.value.as_str()) {
-          match resolution {
-            Resolution::External(resolution) => {
-              export.src.value = resolution.as_ref().into();
-              export.src.raw = None;
-            }
-            Resolution::String(string) => {
-              // TODO
-            }
-            _ => {}
-          }
-        }
-      }
-      ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
-        if let Some(src) = &mut export.src {
-          if let Some(resolution) = self.resolutions.get(src.value.as_str()) {
+        ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) => {
+          if let Some(resolution) = self.resolutions.get(export.src.value.as_str()) {
             match resolution {
               Resolution::External(resolution) => {
-                src.value = resolution.as_ref().into();
-                src.raw = None;
+                export.src.value = resolution.as_ref().into();
+                export.src.raw = None;
               }
               Resolution::String(string) => {
                 // TODO
@@ -328,8 +365,24 @@ impl<'a> VisitMut for TreeShake<'a> {
             }
           }
         }
+        ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
+          if let Some(src) = &mut export.src {
+            if let Some(resolution) = self.resolutions.get(src.value.as_str()) {
+              match resolution {
+                Resolution::External(resolution) => {
+                  src.value = resolution.as_ref().into();
+                  src.raw = None;
+                }
+                Resolution::String(string) => {
+                  // TODO
+                }
+                _ => {}
+              }
+            }
+          }
+        }
+        _ => node.visit_mut_children_with(self),
       }
-      _ => node.visit_mut_children_with(self),
     }
   }
 

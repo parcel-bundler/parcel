@@ -1032,6 +1032,37 @@ pub fn asset_dependencies<'a>(
               Resolution::String(resolved_bundle.relative_url(bundle).unwrap().into()),
             );
           } else {
+            if resolved_bundle.ty != AssetType::Js
+              && let Some(main) = resolved_bundle.main_entry_asset
+            {
+              if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
+                let mut exports = Vec::new();
+                for exp in &asset.symbols.exports {
+                  if !exp.requested {
+                    continue;
+                  }
+
+                  if let Some(value) = resolve_css_module_export(
+                    &bundle_graph.asset_graph.assets,
+                    main,
+                    exp.exported.as_str(),
+                  ) {
+                    exports.push((exp.exported.as_str(), value));
+                  }
+                }
+
+                if !exports.is_empty() {
+                  dependencies.insert(
+                    placeholder.as_str().into(),
+                    Resolution::CssModule(
+                      resolved_bundle.relative_specifier(bundle).unwrap(),
+                      exports,
+                    ),
+                  );
+                  continue;
+                }
+              }
+            }
             dependencies.insert(
               placeholder.as_str().into(),
               Resolution::External(resolved_bundle.relative_specifier(bundle).unwrap().into()),
