@@ -40,7 +40,7 @@ fn run(code: &str) {
 }
 
 #[test]
-fn test_read_file_string() {
+fn test_read_file_sync_string() {
   run(
     r#"
     import fs from 'fs';
@@ -58,7 +58,42 @@ fn test_read_file_string() {
 }
 
 #[test]
-fn test_read_file_buffer() {
+fn test_read_file_string() {
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+    let called = false;
+    fs.readFile('/_parcel_test/test.txt', 'utf8', (err, res) => {
+      called = true;
+      assert.equal(err, null);
+      assert.equal(res, 'test');
+    });
+    assert.equal(called, true);
+  "#,
+  );
+}
+
+#[test]
+fn test_read_file_promise_string() {
+  run(
+    r#"
+    import fs from 'fs/promises';
+    import assert from 'assert';
+    assert.equal(await fs.readFile('/_parcel_test/test.txt', 'utf8'), 'test');
+  "#,
+  );
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+    assert.equal(await fs.promises.readFile('/_parcel_test/test.txt', 'utf8'), 'test');
+  "#,
+  );
+}
+
+#[test]
+fn test_read_file_sync_buffer() {
   run(
     r#"
     import fs from 'fs';
@@ -69,7 +104,35 @@ fn test_read_file_buffer() {
 }
 
 #[test]
-fn test_fs_stat() {
+fn test_read_file_promise_buffer() {
+  run(
+    r#"
+    import fs from 'fs/promises';
+    import assert from 'assert';
+    assert.deepEqual(await fs.readFile('/_parcel_test/test.txt'), new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
+  "#,
+  );
+}
+
+#[test]
+fn test_read_file_buffer() {
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+    let called = false;
+    fs.readFile('/_parcel_test/test.txt', (err, res) => {
+      called = true;
+      assert.equal(err, null);
+      assert.deepEqual(res, new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
+    });
+    assert.equal(called, true);
+  "#,
+  );
+}
+
+#[test]
+fn test_fs_stat_sync() {
   run(
     r#"
     import fs from 'fs';
@@ -82,7 +145,44 @@ fn test_fs_stat() {
 }
 
 #[test]
-fn test_fs_readdir() {
+fn test_fs_stat_promise() {
+  run(
+    r#"
+    import fs from 'fs/promises';
+    import assert from 'assert';
+    let stat = await fs.stat('/_parcel_test/test.txt');
+    assert.equal(stat.size, 4);
+    assert.equal(await fs.stat('/_parcel_test/foo.txt').catch(() => 1), 1);
+  "#,
+  );
+}
+
+#[test]
+fn test_fs_stat() {
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+    let called = false;
+    fs.stat('/_parcel_test/test.txt', (err, stat) => {
+      called = true;
+      assert.equal(err, null);
+      assert.equal(stat.size, 4);
+    });
+    assert.equal(called, true);
+    called = false;
+    fs.stat('/_parcel_test/foo.txt', (err, stat) => {
+      called = true;
+      assert.equal(!!err, true);
+      assert.equal(stat, null);
+    });
+    assert.equal(called, true);
+  "#,
+  );
+}
+
+#[test]
+fn test_fs_readdir_sync() {
   run(
     r#"
     import fs from 'fs';
@@ -94,6 +194,51 @@ fn test_fs_readdir() {
     assert.equal(dir2.length, 1);
     assert.equal(dir2[0].name, 'test.txt');
     assert(dir2[0].isFile());
+  "#,
+  );
+}
+
+#[test]
+fn test_fs_readdir_async() {
+  run(
+    r#"
+    import fs from 'fs/promises';
+    import assert from 'assert';
+    let dir = await fs.readdir('/_parcel_test');
+    assert.deepEqual(dir, ['test.txt']);
+
+    let dir2 = await fs.readdir('/_parcel_test', {withFileTypes: true});
+    assert.equal(dir2.length, 1);
+    assert.equal(dir2[0].name, 'test.txt');
+    assert(dir2[0].isFile());
+  "#,
+  );
+}
+
+#[test]
+fn test_fs_readdir_callback() {
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+
+    let called = false;
+    fs.readdir('/_parcel_test', (err, dir) => {
+      called = true;
+      assert.equal(err, null);
+      assert.deepEqual(dir, ['test.txt']);
+    });
+    assert.equal(called, true);
+
+    called = false;
+    fs.readdir('/_parcel_test', {withFileTypes: true}, (err, dir2) => {
+      called = true;
+      assert.equal(err, null);
+      assert.equal(dir2.length, 1);
+      assert.equal(dir2[0].name, 'test.txt');
+      assert(dir2[0].isFile());
+    });
+    assert.equal(called, true);
   "#,
   );
 }

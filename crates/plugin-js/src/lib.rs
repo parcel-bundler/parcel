@@ -8,7 +8,7 @@ use rquickjs::{
 };
 use rquickjs_extra_console::Formatter;
 
-use crate::fs::{FileSystemData, Fs};
+use crate::fs::FileSystemData;
 pub use crate::{cjs::CjsLoader, esm::create_esm_loader, macros::call_macro};
 pub use plugin::JsPlugin;
 

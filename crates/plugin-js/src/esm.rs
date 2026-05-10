@@ -17,7 +17,9 @@ use swc_core::{
 
 use crate::{
   CjsLoader,
+  console::Console,
   fs::{Fs, FsPromises},
+  process::Process,
 };
 
 pub fn create_esm_loader(
@@ -60,44 +62,33 @@ impl Resolver for ModuleResolver {
           let module = match module.as_str() {
             "assert" => "assert/",
             "buffer" => "buffer/",
-            "console" => "console-browserify",
+            "console" => return Ok("builtin:console".into()),
             "constants" => "constants-browserify",
             "crypto" => "crypto-browserify",
             "domain" => "domain-browser",
             "events" => "events/",
             "fs" => return Ok("builtin:fs".into()),
             "fs/promises" => return Ok("builtin:fs/promises".into()),
-            "http" => "stream-http",
-            "https" => "https-browserify",
             "os" => "os-browserify",
             "path" => "path-browserify",
-            "process" => "process/",
+            "process" => return Ok("builtin:process".into()),
             "punycode" => "punycode/",
             "querystring" => "querystring-es3",
             "stream" => "stream-browserify",
             "string_decoder" => "string_decoder/",
             "sys" => "util",
-            "timers" => "timers-browserify",
-            "tty" => "tty-browserify",
             "url" => "url/",
             "util" => "util/",
-            "vm" => "vm-browserify",
             "zlib" => "browserify-zlib",
             _ => {
-              return Ok(
-                "/Users/devongovett/dev/parcel/packages/utils/node-resolver-core/src/_empty.js"
-                  .into(),
-              );
+              return Err(rquickjs::Error::new_resolving(base, name));
             }
           };
           return self.resolve(ctx, "/Users/devongovett/dev/parcel", module);
         }
         _ => Err(rquickjs::Error::new_resolving(base, name)),
       },
-      Err(e) => {
-        println!("ERROR: {:?}", e);
-        Err(rquickjs::Error::new_resolving(base, name))
-      }
+      Err(e) => Err(rquickjs::Error::new_resolving(base, name)),
     }
   }
 }
@@ -117,8 +108,10 @@ impl Loader for ModuleLoader {
 
     if name.starts_with("builtin:") {
       match &name[8..] {
+        "console" => return Module::declare_def::<Console, _>(ctx.clone(), "console"),
         "fs" => return Module::declare_def::<Fs, _>(ctx.clone(), "fs"),
         "fs/promises" => return Module::declare_def::<FsPromises, _>(ctx.clone(), "fs/promises"),
+        "process" => return Module::declare_def::<Process, _>(ctx.clone(), "process"),
         _ => {}
       }
     }

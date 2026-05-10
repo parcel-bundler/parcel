@@ -3,6 +3,7 @@ use rquickjs::{
   class::Trace,
   function::{Args, Rest},
   methods,
+  module::ModuleDef,
 };
 
 #[derive(Clone, Trace, JsLifetime)]
@@ -34,8 +35,18 @@ impl Process {
   }
 
   #[qjs(get)]
-  fn platform() -> String {
-    "parcel".into()
+  fn platform() -> &'static str {
+    "parcel"
+  }
+
+  #[qjs(get)]
+  fn title() -> &'static str {
+    "parcel"
+  }
+
+  #[qjs(get)]
+  fn argv() -> Vec<()> {
+    vec![]
   }
 
   fn cwd() -> String {
@@ -56,5 +67,33 @@ impl Process {
       js_args.push_arg(arg)?;
     }
     func.call_arg(js_args)
+  }
+}
+
+impl ModuleDef for Process {
+  fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
+    decl.declare("env")?;
+    decl.declare("versions")?;
+    decl.declare("version")?;
+    decl.declare("browser")?;
+    decl.declare("platform")?;
+    decl.declare("title")?;
+    decl.declare("argv")?;
+    decl.declare("cwd")?;
+    decl.declare("nextTick")?;
+    Ok(())
+  }
+
+  fn evaluate<'js>(
+    ctx: &Ctx<'js>,
+    exports: &rquickjs::module::Exports<'js>,
+  ) -> rquickjs::Result<()> {
+    let process: Object = ctx.globals().get("process")?;
+    for key in process.keys() {
+      let key: String = key?;
+      let val: Value = process.get(&key)?;
+      exports.export(key, val)?;
+    }
+    Ok(())
   }
 }
