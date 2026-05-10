@@ -36,6 +36,9 @@ impl Target {
     {
       Arc::new(Target {
         output_format: OutputFormat::Global,
+        flags: target
+          .flags
+          .difference(EnvironmentFlags::MODULE_TYPE_EXTENSION),
         ..(**target).clone()
       })
     } else {
@@ -476,9 +479,14 @@ impl Engines {
 bitflags! {
   #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Default)]
   pub struct EnvironmentFlags: u8 {
+    /// Whether this is a library build.
     const IS_LIBRARY = 1 << 0;
+    /// Whether to optimize the bundles.
     const SHOULD_OPTIMIZE = 1 << 1;
+    /// Whether to scope hoist.
     const SHOULD_SCOPE_HOIST = 1 << 2;
+    /// Whether to use the .mjs or .cjs extensions.
+    const MODULE_TYPE_EXTENSION = 1 << 3;
   }
 }
 

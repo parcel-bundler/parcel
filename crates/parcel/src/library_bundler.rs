@@ -38,7 +38,11 @@ impl Bundler for LibraryBundler {
           bundle_behavior: asset.bundle_behavior,
           entry_assets: vec![id],
           target: asset.target.clone(),
-          flags: BundleFlags::NEEDS_STABLE_NAME,
+          flags: if name.is_some() {
+            BundleFlags::NEEDS_STABLE_NAME
+          } else {
+            BundleFlags::empty()
+          },
           main_entry_asset: Some(id),
           name,
           referenced_bundles: Vec::new(),

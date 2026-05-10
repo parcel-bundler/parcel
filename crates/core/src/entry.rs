@@ -389,9 +389,14 @@ impl<'a> ExportsContext<'a> {
     };
 
     let mut flags = EnvironmentFlags::IS_LIBRARY;
-    if self.condition.contains(ExportsCondition::PRODUCTION) {
-      flags.insert(EnvironmentFlags::SHOULD_OPTIMIZE); // ??
-    }
+    flags.set(
+      EnvironmentFlags::MODULE_TYPE_EXTENSION,
+      entry.ends_with(".mjs") || entry.ends_with(".cjs"),
+    );
+    flags.set(
+      EnvironmentFlags::SHOULD_OPTIMIZE,
+      self.condition.contains(ExportsCondition::PRODUCTION),
+    ); // ??
 
     Target {
       environment: context,
