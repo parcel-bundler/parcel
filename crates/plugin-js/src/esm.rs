@@ -15,7 +15,10 @@ use swc_core::{
   ecma::parser::{Syntax, TsSyntax},
 };
 
-use crate::{CjsLoader, fs::FsModule};
+use crate::{
+  CjsLoader,
+  fs::{Fs, FsPromises},
+};
 
 pub fn create_esm_loader(
   project_root: String,
@@ -63,6 +66,7 @@ impl Resolver for ModuleResolver {
             "domain" => "domain-browser",
             "events" => "events/",
             "fs" => return Ok("builtin:fs".into()),
+            "fs/promises" => return Ok("builtin:fs/promises".into()),
             "http" => "stream-http",
             "https" => "https-browserify",
             "os" => "os-browserify",
@@ -113,7 +117,8 @@ impl Loader for ModuleLoader {
 
     if name.starts_with("builtin:") {
       match &name[8..] {
-        "fs" => return Module::declare_def::<FsModule, _>(ctx.clone(), "fs"),
+        "fs" => return Module::declare_def::<Fs, _>(ctx.clone(), "fs"),
+        "fs/promises" => return Module::declare_def::<FsPromises, _>(ctx.clone(), "fs/promises"),
         _ => {}
       }
     }

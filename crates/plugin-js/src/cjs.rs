@@ -15,7 +15,7 @@ use swc_core::{
   ecma::parser::{Syntax, TsSyntax},
 };
 
-use crate::fs::Fs;
+use crate::fs::{Fs, FsPromises};
 
 #[derive(JsLifetime)]
 pub struct CjsLoader {
@@ -52,6 +52,7 @@ impl CjsLoader {
             "domain" => "domain-browser",
             "events" => "events/",
             "fs" => return Ok("builtin:fs".into()),
+            "fs/promises" => return Ok("builtin:fs/promises".into()),
             "http" => "stream-http",
             "https" => "https-browserify",
             "os" => "os-browserify",
@@ -102,8 +103,10 @@ impl CjsLoader {
     if resolved.starts_with("builtin:") {
       match &resolved[8..] {
         "fs" => {
-          let fs = ctx.userdata::<Fs>().unwrap();
-          return fs.clone().into_js(ctx);
+          return Fs {}.into_js(ctx);
+        }
+        "fs/promises" => {
+          return FsPromises {}.into_js(ctx);
         }
         _ => {}
       }

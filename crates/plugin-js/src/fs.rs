@@ -2,57 +2,45 @@ use std::{path::Path, sync::Arc};
 
 use parcel_core::{DirEntry, FileKind, FileSystem};
 use rquickjs::{
-  Ctx, Exception, FromAtom, Function, JsLifetime, Value,
-  class::{JsClass, Trace, Tracer},
+  Ctx, Exception, FromAtom, Function, IntoJs, JsLifetime, Promise, Value,
+  class::{JsClass, Trace},
   function::Constructor,
   module::ModuleDef,
 };
 
-#[derive(JsLifetime, Clone)]
+#[derive(JsLifetime, Trace, Clone)]
+pub struct FileSystemData(#[qjs(skip_trace)] pub Arc<dyn FileSystem>);
+
+#[derive(JsLifetime, Trace, Clone)]
 #[rquickjs::class]
-pub struct Fs {
-  fs: Arc<dyn FileSystem>,
-}
+pub struct Fs {}
 
-impl Fs {
-  pub fn new(fs: Arc<dyn FileSystem>) -> Fs {
-    Fs { fs }
-  }
-}
-
-impl<'js> Trace<'js> for Fs {
-  fn trace<'a>(&self, _tracer: Tracer<'a, 'js>) {}
-}
-
-pub struct FsModule {}
-
-impl ModuleDef for FsModule {
+impl ModuleDef for Fs {
   fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
     decl.declare("default")?;
     Ok(())
   }
 
   fn evaluate<'js>(
-    ctx: &rquickjs::Ctx<'js>,
+    _ctx: &rquickjs::Ctx<'js>,
     exports: &rquickjs::module::Exports<'js>,
   ) -> rquickjs::Result<()> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    exports.export("default", fs.clone())?;
+    exports.export("default", Fs {})?;
     Ok(())
   }
 }
 
 impl Fs {
   fn read_file_internal<'js>(
-    &self,
     ctx: Ctx<'js>,
     path: String,
     encoding: Option<String>,
   ) -> rquickjs::Result<Result<Value<'js>, Exception<'js>>> {
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
     let encoding = encoding.as_ref().map(|e| e.as_str());
     match encoding {
       None => {
-        let contents = self.fs.read(Path::new(&path));
+        let contents = fs.read(Path::new(&path));
         match contents {
           Ok(contents) => {
             let buffer_ctor: rquickjs::Object = ctx.globals().get("Buffer")?;
@@ -65,7 +53,7 @@ impl Fs {
         }
       }
       Some("utf-8") | Some("utf8") => {
-        let contents = self.fs.read_to_string(Path::new(&path));
+        let contents = fs.read_to_string(Path::new(&path));
         match contents {
           Ok(contents) => Ok(Ok(rquickjs::String::from_str(ctx, &contents)?.into_value())),
           Err(err) => Ok(Err(Exception::from_message(ctx, &err.to_string())?)),
@@ -79,11 +67,11 @@ impl Fs {
   }
 
   fn stat_internal<'js>(
-    &self,
     ctx: Ctx<'js>,
     path: String,
   ) -> rquickjs::Result<Result<Stats, Exception<'js>>> {
-    let stat = self.fs.stat(Path::new(&path));
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
+    let stat = fs.stat(Path::new(&path));
     match stat {
       Some(stat) => Ok(Ok(Stats::new(stat))),
       None => {
@@ -98,11 +86,11 @@ impl Fs {
   }
 
   fn lstat_internal<'js>(
-    &self,
     ctx: Ctx<'js>,
     path: String,
   ) -> rquickjs::Result<Result<Stats, Exception<'js>>> {
-    let stat = self.fs.lstat(Path::new(&path));
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
+    let stat = fs.lstat(Path::new(&path));
     match stat {
       Some(stat) => Ok(Ok(Stats::new(stat))),
       None => {
@@ -117,12 +105,12 @@ impl Fs {
   }
 
   fn readdir_internal<'js>(
-    &self,
     ctx: Ctx<'js>,
     path: String,
     options: Option<&Value>,
   ) -> rquickjs::Result<Result<Vec<Value<'js>>, Exception<'js>>> {
-    let entries = self.fs.read_dir(Path::new(&path));
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
+    let entries = fs.read_dir(Path::new(&path));
     let mut with_file_types = false;
     if let Some(options) = options {
       if let Some(obj) = options.as_object() {
@@ -171,25 +159,45 @@ impl Fs {
   }
 
   fn realpath_internal<'js>(
-    &self,
     ctx: Ctx<'js>,
     path: String,
   ) -> rquickjs::Result<Result<String, Exception<'js>>> {
-    match self.fs.canonicalize(Path::new(&path)) {
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
+    match fs.canonicalize(Path::new(&path)) {
       Ok(link) => Ok(Ok(link.to_string_lossy().into_owned())),
       Err(e) => Ok(Err(Exception::from_message(ctx, &e.to_string())?)),
     }
   }
 
   fn readlink_internal<'js>(
-    &self,
     ctx: Ctx<'js>,
     path: String,
   ) -> rquickjs::Result<Result<String, Exception<'js>>> {
-    match self.fs.read_link(Path::new(&path)) {
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
+    match fs.read_link(Path::new(&path)) {
       Ok(link) => Ok(Ok(link.to_string_lossy().into_owned())),
       Err(e) => Ok(Err(Exception::from_message(ctx, &e.to_string())?)),
     }
+  }
+}
+
+fn handle_sync<'js, V: IntoJs<'js>>(
+  ctx: &Ctx<'js>,
+  result: Result<V, Exception<'js>>,
+) -> rquickjs::Result<Value<'js>> {
+  match result {
+    Ok(value) => value.into_js(ctx),
+    Err(exception) => Err(exception.throw()),
+  }
+}
+
+fn handle_async<'js, V: IntoJs<'js>>(
+  callback: &Function<'js>,
+  result: Result<V, Exception<'js>>,
+) -> rquickjs::Result<()> {
+  match result {
+    Ok(res) => callback.call((rquickjs::Null, res)),
+    Err(exception) => callback.call((exception, rquickjs::Null)),
   }
 }
 
@@ -200,16 +208,17 @@ impl Fs {
     Stats::constructor(&ctx)
   }
 
+  #[qjs(get)]
+  fn promises<'js>() -> FsPromises {
+    FsPromises {}
+  }
+
   pub fn read_file_sync<'js>(
     ctx: Ctx<'js>,
     path: String,
     encoding: rquickjs::function::Opt<String>,
   ) -> rquickjs::Result<Value<'js>> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.read_file_internal(ctx.clone(), path, encoding.0)? {
-      Ok(res) => Ok(res),
-      Err(exception) => Err(exception.throw()),
-    }
+    handle_sync(&ctx, Fs::read_file_internal(ctx.clone(), path, encoding.0)?)
   }
 
   pub fn read_file<'js>(
@@ -232,43 +241,26 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.read_file_internal(ctx.clone(), path, encoding)? {
-      Ok(res) => callback.call((rquickjs::Null, res)),
-      Err(exception) => callback.call((exception, rquickjs::Null)),
-    }
+    handle_async(
+      callback,
+      Fs::read_file_internal(ctx.clone(), path, encoding)?,
+    )
   }
 
-  pub fn stat_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Stats> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.stat_internal(ctx.clone(), path)? {
-      Ok(stats) => Ok(stats),
-      Err(exception) => Err(exception.throw()),
-    }
+  pub fn stat_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Value<'js>> {
+    handle_sync(&ctx, Fs::stat_internal(ctx.clone(), path)?)
   }
 
-  pub fn lstat_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Stats> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.lstat_internal(ctx.clone(), path)? {
-      Ok(stats) => Ok(stats),
-      Err(exception) => Err(exception.throw()),
-    }
+  pub fn lstat_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Value<'js>> {
+    handle_sync(&ctx, Fs::lstat_internal(ctx.clone(), path)?)
   }
 
   pub fn stat<'js>(ctx: Ctx<'js>, path: String, callback: Function<'js>) -> rquickjs::Result<()> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.stat_internal(ctx.clone(), path)? {
-      Ok(stats) => callback.call((rquickjs::Null, stats)),
-      Err(exception) => callback.call((exception, rquickjs::Null)),
-    }
+    handle_async(&callback, Fs::stat_internal(ctx.clone(), path)?)
   }
 
   pub fn lstat<'js>(ctx: Ctx<'js>, path: String, callback: Function<'js>) -> rquickjs::Result<()> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.lstat_internal(ctx.clone(), path)? {
-      Ok(stats) => callback.call((rquickjs::Null, stats)),
-      Err(exception) => callback.call((exception, rquickjs::Null)),
-    }
+    handle_async(&callback, Fs::lstat_internal(ctx.clone(), path)?)
   }
 
   pub fn realpath<'js>(
@@ -289,19 +281,11 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.realpath_internal(ctx.clone(), path)? {
-      Ok(link) => callback.call((rquickjs::Null, link)),
-      Err(exception) => callback.call((exception, rquickjs::Null)),
-    }
+    handle_async(&callback, Fs::realpath_internal(ctx.clone(), path)?)
   }
 
-  pub fn realpath_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<String> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.realpath_internal(ctx.clone(), path)? {
-      Ok(link) => Ok(link),
-      Err(exception) => Err(exception.throw()),
-    }
+  pub fn realpath_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Value<'js>> {
+    handle_sync(&ctx, Fs::realpath_internal(ctx.clone(), path)?)
   }
 
   pub fn readlink<'js>(
@@ -322,31 +306,22 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.readlink_internal(ctx.clone(), path)? {
-      Ok(link) => callback.call((rquickjs::Null, link)),
-      Err(exception) => callback.call((exception, rquickjs::Null)),
-    }
+    handle_async(&callback, Fs::readlink_internal(ctx.clone(), path)?)
   }
 
-  pub fn readlink_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<String> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.readlink_internal(ctx.clone(), path)? {
-      Ok(link) => Ok(link),
-      Err(exception) => Err(exception.throw()),
-    }
+  pub fn readlink_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Value<'js>> {
+    handle_sync(&ctx, Fs::readlink_internal(ctx.clone(), path)?)
   }
 
   pub fn readdir_sync<'js>(
     ctx: Ctx<'js>,
     path: String,
     options: rquickjs::function::Opt<Value<'js>>,
-  ) -> rquickjs::Result<Vec<Value<'js>>> {
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.readdir_internal(ctx.clone(), path, options.0.as_ref())? {
-      Ok(entries) => Ok(entries),
-      Err(err) => Err(err.throw()),
-    }
+  ) -> rquickjs::Result<Value<'js>> {
+    handle_sync(
+      &ctx,
+      Fs::readdir_internal(ctx.clone(), path, options.0.as_ref())?,
+    )
   }
 
   pub fn readdir<'js>(
@@ -366,11 +341,7 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap();
-    match fs.readdir_internal(ctx.clone(), path, options)? {
-      Ok(entries) => callback.call((rquickjs::Null, entries)),
-      Err(err) => callback.call((err, rquickjs::Null)),
-    }
+    handle_async(&callback, Fs::readdir_internal(ctx.clone(), path, options)?)
   }
 
   pub fn open<'js>(ctx: Ctx<'js>, path: String, rest: rquickjs::function::Rest<Value<'js>>) {
@@ -378,6 +349,90 @@ impl Fs {
   }
 
   pub fn close() {}
+}
+
+#[derive(JsLifetime, Trace, Clone)]
+#[rquickjs::class]
+pub struct FsPromises {}
+
+fn to_promise<'js, V: IntoJs<'js>>(
+  ctx: &Ctx<'js>,
+  result: Result<V, Exception<'js>>,
+) -> rquickjs::Result<Promise<'js>> {
+  let (promise, resolve, reject) = Promise::new(ctx)?;
+  match result {
+    Ok(value) => {
+      resolve.call::<_, Value>((value,))?;
+    }
+    Err(exception) => {
+      reject.call::<_, Value>((exception,))?;
+    }
+  }
+  Ok(promise)
+}
+
+#[rquickjs::methods(rename_all = "camelCase")]
+impl FsPromises {
+  #[qjs(get, rename = "Stats")]
+  pub fn stats<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Option<Constructor<'js>>> {
+    Stats::constructor(&ctx)
+  }
+
+  pub fn read_file<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    encoding: rquickjs::function::Opt<String>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    to_promise(&ctx, Fs::read_file_internal(ctx.clone(), path, encoding.0)?)
+  }
+
+  pub fn stat<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Promise<'js>> {
+    to_promise(&ctx, Fs::stat_internal(ctx.clone(), path)?)
+  }
+
+  pub fn lstat<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Promise<'js>> {
+    to_promise(&ctx, Fs::lstat_internal(ctx.clone(), path)?)
+  }
+
+  pub fn realpath<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Promise<'js>> {
+    to_promise(&ctx, Fs::realpath_internal(ctx.clone(), path)?)
+  }
+
+  pub fn readlink<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Promise<'js>> {
+    to_promise(&ctx, Fs::readlink_internal(ctx.clone(), path)?)
+  }
+
+  pub fn readdir<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    to_promise(
+      &ctx,
+      Fs::readdir_internal(ctx.clone(), path, options.0.as_ref())?,
+    )
+  }
+
+  pub fn open<'js>(ctx: Ctx<'js>, path: String, rest: rquickjs::function::Rest<Value<'js>>) {
+    println!("Open {}", path);
+  }
+
+  pub fn close() {}
+}
+
+impl ModuleDef for FsPromises {
+  fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
+    decl.declare("default")?;
+    Ok(())
+  }
+
+  fn evaluate<'js>(
+    _ctx: &rquickjs::Ctx<'js>,
+    exports: &rquickjs::module::Exports<'js>,
+  ) -> rquickjs::Result<()> {
+    exports.export("default", FsPromises {})?;
+    Ok(())
+  }
 }
 
 pub fn get_dirname<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Value<'js>> {

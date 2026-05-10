@@ -8,7 +8,7 @@ use rquickjs::{
 };
 use rquickjs_extra_console::Formatter;
 
-use crate::fs::Fs;
+use crate::fs::{FileSystemData, Fs};
 pub use crate::{cjs::CjsLoader, esm::create_esm_loader, macros::call_macro};
 pub use plugin::JsPlugin;
 
@@ -113,7 +113,7 @@ pub fn create_runtime(fs: Arc<dyn FileSystem>) -> rquickjs::Result<JsEnv> {
 
   env.context.with(|ctx| -> rquickjs::Result<()> {
     ctx.store_userdata(CjsLoader::new("/".into(), fs.clone()))?;
-    ctx.store_userdata(Fs::new(fs))?;
+    ctx.store_userdata(FileSystemData(fs))?;
 
     let global = ctx.globals();
     let req = Function::new(ctx.clone(), cjs::require)?;
