@@ -15,7 +15,7 @@ fn run(code: &str) {
   fs.write(Path::new("/test.mjs"), &code.as_bytes().to_owned())
     .expect("Error writing file");
   let ctx = create_runtime(fs).unwrap();
-  ctx.with(|ctx| {
+  ctx.context.with(|ctx| {
     let res = rquickjs::Module::import(&ctx, "/test.mjs".as_bytes().to_owned())
       .and_then(|p| p.finish::<rquickjs::Value>());
     match res {

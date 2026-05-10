@@ -24,7 +24,7 @@ mod url;
 mod url_search_params;
 
 pub struct JsEnv {
-  context: Context,
+  pub context: Context,
   rejected_promises: Rc<RefCell<HashMap<Persistent<Value<'static>>, Persistent<Value<'static>>>>>,
 }
 

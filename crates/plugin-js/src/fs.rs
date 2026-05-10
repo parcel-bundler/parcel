@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use parcel_core::{DirEntry, FileKind, FileSystem};
 use rquickjs::{
-  Ctx, FromAtom, Function, JsLifetime, Value,
+  Ctx, Exception, FromAtom, Function, JsLifetime, Value,
   class::{JsClass, Trace, Tracer},
   function::Constructor,
   module::ModuleDef,
@@ -42,6 +42,43 @@ impl ModuleDef for FsModule {
   }
 }
 
+impl Fs {
+  fn read_file_internal<'js>(
+    &self,
+    ctx: Ctx<'js>,
+    path: String,
+    encoding: Option<String>,
+  ) -> rquickjs::Result<Result<Value<'js>, Exception<'js>>> {
+    let encoding = encoding.as_ref().map(|e| e.as_str());
+    match encoding {
+      None => {
+        let contents = self.fs.read(Path::new(&path));
+        match contents {
+          Ok(contents) => {
+            let buffer_ctor: rquickjs::Object = ctx.globals().get("Buffer")?;
+            let buffer_from: Function = buffer_ctor.get("from")?;
+            let array_buffer = rquickjs::ArrayBuffer::new(ctx, contents)?;
+            let buffer: rquickjs::Value = buffer_from.call((array_buffer,))?;
+            Ok(Ok(buffer))
+          }
+          Err(err) => Ok(Err(Exception::from_message(ctx, &err.to_string())?)),
+        }
+      }
+      Some("utf-8") | Some("utf8") => {
+        let contents = self.fs.read_to_string(Path::new(&path));
+        match contents {
+          Ok(contents) => Ok(Ok(rquickjs::String::from_str(ctx, &contents)?.into_value())),
+          Err(err) => Ok(Err(Exception::from_message(ctx, &err.to_string())?)),
+        }
+      }
+      _ => Ok(Err(rquickjs::Exception::from_message(
+        ctx,
+        "Unsupported encoding",
+      )?)),
+    }
+  }
+}
+
 #[rquickjs::methods(rename_all = "camelCase")]
 impl Fs {
   #[qjs(get, rename = "Stats")]
@@ -54,33 +91,10 @@ impl Fs {
     path: String,
     encoding: rquickjs::function::Opt<String>,
   ) -> rquickjs::Result<Value<'js>> {
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    let encoding = encoding.0.as_ref().map(|e| e.as_str());
-    match encoding {
-      None => {
-        let contents = fs.read(Path::new(&path));
-        match contents {
-          Ok(contents) => {
-            let buffer_ctor: rquickjs::Object = ctx.globals().get("Buffer")?;
-            let buffer_from: Function = buffer_ctor.get("from")?;
-            let array_buffer = rquickjs::ArrayBuffer::new(ctx, contents)?;
-            let buffer: rquickjs::Value = buffer_from.call((array_buffer,))?;
-            Ok(buffer)
-          }
-          Err(err) => Err(rquickjs::Exception::throw_message(&ctx, &err.to_string())),
-        }
-      }
-      Some("utf-8") | Some("utf8") => {
-        let contents = fs.read_to_string(Path::new(&path));
-        match contents {
-          Ok(contents) => Ok(rquickjs::String::from_str(ctx, &contents)?.into_value()),
-          Err(err) => Err(rquickjs::Exception::throw_message(&ctx, &err.to_string())),
-        }
-      }
-      _ => Err(rquickjs::Exception::throw_message(
-        &ctx,
-        "Unsupported encoding",
-      )),
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.read_file_internal(ctx.clone(), path, encoding.0)? {
+      Ok(res) => Ok(res),
+      Err(exception) => Err(exception.throw()),
     }
   }
 
@@ -90,7 +104,10 @@ impl Fs {
     rest: rquickjs::function::Rest<Value<'js>>,
   ) -> rquickjs::Result<()> {
     let (encoding, callback) = if rest.0.len() >= 2 {
-      (rest.0[0].as_string(), rest.0[1].as_function())
+      (
+        rest.0[0].as_string().and_then(|s| s.to_string().ok()),
+        rest.0[1].as_function(),
+      )
     } else {
       (None, rest.0[0].as_function())
     };
@@ -101,43 +118,10 @@ impl Fs {
       ));
     };
 
-    let fs = ctx.userdata::<Fs>().unwrap().fs.clone();
-    let encoding = encoding.and_then(|e| e.to_string().ok());
-    let encoding = encoding.as_ref().map(|e| e.as_str());
-    match encoding {
-      None => {
-        let contents = fs.read(Path::new(&path));
-        match contents {
-          Ok(contents) => {
-            let buffer_ctor: rquickjs::Object = ctx.globals().get("Buffer")?;
-            let buffer_from: Function = buffer_ctor.get("from")?;
-            let array_buffer = rquickjs::ArrayBuffer::new(ctx, contents)?;
-            let buffer: rquickjs::Value = buffer_from.call((array_buffer,))?;
-            callback.call((rquickjs::Null, buffer))
-          }
-          Err(err) => callback.call((
-            rquickjs::Exception::from_message(ctx, &err.to_string())?,
-            rquickjs::Null,
-          )),
-        }
-      }
-      Some("utf-8") | Some("utf8") => {
-        let contents = fs.read_to_string(Path::new(&path));
-        match contents {
-          Ok(contents) => callback.call((
-            rquickjs::Null,
-            rquickjs::String::from_str(ctx, &contents)?.into_value(),
-          )),
-          Err(err) => callback.call((
-            rquickjs::Exception::from_message(ctx, &err.to_string())?,
-            rquickjs::Null,
-          )),
-        }
-      }
-      _ => callback.call((
-        rquickjs::Exception::from_message(ctx, "Unsupported encoding"),
-        rquickjs::Null,
-      )),
+    let fs = ctx.userdata::<Fs>().unwrap();
+    match fs.read_file_internal(ctx.clone(), path, encoding)? {
+      Ok(res) => callback.call((rquickjs::Null, res)),
+      Err(exception) => callback.call((exception, rquickjs::Null)),
     }
   }
 
