@@ -30,7 +30,10 @@ thread_local! {
 }
 
 /// Creates a macro callback from a JS function.
-pub fn create_macro_callback(function: JsFunction, env: Env) -> napi::Result<MacroCallback> {
+pub fn create_macro_callback(
+  function: JsFunction,
+  env: Env,
+) -> napi::Result<impl Fn(String, String, Vec<JsValue>, Location) -> Result<JsValue, MacroError>> {
   let call_macro_tsfn = env.create_threadsafe_function(
     &function,
     0,
@@ -46,7 +49,7 @@ pub fn create_macro_callback(function: JsFunction, env: Env) -> napi::Result<Mac
   // Get around Env not being Send. See safety note below.
   let unsafe_env = env.raw() as usize;
 
-  Ok(Arc::new(move |src, export, args, loc| {
+  Ok(move |src, export, args, loc| {
     CHANNEL.with(|channel| {
       // Call JS function to run the macro.
       let tx = channel.0.clone();
@@ -69,7 +72,7 @@ pub fn create_macro_callback(function: JsFunction, env: Env) -> napi::Result<Mac
       // Lock the transformer thread until the JS thread returns a result.
       channel.1.recv().expect("receive failure")
     })
-  }))
+  })
 }
 
 /// Convert a JsValue macro argument from the transformer to a napi value.

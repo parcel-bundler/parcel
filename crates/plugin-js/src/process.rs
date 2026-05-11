@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rquickjs::{
   Ctx, JsLifetime, Object, Value,
   class::Trace,
@@ -8,24 +10,32 @@ use rquickjs::{
 
 #[derive(Clone, Trace, JsLifetime)]
 #[rquickjs::class(frozen)]
-pub struct Process {}
+pub struct Process<'js> {
+  #[qjs(get)]
+  env: Object<'js>,
+}
+
+impl<'js> Process<'js> {
+  pub fn new(ctx: Ctx<'js>, env: &HashMap<String, String>) -> rquickjs::Result<Process<'js>> {
+    let obj = Object::new(ctx)?;
+    for (k, v) in env {
+      obj.set(k, v)?;
+    }
+    Ok(Process { env: obj })
+  }
+}
 
 #[methods(rename_all = "camelCase")]
-impl Process {
+impl<'js> Process<'js> {
   #[qjs(get)]
-  fn env<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Object<'js>> {
-    Object::new(ctx)
-  }
-
-  #[qjs(get)]
-  fn versions<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Object<'js>> {
+  fn versions(ctx: Ctx<'js>) -> rquickjs::Result<Object<'js>> {
     let obj = Object::new(ctx)?;
     obj.set("node", "24.0.0")?;
     Ok(obj)
   }
 
   #[qjs(get)]
-  fn version<'js>() -> &'static str {
+  fn version() -> &'static str {
     "v24.0.0"
   }
 
@@ -57,7 +67,7 @@ impl Process {
       .to_owned()
   }
 
-  fn next_tick<'js>(
+  fn next_tick(
     ctx: Ctx<'js>,
     func: rquickjs::Function<'js>,
     args: Rest<Value<'js>>,
@@ -70,7 +80,7 @@ impl Process {
   }
 }
 
-impl ModuleDef for Process {
+impl<'a> ModuleDef for Process<'a> {
   fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
     decl.declare("env")?;
     decl.declare("versions")?;

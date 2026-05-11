@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use parcel_core::{FileSystem, OverlayFileSystem};
 use parcel_plugin_js::create_runtime;
@@ -14,7 +14,7 @@ fn run(code: &str) {
   .expect("Error writing file");
   fs.write(Path::new("/test.mjs"), &code.as_bytes().to_owned())
     .expect("Error writing file");
-  let ctx = create_runtime(fs).unwrap();
+  let ctx = create_runtime(fs, &HashMap::new()).unwrap();
   ctx.context.with(|ctx| {
     let res = rquickjs::Module::import(&ctx, "/test.mjs".as_bytes().to_owned())
       .and_then(|p| p.finish::<rquickjs::Value>());

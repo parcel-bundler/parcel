@@ -21,7 +21,7 @@ fn run<
   f: F,
 ) {
   let fs_clone = fs.clone();
-  let ctx = create_runtime(fs).unwrap();
+  let ctx = create_runtime(fs, &HashMap::new()).unwrap();
   ctx.with(|ctx| {
     let globals = ctx.globals();
     let side_effects = Arc::new(RefCell::new(Vec::<serde_json::Value>::new()));

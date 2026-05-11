@@ -32,7 +32,11 @@ thread_local! {
   static JS_ENV: RefCell<Option<JsEnv>> = RefCell::new(None);
 }
 
-fn with_js_env<F, R>(fs: Arc<dyn FileSystem>, f: F) -> Result<R, DiagnosticList>
+fn with_js_env<F, R>(
+  fs: Arc<dyn FileSystem>,
+  env_vars: &HashMap<String, String>,
+  f: F,
+) -> Result<R, DiagnosticList>
 where
   F: FnOnce(&Ctx) -> rquickjs::Result<R>,
 {
@@ -40,7 +44,7 @@ where
     let mut context = cell.borrow_mut();
 
     if context.is_none() {
-      let ctx = create_runtime(fs)
+      let ctx = create_runtime(fs, env_vars)
         .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
       *context = Some(ctx);
     }
@@ -82,7 +86,10 @@ where
   })
 }
 
-pub fn create_runtime(fs: Arc<dyn FileSystem>) -> rquickjs::Result<JsEnv> {
+pub fn create_runtime(
+  fs: Arc<dyn FileSystem>,
+  env_vars: &HashMap<String, String>,
+) -> rquickjs::Result<JsEnv> {
   let runtime = Runtime::new()?;
   let ctx = Context::full(&runtime)?;
   let rejected_promises = Rc::new(RefCell::new(HashMap::new()));
@@ -127,7 +134,7 @@ pub fn create_runtime(fs: Arc<dyn FileSystem>) -> rquickjs::Result<JsEnv> {
     let console = console::Console::new(Formatter::default());
     global.set("console", console)?;
 
-    global.set("process", process::Process {})?;
+    global.set("process", process::Process::new(ctx.clone(), env_vars)?)?;
     global.set("global", global.clone())?;
 
     global.set("TextDecoder", encoding::TextDecoder::constructor(&ctx))?;

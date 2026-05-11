@@ -39,14 +39,14 @@ pub struct Location {
   pub col: u32,
 }
 
-pub type MacroCallback =
-  Arc<dyn Fn(String, String, Vec<JsValue>, Location) -> Result<JsValue, MacroError>>;
+pub type MacroCallback<'a> =
+  &'a dyn Fn(String, String, Vec<JsValue>, Location) -> Result<JsValue, MacroError>;
 
 pub struct Macros<'a> {
   /// Mapping of imported identifiers to import metadata.
   macros: HashMap<Id, MacroImport>,
   evaluator: Evaluator<'a>,
-  callback: MacroCallback,
+  callback: MacroCallback<'a>,
   errors: &'a mut Vec<MacroError>,
   load_errors: HashSet<String>,
   assignment_span: Option<Span>,
@@ -64,7 +64,7 @@ struct MacroImport {
 
 impl<'a> Macros<'a> {
   pub fn new(
-    callback: MacroCallback,
+    callback: MacroCallback<'a>,
     source_map: &'a SourceMap,
     errors: &'a mut Vec<MacroError>,
   ) -> Self {

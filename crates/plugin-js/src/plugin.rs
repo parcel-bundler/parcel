@@ -36,7 +36,7 @@ impl Transformer for JsPlugin {
     asset: Asset,
     options: &parcel_core::ParcelOptions,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
-    let asset = with_js_env(options.input_fs.clone(), |ctx| {
+    let asset = with_js_env(options.input_fs.clone(), &options.env, |ctx| {
       let module = load_module(&ctx, &self.path)?;
       let symbol: Object = ctx.globals().get("Symbol")?;
       let symbol_for: Function = symbol.get("for")?;
