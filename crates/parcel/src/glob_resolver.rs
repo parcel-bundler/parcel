@@ -32,7 +32,7 @@ impl Resolver for GlobResolver {
     let mut index = 0;
     for file in &files {
       let string = file.to_str().unwrap();
-      write!(&mut code, "import _temp{} from {:?};\n", index, string);
+      write!(&mut code, "import _temp{} from {:?};\n", index, string)?;
       index += 1;
     }
 
@@ -42,7 +42,7 @@ impl Resolver for GlobResolver {
       let string = file.to_str().unwrap();
       if let Some(captures) = glob_match_with_captures(specifier, string) {
         let root = &string[captures[0].clone()];
-        write!(&mut code, "{:?}: _temp{}, ", root, index);
+        write!(&mut code, "{:?}: _temp{}, ", root, index)?;
         index += 1;
       }
     }

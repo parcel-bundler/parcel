@@ -270,24 +270,27 @@ impl<'a> VisitMut for TreeShake<'a> {
             }
             Resolution::CssModule(specifier, object) => {
               **expr = specifier.as_str().into();
-              *node = Expr::Seq(SeqExpr {
+              *node = Expr::Paren(ParenExpr {
                 span: DUMMY_SP,
-                exprs: vec![
-                  Box::new(node.clone()),
-                  Box::new(Expr::Object(ObjectLit {
-                    span: DUMMY_SP,
-                    props: object
-                      .iter()
-                      .map(|(key, value)| {
-                        let prop = Prop::KeyValue(KeyValueProp {
-                          key: PropName::Str((*key).into()),
-                          value: value.clone().into(),
-                        });
-                        PropOrSpread::Prop(Box::new(prop))
-                      })
-                      .collect(),
-                  })),
-                ],
+                expr: Box::new(Expr::Seq(SeqExpr {
+                  span: DUMMY_SP,
+                  exprs: vec![
+                    Box::new(node.clone()),
+                    Box::new(Expr::Object(ObjectLit {
+                      span: DUMMY_SP,
+                      props: object
+                        .iter()
+                        .map(|(key, value)| {
+                          let prop = Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str((*key).into()),
+                            value: value.clone().into(),
+                          });
+                          PropOrSpread::Prop(Box::new(prop))
+                        })
+                        .collect(),
+                    })),
+                  ],
+                })),
               });
             }
           }
@@ -300,7 +303,8 @@ impl<'a> VisitMut for TreeShake<'a> {
   }
 
   fn visit_mut_module_items(&mut self, nodes: &mut Vec<ModuleItem>) {
-    for i in 0..nodes.len() {
+    let mut i = 0;
+    while i < nodes.len() {
       let node = &mut nodes[i];
       match node {
         ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
@@ -383,6 +387,7 @@ impl<'a> VisitMut for TreeShake<'a> {
         }
         _ => node.visit_mut_children_with(self),
       }
+      i += 1;
     }
   }
 

@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use parcel_core::{AssetType, BufferContent, DiagnosticList, Transformer};
 
+use crate::json::json_to_js;
+
 pub struct YamlTransformer {}
 
 impl Transformer for YamlTransformer {
@@ -13,8 +15,7 @@ impl Transformer for YamlTransformer {
     let content = asset.content.read()?;
     let code = std::str::from_utf8(&content)?;
     let parsed: serde_json::Value = serde_yaml_ng::from_str(code).unwrap();
-    let json = serde_json::to_string(&parsed).unwrap();
-    let js = format!("module.exports = {};\n", json);
+    let js = json_to_js(parsed, asset.target.output_format)?;
 
     asset.ty = AssetType::Js;
     asset.content = Arc::new(BufferContent::new(js.into_bytes()));
