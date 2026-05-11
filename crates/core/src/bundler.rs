@@ -7,18 +7,12 @@ use crate::{
   Diagnostic, DiagnosticList, Environment, ParcelOptions, Priority,
   asset_graph::{AssetGraph, AssetNode},
   bundle_graph::BundleGraph,
-  config::{JsPlugin, ParcelConfig},
+  config::ParcelConfig,
   namer::name,
 };
 
 pub trait Bundler: Send + Sync {
   fn bundle(&self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList>;
-}
-
-impl Bundler for JsPlugin {
-  fn bundle(&self, _asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
-    Err(DiagnosticList(vec![]))
-  }
 }
 
 pub struct DefaultBundler {}

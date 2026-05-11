@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  ParcelOptions, config::JsPlugin,
+  ParcelOptions,
 };
 
 pub trait Resolver: Send + Sync {
@@ -13,18 +13,6 @@ pub trait Resolver: Send + Sync {
     pipeline: Option<&str>,
     options: &ParcelOptions,
   ) -> Result<DependencyResolution, DiagnosticList>;
-}
-
-impl Resolver for JsPlugin {
-  fn resolve(
-    &self,
-    _dep: &Dependency,
-    _specifier: &str,
-    _pipeline: Option<&str>,
-    _options: &ParcelOptions,
-  ) -> Result<DependencyResolution, DiagnosticList> {
-    Err(DiagnosticList(vec![]))
-  }
 }
 
 pub fn resolve(

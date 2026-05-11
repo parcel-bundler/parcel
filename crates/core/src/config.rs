@@ -91,11 +91,6 @@ impl<T: ?Sized> PartialEq for Plugin<T> {
   }
 }
 
-pub struct JsPlugin {
-  pub package_name: String,
-  pub resolve_from: PathBuf,
-}
-
 impl<T> std::fmt::Debug for Plugin<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     self.package_name.fmt(f)

@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-  Bundle, Content, Diagnostic, DiagnosticList, bundle_graph::BundleGraph, config::JsPlugin,
-};
+use crate::{Bundle, Content, Diagnostic, DiagnosticList, bundle_graph::BundleGraph};
 
 pub trait Packager: Send + Sync {
   fn package(
@@ -11,17 +9,6 @@ pub trait Packager: Send + Sync {
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<Arc<dyn Content>, DiagnosticList>;
-}
-
-impl Packager for JsPlugin {
-  fn package(
-    &self,
-    _bundle_graph: &BundleGraph,
-    _bundle: &Bundle,
-    _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-  ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    Err(DiagnosticList(vec![]))
-  }
 }
 
 pub struct RawPackager {}

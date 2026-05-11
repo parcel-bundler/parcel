@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Bundle, Content, DiagnosticList, bundle_graph::BundleGraph, config::JsPlugin};
+use crate::{Bundle, Content, DiagnosticList, bundle_graph::BundleGraph};
 
 pub trait Optimizer: Send + Sync {
   fn optimize(
@@ -9,15 +9,4 @@ pub trait Optimizer: Send + Sync {
     bundle: &Bundle,
     contents: Arc<dyn Content>,
   ) -> Result<Arc<dyn Content>, DiagnosticList>;
-}
-
-impl Optimizer for JsPlugin {
-  fn optimize(
-    &self,
-    _bundle_graph: &BundleGraph,
-    _bundle: &Bundle,
-    _contents: Arc<dyn Content>,
-  ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    Err(DiagnosticList(vec![]))
-  }
 }
