@@ -41,7 +41,7 @@ impl MacroContext {
       specifier_type: SpecifierType::Esm,
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
-      flags: DependencyFlags::empty(),
+      flags: DependencyFlags::MACRO,
       target: self.target.clone(),
       loc: Some(SourceLocation {
         url: self.url.clone(),

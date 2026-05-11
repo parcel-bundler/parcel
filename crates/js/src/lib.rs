@@ -1327,6 +1327,21 @@ impl Packager for LibraryPackager {
         write!(res, "#!{}\n", shebang)?;
       }
 
+      for dep in &asset.dependencies {
+        if dep.flags.contains(DependencyFlags::MACRO) {
+          if let DependencyResolution::Bundle(bundle_index) = &dep.resolution {
+            let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
+            if let Some(url) = resolved_bundle.relative_specifier(bundle) {
+              if bundle.target.output_format == OutputFormat::Esmodule {
+                write!(res, "import {:?};\n", url)?;
+              } else {
+                write!(res, "require({:?});\n", url)?;
+              }
+            }
+          }
+        }
+      }
+
       let mut ast = content.ast.lock().unwrap();
       let used_symbols = asset
         .symbols
