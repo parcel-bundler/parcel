@@ -1,7 +1,5 @@
 use crate::{
-  Bundle, Diagnostic, DiagnosticList, ParcelOptions,
-  asset_graph::AssetGraph,
-  config::{JsPlugin, ParcelConfig},
+  Bundle, Diagnostic, DiagnosticList, ParcelOptions, asset_graph::AssetGraph, config::ParcelConfig,
 };
 
 pub trait Namer: Send + Sync {
@@ -11,17 +9,6 @@ pub trait Namer: Send + Sync {
     bundle: &Bundle,
     options: &ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList>;
-}
-
-impl Namer for JsPlugin {
-  fn name(
-    &self,
-    _asset_graph: &AssetGraph,
-    _bundle: &Bundle,
-    _options: &ParcelOptions,
-  ) -> Result<Option<String>, DiagnosticList> {
-    Err(DiagnosticList(vec![]))
-  }
 }
 
 pub fn name(

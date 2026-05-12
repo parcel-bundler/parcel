@@ -3,19 +3,13 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, Content,
   DependencyFlags, DependencyResolution, DiagnosticList, ParcelOptions, Pipeline, SourceLocation,
-  config::{JsPlugin, ParcelConfig, PipelineMap},
+  config::{ParcelConfig, PipelineMap},
   content::FileContent,
   resolver::resolve,
 };
 
 pub trait Transformer: Send + Sync {
   fn transform(&self, asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList>;
-}
-
-impl Transformer for JsPlugin {
-  fn transform(&self, _asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
-    Err(DiagnosticList(vec![]))
-  }
 }
 
 pub struct TransformRequest {

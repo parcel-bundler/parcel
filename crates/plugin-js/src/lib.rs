@@ -100,7 +100,7 @@ pub fn create_runtime(
 
   let (resolver, loader) = create_esm_loader("/".into(), fs.clone());
   runtime.set_loader(resolver, loader);
-  runtime.set_max_stack_size(10 * 1024 * 1024); // 1 MB
+  runtime.set_max_stack_size(10 * 1024 * 1024); // 10 MB
   runtime.set_host_promise_rejection_tracker(Some(Box::new(
     move |ctx, promise, reason, handled| {
       if !handled {
