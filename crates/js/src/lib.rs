@@ -590,11 +590,12 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
             _ => None,
           };
 
-          if let Some(min_version) = pkg
+          if let Some(mut min_version) = pkg
             .get_dependency_version(effective_react_lib)
             .and_then(|v| node_semver::Range::parse(v).ok())
             .and_then(|r| r.min_version())
           {
+            min_version.pre_release.clear();
             automatic_jsx_runtime = tsconfig_jsx_factory.is_none()
               && matches!(automatic_range, Some(automatic_range) if min_version.satisfies(&automatic_range));
           }
