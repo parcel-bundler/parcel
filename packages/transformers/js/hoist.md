@@ -19,7 +19,7 @@ The new scope hoisting implementation operates in just two phases.
 
 ## Transforming
 
-The hoist phase should do as much work as possible as it operates on ASTs and and in parallel on individual files. It's also implemented in Rust using SWC for performance.
+The hoist phase should do as much work as possible as it operates on ASTs and in parallel on individual files. It's also implemented in Rust using SWC for performance.
 
 This is implemented in two passes. The first pass analyzes and collects data about the module, which is used in the second pass, which actually transforms the module.
 
