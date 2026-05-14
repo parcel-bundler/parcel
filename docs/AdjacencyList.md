@@ -305,7 +305,7 @@ The `EdgeTypeMap` extends `SharedTypeMap` with API for:
 Edges are identified by a hash of their `to`, `from`, and `type` values.
 
 For any given set of these values, the hash function deterministically produces
-a number that that fits within the **current capacity** of the `EdgeTypeMap`.
+a number that fits within the **current capacity** of the `EdgeTypeMap`.
 
 That hash number is then the index in the hash table where the _head_
 of the linked list of edges with this hash is stored.
