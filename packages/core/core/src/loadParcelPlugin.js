@@ -202,10 +202,23 @@ export default async function loadPlugin<T>(
           ),
         );
         let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
+
+        let hints = [];
+        let isPluginNightly = parcelVersionRange.includes('nightly');
+        let isParcelNightly = PARCEL_VERSION.includes('nightly');
+        if (isPluginNightly !== isParcelNightly) {
+          hints.push(
+            isParcelNightly
+              ? 'You are using a nightly version of Parcel. Install nightly versions of all Parcel plugins, or switch to stable releases for everything.'
+              : 'The plugin requires a nightly version of Parcel. Install stable versions of all Parcel packages, or switch to nightly releases for everything.',
+          );
+        }
+
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
             origin: '@parcel/core',
+            hints,
             codeFrames: [
               {
                 filePath: pkgFile,
