@@ -99,3 +99,31 @@ impl Content for BufferContent {
     Ok(fs.write(path, &self.buf)?)
   }
 }
+
+#[derive(Debug)]
+pub struct ContentWithSourceMap {
+  code: Vec<u8>,
+  map: Vec<u8>,
+}
+
+impl ContentWithSourceMap {
+  pub fn new(code: Vec<u8>, map: Vec<u8>) -> Self {
+    ContentWithSourceMap { code, map }
+  }
+}
+
+impl Content for ContentWithSourceMap {
+  fn read(&self) -> Result<Vec<u8>, Diagnostic> {
+    Ok(self.code.clone())
+  }
+
+  fn take(&mut self) -> Result<Vec<u8>, Diagnostic> {
+    Ok(std::mem::take(&mut self.code))
+  }
+
+  fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
+    fs.write(path, &self.code)?;
+    fs.write(&path.with_added_extension("map"), &self.map)?;
+    Ok(())
+  }
+}

@@ -1,9 +1,10 @@
 use std::{borrow::Cow, path::Path, sync::Arc};
 
 use parcel_core::{
-  AssetRequest, AssetType, BuildMode, CodeFrame, CodeHighlight, Dependency, DependencyResolution,
-  Diagnostic, DiagnosticList, Environment, EnvironmentFlags, ExportsCondition, Location,
-  ParcelOptions, Resolver, SourceUrl, SpecifierType, Target,
+  AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
+  DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
+  ExportsCondition, FileContent, Location, ParcelOptions, Resolver, SourceLocation, SourceUrl,
+  SpecifierType, Target,
 };
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -105,8 +106,11 @@ impl Resolver for DefaultResolver {
             SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..])).unwrap();
           let ty = AssetType::from_url(&url);
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-            url,
-            code: None,
+            loc: SourceLocation {
+              url,
+              ..Default::default()
+            },
+            content: Arc::new(FileContent::new(path, options.input_fs.clone())),
             target: Target::normalize(&dep.target, &ty),
             pipeline: pipeline.map(|p| p.into()),
             ty,
@@ -116,16 +120,24 @@ impl Resolver for DefaultResolver {
         Resolution::External => Ok(DependencyResolution::External),
         Resolution::Empty => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
-          url: SourceUrl::parse("file:///empty.js").unwrap(),
-          code: Some(vec![]),
+          loc: SourceLocation {
+            url: SourceUrl::parse("file:///empty.js").unwrap(),
+            ..Default::default()
+          },
+          content: Arc::new(BufferContent::new(vec![])),
           target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
         }))),
         Resolution::Global(global) => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
-          url: SourceUrl::parse("file:///global.js").unwrap(),
-          code: Some(format!("module.exports={};", global).into_bytes()),
+          loc: SourceLocation {
+            url: SourceUrl::parse("file:///global.js").unwrap(),
+            ..Default::default()
+          },
+          content: Arc::new(BufferContent::new(
+            (format!("module.exports={};", global).into_bytes()),
+          )),
           target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
@@ -162,11 +174,14 @@ impl Resolver for DefaultResolver {
             "util" => "util/",
             "vm" => "vm-browserify",
             "zlib" => "browserify-zlib",
-            m => {
+            _ => {
               return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
                 ty: AssetType::Js,
-                url: SourceUrl::parse("file:///empty.js").unwrap(),
-                code: Some(vec![]),
+                loc: SourceLocation {
+                  url: SourceUrl::parse("file:///empty.js").unwrap(),
+                  ..Default::default()
+                },
+                content: Arc::new(BufferContent::new(vec![])),
                 target: dep.target.clone(),
                 pipeline: pipeline.map(|p| p.into()),
                 side_effects,

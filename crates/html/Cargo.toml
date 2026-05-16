@@ -22,7 +22,7 @@ swc_core = { version = "21", features = [
   "ecma_ast",
   "ecma_codegen",
 ] }
-lightningcss = "1.0.0-alpha.63"
+lightningcss = { path = "/Users/devongovett/dev/lightningcss" }
 convert_case = "0.6.0"
 indexmap = { version = "1.9.2", features = ["serde"] }
 ref-cast = "1.0"

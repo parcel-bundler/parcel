@@ -62,9 +62,9 @@ pub fn collect_dependencies<'arena>(
       range: None,
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
-        url: asset.loc.url.clone(),
+        loc: asset.loc.clone(),
         ty: asset.ty.clone(),
-        code: Some(asset.content.read().unwrap()),
+        content: asset.content.clone(),
         pipeline: None,
         target: asset.target.clone(),
         side_effects: true,

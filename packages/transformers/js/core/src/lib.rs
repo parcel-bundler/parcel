@@ -934,6 +934,10 @@ impl SourceMapGenConfig for SourceMapConfig {
   fn skip(&self, f: &FileName) -> bool {
     matches!(f, FileName::MacroExpansion | FileName::Internal(..))
   }
+
+  fn inline_sources_content(&self, _f: &FileName) -> bool {
+    true
+  }
 }
 
 fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagnostic {

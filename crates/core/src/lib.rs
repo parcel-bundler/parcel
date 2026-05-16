@@ -98,18 +98,20 @@ pub fn build(
   // writing on macOS due to file system directory locking.
   // Tried using a few worker threads for this but it didn't make much difference.
   let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Arc<dyn Content>)>();
+  let opts = options.clone();
   let writer = std::thread::spawn(move || {
     while let Ok((path, content)) = rx.recv() {
-      if let Err(_) = content.write(&*options.output_fs, &path) {
+      if let Err(_) = content.write(&*opts.output_fs, &path) {
         let parent = path.parent().unwrap();
-        options.output_fs.create_dir_all(parent).ok();
-        content.write(&*options.output_fs, &path).ok();
+        opts.output_fs.create_dir_all(parent).ok();
+        content.write(&*opts.output_fs, &path).ok();
       }
     }
   });
 
+  let opts = &*options;
   bundle_graph.bundles.par_iter().for_each(|bundle| {
-    let content = get_bundle_content(&config, &bundle_graph, &bundle).unwrap();
+    let content = get_bundle_content(&config, &bundle_graph, &bundle, opts).unwrap();
     // TODO: replace hash references
     let name = bundle.name.as_ref().unwrap();
     let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
@@ -127,16 +129,24 @@ fn get_bundle_content(
   config: &ParcelConfig,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
+  options: &ParcelOptions,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
   let raw = RawPackager {};
   let packager = config
     .packagers
     .get(bundle.ty.extension())
     .map_or_else(|| &raw as &dyn Packager, |p| &**p);
-  let get_inline_bundle_content =
-    |bundle_index| get_bundle_content(config, bundle_graph, &bundle_graph.bundles[bundle_index]);
+  let get_inline_bundle_content = |bundle_index| {
+    get_bundle_content(
+      config,
+      bundle_graph,
+      &bundle_graph.bundles[bundle_index],
+      options,
+    )
+  };
 
-  let mut content = packager.package(&bundle_graph, &bundle, &get_inline_bundle_content)?;
+  let mut content =
+    packager.package(&bundle_graph, &bundle, &get_inline_bundle_content, options)?;
 
   let mut pipeline = None;
   if let Some(main) = bundle.main_entry_asset {

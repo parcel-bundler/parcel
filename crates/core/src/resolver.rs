@@ -109,7 +109,9 @@ fn parse_pipeline(input: &str) -> Result<(&str, &str), ()> {
 mod tests {
   use std::sync::Arc;
 
-  use crate::{AssetRequest, AssetType, ExportsCondition, SourceUrl};
+  use crate::{
+    AssetRequest, AssetType, ExportsCondition, FileContent, OsFileSystem, SourceLocation, SourceUrl,
+  };
 
   use super::*;
 
@@ -124,9 +126,12 @@ mod tests {
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-          url: SourceUrl::parse("one.js").unwrap(),
+          loc: SourceLocation {
+            url: SourceUrl::parse("one.js").unwrap(),
+            ..Default::default()
+          },
           ty: AssetType::Js,
-          code: None,
+          content: Arc::new(FileContent::new("one.js".into(), Arc::new(OsFileSystem {}))),
           pipeline: None,
           side_effects: false,
           target: Default::default(),
@@ -148,9 +153,12 @@ mod tests {
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-          url: SourceUrl::parse("two.js").unwrap(),
+          loc: SourceLocation {
+            url: SourceUrl::parse("two.js").unwrap(),
+            ..Default::default()
+          },
           ty: AssetType::Js,
-          code: None,
+          content: Arc::new(FileContent::new("two.js".into(), Arc::new(OsFileSystem {}))),
           pipeline: None,
           side_effects: false,
           target: Default::default(),
@@ -190,9 +198,12 @@ mod tests {
     assert_eq!(
       res,
       DependencyResolution::Deferred(Arc::new(AssetRequest {
-        url: SourceUrl::parse("one.js").unwrap(),
+        loc: SourceLocation {
+          url: SourceUrl::parse("one.js").unwrap(),
+          ..Default::default()
+        },
         ty: AssetType::Js,
-        code: None,
+        content: Arc::new(FileContent::new("one.js".into(), Arc::new(OsFileSystem {}))),
         pipeline: None,
         side_effects: false,
         target: Default::default()
@@ -205,9 +216,12 @@ mod tests {
     assert_eq!(
       res,
       DependencyResolution::Deferred(Arc::new(AssetRequest {
-        url: SourceUrl::parse("two.js").unwrap(),
+        loc: SourceLocation {
+          url: SourceUrl::parse("two.js").unwrap(),
+          ..Default::default()
+        },
         ty: AssetType::Js,
-        code: None,
+        content: Arc::new(FileContent::new("two.js".into(), Arc::new(OsFileSystem {}))),
         pipeline: None,
         side_effects: false,
         target: Default::default()

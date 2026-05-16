@@ -3,12 +3,12 @@ use std::{
   sync::Arc,
 };
 
-use crate::{AssetType, BundleBehavior, SourceUrl, Target};
+use crate::{AssetType, BundleBehavior, Content, SourceUrl, Target};
 use crate::{SourceLocation, impl_bitflags_serde};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   pub specifier: String,
@@ -153,7 +153,7 @@ impl TryFrom<&str> for ExportsCondition {
   }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub enum DependencyResolution {
   #[default]
   None,
@@ -164,12 +164,36 @@ pub enum DependencyResolution {
   Bundle(u32),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AssetRequest {
-  pub url: SourceUrl,
+  pub loc: SourceLocation,
   pub ty: AssetType,
   pub pipeline: Option<hstr::Atom>,
   pub target: Arc<Target>,
-  pub code: Option<Vec<u8>>,
+  pub content: Arc<dyn Content>,
   pub side_effects: bool,
+}
+
+impl PartialEq for AssetRequest {
+  fn eq(&self, other: &Self) -> bool {
+    self.loc == other.loc
+      && self.ty == other.ty
+      && self.pipeline == other.pipeline
+      && self.target == other.target
+      // && Arc::ptr_eq(&self.content, &other.content)
+      && self.side_effects == other.side_effects
+  }
+}
+
+impl Eq for AssetRequest {}
+
+impl std::hash::Hash for AssetRequest {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.loc.hash(state);
+    self.ty.hash(state);
+    self.pipeline.hash(state);
+    self.target.hash(state);
+    // Arc::as_ptr(&self.content).hash(state);
+    self.side_effects.hash(state);
+  }
 }

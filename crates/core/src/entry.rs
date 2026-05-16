@@ -9,7 +9,7 @@ use serde_json::Value;
 use crate::{
   BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags, ExportsCondition,
   FileKind, FileSystem, IncludeNodeModules, OutputFormat, SourceLocation, SourceType, SourceUrl,
-  Target, Version, glob, is_glob,
+  Target, TargetSourceMapOptions, Version, glob, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -403,7 +403,7 @@ impl<'a> ExportsContext<'a> {
       output_format,
       source_type: SourceType::Module,
       flags,
-      source_map: None,
+      source_map: Some(TargetSourceMapOptions::default()),
       loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),

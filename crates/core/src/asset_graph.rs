@@ -7,7 +7,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  EnvironmentFlags, ParcelOptions, SymbolName, SymbolResolution,
+  EnvironmentFlags, FileContent, ParcelOptions, SourceLocation, SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -42,16 +42,23 @@ pub fn build_asset_graph(
   config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
 ) -> Result<AssetGraph, DiagnosticList> {
-  let mut queue = TransformQueue::new(config, options);
+  let mut queue = TransformQueue::new(config, options.clone());
 
   let mut assets: Vec<AssetNode> = Vec::new();
   let mut asset_requests: HashMap<Arc<AssetRequest>, usize> = HashMap::new();
 
   for entry in &mut entries {
     let req = Arc::new(AssetRequest {
-      url: entry.url.clone(),
+      loc: SourceLocation {
+        url: entry.url.clone(),
+        start: Default::default(),
+        end: Default::default(),
+      },
       ty: AssetType::from_url(&entry.url),
-      code: None,
+      content: Arc::new(FileContent::new(
+        entry.url.to_file_path().unwrap(),
+        options.input_fs.clone(),
+      )),
       target: entry.target.clone(),
       pipeline: None,
       side_effects: true,

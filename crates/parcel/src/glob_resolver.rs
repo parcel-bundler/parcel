@@ -2,8 +2,8 @@ use std::{fmt::Write, sync::Arc};
 
 use glob_match::glob_match_with_captures;
 use parcel_core::{
-  AssetRequest, AssetType, Dependency, DependencyResolution, DiagnosticList, ParcelOptions,
-  Resolver, SourceUrl, glob, is_glob,
+  AssetRequest, AssetType, BufferContent, Dependency, DependencyResolution, DiagnosticList,
+  ParcelOptions, Resolver, SourceLocation, SourceUrl, glob, is_glob,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
@@ -50,11 +50,14 @@ impl Resolver for GlobResolver {
 
     let hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
     Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-      url: SourceUrl::from_path(&dir.join(&hash)).unwrap(),
+      loc: SourceLocation {
+        url: SourceUrl::from_path(&dir.join(&hash)).unwrap(),
+        ..Default::default()
+      },
       ty: AssetType::Js,
       pipeline: None,
       target: dep.target.clone(),
-      code: Some(code.into_bytes()),
+      content: Arc::new(BufferContent::new((code.into_bytes()))),
       side_effects: true,
     })))
   }

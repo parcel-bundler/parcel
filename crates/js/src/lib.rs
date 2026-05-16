@@ -6,6 +6,7 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
@@ -19,6 +20,11 @@ use parcel_resolver::{AliasValue, BrowserField, InlineEnvironment, Invalidations
 use parcel_css::resolve_css_module_export;
 
 pub use parcel_js_swc_core::tree_shake::Resolution;
+use swc_core::{
+  common::DUMMY_SP,
+  ecma::ast::{ImportDecl, ModuleDecl, ModuleItem},
+  quote,
+};
 
 struct JsContent {
   ast: Mutex<Ast>,
@@ -747,6 +753,7 @@ impl Packager for JsPackager {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    _options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!("runtime.js");
 
@@ -1308,6 +1315,7 @@ impl Packager for LibraryPackager {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    _options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
@@ -1321,28 +1329,45 @@ impl Packager for LibraryPackager {
       get_inline_bundle_content,
     );
 
-    let mut res = String::new();
-    let code = if let Some(content) = asset.content.downcast_ref::<JsContent>() {
+    let (code, map) = if let Some(content) = asset.content.downcast_ref::<JsContent>() {
+      let mut ast = content.ast.lock().unwrap();
       if let Some(shebang) = &content.shebang {
-        write!(res, "#!{}\n", shebang)?;
+        ast.program.shebang = Some(shebang.as_str().into());
       }
 
+      let mut macro_imports = Vec::new();
+      let mut imported_bundles = FixedBitSet::with_capacity(bundle_graph.bundles.len());
       for dep in &asset.dependencies {
         if dep.flags.contains(DependencyFlags::MACRO) {
           if let DependencyResolution::Bundle(bundle_index) = &dep.resolution {
+            if imported_bundles.contains(*bundle_index as usize) {
+              continue;
+            }
+            imported_bundles.insert(*bundle_index as usize);
+
             let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
             if let Some(url) = resolved_bundle.relative_specifier(bundle) {
               if bundle.target.output_format == OutputFormat::Esmodule {
-                write!(res, "import {:?};\n", url)?;
+                macro_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                  src: Box::new(url.into()),
+                  phase: Default::default(),
+                  span: DUMMY_SP,
+                  specifiers: Vec::new(),
+                  type_only: false,
+                  with: None,
+                })));
               } else {
-                write!(res, "require({:?});\n", url)?;
+                macro_imports.push(quote!("require($url)" as ModuleItem, url: Expr = url.into()));
               }
             }
           }
         }
       }
 
-      let mut ast = content.ast.lock().unwrap();
+      if !macro_imports.is_empty() {
+        ast.program.body.splice(0..0, macro_imports);
+      }
+
       let used_symbols = asset
         .symbols
         .exports
@@ -1372,14 +1397,15 @@ impl Packager for LibraryPackager {
         .into();
       // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
       tree_shake(&mut ast, used_symbols, dependencies, dirname, false);
-      let (code, map) = ast.to_code(false, false)?;
-      code
+      ast.to_code(bundle.target.source_map.is_some(), false)?
     } else {
-      asset.content.read()?
+      (asset.content.read()?, None)
     };
 
-    res.push_str(&std::str::from_utf8(&code).unwrap());
-
-    Ok(Arc::new(BufferContent::new(res.into_bytes())))
+    if let Some(map) = map {
+      Ok(Arc::new(ContentWithSourceMap::new(code, map.into_bytes())))
+    } else {
+      Ok(Arc::new(BufferContent::new(code)))
+    }
   }
 }

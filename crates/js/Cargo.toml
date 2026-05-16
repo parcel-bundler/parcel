@@ -15,3 +15,5 @@ parcel-css = { path = "../css" }
 parcel-resolver = { path = "../parcel-resolver" }
 node-semver = "2.2.0"
 glob-match = "*"
+swc_core = { version = "21", features = ["ecma_ast", "ecma_quote"] }
+fixedbitset = "0.5.7"

@@ -1,5 +1,6 @@
 use std::{
   collections::{HashMap, HashSet},
+  path::Path,
   sync::Arc,
 };
 
@@ -19,11 +20,11 @@ use lightningcss::{
   visitor::Visit,
 };
 use parcel_core::*;
+use parcel_sourcemap::SourceMap;
 
 #[derive(Debug)]
 pub struct CssContent {
-  // stylesheet: StyleSheet<'static, 'static>,
-  rules: CssRuleList<'static>,
+  stylesheet: StyleSheet<'static>,
   exports: HashMap<String, CssModuleExport>,
   references: HashMap<String, usize>,
 }
@@ -109,7 +110,7 @@ struct CssModulesConfig {
 
 #[derive(Default)]
 pub struct CssTransformer {
-  pub css_modules: Option<lightningcss::css_modules::Config<'static>>,
+  pub css_modules: Option<lightningcss::css_modules::Config>,
 }
 
 impl<'de> serde::Deserialize<'de> for CssTransformer {
@@ -279,13 +280,13 @@ impl Transformer for CssTransformer {
       .unwrap();
 
       asset.content = Arc::new(CssContent {
-        rules: stylesheet.rules.into_owned(),
+        stylesheet: stylesheet.into_owned(),
         exports,
         references: refs,
       });
     } else {
       asset.content = Arc::new(CssContent {
-        rules: stylesheet.rules.into_owned(),
+        stylesheet: stylesheet.into_owned(),
         exports: HashMap::new(),
         references: HashMap::new(),
       });
@@ -377,7 +378,7 @@ fn convert_version(c: Version) -> u32 {
 
 struct StyleSheetWrapper {
   asset_index: usize,
-  stylesheet: StyleSheet<'static, 'static>,
+  stylesheet: StyleSheet<'static>,
   layer: Option<Option<LayerName<'static>>>,
   supports: Option<SupportsCondition<'static>>,
   media: MediaList<'static>,
@@ -393,7 +394,6 @@ struct State {
   layer: Option<Option<LayerName<'static>>>,
   supports: Option<SupportsCondition<'static>>,
   media: MediaList<'static>,
-  loc: lightningcss::rules::Location,
 }
 
 pub struct CssPackager {}
@@ -404,29 +404,29 @@ impl Packager for CssPackager {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let mut asset_index_to_stylesheet_index: HashMap<u32, usize> = HashMap::new();
     let mut stylesheets = Vec::new();
+    let mut source_map = SourceMap::new("/");
+
     for asset_index in &bundle.assets {
       let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
       if let Some(content) = asset.content.downcast_ref::<CssContent>() {
         asset_index_to_stylesheet_index.insert(*asset_index as u32, stylesheets.len());
+        let source_index = stylesheets.len() as u32;
         stylesheets.push(StyleSheetWrapper {
           asset_index: *asset_index,
-          stylesheet: StyleSheet::new(
-            vec![asset.loc.url.to_string()],
-            content.rules.clone(),
-            Default::default(),
-          ),
+          stylesheet: content.stylesheet.clone(),
           layer: None,
           supports: None,
           media: MediaList::new(),
           parent_stylesheet_index: 0,
           parent_dep_index: 0,
           loc: lightningcss::rules::Location {
-            source_index: 0,
-            line: 0,
-            column: 0,
+            source_index,
+            line: asset.loc.start.line,
+            column: asset.loc.start.column,
           },
         });
       } else {
@@ -448,11 +448,6 @@ impl Packager for CssPackager {
             layer: None,
             supports: None,
             media: MediaList::new(),
-            loc: lightningcss::rules::Location {
-              source_index: index as u32,
-              line: 0,
-              column: 0,
-            },
           },
           &mut visited,
         );
@@ -478,14 +473,19 @@ impl Packager for CssPackager {
 
     let mut stylesheet = StyleSheet::new(
       stylesheets
-        .into_iter()
-        .flat_map(|s| s.stylesheet.sources)
+        .iter()
+        .flat_map(|s| s.stylesheet.sources.clone())
         .collect(),
       CssRuleList(dest),
       ParserOptions {
         ..Default::default()
       },
     );
+
+    stylesheet.source_map_urls = stylesheets
+      .iter()
+      .flat_map(|s| s.stylesheet.source_map_urls.clone())
+      .collect();
 
     stylesheet.minify(Default::default());
 
@@ -514,11 +514,37 @@ impl Packager for CssPackager {
           },
           ..Default::default()
         },
+        source_map: if bundle.target.source_map.is_some() {
+          Some(&mut source_map)
+        } else {
+          None
+        },
         ..Default::default()
       })
       .unwrap();
-    let content = Arc::new(BufferContent::new(res.code.into_bytes()));
-    Ok(content)
+
+    if bundle.target.source_map.is_some() {
+      for source_index in 0..source_map.get_sources().len() {
+        if matches!(source_map.get_source_content(source_index as u32), Ok(s) if s.len() == 0) {
+          let path = source_map.get_source(source_index as u32).unwrap();
+          if let Ok(code) = options
+            .input_fs
+            .read_to_string(&options.project_root.to_file_path().unwrap().join(path))
+          {
+            let _ = source_map.set_source_content(source_index, &code);
+          }
+        }
+      }
+      let map = source_map
+        .to_json(None)
+        .map_err(|e| Diagnostic::from_message(e.to_string()))?;
+      Ok(Arc::new(ContentWithSourceMap::new(
+        res.code.into_bytes(),
+        map.into_bytes(),
+      )))
+    } else {
+      Ok(Arc::new(BufferContent::new(res.code.into_bytes())))
+    }
   }
 }
 
@@ -534,7 +560,6 @@ fn collect(
   // In browsers, every instance of an @import is evaluated, so we preserve the last.
   stylesheet.parent_stylesheet_index = state.parent_stylesheet_index;
   stylesheet.parent_dep_index = state.dep_index;
-  stylesheet.loc = state.loc;
 
   // We cannot combine a media query and a supports query from different @import rules.
   // e.g. @import "a.css" print; @import "a.css" supports(color: red);
@@ -609,7 +634,7 @@ fn collect(
   }
 
   let mut dep_index = 0;
-  for rule in &content.rules.0 {
+  for rule in &content.stylesheet.rules.0 {
     match &rule {
       CssRule::Import(import) => {
         let dep = &asset.dependencies[dep_index];
@@ -645,7 +670,6 @@ fn collect(
               layer,
               supports: combine_supports(state.supports.clone(), &import.supports),
               media,
-              loc: import.loc.clone(),
             },
             visited,
           );
@@ -664,11 +688,12 @@ fn inline(
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   asset_index_to_stylesheet_index: &HashMap<u32, usize>,
   stylesheets: &mut Vec<StyleSheetWrapper>,
-  source_index: usize,
+  stylesheet_index: usize,
   visited: &mut Vec<bool>,
   dest: &mut Vec<CssRule<'static>>,
 ) {
-  let stylesheet = &mut stylesheets[source_index as usize];
+  let stylesheet = &mut stylesheets[stylesheet_index as usize];
+  let loc = stylesheet.loc.clone();
   let asset = bundle_graph.asset_graph.assets[stylesheet.asset_index].expect_asset();
   let mut rules = std::mem::take(&mut stylesheet.stylesheet.rules.0);
 
@@ -679,7 +704,7 @@ fn inline(
       if let DependencyResolution::Asset(asset_index) = dep.resolution {
         let dep_source_index = asset_index_to_stylesheet_index[&asset_index];
         let resolved = &stylesheets[dep_source_index];
-        if resolved.parent_stylesheet_index == source_index
+        if resolved.parent_stylesheet_index == stylesheet_index
           && resolved.parent_dep_index == dep_index
         {
           inline(
@@ -709,7 +734,7 @@ fn inline(
             let resolved = &stylesheets[dep_source_index];
 
             // Include the dependency if this is the last instance as computed earlier.
-            if resolved.parent_stylesheet_index == source_index
+            if resolved.parent_stylesheet_index == stylesheet_index
               && resolved.parent_dep_index == dep_index
             {
               inline(
@@ -794,14 +819,14 @@ fn inline(
     &asset.dependencies,
     &bundle_graph.bundles,
     bundle,
-    source_index as u32,
+    loc,
     references,
     get_inline_bundle_content,
   );
   rules.visit(&mut replacer).unwrap();
 
   // Wrap rules in the appropriate @layer, @media, and @supports rules.
-  let stylesheet = &mut stylesheets[source_index as usize];
+  let stylesheet = &mut stylesheets[stylesheet_index as usize];
 
   if stylesheet.layer.is_some() {
     rules = vec![CssRule::LayerBlock(LayerBlockRule {
@@ -847,7 +872,7 @@ fn combine_supports<'a>(
 struct ReferenceReplacer {
   urls: HashMap<String, String>,
   css_modules: HashMap<String, String>,
-  source_index: u32,
+  loc: lightningcss::rules::Location,
 }
 
 impl ReferenceReplacer {
@@ -855,7 +880,7 @@ impl ReferenceReplacer {
     dependencies: &Vec<Dependency>,
     bundles: &Vec<Bundle>,
     bundle: &Bundle,
-    source_index: u32,
+    loc: lightningcss::rules::Location,
     css_modules: HashMap<String, String>,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> ReferenceReplacer {
@@ -886,7 +911,7 @@ impl ReferenceReplacer {
     ReferenceReplacer {
       urls,
       css_modules,
-      source_index,
+      loc,
     }
   }
 }
@@ -901,74 +926,101 @@ impl<'i> lightningcss::visitor::Visitor<'i> for ReferenceReplacer {
   fn visit_rule(&mut self, rule: &mut CssRule<'i>) -> Result<(), Self::Error> {
     match rule {
       CssRule::Media(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Import(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Style(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
+      }
+      CssRule::NestedDeclarations(rule) => {
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Keyframes(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::FontFace(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::FontPaletteValues(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::FontFeatureValues(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Page(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Supports(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::CounterStyle(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Namespace(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::MozDocument(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Nesting(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Viewport(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::CustomMedia(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::LayerStatement(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::LayerBlock(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Property(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Container(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Scope(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::StartingStyle(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::ViewTransition(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Ignored => {}
       CssRule::Unknown(rule) => {
-        rule.loc.source_index = self.source_index;
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
       }
       CssRule::Custom(rule) => {}
     }
@@ -1073,6 +1125,7 @@ impl Packager for StyleAttrPackager {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    _options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
@@ -1083,7 +1136,11 @@ impl Packager for StyleAttrPackager {
       &asset.dependencies,
       &bundle_graph.bundles,
       bundle,
-      0,
+      lightningcss::rules::Location {
+        source_index: 0,
+        line: 0,
+        column: 0,
+      },
       HashMap::new(),
       get_inline_bundle_content,
     );

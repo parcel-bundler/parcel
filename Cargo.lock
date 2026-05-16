@@ -2121,21 +2121,54 @@ dependencies = [
  "const-str",
  "cssparser 0.33.0",
  "cssparser-color",
- "dashmap 5.5.3",
  "data-encoding",
  "getrandom 0.2.15",
  "indexmap 2.11.0",
  "itertools 0.10.5",
  "lazy_static",
- "lightningcss-derive",
- "parcel_selectors",
- "parcel_sourcemap",
+ "lightningcss-derive 1.0.0-alpha.43 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parcel_selectors 0.28.1",
  "paste",
+ "pathdiff",
+ "serde",
+ "smallvec",
+]
+
+[[package]]
+name = "lightningcss"
+version = "1.0.0-alpha.71"
+dependencies = [
+ "ahash 0.8.11",
+ "bitflags 2.8.0",
+ "const-str",
+ "cssparser 0.33.0",
+ "cssparser-color",
+ "dashmap 5.5.3",
+ "data-encoding",
+ "getrandom 0.3.4",
+ "indexmap 2.11.0",
+ "itertools 0.10.5",
+ "lazy_static",
+ "lightningcss-derive 1.0.0-alpha.43",
+ "parcel_selectors 0.28.2",
+ "parcel_sourcemap",
+ "pastey",
  "pathdiff",
  "rayon",
  "serde",
+ "serde-content",
  "smallvec",
  "static-self",
+]
+
+[[package]]
+name = "lightningcss-derive"
+version = "1.0.0-alpha.43"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2658,7 +2691,7 @@ dependencies = [
  "cssparser 0.34.0",
  "derive_more 2.0.1",
  "itertools 0.14.0",
- "lightningcss",
+ "lightningcss 1.0.0-alpha.63",
  "log",
  "precomputed-hash",
  "roxmltree",
@@ -2691,12 +2724,12 @@ dependencies = [
  "derive_more 2.0.1",
  "itertools 0.14.0",
  "lazy_static",
- "lightningcss",
+ "lightningcss 1.0.0-alpha.63",
  "log",
  "oxvg_ast",
  "oxvg_collections",
  "oxvg_path",
- "parcel_selectors",
+ "parcel_selectors 0.28.1",
  "phf 0.11.2",
  "regex",
  "serde",
@@ -2712,7 +2745,7 @@ version = "0.0.2"
 source = "git+https://github.com/noahbald/oxvg.git#94b2abbc1126ca4056d4bb4d14b3ad24f376db15"
 dependencies = [
  "bitflags 2.8.0",
- "lightningcss",
+ "lightningcss 1.0.0-alpha.63",
  "log",
  "oxvg_ast",
  "ryu",
@@ -2817,8 +2850,9 @@ dependencies = [
 name = "parcel-css"
 version = "0.1.0"
 dependencies = [
- "lightningcss",
+ "lightningcss 1.0.0-alpha.71",
  "parcel-core",
+ "parcel_sourcemap",
  "serde",
 ]
 
@@ -2844,7 +2878,7 @@ dependencies = [
  "html5ever",
  "indexmap 1.9.3",
  "indoc",
- "lightningcss",
+ "lightningcss 1.0.0-alpha.71",
  "oxvg_ast",
  "oxvg_optimiser",
  "parcel-core",
@@ -2875,6 +2909,7 @@ dependencies = [
 name = "parcel-js"
 version = "0.1.0"
 dependencies = [
+ "fixedbitset",
  "glob-match",
  "indexmap 2.11.0",
  "node-semver",
@@ -2885,6 +2920,7 @@ dependencies = [
  "parcel-resolver",
  "serde",
  "serde_json",
+ "swc_core",
 ]
 
 [[package]]
@@ -2957,6 +2993,7 @@ dependencies = [
  "parcel-core",
  "parcel-macros",
  "parcel-resolver",
+ "parcel_sourcemap",
  "rquickjs",
  "rquickjs-extra-console",
  "serde",
@@ -3007,6 +3044,20 @@ name = "parcel_selectors"
 version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dccbc6fb560df303a44e511618256029410efbc87779018f751ef12c488271fe"
+dependencies = [
+ "bitflags 2.8.0",
+ "cssparser 0.33.0",
+ "log",
+ "phf 0.11.2",
+ "phf_codegen",
+ "precomputed-hash",
+ "rustc-hash 2.0.0",
+ "smallvec",
+]
+
+[[package]]
+name = "parcel_selectors"
+version = "0.28.2"
 dependencies = [
  "bitflags 2.8.0",
  "cssparser 0.33.0",
@@ -3960,6 +4011,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-content"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3753ca04f350fa92d00b6146a3555e63c55388c9ef2e11e09bce2ff1c0b509c6"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde-value"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4212,8 +4272,6 @@ dependencies = [
 [[package]]
 name = "static-self"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6635404b73efc136af3a7956e53c53d4f34b2f16c95a15c438929add0f69412"
 dependencies = [
  "indexmap 2.11.0",
  "smallvec",
@@ -4223,8 +4281,6 @@ dependencies = [
 [[package]]
 name = "static-self-derive"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5268c96d4b907c558a9a52d8492522d6c7b559651a5e1d8f2d551e461b9425d5"
 dependencies = [
  "proc-macro2",
  "quote",

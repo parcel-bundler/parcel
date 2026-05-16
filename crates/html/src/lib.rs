@@ -344,6 +344,7 @@ impl Packager for HtmlPackager {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    _options: &ParcelOptions,
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
@@ -475,6 +476,7 @@ impl Packager for SvgPackager {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    _options: &ParcelOptions,
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 

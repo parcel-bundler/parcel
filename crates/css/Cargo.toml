@@ -6,5 +6,6 @@ edition = "2024"
 
 [dependencies]
 parcel-core = { path = "../core" }
-lightningcss = { version = "1.0.0-alpha.63", features = ["into_owned", "visitor"] }
+lightningcss = { path = "/Users/devongovett/dev/lightningcss", features = ["into_owned", "visitor"] }
 serde = { version = "1.0.123", features = ["derive", "rc"] }
+parcel_sourcemap = "*"

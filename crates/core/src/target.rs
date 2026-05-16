@@ -47,12 +47,12 @@ impl Target {
   }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TargetSourceMapOptions {
-  source_root: Option<String>,
-  inline: Option<bool>,
-  inline_sources: Option<bool>,
+  pub source_root: Option<String>,
+  pub inline: Option<bool>,
+  pub inline_sources: Option<bool>,
 }
 
 /// Describes which modules in node_modules should be resolved.

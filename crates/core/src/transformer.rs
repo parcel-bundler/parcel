@@ -29,11 +29,12 @@ impl TransformRequest {
     let req = &self.req;
     let mut relative_path = Cow::Borrowed(
       req
+        .loc
         .url
         .path()
         .strip_prefix(&self.options.project_root.path())
         .map(|p| &p[1..])
-        .unwrap_or(req.url.path()),
+        .unwrap_or(req.loc.url.path()),
     );
     let (base, ext) = relative_path
       .rsplit_once('.')
@@ -47,29 +48,17 @@ impl TransformRequest {
       .transformers
       .get(&relative_path, &req.pipeline, false);
 
-    let content: Arc<dyn Content> = if let Some(code) = &req.code {
-      Arc::new(BufferContent::new(code.clone()))
-    } else {
-      Arc::new(FileContent::new(
-        req.url.to_file_path().unwrap(),
-        self.options.input_fs.clone(),
-      ))
-    };
-
     let mut flags = AssetFlags::empty();
     flags.set(AssetFlags::SIDE_EFFECTS, req.side_effects);
     flags.set(
       AssetFlags::IS_SOURCE,
-      !req.url.as_str().contains("/node_modules/"), // TODO: symlinks
+      !req.loc.url.as_str().contains("/node_modules/"), // TODO: symlinks
     );
 
     let asset = Asset {
       ty: req.ty.clone(),
-      content,
-      loc: SourceLocation {
-        url: req.url.clone(),
-        ..Default::default()
-      },
+      content: req.content.clone(),
+      loc: req.loc.clone(),
       target: req.target.clone(),
       pipeline: req.pipeline.clone(),
       bundle_behavior: crate::BundleBehavior::None,

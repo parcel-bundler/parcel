@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::{Bundle, Content, Diagnostic, DiagnosticList, bundle_graph::BundleGraph};
+use crate::{
+  Bundle, Content, Diagnostic, DiagnosticList, ParcelOptions, bundle_graph::BundleGraph,
+};
 
 pub trait Packager: Send + Sync {
   fn package(
@@ -8,6 +10,7 @@ pub trait Packager: Send + Sync {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList>;
 }
 
@@ -19,6 +22,7 @@ impl Packager for RawPackager {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     _get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    _options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     if bundle.assets.len() != 1 {
       return Err(
