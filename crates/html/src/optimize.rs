@@ -69,6 +69,7 @@ pub fn optimize<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
   options: OptimizeOptions,
+  path: &str,
 ) {
   let should_optimize_svg = options.minify_svg.has_any_jobs();
 
@@ -398,7 +399,7 @@ pub fn optimize<'arena>(
             let document = arena.alloc(Node::new(NodeData::Document, 0));
             document.append(node);
 
-            let jobs = options.minify_svg.into_jobs(OxvgKind::Html);
+            let jobs = options.minify_svg.into_jobs(OxvgKind::Html, path);
             match jobs.run(
               &&*document,
               &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),
@@ -465,9 +466,10 @@ pub fn optimize_svg<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
   options: &OxvgConfig,
+  path: &str,
 ) {
   if options.has_any_jobs() {
-    let jobs = options.into_jobs(OxvgKind::Svg);
+    let jobs = options.into_jobs(OxvgKind::Svg, path);
     match jobs.run(
       &dom,
       &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),
@@ -727,7 +729,7 @@ mod tests {
       .from_utf8()
       .one(input.as_bytes());
 
-    optimize(&arena, dom, Default::default());
+    optimize(&arena, dom, Default::default(), "");
 
     let arena = Arena::new();
     let expected = parse_document(Sink::new(&arena), ParseOpts::default())
@@ -818,7 +820,7 @@ mod tests {
       r#"<!doctype html><html><head><meta charset="utf-8"><title>Test</title></head><body>
     <p>Test</p>
     <p>Foo</p>
-  
+
 
 </body></html>"#,
     );

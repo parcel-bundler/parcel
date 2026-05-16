@@ -21,12 +21,14 @@ swc_core = { version = "21", features = [
   "ecma_parser",
   "ecma_ast",
   "ecma_codegen",
+  "ecma_quote",
 ] }
 lightningcss = { path = "/Users/devongovett/dev/lightningcss" }
 convert_case = "0.6.0"
 indexmap = { version = "1.9.2", features = ["serde"] }
 ref-cast = "1.0"
 parcel-core = { path = "../core" }
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [dev-dependencies]
 indoc = "1.0.3"

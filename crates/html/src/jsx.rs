@@ -7,11 +7,13 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use swc_core::{
   atoms::Atom,
-  common::{DUMMY_SP, SourceMap, sync::Lrc},
+  common::{BytePos, DUMMY_SP, FileName, SourceFile, SourceMap, sync::Lrc},
   ecma::{
     ast::*,
-    parser::{Parser, StringInput, lexer::Lexer},
+    parser::{Parser, StringInput, lexer::Lexer, parse_file_as_module},
+    visit::{VisitMut, VisitMutWith, VisitWith},
   },
+  quote,
 };
 use xml5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
 
@@ -611,6 +613,7 @@ pub struct JsxOptions {
   title_prop: bool,
   #[serde(default)]
   desc_prop: bool,
+  template: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -631,6 +634,7 @@ impl Default for JsxOptions {
       svg_props: IndexMap::new(),
       title_prop: false,
       desc_prop: false,
+      template: None,
     }
   }
 }
@@ -900,76 +904,102 @@ pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: &JsxOptions) -> 
   let mut import_specifiers = Vec::new();
 
   // Add forwardRef and memo wrappers if needed.
-  let export = if options.add_ref || options.memo {
-    let mut expr = Expr::Fn(function);
+  let mut expr = Expr::Fn(function);
 
-    if options.add_ref {
-      let forward_ref = Ident::new_private("forwardRef".into(), DUMMY_SP);
-      expr = Expr::Call(CallExpr {
-        callee: Callee::Expr(Box::new(Expr::Ident(forward_ref.clone()))),
-        args: vec![ExprOrSpread {
-          expr: Box::new(expr),
-          spread: None,
-        }],
-        ..Default::default()
-      });
+  if options.add_ref {
+    let forward_ref = Ident::new_private("forwardRef".into(), DUMMY_SP);
+    expr = Expr::Call(CallExpr {
+      callee: Callee::Expr(Box::new(Expr::Ident(forward_ref.clone()))),
+      args: vec![ExprOrSpread {
+        expr: Box::new(expr),
+        spread: None,
+      }],
+      ..Default::default()
+    });
 
-      import_specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
-        local: forward_ref,
-        imported: None,
-        is_type_only: false,
-        span: DUMMY_SP,
-      }));
-    }
-
-    if options.memo {
-      let memo = Ident::new_private("memo".into(), DUMMY_SP);
-      expr = Expr::Call(CallExpr {
-        callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))),
-        args: vec![ExprOrSpread {
-          expr: Box::new(expr),
-          spread: None,
-        }],
-        ..Default::default()
-      });
-
-      import_specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
-        local: memo,
-        imported: None,
-        is_type_only: false,
-        span: DUMMY_SP,
-      }));
-    }
-
-    ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
-      expr: Box::new(expr),
+    import_specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
+      local: forward_ref,
+      imported: None,
+      is_type_only: false,
       span: DUMMY_SP,
-    })
-  } else {
-    ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
-      span: DUMMY_SP,
-      decl: DefaultDecl::Fn(function),
-    })
-  };
+    }));
+  }
 
-  let mut body = Vec::new();
-  if !import_specifiers.is_empty() {
-    body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+  if options.memo {
+    let memo = Ident::new_private("memo".into(), DUMMY_SP);
+    expr = Expr::Call(CallExpr {
+      callee: Callee::Expr(Box::new(Expr::Ident(memo.clone()))),
+      args: vec![ExprOrSpread {
+        expr: Box::new(expr),
+        spread: None,
+      }],
+      ..Default::default()
+    });
+
+    import_specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
+      local: memo,
+      imported: None,
+      is_type_only: false,
+      span: DUMMY_SP,
+    }));
+  }
+
+  let import = if !import_specifiers.is_empty() {
+    Some(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
       src: Box::new("react".into()),
       specifiers: import_specifiers,
       span: DUMMY_SP,
       type_only: false,
       phase: ImportPhase::default(),
       with: None,
-    })));
-  }
+    })))
+  } else {
+    None
+  };
 
-  body.push(ModuleItem::ModuleDecl(export));
+  let template = options.template.as_ref().and_then(|template| {
+    let file = SourceFile::new(
+      FileName::Anon.into(),
+      false,
+      FileName::Anon.into(),
+      template.clone(),
+      BytePos(1),
+    );
+    parse_file_as_module(
+      &file,
+      Default::default(),
+      Default::default(),
+      None,
+      &mut Vec::new(),
+    )
+    .ok()
+  });
 
-  Program::Module(Module {
-    body,
-    ..Default::default()
-  })
+  let module = if let Some(mut template) = template {
+    if let Some(import) = import {
+      template.body.insert(0, import);
+    }
+    template.visit_mut_with(&mut TemplateReplacer { expr: Some(expr) });
+    template
+  } else {
+    let export = ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+      expr: Box::new(expr),
+      span: DUMMY_SP,
+    });
+
+    let mut body = Vec::new();
+    if let Some(import) = import {
+      body.push(import);
+    }
+
+    body.push(ModuleItem::ModuleDecl(export));
+    Module {
+      body,
+      ..Default::default()
+    }
+  };
+
+  Program::Module(module)
 }
 
 fn conditional_el(name: &str, children: Ident) -> JSXElementChild {
@@ -1000,6 +1030,20 @@ fn conditional_el(name: &str, children: Ident) -> JSXElementChild {
       }))),
     }))),
   })
+}
+
+struct TemplateReplacer {
+  expr: Option<Expr>,
+}
+
+impl VisitMut for TemplateReplacer {
+  fn visit_mut_expr(&mut self, node: &mut Expr) {
+    if self.expr.is_some() && matches!(node, Expr::Ident(id) if id.sym == "$ICON") {
+      *node = self.expr.take().unwrap();
+    } else {
+      node.visit_mut_children_with(self);
+    }
+  }
 }
 
 #[cfg(test)]

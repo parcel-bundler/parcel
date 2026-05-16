@@ -1,10 +1,7 @@
 #![deny(unused_crate_dependencies)]
 
 use serde::{Deserialize, Serialize};
-use std::{
-  collections::{HashMap, HashSet},
-  sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use indexmap::IndexMap;

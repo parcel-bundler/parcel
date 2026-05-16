@@ -1,10 +1,9 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-  Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, Content,
-  DependencyFlags, DependencyResolution, DiagnosticList, ParcelOptions, Pipeline, SourceLocation,
+  Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
+  DiagnosticList, ParcelOptions, Pipeline,
   config::{ParcelConfig, PipelineMap},
-  content::FileContent,
   resolver::resolve,
 };
 

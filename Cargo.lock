@@ -2890,6 +2890,7 @@ dependencies = [
  "swc_core",
  "typed-arena",
  "xml5ever 0.21.0",
+ "xxhash-rust",
 ]
 
 [[package]]

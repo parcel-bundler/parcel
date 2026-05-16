@@ -12,6 +12,7 @@ use serde::Deserialize;
 use xml5ever::{Attribute, QualName, local_name, tendril::StrTendril};
 
 use oxvg_ast::{attribute::Attr as _, element::Element as _, name::Name, node::Node as _};
+use xxhash_rust::xxh3::xxh3_64;
 
 impl<'arena> oxvg_ast::node::Node<'arena> for Ref<'arena> {
   type Arena = Arena<'arena>;
@@ -1400,7 +1401,7 @@ pub enum OxvgKind {
 }
 
 impl OxvgConfig {
-  pub fn into_jobs(&self, kind: OxvgKind) -> oxvg_optimiser::Jobs {
+  pub fn into_jobs(&self, kind: OxvgKind, path: &str) -> oxvg_optimiser::Jobs {
     let mut jobs = if self.default.0 {
       match kind {
         OxvgKind::Html => {
@@ -1452,7 +1453,13 @@ impl OxvgConfig {
 
     jobs.prefix_ids = match &self.prefix_ids {
       ConfigItem::None => jobs.prefix_ids,
-      ConfigItem::Bool(true) => Some(Default::default()),
+      ConfigItem::Bool(true) => Some(oxvg_optimiser::PrefixIds {
+        prefix: {
+          let hash = format!("{:x}", xxh3_64(path.as_bytes()));
+          oxvg_optimiser::PrefixGenerator::Prefix(hash[hash.len() - 6..].to_owned())
+        },
+        ..Default::default()
+      }),
       ConfigItem::Bool(false) => None,
       ConfigItem::Config(c) => Some(oxvg_optimiser::PrefixIds {
         delim: c
@@ -1461,7 +1468,10 @@ impl OxvgConfig {
           .map(|c| c.clone())
           .unwrap_or_else(|| oxvg_optimiser::PrefixIds::default().delim),
         prefix: match &c.prefix {
-          None => Default::default(),
+          None => {
+            let hash = format!("{:x}", xxh3_64(path.as_bytes()));
+            oxvg_optimiser::PrefixGenerator::Prefix(hash[hash.len() - 6..].to_owned())
+          }
           Some(c) => oxvg_optimiser::PrefixGenerator::Prefix(c.clone()),
         },
         prefix_ids: c

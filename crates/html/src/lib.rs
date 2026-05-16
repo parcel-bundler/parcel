@@ -223,6 +223,7 @@ pub struct OptimizeHtmlOptions {
   pub xml: bool,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub config: optimize::OptimizeOptions,
+  pub path: String,
 }
 
 fn ok_or_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
@@ -245,7 +246,7 @@ pub fn optimize_html(options: OptimizeHtmlOptions) -> Result<PackageResult, ()> 
       .one(options.code.as_slice())
   };
 
-  optimize(&arena, dom, options.config);
+  optimize(&arena, dom, options.config, &options.path);
 
   let mut vec: Vec<u8> = Vec::new();
   if options.xml {
@@ -265,6 +266,7 @@ pub struct OptimizeSvgOptions {
   pub code: Vec<u8>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub config: oxvg::OxvgConfig,
+  pub path: String,
 }
 
 pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
@@ -274,7 +276,7 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
       .from_utf8()
       .one(options.code.as_slice());
 
-  optimize::optimize_svg(&arena, dom, &options.config);
+  optimize::optimize_svg(&arena, dom, &options.config, &options.path);
 
   let mut vec = Vec::new();
   serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
@@ -288,6 +290,7 @@ pub struct SvgReactOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub config: JsxOptions,
+  pub path: String,
 }
 
 pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
@@ -302,7 +305,7 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
       options.config.svgo_config.remove_view_box = ConfigItem::Bool(false);
     }
 
-    optimize::optimize_svg(&arena, dom, &options.config.svgo_config);
+    optimize::optimize_svg(&arena, dom, &options.config.svgo_config, &options.path);
   }
 
   swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
@@ -459,6 +462,7 @@ impl Transformer for SvgToJsxTransformer {
     let res = svg_react(SvgReactOptions {
       code,
       config: self.config.clone(),
+      path: asset.loc.url.to_string(),
     })
     .unwrap();
     // TODO: avoid re-parse by storing JS ast.
