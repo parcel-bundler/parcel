@@ -717,7 +717,7 @@ fn normalize_path(path: &Path) -> PathBuf {
   ret
 }
 
-fn resolve_path(from: &Path, subpath: &Path) -> PathBuf {
+pub fn resolve_path(from: &Path, subpath: &Path) -> PathBuf {
   let mut path = PathBuf::new();
   if let Some(parent) = from.parent() {
     path.push(parent);

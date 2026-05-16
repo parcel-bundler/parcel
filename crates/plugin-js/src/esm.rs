@@ -58,34 +58,8 @@ impl Resolver for ModuleResolver {
     match res.result {
       Ok(res) => match res.resolution {
         parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
-        parcel_resolver::Resolution::Builtin { scheme, module } => {
-          let module = match module.as_str() {
-            "assert" => "assert/",
-            "buffer" => "buffer/",
-            "console" => return Ok("builtin:console".into()),
-            "constants" => "constants-browserify",
-            "crypto" => "crypto-browserify",
-            "domain" => "domain-browser",
-            "events" => "events/",
-            "fs" => return Ok("builtin:fs".into()),
-            "fs/promises" => return Ok("builtin:fs/promises".into()),
-            "os" => "os-browserify",
-            "path" => "path-browserify",
-            "process" => return Ok("builtin:process".into()),
-            "punycode" => "punycode/",
-            "querystring" => "querystring-es3",
-            "stream" => "stream-browserify",
-            "string_decoder" => "string_decoder/",
-            "sys" => "util",
-            "tty" => "tty-browserify",
-            "url" => "url/",
-            "util" => "util/",
-            "zlib" => "browserify-zlib",
-            _ => {
-              return Err(rquickjs::Error::new_resolving(base, name));
-            }
-          };
-          return self.resolve(ctx, "/Users/devongovett/dev/parcel", module);
+        parcel_resolver::Resolution::Builtin { module, .. } => {
+          return Ok(format!("builtin:{}", module));
         }
         _ => Err(rquickjs::Error::new_resolving(base, name)),
       },
@@ -97,6 +71,33 @@ impl Resolver for ModuleResolver {
 pub struct ModuleLoader {
   resolver: Rc<parcel_resolver::Resolver<'static>>,
   fs: Arc<dyn FileSystem>,
+}
+
+impl ModuleLoader {
+  fn load_cjs<'js>(
+    &self,
+    ctx: &Ctx<'js>,
+    name: &str,
+  ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
+    let cjs = ctx.userdata::<CjsLoader>().unwrap();
+    let exports = cjs.load(&ctx, &name)?;
+    let mut source = format!("const mod = require({:?});\nexport default mod;\n", name);
+    if let Some(obj) = exports.as_object() {
+      for key in obj.keys() {
+        let key: String = key?;
+        if key == "default" {
+          continue;
+        }
+
+        source.push_str("export const ");
+        source.push_str(&key);
+        source.push_str(" = mod.");
+        source.push_str(&key);
+        source.push_str(";\n");
+      }
+    }
+    Ok(Module::declare(ctx.clone(), name, source)?)
+  }
 }
 
 impl Loader for ModuleLoader {
@@ -113,7 +114,7 @@ impl Loader for ModuleLoader {
         "fs" => return Module::declare_def::<Fs, _>(ctx.clone(), "fs"),
         "fs/promises" => return Module::declare_def::<FsPromises, _>(ctx.clone(), "fs/promises"),
         "process" => return Module::declare_def::<Process, _>(ctx.clone(), "process"),
-        _ => {}
+        _ => return self.load_cjs(ctx, name),
       }
     }
 
@@ -159,26 +160,7 @@ impl Loader for ModuleLoader {
 
         Module::declare(ctx.clone(), name, source)?
       }
-      Ok(ModuleType::CommonJs) => {
-        let cjs = ctx.userdata::<CjsLoader>().unwrap();
-        let exports = cjs.load(&ctx, &name)?;
-        let mut source = format!("const mod = require({:?});\nexport default mod;\n", name);
-        if let Some(obj) = exports.as_object() {
-          for key in obj.keys() {
-            let key: String = key?;
-            if key == "default" {
-              continue;
-            }
-
-            source.push_str("export const ");
-            source.push_str(&key);
-            source.push_str(" = mod.");
-            source.push_str(&key);
-            source.push_str(";\n");
-          }
-        }
-        Module::declare(ctx.clone(), name, source)?
-      }
+      Ok(ModuleType::CommonJs) => self.load_cjs(ctx, name)?,
       Ok(ModuleType::Json) => {
         let source =
           self

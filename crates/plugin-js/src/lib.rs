@@ -53,8 +53,8 @@ where
     env.context.with(|ctx| {
       f(&ctx)
         .map_err(|e| {
-          if matches!(e, rquickjs::Error::Exception) {
-            error_to_diagnostic(ctx.catch()).into()
+          let diagnostic = if matches!(e, rquickjs::Error::Exception) {
+            error_to_diagnostic(ctx.catch())
           } else {
             Diagnostic {
               origin: None,
@@ -64,21 +64,15 @@ where
               hints: Vec::new(),
               severity: parcel_core::DiagnosticSeverity::Error,
             }
-            .into()
-          }
+          };
+          let mut diagnostics = vec![diagnostic];
+          diagnostics.extend(collect_rejected_promises(&ctx, &env));
+          DiagnosticList(diagnostics)
         })
         .and_then(|result| {
-          let mut rejected_promises = env.rejected_promises.borrow_mut();
-          if !rejected_promises.is_empty() {
-            let errors = rejected_promises
-              .drain()
-              .map(|(promise, reason)| {
-                drop(promise.restore(&ctx));
-                let reason = reason.restore(&ctx).unwrap();
-                error_to_diagnostic(reason)
-              })
-              .collect();
-            return Err(DiagnosticList(errors));
+          let diagnostics = collect_rejected_promises(&ctx, &env);
+          if !diagnostics.is_empty() {
+            return Err(DiagnosticList(diagnostics));
           }
           Ok(result)
         })
@@ -215,5 +209,21 @@ fn error_to_diagnostic<'js>(e: Value<'js>) -> Diagnostic {
     documentation_url: None,
     hints: Vec::new(),
     severity: parcel_core::DiagnosticSeverity::Error,
+  }
+}
+
+fn collect_rejected_promises(ctx: &Ctx, env: &JsEnv) -> Vec<Diagnostic> {
+  let mut rejected_promises = env.rejected_promises.borrow_mut();
+  if !rejected_promises.is_empty() {
+    rejected_promises
+      .drain()
+      .map(|(promise, reason)| {
+        drop(promise.restore(&ctx));
+        let reason = reason.restore(&ctx).unwrap();
+        error_to_diagnostic(reason)
+      })
+      .collect()
+  } else {
+    Vec::new()
   }
 }
