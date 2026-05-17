@@ -1,16 +1,11 @@
-use std::{
-  borrow::Cow,
-  collections::{HashMap, HashSet},
-};
+use std::{borrow::Cow, collections::HashSet};
 
 use indexmap::IndexMap;
 use swc_core::{
-  common::{DUMMY_SP, Mark, util::take::Take},
+  common::{DUMMY_SP, Mark},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
-    minifier::option::{CompressOptions, MangleOptions, TopLevelOptions},
-    transforms::base::fixer::fixer,
     visit::{VisitMut, VisitMutWith},
   },
   quote,
@@ -56,10 +51,10 @@ pub fn tree_shake<'a>(
   used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
   dirname: JsWord,
-  minify: bool,
+  _minify: bool,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
-    let global_mark = Mark::fresh(Mark::root());
+    // let global_mark = Mark::fresh(Mark::root());
     let unresolved_mark = Mark::fresh(Mark::root());
     let mut shake = TreeShake {
       used_symbols,

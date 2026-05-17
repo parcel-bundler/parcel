@@ -344,7 +344,7 @@ impl Fs {
     handle_async(&callback, Fs::readdir_internal(ctx.clone(), path, options)?)
   }
 
-  pub fn open<'js>(ctx: Ctx<'js>, path: String, rest: rquickjs::function::Rest<Value<'js>>) {
+  pub fn open<'js>(_ctx: Ctx<'js>, path: String, _rest: rquickjs::function::Rest<Value<'js>>) {
     println!("Open {}", path);
   }
 
@@ -413,7 +413,7 @@ impl FsPromises {
     )
   }
 
-  pub fn open<'js>(ctx: Ctx<'js>, path: String, rest: rquickjs::function::Rest<Value<'js>>) {
+  pub fn open<'js>(_ctx: Ctx<'js>, path: String, _rest: rquickjs::function::Rest<Value<'js>>) {
     println!("Open {}", path);
   }
 

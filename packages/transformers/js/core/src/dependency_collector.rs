@@ -17,7 +17,6 @@ use swc_core::{
     utils::{member_expr, stack_size::maybe_grow_default},
     visit::{Fold, FoldWith},
   },
-  quote,
 };
 
 use crate::{Config, fold_member_expr_skip_prop, utils::*};

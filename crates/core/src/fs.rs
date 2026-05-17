@@ -682,7 +682,7 @@ fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut 
   }
 }
 
-fn normalize_path(path: &Path) -> PathBuf {
+pub fn normalize_path(path: &Path) -> PathBuf {
   // Normalize path components to resolve ".." and "." segments.
   // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
   let mut components = path.components().peekable();

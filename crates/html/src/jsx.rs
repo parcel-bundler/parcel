@@ -11,9 +11,8 @@ use swc_core::{
   ecma::{
     ast::*,
     parser::{Parser, StringInput, lexer::Lexer, parse_file_as_module},
-    visit::{VisitMut, VisitMutWith, VisitWith},
+    visit::{VisitMut, VisitMutWith},
   },
-  quote,
 };
 use xml5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
 

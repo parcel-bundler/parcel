@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::Path, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
@@ -135,13 +135,13 @@ impl Resolver for DefaultResolver {
             ..Default::default()
           },
           content: Arc::new(BufferContent::new(
-            (format!("module.exports={};", global).into_bytes()),
+            format!("module.exports={};", global).into_bytes(),
           )),
           target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
         }))),
-        Resolution::Builtin { scheme, module } => {
+        Resolution::Builtin { module, .. } => {
           if dep.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
             || dep.target.environment.is_node()
             || dep.target.environment == Environment::ReactServer
@@ -243,18 +243,16 @@ impl Resolver for DefaultResolver {
               documentation_url: None,
             }]))
           }
-          ResolverError::ModuleSubpathNotFound {
-            module,
-            path,
-            package_path,
-          } => Err(DiagnosticList(vec![Diagnostic {
-            message: format!("Cannot load file {:?} from module {:?}", path, module),
-            origin: Some("@parcel/resolver-default".into()),
-            code_frames: vec![],
-            hints: vec![],
-            severity: parcel_core::DiagnosticSeverity::Error,
-            documentation_url: None,
-          }])),
+          ResolverError::ModuleSubpathNotFound { module, path, .. } => {
+            Err(DiagnosticList(vec![Diagnostic {
+              message: format!("Cannot load file {:?} from module {:?}", path, module),
+              origin: Some("@parcel/resolver-default".into()),
+              code_frames: vec![],
+              hints: vec![],
+              severity: parcel_core::DiagnosticSeverity::Error,
+              documentation_url: None,
+            }]))
+          }
           ResolverError::JsonError(e) => Err(DiagnosticList(vec![Diagnostic {
             message: format!("Error parsing JSON"),
             origin: Some("@parcel/resolver-default".into()),
@@ -327,16 +325,14 @@ impl Resolver for DefaultResolver {
             severity: parcel_core::DiagnosticSeverity::Error,
             documentation_url: None,
           }])),
-          ResolverError::TsConfigExtendsNotFound { tsconfig, error } => {
-            Err(DiagnosticList(vec![Diagnostic {
-              message: format!("Could not find extended tsconfig"),
-              origin: Some("@parcel/resolver-default".into()),
-              code_frames: vec![],
-              hints: vec![],
-              severity: parcel_core::DiagnosticSeverity::Error,
-              documentation_url: None,
-            }]))
-          }
+          ResolverError::TsConfigExtendsNotFound { .. } => Err(DiagnosticList(vec![Diagnostic {
+            message: format!("Could not find extended tsconfig"),
+            origin: Some("@parcel/resolver-default".into()),
+            code_frames: vec![],
+            hints: vec![],
+            severity: parcel_core::DiagnosticSeverity::Error,
+            documentation_url: None,
+          }])),
           ResolverError::UnknownError => Err(DiagnosticList(vec![Diagnostic {
             message: "Unknown error".into(),
             origin: Some("@parcel/resolver-default".into()),

@@ -42,7 +42,6 @@
 use std::{
   borrow::Cow,
   cell::OnceCell,
-  collections::HashMap,
   path::{Path, PathBuf, is_separator},
   sync::Arc,
 };
@@ -380,7 +379,7 @@ impl<'a> Resolver<'a> {
     from: &CachedPath,
     invalidations: &Invalidations,
   ) -> Option<Arc<Result<TsConfigWrapper, ResolverError>>> {
-    let mut request = ResolveRequest::new(
+    let request = ResolveRequest::new(
       self,
       &Specifier::Url(""),
       SpecifierType::Url,

@@ -37,7 +37,7 @@ pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph,
 
 pub fn watch(entries: Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
   let (_, project_root) = resolve_entries(entries.clone(), &options)?;
-  build(entries.clone(), options.clone());
+  let _ = build(entries.clone(), options.clone());
 
   let watcher = parcel_watcher::watch(&project_root);
   while let Ok(events) = watcher.recv() {
@@ -46,7 +46,7 @@ pub fn watch(entries: Vec<String>, options: BuildOptions) -> Result<(), Diagnost
       .iter()
       .any(|e| !e.path.as_os_str().to_str().unwrap().contains("dist"))
     {
-      build(entries.clone(), options.clone());
+      let _ = build(entries.clone(), options.clone());
     }
   }
 

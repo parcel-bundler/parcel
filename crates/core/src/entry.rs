@@ -125,7 +125,7 @@ impl EntryResolver {
     };
 
     if let Some(exports) = json.get("exports") {
-      self.extract_exports(fs, &dir, &json, exports, Vec::new(), &context);
+      self.extract_exports(fs, &dir, &json, exports, Vec::new(), &context)?;
     }
 
     if let Some(Value::String(source)) = json.get("source") {

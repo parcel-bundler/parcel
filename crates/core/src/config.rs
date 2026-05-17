@@ -2,11 +2,7 @@ use either::Either;
 use glob_match::glob_match;
 use indexmap::IndexMap;
 use serde::Deserialize;
-use std::{
-  ffi::OsStr,
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use std::{ffi::OsStr, path::Path, sync::Arc};
 
 use crate::{
   Diagnostic, DiagnosticList, FileSystem,

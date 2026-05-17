@@ -45,7 +45,7 @@ use serde::{Deserialize, Serialize};
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
-    DUMMY_SP, FileName, Globals, Mark, SourceMap, errors::Handler, pass::Optional,
+    FileName, Globals, Mark, SourceMap, errors::Handler, pass::Optional,
     source_map::SourceMapGenConfig, sync::Lrc,
   },
   ecma::{

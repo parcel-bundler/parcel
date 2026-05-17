@@ -833,7 +833,7 @@ impl Packager for JsPackager {
             .into();
           // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
           tree_shake(&mut ast, used_symbols, dependencies, dirname, true);
-          let (code, map) = ast.to_code(false, false)?;
+          let (code, _map) = ast.to_code(false, false)?;
 
           write!(
             res,

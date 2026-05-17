@@ -106,8 +106,8 @@ impl PluginFactory for DefaultPluginFactory {
   fn bundler(
     &self,
     name: &str,
-    config: Option<serde_json::Value>,
-    from: &Path,
+    _config: Option<serde_json::Value>,
+    _from: &Path,
   ) -> Result<Arc<dyn parcel_core::Bundler>, DiagnosticList> {
     if name == "@parcel/bundler-default" {
       Ok(Arc::new(DefaultBundler {}))
@@ -121,8 +121,8 @@ impl PluginFactory for DefaultPluginFactory {
   fn namer(
     &self,
     name: &str,
-    config: Option<serde_json::Value>,
-    from: &Path,
+    _config: Option<serde_json::Value>,
+    _from: &Path,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     if name == "@parcel/namer-default" {
       Ok(Arc::new(DefaultNamer {}))
@@ -134,8 +134,8 @@ impl PluginFactory for DefaultPluginFactory {
   fn optimizer(
     &self,
     name: &str,
-    config: Option<serde_json::Value>,
-    from: &Path,
+    _config: Option<serde_json::Value>,
+    _from: &Path,
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList> {
     match name {
       "@parcel/optimizer-data-url" => Ok(Arc::new(DataUrlOptimizer {})),
@@ -148,8 +148,8 @@ impl PluginFactory for DefaultPluginFactory {
   fn packager(
     &self,
     name: &str,
-    config: Option<serde_json::Value>,
-    from: &Path,
+    _config: Option<serde_json::Value>,
+    _from: &Path,
   ) -> Result<Arc<dyn Packager>, DiagnosticList> {
     Ok(match name {
       "@parcel/packager-js" => Arc::new(JsPackager {}),
@@ -167,8 +167,8 @@ impl PluginFactory for DefaultPluginFactory {
   fn resolver(
     &self,
     name: &str,
-    config: Option<serde_json::Value>,
-    from: &Path,
+    _config: Option<serde_json::Value>,
+    _from: &Path,
   ) -> Result<Arc<dyn parcel_core::Resolver>, DiagnosticList> {
     Ok(match name {
       "@parcel/resolver-default" => Arc::new(DefaultResolver::new("/".into())),

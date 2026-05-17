@@ -69,10 +69,10 @@ pub fn main() -> ExitCode {
       }
     }
     Command::Watch => {
-      parcel::watch(entries, options);
+      let _ = parcel::watch(entries, options);
     }
     Command::Serve => {
-      parcel::serve(entries, options);
+      let _ = parcel::serve(entries, options);
     }
     Command::Targets => {
       let entries = parcel_core::resolve_entries(entries, &options).unwrap();

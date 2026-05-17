@@ -239,10 +239,10 @@ impl Transformer for CssTransformer {
       if let Some(references) = res.references {
         for (placeholder, reference) in references {
           match reference {
-            CssModuleReference::Local { name } => {
+            CssModuleReference::Local { .. } => {
               // mark as used
             }
-            CssModuleReference::Global { name } => {}
+            CssModuleReference::Global { .. } => {}
             CssModuleReference::Dependency { name, specifier } => {
               let dep_index = asset.dependencies.len() as u32;
               asset.dependencies.push(Dependency {
@@ -1053,7 +1053,7 @@ impl<'i> lightningcss::visitor::Visitor<'i> for ReferenceReplacer {
         rule.loc.source_index = self.loc.source_index;
         rule.loc.line += self.loc.line;
       }
-      CssRule::Custom(rule) => {}
+      CssRule::Custom(..) => {}
     }
 
     rule.visit_children(self)

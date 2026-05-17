@@ -6,7 +6,6 @@ use std::{
 use crate::{cache::WeakPath, json_comments_rs::strip_comments_in_place};
 use indexmap::IndexMap;
 use itertools::Either;
-use serde::ser;
 
 use crate::{
   ResolverError,

@@ -292,7 +292,7 @@ fn ascii_alpha(ch: char) -> bool {
   ch.is_ascii_alphabetic()
 }
 
-fn parse_package(specifier: Cow<'_, str>) -> Result<Specifier, SpecifierError> {
+fn parse_package<'s>(specifier: Cow<'s, str>) -> Result<Specifier<'s>, SpecifierError> {
   match specifier {
     Cow::Borrowed(specifier) => {
       let (module, subpath) = parse_package_specifier(specifier)?;

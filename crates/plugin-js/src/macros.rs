@@ -2,9 +2,9 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use indexmap::IndexMap;
 use parcel_core::{
-  AssetRequest, AssetType, BufferContent, BundleBehavior, ContentWithSourceMap, Dependency,
-  DependencyFlags, DependencyResolution, ExportsCondition, Location, ParcelOptions, Priority,
-  SourceLocation, SourceUrl, SpecifierType, Target,
+  AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency, DependencyFlags,
+  DependencyResolution, ExportsCondition, Location, ParcelOptions, Priority, SourceLocation,
+  SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{JsValue, MacroError};
 use parcel_sourcemap::{OriginalLocation, SourceMap};

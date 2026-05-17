@@ -50,7 +50,7 @@ impl ModuleResolver {
 }
 
 impl Resolver for ModuleResolver {
-  fn resolve<'js>(&mut self, ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
+  fn resolve<'js>(&mut self, _ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
     let res = self
       .resolver
       .resolve(name, Path::new(base), parcel_resolver::SpecifierType::Esm);
@@ -63,7 +63,7 @@ impl Resolver for ModuleResolver {
         }
         _ => Err(rquickjs::Error::new_resolving(base, name)),
       },
-      Err(e) => Err(rquickjs::Error::new_resolving(base, name)),
+      Err(_) => Err(rquickjs::Error::new_resolving(base, name)),
     }
   }
 }

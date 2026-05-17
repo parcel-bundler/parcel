@@ -53,7 +53,7 @@ impl Bundler for LibraryBundler {
       asset_to_bundle.insert(id as u32, bundle_index);
     }
 
-    for (id, asset) in asset_graph.assets.iter_mut().enumerate() {
+    for (_id, asset) in asset_graph.assets.iter_mut().enumerate() {
       if let AssetNode::Asset(asset) = asset {
         for dep in &mut asset.dependencies {
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
