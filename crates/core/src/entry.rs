@@ -24,7 +24,7 @@ pub struct Entry {
 pub fn resolve_entries(
   entries: Vec<String>,
   options: &BuildOptions,
-) -> Result<Vec<Entry>, Diagnostic> {
+) -> Result<(Vec<Entry>, PathBuf), Diagnostic> {
   let mut paths = Vec::new();
   for entry in entries {
     for path in glob(&*options.input_fs, &entry, &std::env::current_dir()?) {
@@ -75,7 +75,7 @@ pub fn resolve_entries(
     }
   }
 
-  Ok(entries.entries)
+  Ok((entries.entries, project_root))
 }
 
 struct EntryResolver {
@@ -457,7 +457,7 @@ fn package_engines(
   engines
 }
 
-fn find_project_root(entries: &Vec<PathBuf>) -> PathBuf {
+pub fn find_project_root(entries: &Vec<PathBuf>) -> PathBuf {
   let root = common_root_path(entries.iter()).unwrap_or_else(|| std::env::current_dir().unwrap());
 
   for dir in root.ancestors() {
@@ -536,7 +536,7 @@ mod tests {
     fs.write(Path::new("/root/src/bar.tsx"), &Vec::new())
       .unwrap();
     let fs = Arc::new(fs);
-    let result = resolve_entries(
+    let (result, _) = resolve_entries(
       vec!["/root".into()],
       &crate::BuildOptions {
         input_fs: fs.clone(),

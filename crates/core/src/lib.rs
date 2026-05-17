@@ -56,10 +56,8 @@ pub fn build(
   options: BuildOptions,
   factory: &dyn PluginFactory,
 ) -> Result<BundleGraph, DiagnosticList> {
-  // Resolve entries.
-  let entries = resolve_entries(entries, &options)?;
+  let (entries, project_root) = resolve_entries(entries, &options)?;
 
-  let project_root = find_project_root(&entries);
   let mut env = options.env;
   load_dotenv(&project_root, &*options.input_fs, &mut env)?;
 
@@ -191,52 +189,6 @@ macro_rules! impl_bitflags_serde {
 }
 
 pub(crate) use impl_bitflags_serde;
-
-fn common_root_path<'a>(paths: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
-  let mut path_iter = paths.into_iter();
-  let mut root = path_iter.next()?.to_path_buf();
-
-  for path in path_iter {
-    let mut new_root = PathBuf::new();
-    let mut found = false;
-    for (a, b) in root.components().zip(path.components()) {
-      if a == b {
-        found = true;
-        new_root.push(a);
-      } else {
-        break;
-      }
-    }
-    root = new_root;
-    if !found {
-      return None;
-    }
-  }
-
-  Some(root)
-}
-
-fn find_project_root(entries: &Vec<Entry>) -> PathBuf {
-  let root = common_root_path(entries.iter().map(|e| e.url.to_file_path().unwrap()))
-    .unwrap_or_else(|| std::env::current_dir().unwrap());
-
-  for dir in root.ancestors() {
-    for file in &[
-      "yarn.lock",
-      "package-lock.json",
-      "pnpm-lock.yaml",
-      ".git",
-      ".hg",
-    ] {
-      let p = dir.join(file);
-      if p.exists() {
-        return dir.to_path_buf();
-      }
-    }
-  }
-
-  std::env::current_dir().unwrap()
-}
 
 fn load_dotenv(
   project_root: &Path,

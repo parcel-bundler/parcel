@@ -181,12 +181,7 @@ impl PluginFactory for DefaultPluginFactory {
 
   fn config(&self, specifier: &str, from: &Path) -> Result<ParcelConfig, DiagnosticList> {
     if specifier == "@parcel/config-default" {
-      // TODO
-      return ParcelConfig::read(
-        &*self.resolver.cache().fs,
-        Path::new("/Users/devongovett/dev/parcel/test/library/.parcelrc"),
-        self,
-      );
+      return ParcelConfig::from_json(Path::new(""), include_bytes!("default-config.json"), self);
     }
 
     let resolved = self

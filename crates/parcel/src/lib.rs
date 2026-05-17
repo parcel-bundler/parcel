@@ -1,6 +1,8 @@
-use std::{collections::HashSet, path::Path};
+use std::collections::HashSet;
 
-use parcel_core::{AssetNode, BuildOptions, BundleGraph, DiagnosticList, SourceUrl};
+use parcel_core::{
+  AssetNode, BuildOptions, BundleGraph, DiagnosticList, SourceUrl, resolve_entries,
+};
 
 use crate::plugin_factory::DefaultPluginFactory;
 
@@ -22,7 +24,7 @@ pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph,
   let factory = DefaultPluginFactory::new(options.input_fs.clone());
   match parcel_core::build(entries, options, &factory) {
     Ok(g) => {
-      println!("SUCCESS! {:?}", start.elapsed());
+      println!("Built in {:?}", start.elapsed());
       Ok(g)
     }
     Err(err) => {
@@ -33,10 +35,11 @@ pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph,
   }
 }
 
-pub fn watch(entries: Vec<String>, options: BuildOptions) {
+pub fn watch(entries: Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
+  let (_, project_root) = resolve_entries(entries.clone(), &options)?;
   build(entries.clone(), options.clone());
 
-  let watcher = parcel_watcher::watch(Path::new("/Users/devongovett/dev/parcel/test"));
+  let watcher = parcel_watcher::watch(&project_root);
   while let Ok(events) = watcher.recv() {
     println!("{:?}", events);
     if events
@@ -46,13 +49,22 @@ pub fn watch(entries: Vec<String>, options: BuildOptions) {
       build(entries.clone(), options.clone());
     }
   }
+
+  Ok(())
 }
 
-pub fn serve(entries: Vec<String>, options: BuildOptions) {
-  let server = server::serve_dir(Path::new("/Users/devongovett/dev/parcel/test/dist"));
-  build(entries.clone(), options.clone());
+pub fn serve(entries: Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
+  let graph = build(entries.clone(), options.clone()).unwrap(); // TODO
+  let server = server::serve_dir(
+    &graph.asset_graph.entries[0]
+      .target
+      .dist_dir
+      .to_file_path()
+      .unwrap(),
+  );
 
-  let watcher = parcel_watcher::watch(Path::new("/Users/devongovett/dev/parcel/test"));
+  let (_, project_root) = resolve_entries(entries.clone(), &options)?;
+  let watcher = parcel_watcher::watch(&project_root);
   while let Ok(events) = watcher.recv() {
     if events
       .iter()
@@ -93,4 +105,6 @@ pub fn serve(entries: Vec<String>, options: BuildOptions) {
       }
     }
   }
+
+  Ok(())
 }

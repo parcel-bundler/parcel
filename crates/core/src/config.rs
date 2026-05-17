@@ -38,7 +38,15 @@ impl ParcelConfig {
     factory: &dyn PluginFactory,
   ) -> Result<ParcelConfig, DiagnosticList> {
     let content = fs.read(path)?;
-    let raw: RawParcelConfig = serde_json::from_slice(&content)?;
+    Self::from_json(path, &content, factory)
+  }
+
+  pub fn from_json(
+    path: &Path,
+    json: &[u8],
+    factory: &dyn PluginFactory,
+  ) -> Result<ParcelConfig, DiagnosticList> {
+    let raw: RawParcelConfig = serde_json::from_slice(json)?;
     raw.resolve(factory, path)
   }
 }
