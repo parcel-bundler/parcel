@@ -54,13 +54,12 @@ pub fn watch(entries: Vec<String>, options: BuildOptions) -> Result<(), Diagnost
 }
 
 pub fn serve(entries: Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
-  let graph = build(entries.clone(), options.clone()).unwrap(); // TODO
+  let graph = build(entries.clone(), options.clone())?; // TODO
   let server = server::serve_dir(
     &graph.asset_graph.entries[0]
       .target
       .dist_dir
-      .to_file_path()
-      .unwrap(),
+      .to_file_path()?,
   );
 
   let (_, project_root) = resolve_entries(entries.clone(), &options)?;

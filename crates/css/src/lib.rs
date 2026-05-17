@@ -5,6 +5,7 @@ use std::{
 
 use lightningcss::{
   css_modules::{CssModuleExport, CssModuleReference},
+  error::Error,
   media_query::MediaList,
   printer::PrinterOptions,
   rules::{
@@ -159,7 +160,7 @@ impl Transformer for CssTransformer {
         ..Default::default()
       },
     )
-    .unwrap();
+    .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
     stylesheet
       .minify(MinifyOptions {
@@ -184,7 +185,7 @@ impl Transformer for CssTransformer {
         },
         ..Default::default()
       })
-      .unwrap();
+      .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
     let mut collector = DependencyCollector {
       dependencies: &mut asset.dependencies,
@@ -195,7 +196,9 @@ impl Transformer for CssTransformer {
 
     if self.css_modules.is_some() {
       // TODO: transform AST instead of printing and re-parsing.
-      let res = stylesheet.to_css(Default::default()).unwrap();
+      let res = stylesheet
+        .to_css(Default::default())
+        .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
       let exports = res.exports.clone().unwrap_or(HashMap::new());
       let mut refs = HashMap::new();
       if let Some(exports) = res.exports {
@@ -276,7 +279,7 @@ impl Transformer for CssTransformer {
           ..Default::default()
         },
       )
-      .unwrap();
+      .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
       asset.content = Arc::new(CssContent {
         stylesheet: stylesheet.into_owned(),
@@ -292,6 +295,36 @@ impl Transformer for CssTransformer {
     }
 
     Ok(asset)
+  }
+}
+
+fn convert_error<T: std::fmt::Display>(url: Option<SourceUrl>, err: Error<T>) -> Diagnostic {
+  Diagnostic {
+    origin: Some("@parcel/transformer-css".into()),
+    message: err.to_string(),
+    code_frames: if let Some(loc) = err.loc {
+      vec![CodeFrame {
+        code: None,
+        code_highlights: vec![CodeHighlight {
+          message: None,
+          start: Location {
+            line: loc.line,
+            column: loc.column,
+          },
+          end: Location {
+            line: loc.line,
+            column: loc.column,
+          },
+        }],
+        language: None,
+        url,
+      }]
+    } else {
+      Vec::new()
+    },
+    hints: Vec::new(),
+    documentation_url: None,
+    severity: DiagnosticSeverity::Error,
   }
 }
 
@@ -449,7 +482,7 @@ impl Packager for CssPackager {
             media: MediaList::new(),
           },
           &mut visited,
-        );
+        )?;
       }
     }
 
@@ -466,7 +499,7 @@ impl Packager for CssPackager {
           source_index,
           &mut visited,
           &mut dest,
-        );
+        )?;
       }
     }
 
@@ -486,7 +519,9 @@ impl Packager for CssPackager {
       .flat_map(|s| s.stylesheet.source_map_urls.clone())
       .collect();
 
-    stylesheet.minify(Default::default());
+    stylesheet
+      .minify(Default::default())
+      .map_err(|err| convert_error(None, err))?;
 
     let res = stylesheet
       .to_css(PrinterOptions {
@@ -520,7 +555,7 @@ impl Packager for CssPackager {
         },
         ..Default::default()
       })
-      .unwrap();
+      .map_err(|err| convert_error(None, err))?;
 
     if bundle.target.source_map.is_some() {
       for source_index in 0..source_map.get_sources().len() {
@@ -528,7 +563,7 @@ impl Packager for CssPackager {
           let path = source_map.get_source(source_index as u32).unwrap();
           if let Ok(code) = options
             .input_fs
-            .read_to_string(&options.project_root.to_file_path().unwrap().join(path))
+            .read_to_string(&options.project_root.to_file_path()?.join(path))
           {
             let _ = source_map.set_source_content(source_index, &code);
           }
@@ -553,7 +588,7 @@ fn collect(
   stylesheets: &mut Vec<StyleSheetWrapper>,
   state: State,
   visited: &mut Vec<bool>,
-) {
+) -> Result<(), DiagnosticList> {
   let stylesheet = &mut stylesheets[state.stylesheet_index];
 
   // In browsers, every instance of an @import is evaluated, so we preserve the last.
@@ -607,7 +642,7 @@ fn collect(
   }
 
   if visited[state.stylesheet_index] {
-    return;
+    return Ok(());
   }
 
   visited[state.stylesheet_index] = true;
@@ -629,7 +664,7 @@ fn collect(
         targets: Default::default(),
         unused_symbols,
       })
-      .unwrap();
+      .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
   }
 
   let mut dep_index = 0;
@@ -671,7 +706,7 @@ fn collect(
               media,
             },
             visited,
-          );
+          )?;
         }
         dep_index += 1;
       }
@@ -679,6 +714,8 @@ fn collect(
       _ => break,
     }
   }
+
+  Ok(())
 }
 
 fn inline(
@@ -690,7 +727,7 @@ fn inline(
   stylesheet_index: usize,
   visited: &mut Vec<bool>,
   dest: &mut Vec<CssRule<'static>>,
-) {
+) -> Result<(), DiagnosticList> {
   let stylesheet = &mut stylesheets[stylesheet_index as usize];
   let loc = stylesheet.loc.clone();
   let asset = bundle_graph.asset_graph.assets[stylesheet.asset_index].expect_asset();
@@ -715,7 +752,7 @@ fn inline(
             dep_source_index,
             visited,
             dest,
-          );
+          )?;
         }
       }
     }
@@ -745,7 +782,7 @@ fn inline(
                 dep_source_index,
                 visited,
                 dest,
-              );
+              )?;
             }
 
             *rule = CssRule::Ignored;
@@ -821,7 +858,7 @@ fn inline(
     loc,
     references,
     get_inline_bundle_content,
-  );
+  )?;
   rules.visit(&mut replacer).unwrap();
 
   // Wrap rules in the appropriate @layer, @media, and @supports rules.
@@ -852,6 +889,7 @@ fn inline(
   }
 
   dest.extend(rules);
+  Ok(())
 }
 
 fn combine_supports<'a>(
@@ -882,7 +920,7 @@ impl ReferenceReplacer {
     loc: lightningcss::rules::Location,
     css_modules: HashMap<String, String>,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-  ) -> ReferenceReplacer {
+  ) -> Result<ReferenceReplacer, DiagnosticList> {
     let mut urls = HashMap::new();
     for dep in dependencies {
       if dep.priority == Priority::Lazy && dep.specifier_type == SpecifierType::Url {
@@ -891,13 +929,7 @@ impl ReferenceReplacer {
           if dep.bundle_behavior == BundleBehavior::Inline
             || referenced_bundle.bundle_behavior == BundleBehavior::Inline
           {
-            let url = String::from_utf8(
-              get_inline_bundle_content(bundle_index as usize)
-                .unwrap()
-                .read()
-                .unwrap(),
-            )
-            .unwrap();
+            let url = String::from_utf8(get_inline_bundle_content(bundle_index as usize)?.read()?)?;
             urls.insert(dep.specifier.clone(), url);
           } else {
             let url = referenced_bundle.relative_url(bundle).unwrap().into();
@@ -907,11 +939,11 @@ impl ReferenceReplacer {
       }
     }
 
-    ReferenceReplacer {
+    Ok(ReferenceReplacer {
       urls,
       css_modules,
       loc,
-    }
+    })
   }
 }
 
@@ -1076,7 +1108,7 @@ impl Transformer for StyleAttrTransformer {
         ..Default::default()
       },
     )
-    .unwrap();
+    .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
     attr.minify(MinifyOptions {
       targets: Targets {
@@ -1142,7 +1174,7 @@ impl Packager for StyleAttrPackager {
       },
       HashMap::new(),
       get_inline_bundle_content,
-    );
+    )?;
     if !replacer.urls.is_empty() {
       decls.visit(&mut replacer).unwrap();
     }

@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-  DiagnosticList, FileSystem,
+  Diagnostic, DiagnosticList, FileSystem,
   bundler::{Bundler, DefaultBundler},
   namer::Namer,
   optimizer::Optimizer,
@@ -385,7 +385,7 @@ impl RawParcelConfig {
       transformers,
       bundler: self
         .bundler
-        .unwrap()
+        .ok_or_else(|| Diagnostic::from_message("Config does not have a bundler".into()))?
         .resolve(&|name, config| factory.bundler(name, config, from))?,
       namers: self.namers.unwrap_or_default().resolve_extended(
         &|name, config| factory.namer(name, config, from),

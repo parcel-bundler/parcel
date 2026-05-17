@@ -65,12 +65,12 @@ impl Resolver for DefaultResolver {
     }
 
     let mut resolver =
-      parcel_resolver::Resolver::parcel(&options.project_root.to_file_path().unwrap(), &self.cache);
+      parcel_resolver::Resolver::parcel(&options.project_root.to_file_path()?, &self.cache);
     resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
     let mut res = resolver.resolve_with_options(
       specifier,
-      &resolve_from.to_file_path().unwrap(),
+      &resolve_from.to_file_path()?,
       match dep.specifier_type {
         SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
         SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
@@ -102,8 +102,7 @@ impl Resolver for DefaultResolver {
     match res.result {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
-          let url =
-            SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..])).unwrap();
+          let url = SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..]))?;
           let ty = AssetType::from_url(&url);
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
             loc: SourceLocation {
@@ -121,7 +120,7 @@ impl Resolver for DefaultResolver {
         Resolution::Empty => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
           loc: SourceLocation {
-            url: SourceUrl::parse("file:///empty.js").unwrap(),
+            url: SourceUrl::parse("file:///empty.js")?,
             ..Default::default()
           },
           content: Arc::new(BufferContent::new(vec![])),
@@ -132,7 +131,7 @@ impl Resolver for DefaultResolver {
         Resolution::Global(global) => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
           loc: SourceLocation {
-            url: SourceUrl::parse("file:///global.js").unwrap(),
+            url: SourceUrl::parse("file:///global.js")?,
             ..Default::default()
           },
           content: Arc::new(BufferContent::new(
@@ -178,7 +177,7 @@ impl Resolver for DefaultResolver {
               return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
                 ty: AssetType::Js,
                 loc: SourceLocation {
-                  url: SourceUrl::parse("file:///empty.js").unwrap(),
+                  url: SourceUrl::parse("file:///empty.js")?,
                   ..Default::default()
                 },
                 content: Arc::new(BufferContent::new(vec![])),
@@ -229,7 +228,7 @@ impl Resolver for DefaultResolver {
               ),
               origin: Some("@parcel/resolver-default".into()),
               code_frames: vec![CodeFrame {
-                url: Some(SourceUrl::from_path(&package_path).unwrap()),
+                url: Some(SourceUrl::from_path(&package_path)?),
                 code: None,
                 language: Some(AssetType::Json),
                 code_highlights: vec![
@@ -260,7 +259,7 @@ impl Resolver for DefaultResolver {
             message: format!("Error parsing JSON"),
             origin: Some("@parcel/resolver-default".into()),
             code_frames: vec![CodeFrame {
-              url: Some(SourceUrl::from_path(&e.path).unwrap()),
+              url: Some(SourceUrl::from_path(&e.path)?),
               code: None,
               language: Some(AssetType::Json),
               code_highlights: vec![CodeHighlight {

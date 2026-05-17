@@ -107,11 +107,7 @@ pub fn transform(
     let ty: AssetType = input.ty.clone();
     let mut result = plugin.transform(input, options)?;
     if result.ty != ty {
-      let next_path = result
-        .loc
-        .url
-        .with_extension(result.ty.extension())
-        .unwrap();
+      let next_path = result.loc.url.with_extension(result.ty.extension());
 
       let mut next_pipeline = transformers.get(next_path.as_str(), &result.pipeline, false);
       if result.pipeline.is_some() && next_pipeline.0.is_empty() {

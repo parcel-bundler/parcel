@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, num::NonZeroU16, str::FromStr, sync::Arc};
 
-use crate::{AssetType, SourceLocation, SourceUrl, impl_bitflags_serde};
+use crate::{AssetType, Diagnostic, SourceLocation, SourceUrl, impl_bitflags_serde};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
@@ -533,7 +533,7 @@ impl Environment {
 }
 
 impl TryFrom<&str> for Environment {
-  type Error = ();
+  type Error = Diagnostic;
   fn try_from(value: &str) -> Result<Self, Self::Error> {
     use Environment::*;
     Ok(match value {
@@ -546,7 +546,12 @@ impl TryFrom<&str> for Environment {
       "electron-renderer" => ElectronRenderer,
       "react-client" => ReactClient,
       "react-server" => ReactServer,
-      _ => return Err(()),
+      _ => {
+        return Err(Diagnostic::from_message(format!(
+          "Unsupported environment {}",
+          value
+        )));
+      }
     })
   }
 }
@@ -569,14 +574,19 @@ pub enum OutputFormat {
 }
 
 impl TryFrom<&str> for OutputFormat {
-  type Error = ();
+  type Error = Diagnostic;
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
     Ok(match value {
       "global" => OutputFormat::Global,
       "commonjs" => OutputFormat::Commonjs,
       "esmodule" => OutputFormat::Esmodule,
-      _ => return Err(()),
+      _ => {
+        return Err(Diagnostic::from_message(format!(
+          "Unknown output format {}",
+          value
+        )));
+      }
     })
   }
 }

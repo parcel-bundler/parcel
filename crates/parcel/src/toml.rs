@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parcel_core::{AssetType, BufferContent, DiagnosticList, Transformer};
+use parcel_core::{AssetType, BufferContent, Diagnostic, DiagnosticList, Transformer};
 
 use crate::json::json_to_js;
 
@@ -14,7 +14,8 @@ impl Transformer for TomlTransformer {
   ) -> Result<parcel_core::Asset, DiagnosticList> {
     let content = asset.content.read()?;
     let code = std::str::from_utf8(&content)?;
-    let parsed: serde_json::Value = toml::from_str(code).unwrap();
+    let parsed: serde_json::Value =
+      toml::from_str(code).map_err(|e| Diagnostic::from_message(e.to_string()))?;
     let js = json_to_js(parsed, asset.target.output_format)?;
 
     asset.ty = AssetType::Js;

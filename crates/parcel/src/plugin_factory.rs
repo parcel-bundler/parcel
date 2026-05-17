@@ -41,7 +41,7 @@ impl PluginFactory for DefaultPluginFactory {
     Ok(match name {
       "@parcel/transformer-js" => Arc::new(JsTransformer {}),
       "@parcel/transformer-css" => Arc::new(if let Some(config) = config {
-        serde_json::from_value(config).unwrap()
+        serde_json::from_value(config)?
       } else {
         CssTransformer::default()
       }),
@@ -50,9 +50,9 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-svg" => Arc::new(SvgTransformer {}),
       "@parcel/transformer-svg-jsx" => Arc::new(SvgToJsxTransformer {
         config: config.map_or_else(
-          || Default::default(),
-          |config| serde_json::from_value(config).unwrap(),
-        ),
+          || Ok(Default::default()),
+          |config| serde_json::from_value(config),
+        )?,
       }),
       "@parcel/transformer-image" => Arc::new(ImageTransformer {}),
       "@parcel/transformer-json" => Arc::new(JsonTransformer {}),

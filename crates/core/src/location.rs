@@ -7,6 +7,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use crate::Diagnostic;
+
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
@@ -58,26 +60,43 @@ impl Default for SourceUrl {
 }
 
 impl SourceUrl {
-  pub fn parse(url: &str) -> Result<SourceUrl, url::ParseError> {
+  pub fn parse(url: &str) -> Result<SourceUrl, Diagnostic> {
     Ok(SourceUrl {
-      url: Arc::new(Url::parse(url)?),
+      url: Arc::new(Url::parse(url).map_err(|err| {
+        Diagnostic::from_message(format!("Could not parse url {:?} {}", url, err.to_string()))
+      })?),
     })
   }
 
-  pub fn from_path(path: &Path) -> Result<SourceUrl, ()> {
+  pub fn from_path(path: &Path) -> Result<SourceUrl, Diagnostic> {
     Ok(SourceUrl {
-      url: Arc::new(Url::from_file_path(path)?),
+      url: Arc::new(Url::from_file_path(path).map_err(|_| {
+        Diagnostic::from_message(format!(
+          "Could not convert non-absolute path to URL: {:?}",
+          path
+        ))
+      })?),
     })
   }
 
-  pub fn from_path_and_query(path: &Path, query: Option<&str>) -> Result<SourceUrl, ()> {
-    let mut url = Url::from_file_path(path)?;
+  pub fn from_path_and_query(path: &Path, query: Option<&str>) -> Result<SourceUrl, Diagnostic> {
+    let mut url = Url::from_file_path(path).map_err(|_| {
+      Diagnostic::from_message(format!(
+        "Could not convert non-absolute path to URL: {:?}",
+        path
+      ))
+    })?;
     url.set_query(query);
     Ok(SourceUrl { url: Arc::new(url) })
   }
 
-  pub fn to_file_path(&self) -> Result<PathBuf, ()> {
-    self.url.to_file_path()
+  pub fn to_file_path(&self) -> Result<PathBuf, Diagnostic> {
+    self.url.to_file_path().map_err(|_| {
+      Diagnostic::from_message(format!(
+        "Could not convert SourceUrl to file path: {:?}",
+        self.url.as_str()
+      ))
+    })
   }
 
   pub fn as_str(&self) -> &str {
@@ -94,13 +113,13 @@ impl SourceUrl {
     ext
   }
 
-  pub fn with_extension(&self, ext: &str) -> Result<SourceUrl, ()> {
+  pub fn with_extension(&self, ext: &str) -> SourceUrl {
     let path = self.url.path();
     let (base, _) = path.rsplit_once('.').unwrap_or((path, ""));
     let path = format!("{}.{}", base, ext);
     let mut url = (*self.url).clone();
     url.set_path(&path);
-    Ok(SourceUrl { url: Arc::new(url) })
+    SourceUrl { url: Arc::new(url) }
   }
 
   pub fn query(&self) -> Option<&str> {

@@ -61,12 +61,12 @@ pub fn resolve_entries(
         environment: context,
         engines,
         flags,
-        dist_dir: SourceUrl::from_path(&project_root.join("dist")).unwrap(),
+        dist_dir: SourceUrl::from_path(&project_root.join("dist"))?,
         ..Default::default()
       });
 
       entries.add_entry(Entry {
-        url: SourceUrl::from_path(&path).unwrap(),
+        url: SourceUrl::from_path(&path)?,
         target: env,
         dist_entry: None,
         loc: None,
@@ -142,7 +142,7 @@ impl EntryResolver {
 
           if let Some(child) = context.child(&json, field) {
             let (dist_dir, dist_entry) = dist_dir_entry(&dir, &main, &dir.join(source));
-            let mut env = child.to_env(&json, &dist_dir, &dist_entry);
+            let mut env = child.to_env(&json, &dist_dir, &dist_entry)?;
             if *cond == ExportsCondition::MODULE {
               env.output_format = OutputFormat::Esmodule;
             }
@@ -150,7 +150,7 @@ impl EntryResolver {
             let env = self.target(env);
 
             self.add_entry(Entry {
-              url: SourceUrl::from_path(&dir.join(source)).unwrap(),
+              url: SourceUrl::from_path(&dir.join(source))?,
               target: env,
               dist_entry: Some(dist_entry),
               asset: None,
@@ -163,9 +163,9 @@ impl EntryResolver {
       if self.entries.is_empty() {
         for source in glob(fs, source, &dir) {
           self.add_entry(Entry {
-            url: SourceUrl::from_path(&source).unwrap(),
+            url: SourceUrl::from_path(&source)?,
             target: Arc::new(Target {
-              dist_dir: SourceUrl::from_path(&dir).unwrap(),
+              dist_dir: SourceUrl::from_path(&dir)?,
               ..Default::default()
             }),
             dist_entry: None,
@@ -187,7 +187,7 @@ impl EntryResolver {
     value: &Value,
     source: Vec<(PathBuf, Option<String>)>,
     context: &ExportsContext,
-  ) {
+  ) -> Result<(), Diagnostic> {
     if let Value::Object(exports) = value {
       let source = if let Some(Value::String(source)) = value.get("source") {
         if source.contains('*') {
@@ -227,10 +227,10 @@ impl EntryResolver {
 
         if !key.starts_with('.') {
           if let Some(child) = context.child(pkg, key) {
-            self.extract_exports(fs, dir, pkg, value, source.clone(), &child);
+            self.extract_exports(fs, dir, pkg, value, source.clone(), &child)?;
           }
         } else {
-          self.extract_exports(fs, dir, pkg, value, source.clone(), context);
+          self.extract_exports(fs, dir, pkg, value, source.clone(), context)?;
         }
       }
     } else if let Value::String(value) = value {
@@ -243,10 +243,10 @@ impl EntryResolver {
           };
 
           let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, &source);
-          let env = self.target(context.to_env(pkg, &dist_dir, &dist_entry));
+          let env = self.target(context.to_env(pkg, &dist_dir, &dist_entry)?);
 
           self.add_entry(Entry {
-            url: SourceUrl::from_path(&source).unwrap(),
+            url: SourceUrl::from_path(&source)?,
             target: env,
             dist_entry: Some(dist_entry),
             asset: None,
@@ -255,6 +255,8 @@ impl EntryResolver {
         }
       }
     }
+
+    Ok(())
   }
 }
 
@@ -338,9 +340,9 @@ impl<'a> ExportsContext<'a> {
     })
   }
 
-  fn to_env(&self, pkg: &Value, dir: &Path, entry: &str) -> Target {
+  fn to_env(&self, pkg: &Value, dir: &Path, entry: &str) -> Result<Target, Diagnostic> {
     let context = if let Some(Value::String(context)) = self.context {
-      Environment::try_from(context.as_str()).unwrap()
+      Environment::try_from(context.as_str())?
     } else if self.condition.contains(ExportsCondition::REACT_SERVER) {
       Environment::ReactServer
     } else if self.condition.contains(ExportsCondition::ELECTRON) {
@@ -364,7 +366,7 @@ impl<'a> ExportsContext<'a> {
     };
 
     let output_format = if let Some(Value::String(format)) = self.output_format {
-      OutputFormat::try_from(format.as_str()).unwrap()
+      OutputFormat::try_from(format.as_str())?
     } else if entry.ends_with(".mjs") {
       OutputFormat::Esmodule
     } else if entry.ends_with(".cjs") {
@@ -381,7 +383,7 @@ impl<'a> ExportsContext<'a> {
 
     // Bundle devDependencies but not dependencies or peerDependencies.
     let include_node_modules = if let Some(include) = self.include_node_modules {
-      serde_json::from_value(include.clone()).unwrap()
+      serde_json::from_value(include.clone())?
     } else if let Some(Value::Object(deps)) = pkg.get("devDependencies") {
       IncludeNodeModules::Array(deps.keys().cloned().collect())
     } else {
@@ -398,7 +400,7 @@ impl<'a> ExportsContext<'a> {
       self.condition.contains(ExportsCondition::PRODUCTION),
     ); // ??
 
-    Target {
+    Ok(Target {
       environment: context,
       output_format,
       source_type: SourceType::Module,
@@ -407,9 +409,9 @@ impl<'a> ExportsContext<'a> {
       loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
-      dist_dir: SourceUrl::from_path(dir).unwrap(),
+      dist_dir: SourceUrl::from_path(dir)?,
       public_url: String::new(),
-    }
+    })
   }
 }
 

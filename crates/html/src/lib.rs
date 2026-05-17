@@ -325,7 +325,7 @@ impl Transformer for HtmlTransformer {
     let code = asset.content.read()?;
     let res = transform_html(TransformOptions {
       code,
-      file_path: asset.loc.url.to_file_path().unwrap(),
+      file_path: asset.loc.url.to_file_path()?,
       xml: asset.ty == AssetType::Xhtml,
       target: asset.target.clone(),
       hmr: false,
@@ -389,7 +389,7 @@ fn prepare_to_package(
     if let DependencyResolution::Bundle(b) = dep.resolution {
       let referenced_bundle = &bundle_graph.bundles[b as usize];
       let contents = if dep.bundle_behavior == BundleBehavior::Inline {
-        String::from_utf8(get_inline_bundle_content(b as usize)?.read()?).unwrap()
+        String::from_utf8(get_inline_bundle_content(b as usize)?.read()?)?
       } else {
         referenced_bundle.relative_url(&bundle).unwrap()
       };
@@ -438,7 +438,7 @@ impl Transformer for SvgTransformer {
     let code = asset.content.read()?;
     let res = transform_svg(TransformOptions {
       code,
-      file_path: asset.loc.url.to_file_path().unwrap(),
+      file_path: asset.loc.url.to_file_path()?,
       xml: false,
       target: asset.target.clone(),
       hmr: false,

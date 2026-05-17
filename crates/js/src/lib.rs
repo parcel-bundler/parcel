@@ -49,15 +49,15 @@ pub struct JsTransformer {}
 
 impl Transformer for JsTransformer {
   fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
-    let config = config(&mut asset, options);
+    let config = config(&mut asset, options)?;
     let resolver = parcel_resolver::Resolver::parcel(
-      &options.project_root.to_file_path().unwrap(),
+      &options.project_root.to_file_path()?,
       parcel_resolver::Cache::new(options.input_fs.clone()),
     );
 
     let url = asset.loc.url.clone();
     let env = asset.target.clone();
-    let resolve_from = asset.loc.url.to_file_path().unwrap();
+    let resolve_from = asset.loc.url.to_file_path()?;
     let macro_deps = Arc::new(RefCell::new(Vec::new()));
     let macro_deps_cloned = macro_deps.clone();
     let res = transform_to_ast(
@@ -438,7 +438,7 @@ fn convert_version(version: &parcel_core::Version) -> Version {
   }
 }
 
-fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
+fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnostic> {
   let mut targets = None;
   if asset.target.environment.is_electron() {
     if let Some(electron) = &asset.target.engines.electron {
@@ -472,13 +472,13 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
   }
 
   let resolver = parcel_resolver::Resolver::parcel(
-    &options.project_root.to_file_path().unwrap(),
+    &options.project_root.to_file_path()?,
     parcel_resolver::Cache::new(options.input_fs.clone()),
   );
 
   let invalidations = Invalidations::default();
   let pkg = resolver.find_package(
-    &resolver.cache().get(asset.loc.url.to_file_path().unwrap()),
+    &resolver.cache().get(asset.loc.url.to_file_path()?),
     &invalidations,
   );
   let mut react_refresh = false;
@@ -516,9 +516,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
     let mut tsconfig_jsx_import_source = None;
     let mut tsconfig_jsx_factory = None;
     if let Some(tsconfig) = resolver.find_tsconfig(
-      &resolver
-        .cache()
-        .get(options.project_root.to_file_path().unwrap()),
+      &resolver.cache().get(options.project_root.to_file_path()?),
       &invalidations,
     ) {
       if let Ok(tsconfig) = &*tsconfig {
@@ -641,9 +639,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
   let mut inline_constants = false;
   let mut inline_env = InlineEnvironment::default();
   if let Some(root_pkg) = resolver.find_package(
-    &resolver
-      .cache()
-      .get(options.project_root.to_file_path().unwrap()),
+    &resolver.cache().get(options.project_root.to_file_path()?),
     &invalidations,
   ) {
     if let Ok(root_pkg) = &*root_pkg {
@@ -684,9 +680,9 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
     }
   }
 
-  Config {
+  Ok(Config {
     filename: asset.loc.url.to_string(),
-    code: asset.content.read().unwrap(),
+    code: asset.content.read()?,
     module_id: asset.id(),
     project_root: options.project_root.to_string(),
     context: match &asset.target.environment {
@@ -742,7 +738,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Config {
       .query()
       .map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
     inline_constants,
-  }
+  })
 }
 
 pub struct JsPackager {}
@@ -794,7 +790,7 @@ impl Packager for JsPackager {
           bundle,
           &mut synthetic_assets,
           get_inline_bundle_content,
-        );
+        )?;
 
         if !first {
           res.push(',');
@@ -847,7 +843,7 @@ impl Packager for JsPackager {
           )?;
         } else {
           let code = asset.content.read()?;
-          let deps = serde_json::to_string(&dependencies).unwrap();
+          let deps = serde_json::to_string(&dependencies)?;
           write!(
             res,
             "{}:[function(require,module,exports) {{\n{}\n}}, {}]",
@@ -909,7 +905,7 @@ pub fn asset_dependencies<'a>(
   bundle: &'a Bundle,
   additional_assets: &mut IndexSet<SyntheticAsset>,
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-) -> IndexMap<String, Resolution<'a>> {
+) -> Result<IndexMap<String, Resolution<'a>>, DiagnosticList> {
   let mut dependencies = IndexMap::new();
 
   let used_deps: Vec<u32> = asset.resolved_dependencies().collect();
@@ -1027,11 +1023,10 @@ pub fn asset_dependencies<'a>(
           {
             let content = get_inline_bundle_content(*bundle_index as usize)
               .unwrap()
-              .read()
-              .unwrap();
+              .read()?;
             dependencies.insert(
               placeholder.as_str().into(),
-              Resolution::String(String::from_utf8(content).unwrap()),
+              Resolution::String(String::from_utf8(content)?),
             );
           } else if dep.specifier_type == SpecifierType::Url {
             dependencies.insert(
@@ -1095,7 +1090,7 @@ pub fn asset_dependencies<'a>(
     }
   }
 
-  dependencies
+  Ok(dependencies)
 }
 
 impl SyntheticAsset {
@@ -1327,7 +1322,7 @@ impl Packager for LibraryPackager {
       bundle,
       &mut synthetic_assets,
       get_inline_bundle_content,
-    );
+    )?;
 
     let (code, map) = if let Some(content) = asset.content.downcast_ref::<JsContent>() {
       let mut ast = content.ast.lock().unwrap();

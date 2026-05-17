@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{io::Write, string::FromUtf8Error};
 
 use anstyle::{Ansi256Color, AnsiColor, Color, Style};
 use serde::{Deserialize, Serialize};
@@ -173,6 +173,12 @@ impl From<serde_json::Error> for Diagnostic {
       severity: DiagnosticSeverity::Error,
       documentation_url: None,
     }
+  }
+}
+
+impl From<FromUtf8Error> for Diagnostic {
+  fn from(value: FromUtf8Error) -> Self {
+    Diagnostic::from_message(format!("UTF8 error: {}", value.to_string()))
   }
 }
 

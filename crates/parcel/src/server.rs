@@ -129,7 +129,8 @@ impl DevServer {
         &bundle_graph.bundles[0], // TODO
         &mut synthetic_assets,
         &|_| todo!(),
-      );
+      )
+      .unwrap();
       let mut deps_by_bundle = HashMap::new();
       deps_by_bundle.insert("TODO".into(), dependencies);
 

@@ -5,8 +5,8 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, DiagnosticList, EnvironmentFlags,
-  Namer, OutputFormat,
+  Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, Diagnostic, DiagnosticList,
+  EnvironmentFlags, Namer, OutputFormat,
 };
 use xxhash_rust::xxh3::Xxh3Default;
 
@@ -36,11 +36,11 @@ impl Namer for DefaultNamer {
     if let Some(entry) = bundle.main_entry_asset {
       if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {
         if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-          let relative = relative_path(asset, bundle).with_extension("");
+          let relative = relative_path(asset, bundle)?.with_extension("");
           let name = relative.to_str().unwrap();
           return Ok(Some(format_name(asset_graph, bundle, name, ext)));
         } else {
-          let file_path = asset.loc.url.to_file_path().unwrap();
+          let file_path = asset.loc.url.to_file_path()?;
           let name = file_path.file_prefix().unwrap().to_str().unwrap();
           return Ok(Some(format_name(asset_graph, bundle, name, ext)));
         }
@@ -67,25 +67,21 @@ fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle) -> u64 {
   hash.digest()
 }
 
-fn relative_path(asset: &Asset, bundle: &Bundle) -> PathBuf {
-  let path = asset.loc.url.to_file_path().unwrap();
-  pathdiff::diff_paths(
-    path,
-    bundle
-      .target
-      .dist_dir
-      .to_file_path()
-      .unwrap()
-      .parent()
-      .unwrap(),
+fn relative_path(asset: &Asset, bundle: &Bundle) -> Result<PathBuf, Diagnostic> {
+  let path = asset.loc.url.to_file_path()?;
+  Ok(
+    pathdiff::diff_paths(
+      path,
+      bundle.target.dist_dir.to_file_path()?.parent().unwrap(),
+    )
+    .unwrap()
+    .components()
+    .map(|c| match c {
+      Component::ParentDir => Component::Normal(OsStr::new("up")),
+      _ => c,
+    })
+    .collect(),
   )
-  .unwrap()
-  .components()
-  .map(|c| match c {
-    Component::ParentDir => Component::Normal(OsStr::new("up")),
-    _ => c,
-  })
-  .collect()
 }
 
 fn format_name(asset_graph: &AssetGraph, bundle: &Bundle, name: &str, ext: &str) -> String {

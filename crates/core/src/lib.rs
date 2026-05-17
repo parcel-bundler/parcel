@@ -81,7 +81,7 @@ pub fn build(
     env,
     mode: options.mode,
     log_level: options.log_level,
-    project_root: SourceUrl::from_path(&project_root).unwrap(),
+    project_root: SourceUrl::from_path(&project_root)?,
     input_fs: options.input_fs,
     output_fs: options.output_fs,
   });

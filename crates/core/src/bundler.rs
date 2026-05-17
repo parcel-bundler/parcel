@@ -224,7 +224,7 @@ pub fn bundle(
     }
 
     let name = bundle.name.as_ref().unwrap();
-    let full_path = bundle.target.dist_dir.to_file_path().unwrap().join(&name);
+    let full_path = bundle.target.dist_dir.to_file_path()?.join(&name);
     if seen_bundles.contains(&full_path) {
       duplicate_bundles.insert(full_path);
     } else {
