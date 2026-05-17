@@ -52,7 +52,7 @@ export default class Worker extends EventEmitter {
     if (process.execArgv) {
       filteredArgs = process.execArgv.filter(
         v =>
-          !/^--(debug|inspect|no-opt|max-old-space-size=|max-semi-space-size=|expose-gc)/.test(
+          !/^--(debug|inspect|no-opt|max-old-space-size=|max-semi-space-size=|expose-gc|tls-cipher-list=|v8-pool-size=|trace-event-file-pattern=|secure-heap(-min)?=|node-snapshot|use-largepages=|stack-trace-limit=)/.test(
             v,
           ),
       );
