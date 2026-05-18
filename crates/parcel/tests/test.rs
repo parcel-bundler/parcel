@@ -21,57 +21,33 @@ fn run<
   f: F,
 ) {
   let ctx = create_runtime(fs, &HashMap::new()).unwrap();
-  ctx.context.with(|ctx| {
+  let res = ctx.with(|ctx| {
     let globals = ctx.globals();
     let side_effects = Arc::new(RefCell::new(Vec::<serde_json::Value>::new()));
     let side_effects_clone = side_effects.clone();
-    globals
-      .set("document", rquickjs::Object::new(ctx.clone()))
-      .unwrap();
+    globals.set("document", rquickjs::Object::new(ctx.clone()))?;
     globals.set("output", rquickjs::Undefined).unwrap();
-    globals
-      .set("sideEffectNoop", rquickjs::Function::new(ctx.clone(), noop))
-      .unwrap();
-    globals
-      .set(
-        "sideEffect",
-        rquickjs::Function::new(
-          ctx.clone(),
-          move |args: rquickjs::function::Rest<rquickjs::Value>| {
-            let values = args
-              .0
-              .into_iter()
-              .map(|v| rquickjs_serde::from_value(v).unwrap());
-            side_effects_clone.borrow_mut().extend(values);
-          },
-        ),
-      )
-      .unwrap();
+    globals.set("sideEffectNoop", rquickjs::Function::new(ctx.clone(), noop))?;
+    globals.set(
+      "sideEffect",
+      rquickjs::Function::new(
+        ctx.clone(),
+        move |args: rquickjs::function::Rest<rquickjs::Value>| {
+          let values = args
+            .0
+            .into_iter()
+            .map(|v| rquickjs_serde::from_value(v).unwrap());
+          side_effects_clone.borrow_mut().extend(values);
+        },
+      ),
+    )?;
 
     for path in paths {
-      let res = rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
-        .and_then(|p| p.finish::<rquickjs::Value>());
-      match res {
-        Ok(_) => {}
-        Err(err) => {
-          if err.is_exception() {
-            let e = ctx.catch();
-            let e = if let Some(exception) = e.as_exception() {
-              exception.to_string()
-            } else if let Some(message) = e.as_string() {
-              message.to_string().unwrap_or_else(|e| e.to_string())
-            } else {
-              "Unknown error".into()
-            };
-            panic!("exception: {}", e);
-          } else {
-            panic!("error: {}", err);
-          }
-        }
-      }
+      rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
+        .and_then(|p| p.finish::<rquickjs::Value>())?;
     }
     let parcel_require: rquickjs::Result<Function> = ctx.globals().get("parcelRequire");
-    let output: rquickjs::Result<rquickjs::Value> = parcel_require
+    let output: rquickjs::Value = parcel_require
       .and_then(|parcel_require| parcel_require.call((entry,)))
       .and_then(|v: rquickjs::Value| {
         let output: rquickjs::Value = ctx.globals().get("output")?;
@@ -79,38 +55,15 @@ fn run<
           return Ok(output);
         }
         Ok(v)
-      });
+      })?;
 
-    match output.and_then(|o| f(o, side_effects)) {
-      Ok(v) => v,
-      Err(err) => {
-        if err.is_exception() {
-          let e = ctx.catch();
-          let e = if let Some(exception) = e.as_exception() {
-            exception.to_string()
-          } else if let Some(message) = e.as_string() {
-            message.to_string().unwrap_or_else(|e| e.to_string())
-          } else {
-            "Unknown error".into()
-          };
-          // println!(
-          //   "{}",
-          //   fs_clone
-          //     .read_to_string(Path::new(
-          //       &e.split('\n').nth(1).unwrap()[7..]
-          //         .split(':')
-          //         .next()
-          //         .unwrap()
-          //     ))
-          //     .unwrap()
-          // );
-          panic!("exception: {}", e);
-        } else {
-          panic!("error: {}", err);
-        }
-      }
-    }
+    f(output, side_effects)?;
+    Ok(())
   });
+
+  if let Err(err) = res {
+    panic!("{:?}", err);
+  }
 }
 
 fn noop<'js>(value: rquickjs::Value<'js>) -> rquickjs::Value<'js> {
@@ -229,7 +182,7 @@ fn run_test_with_options<
         .bundles
         .iter()
         .find(|b| b.name.as_ref().unwrap().as_str() == entry.file_name())
-        .unwrap();
+        .expect("could not find bundle");
       let actual_content = output_fs.read_to_string(&bundle.dist_path()).unwrap();
       println!("{}", actual_content);
       assert_eq!(actual_content, content, "{:?}", entry.file_name());

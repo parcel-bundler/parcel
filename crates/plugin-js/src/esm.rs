@@ -114,7 +114,11 @@ impl Loader for ModuleLoader {
         "fs" => return Module::declare_def::<Fs, _>(ctx.clone(), "fs"),
         "fs/promises" => return Module::declare_def::<FsPromises, _>(ctx.clone(), "fs/promises"),
         "process" => return Module::declare_def::<Process, _>(ctx.clone(), "process"),
-        _ => return self.load_cjs(ctx, name),
+        name => {
+          let cjs = ctx.userdata::<CjsLoader>().unwrap();
+          let name = cjs.resolve_builtin(&ctx, name, false)?;
+          return self.load_cjs(ctx, &name);
+        }
       }
     }
 

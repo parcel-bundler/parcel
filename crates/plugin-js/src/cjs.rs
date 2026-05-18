@@ -50,6 +50,8 @@ impl CjsLoader {
           resolved.add_extension("js");
         }
         return Ok(resolved.to_str().unwrap().to_string());
+      } else if name.starts_with("builtin:") {
+        return Ok(name.to_string());
       } else {
         return self.resolve_builtin(ctx, name, false);
       }

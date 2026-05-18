@@ -50,7 +50,16 @@ where
     }
 
     let env = context.as_ref().unwrap();
-    env.context.with(|ctx| {
+    env.with(f)
+  })
+}
+
+impl JsEnv {
+  pub fn with<F, R>(&self, f: F) -> Result<R, DiagnosticList>
+  where
+    F: FnOnce(&Ctx) -> rquickjs::Result<R>,
+  {
+    self.context.with(|ctx| {
       f(&ctx)
         .map_err(|e| {
           let diagnostic = if matches!(e, rquickjs::Error::Exception) {
@@ -66,18 +75,26 @@ where
             }
           };
           let mut diagnostics = vec![diagnostic];
-          diagnostics.extend(collect_rejected_promises(&ctx, &env));
+          diagnostics.extend(collect_rejected_promises(&ctx, self));
           DiagnosticList(diagnostics)
         })
         .and_then(|result| {
-          let diagnostics = collect_rejected_promises(&ctx, &env);
+          let diagnostics = collect_rejected_promises(&ctx, self);
           if !diagnostics.is_empty() {
             return Err(DiagnosticList(diagnostics));
           }
           Ok(result)
         })
     })
-  })
+  }
+}
+
+impl Drop for JsEnv {
+  fn drop(&mut self) {
+    self.context.with(|ctx| {
+      drop(collect_rejected_promises(&ctx, self));
+    });
+  }
 }
 
 pub fn create_runtime(
@@ -97,13 +114,12 @@ pub fn create_runtime(
   runtime.set_max_stack_size(10 * 1024 * 1024); // 10 MB
   runtime.set_host_promise_rejection_tracker(Some(Box::new(
     move |ctx, promise, reason, handled| {
+      let persistent = Persistent::save(&ctx, promise);
       if !handled {
-        rejected_promises.borrow_mut().insert(
-          Persistent::save(&ctx, promise),
-          Persistent::save(&ctx, reason),
-        );
+        rejected_promises
+          .borrow_mut()
+          .insert(persistent, Persistent::save(&ctx, reason));
       } else {
-        let persistent = Persistent::save(&ctx, promise);
         if let Some(value) = rejected_promises.borrow_mut().remove(&persistent) {
           drop(value.restore(&ctx));
         }

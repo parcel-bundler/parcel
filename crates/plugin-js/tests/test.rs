@@ -15,28 +15,14 @@ fn run(code: &str) {
   fs.write(Path::new("/test.mjs"), &code.as_bytes().to_owned())
     .expect("Error writing file");
   let ctx = create_runtime(fs, &HashMap::new()).unwrap();
-  ctx.context.with(|ctx| {
-    let res = rquickjs::Module::import(&ctx, "/test.mjs".as_bytes().to_owned())
-      .and_then(|p| p.finish::<rquickjs::Value>());
-    match res {
-      Ok(_) => {}
-      Err(err) => {
-        if err.is_exception() {
-          let e = ctx.catch();
-          let e = if let Some(exception) = e.as_exception() {
-            exception.to_string()
-          } else if let Some(message) = e.as_string() {
-            message.to_string().unwrap_or_else(|e| e.to_string())
-          } else {
-            "Unknown error".into()
-          };
-          panic!("exception: {}", e);
-        } else {
-          panic!("error: {}", err);
-        }
-      }
-    }
-  })
+  let res = ctx.with(|ctx| {
+    rquickjs::Module::import(&ctx, "/test.mjs".as_bytes().to_owned())
+      .and_then(|p| p.finish::<rquickjs::Value>())?;
+    Ok(())
+  });
+  if let Err(err) = res {
+    panic!("{:?}", err);
+  }
 }
 
 #[test]
