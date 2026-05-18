@@ -167,7 +167,7 @@ impl VisitMut for DependencyVisitor {
 
     for prop in &mut node.attrs {
       if let JSXAttrOrSpread::JSXAttr(prop) = prop {
-        if let (JSXAttrName::Ident(name), Some(JSXAttrValue::Lit(specifier @ Lit::Str(_)))) =
+        if let (JSXAttrName::Ident(name), Some(JSXAttrValue::Str(specifier))) =
           (&prop.name, &prop.value)
         {
           if is_url(element, name.sym.as_str()) {
@@ -179,7 +179,7 @@ impl VisitMut for DependencyVisitor {
                 )))),
                 args: vec![
                   ExprOrSpread {
-                    expr: Box::new(Expr::Lit(specifier.clone())),
+                    expr: Box::new(Expr::Lit(Lit::Str(specifier.clone()))),
                     spread: None,
                   },
                   ExprOrSpread {
@@ -425,7 +425,7 @@ fn has_default_export(module: &Module) -> bool {
       ExportSpecifier::Default(_) => true,
       ExportSpecifier::Namespace(_) => false,
       ExportSpecifier::Named(named) => {
-        matches!(&named.exported, Some(exported) if exported.atom() == "default")
+        matches!(&named.exported, Some(exported) if exported.atom().as_str() == "default")
       }
     }),
     _ => false,

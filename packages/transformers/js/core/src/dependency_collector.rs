@@ -431,7 +431,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       .and_then(|attrs| evaluator.eval_object(&*attrs).ok());
 
     let rewritten = self.add_dependency(
-      node.src.value.clone(),
+      node.src.value.to_string_lossy().into(),
       node.src.span,
       DependencyKind::Import,
       attributes,
@@ -441,7 +441,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten;
+      node.src.value = rewritten.into();
     }
 
     node
@@ -460,7 +460,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         .and_then(|attrs| evaluator.eval_object(&*attrs).ok());
 
       let rewritten = self.add_dependency(
-        src.value.clone(),
+        src.value.to_string_lossy().into(),
         src.span,
         DependencyKind::Export,
         attributes,
@@ -470,7 +470,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       );
 
       if let Some(rewritten) = rewritten {
-        src.value = rewritten;
+        src.value = rewritten.into();
       }
     }
 
@@ -485,7 +485,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       .and_then(|attrs| evaluator.eval_object(&*attrs).ok());
 
     let rewritten = self.add_dependency(
-      node.src.value.clone(),
+      node.src.value.to_string_lossy().into(),
       node.src.span,
       DependencyKind::Export,
       attributes,
@@ -495,7 +495,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten;
+      node.src.value = rewritten.into();
     }
 
     node
@@ -839,7 +839,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               }]),
               hints: Some(vec![format!(
                 "Replace with: new URL('{}', import.meta.url)",
-                str_.value,
+                str_.value.to_string_lossy(),
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,
@@ -891,7 +891,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         if let Some(placeholder) = placeholder {
           let mut node = node.clone();
           node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-            value: placeholder,
+            value: placeholder.into(),
             span,
             raw: None,
           })));
@@ -1014,7 +1014,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               }]),
               hints: Some(vec![format!(
                 "Replace with: new URL('{}', import.meta.url)",
-                str_.value
+                str_.value.to_string_lossy()
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,

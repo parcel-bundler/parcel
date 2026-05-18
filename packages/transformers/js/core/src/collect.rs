@@ -348,7 +348,7 @@ impl Visit for Collect {
           self.imports.insert(
             id!(named.local),
             Import {
-              source: node.src.value.clone(),
+              source: node.src.value.to_string_lossy().into(),
               specifier: imported,
               kind: ImportKind::Import,
               loc: SourceLocation::from(&self.source_map, named.span),
@@ -359,7 +359,7 @@ impl Visit for Collect {
           self.imports.insert(
             id!(default.local),
             Import {
-              source: node.src.value.clone(),
+              source: node.src.value.to_string_lossy().into(),
               specifier: "default".into(),
               kind: ImportKind::Import,
               loc: SourceLocation::from(&self.source_map, default.span),
@@ -370,7 +370,7 @@ impl Visit for Collect {
           self.imports.insert(
             id!(namespace.local),
             Import {
-              source: node.src.value.clone(),
+              source: node.src.value.to_string_lossy().into(),
               specifier: "*".into(),
               kind: ImportKind::Import,
               loc: SourceLocation::from(&self.source_map, namespace.span),
@@ -383,7 +383,10 @@ impl Visit for Collect {
 
   fn visit_named_export(&mut self, node: &NamedExport) {
     for specifier in &node.specifiers {
-      let source = node.src.as_ref().map(|s| s.value.clone());
+      let source = node
+        .src
+        .as_ref()
+        .map(|s| -> JsWord { s.value.to_string_lossy().into() });
       match specifier {
         ExportSpecifier::Named(named) => {
           let exported = match &named.exported {
@@ -572,7 +575,7 @@ impl Visit for Collect {
 
   fn visit_export_all(&mut self, node: &ExportAll) {
     self.exports_all.insert(
-      node.src.value.clone(),
+      node.src.value.to_string_lossy().into(),
       SourceLocation::from(&self.source_map, node.span),
     );
   }
@@ -1011,7 +1014,7 @@ impl Collect {
             ObjectPatProp::KeyValue(kv) => {
               let imported = match &kv.key {
                 PropName::Ident(ident) => ident.sym.clone(),
-                PropName::Str(str) => str.value.clone(),
+                PropName::Str(str) => str.value.to_string_lossy().into(),
                 _ => {
                   // Non-static. E.g. computed property.
                   self.non_static_requires.insert(src.clone());

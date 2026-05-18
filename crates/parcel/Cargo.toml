@@ -8,19 +8,19 @@ edition = "2024"
 parcel-core = { path = "../core" }
 parcel-js = { path = "../js" }
 parcel-resolver = { path = "../parcel-resolver" }
-indexmap = { version = "=2.11.0", features = ["serde"] }
+indexmap = { version = "2.11.0", features = ["serde"] }
 parcel-css = { path = "../css" }
 parcel-html = { path = "../html" }
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel-image = { path = "../image" }
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
-serde = { version = "1.0.123", features = ["derive", "rc"] }
+serde = { version = "1.0.228", features = ["derive", "rc"] }
 parcel-watcher = { git = "https://github.com/parcel-bundler/watcher.git", branch = "rust" }
 parcel-plugin-js = { path = "../plugin-js" }
 tiny_http = "0.12.0"
 tungstenite = "0.28.0"
 url = "*"
-toml = "=0.9.5"
+toml = "1.1.2"
 serde_yaml_ng = "0.10"
 base64-url = "3.0.2"
 pathdiff = "0.2.0"

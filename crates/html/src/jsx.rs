@@ -561,7 +561,7 @@ fn jsx_attr_value(name: ExpandedName, value: &str) -> JSXAttrValue {
         let source_map = Lrc::new(SourceMap::default());
         let source_file = source_map.new_source_file(
           Lrc::new(swc_core::common::FileName::Anon),
-          value[1..value.len() - 1].into(),
+          value[1..value.len() - 1].to_string(),
         );
         let lexer = Lexer::new(
           Default::default(),
@@ -582,7 +582,7 @@ fn jsx_attr_value(name: ExpandedName, value: &str) -> JSXAttrValue {
         }
       }
 
-      JSXAttrValue::Lit(Lit::Str(value.into()))
+      JSXAttrValue::Str(value.into())
     }
   }
 }
@@ -961,7 +961,7 @@ pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: &JsxOptions) -> 
       FileName::Anon.into(),
       false,
       FileName::Anon.into(),
-      template.clone(),
+      template.clone().into(),
       BytePos(1),
     );
     parse_file_as_module(

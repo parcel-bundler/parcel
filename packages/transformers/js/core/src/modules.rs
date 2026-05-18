@@ -299,7 +299,8 @@ impl Fold for ESMFold {
         is_esm = true;
         match decl {
           ModuleDecl::Import(import) => {
-            self.create_require(import.src.value.clone(), import.span);
+            let import_src: JsWord = import.src.value.to_string_lossy().into();
+            self.create_require(import_src.clone(), import.span);
 
             for specifier in &import.specifiers {
               match specifier {
@@ -308,25 +309,23 @@ impl Fold for ESMFold {
                     Some(imported) => match_export_name(imported).0.clone(),
                     None => named.local.sym.clone(),
                   };
-                  self.imports.insert(
-                    id!(named.local),
-                    (import.src.value.clone(), imported.clone()),
-                  );
+                  self
+                    .imports
+                    .insert(id!(named.local), (import_src.clone(), imported.clone()));
                   if imported == "default" {
-                    self.create_interop_default(import.src.value.clone());
+                    self.create_interop_default(import_src.clone());
                   }
                 }
                 ImportSpecifier::Default(default) => {
-                  self.imports.insert(
-                    id!(default.local),
-                    (import.src.value.clone(), "default".into()),
-                  );
-                  self.create_interop_default(import.src.value.clone());
+                  self
+                    .imports
+                    .insert(id!(default.local), (import_src.clone(), "default".into()));
+                  self.create_interop_default(import_src.clone());
                 }
                 ImportSpecifier::Namespace(namespace) => {
                   self
                     .imports
-                    .insert(id!(namespace.local), (import.src.value.clone(), "*".into()));
+                    .insert(id!(namespace.local), (import_src.clone(), "*".into()));
                 }
               }
             }
@@ -335,7 +334,8 @@ impl Fold for ESMFold {
             needs_interop_flag = true;
 
             if let Some(src) = &export.src {
-              self.create_require(src.value.clone(), export.span);
+              let src_word: JsWord = src.value.to_string_lossy().into();
+              self.create_require(src_word.clone(), export.span);
 
               for specifier in &export.specifiers {
                 match specifier {
@@ -346,24 +346,24 @@ impl Fold for ESMFold {
                     };
 
                     if match_export_name(&named.orig).0 == "default" {
-                      self.create_interop_default(src.value.clone());
+                      self.create_interop_default(src_word.clone());
                     }
 
                     let specifier = self.create_import_access(
-                      &src.value,
+                      &src_word,
                       &match_export_name(&named.orig).0,
                       DUMMY_SP,
                     );
                     self.create_export(match_export_name(&exported).0, specifier, export.span);
                   }
                   ExportSpecifier::Default(default) => {
-                    self.create_interop_default(src.value.clone());
+                    self.create_interop_default(src_word.clone());
                     let specifier =
-                      self.create_import_access(&src.value, &"default".into(), DUMMY_SP);
+                      self.create_import_access(&src_word, &"default".into(), DUMMY_SP);
                     self.create_export(default.exported.sym.clone(), specifier, export.span);
                   }
                   ExportSpecifier::Namespace(namespace) => {
-                    let local = self.get_require_name(&src.value, DUMMY_SP);
+                    let local = self.get_require_name(&src_word, DUMMY_SP);
                     self.create_export(
                       match_export_name(&namespace.name).0,
                       Expr::Ident(local),
@@ -378,8 +378,9 @@ impl Fold for ESMFold {
           }
           ModuleDecl::ExportAll(export) => {
             needs_interop_flag = true;
-            self.create_require(export.src.value.clone(), export.span);
-            let require_name = self.get_require_name(&export.src.value, export.span);
+            let export_src: JsWord = export.src.value.to_string_lossy().into();
+            self.create_require(export_src.clone(), export.span);
+            let require_name = self.get_require_name(&export_src, export.span);
             let export = self.call_helper(
               "exportAll".into(),
               vec![

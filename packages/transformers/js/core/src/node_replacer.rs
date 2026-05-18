@@ -74,7 +74,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                     spread: None,
                     expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
                       span: DUMMY_SP,
-                      value: replace_me_value,
+                      value: replace_me_value.into(),
                       raw: None,
                     }))),
                   },
@@ -82,7 +82,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                     spread: None,
                     expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
                       span: DUMMY_SP,
-                      value: JsWord::from(filename.to_string_lossy()),
+                      value: JsWord::from(filename.to_string_lossy()).into(),
                       raw: None,
                     }))),
                   },
@@ -131,7 +131,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
                     spread: None,
                     expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
                       span: DUMMY_SP,
-                      value: replace_me_value,
+                      value: replace_me_value.into(),
                       raw: None,
                     }))),
                   },

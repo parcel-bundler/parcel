@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+  borrow::Cow,
+  path::{Path, PathBuf},
+};
 
 use data_encoding::{BASE64, HEXLOWER};
 use swc_core::{
@@ -90,7 +93,7 @@ impl<'a> InlineFS<'a> {
           MemberProp::Ident(ident) => ident.sym.clone(),
           MemberProp::Computed(ComputedPropName { expr, .. }) => {
             if let Expr::Lit(Lit::Str(str_)) = &**expr {
-              str_.value.clone()
+              str_.value.to_string_lossy().into()
             } else {
               return None;
             }
@@ -131,7 +134,7 @@ impl<'a> InlineFS<'a> {
     match res {
       Expr::Lit(Lit::Str(str_)) => {
         // Ignore if outside the project root
-        let path = match dunce::canonicalize(Path::new(&str_.value.to_string())) {
+        let path = match dunce::canonicalize(Path::new(str_.value.to_string_lossy().as_ref())) {
           Ok(path) => path,
           Err(_err) => return None,
         };
@@ -141,15 +144,15 @@ impl<'a> InlineFS<'a> {
 
         let encoding = match encoding {
           Some(e) => match &*e.expr {
-            Expr::Lit(Lit::Str(str_)) => &str_.value,
-            _ => "buffer",
+            Expr::Lit(Lit::Str(str_)) => str_.value.to_string_lossy(),
+            _ => Cow::Borrowed("buffer"),
           },
-          None => "buffer",
+          None => Cow::Borrowed("buffer"),
         };
 
         // TODO: this should probably happen in JS so we use Parcel's file system
         // rather than only the real FS. Will need when we convert to WASM.
-        let contents = match encoding {
+        let contents = match encoding.as_ref() {
           "base64" | "buffer" => {
             if let Ok(contents) = std::fs::read(&path) {
               BASE64.encode(&contents)
@@ -248,12 +251,12 @@ impl<'a> Fold for Evaluator<'a> {
       Expr::Bin(bin) => match bin.op {
         BinaryOp::Add => {
           let left = match &*bin.left {
-            Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
+            Expr::Lit(Lit::Str(str_)) => str_.value.to_string_lossy().into_owned(),
             _ => return node,
           };
 
           let right = match &*bin.right {
-            Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
+            Expr::Lit(Lit::Str(str_)) => str_.value.to_string_lossy().into_owned(),
             _ => return node,
           };
 
@@ -273,13 +276,12 @@ impl<'a> Fold for Evaluator<'a> {
               let mut path = PathBuf::new();
               for arg in call.args.clone() {
                 let s = match &*arg.expr {
-                  Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
+                  Expr::Lit(Lit::Str(str_)) => str_.value.to_string_lossy().into_owned(),
                   _ => return node,
                 };
                 if path.as_os_str().is_empty() {
-                  path.push(s.to_string());
+                  path.push(&s);
                 } else {
-                  let s = s.to_string();
                   let mut p = Path::new(s.as_str());
 
                   // Node's path.join ignores separators at the start of path components.

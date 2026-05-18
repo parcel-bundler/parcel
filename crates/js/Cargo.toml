@@ -6,14 +6,14 @@ edition = "2024"
 
 [dependencies]
 parcel-core = { path = "../core" }
-serde = { version = "1.0.123", features = ["derive", "rc"] }
-serde_json = { version = "1.0.91", features = ["preserve_order"] }
+serde = { version = "1.0.228", features = ["derive", "rc"] }
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
 parcel-js-swc-core = { path = "../../packages/transformers/js/core" }
-indexmap = { version = "=2.11.0", features = ["serde"] }
+indexmap = { version = "2.11.0", features = ["serde"] }
 parcel-plugin-js = { path = "../plugin-js" }
 parcel-css = { path = "../css" }
 parcel-resolver = { path = "../parcel-resolver" }
 node-semver = "2.2.0"
 glob-match = "*"
-swc_core = { version = "21", features = ["ecma_ast", "ecma_quote"] }
+swc_core = { version = "66", features = ["ecma_ast", "ecma_quote"] }
 fixedbitset = "0.5.7"

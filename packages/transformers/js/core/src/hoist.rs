@@ -380,15 +380,14 @@ impl<'a> Fold for Hoist<'a> {
         ModuleItem::ModuleDecl(decl) => {
           match decl {
             ModuleDecl::Import(import) => {
+              let import_src: JsWord = import.src.value.to_string_lossy().into();
               self.hoisted_imports.insert(
-                import.src.value.clone(),
+                import_src.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
                   with: None,
                   span: DUMMY_SP,
-                  src: Box::new(
-                    format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
-                  ),
+                  src: Box::new(format!("{}:{}:{}", self.module_id, import_src, "esm").into()),
                   type_only: false,
                   phase: Default::default(),
                 })),
@@ -428,14 +427,15 @@ impl<'a> Fold for Hoist<'a> {
             }
             ModuleDecl::ExportNamed(export) => {
               if let Some(src) = export.src {
+                let src_word: JsWord = src.value.to_string_lossy().into();
                 self.hoisted_imports.insert(
-                  src.value.clone(),
+                  src_word.clone(),
                   ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     specifiers: vec![],
                     with: None,
                     span: DUMMY_SP,
                     src: Box::new(Str {
-                      value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
+                      value: format!("{}:{}:{}", self.module_id, src_word, "esm").into(),
                       span: DUMMY_SP,
                       raw: None,
                     }),
@@ -452,7 +452,7 @@ impl<'a> Fold for Hoist<'a> {
                         None => match_export_name(&named.orig).0.clone(),
                       };
                       self.re_exports.push(ImportedSymbol {
-                        source: src.value.clone(),
+                        source: src_word.clone(),
                         local: exported,
                         imported: match_export_name(&named.orig).0,
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
@@ -461,7 +461,7 @@ impl<'a> Fold for Hoist<'a> {
                     }
                     ExportSpecifier::Default(default) => {
                       self.re_exports.push(ImportedSymbol {
-                        source: src.value.clone(),
+                        source: src_word.clone(),
                         local: default.exported.sym,
                         imported: "default".into(),
                         loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
@@ -470,7 +470,7 @@ impl<'a> Fold for Hoist<'a> {
                     }
                     ExportSpecifier::Namespace(namespace) => {
                       self.re_exports.push(ImportedSymbol {
-                        source: src.value.clone(),
+                        source: src_word.clone(),
                         local: match_export_name(&namespace.name).0,
                         imported: "*".into(),
                         loc: SourceLocation::from(&self.collect.source_map, namespace.span),
@@ -524,21 +524,20 @@ impl<'a> Fold for Hoist<'a> {
               }
             }
             ModuleDecl::ExportAll(export) => {
+              let export_src: JsWord = export.src.value.to_string_lossy().into();
               self.hoisted_imports.insert(
-                export.src.value.clone(),
+                export_src.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
                   with: None,
                   span: DUMMY_SP,
-                  src: Box::new(
-                    format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
-                  ),
+                  src: Box::new(format!("{}:{}:{}", self.module_id, export_src, "esm").into()),
                   type_only: false,
                   phase: Default::default(),
                 })),
               );
               self.re_exports.push(ImportedSymbol {
-                source: export.src.value,
+                source: export_src,
                 local: "*".into(),
                 imported: "*".into(),
                 loc: SourceLocation::from(&self.collect.source_map, export.span),
@@ -1370,7 +1369,7 @@ mod tests {
 
   fn parse(code: &str) -> (Collect, String, HoistResult) {
     let source_map = Lrc::new(SourceMap::default());
-    let source_file = source_map.new_source_file(Lrc::new(FileName::Anon), code.into());
+    let source_file = source_map.new_source_file(Lrc::new(FileName::Anon), code.to_owned());
 
     let comments = SingleThreadedComments::default();
     let lexer = Lexer::new(

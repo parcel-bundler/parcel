@@ -8,7 +8,7 @@ edition = "2024"
 crate-type = ["rlib"]
 
 [dependencies]
-swc_core = { version = "21", features = [
+swc_core = { version = "66", features = [
   "common",
   "common_concurrent",
   "common_sourcemap",
@@ -28,7 +28,7 @@ swc_core = { version = "21", features = [
   "ecma_quote",
   "stacker"
 ] }
-swc_node_comments = "8.0.0"
+swc_node_comments = "22"
 indoc = "1.0.3"
 serde = "1.0.123"
 serde_bytes = "0.11.5"
@@ -38,10 +38,10 @@ sha-1 = "0.10.0"
 dunce = "1.0.1"
 pathdiff = "0.2.0"
 path-slash = "0.1.4"
-indexmap = { version = "=2.11.0", features = ["serde"] }
+indexmap = { version = "2.11.0", features = ["serde"] }
 parcel-macros = { path = "../../../../crates/macros" }
 parking_lot = "0.12"
 bitflags = { version = "2.7.0", features=["serde"] }
-mdxjs = "0.3.4"
-markdown = { version = "1.0.0-alpha.22", features = ["serde"] }
+mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }
+markdown = { version = "1.0.0", features = ["serde"] }
 rustc-hash = "2"

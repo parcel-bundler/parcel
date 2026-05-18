@@ -1,6 +1,6 @@
 use std::{
   borrow::Cow,
-  collections::HashMap,
+  collections::BTreeMap,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -11,15 +11,15 @@ use napi::{
 };
 use napi_derive::napi;
 
+use parcel_core::{ExportsCondition, IncludeNodeModules};
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
-  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileKind, FileSystem, Flags,
-  IncludeNodeModules, Invalidations, ModuleType, Resolution, ResolutionAndQuery, ResolverError,
-  SpecifierType,
+  Extensions, Fields, FileCreateInvalidation, FileKind, FileSystem, Flags, Invalidations,
+  ModuleType, Resolution, ResolutionAndQuery, ResolverError, SpecifierType,
 };
 
-type NapiSideEffectsVariants = Either3<bool, Vec<String>, HashMap<String, bool>>;
+type NapiSideEffectsVariants = Either3<bool, Vec<String>, BTreeMap<String, bool>>;
 
 #[napi(object)]
 pub struct JsFileSystemOptions {
@@ -113,6 +113,30 @@ impl FileSystem for JsFileSystem {
     };
 
     canonicalize().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
+  }
+
+  fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+    todo!()
+  }
+
+  fn stat(&self, path: &Path) -> Option<parcel_core::FileStat> {
+    todo!()
+  }
+
+  fn lstat(&self, path: &Path) -> Option<parcel_core::FileStat> {
+    todo!()
+  }
+
+  fn write(&self, path: &Path, contents: &Vec<u8>) -> std::io::Result<()> {
+    todo!()
+  }
+
+  fn read_dir(&self, path: &Path) -> std::io::Result<Vec<parcel_core::DirEntry>> {
+    todo!()
+  }
+
+  fn create_dir_all(&self, path: &Path) -> std::io::Result<()> {
+    todo!()
   }
 }
 

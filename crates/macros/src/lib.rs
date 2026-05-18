@@ -82,13 +82,13 @@ impl<'a> Macros<'a> {
         ImportSpecifier::Named(named) => {
           let imported = match &named.imported {
             Some(ModuleExportName::Ident(id)) => id.sym.clone(),
-            Some(ModuleExportName::Str(s)) => s.value.clone(),
+            Some(ModuleExportName::Str(s)) => s.value.to_atom_lossy().into_owned(),
             None => named.local.sym.clone(),
           };
           self.macros.insert(
             named.local.to_id(),
             MacroImport {
-              src: import.src.value.clone(),
+              src: import.src.value.to_atom_lossy().into_owned(),
               imported: Some(imported),
               span: import.span,
             },
@@ -98,7 +98,7 @@ impl<'a> Macros<'a> {
           self.macros.insert(
             default.local.to_id(),
             MacroImport {
-              src: import.src.value.clone(),
+              src: import.src.value.to_atom_lossy().into_owned(),
               imported: Some("default".into()),
               span: import.span,
             },
@@ -108,7 +108,7 @@ impl<'a> Macros<'a> {
           self.macros.insert(
             namespace.local.to_id(),
             MacroImport {
-              src: import.src.value.clone(),
+              src: import.src.value.to_atom_lossy().into_owned(),
               imported: None,
               span: import.span,
             },
@@ -329,9 +329,8 @@ fn is_macro(with: &ObjectLit) -> bool {
     if let PropOrSpread::Prop(prop) = &prop {
       if let Prop::KeyValue(kv) = &**prop {
         let k = match &kv.key {
-          PropName::Ident(IdentName { sym, .. }) | PropName::Str(Str { value: sym, .. }) => {
-            sym.clone()
-          }
+          PropName::Ident(IdentName { sym, .. }) => sym.clone(),
+          PropName::Str(Str { value, .. }) => value.to_atom_lossy().into_owned(),
           _ => continue,
         };
         if &k == "type"
@@ -393,7 +392,7 @@ impl<'a> Evaluator<'a> {
         Lit::Null(_) => Ok(JsValue::Null),
         Lit::Bool(v) => Ok(JsValue::Bool(v.value)),
         Lit::Num(v) => Ok(JsValue::Number(v.value)),
-        Lit::Str(v) => Ok(JsValue::String(v.value.to_string())),
+        Lit::Str(v) => Ok(JsValue::String(v.value.to_string_lossy().into_owned())),
         Lit::JSXText(v) => Ok(JsValue::String(v.value.to_string())),
         Lit::Regex(v) => Ok(JsValue::Regex {
           source: v.exp.to_string(),
@@ -652,9 +651,8 @@ impl<'a> Evaluator<'a> {
           Prop::KeyValue(kv) => {
             let v = self.eval(&*kv.value)?;
             let k = match &kv.key {
-              PropName::Ident(IdentName { sym, .. }) | PropName::Str(Str { value: sym, .. }) => {
-                sym.to_string()
-              }
+              PropName::Ident(IdentName { sym, .. }) => sym.to_string(),
+              PropName::Str(Str { value, .. }) => value.to_string_lossy().into_owned(),
               PropName::Num(n) => n.value.to_string(),
               PropName::Computed(c) => match self.eval(&*c.expr) {
                 Err(e) => return Err(e),
@@ -757,10 +755,9 @@ impl<'a> Evaluator<'a> {
           .collect::<Result<Vec<_>, MacroError>>()?,
       }),
       JsValue::Function(source) => {
-        let source_file = self.source_map.new_source_file(
-          Lrc::new(swc_core::common::FileName::MacroExpansion),
-          source.into(),
-        );
+        let source_file = self
+          .source_map
+          .new_source_file(Lrc::new(swc_core::common::FileName::MacroExpansion), source);
         let lexer = Lexer::new(
           Default::default(),
           Default::default(),
@@ -832,8 +829,8 @@ impl<'a> Evaluator<'a> {
                     value.get_id(id.sym.as_str()).ok_or(id.span)
                   }
                   PropName::Str(s) => {
-                    consumed.insert(s.value.clone());
-                    value.get_id(s.value.as_str()).ok_or(s.span)
+                    consumed.insert(s.value.to_atom_lossy().into_owned());
+                    value.get_id(&s.value.to_string_lossy()).ok_or(s.span)
                   }
                   PropName::Num(n) => {
                     consumed.insert(n.value.to_string().into());
@@ -876,7 +873,7 @@ impl<'a> Evaluator<'a> {
                 if let JsValue::Object(obj) = value {
                   let filtered = obj
                     .iter()
-                    .filter(|(k, _)| !consumed.contains(&k.as_str().into()))
+                    .filter(|(k, _)| !consumed.contains::<JsWord>(&k.as_str().into()))
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
                   Ok(JsValue::Object(filtered))

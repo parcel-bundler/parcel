@@ -40,7 +40,7 @@ impl<'a> VisitMut for EnvReplacer<'a> {
       Expr::Bin(binary) if binary.op == BinaryOp::In => {
         if let (Expr::Lit(Lit::Str(left)), Expr::Member(member)) = (&*binary.left, &*binary.right) {
           if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
-            self.used_env.insert(left.value.clone());
+            self.used_env.insert(left.value.to_string_lossy().into());
             *node = Expr::Lit(Lit::Bool(Bool {
               value: self.env.contains_key(&left.value),
               span: DUMMY_SP,
@@ -241,7 +241,7 @@ impl<'a> EnvReplacer<'a> {
       self.used_env.insert(sym.clone());
       return Some(Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: val.clone(),
+        value: val.clone().into(),
         raw: None,
       })));
     } else if fallback_undefined {
@@ -271,7 +271,7 @@ impl<'a> EnvReplacer<'a> {
             ObjectPatProp::KeyValue(kv) => {
               let key = match &kv.key {
                 PropName::Ident(ident) => Some(ident.sym.clone()),
-                PropName::Str(str) => Some(str.value.clone()),
+                PropName::Str(str) => Some(str.value.to_string_lossy().into()),
                 // Non-static. E.g. computed property.
                 _ => None,
               };

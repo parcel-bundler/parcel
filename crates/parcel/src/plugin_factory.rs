@@ -68,14 +68,6 @@ impl PluginFactory for DefaultPluginFactory {
         }
         todo!()
       }
-      "@parcel/transformer-quickjs" => {
-        if let Some(config) = config {
-          if let Some(serde_json::Value::String(lib)) = config.get("path") {
-            return Ok(Arc::new(JsPlugin::new(Path::new(lib))));
-          }
-        }
-        todo!()
-      }
       _ => {
         // TODO: possibly support exports conditions for platform (e.g. darwin, linux, x64, arm64, etc.)
         let resolved = self

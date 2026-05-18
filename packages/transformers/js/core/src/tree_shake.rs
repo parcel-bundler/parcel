@@ -198,7 +198,10 @@ impl<'a> VisitMut for TreeShake<'a> {
           return;
         };
 
-        if let Some(resolution) = self.resolutions.get(specifier.value.as_str()) {
+        if let Some(resolution) = self
+          .resolutions
+          .get(specifier.value.to_string_lossy().as_ref())
+        {
           match resolution {
             Resolution::Excluded => {
               *node = Expr::Object(Default::default());
@@ -303,7 +306,10 @@ impl<'a> VisitMut for TreeShake<'a> {
       let node = &mut nodes[i];
       match node {
         ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
-          if let Some(resolution) = self.resolutions.get(import.src.value.as_str()) {
+          if let Some(resolution) = self
+            .resolutions
+            .get(import.src.value.to_string_lossy().as_ref())
+          {
             match resolution {
               Resolution::External(specifier) => {
                 import.src.value = specifier.as_ref().into();
@@ -351,7 +357,10 @@ impl<'a> VisitMut for TreeShake<'a> {
           }
         }
         ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) => {
-          if let Some(resolution) = self.resolutions.get(export.src.value.as_str()) {
+          if let Some(resolution) = self
+            .resolutions
+            .get(export.src.value.to_string_lossy().as_ref())
+          {
             match resolution {
               Resolution::External(resolution) => {
                 export.src.value = resolution.as_ref().into();
@@ -366,7 +375,7 @@ impl<'a> VisitMut for TreeShake<'a> {
         }
         ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
           if let Some(src) = &mut export.src {
-            if let Some(resolution) = self.resolutions.get(src.value.as_str()) {
+            if let Some(resolution) = self.resolutions.get(src.value.to_string_lossy().as_ref()) {
               match resolution {
                 Resolution::External(resolution) => {
                   src.value = resolution.as_ref().into();
@@ -388,7 +397,7 @@ impl<'a> VisitMut for TreeShake<'a> {
 
   fn visit_mut_str(&mut self, node: &mut Str) {
     if node.value == "$parcel$dirnameReplace" || node.value == "$parcel$filenameReplace" {
-      node.value = self.dirname.clone();
+      node.value = self.dirname.clone().into();
     }
   }
 }

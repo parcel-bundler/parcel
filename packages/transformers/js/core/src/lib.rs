@@ -53,7 +53,7 @@ use swc_core::{
     atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
-    preset_env::{Mode::Entry, Targets, preset_env},
+    preset_env::{Mode::Entry, Targets, transform_from_env},
     transforms::{
       base::{
         assumptions::Assumptions,
@@ -320,7 +320,7 @@ impl Ast {
       let map = if source_maps
         && self
           .source_map
-          .build_source_map_with_config(&src_map_buf, None, SourceMapConfig)
+          .build_source_map(&src_map_buf, None, SourceMapConfig)
           .to_writer(&mut map_buf)
           .is_ok()
       {
@@ -379,7 +379,7 @@ pub fn transform_to_ast(
     };
 
   let (module, comments) = if matches!(config.asset_type, Type::Mdx) {
-    source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.into());
+    source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.to_owned());
 
     let res = mdx(&config);
     match res {
@@ -423,7 +423,7 @@ pub fn transform_to_ast(
       for item in &module.body {
         if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item {
           if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-            result.directives.push(value.clone());
+            result.directives.push(value.to_string_lossy().into());
             continue;
           }
         }
@@ -434,7 +434,7 @@ pub fn transform_to_ast(
       for item in &script.body {
         if let Stmt::Expr(ExprStmt { expr, .. }) = item {
           if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-            result.directives.push(value.clone());
+            result.directives.push(value.to_string_lossy().into());
             continue;
           }
         }
@@ -476,10 +476,10 @@ pub fn transform_to_ast(
           let mut react_options = react::Options::default();
           if config.is_jsx() {
             if let Some(jsx_pragma) = &config.jsx_pragma {
-              react_options.pragma = Some(Lrc::new(jsx_pragma.clone()));
+              react_options.pragma = Some(jsx_pragma.clone().into());
             }
             if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
-              react_options.pragma_frag = Some(Lrc::new(jsx_pragma_frag.clone()));
+              react_options.pragma_frag = Some(jsx_pragma_frag.clone().into());
             }
             react_options.development = Some(config.is_development);
             react_options.refresh = if config.react_refresh() {
@@ -575,6 +575,8 @@ pub fn transform_to_ast(
               preset_env_config.shipped_proposals = true;
               preset_env_config.mode = Some(Entry);
               preset_env_config.bugfixes = true;
+            } else {
+              preset_env_config.targets = Some(Targets::Versions(Default::default()));
             }
           }
 
@@ -671,21 +673,18 @@ pub fn transform_to_ast(
           );
 
           let mut program = Program::Module(module);
-          program.mutate(&mut (
+          if should_run_preset_env {
             // Transpile new syntax to older syntax if needed
-            Optional::new(
-              preset_env(
-                unresolved_mark,
-                Some(&comments),
-                preset_env_config,
-                assumptions,
-                &mut Default::default(),
-              ),
-              should_run_preset_env,
-            ),
-            // Inject SWC helpers if needed.
-            helpers::inject_helpers(global_mark),
-          ));
+            program.mutate(&mut transform_from_env(
+              unresolved_mark,
+              Some(&comments),
+              preset_env_config.into(),
+              assumptions,
+            ));
+          }
+
+          // Inject SWC helpers if needed.
+          program.mutate(&mut helpers::inject_helpers(global_mark));
           let mut module = program.expect_module();
 
           // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
@@ -841,7 +840,7 @@ fn parse(
   source_map: &Lrc<SourceMap>,
   config: &Config,
 ) -> ParseResult<(Program, SwcComments)> {
-  let source_file = source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.into());
+  let source_file = source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.to_owned());
   let comments = SwcComments::default();
   let syntax = if config.is_type_script() {
     Syntax::Typescript(TsSyntax {

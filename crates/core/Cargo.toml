@@ -9,17 +9,17 @@ bitflags = { version = "2.7.0", features = ["serde"] }
 browserslist-rs = "0.18.1"
 json-sourcemap = "0.2.0"
 node-semver = "2.2.0"
-serde = { version = "=1.0.219", features = ["derive", "rc"] }
+serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_bytes = "0.11.5"
 serde-value = "0.7.0"
-indexmap = { version = "=2.11.0", features = ["serde"] }
+indexmap = { version = "2.11.0", features = ["serde"] }
 glob-match = "*"
 petgraph = "*"
 fixedbitset = "0.5.7"
 url = "*"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel_sourcemap = "*"
-serde_json = { version = "=1.0.140", features = ["preserve_order"] }
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
 libloading = "0.9"
 # wasmtime = "38.0.0"
 # wasmtime-wasi = "38.0.0"

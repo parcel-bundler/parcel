@@ -1048,6 +1048,10 @@ impl<'i> lightningcss::visitor::Visitor<'i> for ReferenceReplacer {
         rule.loc.source_index = self.loc.source_index;
         rule.loc.line += self.loc.line;
       }
+      CssRule::PositionTry(rule) => {
+        rule.loc.source_index = self.loc.source_index;
+        rule.loc.line += self.loc.line;
+      }
       CssRule::Ignored => {}
       CssRule::Unknown(rule) => {
         rule.loc.source_index = self.loc.source_index;

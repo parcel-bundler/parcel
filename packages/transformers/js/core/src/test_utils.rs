@@ -77,7 +77,7 @@ pub(crate) fn run_with_transformation<R>(
   transform: impl FnOnce(RunTestContext, &mut Module) -> R,
 ) -> (String, R) {
   let source_map = Lrc::new(SourceMap::default());
-  let source_file = source_map.new_source_file(Lrc::new(FileName::Anon), code.into());
+  let source_file = source_map.new_source_file(Lrc::new(FileName::Anon), code.to_owned());
 
   let lexer = Lexer::new(
     Default::default(),

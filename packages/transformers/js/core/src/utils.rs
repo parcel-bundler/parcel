@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{borrow::Cow, cmp::Ordering};
 
 use serde::{Deserialize, Serialize};
 use swc_core::{
@@ -23,15 +23,15 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, unresolved_m
   let mut idents = idents;
   while idents.len() > 1 {
     let expected = idents.pop().unwrap();
-    let prop = match &member.prop {
+    let prop: Cow<'_, str> = match &member.prop {
       MemberProp::Computed(comp) => {
         if let Expr::Lit(Lit::Str(Str { value: ref sym, .. })) = *comp.expr {
-          sym
+          sym.to_string_lossy()
         } else {
           return false;
         }
       }
-      MemberProp::Ident(IdentName { sym, .. }) => sym,
+      MemberProp::Ident(IdentName { sym, .. }) => Cow::Borrowed(sym.as_str()),
       _ => return false,
     };
 
@@ -88,7 +88,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
 
   match node {
     // "string" or 'string'
-    Expr::Lit(Lit::Str(s)) => Some((s.value.clone(), s.span)),
+    Expr::Lit(Lit::Str(s)) => Some((s.value.to_string_lossy().into(), s.span)),
     // `string`
     Expr::Tpl(tpl) if tpl.quasis.len() == 1 && tpl.exprs.is_empty() => {
       Some(((*tpl.quasis[0].raw).into(), tpl.span))
@@ -108,7 +108,7 @@ pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
 pub fn match_export_name(name: &ast::ModuleExportName) -> (JsWord, Span) {
   match name {
     ast::ModuleExportName::Ident(id) => (id.sym.clone(), id.span),
-    ast::ModuleExportName::Str(s) => (s.value.clone(), s.span),
+    ast::ModuleExportName::Str(s) => (s.value.to_string_lossy().into(), s.span),
   }
 }
 

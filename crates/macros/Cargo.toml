@@ -8,8 +8,8 @@ edition = "2024"
 napi = ["dep:napi", "dep:napi-derive", "dep:crossbeam-channel"]
 
 [dependencies]
-indexmap = { version = "=2.11.0", features = ["serde"] }
-swc_core = { version = "21", features = [
+indexmap = { version = "2.11.0", features = ["serde"] }
+swc_core = { version = "66", features = [
   "common",
   "common_sourcemap",
   "ecma_ast",
@@ -18,7 +18,7 @@ swc_core = { version = "21", features = [
   "stacker",
   "__utils"
 ] }
-serde = "1.0.123"
+serde = "1.0.228"
 napi-derive = { version = "2.12.5", optional = true }
 napi = { version =  "2.16.4", features = ["serde-json", "napi4", "napi5"], optional = true }
 crossbeam-channel = { version = "0.5.6", optional = true }

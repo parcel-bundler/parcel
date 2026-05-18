@@ -6,7 +6,7 @@ edition = "2024"
 
 [dependencies]
 html5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
-serde = { version = "1.0.123", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_bytes = "0.11.5"
 serde_json = "1.0.91"
 typed-arena = "2.0.2"
@@ -16,14 +16,14 @@ oxvg_ast = { git = "https://github.com/noahbald/oxvg.git" }
 oxvg_optimiser = { git = "https://github.com/noahbald/oxvg.git" }
 anyhow = "*"
 selectors = "0.26"
-swc_core = { version = "21", features = [
+swc_core = { version = "66", features = [
   "common",
   "ecma_parser",
   "ecma_ast",
   "ecma_codegen",
   "ecma_quote",
 ] }
-lightningcss = { path = "/Users/devongovett/dev/lightningcss" }
+lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git" }
 convert_case = "0.6.0"
 indexmap = { version = "1.9.2", features = ["serde"] }
 ref-cast = "1.0"

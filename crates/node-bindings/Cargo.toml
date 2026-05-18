@@ -19,6 +19,7 @@ xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 napi = { version = "2.16.4", features = ["serde-json", "napi4", "napi5"] }
 parcel-dev-dep-resolver = { path = "../dev-dep-resolver" }
 parcel-macros = { path = "../macros", features = ["napi"] }
+parcel-core = { path = "../core" }
 oxipng = "9.1.2"
 mozjpeg-sys = "2.0.0"
 libc = "0.2"
