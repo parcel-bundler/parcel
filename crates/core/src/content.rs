@@ -10,12 +10,6 @@ pub trait Content: Any + std::fmt::Debug + Send + Sync {
   /// Reads the content as a byte vector.
   fn read(&self) -> Result<Vec<u8>, Diagnostic>;
 
-  /// Takes the content as a byte vector, without cloning.
-  /// This means the content may no longer be readable in the future.
-  fn take(&mut self) -> Result<Vec<u8>, Diagnostic> {
-    self.read()
-  }
-
   /// Writes the content to a file.
   fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
     Ok(fs.write(path, &self.read()?)?)
@@ -91,10 +85,6 @@ impl Content for BufferContent {
     Ok(self.buf.clone())
   }
 
-  fn take(&mut self) -> Result<Vec<u8>, Diagnostic> {
-    Ok(std::mem::take(&mut self.buf))
-  }
-
   fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
     Ok(fs.write(path, &self.buf)?)
   }
@@ -115,10 +105,6 @@ impl ContentWithSourceMap {
 impl Content for ContentWithSourceMap {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.clone())
-  }
-
-  fn take(&mut self) -> Result<Vec<u8>, Diagnostic> {
-    Ok(std::mem::take(&mut self.code))
   }
 
   fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {

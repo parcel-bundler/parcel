@@ -127,7 +127,7 @@ mod tests {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           loc: SourceLocation {
-            url: SourceUrl::parse("one.js").unwrap(),
+            url: SourceUrl::parse("file:///one.js").unwrap(),
             ..Default::default()
           },
           ty: AssetType::Js,
@@ -154,7 +154,7 @@ mod tests {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           loc: SourceLocation {
-            url: SourceUrl::parse("two.js").unwrap(),
+            url: SourceUrl::parse("file:///two.js").unwrap(),
             ..Default::default()
           },
           ty: AssetType::Js,
@@ -184,7 +184,7 @@ mod tests {
       flags: DependencyFlags::empty(),
       target: Arc::new(Default::default()),
       loc: Some(crate::SourceLocation {
-        url: SourceUrl::parse("test.js").unwrap(),
+        url: SourceUrl::parse("file:///test.js").unwrap(),
         ..Default::default()
       }),
       placeholder: None,
@@ -199,7 +199,7 @@ mod tests {
       res,
       DependencyResolution::Deferred(Arc::new(AssetRequest {
         loc: SourceLocation {
-          url: SourceUrl::parse("one.js").unwrap(),
+          url: SourceUrl::parse("file:///one.js").unwrap(),
           ..Default::default()
         },
         ty: AssetType::Js,
@@ -217,7 +217,7 @@ mod tests {
       res,
       DependencyResolution::Deferred(Arc::new(AssetRequest {
         loc: SourceLocation {
-          url: SourceUrl::parse("two.js").unwrap(),
+          url: SourceUrl::parse("file:///two.js").unwrap(),
           ..Default::default()
         },
         ty: AssetType::Js,

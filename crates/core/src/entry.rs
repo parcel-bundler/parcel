@@ -572,9 +572,10 @@ mod tests {
           url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("import.mjs".into()),
@@ -585,9 +586,10 @@ mod tests {
           url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Commonjs,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("require.cjs".into()),
@@ -615,6 +617,7 @@ mod tests {
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY,
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("node.js".into()),
@@ -629,6 +632,7 @@ mod tests {
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("browser.js".into()),
@@ -661,8 +665,9 @@ mod tests {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Esmodule,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("node.mjs".into()),
@@ -675,8 +680,9 @@ mod tests {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Commonjs,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("node.cjs".into()),
@@ -687,9 +693,10 @@ mod tests {
           url: SourceUrl::parse("file:///root/browser.tsx").unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("browser.mjs".into()),
@@ -700,9 +707,10 @@ mod tests {
           url: SourceUrl::parse("file:///root/browser.tsx").unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Commonjs,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("browser.cjs".into()),
@@ -733,9 +741,10 @@ mod tests {
           target: Arc::new(Target {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("node.mjs".into()),
@@ -747,9 +756,10 @@ mod tests {
           target: Arc::new(Target {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Commonjs,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("node.cjs".into()),
@@ -760,9 +770,10 @@ mod tests {
           url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("browser.mjs".into()),
@@ -773,9 +784,10 @@ mod tests {
           url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Commonjs,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("browser.cjs".into()),
@@ -808,6 +820,7 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root").unwrap(),
+          source_map: Some(Default::default()),
           ..Default::default()
         }),
         dist_entry: Some("dist.js".into()),
@@ -842,6 +855,7 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root").unwrap(),
+          source_map: Some(Default::default()),
           ..Default::default()
         }),
         dist_entry: Some("dist.js".into()),
@@ -874,6 +888,7 @@ mod tests {
               ..Default::default()
             },
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("dist.js".into()),
@@ -895,6 +910,7 @@ mod tests {
               ..Default::default()
             },
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("module.js".into()),
@@ -924,9 +940,10 @@ mod tests {
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("foo.mjs".into()),
@@ -938,9 +955,10 @@ mod tests {
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("bar.mjs".into()),
@@ -964,9 +982,10 @@ mod tests {
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("bar.mjs".into()),
@@ -978,9 +997,10 @@ mod tests {
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
-            flags: EnvironmentFlags::IS_LIBRARY,
+            flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
+            source_map: Some(Default::default()),
             ..Default::default()
           }),
           dist_entry: Some("foo.mjs".into()),
@@ -1021,6 +1041,7 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
+          source_map: Some(Default::default()),
           ..Default::default()
         }),
         dist_entry: Some("index.js".into()),
@@ -1064,6 +1085,7 @@ mod tests {
             ..Default::default()
           },
           dist_dir: SourceUrl::parse("file:///root/dist").unwrap(),
+          source_map: Some(Default::default()),
           ..Default::default()
         }),
         dist_entry: Some("index.js".into()),
@@ -1085,9 +1107,10 @@ mod tests {
         target: Arc::new(Target {
           environment: Environment::Browser,
           output_format: crate::OutputFormat::Esmodule,
-          flags: EnvironmentFlags::IS_LIBRARY,
+          flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
           include_node_modules: crate::IncludeNodeModules::Bool(false),
           dist_dir: SourceUrl::parse("file:///root/style/dist").unwrap(),
+          source_map: Some(Default::default()),
           ..Default::default()
         }),
         dist_entry: Some("index.mjs".into()),
