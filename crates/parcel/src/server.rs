@@ -1,6 +1,6 @@
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::{Asset, AssetType, BundleGraph, OutputFormat};
-use parcel_js::{Resolution, SyntheticAsset, asset_dependencies};
+use parcel_js::packager::{Resolution, SyntheticAsset, asset_dependencies};
 use std::{
   collections::HashMap,
   fmt::Write,
