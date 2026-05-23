@@ -23,12 +23,7 @@
   },
   "bundler": "@parcel/bundler-library",
   "namers": ["@parcel/namer-default"],
-  "packagers": {
-    "js": "@parcel/packager-library",
-    "css": "@parcel/packager-css",
-    "style": "@parcel/packager-style-attr",
-    "html": "@parcel/packager-html",
-    "xhtml": "@parcel/packager-html",
-    "svg": "@parcel/packager-svg"
+  "optimizers": {
+    "data-url:*": ["...", "@parcel/optimizer-data-url"]
   }
 }

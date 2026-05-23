@@ -10,10 +10,8 @@ pub use parcel_js_swc_core::tree_shake::Resolution;
 
 use crate::JsContent;
 
-pub struct JsPackager {}
-
-impl Packager for JsPackager {
-  fn package(
+impl JsContent {
+  pub(crate) fn package_app(
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,

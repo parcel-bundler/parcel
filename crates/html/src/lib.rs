@@ -332,16 +332,23 @@ impl Transformer for HtmlTransformer {
     });
 
     asset.bundle_behavior = BundleBehavior::Isolated;
-    asset.content = Arc::new(BufferContent::new(res.code));
+    asset.content = Arc::new(HtmlContent { code: res.code });
     asset.dependencies.extend(res.dependencies);
 
     Ok(asset)
   }
 }
 
-pub struct HtmlPackager {}
+#[derive(Debug)]
+pub struct HtmlContent {
+  code: Vec<u8>,
+}
 
-impl Packager for HtmlPackager {
+impl Content for HtmlContent {
+  fn read(&self) -> Result<Vec<u8>, Diagnostic> {
+    Ok(self.code.clone())
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,
@@ -445,7 +452,7 @@ impl Transformer for SvgTransformer {
     });
 
     asset.bundle_behavior = BundleBehavior::Isolated;
-    asset.content = Arc::new(BufferContent::new(res.code));
+    asset.content = Arc::new(SvgContent { code: res.code });
     asset.dependencies.extend(res.dependencies);
 
     Ok(asset)
@@ -472,9 +479,16 @@ impl Transformer for SvgToJsxTransformer {
   }
 }
 
-pub struct SvgPackager {}
+#[derive(Debug)]
+pub struct SvgContent {
+  code: Vec<u8>,
+}
 
-impl Packager for SvgPackager {
+impl Content for SvgContent {
+  fn read(&self) -> Result<Vec<u8>, Diagnostic> {
+    Ok(self.code.clone())
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,

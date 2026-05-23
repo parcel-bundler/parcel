@@ -26,6 +26,7 @@ base64-url = "3.0.2"
 pathdiff = "0.2.0"
 glob-match = "*"
 mimalloc = "*"
+fixedbitset = "0.5.7"
 
 [dev-dependencies]
 rquickjs = { version = "0.11.0", features = ["full"] }

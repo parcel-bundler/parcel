@@ -1,8 +1,8 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{any::TypeId, collections::HashMap, hash::Hash};
 
 use parcel_core::{
-  AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Bundler,
-  DependencyResolution, DiagnosticList, SourceUrl, Target,
+  AssetGraph, AssetNode, Bundle, BundleFlags, BundleGraph, Bundler, DependencyResolution,
+  DiagnosticList, SourceUrl, Target,
 };
 
 pub struct LibraryBundler {}
@@ -12,7 +12,7 @@ impl Bundler for LibraryBundler {
     #[derive(Hash, PartialEq, Eq)]
     struct BundleKey<'a> {
       url: &'a SourceUrl,
-      ty: &'a AssetType,
+      ty: TypeId,
       target: &'a Target,
     }
 
@@ -23,7 +23,7 @@ impl Bundler for LibraryBundler {
     for (id, asset, name) in asset_graph.dfs() {
       let key = BundleKey {
         url: &asset.loc.url,
-        ty: &asset.ty,
+        ty: asset.content.type_id(),
         target: &asset.target,
       };
 

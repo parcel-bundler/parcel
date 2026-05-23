@@ -1,22 +1,21 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  CPlugin, DefaultBundler, Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, Packager,
-  ParcelConfig, PluginFactory, Transformer,
+  CPlugin, Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, ParcelConfig, PluginFactory,
+  Transformer,
 };
-use parcel_css::{CssPackager, CssTransformer, StyleAttrPackager, StyleAttrTransformer};
-use parcel_html::{
-  HtmlPackager, HtmlTransformer, SvgPackager, SvgToJsxTransformer, SvgTransformer,
-};
+use parcel_css::{CssTransformer, StyleAttrTransformer};
+use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer};
 use parcel_image::ImageTransformer;
-use parcel_js::{JsPackager, JsTransformer, LibraryPackager};
+use parcel_js::JsTransformer;
 use parcel_plugin_js::JsPlugin;
 use parcel_resolver::Resolution;
 
 use crate::{
-  data_url::DataUrlOptimizer, glob_resolver::GlobResolver, inline::InlineTransformer,
-  json::JsonTransformer, library_bundler::LibraryBundler, namer::DefaultNamer, raw::RawTransformer,
-  resolver::DefaultResolver, toml::TomlTransformer, yaml::YamlTransformer,
+  bundler::DefaultBundler, data_url::DataUrlOptimizer, glob_resolver::GlobResolver,
+  inline::InlineTransformer, json::JsonTransformer, library_bundler::LibraryBundler,
+  namer::DefaultNamer, raw::RawTransformer, resolver::DefaultResolver, toml::TomlTransformer,
+  yaml::YamlTransformer,
 };
 
 pub struct DefaultPluginFactory {
@@ -135,25 +134,6 @@ impl PluginFactory for DefaultPluginFactory {
         return Err(Diagnostic::from_message(format!("Could not find optimizer {}", name)).into());
       }
     }
-  }
-
-  fn packager(
-    &self,
-    name: &str,
-    _config: Option<serde_json::Value>,
-    _from: &Path,
-  ) -> Result<Arc<dyn Packager>, DiagnosticList> {
-    Ok(match name {
-      "@parcel/packager-js" => Arc::new(JsPackager {}),
-      "@parcel/packager-library" => Arc::new(LibraryPackager {}),
-      "@parcel/packager-css" => Arc::new(CssPackager {}),
-      "@parcel/packager-style-attr" => Arc::new(StyleAttrPackager {}),
-      "@parcel/packager-html" => Arc::new(HtmlPackager {}),
-      "@parcel/packager-svg" => Arc::new(SvgPackager {}),
-      _ => {
-        return Err(Diagnostic::from_message(format!("Could not find packager {}", name)).into());
-      }
-    })
   }
 
   fn resolver(

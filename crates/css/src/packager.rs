@@ -44,10 +44,8 @@ struct State {
   media: MediaList<'static>,
 }
 
-pub struct CssPackager {}
-
-impl Packager for CssPackager {
-  fn package(
+impl CssContent {
+  pub(crate) fn package_impl(
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
@@ -699,10 +697,8 @@ impl<'i> lightningcss::visitor::Visitor<'i> for ReferenceReplacer {
   }
 }
 
-pub struct StyleAttrPackager {}
-
-impl Packager for StyleAttrPackager {
-  fn package(
+impl StyleAttrContent {
+  pub(crate) fn package_impl(
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,

@@ -4,7 +4,7 @@ use std::{
   sync::Arc,
 };
 
-use crate::{Diagnostic, FileSystem};
+use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions};
 
 pub trait Content: Any + std::fmt::Debug + Send + Sync {
   /// Reads the content as a byte vector.
@@ -13,6 +13,36 @@ pub trait Content: Any + std::fmt::Debug + Send + Sync {
   /// Writes the content to a file.
   fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
     Ok(fs.write(path, &self.read()?)?)
+  }
+
+  #[allow(unused_variables)]
+  fn package(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    options: &ParcelOptions,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
+    if bundle.assets.len() != 1 {
+      return Err(
+        Diagnostic {
+          message: "Raw bundles must only contain one asset".into(),
+          code_frames: vec![],
+          origin: Some("@parcel/package-raw".into()),
+          documentation_url: None,
+          hints: vec![],
+          severity: crate::DiagnosticSeverity::Error,
+        }
+        .into(),
+      );
+    }
+
+    Ok(
+      bundle_graph.asset_graph.assets[bundle.assets[0]]
+        .expect_asset()
+        .content
+        .clone(),
+    )
   }
 }
 

@@ -6,6 +6,7 @@ use parcel_core::{
 
 use crate::plugin_factory::DefaultPluginFactory;
 
+mod bundler;
 mod data_url;
 mod glob_resolver;
 mod inline;

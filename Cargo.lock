@@ -2947,6 +2947,7 @@ name = "parcel"
 version = "0.1.0"
 dependencies = [
  "base64-url",
+ "fixedbitset",
  "glob-match",
  "indexmap 2.14.0",
  "mimalloc",

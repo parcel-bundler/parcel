@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use lightningcss::{
   css_modules::{CssModuleExport, CssModuleReference},
@@ -10,7 +10,6 @@ use parcel_core::*;
 mod packager;
 mod transformer;
 
-pub use packager::{CssPackager, StyleAttrPackager};
 pub use transformer::{CssTransformer, StyleAttrTransformer};
 
 #[derive(Debug)]
@@ -23,6 +22,16 @@ pub struct CssContent {
 impl Content for CssContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     todo!()
+  }
+
+  fn package(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    options: &ParcelOptions,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
+    self.package_impl(bundle_graph, bundle, get_inline_bundle_content, options)
   }
 }
 
@@ -121,5 +130,15 @@ impl std::fmt::Debug for StyleAttrContent {
 impl Content for StyleAttrContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     todo!()
+  }
+
+  fn package(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    options: &ParcelOptions,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
+    self.package_impl(bundle_graph, bundle, get_inline_bundle_content, options)
   }
 }

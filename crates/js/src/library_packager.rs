@@ -13,10 +13,8 @@ use swc_core::{
 
 use crate::{JsContent, packager::asset_dependencies};
 
-pub struct LibraryPackager {}
-
-impl Packager for LibraryPackager {
-  fn package(
+impl JsContent {
+  pub(crate) fn package_library(
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,

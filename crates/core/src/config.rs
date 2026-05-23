@@ -5,13 +5,8 @@ use serde::Deserialize;
 use std::{ffi::OsStr, path::Path, sync::Arc};
 
 use crate::{
-  Diagnostic, DiagnosticList, FileSystem,
-  bundler::{Bundler, DefaultBundler},
-  namer::Namer,
-  optimizer::Optimizer,
-  packager::Packager,
-  resolver::Resolver,
-  transformer::Transformer,
+  Diagnostic, DiagnosticList, FileSystem, bundler::Bundler, namer::Namer, optimizer::Optimizer,
+  resolver::Resolver, transformer::Transformer,
 };
 
 pub struct ParcelConfig {
@@ -20,7 +15,6 @@ pub struct ParcelConfig {
   pub bundler: Arc<dyn Bundler>,
   pub namers: Vec<Arc<dyn Namer>>,
   pub runtimes: Vec<Plugin<()>>,
-  pub packagers: IndexMap<String, Arc<dyn Packager>>,
   pub optimizers: PipelineMap<dyn Optimizer>,
   pub compressors: PipelineMap<()>,
   pub reporters: Vec<Plugin<()>>,
@@ -44,23 +38,6 @@ impl ParcelConfig {
   ) -> Result<ParcelConfig, DiagnosticList> {
     let raw: RawParcelConfig = serde_json::from_slice(json)?;
     raw.resolve(factory, path)
-  }
-}
-
-impl Default for ParcelConfig {
-  fn default() -> Self {
-    ParcelConfig {
-      resolvers: Default::default(),
-      transformers: Default::default(),
-      bundler: Arc::new(DefaultBundler {}),
-      namers: Default::default(),
-      runtimes: Default::default(),
-      packagers: Default::default(),
-      optimizers: Default::default(),
-      validators: Default::default(),
-      compressors: Default::default(),
-      reporters: Default::default(),
-    }
   }
 }
 
@@ -267,12 +244,9 @@ struct RawParcelConfig {
   transformers: Option<RawPipelineMap>,
   bundler: Option<PluginWithConfig>,
   namers: Option<RawPipeline>,
-  runtimes: Option<RawPipeline>,
-  packagers: Option<IndexMap<String, PluginWithConfig>>,
   optimizers: Option<RawPipelineMap>,
   compressors: Option<RawPipelineMap>,
   reporters: Option<RawPipeline>,
-  validators: Option<RawPipelineMap>,
 }
 
 #[derive(Deserialize)]
@@ -316,12 +290,6 @@ pub trait PluginFactory {
     config: Option<serde_json::Value>,
     from: &Path,
   ) -> Result<Arc<dyn Namer>, DiagnosticList>;
-  fn packager(
-    &self,
-    name: &str,
-    config: Option<serde_json::Value>,
-    from: &Path,
-  ) -> Result<Arc<dyn Packager>, DiagnosticList>;
   fn optimizer(
     &self,
     name: &str,
@@ -358,19 +326,12 @@ impl RawParcelConfig {
     let mut extended_resolvers = Vec::new();
     let mut extended_namers = Vec::new();
     let mut extended_runtimes = Vec::new();
-    let mut packagers = IndexMap::new();
     for config in extends {
       extended_resolvers.extend(config.resolvers);
       extended_namers.extend(config.namers);
       extended_runtimes.extend(config.runtimes);
-      packagers.extend(config.packagers);
       transformers.0.extend(config.transformers.0);
       optimizers.0.extend(config.optimizers.0);
-    }
-
-    for (key, pkg) in self.packagers.unwrap_or_default() {
-      let plugin = pkg.resolve(&|name, config| factory.packager(name, config, from))?;
-      packagers.insert(key, plugin);
     }
 
     Ok(ParcelConfig {
@@ -388,7 +349,7 @@ impl RawParcelConfig {
         extended_namers.into_iter(),
       )?,
       runtimes: Vec::new(),
-      packagers,
+      // packagers,
       optimizers,
       validators: Default::default(),
       compressors: Default::default(),

@@ -13,7 +13,6 @@ mod location;
 mod namer;
 mod optimizer;
 mod options;
-mod packager;
 mod plugin_abi;
 mod request;
 mod resolver;
@@ -28,7 +27,7 @@ use std::{
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::{asset_graph::build_asset_graph, packager::RawPackager};
+use crate::asset_graph::build_asset_graph;
 
 pub use asset::*;
 pub use asset_graph::{AssetGraph, AssetNode};
@@ -45,7 +44,6 @@ pub use location::*;
 pub use namer::*;
 pub use optimizer::Optimizer;
 pub use options::*;
-pub use packager::Packager;
 pub use plugin_abi::{CPlugin /*WasmPlugin*/};
 pub use resolver::Resolver;
 pub use target::*;
@@ -129,11 +127,13 @@ fn get_bundle_content(
   bundle: &Bundle,
   options: &ParcelOptions,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
-  let raw = RawPackager {};
-  let packager = config
-    .packagers
-    .get(bundle.ty.extension())
-    .map_or_else(|| &raw as &dyn Packager, |p| &**p);
+  // let packager = config
+  //   .packagers
+  //   .get(bundle.ty.extension())
+  //   .map_or_else(|| &raw as &dyn Packager, |p| &**p);
+  let first_content = &bundle_graph.asset_graph.assets[bundle.assets[0]]
+    .expect_asset()
+    .content;
   let get_inline_bundle_content = |bundle_index| {
     get_bundle_content(
       config,
@@ -144,7 +144,7 @@ fn get_bundle_content(
   };
 
   let mut content =
-    packager.package(&bundle_graph, &bundle, &get_inline_bundle_content, options)?;
+    first_content.package(&bundle_graph, &bundle, &get_inline_bundle_content, options)?;
 
   let mut pipeline = None;
   if let Some(main) = bundle.main_entry_asset {
