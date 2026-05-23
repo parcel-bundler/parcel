@@ -1,0 +1,8 @@
+{
+  "description": "should support namespace imports",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "output": 5863446
+}

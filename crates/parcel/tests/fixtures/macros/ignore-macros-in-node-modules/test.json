@@ -1,0 +1,8 @@
+{
+  "description": "should ignore macros in node_modules",
+  "input": "index.mjs",
+  "bundles": [
+    {"assets": ["index.mjs", "index.mjs", "macro.mjs", "esmodule-helpers.js"]}
+  ],
+  "output": 2
+}

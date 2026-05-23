@@ -1,0 +1,20 @@
+{
+  "description": "should throw a diagnostic when an argument cannot be converted",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Could not statically evaluate macro argument",
+      "origin": "@parcel/transformer-js",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {"line": 2, "column": 18},
+              "end": {"line": 2, "column": 21}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

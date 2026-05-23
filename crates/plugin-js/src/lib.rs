@@ -179,7 +179,7 @@ fn error_to_diagnostic<'js>(e: Value<'js>) -> Diagnostic {
   let mut line_number: Option<u32> = None;
   let mut column_number: Option<u32> = None;
   let message = if let Some(exception) = e.as_exception() {
-    let message = exception.to_string();
+    let message = exception.message().unwrap_or_else(|| exception.to_string());
     if let Some(stack) = exception.stack() {
       let mut line = stack.split('\n').next().unwrap();
       if line.ends_with(')') {
@@ -242,4 +242,26 @@ fn collect_rejected_promises(ctx: &Ctx, env: &JsEnv) -> Vec<Diagnostic> {
   } else {
     Vec::new()
   }
+}
+
+pub(crate) fn await_promise<'a, 'js>(
+  ctx: &'a Ctx<'js>,
+  res: Value<'js>,
+) -> rquickjs::Result<Value<'js>> {
+  if let Some(promise) = res.as_promise() {
+    loop {
+      if let Some(result) = promise.result::<rquickjs::Value>() {
+        return result;
+      }
+
+      if !ctx.execute_pending_job() {
+        let err = ctx.catch();
+        if !err.is_null() {
+          return Err(ctx.throw(err));
+        }
+      }
+    }
+  }
+
+  Ok(res)
 }

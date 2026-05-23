@@ -1,0 +1,8 @@
+{
+  "description": "should support source location",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "output": {"line": 2, "col": 9}
+}

@@ -203,6 +203,7 @@ impl CjsLoader {
   ) -> rquickjs::Result<Value<'js>> {
     let module = Object::new(ctx.clone())?;
     module.set("exports", Object::new(ctx.clone()))?;
+    module.set("require", Function::new(ctx.clone(), require)?)?;
     cache.set(resolved, module.clone())?;
 
     let mut options = EvalOptions::default();

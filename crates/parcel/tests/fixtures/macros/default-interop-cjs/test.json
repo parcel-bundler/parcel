@@ -1,0 +1,8 @@
+{
+  "description": "should support default interop with CommonJS modules",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "output": 5863446
+}

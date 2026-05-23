@@ -28,11 +28,7 @@ pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph,
       println!("Built in {:?}", start.elapsed());
       Ok(g)
     }
-    Err(err) => {
-      let mut stderr = std::io::stderr();
-      err.report(&mut stderr).unwrap();
-      Err(err)
-    }
+    Err(err) => Err(err),
   }
 }
 

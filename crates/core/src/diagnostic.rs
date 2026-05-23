@@ -13,14 +13,17 @@ pub struct Diagnostic {
   pub message: String,
   /// Name of plugin or file that threw this error.
   pub origin: Option<String>,
+  #[serde(default)]
   pub code_frames: Vec<CodeFrame>,
+  #[serde(default)]
   pub hints: Vec<String>,
+  #[serde(default)]
   pub severity: DiagnosticSeverity,
   #[serde(rename = "documentationURL")]
   pub documentation_url: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeFrame {
   pub code: Option<String>,
@@ -29,16 +32,19 @@ pub struct CodeFrame {
   pub code_highlights: Vec<CodeHighlight>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct CodeHighlight {
   pub message: Option<String>,
+  #[serde(default)]
   pub start: Location,
+  #[serde(default)]
   pub end: Location,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Default)]
 pub enum DiagnosticSeverity {
   /// Fails the build with an error.
+  #[default]
   Error,
   /// Logs a warning, but the build does not fail.
   Warning,

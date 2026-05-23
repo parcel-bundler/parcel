@@ -15,7 +15,7 @@ use rquickjs::{
   methods,
 };
 
-use crate::{plugin::load_module, with_js_env};
+use crate::{await_promise, plugin::load_module, with_js_env};
 
 #[derive(JsLifetime)]
 #[rquickjs::class]
@@ -114,9 +114,26 @@ pub fn call_macro(
   args: Vec<JsValue>,
   loc: parcel_macros::Location,
 ) -> Result<(JsValue, Vec<Dependency>), MacroError> {
+  let mut is_load_error = false;
   with_js_env(options.input_fs.clone(), &options.env, |ctx| {
-    let module = load_module(&ctx, &src)?;
-    let f: Function = module.get(&export)?;
+    let module = load_module(&ctx, &src).map_err(|e| {
+      is_load_error = true;
+      e
+    })?;
+    let mut f: Option<Function> = module.get(&export).ok();
+    if f.is_none() && export == "default" && module.is_function() {
+      f = module.as_function().map(|f| f.clone());
+    }
+    let Some(f) = f else {
+      return Err(rquickjs::Exception::throw_message(
+        ctx,
+        &format!(
+          "Macro export {} in {} is not a function",
+          export,
+          url.as_str()
+        ),
+      ));
+    };
     let mut js_args = Args::new(ctx.clone(), args.len());
     let dependencies = Rc::new(RefCell::new(Vec::new()));
     let context = MacroContext {
@@ -130,14 +147,17 @@ pub fn call_macro(
     for arg in args {
       js_args.push_arg(js_value_to_quickjs(arg, ctx.clone())?)?;
     }
-    let result: rquickjs::Value = f.call_arg(js_args)?;
-    if result.is_promise() {
-      // TODO
-    }
+    let result: rquickjs::Value = await_promise(&ctx, f.call_arg(js_args)?)?;
     let result = quickjs_to_js_value(result, ctx.clone())?;
     Ok((result, std::mem::take(&mut *dependencies.borrow_mut())))
   })
-  .map_err(|d| MacroError::ExecutionError(d.0[0].message.clone(), Default::default()))
+  .map_err(|d| {
+    if is_load_error {
+      MacroError::LoadError(d.0[0].message.clone(), Default::default())
+    } else {
+      MacroError::ExecutionError(d.0[0].message.clone(), Default::default())
+    }
+  })
 }
 
 fn js_value_to_quickjs<'a>(value: JsValue, ctx: Ctx<'a>) -> rquickjs::Result<rquickjs::Value<'a>> {

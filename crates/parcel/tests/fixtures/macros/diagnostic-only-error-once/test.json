@@ -1,0 +1,20 @@
+{
+  "description": "should only error once if a macro errors during loading",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Error loading macro: unexpected token in expression: '}'",
+      "origin": "@parcel/transformer-js",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {"line": 1, "column": 1},
+              "end": {"line": 1, "column": 59}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

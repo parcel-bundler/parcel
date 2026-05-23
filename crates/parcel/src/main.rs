@@ -63,11 +63,14 @@ pub fn main() -> ExitCode {
   };
 
   match cmd {
-    Command::Build => {
-      if parcel::build(entries, options).is_err() {
+    Command::Build => match parcel::build(entries, options) {
+      Ok(_) => {}
+      Err(err) => {
+        let mut stderr = std::io::stderr();
+        err.report(&mut stderr).unwrap();
         return ExitCode::from(1);
       }
-    }
+    },
     Command::Watch => {
       let _ = parcel::watch(entries, options);
     }

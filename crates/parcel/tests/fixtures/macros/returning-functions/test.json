@@ -1,0 +1,8 @@
+{
+  "description": "should support returning functions",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "output": 6
+}

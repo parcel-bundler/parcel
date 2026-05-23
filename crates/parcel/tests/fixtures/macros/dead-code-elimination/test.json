@@ -1,0 +1,9 @@
+{
+  "description": "should dead code eliminate falsy branches",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "sideEffects": ["good"]
+}

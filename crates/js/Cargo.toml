@@ -13,6 +13,7 @@ indexmap = { version = "2.11.0", features = ["serde"] }
 parcel-plugin-js = { path = "../plugin-js" }
 parcel-css = { path = "../css" }
 parcel-resolver = { path = "../parcel-resolver" }
+parcel-macros = { path = "../macros" }
 node-semver = "2.2.0"
 glob-match = "*"
 swc_core = { version = "66", features = ["ecma_ast", "ecma_quote"] }

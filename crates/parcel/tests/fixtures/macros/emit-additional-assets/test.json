@@ -1,0 +1,9 @@
+{
+  "description": "should allow emitting additional assets",
+  "input": "index.mjs",
+  "bundles": [
+    {"type": "js", "assets": ["index.mjs"]},
+    {"type": "css", "assets": ["index.mjs"]}
+  ],
+  "output": "foofoo"
+}

@@ -3079,6 +3079,7 @@ dependencies = [
  "parcel-core",
  "parcel-css",
  "parcel-js-swc-core",
+ "parcel-macros",
  "parcel-plugin-js",
  "parcel-resolver",
  "serde",

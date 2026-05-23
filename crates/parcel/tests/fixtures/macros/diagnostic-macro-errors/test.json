@@ -1,0 +1,19 @@
+{
+  "description": "should throw a diagnostic when a macro errors",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Error evaluating macro: test",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {"line": 2, "column": 10},
+              "end": {"line": 2, "column": 17}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

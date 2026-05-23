@@ -10,7 +10,7 @@ use rquickjs::{
   methods,
 };
 
-use crate::{cjs::CjsLoader, with_js_env};
+use crate::{await_promise, cjs::CjsLoader, with_js_env};
 
 pub struct JsPlugin {
   path: String,
@@ -52,20 +52,7 @@ impl Transformer for JsPlugin {
       let options = Object::new(ctx.clone())?;
       options.set("asset", value.clone())?;
       let res: rquickjs::Value = transform.call((options,))?;
-      if let Some(promise) = res.as_promise() {
-        loop {
-          if promise.result::<rquickjs::Value>().is_some() {
-            break;
-          }
-
-          if !ctx.execute_pending_job() {
-            let err = ctx.catch();
-            if !err.is_null() {
-              return Err(ctx.throw(err));
-            }
-          }
-        }
-      }
+      await_promise(ctx, res)?;
       let obj = Class::<JsAsset>::from_js(&ctx, value)?;
       let js_asset = &mut *obj.borrow_mut();
       let asset = js_asset.asset.take().expect("Asset already taken");

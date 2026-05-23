@@ -22,7 +22,9 @@ pub struct SourceLocation {
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash, Serialize, Deserialize)]
 pub struct Location {
+  #[serde(default)]
   pub line: u32,
+  #[serde(default)]
   pub column: u32,
 }
 

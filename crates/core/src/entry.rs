@@ -57,10 +57,23 @@ pub fn resolve_entries(
         EnvironmentFlags::SHOULD_OPTIMIZE,
         options.mode == BuildMode::Production,
       );
+      let mut output_format = OutputFormat::default();
+      if let Some(ext) = path.extension() {
+        flags.set(
+          EnvironmentFlags::MODULE_TYPE_EXTENSION,
+          ext == "mjs" || ext == "cjs",
+        );
+        if ext == "mjs" {
+          output_format = OutputFormat::Esmodule;
+        } else if ext == "cjs" {
+          output_format = OutputFormat::Commonjs;
+        }
+      }
       let env = entries.target(Target {
         environment: context,
         engines,
         flags,
+        output_format,
         dist_dir: SourceUrl::from_path(&project_root.join("dist"))?,
         ..Default::default()
       });

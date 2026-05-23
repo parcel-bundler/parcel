@@ -6,13 +6,25 @@ use std::{
 use fixedbitset::FixedBitSet;
 use parcel_core::{
   AssetGraph, AssetNode, Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler,
-  DependencyFlags, DependencyResolution, DiagnosticList, Environment, Priority,
+  DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags, Priority,
 };
+
+use crate::library_bundler::LibraryBundler;
 
 pub struct DefaultBundler {}
 
 impl Bundler for DefaultBundler {
   fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+    if asset_graph.entries.iter().all(|e| {
+      asset_graph.assets[e.asset.unwrap()]
+        .expect_asset()
+        .target
+        .flags
+        .contains(EnvironmentFlags::IS_LIBRARY)
+    }) {
+      return LibraryBundler {}.bundle(asset_graph);
+    }
+
     let mut bundles = Vec::<Bundle>::new();
 
     // Step 1: Traverse the asset graph and find bundle roots.

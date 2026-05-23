@@ -1,0 +1,10 @@
+{
+  "description": "should support named imports",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js"]
+    }
+  ],
+  "output": 5863446
+}

@@ -1,0 +1,8 @@
+{
+  "description": "should support macros written in typescript",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "output": 3
+}

@@ -9,6 +9,7 @@ use parcel_core::*;
 use parcel_js_swc_core::{
   Config, DependencyKind, EnvContext, Type, Version, Versions, transform_to_ast,
 };
+use parcel_macros::MacroError;
 use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, InlineEnvironment, Invalidations, Specifier};
 
@@ -29,28 +30,36 @@ impl Transformer for JsTransformer {
     let resolve_from = asset.loc.url.to_file_path()?;
     let macro_deps = Arc::new(RefCell::new(Vec::new()));
     let macro_deps_cloned = macro_deps.clone();
+    let call_macro = move |src: String, export, args, loc| {
+      let resolved = resolver.resolve(&src, &resolve_from, parcel_resolver::SpecifierType::Esm);
+      if let Ok(res) = resolved.result {
+        if let parcel_resolver::Resolution::Path(p) = res.resolution {
+          let (res, deps) = call_macro(
+            options,
+            url.clone(),
+            env.clone(),
+            p.to_str().unwrap().to_string(),
+            export,
+            args,
+            loc,
+          )?;
+          macro_deps_cloned.borrow_mut().extend(deps);
+          return Ok(res);
+        }
+      }
+
+      return Err(MacroError::LoadError(
+        format!("Could not resolve macro '{}'", src),
+        Default::default(),
+      ));
+    };
     let res = transform_to_ast(
       config,
-      Some(&move |src, export, args, loc| {
-        let resolved = resolver.resolve(&src, &resolve_from, parcel_resolver::SpecifierType::Esm);
-        if let Ok(res) = resolved.result {
-          if let parcel_resolver::Resolution::Path(p) = res.resolution {
-            let (res, deps) = call_macro(
-              options,
-              url.clone(),
-              env.clone(),
-              p.to_str().unwrap().to_string(),
-              export,
-              args,
-              loc,
-            )?;
-            macro_deps_cloned.borrow_mut().extend(deps);
-            return Ok(res);
-          }
-        }
-
-        todo!()
-      }),
+      if asset.flags.contains(AssetFlags::IS_SOURCE) {
+        Some(&call_macro)
+      } else {
+        None
+      },
     )?;
 
     if let Some(diagnostics) = res.diagnostics {
@@ -72,7 +81,7 @@ impl Transformer for JsTransformer {
                 message: h.message,
                 start: Location {
                   line: h.loc.start_line as u32,
-                  column: h.loc.end_col as u32,
+                  column: h.loc.start_col as u32,
                 },
                 end: Location {
                   line: h.loc.end_line as u32,

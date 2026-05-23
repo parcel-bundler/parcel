@@ -1,0 +1,8 @@
+{
+  "description": "should support evaluating constants",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "output": [5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446, 5863446]
+}

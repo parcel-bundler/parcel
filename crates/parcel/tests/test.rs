@@ -6,8 +6,8 @@ use std::{
 };
 
 use parcel_core::{
-  AssetType, BuildOptions, BundleFlags, BundleGraph, DependencyResolution, FileSystem,
-  MemoryFileSystem, OsFileSystem,
+  AssetType, BuildOptions, BundleFlags, BundleGraph, CodeFrame, CodeHighlight, DependencyResolution,
+  Diagnostic, DiagnosticList, DiagnosticSeverity, FileSystem, MemoryFileSystem, OsFileSystem,
 };
 use parcel_plugin_js::create_runtime;
 use rquickjs::Function;
@@ -71,14 +71,14 @@ fn noop<'js>(value: rquickjs::Value<'js>) -> rquickjs::Value<'js> {
 }
 
 fn bundle(entry: &Path, output_fs: Arc<dyn FileSystem>) -> BundleGraph {
-  bundle_with_options(entry, output_fs, TestOptions::default())
+  bundle_with_options(entry, output_fs, TestOptions::default()).unwrap()
 }
 
 fn bundle_with_options(
   entry: &Path,
   output_fs: Arc<dyn FileSystem>,
   options: TestOptions,
-) -> BundleGraph {
+) -> Result<BundleGraph, DiagnosticList> {
   let mut env = options.env;
   if !env.contains_key("NODE_ENV") {
     env.insert("NODE_ENV".into(), "test".into());
@@ -92,30 +92,67 @@ fn bundle_with_options(
     config: None,
   };
 
-  parcel::build(vec![entry.to_str().unwrap().to_owned()], options).unwrap()
+  parcel::build(vec![entry.to_str().unwrap().to_owned()], options)
 }
 
-fn run_test<
-  F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
->(
-  entry: &Path,
-  f: F,
-) {
-  run_test_with_options(entry, Default::default(), f)
-}
+// fn run_test<
+//   F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
+// >(
+//   entry: &Path,
+//   f: F,
+// ) {
+//   run_test_with_options(entry, Default::default(), f)
+// }
 
 fn run_test_with_options<
   F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
 >(
   entry: &Path,
   options: TestOptions,
+  expected_bundles: Vec<TestBundle>,
   f: F,
 ) {
   let output_fs = Arc::new(MemoryFileSystem::new());
-  let bundle_graph = bundle_with_options(entry, output_fs.clone(), options);
+  let bundle_graph = bundle_with_options(entry, output_fs.clone(), options).unwrap();
 
   let mut scripts = Vec::new();
   let mut main = 0;
+
+  if !expected_bundles.is_empty() {
+    assert_eq!(
+      expected_bundles.len(),
+      bundle_graph.bundles.len(),
+      "Expected number of bundles did not match"
+    );
+    for bundle in &bundle_graph.bundles {
+      let mut names: Vec<String> = bundle
+        .assets
+        .iter()
+        .map(|a| {
+          bundle_graph.asset_graph.assets[*a]
+            .expect_asset()
+            .loc
+            .url
+            .to_file_path()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+        })
+        .collect();
+      names.sort();
+      let found = expected_bundles
+        .iter()
+        .find(|b| b.assets == names && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty));
+      assert!(
+        found.is_some(),
+        "Could not find bundle with expected assets. Actual assets: {:?}",
+        names
+      );
+    }
+  }
 
   for bundle in &bundle_graph.bundles {
     if !bundle.flags.contains(BundleFlags::ENTRY) {
@@ -177,14 +214,12 @@ fn run_test_with_options<
     for entry in expected.read_dir().unwrap() {
       let entry = entry.unwrap();
       let content = std::fs::read_to_string(entry.path()).unwrap();
-      println!("{:?}", bundle_graph.bundles);
       let bundle = bundle_graph
         .bundles
         .iter()
         .find(|b| b.name.as_ref().unwrap().as_str() == entry.file_name())
         .expect("could not find bundle");
       let actual_content = output_fs.read_to_string(&bundle.dist_path()).unwrap();
-      println!("{}", actual_content);
       assert_eq!(actual_content, content, "{:?}", entry.file_name());
     }
   }
@@ -201,6 +236,107 @@ struct TestJson {
   output: Option<serde_json::Value>,
   #[serde(default)]
   side_effects: Vec<serde_json::Value>,
+  #[serde(default)]
+  bundles: Vec<TestBundle>,
+  #[serde(default)]
+  diagnostics: Vec<Diagnostic>,
+}
+
+fn assert_diagnostics(actual: &DiagnosticList, expected: &[Diagnostic]) {
+  assert_eq!(
+    actual.0.len(),
+    expected.len(),
+    "Expected {} diagnostic(s) but got {}: {:#?}",
+    expected.len(),
+    actual.0.len(),
+    actual.0
+  );
+  for (actual_diag, expected_diag) in actual.0.iter().zip(expected.iter()) {
+    assert_diagnostic_matches(actual_diag, expected_diag);
+  }
+}
+
+fn assert_diagnostic_matches(actual: &Diagnostic, expected: &Diagnostic) {
+  if !expected.message.is_empty() {
+    assert!(
+      actual.message.contains(&expected.message),
+      "Expected diagnostic message to contain {:?}, got {:?}",
+      expected.message,
+      actual.message
+    );
+  }
+  if let Some(origin) = &expected.origin {
+    assert_eq!(
+      actual.origin.as_deref(),
+      Some(origin.as_str()),
+      "Diagnostic origin mismatch"
+    );
+  }
+  if !expected.code_frames.is_empty() {
+    assert_eq!(
+      actual.code_frames.len(),
+      expected.code_frames.len(),
+      "Code frame count mismatch"
+    );
+    for (actual_frame, expected_frame) in actual.code_frames.iter().zip(expected.code_frames.iter()) {
+      assert_code_frame_matches(actual_frame, expected_frame);
+    }
+  }
+  if !expected.hints.is_empty() {
+    assert_eq!(actual.hints, expected.hints, "Hints mismatch");
+  }
+  if expected.severity != DiagnosticSeverity::default() {
+    assert_eq!(actual.severity, expected.severity, "Severity mismatch");
+  }
+}
+
+fn assert_code_frame_matches(actual: &CodeFrame, expected: &CodeFrame) {
+  if !expected.code_highlights.is_empty() {
+    assert_eq!(
+      actual.code_highlights.len(),
+      expected.code_highlights.len(),
+      "Code highlight count mismatch"
+    );
+    for (actual_hl, expected_hl) in actual
+      .code_highlights
+      .iter()
+      .zip(expected.code_highlights.iter())
+    {
+      assert_code_highlight_matches(actual_hl, expected_hl);
+    }
+  }
+}
+
+fn assert_code_highlight_matches(actual: &CodeHighlight, expected: &CodeHighlight) {
+  if let Some(msg) = &expected.message {
+    assert_eq!(
+      actual.message.as_deref(),
+      Some(msg.as_str()),
+      "Code highlight message mismatch"
+    );
+  }
+  if expected.start.line != 0 {
+    assert_eq!(actual.start.line, expected.start.line, "Start line mismatch");
+  }
+  if expected.start.column != 0 {
+    assert_eq!(actual.start.column, expected.start.column, "Start column mismatch");
+  }
+  if expected.end.line != 0 {
+    assert_eq!(actual.end.line, expected.end.line, "End line mismatch");
+  }
+  if expected.end.column != 0 {
+    assert_eq!(actual.end.column, expected.end.column, "End column mismatch");
+  }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TestBundle {
+  name: Option<String>,
+  #[serde(default)]
+  assets: Vec<String>,
+  #[serde(rename = "type")]
+  ty: Option<AssetType>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -223,11 +359,28 @@ fn run_test_json(path: &Path) {
 }
 
 fn run_test_json_test(path: &Path, test: serde_json::Value) {
-  let test: TestJson = serde_json::from_value(test).unwrap();
+  let mut test: TestJson = serde_json::from_value(test).unwrap();
   eprintln!("Description: {}", test.description);
+
+  for bundle in &mut test.bundles {
+    bundle.assets.sort();
+  }
+
+  let entry = path.parent().unwrap().join(&test.input);
+
+  if !test.diagnostics.is_empty() {
+    let output_fs = Arc::new(MemoryFileSystem::new());
+    match bundle_with_options(&entry, output_fs, test.options) {
+      Err(actual) => assert_diagnostics(&actual, &test.diagnostics),
+      Ok(_) => panic!("Expected build to fail with diagnostics but it succeeded"),
+    }
+    return;
+  }
+
   run_test_with_options(
-    &path.parent().unwrap().join(test.input),
+    &entry,
     test.options,
+    test.bundles,
     |mut v, side_effects| {
       if v.is_function() {
         v = v.as_function().unwrap().call(())?;
@@ -257,7 +410,8 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
   );
 }
 
-#[testing_macros::fixture("../../packages/core/integration-tests/test/integration/**/test.json")]
+// #[testing_macros::fixture("../../packages/core/integration-tests/test/integration/**/test.json")]
+#[testing_macros::fixture("../../crates/parcel/tests/fixtures/**/test.json")]
 fn test(file: PathBuf) {
   run_test_json(&file);
 }

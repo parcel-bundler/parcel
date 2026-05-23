@@ -1,6 +1,9 @@
 {
   "resolvers": ["@parcel/resolver-default"],
   "transformers": {
+    "bundle-text:*": ["...", "@parcel/transformer-inline"],
+    "data-url:*": ["...", "@parcel/transformer-inline"],
+    "url:*": ["...", "@parcel/transformer-raw"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": ["@parcel/transformer-js"],
     "*.module.css": [
       {
@@ -21,7 +24,7 @@
     "*.toml": ["@parcel/transformer-toml"],
     "*.{yaml,yml}": ["@parcel/transformer-yaml"]
   },
-  "bundler": "@parcel/bundler-library",
+  "bundler": "@parcel/bundler-default",
   "namers": ["@parcel/namer-default"],
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"]

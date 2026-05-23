@@ -1,0 +1,8 @@
+{
+  "description": "should support evaluating expressions",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]}
+  ],
+  "output": [3, "foo bar", "3em", 4, 4, "e", false, [1, 2, 3], {"x": 2, "y": 3}, 1, "boolean", 2]
+}
