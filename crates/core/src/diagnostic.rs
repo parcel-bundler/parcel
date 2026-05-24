@@ -6,7 +6,7 @@ use url::Url;
 
 use crate::{AssetType, Location, SourceLocation, SourceUrl};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Hash, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
   /// The message to log.
@@ -23,7 +23,7 @@ pub struct Diagnostic {
   pub documentation_url: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Hash, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeFrame {
   pub code: Option<String>,
@@ -32,7 +32,7 @@ pub struct CodeFrame {
   pub code_highlights: Vec<CodeHighlight>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Hash, Clone, Default)]
 pub struct CodeHighlight {
   pub message: Option<String>,
   #[serde(default)]
@@ -41,7 +41,7 @@ pub struct CodeHighlight {
   pub end: Location,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Default)]
 pub enum DiagnosticSeverity {
   /// Fails the build with an error.
   #[default]

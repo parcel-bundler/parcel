@@ -127,42 +127,46 @@ impl Loader for ModuleLoader {
       .resolve_module_type(Path::new(name), &Default::default())
     {
       Ok(ModuleType::Module) => {
-        let mut source =
-          self
-            .fs
-            .read_to_string(Path::new(name))
-            .map_err(|e| rquickjs::Error::Loading {
-              name: name.into(),
-              message: Some(e.to_string()),
-            })?;
+        if name.ends_with(".css") {
+          Module::declare(ctx.clone(), name, "")?
+        } else {
+          let mut source =
+            self
+              .fs
+              .read_to_string(Path::new(name))
+              .map_err(|e| rquickjs::Error::Loading {
+                name: name.into(),
+                message: Some(e.to_string()),
+              })?;
 
-        if name.ends_with(".ts") || name.ends_with(".tsx") {
-          let cm = Arc::<swc_core::common::SourceMap>::default();
-          let compiler = swc::Compiler::new(cm.clone());
-          source = swc::try_with_handler(cm.clone(), Default::default(), |handler| {
-            let filename = Arc::new(FileName::Real(PathBuf::from(name)));
-            let file = cm.new_source_file(filename, source);
-            let result = compiler.process_js_file(
-              file,
-              handler,
-              &swc::config::Options {
-                swcrc: false,
-                config: swc::config::Config {
-                  jsc: swc::config::JscConfig {
-                    syntax: Some(Syntax::Typescript(TsSyntax::default())),
+          if name.ends_with(".ts") || name.ends_with(".tsx") {
+            let cm = Arc::<swc_core::common::SourceMap>::default();
+            let compiler = swc::Compiler::new(cm.clone());
+            source = swc::try_with_handler(cm.clone(), Default::default(), |handler| {
+              let filename = Arc::new(FileName::Real(PathBuf::from(name)));
+              let file = cm.new_source_file(filename, source);
+              let result = compiler.process_js_file(
+                file,
+                handler,
+                &swc::config::Options {
+                  swcrc: false,
+                  config: swc::config::Config {
+                    jsc: swc::config::JscConfig {
+                      syntax: Some(Syntax::Typescript(TsSyntax::default())),
+                      ..Default::default()
+                    },
                     ..Default::default()
                   },
                   ..Default::default()
                 },
-                ..Default::default()
-              },
-            )?;
-            Ok(result.code)
-          })
-          .unwrap();
-        }
+              )?;
+              Ok(result.code)
+            })
+            .unwrap();
+          }
 
-        Module::declare(ctx.clone(), name, source)?
+          Module::declare(ctx.clone(), name, source)?
+        }
       }
       Ok(ModuleType::CommonJs) => self.load_cjs(ctx, name)?,
       Ok(ModuleType::Json) => {

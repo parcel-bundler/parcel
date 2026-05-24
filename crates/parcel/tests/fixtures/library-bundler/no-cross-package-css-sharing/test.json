@@ -1,0 +1,11 @@
+{
+  "description": "should not share bundles with circular references in different targets",
+  "input": "packages/*",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"assets": ["a.js"]},
+    {"assets": ["b.js"]},
+    {"type": "css", "assets": ["shared.module.css"]},
+    {"type": "css", "assets": ["shared.module.css"]}
+  ]
+}

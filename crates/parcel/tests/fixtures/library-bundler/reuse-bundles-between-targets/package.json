@@ -1,0 +1,13 @@
+{
+  "engines": { "node": "*" },
+  "exports": {
+    "./a": {
+      "source": "./src/a.js",
+      "default": "./dist/a.mjs"
+    },
+    "./b": {
+      "source": "./src/b.js",
+      "default": "./dist/b.mjs"
+    }
+  }
+}

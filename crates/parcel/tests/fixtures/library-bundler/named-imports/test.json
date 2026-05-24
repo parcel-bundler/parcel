@@ -1,0 +1,17 @@
+{
+  "description": "should support named imports",
+  "input": ".",
+  "options": { "mode": "production" },
+  "output": {"bar": "barbaz", "foo": "foobaz"},
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["foo.js"]},
+    {"assets": ["baz.js"]},
+    {"assets": ["esmodule-helpers.js"]},
+    {"assets": ["bar.js"]},
+    {"assets": ["index.js"]},
+    {"assets": ["foo.js"]},
+    {"assets": ["baz.js"]},
+    {"assets": ["bar.js"]}
+  ]
+}

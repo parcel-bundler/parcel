@@ -6,20 +6,19 @@ use std::{
 };
 
 use parcel_core::{
-  AssetType, BuildOptions, BundleFlags, BundleGraph, CodeFrame, CodeHighlight, DependencyResolution,
-  Diagnostic, DiagnosticList, DiagnosticSeverity, FileSystem, MemoryFileSystem, OsFileSystem,
+  AssetType, BuildOptions, BundleFlags, BundleGraph, CodeFrame, CodeHighlight,
+  DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, EnvironmentFlags,
+  FileSystem, MemoryFileSystem, OsFileSystem, OverlayFileSystem,
 };
 use parcel_plugin_js::create_runtime;
 use rquickjs::Function;
 
-fn run<
-  F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
->(
+fn run(
   paths: Vec<PathBuf>,
   fs: Arc<dyn FileSystem>,
   entry: usize,
-  f: F,
-) {
+  is_library: bool,
+) -> (serde_json::Value, Vec<serde_json::Value>) {
   let ctx = create_runtime(fs, &HashMap::new()).unwrap();
   let res = ctx.with(|ctx| {
     let globals = ctx.globals();
@@ -42,36 +41,66 @@ fn run<
       ),
     )?;
 
+    let mut imported = None;
     for path in paths {
-      rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
-        .and_then(|p| p.finish::<rquickjs::Value>())?;
+      imported = Some(
+        rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
+          .and_then(|p| p.finish::<rquickjs::Value>())?,
+      );
     }
-    let parcel_require: rquickjs::Result<Function> = ctx.globals().get("parcelRequire");
-    let output: rquickjs::Value = parcel_require
-      .and_then(|parcel_require| parcel_require.call((entry,)))
-      .and_then(|v: rquickjs::Value| {
-        let output: rquickjs::Value = ctx.globals().get("output")?;
-        if !output.is_undefined() {
-          return Ok(output);
-        }
-        Ok(v)
-      })?;
 
-    f(output, side_effects)?;
-    Ok(())
+    let output: rquickjs::Result<rquickjs::Value> = if is_library {
+      Ok(imported.unwrap())
+    } else {
+      let parcel_require: rquickjs::Result<Function> = ctx.globals().get("parcelRequire");
+      parcel_require.and_then(|parcel_require| parcel_require.call((entry,)))
+    };
+
+    let mut v = output.and_then(|v: rquickjs::Value| {
+      let output: rquickjs::Value = ctx.globals().get("output")?;
+      if !output.is_undefined() {
+        return Ok(output);
+      }
+      Ok(v)
+    })?;
+
+    if v.is_function() {
+      v = v.as_function().unwrap().call(())?;
+    } else if let Some(default_val) = v
+      .as_object()
+      .and_then(|o| o.get::<_, rquickjs::Value>("default").ok())
+      .filter(|v| !v.is_undefined())
+    {
+      if default_val.is_function() {
+        v = default_val.as_function().unwrap().call(())?;
+      } else {
+        v = default_val;
+      }
+    }
+
+    if v.is_promise() {
+      v = v.as_promise().unwrap().finish()?;
+    }
+    let ctx = v.ctx().clone();
+    let out: serde_json::Value = match rquickjs_serde::from_value(v) {
+      Ok(v) => v,
+      Err(e) => {
+        panic!("{:?}", e.catch(&ctx));
+      }
+    };
+
+    Ok((out, side_effects.borrow().clone()))
   });
 
   if let Err(err) = res {
     panic!("{:?}", err);
   }
+
+  res.unwrap()
 }
 
 fn noop<'js>(value: rquickjs::Value<'js>) -> rquickjs::Value<'js> {
   value
-}
-
-fn bundle(entry: &Path, output_fs: Arc<dyn FileSystem>) -> BundleGraph {
-  bundle_with_options(entry, output_fs, TestOptions::default()).unwrap()
 }
 
 fn bundle_with_options(
@@ -95,32 +124,16 @@ fn bundle_with_options(
   parcel::build(vec![entry.to_str().unwrap().to_owned()], options)
 }
 
-// fn run_test<
-//   F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
-// >(
-//   entry: &Path,
-//   f: F,
-// ) {
-//   run_test_with_options(entry, Default::default(), f)
-// }
-
-fn run_test_with_options<
-  F: FnOnce(rquickjs::Value<'_>, Arc<RefCell<Vec<serde_json::Value>>>) -> rquickjs::Result<()>,
->(
-  entry: &Path,
-  options: TestOptions,
-  expected_bundles: Vec<TestBundle>,
-  f: F,
-) {
-  let output_fs = Arc::new(MemoryFileSystem::new());
-  let bundle_graph = bundle_with_options(entry, output_fs.clone(), options).unwrap();
+fn run_test_with_options(entry: &Path, test: TestJson) {
+  let output_fs = Arc::new(OverlayFileSystem::new());
+  let bundle_graph = bundle_with_options(entry, output_fs.clone(), test.options).unwrap();
 
   let mut scripts = Vec::new();
   let mut main = 0;
 
-  if !expected_bundles.is_empty() {
+  if !test.bundles.is_empty() {
     assert_eq!(
-      expected_bundles.len(),
+      test.bundles.len(),
       bundle_graph.bundles.len(),
       "Expected number of bundles did not match"
     );
@@ -143,7 +156,8 @@ fn run_test_with_options<
         })
         .collect();
       names.sort();
-      let found = expected_bundles
+      let found = test
+        .bundles
         .iter()
         .find(|b| b.assets == names && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty));
       assert!(
@@ -159,11 +173,25 @@ fn run_test_with_options<
       continue;
     }
 
+    let is_library = bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY);
     let path = bundle.dist_path();
-    // println!("{}", output_fs.read_to_string(&path).unwrap());
     match &bundle.ty {
       AssetType::Js => {
-        scripts.push(path.clone());
+        if is_library {
+          let (output, side_effects) = run(
+            vec![path.clone()],
+            output_fs.clone(),
+            bundle.main_entry_asset.unwrap(),
+            true,
+          );
+          assert_eq!(side_effects, test.side_effects);
+          if let Some(expected_output) = &test.output {
+            assert_eq!(&output, expected_output);
+          }
+        } else {
+          scripts.push(path.clone());
+        }
+
         if let Some(m) = bundle.main_entry_asset {
           main = m;
         }
@@ -206,7 +234,11 @@ fn run_test_with_options<
   }
 
   if !scripts.is_empty() {
-    run(scripts, output_fs.clone(), main, f);
+    let (output, side_effects) = run(scripts, output_fs.clone(), main, false);
+    assert_eq!(side_effects, test.side_effects);
+    if let Some(expected_output) = &test.output {
+      assert_eq!(&output, expected_output);
+    }
   }
 
   let expected = entry.parent().unwrap().join("expected");
@@ -278,7 +310,8 @@ fn assert_diagnostic_matches(actual: &Diagnostic, expected: &Diagnostic) {
       expected.code_frames.len(),
       "Code frame count mismatch"
     );
-    for (actual_frame, expected_frame) in actual.code_frames.iter().zip(expected.code_frames.iter()) {
+    for (actual_frame, expected_frame) in actual.code_frames.iter().zip(expected.code_frames.iter())
+    {
       assert_code_frame_matches(actual_frame, expected_frame);
     }
   }
@@ -316,16 +349,25 @@ fn assert_code_highlight_matches(actual: &CodeHighlight, expected: &CodeHighligh
     );
   }
   if expected.start.line != 0 {
-    assert_eq!(actual.start.line, expected.start.line, "Start line mismatch");
+    assert_eq!(
+      actual.start.line, expected.start.line,
+      "Start line mismatch"
+    );
   }
   if expected.start.column != 0 {
-    assert_eq!(actual.start.column, expected.start.column, "Start column mismatch");
+    assert_eq!(
+      actual.start.column, expected.start.column,
+      "Start column mismatch"
+    );
   }
   if expected.end.line != 0 {
     assert_eq!(actual.end.line, expected.end.line, "End line mismatch");
   }
   if expected.end.column != 0 {
-    assert_eq!(actual.end.column, expected.end.column, "End column mismatch");
+    assert_eq!(
+      actual.end.column, expected.end.column,
+      "End column mismatch"
+    );
   }
 }
 
@@ -366,7 +408,11 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
     bundle.assets.sort();
   }
 
-  let entry = path.parent().unwrap().join(&test.input);
+  let entry = if test.input == "." || test.input.is_empty() {
+    path.parent().unwrap().to_path_buf()
+  } else {
+    path.parent().unwrap().join(&test.input)
+  };
 
   if !test.diagnostics.is_empty() {
     let output_fs = Arc::new(MemoryFileSystem::new());
@@ -377,37 +423,7 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
     return;
   }
 
-  run_test_with_options(
-    &entry,
-    test.options,
-    test.bundles,
-    |mut v, side_effects| {
-      if v.is_function() {
-        v = v.as_function().unwrap().call(())?;
-      } else if let Some(f) = v
-        .as_object()
-        .and_then(|o| o.get::<_, rquickjs::Function>("default").ok())
-      {
-        v = f.call(())?;
-      }
-
-      if v.is_promise() {
-        v = v.as_promise().unwrap().finish()?;
-      }
-      let ctx = v.ctx().clone();
-      let out: serde_json::Value = match rquickjs_serde::from_value(v) {
-        Ok(v) => v,
-        Err(e) => {
-          panic!("{:?}", e.catch(&ctx));
-        }
-      };
-      assert_eq!(*side_effects.borrow(), test.side_effects);
-      if let Some(expected_output) = test.output {
-        assert_eq!(out, expected_output);
-      }
-      Ok(())
-    },
-  );
+  run_test_with_options(&entry, test);
 }
 
 // #[testing_macros::fixture("../../packages/core/integration-tests/test/integration/**/test.json")]

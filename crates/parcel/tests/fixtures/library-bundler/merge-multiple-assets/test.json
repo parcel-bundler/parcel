@@ -1,0 +1,11 @@
+{
+  "description": "should merge multiple assets in the same file together",
+  "input": ".",
+  "options": { "mode": "production" },
+  "output": {"bar": "hi", "foo": "hi"},
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"type": "js", "assets": ["foo.js"]},
+    {"type": "css", "assets": ["foo.js", "foo.js"]}
+  ]
+}

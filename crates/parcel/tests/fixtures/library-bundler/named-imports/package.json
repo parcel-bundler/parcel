@@ -1,0 +1,6 @@
+{
+  "source": "index.js",
+  "main": "dist/main.js",
+  "module": "dist/module.mjs",
+  "engines": { "node": "*" }
+}

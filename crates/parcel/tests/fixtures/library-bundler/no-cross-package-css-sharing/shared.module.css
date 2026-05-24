@@ -1,0 +1,6 @@
+.foo {
+  composes: bar;
+  color: white
+}
+
+.bar { background: pink }

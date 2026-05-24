@@ -1,0 +1,8 @@
+{
+  "engines": { "node": "*" },
+  "source": "src/b.js",
+  "module": "dist/b.mjs",
+  "targets": {
+    "module": { "includeNodeModules": true }
+  }
+}

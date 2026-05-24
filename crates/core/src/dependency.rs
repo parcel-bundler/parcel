@@ -180,7 +180,7 @@ impl PartialEq for AssetRequest {
       && self.ty == other.ty
       && self.pipeline == other.pipeline
       && self.target == other.target
-      // && Arc::ptr_eq(&self.content, &other.content)
+      && self.content.eq(&*other.content)
       && self.side_effects == other.side_effects
   }
 }
@@ -193,7 +193,7 @@ impl std::hash::Hash for AssetRequest {
     self.ty.hash(state);
     self.pipeline.hash(state);
     self.target.hash(state);
-    // Arc::as_ptr(&self.content).hash(state);
+    self.content.hash(state);
     self.side_effects.hash(state);
   }
 }

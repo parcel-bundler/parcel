@@ -1,0 +1,13 @@
+{
+  "description": "should support export default in CJS",
+  "input": ".",
+  "options": { "mode": "production" },
+  "output": {"test": "test:foo"},
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["foo.js"]},
+    {"assets": ["esmodule-helpers.js"]},
+    {"assets": ["index.js"]},
+    {"assets": ["foo.js"]}
+  ]
+}

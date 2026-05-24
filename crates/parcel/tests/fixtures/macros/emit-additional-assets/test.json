@@ -3,7 +3,7 @@
   "input": "index.mjs",
   "bundles": [
     {"type": "js", "assets": ["index.mjs"]},
-    {"type": "css", "assets": ["index.mjs"]}
+    {"type": "css", "assets": ["index.mjs", "index.mjs"]}
   ],
   "output": "foofoo"
 }

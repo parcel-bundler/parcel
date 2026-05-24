@@ -1,0 +1,11 @@
+{
+  "source": "index.js",
+  "module": "dist/module.mjs",
+  "main": "dist/main.js",
+  "engines": { "node": "*" },
+  "targets": {
+    "module": { "includeNodeModules": false },
+    "main": { "includeNodeModules": false }
+  },
+  "dependencies": { "bar": "*" }
+}

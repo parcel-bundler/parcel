@@ -210,6 +210,10 @@ impl CjsLoader {
     options.strict = false;
     options.filename = Some(resolved.into());
 
+    if resolved.ends_with(".css") {
+      return module.get("exports");
+    }
+
     if resolved.ends_with(".ts") || resolved.ends_with(".tsx") {
       let cm = Arc::<swc_core::common::SourceMap>::default();
       let compiler = swc::Compiler::new(cm.clone());

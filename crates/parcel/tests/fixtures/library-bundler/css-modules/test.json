@@ -1,0 +1,12 @@
+{
+  "description": "should work with CSS modules",
+  "input": ".",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"type": "css", "assets": ["foo.module.css"]},
+    {"assets": ["esmodule-helpers.js"]},
+    {"assets": ["index.js"]}
+  ],
+  "output": {"test": "SxtEeG_bar"}
+}

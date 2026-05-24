@@ -1,0 +1,10 @@
+{
+  "description": "should allow bundles to be reused between targets in the same package",
+  "input": ".",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"assets": ["a.js"]},
+    {"assets": ["b.js"]},
+    {"assets": ["shared.js"]}
+  ]
+}

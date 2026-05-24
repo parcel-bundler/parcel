@@ -1,5 +1,6 @@
 use std::{
   any::Any,
+  hash::{Hash, Hasher},
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -13,6 +14,17 @@ pub trait Content: Any + std::fmt::Debug + Send + Sync {
   /// Writes the content to a file.
   fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
     Ok(fs.write(path, &self.read()?)?)
+  }
+
+  fn hash(&self, mut state: &mut dyn Hasher) {
+    let content = self.read();
+    content.hash(&mut state);
+  }
+
+  fn eq(&self, other: &dyn Content) -> bool {
+    let a = self.read();
+    let b = other.read();
+    a == b
   }
 
   #[allow(unused_variables)]
@@ -90,6 +102,10 @@ impl Content for FileContent {
     } else {
       Ok(fs.write(path, &self.read()?)?)
     }
+  }
+
+  fn hash(&self, mut state: &mut dyn Hasher) {
+    self.path.hash(&mut state);
   }
 }
 
