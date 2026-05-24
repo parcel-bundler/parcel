@@ -1,0 +1,5 @@
+.quotes {
+  background-image: url('data:image/svg+xml;utf8,with quote " and escape \\');
+  width: 100px;
+  height: 100px;
+}

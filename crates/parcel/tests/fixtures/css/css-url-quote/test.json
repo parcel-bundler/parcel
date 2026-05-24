@@ -1,0 +1,4 @@
+{
+  "description": "should handle quote in CSS URL correctly",
+  "input": "index.css"
+}

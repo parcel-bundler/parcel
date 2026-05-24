@@ -1,0 +1,30 @@
+{
+  "description": "should support loading a CSS bundle along side dynamic imports",
+  "input": "index.js",
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "index.js"
+      ]
+    },
+    {
+      "type": "js",
+      "assets": [
+        "local.js"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "local.css"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "index.css"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "description": "should support the style package exports condition",
+  "input": "index.css",
+  "bundles": [
+    {
+      "name": "index.css",
+      "assets": [
+        "index.css",
+        "foo.css"
+      ]
+    }
+  ]
+}

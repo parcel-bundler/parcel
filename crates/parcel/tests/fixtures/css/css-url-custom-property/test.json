@@ -1,0 +1,24 @@
+{
+  "description": "should throw a diagnostic for relative url() dependencies in custom properties",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "diagnostics": [
+    {
+      "message": "Ambiguous url('foo.png') in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {"line": 2, "column": 11},
+              "end": {"line": 2, "column": 11}
+            }
+          ]
+        }
+      ],
+      "documentationURL": "https://parceljs.org/languages/css/#url()",
+      "hints": ["Replace with: url(/foo.png)"]
+    }
+  ]
+}

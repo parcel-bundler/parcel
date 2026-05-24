@@ -1,0 +1,13 @@
+{
+  "description": "should support external CSS imports",
+  "input": "a.css",
+  "bundles": [
+    {
+      "name": "a.css",
+      "assets": [
+        "a.css",
+        "b.css"
+      ]
+    }
+  ]
+}

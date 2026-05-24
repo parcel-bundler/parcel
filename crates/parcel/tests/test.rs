@@ -168,75 +168,73 @@ fn run_test_with_options(entry: &Path, test: TestJson) {
     }
   }
 
-  for bundle in &bundle_graph.bundles {
-    if !bundle.flags.contains(BundleFlags::ENTRY) {
-      continue;
-    }
-
-    let is_library = bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY);
-    let path = bundle.dist_path();
-    match &bundle.ty {
-      AssetType::Js => {
-        if is_library {
-          let (output, side_effects) = run(
-            vec![path.clone()],
-            output_fs.clone(),
-            bundle.main_entry_asset.unwrap(),
-            true,
-          );
-          assert_eq!(side_effects, test.side_effects);
-          if let Some(expected_output) = &test.output {
-            assert_eq!(&output, expected_output);
-          }
-        } else {
-          scripts.push(path.clone());
-        }
-
-        if let Some(m) = bundle.main_entry_asset {
-          main = m;
-        }
+  if let Some(expected_output) = &test.output {
+    for bundle in &bundle_graph.bundles {
+      if !bundle.flags.contains(BundleFlags::ENTRY) {
+        continue;
       }
-      AssetType::Html => {
-        let deps = parcel_html::transform_html(parcel_html::TransformOptions {
-          code: output_fs.read(&path).unwrap(),
-          file_path: path.clone(),
-          xml: false,
-          target: Default::default(),
-          hmr: false,
-        });
 
-        for dep in deps.dependencies {
-          match dep.resolution {
-            DependencyResolution::Deferred(req) => {
-              println!("inline!");
-            }
-            _ => {
-              let resolved = path.parent().unwrap().join(dep.specifier);
+      let is_library = bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY);
+      let path = bundle.dist_path();
+      match &bundle.ty {
+        AssetType::Js => {
+          if is_library {
+            let (output, side_effects) = run(
+              vec![path.clone()],
+              output_fs.clone(),
+              bundle.main_entry_asset.unwrap(),
+              true,
+            );
+            assert_eq!(side_effects, test.side_effects);
+            assert_eq!(&output, expected_output);
+          } else {
+            scripts.push(path.clone());
+          }
 
-              if resolved.extension().unwrap() == "mjs" {
-                let b = bundle_graph
-                  .bundles
-                  .iter()
-                  .find(|b| b.dist_path() == resolved)
-                  .unwrap();
-                if let Some(m) = b.main_entry_asset {
-                  main = m;
+          if let Some(m) = bundle.main_entry_asset {
+            main = m;
+          }
+        }
+        AssetType::Html => {
+          let deps = parcel_html::transform_html(parcel_html::TransformOptions {
+            code: output_fs.read(&path).unwrap(),
+            file_path: path.clone(),
+            xml: false,
+            target: Default::default(),
+            hmr: false,
+          });
+
+          for dep in deps.dependencies {
+            match dep.resolution {
+              DependencyResolution::Deferred(req) => {
+                println!("inline!");
+              }
+              _ => {
+                let resolved = path.parent().unwrap().join(dep.specifier);
+
+                if resolved.extension().unwrap() == "mjs" {
+                  let b = bundle_graph
+                    .bundles
+                    .iter()
+                    .find(|b| b.dist_path() == resolved)
+                    .unwrap();
+                  if let Some(m) = b.main_entry_asset {
+                    main = m;
+                  }
+
+                  scripts.push(resolved);
                 }
-
-                scripts.push(resolved);
               }
             }
           }
         }
+        _ => {}
       }
-      _ => {}
     }
-  }
 
-  if !scripts.is_empty() {
-    let (output, side_effects) = run(scripts, output_fs.clone(), main, false);
-    assert_eq!(side_effects, test.side_effects);
-    if let Some(expected_output) = &test.output {
+    if !scripts.is_empty() {
+      let (output, side_effects) = run(scripts, output_fs.clone(), main, false);
+      assert_eq!(side_effects, test.side_effects);
       assert_eq!(&output, expected_output);
     }
   }
@@ -246,10 +244,33 @@ fn run_test_with_options(entry: &Path, test: TestJson) {
     for entry in expected.read_dir().unwrap() {
       let entry = entry.unwrap();
       let content = std::fs::read_to_string(entry.path()).unwrap();
+      let ty = AssetType::from_extension(entry.path().extension().unwrap().to_str().unwrap());
       let bundle = bundle_graph
         .bundles
         .iter()
-        .find(|b| b.name.as_ref().unwrap().as_str() == entry.file_name())
+        .find(|b| {
+          if b.ty != ty {
+            return false;
+          }
+          let name = b
+            .assets
+            .iter()
+            .map(|a| {
+              bundle_graph.asset_graph.assets[*a]
+                .expect_asset()
+                .loc
+                .url
+                .to_file_path()
+                .unwrap()
+                .file_prefix()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+            })
+            .collect::<Vec<_>>()
+            .join("_");
+          name == entry.path().file_prefix().unwrap().to_str().unwrap()
+        })
         .expect("could not find bundle");
       let actual_content = output_fs.read_to_string(&bundle.dist_path()).unwrap();
       assert_eq!(actual_content, content, "{:?}", entry.file_name());

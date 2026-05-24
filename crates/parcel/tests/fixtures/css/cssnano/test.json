@@ -1,0 +1,17 @@
+[
+  {
+    "description": "should minify CSS when minify is set",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": 3
+  },
+  {
+    "description": "should produce a sourcemap when sourceMaps are used",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    }
+  }
+]

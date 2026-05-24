@@ -1,0 +1,4 @@
+{
+  "description": "should inline data-urls for binary files",
+  "input": "binary.css"
+}

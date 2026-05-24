@@ -1,0 +1,6 @@
+@import "./b.css";
+@import "./e.css";
+
+.a {
+  background: blue;
+}

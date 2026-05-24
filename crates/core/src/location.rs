@@ -81,6 +81,17 @@ impl SourceUrl {
     })
   }
 
+  pub fn from_directory_path(path: &Path) -> Result<SourceUrl, Diagnostic> {
+    Ok(SourceUrl {
+      url: Arc::new(Url::from_directory_path(path).map_err(|_| {
+        Diagnostic::from_message(format!(
+          "Could not convert non-absolute path to URL: {:?}",
+          path
+        ))
+      })?),
+    })
+  }
+
   pub fn from_path_and_query(path: &Path, query: Option<&str>) -> Result<SourceUrl, Diagnostic> {
     let mut url = Url::from_file_path(path).map_err(|_| {
       Diagnostic::from_message(format!(

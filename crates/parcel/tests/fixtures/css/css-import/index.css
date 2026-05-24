@@ -1,0 +1,5 @@
+@import './other.css' print;
+
+.index {
+  color: red;
+}

@@ -1,0 +1,31 @@
+{
+  "description": "should place one css bundle per bundlegroup for naming reasons",
+  "input": "entry.js",
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "entry.js"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "main.css"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "foo.css"
+      ]
+    },
+    {
+      "type": "js",
+      "assets": [
+        "esmodule-helpers.js",
+        "index.js"
+      ]
+    }
+  ]
+}

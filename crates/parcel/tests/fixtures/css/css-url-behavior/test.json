@@ -1,0 +1,12 @@
+{
+  "description": "should ignore url() with IE behavior specifiers",
+  "input": "index.css",
+  "bundles": [
+    {
+      "name": "index.css",
+      "assets": [
+        "index.css"
+      ]
+    }
+  ]
+}

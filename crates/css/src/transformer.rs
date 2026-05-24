@@ -78,7 +78,7 @@ impl<'de> serde::Deserialize<'de> for CssTransformer {
 }
 
 impl Transformer for CssTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut stylesheet = StyleSheet::parse(
@@ -120,8 +120,10 @@ impl Transformer for CssTransformer {
       dependencies: &mut asset.dependencies,
       target: asset.target.clone(),
       url: asset.loc.url.clone(),
+      project_root: options.project_root.clone(),
+      in_custom_property: false,
     };
-    stylesheet.visit(&mut collector).unwrap();
+    stylesheet.visit(&mut collector)?;
 
     if self.css_modules.is_some() {
       // TODO: transform AST instead of printing and re-parsing.
@@ -231,13 +233,15 @@ struct DependencyCollector<'a> {
   dependencies: &'a mut Vec<Dependency>,
   target: Arc<Target>,
   url: SourceUrl,
+  project_root: SourceUrl,
+  in_custom_property: bool,
 }
 
 impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
-  type Error = ();
+  type Error = Diagnostic;
 
   fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
-    lightningcss::visit_types!(RULES | URLS)
+    lightningcss::visit_types!(RULES | PROPERTIES | URLS)
   }
 
   fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i>) -> Result<(), Self::Error> {
@@ -273,7 +277,54 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
     }
   }
 
+  fn visit_property(
+    &mut self,
+    property: &mut lightningcss::properties::Property<'i>,
+  ) -> Result<(), Self::Error> {
+    if matches!(property, lightningcss::properties::Property::Custom(_)) {
+      self.in_custom_property = true;
+      property.visit_children(self)?;
+      self.in_custom_property = false;
+      Ok(())
+    } else {
+      property.visit_children(self)
+    }
+  }
+
   fn visit_url(&mut self, url: &mut lightningcss::values::url::Url<'i>) -> Result<(), Self::Error> {
+    if self.in_custom_property && !url.is_absolute() {
+      return Err(Diagnostic {
+        message: format!(
+          "Ambiguous url('{}') in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead",
+          url.url
+        ),
+        origin: Some("@parcel/transformer-css".into()),
+        code_frames: vec![CodeFrame {
+          code: None,
+          language: Some(AssetType::Css),
+          url: Some(self.url.clone()),
+          code_highlights: vec![CodeHighlight {
+            message: None,
+            start: Location {
+              line: url.loc.line,
+              column: url.loc.column,
+            },
+            end: Location {
+              line: url.loc.line,
+              column: url.loc.column,
+            },
+          }],
+        }],
+        documentation_url: Some("https://parceljs.org/languages/css/#url()".into()),
+        hints: if let Some(url) = self.url.join(&url.url).relative(&self.project_root) {
+          vec![format!("Replace with: url(/{})", url)]
+        } else {
+          Vec::new()
+        },
+        severity: DiagnosticSeverity::Error,
+      });
+    }
+
     self.dependencies.push(Dependency {
       specifier: url.url.to_string(),
       specifier_type: SpecifierType::Url,
@@ -306,7 +357,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
 pub struct StyleAttrTransformer {}
 
 impl Transformer for StyleAttrTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut attr = StyleAttribute::parse(
@@ -341,13 +392,13 @@ impl Transformer for StyleAttrTransformer {
       ..Default::default()
     });
 
-    attr
-      .visit(&mut DependencyCollector {
-        dependencies: &mut asset.dependencies,
-        target: asset.target.clone(),
-        url: asset.loc.url.clone(),
-      })
-      .unwrap();
+    attr.visit(&mut DependencyCollector {
+      dependencies: &mut asset.dependencies,
+      target: asset.target.clone(),
+      url: asset.loc.url.clone(),
+      project_root: options.project_root.clone(),
+      in_custom_property: false,
+    })?;
 
     asset.content = Arc::new(StyleAttrContent {
       attr: attr.into_owned(),

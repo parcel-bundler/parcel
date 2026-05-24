@@ -1,0 +1,4 @@
+{
+  "description": "should inline data-urls for text-encoded files",
+  "input": "text.css"
+}
