@@ -1,0 +1,11 @@
+{
+  "description": "should support composes imports for multiple selectors",
+  "input": "index5.js",
+  "bundles": [
+    {"assets": ["index5.js"]},
+    {"assets": ["composes-6.module.css", "mixins.module.css"]}
+  ],
+  "output": {
+    "composes6": "nNI1sG_composes6 XzHzTG_test XzHzTG_test-2"
+  }
+}

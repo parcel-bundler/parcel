@@ -1,0 +1,9 @@
+{
+  "description": "should support transforming css modules (require)",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["foo.module.css", "index.css"]}
+  ],
+  "output": "_22Bila_foo"
+}

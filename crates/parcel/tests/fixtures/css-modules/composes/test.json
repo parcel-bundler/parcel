@@ -1,0 +1,12 @@
+{
+  "description": "should support css modules composes imports",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["composes-1.module.css", "composes-2.module.css", "mixins.module.css"]}
+  ],
+  "output": {
+    "composes1": "_1knIoW_composes1 bjTrIq_test",
+    "composes2": "aKgwXW_composes2 bjTrIq_test"
+  }
+}

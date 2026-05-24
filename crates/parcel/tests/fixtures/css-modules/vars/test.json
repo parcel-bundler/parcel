@@ -1,0 +1,10 @@
+{
+  "description": "should support css modules with custom properties",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["index.module.css", "vars.module.css"]}
+  ],
+  "output": ["yJCMlG_foo", "--E6eNFW_from-js"]
+}

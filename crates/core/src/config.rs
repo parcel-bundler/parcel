@@ -323,6 +323,13 @@ impl RawParcelConfig {
       .unwrap_or_default()
       .resolve(&|name, config| factory.optimizer(name, config, from))?;
 
+    let bundler = if let Some(bundler) = self.bundler {
+      Some(bundler.resolve(&|name, config| factory.bundler(name, config, from))?)
+    } else {
+      extends.get(0).map(|e| e.bundler.clone())
+    }
+    .ok_or_else(|| Diagnostic::from_message("Config does not have a bundler".into()))?;
+
     let mut extended_resolvers = Vec::new();
     let mut extended_namers = Vec::new();
     let mut extended_runtimes = Vec::new();
@@ -340,10 +347,7 @@ impl RawParcelConfig {
         extended_resolvers.into_iter(),
       )?,
       transformers,
-      bundler: self
-        .bundler
-        .ok_or_else(|| Diagnostic::from_message("Config does not have a bundler".into()))?
-        .resolve(&|name, config| factory.bundler(name, config, from))?,
+      bundler: bundler,
       namers: self.namers.unwrap_or_default().resolve_extended(
         &|name, config| factory.namer(name, config, from),
         extended_namers.into_iter(),

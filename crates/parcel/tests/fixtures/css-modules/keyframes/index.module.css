@@ -1,0 +1,23 @@
+.foo {
+  animation: test 200ms;
+}
+
+@keyframes test {
+  from {
+    color: red;
+  }
+
+  to {
+    color: green;
+  }
+}
+
+@keyframes unused {
+  from {
+    color: green;
+  }
+
+  to {
+    color: blue;
+  }
+}

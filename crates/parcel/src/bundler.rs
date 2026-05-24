@@ -44,9 +44,20 @@ impl Bundler for DefaultBundler {
           non_entry_bundle_roots.insert(asset_index);
         }
 
-        for dep in &asset.dependencies {
+        for dep_index in 0..asset.dependencies.len() {
+          let dep = &asset_graph.assets[asset_index].expect_asset().dependencies[dep_index];
           if dep.bundle_behavior != BundleBehavior::None || dep.priority != Priority::Sync {
             if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
+              let bundle_behavior = dep.bundle_behavior;
+              if bundle_behavior != BundleBehavior::None
+                && let AssetNode::Asset(target_asset) =
+                  &mut asset_graph.assets[resolved_asset_index as usize]
+              {
+                if target_asset.bundle_behavior == BundleBehavior::None {
+                  target_asset.bundle_behavior = bundle_behavior;
+                }
+              }
+
               bundle_roots.insert(resolved_asset_index as usize);
               non_entry_bundle_roots.insert(resolved_asset_index as usize);
             }

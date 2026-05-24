@@ -1,0 +1,10 @@
+{
+  "description": "should support transforming css modules (import default)",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["esmodule-helpers.js", "index.js"]},
+    {"assets": ["style.module.css"]}
+  ],
+  "output": "Ht7lHG_b-2"
+}

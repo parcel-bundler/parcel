@@ -1,0 +1,5 @@
+@value test: red;
+
+.foo {
+  color: test;
+}

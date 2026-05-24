@@ -1,0 +1,6 @@
+{
+  "description": "should support global css modules via boolean config",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "output": "bB89cW_foo"
+}

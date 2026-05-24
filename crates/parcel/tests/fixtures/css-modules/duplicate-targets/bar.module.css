@@ -1,0 +1,8 @@
+.foo {
+  composes: composed;
+  color: white;
+}
+
+.composed {
+  background: pink;
+}

@@ -1,0 +1,11 @@
+{
+  "description": "should bundle css modules siblings together and their JS assets",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "css", "assets": ["index.css"]},
+    {"type": "js", "assets": ["index.tsx"]},
+    {"type": "css", "assets": ["inner.module.css", "outer.module.css"]}
+  ],
+  "sideEffects": [["mainJs", "ur-0-G_container a3N5HG_-expand"]]
+}

@@ -1,0 +1,10 @@
+{
+  "description": "should compile css modules for multiple targets",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["foo.module.css"]}
+  ]
+}

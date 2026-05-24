@@ -107,12 +107,14 @@ pub fn build(
 
   let opts = &*options;
   bundle_graph.bundles.par_iter().for_each(|bundle| {
-    let content = get_bundle_content(&config, &bundle_graph, &bundle, opts).unwrap();
-    // TODO: replace hash references
-    let name = bundle.name.as_ref().unwrap();
-    let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
-    let path = dist_dir.join(name);
-    tx.send((path, content)).unwrap();
+    if bundle.bundle_behavior != BundleBehavior::Inline {
+      let content = get_bundle_content(&config, &bundle_graph, &bundle, opts).unwrap();
+      // TODO: replace hash references
+      let name = bundle.name.as_ref().unwrap();
+      let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
+      let path = dist_dir.join(name);
+      tx.send((path, content)).unwrap();
+    }
   });
 
   drop(tx);

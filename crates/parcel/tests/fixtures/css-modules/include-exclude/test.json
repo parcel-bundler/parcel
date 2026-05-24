@@ -1,0 +1,10 @@
+{
+  "description": "should support the include and exclude options",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "js", "assets": ["esmodule-helpers.js", "index.js"]},
+    {"type": "css", "assets": ["_c.css", "a.css", "b.css"]}
+  ],
+  "output": "yi2hOW_bar"
+}

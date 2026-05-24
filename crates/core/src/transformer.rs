@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
-  DiagnosticList, ParcelOptions, Pipeline,
+  DiagnosticList, ParcelOptions, Pipeline, SourceUrl,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
 };
@@ -26,22 +26,7 @@ pub struct TransformResult {
 impl TransformRequest {
   pub fn run(&self) -> Result<TransformResult, DiagnosticList> {
     let req = &self.req;
-    let mut relative_path = Cow::Borrowed(
-      req
-        .loc
-        .url
-        .path()
-        .strip_prefix(&self.options.project_root.path())
-        .map(|p| &p[1..])
-        .unwrap_or(req.loc.url.path()),
-    );
-    let (base, ext) = relative_path
-      .rsplit_once('.')
-      .unwrap_or((relative_path.as_ref(), ""));
-    if req.ty.extension() != ext {
-      *relative_path.to_mut() = format!("{}.{}", base, req.ty.extension());
-    }
-
+    let relative_path = relative_path(&req.loc.url, &self.options.project_root, &req.ty);
     let transformer_pipeline = self
       .config
       .transformers
@@ -107,12 +92,12 @@ pub fn transform(
     let ty: AssetType = input.ty.clone();
     let mut result = plugin.transform(input, options)?;
     if result.ty != ty {
-      let next_path = result.loc.url.with_extension(result.ty.extension());
+      let next_path = relative_path(&result.loc.url, &options.project_root, &result.ty);
 
-      let mut next_pipeline = transformers.get(next_path.as_str(), &result.pipeline, false);
+      let mut next_pipeline = transformers.get(&next_path, &result.pipeline, false);
       if result.pipeline.is_some() && next_pipeline.0.is_empty() {
         result.pipeline = None;
-        next_pipeline = transformers.get(next_path.as_str(), &result.pipeline, false);
+        next_pipeline = transformers.get(&next_path, &result.pipeline, false);
       }
 
       if next_pipeline != pipeline {
@@ -124,6 +109,22 @@ pub fn transform(
   }
 
   Ok(input)
+}
+
+fn relative_path<'a>(url: &'a SourceUrl, project_root: &SourceUrl, ty: &AssetType) -> Cow<'a, str> {
+  let mut relative_path = Cow::Borrowed(
+    url
+      .path()
+      .strip_prefix(&project_root.path())
+      .unwrap_or(url.path()),
+  );
+  let (base, ext) = relative_path
+    .rsplit_once('.')
+    .unwrap_or((relative_path.as_ref(), ""));
+  if ty.extension() != ext {
+    *relative_path.to_mut() = format!("{}.{}", base, ty.extension());
+  }
+  relative_path
 }
 
 // #[cfg(test)]

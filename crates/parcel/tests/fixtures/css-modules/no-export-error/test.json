@@ -1,0 +1,8 @@
+{
+  "description": "should support importing css modules (missing export is undefined)",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["app.module.css"]}
+  ]
+}

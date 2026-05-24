@@ -1,0 +1,13 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.css": [
+      {
+        "plugin": "@parcel/transformer-css",
+        "config": {
+          "cssModules": true
+        }
+      }
+    ]
+  }
+}

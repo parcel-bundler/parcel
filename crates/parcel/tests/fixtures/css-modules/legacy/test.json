@@ -1,0 +1,21 @@
+[
+  {
+    "description": "should error on @value rule (deprecated)",
+    "input": "index.js",
+    "diagnostics": [
+      {
+        "message": "The @value rule is deprecated",
+        "origin": "@parcel/transformer-css"
+      }
+    ]
+  },
+  {
+    "description": "should not support css modules with :export",
+    "input": "b.js",
+    "bundles": [
+      {"assets": ["b.js"]},
+      {"assets": ["b.module.css"]}
+    ],
+    "output": {}
+  }
+]

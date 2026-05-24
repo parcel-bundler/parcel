@@ -1,0 +1,3 @@
+.other {
+  composes: buttonPrimary from "./button.module.css";
+}

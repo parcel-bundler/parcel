@@ -399,7 +399,12 @@ impl SyntheticAsset {
               asset_index as usize,
               exp.exported.as_str(),
             ) {
-              write!(dest, "exports.{} = '{}';\n", exp.exported.as_str(), value)?;
+              write!(
+                dest,
+                "exports[{:?}] = '{}';\n",
+                exp.exported.as_str(),
+                value
+              )?;
             }
           }
         }

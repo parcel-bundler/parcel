@@ -19,7 +19,7 @@ fn run(
   entry: usize,
   is_library: bool,
 ) -> (serde_json::Value, Vec<serde_json::Value>) {
-  let ctx = create_runtime(fs, &HashMap::new()).unwrap();
+  let ctx = create_runtime(fs.clone(), &HashMap::new()).unwrap();
   let res = ctx.with(|ctx| {
     let globals = ctx.globals();
     let side_effects = Arc::new(RefCell::new(Vec::<serde_json::Value>::new()));
@@ -52,8 +52,12 @@ fn run(
     let output: rquickjs::Result<rquickjs::Value> = if is_library {
       Ok(imported.unwrap())
     } else {
-      let parcel_require: rquickjs::Result<Function> = ctx.globals().get("parcelRequire");
-      parcel_require.and_then(|parcel_require| parcel_require.call((entry,)))
+      let parcel_require: Option<Function> = ctx.globals().get("parcelRequire").ok();
+      if let Some(parcel_require) = parcel_require {
+        parcel_require.call((entry,))
+      } else {
+        Ok(rquickjs::Value::new_undefined(ctx.clone()))
+      }
     };
 
     let mut v = output.and_then(|v: rquickjs::Value| {
@@ -104,7 +108,7 @@ fn noop<'js>(value: rquickjs::Value<'js>) -> rquickjs::Value<'js> {
 }
 
 fn bundle_with_options(
-  entry: &Path,
+  entries: Vec<String>,
   output_fs: Arc<dyn FileSystem>,
   options: TestOptions,
 ) -> Result<BundleGraph, DiagnosticList> {
@@ -121,12 +125,12 @@ fn bundle_with_options(
     config: None,
   };
 
-  parcel::build(vec![entry.to_str().unwrap().to_owned()], options)
+  parcel::build(entries, options)
 }
 
-fn run_test_with_options(entry: &Path, test: TestJson) {
+fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJson) {
   let output_fs = Arc::new(OverlayFileSystem::new());
-  let bundle_graph = bundle_with_options(entry, output_fs.clone(), test.options).unwrap();
+  let bundle_graph = bundle_with_options(entries, output_fs.clone(), test.options).unwrap();
 
   let mut scripts = Vec::new();
   let mut main = 0;
@@ -168,7 +172,8 @@ fn run_test_with_options(entry: &Path, test: TestJson) {
     }
   }
 
-  if let Some(expected_output) = &test.output {
+  let should_run = test.output.is_some() || !test.side_effects.is_empty();
+  if should_run {
     for bundle in &bundle_graph.bundles {
       if !bundle.flags.contains(BundleFlags::ENTRY) {
         continue;
@@ -186,7 +191,9 @@ fn run_test_with_options(entry: &Path, test: TestJson) {
               true,
             );
             assert_eq!(side_effects, test.side_effects);
-            assert_eq!(&output, expected_output);
+            if let Some(expected_output) = &test.output {
+              assert_eq!(&output, expected_output);
+            }
           } else {
             scripts.push(path.clone());
           }
@@ -206,13 +213,11 @@ fn run_test_with_options(entry: &Path, test: TestJson) {
 
           for dep in deps.dependencies {
             match dep.resolution {
-              DependencyResolution::Deferred(req) => {
-                println!("inline!");
-              }
+              DependencyResolution::Deferred(_) => {}
               _ => {
                 let resolved = path.parent().unwrap().join(dep.specifier);
 
-                if resolved.extension().unwrap() == "mjs" {
+                if resolved.extension().map_or(false, |e| e == "mjs" || e == "js") {
                   let b = bundle_graph
                     .bundles
                     .iter()
@@ -235,11 +240,13 @@ fn run_test_with_options(entry: &Path, test: TestJson) {
     if !scripts.is_empty() {
       let (output, side_effects) = run(scripts, output_fs.clone(), main, false);
       assert_eq!(side_effects, test.side_effects);
-      assert_eq!(&output, expected_output);
+      if let Some(expected_output) = &test.output {
+        assert_eq!(&output, expected_output);
+      }
     }
   }
 
-  let expected = entry.parent().unwrap().join("expected");
+  let expected = fixture_dir.join("expected");
   if expected.is_dir() {
     for entry in expected.read_dir().unwrap() {
       let entry = entry.unwrap();
@@ -278,12 +285,35 @@ fn run_test_with_options(entry: &Path, test: TestJson) {
   }
 }
 
+fn deserialize_input<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
+  use serde::de::{self, Visitor};
+  struct InputVisitor;
+  impl<'de> Visitor<'de> for InputVisitor {
+    type Value = Vec<String>;
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+      f.write_str("string or array of strings")
+    }
+    fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+      Ok(vec![v.to_owned()])
+    }
+    fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+      let mut v = Vec::new();
+      while let Some(s) = seq.next_element()? {
+        v.push(s);
+      }
+      Ok(v)
+    }
+  }
+  d.deserialize_any(InputVisitor)
+}
+
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TestJson {
   #[serde(default)]
   description: String,
-  input: String,
+  #[serde(deserialize_with = "deserialize_input")]
+  input: Vec<String>,
   #[serde(default)]
   options: TestOptions,
   output: Option<serde_json::Value>,
@@ -429,22 +459,30 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
     bundle.assets.sort();
   }
 
-  let entry = if test.input == "." || test.input.is_empty() {
-    path.parent().unwrap().to_path_buf()
-  } else {
-    path.parent().unwrap().join(&test.input)
-  };
+  let fixture_dir = path.parent().unwrap();
+  let entries: Vec<String> = test
+    .input
+    .iter()
+    .map(|input| {
+      let p = if input == "." || input.is_empty() {
+        fixture_dir.to_path_buf()
+      } else {
+        fixture_dir.join(input)
+      };
+      p.to_str().unwrap().to_owned()
+    })
+    .collect();
 
   if !test.diagnostics.is_empty() {
     let output_fs = Arc::new(MemoryFileSystem::new());
-    match bundle_with_options(&entry, output_fs, test.options) {
+    match bundle_with_options(entries, output_fs, test.options) {
       Err(actual) => assert_diagnostics(&actual, &test.diagnostics),
       Ok(_) => panic!("Expected build to fail with diagnostics but it succeeded"),
     }
     return;
   }
 
-  run_test_with_options(&entry, test);
+  run_test_with_options(fixture_dir, entries, test);
 }
 
 // #[testing_macros::fixture("../../packages/core/integration-tests/test/integration/**/test.json")]

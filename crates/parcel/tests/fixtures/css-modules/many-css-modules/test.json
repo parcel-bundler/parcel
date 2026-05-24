@@ -1,0 +1,9 @@
+{
+  "description": "should not fail with many css modules",
+  "input": "src/index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["main.js"]},
+    {"type": "css", "assets": ["button.module.css", "main.module.css", "other.module.css"]}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "description": "should support importing css modules with a non-static namespace import",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["global.css", "style.module.css"]}
+  ],
+  "output": {"unused": "fzGs-a_unused", "b-2": "fzGs-a_b-2"}
+}

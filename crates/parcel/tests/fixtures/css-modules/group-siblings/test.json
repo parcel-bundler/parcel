@@ -1,0 +1,11 @@
+{
+  "description": "should group together css and css modules into one bundle",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["main.js"]},
+    {"type": "css", "assets": ["a.module.css", "b.module.css"]},
+    {"type": "css", "assets": ["global.css"]}
+  ],
+  "sideEffects": [["mainJs", "v8EgsG_myClass", "uqRpoq_myOtherClass"]]
+}

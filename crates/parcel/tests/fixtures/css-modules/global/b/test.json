@@ -1,0 +1,6 @@
+{
+  "description": "should support global css modules via object config",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "output": "qeX8CG_foo"
+}

@@ -1,0 +1,8 @@
+{
+  "description": "should not process inline style elements as a CSS module",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "css", "assets": ["index.html"]}
+  ]
+}

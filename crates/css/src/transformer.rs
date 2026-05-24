@@ -125,7 +125,7 @@ impl Transformer for CssTransformer {
     };
     stylesheet.visit(&mut collector)?;
 
-    if self.css_modules.is_some() {
+    if self.css_modules.is_some() && asset.loc.start.line == 0 {
       // TODO: transform AST instead of printing and re-parsing.
       let res = stylesheet
         .to_css(Default::default())
