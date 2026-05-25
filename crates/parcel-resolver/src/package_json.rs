@@ -88,6 +88,7 @@ struct SerializedPackageJson {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JsTransformerConfig {
+  #[serde(rename = "inlineFS")]
   pub inline_fs: Option<bool>,
   pub inline_environment: Option<InlineEnvironment>,
   #[serde(default, rename = "unstable_inlineConstants")]

@@ -1,0 +1,5 @@
+{
+  "description": "should inline a file as a string",
+  "input": "index.js",
+  "output": "hello\n"
+}

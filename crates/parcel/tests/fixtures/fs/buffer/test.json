@@ -1,0 +1,8 @@
+{
+  "description": "should inline a file as a buffer",
+  "input": "index.js",
+  "output": {
+    "type": "Buffer",
+    "data": [104, 101, 108, 108, 111, 10]
+  }
+}

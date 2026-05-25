@@ -1,0 +1,10 @@
+{
+  "description": "should not inline a file in a node environment",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "contains": ["readFileSync"]
+    }
+  ]
+}

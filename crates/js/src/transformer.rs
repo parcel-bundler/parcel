@@ -612,7 +612,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
   if let Some(pkg) = &pkg {
     if let Ok(pkg) = &**pkg {
       if let BrowserField::Map(browser) = &pkg.browser {
-        if browser.get(&Specifier::Package("fs".into(), "".into()))
+        if browser.get(&Specifier::Builtin("".into(), "fs".into()))
           == Some(&AliasValue::Bool(false))
         {
           inline_fs = false;

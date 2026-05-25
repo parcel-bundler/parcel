@@ -1,0 +1,10 @@
+{
+  "description": "should not inline a file outside of the project root",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "contains": ["readFileSync"]
+    }
+  ]
+}

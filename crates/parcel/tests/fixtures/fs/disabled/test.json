@@ -1,0 +1,10 @@
+{
+  "description": "should not inline a file if disabled via config",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["empty.js", "index.js"],
+      "contains": ["readFileSync"]
+    }
+  ]
+}

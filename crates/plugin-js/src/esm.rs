@@ -117,7 +117,7 @@ impl Loader for ModuleLoader {
   ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
     // println!("LOADING {:?}", name);
 
-    if name.starts_with("builtin:") {
+    if name.starts_with("builtin:") && self.environment != Environment::Browser {
       match &name[8..] {
         "console" => return Module::declare_def::<Console, _>(ctx.clone(), "console"),
         "fs" => return Module::declare_def::<Fs, _>(ctx.clone(), "fs"),

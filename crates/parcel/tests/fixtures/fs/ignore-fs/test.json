@@ -1,0 +1,5 @@
+{
+  "description": "should not evaluate fs calls when package.browser.fs is false",
+  "input": "index.js",
+  "output": "test-pkg-ignore-fs-ok"
+}

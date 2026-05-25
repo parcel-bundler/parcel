@@ -1,0 +1,5 @@
+{
+  "description": "should inline a file with fs require alias",
+  "input": "index.js",
+  "output": "hello\n"
+}

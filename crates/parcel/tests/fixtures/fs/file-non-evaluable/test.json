@@ -1,0 +1,10 @@
+{
+  "description": "should ignore fs calls when the filename is not evaluable",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["empty.js", "index.js"],
+      "contains": ["readFileSync"]
+    }
+  ]
+}

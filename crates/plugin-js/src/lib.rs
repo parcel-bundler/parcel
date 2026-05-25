@@ -143,22 +143,8 @@ pub fn create_runtime(
     ctx.store_userdata(FileSystemData(fs))?;
 
     let global = ctx.globals();
-    let req = Function::new(ctx.clone(), cjs::require)?;
-    req.prop("cache", Object::new(ctx.clone()))?;
-    req.prop("resolve", Function::new(ctx.clone(), cjs::require_resolve)?)?;
-    global.prop("require", req)?;
-
-    global.prop("__dirname", Accessor::new(fs::get_dirname, || {}))?;
-    global.prop("__filename", Accessor::new(fs::get_filename, || {}))?;
-
     let console = console::Console::new(Formatter::default());
     global.set("console", console)?;
-
-    global.set(
-      "process",
-      process::Process::new(ctx.clone(), env_vars, cwd)?,
-    )?;
-    global.set("global", global.clone())?;
 
     global.set("TextDecoder", encoding::TextDecoder::constructor(&ctx))?;
     global.set("TextEncoder", encoding::TextEncoder::constructor(&ctx))?;
@@ -171,14 +157,29 @@ pub fn create_runtime(
     global.set("atob", Function::new(ctx.clone(), encoding::atob)?)?;
     global.set("btoa", Function::new(ctx.clone(), encoding::btoa)?)?;
 
-    let cjs = ctx.userdata::<CjsLoader>().unwrap();
-    if let Some(buffer) = cjs
-      .resolve(&ctx, "", "buffer")
-      .and_then(|resolved| cjs.load(&ctx, &resolved))?
-      .into_object()
-    {
-      let buffer: Object = buffer.get("Buffer")?;
-      global.set("Buffer", buffer)?;
+    if environment != Environment::Browser {
+      let req = Function::new(ctx.clone(), cjs::require)?;
+      req.prop("cache", Object::new(ctx.clone()))?;
+      req.prop("resolve", Function::new(ctx.clone(), cjs::require_resolve)?)?;
+      global.prop("require", req)?;
+
+      global.prop("__dirname", Accessor::new(fs::get_dirname, || {}))?;
+      global.prop("__filename", Accessor::new(fs::get_filename, || {}))?;
+      global.set(
+        "process",
+        process::Process::new(ctx.clone(), env_vars, cwd)?,
+      )?;
+      global.set("global", global.clone())?;
+
+      let cjs = ctx.userdata::<CjsLoader>().unwrap();
+      if let Some(buffer) = cjs
+        .resolve(&ctx, "", "buffer")
+        .and_then(|resolved| cjs.load(&ctx, &resolved))?
+        .into_object()
+      {
+        let buffer: Object = buffer.get("Buffer")?;
+        global.set("Buffer", buffer)?;
+      }
     }
 
     Ok(())
