@@ -1,0 +1,9 @@
+{
+  "description": "should support SVGO config via .parcelrc",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "svg", "assets": ["icon.svg"]}
+  ]
+}

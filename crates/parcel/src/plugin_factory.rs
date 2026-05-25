@@ -46,7 +46,13 @@ impl PluginFactory for DefaultPluginFactory {
       }),
       "@parcel/transformer-style-attr" => Arc::new(StyleAttrTransformer {}),
       "@parcel/transformer-html" => Arc::new(HtmlTransformer {}),
-      "@parcel/transformer-svg" => Arc::new(SvgTransformer {}),
+      "@parcel/transformer-svg" => Arc::new(if let Some(config) = config {
+        SvgTransformer {
+          config: serde_json::from_value(config)?,
+        }
+      } else {
+        SvgTransformer::default()
+      }),
       "@parcel/transformer-svg-jsx" => Arc::new(SvgToJsxTransformer {
         config: config.map_or_else(
           || Ok(Default::default()),

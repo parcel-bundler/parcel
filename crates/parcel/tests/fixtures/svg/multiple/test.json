@@ -1,0 +1,9 @@
+{
+  "description": "SVG files should be in separate bundles",
+  "input": "index.js",
+  "bundles": [
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "svg", "assets": ["circle.svg"]},
+    {"type": "svg", "assets": ["square.svg"]}
+  ]
+}

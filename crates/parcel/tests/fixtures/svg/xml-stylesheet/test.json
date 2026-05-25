@@ -1,0 +1,9 @@
+{
+  "description": "should detect xml-stylesheet processing instructions",
+  "input": "img.svg",
+  "bundles": [
+    {"type": "svg", "assets": ["img.svg"]},
+    {"type": "css", "assets": ["style1.css"]},
+    {"type": "css", "assets": ["style3.css"]}
+  ]
+}

@@ -9,7 +9,7 @@ use dependencies::collect_dependencies;
 use html5ever::tendril::{StrTendril, TendrilSink};
 use jsx::{JsxOptions, to_component};
 use optimize::optimize;
-use oxvg::ConfigItem;
+use oxvg::{ConfigItem, OxvgConfig};
 use package::insert_bundle_references;
 use parcel_core::*;
 use serde::{Deserialize, Serialize, Serializer};
@@ -438,11 +438,22 @@ fn prepare_to_package(
   Ok((code, bundles, inline_bundles))
 }
 
-pub struct SvgTransformer {}
+pub struct SvgTransformer {
+  pub config: OxvgConfig,
+}
+
+impl Default for SvgTransformer {
+  fn default() -> Self {
+    SvgTransformer {
+      config: OxvgConfig::default(),
+    }
+  }
+}
 
 impl Transformer for SvgTransformer {
   fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
+    let path = asset.loc.url.to_string();
     let res = transform_svg(TransformOptions {
       code,
       file_path: asset.loc.url.to_file_path()?,
@@ -452,7 +463,11 @@ impl Transformer for SvgTransformer {
     });
 
     asset.bundle_behavior = BundleBehavior::Isolated;
-    asset.content = Arc::new(SvgContent { code: res.code });
+    asset.content = Arc::new(SvgContent {
+      code: res.code,
+      config: self.config.clone(),
+      path,
+    });
     asset.dependencies.extend(res.dependencies);
 
     Ok(asset)
@@ -487,6 +502,8 @@ impl Transformer for SvgToJsxTransformer {
 #[derive(Debug)]
 pub struct SvgContent {
   code: Vec<u8>,
+  config: OxvgConfig,
+  path: String,
 }
 
 impl Content for SvgContent {
@@ -515,7 +532,23 @@ impl Content for SvgContent {
     })
     .unwrap();
 
-    Ok(Arc::new(BufferContent::new(res.code)))
+    let code = if bundle
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+    {
+      optimize_svg(OptimizeSvgOptions {
+        code: res.code,
+        config: self.config.clone(),
+        path: self.path.clone(),
+      })
+      .unwrap()
+      .code
+    } else {
+      res.code
+    };
+
+    Ok(Arc::new(BufferContent::new(code)))
   }
 }
 

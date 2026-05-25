@@ -1,0 +1,14 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.svg": [
+      {
+        "plugin": "@parcel/transformer-svg",
+        "config": {
+          "default": true,
+          "removeComments": false
+        }
+      }
+    ]
+  }
+}

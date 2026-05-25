@@ -1,0 +1,16 @@
+{
+  "description": "should minify SVG bundles",
+  "input": "circle.svg",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "svg", "assets": ["circle.svg"]},
+    {"type": "html", "assets": ["other1.html"]},
+    {"type": "svg", "assets": ["square.svg"]},
+    {"type": "html", "assets": ["other2.html"]},
+    {"type": "svg", "assets": ["path.svg"]},
+    {"type": "svg", "assets": ["gradient.svg"]},
+    {"type": "js", "assets": ["script.js"]},
+    {"type": "js", "assets": ["module.js", "script.js"]},
+    {"type": "css", "assets": ["style.css"]}
+  ]
+}

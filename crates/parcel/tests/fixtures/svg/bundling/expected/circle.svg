@@ -1,0 +1,16 @@
+<?xml-stylesheet href="a643dc4356b04274.css"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30 10">
+  <!-- This is a comment -->
+  <circle id="circle" cx="5" cy="5" r="4" stroke="blue"/>
+  <a href="other1.html">
+    <use href="#circle" x="10" fill="blue"/>
+  </a>
+  <use xlink:href="square.svg" x="20" fill="white" stroke="red"/>
+  <circle cx="5" cy="5" r="4" fill="url(gradient.svg)"/>
+  <text>
+    <textPath href="path.svg">
+      Quick brown fox jumps over the lazy dog.
+    </textPath>
+  </text>
+  <script xlink:href="script.js"/>
+  <script href="module.js"/>
+</svg>

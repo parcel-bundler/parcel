@@ -1,0 +1,11 @@
+{
+  "description": "should handle inline CSS with @imports",
+  "input": "img.svg",
+  "bundles": [
+    {"type": "svg", "assets": ["img.svg"]},
+    {"type": "svg", "assets": ["gradient.svg"]},
+    {"type": "css", "assets": ["img.svg", "test.css"]},
+    {"type": "style", "assets": ["img.svg"]},
+    {"type": "js", "assets": ["img.svg", "script.js"]}
+  ]
+}
