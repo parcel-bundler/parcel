@@ -1,0 +1,14 @@
+{
+  "plugins": [
+    {
+      "name": "preset-default",
+      "params": {
+        "overrides": {
+          "addClassesToSVGElement": {
+            "className": "icon"
+          }
+        }
+      }
+    }
+  ]
+}

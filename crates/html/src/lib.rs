@@ -466,9 +466,14 @@ pub struct SvgToJsxTransformer {
 impl Transformer for SvgToJsxTransformer {
   fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
+    let mut config = self.config.clone();
+    if matches!(config.svgo_config.prefix_ids, ConfigItem::None) {
+      config.svgo_config.prefix_ids = ConfigItem::Bool(true);
+    }
+
     let res = svg_react(SvgReactOptions {
       code,
-      config: self.config.clone(),
+      config,
       path: asset.loc.url.to_string(),
     })
     .unwrap();

@@ -1,0 +1,28 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.svg": [
+      {
+        "plugin": "@parcel/transformer-svg-jsx",
+        "config": {
+          "icon": true,
+          "ref": true,
+          "memo": true,
+          "svgProps": {
+            "role": "img"
+          },
+          "replaceAttrValues": {
+            "#61dafb": "{props.fill}"
+          },
+          "svgoConfig": {
+            "default": true,
+            "prefixIds": false,
+            "addClassesToSVGElement": {
+              "className": "icon"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

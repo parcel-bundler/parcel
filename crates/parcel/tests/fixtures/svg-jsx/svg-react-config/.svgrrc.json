@@ -1,0 +1,11 @@
+{
+  "icon": true,
+  "ref": true,
+  "memo": true,
+  "svgProps": {
+    "role": "img"
+  },
+  "replaceAttrValues": {
+    "#61dafb": "{props.fill}"
+  }
+}

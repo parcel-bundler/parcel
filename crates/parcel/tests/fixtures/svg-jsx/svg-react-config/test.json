@@ -1,0 +1,20 @@
+{
+  "description": "should support transforming SVGs to typescript react components",
+  "input": "react.js",
+  "options": {"mode": "development"},
+  "bundles": [
+    {
+      "assets": ["esmodule-helpers.js", "icon.svg", "index.js", "preact.module.js", "react.development.js", "react.js"],
+      "contains": [
+        "function SvgComponent",
+        "_react.forwardRef",
+        "_react.memo",
+        "h(\"svg",
+        "width: \"1em",
+        "role: \"img",
+        "fill: props.fill",
+        "className: \"icon"
+      ]
+    }
+  ]
+}
