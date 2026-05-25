@@ -1,0 +1,12 @@
+{
+  "description": "should only insert environment variables in browser environment matching the glob",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "A_1": "abc",
+      "B_1": "def",
+      "B_2": "ghi"
+    }
+  },
+  "output": "undefined:def:ghi"
+}

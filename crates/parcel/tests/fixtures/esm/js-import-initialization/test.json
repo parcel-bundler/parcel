@@ -1,0 +1,4 @@
+{
+  "description": "should not affect ESM import order",
+  "input": "a.mjs"
+}

@@ -1,0 +1,7 @@
+{
+  "description": "should preserve hashbang in node bundles",
+  "input": "main.js",
+  "bundles": [
+    {"assets": ["local.js", "main.js"], "contains": ["#!/usr/bin/env node"]}
+  ]
+}

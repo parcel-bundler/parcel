@@ -1,0 +1,5 @@
+{
+  "description": "should not freeze live default imports",
+  "input": "index.js",
+  "output": [123, 789]
+}

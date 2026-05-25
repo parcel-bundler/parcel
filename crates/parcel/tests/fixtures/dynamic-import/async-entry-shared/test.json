@@ -1,0 +1,10 @@
+{
+  "description": "can run an async bundle whose entry asset is present in another bundle",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["value.js"]},
+    {"assets": ["esmodule-helpers.js"]},
+    {"assets": ["async.js"]}
+  ]
+}

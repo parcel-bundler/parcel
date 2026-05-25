@@ -1,0 +1,4 @@
+{
+  "source": "index.js",
+  "main": ".output.js"
+}

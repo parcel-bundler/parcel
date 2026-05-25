@@ -1,0 +1,12 @@
+{
+  "description": "should not insert global variables in dead branches",
+  "input": "a.js",
+  "bundles": [
+    {
+      "assets": [
+        "a.js"
+      ]
+    }
+  ],
+  "output": "foo"
+}

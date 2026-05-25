@@ -1,0 +1,14 @@
+{
+  "description": "should ignore require if it is defined in the scope",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js"]}],
+  "output": {
+    "test": {
+      "unaryFnExpr": "test passed",
+      "fnExpr": "test passed",
+      "fnDecl": "test passed",
+      "varDecl": "test passed",
+      "topVarDecl": "test passed"
+    }
+  }
+}

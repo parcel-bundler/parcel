@@ -1,0 +1,27 @@
+[
+  {
+    "description": "should inline a bundle's compiled text with `bundle-text`",
+    "input": "index.js",
+    "bundles": [
+      {"name": "index.js", "assets": ["esmodule-helpers.js", "index.js"]},
+      {"assets": ["img.svg"]},
+      {"assets": ["text.css"]}
+    ],
+    "output": "body {\n  background-color: #000;\n}\n\n.svg-img {\n  background-image: url(\"data:image/svg+xml;base64,PHN2Zz4KCjwvc3ZnPg\");\n}\n"
+  },
+  {
+    "description": "should inline an HTML bundle's compiled text with `bundle-text`",
+    "input": "index.html",
+    "output": "<html><head></head><body><p>test</p>\n</body></html>"
+  },
+  {
+    "description": "should inline an HTML bundle and inline scripts with `bundle-text`",
+    "input": "inline.js",
+    "output": "<html><head></head><body><p>test</p>\n<script>console.log('hi');\n</script>\n</body></html>"
+  },
+  {
+    "description": "should inline a bundle's compiled text with `bundle-text` asynchronously",
+    "input": "async.js",
+    "output": "body {\n  background-color: #000;\n}\n\n.svg-img {\n  background-image: url(\"data:image/svg+xml;base64,PHN2Zz4KCjwvc3ZnPg\");\n}\n"
+  }
+]

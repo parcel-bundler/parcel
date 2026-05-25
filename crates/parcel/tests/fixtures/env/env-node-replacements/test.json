@@ -1,0 +1,17 @@
+{
+  "description": "should replace __dirname and __filename with relative paths in node environment",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js", "function.js", "index.js"]}],
+  "TODO:output": {
+    "data": "hello",
+    "other": "hello",
+    "firstDirnameTest": "data",
+    "secondDirnameTest": "other-data",
+    "firstFilenameTest": "index.js",
+    "secondFilenameTest": "index.js?query-string=test",
+    "sub": {
+      "dirname": "sub",
+      "filename": "index.js"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "description": "should replace an imported identifier with function locals of the same name",
+  "input": "index.js",
+  "output": 123
+}

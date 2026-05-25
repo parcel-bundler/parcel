@@ -1,0 +1,8 @@
+{
+  "description": "should support importing a URL to a file",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["esmodule-helpers.js", "index.js"]},
+    {"type": "txt", "assets": ["x.txt"]}
+  ]
+}

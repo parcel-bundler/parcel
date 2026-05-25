@@ -1,0 +1,8 @@
+{
+  "description": "should not touch process.browser for target electron-main",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"], "contains": ["process.browser"]}
+  ],
+  "output": true
+}

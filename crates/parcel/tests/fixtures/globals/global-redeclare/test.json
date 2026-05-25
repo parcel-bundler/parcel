@@ -1,0 +1,5 @@
+{
+  "description": "should handle re-declaration of the global constant",
+  "input": "index.js",
+  "output": false
+}

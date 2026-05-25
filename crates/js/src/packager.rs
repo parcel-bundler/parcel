@@ -20,6 +20,12 @@ impl JsContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!("runtime.js");
 
+    if bundle.target.source_type == SourceType::Script {
+      assert_eq!(bundle.assets.len(), 1);
+      let asset = bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap()].expect_asset();
+      return Ok(asset.content.clone());
+    }
+
     let mut res = String::new();
     if let Some(main) = bundle.main_entry_asset {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {

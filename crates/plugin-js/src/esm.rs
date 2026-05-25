@@ -4,7 +4,7 @@ use std::{
   sync::Arc,
 };
 
-use parcel_core::FileSystem;
+use parcel_core::{Environment, FileSystem};
 use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Module,
@@ -25,10 +25,18 @@ use crate::{
 pub fn create_esm_loader(
   project_root: String,
   fs: Arc<dyn FileSystem>,
+  environment: Environment,
 ) -> (ModuleResolver, ModuleLoader) {
   let module_resolver = ModuleResolver::new(project_root, fs.clone());
   let resolver = module_resolver.resolver.clone();
-  (module_resolver, ModuleLoader { resolver, fs })
+  (
+    module_resolver,
+    ModuleLoader {
+      resolver,
+      fs,
+      environment,
+    },
+  )
 }
 
 pub struct ModuleResolver {
@@ -71,6 +79,7 @@ impl Resolver for ModuleResolver {
 pub struct ModuleLoader {
   resolver: Rc<parcel_resolver::Resolver<'static>>,
   fs: Arc<dyn FileSystem>,
+  environment: Environment,
 }
 
 impl ModuleLoader {
@@ -122,11 +131,20 @@ impl Loader for ModuleLoader {
       }
     }
 
-    let module = match self
-      .resolver
-      .resolve_module_type(Path::new(name), &Default::default())
-    {
-      Ok(ModuleType::Module) => {
+    let module_type = if self.environment == Environment::Browser {
+      ModuleType::Module
+    } else {
+      self
+        .resolver
+        .resolve_module_type(Path::new(name), &Default::default())
+        .map_err(|e| rquickjs::Error::Loading {
+          name: name.into(),
+          message: Some(e.to_string()),
+        })?
+    };
+
+    let module = match module_type {
+      ModuleType::Module => {
         if name.ends_with(".css") {
           Module::declare(ctx.clone(), name, "")?
         } else {
@@ -168,8 +186,8 @@ impl Loader for ModuleLoader {
           Module::declare(ctx.clone(), name, source)?
         }
       }
-      Ok(ModuleType::CommonJs) => self.load_cjs(ctx, name)?,
-      Ok(ModuleType::Json) => {
+      ModuleType::CommonJs => self.load_cjs(ctx, name)?,
+      ModuleType::Json => {
         let source =
           self
             .fs
@@ -180,12 +198,6 @@ impl Loader for ModuleLoader {
             })?;
         let source = format!("export default {};\n", source);
         Module::declare(ctx.clone(), name, source)?
-      }
-      Err(e) => {
-        return Err(rquickjs::Error::Loading {
-          name: name.into(),
-          message: Some(e.to_string()),
-        });
       }
     };
 

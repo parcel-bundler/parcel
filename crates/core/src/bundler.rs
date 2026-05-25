@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use crate::{
-  Diagnostic, DiagnosticList, ParcelOptions, asset_graph::AssetGraph, bundle_graph::BundleGraph,
-  config::ParcelConfig, namer::name,
+  BundleBehavior, Diagnostic, DiagnosticList, ParcelOptions, asset_graph::AssetGraph,
+  bundle_graph::BundleGraph, config::ParcelConfig, namer::name,
 };
 
 pub trait Bundler: Send + Sync {
@@ -23,12 +23,14 @@ pub fn bundle(
       bundle.name = Some(name(&bundle_graph.asset_graph, bundle, config, options)?);
     }
 
-    let name = bundle.name.as_ref().unwrap();
-    let full_path = bundle.target.dist_dir.to_file_path()?.join(&name);
-    if seen_bundles.contains(&full_path) {
-      duplicate_bundles.insert(full_path);
-    } else {
-      seen_bundles.insert(full_path);
+    if bundle.bundle_behavior != BundleBehavior::Inline {
+      let name = bundle.name.as_ref().unwrap();
+      let full_path = bundle.target.dist_dir.to_file_path()?.join(&name);
+      if seen_bundles.contains(&full_path) {
+        duplicate_bundles.insert(full_path);
+      } else {
+        seen_bundles.insert(full_path);
+      }
     }
   }
 

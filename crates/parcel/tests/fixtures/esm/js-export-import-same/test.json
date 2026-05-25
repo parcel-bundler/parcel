@@ -1,0 +1,8 @@
+{
+  "description": "should handle simultaneous import and reexports of the same identifier",
+  "input": "index.js",
+  "output": {
+    "foo": "123",
+    "bar": "1234"
+  }
+}

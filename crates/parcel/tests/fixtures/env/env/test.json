@@ -1,0 +1,32 @@
+[
+  {
+    "description": "should not insert environment variables in electron-main environment",
+    "input": "index.js",
+    "output": "test:test"
+  },
+  {
+    "description": "should not insert environment variables in electron-renderer environment",
+    "input": "index.js",
+    "output": "test:test"
+  },
+  {
+    "description": "should be able to inline environment variables in browser environment",
+    "input": "index.js",
+    "options": {
+      "env": {
+        "NODE_ENV": "abc"
+      }
+    },
+    "output": "abc:abc"
+  },
+  {
+    "description": "should insert the user's NODE_ENV as process.env.NODE_ENV if passed",
+    "input": "index.js",
+    "options": {
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "output": "production:production"
+  }
+]

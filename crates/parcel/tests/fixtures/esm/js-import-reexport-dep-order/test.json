@@ -1,0 +1,5 @@
+{
+  "description": "should execute imports in the correct order",
+  "input": "index.js",
+  "sideEffects": ["a", "b", "c"]
+}

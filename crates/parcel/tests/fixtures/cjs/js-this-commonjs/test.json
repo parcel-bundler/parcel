@@ -1,0 +1,37 @@
+[
+  {
+    "description": "should not replace toplevel this with undefined in CommonJS without scope-hoisting",
+    "input": "a.js",
+    "sideEffects": [
+      [
+        {
+          "foo": 2
+        },
+        1234
+      ]
+    ],
+    "output": {
+      "foo": 2
+    }
+  },
+  {
+    "description": "should not replace toplevel this with undefined in CommonJS when scope-hoisting",
+    "input": "a.js",
+    "options": {
+      "defaultTargetOptions": {
+        "shouldScopeHoist": true
+      }
+    },
+    "sideEffects": [
+      [
+        {
+          "foo": 2
+        },
+        1234
+      ]
+    ],
+    "output": {
+      "foo": 2
+    }
+  }
+]

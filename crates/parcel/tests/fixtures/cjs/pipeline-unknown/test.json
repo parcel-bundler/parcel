@@ -1,0 +1,12 @@
+{
+  "description": "should throw a diagnostic for unknown pipelines",
+  "input": "a.js",
+  "diagnostics": [
+    {
+      "message": "Failed to resolve 'strange-pipeline:./b.js'"
+    },
+    {
+      "message": "Unknown url scheme or pipeline \"strange-pipeline\""
+    }
+  ]
+}

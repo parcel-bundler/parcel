@@ -1,0 +1,27 @@
+{
+  "description": "should duplicate small modules across multiple bundles",
+  "input": "index.js",
+  "TODO:bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js"
+      ]
+    },
+    {
+      "assets": [
+        "a.js",
+        "common-dep.js",
+        "common.js"
+      ]
+    },
+    {
+      "assets": [
+        "b.js",
+        "common-dep.js",
+        "common.js"
+      ]
+    }
+  ],
+  "output": 7
+}

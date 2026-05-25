@@ -1,0 +1,5 @@
+{
+  "description": "should replace process.browser for target browser",
+  "input": "index.js",
+  "output": true
+}

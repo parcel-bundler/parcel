@@ -1,0 +1,33 @@
+[
+  {
+    "description": "should support referencing a raw asset with static URL and import.meta.url",
+    "input": "index.js",
+    "bundles": [
+      {"name": "index.js", "assets": ["esmodule-helpers.js", "index.js"]},
+      {"type": "txt", "assets": ["test.txt"]}
+    ]
+  },
+  {
+    "description": "should support referencing a raw asset with static URL and CJS __filename",
+    "input": "cjs.js",
+    "bundles": [
+      {"name": "cjs.js", "assets": ["cjs.js", "esmodule-helpers.js"]},
+      {"type": "txt", "assets": ["test.txt"]}
+    ]
+  },
+  {
+    "description": "should ignore new URL and import.meta.url with local binding",
+    "input": "local-url.js",
+    "bundles": [
+      {"assets": ["esmodule-helpers.js", "local-url.js"], "contains": ["file:///local-url.js"]}
+    ]
+  },
+  {
+    "description": "should throw a codeframe for a missing raw asset",
+    "input": "missing.js",
+    "diagnostics": [
+      {"message": "Failed to resolve 'invalid.txt'", "origin": "@parcel/core"},
+      {"message": "Cannot load file \"invalid.txt\"", "origin": "@parcel/resolver-default"}
+    ]
+  }
+]

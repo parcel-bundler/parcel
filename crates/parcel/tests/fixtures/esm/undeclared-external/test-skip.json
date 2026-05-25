@@ -1,0 +1,9 @@
+{
+  "description": "should error on undeclared external dependencies for libraries",
+  "input": ".",
+  "diagnostics": [
+    {
+      "message": "Failed to resolve 'lodash'"
+    }
+  ]
+}

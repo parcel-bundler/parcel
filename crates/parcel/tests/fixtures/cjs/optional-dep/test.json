@@ -1,0 +1,6 @@
+{
+  "description": "should support optional dependencies in try...catch blocks",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js"]}],
+  "output": "errored"
+}

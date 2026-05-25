@@ -1,0 +1,27 @@
+{
+  "description": "should duplicate an asset if it is not present in every parent bundle",
+  "input": ["a.js", "b.js"],
+  "TODO:bundles": [
+    {
+      "name": "a.js",
+      "assets": [
+        "a.js",
+        "common.js",
+        "esmodule-helpers.js"
+      ]
+    },
+    {
+      "assets": [
+        "c.js",
+        "common.js",
+        "esmodule-helpers.js"
+      ]
+    },
+    {
+      "name": "b.js",
+      "assets": [
+        "b.js"
+      ]
+    }
+  ]
+}

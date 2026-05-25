@@ -1,0 +1,10 @@
+{
+  "description": "should inline computed accesses with string literals to process.env",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "ABC": "XYZ"
+    }
+  },
+  "output": "XYZ"
+}

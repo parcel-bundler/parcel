@@ -1,0 +1,6 @@
+{
+  "description": "should not insert environment variables in node environment",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js"], "contains": ["process.env"]}],
+  "output": "test:test"
+}

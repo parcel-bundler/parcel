@@ -1,0 +1,4 @@
+{
+  "description": "should remove import attributes",
+  "input": "index.js"
+}

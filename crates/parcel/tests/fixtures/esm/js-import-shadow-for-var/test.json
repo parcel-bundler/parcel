@@ -1,0 +1,10 @@
+{
+  "description": "should not replace identifier with a var declaration inside a for loop",
+  "input": "index.js",
+  "output": [
+    0,
+    1,
+    2,
+    3
+  ]
+}

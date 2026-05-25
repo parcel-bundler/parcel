@@ -1,0 +1,36 @@
+{
+  "description": "should duplicate an asset if it is not available in all possible ancestries",
+  "input": ["a.js", "b.js"],
+  "TODO:bundles": [
+    {
+      "name": "a.js",
+      "assets": [
+        "a.js",
+        "common.js"
+      ]
+    },
+    {
+      "assets": [
+        "esmodule-helpers.js"
+      ]
+    },
+    {
+      "assets": [
+        "c.js"
+      ]
+    },
+    {
+      "assets": [
+        "d.js",
+        "common.js"
+      ]
+    },
+    {
+      "name": "b.js",
+      "assets": [
+        "b.js"
+      ]
+    }
+  ],
+  "TODO:output": 42
+}

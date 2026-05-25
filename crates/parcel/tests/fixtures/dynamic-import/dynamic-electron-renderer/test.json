@@ -1,0 +1,18 @@
+{
+  "description": "should split bundles when a dynamic import is used with an electron-renderer environment",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js"
+      ]
+    },
+    {
+      "assets": [
+        "local.js"
+      ]
+    }
+  ],
+  "output": 3
+}

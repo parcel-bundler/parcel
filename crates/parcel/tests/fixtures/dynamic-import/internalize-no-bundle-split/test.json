@@ -1,0 +1,7 @@
+{
+  "description": "does not create bundles for dynamic imports when assets are available up the graph",
+  "input": "index.js",
+  "TODO:bundles": [
+    {"assets": ["bar.js", "index.js", "foo.js", "esmodule-helpers.js"]}
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "description": "should hoist anonymous function default exports to allow circular imports",
+  "input": "a.mjs",
+  "sideEffects": ["b1"],
+  "output": {}
+}

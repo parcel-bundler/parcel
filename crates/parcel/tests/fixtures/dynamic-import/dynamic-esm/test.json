@@ -1,0 +1,23 @@
+{
+  "description": "should return all exports as an object when using ES modules",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js"
+      ]
+    },
+    {
+      "assets": [
+        "local.js"
+      ]
+    },
+    {
+      "assets": [
+        "esmodule-helpers.js"
+      ]
+    }
+  ],
+  "output": 3
+}

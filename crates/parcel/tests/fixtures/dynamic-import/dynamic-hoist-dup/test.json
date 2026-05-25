@@ -1,0 +1,19 @@
+{
+  "description": "should not duplicate a module which is already in a parent bundle",
+  "input": "index.js",
+  "TODO:bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+         "common.js"
+      ]
+    },
+    {
+      "assets": [
+        "a.js"
+      ]
+    }
+  ],
+  "output": 5
+}

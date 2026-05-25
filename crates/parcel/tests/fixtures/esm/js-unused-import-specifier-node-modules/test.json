@@ -1,0 +1,5 @@
+{
+  "description": "ignores missing unused import specifiers in node-modules without scope-hoisting",
+  "input": "a.js",
+  "output": 123
+}

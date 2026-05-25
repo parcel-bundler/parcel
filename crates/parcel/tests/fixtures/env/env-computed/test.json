@@ -1,0 +1,7 @@
+{
+  "description": "should not inline computed accesses to process.env",
+  "input": "index.js",
+  "options": {"env": {"ABC": "abc"}},
+  "bundles": [{"assets": ["browser.js", "index.js"], "contains": ["process.env"]}],
+  "output": null
+}

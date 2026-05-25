@@ -1,0 +1,10 @@
+{
+  "description": "should support export namespace declarations",
+  "input": "index.js",
+  "output": {
+    "ns": {
+      "a": 4,
+      "default": 1
+    }
+  }
+}

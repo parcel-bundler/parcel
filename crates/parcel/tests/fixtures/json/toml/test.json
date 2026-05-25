@@ -1,0 +1,16 @@
+[
+  {
+    "description": "should support requiring TOML files",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js",
+          "local.toml"
+        ]
+      }
+    ],
+    "output": 3
+  }
+]

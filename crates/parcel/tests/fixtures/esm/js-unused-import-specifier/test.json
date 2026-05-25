@@ -1,0 +1,5 @@
+{
+  "description": "ignores missing unused import specifiers in source assets",
+  "input": "a.js",
+  "output": 123
+}

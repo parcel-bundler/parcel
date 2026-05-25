@@ -1,0 +1,40 @@
+{
+  "description": "should create a separate bundle for large modules shared between bundles",
+  "input": "index.js",
+  "options": {
+    "mode": "production",
+    "defaultTargetOptions": {
+      "shouldScopeHoist": false
+    }
+  },
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js"
+      ]
+    },
+    {
+      "assets": [
+        "c.js"
+      ]
+    },
+    {
+      "assets": [
+        "a.js"
+      ]
+    },
+    {
+      "assets": [
+        "common.js",
+        "lodash.js"
+      ]
+    },
+    {
+      "assets": [
+        "b.js"
+      ]
+    }
+  ],
+  "output": 7
+}

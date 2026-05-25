@@ -1,0 +1,5 @@
+{
+  "description": "should not replace process.env.hasOwnProperty with undefined",
+  "input": "index.js",
+  "output": false
+}

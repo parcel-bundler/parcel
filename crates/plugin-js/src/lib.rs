@@ -7,7 +7,8 @@ use std::{
 };
 
 use parcel_core::{
-  CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, FileSystem, Location, SourceUrl,
+  CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, Environment, FileSystem, Location,
+  SourceUrl,
 };
 use rquickjs::{
   Context, Ctx, Function, Object, Persistent, Runtime, Value, class::JsClass, object::Accessor,
@@ -51,7 +52,7 @@ where
     let mut context = cell.borrow_mut();
 
     if context.is_none() {
-      let ctx = create_runtime(fs, env_vars, cwd)
+      let ctx = create_runtime(fs, env_vars, cwd, Environment::Node)
         .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
       *context = Some(ctx);
     }
@@ -108,6 +109,7 @@ pub fn create_runtime(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
   cwd: &Path,
+  environment: Environment,
 ) -> rquickjs::Result<JsEnv> {
   let runtime = Runtime::new()?;
   let ctx = Context::full(&runtime)?;
@@ -117,7 +119,7 @@ pub fn create_runtime(
     rejected_promises: rejected_promises.clone(),
   };
 
-  let (resolver, loader) = create_esm_loader("/".into(), fs.clone());
+  let (resolver, loader) = create_esm_loader("/".into(), fs.clone(), environment);
   runtime.set_loader(resolver, loader);
   runtime.set_max_stack_size(10 * 1024 * 1024); // 10 MB
   runtime.set_host_promise_rejection_tracker(Some(Box::new(
@@ -275,4 +277,9 @@ pub(crate) fn await_promise<'a, 'js>(
   }
 
   Ok(res)
+}
+
+pub fn require_module<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Value<'js>> {
+  let cjs = ctx.userdata::<CjsLoader>().unwrap();
+  cjs.load(&ctx, path)
 }

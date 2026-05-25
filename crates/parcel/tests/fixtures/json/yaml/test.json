@@ -1,0 +1,14 @@
+{
+  "description": "should support requiring YAML files",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js",
+        "local.yaml"
+      ]
+    }
+  ],
+  "output": 3
+}

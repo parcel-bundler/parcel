@@ -6,21 +6,24 @@ use std::{
 };
 
 use parcel_core::{
-  AssetType, BuildOptions, BundleFlags, BundleGraph, CodeFrame, CodeHighlight,
-  DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, EnvironmentFlags,
-  FileSystem, MemoryFileSystem, OsFileSystem, OverlayFileSystem,
+  AssetType, BuildOptions, BundleBehavior, BundleFlags, BundleGraph, CodeFrame, CodeHighlight,
+  DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment,
+  EnvironmentFlags, FileSystem, MemoryFileSystem, OsFileSystem, OutputFormat, OverlayFileSystem,
 };
-use parcel_plugin_js::create_runtime;
+use parcel_plugin_js::{create_runtime, require_module};
 use rquickjs::Function;
 
 fn run(
-  paths: Vec<PathBuf>,
+  paths: Vec<(PathBuf, OutputFormat)>,
   fs: Arc<dyn FileSystem>,
   cwd: &Path,
+  environment: Environment,
   entry: usize,
   is_library: bool,
 ) -> (serde_json::Value, Vec<serde_json::Value>) {
-  let ctx = create_runtime(fs.clone(), &HashMap::new(), cwd).unwrap();
+  let mut env = HashMap::new();
+  env.insert("NODE_ENV".into(), "test".into());
+  let ctx = create_runtime(fs.clone(), &env, cwd, environment).unwrap();
   let res = ctx.with(|ctx| {
     let globals = ctx.globals();
     let side_effects = Arc::new(RefCell::new(Vec::<serde_json::Value>::new()));
@@ -43,11 +46,15 @@ fn run(
     )?;
 
     let mut imported = None;
-    for path in paths {
-      imported = Some(
-        rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
-          .and_then(|p| p.finish::<rquickjs::Value>())?,
-      );
+    for (path, output_format) in paths {
+      if output_format == OutputFormat::Esmodule || output_format == OutputFormat::Global {
+        imported = Some(
+          rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
+            .and_then(|p| p.finish::<rquickjs::Value>())?,
+        );
+      } else {
+        imported = Some(require_module(ctx, path.to_str().unwrap())?);
+      }
     }
 
     let output: rquickjs::Result<rquickjs::Value> = if is_library {
@@ -73,7 +80,13 @@ fn run(
       v = v.as_function().unwrap().call(())?;
     } else if let Some(default_val) = v
       .as_object()
-      .and_then(|o| o.get::<_, rquickjs::Value>("default").ok())
+      .and_then(|o| {
+        if o.keys::<rquickjs::Value>().count() == 1 {
+          o.get::<_, rquickjs::Value>("default").ok()
+        } else {
+          None
+        }
+      })
       .filter(|v| !v.is_undefined())
     {
       if default_val.is_function() {
@@ -197,9 +210,12 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
   }
 
   let should_run = test.output.is_some() || !test.side_effects.is_empty();
+  let mut env = Environment::Browser;
   if should_run {
     for bundle in &bundle_graph.bundles {
-      if !bundle.flags.contains(BundleFlags::ENTRY) {
+      if !bundle.flags.contains(BundleFlags::ENTRY)
+        || bundle.bundle_behavior == BundleBehavior::Inline
+      {
         continue;
       }
 
@@ -209,9 +225,10 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         AssetType::Js => {
           if is_library {
             let (output, side_effects) = run(
-              vec![path.clone()],
+              vec![(path.clone(), bundle.target.output_format)],
               output_fs.clone(),
               &cwd,
+              Environment::Node,
               bundle.main_entry_asset.unwrap(),
               true,
             );
@@ -220,11 +237,13 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
               assert_eq!(&output, expected_output);
             }
           } else {
-            scripts.push(path.clone());
-          }
-
-          if let Some(m) = bundle.main_entry_asset {
-            main = m;
+            if scripts.is_empty() {
+              if let Some(m) = bundle.main_entry_asset {
+                main = m;
+              }
+            }
+            scripts.push((path.clone(), bundle.target.output_format));
+            env = bundle.target.environment;
           }
         }
         AssetType::Html => {
@@ -255,7 +274,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                     main = m;
                   }
 
-                  scripts.push(resolved);
+                  scripts.push((resolved, b.target.output_format));
                 }
               }
             }
@@ -266,7 +285,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
     }
 
     if !scripts.is_empty() {
-      let (output, side_effects) = run(scripts, output_fs.clone(), &cwd, main, false);
+      let (output, side_effects) = run(scripts, output_fs.clone(), &cwd, env, main, false);
       assert_eq!(side_effects, test.side_effects);
       if let Some(expected_output) = &test.output {
         assert_eq!(&output, expected_output);

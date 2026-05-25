@@ -1,0 +1,5 @@
+{
+  "description": "should package successfully with comments on last line",
+  "input": "index.js",
+  "output": "Hello World!"
+}

@@ -1,0 +1,8 @@
+{
+  "description": "should include node builtins polyfills for browser targets",
+  "input": "main.js",
+  "bundles": [
+    {"assets": ["browser.js", "empty.js", "esmodule-helpers.js", "index.js", "main.js"]}
+  ],
+  "output": [{}, "app/index.js"]
+}

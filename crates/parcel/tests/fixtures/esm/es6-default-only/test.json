@@ -1,0 +1,5 @@
+{
+  "description": "should produce a JS bundle with default exports and no imports",
+  "input": "index.js",
+  "output": 3
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "description": "should insert global variables when needed",
+    "input": "index.js",
+    "bundles": [{"assets": ["browser.js", "index.js", "index.js", "index.js", "index.js"]}],
+    "output": {
+      "dir": "",
+      "file": "index.js",
+      "buf": "YnJvd3Nlcg==",
+      "global": true
+    }
+  }
+]

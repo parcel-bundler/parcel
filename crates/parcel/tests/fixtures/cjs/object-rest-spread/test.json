@@ -1,0 +1,10 @@
+{
+  "description": "should produce a basic JS bundle with object rest spread support",
+  "input": "object-rest-spread.js",
+  "output": {
+    "x": {"a": "a", "b": "b"},
+    "y": "a",
+    "z": {"y": "a", "b": "b"},
+    "ys": {"b": "b"}
+  }
+}

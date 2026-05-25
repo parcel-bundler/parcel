@@ -1,0 +1,7 @@
+{
+  "description": "can create a bundle starting with a dot",
+  "input": ".",
+  "bundles": [
+    {"name": ".output.js", "assets": ["index.js"]}
+  ]
+}

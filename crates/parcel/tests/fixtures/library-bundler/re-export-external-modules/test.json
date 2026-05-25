@@ -9,5 +9,8 @@
     {"assets": ["index.js"]},
     {"assets": ["foo.js"]}
   ],
-  "output": {"foo": "foo", "bar": 2}
+  "output": {
+    "foo": "foo",
+    "bar": 2
+  }
 }

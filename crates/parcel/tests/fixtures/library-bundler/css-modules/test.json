@@ -8,5 +8,7 @@
     {"assets": ["esmodule-helpers.js"]},
     {"assets": ["index.js"]}
   ],
-  "output": {"test": "SxtEeG_bar"}
+  "output": {
+    "test": "SxtEeG_bar"
+  }
 }

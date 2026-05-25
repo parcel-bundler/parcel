@@ -1,0 +1,5 @@
+{
+  "description": "should correctly export functions",
+  "input": "index.js",
+  "bundles": [{"assets": ["esmodule-helpers.js", "index.js"]}]
+}

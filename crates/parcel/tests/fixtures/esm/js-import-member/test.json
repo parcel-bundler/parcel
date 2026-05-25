@@ -1,0 +1,5 @@
+{
+  "description": "should replace imported values in member expressions",
+  "input": "index.js",
+  "output": ["a", "b", "bar"]
+}

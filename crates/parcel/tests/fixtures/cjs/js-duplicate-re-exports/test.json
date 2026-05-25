@@ -1,0 +1,5 @@
+{
+  "description": "should support duplicate re-exports without scope hoisting",
+  "input": "index.js",
+  "output": {"a": "a", "b": "b"}
+}

@@ -1,0 +1,9 @@
+{
+  "description": "should not bundle node_modules for node targets",
+  "input": ".",
+  "bundles": [
+    {"assets": ["main.js"]},
+    {"assets": ["local.js"]}
+  ],
+  "output": 7
+}

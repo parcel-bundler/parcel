@@ -1,0 +1,5 @@
+{
+  "description": "should expose to CommonJS entry point",
+  "input": "index.js",
+  "output": "Test!"
+}

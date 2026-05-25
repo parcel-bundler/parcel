@@ -1,0 +1,13 @@
+{
+  "description": "should work with many different types of exports",
+  "input": "index.js",
+  "output": {
+    "foo": "foo",
+    "bar": "bar",
+    "default": "baz",
+    "boo": "boo",
+    "foobar": "foobar",
+    "type1": "type1",
+    "type2": "type2"
+  }
+}

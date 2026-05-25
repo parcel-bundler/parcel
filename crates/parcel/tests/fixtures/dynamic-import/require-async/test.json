@@ -1,0 +1,128 @@
+[
+  {
+    "description": "should detect typescript style async requires in commonjs",
+    "input": "ts.js",
+    "bundles": [
+      {
+        "name": "ts.js",
+        "assets": [
+          "ts.js"
+        ]
+      },
+      {
+        "assets": [
+          "async.js"
+        ]
+      }
+    ],
+    "output": 2
+  },
+  {
+    "description": "should detect typescript style async requires in commonjs with esModuleInterop flag",
+    "input": "ts-interop.js",
+    "bundles": [
+      {
+        "name": "ts-interop.js",
+        "assets": [
+          "ts-interop.js"
+        ]
+      },
+      {
+        "assets": [
+          "async.js"
+        ]
+      }
+    ],
+    "output": {
+      "default": 2
+    }
+  },
+  {
+    "description": "should detect typescript style async requires in commonjs with esModuleInterop flag and arrow functions",
+    "input": "ts-interop-arrow.js",
+    "bundles": [
+      {
+        "name": "ts-interop-arrow.js",
+        "assets": [
+          "ts-interop-arrow.js"
+        ]
+      },
+      {
+        "assets": [
+          "async.js"
+        ]
+      }
+    ],
+    "output": {
+      "default": 2
+    }
+  },
+  {
+    "description": "should detect rollup style async requires in commonjs",
+    "input": "rollup.js",
+    "bundles": [
+      {
+        "name": "rollup.js",
+        "assets": [
+          "rollup.js"
+        ]
+      },
+      {
+        "assets": [
+          "async.js"
+        ]
+      }
+    ],
+    "output": 2
+  },
+  {
+    "description": "should only detect requires that are returned from the promise",
+    "input": "sync.js",
+    "bundles": [
+      {
+        "name": "sync.js",
+        "assets": [
+          "async.js",
+          "sync.js"
+        ]
+      }
+    ],
+    "output": 5
+  },
+  {
+    "description": "should properly chain a dynamic import wrapped in a Promise.resolve()",
+    "input": "resolve-chain.js",
+    "bundles": [
+      {
+        "name": "resolve-chain.js",
+        "assets": [
+          "resolve-chain.js"
+        ]
+      },
+      {
+        "assets": [
+          "async.js"
+        ]
+      }
+    ],
+    "output": 1337
+  },
+  {
+    "description": "should detect parcel style async requires in commonjs",
+    "input": "parcel.js",
+    "bundles": [
+      {
+        "name": "parcel.js",
+        "assets": [
+          "parcel.js"
+        ]
+      },
+      {
+        "assets": [
+          "async.js"
+        ]
+      }
+    ],
+    "output": 2
+  }
+]

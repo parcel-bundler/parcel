@@ -1,0 +1,12 @@
+{
+  "description": "should call named imports without this context",
+  "input": "index.js",
+  "output": {
+    "unwrappedNamed": [true, false],
+    "unwrappedDefault": [true, false],
+    "unwrappedNamespace": [false, true],
+    "wrappedNamed": [true, false],
+    "wrappedDefault": [true, false],
+    "wrappedNamespace": [false, true]
+  }
+}

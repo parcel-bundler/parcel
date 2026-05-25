@@ -1,0 +1,5 @@
+{
+  "description": "should import the same dependency multiple times in the same bundle",
+  "input": "a1.js",
+  "output": {}
+}

@@ -60,7 +60,9 @@ pub fn resolve_entries(
 
       let (context, engines) = if let Some(pkg) = find_package(&path, &*options.input_fs) {
         let engines = pkg.get("engines");
-        let context = if engines.and_then(|e| e.get("node")).is_some() {
+        let context = if engines.and_then(|e| e.get("electron")).is_some() {
+          Environment::ElectronMain
+        } else if engines.and_then(|e| e.get("node")).is_some() {
           Environment::Node
         } else {
           Environment::Browser

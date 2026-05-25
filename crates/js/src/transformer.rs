@@ -65,7 +65,11 @@ impl Transformer for JsTransformer {
     if let Some(diagnostics) = res.diagnostics {
       let diagnostics: Vec<Diagnostic> = diagnostics
         .into_iter()
-        .filter(|d| d.severity == parcel_js_swc_core::DiagnosticSeverity::Error)
+        .filter(|d| {
+          d.severity == parcel_js_swc_core::DiagnosticSeverity::Error
+            || (d.severity == parcel_js_swc_core::DiagnosticSeverity::SourceError
+              && asset.flags.contains(AssetFlags::IS_SOURCE))
+        })
         .map(|d| Diagnostic {
           origin: Some("@parcel/transformer-js".into()),
           message: d.message,

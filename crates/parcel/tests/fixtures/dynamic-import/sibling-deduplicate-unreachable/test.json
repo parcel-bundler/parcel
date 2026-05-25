@@ -1,0 +1,18 @@
+{
+  "description": "should not deduplicate a bundle that is not reachable from the current bundle group",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["d.js", "foo.js"]},
+    {"assets": ["unreachable.js"]},
+    {"assets": ["esmodule-helpers.js"]},
+    {"assets": ["c.js"]},
+    {"assets": ["common.js", "intermediate-2.js"]},
+    {"assets": ["b.js"]},
+    {"assets": ["intermediate-3.js", "intermediate.js"]},
+    {"assets": ["a.js"]}
+  ]
+}
