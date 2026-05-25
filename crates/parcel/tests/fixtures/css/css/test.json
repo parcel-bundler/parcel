@@ -11,11 +11,10 @@
       ]
     },
     {
-      "name": "index.css",
       "assets": [
+        "c.css",
         "index.css",
-        "local.css",
-        "c.css"
+        "local.css"
       ]
     }
   ],

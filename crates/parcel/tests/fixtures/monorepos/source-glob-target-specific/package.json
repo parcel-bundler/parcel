@@ -1,0 +1,10 @@
+{
+  "engines": { "node": "*" },
+  "exports": {
+    "./*": {
+      "source": "./foo/*.js",
+      "import": "./dist/esm/*.mjs",
+      "require": "./dist/cjs/*.cjs"
+    }
+  }
+}

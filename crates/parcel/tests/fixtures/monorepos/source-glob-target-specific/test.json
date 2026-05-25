@@ -1,0 +1,12 @@
+{
+  "description": "should support globs in target-specific source field",
+  "input": ".",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"name": "esm/a.mjs", "assets": ["a.js"]},
+    {"name": "cjs/a.cjs", "assets": ["a.js"]},
+    {"name": "esm/b.mjs", "assets": ["b.js"]},
+    {"name": "cjs/b.cjs", "assets": ["b.js"]},
+    {"assets": ["esmodule-helpers.js"]}
+  ]
+}

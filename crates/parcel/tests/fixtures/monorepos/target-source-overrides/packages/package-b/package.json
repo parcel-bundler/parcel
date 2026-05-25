@@ -1,0 +1,9 @@
+{
+  "name": "@parcel/target-source-package-b",
+  "private": true,
+  "engines": { "node": "*" },
+  "exports": {
+    ".": { "source": "./src/index.js", "default": "./dist/index.mjs" },
+    "./alternate": { "source": "./src/indexAlternate.js", "default": "./dist/indexAlternate.mjs" }
+  }
+}

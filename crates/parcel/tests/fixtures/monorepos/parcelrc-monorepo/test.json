@@ -1,0 +1,6 @@
+{
+  "description": "should load .parcelrc at the project root in monorepos",
+  "input": "app/index.js",
+  "options": { "cwd": "app" },
+  "output": "<svg/>"
+}

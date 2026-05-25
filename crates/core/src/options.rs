@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use serde::Deserialize;
 
@@ -12,6 +12,7 @@ pub struct BuildOptions {
   pub input_fs: Arc<dyn FileSystem>,
   pub output_fs: Arc<dyn FileSystem>,
   pub config: Option<String>,
+  pub cwd: PathBuf,
 }
 
 pub struct ParcelOptions {
@@ -21,6 +22,7 @@ pub struct ParcelOptions {
   pub project_root: SourceUrl,
   pub input_fs: Arc<dyn FileSystem>,
   pub output_fs: Arc<dyn FileSystem>,
+  pub cwd: PathBuf,
 }
 
 impl Default for ParcelOptions {
@@ -32,6 +34,7 @@ impl Default for ParcelOptions {
       project_root: Default::default(),
       input_fs: Arc::new(OsFileSystem {}),
       output_fs: Arc::new(OsFileSystem {}),
+      cwd: std::env::current_dir().unwrap(),
     }
   }
 }

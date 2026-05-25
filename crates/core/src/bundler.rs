@@ -36,7 +36,7 @@ pub fn bundle(
     let mut duplicates = duplicate_bundles
       .into_iter()
       .map(|p| {
-        p.strip_prefix(std::env::current_dir().unwrap())
+        p.strip_prefix(&options.cwd)
           .unwrap_or_else(|_| &p)
           .to_string_lossy()
           .to_string()

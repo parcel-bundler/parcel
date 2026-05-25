@@ -60,6 +60,7 @@ pub fn main() -> ExitCode {
     log_level: parcel_core::LogLevel::Verbose,
     mode,
     config,
+    cwd: std::env::current_dir().unwrap(),
   };
 
   match cmd {

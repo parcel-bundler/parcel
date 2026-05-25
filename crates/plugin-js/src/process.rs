@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use rquickjs::{
   Ctx, JsLifetime, Object, Value,
@@ -13,15 +13,23 @@ use rquickjs::{
 pub struct Process<'js> {
   #[qjs(get)]
   env: Object<'js>,
+  cwd: String,
 }
 
 impl<'js> Process<'js> {
-  pub fn new(ctx: Ctx<'js>, env: &HashMap<String, String>) -> rquickjs::Result<Process<'js>> {
+  pub fn new(
+    ctx: Ctx<'js>,
+    env: &HashMap<String, String>,
+    cwd: &Path,
+  ) -> rquickjs::Result<Process<'js>> {
     let obj = Object::new(ctx)?;
     for (k, v) in env {
       obj.set(k, v)?;
     }
-    Ok(Process { env: obj })
+    Ok(Process {
+      env: obj,
+      cwd: cwd.to_string_lossy().to_string(),
+    })
   }
 }
 
@@ -59,12 +67,8 @@ impl<'js> Process<'js> {
     vec![]
   }
 
-  fn cwd() -> String {
-    std::env::current_dir()
-      .unwrap()
-      .to_str()
-      .unwrap()
-      .to_owned()
+  fn cwd(&self) -> &str {
+    self.cwd.as_str()
   }
 
   fn next_tick(

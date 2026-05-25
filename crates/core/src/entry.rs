@@ -27,12 +27,12 @@ pub fn resolve_entries(
 ) -> Result<(Vec<Entry>, PathBuf), Diagnostic> {
   let mut paths = Vec::new();
   for entry in entries {
-    for path in glob(&*options.input_fs, &entry, &std::env::current_dir()?) {
+    for path in glob(&*options.input_fs, &entry, &options.cwd) {
       paths.push(path);
     }
   }
 
-  let project_root = find_project_root(&paths);
+  let project_root = find_project_root(&paths, &options.cwd);
 
   let mut entries = EntryResolver::new();
   for path in paths {
@@ -472,8 +472,8 @@ fn package_engines(
   engines
 }
 
-pub fn find_project_root(entries: &Vec<PathBuf>) -> PathBuf {
-  let root = common_root_path(entries.iter()).unwrap_or_else(|| std::env::current_dir().unwrap());
+pub fn find_project_root(entries: &Vec<PathBuf>, cwd: &Path) -> PathBuf {
+  let root = common_root_path(entries.iter()).unwrap_or_else(|| cwd.to_owned());
 
   for dir in root.ancestors() {
     for file in &[
@@ -490,7 +490,7 @@ pub fn find_project_root(entries: &Vec<PathBuf>) -> PathBuf {
     }
   }
 
-  std::env::current_dir().unwrap()
+  cwd.to_owned()
 }
 
 fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathBuf>) -> Option<PathBuf> {
@@ -560,6 +560,7 @@ mod tests {
         log_level: crate::LogLevel::Error,
         mode: crate::BuildMode::Development,
         config: None,
+        cwd: std::env::current_dir().unwrap(),
       },
     )
     .unwrap();

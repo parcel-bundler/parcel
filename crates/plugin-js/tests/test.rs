@@ -14,7 +14,7 @@ fn run(code: &str) {
   .expect("Error writing file");
   fs.write(Path::new("/test.mjs"), &code.as_bytes().to_owned())
     .expect("Error writing file");
-  let ctx = create_runtime(fs, &HashMap::new()).unwrap();
+  let ctx = create_runtime(fs, &HashMap::new(), &std::env::current_dir().unwrap()).unwrap();
   let res = ctx.with(|ctx| {
     rquickjs::Module::import(&ctx, "/test.mjs".as_bytes().to_owned())
       .and_then(|p| p.finish::<rquickjs::Value>())?;

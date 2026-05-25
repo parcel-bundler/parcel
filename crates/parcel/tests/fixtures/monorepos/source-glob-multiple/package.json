@@ -1,0 +1,7 @@
+{
+  "engines": { "node": "*" },
+  "exports": {
+    "./foo/*": { "source": "./foo/*.js", "default": "./dist/foo/*.mjs" },
+    "./bar/*": { "source": "./bar/*.js", "default": "./dist/bar/*.mjs" }
+  }
+}

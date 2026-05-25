@@ -16,10 +16,11 @@ use rquickjs::Function;
 fn run(
   paths: Vec<PathBuf>,
   fs: Arc<dyn FileSystem>,
+  cwd: &Path,
   entry: usize,
   is_library: bool,
 ) -> (serde_json::Value, Vec<serde_json::Value>) {
-  let ctx = create_runtime(fs.clone(), &HashMap::new()).unwrap();
+  let ctx = create_runtime(fs.clone(), &HashMap::new(), cwd).unwrap();
   let res = ctx.with(|ctx| {
     let globals = ctx.globals();
     let side_effects = Arc::new(RefCell::new(Vec::<serde_json::Value>::new()));
@@ -108,6 +109,7 @@ fn noop<'js>(value: rquickjs::Value<'js>) -> rquickjs::Value<'js> {
 }
 
 fn bundle_with_options(
+  cwd: &Path,
   entries: Vec<String>,
   output_fs: Arc<dyn FileSystem>,
   options: TestOptions,
@@ -123,6 +125,7 @@ fn bundle_with_options(
     output_fs: output_fs.clone(),
     log_level: parcel_core::LogLevel::Verbose,
     config: None,
+    cwd: cwd.to_owned(),
   };
 
   parcel::build(entries, options)
@@ -130,7 +133,13 @@ fn bundle_with_options(
 
 fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJson) {
   let output_fs = Arc::new(OverlayFileSystem::new());
-  let bundle_graph = bundle_with_options(entries, output_fs.clone(), test.options).unwrap();
+  let cwd = test
+    .options
+    .cwd
+    .as_ref()
+    .map(|cwd| fixture_dir.join(cwd))
+    .unwrap_or_else(|| fixture_dir.to_path_buf());
+  let bundle_graph = bundle_with_options(&cwd, entries, output_fs.clone(), test.options).unwrap();
 
   let mut scripts = Vec::new();
   let mut main = 0;
@@ -160,14 +169,16 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         })
         .collect();
       names.sort();
-      let found = test
-        .bundles
-        .iter()
-        .find(|b| b.assets == names && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty));
+      let found = test.bundles.iter().find(|b| {
+        b.assets == names
+          && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty)
+          && (b.name.is_none() || b.name.as_ref().unwrap() == bundle.name.as_ref().unwrap())
+      });
       assert!(
         found.is_some(),
-        "Could not find bundle with expected assets. Actual assets: {:?}",
-        names
+        "Could not find bundle with expected assets. Actual assets: {:?}, name: {:?}",
+        names,
+        bundle.name
       );
     }
   }
@@ -187,6 +198,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             let (output, side_effects) = run(
               vec![path.clone()],
               output_fs.clone(),
+              &cwd,
               bundle.main_entry_asset.unwrap(),
               true,
             );
@@ -217,7 +229,10 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
               _ => {
                 let resolved = path.parent().unwrap().join(dep.specifier);
 
-                if resolved.extension().map_or(false, |e| e == "mjs" || e == "js") {
+                if resolved
+                  .extension()
+                  .map_or(false, |e| e == "mjs" || e == "js")
+                {
                   let b = bundle_graph
                     .bundles
                     .iter()
@@ -238,7 +253,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
     }
 
     if !scripts.is_empty() {
-      let (output, side_effects) = run(scripts, output_fs.clone(), main, false);
+      let (output, side_effects) = run(scripts, output_fs.clone(), &cwd, main, false);
       assert_eq!(side_effects, test.side_effects);
       if let Some(expected_output) = &test.output {
         assert_eq!(&output, expected_output);
@@ -438,6 +453,7 @@ struct TestOptions {
   mode: parcel_core::BuildMode,
   #[serde(default)]
   env: HashMap<String, String>,
+  cwd: Option<String>,
 }
 
 fn run_test_json(path: &Path) {
@@ -460,29 +476,16 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
   }
 
   let fixture_dir = path.parent().unwrap();
-  let entries: Vec<String> = test
-    .input
-    .iter()
-    .map(|input| {
-      let p = if input == "." || input.is_empty() {
-        fixture_dir.to_path_buf()
-      } else {
-        fixture_dir.join(input)
-      };
-      p.to_str().unwrap().to_owned()
-    })
-    .collect();
-
   if !test.diagnostics.is_empty() {
     let output_fs = Arc::new(MemoryFileSystem::new());
-    match bundle_with_options(entries, output_fs, test.options) {
+    match bundle_with_options(fixture_dir, test.input, output_fs, test.options) {
       Err(actual) => assert_diagnostics(&actual, &test.diagnostics),
       Ok(_) => panic!("Expected build to fail with diagnostics but it succeeded"),
     }
     return;
   }
 
-  run_test_with_options(fixture_dir, entries, test);
+  run_test_with_options(fixture_dir, test.input.clone(), test);
 }
 
 // #[testing_macros::fixture("../../packages/core/integration-tests/test/integration/**/test.json")]

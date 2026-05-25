@@ -1,0 +1,46 @@
+[
+  {
+    "description": "should build multiple packages in a monorepo at once, pointing at directories with source field in package.json",
+    "input": ["packages/pkg-a", "packages/pkg-b"],
+    "options": { "mode": "production" },
+    "bundles": [
+      {"name": "pkg-a.cjs.js", "assets": ["index.js"]},
+      {"name": "pkg-a.module.js", "assets": ["index.js"]},
+      {"name": "pkg-b.cjs.js", "assets": ["index.js"]},
+      {"name": "pkg-b.module.js", "assets": ["index.js"]},
+      {"type": "css", "assets": ["index.module.css"]},
+      {"assets": ["esmodule-helpers.js"]},
+      {"assets": ["esmodule-helpers.js"]}
+    ]
+  },
+  {
+    "description": "should build multiple packages in a monorepo at once, pointing at a glob of directories",
+    "input": "packages/*",
+    "options": { "mode": "production" },
+    "bundles": [
+      {"name": "pkg-a.cjs.js", "assets": ["index.js"]},
+      {"name": "pkg-a.module.js", "assets": ["index.js"]},
+      {"name": "pkg-b.cjs.js", "assets": ["index.js"]},
+      {"name": "pkg-b.module.js", "assets": ["index.js"]},
+      {"type": "css", "assets": ["index.module.css"]},
+      {"assets": ["esmodule-helpers.js"]},
+      {"assets": ["esmodule-helpers.js"]}
+    ]
+  },
+  {
+    "description": "should build a single file with cwd at a package",
+    "input": "src/index.js",
+    "options": { "mode": "production", "cwd": "packages/pkg-a" },
+    "bundles": [
+      {"assets": ["index.js", "esmodule-helpers.js"]}
+    ]
+  },
+  {
+    "description": "should build a single file with cwd inside a package",
+    "input": "index.js",
+    "options": { "mode": "production", "cwd": "packages/pkg-a/src" },
+    "bundles": [
+      {"assets": ["index.js", "esmodule-helpers.js"]}
+    ]
+  }
+]

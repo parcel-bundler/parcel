@@ -1,0 +1,16 @@
+{
+  "description": "should compile packages with target source overrides using exports",
+  "input": "packages/*",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"name": "index.mjs", "assets": ["index.js"]},
+    {"assets": ["foo.js"]},
+    {"name": "indexAlternate.mjs", "assets": ["indexAlternate.js"]},
+    {"assets": ["bar.js"]},
+    {"name": "indexAlternate2.mjs", "assets": ["indexAlternate2.js"]},
+    {"assets": ["index.js"]},
+    {"assets": ["foo.js"]},
+    {"assets": ["indexAlternate.js"]},
+    {"assets": ["bar.js"]}
+  ]
+}

@@ -115,42 +115,47 @@ pub fn call_macro(
   loc: parcel_macros::Location,
 ) -> Result<(JsValue, Vec<Dependency>), MacroError> {
   let mut is_load_error = false;
-  with_js_env(options.input_fs.clone(), &options.env, |ctx| {
-    let module = load_module(&ctx, &src).map_err(|e| {
-      is_load_error = true;
-      e
-    })?;
-    let mut f: Option<Function> = module.get(&export).ok();
-    if f.is_none() && export == "default" && module.is_function() {
-      f = module.as_function().map(|f| f.clone());
-    }
-    let Some(f) = f else {
-      return Err(rquickjs::Exception::throw_message(
-        ctx,
-        &format!(
-          "Macro export {} in {} is not a function",
-          export,
-          url.as_str()
-        ),
-      ));
-    };
-    let mut js_args = Args::new(ctx.clone(), args.len());
-    let dependencies = Rc::new(RefCell::new(Vec::new()));
-    let context = MacroContext {
-      url,
-      target,
-      loc,
-      dependencies: dependencies.clone(),
-      project_root: options.project_root.clone(),
-    };
-    js_args.this(context)?;
-    for arg in args {
-      js_args.push_arg(js_value_to_quickjs(arg, ctx.clone())?)?;
-    }
-    let result: rquickjs::Value = await_promise(&ctx, f.call_arg(js_args)?)?;
-    let result = quickjs_to_js_value(result, ctx.clone())?;
-    Ok((result, std::mem::take(&mut *dependencies.borrow_mut())))
-  })
+  with_js_env(
+    options.input_fs.clone(),
+    &options.env,
+    &options.cwd,
+    |ctx| {
+      let module = load_module(&ctx, &src).map_err(|e| {
+        is_load_error = true;
+        e
+      })?;
+      let mut f: Option<Function> = module.get(&export).ok();
+      if f.is_none() && export == "default" && module.is_function() {
+        f = module.as_function().map(|f| f.clone());
+      }
+      let Some(f) = f else {
+        return Err(rquickjs::Exception::throw_message(
+          ctx,
+          &format!(
+            "Macro export {} in {} is not a function",
+            export,
+            url.as_str()
+          ),
+        ));
+      };
+      let mut js_args = Args::new(ctx.clone(), args.len());
+      let dependencies = Rc::new(RefCell::new(Vec::new()));
+      let context = MacroContext {
+        url,
+        target,
+        loc,
+        dependencies: dependencies.clone(),
+        project_root: options.project_root.clone(),
+      };
+      js_args.this(context)?;
+      for arg in args {
+        js_args.push_arg(js_value_to_quickjs(arg, ctx.clone())?)?;
+      }
+      let result: rquickjs::Value = await_promise(&ctx, f.call_arg(js_args)?)?;
+      let result = quickjs_to_js_value(result, ctx.clone())?;
+      Ok((result, std::mem::take(&mut *dependencies.borrow_mut())))
+    },
+  )
   .map_err(|d| {
     if is_load_error {
       MacroError::LoadError(d.0[0].message.clone(), Default::default())

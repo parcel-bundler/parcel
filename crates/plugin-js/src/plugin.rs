@@ -36,28 +36,33 @@ impl Transformer for JsPlugin {
     asset: Asset,
     options: &parcel_core::ParcelOptions,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
-    let asset = with_js_env(options.input_fs.clone(), &options.env, |ctx| {
-      let module = load_module(&ctx, &self.path)?;
-      let symbol: Object = ctx.globals().get("Symbol")?;
-      let symbol_for: Function = symbol.get("for")?;
-      let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-      let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
-        module
-          .get::<_, Object>("default")
-          .and_then(|o| o.get::<_, Object>(sym))
-      })?;
-      let transform: Function = config.get("transform")?;
-      let asset = JsAsset { asset: Some(asset) };
-      let value = asset.into_js(&ctx)?;
-      let options = Object::new(ctx.clone())?;
-      options.set("asset", value.clone())?;
-      let res: rquickjs::Value = transform.call((options,))?;
-      await_promise(ctx, res)?;
-      let obj = Class::<JsAsset>::from_js(&ctx, value)?;
-      let js_asset = &mut *obj.borrow_mut();
-      let asset = js_asset.asset.take().expect("Asset already taken");
-      Ok(asset)
-    })?;
+    let asset = with_js_env(
+      options.input_fs.clone(),
+      &options.env,
+      &options.cwd,
+      |ctx| {
+        let module = load_module(&ctx, &self.path)?;
+        let symbol: Object = ctx.globals().get("Symbol")?;
+        let symbol_for: Function = symbol.get("for")?;
+        let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+        let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
+          module
+            .get::<_, Object>("default")
+            .and_then(|o| o.get::<_, Object>(sym))
+        })?;
+        let transform: Function = config.get("transform")?;
+        let asset = JsAsset { asset: Some(asset) };
+        let value = asset.into_js(&ctx)?;
+        let options = Object::new(ctx.clone())?;
+        options.set("asset", value.clone())?;
+        let res: rquickjs::Value = transform.call((options,))?;
+        await_promise(ctx, res)?;
+        let obj = Class::<JsAsset>::from_js(&ctx, value)?;
+        let js_asset = &mut *obj.borrow_mut();
+        let asset = js_asset.asset.take().expect("Asset already taken");
+        Ok(asset)
+      },
+    )?;
 
     Ok(asset)
   }

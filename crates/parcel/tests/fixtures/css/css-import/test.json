@@ -9,7 +9,6 @@
       ]
     },
     {
-      "name": "index.css",
       "assets": [
         "index.css",
         "other.css",

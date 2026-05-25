@@ -1,0 +1,15 @@
+{
+  "description": "should not share CSS bundles between packages",
+  "input": ["packages/pkg-a", "packages/pkg-b"],
+  "options": { "mode": "production" },
+  "bundles": [
+    {"name": "pkg-a.cjs.js", "assets": ["index.js"]},
+    {"name": "pkg-a.module.js", "assets": ["index.js"]},
+    {"name": "pkg-b.cjs.js", "assets": ["index.js"]},
+    {"name": "pkg-b.module.js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["index.module.css"]},
+    {"type": "css", "assets": ["index.module.css"]},
+    {"assets": ["esmodule-helpers.js"]},
+    {"assets": ["esmodule-helpers.js"]}
+  ]
+}

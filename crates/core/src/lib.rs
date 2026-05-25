@@ -61,7 +61,7 @@ pub fn build(
 
   let config_file = options
     .config
-    .map(|c| std::env::current_dir().unwrap().join(c))
+    .map(|c| options.cwd.join(c))
     .unwrap_or_else(|| project_root.join(".parcelrc"));
   let config = Arc::new(
     if options
@@ -82,6 +82,7 @@ pub fn build(
     project_root: SourceUrl::from_directory_path(&project_root)?,
     input_fs: options.input_fs,
     output_fs: options.output_fs,
+    cwd: options.cwd,
   });
 
   // Build asset graph.

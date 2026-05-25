@@ -1,0 +1,9 @@
+{
+  "description": "should support globs in the source field",
+  "input": ".",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"name": "a.mjs", "assets": ["a.js"]},
+    {"name": "b.mjs", "assets": ["b.js"]}
+  ]
+}

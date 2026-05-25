@@ -1,4 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, path::Path, rc::Rc, sync::Arc};
+use std::{
+  cell::RefCell,
+  collections::HashMap,
+  path::{Path, PathBuf},
+  rc::Rc,
+  sync::Arc,
+};
 
 use parcel_core::{
   CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, FileSystem, Location, SourceUrl,
@@ -35,6 +41,7 @@ thread_local! {
 fn with_js_env<F, R>(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
+  cwd: &PathBuf,
   f: F,
 ) -> Result<R, DiagnosticList>
 where
@@ -44,7 +51,7 @@ where
     let mut context = cell.borrow_mut();
 
     if context.is_none() {
-      let ctx = create_runtime(fs, env_vars)
+      let ctx = create_runtime(fs, env_vars, cwd)
         .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
       *context = Some(ctx);
     }
@@ -100,6 +107,7 @@ impl Drop for JsEnv {
 pub fn create_runtime(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
+  cwd: &Path,
 ) -> rquickjs::Result<JsEnv> {
   let runtime = Runtime::new()?;
   let ctx = Context::full(&runtime)?;
@@ -144,7 +152,10 @@ pub fn create_runtime(
     let console = console::Console::new(Formatter::default());
     global.set("console", console)?;
 
-    global.set("process", process::Process::new(ctx.clone(), env_vars)?)?;
+    global.set(
+      "process",
+      process::Process::new(ctx.clone(), env_vars, cwd)?,
+    )?;
     global.set("global", global.clone())?;
 
     global.set("TextDecoder", encoding::TextDecoder::constructor(&ctx))?;
