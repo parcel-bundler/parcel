@@ -1,0 +1,5 @@
+{
+  "description": "should support env variables",
+  "input": "index.ts",
+  "output": "test"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "should support json require",
+  "input": "index.ts",
+  "output": 3
+}

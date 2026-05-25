@@ -1,0 +1,8 @@
+{
+  "description": "should produce a ts bundle using ES6 imports",
+  "input": "index.ts",
+  "bundles": [
+    {"assets": ["index.ts", "Local.ts", "esmodule-helpers.js"]}
+  ],
+  "output": 3
+}

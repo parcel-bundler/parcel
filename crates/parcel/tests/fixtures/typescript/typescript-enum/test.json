@@ -1,0 +1,10 @@
+{
+  "description": "should handle compile enums correctly",
+  "input": "index.ts",
+  "output": {
+    "A": {"X": "X", "Y": "Y"},
+    "B": {"X": "X", "Y": "Y"},
+    "C": {"X": "X", "Y": "Y"},
+    "z": {"a": "X", "c": "Y"}
+  }
+}

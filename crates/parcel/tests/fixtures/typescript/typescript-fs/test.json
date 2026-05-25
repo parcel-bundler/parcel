@@ -1,0 +1,8 @@
+{
+  "description": "fs.readFileSync should inline a file as a string",
+  "input": "index.ts",
+  "output": {
+    "fromTs": "export default <div>Hello</div>;\n",
+    "fromTsx": "export default <div>Hello</div>;\n"
+  }
+}

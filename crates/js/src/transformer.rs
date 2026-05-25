@@ -109,6 +109,10 @@ impl Transformer for JsTransformer {
 
     let mut dep_map = HashMap::new();
     for dep in res.dependencies {
+      if dep.kind == DependencyKind::File {
+        continue;
+      }
+
       let is_helper = dep
         .flags
         .contains(parcel_js_swc_core::DependencyFlags::HELPER)
@@ -658,10 +662,14 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
   }
 
   Ok(Config {
-    filename: asset.loc.url.to_string(),
+    filename: asset.loc.url.to_file_path()?.to_string_lossy().into_owned(),
     code: asset.content.read()?,
     module_id: asset.id(),
-    project_root: options.project_root.to_string(),
+    project_root: options
+      .project_root
+      .to_file_path()?
+      .to_string_lossy()
+      .into_owned(),
     context: match &asset.target.environment {
       Environment::Browser => EnvContext::Browser,
       Environment::WebWorker => EnvContext::WebWorker,

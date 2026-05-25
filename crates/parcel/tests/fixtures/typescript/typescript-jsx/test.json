@@ -1,0 +1,7 @@
+{
+  "description": "should support compiling JSX",
+  "input": "index.tsx",
+  "bundles": [
+    {"assets": ["index.tsx"], "contains": ["React.createElement(\"div\""]}
+  ]
+}

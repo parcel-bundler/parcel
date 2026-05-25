@@ -1,0 +1,6 @@
+{
+  "description": "should minify with minify enabled",
+  "input": "index.ts",
+  "options": {"mode": "production"},
+  "output": 3
+}

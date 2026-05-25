@@ -1,0 +1,5 @@
+{
+  "description": "should use esModuleInterop by default",
+  "input": "index.ts",
+  "output": "test passed"
+}

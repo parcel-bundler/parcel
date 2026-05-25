@@ -1,0 +1,5 @@
+{
+  "description": "should handle simultaneous import type and reexport correctly",
+  "input": "index.ts",
+  "output": {"Bar": 123}
+}

@@ -1,0 +1,8 @@
+{
+  "description": "should support importing a URL to a raw asset",
+  "input": "index.ts",
+  "bundles": [
+    {"type": "js", "assets": ["index.ts"]},
+    {"type": "txt", "assets": ["test.txt"]}
+  ]
+}

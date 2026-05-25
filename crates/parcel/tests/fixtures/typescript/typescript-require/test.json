@@ -1,0 +1,8 @@
+{
+  "description": "should produce a ts bundle using commonJS require",
+  "input": "index.ts",
+  "bundles": [
+    {"assets": ["index.ts", "Local.ts"]}
+  ],
+  "output": 3
+}

@@ -1,0 +1,7 @@
+{
+  "description": "should handle legacy cast in .ts file",
+  "input": "index.ts",
+  "bundles": [
+    {"assets": ["index.ts"]}
+  ]
+}
