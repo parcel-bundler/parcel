@@ -1,0 +1,8 @@
+{
+  "description": "should support the automatic JSX runtime with React >= 17",
+  "input": "index.js",
+  "options": {"mode": "development"},
+  "bundles": [
+    {"assets": ["helpers.js", "index.js", "jsx-dev-runtime.js", "react-refresh-runtime.development.js", "runtime.js"], "contains": ["react/jsx-dev-runtime", "_jsxDevRuntime.jsxDEV"]}
+  ]
+}

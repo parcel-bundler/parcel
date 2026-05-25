@@ -478,7 +478,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
           // e.g.: `{ alias: { "react": "preact/compat" } }`
           react_lib = Some("react");
         } else {
-          for lib in &["react", "preact", "nervejs", "hyperapp"] {
+          for lib in &["react", "preact", "nervjs", "hyperapp"] {
             if pkg.has_dependency(lib) {
               react_lib = Some(lib);
             }
@@ -494,7 +494,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
     let mut tsconfig_jsx_import_source = None;
     let mut tsconfig_jsx_factory = None;
     if let Some(tsconfig) = resolver.find_tsconfig(
-      &resolver.cache().get(options.project_root.to_file_path()?),
+      &resolver.cache().get(asset.loc.url.to_file_path()?),
       &invalidations,
     ) {
       if let Ok(tsconfig) = &*tsconfig {
@@ -565,15 +565,14 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
           };
 
           let automatic_range = match effective_react_lib {
-            "react" => Some(
-              node_semver::Range::parse(">= 17.0.0 || ^16.14.0 || >= 0.0.0-0 < 0.0.0").unwrap(),
-            ),
+            "react" => Some(node_semver::Range::parse(">= 17.0.0 || ^16.14.0 || 0.0.0").unwrap()),
             "preact" => Some(node_semver::Range::parse(">= 10.5.0").unwrap()),
             _ => None,
           };
 
           if let Some(mut min_version) = pkg
             .get_dependency_version(effective_react_lib)
+            .filter(|v| *v != "*")
             .and_then(|v| node_semver::Range::parse(v).ok())
             .and_then(|r| r.min_version())
           {

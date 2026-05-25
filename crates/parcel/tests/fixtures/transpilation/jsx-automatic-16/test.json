@@ -1,0 +1,8 @@
+{
+  "description": "should support the automatic JSX runtime with React ^16.14.0",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["index.js", "jsx-runtime.js"], "contains": ["_jsxRuntime.jsx"]}
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "description": "should support the automatic JSX runtime with experimental React versions",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["helpers.js", "index.js", "jsx-dev-runtime.js", "react-refresh-runtime.development.js", "runtime.js"], "contains": ["_jsxDevRuntime.jsxDEV"]}
+  ]
+}

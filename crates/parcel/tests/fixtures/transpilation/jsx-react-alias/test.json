@@ -1,0 +1,7 @@
+{
+  "description": "should support compiling JSX in JS files with React aliased to Preact",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"], "contains": ["React.createElement(\"div\""]}
+  ]
+}

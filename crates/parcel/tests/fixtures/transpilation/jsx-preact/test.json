@@ -1,0 +1,7 @@
+{
+  "description": "should support compiling JSX in JS files with Preact dependency",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"], "contains": ["h(\"div\""]}
+  ]
+}

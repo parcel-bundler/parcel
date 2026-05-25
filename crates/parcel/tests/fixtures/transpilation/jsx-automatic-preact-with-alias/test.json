@@ -1,0 +1,7 @@
+{
+  "description": "should support the automatic JSX runtime with preact with alias",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"], "contains": ["React.createElement(\"div\""]}
+  ]
+}

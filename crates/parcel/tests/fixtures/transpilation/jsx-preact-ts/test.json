@@ -1,0 +1,7 @@
+{
+  "description": "should support compiling JSX in TS files with Preact dependency",
+  "input": "index.tsx",
+  "bundles": [
+    {"assets": ["index.js", "index.tsx"], "contains": ["_preact.h)(\"div\""]}
+  ]
+}

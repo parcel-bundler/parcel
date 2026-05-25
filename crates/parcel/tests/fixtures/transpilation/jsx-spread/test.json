@@ -1,0 +1,7 @@
+{
+  "description": "should not transpile spread in JSX with modern targets",
+  "input": "index.jsx",
+  "bundles": [
+    {"assets": ["index.jsx"], "contains": ["React.createElement(\"div\"", "...a"]}
+  ]
+}

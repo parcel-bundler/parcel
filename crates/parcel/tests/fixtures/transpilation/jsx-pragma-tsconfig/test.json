@@ -1,0 +1,7 @@
+{
+  "description": "should support explicit JSX pragma in tsconfig.json",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"], "contains": ["JSX(JSXFragment", "JSX(\"div\""]}
+  ]
+}

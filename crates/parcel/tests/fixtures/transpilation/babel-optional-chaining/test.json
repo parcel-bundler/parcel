@@ -1,0 +1,5 @@
+{
+  "description": "should support transpiling optional chaining",
+  "input": "index.js",
+  "output": [null, null]
+}

@@ -6,7 +6,7 @@ edition = "2024"
 
 [dependencies]
 bitflags = { version = "2.7.0", features = ["serde"] }
-browserslist-rs = "0.18.1"
+browserslist-rs = "0.19.0"
 json-sourcemap = "0.2.0"
 node-semver = "2.2.0"
 serde = { version = "1.0.228", features = ["derive", "rc"] }

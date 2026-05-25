@@ -1,0 +1,7 @@
+{
+  "description": "should support the automatic JSX runtime with explicit tsconfig.json",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js", "jsx-dev-runtime.js"], "contains": ["preact/jsx-dev-runtime", "jsxDEV"]}
+  ]
+}

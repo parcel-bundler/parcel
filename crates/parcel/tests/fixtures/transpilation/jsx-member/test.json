@@ -1,0 +1,7 @@
+{
+  "description": "should support compiling JSX correctly with member expression type",
+  "input": "index.jsx",
+  "bundles": [
+    {"assets": ["esmodule-helpers.js", "foo.jsx", "index.jsx"], "contains": ["React.createElement(S.Foo"]}
+  ]
+}

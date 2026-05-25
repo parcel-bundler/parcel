@@ -1,0 +1,5 @@
+{
+  "description": "should support enabling decorators and setting useDefineForClassFields in tsconfig.json",
+  "input": "index.ts",
+  "sideEffects": ["greet"]
+}

@@ -1,0 +1,7 @@
+{
+  "description": "should not transpile if no targets are defined",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["foo.js", "index.js", "esmodule-helpers.js"], "contains": ["class Foo", "class Bar"]}
+  ]
+}

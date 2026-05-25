@@ -1,0 +1,7 @@
+{
+  "description": "should support explicitly enabling JSX in tsconfig.json",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"], "contains": ["React.createElement(\"div\""]}
+  ]
+}

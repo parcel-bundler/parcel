@@ -39,24 +39,12 @@ pub fn resolve_entries(
     if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
       entries.resolve_package_entries(&*options.input_fs, path)?;
     } else {
-      let (context, engines) = if let Some(pkg) = find_package(&path, &*options.input_fs) {
-        let engines = pkg.get("engines");
-        let context = if engines.and_then(|e| e.get("node")).is_some() {
-          Environment::Node
-        } else {
-          Environment::Browser
-        };
-        let engines = package_engines(&pkg, engines, context, OutputFormat::Esmodule);
-        (context, engines)
-      } else {
-        (Environment::Browser, Default::default())
-      };
-
       let mut flags = EnvironmentFlags::empty();
       flags.set(
         EnvironmentFlags::SHOULD_OPTIMIZE,
         options.mode == BuildMode::Production,
       );
+
       let mut output_format = OutputFormat::default();
       if let Some(ext) = path.extension() {
         flags.set(
@@ -69,6 +57,20 @@ pub fn resolve_entries(
           output_format = OutputFormat::Commonjs;
         }
       }
+
+      let (context, engines) = if let Some(pkg) = find_package(&path, &*options.input_fs) {
+        let engines = pkg.get("engines");
+        let context = if engines.and_then(|e| e.get("node")).is_some() {
+          Environment::Node
+        } else {
+          Environment::Browser
+        };
+        let engines = package_engines(&pkg, engines, context, output_format);
+        (context, engines)
+      } else {
+        (Environment::Browser, Default::default())
+      };
+
       let env = entries.target(Target {
         environment: context,
         engines,

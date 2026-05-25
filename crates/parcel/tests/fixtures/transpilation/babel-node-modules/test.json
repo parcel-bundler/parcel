@@ -1,0 +1,8 @@
+{
+  "description": "should bundle node_modules by default",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["_class_call_check.js", "_type_of.js", "esmodule-helpers.js", "index.js", "index.js"], "contains": ["function Bar"]}
+  ],
+  "output": {"t": "function"}
+}

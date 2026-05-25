@@ -1,0 +1,7 @@
+{
+  "description": "should not support JSX in node_modules",
+  "input": "index.js",
+  "diagnostics": [
+    {"message": ""}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "description": "should support transpiling when engines have semver ranges",
+  "input": ".",
+  "bundles": [
+    {"assets": ["foo.js"], "contains": ["function Foo"]},
+    {"assets": ["index.js"], "contains": ["function Bar"]},
+    {"assets": ["esmodule-helpers.js"]}
+  ]
+}

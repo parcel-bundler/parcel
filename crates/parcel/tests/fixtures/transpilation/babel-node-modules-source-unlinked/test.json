@@ -1,0 +1,7 @@
+{
+  "description": "should compile node_modules with a source field in package.json when not symlinked",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["_class_call_check.js", "esmodule-helpers.js", "index.js", "index.js"], "contains": ["function Foo", "function Bar"]}
+  ]
+}

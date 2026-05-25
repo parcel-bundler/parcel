@@ -1,0 +1,18 @@
+[
+  {
+    "description": "should support compiling JSX in JS files with React dependency",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "bundles": [
+      {"assets": ["index.js"], "contains": ["React.createElement(\"div\""]}
+    ]
+  },
+  {
+    "description": "should support compiling JSX with comments before JSX expressions",
+    "input": "pure-comment.js",
+    "options": {"mode": "production"},
+    "bundles": [
+      {"assets": ["esmodule-helpers.js", "index.js", "pure-comment.js"], "TODO:contains": ["/*#__PURE__*/ (0, _reactDefault.default).createElement"]}
+    ]
+  }
+]

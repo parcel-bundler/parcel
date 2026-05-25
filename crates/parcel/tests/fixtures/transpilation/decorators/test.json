@@ -1,0 +1,10 @@
+{
+  "description": "should support enabling decorators in tsconfig.json",
+  "input": "index.ts",
+  "sideEffects": [
+    "first(): factory evaluated",
+    "second(): factory evaluated",
+    "second(): called",
+    "first(): called"
+  ]
+}
