@@ -1,0 +1,5 @@
+{
+  "description": "should not add ESM externals for optional requires",
+  "input": "index.js",
+  "output": "pass"
+}

@@ -1,0 +1,6 @@
+{
+  "description": "can bundle date-fns",
+  "input": "a.ts",
+  "options": {"mode": "development"},
+  "output": "2025-02-03"
+}

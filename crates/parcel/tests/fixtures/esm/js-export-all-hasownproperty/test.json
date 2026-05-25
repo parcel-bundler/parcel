@@ -1,0 +1,5 @@
+{
+  "description": "should work correctly with export called hasOwnProperty without scope-hoisting",
+  "input": "index.js",
+  "output": 123
+}

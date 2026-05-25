@@ -1,0 +1,5 @@
+{
+  "description": "should detect shorthand identifier imports",
+  "input": "index.js",
+  "output": {"color": "blue"}
+}

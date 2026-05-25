@@ -1,0 +1,8 @@
+{
+  "description": "should retain unicode escape sequences",
+  "input": "src/index.js",
+  "bundles": [
+    {"assets": ["esmodule-helpers.js", "index.js"], "contains": ["\\x85", "\\u200B", "\\uFFFE"]}
+  ],
+  "output": ["", "​", "￾"]
+}

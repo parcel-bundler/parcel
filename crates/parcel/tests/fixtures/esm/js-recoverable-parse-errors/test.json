@@ -1,0 +1,19 @@
+{
+  "description": "should also fail on recoverable parse errors",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Expected identifier",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {"line": 1, "column": 7},
+              "end": {"line": 1, "column": 8}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
