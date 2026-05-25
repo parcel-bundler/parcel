@@ -173,6 +173,16 @@ export class EntryResolver {
         absolute: true,
         onlyFiles: false,
       });
+      if (files.length === 0) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`No files found matching entry glob ${entry}`,
+            hints: [
+              'If you are trying to use a literal file path containing special characters like { or }, escape them or use a path without glob characters.',
+            ],
+          },
+        });
+      }
       let results = await Promise.all(
         files.map(f => this.resolveEntry(path.normalize(f))),
       );
