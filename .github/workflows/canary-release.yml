@@ -8,6 +8,9 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-and-release:
     name: Build and release canary
