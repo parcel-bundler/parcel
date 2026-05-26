@@ -1,0 +1,9 @@
+{
+  "description": "should insert sibling bundles before body element if no HEAD",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["<link rel=\"stylesheet\""]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["index.css"]}
+  ]
+}

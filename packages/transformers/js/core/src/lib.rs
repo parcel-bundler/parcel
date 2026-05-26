@@ -35,7 +35,7 @@ use global_replacer::GlobalReplacer;
 pub use hoist::{ExportedSymbol, ImportedSymbol};
 use hoist::{HoistResult, hoist};
 use indexmap::IndexMap;
-use mdx::{MdxAsset, TocNode, mdx};
+pub use mdx::{MdxAsset, TocNode, mdx};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use parcel_macros::{JsValue, MacroCallback, MacroError, Macros};

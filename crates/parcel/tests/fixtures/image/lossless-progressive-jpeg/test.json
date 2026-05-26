@@ -1,0 +1,9 @@
+{
+  "description": "should lossless optimise progressive JPEGs",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "js", "assets": ["esmodule-helpers.js", "index.js"]},
+    {"type": "jpg", "assets": ["banana.jpg"]}
+  ]
+}

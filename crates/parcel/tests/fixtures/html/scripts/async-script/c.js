@@ -1,0 +1,1 @@
+sideEffect('c');

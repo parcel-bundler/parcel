@@ -1,0 +1,8 @@
+{
+  "description": "should bundle svg files correctly",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "svg", "assets": ["file.svg"]}
+  ]
+}

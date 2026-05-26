@@ -32,3 +32,4 @@ fixedbitset = "0.5.7"
 rquickjs = { version = "0.11.0", features = ["full"] }
 rquickjs-serde = "0.4.0"
 testing_macros = "1.0.1"
+pretty_assertions = "1.4.1"

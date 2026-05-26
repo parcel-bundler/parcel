@@ -11,6 +11,7 @@ use parcel_core::{
   EnvironmentFlags, FileSystem, MemoryFileSystem, OsFileSystem, OutputFormat, OverlayFileSystem,
 };
 use parcel_plugin_js::{create_runtime, require_module};
+use pretty_assertions::assert_eq;
 use rquickjs::Function;
 
 fn run(
@@ -294,10 +295,12 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
   }
 
   let expected = fixture_dir.join("expected");
+  let update_snapshots = std::env::var("UPDATE_SNAPSHOTS").is_ok();
+
   if expected.is_dir() {
     for entry in expected.read_dir().unwrap() {
       let entry = entry.unwrap();
-      let content = std::fs::read_to_string(entry.path()).unwrap();
+      let expected_bytes = std::fs::read(entry.path()).unwrap();
       let ty = AssetType::from_extension(entry.path().extension().unwrap().to_str().unwrap());
       let bundle = bundle_graph
         .bundles
@@ -326,8 +329,23 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           name == entry.path().file_prefix().unwrap().to_str().unwrap()
         })
         .expect("could not find bundle");
-      let actual_content = output_fs.read_to_string(&bundle.dist_path()).unwrap();
-      assert_eq!(actual_content, content, "{:?}", entry.file_name());
+
+      if update_snapshots {
+        let bytes = output_fs.read(&bundle.dist_path()).unwrap();
+        std::fs::write(entry.path(), bytes).unwrap();
+        eprintln!("Wrote snapshot: {:?}", entry.path());
+      } else if bundle.ty.is_binary() {
+        let actual_bytes = output_fs.read(&bundle.dist_path()).unwrap();
+        assert_eq!(actual_bytes, expected_bytes, "{:?}", entry.file_name());
+      } else {
+        let actual_content = output_fs.read_to_string(&bundle.dist_path()).unwrap();
+        assert_eq!(
+          actual_content,
+          std::str::from_utf8(&expected_bytes).unwrap(),
+          "{:?}",
+          entry.file_name()
+        );
+      }
     }
   }
 }

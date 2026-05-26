@@ -18,11 +18,17 @@ pub fn bundle(
 
   let mut seen_bundles = HashSet::new();
   let mut duplicate_bundles = HashSet::new();
-  for bundle in &mut bundle_graph.bundles {
-    if bundle.name.is_none() {
-      bundle.name = Some(name(&bundle_graph.asset_graph, bundle, config, options)?);
+  for i in 0..bundle_graph.bundles.len() {
+    if bundle_graph.bundles[i].name.is_none() {
+      bundle_graph.bundles[i].name = Some(name(
+        &bundle_graph,
+        &bundle_graph.bundles[i],
+        config,
+        options,
+      )?);
     }
 
+    let bundle = &bundle_graph.bundles[i];
     if bundle.bundle_behavior != BundleBehavior::Inline {
       let name = bundle.name.as_ref().unwrap();
       let full_path = bundle.target.dist_dir.to_file_path()?.join(&name);

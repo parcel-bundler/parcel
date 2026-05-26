@@ -1,0 +1,8 @@
+{
+  "description": "should resolve assets containing spaces",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["other page.html"]}
+  ]
+}

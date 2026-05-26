@@ -1,0 +1,12 @@
+{
+  "description": "Should be able to change image to all formats",
+  "input": "reformat-all.html",
+  "bundles": [
+    {"type": "html", "assets": ["reformat-all.html"]},
+    {"type": "avif", "assets": ["foo.png"]},
+    {"type": "jpg", "assets": ["foo.png"]},
+    {"type": "png", "assets": ["foo.png"]},
+    {"type": "tiff", "assets": ["foo.png"]},
+    {"type": "webp", "assets": ["foo.png"]}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "description": "should find href attr when not first",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["other.html"]}
+  ]
+}

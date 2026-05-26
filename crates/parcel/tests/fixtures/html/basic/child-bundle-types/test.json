@@ -1,0 +1,10 @@
+{
+  "description": "should support child bundles of different types",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["main.js", "util.js", "other.js"]},
+    {"type": "html", "assets": ["other.html"]},
+    {"type": "js", "assets": ["index.js", "util.js", "other.js"]}
+  ]
+}

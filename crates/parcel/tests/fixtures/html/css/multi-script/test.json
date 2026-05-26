@@ -1,0 +1,11 @@
+{
+  "description": "should bundle CSS from multiple script tags (note: Rust bundler creates separate CSS bundles per file, not merged)",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["a.js"]},
+    {"type": "js", "assets": ["b.js"]},
+    {"type": "css", "assets": ["a.css"]},
+    {"type": "css", "assets": ["b.css"]}
+  ]
+}

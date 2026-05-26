@@ -1,0 +1,7 @@
+{
+  "description": "should work with an invalid html file",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["This is a paragraph"]}
+  ]
+}

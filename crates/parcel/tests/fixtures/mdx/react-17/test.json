@@ -1,0 +1,7 @@
+{
+  "description": "should support bundling MDX with React 17",
+  "input": "index.mdx",
+  "bundles": [
+    {"type": "js", "assets": ["esmodule-helpers.js", "helpers.js", "index.js", "index.mdx", "jsx-dev-runtime.js", "react-refresh-runtime.development.js", "runtime.js"]}
+  ]
+}

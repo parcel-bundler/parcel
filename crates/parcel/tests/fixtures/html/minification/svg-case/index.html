@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <body>
+    <x-custom stdDeviation="0.5"></x-custom>
+    <svg viewBox="1.8 2.4 2 2" preserveAspectRatio="xMinYMin meet" role="img">
+      <title>Test</title>
+      <defs>
+        <FILTER id="blur">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="0.01" />
+        </FILTER>
+      </defs>
+      <g>
+        <path d="M2 3C3 2 4 3 3 4" stroke-width="0.1" stroke="blue" fill="none" filter="url(#blur)"/>
+      </g>
+    </svg>
+    <a href="other.html">Other</a>
+  </body>
+</html>

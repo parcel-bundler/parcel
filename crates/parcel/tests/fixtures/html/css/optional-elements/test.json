@@ -1,0 +1,10 @@
+{
+  "description": "should insert sibling bundles at correct location in tree when optional elements are absent",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["index.css"]},
+    {"type": "js", "assets": ["other.js"]}
+  ]
+}

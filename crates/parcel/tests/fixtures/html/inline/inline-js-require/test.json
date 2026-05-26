@@ -1,0 +1,9 @@
+{
+  "description": "should allow imports and requires in inline script tags",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "js", "assets": ["index.html", "test.js"]},
+    {"type": "html", "assets": ["index.html"], "contains": ["console.log"]}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "description": "should deduplicate shared code between script tags",
+  "input": "index.html",
+  "TODO": "fix bundles",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["component-1.js", "esmodule-helpers.js", "obj.js"]},
+    {"type": "js", "assets": ["component-2.js", "esmodule-helpers.js", "obj.js"]}
+  ],
+  "sideEffects": ["component-1", "component-2"]
+}

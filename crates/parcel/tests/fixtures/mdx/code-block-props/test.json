@@ -1,0 +1,14 @@
+{
+  "description": "should support code block props in MDX",
+  "input": "index.js",
+  "output": {
+    "res": "<pre>console.log(&quot;hi&quot;);</pre>",
+    "codeBlockProps": {
+      "boolean": true,
+      "string": "hi",
+      "value": 2,
+      "lang": "tsx",
+      "children": "console.log(\"hi\");"
+    }
+  }
+}

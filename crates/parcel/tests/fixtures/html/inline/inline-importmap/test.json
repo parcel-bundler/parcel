@@ -1,0 +1,7 @@
+{
+  "description": "should not modify inline importmaps",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["/node_modules/lit1.3.0/"]}
+  ]
+}

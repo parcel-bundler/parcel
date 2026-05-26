@@ -1,0 +1,11 @@
+{
+  "description": "should support dependencies in MDX",
+  "input": "index.mdx",
+  "bundles": [
+    {"type": "js", "assets": ["index.mdx"]},
+    {"type": "js", "assets": ["esmodule-helpers.js", "helpers.js", "index.js", "jsx-dev-runtime.js", "react-refresh-runtime.development.js", "runtime.js"]},
+    {"type": "js", "assets": ["another.mdx"]},
+    {"type": "png", "assets": ["img.png"]},
+    {"type": "mp3", "assets": ["some.mp3"]}
+  ]
+}

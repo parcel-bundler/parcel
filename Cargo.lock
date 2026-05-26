@@ -2943,6 +2943,7 @@ dependencies = [
  "parcel-resolver",
  "parcel-watcher",
  "pathdiff",
+ "pretty_assertions",
  "rquickjs",
  "rquickjs-serde",
  "serde",

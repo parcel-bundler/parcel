@@ -1,0 +1,9 @@
+{
+  "description": "should support code block props in MDX",
+  "input": "index.js",
+  "output": "<pre><code class=\"language-css\">.foo { color: red }</code></pre>",
+  "bundles": [
+    {"type": "js", "assets": ["esmodule-helpers.js", "helpers.js", "index.js", "index.js", "index.js", "index.mdx", "jsx-dev-runtime.js", "mdx-components.jsx", "react-dom-server-legacy.browser.development.js", "react-dom-server.edge.development.js", "react-dom.development.js", "react-jsx-dev-runtime.development.js", "react-refresh-runtime.development.js", "react.development.js", "runtime.js", "server.edge.js"]},
+    {"type": "css", "assets": ["index.mdx"], "contains": ["color: red"]}
+  ]
+}

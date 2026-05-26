@@ -1,0 +1,17 @@
+{
+  "description": "should support bundling HTML",
+  "input": "index.html",
+  "bundles": [
+    {"type": "css", "assets": ["index.html"]},
+    {"name": "index.html", "assets": ["index.html"], "contains": ["#hash_link", "mailto:someone@acme.com", "tel:+33636757575", "https://unpkg.com/parcel-bundler"]},
+    {"name": "foo/index.html", "assets": ["index.html"]},
+    {"name": "other.html", "assets": ["other.html"]},
+    {"name": "foo/other.html", "assets": ["other.html"]},
+    {"type": "svg", "assets": ["icons.svg"]},
+    {"type": "png", "assets": ["100x100.png"]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["index.css"]}
+  ],
+  "sideEffects": ["Hi"]
+}

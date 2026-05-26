@@ -1,0 +1,9 @@
+{
+  "description": "should bundle scripts inside svg",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["script-a.js"]},
+    {"type": "js", "assets": ["script-b.js"]}
+  ]
+}

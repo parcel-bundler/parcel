@@ -1,0 +1,8 @@
+{
+  "description": "Should be able to change image format from JS",
+  "input": "reformat.js",
+  "bundles": [
+    {"type": "js", "assets": ["esmodule-helpers.js", "reformat.js"]},
+    {"type": "webp", "assets": ["image.jpg"]}
+  ]
+}

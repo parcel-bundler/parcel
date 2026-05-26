@@ -1,0 +1,10 @@
+{
+  "description": "should process inline element styles",
+  "input": "index.html",
+  "bundles": [
+    {"type": "style", "assets": ["index.html"]},
+    {"type": "style", "assets": ["index.html"]},
+    {"type": "style", "assets": ["index.html"]},
+    {"type": "html", "assets": ["index.html"]}
+  ]
+}

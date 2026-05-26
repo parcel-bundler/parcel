@@ -1,0 +1,14 @@
+{
+  "description": "should process inline styles in production mode",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "css", "assets": ["index.html"]},
+    {"type": "style", "assets": ["index.html"]},
+    {"type": "style", "assets": ["index.html"]},
+    {"type": "style", "assets": ["index.html"]},
+    {"type": "jpg", "assets": ["bg.jpg"]},
+    {"type": "jpg", "assets": ["img.jpg"]},
+    {"type": "html", "assets": ["index.html"]}
+  ]
+}

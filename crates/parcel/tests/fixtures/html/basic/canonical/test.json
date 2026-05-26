@@ -1,0 +1,7 @@
+{
+  "description": "should support canonical links",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["<link rel=\"canonical\""]}
+  ]
+}

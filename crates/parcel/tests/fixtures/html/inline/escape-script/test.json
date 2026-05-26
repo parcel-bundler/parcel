@@ -1,0 +1,5 @@
+{
+  "description": "should escape inline script tags",
+  "input": "index.html",
+  "output": {"a": "<script></script>", "b": "<!-- test", "c": "<SCRIPT></SCRIPT>"}
+}

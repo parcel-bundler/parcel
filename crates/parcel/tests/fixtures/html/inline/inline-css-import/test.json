@@ -1,0 +1,8 @@
+{
+  "description": "should handle inline css with @imports",
+  "input": "index.html",
+  "bundles": [
+    {"type": "css", "assets": ["index.html", "test.css"]},
+    {"type": "html", "assets": ["index.html"]}
+  ]
+}

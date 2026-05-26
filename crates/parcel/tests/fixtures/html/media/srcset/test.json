@@ -1,0 +1,10 @@
+{
+  "description": "should detect srcset attribute",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "png", "assets": ["100x100.png"]},
+    {"type": "png", "assets": ["200x200.png"]},
+    {"type": "png", "assets": ["300x300.png"]}
+  ]
+}

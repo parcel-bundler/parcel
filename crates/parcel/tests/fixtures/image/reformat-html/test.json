@@ -1,0 +1,8 @@
+{
+  "description": "Should be able to change image format from HTML",
+  "input": "reformat.html",
+  "bundles": [
+    {"type": "html", "assets": ["reformat.html"]},
+    {"type": "webp", "assets": ["image.jpg"]}
+  ]
+}

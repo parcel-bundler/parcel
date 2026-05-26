@@ -104,6 +104,7 @@ impl Transformer for JsTransformer {
       }
     }
 
+    let is_mdx = asset.ty == AssetType::Mdx;
     asset.ty = AssetType::Js;
     asset.content = Arc::new(JsContent {
       ast: Mutex::new(res.ast),
@@ -120,6 +121,7 @@ impl Transformer for JsTransformer {
       let is_helper = dep
         .flags
         .contains(parcel_js_swc_core::DependencyFlags::HELPER)
+        && dep.kind != DependencyKind::Url
         && !(dep.specifier.ends_with("/jsx-runtime")
           || dep.specifier.ends_with("/jsx-dev-runtime"));
 
@@ -292,7 +294,50 @@ impl Transformer for JsTransformer {
           DependencyKind::Worklet => ExportsCondition::WORKLET,
           _ => ExportsCondition::empty(),
         },
-        resolution: DependencyResolution::None,
+        resolution: if is_mdx
+          && dep.specifier.starts_with("mdx-")
+          && let Some(mdx_asset) = dep.specifier[4..]
+            .parse()
+            .ok()
+            .and_then(|i| res.mdx_assets.get::<usize>(i))
+        {
+          DependencyResolution::Deferred(Arc::new(AssetRequest {
+            loc: SourceLocation {
+              url: asset.loc.url.clone(),
+              start: Location {
+                line: mdx_asset
+                  .position
+                  .as_ref()
+                  .map(|p| p.start.line as u32)
+                  .unwrap_or(0),
+                column: mdx_asset
+                  .position
+                  .as_ref()
+                  .map(|p| p.start.column as u32)
+                  .unwrap_or(0),
+              },
+              end: Location {
+                line: mdx_asset
+                  .position
+                  .as_ref()
+                  .map(|p| p.end.line as u32)
+                  .unwrap_or(0),
+                column: mdx_asset
+                  .position
+                  .as_ref()
+                  .map(|p| p.end.column as u32)
+                  .unwrap_or(0),
+              },
+            },
+            ty: AssetType::from_extension(&mdx_asset.lang),
+            content: Arc::new(BufferContent::new(mdx_asset.code.clone().into_bytes())),
+            pipeline: None,
+            side_effects: true,
+            target: asset.target.clone(),
+          }))
+        } else {
+          DependencyResolution::None
+        },
       })
     }
 

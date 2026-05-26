@@ -1,0 +1,8 @@
+{
+  "description": "should ignore svgs referencing local symbols via use xlink:href='#'",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["<svg><symbol id=all><rect width=100 height=100 /></symbol></svg>\n<svg><use xlink:href=#all href=#all /></svg>"]}
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "description": "should work with html that doesn't include optional closing tags",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["Paragraph 1"]}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "description": "Should be able to resize images",
+  "input": "resized.js",
+  "bundles": [
+    {"type": "js", "assets": ["resized.js"]},
+    {"type": "jpg", "assets": ["image.jpg"]}
+  ]
+}

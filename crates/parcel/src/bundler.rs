@@ -30,10 +30,11 @@ impl Bundler for DefaultBundler {
     // Step 1: Traverse the asset graph and find bundle roots.
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
     let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    let mut non_entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
+    let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     for entry in &asset_graph.entries {
       if let Some(asset) = entry.asset {
         bundle_roots.insert(asset);
+        entry_bundle_roots.insert(asset);
       }
     }
 
@@ -41,7 +42,6 @@ impl Bundler for DefaultBundler {
       if let AssetNode::Asset(asset) = &asset_graph.assets[asset_index] {
         if asset.bundle_behavior != BundleBehavior::None {
           bundle_roots.insert(asset_index);
-          non_entry_bundle_roots.insert(asset_index);
         }
 
         for dep_index in 0..asset.dependencies.len() {
@@ -59,7 +59,6 @@ impl Bundler for DefaultBundler {
               }
 
               bundle_roots.insert(resolved_asset_index as usize);
-              non_entry_bundle_roots.insert(resolved_asset_index as usize);
             }
           }
         }
@@ -158,7 +157,7 @@ impl Bundler for DefaultBundler {
           ty: asset.ty.clone(),
           target: asset.target.clone(),
           bundle_behavior: asset.bundle_behavior,
-          flags: if is_bundle_root {
+          flags: if entry_bundle_roots.contains(asset_index) {
             BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
           } else {
             BundleFlags::empty()
@@ -205,14 +204,12 @@ impl Bundler for DefaultBundler {
       if let AssetNode::Asset(asset) = asset {
         for dep in &mut asset.dependencies {
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-            if non_entry_bundle_roots.contains(resolved_asset_index as usize) {
-              if let Some(bundle_index) =
-                asset_index_to_bundle_index.get(&(resolved_asset_index as usize))
-              {
-                dep.resolution = DependencyResolution::Bundle(*bundle_index as u32);
-                if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
-                  bundles[*bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
-                }
+            if let Some(bundle_index) =
+              asset_index_to_bundle_index.get(&(resolved_asset_index as usize))
+            {
+              dep.resolution = DependencyResolution::Bundle(*bundle_index as u32);
+              if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
+                bundles[*bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
               }
             }
           }

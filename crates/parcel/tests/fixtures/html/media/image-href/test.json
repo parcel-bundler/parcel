@@ -1,0 +1,8 @@
+{
+  "description": "should support href attribute in image element",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "png", "assets": ["100x100.png"]}
+  ]
+}

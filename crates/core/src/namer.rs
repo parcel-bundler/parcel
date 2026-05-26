@@ -1,24 +1,22 @@
-use crate::{
-  Bundle, Diagnostic, DiagnosticList, ParcelOptions, asset_graph::AssetGraph, config::ParcelConfig,
-};
+use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, ParcelOptions, config::ParcelConfig};
 
 pub trait Namer: Send + Sync {
   fn name(
     &self,
-    asset_graph: &AssetGraph,
+    bundle_graph: &BundleGraph,
     bundle: &Bundle,
     options: &ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList>;
 }
 
 pub fn name(
-  asset_graph: &AssetGraph,
+  bundle_graph: &BundleGraph,
   bundle: &Bundle,
   config: &ParcelConfig,
   options: &ParcelOptions,
 ) -> Result<String, DiagnosticList> {
   for namer in &config.namers {
-    if let Some(name) = namer.name(asset_graph, bundle, options)? {
+    if let Some(name) = namer.name(bundle_graph, bundle, options)? {
       return Ok(name);
     }
   }

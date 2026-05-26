@@ -184,7 +184,7 @@ impl AssetType {
       "mdx" => AssetType::Mdx,
       "css" => AssetType::Css,
       "style" => AssetType::StyleAttribute,
-      "html" => AssetType::Html,
+      "html" | "htm" => AssetType::Html,
       "xhtml" => AssetType::Xhtml,
       "svg" => AssetType::Svg,
       "json" => AssetType::Json,
@@ -294,6 +294,11 @@ impl AssetType {
   pub fn is_js(&self) -> bool {
     use AssetType::*;
     matches!(self, Js | Jsx | Ts | Tsx | Mdx | Json | Toml | Yaml)
+  }
+
+  pub fn is_binary(&self) -> bool {
+    use AssetType::*;
+    matches!(self, Png | Jpeg | Gif | WebP | Bmp | Ico | Avif | Other(..))
   }
 }
 

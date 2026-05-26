@@ -1,0 +1,8 @@
+{
+  "description": "should support inline script type=module",
+  "input": "index.html",
+  "bundles": [
+    {"type": "js", "assets": ["index.html"]},
+    {"type": "html", "assets": ["index.html"], "contains": ["document.write(\"Hello world\")"]}
+  ]
+}

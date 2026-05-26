@@ -1,0 +1,9 @@
+{
+  "description": "should support bundling HTM extension",
+  "input": "index.htm",
+  "bundles": [
+    {"type": "html", "assets": ["index.htm"]},
+    {"type": "js", "assets": ["index.js"]}
+  ],
+  "sideEffects": ["Hi"]
+}

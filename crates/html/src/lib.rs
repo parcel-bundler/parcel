@@ -332,7 +332,10 @@ impl Transformer for HtmlTransformer {
     });
 
     asset.bundle_behavior = BundleBehavior::Isolated;
-    asset.content = Arc::new(HtmlContent { code: res.code });
+    asset.content = Arc::new(HtmlContent {
+      code: res.code,
+      path: asset.loc.url.to_string(),
+    });
     asset.dependencies.extend(res.dependencies);
 
     Ok(asset)
@@ -342,6 +345,7 @@ impl Transformer for HtmlTransformer {
 #[derive(Debug)]
 pub struct HtmlContent {
   code: Vec<u8>,
+  path: String,
 }
 
 impl Content for HtmlContent {
@@ -370,7 +374,24 @@ impl Content for HtmlContent {
     })
     .unwrap();
 
-    Ok(Arc::new(BufferContent::new(res.code)))
+    let code = if bundle
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+    {
+      optimize_html(OptimizeHtmlOptions {
+        code: res.code,
+        xml: bundle.ty == AssetType::Xhtml,
+        config: Default::default(), // TODO
+        path: self.path.clone(),
+      })
+      .unwrap()
+      .code
+    } else {
+      res.code
+    };
+
+    Ok(Arc::new(BufferContent::new(code)))
   }
 }
 
@@ -393,23 +414,34 @@ fn prepare_to_package(
   let mut inline_bundles = HashMap::new();
   let mut referenced_bundles = HashSet::<usize>::new();
   for dep in &asset.dependencies {
-    if let DependencyResolution::Bundle(b) = dep.resolution {
-      let referenced_bundle = &bundle_graph.bundles[b as usize];
-      let contents = if dep.bundle_behavior == BundleBehavior::Inline {
-        String::from_utf8(get_inline_bundle_content(b as usize)?.read()?)?
-      } else {
-        referenced_bundle.relative_url(&bundle).unwrap()
-      };
+    match dep.resolution {
+      DependencyResolution::Bundle(b) => {
+        let referenced_bundle = &bundle_graph.bundles[b as usize];
+        let contents = if dep.bundle_behavior == BundleBehavior::Inline {
+          String::from_utf8(get_inline_bundle_content(b as usize)?.read()?)?
+        } else {
+          referenced_bundle.relative_url(&bundle).unwrap()
+        };
 
-      inline_bundles.insert(
-        SerializableTendril(dep.placeholder.clone().unwrap().into()),
-        InlineBundle {
-          contents: SerializableTendril(contents.into()),
-          module: referenced_bundle.target.output_format == OutputFormat::Esmodule,
-        },
-      );
+        inline_bundles.insert(
+          SerializableTendril(dep.placeholder.clone().unwrap().into()),
+          InlineBundle {
+            contents: SerializableTendril(contents.into()),
+            module: referenced_bundle.target.output_format == OutputFormat::Esmodule,
+          },
+        );
 
-      referenced_bundles.extend(referenced_bundle.referenced_bundles.iter()); // TODO: should be recursive
+        referenced_bundles.extend(referenced_bundle.referenced_bundles.iter()); // TODO: should be recursive
+      }
+      _ => {
+        inline_bundles.insert(
+          SerializableTendril(dep.placeholder.clone().unwrap().into()),
+          InlineBundle {
+            contents: SerializableTendril(dep.specifier.clone().into()),
+            module: false,
+          },
+        );
+      }
     }
   }
 

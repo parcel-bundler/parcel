@@ -1,0 +1,8 @@
+{
+  "description": "should minify HTML in production mode",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["Other page"]}
+  ]
+}

@@ -4,13 +4,13 @@
   <a href="other1.html">
     <use href="#circle" x="10" fill="blue"/>
   </a>
-  <use xlink:href="square.svg" x="20" fill="white" stroke="red"/>
-  <circle cx="5" cy="5" r="4" fill="url(gradient.svg)"/>
+  <use xlink:href="square-9482dcf73ecec3c5.svg" x="20" fill="white" stroke="red"/>
+  <circle cx="5" cy="5" r="4" fill="url(gradient-e5608760876e5de5.svg)"/>
   <text>
-    <textPath href="path.svg">
+    <textPath href="path-adb15e2723bf4853.svg">
       Quick brown fox jumps over the lazy dog.
     </textPath>
   </text>
-  <script xlink:href="script.js"/>
-  <script href="module.js"/>
+  <script xlink:href="script-02a46e0aa3e7e096.js"/>
+  <script href="module-eb82b0f79f35995e.js"/>
 </svg>

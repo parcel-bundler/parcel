@@ -1,3 +1,3 @@
-<?xml-stylesheet href="style1.css"?><?xml-stylesheet href="style2.css?><?xml-stylesheet href="style3.css" type="text/css"?><?xml-not-a-stylesheet href="style4.css"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80">
+<?xml-stylesheet href="style1-0c43e3176bd20762.css"?><?xml-stylesheet href="style2.css?><?xml-stylesheet href="style3-38fa03dbb9b069f6.css" type="text/css"?><?xml-not-a-stylesheet href="style4.css"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80">
   <text>Should be red and monospace</text>
 </svg>

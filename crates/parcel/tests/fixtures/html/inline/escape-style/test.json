@@ -1,0 +1,9 @@
+{
+  "description": "should escape quotes in inline style attributes and style tags",
+  "input": "index.html",
+  "bundles": [
+    {"type": "style", "assets": ["index.html"]},
+    {"type": "css", "assets": ["index.html", "style.css"]},
+    {"type": "html", "assets": ["index.html"], "contains": ["content: &quot;hi&quot;"]}
+  ]
+}

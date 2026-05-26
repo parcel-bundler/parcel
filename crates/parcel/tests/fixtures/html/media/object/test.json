@@ -1,0 +1,8 @@
+{
+  "description": "should support data attribute of object element",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "svg", "assets": ["file.svg"]}
+  ]
+}

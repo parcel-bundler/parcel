@@ -1,7 +1,10 @@
 use std::{io::Cursor, sync::Arc};
 
-use fast_image_resize::{IntoImageView, ResizeOptions, Resizer, images::Image};
-use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, RgbaImage};
+use fast_image_resize::{IntoImageView, PixelType, ResizeOptions, Resizer, images::Image};
+use image::{
+  DynamicImage, GrayAlphaImage, GrayImage, ImageDecoder, ImageFormat, ImageReader, RgbImage,
+  RgbaImage,
+};
 use parcel_core::*;
 
 use crate::jpeg::{MozJpegEncoder, optimize_jpeg_lossless};
@@ -93,14 +96,18 @@ impl Transformer for ImageTransformer {
           )
           .unwrap();
 
-        img = DynamicImage::ImageRgba8(
-          RgbaImage::from_raw(
-            dest_image.width(),
-            dest_image.height(),
-            dest_image.into_vec(),
-          )
-          .unwrap(),
-        );
+        let w = dest_image.width();
+        let h = dest_image.height();
+        let pixel_type = dest_image.pixel_type();
+        let data = dest_image.into_vec();
+        img = match pixel_type {
+          PixelType::U8 => DynamicImage::ImageLuma8(GrayImage::from_raw(w, h, data).unwrap()),
+          PixelType::U8x2 => {
+            DynamicImage::ImageLumaA8(GrayAlphaImage::from_raw(w, h, data).unwrap())
+          }
+          PixelType::U8x3 => DynamicImage::ImageRgb8(RgbImage::from_raw(w, h, data).unwrap()),
+          _ => DynamicImage::ImageRgba8(RgbaImage::from_raw(w, h, data).unwrap()),
+        };
       }
 
       let mut output = Cursor::new(Vec::<u8>::with_capacity(
@@ -195,12 +202,12 @@ impl Transformer for ImageTransformer {
       match &asset.ty {
         AssetType::Png => {
           let bytes = asset.content.read()?;
-          let result = oxipng::optimize_from_memory(&bytes, &Default::default()).unwrap();
+          let result = oxipng::optimize_from_memory(&bytes, &Default::default()).unwrap_or(bytes);
           asset.content = Arc::new(BufferContent::new(result));
         }
         AssetType::Jpeg => {
           let bytes = asset.content.read()?;
-          let result = optimize_jpeg_lossless(&bytes).unwrap();
+          let result = optimize_jpeg_lossless(&bytes).unwrap_or(bytes);
           asset.content = Arc::new(BufferContent::new(result));
         }
         _ => {}

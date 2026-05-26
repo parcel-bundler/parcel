@@ -1,0 +1,12 @@
+{
+  "description": "should process inline JS in production mode",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "js", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.html"]},
+    {"type": "html", "assets": ["index.html"]}
+  ]
+}

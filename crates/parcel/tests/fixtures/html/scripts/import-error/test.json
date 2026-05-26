@@ -1,0 +1,9 @@
+{
+  "description": "should error on imports in scripts without type=module",
+  "input": "index.html",
+  "diagnostics": [
+    {
+      "message": "SCRIPT_ERROR"
+    }
+  ]
+}

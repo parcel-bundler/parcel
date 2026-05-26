@@ -4,7 +4,7 @@
 }
 </style>
   <text>Should be red</text>
-  <text style="fill: url(&quot;gradient.svg&quot;)">Gradient text</text>
+  <text style="fill: url(&quot;gradient-1ec23e59034bde89.svg&quot;)">Gradient text</text>
   <script>var modules = {
 3:[function(require,module,exports) {
 var _script = require("./script");

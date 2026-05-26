@@ -1,12 +1,12 @@
 use std::{
   ffi::OsStr,
   hash::Hash,
-  path::{Component, PathBuf},
+  path::{Component, Path, PathBuf},
 };
 
 use parcel_core::{
-  Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, Diagnostic, DiagnosticList,
-  EnvironmentFlags, Namer, OutputFormat,
+  Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic,
+  DiagnosticList, EnvironmentFlags, Namer, OutputFormat,
 };
 use xxhash_rust::xxh3::Xxh3Default;
 
@@ -15,7 +15,7 @@ pub struct DefaultNamer {}
 impl Namer for DefaultNamer {
   fn name(
     &self,
-    asset_graph: &AssetGraph,
+    bundle_graph: &BundleGraph,
     bundle: &parcel_core::Bundle,
     _options: &parcel_core::ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList> {
@@ -34,22 +34,67 @@ impl Namer for DefaultNamer {
     }
 
     if let Some(entry) = bundle.main_entry_asset {
-      if let AssetNode::Asset(asset) = &asset_graph.assets[entry] {
+      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[entry] {
         if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-          let relative = relative_path(asset, bundle)?.with_extension("");
+          let relative = relative_path(
+            asset,
+            &bundle.target.dist_dir.to_file_path()?.parent().unwrap(),
+          )?
+          .with_extension("");
           let name = relative.to_str().unwrap();
-          return Ok(Some(format_name(asset_graph, bundle, name, ext)));
+          return Ok(Some(format_name(
+            &bundle_graph.asset_graph,
+            bundle,
+            name,
+            ext,
+          )));
         } else {
+          if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
+            let entry_root = common_root_path(
+              bundle_graph
+                .bundles
+                .iter()
+                .filter(|b| {
+                  b.flags.contains(BundleFlags::NEEDS_STABLE_NAME)
+                    && b.main_entry_asset.is_some()
+                    && b.target.dist_dir == bundle.target.dist_dir
+                })
+                .map(|b| {
+                  bundle_graph.asset_graph.assets[b.main_entry_asset.unwrap()]
+                    .expect_asset()
+                    .loc
+                    .url
+                    .to_file_path()
+                    .unwrap()
+                }),
+            );
+            if let Some(entry_root) = entry_root {
+              let relative = relative_path(asset, &entry_root)?.with_extension("");
+              let name = relative.to_str().unwrap();
+              return Ok(Some(format_name(
+                &bundle_graph.asset_graph,
+                bundle,
+                name,
+                ext,
+              )));
+            }
+          }
+
           let file_path = asset.loc.url.to_file_path()?;
           let name = file_path.file_prefix().unwrap().to_str().unwrap();
-          return Ok(Some(format_name(asset_graph, bundle, name, ext)));
+          return Ok(Some(format_name(
+            &bundle_graph.asset_graph,
+            bundle,
+            name,
+            ext,
+          )));
         }
       }
     }
 
     Ok(Some(format!(
       "{:016x}.{}",
-      hash_bundle(asset_graph, bundle),
+      hash_bundle(&bundle_graph.asset_graph, bundle),
       ext
     )))
   }
@@ -67,20 +112,17 @@ fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle) -> u64 {
   hash.digest()
 }
 
-fn relative_path(asset: &Asset, bundle: &Bundle) -> Result<PathBuf, Diagnostic> {
+fn relative_path(asset: &Asset, from: &Path) -> Result<PathBuf, Diagnostic> {
   let path = asset.loc.url.to_file_path()?;
   Ok(
-    pathdiff::diff_paths(
-      path,
-      bundle.target.dist_dir.to_file_path()?.parent().unwrap(),
-    )
-    .unwrap()
-    .components()
-    .map(|c| match c {
-      Component::ParentDir => Component::Normal(OsStr::new("up")),
-      _ => c,
-    })
-    .collect(),
+    pathdiff::diff_paths(path, from)
+      .unwrap()
+      .components()
+      .map(|c| match c {
+        Component::ParentDir => Component::Normal(OsStr::new("up")),
+        _ => c,
+      })
+      .collect(),
   )
 }
 
@@ -90,4 +132,28 @@ fn format_name(asset_graph: &AssetGraph, bundle: &Bundle, name: &str, ext: &str)
   } else {
     format!("{}-{:016x}.{}", name, hash_bundle(asset_graph, bundle), ext)
   }
+}
+
+fn common_root_path(paths: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
+  let mut path_iter = paths.into_iter();
+  let mut root = path_iter.next()?.parent()?.to_path_buf();
+
+  for path in path_iter {
+    let mut new_root = PathBuf::new();
+    let mut found = false;
+    for (a, b) in root.components().zip(path.parent()?.components()) {
+      if a == b {
+        found = true;
+        new_root.push(a);
+      } else {
+        break;
+      }
+    }
+    root = new_root;
+    if !found {
+      return None;
+    }
+  }
+
+  Some(root)
 }

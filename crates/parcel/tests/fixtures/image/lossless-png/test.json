@@ -1,0 +1,9 @@
+{
+  "description": "should lossless optimise PNGs",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "js", "assets": ["esmodule-helpers.js", "index.js"]},
+    {"type": "png", "assets": ["clock.png"]}
+  ]
+}
