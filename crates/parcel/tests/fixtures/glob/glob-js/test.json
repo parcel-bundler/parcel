@@ -1,0 +1,5 @@
+{
+  "description": "should require a glob of files",
+  "input": "index.js",
+  "output": 3
+}

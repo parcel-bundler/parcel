@@ -1,0 +1,5 @@
+{
+  "description": "should import a glob with dynamic import",
+  "input": "index.js",
+  "output": 3
+}

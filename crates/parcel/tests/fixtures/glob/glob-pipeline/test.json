@@ -1,0 +1,8 @@
+{
+  "description": "should require a glob using a pipeline",
+  "input": "index.js",
+  "output": {
+    "a": "a\n",
+    "b": "b\n"
+  }
+}

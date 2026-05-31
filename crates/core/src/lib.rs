@@ -130,10 +130,6 @@ fn get_bundle_content(
   bundle: &Bundle,
   options: &ParcelOptions,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
-  // let packager = config
-  //   .packagers
-  //   .get(bundle.ty.extension())
-  //   .map_or_else(|| &raw as &dyn Packager, |p| &**p);
   let first_content = &bundle_graph.asset_graph.assets[bundle.assets[0]]
     .expect_asset()
     .content;

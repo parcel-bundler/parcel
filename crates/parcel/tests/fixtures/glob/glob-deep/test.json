@@ -1,0 +1,5 @@
+{
+  "description": "should require nested directories with a glob",
+  "input": "index.js",
+  "output": 13
+}
