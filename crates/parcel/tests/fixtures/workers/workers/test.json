@@ -1,0 +1,46 @@
+[
+  {
+    "description": "bundles workers and service workers",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["feature.js", "index.js", "worker-client.js"]
+      },
+      {
+        "assets": ["common.js"]
+      },
+      {
+        "assets": ["service-worker.js"]
+      },
+      {
+        "assets": ["worker.js"]
+      },
+      {
+        "assets": ["shared-worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "bundles workers with different order",
+    "input": "index-alternative.js",
+    "bundles": [
+      {
+        "name": "index-alternative.js",
+        "assets": ["feature.js", "index-alternative.js", "worker-client.js"]
+      },
+      {
+        "assets": ["common.js"]
+      },
+      {
+        "assets": ["service-worker.js"]
+      },
+      {
+        "assets": ["worker.js"]
+      },
+      {
+        "assets": ["shared-worker.js"]
+      }
+    ]
+  }
+]

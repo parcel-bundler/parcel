@@ -1,0 +1,24 @@
+[
+  {
+    "description": "should support workers pointing to themselves",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["index.js"]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "workerHelpers.js"]
+      }
+    ]
+  },
+  {
+    "description": "bundles workers pointing to themselves with import.meta.url",
+    "input": "import-meta.js",
+    "bundles": [
+      {
+        "assets": ["esmodule-helpers.js", "import-meta.js"]
+      }
+    ]
+  }
+]

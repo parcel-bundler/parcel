@@ -1,0 +1,56 @@
+[
+  {
+    "description": "bundles service workers",
+    "input": "a/index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["index.js", "index.js"]
+      },
+      {
+        "assets": ["worker-nested.js"]
+      },
+      {
+        "assets": ["worker-outside.js"]
+      }
+    ]
+  },
+  {
+    "description": "bundles service workers with type: module",
+    "input": "module.js",
+    "bundles": [
+      {
+        "name": "module.js",
+        "assets": ["module.js"]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "module-worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "preserves the scope option for service workers",
+    "input": "scope.js",
+    "bundles": [
+      {
+        "assets": ["scope.js"],
+        "contains": ["scope: 'foo'"]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "module-worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "bundles service worker without type: module even when it has exports",
+    "input": "error.js",
+    "bundles": [
+      {
+        "assets": ["error.js"]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "module-worker.js"]
+      }
+    ]
+  }
+]

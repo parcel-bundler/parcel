@@ -1,0 +1,43 @@
+[
+  {
+    "description": "ignores importScripts when not in a worker context",
+    "input": "importScripts.js",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["importScripts.js"],
+        "contains": ["importScripts('imported.js')"]
+      }
+    ]
+  },
+  {
+    "description": "ignores importScripts in script workers when not passed a string literal",
+    "input": "index-variable.js",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["index-variable.js"]
+      },
+      {
+        "type": "js",
+        "assets": ["variable.js"],
+        "contains": ["importScripts(url)"]
+      }
+    ]
+  },
+  {
+    "description": "ignores importScripts in script workers when a fully qualified URL is provided",
+    "input": "index-external.js",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["index-external.js"]
+      },
+      {
+        "type": "js",
+        "assets": ["external.js"],
+        "contains": ["importScripts('https://unpkg.com/parcel')"]
+      }
+    ]
+  }
+]

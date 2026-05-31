@@ -1,0 +1,53 @@
+[
+  {
+    "description": "bundles a dynamic import in a worker",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["index.js"]
+      },
+      {
+        "assets": ["async.js", "esmodule-helpers.js"]
+      },
+      {
+        "assets": ["worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "bundles a dynamic import in a nested worker",
+    "input": "index-nested.js",
+    "bundles": [
+      {
+        "name": "index-nested.js",
+        "assets": ["index-nested.js"]
+      },
+      {
+        "assets": ["async.js", "esmodule-helpers.js"]
+      },
+      {
+        "assets": ["worker-nested.js"]
+      },
+      {
+        "assets": ["worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "bundles dynamic imports in both the page and worker",
+    "input": "index-async.js",
+    "bundles": [
+      {
+        "name": "index-async.js",
+        "assets": ["index-async.js"]
+      },
+      {
+        "assets": ["async.js", "esmodule-helpers.js"]
+      },
+      {
+        "assets": ["worker.js"]
+      }
+    ]
+  }
+]

@@ -1,0 +1,39 @@
+[
+  {
+    "description": "recognizes serviceWorker.register with static URL and import.meta.url",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["index.js"]
+      },
+      {
+        "assets": ["worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "throws a codeframe for a missing file in serviceWorker.register with URL and import.meta.url",
+    "input": "missing.js",
+    "diagnostics": [
+      {
+        "message": "Failed to resolve './invalid.js'",
+        "origin": "@parcel/core",
+        "codeFrames": [
+          {
+            "codeHighlights": [
+              {
+                "start": {"line": 1, "column": 42},
+                "end": {"line": 1, "column": 55}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "message": "Cannot load file",
+        "origin": "@parcel/resolver-default"
+      }
+    ]
+  }
+]

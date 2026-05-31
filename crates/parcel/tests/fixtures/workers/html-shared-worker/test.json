@@ -1,0 +1,23 @@
+{
+  "description": "creates a shared bundle between browser and worker contexts",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "html",
+      "assets": ["index.html"]
+    },
+    {
+      "type": "js",
+      "assets": ["index.js"]
+    },
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "index.js"]
+    },
+    {
+      "type": "js",
+      "assets": ["worker.js"]
+    }
+  ]
+}

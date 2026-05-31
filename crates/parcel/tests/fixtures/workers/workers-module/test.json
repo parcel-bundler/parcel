@@ -1,0 +1,23 @@
+[
+  {
+    "description": "bundles workers of type module",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["index.js"],
+        "contains": ["type: 'module'"]
+      },
+      {
+        "assets": ["dedicated-worker.js"]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "index.js"]
+      },
+      {
+        "assets": ["shared-worker.js"]
+      }
+    ]
+  }
+]

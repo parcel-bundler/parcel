@@ -1,0 +1,19 @@
+{
+  "description": "supports workers with shared assets between page and worker with async imports",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "html",
+      "assets": ["index.html"]
+    },
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "index.js", "large.js"]
+    },
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "large.js", "worker.js"]
+    }
+  ]
+}

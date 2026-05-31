@@ -1,0 +1,19 @@
+{
+  "description": "async dependency internalization successfully removes unneeded bundlegroups and their bundles",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["worker1.js", "worker2.js"]
+    },
+    {
+      "assets": ["core.js"]
+    },
+    {
+      "assets": ["worker3.js"]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+[
+  {
+    "description": "recognizes worker constructor with static URL and import.meta.url",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["index.js"]
+      },
+      {
+        "assets": ["worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "ignores worker constructors with dynamic URL and import.meta.url",
+    "input": "dynamic.js",
+    "bundles": [
+      {
+        "name": "dynamic.js",
+        "assets": ["dynamic.js"],
+        "contains": ["import.meta.url"]
+      }
+    ]
+  },
+  {
+    "description": "ignores worker constructors with local URL binding and import.meta.url",
+    "input": "local-url.js",
+    "bundles": [
+      {
+        "name": "local-url.js",
+        "assets": ["local-url.js"],
+        "contains": ["import.meta.url"]
+      }
+    ]
+  },
+  {
+    "description": "throws a codeframe for a missing file in worker constructor with URL and import.meta.url",
+    "input": "missing.js",
+    "diagnostics": [
+      {
+        "message": "Failed to resolve './invalid.js'",
+        "origin": "@parcel/core",
+        "codeFrames": [
+          {
+            "codeHighlights": [
+              {
+                "start": {"line": 1, "column": 20},
+                "end": {"line": 1, "column": 33}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "message": "Cannot load file",
+        "origin": "@parcel/resolver-default"
+      }
+    ]
+  }
+]

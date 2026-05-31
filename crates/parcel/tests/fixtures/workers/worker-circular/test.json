@@ -1,0 +1,13 @@
+{
+  "description": "bundles workers with circular dependencies",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["worker-dep.js", "worker.js"]
+    }
+  ]
+}

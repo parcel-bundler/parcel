@@ -1,0 +1,36 @@
+[
+  {
+    "description": "compiles workers to non modules if browsers do not support module workers",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["index.js"]
+      },
+      {
+        "assets": ["dedicated-worker.js", "esmodule-helpers.js", "index.js"]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "index.js", "shared-worker.js"]
+      }
+    ]
+  },
+  {
+    "description": "preserves the worker name option",
+    "input": "named.js",
+    "bundles": [
+      {
+        "name": "named.js",
+        "assets": ["named.js"],
+        "contains": ["name: 'worker'", "name: 'shared'"]
+      },
+      {
+        "assets": ["dedicated-worker.js", "esmodule-helpers.js", "index.js"]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "index.js", "shared-worker.js"]
+      }
+    ]
+  }
+]
