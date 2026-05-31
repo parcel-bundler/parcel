@@ -1,0 +1,8 @@
+{
+  "description": "should support multiple html entrypoints",
+  "input": ["a.html", "b.html"],
+  "bundles": [
+    {"type": "html", "assets": ["a.html"]},
+    {"type": "html", "assets": ["b.html"]}
+  ]
+}

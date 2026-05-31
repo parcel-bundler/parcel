@@ -1,0 +1,9 @@
+{
+  "description": "should throw error with empty string reference to other resource",
+  "input": "index.html",
+  "diagnostics": [
+    {"message": "'src' should not be empty string"},
+    {"message": "'src' should not be empty string"},
+    {"message": "'href' should not be empty string"}
+  ]
+}

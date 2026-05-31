@@ -2,6 +2,6 @@
   "description": "should work with an empty html file",
   "input": "index.html",
   "bundles": [
-    {"type": "html", "assets": ["index.html"]}
+    {"type": "html", "assets": ["index.html"], "contains": ["<html>"]}
   ]
 }

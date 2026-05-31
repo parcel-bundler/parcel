@@ -1,0 +1,10 @@
+{
+  "description": "should not update root/main file in the bundles",
+  "input": "index.html",
+  "bundles": [
+    {"name": "index.html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["other.html"], "contains": ["index.html"]},
+    {"type": "js", "assets": ["esmodule-helpers.js", "main.js", "util.js"]},
+    {"type": "js", "assets": ["esmodule-helpers.js", "index2.js", "util.js"]}
+  ]
+}

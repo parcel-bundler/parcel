@@ -1,0 +1,12 @@
+{
+  "description": "should read .htmlnanorc.json and minify HTML in production mode",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["{\"user\":\"me\"}"]},
+    {"type": "css", "assets": ["index.html"]},
+    {"type": "css", "assets": ["index.html"]},
+    {"type": "css", "assets": ["index.html"]},
+    {"type": "css", "assets": ["index.html"]}
+  ]
+}

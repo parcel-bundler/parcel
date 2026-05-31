@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      sideEffect(typeof bar, typeof baz);
+      let x = 2;
+      if (true) {
+        sideEffect(typeof bar, typeof baz);
+        let y = 3;
+        var z = 4;
+        function bar() {}
+        class Test {}
+      }
+
+      sideEffect(typeof bar, typeof baz);
+
+      class Foo {}
+      function baz() {}
+    </script>
+    <script>
+      output = {
+        x,
+        y: typeof y,
+        z,
+        bar: typeof bar,
+        Test: typeof Test,
+        Foo: typeof Foo,
+        baz: typeof baz
+      };
+    </script>
+  </body>
+</html>

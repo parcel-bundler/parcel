@@ -1,0 +1,19 @@
+{
+  "description": "should expose top level declarations globally in inline <script> tags",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.html"]}
+  ],
+  "output": {
+    "x": 2,
+    "y": "undefined",
+    "z": 4,
+    "bar": "function",
+    "Test": "undefined",
+    "Foo": "function",
+    "baz": "function"
+  },
+  "sideEffects": ["undefined", "function", "function", "function", "function", "function"]
+}

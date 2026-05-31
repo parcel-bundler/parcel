@@ -1,0 +1,18 @@
+[
+  {
+    "description": "should support RSS feed links",
+    "input": "rss.html",
+    "bundles": [
+      {"name": "rss.html", "assets": ["rss.html"]},
+      {"name": "feed.xml", "assets": ["feed.xml"]}
+    ]
+  },
+  {
+    "description": "should support atom feed links",
+    "input": "atom.html",
+    "bundles": [
+      {"name": "atom.html", "assets": ["atom.html"]},
+      {"name": "feed.xml", "assets": ["feed.xml"]}
+    ]
+  }
+]

@@ -331,6 +331,10 @@ impl Transformer for HtmlTransformer {
       hmr: false,
     });
 
+    if !res.errors.is_empty() {
+      return Err(DiagnosticList(res.errors));
+    }
+
     asset.bundle_behavior = BundleBehavior::Isolated;
     asset.content = Arc::new(HtmlContent {
       code: res.code,

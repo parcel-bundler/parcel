@@ -1,0 +1,13 @@
+{
+  "description": "should include the correct paths when using multiple entries and referencing style from html and js",
+  "input": ["a.html", "b.html"],
+  "bundles": [
+    {"type": "html", "assets": ["a.html"]},
+    {"type": "html", "assets": ["b.html"]},
+    {"type": "css", "assets": ["style.css"]},
+    {"type": "css", "assets": ["style.css"]},
+    {"type": "css", "assets": ["style.css"]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "js", "assets": ["index.js"]}
+  ]
+}

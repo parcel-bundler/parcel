@@ -3,7 +3,7 @@
   "input": "index.html",
   "bundles": [
     {"type": "css", "assets": ["index.html"]},
-    {"name": "index.html", "assets": ["index.html"], "contains": ["#hash_link", "mailto:someone@acme.com", "tel:+33636757575", "https://unpkg.com/parcel-bundler"]},
+    {"name": "index.html", "assets": ["index.html"], "contains": ["#hash_link", "mailto:someone@acme.com", "tel:+33636757575", "https://unpkg.com/parcel-bundler", "<i>hello</i> <i>world</i>"]},
     {"name": "foo/index.html", "assets": ["index.html"]},
     {"name": "other.html", "assets": ["other.html"]},
     {"name": "foo/other.html", "assets": ["other.html"]},

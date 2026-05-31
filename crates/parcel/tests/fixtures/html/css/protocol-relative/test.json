@@ -1,0 +1,8 @@
+{
+  "description": "should support protocol-relative urls",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "css", "assets": ["index.css"], "contains": ["//unpkg.com/xyz"]}
+  ]
+}
