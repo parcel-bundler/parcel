@@ -23,7 +23,7 @@ rustc-hash = "2.0.0"
 parcel-core = { path = "../core" }
 
 [dev-dependencies]
-assert_fs = "1.0"
+assert_fs = "1.1.4"
 oxc_resolver = "2"
 # node_resolver = "0.15.0"
 criterion = { version = "*", features = ["html_reports"] }

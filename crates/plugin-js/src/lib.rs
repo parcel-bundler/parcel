@@ -39,7 +39,7 @@ thread_local! {
   static JS_ENV: RefCell<Option<JsEnv>> = RefCell::new(None);
 }
 
-fn with_js_env<F, R>(
+pub fn with_js_env<F, R>(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
   cwd: &PathBuf,
@@ -258,10 +258,7 @@ fn collect_rejected_promises(ctx: &Ctx, env: &JsEnv) -> Vec<Diagnostic> {
   }
 }
 
-pub(crate) fn await_promise<'a, 'js>(
-  ctx: &'a Ctx<'js>,
-  res: Value<'js>,
-) -> rquickjs::Result<Value<'js>> {
+pub fn await_promise<'a, 'js>(ctx: &'a Ctx<'js>, res: Value<'js>) -> rquickjs::Result<Value<'js>> {
   if let Some(promise) = res.as_promise() {
     loop {
       if let Some(result) = promise.result::<rquickjs::Value>() {

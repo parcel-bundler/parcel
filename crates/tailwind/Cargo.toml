@@ -1,0 +1,14 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-tailwind"
+version = "0.1.1"
+license = "MIT"
+repository = "https://github.com/parcel-bundler/parcel"
+edition = "2024"
+
+[dependencies]
+parcel-core = { path = "../core" }
+tailwindcss-oxide = { git = "https://github.com/tailwindlabs/tailwindcss.git" }
+parcel-plugin-js = { path = "../plugin-js" }
+parcel-resolver = { path = "../parcel-resolver" }
+rquickjs = { version = "0.11.0", features = ["full", "rust-alloc"] }

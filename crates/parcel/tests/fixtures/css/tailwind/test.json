@@ -1,0 +1,20 @@
+{
+  "description": "should compile tailwindcss and generate utility classes for used class names",
+  "input": "index.html",
+  "bundles": [
+    {
+      "type": "html",
+      "assets": ["index.html"]
+    },
+    {
+      "type": "css",
+      "assets": ["styles.css"],
+      "contains": [
+        ".flex {",
+        ".pt-4 {",
+        ".text-center {",
+        ".text-blue-500 {"
+      ]
+    }
+  ]
+}

@@ -10,6 +10,7 @@ use parcel_image::ImageTransformer;
 use parcel_js::JsTransformer;
 use parcel_plugin_js::JsPlugin;
 use parcel_resolver::Resolution;
+use parcel_tailwind::TailwindTransformer;
 
 use crate::{
   bundler::DefaultBundler, data_url::DataUrlOptimizer, glob_resolver::GlobResolver,
@@ -63,6 +64,7 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-json" => Arc::new(JsonTransformer {}),
       "@parcel/transformer-toml" => Arc::new(TomlTransformer {}),
       "@parcel/transformer-yaml" => Arc::new(YamlTransformer {}),
+      "@parcel/transformer-tailwind" => Arc::new(TailwindTransformer {}),
       "@parcel/transformer-inline" => Arc::new(InlineTransformer {}),
       "@parcel/transformer-raw" => Arc::new(RawTransformer {}),
       "@parcel/transformer-native" => {
