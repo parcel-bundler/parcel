@@ -1,0 +1,6 @@
+{
+  "description": "ESM: export default live binding",
+  "input": "index.js",
+  "bundles": [{"assets": ["dep.js", "esmodule-helpers.js", "index.js"]}],
+  "sideEffects": ["function", 10]
+}

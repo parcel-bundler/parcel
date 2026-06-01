@@ -1,0 +1,5 @@
+{
+  "description": "ESM: named export through a chain of re-exports (a -> b -> c -> index)",
+  "input": "index.js",
+  "output": "deep"
+}

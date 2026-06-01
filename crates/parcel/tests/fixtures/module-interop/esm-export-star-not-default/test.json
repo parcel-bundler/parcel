@@ -1,0 +1,5 @@
+{
+  "description": "ESM: export * does not re-export the default export",
+  "input": "index.js",
+  "output": {"hasDefault": false, "named": "named"}
+}

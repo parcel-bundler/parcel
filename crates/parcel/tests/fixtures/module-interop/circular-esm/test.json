@@ -1,0 +1,5 @@
+{
+  "description": "ESM: circular dependency (b exports run from c, c imports foo from b)",
+  "input": "index.mjs",
+  "output": "c:foo"
+}

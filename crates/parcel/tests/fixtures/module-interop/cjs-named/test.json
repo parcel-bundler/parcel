@@ -1,0 +1,5 @@
+{
+  "description": "CJS: require and use named exports from CJS",
+  "input": "index.js",
+  "output": 30
+}

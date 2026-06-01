@@ -1,0 +1,5 @@
+{
+  "description": "ESM: sideEffects:false package where an internal dep (normalize.js) is used by a sub-module but also re-exported from index",
+  "input": "index.js",
+  "output": "hello"
+}

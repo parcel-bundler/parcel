@@ -1,0 +1,5 @@
+{
+  "description": "CJS: module.exports = value then exports.foo = ... -- module.exports still wins",
+  "input": "index.js",
+  "output": 42
+}

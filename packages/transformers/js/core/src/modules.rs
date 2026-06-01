@@ -461,11 +461,7 @@ impl Fold for ESMFold {
                       declare: false,
                       class: class.class.clone(),
                     }))));
-                    items.push(self.create_exports_assign(
-                      "default".into(),
-                      Expr::Ident(ident.clone()),
-                      DUMMY_SP,
-                    ));
+                    self.create_export("default".into(), Expr::Ident(ident.clone()), DUMMY_SP);
                   } else {
                     items.push(self.create_exports_assign(
                       "default".into(),

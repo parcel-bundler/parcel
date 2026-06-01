@@ -1,0 +1,6 @@
+{
+  "description": "dynamic import of CJS: .default should be module.exports",
+  "input": "index.js",
+  "bundles": [{"assets": ["esmodule-helpers.js", "index.js"]}, {"assets": ["dep.js"]}],
+  "output": 42
+}

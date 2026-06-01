@@ -1,0 +1,5 @@
+{
+  "description": "ESM: namespace import of module that star-re-exports a CJS module",
+  "input": "index.js",
+  "output": 2
+}

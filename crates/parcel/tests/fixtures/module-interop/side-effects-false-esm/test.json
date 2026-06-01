@@ -1,0 +1,6 @@
+{
+  "description": "sideEffects: false - ESM import of specific export from sideEffect-free package does not run unneeded modules",
+  "input": "index.js",
+  "output": 9,
+  "sideEffects": []
+}

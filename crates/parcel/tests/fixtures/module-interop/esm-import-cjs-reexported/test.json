@@ -1,0 +1,5 @@
+{
+  "description": "ESM importing from ESM that re-exports CJS module.exports properties",
+  "input": "index.js",
+  "output": "myname:1.2.3"
+}

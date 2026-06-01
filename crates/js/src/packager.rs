@@ -168,6 +168,7 @@ var entries = ["#,
 pub enum SyntheticAsset {
   Asset(u32),
   Async(u32),
+  AsyncInterop(u32),
   Url(u32),
   Inline(u32),
 }
@@ -344,20 +345,31 @@ pub fn asset_dependencies<'a>(
             );
           }
         } else {
-          if dep.bundle_behavior == BundleBehavior::Inline
-            || resolved_bundle.bundle_behavior == BundleBehavior::Inline
-          {
+          let is_lazy_dynamic_import =
+            dep.priority == Priority::Lazy && dep.specifier_type != SpecifierType::Url;
+          let is_inline = dep.bundle_behavior == BundleBehavior::Inline
+            || resolved_bundle.bundle_behavior == BundleBehavior::Inline;
+          // TODO: this is wrong. It should be if the _target_ module is CJS. But this breaks some dynamic_import tests. Would be a behavior change.
+          let needs_esm_interop =
+            is_lazy_dynamic_import && !is_inline && asset.flags.contains(AssetFlags::IS_ESM);
+
+          if is_inline {
             additional_assets.insert(SyntheticAsset::Inline(*bundle_index));
-          } else if dep.priority == Priority::Lazy && dep.specifier_type != SpecifierType::Url {
+          } else if is_lazy_dynamic_import {
             additional_assets.insert(SyntheticAsset::Async(*bundle_index));
+            if needs_esm_interop {
+              additional_assets.insert(SyntheticAsset::AsyncInterop(*bundle_index));
+            }
           } else {
             additional_assets.insert(SyntheticAsset::Url(*bundle_index));
           };
 
-          dependencies.insert(
-            placeholder.as_str().into(),
-            Resolution::Bundle(*bundle_index),
-          );
+          let resolution = if needs_esm_interop {
+            Resolution::BundleInterop(*bundle_index)
+          } else {
+            Resolution::Bundle(*bundle_index)
+          };
+          dependencies.insert(placeholder.as_str().into(), resolution);
         }
       }
     }
@@ -371,6 +383,7 @@ impl SyntheticAsset {
     match self {
       SyntheticAsset::Asset(id) => format!("{}", id),
       SyntheticAsset::Async(id) => format!("'b{}'", id),
+      SyntheticAsset::AsyncInterop(id) => format!("'b{}i'", id),
       SyntheticAsset::Url(id) => format!("'b{}'", id),
       SyntheticAsset::Inline(id) => format!("'b{}'", id),
     }
@@ -380,6 +393,7 @@ impl SyntheticAsset {
     match self {
       SyntheticAsset::Asset(id) => write!(dest, "{}", id),
       SyntheticAsset::Async(id) => write!(dest, "'b{}'", id),
+      SyntheticAsset::AsyncInterop(id) => write!(dest, "'b{}i'", id),
       SyntheticAsset::Url(id) => write!(dest, "'b{}'", id),
       SyntheticAsset::Inline(id) => write!(dest, "'b{}'", id),
     }
@@ -426,6 +440,13 @@ impl SyntheticAsset {
         load_bundles(bundle_graph, bundle, resolved_bundle, dest)?;
         // }
       }
+      SyntheticAsset::AsyncInterop(bundle_index) => {
+        write!(
+          dest,
+          "module.exports=require(\"b{}\").then(function(m){{return m&&m.__esModule?m:{{default:m}};}});",
+          bundle_index
+        )?;
+      }
       SyntheticAsset::Inline(bundle_index) => {
         let content = get_inline_bundle_content(bundle_index as usize)?.read()?;
         write!(
@@ -454,6 +475,8 @@ fn load_bundles<W: std::fmt::Write>(
   bundle: &Bundle,
   res: &mut W,
 ) -> core::fmt::Result {
+  let main_entry_id = bundle.main_entry_asset.unwrap();
+
   if !bundle.referenced_bundles.is_empty() {
     write!(res, "module.exports=Promise.all([")?;
     // TODO: recursive
@@ -463,19 +486,11 @@ fn load_bundles<W: std::fmt::Write>(
     }
 
     load_bundle(bundle, from, res)?;
-    write!(
-      res,
-      "]).then(() => require({}));",
-      bundle.main_entry_asset.unwrap()
-    )?;
+    write!(res, "]).then(() => require({}));", main_entry_id)?;
   } else {
     write!(res, "module.exports=")?;
     load_bundle(bundle, from, res)?;
-    write!(
-      res,
-      ".then(() => require({}));",
-      bundle.main_entry_asset.unwrap()
-    )?;
+    write!(res, ".then(() => require({}));", main_entry_id)?;
   }
 
   Ok(())

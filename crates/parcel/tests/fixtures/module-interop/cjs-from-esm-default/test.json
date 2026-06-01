@@ -1,0 +1,5 @@
+{
+  "description": "CJS: require ESM module with default export (accessed as .default)",
+  "input": "index.js",
+  "output": "esm-default"
+}

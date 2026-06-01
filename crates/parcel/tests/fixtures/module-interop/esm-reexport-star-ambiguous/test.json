@@ -1,0 +1,5 @@
+{
+  "description": "ESM: when two export * sources define the same name, both modules are included and name resolves to a string",
+  "input": "index.js",
+  "output": "resolved"
+}

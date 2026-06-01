@@ -1,0 +1,5 @@
+{
+  "description": "CJS: destructured require const {a, b} = require('./dep')",
+  "input": "index.js",
+  "output": 30
+}

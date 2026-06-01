@@ -92,6 +92,7 @@ function parcelRequire(name, jumped) {
 
             Object.defineProperty(m, key, {
               enumerable: true,
+              configurable: true,
               get: function () {
                 return x[key];
               },
@@ -100,11 +101,13 @@ function parcelRequire(name, jumped) {
         } else if (exp === '*') {
           Object.defineProperty(m, key, {
             enumerable: true,
+            configurable: true,
             value: x,
           });
         } else {
           Object.defineProperty(m, key, {
             enumerable: true,
+            configurable: true,
             get: function () {
               if (exp === 'default') {
                 return x.__esModule ? x.default : x;

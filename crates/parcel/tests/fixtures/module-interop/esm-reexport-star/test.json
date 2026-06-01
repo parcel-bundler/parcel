@@ -1,0 +1,5 @@
+{
+  "description": "ESM: import through export * from (star re-export)",
+  "input": "index.js",
+  "output": "foobaz"
+}

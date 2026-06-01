@@ -1,0 +1,6 @@
+{
+  "description": "sideEffects: false package mixing ESM and CJS: only ESM module (providing message1) loads; CJS module skipped",
+  "input": "index.js",
+  "output": "Message 1",
+  "sideEffects": ["esm"]
+}

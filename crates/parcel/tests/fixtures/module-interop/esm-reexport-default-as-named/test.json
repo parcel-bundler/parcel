@@ -1,0 +1,5 @@
+{
+  "description": "ESM: export { default as name } from './dep' (re-export default as named)",
+  "input": "index.js",
+  "output": "the-default"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "ESM: live bindings - imported named export reflects mutations in the exporting module",
+  "input": "index.js",
+  "output": [0, 2]
+}

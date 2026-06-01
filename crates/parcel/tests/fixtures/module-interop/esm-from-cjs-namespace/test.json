@@ -1,0 +1,5 @@
+{
+  "description": "ESM: namespace import from CJS",
+  "input": "index.js",
+  "output": "foobar"
+}

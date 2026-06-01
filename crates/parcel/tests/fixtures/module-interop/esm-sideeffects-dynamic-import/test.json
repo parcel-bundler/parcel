@@ -1,0 +1,5 @@
+{
+  "description": "dynamic import inside a sideEffects:false package should still be bundled",
+  "input": "index.js",
+  "output": 42
+}

@@ -1,0 +1,5 @@
+{
+  "description": "ESM: sideEffects:false package where normalize.js is used by multiple sub-modules and re-exported from index",
+  "input": "index.js",
+  "output": "world:html-processed"
+}

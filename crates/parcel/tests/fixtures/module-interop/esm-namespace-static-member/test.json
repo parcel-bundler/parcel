@@ -1,0 +1,5 @@
+{
+  "description": "ESM: namespace import with static member access (ns.x, ns.y) - potentially optimizable",
+  "input": "index.js",
+  "output": 30
+}

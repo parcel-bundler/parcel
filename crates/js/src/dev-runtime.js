@@ -54,6 +54,7 @@ function parcelRequire(name, jumped) {
     localRequire.cache = {};
 
     var module = (cache[name] = new parcelRequire.Module(name));
+    module.require = localRequire;
 
     modules[name][0].call(
       module.exports,
@@ -91,6 +92,7 @@ function parcelRequire(name, jumped) {
 
             Object.defineProperty(m, key, {
               enumerable: true,
+              configurable: true,
               get: function () {
                 return x[key];
               },
@@ -99,11 +101,13 @@ function parcelRequire(name, jumped) {
         } else if (exp === '*') {
           Object.defineProperty(m, key, {
             enumerable: true,
+            configurable: true,
             value: x,
           });
         } else {
           Object.defineProperty(m, key, {
             enumerable: true,
+            configurable: true,
             get: function () {
               if (exp === 'default') {
                 return x.__esModule ? x.default : x;
@@ -123,6 +127,13 @@ function parcelRequire(name, jumped) {
     var id = modules[name][1][x];
     return id != null ? id : x;
   }
+}
+
+function Module(moduleName) {
+  this.id = moduleName;
+  this.bundle = parcelRequire;
+  this.require = nodeRequire;
+  this.exports = {};
 }
 
 parcelRequire.isParcelRequire = true;

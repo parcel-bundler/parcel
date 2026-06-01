@@ -1,0 +1,5 @@
+{
+  "description": "ESM: importing a missing named export from CJS falls back to undefined",
+  "input": "index.js",
+  "output": null
+}

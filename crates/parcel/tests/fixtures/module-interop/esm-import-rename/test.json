@@ -1,0 +1,5 @@
+{
+  "description": "ESM: import { name as alias } rename on import",
+  "input": "index.js",
+  "output": "original:other"
+}

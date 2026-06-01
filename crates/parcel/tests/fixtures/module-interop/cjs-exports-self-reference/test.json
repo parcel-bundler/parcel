@@ -1,0 +1,5 @@
+{
+  "description": "CJS: module uses exports to self-reference inside a method",
+  "input": "index.js",
+  "output": "Say other"
+}

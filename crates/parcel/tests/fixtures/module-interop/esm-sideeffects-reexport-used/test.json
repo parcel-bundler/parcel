@@ -1,0 +1,5 @@
+{
+  "description": "should correctly include re-exported modules from sideEffects:false packages when imported",
+  "input": "index.js",
+  "output": "a"
+}

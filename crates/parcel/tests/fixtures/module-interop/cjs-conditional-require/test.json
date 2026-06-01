@@ -1,0 +1,6 @@
+{
+  "description": "CJS: require inside conditional branch (dep-b.js is skipped)",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js", "dep-a.js"]}],
+  "output": "a"
+}

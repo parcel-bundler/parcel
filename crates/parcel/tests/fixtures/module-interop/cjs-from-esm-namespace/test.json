@@ -1,0 +1,5 @@
+{
+  "description": "CJS: require ESM module and access multiple named exports",
+  "input": "index.js",
+  "output": "pq"
+}

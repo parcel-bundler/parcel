@@ -133,6 +133,7 @@ pub struct CollectResult {
   pub exports_all: Vec<CollectExportedAll>,
   pub should_wrap: bool,
   pub has_cjs_exports: bool,
+  pub static_cjs_exports: bool,
   pub is_esm: bool,
 }
 
@@ -247,6 +248,7 @@ impl From<Collect> for CollectResult {
         .collect(),
       should_wrap: collect.should_wrap,
       has_cjs_exports: collect.has_cjs_exports,
+      static_cjs_exports: collect.static_cjs_exports,
       is_esm: collect.is_esm,
     }
   }
@@ -707,6 +709,10 @@ impl Visit for Collect {
         if self.imports.contains_key(&id!(ident)) {
           self.used_imports.insert(id!(ident));
         }
+        // Visit computed property keys so imported symbols used there are tracked.
+        if let MemberProp::Computed(_) = &node.prop {
+          node.prop.visit_with(self);
+        }
         return;
       }
       Expr::This(_this) => {
@@ -718,6 +724,10 @@ impl Visit for Collect {
           if let MemberProp::Ident(prop) = &node.prop {
             self.this_exprs.insert(prop.sym.clone(), node.span);
           }
+        }
+        // Visit computed property keys so imported symbols used there are tracked.
+        if let MemberProp::Computed(_) = &node.prop {
+          node.prop.visit_with(self);
         }
         return;
       }

@@ -1,0 +1,5 @@
+{
+  "description": "ESM: export { internal as external } rename on export",
+  "input": "index.js",
+  "output": "hello"
+}

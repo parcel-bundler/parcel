@@ -1,0 +1,6 @@
+{
+  "description": "sideEffects: false - re-export chain, only the imported symbol's module runs (not b.js)",
+  "input": "index.js",
+  "output": "avalue",
+  "sideEffects": []
+}

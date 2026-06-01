@@ -1,0 +1,5 @@
+{
+  "description": "ESM: named imports from ESM",
+  "input": "index.js",
+  "output": 3
+}

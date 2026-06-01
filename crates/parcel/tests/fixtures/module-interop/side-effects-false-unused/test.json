@@ -1,0 +1,6 @@
+{
+  "description": "sideEffects: false - unused exports from a sideEffect-free package are not executed",
+  "input": "index.js",
+  "output": "used",
+  "sideEffects": []
+}

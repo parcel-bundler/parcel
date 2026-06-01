@@ -1,0 +1,5 @@
+{
+  "description": "CJS: require module with module.exports object",
+  "input": "index.js",
+  "output": "cjs-default"
+}

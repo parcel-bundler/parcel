@@ -375,6 +375,10 @@ impl Transformer for JsTransformer {
       asset
         .flags
         .set(AssetFlags::SHOULD_WRAP, symbols.should_wrap);
+      asset.flags.set(AssetFlags::IS_ESM, symbols.is_esm);
+      asset
+        .flags
+        .set(AssetFlags::STATIC_EXPORTS, symbols.static_cjs_exports);
 
       for import in symbols.imports {
         let dep_index = dep_map[&import.source];

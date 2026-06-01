@@ -1,0 +1,5 @@
+{
+  "description": "CJS: non-static exports (function mutates exports object)",
+  "input": "index.js",
+  "output": 12
+}

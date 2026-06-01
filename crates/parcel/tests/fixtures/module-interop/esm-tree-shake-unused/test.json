@@ -1,0 +1,13 @@
+[
+  {
+    "description": "ESM: tree-shake - only imported symbol is requested (dev mode still works)",
+    "input": "index.js",
+    "output": 2
+  },
+  {
+    "description": "ESM: tree-shake - only foo is imported; bar/baz should not appear in production bundle",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": 2
+  }
+]

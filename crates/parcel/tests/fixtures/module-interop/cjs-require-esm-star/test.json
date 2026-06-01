@@ -1,0 +1,5 @@
+{
+  "description": "CJS: destructured require of ESM module that uses export * from",
+  "input": "index.js",
+  "output": 6
+}

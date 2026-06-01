@@ -1,0 +1,5 @@
+{
+  "description": "should correctly bundle imports used in computed member expression keys within sideEffects:false packages",
+  "input": "index.js",
+  "output": {"foo": 1, "bar": 2}
+}

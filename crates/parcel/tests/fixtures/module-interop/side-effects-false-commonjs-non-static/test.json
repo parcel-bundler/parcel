@@ -1,0 +1,6 @@
+{
+  "description": "sideEffects: false package mixing ESM and non-static CJS",
+  "input": "index.js",
+  "output": "Message 1",
+  "sideEffects": ["esm", "commonjs", "index"]
+}

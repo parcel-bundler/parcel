@@ -1,0 +1,5 @@
+{
+  "description": "CJS/ESM hybrid: same module accessed both via ESM import default and CJS require in same file",
+  "input": "index.js",
+  "output": 2
+}

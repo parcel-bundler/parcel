@@ -1,0 +1,5 @@
+{
+  "description": "CJS: require() of an ESM module returns an object with __esModule:true and the default export",
+  "input": "index.js",
+  "output": [true, 2]
+}

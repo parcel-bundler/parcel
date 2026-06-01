@@ -25,6 +25,8 @@ pub enum Resolution<'a> {
   Symbols(Vec<(&'a str, u32, &'a str)>),
   #[serde(serialize_with = "serialize_bundle")]
   Bundle(u32),
+  #[serde(serialize_with = "serialize_bundle_interop")]
+  BundleInterop(u32),
   External(Cow<'a, str>),
   String(String),
   CssModule(String, Vec<(&'a str, String)>),
@@ -44,6 +46,14 @@ where
 {
   use serde::Serialize;
   format!("b{}", value).serialize(serializer)
+}
+
+fn serialize_bundle_interop<S>(value: &u32, serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  format!("b{}i", value).serialize(serializer)
 }
 
 pub fn tree_shake<'a>(
@@ -213,6 +223,10 @@ impl<'a> VisitMut for TreeShake<'a> {
             Resolution::Bundle(resolution) => {
               call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
               **expr = format!("b{}", *resolution).into();
+            }
+            Resolution::BundleInterop(resolution) => {
+              call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
+              **expr = format!("b{}i", *resolution).into();
             }
             Resolution::External(specifier) => {
               **expr = specifier.as_ref().into();

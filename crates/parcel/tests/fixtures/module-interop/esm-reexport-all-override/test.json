@@ -1,0 +1,5 @@
+{
+  "description": "ESM: local export overrides same-named export from export * (explicit export wins)",
+  "input": "index.js",
+  "output": "fooB:fooC:extra"
+}

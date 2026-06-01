@@ -1,0 +1,12 @@
+[
+  {
+    "description": "dynamic import with await: namespace property access",
+    "input": "index.js",
+    "output": {"x": 10, "y": 20}
+  },
+  {
+    "description": "dynamic import with await: destructuring",
+    "input": "index-destructure.js",
+    "output": {"x": 10, "y": 20}
+  }
+]

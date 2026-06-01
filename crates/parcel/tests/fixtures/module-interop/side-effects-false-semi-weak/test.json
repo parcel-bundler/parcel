@@ -1,0 +1,6 @@
+{
+  "description": "sideEffects: false - only the module providing the imported export runs (index and esm2 skipped)",
+  "input": "index.js",
+  "output": "Message 1",
+  "sideEffects": ["esm1"]
+}

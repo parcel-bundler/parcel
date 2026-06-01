@@ -1,0 +1,5 @@
+{
+  "description": "ESM -> CJS -> ESM: hybrid module chain (ESM imports CJS that requires ESM)",
+  "input": "index.js",
+  "output": "esm-cjs"
+}

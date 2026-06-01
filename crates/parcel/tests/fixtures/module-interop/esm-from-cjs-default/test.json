@@ -1,0 +1,5 @@
+{
+  "description": "ESM: default import from CJS (module.exports = value)",
+  "input": "index.js",
+  "output": "cjs-value"
+}
