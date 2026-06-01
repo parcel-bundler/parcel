@@ -11,7 +11,12 @@ exports.compileTailwind = async function compileTailwind(resolve, from, base, cs
     shouldRewriteUrls: true,
     loadModule(id, base) {
       const resolved = resolve(id, base, 0)
-      return require(resolved)
+      const module = require(resolved)
+      return {
+        path: resolved,
+        base: path.dirname(resolved),
+        module: module.default ?? module
+      }
     },
     loadStylesheet(id, base) {
       const resolved = resolve(id, base, 1)
