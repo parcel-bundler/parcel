@@ -8,6 +8,7 @@ edition = "2024"
 parcel-core = { path = "../core" }
 rquickjs = { version = "0.11.0", features = ["full", "rust-alloc"] }
 rquickjs-extra-console = "0.2.1"
+rquickjs-sys = "0.11.0"
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 parcel-resolver = { path = "../parcel-resolver" }

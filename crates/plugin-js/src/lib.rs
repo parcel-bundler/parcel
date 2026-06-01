@@ -27,6 +27,7 @@ mod fs;
 mod macros;
 mod plugin;
 mod process;
+mod structured_clone;
 mod url;
 mod url_search_params;
 
@@ -156,6 +157,10 @@ pub fn create_runtime(
 
     global.set("atob", Function::new(ctx.clone(), encoding::atob)?)?;
     global.set("btoa", Function::new(ctx.clone(), encoding::btoa)?)?;
+    global.set(
+      "structuredClone",
+      Function::new(ctx.clone(), structured_clone::structured_clone)?,
+    )?;
 
     if environment != Environment::Browser {
       let req = Function::new(ctx.clone(), cjs::require)?;

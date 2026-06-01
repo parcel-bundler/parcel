@@ -346,3 +346,37 @@ fn test_btoa() {
     "#,
   );
 }
+
+#[test]
+fn test_structured_clone() {
+  run(
+    r#"
+    import assert from 'assert';
+    assert.equal(typeof structuredClone, 'function');
+    assert.equal(structuredClone(undefined), undefined);
+    assert.equal(structuredClone(null), null);
+    assert.equal(structuredClone(true), true);
+    assert.equal(structuredClone(false), false);
+    assert.equal(structuredClone(42), 42);
+    assert.equal(1 / structuredClone(-0), -Infinity);
+    assert.equal(1 / structuredClone(0), Infinity);
+    assert.equal(structuredClone('hi'), 'hi');
+    assert.equal(structuredClone(42n), 42n);
+
+    let obj = { a: 1, b: 'hello' };
+    assert.notEqual(structuredClone(obj), obj);
+    assert.deepEqual(structuredClone(obj), obj);
+    assert.deepEqual(structuredClone({a: {b: {c: 2}}}), {a: {b: {c: 2}}});
+    assert.deepEqual(structuredClone([1, 2, [3, 4]]), [1, 2, [3, 4]]);
+    assert.deepEqual(structuredClone(new Date(1234567890000)), new Date(1234567890000));
+    assert.deepEqual(structuredClone(/123/i), /123/i);
+    assert.deepEqual(structuredClone(new Map([['a', 'b'], ['c', 'd']])), new Map([['a', 'b'], ['c', 'd']]));
+
+    let shared = {x: 42};
+    obj = {a: shared, b: shared};
+    let cloned = structuredClone(obj);
+    assert.deepEqual(cloned, {a: shared, b: shared});
+    assert.equal(cloned.a, cloned.b);
+    "#,
+  )
+}
