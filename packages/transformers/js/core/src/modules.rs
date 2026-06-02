@@ -31,6 +31,7 @@ pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) 
     mark: Mark::fresh(Mark::root()),
     unresolved_mark,
     versions,
+    is_esm: false,
   };
 
   let module = node.fold_with(&mut fold);
@@ -54,6 +55,7 @@ struct ESMFold {
   mark: Mark,
   unresolved_mark: Mark,
   versions: Option<Versions>,
+  is_esm: bool,
 }
 
 fn local_name_for_src(src: &JsWord) -> JsWord {
@@ -286,7 +288,6 @@ macro_rules! modules_visit_fn {
 
 impl Fold for ESMFold {
   fn fold_module(&mut self, node: Module) -> Module {
-    let mut is_esm = false;
     let mut needs_interop_flag = false;
 
     // First pass: collect all imported declarations. On the second pass, exports can be matched to
@@ -296,7 +297,7 @@ impl Fold for ESMFold {
     // export declarations with a source in the first pass as well.
     for item in &node.body {
       if let ModuleItem::ModuleDecl(decl) = &item {
-        is_esm = true;
+        self.is_esm = true;
         match decl {
           ModuleDecl::Import(import) => {
             let import_src: JsWord = import.src.value.to_string_lossy().into();
@@ -394,11 +395,6 @@ impl Fold for ESMFold {
           _ => (),
         }
       }
-    }
-
-    // If we didn't see any module declarations, nothing to do.
-    if !is_esm {
-      return node;
     }
 
     let node = node.fold_children_with(self);
@@ -619,7 +615,7 @@ impl Fold for ESMFold {
         }
       }
       Expr::This(_this) => {
-        if !self.in_function_scope {
+        if !self.in_function_scope && self.is_esm {
           Expr::Ident(get_undefined_ident(self.unresolved_mark))
         } else {
           node

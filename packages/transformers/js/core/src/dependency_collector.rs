@@ -10,7 +10,7 @@ use parcel_macros::{Evaluator, JsValue};
 use path_slash::PathBufExt;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-  common::{DUMMY_SP, Mark, SourceMap, Span, SyntaxContext, sync::Lrc},
+  common::{DUMMY_SP, Mark, SourceMap, Span, Spanned, SyntaxContext, sync::Lrc},
   ecma::{
     ast::{self, Callee, MemberProp, Module},
     atoms::Atom as JsWord,
@@ -909,19 +909,11 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node.fold_children_with(self);
-      if !self.config.is_library
-        && !self.config.scope_hoist
-        && !self.config.standalone
-        && is_specifier_str
-      {
-        let name = match &self.config.source_type {
-          SourceType::Module => "require",
-          SourceType::Script => "__parcel__require__",
-        };
-        call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new_no_ctxt(
-          name.into(),
-          DUMMY_SP,
-        ))));
+      if !call.callee.is_import() {
+        call.callee = ast::Callee::Import(ast::Import {
+          span: call.callee.span(),
+          phase: ast::ImportPhase::default(),
+        })
       }
 
       // Drop import attributes
@@ -1865,7 +1857,7 @@ mod test {
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-      const {{ x }} = await require("{}");
+      const {{ x }} = await import("{}");
     "#,
       hash
     );
@@ -2095,7 +2087,7 @@ Promise.resolve().then(() => require('other'));
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-Promise.resolve().then(()=>require("{}"));
+Promise.resolve().then(()=>import("{}"));
     "#,
       hash
     );
@@ -2137,7 +2129,7 @@ Promise.resolve().then(() => doSomething(require('other')));
     let expected_code = format!(
       r#"
 Promise.resolve().then(function() {{
-    return require("{}");
+    return import("{}");
 }}).then((res)=>doSomething(res));
     "#,
       hash
@@ -2180,7 +2172,7 @@ Promise.resolve().then(function() { return doSomething(require('other')); });
     let expected_code = format!(
       r#"
 Promise.resolve().then(function() {{
-    return require("{}");
+    return import("{}");
 }}).then(function(res) {{
     return doSomething(res);
 }});
@@ -2224,7 +2216,7 @@ new Promise((resolve) => resolve(require("other")));
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-new Promise((resolve)=>resolve(require("{}")));
+new Promise((resolve)=>resolve(import("{}")));
     "#,
       hash
     );
@@ -2266,7 +2258,7 @@ new Promise(function(resolve) { return resolve(require("other")) });
     let expected_code = format!(
       r#"
 new Promise(function(resolve) {{
-    return resolve(require("{}"));
+    return resolve(import("{}"));
 }});
     "#,
       hash
@@ -2308,7 +2300,7 @@ Promise.resolve(require("other"));
     let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
     let expected_code = format!(
       r#"
-Promise.resolve(require("{}"));
+Promise.resolve(import("{}"));
     "#,
       hash
     );
@@ -2348,7 +2340,7 @@ Promise.resolve(require("{}"));
     let hash = make_placeholder_hash("other", DependencyKind::WebWorker);
     let expected_code = format!(
       r#"
-      new Worker(require("{}"));
+      new Worker(new URL(require("{}"), "file:" + __filename));
     "#,
       hash
     );
@@ -2388,7 +2380,7 @@ Promise.resolve(require("{}"));
     let hash = make_placeholder_hash("other", DependencyKind::ServiceWorker);
     let expected_code = format!(
       r#"
-      navigator.serviceWorker.register(require("{}"));
+      navigator.serviceWorker.register(new URL(require("{}"), "file:" + __filename));
     "#,
       hash
     );
@@ -2428,7 +2420,7 @@ Promise.resolve(require("{}"));
     let hash = make_placeholder_hash("other", DependencyKind::Worklet);
     let expected_code = format!(
       r#"
-      CSS.paintWorklet.addModule(require("{}"));
+      CSS.paintWorklet.addModule(new URL(require("{}"), "file:" + __filename));
     "#,
       hash
     );
@@ -2468,10 +2460,11 @@ document.body.appendChild(img);
     });
 
     let hash = make_placeholder_hash("hero.jpg", DependencyKind::Url);
+    // TODO
     let expected_code = format!(
       r#"
 let img = document.createElement('img');
-img.src = new URL(require("{}"));
+img.src = new URL(new URL(require("{}"), "file:" + __filename));
 document.body.appendChild(img);
     "#,
       hash

@@ -1639,7 +1639,10 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
+    assert_eq_set!(
+      collect.non_static_access.into_keys(),
+      set! { w!("x"), w!("foo") }
+    );
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -1924,7 +1927,10 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
+    assert_eq_set!(
+      collect.non_static_access.into_keys(),
+      set! { w!("x"), w!("foo") }
+    );
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 

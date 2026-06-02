@@ -1,0 +1,6 @@
+{
+  "description": "dynamic import of sideEffects:false re-export chain",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js"]}, {"assets": ["foo.mjs", "bar.mjs"]}, {"assets": ["esmodule-helpers.js"]}],
+  "output": 42
+}

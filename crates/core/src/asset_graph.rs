@@ -7,7 +7,8 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  EnvironmentFlags, FileContent, ParcelOptions, SourceLocation, SymbolName, SymbolResolution,
+  EnvironmentFlags, FileContent, ParcelOptions, Priority, SourceLocation, SymbolName,
+  SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -162,13 +163,20 @@ pub fn build_asset_graph(
         let dep = &asset.dependencies[symbol.dep_index as usize];
         if let DependencyResolution::Asset(resolved_index) = dep.resolution {
           let name = symbol.symbol.clone();
-          let res = request_symbol(
-            &mut assets,
-            resolved_index,
-            name.clone(),
-            &mut HashSet::new(),
-            &mut queue,
-          );
+          let res = if dep.priority == Priority::Lazy {
+            SymbolResolution::Runtime {
+              asset_index: resolved_index,
+              name,
+            }
+          } else {
+            request_symbol(
+              &mut assets,
+              resolved_index,
+              name.clone(),
+              &mut HashSet::new(),
+              &mut queue,
+            )
+          };
 
           let AssetNode::Asset(asset) = &mut assets[asset_index] else {
             unreachable!()
@@ -233,7 +241,7 @@ fn request_symbol(
     if export.exported == name {
       let dep = &asset.dependencies[export.dep_index as usize];
       if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-        // export.requested = true;
+        export.requested = true;
         let imported = export.imported.clone();
         return request_symbol(assets, resolved_asset_index, imported, resolve_set, queue);
       } else {
@@ -264,6 +272,10 @@ fn request_symbol(
         match res {
           SymbolResolution::None => continue,
           SymbolResolution::Ambiguous => return res,
+          SymbolResolution::Runtime { .. } => {
+            request_all(assets, asset_index, queue);
+            return SymbolResolution::Runtime { asset_index, name };
+          }
           _ => {
             if star_resolution == SymbolResolution::None {
               star_resolution = res;
@@ -281,10 +293,8 @@ fn request_symbol(
   };
 
   // If the asset has side effects or non-static exports, resolve at runtime.
-  if star_resolution == SymbolResolution::None
-    && asset.flags.intersects(
-      AssetFlags::SIDE_EFFECTS, /*| AssetFlags::HAS_CJS_EXPORTS | AssetFlags::SHOULD_WRAP*/
-    )
+  if star_resolution == SymbolResolution::None && asset.flags.contains(AssetFlags::SIDE_EFFECTS)
+    || !asset.flags.contains(AssetFlags::STATIC_EXPORTS)
   {
     request_all(assets, asset_index, queue);
     return SymbolResolution::Runtime { asset_index, name };
