@@ -3102,6 +3102,7 @@ dependencies = [
  "oxvg_ast",
  "oxvg_optimiser",
  "parcel-core",
+ "pretty_assertions",
  "ref-cast",
  "selectors",
  "serde",

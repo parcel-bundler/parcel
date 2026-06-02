@@ -1051,6 +1051,7 @@ mod tests {
   use crate::arena::Sink;
   use html5ever::tendril::TendrilSink;
   use indoc::indoc;
+  use pretty_assertions::assert_eq;
   use swc_core::ecma::codegen::to_code;
   use typed_arena::Arena;
 
@@ -1085,7 +1086,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       Default::default(),
     );
@@ -1107,7 +1108,7 @@ mod tests {
             "--foo-bar": "test"
         }}/>
         </svg>;
-    }
+    };
     "##},
       Default::default(),
     );
@@ -1197,7 +1198,7 @@ mod tests {
         return <svg {...props} viewBox="0 0 100 100">
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         expand_props: ExpandProps::Start,
@@ -1217,7 +1218,7 @@ mod tests {
         return <svg viewBox="0 0 100 100">
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         expand_props: ExpandProps::None,
@@ -1259,7 +1260,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>
           <text xmlSpace="preserve"> foo </text>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         ..Default::default()
@@ -1281,7 +1282,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" width="1em" height="1em" {...props}>
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         icon: Icon::String("1em".into()),
@@ -1301,7 +1302,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         icon: Icon::String("1em".into()),
@@ -1322,7 +1323,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         dimensions: false,
@@ -1345,7 +1346,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>{title && <title>{title}</title>}
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         title_prop: true,
@@ -1368,7 +1369,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>{desc && <desc>{desc}</desc>}
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         desc_prop: true,
@@ -1388,7 +1389,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>{desc && <desc>{desc}</desc>}{title && <title>{title}</title>}
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         title_prop: true,
@@ -1412,7 +1413,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" role="img" {...props}>
           <rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/>
         </svg>;
-    }
+    };
     "#},
       JsxOptions {
         svg_props: IndexMap::from([("role".into(), "img".into())]),
@@ -1435,7 +1436,7 @@ mod tests {
         return <svg viewBox="0 0 100 100" {...props}>
           <rect fill={props.fill}/>
         </svg>;
-    }
+    };
     "##},
       JsxOptions {
         replace_attr_values: IndexMap::from([("#ff0".into(), "{props.fill}".into())]),

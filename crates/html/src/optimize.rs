@@ -721,6 +721,7 @@ mod tests {
   use crate::arena::Sink;
   use html5ever::tendril::TendrilSink;
   use html5ever::{ParseOpts, parse_document};
+  use pretty_assertions::assert_eq;
   use typed_arena::Arena;
 
   fn test(input: &str, expected: &str) {
@@ -820,7 +821,7 @@ mod tests {
       r#"<!doctype html><html><head><meta charset="utf-8"><title>Test</title></head><body>
     <p>Test</p>
     <p>Foo</p>
-
+  
 
 </body></html>"#,
     );

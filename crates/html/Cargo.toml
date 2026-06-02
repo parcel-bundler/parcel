@@ -32,3 +32,4 @@ xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [dev-dependencies]
 indoc = "1.0.3"
+pretty_assertions = "1.4.1"
