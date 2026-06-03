@@ -17,12 +17,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: yarn
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.os }}
+      - run: yarn --immutable
       - run: cargo test --workspace --exclude parcel-node-bindings --tests
 
   build:
@@ -33,12 +37,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: yarn
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.os }}-build
+      - run: yarn --immutable
       - name: Build
         env:
           MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '11.0' || '' }}

@@ -1,8 +1,9 @@
 use std::process::Command;
 
 fn main() {
-  Command::new("node")
+  let status = Command::new("node")
     .arg("buildBuiltins.cjs")
-    .spawn()
-    .expect("Builtins failed");
+    .status()
+    .expect("Failed to run buildBuiltins.cjs");
+  assert!(status.success(), "buildBuiltins.cjs exited with {status}");
 }
