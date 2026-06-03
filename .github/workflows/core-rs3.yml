@@ -1,0 +1,50 @@
+name: core-rs3
+
+on:
+  push:
+    branches:
+      - core-rs3
+
+permissions:
+  contents: read
+
+jobs:
+  rust_tests:
+    name: Rust tests (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.os }}
+      - run: cargo test --workspace --exclude parcel-node-bindings --tests
+
+  build:
+    name: Build parcel binary (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.os }}-build
+      - name: Build
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '11.0' || '' }}
+        run: cargo build -p parcel --release
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: parcel-${{ runner.os }}
+          path: target/release/parcel
