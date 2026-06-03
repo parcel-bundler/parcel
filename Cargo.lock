@@ -3251,7 +3251,7 @@ dependencies = [
 [[package]]
 name = "parcel-watcher"
 version = "0.1.0"
-source = "git+https://github.com/parcel-bundler/watcher.git?branch=rust#4e81a1bbf3d234d98290c935f933f071da398f7c"
+source = "git+https://github.com/parcel-bundler/watcher.git?branch=rust#5f8edabcffbca11e4736427b09aa0d5b8e582739"
 dependencies = [
  "cc",
  "crossbeam-channel",
