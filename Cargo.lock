@@ -337,12 +337,6 @@ checksum = "1e4b40c7323adcfc0a41c4b88143ed58346ff65a288fc144329c5c45e05d70c6"
 
 [[package]]
 name = "bitflags"
-version = "1.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
-
-[[package]]
-name = "bitflags"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f68f53c83ab957f72c32642f3868eec03eb974d1fb82e453128456482613d36"
@@ -1548,7 +1542,7 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bf760ebf69878d9fd8f110c89703d90ce35095324d1f1edcb595c63945ee757"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "ignore 0.4.23",
  "walkdir",
 ]
@@ -2175,16 +2169,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kqueue-sys"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed9625ffda8729b85e45cf04090035ac368927b8cebc34898e7c120f52e4838b"
-dependencies = [
- "bitflags 1.3.2",
- "libc",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2266,7 +2250,7 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0ff37bd590ca25063e35af745c343cb7a0271906fb7b37e4813e8f79f00268d"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "libc",
  "redox_syscall",
 ]
@@ -2288,7 +2272,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a75fcbcdbcc84fc1ae7c60c31f99337560b620757a9bfc1c9f84df3cff8ac24"
 dependencies = [
  "ahash 0.8.12",
- "bitflags 2.8.0",
+ "bitflags",
  "const-str 0.3.2",
  "cssparser 0.33.0",
  "cssparser-color 0.1.0",
@@ -2311,7 +2295,7 @@ version = "1.0.0-alpha.71"
 source = "git+https://github.com/parcel-bundler/lightningcss.git#22bdda3d190f1cd321d98026225cfc964af64ad9"
 dependencies = [
  "ahash 0.8.12",
- "bitflags 2.8.0",
+ "bitflags",
  "const-str 1.1.0",
  "cssparser 0.37.0",
  "cssparser-color 0.5.0",
@@ -2616,7 +2600,7 @@ version = "2.16.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "214f07a80874bb96a8433b3cdfc84980d56c7b02e1a0d7ba4ba0db5cef785e2b"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "ctor",
  "napi-derive",
  "napi-sys",
@@ -2902,7 +2886,7 @@ name = "oxvg_ast"
 version = "0.0.2"
 source = "git+https://github.com/noahbald/oxvg.git#94b2abbc1126ca4056d4bb4d14b3ad24f376db15"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "cfg-if",
  "cssparser 0.33.0",
  "cssparser 0.34.0",
@@ -2961,7 +2945,7 @@ name = "oxvg_path"
 version = "0.0.2"
 source = "git+https://github.com/noahbald/oxvg.git#94b2abbc1126ca4056d4bb4d14b3ad24f376db15"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "lightningcss 1.0.0-alpha.63",
  "log",
  "oxvg_ast",
@@ -3036,7 +3020,7 @@ name = "parcel-core"
 version = "0.1.0"
 dependencies = [
  "anstyle",
- "bitflags 2.8.0",
+ "bitflags",
  "browserslist-rs",
  "dotenvy",
  "either",
@@ -3151,7 +3135,7 @@ name = "parcel-js-swc-core"
 version = "0.1.0"
 dependencies = [
  "Inflector",
- "bitflags 2.8.0",
+ "bitflags",
  "data-encoding",
  "dunce",
  "indexmap 2.14.0",
@@ -3234,7 +3218,7 @@ name = "parcel-resolver"
 version = "0.1.1"
 dependencies = [
  "assert_fs",
- "bitflags 2.8.0",
+ "bitflags",
  "criterion",
  "deno_package_json",
  "glob-match",
@@ -3267,12 +3251,11 @@ dependencies = [
 [[package]]
 name = "parcel-watcher"
 version = "0.1.0"
-source = "git+https://github.com/parcel-bundler/watcher.git?branch=rust#1c40800969fd5e8bb44b68964e809769ba92ee6d"
+source = "git+https://github.com/parcel-bundler/watcher.git?branch=rust#4e81a1bbf3d234d98290c935f933f071da398f7c"
 dependencies = [
  "cc",
  "crossbeam-channel",
- "dashmap 6.1.0",
- "kqueue-sys",
+ "dashmap 5.5.3",
  "libc",
 ]
 
@@ -3282,7 +3265,7 @@ version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dccbc6fb560df303a44e511618256029410efbc87779018f751ef12c488271fe"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "cssparser 0.33.0",
  "log",
  "phf 0.11.2",
@@ -3297,7 +3280,7 @@ name = "parcel_selectors"
 version = "0.28.2"
 source = "git+https://github.com/parcel-bundler/lightningcss.git#22bdda3d190f1cd321d98026225cfc964af64ad9"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "cssparser 0.37.0",
  "log",
  "phf 0.11.2",
@@ -3526,7 +3509,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97baced388464909d42d89643fe4361939af9b7ce7a31ee32a168f832a70f2a0"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "crc32fast",
  "fdeflate",
  "flate2",
@@ -3861,7 +3844,7 @@ version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b6dfecf2c74bce2466cabf93f6664d6998a69eb21e39f4207930065b27b771f"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
 ]
 
 [[package]]
@@ -4154,7 +4137,7 @@ version = "0.38.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7f649912bc1495e167a6edee79151c84b1bad49748cb4f1f1167f459f6224f6"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "errno",
  "libc",
  "linux-raw-sys 0.4.14",
@@ -4167,7 +4150,7 @@ version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
@@ -4235,7 +4218,7 @@ version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd568a4c9bb598e291a08244a5c1f5a8a6650bee243b5b0f8dbb3d9cc1d87fe8"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "cssparser 0.34.0",
  "derive_more 0.99.19",
  "fxhash",
@@ -4826,7 +4809,7 @@ version = "23.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "550ee54eab536fe357090fec6d42d083c28cf44cc9bcfa93b1ea5e1606f3b2f7"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "is-macro",
  "num-bigint",
  "once_cell",
@@ -5124,7 +5107,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76c9d429baf26f3e5efb0f98fd5f16425ae14becc2f82cd78e39512f1fd68a5e"
 dependencies = [
  "arrayvec",
- "bitflags 2.8.0",
+ "bitflags",
  "indexmap 2.14.0",
  "num-bigint",
  "num_cpus",
@@ -5159,7 +5142,7 @@ version = "39.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76e6934ad1cf59a947528f034943be40d06fb3332def0d71db29ba6ad8181283"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "either",
  "num-bigint",
  "phf 0.11.2",
@@ -5238,7 +5221,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e01fc6155c5fcdce85f253c96fe764877ebaa1dc50ab0639b383dafb46a6427"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "is-macro",
  "swc_atoms",
  "swc_common",
@@ -5385,7 +5368,7 @@ checksum = "50f4bed3e69e05890ea326df97035412071a37da59d6fc0a6488c3cf200c6f08"
 dependencies = [
  "Inflector",
  "anyhow",
- "bitflags 2.8.0",
+ "bitflags",
  "indexmap 2.14.0",
  "is-macro",
  "path-clean",
@@ -5628,7 +5611,7 @@ version = "28.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a86cf04561e92a19f5f37b7fcfdb442e749b9e360bc2796f731599967dfcb8cd"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags",
  "petgraph",
  "rustc-hash 2.1.2",
  "swc_atoms",
