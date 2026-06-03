@@ -7,5 +7,5 @@
     {"type": "css", "assets": ["a.module.css", "b.module.css"]},
     {"type": "css", "assets": ["global.css"]}
   ],
-  "sideEffects": [["mainJs", "v8EgsG_myClass", "uqRpoq_myOtherClass"]]
+  "sideEffects": [["mainJs", "_1ZEqVW_myClass", "j1UkRG_myOtherClass"]]
 }

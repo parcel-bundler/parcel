@@ -3,9 +3,15 @@
   "input": "index4.js",
   "bundles": [
     {"assets": ["index4.js"]},
-    {"assets": ["composes-5.module.css", "mixins-intermediate.module.css", "mixins.module.css"]}
+    {
+      "assets": [
+        "composes-5.module.css",
+        "mixins-intermediate.module.css",
+        "mixins.module.css"
+      ]
+    }
   ],
   "output": {
-    "composes5": "Ff6V4a_composes5 fU-gRa_intermediate -P5mzW_test"
+    "composes5": "wYSfKa_composes5 sGqsDG_intermediate LvN1Iq_test"
   }
 }

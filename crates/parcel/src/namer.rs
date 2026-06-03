@@ -6,7 +6,7 @@ use std::{
 
 use parcel_core::{
   Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic,
-  DiagnosticList, EnvironmentFlags, Namer, OutputFormat,
+  DiagnosticList, EnvironmentFlags, Namer, OutputFormat, SourceUrl,
 };
 use xxhash_rust::xxh3::Xxh3Default;
 
@@ -17,7 +17,7 @@ impl Namer for DefaultNamer {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &parcel_core::Bundle,
-    _options: &parcel_core::ParcelOptions,
+    options: &parcel_core::ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList> {
     let mut ext = bundle.ty.extension();
     if bundle.ty == AssetType::Js
@@ -47,6 +47,7 @@ impl Namer for DefaultNamer {
             bundle,
             name,
             ext,
+            &options.project_root,
           )));
         } else {
           if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
@@ -76,6 +77,7 @@ impl Namer for DefaultNamer {
                 bundle,
                 name,
                 ext,
+                &options.project_root,
               )));
             }
           }
@@ -87,6 +89,7 @@ impl Namer for DefaultNamer {
             bundle,
             name,
             ext,
+            &options.project_root,
           )));
         }
       }
@@ -94,17 +97,19 @@ impl Namer for DefaultNamer {
 
     Ok(Some(format!(
       "{:016x}.{}",
-      hash_bundle(&bundle_graph.asset_graph, bundle),
+      hash_bundle(&bundle_graph.asset_graph, bundle, &options.project_root),
       ext
     )))
   }
 }
 
-fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle) -> u64 {
+fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &SourceUrl) -> u64 {
   let mut hash = Xxh3Default::new();
   for asset in &bundle.assets {
     if let AssetNode::Asset(asset) = &asset_graph.assets[*asset] {
-      asset.loc.hash(&mut hash);
+      asset.loc.url.relative(project_root).hash(&mut hash);
+      asset.loc.start.hash(&mut hash);
+      asset.loc.end.hash(&mut hash);
       asset.target.hash(&mut hash);
     }
   }
@@ -126,11 +131,22 @@ fn relative_path(asset: &Asset, from: &Path) -> Result<PathBuf, Diagnostic> {
   )
 }
 
-fn format_name(asset_graph: &AssetGraph, bundle: &Bundle, name: &str, ext: &str) -> String {
+fn format_name(
+  asset_graph: &AssetGraph,
+  bundle: &Bundle,
+  name: &str,
+  ext: &str,
+  project_root: &SourceUrl,
+) -> String {
   if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
     format!("{}.{}", name, ext)
   } else {
-    format!("{}-{:016x}.{}", name, hash_bundle(asset_graph, bundle), ext)
+    format!(
+      "{}-{:016x}.{}",
+      name,
+      hash_bundle(asset_graph, bundle, project_root),
+      ext
+    )
   }
 }
 

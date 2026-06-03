@@ -7,5 +7,5 @@
     {"type": "js", "assets": ["index.tsx"]},
     {"type": "css", "assets": ["inner.module.css", "outer.module.css"]}
   ],
-  "sideEffects": [["mainJs", "ur-0-G_container a3N5HG_-expand"]]
+  "sideEffects": [["mainJs", "vt0z5W_container I354Ra_-expand"]]
 }

@@ -84,7 +84,11 @@ impl Transformer for CssTransformer {
     let mut stylesheet = StyleSheet::parse(
       code,
       ParserOptions {
-        filename: asset.loc.url.to_string(),
+        filename: asset
+          .loc
+          .url
+          .relative(&options.project_root)
+          .unwrap_or_else(|| asset.loc.url.to_string()),
         css_modules: self.css_modules.clone(),
         ..Default::default()
       },
@@ -206,7 +210,11 @@ impl Transformer for CssTransformer {
       let stylesheet = StyleSheet::parse(
         &res.code,
         ParserOptions {
-          filename: asset.loc.url.to_string(),
+          filename: asset
+            .loc
+            .url
+            .relative(&options.project_root)
+            .unwrap_or_else(|| asset.loc.url.to_string()),
           ..Default::default()
         },
       )
@@ -363,7 +371,11 @@ impl Transformer for StyleAttrTransformer {
     let mut attr = StyleAttribute::parse(
       code,
       ParserOptions {
-        filename: asset.loc.url.to_string(),
+        filename: asset
+          .loc
+          .url
+          .relative(&options.project_root)
+          .unwrap_or_else(|| asset.loc.url.to_string()),
         ..Default::default()
       },
     )

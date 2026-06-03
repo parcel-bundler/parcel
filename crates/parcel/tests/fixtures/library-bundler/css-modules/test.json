@@ -1,7 +1,7 @@
 {
   "description": "should work with CSS modules",
   "input": ".",
-  "options": { "mode": "production" },
+  "options": {"mode": "production"},
   "bundles": [
     {"assets": ["index.js"]},
     {"type": "css", "assets": ["foo.module.css"]},
@@ -9,6 +9,6 @@
     {"assets": ["index.js"]}
   ],
   "output": {
-    "test": "SxtEeG_bar"
+    "test": "Qe6WCq_bar"
   }
 }
