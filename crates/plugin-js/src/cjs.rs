@@ -194,6 +194,24 @@ impl CjsLoader {
     }
   }
 
+  pub fn load_source<'js>(
+    &self,
+    ctx: &Ctx<'js>,
+    resolved: &str,
+    mut source: Cow<'_, str>,
+  ) -> rquickjs::Result<Value<'js>> {
+    let globals = ctx.globals();
+    let require: Object = globals.get("require")?;
+    let cache: Object = require.get("cache")?;
+
+    if let Ok(module) = cache.get::<_, Object>(resolved) {
+      let exports: Value = module.get("exports")?;
+      return Ok(exports);
+    }
+
+    self.load_cjs(ctx, resolved, source, cache)
+  }
+
   pub fn load_cjs<'js>(
     &self,
     ctx: &Ctx<'js>,

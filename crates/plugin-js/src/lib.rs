@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::HashMap,
   path::{Path, PathBuf},
@@ -285,4 +286,13 @@ pub fn await_promise<'a, 'js>(ctx: &'a Ctx<'js>, res: Value<'js>) -> rquickjs::R
 pub fn require_module<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Value<'js>> {
   let cjs = ctx.userdata::<CjsLoader>().unwrap();
   cjs.load(&ctx, path)
+}
+
+pub fn require_source<'js>(
+  ctx: &Ctx<'js>,
+  path: &str,
+  source: &str,
+) -> rquickjs::Result<Value<'js>> {
+  let cjs = ctx.userdata::<CjsLoader>().unwrap();
+  cjs.load_source(&ctx, path, Cow::Borrowed(source))
 }

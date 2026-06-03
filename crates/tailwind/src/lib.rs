@@ -3,14 +3,14 @@ use std::{path::Path, sync::Arc};
 use parcel_core::{
   Asset, BufferContent, Diagnostic, DiagnosticList, ExportsCondition, ParcelOptions, Transformer,
 };
-use parcel_plugin_js::{await_promise, require_module, with_js_env};
+use parcel_plugin_js::{await_promise, require_source, with_js_env};
 use parcel_resolver::{Cache, Resolution, ResolveOptions, Resolver, SpecifierType};
 use rquickjs::{Array, Ctx, Function, Value};
 use tailwindcss_oxide::{PublicSourceEntry, Scanner};
 
 pub struct TailwindTransformer;
 
-const COMPILE_JS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/compile.js");
+const COMPILE_JS: &'static str = include_str!("compile.js");
 
 impl Transformer for TailwindTransformer {
   fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
@@ -40,7 +40,7 @@ impl Transformer for TailwindTransformer {
       &options.env,
       &options.cwd,
       move |ctx| {
-        let module = require_module(ctx, COMPILE_JS_PATH)?;
+        let module = require_source(ctx, "tailwind", COMPILE_JS)?;
         let func: Function = module
           .as_object()
           .ok_or(rquickjs::Error::Unknown)?
