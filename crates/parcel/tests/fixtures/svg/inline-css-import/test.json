@@ -2,7 +2,7 @@
   "description": "should handle inline CSS with @imports",
   "input": "img.svg",
   "bundles": [
-    {"type": "svg", "assets": ["img.svg"]},
+    {"type": "svg", "assets": ["img.svg"], "contains": [":root {", "fill: url(&quot", "<script>", "console.log('script"]},
     {"type": "svg", "assets": ["gradient.svg"]},
     {"type": "css", "assets": ["img.svg", "test.css"]},
     {"type": "style", "assets": ["img.svg"]},
