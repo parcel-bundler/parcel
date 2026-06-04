@@ -64,6 +64,12 @@ pub struct TransformResult {
   errors: Vec<Diagnostic>,
 }
 
+fn html_parse_opts() -> html5ever::ParseOpts {
+  let mut opts = html5ever::ParseOpts::default();
+  opts.tree_builder.scripting_enabled = false;
+  opts
+}
+
 pub fn transform_html(options: TransformOptions) -> TransformResult {
   let arena = Arena::new();
   let dom = if options.xml {
@@ -71,7 +77,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
       .from_utf8()
       .one(options.code.as_slice())
   } else {
-    html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
+    html5ever::driver::parse_document(Sink::new(&arena), html_parse_opts())
       .from_utf8()
       .one(options.code.as_slice())
   };
@@ -160,7 +166,7 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
       .from_utf8()
       .one(options.code.as_slice())
   } else {
-    html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
+    html5ever::driver::parse_document(Sink::new(&arena), html_parse_opts())
       .from_utf8()
       .one(options.code.as_slice())
   };
@@ -234,7 +240,7 @@ pub fn optimize_html(options: OptimizeHtmlOptions) -> Result<PackageResult, ()> 
       .from_utf8()
       .one(options.code.as_slice())
   } else {
-    html5ever::driver::parse_document(Sink::new(&arena), html5ever::ParseOpts::default())
+    html5ever::driver::parse_document(Sink::new(&arena), html_parse_opts())
       .from_utf8()
       .one(options.code.as_slice())
   };
@@ -327,5 +333,28 @@ mod tests {
       std::str::from_utf8(&res.code).unwrap(),
       "<html><head></head><body><template><div>test</div><span>hi</span></template></body></html>"
     );
+  }
+
+  #[test]
+  fn test_transform_noscript_styles() {
+    let res = transform_html(crate::TransformOptions {
+      code: r#"<html><head><noscript><style>@import "./noscript-inline.scss";</style><link rel="stylesheet" href="./noscript-style.scss"></noscript></head></html>"#.into(),
+      file_path: "foo.html".into(),
+      xml: false,
+      env: Default::default(),
+      hmr: false,
+    });
+
+    assert_eq!(res.dependencies.len(), 2);
+    assert_eq!(res.assets.len(), 1);
+    assert_eq!(
+      std::str::from_utf8(&res.assets[0].content).unwrap(),
+      r#"@import "./noscript-inline.scss";"#
+    );
+
+    let html = std::str::from_utf8(&res.code).unwrap();
+    assert!(html.contains(r#"<style data-parcel-key="asset-0">"#));
+    assert!(html.contains(r#"<link rel="stylesheet" href=""#));
+    assert!(!html.contains("./noscript-style.scss"));
   }
 }
