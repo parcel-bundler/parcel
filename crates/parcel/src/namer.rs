@@ -110,7 +110,22 @@ fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &SourceU
       asset.loc.url.relative(project_root).hash(&mut hash);
       asset.loc.start.hash(&mut hash);
       asset.loc.end.hash(&mut hash);
-      asset.target.hash(&mut hash);
+      // Hash Target fields portably: relativize dist_dir and loc.url.
+      let t = &asset.target;
+      t.environment.hash(&mut hash);
+      t.output_format.hash(&mut hash);
+      t.source_type.hash(&mut hash);
+      t.flags.hash(&mut hash);
+      t.source_map.hash(&mut hash);
+      if let Some(loc) = &t.loc {
+        loc.url.relative(project_root).hash(&mut hash);
+        loc.start.hash(&mut hash);
+        loc.end.hash(&mut hash);
+      }
+      t.include_node_modules.hash(&mut hash);
+      t.engines.hash(&mut hash);
+      t.dist_dir.relative(project_root).hash(&mut hash);
+      t.public_url.hash(&mut hash);
     }
   }
 
