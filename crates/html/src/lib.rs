@@ -321,7 +321,7 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
 pub struct HtmlTransformer {}
 
 impl Transformer for HtmlTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_html(TransformOptions {
       code,
@@ -338,7 +338,11 @@ impl Transformer for HtmlTransformer {
     asset.bundle_behavior = BundleBehavior::Isolated;
     asset.content = Arc::new(HtmlContent {
       code: res.code,
-      path: asset.loc.url.to_string(),
+      path: asset
+        .loc
+        .url
+        .relative(&options.project_root)
+        .unwrap_or_else(|| asset.loc.url.to_string()),
     });
     asset.dependencies.extend(res.dependencies);
 
@@ -487,9 +491,13 @@ impl Default for SvgTransformer {
 }
 
 impl Transformer for SvgTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
-    let path = asset.loc.url.to_string();
+    let path = asset
+      .loc
+      .url
+      .relative(&options.project_root)
+      .unwrap_or_else(|| asset.loc.url.to_string());
     let res = transform_svg(TransformOptions {
       code,
       file_path: asset.loc.url.to_file_path()?,
@@ -515,7 +523,7 @@ pub struct SvgToJsxTransformer {
 }
 
 impl Transformer for SvgToJsxTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let mut config = self.config.clone();
     if matches!(config.svgo_config.prefix_ids, ConfigItem::None) {
@@ -525,7 +533,11 @@ impl Transformer for SvgToJsxTransformer {
     let res = svg_react(SvgReactOptions {
       code,
       config,
-      path: asset.loc.url.to_string(),
+      path: asset
+        .loc
+        .url
+        .relative(&options.project_root)
+        .unwrap_or_else(|| asset.loc.url.to_string()),
     })
     .unwrap();
     // TODO: avoid re-parse by storing JS ast.

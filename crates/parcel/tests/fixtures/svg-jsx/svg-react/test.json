@@ -3,6 +3,6 @@
   "input": "react.js",
   "options": {"mode": "production"},
   "bundles": [
-    {"assets": ["esmodule-helpers.js", "icon.svg", "react.js"], "contains": ["function SvgComponent", "createElement(\"svg", "id: \"993fc6__circle"]}
+    {"assets": ["esmodule-helpers.js", "icon.svg", "react.js"], "contains": ["function SvgComponent", "createElement(\"svg", "id: \"785626__circle"]}
   ]
 }
