@@ -64,3 +64,4 @@ for (let dir of dirs) {
 
 fs.mkdirSync(__dirname + '/builtins/constants');
 fs.writeFileSync(__dirname + '/builtins/constants/index.js', `module.exports = ${JSON.stringify(require('constants'), null, 2)};\n`);
+fs.writeFileSync(__dirname + '/builtins/util/util.js', fs.readFileSync(__dirname + '/builtins/util/util.js', 'utf8') + '\nexports.TextDecoder = TextDecoder;\nexports.TextEncoder = TextEncoder;\n');

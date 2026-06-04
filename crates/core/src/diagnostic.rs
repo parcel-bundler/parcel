@@ -72,7 +72,7 @@ impl CodeHighlight {
       start: loc.start.clone(),
       end: Location {
         line: loc.end.line,
-        column: loc.end.column - 1,
+        column: loc.end.column.saturating_sub(1),
       },
     }
   }

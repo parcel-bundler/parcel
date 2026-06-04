@@ -778,7 +778,7 @@ pub fn transform_to_ast(
 
           if config.react_refresh && result.dependencies.iter().any(|d| matches!(d.specifier.as_str(), "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "'@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
             module.body = vec![
-              quote!("var $parcel$ReactRefreshHelpers = require('@parcel/transformer-react-refresh-wrap/lib/helpers/helpers.js');" as ModuleItem),
+              quote!("var $parcel$ReactRefreshHelpers = require('@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js');" as ModuleItem),
               quote!("$parcel$ReactRefreshHelpers.init()" as ModuleItem),
               quote!("var prevRefreshReg = globalThis.$RefreshReg$;" as ModuleItem),
               quote!("var prevRefreshSig = globalThis.$RefreshSig$;" as ModuleItem),
@@ -806,7 +806,7 @@ pub fn transform_to_ast(
             result.dependencies.push(DependencyDescriptor {
               kind: DependencyKind::Require,
               loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },
-              specifier: "@parcel/transformer-react-refresh-wrap/lib/helpers/helpers.js".into(),
+              specifier: "@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js".into(),
               attributes: None,
               flags: DependencyFlags::empty(),
               source_type: None,
@@ -815,7 +815,7 @@ pub fn transform_to_ast(
 
             if let Some(sym) = &mut result.symbol_result {
               sym.imports.push(CollectImportedSymbol {
-                source: "@parcel/transformer-react-refresh-wrap/lib/helpers/helpers.js".into(),
+                source: "@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js".into(),
                 local: "$parcel$ReactRefreshHelpers".into(),
                 imported: "*".into(),
                 loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },
