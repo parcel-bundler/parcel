@@ -84,6 +84,7 @@
     "scheduler": false
   },
   "dependencies": {
+    "form-data": "4.0.4",
     "patch-package": "^8.0.0"
   },
   "_": "See issue #9405 for the Vue problem",
