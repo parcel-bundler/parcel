@@ -3,8 +3,8 @@ use std::{borrow::Cow, sync::Arc};
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
   DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
-  ExportsCondition, FileContent, Location, ParcelOptions, Resolver, SourceLocation, SourceUrl,
-  SpecifierType, Target,
+  ExportsCondition, FileContent, Location, OutputFormat, ParcelOptions, Resolver, SourceLocation,
+  SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -131,7 +131,7 @@ impl Resolver for DefaultResolver {
         Resolution::Global(global) => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
           loc: SourceLocation {
-            url: SourceUrl::parse("file:///global.js")?,
+            url: SourceUrl::parse(&format!("file:///globals/{}.js", global))?,
             ..Default::default()
           },
           content: Arc::new(BufferContent::new(

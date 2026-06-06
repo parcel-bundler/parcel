@@ -264,7 +264,7 @@ impl CjsLoader {
     let mut code = String::new();
     code.push_str("(function (module, exports) {");
     code.push_str(&source);
-    code.push_str("})");
+    code.push_str("\n})");
     let f: Function = ctx.eval_with_options(code, options)?;
     f.call::<_, ()>((module.clone(), module.get::<_, Value>("exports")?))?;
 

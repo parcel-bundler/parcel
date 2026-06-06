@@ -63,24 +63,23 @@ pub fn main() -> ExitCode {
     cwd: std::env::current_dir().unwrap(),
   };
 
-  match cmd {
-    Command::Build => match parcel::build(entries, options) {
-      Ok(_) => {}
-      Err(err) => {
-        let mut stderr = std::io::stderr();
-        err.report(&mut stderr).unwrap();
-        return ExitCode::from(1);
-      }
-    },
-    Command::Watch => {
-      let _ = parcel::watch(entries, options);
-    }
-    Command::Serve => {
-      let _ = parcel::serve(entries, options);
-    }
+  let res = match cmd {
+    Command::Build => parcel::build(entries, options).map(|_| ()),
+    Command::Watch => parcel::watch(entries, options),
+    Command::Serve => parcel::serve(entries, options),
     Command::Targets => {
       let entries = parcel_core::resolve_entries(entries, &options).unwrap();
       println!("{:#?}", entries);
+      return ExitCode::from(0);
+    }
+  };
+
+  match res {
+    Ok(_) => {}
+    Err(err) => {
+      let mut stderr = std::io::stderr();
+      err.report(&mut stderr).unwrap();
+      return ExitCode::from(1);
     }
   }
 
