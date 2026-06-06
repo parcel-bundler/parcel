@@ -1,0 +1,6 @@
+{
+  "description": "CJS: require() of ESM module for side effects only still runs the module",
+  "input": "index.js",
+  "output": "done",
+  "sideEffects": ["esm-ran"]
+}

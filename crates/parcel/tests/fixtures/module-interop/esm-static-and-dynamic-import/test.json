@@ -1,0 +1,6 @@
+{
+  "description": "ESM: static and dynamic import of the same module runs it once and both see the same value",
+  "input": "index.mjs",
+  "output": [42, 42],
+  "sideEffects": ["dep-ran"]
+}

@@ -1,0 +1,6 @@
+{
+  "description": "CJS: require() of CJS module for side effects only still runs the module",
+  "input": "index.js",
+  "output": "done",
+  "sideEffects": ["cjs-ran"]
+}

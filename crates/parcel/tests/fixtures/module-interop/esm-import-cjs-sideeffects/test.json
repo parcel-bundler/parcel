@@ -1,0 +1,6 @@
+{
+  "description": "ESM: side-effect-only import of CJS module still runs the module",
+  "input": "index.js",
+  "output": "done",
+  "sideEffects": ["cjs-ran"]
+}

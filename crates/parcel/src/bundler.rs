@@ -7,6 +7,7 @@ use fixedbitset::FixedBitSet;
 use parcel_core::{
   AssetGraph, AssetNode, Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler,
   DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags, Priority,
+  SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -49,16 +50,16 @@ impl Bundler for DefaultBundler {
           if dep.bundle_behavior != BundleBehavior::None || dep.priority != Priority::Sync {
             if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
               let bundle_behavior = dep.bundle_behavior;
-              if bundle_behavior != BundleBehavior::None
-                && let AssetNode::Asset(target_asset) =
-                  &mut asset_graph.assets[resolved_asset_index as usize]
+              if let AssetNode::Asset(target_asset) =
+                &mut asset_graph.assets[resolved_asset_index as usize]
               {
-                if target_asset.bundle_behavior == BundleBehavior::None {
+                bundle_roots.insert(resolved_asset_index as usize);
+                if bundle_behavior != BundleBehavior::None
+                  && target_asset.bundle_behavior == BundleBehavior::None
+                {
                   target_asset.bundle_behavior = bundle_behavior;
                 }
               }
-
-              bundle_roots.insert(resolved_asset_index as usize);
             }
           }
         }
@@ -102,39 +103,36 @@ impl Bundler for DefaultBundler {
     let mut asset_index_to_bundle_index = HashMap::new();
 
     // Create bundles for each bundle root first.
-    // for bundle_root_asset_index in bundle_roots.ones() {
-    //   if let AssetNode::Asset(asset) = &asset_graph.assets[bundle_root_asset_index] {
-    //     let bundle = Bundle {
-    //       ty: asset.ty.clone(),
-    //       env: asset.env.clone(),
-    //       bundle_behavior: asset.bundle_behavior,
-    //       flags: BundleFlags::empty(),
-    //       name: None,
-    //       assets: vec![bundle_root_asset_index],
-    //       entry_assets: vec![bundle_root_asset_index],
-    //       main_entry_asset: Some(bundle_root_asset_index),
-    //       referenced_bundles: Vec::new(),
-    //     };
+    for bundle_root_asset_index in bundle_roots.ones() {
+      if let AssetNode::Asset(asset) = &asset_graph.assets[bundle_root_asset_index] {
+        let bundle = Bundle {
+          ty: asset.ty.clone(),
+          target: asset.target.clone(),
+          bundle_behavior: asset.bundle_behavior,
+          flags: if entry_bundle_roots.contains(bundle_root_asset_index) {
+            BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
+          } else {
+            BundleFlags::empty()
+          },
+          name: None,
+          assets: Vec::new(),
+          entry_assets: vec![bundle_root_asset_index],
+          main_entry_asset: Some(bundle_root_asset_index),
+          referenced_bundles: Vec::new(),
+        };
 
-    //     let key = BundleKey {
-    //       reachable_roots: &reachable_roots[bundle_root_asset_index],
-    //       context: asset.env.context, // TODO: other environment properties?
-    //       ty: &asset.ty,
-    //     };
+        let key = BundleKey {
+          reachable_roots: &reachable_roots[bundle_root_asset_index],
+          context: asset.target.environment, // TODO: other environment properties?
+          packager: asset.content.type_id(),
+        };
 
-    //     let bundle_index = bundles.len();
-    //     shared_bundles.insert(key, bundle_index);
-    //     asset_index_to_bundle_index.insert(bundle_root_asset_index, bundle_index);
-    //     bundles.push(bundle);
-    //   }
-    // }
-
-    // for entry in &asset_graph.entries {
-    //   if let Some(asset) = entry.asset {
-    //     bundles[asset_index_to_bundle_index[&asset]].flags |=
-    //       BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME;
-    //   }
-    // }
+        let bundle_index = bundles.len();
+        shared_bundles.insert(key, bundle_index);
+        asset_index_to_bundle_index.insert(bundle_root_asset_index, bundle_index);
+        bundles.push(bundle);
+      }
+    }
 
     // Place assets into bundles, following depth-first order.
     for (asset_index, asset, name) in asset_graph.dfs() {
@@ -190,26 +188,57 @@ impl Bundler for DefaultBundler {
 
       // Each reachable root depends on this shared bundle.
       for bundle_root_index in reachable_roots[asset_index].ones() {
-        if let Some(&root_bundle_index) = asset_index_to_bundle_index.get(&bundle_root_index) {
-          if root_bundle_index != bundle_index {
-            bundles[root_bundle_index]
-              .referenced_bundles
-              .push(bundle_index);
-          }
+        if bundle_root_index != bundle_index {
+          bundles[bundle_root_index]
+            .referenced_bundles
+            .push(bundle_index);
         }
       }
     }
 
-    for asset in asset_graph.assets.iter_mut() {
+    // Build a reverse map from asset index to the bundle it was placed in.
+    let mut asset_to_bundle = HashMap::<usize, usize>::new();
+    for (bundle_index, bundle) in bundles.iter().enumerate() {
+      for asset_index in &bundle.assets {
+        asset_to_bundle.insert(*asset_index, bundle_index);
+      }
+    }
+
+    for (asset_index, asset) in asset_graph.assets.iter_mut().enumerate() {
       if let AssetNode::Asset(asset) = asset {
+        let source_bundle_index = asset_to_bundle.get(&asset_index).copied();
         for dep in &mut asset.dependencies {
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-            if let Some(bundle_index) =
+            if let Some(&bundle_index) =
               asset_index_to_bundle_index.get(&(resolved_asset_index as usize))
             {
-              dep.resolution = DependencyResolution::Bundle(*bundle_index as u32);
-              if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
-                bundles[*bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
+              // A sync non-URL dep targeting a bundle root in a different JS bundle keeps its
+              // Asset resolution so the runtime can resolve it via the parcelRequire chain.
+              // The target bundle is added to referenced_bundles so it loads synchronously first.
+              // Exclude URL-type deps and inline/isolated bundles — those use Bundle resolution
+              // so the packager can compute URLs or inline content correctly.
+              let is_sync_module_dep = dep.priority == Priority::Sync
+                && dep.bundle_behavior == BundleBehavior::None
+                && dep.specifier_type != SpecifierType::Url
+                && bundles[bundle_index].bundle_behavior == BundleBehavior::None;
+
+              if is_sync_module_dep {
+                if let Some(src_bundle_index) = source_bundle_index {
+                  if bundle_index != src_bundle_index
+                    && !bundles[src_bundle_index]
+                      .referenced_bundles
+                      .contains(&bundle_index)
+                  {
+                    bundles[src_bundle_index]
+                      .referenced_bundles
+                      .push(bundle_index);
+                  }
+                }
+              } else {
+                dep.resolution = DependencyResolution::Bundle(bundle_index as u32);
+                if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
+                  bundles[bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
+                }
               }
             }
           }
