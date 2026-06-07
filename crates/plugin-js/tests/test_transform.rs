@@ -27,7 +27,7 @@ fn run(name: &str, code: &str, asset: Asset) -> Result<Asset, DiagnosticList> {
 fn test_asset() -> Asset {
   Asset {
     loc: SourceLocation {
-      url: SourceUrl::from_path(Path::new("/foo/bar.js")).unwrap(),
+      url: SourceUrl::parse("project:///foo/bar.js").unwrap(),
       start: Default::default(),
       end: Default::default(),
     },
@@ -57,7 +57,7 @@ fn test_transform_esm() {
       let code = asset.getCode();
       assert.equal(code, 'hello');
       assert.equal(asset.type, 'js');
-      assert.equal(asset.url, 'file:///foo/bar.js');
+      assert.equal(asset.url, 'project:///foo/bar.js');
       assert.equal(asset.bundleBehavior, null);
       assert.equal(asset.sideEffects, true);
       assert.equal(asset.isSource, false);
@@ -103,7 +103,7 @@ fn test_transform_cjs() {
       let code = asset.getCode();
       assert.equal(code, 'hello');
       assert.equal(asset.type, 'js');
-      assert.equal(asset.url, 'file:///foo/bar.js');
+      assert.equal(asset.url, 'project:///foo/bar.js');
       assert.equal(asset.bundleBehavior, null);
       assert.equal(asset.sideEffects, true);
       assert.equal(asset.isSource, false);
