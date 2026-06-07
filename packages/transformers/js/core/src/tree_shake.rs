@@ -21,8 +21,8 @@ use crate::{
 pub enum Resolution<'a> {
   #[serde(serialize_with = "serialize_excluded")]
   Excluded,
-  Asset(u32),
-  Symbols(Vec<(&'a str, u32, &'a str)>),
+  Asset(String),
+  Symbols(Vec<(&'a str, String, &'a str)>),
   #[serde(serialize_with = "serialize_bundle")]
   Bundle(u32),
   #[serde(serialize_with = "serialize_bundle_interop")]
@@ -218,7 +218,7 @@ impl<'a> VisitMut for TreeShake<'a> {
             }
             Resolution::Asset(resolution) => {
               call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
-              **expr = (*resolution as f64).into();
+              **expr = resolution.clone().into();
             }
             Resolution::Bundle(resolution) => {
               call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
@@ -246,7 +246,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                       Prop::KeyValue(KeyValueProp {
                         key: PropName::Str((*key).into()),
                         value: Box::new(
-                          quote!("parcelRequire($id)" as Expr, id: Expr = (*id as f64).into()),
+                          quote!("parcelRequire($id)" as Expr, id: Expr = id.clone().into()),
                         ),
                       })
                     } else {
@@ -259,14 +259,14 @@ impl<'a> VisitMut for TreeShake<'a> {
                             vec![
                               quote!(
                                 "var m = parcelRequire($id);" as Stmt,
-                                id: Expr = (*id as f64).into(),
+                                id: Expr = id.clone().into(),
                               ),
                               quote!("return m.__esModule ? m.default : m;" as Stmt),
                             ]
                           } else {
                             vec![quote!(
                               "return parcelRequire($id)[$exp];" as Stmt,
-                              id: Expr = (*id as f64).into(),
+                              id: Expr = id.clone().into(),
                               exp: Expr = (*exp).into()
                             )]
                           },

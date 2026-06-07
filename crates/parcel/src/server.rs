@@ -22,7 +22,7 @@ pub enum HmrUpdate<'a> {
 #[derive(serde::Serialize)]
 #[serde(untagged)]
 enum Id {
-  Asset(u32),
+  Asset(String),
   Bundle(String),
 }
 
@@ -144,7 +144,7 @@ impl DevServer {
       }
 
       assets.push(HmrAsset {
-        id: Id::Asset(id),
+        id: Id::Asset(asset.id()),
         ty: asset.ty.clone(),
         output,
         env_hash: "TODO".into(),
@@ -155,8 +155,8 @@ impl DevServer {
 
     // TODO: only changed ones??
     for synthetic_asset in synthetic_assets {
-      let id = if let SyntheticAsset::Asset(id) = &synthetic_asset {
-        Id::Asset(*id)
+      let id = if let SyntheticAsset::Asset(id, _) = &synthetic_asset {
+        Id::Asset(id.clone())
       } else {
         Id::Bundle(synthetic_asset.id())
       };

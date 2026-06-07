@@ -19,7 +19,7 @@ fn run(
   fs: Arc<dyn FileSystem>,
   cwd: &Path,
   environment: Environment,
-  entry: usize,
+  entry: String,
   is_library: bool,
 ) -> (serde_json::Value, Vec<serde_json::Value>) {
   let mut env = HashMap::new();
@@ -156,7 +156,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
   let bundle_graph = bundle_with_options(&cwd, entries, output_fs.clone(), test.options).unwrap();
 
   let mut scripts = Vec::new();
-  let mut main = 0;
+  let mut main = None;
 
   if !test.bundles.is_empty() {
     assert_eq!(
@@ -230,7 +230,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
               output_fs.clone(),
               &cwd,
               Environment::Node,
-              bundle.main_entry_asset.unwrap(),
+              bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap()]
+                .expect_asset()
+                .id(),
               true,
             );
             assert_eq!(side_effects, test.side_effects);
@@ -240,7 +242,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           } else {
             if scripts.is_empty() {
               if let Some(m) = bundle.main_entry_asset {
-                main = m;
+                main = Some(bundle_graph.asset_graph.assets[m].expect_asset().id());
               }
             }
             scripts.push((path.clone(), bundle.target.output_format));
@@ -272,7 +274,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                     .find(|b| b.dist_path() == resolved)
                     .unwrap();
                   if let Some(m) = b.main_entry_asset {
-                    main = m;
+                    main = Some(bundle_graph.asset_graph.assets[m].expect_asset().id());
                   }
 
                   scripts.push((resolved, b.target.output_format));
@@ -285,7 +287,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       }
     }
 
-    if !scripts.is_empty() {
+    if !scripts.is_empty()
+      && let Some(main) = main
+    {
       let (output, side_effects) = run(scripts, output_fs.clone(), &cwd, env, main, false);
       assert_eq!(side_effects, test.side_effects);
       if let Some(expected_output) = &test.output {
