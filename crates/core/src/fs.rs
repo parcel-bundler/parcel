@@ -652,7 +652,7 @@ pub fn glob(fs: &dyn FileSystem, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
 
 #[inline]
 pub fn is_glob(pattern: &str) -> bool {
-  pattern.contains(&['*', '?', '[', '{'])
+  pattern.contains(&['*', '[', '{'])
 }
 
 fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut Vec<PathBuf>) {

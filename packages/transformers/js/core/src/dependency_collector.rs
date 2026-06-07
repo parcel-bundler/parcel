@@ -17,6 +17,7 @@ use swc_core::{
     utils::{member_expr, stack_size::maybe_grow_default},
     visit::{Fold, FoldWith},
   },
+  quote,
 };
 
 use crate::{Config, fold_member_expr_skip_prop, utils::*};
@@ -315,6 +316,7 @@ impl<'a> DependencyCollector<'a> {
       return create_url_constructor(
         ast::Expr::Call(self.create_require(specifier)),
         self.config.is_esm_output,
+        optional,
       );
     }
 
@@ -348,6 +350,7 @@ impl<'a> DependencyCollector<'a> {
     create_url_constructor(
       ast::Expr::Lit(ast::Lit::Str(placeholder.into())),
       self.config.is_esm_output,
+      optional,
     )
   }
 
@@ -969,6 +972,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               if let ast::Expr::New(new) = create_url_constructor(
                 *args[0].expr.clone().fold_with(self),
                 self.config.is_esm_output,
+                false,
               ) {
                 return new;
               }
@@ -1301,7 +1305,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
   node
 }
 
-fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
+fn create_url_constructor(url: ast::Expr, use_import_meta: bool, to_string: bool) -> ast::Expr {
   use ast::*;
 
   let expr = if use_import_meta {
@@ -1326,7 +1330,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
     })
   };
 
-  Expr::New(NewExpr {
+  let mut url = Expr::New(NewExpr {
     span: DUMMY_SP,
     ctxt: SyntaxContext::empty(),
     callee: Box::new(Expr::Ident(Ident::new_no_ctxt("URL".into(), DUMMY_SP))),
@@ -1341,7 +1345,14 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
       },
     ]),
     type_args: None,
-  })
+  });
+
+  // MDX needs strings not objects
+  if to_string {
+    url = quote!("$url.toString()" as Expr, url: Expr = url);
+  }
+
+  url
 }
 
 struct PromiseTransformer {

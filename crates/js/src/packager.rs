@@ -288,10 +288,14 @@ pub fn asset_dependencies<'a>(
         dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
       }
       DependencyResolution::External => {
-        dependencies.insert(
-          placeholder.as_str().into(),
-          Resolution::External(Cow::Borrowed(&dep.specifier)),
-        );
+        if dep.specifier_type == SpecifierType::Url {
+          dependencies.insert(placeholder.as_str().into(), Resolution::Unresolved);
+        } else {
+          dependencies.insert(
+            placeholder.as_str().into(),
+            Resolution::External(Cow::Borrowed(&dep.specifier)),
+          );
+        }
       }
       DependencyResolution::Bundle(bundle_index) => {
         let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];

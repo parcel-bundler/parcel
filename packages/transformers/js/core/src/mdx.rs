@@ -170,7 +170,10 @@ impl VisitMut for DependencyVisitor {
         if let (JSXAttrName::Ident(name), Some(JSXAttrValue::Str(specifier))) =
           (&prop.name, &prop.value)
         {
-          if is_url(element, name.sym.as_str()) {
+          if is_url(element, name.sym.as_str())
+            && !specifier.value.starts_with("?")
+            && !specifier.value.starts_with("#")
+          {
             prop.value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
               expr: JSXExpr::Expr(Box::new(Expr::Call(CallExpr {
                 callee: Callee::Expr(Box::new(Expr::Ident(Ident::new_no_ctxt(

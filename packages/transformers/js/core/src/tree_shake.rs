@@ -21,6 +21,8 @@ use crate::{
 pub enum Resolution<'a> {
   #[serde(serialize_with = "serialize_excluded")]
   Excluded,
+  #[serde(serialize_with = "serialize_unresolved")]
+  Unresolved,
   Asset(String),
   Symbols(Vec<(&'a str, String, &'a str)>),
   #[serde(serialize_with = "serialize_bundle")]
@@ -38,6 +40,14 @@ where
 {
   use serde::Serialize;
   false.serialize(serializer)
+}
+
+fn serialize_unresolved<S>(serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  true.serialize(serializer)
 }
 
 fn serialize_bundle<S>(value: &u32, serializer: S) -> Result<S::Ok, S::Error>
@@ -215,6 +225,9 @@ impl<'a> VisitMut for TreeShake<'a> {
           match resolution {
             Resolution::Excluded => {
               *node = Expr::Object(Default::default());
+            }
+            Resolution::Unresolved => {
+              *expr = specifier.clone().into();
             }
             Resolution::Asset(resolution) => {
               call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));

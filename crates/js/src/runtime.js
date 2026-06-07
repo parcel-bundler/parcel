@@ -73,6 +73,10 @@ function parcelRequire(name, jumped) {
       return {};
     }
 
+    if (res === true) {
+      return x;
+    }
+
     if (Array.isArray(res)) {
       var m = {__esModule: true};
       res.forEach(function (v) {
