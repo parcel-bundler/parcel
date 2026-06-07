@@ -1,0 +1,9 @@
+{
+  "description": "should transform dynamically imported modules from side-effect-free packages",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["esmodule-helpers.js", "story.js"]}
+  ],
+  "output": 42
+}

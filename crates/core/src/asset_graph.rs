@@ -85,24 +85,41 @@ pub fn build_asset_graph(
       RequestResult::Transform(res) => {
         let mut res = res?;
         for dep in &mut res.asset.dependencies {
+          let priority = dep.priority;
           if let DependencyResolution::Deferred(req) = &dep.resolution {
-            if let Some(index) = asset_requests.get(req) {
-              dep.resolution = DependencyResolution::Asset(*index as u32);
+            if let Some(&index) = asset_requests.get(req) {
+              dep.resolution = DependencyResolution::Asset(index as u32);
+
+              // Lazy/parallel deps must be transformed even if the package has sideEffects: false,
+              // because the user explicitly requested this module via import().
+              if priority != Priority::Sync {
+                if let AssetNode::Deferred {
+                  requested, request, ..
+                } = &mut assets[index]
+                {
+                  if !*requested {
+                    *requested = true;
+                    queue.transform(index, request.clone());
+                  }
+                }
+              }
             } else {
               let req = req.clone();
 
               // Allocate a new asset index.
               let index = assets.len();
               dep.resolution = DependencyResolution::Asset(index as u32);
+              asset_requests.insert(req.clone(), index);
+
+              // If the dependency has side effects or is loaded via dynamic import, always transform it.
+              let requested = req.side_effects || priority != Priority::Sync;
               assets.push(AssetNode::Deferred {
                 request: req.clone(),
                 symbols: Vec::new(),
-                requested: req.side_effects,
+                requested,
               });
-              asset_requests.insert(req.clone(), index);
 
-              // If the dependency has side effects, always transform it.
-              if req.side_effects {
+              if requested {
                 queue.transform(index, req);
               }
             }
