@@ -84,7 +84,12 @@ pub fn serve_dir(path: &Path) -> DevServer {
       let url = base_url.join(request.url()).unwrap();
       let mut full_path = path.clone();
       for segment in url.path_segments().unwrap() {
-        full_path.push(segment);
+        full_path.push(
+          percent_encoding::percent_decode(segment.as_bytes())
+            .decode_utf8()
+            .unwrap()
+            .as_ref(),
+        );
       }
 
       if full_path.is_dir() {

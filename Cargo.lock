@@ -3001,6 +3001,7 @@ dependencies = [
  "parcel-tailwind",
  "parcel-watcher",
  "pathdiff",
+ "percent-encoding",
  "pretty_assertions",
  "rquickjs",
  "rquickjs-serde",
