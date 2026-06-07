@@ -55,7 +55,7 @@ impl<'de> serde::Deserialize<'de> for SerializableTendril {
 pub struct TransformOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
-  pub file_path: PathBuf,
+  pub url: SourceUrl,
   pub xml: bool,
   pub target: Arc<Target>,
   pub hmr: bool,
@@ -85,7 +85,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
   let (deps, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
-    options.file_path,
+    options.url.clone(),
     AssetType::Html,
     options.target,
     options.hmr,
@@ -123,7 +123,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
   let (deps, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
-    options.file_path,
+    options.url.clone(),
     AssetType::Svg,
     options.target,
     options.hmr,
@@ -223,7 +223,7 @@ pub struct OptimizeHtmlOptions {
   pub xml: bool,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub config: optimize::OptimizeOptions,
-  pub path: String,
+  pub url: SourceUrl,
 }
 
 fn ok_or_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
@@ -246,7 +246,7 @@ pub fn optimize_html(options: OptimizeHtmlOptions) -> Result<PackageResult, ()> 
       .one(options.code.as_slice())
   };
 
-  optimize(&arena, dom, options.config, &options.path);
+  optimize(&arena, dom, options.config, options.url.as_str());
 
   let mut vec: Vec<u8> = Vec::new();
   if options.xml {
@@ -266,7 +266,7 @@ pub struct OptimizeSvgOptions {
   pub code: Vec<u8>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub config: oxvg::OxvgConfig,
-  pub path: String,
+  pub url: SourceUrl,
 }
 
 pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
@@ -276,7 +276,7 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
       .from_utf8()
       .one(options.code.as_slice());
 
-  optimize::optimize_svg(&arena, dom, &options.config, &options.path);
+  optimize::optimize_svg(&arena, dom, &options.config, options.url.as_str());
 
   let mut vec = Vec::new();
   serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
@@ -290,7 +290,7 @@ pub struct SvgReactOptions {
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub config: JsxOptions,
-  pub path: String,
+  pub url: SourceUrl,
 }
 
 pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
@@ -305,7 +305,12 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
       options.config.svgo_config.remove_view_box = ConfigItem::Bool(false);
     }
 
-    optimize::optimize_svg(&arena, dom, &options.config.svgo_config, &options.path);
+    optimize::optimize_svg(
+      &arena,
+      dom,
+      &options.config.svgo_config,
+      options.url.as_str(),
+    );
   }
 
   swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
@@ -325,7 +330,7 @@ impl Transformer for HtmlTransformer {
     let code = asset.content.read()?;
     let res = transform_html(TransformOptions {
       code,
-      file_path: asset.loc.url.to_file_path()?,
+      url: asset.loc.url.clone(),
       xml: asset.ty == AssetType::Xhtml,
       target: asset.target.clone(),
       hmr: false,
@@ -338,11 +343,7 @@ impl Transformer for HtmlTransformer {
     asset.bundle_behavior = BundleBehavior::Isolated;
     asset.content = Arc::new(HtmlContent {
       code: res.code,
-      path: asset
-        .loc
-        .url
-        .relative(&options.project_root)
-        .unwrap_or_else(|| asset.loc.url.to_string()),
+      url: asset.loc.url.clone(),
     });
     asset.dependencies.extend(res.dependencies);
 
@@ -353,7 +354,7 @@ impl Transformer for HtmlTransformer {
 #[derive(Debug)]
 pub struct HtmlContent {
   code: Vec<u8>,
-  path: String,
+  url: SourceUrl,
 }
 
 impl Content for HtmlContent {
@@ -391,7 +392,7 @@ impl Content for HtmlContent {
         code: res.code,
         xml: bundle.ty == AssetType::Xhtml,
         config: Default::default(), // TODO
-        path: self.path.clone(),
+        url: self.url.clone(),
       })
       .unwrap()
       .code
@@ -491,16 +492,11 @@ impl Default for SvgTransformer {
 }
 
 impl Transformer for SvgTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
-    let path = asset
-      .loc
-      .url
-      .relative(&options.project_root)
-      .unwrap_or_else(|| asset.loc.url.to_string());
     let res = transform_svg(TransformOptions {
       code,
-      file_path: asset.loc.url.to_file_path()?,
+      url: asset.loc.url.clone(),
       xml: false,
       target: asset.target.clone(),
       hmr: false,
@@ -510,7 +506,7 @@ impl Transformer for SvgTransformer {
     asset.content = Arc::new(SvgContent {
       code: res.code,
       config: self.config.clone(),
-      path,
+      url: asset.loc.url.clone(),
     });
     asset.dependencies.extend(res.dependencies);
 
@@ -523,7 +519,7 @@ pub struct SvgToJsxTransformer {
 }
 
 impl Transformer for SvgToJsxTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let mut config = self.config.clone();
     if matches!(config.svgo_config.prefix_ids, ConfigItem::None) {
@@ -533,11 +529,7 @@ impl Transformer for SvgToJsxTransformer {
     let res = svg_react(SvgReactOptions {
       code,
       config,
-      path: asset
-        .loc
-        .url
-        .relative(&options.project_root)
-        .unwrap_or_else(|| asset.loc.url.to_string()),
+      url: asset.loc.url.clone(),
     })
     .unwrap();
     // TODO: avoid re-parse by storing JS ast.
@@ -551,7 +543,7 @@ impl Transformer for SvgToJsxTransformer {
 pub struct SvgContent {
   code: Vec<u8>,
   config: OxvgConfig,
-  path: String,
+  url: SourceUrl,
 }
 
 impl Content for SvgContent {
@@ -588,7 +580,7 @@ impl Content for SvgContent {
       optimize_svg(OptimizeSvgOptions {
         code: res.code,
         config: self.config.clone(),
-        path: self.path.clone(),
+        url: self.url.clone(),
       })
       .unwrap()
       .code
@@ -606,9 +598,10 @@ mod tests {
 
   #[test]
   fn test_transform() {
+    let url = parcel_core::SourceUrl::parse("project:///foo.html").unwrap();
     let res = transform_html(crate::TransformOptions {
       code: "<html><body><template><div>test</div><span>hi</span></template></body></html>".into(),
-      file_path: "foo.html".into(),
+      url: url.clone(),
       xml: false,
       target: Default::default(),
       hmr: false,

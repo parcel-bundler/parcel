@@ -21,7 +21,7 @@ impl Resolver for GlobResolver {
       return Ok(DependencyResolution::None);
     }
 
-    let source_path = dep.resolve_from.as_ref().unwrap().to_file_path()?;
+    let source_path = dep.resolve_from.as_ref().unwrap().to_file_path(&options.project_root)?;
     let dir = source_path.parent().unwrap();
     let files: Vec<_> = glob(&*options.input_fs, specifier, dir)
       .into_iter()
@@ -65,7 +65,7 @@ impl Resolver for GlobResolver {
     let hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
     Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
       loc: SourceLocation {
-        url: SourceUrl::from_path(&dir.join(&hash))?,
+        url: SourceUrl::from_path(&dir.join(&hash), &options.project_root)?,
         ..Default::default()
       },
       ty: AssetType::Js,

@@ -284,17 +284,17 @@ impl<T: Into<Diagnostic>> From<T> for DiagnosticList {
 // pub(crate) use json_key;
 //
 impl DiagnosticList {
-  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
+  pub fn report<W: Write>(&self, dest: &mut W, project_root: &SourceUrl) -> std::io::Result<()> {
     for diagnostic in &self.0 {
       writeln!(dest)?;
-      diagnostic.report(dest)?;
+      diagnostic.report(dest, project_root)?;
     }
     Ok(())
   }
 }
 
 impl Diagnostic {
-  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
+  pub fn report<W: Write>(&self, dest: &mut W, project_root: &SourceUrl) -> std::io::Result<()> {
     let style = Style::new()
       .fg_color(Some(Color::Ansi(AnsiColor::Red)))
       .bold();
@@ -320,7 +320,7 @@ impl Diagnostic {
         write!(dest, "\n\n")?;
         first = true;
       }
-      frame.report(dest)?;
+      frame.report(dest, project_root)?;
     }
 
     if !self.hints.is_empty() || self.documentation_url.is_some() {
@@ -345,15 +345,19 @@ const PADDING_AFTER: u32 = 2;
 const MAX_LINES: u32 = 12;
 
 impl CodeFrame {
-  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
+  pub fn report<W: Write>(&self, dest: &mut W, project_root: &SourceUrl) -> std::io::Result<()> {
     if let Some(url) = &self.url {
       let style = Style::new()
         .fg_color(Some(Color::Ansi(AnsiColor::BrightBlack)))
         .underline();
 
-      let cwd = Url::from_directory_path(std::env::current_dir().unwrap_or_default()).unwrap();
-      let relative = cwd
-        .make_relative(url.url())
+      let cwd =
+        SourceUrl::from_absolute_directory_path(&std::env::current_dir().unwrap_or_default())
+          .unwrap();
+      let relative = url
+        .to_file_url(project_root)
+        .unwrap()
+        .relative(&cwd)
         .unwrap_or_else(|| url.as_str().to_owned());
 
       write!(dest, "{style}{}", relative)?;
@@ -392,7 +396,15 @@ impl CodeFrame {
 
     let line_number_length = (end_line + 1).to_string().len();
     let code = self.code.clone().unwrap_or_else(|| {
-      std::fs::read_to_string(self.url.as_ref().unwrap().to_file_path().unwrap()).unwrap()
+      std::fs::read_to_string(
+        self
+          .url
+          .as_ref()
+          .unwrap()
+          .to_file_path(project_root)
+          .unwrap(),
+      )
+      .unwrap()
     });
 
     let lines = code

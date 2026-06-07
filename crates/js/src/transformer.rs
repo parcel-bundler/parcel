@@ -21,13 +21,13 @@ impl Transformer for JsTransformer {
   fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options)?;
     let resolver = parcel_resolver::Resolver::parcel(
-      &options.project_root.to_file_path()?,
+      &options.project_root.to_file_path(&options.project_root)?,
       parcel_resolver::Cache::new(options.input_fs.clone()),
     );
 
     let url = asset.loc.url.clone();
     let env = asset.target.clone();
-    let resolve_from = asset.loc.url.to_file_path()?;
+    let resolve_from = asset.loc.url.to_file_path(&options.project_root)?;
     let macro_deps = Arc::new(RefCell::new(Vec::new()));
     let macro_deps_cloned = macro_deps.clone();
     let call_macro = move |src: String, export, args, loc| {
@@ -507,13 +507,13 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
   }
 
   let resolver = parcel_resolver::Resolver::parcel(
-    &options.project_root.to_file_path()?,
+    &options.project_root.to_file_path(&options.project_root)?,
     parcel_resolver::Cache::new(options.input_fs.clone()),
   );
 
   let invalidations = Invalidations::default();
   let pkg = resolver.find_package(
-    &resolver.cache().get(asset.loc.url.to_file_path()?),
+    &resolver.cache().get(asset.loc.url.to_file_path(&options.project_root)?),
     &invalidations,
   );
   let mut react_refresh = false;
@@ -551,7 +551,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
     let mut tsconfig_jsx_import_source = None;
     let mut tsconfig_jsx_factory = None;
     if let Some(tsconfig) = resolver.find_tsconfig(
-      &resolver.cache().get(asset.loc.url.to_file_path()?),
+      &resolver.cache().get(asset.loc.url.to_file_path(&options.project_root)?),
       &invalidations,
     ) {
       if let Ok(tsconfig) = &*tsconfig {
@@ -673,7 +673,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
   let mut inline_constants = false;
   let mut inline_env = InlineEnvironment::default();
   if let Some(root_pkg) = resolver.find_package(
-    &resolver.cache().get(options.project_root.to_file_path()?),
+    &resolver.cache().get(options.project_root.to_file_path(&options.project_root)?),
     &invalidations,
   ) {
     if let Ok(root_pkg) = &*root_pkg {
@@ -715,12 +715,12 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
   }
 
   Ok(Config {
-    filename: asset.loc.url.to_file_path()?.to_string_lossy().into_owned(),
+    filename: asset.loc.url.to_file_path(&options.project_root)?.to_string_lossy().into_owned(),
     code: asset.content.read()?,
     module_id: asset.id(),
     project_root: options
       .project_root
-      .to_file_path()?
+      .to_file_path(&options.project_root)?
       .to_string_lossy()
       .into_owned(),
     context: match &asset.target.environment {

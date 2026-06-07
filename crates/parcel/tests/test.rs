@@ -142,7 +142,7 @@ fn bundle_with_options(
     cwd: cwd.to_owned(),
   };
 
-  parcel::build(entries, options)
+  parcel::build(&entries, options)
 }
 
 fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJson) {
@@ -173,7 +173,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             .expect_asset()
             .loc
             .url
-            .to_file_path()
+            .to_file_path(&bundle_graph.project_root)
             .unwrap()
             .file_name()
             .unwrap()
@@ -196,7 +196,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       );
       let found = found.unwrap();
       if !found.contains.is_empty() {
-        let contents = output_fs.read_to_string(&bundle.dist_path()).unwrap();
+        let contents = output_fs
+          .read_to_string(&bundle.dist_path(&bundle_graph.project_root))
+          .unwrap();
         for substring in &found.contains {
           assert!(
             contents.contains(substring),
@@ -221,7 +223,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       }
 
       let is_library = bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY);
-      let path = bundle.dist_path();
+      let path = bundle.dist_path(&bundle_graph.project_root);
       match &bundle.ty {
         AssetType::Js => {
           if is_library {
@@ -252,7 +254,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         AssetType::Html => {
           let deps = parcel_html::transform_html(parcel_html::TransformOptions {
             code: output_fs.read(&path).unwrap(),
-            file_path: path.clone(),
+            url: bundle.dist_url(),
             xml: false,
             target: Default::default(),
             hmr: false,
@@ -271,7 +273,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                   let b = bundle_graph
                     .bundles
                     .iter()
-                    .find(|b| b.dist_path() == resolved)
+                    .find(|b| b.dist_path(&bundle_graph.project_root) == resolved)
                     .unwrap();
                   if let Some(m) = b.main_entry_asset {
                     main = Some(bundle_graph.asset_graph.assets[m].expect_asset().id());
@@ -321,7 +323,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                 .expect_asset()
                 .loc
                 .url
-                .to_file_path()
+                .to_file_path(&bundle_graph.project_root)
                 .unwrap()
                 .file_prefix()
                 .unwrap()
@@ -335,14 +337,20 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         .expect("could not find bundle");
 
       if update_snapshots {
-        let bytes = output_fs.read(&bundle.dist_path()).unwrap();
+        let bytes = output_fs
+          .read(&bundle.dist_path(&bundle_graph.project_root))
+          .unwrap();
         std::fs::write(entry.path(), bytes).unwrap();
         eprintln!("Wrote snapshot: {:?}", entry.path());
       } else if bundle.ty.is_binary() {
-        let actual_bytes = output_fs.read(&bundle.dist_path()).unwrap();
+        let actual_bytes = output_fs
+          .read(&bundle.dist_path(&bundle_graph.project_root))
+          .unwrap();
         assert_eq!(actual_bytes, expected_bytes, "{:?}", entry.file_name());
       } else {
-        let actual_content = output_fs.read_to_string(&bundle.dist_path()).unwrap();
+        let actual_content = output_fs
+          .read_to_string(&bundle.dist_path(&bundle_graph.project_root))
+          .unwrap();
         assert_eq!(
           actual_content,
           std::str::from_utf8(&expected_bytes).unwrap(),

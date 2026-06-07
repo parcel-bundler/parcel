@@ -175,10 +175,12 @@ impl CssContent {
       for source_index in 0..source_map.get_sources().len() {
         if matches!(source_map.get_source_content(source_index as u32), Ok(s) if s.len() == 0) {
           let path = source_map.get_source(source_index as u32).unwrap();
-          if let Ok(code) = options
-            .input_fs
-            .read_to_string(&options.project_root.to_file_path()?.join(path))
-          {
+          if let Ok(code) = options.input_fs.read_to_string(
+            &options
+              .project_root
+              .join(path)
+              .to_file_path(&options.project_root)?,
+          ) {
             let _ = source_map.set_source_content(source_index, &code);
           }
         }

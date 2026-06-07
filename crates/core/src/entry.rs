@@ -22,7 +22,7 @@ pub struct Entry {
 }
 
 pub fn resolve_entries(
-  entries: Vec<String>,
+  entries: &Vec<String>,
   options: &BuildOptions,
 ) -> Result<(Vec<Entry>, PathBuf), Diagnostic> {
   let mut paths = Vec::new();
@@ -33,11 +33,12 @@ pub fn resolve_entries(
   }
 
   let project_root = find_project_root(&paths, &options.cwd);
+  let project_root_url = SourceUrl::from_absolute_directory_path(&project_root)?;
 
   let mut entries = EntryResolver::new();
   for path in paths {
     if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
-      entries.resolve_package_entries(&*options.input_fs, path)?;
+      entries.resolve_package_entries(&*options.input_fs, path, &project_root_url)?;
     } else {
       let mut flags = EnvironmentFlags::empty();
       flags.set(
@@ -78,12 +79,12 @@ pub fn resolve_entries(
         engines,
         flags,
         output_format,
-        dist_dir: SourceUrl::from_path(&project_root.join("dist"))?,
+        dist_dir: SourceUrl::from_directory_path(&project_root.join("dist"), &project_root_url)?,
         ..Default::default()
       });
 
       entries.add_entry(Entry {
-        url: SourceUrl::from_path(&path)?,
+        url: SourceUrl::from_path(&path, &project_root_url)?,
         target: env,
         dist_entry: None,
         loc: None,
@@ -129,6 +130,7 @@ impl EntryResolver {
     &mut self,
     fs: &dyn FileSystem,
     dir: PathBuf,
+    project_root: &SourceUrl,
   ) -> Result<(), Diagnostic> {
     let pkg_path = dir.join("package.json");
     let contents = fs.read(&pkg_path)?;
@@ -142,7 +144,7 @@ impl EntryResolver {
     };
 
     if let Some(exports) = json.get("exports") {
-      self.extract_exports(fs, &dir, &json, exports, Vec::new(), &context)?;
+      self.extract_exports(fs, &dir, &json, exports, Vec::new(), &context, project_root)?;
     }
 
     if let Some(Value::String(source)) = json.get("source") {
@@ -159,7 +161,7 @@ impl EntryResolver {
 
           if let Some(child) = context.child(&json, field) {
             let (dist_dir, dist_entry) = dist_dir_entry(&dir, &main, &dir.join(source));
-            let mut env = child.to_env(&json, &dist_dir, &dist_entry)?;
+            let mut env = child.to_env(&json, &dist_dir, &dist_entry, project_root)?;
             if *cond == ExportsCondition::MODULE {
               env.output_format = OutputFormat::Esmodule;
             }
@@ -167,7 +169,7 @@ impl EntryResolver {
             let env = self.target(env);
 
             self.add_entry(Entry {
-              url: SourceUrl::from_path(&dir.join(source))?,
+              url: SourceUrl::from_path(&dir.join(source), project_root)?,
               target: env,
               dist_entry: Some(dist_entry),
               asset: None,
@@ -180,9 +182,9 @@ impl EntryResolver {
       if self.entries.is_empty() {
         for source in glob(fs, source, &dir) {
           self.add_entry(Entry {
-            url: SourceUrl::from_path(&source)?,
+            url: SourceUrl::from_path(&source, project_root)?,
             target: Arc::new(Target {
-              dist_dir: SourceUrl::from_path(&dir)?,
+              dist_dir: SourceUrl::from_directory_path(&dir, project_root)?,
               ..Default::default()
             }),
             dist_entry: None,
@@ -204,6 +206,7 @@ impl EntryResolver {
     value: &Value,
     source: Vec<(PathBuf, Option<String>)>,
     context: &ExportsContext,
+    project_root: &SourceUrl,
   ) -> Result<(), Diagnostic> {
     if let Value::Object(exports) = value {
       let source = if let Some(Value::String(source)) = value.get("source") {
@@ -244,10 +247,10 @@ impl EntryResolver {
 
         if !key.starts_with('.') {
           if let Some(child) = context.child(pkg, key) {
-            self.extract_exports(fs, dir, pkg, value, source.clone(), &child)?;
+            self.extract_exports(fs, dir, pkg, value, source.clone(), &child, project_root)?;
           }
         } else {
-          self.extract_exports(fs, dir, pkg, value, source.clone(), context)?;
+          self.extract_exports(fs, dir, pkg, value, source.clone(), context, project_root)?;
         }
       }
     } else if let Value::String(value) = value {
@@ -260,10 +263,10 @@ impl EntryResolver {
           };
 
           let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, &source);
-          let env = self.target(context.to_env(pkg, &dist_dir, &dist_entry)?);
+          let env = self.target(context.to_env(pkg, &dist_dir, &dist_entry, project_root)?);
 
           self.add_entry(Entry {
-            url: SourceUrl::from_path(&source)?,
+            url: SourceUrl::from_path(&source, project_root)?,
             target: env,
             dist_entry: Some(dist_entry),
             asset: None,
@@ -357,7 +360,13 @@ impl<'a> ExportsContext<'a> {
     })
   }
 
-  fn to_env(&self, pkg: &Value, dir: &Path, entry: &str) -> Result<Target, Diagnostic> {
+  fn to_env(
+    &self,
+    pkg: &Value,
+    dir: &Path,
+    entry: &str,
+    project_root: &SourceUrl,
+  ) -> Result<Target, Diagnostic> {
     let context = if let Some(Value::String(context)) = self.context {
       Environment::try_from(context.as_str())?
     } else if self.condition.contains(ExportsCondition::REACT_SERVER) {
@@ -426,7 +435,7 @@ impl<'a> ExportsContext<'a> {
       loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
-      dist_dir: SourceUrl::from_path(dir)?,
+      dist_dir: SourceUrl::from_directory_path(dir, project_root)?,
       public_url: String::new(),
     })
   }
@@ -556,7 +565,7 @@ mod tests {
       .unwrap();
     let fs = Arc::new(fs);
     let (result, _) = resolve_entries(
-      vec!["/root".into()],
+      &vec!["/root".into()],
       &crate::BuildOptions {
         input_fs: fs.clone(),
         output_fs: fs,

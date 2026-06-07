@@ -20,7 +20,7 @@ mod server;
 mod toml;
 mod yaml;
 
-pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph, DiagnosticList> {
+pub fn build(entries: &Vec<String>, options: BuildOptions) -> Result<BundleGraph, DiagnosticList> {
   let start = std::time::Instant::now();
   let factory = DefaultPluginFactory::new(options.input_fs.clone());
   match parcel_core::build(entries, options, &factory) {
@@ -32,9 +32,9 @@ pub fn build(entries: Vec<String>, options: BuildOptions) -> Result<BundleGraph,
   }
 }
 
-pub fn watch(entries: Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
-  let (_, project_root) = resolve_entries(entries.clone(), &options)?;
-  let _ = build(entries.clone(), options.clone());
+pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
+  let (_, project_root) = resolve_entries(entries, &options)?;
+  let _ = build(entries, options.clone());
 
   let watcher = parcel_watcher::watch(&project_root);
   while let Ok(events) = watcher.recv() {
@@ -43,35 +43,35 @@ pub fn watch(entries: Vec<String>, options: BuildOptions) -> Result<(), Diagnost
       .iter()
       .any(|e| !e.path.as_os_str().to_str().unwrap().contains("dist"))
     {
-      let _ = build(entries.clone(), options.clone());
+      let _ = build(entries, options.clone());
     }
   }
 
   Ok(())
 }
 
-pub fn serve(entries: Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
-  let graph = build(entries.clone(), options.clone())?; // TODO
+pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
+  let graph = build(entries, options.clone())?; // TODO
   let server = server::serve_dir(
     &graph.asset_graph.entries[0]
       .target
       .dist_dir
-      .to_file_path()?,
+      .to_file_path(&graph.project_root)?,
   );
 
-  let (_, project_root) = resolve_entries(entries.clone(), &options)?;
+  let (_, project_root) = resolve_entries(&entries, &options)?;
   let watcher = parcel_watcher::watch(&project_root);
   while let Ok(events) = watcher.recv() {
     if events
       .iter()
       .any(|e| !e.path.as_os_str().to_str().unwrap().contains("dist"))
     {
-      let result = build(entries.clone(), options.clone());
+      let result = build(entries, options.clone());
       match result {
         Ok(graph) => {
           let changed_urls: HashSet<_> = events
             .iter()
-            .map(|e| SourceUrl::from_path(e.path.as_path()).unwrap())
+            .map(|e| SourceUrl::from_path(e.path.as_path(), &graph.project_root).unwrap())
             .collect();
 
           // TODO: also include new assets

@@ -19,12 +19,12 @@ use typed_arena::Arena;
 pub fn collect_dependencies<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
-  file_path: PathBuf,
+  url: SourceUrl,
   ty: AssetType,
   target: Arc<Target>,
   hmr: bool,
 ) -> (Vec<Dependency>, Vec<Asset>, Vec<Diagnostic>) {
-  let mut collector = DependencyCollector::new(arena, file_path.clone(), ty, target);
+  let mut collector = DependencyCollector::new(arena, url, ty, target);
 
   dom.walk(&mut |node| match &node.data {
     NodeData::Element { name, .. } => {
@@ -84,7 +84,7 @@ pub fn collect_dependencies<'arena>(
         target: collector.target.clone(),
         bundle_behavior: BundleBehavior::None,
         loc: SourceLocation {
-          url: SourceUrl::from_path(&file_path).unwrap(),
+          url: collector.url.clone(),
           start: Default::default(),
           end: Default::default(),
         },
@@ -113,7 +113,7 @@ pub fn collect_dependencies<'arena>(
 
 struct DependencyCollector<'arena> {
   arena: &'arena Arena<Node<'arena>>,
-  file_path: PathBuf,
+  url: SourceUrl,
   ty: AssetType,
   target: Arc<Target>,
   deps: Vec<Dependency>,
@@ -126,13 +126,13 @@ struct DependencyCollector<'arena> {
 impl<'arena> DependencyCollector<'arena> {
   fn new(
     arena: &'arena Arena<Node<'arena>>,
-    file_path: PathBuf,
+    url: SourceUrl,
     ty: AssetType,
     target: Arc<Target>,
   ) -> Self {
     DependencyCollector {
       arena,
-      file_path,
+      url,
       ty,
       target,
       deps: Vec::new(),
@@ -159,7 +159,7 @@ impl<'arena> DependencyCollector<'arena> {
 
   fn create_loc(&self, line: u32) -> Option<SourceLocation> {
     Some(SourceLocation {
-      url: SourceUrl::from_path(&self.file_path).unwrap(),
+      url: self.url.clone(),
       start: Location { line, column: 1 },
       end: Location { line, column: 2 },
     })
@@ -170,7 +170,7 @@ impl<'arena> DependencyCollector<'arena> {
       message: message.into(),
       origin: None,
       code_frames: vec![CodeFrame {
-        url: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+        url: Some(self.url.clone()),
         code: None,
         language: Some(self.ty.clone()),
         code_highlights: vec![CodeHighlight::from_loc(
@@ -227,7 +227,7 @@ impl<'arena> DependencyCollector<'arena> {
             bundle_behavior: BundleBehavior::None,
             placeholder: Default::default(),
             loc: self.create_loc(node.line),
-            resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+            resolve_from: Some(self.url.clone()),
             range: None,
             conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
@@ -319,7 +319,7 @@ impl<'arena> DependencyCollector<'arena> {
               bundle_behavior,
               placeholder: Default::default(),
               loc: self.create_loc(node.line),
-              resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+              resolve_from: Some(self.url.clone()),
               range: None,
               conditions: ExportsCondition::empty(),
               resolution: DependencyResolution::None,
@@ -339,7 +339,7 @@ impl<'arena> DependencyCollector<'arena> {
             bundle_behavior,
             placeholder: Default::default(),
             loc: self.create_loc(node.line),
-            resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+            resolve_from: Some(self.url.clone()),
             range: None,
             conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
@@ -646,7 +646,7 @@ impl<'arena> DependencyCollector<'arena> {
           bundle_behavior: BundleBehavior::None,
           placeholder: None,
           loc: self.create_loc(line),
-          resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+          resolve_from: Some(self.url.clone()),
           range: None,
           conditions: ExportsCondition::empty(),
           resolution: DependencyResolution::None,
@@ -681,7 +681,7 @@ impl<'arena> DependencyCollector<'arena> {
       placeholder: Default::default(),
       loc: self.create_loc(line),
       range: None,
-      resolve_from: Some(SourceUrl::from_path(&self.file_path).unwrap()),
+      resolve_from: Some(self.url.clone()),
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
     };

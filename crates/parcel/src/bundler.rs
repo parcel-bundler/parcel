@@ -7,7 +7,7 @@ use fixedbitset::FixedBitSet;
 use parcel_core::{
   AssetGraph, AssetNode, Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler,
   DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags, Priority,
-  SpecifierType,
+  SourceUrl, SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -250,6 +250,7 @@ impl Bundler for DefaultBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
+      project_root: SourceUrl::default(),
     })
   }
 }

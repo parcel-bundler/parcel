@@ -1,4 +1,4 @@
-use parcel_core::{BuildOptions, OsFileSystem};
+use parcel_core::{BuildOptions, OsFileSystem, SourceUrl};
 use std::process::ExitCode;
 use std::{collections::HashMap, sync::Arc};
 
@@ -64,11 +64,11 @@ pub fn main() -> ExitCode {
   };
 
   let res = match cmd {
-    Command::Build => parcel::build(entries, options).map(|_| ()),
-    Command::Watch => parcel::watch(entries, options),
-    Command::Serve => parcel::serve(entries, options),
+    Command::Build => parcel::build(&entries, options).map(|_| ()),
+    Command::Watch => parcel::watch(&entries, options),
+    Command::Serve => parcel::serve(&entries, options),
     Command::Targets => {
-      let entries = parcel_core::resolve_entries(entries, &options).unwrap();
+      let entries = parcel_core::resolve_entries(&entries, &options).unwrap();
       println!("{:#?}", entries);
       return ExitCode::from(0);
     }
@@ -77,8 +77,19 @@ pub fn main() -> ExitCode {
   match res {
     Ok(_) => {}
     Err(err) => {
+      let mut paths = Vec::new();
+      let cwd = std::env::current_dir().unwrap();
+      for entry in entries {
+        for path in parcel_core::glob(&OsFileSystem {}, &entry, &cwd) {
+          paths.push(path);
+        }
+      }
+      let project_root =
+        SourceUrl::from_absolute_directory_path(&parcel_core::find_project_root(&paths, &cwd))
+          .unwrap();
+
       let mut stderr = std::io::stderr();
-      err.report(&mut stderr).unwrap();
+      err.report(&mut stderr, &project_root).unwrap();
       return ExitCode::from(1);
     }
   }

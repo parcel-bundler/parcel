@@ -57,7 +57,7 @@ pub fn build_asset_graph(
       },
       ty: AssetType::from_url(&entry.url),
       content: Arc::new(FileContent::new(
-        entry.url.to_file_path()?,
+        entry.url.to_file_path(&options.project_root)?,
         options.input_fs.clone(),
       )),
       target: entry.target.clone(),

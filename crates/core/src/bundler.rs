@@ -15,6 +15,7 @@ pub fn bundle(
   options: &ParcelOptions,
 ) -> Result<BundleGraph, DiagnosticList> {
   let mut bundle_graph = config.bundler.bundle(asset_graph)?;
+  bundle_graph.project_root = options.project_root.clone();
 
   let mut seen_bundles = HashSet::new();
   let mut duplicate_bundles = HashSet::new();
@@ -30,12 +31,11 @@ pub fn bundle(
 
     let bundle = &bundle_graph.bundles[i];
     if bundle.bundle_behavior != BundleBehavior::Inline {
-      let name = bundle.name.as_ref().unwrap();
-      let full_path = bundle.target.dist_dir.to_file_path()?.join(&name);
-      if seen_bundles.contains(&full_path) {
-        duplicate_bundles.insert(full_path);
+      let full_url = bundle.dist_url();
+      if seen_bundles.contains(&full_url) {
+        duplicate_bundles.insert(full_url);
       } else {
-        seen_bundles.insert(full_path);
+        seen_bundles.insert(full_url);
       }
     }
   }
@@ -43,12 +43,7 @@ pub fn bundle(
   if !duplicate_bundles.is_empty() {
     let mut duplicates = duplicate_bundles
       .into_iter()
-      .map(|p| {
-        p.strip_prefix(&options.cwd)
-          .unwrap_or_else(|_| &p)
-          .to_string_lossy()
-          .to_string()
-      })
+      .map(|p| p.path().to_string())
       .collect::<Vec<_>>();
     duplicates.sort();
 

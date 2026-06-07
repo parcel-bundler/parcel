@@ -112,12 +112,12 @@ pub fn transform(
 }
 
 fn relative_path<'a>(url: &'a SourceUrl, project_root: &SourceUrl, ty: &AssetType) -> Cow<'a, str> {
-  let mut relative_path = Cow::Borrowed(
-    url
-      .path()
-      .strip_prefix(&project_root.path())
-      .unwrap_or(url.path()),
-  );
+  let mut relative_path = Cow::Borrowed(if url.url().scheme() == "project" {
+    // project:// URLs are already relative to project root; strip the leading '/'
+    url.path().trim_start_matches('/')
+  } else {
+    url.path().strip_prefix(project_root.path()).unwrap_or(url.path())
+  });
   let (base, ext) = relative_path
     .rsplit_once('.')
     .unwrap_or((relative_path.as_ref(), ""));

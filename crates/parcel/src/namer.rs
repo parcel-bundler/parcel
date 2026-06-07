@@ -38,7 +38,13 @@ impl Namer for DefaultNamer {
         if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           let relative = relative_path(
             asset,
-            &bundle.target.dist_dir.to_file_path()?.parent().unwrap(),
+            &bundle
+              .target
+              .dist_dir
+              .to_file_path(&options.project_root)?
+              .parent()
+              .unwrap(),
+            &options.project_root,
           )?
           .with_extension("");
           let name = relative.to_str().unwrap();
@@ -47,7 +53,6 @@ impl Namer for DefaultNamer {
             bundle,
             name,
             ext,
-            &options.project_root,
           )));
         } else {
           if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
@@ -65,31 +70,30 @@ impl Namer for DefaultNamer {
                     .expect_asset()
                     .loc
                     .url
-                    .to_file_path()
+                    .to_file_path(&options.project_root)
                     .unwrap()
                 }),
             );
             if let Some(entry_root) = entry_root {
-              let relative = relative_path(asset, &entry_root)?.with_extension("");
+              let relative =
+                relative_path(asset, &entry_root, &options.project_root)?.with_extension("");
               let name = relative.to_str().unwrap();
               return Ok(Some(format_name(
                 &bundle_graph.asset_graph,
                 bundle,
                 name,
                 ext,
-                &options.project_root,
               )));
             }
           }
 
-          let file_path = asset.loc.url.to_file_path()?;
+          let file_path = asset.loc.url.to_file_path(&options.project_root)?;
           let name = file_path.file_prefix().unwrap().to_str().unwrap();
           return Ok(Some(format_name(
             &bundle_graph.asset_graph,
             bundle,
             name,
             ext,
-            &options.project_root,
           )));
         }
       }
@@ -97,43 +101,30 @@ impl Namer for DefaultNamer {
 
     Ok(Some(format!(
       "{:016x}.{}",
-      hash_bundle(&bundle_graph.asset_graph, bundle, &options.project_root),
+      hash_bundle(&bundle_graph.asset_graph, bundle),
       ext
     )))
   }
 }
 
-fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &SourceUrl) -> u64 {
+fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle) -> u64 {
   let mut hash = Xxh3Default::new();
   for asset in &bundle.assets {
     if let AssetNode::Asset(asset) = &asset_graph.assets[*asset] {
-      asset.loc.url.relative(project_root).hash(&mut hash);
-      asset.loc.start.hash(&mut hash);
-      asset.loc.end.hash(&mut hash);
-      // Hash Target fields portably: relativize dist_dir and loc.url.
-      let t = &asset.target;
-      t.environment.hash(&mut hash);
-      t.output_format.hash(&mut hash);
-      t.source_type.hash(&mut hash);
-      t.flags.hash(&mut hash);
-      t.source_map.hash(&mut hash);
-      if let Some(loc) = &t.loc {
-        loc.url.relative(project_root).hash(&mut hash);
-        loc.start.hash(&mut hash);
-        loc.end.hash(&mut hash);
-      }
-      t.include_node_modules.hash(&mut hash);
-      t.engines.hash(&mut hash);
-      t.dist_dir.relative(project_root).hash(&mut hash);
-      t.public_url.hash(&mut hash);
+      asset.loc.hash(&mut hash);
+      asset.target.hash(&mut hash);
     }
   }
 
   hash.digest()
 }
 
-fn relative_path(asset: &Asset, from: &Path) -> Result<PathBuf, Diagnostic> {
-  let path = asset.loc.url.to_file_path()?;
+fn relative_path(
+  asset: &Asset,
+  from: &Path,
+  project_root: &SourceUrl,
+) -> Result<PathBuf, Diagnostic> {
+  let path = asset.loc.url.to_file_path(project_root)?;
   Ok(
     pathdiff::diff_paths(path, from)
       .unwrap()
@@ -146,22 +137,11 @@ fn relative_path(asset: &Asset, from: &Path) -> Result<PathBuf, Diagnostic> {
   )
 }
 
-fn format_name(
-  asset_graph: &AssetGraph,
-  bundle: &Bundle,
-  name: &str,
-  ext: &str,
-  project_root: &SourceUrl,
-) -> String {
+fn format_name(asset_graph: &AssetGraph, bundle: &Bundle, name: &str, ext: &str) -> String {
   if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
     format!("{}.{}", name, ext)
   } else {
-    format!(
-      "{}-{:016x}.{}",
-      name,
-      hash_bundle(asset_graph, bundle, project_root),
-      ext
-    )
+    format!("{}-{:016x}.{}", name, hash_bundle(asset_graph, bundle), ext)
   }
 }
 

@@ -39,8 +39,8 @@ impl MacroContext {
     let ty = AssetType::from_extension(&ty);
     let mut content: String = asset.get("content").unwrap();
     let mut source_map =
-      SourceMap::new(self.project_root.to_file_path().unwrap().to_str().unwrap());
-    source_map.add_source(self.url.to_file_path().unwrap().to_str().unwrap());
+      SourceMap::new(self.project_root.to_file_path(&self.project_root).unwrap().to_str().unwrap());
+    source_map.add_source(self.url.to_file_path(&self.project_root).unwrap().to_str().unwrap());
     for (line, _) in content.lines().enumerate() {
       source_map.add_mapping(
         line as u32,

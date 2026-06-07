@@ -76,6 +76,7 @@ impl Bundler for LibraryBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
+      project_root: SourceUrl::default(),
     })
   }
 }

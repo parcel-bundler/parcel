@@ -50,11 +50,11 @@ pub use target::*;
 pub use transformer::Transformer;
 
 pub fn build(
-  entries: Vec<String>,
+  entries: &Vec<String>,
   options: BuildOptions,
   factory: &dyn PluginFactory,
 ) -> Result<BundleGraph, DiagnosticList> {
-  let (entries, project_root) = resolve_entries(entries, &options)?;
+  let (entries, project_root) = resolve_entries(&entries, &options)?;
 
   let mut env = options.env;
   load_dotenv(&project_root, &*options.input_fs, &mut env)?;
@@ -79,7 +79,7 @@ pub fn build(
     env,
     mode: options.mode,
     log_level: options.log_level,
-    project_root: SourceUrl::from_directory_path(&project_root)?,
+    project_root: SourceUrl::from_absolute_directory_path(&project_root)?,
     input_fs: options.input_fs,
     output_fs: options.output_fs,
     cwd: options.cwd,
@@ -111,9 +111,7 @@ pub fn build(
     if bundle.bundle_behavior != BundleBehavior::Inline {
       let content = get_bundle_content(&config, &bundle_graph, &bundle, opts).unwrap();
       // TODO: replace hash references
-      let name = bundle.name.as_ref().unwrap();
-      let dist_dir = bundle.target.dist_dir.to_file_path().unwrap();
-      let path = dist_dir.join(name);
+      let path = bundle.dist_path(&opts.project_root);
       tx.send((path, content)).unwrap();
     }
   });

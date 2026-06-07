@@ -60,9 +60,8 @@ impl Bundle {
     })
   }
 
-  pub fn dist_path(&self) -> PathBuf {
-    let dist_dir = self.target.dist_dir.to_file_path().unwrap();
-    dist_dir.join(self.name.as_ref().unwrap())
+  pub fn dist_path(&self, project_root: &SourceUrl) -> PathBuf {
+    self.dist_url().to_file_path(project_root).unwrap()
   }
 
   pub fn dist_url(&self) -> SourceUrl {

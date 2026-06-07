@@ -65,12 +65,12 @@ impl Resolver for DefaultResolver {
     }
 
     let mut resolver =
-      parcel_resolver::Resolver::parcel(&options.project_root.to_file_path()?, &self.cache);
+      parcel_resolver::Resolver::parcel(&options.project_root.to_file_path(&options.project_root)?, &self.cache);
     resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
     let mut res = resolver.resolve_with_options(
       specifier,
-      &resolve_from.to_file_path()?,
+      &resolve_from.to_file_path(&options.project_root)?,
       match dep.specifier_type {
         SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
         SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
@@ -102,7 +102,7 @@ impl Resolver for DefaultResolver {
     match res.result {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
-          let url = SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..]))?;
+          let url = SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..]), &options.project_root)?;
           let ty = AssetType::from_url(&url);
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
             loc: SourceLocation {
@@ -228,7 +228,7 @@ impl Resolver for DefaultResolver {
               ),
               origin: Some("@parcel/resolver-default".into()),
               code_frames: vec![CodeFrame {
-                url: Some(SourceUrl::from_path(&package_path)?),
+                url: Some(SourceUrl::from_path(&package_path, &options.project_root)?),
                 code: None,
                 language: Some(AssetType::Json),
                 code_highlights: vec![
@@ -257,7 +257,7 @@ impl Resolver for DefaultResolver {
             message: format!("Error parsing JSON"),
             origin: Some("@parcel/resolver-default".into()),
             code_frames: vec![CodeFrame {
-              url: Some(SourceUrl::from_path(&e.path)?),
+              url: Some(SourceUrl::from_path(&e.path, &options.project_root)?),
               code: None,
               language: Some(AssetType::Json),
               code_highlights: vec![CodeHighlight {

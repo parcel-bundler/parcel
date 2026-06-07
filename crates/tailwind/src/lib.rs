@@ -14,7 +14,7 @@ const COMPILE_JS: &'static str = include_str!("compile.js");
 
 impl Transformer for TailwindTransformer {
   fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
-    let project_root_path = options.project_root.to_file_path()?;
+    let project_root_path = options.project_root.to_file_path(&options.project_root)?;
     let mut scanner = Scanner::new(vec![PublicSourceEntry {
       base: project_root_path.to_string_lossy().into_owned(),
       pattern: "**/*".into(),
@@ -26,7 +26,7 @@ impl Transformer for TailwindTransformer {
     let css = String::from_utf8(css_bytes).map_err(Diagnostic::from)?;
     // TODO: skip if tailwind is not present?
 
-    let asset_path = asset.loc.url.to_file_path()?;
+    let asset_path = asset.loc.url.to_file_path(&options.project_root)?;
     let from = asset_path.to_string_lossy().into_owned();
     let base = asset_path
       .parent()
