@@ -1,0 +1,5 @@
+{
+  "description": "SVG compiled to JSX should share React with other JS files (not duplicate)",
+  "input": "index.js",
+  "output": "function"
+}

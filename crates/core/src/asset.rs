@@ -293,7 +293,9 @@ impl AssetType {
 
   pub fn is_js(&self) -> bool {
     use AssetType::*;
-    matches!(self, Js | Jsx | Ts | Tsx | Mdx | Json | Toml | Yaml)
+    // SVG is included because it can be compiled to a React component (JSX),
+    // in which case its output format matters for dep propagation.
+    matches!(self, Js | Jsx | Ts | Tsx | Mdx | Json | Toml | Yaml | Svg)
   }
 
   pub fn is_binary(&self) -> bool {
