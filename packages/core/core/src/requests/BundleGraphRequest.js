@@ -65,6 +65,10 @@ type BundleGraphRequestInput = {|
 
 type BundleGraphRequestResult = {|
   bundleGraph: InternalBundleGraph,
+  // Mirrors `BundleGraphResult.incomplete`. The previous-result read at
+  // `previousBundleGraphResult` checks this to refuse reuse of a partial
+  // graph cached after a build error (see #9366).
+  incomplete?: boolean,
 |};
 
 type RunInput = {|
@@ -77,6 +81,10 @@ export type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
+  // Set when the result is cached after a build error (see #9366). Such a
+  // bundle graph may be missing names/runtimes and must not be reused as an
+  // incremental baseline.
+  incomplete?: boolean,
 |};
 
 type BundleGraphRequest = {|
@@ -272,6 +280,12 @@ class BundlerRunner {
         // if the bundle graph had an error or was removed, don't fail the build
       }
     }
+    // Refuse to reuse a bundle graph that was cached after a failed build
+    // (see #9366). It may be missing names/runtimes and is not a safe
+    // incremental baseline.
+    if (previousBundleGraphResult?.incomplete) {
+      previousBundleGraphResult = null;
+    }
     if (previousBundleGraphResult == null) {
       graph.safeToIncrementallyBundle = false;
     }
@@ -383,11 +397,16 @@ class BundlerRunner {
       }
     } catch (e) {
       if (internalBundleGraph != null) {
+        // Cached for failure diagnostics (#9366). Tag as incomplete so the next
+        // build does not pick it up as an incremental baseline — the graph may
+        // be missing names/runtimes if we aborted mid-bundling, which would
+        // crash PackagerRunner with `nullthrows(bundle.name)`.
         this.api.storeResult(
           {
             bundleGraph: internalBundleGraph,
             changedAssets: new Map(),
             assetRequests: [],
+            incomplete: true,
           },
           this.cacheKey,
         );

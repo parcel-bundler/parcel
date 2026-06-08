@@ -1034,3 +1034,82 @@ module.exports = {a}
     }
   });
 });
+
+describe('bundle graph cached on build failure', function () {
+  // Regression test for the race surface introduced by #9366.
+  //
+  // When BundleGraphRequest throws after the bundler has already created
+  // bundles (e.g. an AbortSignal fires mid-build because the watcher
+  // observed a file change), the catch block caches the partially-built
+  // bundle graph for diagnostics. Without an `incomplete` marker, the
+  // next BundleGraphRequest picks that graph up via getPreviousResult,
+  // skips nameBundle/applyRuntimes/validateBundles, and crashes
+  // downstream in PackagerRunner where every site that touches
+  // `bundle.name` runs nullthrows.
+  it('does not reuse a bundle graph stored after a failed build', async () => {
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/incremental-bundling');
+    let Bundler = (
+      await packageManager.require('@parcel/bundler-default', __filename)
+    ).default;
+    let originalBundle = Bundler[CONFIG].bundle;
+    let throwOnce = true;
+    // sinon's flow types declare callsFake's fn as returning void, but it
+    // works fine with a promise-returning fn — we need this so the real
+    // bundler can populate internalBundleGraph before we throw.
+    let stub = sinon.stub(Bundler[CONFIG], 'bundle');
+    // $FlowFixMe[incompatible-call]
+    stub.callsFake(async function (opts) {
+      // Drive the real bundler to populate `internalBundleGraph` with
+      // (unnamed) bundles, then throw the way an abort signal would.
+      await originalBundle.call(this, opts);
+      if (throwOnce) {
+        throwOnce = false;
+        throw new Error('simulated abort mid-bundling');
+      }
+    });
+    try {
+      let b = bundler(path.join(fixture, 'index.js'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+        shouldBundleIncrementally: true,
+      });
+      await overlayFS.mkdirp(fixture);
+      subscription = await b.watch();
+
+      let failure = await getNextBuildSuccess(b).then(
+        () => null,
+        e => e,
+      );
+      // The first build should fail because of the injected throw.
+      assert.ok(failure != null, 'expected the first build to fail');
+      assert.equal(throwOnce, false, 'bundler stub should have been invoked');
+
+      // Modify the entry to trigger a second build. Without the fix, this
+      // build picks up the partial bundle graph cached by the catch path
+      // above and crashes with `nullthrows(bundle.name)` somewhere in
+      // PackagerRunner. With the fix, the cached partial graph is tagged
+      // `incomplete: true` and rejected by the reuse check, so a fresh
+      // bundle graph is built and the build succeeds.
+      await overlayFS.writeFile(
+        path.join(fixture, 'index.js'),
+        `import {a} from './a';
+console.log('recovered build', a);`,
+      );
+      let recovered = await getNextBuildSuccess(b);
+
+      for (let bundle of recovered.bundleGraph.getBundles()) {
+        assert.ok(
+          bundle.name != null,
+          `bundle ${bundle.id} should have a name after recovery`,
+        );
+      }
+    } finally {
+      stub.restore();
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
+});
