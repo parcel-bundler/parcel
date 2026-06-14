@@ -104,6 +104,14 @@ impl Content for FileContent {
     }
   }
 
+  fn eq(&self, other: &dyn Content) -> bool {
+    if let Some(other) = other.downcast_ref::<FileContent>() {
+      Arc::ptr_eq(&self.fs, &other.fs) && self.path == other.path
+    } else {
+      false
+    }
+  }
+
   fn hash(&self, mut state: &mut dyn Hasher) {
     self.path.hash(&mut state);
   }
