@@ -19,14 +19,14 @@ pub enum HmrUpdate<'a> {
   Update { assets: Vec<HmrAsset<'a>> },
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 enum Id {
   Asset(String),
   Bundle(String),
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HmrAsset<'a> {
   id: Id,
@@ -142,8 +142,8 @@ impl DevServer {
       let mut output = String::new();
       if asset.ty == AssetType::Js {
         output = format!(
-          "parcelHotUpdate[{}] = function (require, module, exports) {{{}}}",
-          id,
+          "parcelHotUpdate['{}'] = function (require, module, exports) {{{}}}",
+          asset.id(),
           String::from_utf8(asset.content.read().unwrap()).unwrap()
         );
       }

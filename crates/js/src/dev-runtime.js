@@ -133,13 +133,6 @@ function parcelRequire(name, jumped) {
   }
 }
 
-function Module(moduleName) {
-  this.id = moduleName;
-  this.bundle = parcelRequire;
-  this.require = nodeRequire;
-  this.exports = {};
-}
-
 parcelRequire.isParcelRequire = true;
 parcelRequire.Module = Module;
 parcelRequire.modules = modules;
@@ -227,7 +220,7 @@ if (mainEntry) {
 }
 
 var HMR_HOST = null;
-var HMR_PORT = null;
+var HMR_PORT = '1234';
 var HMR_SERVER_PORT = null;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "TODO";

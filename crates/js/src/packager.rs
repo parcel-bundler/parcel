@@ -16,9 +16,10 @@ impl JsContent {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!("runtime.js");
+    const DEV_RUNTIME: &str = include_str!("dev-runtime.js");
 
     if bundle.target.source_type == SourceType::Script {
       assert_eq!(bundle.assets.len(), 1);
@@ -158,7 +159,11 @@ var entries = ["#,
       write!(res, "null;\n")?;
     }
 
-    res.push_str(RUNTIME);
+    res.push_str(if options.mode == BuildMode::Development {
+      DEV_RUNTIME
+    } else {
+      RUNTIME
+    });
 
     Ok(Arc::new(BufferContent::new(res.into_bytes())))
   }
