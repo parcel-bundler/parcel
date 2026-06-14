@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "custom-resolver-rs"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "custom_resolver_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+parcel-plugin = { path = "../../../crates/parcel-plugin" }

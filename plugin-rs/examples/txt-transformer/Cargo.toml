@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "txt-transformer-rs"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "txt_transformer_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+parcel-plugin = { path = "../../../crates/parcel-plugin" }

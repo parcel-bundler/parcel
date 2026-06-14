@@ -1,9 +1,10 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  CPlugin, Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, ParcelConfig, PluginFactory,
+  Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, ParcelConfig, PluginFactory,
   Transformer,
 };
+use parcel_plugin_abi::CPlugin;
 use parcel_css::{CssTransformer, StyleAttrTransformer};
 use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer};
 use parcel_image::ImageTransformer;
@@ -70,10 +71,12 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-native" => {
         if let Some(config) = config {
           if let Some(serde_json::Value::String(lib)) = config.get("lib") {
-            return Ok(Arc::new(CPlugin::new(Path::new(lib))));
+            return Ok(Arc::new(CPlugin::new(Path::new(lib), Some(&config))?));
           }
         }
-        todo!()
+        return Err(
+          Diagnostic::from_message(format!("Could not find transformer {}", name)).into(),
+        );
       }
       _ => {
         // TODO: possibly support exports conditions for platform (e.g. darwin, linux, x64, arm64, etc.)
@@ -84,7 +87,7 @@ impl PluginFactory for DefaultPluginFactory {
           Ok(resolution) => match resolution.resolution {
             Resolution::Path(path) => match path.extension().map(|s| s.as_encoded_bytes()) {
               Some(b"so" | b"dylib" | b"dll") => {
-                return Ok(Arc::new(CPlugin::new(&path)));
+                return Ok(Arc::new(CPlugin::new(&path, config.as_ref())?));
               }
               _ => {
                 return Ok(Arc::new(JsPlugin::new(&path)));
@@ -147,13 +150,38 @@ impl PluginFactory for DefaultPluginFactory {
   fn resolver(
     &self,
     name: &str,
-    _config: Option<serde_json::Value>,
-    _from: &Path,
+    config: Option<serde_json::Value>,
+    from: &Path,
   ) -> Result<Arc<dyn parcel_core::Resolver>, DiagnosticList> {
     Ok(match name {
       "@parcel/resolver-default" => Arc::new(DefaultResolver::new("/".into())),
       "@parcel/resolver-glob" => Arc::new(GlobResolver {}),
+      "@parcel/resolver-native" => {
+        if let Some(config) = config {
+          if let Some(serde_json::Value::String(lib)) = config.get("lib") {
+            return Ok(Arc::new(CPlugin::new(Path::new(lib), Some(&config))?));
+          }
+        }
+        return Err(Diagnostic::from_message(format!("Could not find resolver {}", name)).into());
+      }
       _ => {
+        let resolved = self
+          .resolver
+          .resolve(name, from, parcel_resolver::SpecifierType::Esm);
+        match resolved.result {
+          Ok(resolution) => match resolution.resolution {
+            parcel_resolver::Resolution::Path(path)
+              if matches!(
+                path.extension().map(|s| s.as_encoded_bytes()),
+                Some(b"so" | b"dylib" | b"dll")
+              ) =>
+            {
+              return Ok(Arc::new(CPlugin::new(&path, config.as_ref())?));
+            }
+            _ => {}
+          },
+          _ => {}
+        }
         return Err(Diagnostic::from_message(format!("Could not find resolver {}", name)).into());
       }
     })

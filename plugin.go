@@ -2,25 +2,12 @@
 package main
 
 /*
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#define PARCEL_OMIT_ENTRY_POINTS
+#include "crates/parcel-plugin-abi/plugin.h"
 
-typedef uint64_t Asset;
-
-typedef struct Buffer {
-    uint8_t *data;
-    uintptr_t len;
-    uintptr_t cap;
-} Buffer;
-
-// These are the external C functions your Go code will call.
-extern void parcel_asset_get_content(Buffer *buffer, Asset asset);
-extern void parcel_asset_set_content(Asset asset, const uint8_t *data, uint32_t len);
-extern void parcel_asset_set_type(Asset asset, const char *type);
-extern void parcel_free_buffer(Buffer *buffer);
+#cgo darwin LDFLAGS: -Wl,-undefined,dynamic_lookup
+#cgo linux  LDFLAGS: -Wl,--allow-shlib-undefined
 */
-// #cgo LDFLAGS: -Wl,-undefined,dynamic_lookup
 import "C"
 import (
 	"strings"
@@ -30,14 +17,13 @@ import (
 type Asset C.Asset
 
 func (a Asset) Content() string {
-	var buffer C.Buffer
-	C.parcel_asset_get_content(&buffer, C.Asset(a))
-	if buffer.data == nil {
+	var buf C.Buffer
+	C.parcel_asset_get_content(&buf, C.Asset(a))
+	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buffer)
-	
-	return C.GoStringN((*C.char)(unsafe.Pointer(buffer.data)), C.int(buffer.len))
+	defer C.parcel_free_buffer(&buf)
+	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
 }
 
 func (a Asset) SetContent(content string) {
@@ -46,20 +32,21 @@ func (a Asset) SetContent(content string) {
 }
 
 func (a Asset) SetType(assetType string) {
-	cStr := C.CString(assetType)
-	defer C.free(unsafe.Pointer(cStr))
-	
-	C.parcel_asset_set_type(C.Asset(a), cStr)
+	if len(assetType) == 0 {
+		return
+	}
+	ptr := (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(assetType)))
+	C.parcel_asset_set_type(C.Asset(a), ptr, C.uintptr_t(len(assetType)))
 }
 
 //export parcel_plugin_transform
-func parcel_plugin_transform(cAsset C.Asset) {
+func parcel_plugin_transform(cAsset C.Asset, options C.Options, state unsafe.Pointer, diag *C.Diagnostic) {
+	_ = options
+	_ = state
+	_ = diag
 	asset := Asset(cAsset)
-
 	content := asset.Content()
-	transformed := "export default 'from Go: " + strings.ToUpper(content) + "';"
-
-	asset.SetContent(transformed)
+	asset.SetContent("export default 'from Go: " + strings.ToUpper(content) + "';")
 	asset.SetType("js")
 }
 

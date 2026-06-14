@@ -1,0 +1,9 @@
+language = "C"
+include_guard = "PARCEL_PLUGIN_H"
+cpp_compat = true
+no_includes = true
+sys_includes = ["stdint.h"]
+
+[export]
+include = ["Diagnostic", "ResolveResult", "DependencyFlags"]
+exclude = ["CPlugin"]

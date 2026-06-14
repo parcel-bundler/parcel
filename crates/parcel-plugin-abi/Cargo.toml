@@ -1,0 +1,15 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-plugin-abi"
+version = "0.1.0"
+edition = "2024"
+
+[build-dependencies]
+cbindgen = "0.29"
+bindgen = "0.70"
+
+[dependencies]
+parcel-core = { path = "../core" }
+libloading = "0.9"
+hstr = { version = "1.0.0", features = ["serde"] }
+serde_json = { version = "1.0.149", features = ["preserve_order"] }

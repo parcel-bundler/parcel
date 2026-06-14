@@ -2,7 +2,6 @@ use std::{io::Write, string::FromUtf8Error};
 
 use anstyle::{Ansi256Color, AnsiColor, Color, Style};
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::{AssetType, Location, SourceLocation, SourceUrl};
 

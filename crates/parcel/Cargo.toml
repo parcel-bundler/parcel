@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 parcel-core = { path = "../core" }
+parcel-plugin-abi = { path = "../parcel-plugin-abi" }
 parcel-js = { path = "../js" }
 parcel-resolver = { path = "../parcel-resolver" }
 indexmap = { version = "2.11.0", features = ["serde"] }
