@@ -4,15 +4,41 @@ use std::{
 };
 
 use fixedbitset::FixedBitSet;
+use glob_match::glob_match;
 use parcel_core::{
-  AssetGraph, AssetNode, Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler,
-  DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags, Priority,
-  SourceUrl, SpecifierType,
+  Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
+  Bundler, DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags,
+  Priority, SourceUrl, SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
 
-pub struct DefaultBundler {}
+#[derive(serde::Deserialize)]
+pub struct ManualSharedBundle {
+  assets: Vec<String>,
+  #[serde(default)]
+  types: Vec<AssetType>,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct DefaultBundler {
+  #[serde(default)]
+  manual_shared_bundles: Vec<ManualSharedBundle>,
+}
+
+impl DefaultBundler {
+  fn manual_shared_bundle(&self, asset: &Asset) -> Option<usize> {
+    let path = &asset.loc.url.path()[1..];
+    return self.manual_shared_bundles.iter().position(|b| {
+      if b.types.is_empty() || b.types.contains(&asset.ty) {
+        return b.assets.iter().any(|a| glob_match(a, path));
+      }
+
+      false
+    });
+  }
+}
 
 impl Bundler for DefaultBundler {
   fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
@@ -93,10 +119,16 @@ impl Bundler for DefaultBundler {
     }
 
     #[derive(Hash, PartialEq, Eq)]
-    struct BundleKey<'a> {
-      reachable_roots: &'a FixedBitSet,
-      context: Environment,
-      packager: TypeId,
+    enum BundleKey<'a> {
+      Default {
+        reachable_roots: &'a FixedBitSet,
+        context: Environment,
+        packager: TypeId,
+      },
+      Manual {
+        index: usize,
+        packager: TypeId,
+      },
     }
 
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
@@ -121,10 +153,17 @@ impl Bundler for DefaultBundler {
           referenced_bundles: Vec::new(),
         };
 
-        let key = BundleKey {
-          reachable_roots: &reachable_roots[bundle_root_asset_index],
-          context: asset.target.environment, // TODO: other environment properties?
-          packager: asset.content.type_id(),
+        let key = if let Some(index) = self.manual_shared_bundle(asset) {
+          BundleKey::Manual {
+            index,
+            packager: asset.content.type_id(),
+          }
+        } else {
+          BundleKey::Default {
+            reachable_roots: &reachable_roots[bundle_root_asset_index],
+            context: asset.target.environment, // TODO: other environment properties?
+            packager: asset.content.type_id(),
+          }
         };
 
         let bundle_index = bundles.len();
@@ -141,10 +180,17 @@ impl Bundler for DefaultBundler {
         continue;
       }
 
-      let key = BundleKey {
-        reachable_roots: &reachable_roots[asset_index],
-        context: asset.target.environment, // TODO: other environment properties?
-        packager: asset.content.type_id(),
+      let key = if let Some(index) = self.manual_shared_bundle(asset) {
+        BundleKey::Manual {
+          index,
+          packager: asset.content.type_id(),
+        }
+      } else {
+        BundleKey::Default {
+          reachable_roots: &reachable_roots[asset_index],
+          context: asset.target.environment, // TODO: other environment properties?
+          packager: asset.content.type_id(),
+        }
       };
 
       let bundle_index = if let Some(bundle_index) = shared_bundles.get_mut(&key) {

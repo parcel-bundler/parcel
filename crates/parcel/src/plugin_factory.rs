@@ -4,11 +4,11 @@ use parcel_core::{
   Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, ParcelConfig, PluginFactory,
   Transformer,
 };
-use parcel_plugin_abi::CPlugin;
 use parcel_css::{CssTransformer, StyleAttrTransformer};
 use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer};
 use parcel_image::ImageTransformer;
 use parcel_js::JsTransformer;
+use parcel_plugin_abi::CPlugin;
 use parcel_plugin_js::JsPlugin;
 use parcel_resolver::Resolution;
 use parcel_tailwind::TailwindTransformer;
@@ -108,11 +108,15 @@ impl PluginFactory for DefaultPluginFactory {
   fn bundler(
     &self,
     name: &str,
-    _config: Option<serde_json::Value>,
+    config: Option<serde_json::Value>,
     _from: &Path,
   ) -> Result<Arc<dyn parcel_core::Bundler>, DiagnosticList> {
     if name == "@parcel/bundler-default" {
-      Ok(Arc::new(DefaultBundler {}))
+      Ok(Arc::new(if let Some(config) = config {
+        serde_json::from_value(config)?
+      } else {
+        DefaultBundler::default()
+      }))
     } else if name == "@parcel/bundler-library" {
       Ok(Arc::new(LibraryBundler {}))
     } else {
