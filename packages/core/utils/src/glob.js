@@ -63,7 +63,7 @@ export function globSync(
   };
 
   // $FlowFixMe
-  return fastGlob.sync(normalizeSeparators(p), options);
+  return fastGlob.sync(normalizeSeparators(p), options).sort();
 }
 
 export function glob(
@@ -107,5 +107,7 @@ export function glob(
   };
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-  return fastGlob(normalizeSeparators(p), options);
+  return fastGlob(normalizeSeparators(p), options).then(results =>
+    results.sort(),
+  );
 }
