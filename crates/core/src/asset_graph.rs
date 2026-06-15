@@ -7,13 +7,13 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  EnvironmentFlags, FileContent, ParcelOptions, Priority, SourceLocation, SymbolName,
-  SymbolResolution,
+  EnvironmentFlags, FileContent, InvalidationMap, ParcelOptions, Priority, SourceLocation,
+  SourceUrl, SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AssetNode {
   Deferred {
     request: Arc<AssetRequest>,
@@ -32,181 +32,318 @@ impl AssetNode {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AssetGraph {
   pub assets: Vec<AssetNode>,
   pub entries: Vec<Entry>,
 }
 
-pub fn build_asset_graph(
-  mut entries: Vec<Entry>,
+/// Stateful builder for the asset graph, enabling incremental rebuilds.
+///
+/// The builder owns the persistent asset graph state across builds. After calling
+/// `invalidate()` with the set of changed file URLs, the next call to `build()`
+/// re-transforms only the affected assets and their transitive dependents.
+pub struct AssetGraphBuilder {
+  /// The asset graph nodes, monotonically growing across builds.
+  assets: Vec<AssetNode>,
+  /// Deduplication map: AssetRequest → slot index in `assets`.
+  asset_requests: HashMap<Arc<AssetRequest>, usize>,
+  /// Parallel to `assets`: the original AssetRequest for each slot.
+  /// Used to reset slots back to Deferred during invalidation.
+  requests: Vec<Arc<AssetRequest>>,
+  /// Reverse invalidation map: which assets to re-transform when a file changes.
+  pub invalidation_map: InvalidationMap,
+  /// Entry points. `entry.asset` is set after the first build.
+  entries: Vec<Entry>,
   config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
-) -> Result<AssetGraph, DiagnosticList> {
-  let mut queue = TransformQueue::new(config, options.clone());
+}
 
-  let mut assets: Vec<AssetNode> = Vec::new();
-  let mut asset_requests: HashMap<Arc<AssetRequest>, usize> = HashMap::new();
-
-  for entry in &mut entries {
-    let req = Arc::new(AssetRequest {
-      loc: SourceLocation {
-        url: entry.url.clone(),
-        start: Default::default(),
-        end: Default::default(),
-      },
-      ty: AssetType::from_url(&entry.url),
-      content: Arc::new(FileContent::new(
-        entry.url.to_file_path(&options.project_root)?,
-        options.input_fs.clone(),
-      )),
-      target: entry.target.clone(),
-      pipeline: None,
-      side_effects: true,
-    });
-
-    let index = assets.len();
-    assets.push(AssetNode::Deferred {
-      request: req.clone(),
-      symbols: if entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-        vec![SymbolName::Namespace]
-      } else {
-        Vec::new()
-      },
-      requested: true,
-    });
-    entry.asset = Some(index);
-    asset_requests.insert(req.clone(), index);
-    queue.transform(index, req);
+impl AssetGraphBuilder {
+  pub fn new(entries: Vec<Entry>, config: Arc<ParcelConfig>, options: Arc<ParcelOptions>) -> Self {
+    AssetGraphBuilder {
+      assets: Vec::new(),
+      asset_requests: HashMap::new(),
+      requests: Vec::new(),
+      invalidation_map: InvalidationMap::default(),
+      entries,
+      config,
+      options,
+    }
   }
 
-  while let Some(result) = queue.receive() {
-    match result {
-      RequestResult::Transform(res) => {
-        let mut res = res?;
-        for dep in &mut res.asset.dependencies {
-          let priority = dep.priority;
-          if let DependencyResolution::Deferred(req) = &dep.resolution {
-            if let Some(&index) = asset_requests.get(req) {
-              dep.resolution = DependencyResolution::Asset(index as u32);
+  /// Marks assets as needing re-transformation based on changed file URLs.
+  /// Call before `build()` to trigger an incremental rebuild.
+  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> HashSet<usize> {
+    let mut affected: HashSet<usize> = HashSet::new();
 
-              // Lazy/parallel deps must be transformed even if the package has sideEffects: false,
-              // because the user explicitly requested this module via import().
-              if priority != Priority::Sync {
-                if let AssetNode::Deferred {
-                  requested, request, ..
-                } = &mut assets[index]
-                {
-                  if !*requested {
-                    *requested = true;
-                    queue.transform(index, request.clone());
+    for url in changed {
+      if let Some(indices) = self.invalidation_map.on_file_change.get(url) {
+        affected.extend(indices);
+      }
+      if let Some(indices) = self.invalidation_map.on_file_create_path.get(url) {
+        affected.extend(indices);
+      }
+    }
+
+    // Check file-name-above invalidations: a new file created anywhere above a directory.
+    for url in changed {
+      let url_str = url.as_str();
+      for (file_name, above, asset_index) in &self.invalidation_map.on_file_create_above {
+        let above_str = above.as_str();
+        // The changed URL must be a file whose name matches and whose path starts with `above`.
+        if url_str.starts_with(above_str) {
+          let rest = &url_str[above_str.len()..];
+          // Only match direct or nested children (not the directory itself).
+          // The file name must match the final segment.
+          let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+          if segments.last() == Some(&file_name.as_str()) {
+            affected.insert(*asset_index);
+          }
+        }
+      }
+
+      // Check glob invalidations.
+      let url_path = url.path();
+      for (glob, asset_index) in &self.invalidation_map.on_file_create_glob {
+        if glob_match::glob_match(glob, url_path) {
+          affected.insert(*asset_index);
+        }
+      }
+    }
+
+    for index in &affected {
+      self.reset_asset(*index);
+    }
+
+    affected
+  }
+
+  fn reset_asset(&mut self, index: usize) {
+    if let AssetNode::Asset(_) = &self.assets[index] {
+      let request = self.requests[index].clone();
+      self.assets[index] = AssetNode::Deferred {
+        request,
+        symbols: Vec::new(),
+        requested: true,
+      };
+    }
+  }
+
+  /// Builds (or incrementally rebuilds) the asset graph.
+  ///
+  /// On the first call, performs a full build starting from entries.
+  /// On subsequent calls after `invalidate()`, re-transforms only the affected assets.
+  ///
+  /// Returns a cloned snapshot of the `AssetGraph` suitable for bundling.
+  /// The clone is shallow (Arcs are shared) so it is cheap; bundler mutations to
+  /// `bundle_behavior` fields do not affect the builder's persistent state.
+  pub fn build(&mut self) -> Result<AssetGraph, DiagnosticList> {
+    let mut queue = TransformQueue::new(self.config.clone(), self.options.clone());
+
+    // Queue entry assets. On the first build, allocate new slots.
+    // On subsequent builds, entries already have slots; re-queue if Deferred.
+    for entry in &mut self.entries {
+      if let Some(index) = entry.asset {
+        // Slot exists — only re-queue if it was invalidated (reset to Deferred).
+        if let AssetNode::Deferred {
+          requested: true,
+          request,
+          ..
+        } = &self.assets[index]
+        {
+          queue.transform(index, request.clone());
+        }
+      } else {
+        // Initial build: create the slot.
+        let req = Arc::new(AssetRequest {
+          loc: SourceLocation {
+            url: entry.url.clone(),
+            start: Default::default(),
+            end: Default::default(),
+          },
+          ty: AssetType::from_url(&entry.url),
+          content: Arc::new(FileContent::new(
+            entry.url.to_file_path(&self.options.project_root)?,
+            self.options.input_fs.clone(),
+          )),
+          target: entry.target.clone(),
+          pipeline: None,
+          side_effects: true,
+        });
+
+        let index = self.assets.len();
+        self.assets.push(AssetNode::Deferred {
+          request: req.clone(),
+          symbols: if entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+            vec![SymbolName::Namespace]
+          } else {
+            Vec::new()
+          },
+          requested: true,
+        });
+        self.requests.push(req.clone());
+        entry.asset = Some(index);
+        self.asset_requests.insert(req.clone(), index);
+        queue.transform(index, req);
+      }
+    }
+
+    // On incremental rebuilds, also re-queue non-entry assets that were invalidated.
+    // (Entry assets were handled above; skip them here to avoid double-queuing.)
+    let entry_indices: HashSet<usize> = self.entries.iter().filter_map(|e| e.asset).collect();
+    for (index, node) in self.assets.iter().enumerate() {
+      if let AssetNode::Deferred {
+        requested: true,
+        request,
+        ..
+      } = node
+      {
+        if !entry_indices.contains(&index) {
+          queue.transform(index, request.clone());
+        }
+      }
+    }
+
+    while let Some(result) = queue.receive() {
+      match result {
+        RequestResult::Transform(res) => {
+          // Always record invalidations, even when the transform errored.
+          self.invalidation_map.add(res.index, res.invalidations);
+
+          let mut asset = match res.result {
+            Ok(asset) => asset,
+            Err(err) => return Err(err),
+          };
+
+          for dep in &mut asset.dependencies {
+            let priority = dep.priority;
+            if let DependencyResolution::Deferred(req) = &dep.resolution {
+              if let Some(&index) = self.asset_requests.get(req) {
+                dep.resolution = DependencyResolution::Asset(index as u32);
+
+                // Lazy/parallel deps must be transformed even if the package has sideEffects: false,
+                // because the user explicitly requested this module via import().
+                if priority != Priority::Sync {
+                  if let AssetNode::Deferred {
+                    requested, request, ..
+                  } = &mut self.assets[index]
+                  {
+                    if !*requested {
+                      *requested = true;
+                      queue.transform(index, request.clone());
+                    }
                   }
                 }
-              }
-            } else {
-              let req = req.clone();
+              } else {
+                let req = req.clone();
 
-              // Allocate a new asset index.
-              let index = assets.len();
-              dep.resolution = DependencyResolution::Asset(index as u32);
-              asset_requests.insert(req.clone(), index);
+                // Allocate a new asset slot.
+                let index = self.assets.len();
+                dep.resolution = DependencyResolution::Asset(index as u32);
+                self.asset_requests.insert(req.clone(), index);
 
-              // If the dependency has side effects or is loaded via dynamic import, always transform it.
-              let requested = req.side_effects || priority != Priority::Sync;
-              assets.push(AssetNode::Deferred {
-                request: req.clone(),
-                symbols: Vec::new(),
-                requested,
-              });
+                // If the dependency has side effects or is loaded via dynamic import, always transform it.
+                let requested = req.side_effects || priority != Priority::Sync;
+                self.assets.push(AssetNode::Deferred {
+                  request: req.clone(),
+                  symbols: Vec::new(),
+                  requested,
+                });
+                self.requests.push(req.clone());
 
-              if requested {
-                queue.transform(index, req);
+                if requested {
+                  queue.transform(index, req);
+                }
               }
             }
           }
-        }
 
-        let import_len = res.asset.symbols.imports.len();
-        let prev = std::mem::replace(&mut assets[res.index], AssetNode::Asset(res.asset));
-        let requested_symbols = if let AssetNode::Deferred { symbols, .. } = prev {
-          symbols
-        } else {
-          Vec::new()
-        };
-
-        // Propagate the requested symbols for this asset to un-defer dependencies.
-        for name in requested_symbols {
-          request_symbol(
-            &mut assets,
-            res.index as u32,
-            name,
-            &mut HashSet::new(),
-            &mut queue,
-          );
-        }
-
-        // Propagate this asset's imported symbols.
-        for i in 0..import_len {
-          let AssetNode::Asset(asset) = &assets[res.index] else {
-            unreachable!()
+          let import_len = asset.symbols.imports.len();
+          let prev = std::mem::replace(&mut self.assets[res.index], AssetNode::Asset(asset));
+          let requested_symbols = if let AssetNode::Deferred { symbols, .. } = prev {
+            symbols
+          } else {
+            Vec::new()
           };
 
-          let symbol = &asset.symbols.imports[i];
-          let dep = &asset.dependencies[symbol.dep_index as usize];
-          if let DependencyResolution::Asset(resolved_index) = dep.resolution {
-            let name = symbol.symbol.clone();
+          // Propagate the requested symbols for this asset to un-defer dependencies.
+          for name in requested_symbols {
             request_symbol(
-              &mut assets,
-              resolved_index,
+              &mut self.assets,
+              res.index as u32,
               name,
               &mut HashSet::new(),
               &mut queue,
             );
           }
+
+          // Propagate this asset's imported symbols.
+          for i in 0..import_len {
+            let AssetNode::Asset(asset) = &self.assets[res.index] else {
+              unreachable!()
+            };
+
+            let symbol = &asset.symbols.imports[i];
+            let dep = &asset.dependencies[symbol.dep_index as usize];
+            if let DependencyResolution::Asset(resolved_index) = dep.resolution {
+              let name = symbol.symbol.clone();
+              request_symbol(
+                &mut self.assets,
+                resolved_index,
+                name,
+                &mut HashSet::new(),
+                &mut queue,
+              );
+            }
+          }
         }
       }
     }
-  }
 
-  // Store symbol resolutions for each import.
-  for asset_index in 0..assets.len() {
-    if let AssetNode::Asset(asset) = &assets[asset_index] {
-      for import_index in 0..asset.symbols.imports.len() {
-        let AssetNode::Asset(asset) = &assets[asset_index] else {
-          unreachable!()
-        };
-
-        let symbol = &asset.symbols.imports[import_index];
-        let dep = &asset.dependencies[symbol.dep_index as usize];
-        if let DependencyResolution::Asset(resolved_index) = dep.resolution {
-          let name = symbol.symbol.clone();
-          let res = if dep.priority == Priority::Lazy {
-            SymbolResolution::Runtime {
-              asset_index: resolved_index,
-              name,
-            }
-          } else {
-            request_symbol(
-              &mut assets,
-              resolved_index,
-              name.clone(),
-              &mut HashSet::new(),
-              &mut queue,
-            )
-          };
-
-          let AssetNode::Asset(asset) = &mut assets[asset_index] else {
+    // Finalize symbol resolutions for each imported symbol.
+    for asset_index in 0..self.assets.len() {
+      if let AssetNode::Asset(asset) = &self.assets[asset_index] {
+        for import_index in 0..asset.symbols.imports.len() {
+          let AssetNode::Asset(asset) = &self.assets[asset_index] else {
             unreachable!()
           };
 
-          let symbol = &mut asset.symbols.imports[import_index];
-          symbol.resolved = res;
+          let symbol = &asset.symbols.imports[import_index];
+          let dep = &asset.dependencies[symbol.dep_index as usize];
+          if let DependencyResolution::Asset(resolved_index) = dep.resolution {
+            let name = symbol.symbol.clone();
+            let res = if dep.priority == Priority::Lazy {
+              SymbolResolution::Runtime {
+                asset_index: resolved_index,
+                name,
+              }
+            } else {
+              request_symbol(
+                &mut self.assets,
+                resolved_index,
+                name.clone(),
+                &mut HashSet::new(),
+                &mut queue,
+              )
+            };
+
+            let AssetNode::Asset(asset) = &mut self.assets[asset_index] else {
+              unreachable!()
+            };
+
+            let symbol = &mut asset.symbols.imports[import_index];
+            symbol.resolved = res;
+          }
         }
       }
     }
-  }
 
-  Ok(AssetGraph { assets, entries })
+    Ok(AssetGraph {
+      assets: self.assets.clone(),
+      entries: self.entries.clone(),
+    })
+  }
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport

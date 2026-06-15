@@ -15,9 +15,9 @@ use parcel_core::{
   BundleBehavior as CoreBundleBehavior, CodeFrame, CodeHighlight, Dependency as CoreDependency,
   DependencyFlags as CoreDependencyFlags, DependencyResolution, Diagnostic as CoreDiagnostic,
   DiagnosticList, DiagnosticSeverity as CoreDiagnosticSeverity,
-  EnvironmentFlags as CoreEnvironmentFlags, ExportsCondition, FileContent, LocalSymbol, Location,
-  ParcelOptions, Priority as CorePriority, Resolver, SourceLocation, SourceUrl,
-  SpecifierType as CoreSpecifierType, SymbolName, Transformer,
+  EnvironmentFlags as CoreEnvironmentFlags, ExportsCondition, FileContent, Invalidations,
+  LocalSymbol, Location, ParcelOptions, Priority as CorePriority, Resolver, SourceLocation,
+  SourceUrl, SpecifierType as CoreSpecifierType, SymbolName, Transformer,
 };
 
 // ── Opaque handle type aliases ────────────────────────────────────────────────
@@ -988,6 +988,7 @@ impl Resolver for CPlugin {
     specifier: &str,
     pipeline: Option<&str>,
     options: &ParcelOptions,
+    _invalidations: &mut Invalidations,
   ) -> Result<DependencyResolution, DiagnosticList> {
     type ResolveFn = extern "C" fn(
       Dependency,

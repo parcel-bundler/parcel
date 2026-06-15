@@ -9,6 +9,7 @@ mod dependency;
 mod diagnostic;
 mod entry;
 mod fs;
+mod invalidations;
 mod location;
 mod namer;
 mod optimizer;
@@ -26,10 +27,8 @@ use std::{
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::asset_graph::build_asset_graph;
-
 pub use asset::*;
-pub use asset_graph::{AssetGraph, AssetNode};
+pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetNode};
 pub use bundle::*;
 pub use bundle_graph::*;
 pub use bundler::*;
@@ -39,6 +38,7 @@ pub use dependency::*;
 pub use diagnostic::*;
 pub use entry::*;
 pub use fs::*;
+pub use invalidations::*;
 pub use location::*;
 pub use namer::*;
 pub use optimizer::Optimizer;
@@ -47,77 +47,174 @@ pub use resolver::Resolver;
 pub use target::*;
 pub use transformer::Transformer;
 
+pub struct Parcel {
+  pub asset_graph_builder: AssetGraphBuilder,
+  config: Arc<ParcelConfig>,
+  options: Arc<ParcelOptions>,
+}
+
+impl Parcel {
+  pub fn new(
+    entries: &Vec<String>,
+    options: BuildOptions,
+    factory: &dyn PluginFactory,
+  ) -> Result<Parcel, DiagnosticList> {
+    let (entries, project_root) = resolve_entries(&entries, &options)?;
+
+    let mut env = options.env;
+    load_dotenv(&project_root, &*options.input_fs, &mut env)?;
+
+    let config_file = options
+      .config
+      .map(|c| options.cwd.join(c))
+      .unwrap_or_else(|| project_root.join(".parcelrc"));
+    let config = Arc::new(
+      if options
+        .input_fs
+        .kind(&config_file)
+        .contains(FileKind::IS_FILE)
+      {
+        ParcelConfig::read(&*options.input_fs, &config_file, factory)?
+      } else {
+        factory.config("@parcel/config-default", &config_file)?
+      },
+    );
+
+    let options = Arc::new(ParcelOptions {
+      env,
+      mode: options.mode,
+      log_level: options.log_level,
+      project_root: SourceUrl::from_absolute_directory_path(&project_root)?,
+      input_fs: options.input_fs,
+      output_fs: options.output_fs,
+      cwd: options.cwd,
+    });
+
+    Ok(Parcel {
+      asset_graph_builder: AssetGraphBuilder::new(entries, config.clone(), options.clone()),
+      config,
+      options,
+    })
+  }
+
+  pub fn project_root(&self) -> &SourceUrl {
+    &self.options.project_root
+  }
+
+  pub fn build(&mut self) -> Result<BundleGraph, DiagnosticList> {
+    let asset_graph = self.asset_graph_builder.build()?;
+    self.bundle(asset_graph)
+  }
+
+  pub fn bundle(&self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+    // Group assets into bundles.
+    let bundle_graph = bundle(asset_graph, &self.config, &*self.options)?;
+
+    // Write all output files from a single thread. This significantly out-performs multi-threaded
+    // writing on macOS due to file system directory locking.
+    // Tried using a few worker threads for this but it didn't make much difference.
+    let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Arc<dyn Content>)>();
+    let opts = self.options.clone();
+    let writer = std::thread::spawn(move || {
+      while let Ok((path, content)) = rx.recv() {
+        if let Err(_) = content.write(&*opts.output_fs, &path) {
+          let parent = path.parent().unwrap();
+          opts.output_fs.create_dir_all(parent).ok();
+          content.write(&*opts.output_fs, &path).ok();
+        }
+      }
+    });
+
+    let opts = &*self.options;
+    bundle_graph.bundles.par_iter().for_each(|bundle| {
+      if bundle.bundle_behavior != BundleBehavior::Inline {
+        let content = get_bundle_content(&self.config, &bundle_graph, &bundle, opts).unwrap();
+        // TODO: replace hash references
+        let path = bundle.dist_path(&opts.project_root);
+        tx.send((path, content)).unwrap();
+      }
+    });
+
+    drop(tx);
+    writer.join().expect("Error");
+
+    Ok(bundle_graph)
+  }
+}
+
 pub fn build(
   entries: &Vec<String>,
   options: BuildOptions,
   factory: &dyn PluginFactory,
 ) -> Result<BundleGraph, DiagnosticList> {
-  let (entries, project_root) = resolve_entries(&entries, &options)?;
+  let mut parcel = Parcel::new(entries, options, factory)?;
+  parcel.build()
+  // let (entries, project_root) = resolve_entries(&entries, &options)?;
 
-  let mut env = options.env;
-  load_dotenv(&project_root, &*options.input_fs, &mut env)?;
+  // let mut env = options.env;
+  // load_dotenv(&project_root, &*options.input_fs, &mut env)?;
 
-  let config_file = options
-    .config
-    .map(|c| options.cwd.join(c))
-    .unwrap_or_else(|| project_root.join(".parcelrc"));
-  let config = Arc::new(
-    if options
-      .input_fs
-      .kind(&config_file)
-      .contains(FileKind::IS_FILE)
-    {
-      ParcelConfig::read(&*options.input_fs, &config_file, factory)?
-    } else {
-      factory.config("@parcel/config-default", &config_file)?
-    },
-  );
+  // let config_file = options
+  //   .config
+  //   .map(|c| options.cwd.join(c))
+  //   .unwrap_or_else(|| project_root.join(".parcelrc"));
+  // let config = Arc::new(
+  //   if options
+  //     .input_fs
+  //     .kind(&config_file)
+  //     .contains(FileKind::IS_FILE)
+  //   {
+  //     ParcelConfig::read(&*options.input_fs, &config_file, factory)?
+  //   } else {
+  //     factory.config("@parcel/config-default", &config_file)?
+  //   },
+  // );
 
-  let options = Arc::new(ParcelOptions {
-    env,
-    mode: options.mode,
-    log_level: options.log_level,
-    project_root: SourceUrl::from_absolute_directory_path(&project_root)?,
-    input_fs: options.input_fs,
-    output_fs: options.output_fs,
-    cwd: options.cwd,
-  });
+  // let options = Arc::new(ParcelOptions {
+  //   env,
+  //   mode: options.mode,
+  //   log_level: options.log_level,
+  //   project_root: SourceUrl::from_absolute_directory_path(&project_root)?,
+  //   input_fs: options.input_fs,
+  //   output_fs: options.output_fs,
+  //   cwd: options.cwd,
+  // });
 
-  // Build asset graph.
-  let asset_graph = build_asset_graph(entries, config.clone(), options.clone())?;
+  // // Build asset graph.
+  // let asset_graph = build_asset_graph(entries, config.clone(), options.clone())?;
 
-  // Group assets into bundles.
-  let bundle_graph = bundle(asset_graph, &config, &*options)?;
+  // // Group assets into bundles.
+  // let bundle_graph = bundle(asset_graph, &config, &*options)?;
 
-  // Write all output files from a single thread. This significantly out-performs multi-threaded
-  // writing on macOS due to file system directory locking.
-  // Tried using a few worker threads for this but it didn't make much difference.
-  let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Arc<dyn Content>)>();
-  let opts = options.clone();
-  let writer = std::thread::spawn(move || {
-    while let Ok((path, content)) = rx.recv() {
-      if let Err(_) = content.write(&*opts.output_fs, &path) {
-        let parent = path.parent().unwrap();
-        opts.output_fs.create_dir_all(parent).ok();
-        content.write(&*opts.output_fs, &path).ok();
-      }
-    }
-  });
+  // // Write all output files from a single thread. This significantly out-performs multi-threaded
+  // // writing on macOS due to file system directory locking.
+  // // Tried using a few worker threads for this but it didn't make much difference.
+  // let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Arc<dyn Content>)>();
+  // let opts = options.clone();
+  // let writer = std::thread::spawn(move || {
+  //   while let Ok((path, content)) = rx.recv() {
+  //     if let Err(_) = content.write(&*opts.output_fs, &path) {
+  //       let parent = path.parent().unwrap();
+  //       opts.output_fs.create_dir_all(parent).ok();
+  //       content.write(&*opts.output_fs, &path).ok();
+  //     }
+  //   }
+  // });
 
-  let opts = &*options;
-  bundle_graph.bundles.par_iter().for_each(|bundle| {
-    if bundle.bundle_behavior != BundleBehavior::Inline {
-      let content = get_bundle_content(&config, &bundle_graph, &bundle, opts).unwrap();
-      // TODO: replace hash references
-      let path = bundle.dist_path(&opts.project_root);
-      tx.send((path, content)).unwrap();
-    }
-  });
+  // let opts = &*options;
+  // bundle_graph.bundles.par_iter().for_each(|bundle| {
+  //   if bundle.bundle_behavior != BundleBehavior::Inline {
+  //     let content = get_bundle_content(&config, &bundle_graph, &bundle, opts).unwrap();
+  //     // TODO: replace hash references
+  //     let path = bundle.dist_path(&opts.project_root);
+  //     tx.send((path, content)).unwrap();
+  //   }
+  // });
 
-  drop(tx);
-  writer.join().expect("Error");
+  // drop(tx);
+  // writer.join().expect("Error");
 
-  Ok(bundle_graph)
+  // Ok(bundle_graph)
 }
 
 fn get_bundle_content(

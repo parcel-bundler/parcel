@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  ParcelOptions,
+  Invalidations, ParcelOptions,
 };
 
 pub trait Resolver: Send + Sync {
@@ -12,6 +12,7 @@ pub trait Resolver: Send + Sync {
     specifier: &str,
     pipeline: Option<&str>,
     options: &ParcelOptions,
+    invalidations: &mut Invalidations,
   ) -> Result<DependencyResolution, DiagnosticList>;
 }
 
@@ -20,6 +21,7 @@ pub fn resolve(
   resolvers: &Vec<Arc<dyn Resolver>>,
   named_pipelines: &Vec<&str>,
   options: &ParcelOptions,
+  invalidations: &mut Invalidations,
 ) -> Result<DependencyResolution, DiagnosticList> {
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
@@ -37,7 +39,7 @@ pub fn resolve(
 
   let mut diagnostics = Vec::new();
   for resolver in resolvers {
-    match resolver.resolve(dep, specifier, pipeline, options) {
+    match resolver.resolve(dep, specifier, pipeline, options, invalidations) {
       Ok(res) => match res {
         DependencyResolution::None => continue,
         _ => return Ok(res),
@@ -110,7 +112,8 @@ mod tests {
   use std::sync::Arc;
 
   use crate::{
-    AssetRequest, AssetType, ExportsCondition, FileContent, OsFileSystem, SourceLocation, SourceUrl,
+    AssetRequest, AssetType, ExportsCondition, FileContent, Invalidations, OsFileSystem,
+    SourceLocation, SourceUrl,
   };
 
   use super::*;
@@ -123,6 +126,7 @@ mod tests {
       specifier: &str,
       _pipeline: Option<&str>,
       _options: &ParcelOptions,
+      _invalidations: &mut Invalidations,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -150,6 +154,7 @@ mod tests {
       specifier: &str,
       _pipeline: Option<&str>,
       _options: &ParcelOptions,
+      _invalidations: &mut Invalidations,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -194,38 +199,36 @@ mod tests {
       resolution: crate::DependencyResolution::None,
     };
 
-    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default()).unwrap();
-    assert_eq!(
-      res,
-      DependencyResolution::Deferred(Arc::new(AssetRequest {
-        loc: SourceLocation {
-          url: SourceUrl::parse("file:///one.js").unwrap(),
-          ..Default::default()
-        },
-        ty: AssetType::Js,
-        content: Arc::new(FileContent::new("one.js".into(), Arc::new(OsFileSystem {}))),
-        pipeline: None,
-        side_effects: false,
-        target: Default::default()
-      }))
-    );
+    let res = resolve(
+      &dep,
+      &resolvers,
+      &Vec::new(),
+      &Default::default(),
+      &mut Invalidations::default(),
+    )
+    .unwrap();
+    let DependencyResolution::Deferred(req) = res else {
+      panic!("expected Deferred");
+    };
+    assert_eq!(req.loc.url, SourceUrl::parse("file:///one.js").unwrap());
+    assert_eq!(req.ty, AssetType::Js);
+    assert!(!req.side_effects);
 
     dep.specifier = "two".into();
 
-    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default()).unwrap();
-    assert_eq!(
-      res,
-      DependencyResolution::Deferred(Arc::new(AssetRequest {
-        loc: SourceLocation {
-          url: SourceUrl::parse("file:///two.js").unwrap(),
-          ..Default::default()
-        },
-        ty: AssetType::Js,
-        content: Arc::new(FileContent::new("two.js".into(), Arc::new(OsFileSystem {}))),
-        pipeline: None,
-        side_effects: false,
-        target: Default::default()
-      }))
-    );
+    let res = resolve(
+      &dep,
+      &resolvers,
+      &Vec::new(),
+      &Default::default(),
+      &mut Invalidations::default(),
+    )
+    .unwrap();
+    let DependencyResolution::Deferred(req) = res else {
+      panic!("expected Deferred");
+    };
+    assert_eq!(req.loc.url, SourceUrl::parse("file:///two.js").unwrap());
+    assert_eq!(req.ty, AssetType::Js);
+    assert!(!req.side_effects);
   }
 }

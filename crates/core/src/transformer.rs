@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
-  DiagnosticList, ParcelOptions, Pipeline, SourceUrl,
+  DiagnosticList, Invalidations, ParcelOptions, Pipeline, SourceUrl,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
 };
@@ -20,11 +20,30 @@ pub struct TransformRequest {
 
 pub struct TransformResult {
   pub index: usize,
-  pub asset: Asset,
+  pub invalidations: Invalidations,
+  pub result: Result<Asset, DiagnosticList>,
 }
 
 impl TransformRequest {
-  pub fn run(&self) -> Result<TransformResult, DiagnosticList> {
+  pub fn run(&self) -> TransformResult {
+    let index = self.index;
+    let mut invalidations = Invalidations::default();
+
+    // Add the source file itself as an invalidation so changes to it trigger re-transformation.
+    invalidations
+      .invalidate_on_file_change
+      .push(self.req.loc.url.clone());
+
+    let result = self.transform(&mut invalidations);
+
+    TransformResult {
+      index,
+      invalidations,
+      result,
+    }
+  }
+
+  fn transform(&self, invalidations: &mut Invalidations) -> Result<Asset, DiagnosticList> {
     let req = &self.req;
     let relative_path = relative_path(&req.loc.url, &self.options.project_root, &req.ty);
     let transformer_pipeline = self
@@ -63,7 +82,8 @@ impl TransformRequest {
     let named_pipelines = self.config.transformers.named_pipelines();
     for dep in &mut asset.dependencies {
       if dep.resolution == DependencyResolution::None {
-        dep.resolution = resolve(dep, resolvers, &named_pipelines, &*self.options)?;
+        dep.resolution =
+          resolve(dep, resolvers, &named_pipelines, &*self.options, invalidations)?;
       }
 
       if let DependencyResolution::Deferred(req) = &dep.resolution {
@@ -73,10 +93,7 @@ impl TransformRequest {
       }
     }
 
-    Ok(TransformResult {
-      index: self.index,
-      asset,
-    })
+    Ok(asset)
   }
 }
 

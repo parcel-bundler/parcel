@@ -12,7 +12,7 @@ use crate::{
   Target, TargetSourceMapOptions, Version, glob, is_glob,
 };
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Entry {
   pub url: SourceUrl,
   pub target: Arc<Target>,

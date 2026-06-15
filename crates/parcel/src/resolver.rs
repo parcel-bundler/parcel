@@ -3,8 +3,8 @@ use std::{borrow::Cow, sync::Arc};
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
   DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
-  ExportsCondition, FileContent, Location, OutputFormat, ParcelOptions, Resolver, SourceLocation,
-  SourceUrl, SpecifierType, Target,
+  ExportsCondition, FileContent, FileCreateInvalidation, Invalidations, Location, OutputFormat,
+  ParcelOptions, Resolver, SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
   OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -30,6 +30,7 @@ impl Resolver for DefaultResolver {
     specifier: &str,
     pipeline: Option<&str>,
     options: &ParcelOptions,
+    invalidations: &mut Invalidations,
   ) -> Result<DependencyResolution, DiagnosticList> {
     let resolve_from = dep.resolve_from.as_ref().unwrap();
     let mut conditions = dep.conditions | ExportsCondition::SOURCE;
@@ -98,6 +99,41 @@ impl Resolver for DefaultResolver {
     } else {
       true
     };
+
+    // Convert resolver invalidations into parcel_core::Invalidations.
+    for path in res.invalidations.invalidate_on_file_change.borrow().iter() {
+      if let Ok(url) = SourceUrl::from_path(path.as_path(), &options.project_root) {
+        invalidations.invalidate_on_file_change.push(url);
+      }
+    }
+
+    for inv in res.invalidations.invalidate_on_file_create.borrow().iter() {
+      let converted = match inv {
+        parcel_resolver::FileCreateInvalidation::Path(path) => {
+          SourceUrl::from_path(path.as_path(), &options.project_root)
+            .ok()
+            .map(FileCreateInvalidation::Path)
+        }
+        parcel_resolver::FileCreateInvalidation::FileName { file_name, above } => {
+          SourceUrl::from_directory_path(above.as_path(), &options.project_root)
+            .ok()
+            .map(|url| FileCreateInvalidation::FileName {
+              file_name: file_name.clone(),
+              above: url,
+            })
+        }
+        parcel_resolver::FileCreateInvalidation::Glob(glob) => {
+          Some(FileCreateInvalidation::Glob(glob.clone()))
+        }
+      };
+      if let Some(inv) = converted {
+        invalidations.invalidate_on_file_create.push(inv);
+      }
+    }
+
+    if res.invalidations.invalidate_on_startup.get() {
+      invalidations.invalidate_on_startup = true;
+    }
 
     match res.result {
       Ok(res) => match res.resolution {
@@ -188,7 +224,7 @@ impl Resolver for DefaultResolver {
             }
           };
 
-          self.resolve(dep, module, pipeline, options)
+          self.resolve(dep, module, pipeline, options, invalidations)
         }
       },
       Err(e) => {
