@@ -3,23 +3,18 @@ use std::{borrow::Cow, sync::Arc};
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
   DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
-  ExportsCondition, FileContent, FileCreateInvalidation, Invalidations, Location, OutputFormat,
-  ParcelOptions, Resolver, SourceLocation, SourceUrl, SpecifierType, Target,
+  ExportsCondition, FileContent, FileSystem, Location, ParcelOptions, Resolver, SourceLocation,
+  SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
-  OsFileSystem, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
+  Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
 };
 
-pub struct DefaultResolver {
-  cache: parcel_resolver::Cache,
-}
+pub struct DefaultResolver;
 
 impl DefaultResolver {
   pub fn new(_project_root: String) -> Self {
-    let fs = Arc::new(OsFileSystem);
-    DefaultResolver {
-      cache: parcel_resolver::Cache::new(fs),
-    }
+    DefaultResolver
   }
 }
 
@@ -30,7 +25,7 @@ impl Resolver for DefaultResolver {
     specifier: &str,
     pipeline: Option<&str>,
     options: &ParcelOptions,
-    invalidations: &mut Invalidations,
+    fs: &Arc<dyn FileSystem>,
   ) -> Result<DependencyResolution, DiagnosticList> {
     let resolve_from = dep.resolve_from.as_ref().unwrap();
     let mut conditions = dep.conditions | ExportsCondition::SOURCE;
@@ -65,8 +60,14 @@ impl Resolver for DefaultResolver {
       conditions |= ExportsCondition::DEVELOPMENT;
     }
 
-    let mut resolver =
-      parcel_resolver::Resolver::parcel(&options.project_root.to_file_path(&options.project_root)?, &self.cache);
+    // Resolve through the per-request tracking file system so every file consulted (package.json,
+    // existence checks, ...) is recorded as an invalidation of this asset. The interning cache is
+    // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
+    let cache = parcel_resolver::Cache::new(fs.clone());
+    let mut resolver = parcel_resolver::Resolver::parcel(
+      &options.project_root.to_file_path(&options.project_root)?,
+      &cache,
+    );
     resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
     let mut res = resolver.resolve_with_options(
@@ -100,45 +101,14 @@ impl Resolver for DefaultResolver {
       true
     };
 
-    // Convert resolver invalidations into parcel_core::Invalidations.
-    for path in res.invalidations.invalidate_on_file_change.borrow().iter() {
-      if let Ok(url) = SourceUrl::from_path(path.as_path(), &options.project_root) {
-        invalidations.invalidate_on_file_change.push(url);
-      }
-    }
-
-    for inv in res.invalidations.invalidate_on_file_create.borrow().iter() {
-      let converted = match inv {
-        parcel_resolver::FileCreateInvalidation::Path(path) => {
-          SourceUrl::from_path(path.as_path(), &options.project_root)
-            .ok()
-            .map(FileCreateInvalidation::Path)
-        }
-        parcel_resolver::FileCreateInvalidation::FileName { file_name, above } => {
-          SourceUrl::from_directory_path(above.as_path(), &options.project_root)
-            .ok()
-            .map(|url| FileCreateInvalidation::FileName {
-              file_name: file_name.clone(),
-              above: url,
-            })
-        }
-        parcel_resolver::FileCreateInvalidation::Glob(glob) => {
-          Some(FileCreateInvalidation::Glob(glob.clone()))
-        }
-      };
-      if let Some(inv) = converted {
-        invalidations.invalidate_on_file_create.push(inv);
-      }
-    }
-
-    if res.invalidations.invalidate_on_startup.get() {
-      invalidations.invalidate_on_startup = true;
-    }
-
     match res.result {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
-          let url = SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..]), &options.project_root)?;
+          let url = SourceUrl::from_path_and_query(
+            &path,
+            res.query.as_ref().map(|s| &s[1..]),
+            &options.project_root,
+          )?;
           let ty = AssetType::from_url(&url);
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
             loc: SourceLocation {
@@ -224,7 +194,7 @@ impl Resolver for DefaultResolver {
             }
           };
 
-          self.resolve(dep, module, pipeline, options, invalidations)
+          self.resolve(dep, module, pipeline, options, fs)
         }
       },
       Err(e) => {

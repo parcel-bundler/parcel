@@ -2,17 +2,22 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  Invalidations, ParcelOptions,
+  FileSystem, ParcelOptions,
 };
 
 pub trait Resolver: Send + Sync {
+  /// Resolves a dependency's specifier to a resolution.
+  ///
+  /// `fs` is the per-request file system: files read through it (config, `package.json`, existence
+  /// checks, globs, ...) are automatically recorded as invalidations, so a change to any of them
+  /// re-runs resolution. Read through `fs` rather than `options.input_fs` so this tracking applies.
   fn resolve(
     &self,
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
     options: &ParcelOptions,
-    invalidations: &mut Invalidations,
+    fs: &Arc<dyn FileSystem>,
   ) -> Result<DependencyResolution, DiagnosticList>;
 }
 
@@ -21,7 +26,7 @@ pub fn resolve(
   resolvers: &Vec<Arc<dyn Resolver>>,
   named_pipelines: &Vec<&str>,
   options: &ParcelOptions,
-  invalidations: &mut Invalidations,
+  fs: &Arc<dyn FileSystem>,
 ) -> Result<DependencyResolution, DiagnosticList> {
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
@@ -39,7 +44,7 @@ pub fn resolve(
 
   let mut diagnostics = Vec::new();
   for resolver in resolvers {
-    match resolver.resolve(dep, specifier, pipeline, options, invalidations) {
+    match resolver.resolve(dep, specifier, pipeline, options, fs) {
       Ok(res) => match res {
         DependencyResolution::None => continue,
         _ => return Ok(res),
@@ -112,7 +117,7 @@ mod tests {
   use std::sync::Arc;
 
   use crate::{
-    AssetRequest, AssetType, ExportsCondition, FileContent, Invalidations, OsFileSystem,
+    AssetRequest, AssetType, ExportsCondition, FileContent, FileSystem, OsFileSystem,
     SourceLocation, SourceUrl,
   };
 
@@ -126,7 +131,7 @@ mod tests {
       specifier: &str,
       _pipeline: Option<&str>,
       _options: &ParcelOptions,
-      _invalidations: &mut Invalidations,
+      _fs: &Arc<dyn FileSystem>,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -154,7 +159,7 @@ mod tests {
       specifier: &str,
       _pipeline: Option<&str>,
       _options: &ParcelOptions,
-      _invalidations: &mut Invalidations,
+      _fs: &Arc<dyn FileSystem>,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -199,14 +204,8 @@ mod tests {
       resolution: crate::DependencyResolution::None,
     };
 
-    let res = resolve(
-      &dep,
-      &resolvers,
-      &Vec::new(),
-      &Default::default(),
-      &mut Invalidations::default(),
-    )
-    .unwrap();
+    let fs: Arc<dyn FileSystem> = Arc::new(OsFileSystem {});
+    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default(), &fs).unwrap();
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };
@@ -216,14 +215,7 @@ mod tests {
 
     dep.specifier = "two".into();
 
-    let res = resolve(
-      &dep,
-      &resolvers,
-      &Vec::new(),
-      &Default::default(),
-      &mut Invalidations::default(),
-    )
-    .unwrap();
+    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default(), &fs).unwrap();
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };

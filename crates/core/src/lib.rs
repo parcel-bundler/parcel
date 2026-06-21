@@ -59,6 +59,9 @@ pub struct Parcel {
   asset_graph_builder: AssetGraphBuilder,
   config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
+  /// The shared file-system cache used as `options.input_fs`. Stale entries are dropped from it in
+  /// `invalidate` so the resolver, transformers, and JS environment all see fresh data on rebuild.
+  cached_fs: Arc<CachedFileSystem>,
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by bundle name; value is (sorted asset indices, dist path).
   prev_bundles: HashMap<String, (Vec<usize>, PathBuf)>,
@@ -97,11 +100,15 @@ impl Parcel {
   ) -> Result<Parcel, DiagnosticList> {
     // Keep the original constructor inputs so the build can be recreated on a config change.
     let build_options = options.clone();
-    let real_fs = options.input_fs.clone();
+
+    // Wrap the input file system in a shared cache used for the whole build, so the resolver,
+    // transformers, and JS environment all read through one warm cache that we invalidate centrally.
+    let cached_fs = Arc::new(CachedFileSystem::new(options.input_fs.clone()));
 
     // Route all configuration-time reads (entries, dotenv, .parcelrc and its extends, plugin
-    // lookups done by the factory) through a tracker so we learn which files were consulted.
-    let tracker = Arc::new(TrackingFileSystem::new(real_fs.clone()));
+    // lookups done by the factory) through a tracker (over the cache) so we learn which files were
+    // consulted while still warming the cache.
+    let tracker = Arc::new(TrackingFileSystem::new(cached_fs.clone()));
     let mut options = options;
     options.input_fs = tracker.clone();
 
@@ -148,7 +155,7 @@ impl Parcel {
       mode: options.mode,
       log_level: options.log_level,
       project_root,
-      input_fs: real_fs,
+      input_fs: cached_fs.clone(),
       output_fs: options.output_fs,
       cwd: options.cwd,
     });
@@ -157,6 +164,7 @@ impl Parcel {
       asset_graph_builder: AssetGraphBuilder::new(resolved_entries, config.clone(), options.clone()),
       config,
       options,
+      cached_fs,
       prev_bundles: HashMap::new(),
       entries: entries.clone(),
       build_options,
@@ -195,6 +203,15 @@ impl Parcel {
         config_changed: true,
       });
     }
+
+    // Drop stale entries from the shared file-system cache before re-resolving/re-transforming, so
+    // the resolver and transformers see the changed files.
+    let paths: Vec<PathBuf> = changed
+      .iter()
+      .chain(created)
+      .filter_map(|url| url.to_file_path(&self.options.project_root).ok())
+      .collect();
+    self.cached_fs.invalidate(&paths);
 
     let affected = self.asset_graph_builder.invalidate(changed, created);
     Ok(InvalidateResult {

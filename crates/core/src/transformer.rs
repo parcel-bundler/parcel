@@ -2,7 +2,8 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
-  DiagnosticList, FileSystem, Invalidations, ParcelOptions, Pipeline, SourceUrl, TrackingFileSystem,
+  DiagnosticList, FileSystem, Invalidations, ParcelOptions, Pipeline, SourceUrl,
+  TrackingFileSystem,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
 };
@@ -82,41 +83,45 @@ impl TransformRequest {
       symbols: AssetSymbols::default(),
     };
 
-    // Per-request tracker: files read by transformer plugins through `fs` become invalidations
-    // automatically. It wraps the (untracked) input file system used for the rest of the build and
-    // records `project://` URLs so they match the asset graph's invalidation map.
+    // Per-request tracker: files read by transformer plugins *and resolvers* through `fs` become
+    // invalidations automatically. It wraps the shared cached input file system and records
+    // `project://` URLs so they match the asset graph's invalidation map.
     let tracker = Arc::new(TrackingFileSystem::with_project_root(
       self.options.input_fs.clone(),
       self.options.project_root.clone(),
     ));
     let fs: Arc<dyn FileSystem> = tracker.clone();
-    let result = transform(
-      asset,
-      transformer_pipeline,
-      &self.config.transformers,
-      &self.options,
-      &fs,
-    );
-    // Merge tracked reads even on error, so fixing a bad config file re-runs the transform.
-    invalidations.extend(&tracker.take());
-    let mut asset = result?;
 
-    let resolvers = &self.config.resolvers;
-    let named_pipelines = self.config.transformers.named_pipelines();
-    for dep in &mut asset.dependencies {
-      if dep.resolution == DependencyResolution::None {
-        dep.resolution =
-          resolve(dep, resolvers, &named_pipelines, &*self.options, invalidations)?;
-      }
+    let result = {
+      let mut asset = transform(
+        asset,
+        transformer_pipeline,
+        &self.config.transformers,
+        &self.options,
+        &fs,
+      )?;
 
-      if let DependencyResolution::Deferred(req) = &dep.resolution {
-        if req.side_effects {
-          dep.flags |= DependencyFlags::SIDE_EFFECTS;
+      let resolvers = &self.config.resolvers;
+      let named_pipelines = self.config.transformers.named_pipelines();
+      for dep in &mut asset.dependencies {
+        if dep.resolution == DependencyResolution::None {
+          dep.resolution = resolve(dep, resolvers, &named_pipelines, &*self.options, &fs)?;
+        }
+
+        if let DependencyResolution::Deferred(req) = &dep.resolution {
+          if req.side_effects {
+            dep.flags |= DependencyFlags::SIDE_EFFECTS;
+          }
         }
       }
-    }
 
-    Ok(asset)
+      Ok(asset)
+    };
+
+    // Merge everything read during transform and resolution (even on error, so fixing a bad input
+    // re-runs this asset).
+    invalidations.extend(&tracker.take());
+    result
   }
 }
 
@@ -157,7 +162,10 @@ fn relative_path<'a>(url: &'a SourceUrl, project_root: &SourceUrl, ty: &AssetTyp
     // project:// URLs are already relative to project root; strip the leading '/'
     url.path().trim_start_matches('/')
   } else {
-    url.path().strip_prefix(project_root.path()).unwrap_or(url.path())
+    url
+      .path()
+      .strip_prefix(project_root.path())
+      .unwrap_or(url.path())
   });
   let (base, ext) = relative_path
     .rsplit_once('.')

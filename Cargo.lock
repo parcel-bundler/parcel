@@ -3035,6 +3035,7 @@ dependencies = [
  "petgraph",
  "pretty_assertions",
  "rayon",
+ "rustc-hash 2.1.2",
  "serde",
  "serde-value",
  "serde_bytes",

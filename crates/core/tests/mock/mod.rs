@@ -274,18 +274,14 @@ impl Resolver for MockResolver {
     specifier: &str,
     _pipeline: Option<&str>,
     options: &ParcelOptions,
-    invalidations: &mut parcel_core::Invalidations,
+    fs: &Arc<dyn FileSystem>,
   ) -> Result<DependencyResolution, DiagnosticList> {
     let resolved = if specifier.starts_with('#') {
-      // Alias specifier: look it up in the config file, recording a dependency on that file so
-      // changes to it invalidate (and rebuild) the importer.
+      // Alias specifier: look it up in the config file. Reading it through `fs` (the tracking file
+      // system) automatically records a dependency on it, so editing it re-resolves the importer.
       let config_url = alias_config_url();
-      invalidations
-        .invalidate_on_file_change
-        .push(config_url.clone());
-
       let config_path = config_url.to_file_path(&options.project_root)?;
-      let bytes = options.input_fs.read(&config_path).map_err(Diagnostic::from)?;
+      let bytes = fs.read(&config_path).map_err(Diagnostic::from)?;
       let aliases: serde_json::Map<String, serde_json::Value> =
         serde_json::from_slice(&bytes).map_err(Diagnostic::from)?;
 

@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Write, sync::Arc};
 use glob_match::glob_match_with_captures;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, Dependency, DependencyResolution, DiagnosticList,
-  Invalidations, ParcelOptions, Priority, Resolver, SourceLocation, SourceUrl, glob, is_glob,
+  FileSystem, ParcelOptions, Priority, Resolver, SourceLocation, SourceUrl, is_glob,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
@@ -16,7 +16,7 @@ impl Resolver for GlobResolver {
     specifier: &str,
     pipeline: Option<&str>,
     options: &ParcelOptions,
-    _invalidations: &mut Invalidations,
+    fs: &Arc<dyn FileSystem>,
   ) -> Result<DependencyResolution, DiagnosticList> {
     if !is_glob(specifier) {
       return Ok(DependencyResolution::None);
@@ -24,7 +24,10 @@ impl Resolver for GlobResolver {
 
     let source_path = dep.resolve_from.as_ref().unwrap().to_file_path(&options.project_root)?;
     let dir = source_path.parent().unwrap();
-    let files: Vec<_> = glob(&*options.input_fs, specifier, dir)
+    // Glob through `fs` so a new file matching the pattern triggers a rebuild (tracked as a
+    // create-glob invalidation of this asset).
+    let files: Vec<_> = fs
+      .glob(specifier, dir)
       .into_iter()
       .filter_map(|path| pathdiff::diff_paths(path, &dir))
       .collect();

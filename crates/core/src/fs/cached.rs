@@ -9,7 +9,7 @@ use std::{
   },
 };
 
-use xxhash_rust::xxh3::xxh3_64;
+use rustc_hash::FxHasher;
 
 use super::{DirEntry, FileKind, FileStat, FileSystem, normalize_path, resolve_path};
 
@@ -87,7 +87,7 @@ struct CacheEntry {
   /// Arbitrary objects derived from this path, keyed by their type. Stored type-erased so the fs
   /// layer needn't know about resolver concepts like `package.json` or `tsconfig`. Dropped together
   /// with the entry on invalidation, which is how derived artifacts get invalidated centrally.
-  objects: papaya::HashMap<TypeId, CachedObject>,
+  objects: papaya::HashMap<TypeId, CachedObject, BuildHasherDefault<FxHasher>>,
 }
 
 /// An entry in the path set. Hashed by its precomputed path hash and compared by path, so lookups
@@ -147,7 +147,9 @@ impl CachedFileSystem {
   }
 
   fn hash_path(path: &Path) -> u64 {
-    xxh3_64(path.as_os_str().as_encoded_bytes())
+    let mut hasher = FxHasher::default();
+    path.as_os_str().hash(&mut hasher);
+    hasher.finish()
   }
 
   /// Returns the cache entry for `path`, creating it if necessary.
@@ -168,7 +170,7 @@ impl CachedFileSystem {
       read_link: OnceLock::new(),
       canonical: OnceLock::new(),
       canonicalizing: AtomicU64::new(0),
-      objects: papaya::HashMap::new(),
+      objects: papaya::HashMap::default(),
     });
     // A concurrent insert of the same path is harmless: `insert` keeps the existing entry and this
     // caller simply uses its own (which won't be shared), recomputing at most once.

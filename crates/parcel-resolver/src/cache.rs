@@ -349,7 +349,9 @@ impl CachedPath {
     process: F,
   ) -> Arc<Result<TsConfigWrapper, ResolverError>> {
     if let Some(objects) = cache.fs.as_object_cache() {
-      objects.get_or_compute(self.as_path(), || Arc::new(TsConfig::read(self, process, cache)))
+      objects.get_or_compute(self.as_path(), || {
+        Arc::new(TsConfig::read(self, process, cache))
+      })
     } else {
       Arc::new(TsConfig::read(self, process, cache))
     }
