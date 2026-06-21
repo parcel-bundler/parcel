@@ -451,7 +451,7 @@ impl Namer for MockNamer {
 /// `.parcelrc`-style JSON that references each mock plugin by name.
 pub struct MockPluginFactory;
 
-const MOCK_CONFIG: &str = r#"{
+pub const MOCK_CONFIG: &str = r#"{
   "resolvers": ["@mock/resolver"],
   "transformers": { "*": ["@mock/transformer"] },
   "bundler": "@mock/bundler",

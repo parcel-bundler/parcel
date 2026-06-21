@@ -643,6 +643,123 @@ impl FileSystem for OverlayFileSystem {
   }
 }
 
+/// A `FileSystem` decorator that records every path it touches into an [`InvalidationMap`],
+/// delegating all operations to an inner file system. Used during `Parcel::new` to discover which
+/// files were read while loading configuration (`.parcelrc` and its `extends` chain, `.env*`
+/// files, `package.json`s, lockfiles, resolved plugins, ...) so that a change to any of them can
+/// trigger a full rebuild.
+///
+/// Successful reads/stats are recorded as file-change invalidations. Lookups that report a missing
+/// path are recorded as file-create invalidations (their *creation* should invalidate, e.g. a
+/// `.parcelrc` that does not exist yet but appears later). Paths are recorded as absolute `file://`
+/// URLs, so no project root is required while tracking.
+pub struct TrackingFileSystem {
+  inner: std::sync::Arc<dyn FileSystem>,
+  invalidations: Mutex<crate::InvalidationMap>,
+}
+
+impl TrackingFileSystem {
+  pub fn new(inner: std::sync::Arc<dyn FileSystem>) -> Self {
+    TrackingFileSystem {
+      inner,
+      invalidations: Mutex::new(crate::InvalidationMap::default()),
+    }
+  }
+
+  fn record_read(&self, path: &Path) {
+    if let Ok(url) = crate::SourceUrl::from_absolute_path(path) {
+      self
+        .invalidations
+        .lock()
+        .unwrap()
+        .on_file_change
+        .entry(url)
+        .or_insert_with(|| vec![0]);
+    }
+  }
+
+  fn record_missing(&self, path: &Path) {
+    if let Ok(url) = crate::SourceUrl::from_absolute_path(path) {
+      self
+        .invalidations
+        .lock()
+        .unwrap()
+        .on_file_create_path
+        .entry(url)
+        .or_insert_with(|| vec![0]);
+    }
+  }
+
+  /// Returns the accumulated invalidation map, leaving the tracker empty.
+  pub fn take(&self) -> crate::InvalidationMap {
+    std::mem::take(&mut *self.invalidations.lock().unwrap())
+  }
+}
+
+impl FileSystem for TrackingFileSystem {
+  fn read(&self, path: &Path) -> Result<Vec<u8>> {
+    let result = self.inner.read(path);
+    if matches!(&result, Err(e) if e.kind() == ErrorKind::NotFound) {
+      self.record_missing(path);
+    } else {
+      self.record_read(path);
+    }
+    result
+  }
+
+  fn kind(&self, path: &Path) -> FileKind {
+    let kind = self.inner.kind(path);
+    if kind.is_empty() {
+      self.record_missing(path);
+    } else {
+      self.record_read(path);
+    }
+    kind
+  }
+
+  fn stat(&self, path: &Path) -> Option<FileStat> {
+    let stat = self.inner.stat(path);
+    if stat.is_some() {
+      self.record_read(path);
+    } else {
+      self.record_missing(path);
+    }
+    stat
+  }
+
+  fn lstat(&self, path: &Path) -> Option<FileStat> {
+    let stat = self.inner.lstat(path);
+    if stat.is_some() {
+      self.record_read(path);
+    } else {
+      self.record_missing(path);
+    }
+    stat
+  }
+
+  fn read_link(&self, path: &Path) -> Result<PathBuf> {
+    self.record_read(path);
+    self.inner.read_link(path)
+  }
+
+  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+    self.record_read(path);
+    self.inner.read_dir(path)
+  }
+
+  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+    self.inner.write(path, contents)
+  }
+
+  fn remove_file(&self, path: &Path) -> Result<()> {
+    self.inner.remove_file(path)
+  }
+
+  fn create_dir_all(&self, path: &Path) -> Result<()> {
+    self.inner.create_dir_all(path)
+  }
+}
+
 pub fn glob(fs: &dyn FileSystem, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
   if !is_glob(pattern) {
     let mut path = Path::new(pattern).to_path_buf();

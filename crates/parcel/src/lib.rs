@@ -1,4 +1,6 @@
-use parcel_core::{AssetNode, BuildOptions, BundleGraph, DiagnosticList, SourceUrl};
+use std::sync::Arc;
+
+use parcel_core::{AssetNode, BuildOptions, BundleGraph, DiagnosticList, PluginFactory, SourceUrl};
 
 use crate::plugin_factory::DefaultPluginFactory;
 
@@ -20,8 +22,9 @@ fn make_parcel(
   entries: &Vec<String>,
   options: BuildOptions,
 ) -> Result<parcel_core::Parcel, DiagnosticList> {
-  let factory = DefaultPluginFactory::new(options.input_fs.clone());
-  parcel_core::Parcel::new(entries, options, &factory)
+  let make_factory: Arc<parcel_core::FactoryBuilder> =
+    Arc::new(|fs| Box::new(DefaultPluginFactory::new(fs)) as Box<dyn PluginFactory>);
+  parcel_core::Parcel::new(entries, options, make_factory)
 }
 
 pub fn build(entries: &Vec<String>, options: BuildOptions) -> Result<BundleGraph, DiagnosticList> {
@@ -56,8 +59,14 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
       .filter_map(|e| SourceUrl::from_path(e.path.as_path(), parcel.project_root()).ok())
       .collect();
 
-    let affected_indices = parcel.invalidate(&changed_urls);
-    if affected_indices.is_empty() {
+    let result = match parcel.invalidate(&changed_urls) {
+      Ok(result) => result,
+      Err(e) => {
+        print_diagnostics(&e, parcel.project_root());
+        continue;
+      }
+    };
+    if !result.needs_rebuild() {
       continue;
     }
 
@@ -96,10 +105,19 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
       .filter_map(|e| SourceUrl::from_path(e.path.as_path(), parcel.project_root()).ok())
       .collect();
 
-    let affected_indices = parcel.invalidate(&changed_urls);
-    if affected_indices.is_empty() {
+    let result = match parcel.invalidate(&changed_urls) {
+      Ok(result) => result,
+      Err(e) => {
+        print_diagnostics(&e, parcel.project_root());
+        continue;
+      }
+    };
+    if !result.needs_rebuild() {
       continue;
     }
+    // On a config change the Parcel was rebuilt from scratch; there are no specific changed asset
+    // indices, so HMR is skipped in favour of the full rebuild's output.
+    let affected_indices = result.affected;
 
     let start = std::time::Instant::now();
     match parcel.build() {

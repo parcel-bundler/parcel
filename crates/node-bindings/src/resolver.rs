@@ -131,6 +131,10 @@ impl FileSystem for JsFileSystem {
     todo!()
   }
 
+  fn remove_file(&self, path: &Path) -> std::io::Result<()> {
+    todo!()
+  }
+
   fn read_dir(&self, path: &Path) -> std::io::Result<Vec<parcel_core::DirEntry>> {
     todo!()
   }

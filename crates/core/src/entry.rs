@@ -32,7 +32,7 @@ pub fn resolve_entries(
     }
   }
 
-  let project_root = find_project_root(&paths, &options.cwd);
+  let project_root = find_project_root(&*options.input_fs, &paths, &options.cwd);
   let project_root_url = SourceUrl::from_absolute_directory_path(&project_root)?;
 
   let mut entries = EntryResolver::new();
@@ -485,7 +485,7 @@ fn package_engines(
   engines
 }
 
-pub fn find_project_root(entries: &Vec<PathBuf>, cwd: &Path) -> PathBuf {
+pub fn find_project_root(fs: &dyn FileSystem, entries: &Vec<PathBuf>, cwd: &Path) -> PathBuf {
   let root = common_root_path(entries.iter()).unwrap_or_else(|| cwd.to_owned());
 
   for dir in root.ancestors() {
@@ -497,7 +497,7 @@ pub fn find_project_root(entries: &Vec<PathBuf>, cwd: &Path) -> PathBuf {
       ".hg",
     ] {
       let p = dir.join(file);
-      if p.exists() {
+      if !fs.kind(&p).is_empty() {
         return dir.to_path_buf();
       }
     }

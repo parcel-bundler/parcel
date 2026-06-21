@@ -87,7 +87,7 @@ impl InvalidationMap {
     }
   }
 
-  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> HashSet<usize> {
+  pub fn invalidate(&self, changed: &[SourceUrl]) -> HashSet<usize> {
     let mut affected: HashSet<usize> = HashSet::new();
 
     for url in changed {

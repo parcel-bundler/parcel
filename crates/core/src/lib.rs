@@ -47,6 +47,14 @@ pub use resolver::Resolver;
 pub use target::*;
 pub use transformer::Transformer;
 
+/// Builds a `PluginFactory` from the file system it should read plugins/configs through.
+///
+/// `Parcel::new` wraps the input file system in a [`TrackingFileSystem`] and hands it to this
+/// builder so that files read by the factory (extended configs, plugin lookups) are tracked
+/// alongside the files core reads directly. The builder is stored so `Parcel` can rebuild itself
+/// from scratch when a configuration file changes.
+pub type FactoryBuilder = dyn Fn(Arc<dyn FileSystem>) -> Box<dyn PluginFactory>;
+
 pub struct Parcel {
   asset_graph_builder: AssetGraphBuilder,
   config: Arc<ParcelConfig>,
@@ -54,15 +62,53 @@ pub struct Parcel {
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by bundle name; value is (sorted asset indices, dist path).
   prev_bundles: HashMap<String, (Vec<usize>, PathBuf)>,
+  /// Original constructor inputs, retained so the build can be recreated from scratch when a
+  /// configuration file changes.
+  entries: Vec<String>,
+  build_options: BuildOptions,
+  make_factory: Arc<FactoryBuilder>,
+  /// Files read while loading configuration during `Parcel::new`. A change to any of them
+  /// requires a full rebuild rather than an incremental one.
+  config_invalidations: InvalidationMap,
+}
+
+/// The outcome of [`Parcel::invalidate`].
+#[derive(Debug, Default)]
+pub struct InvalidateResult {
+  /// Asset indices invalidated for an incremental rebuild.
+  pub affected: HashSet<usize>,
+  /// True if a configuration file changed and the `Parcel` was rebuilt from scratch. In that case
+  /// `affected` is empty and the next `build()` performs a full build.
+  pub config_changed: bool,
+}
+
+impl InvalidateResult {
+  /// Whether the next `build()` will produce different output (and is therefore worth running).
+  pub fn needs_rebuild(&self) -> bool {
+    self.config_changed || !self.affected.is_empty()
+  }
 }
 
 impl Parcel {
   pub fn new(
     entries: &Vec<String>,
     options: BuildOptions,
-    factory: &dyn PluginFactory,
+    make_factory: Arc<FactoryBuilder>,
   ) -> Result<Parcel, DiagnosticList> {
-    let (entries, project_root) = resolve_entries(&entries, &options)?;
+    // Keep the original constructor inputs so the build can be recreated on a config change.
+    let build_options = options.clone();
+    let real_fs = options.input_fs.clone();
+
+    // Route all configuration-time reads (entries, dotenv, .parcelrc and its extends, plugin
+    // lookups done by the factory) through a tracker so we learn which files were consulted.
+    let tracker = Arc::new(TrackingFileSystem::new(real_fs.clone()));
+    let mut options = options;
+    options.input_fs = tracker.clone();
+
+    let factory = make_factory(tracker.clone());
+    let factory: &dyn PluginFactory = &*factory;
+
+    let (resolved_entries, project_root) = resolve_entries(entries, &options)?;
 
     let mut env = options.env;
     load_dotenv(&project_root, &*options.input_fs, &mut env)?;
@@ -83,21 +129,38 @@ impl Parcel {
       },
     );
 
+    let project_root = SourceUrl::from_absolute_directory_path(&project_root)?;
+
+    // The tracker accumulated an invalidation map for every file read while loading configuration.
+    // Entry source files are read while resolving entries, but editing them should trigger an
+    // incremental rebuild, not a full one — so drop them from the config invalidation set.
+    let mut config_invalidations = tracker.take();
+    for entry in &resolved_entries {
+      if let Ok(url) = entry.url.to_file_url(&project_root) {
+        config_invalidations.on_file_change.remove(&url);
+        config_invalidations.on_file_create_path.remove(&url);
+      }
+    }
+
     let options = Arc::new(ParcelOptions {
       env,
       mode: options.mode,
       log_level: options.log_level,
-      project_root: SourceUrl::from_absolute_directory_path(&project_root)?,
-      input_fs: options.input_fs,
+      project_root,
+      input_fs: real_fs,
       output_fs: options.output_fs,
       cwd: options.cwd,
     });
 
     Ok(Parcel {
-      asset_graph_builder: AssetGraphBuilder::new(entries, config.clone(), options.clone()),
+      asset_graph_builder: AssetGraphBuilder::new(resolved_entries, config.clone(), options.clone()),
       config,
       options,
       prev_bundles: HashMap::new(),
+      entries: entries.clone(),
+      build_options,
+      make_factory,
+      config_invalidations,
     })
   }
 
@@ -105,8 +168,43 @@ impl Parcel {
     &self.options.project_root
   }
 
-  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> HashSet<usize> {
-    self.asset_graph_builder.invalidate(changed)
+  /// Marks files as changed ahead of the next `build()`.
+  ///
+  /// If any changed file was read while loading configuration (`.parcelrc`, `.env`, etc.), the
+  /// entire `Parcel` is rebuilt from scratch in place and the result reports `config_changed`.
+  /// Otherwise only the affected assets are invalidated for an incremental rebuild.
+  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> Result<InvalidateResult, DiagnosticList> {
+    if self.is_config_change(changed) {
+      // Recreate first; on failure (e.g. an invalid config edit) leave `self` untouched so the
+      // last good build remains usable.
+      let parcel = Parcel::new(
+        &self.entries,
+        self.build_options.clone(),
+        self.make_factory.clone(),
+      )?;
+      *self = parcel;
+      return Ok(InvalidateResult {
+        affected: HashSet::new(),
+        config_changed: true,
+      });
+    }
+
+    let affected = self.asset_graph_builder.invalidate(changed);
+    Ok(InvalidateResult {
+      affected,
+      config_changed: false,
+    })
+  }
+
+  /// Returns true if any of the changed files was read while loading configuration.
+  pub fn is_config_change(&self, changed: &[SourceUrl]) -> bool {
+    // The tracker recorded config files as absolute `file://` URLs; normalize the changed URLs
+    // (which may be `project://`) to match.
+    let changed: Vec<SourceUrl> = changed
+      .iter()
+      .filter_map(|url| url.to_file_url(&self.options.project_root).ok())
+      .collect();
+    !self.config_invalidations.invalidate(&changed).is_empty()
   }
 
   pub fn build(&mut self) -> Result<BundleGraph, DiagnosticList> {
@@ -181,9 +279,9 @@ impl Parcel {
 pub fn build(
   entries: &Vec<String>,
   options: BuildOptions,
-  factory: &dyn PluginFactory,
+  make_factory: Arc<FactoryBuilder>,
 ) -> Result<BundleGraph, DiagnosticList> {
-  let mut parcel = Parcel::new(entries, options, factory)?;
+  let mut parcel = Parcel::new(entries, options, make_factory)?;
   parcel.build()
 }
 
