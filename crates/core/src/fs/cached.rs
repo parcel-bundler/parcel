@@ -1,0 +1,370 @@
+use std::{
+  hash::{BuildHasherDefault, Hash, Hasher},
+  io::Result,
+  path::{Path, PathBuf},
+  sync::{Arc, OnceLock},
+};
+
+use xxhash_rust::xxh3::xxh3_64;
+
+use super::{DirEntry, FileKind, FileStat, FileSystem};
+
+/// A `FileSystem` decorator that memoizes filesystem metadata lookups in a concurrent cache,
+/// delegating misses to an inner file system. A single instance can be shared across the whole
+/// build so the resolver, transformers, and the JS environment all read through the same warm
+/// cache, and stale entries are dropped centrally via [`CachedFileSystem::invalidate`].
+///
+/// Only metadata operations are cached (`kind`, `stat`, `lstat`, `read_dir`, `read_link`,
+/// `canonicalize`) — exactly the lookups hammered during resolution. File *contents* (`read`) are
+/// passed straight through, since caching them would duplicate every source file in memory.
+///
+/// The path-interning machinery (a `papaya` set keyed by a pre-hashed path, with allocation-free
+/// borrowed lookups) is adapted from `parcel-resolver`'s cache, minus the parsed `package.json` /
+/// `tsconfig` structures and node_modules bookkeeping it doesn't need here.
+pub struct CachedFileSystem {
+  inner: Arc<dyn FileSystem>,
+  paths: papaya::HashSet<PathEntry, BuildHasherDefault<IdentityHasher>>,
+}
+
+/// Cached metadata for a single path. Each field is computed at most once; `Result`-returning
+/// operations are only cached on success (errors are rare and re-tried against the inner fs).
+struct CacheEntry {
+  hash: u64,
+  path: PathBuf,
+  kind: OnceLock<FileKind>,
+  stat: OnceLock<Option<FileStat>>,
+  lstat: OnceLock<Option<FileStat>>,
+  read_dir: OnceLock<Arc<Vec<DirEntry>>>,
+  read_link: OnceLock<PathBuf>,
+  canonical: OnceLock<PathBuf>,
+}
+
+/// An entry in the path set. Hashed by its precomputed path hash and compared by path, so lookups
+/// can borrow a `&Path` without allocating (see [`BorrowedPathEntry`]).
+struct PathEntry(Arc<CacheEntry>);
+
+impl Hash for PathEntry {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.0.hash.hash(state);
+  }
+}
+
+impl PartialEq for PathEntry {
+  fn eq(&self, other: &Self) -> bool {
+    self.0.path == other.0.path
+  }
+}
+
+impl Eq for PathEntry {}
+
+struct BorrowedPathEntry<'a> {
+  hash: u64,
+  path: &'a Path,
+}
+
+impl papaya::Equivalent<PathEntry> for BorrowedPathEntry<'_> {
+  fn equivalent(&self, key: &PathEntry) -> bool {
+    self.path == key.0.path
+  }
+}
+
+impl Hash for BorrowedPathEntry<'_> {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.hash.hash(state);
+  }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Default for CachedFileSystem {
+  fn default() -> Self {
+    CachedFileSystem::new(Arc::new(super::OsFileSystem))
+  }
+}
+
+impl CachedFileSystem {
+  /// Creates an empty cache wrapping the given file system.
+  pub fn new(inner: Arc<dyn FileSystem>) -> CachedFileSystem {
+    CachedFileSystem {
+      inner,
+      paths: papaya::HashSet::default(),
+    }
+  }
+
+  /// The underlying (uncached) file system.
+  pub fn inner(&self) -> &Arc<dyn FileSystem> {
+    &self.inner
+  }
+
+  fn hash_path(path: &Path) -> u64 {
+    xxh3_64(path.as_os_str().as_encoded_bytes())
+  }
+
+  /// Returns the cache entry for `path`, creating it if necessary.
+  fn entry(&self, path: &Path) -> Arc<CacheEntry> {
+    let hash = Self::hash_path(path);
+    let paths = self.paths.pin();
+    if let Some(PathEntry(entry)) = paths.get(&BorrowedPathEntry { hash, path }) {
+      return entry.clone();
+    }
+
+    let entry = Arc::new(CacheEntry {
+      hash,
+      path: path.to_path_buf(),
+      kind: OnceLock::new(),
+      stat: OnceLock::new(),
+      lstat: OnceLock::new(),
+      read_dir: OnceLock::new(),
+      read_link: OnceLock::new(),
+      canonical: OnceLock::new(),
+    });
+    // A concurrent insert of the same path is harmless: `insert` keeps the existing entry and this
+    // caller simply uses its own (which won't be shared), recomputing at most once.
+    paths.insert(PathEntry(entry.clone()));
+    entry
+  }
+
+  /// Drops cached metadata for the given paths (e.g. when files change). For each path, the entry
+  /// itself and its parent directory's entry are removed — the latter because a created or deleted
+  /// child changes the parent's `read_dir` result.
+  pub fn invalidate<P: AsRef<Path>>(&self, paths: impl IntoIterator<Item = P>) {
+    let entries = self.paths.pin();
+    for path in paths {
+      let path = path.as_ref();
+      entries.remove(&BorrowedPathEntry {
+        hash: Self::hash_path(path),
+        path,
+      });
+      if let Some(parent) = path.parent() {
+        entries.remove(&BorrowedPathEntry {
+          hash: Self::hash_path(parent),
+          path: parent,
+        });
+      }
+    }
+  }
+
+  /// Removes all cached entries.
+  pub fn clear(&self) {
+    self.paths.pin().clear();
+  }
+}
+
+impl FileSystem for CachedFileSystem {
+  fn read(&self, path: &Path) -> Result<Vec<u8>> {
+    // Contents are not cached (would duplicate every source file in memory).
+    self.inner.read(path)
+  }
+
+  fn kind(&self, path: &Path) -> FileKind {
+    *self
+      .entry(path)
+      .kind
+      .get_or_init(|| self.inner.kind(path))
+  }
+
+  fn stat(&self, path: &Path) -> Option<FileStat> {
+    self
+      .entry(path)
+      .stat
+      .get_or_init(|| self.inner.stat(path))
+      .clone()
+  }
+
+  fn lstat(&self, path: &Path) -> Option<FileStat> {
+    self
+      .entry(path)
+      .lstat
+      .get_or_init(|| self.inner.lstat(path))
+      .clone()
+  }
+
+  fn read_link(&self, path: &Path) -> Result<PathBuf> {
+    let entry = self.entry(path);
+    if let Some(link) = entry.read_link.get() {
+      return Ok(link.clone());
+    }
+    let result = self.inner.read_link(path)?;
+    let _ = entry.read_link.set(result.clone());
+    Ok(result)
+  }
+
+  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+    let entry = self.entry(path);
+    if let Some(entries) = entry.read_dir.get() {
+      return Ok((**entries).clone());
+    }
+    let result = self.inner.read_dir(path)?;
+    let _ = entry.read_dir.set(Arc::new(result.clone()));
+    Ok(result)
+  }
+
+  fn canonicalize(&self, path: &Path) -> Result<PathBuf> {
+    let entry = self.entry(path);
+    if let Some(canonical) = entry.canonical.get() {
+      return Ok(canonical.clone());
+    }
+    let result = self.inner.canonicalize(path)?;
+    let _ = entry.canonical.set(result.clone());
+    Ok(result)
+  }
+
+  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+    self.inner.write(path, contents)?;
+    self.invalidate([path]);
+    Ok(())
+  }
+
+  fn remove_file(&self, path: &Path) -> Result<()> {
+    self.inner.remove_file(path)?;
+    self.invalidate([path]);
+    Ok(())
+  }
+
+  fn create_dir_all(&self, path: &Path) -> Result<()> {
+    self.inner.create_dir_all(path)?;
+    self.invalidate([path]);
+    Ok(())
+  }
+}
+
+/// A hasher that passes through a value that is already a hash. Used so the path set can be keyed
+/// directly by the precomputed path hash without re-hashing.
+#[derive(Default)]
+pub struct IdentityHasher {
+  hash: u64,
+}
+
+impl Hasher for IdentityHasher {
+  fn write(&mut self, bytes: &[u8]) {
+    if bytes.len() == 8 {
+      self.hash = u64::from_ne_bytes([
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+      ])
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn finish(&self) -> u64 {
+    self.hash
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::MemoryFileSystem;
+  use std::sync::atomic::{AtomicUsize, Ordering};
+
+  /// An inner file system that counts how many times each cached operation reaches it.
+  struct CountingFileSystem {
+    inner: MemoryFileSystem,
+    kind_calls: AtomicUsize,
+    read_dir_calls: AtomicUsize,
+    read_calls: AtomicUsize,
+  }
+
+  impl CountingFileSystem {
+    fn new() -> Self {
+      CountingFileSystem {
+        inner: MemoryFileSystem::new(),
+        kind_calls: AtomicUsize::new(0),
+        read_dir_calls: AtomicUsize::new(0),
+        read_calls: AtomicUsize::new(0),
+      }
+    }
+  }
+
+  impl FileSystem for CountingFileSystem {
+    fn read(&self, path: &Path) -> Result<Vec<u8>> {
+      self.read_calls.fetch_add(1, Ordering::Relaxed);
+      self.inner.read(path)
+    }
+    fn kind(&self, path: &Path) -> FileKind {
+      self.kind_calls.fetch_add(1, Ordering::Relaxed);
+      self.inner.kind(path)
+    }
+    fn stat(&self, path: &Path) -> Option<FileStat> {
+      self.inner.stat(path)
+    }
+    fn lstat(&self, path: &Path) -> Option<FileStat> {
+      self.inner.lstat(path)
+    }
+    fn read_link(&self, path: &Path) -> Result<PathBuf> {
+      self.inner.read_link(path)
+    }
+    fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+      self.read_dir_calls.fetch_add(1, Ordering::Relaxed);
+      self.inner.read_dir(path)
+    }
+    fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+      self.inner.write(path, contents)
+    }
+    fn remove_file(&self, path: &Path) -> Result<()> {
+      self.inner.remove_file(path)
+    }
+    fn create_dir_all(&self, path: &Path) -> Result<()> {
+      self.inner.create_dir_all(path)
+    }
+  }
+
+  fn setup() -> (Arc<CountingFileSystem>, CachedFileSystem) {
+    let counting = Arc::new(CountingFileSystem::new());
+    let fs = CachedFileSystem::new(counting.clone());
+    fs.create_dir_all(Path::new("/dir")).unwrap();
+    fs.write(Path::new("/dir/a.js"), &b"a".to_vec()).unwrap();
+    fs.write(Path::new("/dir/b.js"), &b"b".to_vec()).unwrap();
+    (counting, fs)
+  }
+
+  #[test]
+  fn caches_kind_until_invalidated() {
+    let (counting, fs) = setup();
+    let path = Path::new("/dir/a.js");
+
+    assert!(fs.kind(path).contains(FileKind::IS_FILE));
+    assert!(fs.kind(path).contains(FileKind::IS_FILE));
+    assert_eq!(counting.kind_calls.load(Ordering::Relaxed), 1, "second kind() should hit cache");
+
+    fs.invalidate([path]);
+    assert!(fs.kind(path).contains(FileKind::IS_FILE));
+    assert_eq!(counting.kind_calls.load(Ordering::Relaxed), 2, "invalidation should force a refetch");
+  }
+
+  #[test]
+  fn caches_read_dir() {
+    let (counting, fs) = setup();
+    let dir = Path::new("/dir");
+
+    assert_eq!(fs.read_dir(dir).unwrap().len(), 2);
+    assert_eq!(fs.read_dir(dir).unwrap().len(), 2);
+    assert_eq!(counting.read_dir_calls.load(Ordering::Relaxed), 1);
+  }
+
+  #[test]
+  fn creating_a_file_invalidates_parent_listing() {
+    let (counting, fs) = setup();
+    let dir = Path::new("/dir");
+
+    assert_eq!(fs.read_dir(dir).unwrap().len(), 2);
+
+    // Writing a new file goes through the cache, which invalidates the parent directory's listing.
+    fs.write(Path::new("/dir/c.js"), &b"c".to_vec()).unwrap();
+    assert_eq!(fs.read_dir(dir).unwrap().len(), 3);
+    assert_eq!(counting.read_dir_calls.load(Ordering::Relaxed), 2);
+  }
+
+  #[test]
+  fn does_not_cache_read() {
+    let (counting, fs) = setup();
+    let path = Path::new("/dir/a.js");
+
+    assert_eq!(fs.read(path).unwrap(), b"a");
+    assert_eq!(fs.read(path).unwrap(), b"a");
+    assert_eq!(
+      counting.read_calls.load(Ordering::Relaxed),
+      2,
+      "file contents are intentionally not cached"
+    );
+  }
+}

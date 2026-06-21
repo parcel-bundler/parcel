@@ -3091,6 +3091,7 @@ dependencies = [
  "indexmap 2.14.0",
  "json-sourcemap",
  "node-semver",
+ "papaya",
  "parcel_sourcemap",
  "petgraph",
  "pretty_assertions",

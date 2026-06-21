@@ -7,8 +7,10 @@ use std::{
 use bitflags::bitflags;
 use glob_match::glob_match;
 
+mod cached;
 mod memory;
 mod tracking;
+pub use cached::*;
 pub use memory::*;
 pub use tracking::*;
 
@@ -35,7 +37,7 @@ bitflags! {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DirEntry {
   pub name: OsString,
   pub kind: FileKind,
