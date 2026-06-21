@@ -24,11 +24,7 @@ parcel-core = { path = "../core" }
 
 [dev-dependencies]
 assert_fs = "1.1.4"
-oxc_resolver = "2"
-# node_resolver = "0.15.0"
 criterion = { version = "*", features = ["html_reports"] }
-deno_package_json = "0.1.2"
-rspack_resolver = "*"
 
 [target.'cfg(windows)'.dev-dependencies]
 is_elevated = "0.1.2"

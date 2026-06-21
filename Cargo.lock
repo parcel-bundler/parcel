@@ -1072,33 +1072,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deno_package_json"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cbc4c4d3eb0960b58e8f43f9fc2d3f620fcac9a03cd85203e08db5b04e83c1f"
-dependencies = [
- "deno_semver",
- "indexmap 2.14.0",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "url",
-]
-
-[[package]]
-name = "deno_semver"
-version = "0.5.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c957c6a57c38b7dde2315df0da0ec228911e56a74f185b108a488d0401841a67"
-dependencies = [
- "monch",
- "once_cell",
- "serde",
- "thiserror 1.0.69",
- "url",
-]
-
-[[package]]
 name = "deranged"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2210,15 +2183,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "json-strip-comments"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b271732a960335e715b6b2ae66a086f115c74eb97360e996d2bd809bfc063bba"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "jsonc-parser"
 version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2613,12 +2577,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "monch"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b52c1b33ff98142aecea13138bd399b68aa7ab5d9546c300988c345004001eea"
-
-[[package]]
 name = "moxcms"
 version = "0.7.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2897,25 +2855,6 @@ name = "owo-colors"
 version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d211803b9b6b570f68772237e415a029d5a50c65d382910b879fb19d3271f94d"
-
-[[package]]
-name = "oxc_resolver"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da33ec82d0f4770f4b5c120d6a1d8e45de2d99ae2672a7ee6bd29092ada945f2"
-dependencies = [
- "cfg-if",
- "dashmap 6.1.0",
- "indexmap 2.14.0",
- "json-strip-comments",
- "once_cell",
- "rustc-hash 2.1.2",
- "serde",
- "serde_json",
- "simdutf8",
- "thiserror 1.0.69",
- "tracing",
-]
 
 [[package]]
 name = "oxipng"
@@ -3297,17 +3236,14 @@ dependencies = [
  "assert_fs",
  "bitflags",
  "criterion",
- "deno_package_json",
  "glob-match",
  "indexmap 1.9.3",
  "is_elevated",
  "itertools 0.10.5",
- "oxc_resolver",
  "papaya",
  "parcel-core",
  "parking_lot",
  "percent-encoding",
- "rspack_resolver",
  "rustc-hash 2.1.2",
  "serde",
  "serde_json",
@@ -4141,26 +4077,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27344601ef27460e82d6a4e1ecb9e7e99f518122095f3c51296da8e9be2b9d83"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "rspack_resolver"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44786dd48374dc4b43cff0306e417c1d11016c3dffda5685bb272b6eb4f7ff85"
-dependencies = [
- "cfg-if",
- "dashmap 6.1.0",
- "dunce",
- "indexmap 2.14.0",
- "json-strip-comments",
- "once_cell",
- "rustc-hash 2.1.2",
- "serde",
- "serde_json",
- "simdutf8",
- "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]
