@@ -1,14 +1,17 @@
 use std::{
   any::{Any, TypeId},
   hash::{BuildHasherDefault, Hash, Hasher},
-  io::Result,
+  io::{Error, ErrorKind, Result},
   path::{Path, PathBuf},
-  sync::{Arc, OnceLock},
+  sync::{
+    Arc, OnceLock,
+    atomic::{AtomicU64, Ordering},
+  },
 };
 
 use xxhash_rust::xxh3::xxh3_64;
 
-use super::{DirEntry, FileKind, FileStat, FileSystem};
+use super::{DirEntry, FileKind, FileStat, FileSystem, normalize_path, resolve_path};
 
 /// A cache that associates arbitrary, lazily-computed objects with a path, sharing the lifetime and
 /// invalidation of the underlying [`CachedFileSystem`]. Used to cache parsed artifacts derived from
@@ -78,6 +81,9 @@ struct CacheEntry {
   read_dir: OnceLock<Arc<Vec<DirEntry>>>,
   read_link: OnceLock<PathBuf>,
   canonical: OnceLock<PathBuf>,
+  /// The id of the thread currently canonicalizing this path (0 if none), used to detect circular
+  /// symlinks: re-entering canonicalization of the same path on the same thread is a cycle.
+  canonicalizing: AtomicU64,
   /// Arbitrary objects derived from this path, keyed by their type. Stored type-erased so the fs
   /// layer needn't know about resolver concepts like `package.json` or `tsconfig`. Dropped together
   /// with the entry on invalidation, which is how derived artifacts get invalidated centrally.
@@ -161,6 +167,7 @@ impl CachedFileSystem {
       read_dir: OnceLock::new(),
       read_link: OnceLock::new(),
       canonical: OnceLock::new(),
+      canonicalizing: AtomicU64::new(0),
       objects: papaya::HashMap::new(),
     });
     // A concurrent insert of the same path is harmless: `insert` keeps the existing entry and this
@@ -242,13 +249,54 @@ impl FileSystem for CachedFileSystem {
   }
 
   fn canonicalize(&self, path: &Path) -> Result<PathBuf> {
+    // Resolve symlinks one level at a time, caching the canonical path of each ancestor. Sibling
+    // paths under a common directory then share that directory's cached canonical result instead of
+    // re-resolving the whole prefix every time (which is what delegating to a single OS
+    // `canonicalize` call would do).
     let entry = self.entry(path);
     if let Some(canonical) = entry.canonical.get() {
       return Ok(canonical.clone());
     }
-    let result = self.inner.canonicalize(path)?;
-    let _ = entry.canonical.set(result.clone());
-    Ok(result)
+
+    // Detect circular symlinks: if this thread is already canonicalizing this entry, it's a cycle.
+    let tid = THREAD_ID.with(|t| *t);
+    if entry.canonicalizing.load(Ordering::Acquire) == tid {
+      return Err(Error::new(ErrorKind::NotFound, "circular symlink"));
+    }
+    entry.canonicalizing.store(tid, Ordering::Release);
+
+    let result = (|| {
+      let Some(parent) = path.parent() else {
+        // Root has no parent; it is its own canonical path.
+        return Ok(path.to_path_buf());
+      };
+      let parent_canonical = self.canonicalize(parent)?;
+      let suffix = path
+        .strip_prefix(parent)
+        .map_err(|_| Error::new(ErrorKind::InvalidInput, "failed to strip path prefix"))?;
+      let resolved = parent_canonical.join(suffix);
+
+      if entry
+        .kind
+        .get_or_init(|| self.inner.kind(path))
+        .contains(FileKind::IS_SYMLINK)
+      {
+        let link = self.read_link(&resolved)?;
+        if link.is_absolute() {
+          self.canonicalize(&normalize_path(&link))
+        } else {
+          self.canonicalize(&resolve_path(&resolved, &link))
+        }
+      } else {
+        Ok(resolved)
+      }
+    })();
+
+    entry.canonicalizing.store(0, Ordering::Release);
+    if let Ok(canonical) = &result {
+      let _ = entry.canonical.set(canonical.clone());
+    }
+    result
   }
 
   fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
@@ -289,6 +337,13 @@ impl ObjectCache for CachedFileSystem {
       .clone();
     slot.get_or_init(|| compute()).clone()
   }
+}
+
+static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
+
+thread_local! {
+  /// A unique non-zero id per thread, used by `canonicalize` for circular-symlink detection.
+  static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
 /// A hasher that passes through a value that is already a hash. Used so the path set can be keyed
@@ -489,6 +544,107 @@ mod tests {
       counting.read_calls.load(Ordering::Relaxed),
       2,
       "file contents are intentionally not cached"
+    );
+  }
+
+  /// A mock file system with an explicit symlink table, for testing incremental canonicalization
+  /// deterministically (without touching the real file system).
+  struct SymlinkFileSystem {
+    links: std::collections::HashMap<PathBuf, PathBuf>,
+    read_link_calls: AtomicUsize,
+  }
+
+  impl FileSystem for SymlinkFileSystem {
+    fn read(&self, _path: &Path) -> Result<Vec<u8>> {
+      Err(Error::new(ErrorKind::NotFound, "unsupported"))
+    }
+    fn kind(&self, path: &Path) -> FileKind {
+      if self.links.contains_key(path) {
+        FileKind::IS_FILE | FileKind::IS_SYMLINK
+      } else {
+        FileKind::IS_DIR
+      }
+    }
+    fn stat(&self, _path: &Path) -> Option<FileStat> {
+      None
+    }
+    fn lstat(&self, _path: &Path) -> Option<FileStat> {
+      None
+    }
+    fn read_link(&self, path: &Path) -> Result<PathBuf> {
+      self.read_link_calls.fetch_add(1, Ordering::Relaxed);
+      self
+        .links
+        .get(path)
+        .cloned()
+        .ok_or_else(|| Error::new(ErrorKind::NotFound, "not a symlink"))
+    }
+    fn read_dir(&self, _path: &Path) -> Result<Vec<DirEntry>> {
+      Ok(Vec::new())
+    }
+    fn write(&self, _path: &Path, _contents: &Vec<u8>) -> Result<()> {
+      Ok(())
+    }
+    fn remove_file(&self, _path: &Path) -> Result<()> {
+      Ok(())
+    }
+    fn create_dir_all(&self, _path: &Path) -> Result<()> {
+      Ok(())
+    }
+  }
+
+  fn symlink_fs(links: &[(&str, &str)]) -> (Arc<SymlinkFileSystem>, CachedFileSystem) {
+    let links = links
+      .iter()
+      .map(|(from, to)| (PathBuf::from(from), PathBuf::from(to)))
+      .collect();
+    let inner = Arc::new(SymlinkFileSystem {
+      links,
+      read_link_calls: AtomicUsize::new(0),
+    });
+    let fs = CachedFileSystem::new(inner.clone());
+    (inner, fs)
+  }
+
+  #[test]
+  fn canonicalize_resolves_absolute_symlink() {
+    let (_inner, fs) = symlink_fs(&[("/link_dir", "/real_dir")]);
+    assert_eq!(
+      fs.canonicalize(Path::new("/link_dir/a")).unwrap(),
+      PathBuf::from("/real_dir/a")
+    );
+  }
+
+  #[test]
+  fn canonicalize_resolves_relative_symlink() {
+    let (_inner, fs) = symlink_fs(&[("/dir/link", "../target")]);
+    assert_eq!(
+      fs.canonicalize(Path::new("/dir/link")).unwrap(),
+      PathBuf::from("/target")
+    );
+  }
+
+  #[test]
+  fn canonicalize_reuses_cached_parent() {
+    let (inner, fs) = symlink_fs(&[("/link_dir", "/real_dir")]);
+    assert_eq!(
+      fs.canonicalize(Path::new("/link_dir/a")).unwrap(),
+      PathBuf::from("/real_dir/a")
+    );
+    assert_eq!(
+      fs.canonicalize(Path::new("/link_dir/b")).unwrap(),
+      PathBuf::from("/real_dir/b")
+    );
+    // The shared parent symlink is resolved once; the second call reuses its cached canonical path.
+    assert_eq!(inner.read_link_calls.load(Ordering::Relaxed), 1);
+  }
+
+  #[test]
+  fn canonicalize_detects_circular_symlinks() {
+    let (_inner, fs) = symlink_fs(&[("/a", "/b"), ("/b", "/a")]);
+    assert!(
+      fs.canonicalize(Path::new("/a")).is_err(),
+      "a circular symlink must error rather than loop forever"
     );
   }
 }

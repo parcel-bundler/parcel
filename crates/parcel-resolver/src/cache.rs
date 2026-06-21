@@ -13,10 +13,7 @@ use std::{
   hash::{BuildHasherDefault, Hash, Hasher},
   ops::Deref,
   path::{Component, Path, PathBuf, is_separator},
-  sync::{
-    Arc, OnceLock, Weak,
-    atomic::{AtomicU64, Ordering},
-  },
+  sync::{Arc, Weak},
 };
 
 /// Stores various cached info about file paths.
@@ -117,11 +114,6 @@ impl Cache {
       path: path.to_path_buf(),
       parent: parent.as_ref().map(|p| WeakPath(Arc::downgrade(p))),
       flags,
-      kind: OnceLock::new(),
-      canonical: OnceLock::new(),
-      canonicalizing: AtomicU64::new(0),
-      package_json: OnceLock::new(),
-      tsconfig: OnceLock::new(),
     });
 
     paths.insert(PathEntry(Arc::clone(&info)));
@@ -173,17 +165,16 @@ bitflags! {
   }
 }
 
-/// Cached info about a file path.
+/// Interning info about a file path. Metadata (`kind`, `canonical`) and parsed artifacts
+/// (`package.json`, `tsconfig`) are no longer cached here — those now go through the
+/// [`FileSystem`] and its [`ObjectCache`](parcel_core::ObjectCache), so they can be invalidated
+/// centrally. Only the path identity, parent link, and node_modules flags (which never change for a
+/// given path) live here.
 struct PathInfo {
   hash: u64,
   path: PathBuf,
   flags: PathFlags,
   parent: Option<WeakPath>,
-  kind: OnceLock<FileKind>,
-  canonical: OnceLock<Result<WeakPath, ResolverError>>,
-  canonicalizing: AtomicU64,
-  package_json: OnceLock<Arc<Result<PackageJson, ResolverError>>>,
-  tsconfig: OnceLock<Arc<Result<TsConfigWrapper, ResolverError>>>,
 }
 
 #[derive(Clone)]
@@ -214,7 +205,8 @@ impl CachedPath {
   }
 
   fn kind(&self, fs: &dyn FileSystem) -> FileKind {
-    *self.0.kind.get_or_init(|| fs.kind(self.as_path()))
+    // The file system caches this (when it is a `CachedFileSystem`); the resolver no longer does.
+    fs.kind(self.as_path())
   }
 
   /// Returns whether the path is a file.
@@ -238,52 +230,12 @@ impl CachedPath {
   }
 
   /// Returns the canonical path, resolving all symbolic links.
+  ///
+  /// Delegated to the file system, which performs (and, when it is a `CachedFileSystem`, caches)
+  /// the symlink resolution. The result is re-interned so callers still get a `CachedPath`.
   pub fn canonicalize(&self, cache: &Cache) -> Result<CachedPath, ResolverError> {
-    // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
-    // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
-    let tid = THREAD_ID.with(|t| *t);
-    if self.0.canonicalizing.load(Ordering::Acquire) == tid {
-      return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Circular symlink").into());
-    }
-
-    self
-      .0
-      .canonical
-      .get_or_init(|| {
-        self.0.canonicalizing.store(tid, Ordering::Release);
-
-        let res = self
-          .parent()
-          .map(|parent| {
-            parent.canonicalize(cache).and_then(|parent_canonical| {
-              let path = parent_canonical.join(
-                self
-                  .as_path()
-                  .strip_prefix(parent.as_path())
-                  .map_err(|_| ResolverError::UnknownError)?,
-                cache,
-              );
-
-              if self.kind(&*cache.fs).contains(FileKind::IS_SYMLINK) {
-                let link = cache.fs.read_link(path.as_path())?;
-                if link.is_absolute() {
-                  return cache.get(&normalize_path(&link)).canonicalize(cache);
-                } else {
-                  return path.resolve(&link, cache).canonicalize(cache);
-                }
-              }
-
-              Ok(path)
-            })
-          })
-          .unwrap_or_else(|| Ok(self.clone()))
-          .map(|p| p.downgrade());
-
-        self.0.canonicalizing.store(0, Ordering::Release);
-        res
-      })
-      .clone()
-      .map(|p| p.upgrade())
+    let canonical = cache.fs.canonicalize(self.as_path())?;
+    Ok(cache.get(&canonical))
   }
 
   /// Returns an iterator over all ancestor paths.
@@ -376,34 +328,37 @@ impl CachedPath {
   }
 
   /// Returns the parsed package.json at this path.
+  ///
+  /// Cached in the file system's [`ObjectCache`](parcel_core::ObjectCache) when available (so it is
+  /// invalidated when the file changes), otherwise parsed fresh each call.
   pub fn package_json(&self, cache: &Cache) -> Arc<Result<PackageJson, ResolverError>> {
-    self
-      .0
-      .package_json
-      .get_or_init(|| Arc::new(PackageJson::read(self, cache)))
-      .clone()
+    if let Some(objects) = cache.fs.as_object_cache() {
+      objects.get_or_compute(self.as_path(), || Arc::new(PackageJson::read(self, cache)))
+    } else {
+      Arc::new(PackageJson::read(self, cache))
+    }
   }
 
   /// Returns the parsed tsconfig.json at this path.
+  ///
+  /// Cached in the file system's [`ObjectCache`](parcel_core::ObjectCache) when available, otherwise
+  /// parsed fresh each call. Note `process` only runs when the value is actually computed.
   pub fn tsconfig<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
     &self,
     cache: &Cache,
     process: F,
   ) -> Arc<Result<TsConfigWrapper, ResolverError>> {
-    self
-      .0
-      .tsconfig
-      .get_or_init(|| Arc::new(TsConfig::read(self, process, cache)))
-      .clone()
+    if let Some(objects) = cache.fs.as_object_cache() {
+      objects.get_or_compute(self.as_path(), || Arc::new(TsConfig::read(self, process, cache)))
+    } else {
+      Arc::new(TsConfig::read(self, process, cache))
+    }
   }
 }
-
-static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
 
 // Per-thread pre-allocated path that is used to perform operations on paths more quickly.
 thread_local! {
   pub static SCRATCH_PATH: UnsafeCell<PathBuf> = UnsafeCell::new(PathBuf::with_capacity(256));
-  pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
 #[cfg(windows)]
