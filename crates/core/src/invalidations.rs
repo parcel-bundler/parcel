@@ -87,28 +87,33 @@ impl InvalidationMap {
     }
   }
 
-  pub fn invalidate(&self, changed: &[SourceUrl]) -> HashSet<usize> {
+  /// Returns the asset indices affected by the given file events.
+  ///
+  /// `changed` are files that were modified or deleted; they match `on_file_change`.
+  /// `created` are newly created files; they match the `on_file_create_*` invalidations. Keeping
+  /// the two apart matters for patterns that cover many files (globs, file-name-above): modifying
+  /// an existing file that happens to match such a pattern must not be mistaken for a creation.
+  pub fn invalidate(&self, changed: &[SourceUrl], created: &[SourceUrl]) -> HashSet<usize> {
     let mut affected: HashSet<usize> = HashSet::new();
 
     for url in changed {
       if let Some(indices) = self.on_file_change.get(url) {
         affected.extend(indices);
       }
+    }
+
+    for url in created {
       if let Some(indices) = self.on_file_create_path.get(url) {
         affected.extend(indices);
       }
-    }
 
-    // Check file-name-above invalidations: a new file created anywhere above a directory.
-    for url in changed {
+      // Check file-name-above invalidations: a file with a given name created anywhere within a
+      // directory subtree.
       let url_str = url.as_str();
       for (file_name, above, asset_index) in &self.on_file_create_above {
         let above_str = above.as_str();
-        // The changed URL must be a file whose name matches and whose path starts with `above`.
         if url_str.starts_with(above_str) {
           let rest = &url_str[above_str.len()..];
-          // Only match direct or nested children (not the directory itself).
-          // The file name must match the final segment.
           let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
           if segments.last() == Some(&file_name.as_str()) {
             affected.insert(*asset_index);

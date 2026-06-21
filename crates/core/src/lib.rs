@@ -132,7 +132,7 @@ impl Parcel {
     let project_root = SourceUrl::from_absolute_directory_path(&project_root)?;
 
     // The tracker accumulated an invalidation map for every file read while loading configuration.
-    // Entry source files are read while resolving entries, but editing them should trigger an
+    // Entry source files are stat'd while resolving entries, but editing one should trigger an
     // incremental rebuild, not a full one — so drop them from the config invalidation set.
     let mut config_invalidations = tracker.take();
     for entry in &resolved_entries {
@@ -170,11 +170,17 @@ impl Parcel {
 
   /// Marks files as changed ahead of the next `build()`.
   ///
-  /// If any changed file was read while loading configuration (`.parcelrc`, `.env`, etc.), the
-  /// entire `Parcel` is rebuilt from scratch in place and the result reports `config_changed`.
-  /// Otherwise only the affected assets are invalidated for an incremental rebuild.
-  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> Result<InvalidateResult, DiagnosticList> {
-    if self.is_config_change(changed) {
+  /// `changed` are files that were modified or deleted; `created` are newly created files. If any
+  /// of them was read while loading configuration (`.parcelrc`, `.env`, etc.) — or, for created
+  /// files, matches a tracked glob / ancestor-config pattern — the entire `Parcel` is rebuilt from
+  /// scratch in place and the result reports `config_changed`. Otherwise only the affected assets
+  /// are invalidated for an incremental rebuild.
+  pub fn invalidate(
+    &mut self,
+    changed: &[SourceUrl],
+    created: &[SourceUrl],
+  ) -> Result<InvalidateResult, DiagnosticList> {
+    if self.is_config_change(changed, created) {
       // Recreate first; on failure (e.g. an invalid config edit) leave `self` untouched so the
       // last good build remains usable.
       let parcel = Parcel::new(
@@ -189,22 +195,27 @@ impl Parcel {
       });
     }
 
-    let affected = self.asset_graph_builder.invalidate(changed);
+    let affected = self.asset_graph_builder.invalidate(changed, created);
     Ok(InvalidateResult {
       affected,
       config_changed: false,
     })
   }
 
-  /// Returns true if any of the changed files was read while loading configuration.
-  pub fn is_config_change(&self, changed: &[SourceUrl]) -> bool {
-    // The tracker recorded config files as absolute `file://` URLs; normalize the changed URLs
+  /// Returns true if any of the changed/created files was read while loading configuration.
+  pub fn is_config_change(&self, changed: &[SourceUrl], created: &[SourceUrl]) -> bool {
+    // The tracker recorded config files as absolute `file://` URLs; normalize the event URLs
     // (which may be `project://`) to match.
-    let changed: Vec<SourceUrl> = changed
-      .iter()
-      .filter_map(|url| url.to_file_url(&self.options.project_root).ok())
-      .collect();
-    !self.config_invalidations.invalidate(&changed).is_empty()
+    let to_file = |urls: &[SourceUrl]| -> Vec<SourceUrl> {
+      urls
+        .iter()
+        .filter_map(|url| url.to_file_url(&self.options.project_root).ok())
+        .collect()
+    };
+    !self
+      .config_invalidations
+      .invalidate(&to_file(changed), &to_file(created))
+      .is_empty()
   }
 
   pub fn build(&mut self) -> Result<BundleGraph, DiagnosticList> {

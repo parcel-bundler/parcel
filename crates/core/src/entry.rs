@@ -27,7 +27,7 @@ pub fn resolve_entries(
 ) -> Result<(Vec<Entry>, PathBuf), Diagnostic> {
   let mut paths = Vec::new();
   for entry in entries {
-    for path in glob(&*options.input_fs, &entry, &options.cwd) {
+    for path in options.input_fs.glob(&entry, &options.cwd) {
       paths.push(path);
     }
   }
@@ -180,7 +180,7 @@ impl EntryResolver {
       }
 
       if self.entries.is_empty() {
-        for source in glob(fs, source, &dir) {
+        for source in fs.glob(source, &dir) {
           self.add_entry(Entry {
             url: SourceUrl::from_path(&source, project_root)?,
             target: Arc::new(Target {
@@ -222,7 +222,7 @@ impl EntryResolver {
             source.clone()
           };
 
-          glob(fs, &source_glob, dir)
+          fs.glob(&source_glob, dir)
             .into_iter()
             .map(|path| {
               // Find the part of the path that matched the "*".
@@ -531,14 +531,9 @@ fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathBuf>) -> Option<
 }
 
 fn find_package(path: &Path, fs: &dyn FileSystem) -> Option<serde_json::Value> {
-  for p in path.ancestors() {
-    let pkg = p.join("package.json");
-    if let Ok(pkg) = fs.read(&pkg) {
-      return serde_json::from_slice(&pkg).ok();
-    }
-  }
-
-  None
+  let pkg = fs.find_ancestor_file(path, "package.json")?;
+  let contents = fs.read(&pkg).ok()?;
+  serde_json::from_slice(&contents).ok()
 }
 
 #[cfg(test)]

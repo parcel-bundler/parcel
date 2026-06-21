@@ -144,6 +144,29 @@ pub trait FileSystem: Send + Sync {
   fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>>;
 
   fn create_dir_all(&self, path: &Path) -> Result<()>;
+
+  /// Returns the paths matching `pattern`, resolved relative to `cwd`.
+  ///
+  /// Implementations that track invalidations (see [`TrackingFileSystem`]) override this to record
+  /// a create invalidation, so that a new file matching the pattern triggers a rebuild.
+  fn glob(&self, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
+    glob(self, pattern, cwd)
+  }
+
+  /// Searches `from` and its ancestor directories for a file named `file_name`, returning the first
+  /// match (closest to `from`), or `None` if it is not found.
+  ///
+  /// Implementations that track invalidations override this to record a `file_create_above`
+  /// invalidation, so that a closer file appearing later triggers a rebuild.
+  fn find_ancestor_file(&self, from: &Path, file_name: &str) -> Option<PathBuf> {
+    for dir in from.ancestors() {
+      let candidate = dir.join(file_name);
+      if self.kind(&candidate).contains(FileKind::IS_FILE) {
+        return Some(candidate);
+      }
+    }
+    None
+  }
 }
 
 /// Default operating system file system implementation.
@@ -758,9 +781,61 @@ impl FileSystem for TrackingFileSystem {
   fn create_dir_all(&self, path: &Path) -> Result<()> {
     self.inner.create_dir_all(path)
   }
+
+  fn glob(&self, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
+    // Record a create-glob invalidation so that a new file matching the pattern triggers a
+    // rebuild (e.g. a new entry appearing for a glob entry). The pattern is absolutized so it
+    // matches the absolute paths checked during invalidation.
+    if is_glob(pattern) {
+      let absolute = if Path::new(pattern).is_absolute() {
+        pattern.to_string()
+      } else {
+        cwd.join(pattern).to_string_lossy().into_owned()
+      };
+      self
+        .invalidations
+        .lock()
+        .unwrap()
+        .on_file_create_glob
+        .push((absolute, 0));
+    }
+    // Run the actual matching against the inner file system so the directory walk isn't recorded
+    // as individual file-change invalidations.
+    self.inner.glob(pattern, cwd)
+  }
+
+  fn find_ancestor_file(&self, from: &Path, file_name: &str) -> Option<PathBuf> {
+    let mut found = None;
+    let mut found_dir = None;
+    for dir in from.ancestors() {
+      let candidate = dir.join(file_name);
+      if self.inner.kind(&candidate).contains(FileKind::IS_FILE) {
+        self.record_read(&candidate);
+        found_dir = Some(dir.to_path_buf());
+        found = Some(candidate);
+        break;
+      }
+    }
+
+    // Record a `file_create_above` invalidation: a file named `file_name` created anywhere within
+    // `above` (the directory where it was found, or the root if it wasn't) would change resolution
+    // and should trigger a rebuild. Using the found directory as the boundary captures any closer
+    // file appearing between `from` and the match.
+    let above = found_dir.unwrap_or_else(|| PathBuf::from("/"));
+    if let Ok(above) = crate::SourceUrl::from_absolute_directory_path(&above) {
+      self
+        .invalidations
+        .lock()
+        .unwrap()
+        .on_file_create_above
+        .push((file_name.to_string(), above, 0));
+    }
+
+    found
+  }
 }
 
-pub fn glob(fs: &dyn FileSystem, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
+pub fn glob<F: FileSystem + ?Sized>(fs: &F, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
   if !is_glob(pattern) {
     let mut path = Path::new(pattern).to_path_buf();
     if !path.is_absolute() {
@@ -795,7 +870,12 @@ pub fn is_glob(pattern: &str) -> bool {
   pattern.contains(&['*', '[', '{'])
 }
 
-fn match_dir(fs: &dyn FileSystem, dir_path: &Path, pattern: &str, matches: &mut Vec<PathBuf>) {
+fn match_dir<F: FileSystem + ?Sized>(
+  fs: &F,
+  dir_path: &Path,
+  pattern: &str,
+  matches: &mut Vec<PathBuf>,
+) {
   if let Ok(mut entries) = fs.read_dir(dir_path) {
     let is_globstar = pattern == "**";
     if is_globstar {

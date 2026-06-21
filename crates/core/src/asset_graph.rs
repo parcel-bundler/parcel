@@ -77,10 +77,11 @@ impl AssetGraphBuilder {
     }
   }
 
-  /// Marks assets as needing re-transformation based on changed file URLs.
+  /// Marks assets as needing re-transformation based on changed/created file URLs.
+  /// `changed` are modified or deleted files; `created` are newly created files.
   /// Call before `build()` to trigger an incremental rebuild.
-  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> HashSet<usize> {
-    let affected = self.invalidation_map.invalidate(changed);
+  pub fn invalidate(&mut self, changed: &[SourceUrl], created: &[SourceUrl]) -> HashSet<usize> {
+    let affected = self.invalidation_map.invalidate(changed, created);
 
     for index in &affected {
       self.reset_asset(*index);

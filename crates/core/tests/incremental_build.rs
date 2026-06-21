@@ -195,7 +195,7 @@ fn incremental_rebuild_repackages_only_affected_bundle() {
 
   // Change foo.js (which lives in the index bundle).
   write_file(&input, "/project/foo.js", "console.log('foo v2')");
-  let result = parcel.invalidate(&[url_for(&parcel, "/project/foo.js")]).unwrap();
+  let result = parcel.invalidate(&[url_for(&parcel, "/project/foo.js")], &[]).unwrap();
   assert!(!result.config_changed);
   assert_eq!(result.affected.len(), 1, "exactly one asset should be invalidated");
 
@@ -227,7 +227,7 @@ fn incremental_rebuild_change_inside_async_bundle() {
 
   // Change shared.js, which only lives in the async page bundle.
   write_file(&input, "/project/shared.js", "console.log('shared v2')");
-  parcel.invalidate(&[url_for(&parcel, "/project/shared.js")]).unwrap();
+  parcel.invalidate(&[url_for(&parcel, "/project/shared.js")], &[]).unwrap();
   parcel.build().expect("incremental build failed");
 
   // Only the page bundle is rewritten.
@@ -250,7 +250,7 @@ fn incremental_rebuild_no_changes_writes_nothing() {
   assert_eq!(written_names(&output), vec!["index.js"]);
 
   // Invalidate with an empty change set, then rebuild: nothing should be re-packaged.
-  let result = parcel.invalidate(&[]).unwrap();
+  let result = parcel.invalidate(&[], &[]).unwrap();
   assert!(!result.needs_rebuild());
   parcel.build().expect("no-op rebuild failed");
   assert!(
@@ -276,7 +276,7 @@ fn incremental_rebuild_adding_dependency_changes_composition() {
 
   // Add a new sync import of bar.js to the entry.
   write_file(&input, "/project/index.js", "@import ./foo.js\n@import ./bar.js");
-  parcel.invalidate(&[url_for(&parcel, "/project/index.js")]).unwrap();
+  parcel.invalidate(&[url_for(&parcel, "/project/index.js")], &[]).unwrap();
   let bundle_graph = parcel.build().expect("incremental build failed");
 
   // The index bundle's composition grew to include bar.js and was rewritten.
@@ -305,14 +305,14 @@ fn config_file_change_triggers_full_rebuild() {
 
   // Editing a source file is an incremental change, not a config change.
   write_file(&input, "/project/foo.js", "console.log('foo v2')");
-  let result = parcel.invalidate(&[url_for(&parcel, "/project/foo.js")]).unwrap();
+  let result = parcel.invalidate(&[url_for(&parcel, "/project/foo.js")], &[]).unwrap();
   assert!(!result.config_changed, "a source edit must not be treated as a config change");
   parcel.build().expect("incremental build failed");
   assert_eq!(written_names(&output), vec!["index.js"]);
 
   // Editing .parcelrc is a config change: the Parcel is recreated and the next build is full.
   write_file(&input, "/project/.parcelrc", MOCK_CONFIG);
-  let result = parcel.invalidate(&[url_for(&parcel, "/project/.parcelrc")]).unwrap();
+  let result = parcel.invalidate(&[url_for(&parcel, "/project/.parcelrc")], &[]).unwrap();
   assert!(result.config_changed, "editing .parcelrc should be detected as a config change");
   assert!(result.affected.is_empty());
 
@@ -339,8 +339,89 @@ fn dotenv_change_triggers_full_rebuild() {
   let _ = written_names(&output);
 
   write_file(&input, "/project/.env", "API_URL=https://v2.example.com");
-  let result = parcel.invalidate(&[url_for(&parcel, "/project/.env")]).unwrap();
+  let result = parcel.invalidate(&[url_for(&parcel, "/project/.env")], &[]).unwrap();
   assert!(result.config_changed, "editing .env should be detected as a config change");
+
+  parcel.build().expect("full rebuild failed");
+  assert_eq!(written_names(&output), vec!["index.js"]);
+}
+
+#[test]
+fn new_file_matching_entry_glob_triggers_full_rebuild() {
+  // A glob entry records a create-glob invalidation, so a new file matching it must rebuild and
+  // pick up the new entry.
+  let (mut parcel, input, output) = setup(
+    &[
+      ("/project/src/a.js", "console.log('a')"),
+      ("/project/src/b.js", "console.log('b')"),
+    ],
+    &["/project/src/*.js"],
+  );
+
+  let bundle_graph = parcel.build().expect("initial build failed");
+  assert_eq!(bundle_graph.bundles.len(), 2); // one bundle per matched entry
+  let _ = written_names(&output);
+
+  // Create a new file matching the entry glob.
+  write_file(&input, "/project/src/c.js", "console.log('c')");
+  let result = parcel.invalidate(&[], &[url_for(&parcel, "/project/src/c.js")]).unwrap();
+  assert!(
+    result.config_changed,
+    "a new file matching an entry glob should trigger a full rebuild"
+  );
+
+  let bundle_graph = parcel.build().expect("full rebuild failed");
+  assert_eq!(bundle_graph.bundles.len(), 3);
+  assert!(written_names(&output).contains(&"c.js".to_string()));
+}
+
+#[test]
+fn editing_existing_glob_matched_entry_is_incremental() {
+  // A file matching the entry glob already exists. Editing it is a modification, not a creation,
+  // so it must rebuild incrementally rather than being mistaken for a new entry (config change).
+  let (mut parcel, input, output) = setup(
+    &[
+      ("/project/src/a.js", "console.log('a v1')"),
+      ("/project/src/b.js", "console.log('b')"),
+    ],
+    &["/project/src/*.js"],
+  );
+
+  parcel.build().expect("initial build failed");
+  let _ = written_names(&output);
+
+  write_file(&input, "/project/src/a.js", "console.log('a v2')");
+  let result = parcel.invalidate(&[url_for(&parcel, "/project/src/a.js")], &[]).unwrap();
+  assert!(
+    !result.config_changed,
+    "editing an existing glob-matched file must be incremental, not a full rebuild"
+  );
+
+  parcel.build().expect("incremental build failed");
+  assert_eq!(written_names(&output), vec!["a.js"]);
+  let out = read_dist(&output, "a.js");
+  assert!(out.contains("console.log('a v2')"), "got: {out}");
+}
+
+#[test]
+fn new_package_json_above_entry_triggers_full_rebuild() {
+  // `find_package` searches upward for package.json via `find_ancestor_file`, which records a
+  // `file_create_above` invalidation. Creating a package.json should therefore rebuild (it can
+  // change the target environment/engines).
+  let (mut parcel, input, output) = setup(
+    &[("/project/index.js", "console.log('index')")],
+    &["/project/index.js"],
+  );
+
+  parcel.build().expect("initial build failed");
+  let _ = written_names(&output);
+
+  write_file(&input, "/project/package.json", r#"{"name": "app"}"#);
+  let result = parcel.invalidate(&[], &[url_for(&parcel, "/project/package.json")]).unwrap();
+  assert!(
+    result.config_changed,
+    "creating a package.json above an entry should trigger a full rebuild"
+  );
 
   parcel.build().expect("full rebuild failed");
   assert_eq!(written_names(&output), vec!["index.js"]);
@@ -368,7 +449,7 @@ fn incremental_rebuild_when_resolver_config_changes() {
 
   // Repoint the alias at bar.js. Only the config file changed — not index.js itself.
   write_file(&input, "/project/aliases.json", r##"{"#dep": "./bar.js"}"##);
-  let result = parcel.invalidate(&[url_for(&parcel, "/project/aliases.json")]).unwrap();
+  let result = parcel.invalidate(&[url_for(&parcel, "/project/aliases.json")], &[]).unwrap();
   assert!(
     !result.affected.is_empty(),
     "changing the resolver's config file should invalidate the importer"
@@ -400,7 +481,7 @@ fn incremental_rebuild_removing_async_bundle_deletes_output() {
 
   // Remove the async import. The page bundle should disappear and its output be deleted.
   write_file(&input, "/project/index.js", "@import ./foo.js");
-  parcel.invalidate(&[url_for(&parcel, "/project/index.js")]).unwrap();
+  parcel.invalidate(&[url_for(&parcel, "/project/index.js")], &[]).unwrap();
   let bundle_graph = parcel.build().expect("incremental build failed");
 
   assert_eq!(bundle_graph.bundles.len(), 1);

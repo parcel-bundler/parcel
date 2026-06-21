@@ -54,12 +54,9 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
   let watcher = parcel_watcher::watch(&project_root);
   while let Ok(events) = watcher.recv() {
-    let changed_urls: Vec<SourceUrl> = events
-      .iter()
-      .filter_map(|e| SourceUrl::from_path(e.path.as_path(), parcel.project_root()).ok())
-      .collect();
+    let (changed_urls, created_urls) = split_events(&events, parcel.project_root());
 
-    let result = match parcel.invalidate(&changed_urls) {
+    let result = match parcel.invalidate(&changed_urls, &created_urls) {
       Ok(result) => result,
       Err(e) => {
         print_diagnostics(&e, parcel.project_root());
@@ -100,12 +97,9 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
   let watcher = parcel_watcher::watch(&project_root);
   while let Ok(events) = watcher.recv() {
-    let changed_urls: Vec<SourceUrl> = events
-      .iter()
-      .filter_map(|e| SourceUrl::from_path(e.path.as_path(), parcel.project_root()).ok())
-      .collect();
+    let (changed_urls, created_urls) = split_events(&events, parcel.project_root());
 
-    let result = match parcel.invalidate(&changed_urls) {
+    let result = match parcel.invalidate(&changed_urls, &created_urls) {
       Ok(result) => result,
       Err(e) => {
         print_diagnostics(&e, parcel.project_root());
@@ -154,4 +148,25 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 fn print_diagnostics(diagnostics: &DiagnosticList, project_root: &SourceUrl) {
   let mut stderr = std::io::stderr();
   diagnostics.report(&mut stderr, project_root).unwrap();
+}
+
+/// Splits watcher events into `(changed, created)` URL lists. Modified and deleted files are
+/// treated as changes; only newly created files count as creations.
+fn split_events(
+  events: &[parcel_watcher::Event],
+  project_root: &SourceUrl,
+) -> (Vec<SourceUrl>, Vec<SourceUrl>) {
+  let mut changed = Vec::new();
+  let mut created = Vec::new();
+  for event in events {
+    if let Ok(url) = SourceUrl::from_path(event.path.as_path(), project_root) {
+      match event.ty {
+        parcel_watcher::EventType::Created => created.push(url),
+        parcel_watcher::EventType::Updated | parcel_watcher::EventType::Deleted => {
+          changed.push(url)
+        }
+      }
+    }
+  }
+  (changed, created)
 }
