@@ -170,13 +170,18 @@ impl Content for MockContent {
 /// Parses the tiny mock language: `@import <spec>` / `@async <spec>` lines become dependencies,
 /// all other lines are kept as code. Each asset's content is replaced with a `MockContent`
 /// holding the stripped code so the packager can concatenate it.
+///
+/// A `@config <abs-path>` line reads a file through the per-request `fs` and appends its contents
+/// to the output. Because `fs` is a tracking file system, editing that config file automatically
+/// re-runs this transform — demonstrating transformer-level invalidation tracking.
 struct MockTransformer;
 
 impl Transformer for MockTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
+    fs: &Arc<dyn FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
     let content = asset.content.read()?;
     let text = String::from_utf8(content).map_err(Diagnostic::from)?;
@@ -191,6 +196,17 @@ impl Transformer for MockTransformer {
         asset
           .dependencies
           .push(make_dep(spec.trim(), Priority::Sync, &url, target.clone()));
+      } else if let Some(path) = trimmed.strip_prefix("@config ") {
+        // Read a config file through the tracking fs. Its absolute path is derived from the
+        // project root so the test can edit it via the input file system.
+        let config_path = options
+          .project_root
+          .join(path.trim())
+          .to_file_path(&options.project_root)
+          .map_err(Diagnostic::from)?;
+        let bytes = fs.read(&config_path).map_err(Diagnostic::from)?;
+        code.push_str(std::str::from_utf8(&bytes).map_err(Diagnostic::from)?);
+        code.push('\n');
       } else if let Some(spec) = trimmed.strip_prefix("@async ") {
         asset
           .dependencies

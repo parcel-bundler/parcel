@@ -676,45 +676,81 @@ impl FileSystem for OverlayFileSystem {
 /// path are recorded as file-create invalidations (their *creation* should invalidate, e.g. a
 /// `.parcelrc` that does not exist yet but appears later). Paths are recorded as absolute `file://`
 /// URLs, so no project root is required while tracking.
+///
+/// The accumulated [`Invalidations`](crate::Invalidations) can be folded into an
+/// [`InvalidationMap`](crate::InvalidationMap) (for config tracking during `Parcel::new`) or merged
+/// into a transform request's invalidations (for per-asset tracking of files read by transformers).
 pub struct TrackingFileSystem {
   inner: std::sync::Arc<dyn FileSystem>,
-  invalidations: Mutex<crate::InvalidationMap>,
+  invalidations: Mutex<crate::Invalidations>,
+  /// When set, recorded paths use the `project://` scheme (matching the asset graph's invalidation
+  /// URLs). When `None`, absolute `file://` URLs are used (for config tracking, where the project
+  /// root isn't known until after tracking has begun).
+  project_root: Option<crate::SourceUrl>,
 }
 
 impl TrackingFileSystem {
+  /// Creates a tracker that records absolute `file://` URLs. Used for config tracking during
+  /// `Parcel::new`, where the project root isn't yet known.
   pub fn new(inner: std::sync::Arc<dyn FileSystem>) -> Self {
     TrackingFileSystem {
       inner,
-      invalidations: Mutex::new(crate::InvalidationMap::default()),
+      invalidations: Mutex::new(crate::Invalidations::default()),
+      project_root: None,
+    }
+  }
+
+  /// Creates a tracker that records `project://` URLs (relative to `project_root`), matching the
+  /// URLs used by the asset graph. Used for per-request tracking of files read by transformers.
+  pub fn with_project_root(
+    inner: std::sync::Arc<dyn FileSystem>,
+    project_root: crate::SourceUrl,
+  ) -> Self {
+    TrackingFileSystem {
+      inner,
+      invalidations: Mutex::new(crate::Invalidations::default()),
+      project_root: Some(project_root),
+    }
+  }
+
+  fn to_url(&self, path: &Path) -> Option<crate::SourceUrl> {
+    match &self.project_root {
+      Some(root) => crate::SourceUrl::from_path(path, root).ok(),
+      None => crate::SourceUrl::from_absolute_path(path).ok(),
+    }
+  }
+
+  fn to_dir_url(&self, path: &Path) -> Option<crate::SourceUrl> {
+    match &self.project_root {
+      Some(root) => crate::SourceUrl::from_directory_path(path, root).ok(),
+      None => crate::SourceUrl::from_absolute_directory_path(path).ok(),
     }
   }
 
   fn record_read(&self, path: &Path) {
-    if let Ok(url) = crate::SourceUrl::from_absolute_path(path) {
+    if let Some(url) = self.to_url(path) {
       self
         .invalidations
         .lock()
         .unwrap()
-        .on_file_change
-        .entry(url)
-        .or_insert_with(|| vec![0]);
+        .invalidate_on_file_change
+        .push(url);
     }
   }
 
   fn record_missing(&self, path: &Path) {
-    if let Ok(url) = crate::SourceUrl::from_absolute_path(path) {
+    if let Some(url) = self.to_url(path) {
       self
         .invalidations
         .lock()
         .unwrap()
-        .on_file_create_path
-        .entry(url)
-        .or_insert_with(|| vec![0]);
+        .invalidate_on_file_create
+        .push(crate::FileCreateInvalidation::Path(url));
     }
   }
 
-  /// Returns the accumulated invalidation map, leaving the tracker empty.
-  pub fn take(&self) -> crate::InvalidationMap {
+  /// Returns the accumulated invalidations, leaving the tracker empty.
+  pub fn take(&self) -> crate::Invalidations {
     std::mem::take(&mut *self.invalidations.lock().unwrap())
   }
 }
@@ -796,8 +832,8 @@ impl FileSystem for TrackingFileSystem {
         .invalidations
         .lock()
         .unwrap()
-        .on_file_create_glob
-        .push((absolute, 0));
+        .invalidate_on_file_create
+        .push(crate::FileCreateInvalidation::Glob(absolute));
     }
     // Run the actual matching against the inner file system so the directory walk isn't recorded
     // as individual file-change invalidations.
@@ -822,13 +858,16 @@ impl FileSystem for TrackingFileSystem {
     // and should trigger a rebuild. Using the found directory as the boundary captures any closer
     // file appearing between `from` and the match.
     let above = found_dir.unwrap_or_else(|| PathBuf::from("/"));
-    if let Ok(above) = crate::SourceUrl::from_absolute_directory_path(&above) {
+    if let Some(above) = self.to_dir_url(&above) {
       self
         .invalidations
         .lock()
         .unwrap()
-        .on_file_create_above
-        .push((file_name.to_string(), above, 0));
+        .invalidate_on_file_create
+        .push(crate::FileCreateInvalidation::FileName {
+          file_name: file_name.to_string(),
+          above,
+        });
     }
 
     found

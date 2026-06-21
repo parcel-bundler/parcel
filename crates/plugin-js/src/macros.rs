@@ -3,8 +3,8 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use indexmap::IndexMap;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency, DependencyFlags,
-  DependencyResolution, ExportsCondition, Location, ParcelOptions, Priority, SourceLocation,
-  SourceUrl, SpecifierType, Target,
+  DependencyResolution, ExportsCondition, FileSystem, Location, ParcelOptions, Priority,
+  SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{JsValue, MacroError};
 use parcel_sourcemap::{OriginalLocation, SourceMap};
@@ -113,10 +113,11 @@ pub fn call_macro(
   export: String,
   args: Vec<JsValue>,
   loc: parcel_macros::Location,
+  fs: &Arc<dyn FileSystem>,
 ) -> Result<(JsValue, Vec<Dependency>), MacroError> {
   let mut is_load_error = false;
   with_js_env(
-    options.input_fs.clone(),
+    fs.clone(),
     &options.env,
     &options.cwd,
     |ctx| {

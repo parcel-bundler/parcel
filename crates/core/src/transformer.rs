@@ -2,13 +2,24 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
-  DiagnosticList, Invalidations, ParcelOptions, Pipeline, SourceUrl,
+  DiagnosticList, FileSystem, Invalidations, ParcelOptions, Pipeline, SourceUrl, TrackingFileSystem,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
 };
 
 pub trait Transformer: Send + Sync {
-  fn transform(&self, asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList>;
+  /// Transforms an asset.
+  ///
+  /// `fs` is a per-request file system: any files a transformer reads through it (e.g. config or
+  /// sidecar files, via [`FileSystem::read`], [`FileSystem::glob`] or
+  /// [`FileSystem::find_ancestor_file`]) are automatically recorded as invalidations, so editing
+  /// them re-runs this transform. Read the asset's own source through `asset.content`, not `fs`.
+  fn transform(
+    &self,
+    asset: Asset,
+    options: &ParcelOptions,
+    fs: &Arc<dyn FileSystem>,
+  ) -> Result<Asset, DiagnosticList>;
 }
 
 pub struct TransformRequest {
@@ -71,12 +82,24 @@ impl TransformRequest {
       symbols: AssetSymbols::default(),
     };
 
-    let mut asset = transform(
+    // Per-request tracker: files read by transformer plugins through `fs` become invalidations
+    // automatically. It wraps the (untracked) input file system used for the rest of the build and
+    // records `project://` URLs so they match the asset graph's invalidation map.
+    let tracker = Arc::new(TrackingFileSystem::with_project_root(
+      self.options.input_fs.clone(),
+      self.options.project_root.clone(),
+    ));
+    let fs: Arc<dyn FileSystem> = tracker.clone();
+    let result = transform(
       asset,
       transformer_pipeline,
       &self.config.transformers,
       &self.options,
-    )?;
+      &fs,
+    );
+    // Merge tracked reads even on error, so fixing a bad config file re-runs the transform.
+    invalidations.extend(&tracker.take());
+    let mut asset = result?;
 
     let resolvers = &self.config.resolvers;
     let named_pipelines = self.config.transformers.named_pipelines();
@@ -102,12 +125,13 @@ pub fn transform(
   pipeline: Pipeline<dyn Transformer>,
   transformers: &PipelineMap<dyn Transformer>,
   options: &ParcelOptions,
+  fs: &Arc<dyn FileSystem>,
 ) -> Result<Asset, DiagnosticList> {
   let mut input = asset;
 
   for plugin in &pipeline.0 {
     let ty: AssetType = input.ty.clone();
-    let mut result = plugin.transform(input, options)?;
+    let mut result = plugin.transform(input, options, fs)?;
     if result.ty != ty {
       let next_path = relative_path(&result.loc.url, &options.project_root, &result.ty);
 
@@ -118,7 +142,7 @@ pub fn transform(
       }
 
       if next_pipeline != pipeline {
-        return transform(result, next_pipeline, transformers, options);
+        return transform(result, next_pipeline, transformers, options, fs);
       }
     }
 

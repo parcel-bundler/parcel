@@ -938,6 +938,7 @@ impl Transformer for CPlugin {
     &self,
     mut asset: CoreAsset,
     options: &ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<CoreAsset, DiagnosticList> {
     type TransformFn = extern "C" fn(Asset, Options, *mut c_void, *mut Diagnostic);
     let transform: Symbol<TransformFn> = unsafe {

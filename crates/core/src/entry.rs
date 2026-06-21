@@ -9,7 +9,7 @@ use serde_json::Value;
 use crate::{
   BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags, ExportsCondition,
   FileKind, FileSystem, IncludeNodeModules, OutputFormat, SourceLocation, SourceType, SourceUrl,
-  Target, TargetSourceMapOptions, Version, glob, is_glob,
+  Target, TargetSourceMapOptions, Version, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

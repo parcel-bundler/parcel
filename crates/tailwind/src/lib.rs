@@ -13,7 +13,7 @@ pub struct TailwindTransformer;
 const COMPILE_JS: &'static str = include_str!("compile.js");
 
 impl Transformer for TailwindTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions, fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
     let project_root_path = options.project_root.to_file_path(&options.project_root)?;
     let mut scanner = Scanner::new(vec![PublicSourceEntry {
       base: project_root_path.to_string_lossy().into_owned(),
@@ -33,10 +33,10 @@ impl Transformer for TailwindTransformer {
       .map(|p| p.to_string_lossy().into_owned())
       .unwrap_or_default();
 
-    let resolver = Resolver::node(&project_root_path, Cache::new(options.input_fs.clone()));
+    let resolver = Resolver::node(&project_root_path, Cache::new(fs.clone()));
 
     let result_css = with_js_env(
-      options.input_fs.clone(),
+      fs.clone(),
       &options.env,
       &options.cwd,
       move |ctx| {

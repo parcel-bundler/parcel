@@ -78,7 +78,7 @@ impl<'de> serde::Deserialize<'de> for CssTransformer {
 }
 
 impl Transformer for CssTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut stylesheet = StyleSheet::parse(
@@ -357,7 +357,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
 pub struct StyleAttrTransformer {}
 
 impl Transformer for StyleAttrTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut attr = StyleAttribute::parse(

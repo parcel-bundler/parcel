@@ -35,9 +35,10 @@ impl Transformer for JsPlugin {
     &self,
     asset: Asset,
     options: &parcel_core::ParcelOptions,
+    fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
     let asset = with_js_env(
-      options.input_fs.clone(),
+      fs.clone(),
       &options.env,
       &options.cwd,
       |ctx| {

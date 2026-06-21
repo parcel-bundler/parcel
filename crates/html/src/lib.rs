@@ -326,7 +326,7 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
 pub struct HtmlTransformer {}
 
 impl Transformer for HtmlTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_html(TransformOptions {
       code,
@@ -492,7 +492,7 @@ impl Default for SvgTransformer {
 }
 
 impl Transformer for SvgTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_svg(TransformOptions {
       code,
@@ -519,7 +519,7 @@ pub struct SvgToJsxTransformer {
 }
 
 impl Transformer for SvgToJsxTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
+  fn transform(&self, mut asset: Asset, _options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let mut config = self.config.clone();
     if matches!(config.svgo_config.prefix_ids, ConfigItem::None) {

@@ -428,6 +428,44 @@ fn new_package_json_above_entry_triggers_full_rebuild() {
 }
 
 #[test]
+fn incremental_rebuild_when_transformer_read_file_changes() {
+  // foo.js reads `theme.txt` through the transformer's tracking fs (`@config theme.txt`). Editing
+  // that file must re-transform only foo (and re-package only its bundle), even though the file is
+  // neither an entry nor a resolver dependency.
+  let (mut parcel, input, output) = setup(
+    &[
+      ("/project/index.js", "@import ./foo.js\n@async ./page.js"),
+      ("/project/foo.js", "@config theme.txt\nconsole.log('foo')"),
+      ("/project/page.js", "console.log('page')"),
+      ("/project/theme.txt", "// theme v1"),
+    ],
+    &["/project/index.js"],
+  );
+
+  parcel.build().expect("initial build failed");
+  let index_out = read_dist(&output, "index.js");
+  assert!(index_out.contains("// theme v1"), "got: {index_out}");
+  let _ = written_names(&output);
+
+  // Edit the file the transformer read. It is a modification of an existing file.
+  write_file(&input, "/project/theme.txt", "// theme v2");
+  let result = parcel.invalidate(&[url_for(&parcel, "/project/theme.txt")], &[]).unwrap();
+  assert!(
+    !result.config_changed,
+    "a transformer's file dependency is a per-asset invalidation, not a config change"
+  );
+  assert_eq!(result.affected.len(), 1, "only foo should be re-transformed");
+
+  parcel.build().expect("incremental build failed");
+
+  // Only the index bundle (which contains foo) is re-packaged.
+  assert_eq!(written_names(&output), vec!["index.js"]);
+  let index_out = read_dist(&output, "index.js");
+  assert!(index_out.contains("// theme v2"), "got: {index_out}");
+  assert!(!index_out.contains("// theme v1"), "got: {index_out}");
+}
+
+#[test]
 fn incremental_rebuild_when_resolver_config_changes() {
   // The resolver resolves the `#dep` alias through `aliases.json`, recording that config file
   // as a dependency. Editing the config should re-resolve `#dep` and rebuild the importer.

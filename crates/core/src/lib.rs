@@ -131,10 +131,11 @@ impl Parcel {
 
     let project_root = SourceUrl::from_absolute_directory_path(&project_root)?;
 
-    // The tracker accumulated an invalidation map for every file read while loading configuration.
-    // Entry source files are stat'd while resolving entries, but editing one should trigger an
-    // incremental rebuild, not a full one — so drop them from the config invalidation set.
-    let mut config_invalidations = tracker.take();
+    // The tracker accumulated the files read while loading configuration. Fold them into a map
+    // keyed by a single sentinel index. Entry source files are stat'd while resolving entries, but
+    // editing one should trigger an incremental rebuild, not a full one — so drop them.
+    let mut config_invalidations = InvalidationMap::default();
+    config_invalidations.add(0, tracker.take());
     for entry in &resolved_entries {
       if let Ok(url) = entry.url.to_file_url(&project_root) {
         config_invalidations.on_file_change.remove(&url);

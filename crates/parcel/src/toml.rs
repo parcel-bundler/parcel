@@ -11,6 +11,7 @@ impl Transformer for TomlTransformer {
     &self,
     mut asset: parcel_core::Asset,
     _options: &parcel_core::ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<parcel_core::Asset, DiagnosticList> {
     let content = asset.content.read()?;
     let code = std::str::from_utf8(&content)?;

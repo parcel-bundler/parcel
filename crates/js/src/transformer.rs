@@ -18,11 +18,11 @@ use crate::JsContent;
 pub struct JsTransformer {}
 
 impl Transformer for JsTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions) -> Result<Asset, DiagnosticList> {
-    let config = config(&mut asset, options)?;
+  fn transform(&self, mut asset: Asset, options: &ParcelOptions, fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+    let config = config(&mut asset, options, fs)?;
     let resolver = parcel_resolver::Resolver::parcel(
       &options.project_root.to_file_path(&options.project_root)?,
-      parcel_resolver::Cache::new(options.input_fs.clone()),
+      parcel_resolver::Cache::new(fs.clone()),
     );
 
     let url = asset.loc.url.clone();
@@ -42,6 +42,7 @@ impl Transformer for JsTransformer {
             export,
             args,
             loc,
+            fs,
           )?;
           macro_deps_cloned.borrow_mut().extend(deps);
           return Ok(res);
@@ -473,7 +474,11 @@ fn convert_version(version: &parcel_core::Version) -> Version {
   }
 }
 
-fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnostic> {
+fn config(
+  asset: &mut Asset,
+  options: &ParcelOptions,
+  fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+) -> Result<Config, Diagnostic> {
   let mut targets = None;
   if asset.target.environment.is_electron() {
     if let Some(electron) = &asset.target.engines.electron {
@@ -508,7 +513,7 @@ fn config(asset: &mut Asset, options: &ParcelOptions) -> Result<Config, Diagnost
 
   let resolver = parcel_resolver::Resolver::parcel(
     &options.project_root.to_file_path(&options.project_root)?,
-    parcel_resolver::Cache::new(options.input_fs.clone()),
+    parcel_resolver::Cache::new(fs.clone()),
   );
 
   let invalidations = Invalidations::default();

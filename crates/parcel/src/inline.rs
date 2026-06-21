@@ -7,6 +7,7 @@ impl Transformer for InlineTransformer {
     &self,
     mut asset: parcel_core::Asset,
     _options: &parcel_core::ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<parcel_core::Asset, DiagnosticList> {
     asset.bundle_behavior = parcel_core::BundleBehavior::Inline;
     Ok(asset)
