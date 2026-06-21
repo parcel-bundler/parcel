@@ -20,12 +20,12 @@ mod target;
 mod transformer;
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   path::{Path, PathBuf},
   sync::Arc,
 };
 
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 pub use asset::*;
 pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetNode};
@@ -48,9 +48,12 @@ pub use target::*;
 pub use transformer::Transformer;
 
 pub struct Parcel {
-  pub asset_graph_builder: AssetGraphBuilder,
+  asset_graph_builder: AssetGraphBuilder,
   config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
+  /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
+  /// Keyed by bundle name; value is (sorted asset indices, dist path).
+  prev_bundles: HashMap<String, (Vec<usize>, PathBuf)>,
 }
 
 impl Parcel {
@@ -94,6 +97,7 @@ impl Parcel {
       asset_graph_builder: AssetGraphBuilder::new(entries, config.clone(), options.clone()),
       config,
       options,
+      prev_bundles: HashMap::new(),
     })
   }
 
@@ -101,42 +105,74 @@ impl Parcel {
     &self.options.project_root
   }
 
+  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> HashSet<usize> {
+    self.asset_graph_builder.invalidate(changed)
+  }
+
   pub fn build(&mut self) -> Result<BundleGraph, DiagnosticList> {
     let asset_graph = self.asset_graph_builder.build()?;
     self.bundle(asset_graph)
   }
 
-  pub fn bundle(&self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+  pub fn bundle(&mut self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
     // Group assets into bundles.
     let bundle_graph = bundle(asset_graph, &self.config, &*self.options)?;
 
-    // Write all output files from a single thread. This significantly out-performs multi-threaded
-    // writing on macOS due to file system directory locking.
-    // Tried using a few worker threads for this but it didn't make much difference.
-    let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Arc<dyn Content>)>();
-    let opts = self.options.clone();
-    let writer = std::thread::spawn(move || {
-      while let Ok((path, content)) = rx.recv() {
-        if let Err(_) = content.write(&*opts.output_fs, &path) {
+    // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
+    // A bundle is dirty if it's new, its asset composition changed, or any of its assets
+    // were re-transformed this build.
+    let changed = &self.asset_graph_builder.changed_assets;
+    let mut new_prev: HashMap<String, (Vec<usize>, PathBuf)> = HashMap::new();
+    let mut dirty: HashSet<usize> = HashSet::new();
+
+    for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
+      if bundle.bundle_behavior == BundleBehavior::Inline {
+        continue;
+      }
+
+      let name = bundle.name.as_ref().unwrap();
+      let dist_path = bundle.dist_path(&self.options.project_root);
+
+      let mut sorted_assets = bundle.assets.clone();
+      sorted_assets.sort_unstable();
+
+      let is_dirty = match self.prev_bundles.get(name) {
+        None => true,
+        Some((prev_assets, _)) => {
+          *prev_assets != sorted_assets || bundle.assets.iter().any(|i| changed.contains(i))
+        }
+      };
+
+      if is_dirty {
+        dirty.insert(bundle_index);
+      }
+
+      new_prev.insert(name.clone(), (sorted_assets, dist_path));
+    }
+
+    // Delete output files for bundles that no longer exist.
+    for (name, (_, dist_path)) in &self.prev_bundles {
+      if !new_prev.contains_key(name) {
+        self.options.output_fs.remove_file(dist_path).ok();
+      }
+    }
+
+    self.prev_bundles = new_prev;
+
+    let opts = &*self.options;
+    bundle_graph
+      .bundles
+      .par_iter()
+      .enumerate()
+      .for_each(|(bundle_index, bundle)| {
+        if dirty.contains(&bundle_index) {
+          let content = get_bundle_content(&self.config, &bundle_graph, bundle, opts).unwrap();
+          let path = bundle.dist_path(&opts.project_root);
           let parent = path.parent().unwrap();
           opts.output_fs.create_dir_all(parent).ok();
           content.write(&*opts.output_fs, &path).ok();
         }
-      }
-    });
-
-    let opts = &*self.options;
-    bundle_graph.bundles.par_iter().for_each(|bundle| {
-      if bundle.bundle_behavior != BundleBehavior::Inline {
-        let content = get_bundle_content(&self.config, &bundle_graph, &bundle, opts).unwrap();
-        // TODO: replace hash references
-        let path = bundle.dist_path(&opts.project_root);
-        tx.send((path, content)).unwrap();
-      }
-    });
-
-    drop(tx);
-    writer.join().expect("Error");
+      });
 
     Ok(bundle_graph)
   }
@@ -149,72 +185,6 @@ pub fn build(
 ) -> Result<BundleGraph, DiagnosticList> {
   let mut parcel = Parcel::new(entries, options, factory)?;
   parcel.build()
-  // let (entries, project_root) = resolve_entries(&entries, &options)?;
-
-  // let mut env = options.env;
-  // load_dotenv(&project_root, &*options.input_fs, &mut env)?;
-
-  // let config_file = options
-  //   .config
-  //   .map(|c| options.cwd.join(c))
-  //   .unwrap_or_else(|| project_root.join(".parcelrc"));
-  // let config = Arc::new(
-  //   if options
-  //     .input_fs
-  //     .kind(&config_file)
-  //     .contains(FileKind::IS_FILE)
-  //   {
-  //     ParcelConfig::read(&*options.input_fs, &config_file, factory)?
-  //   } else {
-  //     factory.config("@parcel/config-default", &config_file)?
-  //   },
-  // );
-
-  // let options = Arc::new(ParcelOptions {
-  //   env,
-  //   mode: options.mode,
-  //   log_level: options.log_level,
-  //   project_root: SourceUrl::from_absolute_directory_path(&project_root)?,
-  //   input_fs: options.input_fs,
-  //   output_fs: options.output_fs,
-  //   cwd: options.cwd,
-  // });
-
-  // // Build asset graph.
-  // let asset_graph = build_asset_graph(entries, config.clone(), options.clone())?;
-
-  // // Group assets into bundles.
-  // let bundle_graph = bundle(asset_graph, &config, &*options)?;
-
-  // // Write all output files from a single thread. This significantly out-performs multi-threaded
-  // // writing on macOS due to file system directory locking.
-  // // Tried using a few worker threads for this but it didn't make much difference.
-  // let (tx, rx) = std::sync::mpsc::channel::<(PathBuf, Arc<dyn Content>)>();
-  // let opts = options.clone();
-  // let writer = std::thread::spawn(move || {
-  //   while let Ok((path, content)) = rx.recv() {
-  //     if let Err(_) = content.write(&*opts.output_fs, &path) {
-  //       let parent = path.parent().unwrap();
-  //       opts.output_fs.create_dir_all(parent).ok();
-  //       content.write(&*opts.output_fs, &path).ok();
-  //     }
-  //   }
-  // });
-
-  // let opts = &*options;
-  // bundle_graph.bundles.par_iter().for_each(|bundle| {
-  //   if bundle.bundle_behavior != BundleBehavior::Inline {
-  //     let content = get_bundle_content(&config, &bundle_graph, &bundle, opts).unwrap();
-  //     // TODO: replace hash references
-  //     let path = bundle.dist_path(&opts.project_root);
-  //     tx.send((path, content)).unwrap();
-  //   }
-  // });
-
-  // drop(tx);
-  // writer.join().expect("Error");
-
-  // Ok(bundle_graph)
 }
 
 fn get_bundle_content(

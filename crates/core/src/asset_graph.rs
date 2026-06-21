@@ -52,11 +52,15 @@ pub struct AssetGraphBuilder {
   /// Used to reset slots back to Deferred during invalidation.
   requests: Vec<Arc<AssetRequest>>,
   /// Reverse invalidation map: which assets to re-transform when a file changes.
-  pub invalidation_map: InvalidationMap,
+  invalidation_map: InvalidationMap,
+  /// Asset indices invalidated by the most recent `invalidate()` call.
+  /// Persists until the next `invalidate()` so `Parcel::bundle()` can determine
+  /// which bundles need re-packaging.
+  pub changed_assets: HashSet<usize>,
   /// Entry points. `entry.asset` is set after the first build.
   entries: Vec<Entry>,
-  config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
+  queue: TransformQueue,
 }
 
 impl AssetGraphBuilder {
@@ -66,8 +70,9 @@ impl AssetGraphBuilder {
       asset_requests: HashMap::new(),
       requests: Vec::new(),
       invalidation_map: InvalidationMap::default(),
+      changed_assets: HashSet::new(),
       entries,
-      config,
+      queue: TransformQueue::new(config, options.clone()),
       options,
     }
   }
@@ -75,47 +80,13 @@ impl AssetGraphBuilder {
   /// Marks assets as needing re-transformation based on changed file URLs.
   /// Call before `build()` to trigger an incremental rebuild.
   pub fn invalidate(&mut self, changed: &[SourceUrl]) -> HashSet<usize> {
-    let mut affected: HashSet<usize> = HashSet::new();
-
-    for url in changed {
-      if let Some(indices) = self.invalidation_map.on_file_change.get(url) {
-        affected.extend(indices);
-      }
-      if let Some(indices) = self.invalidation_map.on_file_create_path.get(url) {
-        affected.extend(indices);
-      }
-    }
-
-    // Check file-name-above invalidations: a new file created anywhere above a directory.
-    for url in changed {
-      let url_str = url.as_str();
-      for (file_name, above, asset_index) in &self.invalidation_map.on_file_create_above {
-        let above_str = above.as_str();
-        // The changed URL must be a file whose name matches and whose path starts with `above`.
-        if url_str.starts_with(above_str) {
-          let rest = &url_str[above_str.len()..];
-          // Only match direct or nested children (not the directory itself).
-          // The file name must match the final segment.
-          let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
-          if segments.last() == Some(&file_name.as_str()) {
-            affected.insert(*asset_index);
-          }
-        }
-      }
-
-      // Check glob invalidations.
-      let url_path = url.path();
-      for (glob, asset_index) in &self.invalidation_map.on_file_create_glob {
-        if glob_match::glob_match(glob, url_path) {
-          affected.insert(*asset_index);
-        }
-      }
-    }
+    let affected = self.invalidation_map.invalidate(changed);
 
     for index in &affected {
       self.reset_asset(*index);
     }
 
+    self.changed_assets = affected.clone();
     affected
   }
 
@@ -139,7 +110,7 @@ impl AssetGraphBuilder {
   /// The clone is shallow (Arcs are shared) so it is cheap; bundler mutations to
   /// `bundle_behavior` fields do not affect the builder's persistent state.
   pub fn build(&mut self) -> Result<AssetGraph, DiagnosticList> {
-    let mut queue = TransformQueue::new(self.config.clone(), self.options.clone());
+    let mut queue = &mut self.queue;
 
     // Queue entry assets. On the first build, allocate new slots.
     // On subsequent builds, entries already have slots; re-queue if Deferred.

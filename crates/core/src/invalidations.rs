@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::SourceUrl;
 
@@ -26,8 +26,12 @@ pub struct Invalidations {
 
 impl Invalidations {
   pub fn extend(&mut self, other: &Invalidations) {
-    self.invalidate_on_file_change.extend(other.invalidate_on_file_change.iter().cloned());
-    self.invalidate_on_file_create.extend(other.invalidate_on_file_create.iter().cloned());
+    self
+      .invalidate_on_file_change
+      .extend(other.invalidate_on_file_change.iter().cloned());
+    self
+      .invalidate_on_file_create
+      .extend(other.invalidate_on_file_create.iter().cloned());
     self.invalidate_on_startup |= other.invalidate_on_startup;
   }
 }
@@ -51,16 +55,26 @@ pub struct InvalidationMap {
 impl InvalidationMap {
   pub fn add(&mut self, asset_index: usize, invalidations: Invalidations) {
     for url in invalidations.invalidate_on_file_change {
-      self.on_file_change.entry(url).or_default().push(asset_index);
+      self
+        .on_file_change
+        .entry(url)
+        .or_default()
+        .push(asset_index);
     }
 
     for inv in invalidations.invalidate_on_file_create {
       match inv {
         FileCreateInvalidation::Path(url) => {
-          self.on_file_create_path.entry(url).or_default().push(asset_index);
+          self
+            .on_file_create_path
+            .entry(url)
+            .or_default()
+            .push(asset_index);
         }
         FileCreateInvalidation::FileName { file_name, above } => {
-          self.on_file_create_above.push((file_name, above, asset_index));
+          self
+            .on_file_create_above
+            .push((file_name, above, asset_index));
         }
         FileCreateInvalidation::Glob(glob) => {
           self.on_file_create_glob.push((glob, asset_index));
@@ -71,5 +85,46 @@ impl InvalidationMap {
     if invalidations.invalidate_on_startup {
       self.on_startup.push(asset_index);
     }
+  }
+
+  pub fn invalidate(&mut self, changed: &[SourceUrl]) -> HashSet<usize> {
+    let mut affected: HashSet<usize> = HashSet::new();
+
+    for url in changed {
+      if let Some(indices) = self.on_file_change.get(url) {
+        affected.extend(indices);
+      }
+      if let Some(indices) = self.on_file_create_path.get(url) {
+        affected.extend(indices);
+      }
+    }
+
+    // Check file-name-above invalidations: a new file created anywhere above a directory.
+    for url in changed {
+      let url_str = url.as_str();
+      for (file_name, above, asset_index) in &self.on_file_create_above {
+        let above_str = above.as_str();
+        // The changed URL must be a file whose name matches and whose path starts with `above`.
+        if url_str.starts_with(above_str) {
+          let rest = &url_str[above_str.len()..];
+          // Only match direct or nested children (not the directory itself).
+          // The file name must match the final segment.
+          let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+          if segments.last() == Some(&file_name.as_str()) {
+            affected.insert(*asset_index);
+          }
+        }
+      }
+
+      // Check glob invalidations.
+      let url_path = url.path();
+      for (glob, asset_index) in &self.on_file_create_glob {
+        if glob_match::glob_match(glob, url_path) {
+          affected.insert(*asset_index);
+        }
+      }
+    }
+
+    affected
   }
 }

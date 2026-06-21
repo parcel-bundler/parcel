@@ -139,6 +139,8 @@ pub trait FileSystem: Send + Sync {
     self.write(to, &self.read(from)?)
   }
 
+  fn remove_file(&self, path: &Path) -> Result<()>;
+
   fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>>;
 
   fn create_dir_all(&self, path: &Path) -> Result<()>;
@@ -195,6 +197,10 @@ impl FileSystem for OsFileSystem {
 
   fn copy(&self, from: &Path, to: &Path) -> Result<()> {
     std::fs::copy(from, to).map(|_| ())
+  }
+
+  fn remove_file(&self, path: &Path) -> Result<()> {
+    std::fs::remove_file(path)
   }
 
   fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
@@ -423,6 +429,19 @@ impl FileSystem for MemoryFileSystem {
     Ok(())
   }
 
+  fn remove_file(&self, path: &Path) -> Result<()> {
+    let name = path.file_name().unwrap();
+    let parent = path.parent().map_or(Ok(0), |p| self.dir(p))?;
+    let found = self.entry(parent, name)?;
+    let mut entries = self.entries.lock().unwrap();
+    if let Entry::Directory { children, .. } = &mut entries[parent] {
+      children.retain(|&c| c != found);
+      Ok(())
+    } else {
+      Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
+    }
+  }
+
   fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
     let dir = self.dir(path)?;
     let entries = self.entries.lock().unwrap();
@@ -567,6 +586,10 @@ impl FileSystem for OverlayFileSystem {
 
   fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
     self.mem.write(path, contents)
+  }
+
+  fn remove_file(&self, path: &Path) -> Result<()> {
+    self.mem.remove_file(path)
   }
 
   fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {

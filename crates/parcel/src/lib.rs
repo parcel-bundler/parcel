@@ -56,7 +56,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
       .filter_map(|e| SourceUrl::from_path(e.path.as_path(), parcel.project_root()).ok())
       .collect();
 
-    let affected_indices = parcel.asset_graph_builder.invalidate(&changed_urls);
+    let affected_indices = parcel.invalidate(&changed_urls);
     if affected_indices.is_empty() {
       continue;
     }
@@ -96,7 +96,7 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
       .filter_map(|e| SourceUrl::from_path(e.path.as_path(), parcel.project_root()).ok())
       .collect();
 
-    let affected_indices = parcel.asset_graph_builder.invalidate(&changed_urls);
+    let affected_indices = parcel.invalidate(&changed_urls);
     if affected_indices.is_empty() {
       continue;
     }
