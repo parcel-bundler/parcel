@@ -212,4 +212,8 @@ impl FileSystem for TrackingFileSystem {
 
     found
   }
+
+  fn as_object_cache(&self) -> Option<&dyn super::ObjectCache> {
+    self.inner.as_object_cache()
+  }
 }

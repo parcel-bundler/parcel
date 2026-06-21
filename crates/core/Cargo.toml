@@ -25,6 +25,7 @@ either = "1.15.0"
 anstyle = "*"
 dotenvy = "0.15.7"
 rayon = "1.7.0"
+papaya = "0.2.4"
 
 tree-sitter = "0.25.10"
 tree-sitter-highlight = "0.25.10"

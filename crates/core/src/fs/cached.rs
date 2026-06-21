@@ -1,4 +1,5 @@
 use std::{
+  any::{Any, TypeId},
   hash::{BuildHasherDefault, Hash, Hasher},
   io::Result,
   path::{Path, PathBuf},
@@ -8,6 +9,43 @@ use std::{
 use xxhash_rust::xxh3::xxh3_64;
 
 use super::{DirEntry, FileKind, FileStat, FileSystem};
+
+/// A cache that associates arbitrary, lazily-computed objects with a path, sharing the lifetime and
+/// invalidation of the underlying [`CachedFileSystem`]. Used to cache parsed artifacts derived from
+/// files (e.g. `package.json`, `tsconfig.json`) without the fs layer knowing their concrete types.
+///
+/// Obtain one via [`FileSystem::as_object_cache`]; prefer the generic [`get_or_compute`] helper on
+/// `dyn ObjectCache` over calling `object` directly.
+///
+/// [`get_or_compute`]: #method.get_or_compute
+pub trait ObjectCache {
+  /// Returns the object of the given type associated with `path`, computing and storing it via
+  /// `compute` if absent. The computation runs at most once per `(path, type)`.
+  fn object(
+    &self,
+    path: &Path,
+    type_id: TypeId,
+    compute: &mut dyn FnMut() -> Arc<dyn Any + Send + Sync>,
+  ) -> Arc<dyn Any + Send + Sync>;
+}
+
+impl dyn ObjectCache + '_ {
+  /// Returns the `T` associated with `path`, computing and caching it with `f` if absent.
+  pub fn get_or_compute<T: Any + Send + Sync>(
+    &self,
+    path: &Path,
+    f: impl FnOnce() -> Arc<T>,
+  ) -> Arc<T> {
+    let mut f = Some(f);
+    let value = self.object(path, TypeId::of::<T>(), &mut || {
+      let value: Arc<dyn Any + Send + Sync> = (f.take().expect("compute called twice"))();
+      value
+    });
+    value
+      .downcast::<T>()
+      .expect("object type mismatch for cached path")
+  }
+}
 
 /// A `FileSystem` decorator that memoizes filesystem metadata lookups in a concurrent cache,
 /// delegating misses to an inner file system. A single instance can be shared across the whole
@@ -26,6 +64,9 @@ pub struct CachedFileSystem {
   paths: papaya::HashSet<PathEntry, BuildHasherDefault<IdentityHasher>>,
 }
 
+/// A lazily-computed, type-erased value derived from a path (e.g. a parsed `package.json`).
+type CachedObject = Arc<OnceLock<Arc<dyn Any + Send + Sync>>>;
+
 /// Cached metadata for a single path. Each field is computed at most once; `Result`-returning
 /// operations are only cached on success (errors are rare and re-tried against the inner fs).
 struct CacheEntry {
@@ -37,6 +78,10 @@ struct CacheEntry {
   read_dir: OnceLock<Arc<Vec<DirEntry>>>,
   read_link: OnceLock<PathBuf>,
   canonical: OnceLock<PathBuf>,
+  /// Arbitrary objects derived from this path, keyed by their type. Stored type-erased so the fs
+  /// layer needn't know about resolver concepts like `package.json` or `tsconfig`. Dropped together
+  /// with the entry on invalidation, which is how derived artifacts get invalidated centrally.
+  objects: papaya::HashMap<TypeId, CachedObject>,
 }
 
 /// An entry in the path set. Hashed by its precomputed path hash and compared by path, so lookups
@@ -116,6 +161,7 @@ impl CachedFileSystem {
       read_dir: OnceLock::new(),
       read_link: OnceLock::new(),
       canonical: OnceLock::new(),
+      objects: papaya::HashMap::new(),
     });
     // A concurrent insert of the same path is harmless: `insert` keeps the existing entry and this
     // caller simply uses its own (which won't be shared), recomputing at most once.
@@ -156,10 +202,7 @@ impl FileSystem for CachedFileSystem {
   }
 
   fn kind(&self, path: &Path) -> FileKind {
-    *self
-      .entry(path)
-      .kind
-      .get_or_init(|| self.inner.kind(path))
+    *self.entry(path).kind.get_or_init(|| self.inner.kind(path))
   }
 
   fn stat(&self, path: &Path) -> Option<FileStat> {
@@ -224,6 +267,27 @@ impl FileSystem for CachedFileSystem {
     self.inner.create_dir_all(path)?;
     self.invalidate([path]);
     Ok(())
+  }
+
+  fn as_object_cache(&self) -> Option<&dyn ObjectCache> {
+    Some(self)
+  }
+}
+
+impl ObjectCache for CachedFileSystem {
+  fn object(
+    &self,
+    path: &Path,
+    type_id: TypeId,
+    compute: &mut dyn FnMut() -> Arc<dyn Any + Send + Sync>,
+  ) -> Arc<dyn Any + Send + Sync> {
+    let entry = self.entry(path);
+    let slot = entry
+      .objects
+      .pin()
+      .get_or_insert_with(type_id, || Arc::new(OnceLock::new()))
+      .clone();
+    slot.get_or_init(|| compute()).clone()
   }
 }
 
@@ -324,11 +388,19 @@ mod tests {
 
     assert!(fs.kind(path).contains(FileKind::IS_FILE));
     assert!(fs.kind(path).contains(FileKind::IS_FILE));
-    assert_eq!(counting.kind_calls.load(Ordering::Relaxed), 1, "second kind() should hit cache");
+    assert_eq!(
+      counting.kind_calls.load(Ordering::Relaxed),
+      1,
+      "second kind() should hit cache"
+    );
 
     fs.invalidate([path]);
     assert!(fs.kind(path).contains(FileKind::IS_FILE));
-    assert_eq!(counting.kind_calls.load(Ordering::Relaxed), 2, "invalidation should force a refetch");
+    assert_eq!(
+      counting.kind_calls.load(Ordering::Relaxed),
+      2,
+      "invalidation should force a refetch"
+    );
   }
 
   #[test]
@@ -352,6 +424,58 @@ mod tests {
     fs.write(Path::new("/dir/c.js"), &b"c".to_vec()).unwrap();
     assert_eq!(fs.read_dir(dir).unwrap().len(), 3);
     assert_eq!(counting.read_dir_calls.load(Ordering::Relaxed), 2);
+  }
+
+  #[test]
+  fn caches_objects_until_invalidated() {
+    let (_counting, fs) = setup();
+    let path = Path::new("/dir/a.js");
+    let cache = fs
+      .as_object_cache()
+      .expect("CachedFileSystem provides an object cache");
+    let computes = AtomicUsize::new(0);
+    // The closure counts only when actually invoked (i.e. on a cache miss).
+    let count = || computes.fetch_add(1, Ordering::Relaxed);
+
+    let v1 = cache.get_or_compute::<String>(path, || {
+      count();
+      Arc::new("hello".to_string())
+    });
+    let v2 = cache.get_or_compute::<String>(path, || {
+      count();
+      Arc::new("ignored".to_string())
+    });
+    assert_eq!(*v1, "hello");
+    assert_eq!(*v2, "hello", "second call returns the cached object");
+    assert_eq!(
+      computes.load(Ordering::Relaxed),
+      1,
+      "compute runs at most once"
+    );
+
+    // Invalidating the path drops the associated object, so it is recomputed.
+    fs.invalidate([path]);
+    let v3 = cache.get_or_compute::<String>(path, || {
+      count();
+      Arc::new("again".to_string())
+    });
+    assert_eq!(*v3, "again");
+    assert_eq!(computes.load(Ordering::Relaxed), 2);
+  }
+
+  #[test]
+  fn caches_objects_per_type() {
+    let (_counting, fs) = setup();
+    let path = Path::new("/dir/a.js");
+    let cache = fs.as_object_cache().unwrap();
+
+    let s = cache.get_or_compute::<String>(path, || Arc::new("text".to_string()));
+    let n = cache.get_or_compute::<u32>(path, || Arc::new(42u32));
+    assert_eq!(*s, "text");
+    assert_eq!(
+      *n, 42,
+      "different types are stored independently for the same path"
+    );
   }
 
   #[test]

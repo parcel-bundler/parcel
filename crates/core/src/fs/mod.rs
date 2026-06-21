@@ -183,6 +183,13 @@ pub trait FileSystem: Send + Sync {
     }
     None
   }
+
+  /// Returns an [`ObjectCache`] for associating lazily-computed, type-erased objects with paths
+  /// (e.g. parsed config files), if this file system provides one. Decorators forward to their
+  /// inner file system. Returns `None` for file systems without caching.
+  fn as_object_cache(&self) -> Option<&dyn ObjectCache> {
+    None
+  }
 }
 
 pub fn glob<F: FileSystem + ?Sized>(fs: &F, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
