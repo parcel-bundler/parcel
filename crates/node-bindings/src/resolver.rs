@@ -192,6 +192,9 @@ pub struct JsInvalidations {
 pub struct Resolver {
   mode: u8,
   resolver: parcel_resolver::Resolver<'static>,
+  /// The file system to resolve through. Wrapped in a tracking file system per resolve so the files
+  /// consulted can be reported back to JS as invalidations.
+  fs: Arc<dyn FileSystem>,
   #[cfg(not(target_arch = "wasm32"))]
   invalidations_cache: parcel_dev_dep_resolver::Cache,
   supports_async: bool,
@@ -225,10 +228,10 @@ impl Resolver {
 
     let mut resolver = match options.mode {
       1 => {
-        parcel_resolver::Resolver::parcel(Path::new(&project_root), parcel_resolver::Cache::new(fs))
+        parcel_resolver::Resolver::parcel(Path::new(&project_root), parcel_resolver::Cache::new())
       }
       2 => {
-        parcel_resolver::Resolver::node(Path::new(&project_root), parcel_resolver::Cache::new(fs))
+        parcel_resolver::Resolver::node(Path::new(&project_root), parcel_resolver::Cache::new())
       }
       _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
     };
@@ -281,6 +284,7 @@ impl Resolver {
     Ok(Self {
       mode: options.mode,
       resolver,
+      fs,
       supports_async,
       #[cfg(not(target_arch = "wasm32"))]
       invalidations_cache: Default::default(),
@@ -290,7 +294,7 @@ impl Resolver {
   #[napi]
   pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
     let (res, invalidations, side_effects, module_type) =
-      resolve_internal(&self.resolver, self.mode, options)?;
+      resolve_internal(&self.resolver, self.mode, &self.fs, options)?;
     resolve_result_to_js(env, res, invalidations, side_effects, module_type)
   }
 
@@ -306,6 +310,7 @@ impl Resolver {
     let (deferred, promise) = env.create_deferred()?;
     let resolver = &self.resolver;
     let mode = self.mode;
+    let fs = self.fs.clone();
 
     if !self.supports_async || resolver.module_dir_resolver.is_some() {
       return Err(napi::Error::new(
@@ -316,7 +321,7 @@ impl Resolver {
 
     rayon::spawn(move || {
       let (res, invalidations, side_effects, module_type) =
-        match resolve_internal(&resolver, mode, options) {
+        match resolve_internal(&resolver, mode, &fs, options) {
           Ok(r) => r,
           Err(e) => return deferred.reject(e),
         };
@@ -344,6 +349,7 @@ impl Resolver {
       &self.resolver.project_root.as_path(),
       self.resolver.cache(),
       &self.invalidations_cache,
+      &*self.fs,
     ) {
       Ok(invalidations) => {
         let invalidate_on_startup = invalidations.invalidate_on_startup.get();
@@ -366,6 +372,7 @@ impl Resolver {
 fn resolve_internal(
   resolver: &parcel_resolver::Resolver,
   mode: u8,
+  fs: &Arc<dyn FileSystem>,
   options: ResolveOptions,
 ) -> napi::Result<(
   std::result::Result<ResolutionAndQuery, ResolverError>,
@@ -373,6 +380,10 @@ fn resolve_internal(
   bool,
   u8,
 )> {
+  // Resolve through a tracking file system so we can report the files consulted back to JS as
+  // invalidations (the resolver no longer accumulates these itself).
+  let fs = parcel_core::TrackingFileSystem::new(fs.clone());
+
   let mut res = resolver.resolve_with_options(
     &options.filename,
     Path::new(&options.parent),
@@ -393,6 +404,7 @@ fn resolve_internal(
         ));
       }
     },
+    &fs,
     if let Some(conditions) = options.package_conditions {
       get_resolve_options(conditions)
     } else {
@@ -403,12 +415,12 @@ fn resolve_internal(
   let side_effects = if let Ok(ResolutionAndQuery {
     resolution: Resolution::Path(p),
     ..
-  }) = &res.result
+  }) = &res
   {
-    match resolver.resolve_side_effects(p, &res.invalidations) {
+    match resolver.resolve_side_effects(p, &fs) {
       Ok(side_effects) => side_effects,
       Err(err) => {
-        res.result = Err(err);
+        res = Err(err);
         true
       }
     }
@@ -422,15 +434,15 @@ fn resolve_internal(
     if let Ok(ResolutionAndQuery {
       resolution: Resolution::Path(p),
       ..
-    }) = &res.result
+    }) = &res
     {
-      module_type = match resolver.resolve_module_type(p, &res.invalidations) {
+      module_type = match resolver.resolve_module_type(p, &fs) {
         Ok(t) => match t {
           ModuleType::CommonJs | ModuleType::Json => 1,
           ModuleType::Module => 2,
         },
         Err(err) => {
-          res.result = Err(err);
+          res = Err(err);
           0
         }
       }
@@ -438,11 +450,54 @@ fn resolve_internal(
   }
 
   Ok((
-    res.result,
-    convert_invalidations(res.invalidations),
+    res,
+    convert_core_invalidations(fs.take()),
     side_effects,
     module_type,
   ))
+}
+
+/// Converts the invalidations recorded by a [`parcel_core::TrackingFileSystem`] (absolute `file://`
+/// URLs) into the path-string form returned to JS.
+fn convert_core_invalidations(
+  invalidations: parcel_core::Invalidations,
+) -> ConvertedInvalidations {
+  fn to_path(url: &parcel_core::SourceUrl) -> Option<String> {
+    url
+      .url()
+      .to_file_path()
+      .ok()
+      .map(|p| p.to_string_lossy().into_owned())
+  }
+
+  let invalidate_on_file_change = invalidations
+    .invalidate_on_file_change
+    .iter()
+    .filter_map(to_path)
+    .collect();
+
+  let invalidate_on_file_create = invalidations
+    .invalidate_on_file_create
+    .iter()
+    .filter_map(|inv| match inv {
+      parcel_core::FileCreateInvalidation::Path(p) => {
+        to_path(p).map(|file_path| Either3::A(FilePathCreateInvalidation { file_path }))
+      }
+      parcel_core::FileCreateInvalidation::FileName { file_name, above } => {
+        to_path(above).map(|above_file_path| {
+          Either3::B(FileNameCreateInvalidation {
+            file_name: file_name.clone(),
+            above_file_path,
+          })
+        })
+      }
+      parcel_core::FileCreateInvalidation::Glob(glob) => {
+        Some(Either3::C(GlobCreateInvalidation { glob: glob.clone() }))
+      }
+    })
+    .collect();
+
+  (invalidate_on_file_change, invalidate_on_file_create)
 }
 
 fn resolve_result_to_js(

@@ -15,12 +15,14 @@ fn run(name: &str, code: &str, asset: Asset) -> Result<Asset, DiagnosticList> {
   fs.write(&plugin_path, &code.as_bytes().to_owned())
     .expect("Error writing file");
   let plugin = JsPlugin::new(&plugin_path);
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   plugin.transform(
     asset,
     &ParcelOptions {
       input_fs: fs.clone(),
       ..Default::default()
     },
+    &dyn_fs,
   )
 }
 

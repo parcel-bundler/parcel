@@ -6,6 +6,7 @@ use std::{
 use crate::{cache::WeakPath, json_comments_rs::strip_comments_in_place};
 use indexmap::IndexMap;
 use itertools::Either;
+use parcel_core::FileSystem;
 
 use crate::{
   ResolverError,
@@ -95,8 +96,9 @@ impl TsConfig {
     path: &CachedPath,
     process: F,
     cache: &Cache,
+    fs: &dyn FileSystem,
   ) -> Result<TsConfigWrapper, ResolverError> {
-    let data = cache.fs.read_to_string(path.as_path())?;
+    let data = fs.read_to_string(path.as_path())?;
     let mut tsconfig = TsConfig::parse(path.clone(), data, &cache)
       .map_err(|e| JsonError::new(path.as_path().to_owned(), e))?;
     process(&mut tsconfig)?;

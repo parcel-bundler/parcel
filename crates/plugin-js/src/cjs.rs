@@ -32,7 +32,7 @@ impl CjsLoader {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
     let mut resolver = parcel_resolver::Resolver::node(
       Path::new(&project_root),
-      parcel_resolver::Cache::new(fs.clone()),
+      parcel_resolver::Cache::new(),
     );
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
     resolver.entries |= parcel_resolver::Fields::BROWSER;
@@ -57,11 +57,14 @@ impl CjsLoader {
       }
     }
 
-    let res = self
-      .resolver
-      .resolve(name, Path::new(base), parcel_resolver::SpecifierType::Cjs);
+    let res = self.resolver.resolve(
+      name,
+      Path::new(base),
+      parcel_resolver::SpecifierType::Cjs,
+      &*self.fs,
+    );
 
-    match res.result {
+    match res {
       Ok(res) => match res.resolution {
         parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
         parcel_resolver::Resolution::Builtin { module, .. } => {
@@ -166,7 +169,7 @@ impl CjsLoader {
 
     match self
       .resolver
-      .resolve_module_type(Path::new(resolved), &Default::default())
+      .resolve_module_type(Path::new(resolved), &*self.fs)
     {
       Ok(ModuleType::Module) => {
         let promise: rquickjs::Promise<'_> = Module::import(&ctx, resolved)?;

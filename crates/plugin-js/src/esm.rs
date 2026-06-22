@@ -41,29 +41,32 @@ pub fn create_esm_loader(
 
 pub struct ModuleResolver {
   resolver: Rc<parcel_resolver::Resolver<'static>>,
+  fs: Arc<dyn FileSystem>,
 }
 
 impl ModuleResolver {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
-    let mut resolver = parcel_resolver::Resolver::node_esm(
-      Path::new(&project_root),
-      parcel_resolver::Cache::new(fs),
-    );
+    let mut resolver =
+      parcel_resolver::Resolver::node_esm(Path::new(&project_root), parcel_resolver::Cache::new());
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
 
     ModuleResolver {
       resolver: Rc::new(resolver),
+      fs,
     }
   }
 }
 
 impl Resolver for ModuleResolver {
   fn resolve<'js>(&mut self, _ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
-    let res = self
-      .resolver
-      .resolve(name, Path::new(base), parcel_resolver::SpecifierType::Esm);
+    let res = self.resolver.resolve(
+      name,
+      Path::new(base),
+      parcel_resolver::SpecifierType::Esm,
+      &*self.fs,
+    );
 
-    match res.result {
+    match res {
       Ok(res) => match res.resolution {
         parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
         parcel_resolver::Resolution::Builtin { module, .. } => {
@@ -136,7 +139,7 @@ impl Loader for ModuleLoader {
     } else {
       self
         .resolver
-        .resolve_module_type(Path::new(name), &Default::default())
+        .resolve_module_type(Path::new(name), &*self.fs)
         .map_err(|e| rquickjs::Error::Loading {
           name: name.into(),
           message: Some(e.to_string()),

@@ -1,5 +1,5 @@
 use parcel_dev_dep_resolver::build_esm_graph;
-use parcel_resolver::{Cache, Resolution, Resolver, SpecifierType};
+use parcel_resolver::{Cache, OsFileSystem, Resolution, Resolver, SpecifierType};
 
 fn main() {
   let contents = std::fs::read_to_string("package.json").unwrap();
@@ -8,13 +8,14 @@ fn main() {
   let cwd = std::env::current_dir().unwrap();
 
   let cache = Cache::default();
+  let fs = OsFileSystem::default();
   let cjs_resolver = Resolver::node(&cwd, &cache);
   let esm_graph_cache = parcel_dev_dep_resolver::Cache::default();
 
   deps.keys().for_each(|dep| {
     #[cfg(debug_assertions)]
     println!("------------ {} -----------", dep);
-    let resolved = match cjs_resolver.resolve(dep, &cwd, SpecifierType::Esm).result {
+    let resolved = match cjs_resolver.resolve(dep, &cwd, SpecifierType::Esm, &fs) {
       Ok(res) => res.resolution,
       Err(e) => {
         #[cfg(debug_assertions)]
@@ -24,7 +25,7 @@ fn main() {
     };
 
     if let Resolution::Path(p) = resolved {
-      match build_esm_graph(&p, &cwd, &cache, &esm_graph_cache) {
+      match build_esm_graph(&p, &cwd, &cache, &esm_graph_cache, &fs) {
         Ok(_res) => {
           // #[cfg(debug_assertions)]
           // println!("{:?}", res)

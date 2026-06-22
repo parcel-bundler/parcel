@@ -18,7 +18,6 @@ use std::{
 
 /// Stores various cached info about file paths.
 pub struct Cache {
-  pub fs: Arc<dyn FileSystem>,
   paths: papaya::HashSet<PathEntry, BuildHasherDefault<IdentityHasher>>,
 }
 
@@ -65,15 +64,14 @@ impl PartialEq for BorrowedPathEntry<'_> {
 #[cfg(not(target_arch = "wasm32"))]
 impl Default for Cache {
   fn default() -> Self {
-    Cache::new(Arc::new(parcel_core::OsFileSystem))
+    Cache::new()
   }
 }
 
 impl Cache {
   /// Creates an empty cache with the given file system.
-  pub fn new(fs: Arc<dyn FileSystem>) -> Cache {
+  pub fn new() -> Cache {
     Cache {
-      fs,
       paths: papaya::HashSet::default(),
     }
   }
@@ -233,8 +231,12 @@ impl CachedPath {
   ///
   /// Delegated to the file system, which performs (and, when it is a `CachedFileSystem`, caches)
   /// the symlink resolution. The result is re-interned so callers still get a `CachedPath`.
-  pub fn canonicalize(&self, cache: &Cache) -> Result<CachedPath, ResolverError> {
-    let canonical = cache.fs.canonicalize(self.as_path())?;
+  pub fn canonicalize(
+    &self,
+    cache: &Cache,
+    fs: &dyn FileSystem,
+  ) -> Result<CachedPath, ResolverError> {
+    let canonical = fs.canonicalize(self.as_path())?;
     Ok(cache.get(&canonical))
   }
 
@@ -331,11 +333,17 @@ impl CachedPath {
   ///
   /// Cached in the file system's [`ObjectCache`](parcel_core::ObjectCache) when available (so it is
   /// invalidated when the file changes), otherwise parsed fresh each call.
-  pub fn package_json(&self, cache: &Cache) -> Arc<Result<PackageJson, ResolverError>> {
-    if let Some(objects) = cache.fs.as_object_cache() {
-      objects.get_or_compute(self.as_path(), || Arc::new(PackageJson::read(self, cache)))
+  pub fn package_json(
+    &self,
+    cache: &Cache,
+    fs: &dyn FileSystem,
+  ) -> Arc<Result<PackageJson, ResolverError>> {
+    if let Some(objects) = fs.as_object_cache() {
+      objects.get_or_compute(self.as_path(), || {
+        Arc::new(PackageJson::read(self, cache, fs))
+      })
     } else {
-      Arc::new(PackageJson::read(self, cache))
+      Arc::new(PackageJson::read(self, cache, fs))
     }
   }
 
@@ -346,14 +354,15 @@ impl CachedPath {
   pub fn tsconfig<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
     &self,
     cache: &Cache,
+    fs: &dyn FileSystem,
     process: F,
   ) -> Arc<Result<TsConfigWrapper, ResolverError>> {
-    if let Some(objects) = cache.fs.as_object_cache() {
+    if let Some(objects) = fs.as_object_cache() {
       objects.get_or_compute(self.as_path(), || {
-        Arc::new(TsConfig::read(self, process, cache))
+        Arc::new(TsConfig::read(self, process, cache, fs))
       })
     } else {
-      Arc::new(TsConfig::read(self, process, cache))
+      Arc::new(TsConfig::read(self, process, cache, fs))
     }
   }
 }
@@ -533,65 +542,65 @@ mod test {
       .symlink_to_file(dir.child("a/b").path())?;
 
     let fs = OsFileSystem::default();
-    let cache = Cache::new(Arc::new(fs));
+    let cache = Cache::new();
 
     assert_eq!(
       cache
         .get(dir.child("symlink").path())
-        .canonicalize(&cache)?,
+        .canonicalize(&cache, &fs)?,
       cache
         .get(dir.child("foo/bar.js").path())
-        .canonicalize(&cache)?
+        .canonicalize(&cache, &fs)?
     );
     assert_eq!(
       cache
         .get(dir.child("foo/symlink").path())
-        .canonicalize(&cache)?,
+        .canonicalize(&cache, &fs)?,
       cache
         .get(dir.child("root.js").path())
-        .canonicalize(&cache)?
+        .canonicalize(&cache, &fs)?
     );
     assert_eq!(
       cache
         .get(dir.child("absolute").path())
-        .canonicalize(&cache)?,
+        .canonicalize(&cache, &fs)?,
       cache
         .get(dir.child("root.js").path())
-        .canonicalize(&cache)?
+        .canonicalize(&cache, &fs)?
     );
     assert_eq!(
       cache
         .get(dir.child("recursive").path())
-        .canonicalize(&cache)?,
+        .canonicalize(&cache, &fs)?,
       cache
         .get(dir.child("root.js").path())
-        .canonicalize(&cache)?
+        .canonicalize(&cache, &fs)?
     );
     assert!(
       cache
         .get(dir.child("cycle").path())
-        .canonicalize(&cache)
+        .canonicalize(&cache, &fs)
         .is_err()
     );
     assert!(
       cache
         .get(dir.child("absolute_cycle").path())
-        .canonicalize(&cache)
+        .canonicalize(&cache, &fs)
         .is_err()
     );
     assert_eq!(
       cache
         .get(dir.child("a/b/e/d/a/b/e/d/a").path())
-        .canonicalize(&cache)?,
-      cache.get(dir.child("a").path()).canonicalize(&cache)?
+        .canonicalize(&cache, &fs)?,
+      cache.get(dir.child("a").path()).canonicalize(&cache, &fs)?
     );
     assert_eq!(
       cache
         .get(dir.child("a/link/c/x.txt").path())
-        .canonicalize(&cache)?,
+        .canonicalize(&cache, &fs)?,
       cache
         .get(dir.child("a/b/c/x.txt").path())
-        .canonicalize(&cache)?
+        .canonicalize(&cache, &fs)?
     );
 
     Ok(())

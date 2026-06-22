@@ -22,12 +22,14 @@ use crate::{
 
 pub struct DefaultPluginFactory {
   resolver: parcel_resolver::Resolver<'static>,
+  fs: Arc<dyn FileSystem>,
 }
 
 impl DefaultPluginFactory {
   pub fn new(fs: Arc<dyn FileSystem>) -> Self {
     DefaultPluginFactory {
-      resolver: parcel_resolver::Resolver::node(Path::new("/"), parcel_resolver::Cache::new(fs)),
+      resolver: parcel_resolver::Resolver::node(Path::new("/"), parcel_resolver::Cache::new()),
+      fs,
     }
   }
 }
@@ -80,10 +82,11 @@ impl PluginFactory for DefaultPluginFactory {
       }
       _ => {
         // TODO: possibly support exports conditions for platform (e.g. darwin, linux, x64, arm64, etc.)
-        let resolved = self
-          .resolver
-          .resolve(name, from, parcel_resolver::SpecifierType::Esm);
-        match resolved.result {
+        let resolved =
+          self
+            .resolver
+            .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
+        match resolved {
           Ok(resolution) => match resolution.resolution {
             Resolution::Path(path) => match path.extension().map(|s| s.as_encoded_bytes()) {
               Some(b"so" | b"dylib" | b"dll") => {
@@ -169,10 +172,11 @@ impl PluginFactory for DefaultPluginFactory {
         return Err(Diagnostic::from_message(format!("Could not find resolver {}", name)).into());
       }
       _ => {
-        let resolved = self
-          .resolver
-          .resolve(name, from, parcel_resolver::SpecifierType::Esm);
-        match resolved.result {
+        let resolved =
+          self
+            .resolver
+            .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
+        match resolved {
           Ok(resolution) => match resolution.resolution {
             parcel_resolver::Resolution::Path(path)
               if matches!(
@@ -196,13 +200,16 @@ impl PluginFactory for DefaultPluginFactory {
       return ParcelConfig::from_json(Path::new(""), include_bytes!("default-config.json"), self);
     }
 
-    let resolved = self
-      .resolver
-      .resolve(specifier, from, parcel_resolver::SpecifierType::Esm);
-    match resolved.result {
+    let resolved = self.resolver.resolve(
+      specifier,
+      from,
+      parcel_resolver::SpecifierType::Esm,
+      &*self.fs,
+    );
+    match resolved {
       Ok(resolution) => match resolution.resolution {
         Resolution::Path(path) => {
-          return ParcelConfig::read(&*self.resolver.cache().fs, &path, self);
+          return ParcelConfig::read(&*self.fs, &path, self);
         }
         _ => {}
       },

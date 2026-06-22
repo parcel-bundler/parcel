@@ -6,7 +6,7 @@ use std::{
 use dashmap::{DashMap, DashSet};
 use es_module_lexer::{ImportKind, lex};
 use parcel_resolver::{
-  Invalidations, ModuleType, Resolution, ResolutionAndQuery, ResolveOptions, Resolver,
+  FileSystem, Invalidations, ModuleType, Resolution, ResolutionAndQuery, ResolveOptions, Resolver,
   ResolverError, Specifier, SpecifierError, SpecifierType,
 };
 // use rayon::prelude::{ParallelBridge, ParallelIterator};
@@ -70,6 +70,7 @@ struct EsmGraphBuilder<'a> {
   cjs_resolver: Resolver<'a>,
   esm_resolver: Resolver<'a>,
   cache: &'a Cache,
+  fs: &'a dyn FileSystem,
 }
 
 impl<'a> EsmGraphBuilder<'a> {
@@ -96,14 +97,12 @@ impl<'a> EsmGraphBuilder<'a> {
     }
 
     let invalidations = Invalidations::default();
-    let module_type = self
-      .esm_resolver
-      .resolve_module_type(file, &invalidations)?;
+    let module_type = self.esm_resolver.resolve_module_type(file, self.fs)?;
     let resolver = match module_type {
       ModuleType::CommonJs | ModuleType::Json => &self.cjs_resolver,
       ModuleType::Module => &self.esm_resolver,
     };
-    let contents = resolver.cache().fs.read_to_string(file)?;
+    let contents = self.fs.read_to_string(file)?;
     let module = lex(&contents)?;
     #[allow(clippy::map_collect_result_unit)]
     module
@@ -129,11 +128,11 @@ impl<'a> EsmGraphBuilder<'a> {
             if let Ok(ResolutionAndQuery {
               resolution: Resolution::Path(p),
               ..
-            }) = resolver.resolve_with_invalidations(
+            }) = resolver.resolve_with_options(
               &import.specifier(),
               file,
               SpecifierType::Esm,
-              &invalidations,
+              self.fs,
               ResolveOptions::default(),
             ) {
               // println!(
@@ -180,11 +179,11 @@ impl<'a> EsmGraphBuilder<'a> {
         // Resolve the package.json file within the package rather than the package entry.
         // TODO: how should we handle package exports?
         package += "/package.json";
-        match resolver.resolve_with_invalidations(
+        match resolver.resolve_with_options(
           &package,
           from,
           SpecifierType::Esm,
-          invalidations,
+          self.fs,
           ResolveOptions::default(),
         ) {
           Ok(ResolutionAndQuery {
@@ -486,11 +485,12 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
   ret
 }
 
-pub fn build_esm_graph(
+pub fn build_esm_graph<'a>(
   file: &Path,
   project_root: &Path,
-  resolver_cache: &parcel_resolver::Cache,
-  cache: &Cache,
+  resolver_cache: &'a parcel_resolver::Cache,
+  cache: &'a Cache,
+  fs: &'a dyn FileSystem,
 ) -> Result<Invalidations, EsmGraphBuilderError> {
   let visitor = EsmGraphBuilder {
     visited: DashSet::new(),
@@ -499,6 +499,7 @@ pub fn build_esm_graph(
     cjs_resolver: Resolver::node(project_root, resolver_cache),
     esm_resolver: Resolver::node_esm(project_root, resolver_cache),
     cache,
+    fs,
   };
 
   visitor.build(file)?;

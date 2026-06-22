@@ -10,11 +10,15 @@ use parcel_resolver::{
   Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
 };
 
-pub struct DefaultResolver;
+pub struct DefaultResolver {
+  cache: parcel_resolver::Cache,
+}
 
 impl DefaultResolver {
   pub fn new(_project_root: String) -> Self {
-    DefaultResolver
+    DefaultResolver {
+      cache: parcel_resolver::Cache::new(),
+    }
   }
 }
 
@@ -63,10 +67,9 @@ impl Resolver for DefaultResolver {
     // Resolve through the per-request tracking file system so every file consulted (package.json,
     // existence checks, ...) is recorded as an invalidation of this asset. The interning cache is
     // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
-    let cache = parcel_resolver::Cache::new(fs.clone());
     let mut resolver = parcel_resolver::Resolver::parcel(
       &options.project_root.to_file_path(&options.project_root)?,
-      &cache,
+      &self.cache,
     );
     resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
@@ -79,6 +82,7 @@ impl Resolver for DefaultResolver {
         SpecifierType::Url => parcel_resolver::SpecifierType::Url,
         _ => parcel_resolver::SpecifierType::Esm,
       },
+      &**fs,
       ResolveOptions {
         conditions,
         ..Default::default()
@@ -88,12 +92,12 @@ impl Resolver for DefaultResolver {
     let side_effects = if let Ok(ResolutionAndQuery {
       resolution: Resolution::Path(p),
       ..
-    }) = &res.result
+    }) = &res
     {
-      match resolver.resolve_side_effects(p, &res.invalidations) {
+      match resolver.resolve_side_effects(p, &**fs) {
         Ok(side_effects) => side_effects,
         Err(err) => {
-          res.result = Err(err);
+          res = Err(err);
           true
         }
       }
@@ -101,7 +105,7 @@ impl Resolver for DefaultResolver {
       true
     };
 
-    match res.result {
+    match res {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
           let url = SourceUrl::from_path_and_query(

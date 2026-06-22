@@ -11,18 +11,23 @@ use parcel_js_swc_core::{
 };
 use parcel_macros::MacroError;
 use parcel_plugin_js::call_macro;
-use parcel_resolver::{AliasValue, BrowserField, InlineEnvironment, Invalidations, Specifier};
+use parcel_resolver::{AliasValue, BrowserField, InlineEnvironment, Specifier};
 
 use crate::JsContent;
 
 pub struct JsTransformer {}
 
 impl Transformer for JsTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions, fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+  fn transform(
+    &self,
+    mut asset: Asset,
+    options: &ParcelOptions,
+    fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options, fs)?;
     let resolver = parcel_resolver::Resolver::parcel(
       &options.project_root.to_file_path(&options.project_root)?,
-      parcel_resolver::Cache::new(fs.clone()),
+      parcel_resolver::Cache::new(),
     );
 
     let url = asset.loc.url.clone();
@@ -30,9 +35,15 @@ impl Transformer for JsTransformer {
     let resolve_from = asset.loc.url.to_file_path(&options.project_root)?;
     let macro_deps = Arc::new(RefCell::new(Vec::new()));
     let macro_deps_cloned = macro_deps.clone();
+    let fs_cloned = fs.clone();
     let call_macro = move |src: String, export, args, loc| {
-      let resolved = resolver.resolve(&src, &resolve_from, parcel_resolver::SpecifierType::Esm);
-      if let Ok(res) = resolved.result {
+      let resolved = resolver.resolve(
+        &src,
+        &resolve_from,
+        parcel_resolver::SpecifierType::Esm,
+        &*fs_cloned,
+      );
+      if let Ok(res) = resolved {
         if let parcel_resolver::Resolution::Path(p) = res.resolution {
           let (res, deps) = call_macro(
             options,
@@ -513,13 +524,14 @@ fn config(
 
   let resolver = parcel_resolver::Resolver::parcel(
     &options.project_root.to_file_path(&options.project_root)?,
-    parcel_resolver::Cache::new(fs.clone()),
+    parcel_resolver::Cache::new(),
   );
 
-  let invalidations = Invalidations::default();
   let pkg = resolver.find_package(
-    &resolver.cache().get(asset.loc.url.to_file_path(&options.project_root)?),
-    &invalidations,
+    &resolver
+      .cache()
+      .get(asset.loc.url.to_file_path(&options.project_root)?),
+    &**fs,
   );
   let mut react_refresh = false;
   let mut jsx_pragma = None;
@@ -556,8 +568,10 @@ fn config(
     let mut tsconfig_jsx_import_source = None;
     let mut tsconfig_jsx_factory = None;
     if let Some(tsconfig) = resolver.find_tsconfig(
-      &resolver.cache().get(asset.loc.url.to_file_path(&options.project_root)?),
-      &invalidations,
+      &resolver
+        .cache()
+        .get(asset.loc.url.to_file_path(&options.project_root)?),
+      &**fs,
     ) {
       if let Ok(tsconfig) = &*tsconfig {
         jsx_pragma = tsconfig.compiler_options.jsx_factory.clone();
@@ -678,8 +692,10 @@ fn config(
   let mut inline_constants = false;
   let mut inline_env = InlineEnvironment::default();
   if let Some(root_pkg) = resolver.find_package(
-    &resolver.cache().get(options.project_root.to_file_path(&options.project_root)?),
-    &invalidations,
+    &resolver
+      .cache()
+      .get(options.project_root.to_file_path(&options.project_root)?),
+    &**fs,
   ) {
     if let Ok(root_pkg) = &*root_pkg {
       if let Some(config) = &root_pkg.js_transformer_config {
@@ -720,7 +736,12 @@ fn config(
   }
 
   Ok(Config {
-    filename: asset.loc.url.to_file_path(&options.project_root)?.to_string_lossy().into_owned(),
+    filename: asset
+      .loc
+      .url
+      .to_file_path(&options.project_root)?
+      .to_string_lossy()
+      .into_owned(),
     code: asset.content.read()?,
     module_id: asset.id(),
     project_root: options

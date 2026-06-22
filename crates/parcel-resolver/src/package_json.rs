@@ -8,7 +8,7 @@ use std::{
 use bitflags::bitflags;
 use glob_match::{glob_match, glob_match_with_captures};
 use indexmap::IndexMap;
-use parcel_core::ExportsCondition;
+use parcel_core::{ExportsCondition, FileSystem};
 use serde::Deserialize;
 
 use crate::{
@@ -315,22 +315,32 @@ pub enum ExportsResolution<'a> {
 }
 
 impl PackageJson {
-  pub fn read(path: &CachedPath, cache: &Cache) -> Result<PackageJson, ResolverError> {
-    let contents = cache.fs.read_to_string(path.as_path())?;
-    let pkg = PackageJson::parse(path.clone(), contents, cache)
+  pub fn read(
+    path: &CachedPath,
+    cache: &Cache,
+    fs: &dyn FileSystem,
+  ) -> Result<PackageJson, ResolverError> {
+    let contents = fs.read_to_string(path.as_path())?;
+    let pkg = PackageJson::parse(path.clone(), contents, cache, fs)
       .map_err(|e| JsonError::new(path.as_path().into(), e))?;
     Ok(pkg)
   }
 
-  pub fn parse(path: CachedPath, data: String, cache: &Cache) -> serde_json::Result<PackageJson> {
+  pub fn parse(
+    path: CachedPath,
+    data: String,
+    cache: &Cache,
+    fs: &dyn FileSystem,
+  ) -> serde_json::Result<PackageJson> {
     let parsed: SerializedPackageJson = serde_json::from_str(&data)?;
-    Ok(PackageJson::from_serialized(path, parsed, cache))
+    Ok(PackageJson::from_serialized(path, parsed, cache, fs))
   }
 
   fn from_serialized(
     path: CachedPath,
     mut parsed: SerializedPackageJson,
     cache: &Cache,
+    fs: &dyn FileSystem,
   ) -> PackageJson {
     // If the package has a `source` field, make sure
     // - the package is behind symlinks
@@ -344,7 +354,7 @@ impl PackageJson {
         return is_source;
       }
 
-      if let Ok(realpath) = path.canonicalize(&cache) {
+      if let Ok(realpath) = path.canonicalize(&cache, fs) {
         let is_src = !realpath.in_node_modules();
         is_source = Some(is_src);
         is_src
@@ -1029,6 +1039,14 @@ mod tests {
   use super::*;
   use indexmap::indexmap;
 
+  fn make_pkg(
+    path: CachedPath,
+    serialized: SerializedPackageJson,
+    cache: &Cache,
+  ) -> PackageJson {
+    PackageJson::from_serialized(path, serialized, cache, &crate::OsFileSystem::default())
+  }
+
   // Based on https://github.com/lukeed/resolve.exports/blob/master/test/resolve.js,
   // https://github.com/privatenumber/resolve-pkg-maps/tree/develop/tests, and
   // https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js
@@ -1036,7 +1054,7 @@ mod tests {
   #[test]
   fn exports_string() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1059,7 +1077,7 @@ mod tests {
   #[test]
   fn exports_dot() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1087,7 +1105,7 @@ mod tests {
   #[test]
   fn exports_dot_conditions() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1132,7 +1150,7 @@ mod tests {
   #[test]
   fn exports_map_string() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1170,7 +1188,7 @@ mod tests {
   #[test]
   fn exports_map_conditions() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1215,7 +1233,7 @@ mod tests {
   #[test]
   fn nested_conditions() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1276,7 +1294,7 @@ mod tests {
   #[test]
   fn custom_conditions() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1305,7 +1323,7 @@ mod tests {
   #[test]
   fn subpath_nested_conditions() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1379,7 +1397,7 @@ mod tests {
   #[test]
   fn subpath_star() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1431,7 +1449,7 @@ mod tests {
       cache.get_normalized("/foo/literal/*.js")
     );
 
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1463,7 +1481,7 @@ mod tests {
   #[test]
   fn exports_null() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1507,7 +1525,7 @@ mod tests {
   #[test]
   fn exports_array() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1571,7 +1589,7 @@ mod tests {
       Err(PackageJsonError::PackagePathNotExported)
     ));
 
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1603,7 +1621,7 @@ mod tests {
   #[test]
   fn exports_invalid() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1655,7 +1673,7 @@ mod tests {
       Err(PackageJsonError::PackagePathNotExported)
     ));
 
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1681,7 +1699,7 @@ mod tests {
   #[test]
   fn imports() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1718,7 +1736,7 @@ mod tests {
   #[test]
   fn import_conditions() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1760,7 +1778,7 @@ mod tests {
   #[test]
   fn aliases() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1875,7 +1893,7 @@ mod tests {
   #[test]
   fn side_effects_none() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1892,7 +1910,7 @@ mod tests {
   #[test]
   fn side_effects_bool() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1919,7 +1937,7 @@ mod tests {
   #[test]
   fn side_effects_glob() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
@@ -1964,7 +1982,7 @@ mod tests {
   #[test]
   fn side_effects_array() {
     let cache = Cache::default();
-    let pkg = PackageJson::from_serialized(
+    let pkg = make_pkg(
       cache.get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),

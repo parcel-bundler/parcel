@@ -33,7 +33,8 @@ impl Transformer for TailwindTransformer {
       .map(|p| p.to_string_lossy().into_owned())
       .unwrap_or_default();
 
-    let resolver = Resolver::node(&project_root_path, Cache::new(fs.clone()));
+    let resolver = Resolver::node(&project_root_path, Cache::new());
+    let resolver_fs = fs.clone();
 
     let result_css = with_js_env(
       fs.clone(),
@@ -59,6 +60,7 @@ impl Transformer for TailwindTransformer {
                 &specifier,
                 from_path,
                 SpecifierType::Cjs,
+                &*resolver_fs,
                 ResolveOptions {
                   conditions: ExportsCondition::STYLE,
                   ..Default::default()
@@ -69,11 +71,12 @@ impl Transformer for TailwindTransformer {
                 &specifier,
                 from_path,
                 SpecifierType::Cjs,
+                &*resolver_fs,
                 Default::default(),
               )
             };
 
-            match result.result {
+            match result {
               Ok(r) => match r.resolution {
                 Resolution::Path(p) => Ok(p.to_string_lossy().into_owned()),
                 _ => Err(rquickjs::Exception::throw_message(
